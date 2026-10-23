@@ -1,0 +1,12 @@
+{
+  "task_id": "phase-aa-plan-critical-review-r1",
+  "phase": "phase-aa",
+  "branch": "plan/phase-aa",
+  "commit": "",
+  "worktree_path": "/absolute/path/to/worktree",
+  "round_index": 1,
+  "review_focus": "- architecture mistakes\n- weak boundaries\n- false closure\n- cross-document ambiguity",
+  "review_questions": "- Does every feature-level criterion have exactly one integration-sprint owner?",
+  "references": "- docs/requirements.md\n- docs/architecture.md\n- docs/plans/phase-aa/phase-aa-plan.md",
+  "previous_step_json": ""
+}

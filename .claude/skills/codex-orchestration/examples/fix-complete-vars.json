@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-09-25T05:00:00Z",
+  "task_id": "aa-1-fix1",
+  "phase": "aa",
+  "branch": "fix/aa-1-qa1",
+  "commit": "def5678",
+  "pr_number": 124,
+  "findings_fixed": 2,
+  "findings_not_reproducible": 1,
+  "findings_md": "- QA-001 fixed at crates/example/src/lib.rs:88\n- QA-002 fixed at crates/example/src/retry.rs:41\n- QA-003 not-reproducible: crates/example/src/lib.rs:12 no longer has the call",
+  "validation_md": "- `cargo test --workspace`: 214 passed, 0 failed"
+}

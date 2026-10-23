@@ -1,0 +1,12 @@
+{
+  "generated_at": "2026-09-25T05:00:00Z",
+  "task_id": "aa-1",
+  "sprint": "aa-1",
+  "branch": "sprint/aa-1-example",
+  "commit": "abc1234",
+  "pr_number": 123,
+  "deliverables_complete": 4,
+  "deliverables_total": 4,
+  "deliverables_md": "- aa-1-D1 core type: done\n- aa-1-D2 error handling: done\n- aa-1-D3 tests: done\n- aa-1-D4 docs: done",
+  "validation_md": "- `cargo fmt --check`: ok\n- `cargo clippy --workspace --all-targets -- -D warnings`: ok\n- `cargo test --workspace`: 212 passed, 0 failed"
+}
