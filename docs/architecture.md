@@ -80,6 +80,18 @@ up when the backend responds (ADR-BDC-0005).
 - All writes go through `bd` (see the research docs: writes through the
   DoltHub SQL API bypass bd's guards and events journal).
 
+### Repository configuration
+
+bdc is set up from a config file in the repository, at
+`.bd-cache/config.toml` or `.beads/bd-cache.toml` (one of the two; both
+present is a configuration error). It names the sync scopes, the timeouts
+in `CacheConfig`, and the schema packages to load by path, for example
+`.claude/skills/atm-beads/schemas`, each with an optional enforcement
+override (ADR-BDC-0008). Loading it goes through sc-config after sc-runtime
+integration; phase a's core takes the resulting `CacheConfig` as plain
+values. Format details (keys, and how it relates to BD-CACHE's
+`.atm-bd/phase-*.toml` phase files) are settled then.
+
 ### Data flow
 
 - **Read:** a front end reads the cached row with that bead's pending journal
@@ -408,7 +420,8 @@ Decision (proposed):
   label, or a `metadata.role` value) and its lifecycle rules (required at
   pour, required at close). The skill's own models stay the source and
   export the package.
-- **bdc loads packages at runtime** from configured paths, with no bdc
+- **bdc loads packages at runtime** from the paths in the repository's bdc
+  config (`.bd-cache/config.toml` or `.beads/bd-cache.toml`), with no bdc
   release needed to add or change one, and validates with a JSON Schema
   validator in `sc-beads` that btit and the later PyO3 bindings share.
 - **Configurable enforcement.** Each package sets a default mode (`off`,
