@@ -83,6 +83,9 @@ impl Gate {
     }
 }
 
+/// A callback run at every backend check.
+type Hook = Arc<Mutex<Option<Box<dyn Fn() + Send + Sync>>>>;
+
 /// A `FakeBackend` with an outage switch and a blocking gate.
 #[derive(Clone)]
 pub struct Controlled {
@@ -92,6 +95,7 @@ pub struct Controlled {
     lists_down: Arc<AtomicBool>,
     /// Blocks `list_scope` while armed.
     pub gate: Arc<Gate>,
+    on_fingerprint: Hook,
 }
 
 impl Controlled {
@@ -103,7 +107,13 @@ impl Controlled {
             down: Arc::new(AtomicBool::new(false)),
             lists_down: Arc::new(AtomicBool::new(false)),
             gate: Arc::new(Gate::default()),
+            on_fingerprint: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// Runs `f` at every backend check (the first call of a drain or a sync).
+    pub fn on_fingerprint(&self, f: impl Fn() + Send + Sync + 'static) {
+        *self.on_fingerprint.lock().unwrap() = Some(Box::new(f));
     }
 
     /// Every call is unreachable while `down`.
@@ -210,6 +220,9 @@ impl BeadsBackend for Controlled {
 
 impl CacheBackend for Controlled {
     fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsCacheError> {
+        if let Some(f) = self.on_fingerprint.lock().unwrap().as_ref() {
+            f();
+        }
         self.check(false)?;
         self.inner.fingerprint(p, d)
     }

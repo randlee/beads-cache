@@ -61,6 +61,6 @@ pub use location::{
 #[doc(inline)]
 pub use lock::FlockDrainLock;
 #[doc(inline)]
-pub use schema::{HAS_ENTRIES_SINCE_SQL, SCHEMA_VERSION};
+pub use schema::{HAS_ENTRIES_SINCE_SQL, HAS_ENTRIES_SINCE_UNHINTED_SQL, SCHEMA_VERSION};
 #[doc(inline)]
 pub use store::{BUSY_TIMEOUT, SqliteStore};

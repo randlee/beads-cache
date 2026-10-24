@@ -21,8 +21,9 @@ use crate::location::{CacheLocation, DatabaseIdentity};
 use crate::lock::FlockDrainLock;
 use crate::registry::Registration;
 use crate::schema::{
-    EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES, HAS_ENTRIES_SINCE_SQL, IN_SCOPE,
-    RECONCILE_MEMBERSHIP, SCHEMA_VERSION, V3_SCHEMA,
+    BACKFILL_APPLIED_EPOCH, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
+    HAS_ENTRIES_SINCE_SQL, HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, RECONCILE_MEMBERSHIP,
+    SCHEMA_VERSION, V3_SCHEMA,
 };
 
 /// SQLite's busy timeout on the shared file (REQ-BDC-0103).
@@ -446,6 +447,8 @@ fn initialize(
     }
     tx.execute_batch(EXTENSION_INDEXES)
         .at(at("create the extension indexes"))?;
+    tx.execute_batch(BACKFILL_APPLIED_EPOCH)
+        .at(at("date the entries bd_cache.py applied"))?;
     tx.pragma_update(None, "user_version", SCHEMA_VERSION)
         .at(at("set user_version"))?;
     let recorded: Option<String> = tx
@@ -687,11 +690,21 @@ impl CacheStore for SqliteStore {
 
     fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
         let st = self.at("ask whether the journal has entries since");
-        self.conn
-            .prepare_cached(HAS_ENTRIES_SINCE_SQL)
-            .at(st)?
-            .query_row([at.unix()], |r| r.get(0))
-            .at(st)
+        let ask = |sql: &str| -> rusqlite::Result<bool> {
+            self.conn
+                .prepare_cached(sql)?
+                .query_row([at.unix()], |r| r.get(0))
+        };
+        match ask(HAS_ENTRIES_SINCE_SQL) {
+            Ok(found) => Ok(found),
+            // Another writer dropped a hinted index: `INDEXED BY` is then an
+            // error. Ask without the hints; the next open recreates the index.
+            Err(e) if e.to_string().contains("no such index") => {
+                tracing::warn!(error = %e, "a journal index is missing; asking without it");
+                ask(HAS_ENTRIES_SINCE_UNHINTED_SQL).at(st)
+            }
+            Err(e) => Err(e).at(st),
+        }
     }
 
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {
@@ -793,15 +806,18 @@ impl CacheStore for SqliteStore {
     }
 
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError> {
-        // Bounded in SQL by `unixepoch(applied_at)`, an instant (seconds), not
-        // text; the decoded `Timestamp` re-checks it. A stored value SQLite
-        // cannot read as a time is NULL there and never matches.
+        // An entry's time is `applied_epoch`; for one `bd_cache.py` applied
+        // (no epoch, no `applied_at`) it is `updated_at`, which that writer
+        // sets when it marks the entry; one whose time cannot be read counts
+        // as applied since (ADR-STORE-0004). Such an entry has no `applied_at`
+        // to decode, and is kept.
         let mut out = self.entries(
             self.at("read applied entries"),
-            "state = 'applied' AND unixepoch(applied_at) >= ?1",
+            "state = 'applied' AND (applied_epoch >= ?1 OR (applied_epoch IS NULL AND \
+             COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1)))",
             [at.unix()],
         )?;
-        out.retain(|e| e.applied_at.as_ref().is_some_and(|t| t.unix() >= at.unix()));
+        out.retain(|e| e.applied_at.as_ref().is_none_or(|t| t.unix() >= at.unix()));
         Ok(out)
     }
 
@@ -845,10 +861,10 @@ impl CacheStore for SqliteStore {
         }
         tx.prepare_cached(
             "UPDATE journal SET state = 'applied', last_error = ?2, applied_at = ?3, \
-             updated_at = ?3 WHERE seq = ?1",
+             applied_epoch = ?4, updated_at = ?3 WHERE seq = ?1",
         )
         .at(st)?
-        .execute(params![seq.get(), err, at.as_str()])
+        .execute(params![seq.get(), err, at.as_str(), at.unix()])
         .at(st)?;
         tx.commit().at(st)
     }

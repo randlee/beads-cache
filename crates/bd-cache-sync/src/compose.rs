@@ -53,6 +53,21 @@ impl ComposeError {
     }
 }
 
+impl ComposeError {
+    /// What to do about it.
+    #[must_use]
+    pub fn fix(&self) -> &'static str {
+        match self {
+            Self::Config(_) => {
+                "correct .beads/bd-cache.toml as the cause says, or remove it to use the defaults"
+            }
+            Self::Cache(_) => {
+                "run from the beads root (or set BEADS_DIR) and check the cache file is this project's"
+            }
+        }
+    }
+}
+
 impl fmt::Display for ComposeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

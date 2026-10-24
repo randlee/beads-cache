@@ -581,6 +581,29 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
     assert_eq!(indexed("x"), 0, "a rebuild drops every base and its index");
 }
 
+/// Seeds `n` applied journal rows the way `bd_cache.py` leaves them: state
+/// `applied`, no `applied_at`, no epoch, and `updated_at` as it writes it.
+fn seed_python_applied(path: &std::path::Path, n: usize, updated_at: &str, tag: &str) {
+    // `created_at` is always readable: only the applied time is under test.
+    let mut c = Connection::open(path).unwrap();
+    let tx = c.transaction().unwrap();
+    {
+        let mut ins = tx
+            .prepare(
+                "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                 actor, state, attempts, created_at, updated_at) \
+                 VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                 '2026-10-24T07:00:00Z', ?2)",
+            )
+            .unwrap();
+        for i in 0..n {
+            ins.execute([format!("{tag}-{i}"), updated_at.to_owned()])
+                .unwrap();
+        }
+    }
+    tx.commit().unwrap();
+}
+
 /// `has_entries_since` answers from indexes, not from the journal's history
 /// (QA2-001): thousands of applied entries older than the base do not make it
 /// scan, and the query plan says so.
@@ -591,12 +614,13 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
         let mut c = Connection::open(&open.path).unwrap();
         let tx = c.transaction().unwrap();
         {
+            // Entries this store applied: with their epoch.
             let mut ins = tx
                 .prepare(
                     "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
-                     actor, state, attempts, created_at, updated_at, applied_at) \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
                      VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
-                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')",
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
                 )
                 .unwrap();
             for i in 0..5_000 {
@@ -628,10 +652,22 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
         .unwrap()
         .collect::<Result<_, _>>()
         .unwrap();
+    // The third lookup walks `journal_applied_unknown`, which holds only the
+    // entries applied without an epoch; every journal access is through an index.
+    assert!(
+        plan.iter()
+            .filter(|d| d.contains("journal"))
+            .all(|d| d.contains("USING")),
+        "{plan:?}"
+    );
     let plan = plan.join(" | ");
-    assert!(plan.contains("journal_applied_at"), "{plan}");
-    assert!(plan.contains("journal_pending"), "{plan}");
-    assert!(!plan.contains("SCAN journal"), "{plan}");
+    for index in [
+        "journal_pending",
+        "journal_applied_epoch",
+        "journal_applied_unknown",
+    ] {
+        assert!(plan.contains(index), "{index} not in {plan}");
+    }
     // And a pending entry still counts, whatever the time.
     store.ensure_scope(&x()).unwrap();
     store
@@ -642,6 +678,190 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
             .has_entries_since(&ts("2030-01-01T00:00:00Z"))
             .unwrap()
     );
+}
+
+/// Entries `bd_cache.py` applied carry no `applied_at` and no epoch; their
+/// time is `updated_at`, written as `...Z` by it and readable as `+00:00` with
+/// fractions too. Before and after the next open dates them, an old one is not
+/// "since", a recent one is, and one with an unreadable time counts as since:
+/// the base must never be served without a write Python applied (S18).
+#[test]
+fn entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since() {
+    use bd_cache_model::CacheStore as _;
+    let (open, store) = fresh("python-applied");
+    let at = ts("2026-10-24T09:00:00Z");
+    seed_python_applied(&open.path, 3, "2026-10-24T08:00:00Z", "z-old");
+    assert!(
+        !store.has_entries_since(&at).unwrap(),
+        "applied an hour before the base: not since"
+    );
+    assert!(store.applied_since(&at).unwrap().is_empty());
+
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:01Z", "z-new");
+    assert!(
+        store.has_entries_since(&at).unwrap(),
+        "applied after the base"
+    );
+    assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+    assert!(store.applied_since(&at).unwrap()[0].applied_at.is_none());
+
+    // The other format seen in the file: offset and fractions.
+    let (open2, store2) = fresh("python-applied-offset");
+    seed_python_applied(&open2.path, 1, "2026-10-24T08:59:59.500+00:00", "off-old");
+    assert!(!store2.has_entries_since(&at).unwrap());
+    seed_python_applied(&open2.path, 1, "2026-10-24T09:00:00.250+00:00", "off-new");
+    assert!(
+        store2.has_entries_since(&at).unwrap(),
+        "same second counts (inclusive)"
+    );
+
+    // A time nobody can read: conservative, forever.
+    let (open3, store3) = fresh("python-applied-garbage");
+    seed_python_applied(&open3.path, 1, "yesterday-ish", "bad");
+    assert!(store3.has_entries_since(&at).unwrap());
+    assert_eq!(store3.applied_since(&at).unwrap().len(), 1);
+    drop((store, store2, store3));
+
+    // Reopening dates the readable ones (no more scanning for them) and still
+    // answers the same.
+    let reopened = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    let undated: i64 = Connection::open(&open.path)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM journal WHERE state = 'applied' AND applied_epoch IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(undated, 0, "the open dated them");
+    assert!(
+        !reopened
+            .has_entries_since(&ts("2026-10-24T09:00:02Z"))
+            .unwrap()
+    );
+    assert!(reopened.has_entries_since(&at).unwrap());
+    let reopened3 = SqliteStore::open_at(&open3.path, &identity()).unwrap();
+    assert!(
+        reopened3.has_entries_since(&at).unwrap(),
+        "still counted after the open"
+    );
+}
+
+/// The shared file stays writable by a `bd_cache.py` on an SQLite older than
+/// 3.38, which has no `unixepoch()` (Ubuntu 22.04 ships 3.37.2) (S18): no index
+/// holds an expression, and with `unixepoch` replaced by a function that
+/// fails, every kind of journal write still works.
+#[test]
+fn no_index_holds_a_function_and_journal_writes_work_without_unixepoch() {
+    let (open, mut store) = fresh("no-functions");
+    store.ensure_scope(&x()).unwrap();
+    store
+        .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-24T08:00:00Z"))
+        .unwrap();
+    drop(store);
+    let c = Connection::open(&open.path).unwrap();
+    let expression_columns: i64 = c
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master m, pragma_index_xinfo(m.name) x \
+             WHERE m.type = 'index' AND x.cid = -2",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(expression_columns, 0, "an index holds an expression");
+    let mentions: i64 = c
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'index' AND sql LIKE '%unixepoch%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(mentions, 0);
+
+    // The stand-in for an old SQLite: a `unixepoch` that fails when called.
+    c.create_scalar_function(
+        "unixepoch",
+        -1,
+        rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+        |_| -> rusqlite::Result<i64> {
+            Err(rusqlite::Error::UserFunctionError(
+                "no unixepoch here".into(),
+            ))
+        },
+    )
+    .unwrap();
+    c.execute(
+        "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, actor, \
+         state, attempts, created_at, updated_at) \
+         VALUES ('py', 'x', 'b2', 'close', '{}', '{}', 'san', 'pending', 0, 't', 't')",
+        [],
+    )
+    .unwrap();
+    c.execute(
+        "UPDATE journal SET state = 'applied', updated_at = 'u' WHERE idem_key = 'py'",
+        [],
+    )
+    .unwrap();
+    c.execute("DELETE FROM journal WHERE idem_key = 'py'", [])
+        .unwrap();
+}
+
+/// `INDEXED BY` is an error when another writer dropped the index: the check
+/// falls back to the unhinted query and stays correct (QA3-007).
+#[test]
+fn the_entries_since_check_survives_a_dropped_index() {
+    let (open, store) = fresh("dropped-index");
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:01Z", "late");
+    let at = ts("2026-10-24T09:00:00Z");
+    assert!(store.has_entries_since(&at).unwrap());
+    let c = Connection::open(&open.path).unwrap();
+    c.execute_batch("DROP INDEX journal_applied_epoch; DROP INDEX journal_applied_unknown;")
+        .unwrap();
+    assert!(
+        store.has_entries_since(&at).unwrap(),
+        "still true without the indexes"
+    );
+    assert!(
+        !store
+            .has_entries_since(&ts("2026-10-24T09:00:02Z"))
+            .unwrap()
+    );
+    drop(store);
+    let again = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    let back: i64 = c
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name IN ('journal_applied_epoch', 'journal_applied_unknown')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(back, 2, "the open recreates them");
+    assert!(again.has_entries_since(&at).unwrap());
+}
+
+/// The shared file used to carry an expression index on `unixepoch()`; a file
+/// an earlier build made loses it when this store opens it.
+#[test]
+fn the_expression_index_of_an_earlier_build_is_dropped_on_open() {
+    let (open, store) = fresh("drop-expression-index");
+    drop(store);
+    Connection::open(&open.path)
+        .unwrap()
+        .execute(
+            "CREATE INDEX journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied'",
+            [],
+        )
+        .unwrap();
+    let _store = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    let left: i64 = Connection::open(&open.path)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE name = 'journal_applied_at'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(left, 0);
 }
 
 /// `bd_cache.py` (atm-core `05831df`) never creates, reads or writes `ready_base`,

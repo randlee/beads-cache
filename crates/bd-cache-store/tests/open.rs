@@ -170,7 +170,8 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             "created_at",
             "updated_at",
             "announced_at",
-            "applied_at"
+            "applied_at",
+            "applied_epoch"
         ]
     );
     assert_eq!(
@@ -219,7 +220,8 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
         "beads_phase",
         "edges_target",
         "journal_pending",
-        "journal_applied_at",
+        "journal_applied_epoch",
+        "journal_applied_unknown",
     ] {
         assert!(indexes.iter().any(|i| i == index), "{index} in {indexes:?}");
     }

@@ -179,7 +179,16 @@ type RealJob =
 
 fn tick(job: &RealJob) -> bd_cache_sync::TickReply {
     match job.run_blocking(Deadline::after(&SystemClock, TICK_BUDGET)) {
-        TickRun::Done(reply) => *reply,
+        TickRun::Done(reply) => {
+            // A tick that deferred its sync (a loaded host ran out of budget)
+            // proves nothing either way: say so instead of failing an assertion.
+            assert!(
+                reply.deferred.is_empty() && !reply.busy,
+                "inconclusive, not a regression: the tick deferred its work ({reply:?}); \
+                 the host is too loaded for a live run, rerun when it is idle"
+            );
+            *reply
+        }
         other => panic!("the tick did not run: {other:?}"),
     }
 }

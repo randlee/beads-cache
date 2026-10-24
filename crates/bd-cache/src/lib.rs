@@ -67,9 +67,8 @@ mod write;
 
 pub(crate) use outage::call;
 
-/// The status text of a closed bead (bd's `closed`); the one literal the cache
-/// and its callers compare against.
-pub const CLOSED_STATUS: &str = "closed";
+#[doc(no_inline)]
+pub use bd_cache_model::CLOSED_STATUS;
 
 /// The bd-cache facade.
 ///
@@ -152,8 +151,10 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     }
 
     /// The cached bead as `get` would answer, or `None` when the cache does not
-    /// hold it. Never calls bd and never fills a miss, and costs the same
-    /// whatever the size of the bead's scope (NFR-BDC-0001).
+    /// hold it. Never calls bd and never fills a miss. Its cost does not grow
+    /// with the size of the bead's scope while no write is in flight (nothing
+    /// pending, nothing applied since the scope's base was fetched); with one in
+    /// flight the scope's whole base is adjusted, as `get` does (ADR-CORE-0206).
     ///
     /// # Errors
     ///

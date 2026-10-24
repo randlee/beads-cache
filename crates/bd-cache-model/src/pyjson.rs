@@ -79,7 +79,8 @@ fn write_str(out: &mut String, s: &str) {
             c => {
                 let mut units = [0u16; 2];
                 for u in c.encode_utf16(&mut units) {
-                    let _ = write!(out, "\\u{u:04x}");
+                    // Writing to a String cannot fail.
+                    write!(out, "\\u{u:04x}").unwrap_or_default();
                 }
             }
         }

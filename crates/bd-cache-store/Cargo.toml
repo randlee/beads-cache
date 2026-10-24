@@ -15,8 +15,11 @@ sc-beads.workspace = true
 rusqlite.workspace = true
 fs4.workspace = true
 serde_json.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
+# `functions`: a test registers its own `unixepoch` to stand in for an SQLite without one.
+rusqlite = { workspace = true, features = ["functions"] }
 bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
 

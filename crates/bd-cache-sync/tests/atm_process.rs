@@ -24,6 +24,8 @@ use bd_cache_sync::{AtmSender, StopFlag, TICK_BUDGET};
 const FLAG: &str = "--fake-atm=";
 /// How long a test waits for a child to show it started, or to be gone.
 const WAIT: Duration = Duration::from_secs(10);
+/// How long a hanging fake lives at most, so a failing test leaves no long-lived orphan.
+const FAKE_LIFETIME: Duration = Duration::from_secs(25);
 
 /// The fake `atm`: `<exe> --fake-atm=<mode> <out-prefix> <atm args...>`.
 fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
@@ -58,7 +60,7 @@ fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
         // Records its pid at once, then never finishes.
         "hang" => {
             std::fs::write(format!("{out}.pid"), std::process::id().to_string()).unwrap();
-            std::thread::sleep(Duration::from_secs(60));
+            std::thread::sleep(FAKE_LIFETIME);
             0
         }
         // Starts a grandchild that hangs, then hangs itself.
@@ -73,8 +75,22 @@ fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
                 .args([&format!("{FLAG}hang"), &format!("{out}.grandchild")])
                 .spawn()
                 .unwrap();
-            std::thread::sleep(Duration::from_secs(60));
+            std::thread::sleep(FAKE_LIFETIME);
             0
+        }
+        // Fails with a message while a descendant keeps its output pipes open.
+        "fail-orphan" => {
+            let exe = std::env::current_exe().unwrap();
+            #[expect(
+                clippy::zombie_processes,
+                reason = "the grandchild outlives its parent on purpose"
+            )]
+            let _grandchild = std::process::Command::new(exe)
+                .args([&format!("{FLAG}hang"), &format!("{out}.grandchild")])
+                .spawn()
+                .unwrap();
+            eprintln!("error: mailbox full");
+            3
         }
         other => panic!("unknown fake atm mode {other}"),
     }
@@ -134,7 +150,17 @@ fn assert_gone(pid: u32, what: &str) {
 
 /// Kills the pids it holds when dropped, so a failing test leaves no orphan
 /// sleeping for a minute.
+#[derive(Default)]
 struct Reaper(Vec<u32>);
+
+impl Reaper {
+    /// Reads the pid in `path` (waiting for it) and keeps it to be killed.
+    fn track(&mut self, path: &str) -> u32 {
+        let pid = pid_in(path);
+        self.0.push(pid);
+        pid
+    }
+}
 
 impl Drop for Reaper {
     fn drop(&mut self) {
@@ -212,7 +238,28 @@ fn output_beyond_the_limit_is_dropped_and_the_error_says_so() {
     assert!(err.detail.len() < 8 * 1024, "{} bytes", err.detail.len());
 }
 
+/// The pid in `path`, if the fake has written it by now.
+fn pid_now(path: &str) -> Option<u32> {
+    std::fs::read_to_string(path)
+        .ok()
+        .and_then(|text| text.trim().parse().ok())
+}
+
+/// After a timer-driven kill: whatever the fakes had started by then is gone.
+/// (A fake killed before it wrote its pid has nothing left to leak; the
+/// process-tree guarantee itself is asserted by the stop-flag test, which
+/// waits for both processes before it stops them.)
+fn assert_started_ones_are_gone(prefix: &str, reaper: &mut Reaper) {
+    for file in [format!("{prefix}.pid"), format!("{prefix}.grandchild.pid")] {
+        if let Some(pid) = pid_now(&file) {
+            reaper.0.push(pid);
+            assert_gone(pid, &file);
+        }
+    }
+}
+
 fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
+    let mut reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("hung");
     let err = sender("hang", &out)
@@ -220,15 +267,13 @@ fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
         .unwrap()
         .send("l", "t", "hi")
         .unwrap_err();
-    assert_eq!(err.kind, SendErrorKind::TimedOut);
+    assert_kind(&err, SendErrorKind::TimedOut);
     assert!(err.detail.contains("did not finish"), "{err}");
-    // It had started (its pid is there) and it is gone.
-    let pid = pid_in(&format!("{}.pid", out.display()));
-    let _reaper = Reaper(vec![pid]);
-    assert_gone(pid, "the timed-out atm");
+    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
 }
 
 fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
+    let mut reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("tree");
     let err = sender("tree", &out)
@@ -236,35 +281,33 @@ fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
         .unwrap()
         .send("l", "t", "hi")
         .unwrap_err();
-    assert_eq!(err.kind, SendErrorKind::TimedOut);
-    // Both processes had started, and both are gone.
-    let child = pid_in(&format!("{}.pid", out.display()));
-    let grandchild = pid_in(&format!("{}.grandchild.pid", out.display()));
-    let _reaper = Reaper(vec![child, grandchild]);
-    assert_gone(child, "the child");
-    assert_gone(grandchild, "the grandchild");
+    assert_kind(&err, SendErrorKind::TimedOut);
+    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
 }
 
 fn the_time_a_tick_passes_bounds_the_send() {
+    let mut reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("within");
     let started = Instant::now();
     let err = sender("hang", &out)
         .send_within("l", "t", "hi", Duration::from_millis(250))
         .unwrap_err();
-    assert_eq!(err.kind, SendErrorKind::TimedOut);
+    assert_kind(&err, SendErrorKind::TimedOut);
     assert!(
         started.elapsed() < Duration::from_secs(5),
         "{:?}",
         started.elapsed()
     );
+    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
     let none = sender("hang", &out)
         .send_within("l", "t", "hi", Duration::ZERO)
         .unwrap_err();
-    assert_eq!(none.kind, SendErrorKind::TimedOut);
+    assert_kind(&none, SendErrorKind::TimedOut);
 }
 
 fn the_stop_flag_kills_the_child_and_its_descendants() {
+    let mut reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("stopped");
     let stop = StopFlag::new();
@@ -281,18 +324,65 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
         })
     };
     let started = Instant::now();
-    let err = sender("tree", &out)
+    let result = sender("tree", &out)
         .with_timeout(Duration::from_secs(20))
         .unwrap()
         .with_stop(stop)
-        .send("l", "t", "hi")
-        .unwrap_err();
+        .send("l", "t", "hi");
     let (child, grandchild) = watcher.join().unwrap();
-    let _reaper = Reaper(vec![child, grandchild]);
-    assert_eq!(err.kind, SendErrorKind::Cancelled);
+    reaper.0.extend([child, grandchild]);
+    let err = result.unwrap_err();
+    assert_kind(&err, SendErrorKind::Cancelled);
     assert!(started.elapsed() < Duration::from_secs(15));
     assert_gone(child, "the child");
     assert_gone(grandchild, "the grandchild");
+}
+
+/// A failing atm whose descendant keeps the output pipes open: the send fails
+/// at once with what it could read, and does not wait for the descendant (QA3-003).
+fn a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it() {
+    let mut reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("orphan");
+    let started = Instant::now();
+    let err = sender("fail-orphan", &out)
+        .send("l", "t", "hi")
+        .unwrap_err();
+    let took = started.elapsed();
+    reaper.track(&format!("{}.grandchild.pid", out.display()));
+    assert_kind(&err, SendErrorKind::Exited);
+    assert!(
+        took < Duration::from_secs(3),
+        "waited {took:?} for the descendant"
+    );
+    assert!(
+        err.detail.contains("mailbox full") || err.detail.contains("not fully read"),
+        "{err}"
+    );
+}
+
+/// On Unix a file without an execute bit is not a program (QA3-008).
+#[cfg(unix)]
+fn a_file_without_an_execute_bit_does_not_resolve() {
+    use std::os::unix::fs::PermissionsExt as _;
+    let dir = tempfile::tempdir().unwrap();
+    let file = dir.path().join("atm");
+    std::fs::write(&file, "#!/bin/sh\n").unwrap();
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o644)).unwrap();
+    let s = AtmSender::with_binary(&file);
+    assert_eq!(s.resolve().unwrap_err().kind, SendErrorKind::NotStartable);
+    assert_eq!(
+        s.send("l", "t", "hi").unwrap_err().kind,
+        SendErrorKind::NotStartable
+    );
+    std::fs::set_permissions(&file, std::fs::Permissions::from_mode(0o755)).unwrap();
+    assert_eq!(s.resolve().unwrap(), file);
+}
+#[cfg(not(unix))]
+fn a_file_without_an_execute_bit_does_not_resolve() {}
+
+fn assert_kind(err: &bd_cache_model::SendError, kind: SendErrorKind) {
+    assert_eq!(err.kind, kind, "{err}");
 }
 
 fn an_atm_that_exits_without_reading_still_counts_as_delivered_by_its_status() {
@@ -348,7 +438,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         std::process::exit(code);
     }
-    let tests: [(&str, fn()); 12] = [
+    let tests: [(&str, fn()); 14] = [
         (
             "delivers_the_body_on_stdin_with_the_reference_invocation",
             delivers_the_body_on_stdin_with_the_reference_invocation,
@@ -380,6 +470,14 @@ fn main() {
         (
             "the_stop_flag_kills_the_child_and_its_descendants",
             the_stop_flag_kills_the_child_and_its_descendants,
+        ),
+        (
+            "a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it",
+            a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it,
+        ),
+        (
+            "a_file_without_an_execute_bit_does_not_resolve",
+            a_file_without_an_execute_bit_does_not_resolve,
         ),
         (
             "an_atm_that_exits_without_reading_still_counts_as_delivered_by_its_status",

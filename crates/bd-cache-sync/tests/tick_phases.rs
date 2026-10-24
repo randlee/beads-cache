@@ -405,3 +405,33 @@ fn phase_file_problems_have_their_own_codes() {
         .unwrap();
     assert!(bad_lead.fix.contains("whitespace"), "{}", bad_lead.fix);
 }
+
+/// A phase file that is a pipe is opened without waiting for a writer and is
+/// reported, not read: the tick holds the cache while it reads phase files
+/// (RSH-024).
+#[cfg(unix)]
+#[test]
+fn a_phase_file_that_is_a_pipe_does_not_block_the_tick() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let fifo = w.dir.path().join("phase-pipe.toml");
+    let made = std::process::Command::new("mkfifo")
+        .arg(&fifo)
+        .status()
+        .unwrap();
+    assert!(made.success());
+    let dir = w.dir.path().to_path_buf();
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(bd_cache_sync::load_phases(&dir, None));
+    });
+    let set = rx
+        .recv_timeout(std::time::Duration::from_secs(10))
+        .expect("reading the phase files blocked on a pipe")
+        .unwrap();
+    assert_eq!(set.phases.len(), 1);
+    assert!(matches!(
+        set.problems.as_slice(),
+        [bd_cache_sync::PhaseFileProblem::NotAFile { .. }]
+    ));
+}

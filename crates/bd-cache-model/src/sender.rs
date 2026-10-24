@@ -3,6 +3,12 @@
 use std::fmt;
 use std::time::Duration;
 
+/// The rule a member name (a lead or a team) follows, in words: the one text
+/// every message about it uses. A name that breaks it could be read as an option
+/// or split in two when it becomes part of an `atm send` address.
+pub const MEMBER_NAME_RULE: &str =
+    "not empty, with no whitespace, control character or '@', and not starting with '-'";
+
 /// Why a message was not delivered.
 ///
 /// The kind says whether trying again can help; [`SendErrorKind::fix`] says
@@ -49,7 +55,7 @@ impl SendErrorKind {
     pub fn fix(self) -> &'static str {
         match self {
             Self::InvalidAddress => {
-                "correct the lead and team names (no spaces, '@' or leading '-')"
+                "correct the lead and team names to follow MEMBER_NAME_RULE (the detail states it)"
             }
             Self::NotStartable => "install atm or set its path, and check it is executable",
             Self::TimedOut => {

@@ -79,6 +79,26 @@ impl AlertCause {
             .map(Self::Sync)
     }
 
+    /// The cause a stored alert value names, in either writer's format: this
+    /// crate stores the bare key; `bd_cache.py` stores `"<code>: <detail>"`
+    /// (atm-core `05831df`, `bd_cache_cron.py`: `f"{error.code}: {error.detail}"`),
+    /// so the key is what precedes the first `": "`. `None` for text that does not
+    /// start with a known key.
+    #[must_use]
+    pub fn from_stored(value: &str) -> Option<Self> {
+        let key = value.split_once(": ").map_or(value, |(key, _)| key);
+        Self::from_key(key.trim())
+    }
+
+    /// Whether an alert that stored `self` already announces `new`, so `new`
+    /// need not be sent again: the same cause, or `self` is the generic
+    /// `BD_CACHE.SYNC_FAILED` that `bd_cache.py` records for every sync failure
+    /// (it keeps the underlying code in a separate field it does not store in the alert).
+    #[must_use]
+    pub fn covers(self, new: Self) -> bool {
+        self == new || (self == Self::SyncFailed && matches!(new, Self::Sync(_)))
+    }
+
     /// The cause of a failed sync.
     #[must_use]
     pub fn of(e: &CacheError) -> Self {
@@ -93,6 +113,11 @@ impl serde::Serialize for AlertCause {
     fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(self.key())
     }
+}
+
+/// Whether a stored alert is the outage's.
+fn is_outage_alert(stored: Option<&str>) -> bool {
+    stored.and_then(AlertCause::from_stored) == Some(AlertCause::BackendUnavailable)
 }
 
 /// The lead of a phase for alerts about the backend: its own, else the fallback.
@@ -141,7 +166,12 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
         return Ok(());
     }
     let scope = phase.scope();
-    if cache.sync_alert(&scope)?.as_deref() == Some(cause.key()) {
+    if cache
+        .sync_alert(&scope)?
+        .as_deref()
+        .and_then(AlertCause::from_stored)
+        .is_some_and(|stored| stored.covers(cause))
+    {
         return Ok(());
     }
     let lead = alert_lead(phase, settings);
@@ -224,7 +254,7 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
         let mut scopes: Vec<ScopeId> = status.scopes.iter().map(|s| s.sync.scope.clone()).collect();
         scopes.extend(all.iter().map(Phase::scope));
         for scope in scopes {
-            if cache.sync_alert(&scope)?.as_deref() == Some(AlertCause::BackendUnavailable.key()) {
+            if is_outage_alert(cache.sync_alert(&scope)?.as_deref()) {
                 cache.set_sync_alert(&scope, None)?;
             }
         }
@@ -475,6 +505,66 @@ mod tests {
             AlertCause::of(&sync_failed(Some(SyncCause::BdListFailed))).key(),
             "BD_CACHE.BD_LIST_FAILED"
         );
+    }
+
+    /// An alert `bd_cache.py` stored (`"<code>: <detail>"`) is understood, and a
+    /// failure it already announced is not announced again (S21).
+    #[test]
+    fn an_alert_in_bd_cache_pys_format_is_read_and_covers_the_failure_it_announced() {
+        assert_eq!(
+            AlertCause::from_stored("BD_CACHE.SYNC_FAILED: phase x: BD_CACHE.BD_LIST_FAILED: boom"),
+            Some(AlertCause::SyncFailed)
+        );
+        assert_eq!(
+            AlertCause::from_stored("BD_CACHE.BD_CONTRACT: field status"),
+            Some(AlertCause::Sync(SyncCause::BdContract))
+        );
+        assert_eq!(
+            AlertCause::from_stored("backend_unavailable"),
+            Some(AlertCause::BackendUnavailable)
+        );
+        assert_eq!(AlertCause::from_stored("unknown: x"), None);
+        let generic = AlertCause::SyncFailed;
+        assert!(generic.covers(AlertCause::Sync(SyncCause::BdListFailed)));
+        assert!(generic.covers(AlertCause::SyncFailed));
+        assert!(
+            !AlertCause::Sync(SyncCause::BdContract)
+                .covers(AlertCause::Sync(SyncCause::BdListFailed))
+        );
+        assert!(!AlertCause::BackendUnavailable.covers(AlertCause::Sync(SyncCause::BdListFailed)));
+
+        // End to end: the store holds Python's alert; the failure is not re-sent.
+        let clock = Arc::new(ManualClock::default());
+        let stop = StopFlag::new();
+        let budget = Budget {
+            clock: &*clock,
+            end: Deadline::after(&*clock, Duration::from_secs(25)),
+            stop: &stop,
+        };
+        let sender = Recorder::default();
+        let mut cache = cache(&clock);
+        cache
+            .set_sync_alert(
+                &phase().scope(),
+                Some("BD_CACHE.SYNC_FAILED: phase x: BD_CACHE.BD_CONTRACT: a field"),
+            )
+            .unwrap();
+        let mut reply = TickReply::started();
+        sync_failure(
+            &mut cache,
+            &sender,
+            &settings(),
+            &budget,
+            &phase(),
+            &sync_failed(Some(SyncCause::BdContract)),
+            &mut reply,
+        )
+        .unwrap();
+        assert!(
+            sender.0.lock().unwrap().is_empty(),
+            "Python already told the lead"
+        );
+        assert!(reply.sent.is_empty());
     }
 
     #[test]

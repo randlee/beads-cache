@@ -393,14 +393,13 @@ impl ScheduleError {
 impl ScheduleError {
     /// What to do about it.
     #[must_use]
-    pub fn fix(&self) -> String {
+    pub fn fix(&self) -> &'static str {
         match self {
-            Self::Config(c) => c.code().fix().to_owned(),
-            Self::PhasesDir(_) => RefusalCode::PhasesDirUnreadable.fix().to_owned(),
-            Self::Sender(e) => e.fix().to_owned(),
+            Self::Config(c) => c.code().fix(),
+            Self::PhasesDir(_) => RefusalCode::PhasesDirUnreadable.fix(),
+            Self::Sender(e) => e.fix(),
             Self::Cron(_) => {
-                "use a repository name sc-cron accepts (1 to 128 characters, no control characters)"
-                    .to_owned()
+                "use a repository name sc-cron accepts (nonempty, no control characters)"
             }
         }
     }

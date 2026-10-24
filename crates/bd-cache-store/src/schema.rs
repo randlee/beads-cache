@@ -51,6 +51,9 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
     ("ready_base", "indexed", "INTEGER"),
     ("beads", "revision", "TEXT"),
     ("journal", "applied_at", "TEXT"),
+    // Unix seconds of `applied_at`, filled when this store marks an entry
+    // applied (ADR-STORE-0004); NULL for entries bd_cache.py applied.
+    ("journal", "applied_epoch", "INTEGER"),
     ("sync_state", "backend_kind", "TEXT"),
     ("sync_state", "endpoint", "TEXT"),
     ("sync_state", "replica_id", "TEXT"),
@@ -58,20 +61,60 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
 ];
 
 /// Created after the extension columns exist.
+///
+/// No index holds a function (ADR-STORE-0002, ADR-STORE-0004): `bd_cache.py`
+/// on an SQLite older than 3.38 (Ubuntu 22.04 ships 3.37.2) cannot evaluate
+/// `unixepoch()`, and an index that used it would make every journal write
+/// of that writer fail. `journal_applied_at` of an earlier build of this
+/// store was such an index and is dropped.
 pub(crate) const EXTENSION_INDEXES: &str = "
 CREATE INDEX IF NOT EXISTS beads_membership_unknown ON beads(id) WHERE membership_known IS NULL;
-CREATE INDEX IF NOT EXISTS journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied';
+DROP INDEX IF EXISTS journal_applied_at;
+CREATE INDEX IF NOT EXISTS journal_applied_epoch ON journal(applied_epoch) WHERE state = 'applied';
+CREATE INDEX IF NOT EXISTS journal_applied_unknown ON journal(seq) WHERE state = 'applied' AND applied_epoch IS NULL;
+";
+
+/// Fills `journal.applied_epoch` for entries applied without it: by
+/// `bd_cache.py` (which sets `state` and `updated_at` and never `applied_at`),
+/// or before the column existed. The time of such an entry is `applied_at` if
+/// it has one, else `updated_at`; a value SQLite cannot read as a time stays
+/// NULL and keeps counting as "applied since" (conservative). Run in the open
+/// transaction; `unixepoch()` is evaluated by this process's bundled SQLite
+/// and appears in no index.
+pub(crate) const BACKFILL_APPLIED_EPOCH: &str = "
+UPDATE journal SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at))
+WHERE state = 'applied' AND applied_epoch IS NULL
+  AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL;
 ";
 
 /// `CacheStore::has_entries_since`: is anything pending, or applied at or
-/// after `?1` (Unix seconds)? Both halves are index lookups
-/// (`journal_pending`, `journal_applied_at`; the planner prefers the first
-/// for both, so the second is named), so the cost does not grow with
-/// the journal's history; `tests/store.rs` asserts the query plan.
+/// after `?1` (Unix seconds)? Three index lookups, so the cost does not grow
+/// with the journal's history (`tests/store.rs` asserts the query plan):
+/// pending entries (`journal_pending`); entries this store applied, by
+/// `applied_epoch` (`journal_applied_epoch`); and entries applied without an
+/// epoch (`bd_cache.py`'s, or unreadable times: `journal_applied_unknown`),
+/// whose time is `applied_at` else `updated_at`, and which count as applied
+/// since when that time is unreadable. The planner, without statistics, scans
+/// the applied rows through `journal_pending` unless told otherwise, so the
+/// last two name their index; [`HAS_ENTRIES_SINCE_UNHINTED_SQL`] is the same
+/// question for a file another writer dropped one of them from.
 pub const HAS_ENTRIES_SINCE_SQL: &str = "SELECT \
     EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR \
-    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_at \
-        WHERE state = 'applied' AND unixepoch(applied_at) >= ?1)";
+    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_epoch \
+        WHERE state = 'applied' AND applied_epoch >= ?1) OR \
+    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_unknown \
+        WHERE state = 'applied' AND applied_epoch IS NULL \
+        AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1))";
+
+/// [`HAS_ENTRIES_SINCE_SQL`] without the index hints: correct whatever indexes
+/// exist, slower on a long history. Used, with a warning, when a hinted index
+/// is missing (`INDEXED BY` is an error then), and the indexes are recreated
+/// at the next open.
+pub const HAS_ENTRIES_SINCE_UNHINTED_SQL: &str = "SELECT \
+    EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR \
+    EXISTS (SELECT 1 FROM journal WHERE state = 'applied' AND applied_epoch >= ?1) OR \
+    EXISTS (SELECT 1 FROM journal WHERE state = 'applied' AND applied_epoch IS NULL \
+        AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1))";
 
 /// Membership of rows another implementation wrote, taken from their `phase`
 /// column and made authoritative; leftover `scope_member` rows of deleted

@@ -5,6 +5,12 @@
 //! checks it between phases and before every message, and an [`AtmSender`]
 //! built with the same flag kills its child process. Shutdown order:
 //!
+//! The drain keeps its own budget and does not look at the flag: a stop that
+//! arrives while it runs is seen when it returns, so the worst-case delay is the
+//! drain's hard deadline, `T - 2 s` (the start gate stops new entries at `T - 5 s`,
+//! the entry in flight is capped at `T - 2 s`), that is the start gate plus one
+//! `bd` call (ADR-SYNC-0002; `a_stop_that_arrives_mid_drain_is_seen_within_the_drains_hard_deadline`).
+//!
 //! 1. [`StopFlag::stop`] (and the scheduler's `shutdown`, which stops starting runs);
 //! 2. wait for the worker (`WorkerHandle::shutdown`), which waits for the run in flight;
 //! 3. drop the job.

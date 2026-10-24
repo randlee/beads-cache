@@ -408,7 +408,8 @@ impl CacheStore for FakeStore {
         };
         e.state = JournalState::Resolved;
         let mut text = e.last_error.take().unwrap_or_default();
-        let _ = write!(text, " | resolved by {actor}: {note}");
+        // Writing to a String cannot fail.
+        write!(text, " | resolved by {actor}: {note}").unwrap_or_default();
         e.last_error = Some(text);
         Ok(())
     }

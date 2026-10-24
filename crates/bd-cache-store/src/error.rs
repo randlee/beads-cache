@@ -36,7 +36,8 @@ pub(crate) fn chain(e: &dyn Error) -> String {
     let mut text = e.to_string();
     let mut next = e.source();
     while let Some(cause) = next {
-        let _ = write!(text, ": {cause}");
+        // Writing to a String cannot fail.
+        write!(text, ": {cause}").unwrap_or_default();
         next = cause.source();
     }
     text

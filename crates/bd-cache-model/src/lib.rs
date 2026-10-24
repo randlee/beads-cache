@@ -64,7 +64,8 @@ pub use error::{
 pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
 #[doc(inline)]
 pub use op::{
-    OPS, Op, meta_value, normalize, parse_precondition, phase_of, precondition_json, replay, unmet,
+    CLOSED_STATUS, OPS, Op, meta_value, normalize, parse_precondition, phase_of, precondition_json,
+    replay, unmet,
 };
 #[doc(inline)]
 pub use pyjson::python_json;
@@ -76,7 +77,7 @@ pub use reply::{
 #[doc(inline)]
 pub use scope::{PhaseName, ScopeId};
 #[doc(inline)]
-pub use sender::{EscalationSender, SendError, SendErrorKind};
+pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
 #[doc(inline)]
 pub use state::{
     BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus,

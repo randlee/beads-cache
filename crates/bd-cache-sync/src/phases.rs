@@ -36,8 +36,8 @@ pub const MAX_PHASE_FILE_BYTES: u64 = 64 * 1024;
 /// The most phase files read from the directory (atm-core has five).
 pub const MAX_PHASE_FILES: usize = 256;
 
-/// The member-name rule, in words, as every message states it.
-pub(crate) const MEMBER_RULE: &str = "a name that is not empty, has no whitespace, control character or '@', and does not start with '-'";
+/// The member-name rule, in words (the model's, so every message states the same).
+pub(crate) use bd_cache_model::MEMBER_NAME_RULE as MEMBER_RULE;
 
 /// `phase-<x>.toml`: the name prefix of a phase file.
 const FILE_PREFIX: &str = "phase-";
@@ -53,7 +53,19 @@ pub struct InvalidMember {
 
 impl fmt::Display for InvalidMember {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} cannot be addressed; use {MEMBER_RULE}", self.value)
+        write!(
+            f,
+            "{:?} cannot be addressed; a name must be {MEMBER_RULE}",
+            self.value
+        )
+    }
+}
+
+impl InvalidMember {
+    /// A stable code.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        "invalid_member"
     }
 }
 
@@ -156,7 +168,10 @@ impl fmt::Display for ConfigRefusal {
             Self::MissingTeam => f.write_str("[tick] team is missing"),
             Self::MissingFallbackLead => f.write_str("[tick] fallback_lead is missing"),
             Self::BadMember { key, value } => {
-                write!(f, "[tick] {key} {value:?} cannot be addressed")
+                write!(
+                    f,
+                    "[tick] {key} {value:?} cannot be addressed: a name must be {MEMBER_RULE}"
+                )
             }
             Self::MalformedPhases { entry } => {
                 write!(f, "[tick] phases entry {entry:?} is not a phase name")
@@ -406,7 +421,7 @@ impl fmt::Display for PhaseFileProblem {
             }
             Self::BadLead { file, lead } => write!(
                 f,
-                "{}: lead {lead:?} cannot be addressed (use {MEMBER_RULE})",
+                "{}: lead {lead:?} cannot be addressed (a name must be {MEMBER_RULE})",
                 file.display()
             ),
             Self::NotAFile { file } => {
@@ -447,7 +462,9 @@ impl PhaseFileProblem {
     #[must_use]
     pub fn fix(&self) -> String {
         match self {
-            Self::BadLead { .. } => format!("set lead to {MEMBER_RULE}, or remove it"),
+            Self::BadLead { .. } => {
+                format!("set lead to a name that is {MEMBER_RULE}, or remove it")
+            }
             _ => self.code().fix().to_owned(),
         }
     }
@@ -492,6 +509,12 @@ impl std::error::Error for PhasesError {
 }
 
 impl PhasesError {
+    /// A stable code.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        RefusalCode::PhasesDirUnreadable.as_str()
+    }
+
     /// The refusal a tick reports for it (the cause is spelled out in the detail).
     #[must_use]
     pub fn refusal(&self) -> Refusal {
@@ -576,6 +599,18 @@ pub fn load_phases(dir: &Path, only: Option<&[PhaseName]>) -> Result<PhaseSet, P
     Ok(set)
 }
 
+/// Opens `path` for reading without waiting for a writer (`O_NONBLOCK` on Unix).
+fn open_without_blocking(path: &Path) -> io::Result<std::fs::File> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NONBLOCK);
+    }
+    options.open(path)
+}
+
 /// Parses one phase file.
 fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
     let file = || path.to_path_buf();
@@ -583,8 +618,11 @@ fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
         file: file(),
         reason: e.to_string(),
     };
-    let meta = std::fs::metadata(path).map_err(unreadable)?;
-    // Checked before opening: opening a pipe would block.
+    // Open first, then look at the handle: a path checked and then opened could
+    // be swapped for a pipe in between, and opening a pipe for reading blocks
+    // (the tick holds the cache while it reads phase files).
+    let mut handle = open_without_blocking(path).map_err(unreadable)?;
+    let meta = handle.metadata().map_err(unreadable)?;
     if !meta.is_file() {
         return Err(PhaseFileProblem::NotAFile { file: file() });
     }
@@ -596,8 +634,9 @@ fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
     }
     // Bounded again while reading: the file may grow after the check.
     let mut text = String::new();
-    std::fs::File::open(path)
-        .and_then(|f| f.take(MAX_PHASE_FILE_BYTES + 1).read_to_string(&mut text))
+    (&mut handle)
+        .take(MAX_PHASE_FILE_BYTES + 1)
+        .read_to_string(&mut text)
         .map_err(unreadable)?;
     if text.len() as u64 > MAX_PHASE_FILE_BYTES {
         return Err(PhaseFileProblem::TooLarge {

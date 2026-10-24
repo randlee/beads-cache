@@ -151,3 +151,45 @@ fn no_tick_exceeds_25_s_with_every_bd_call_timing_out() {
         }
     }
 }
+
+/// The drain keeps its own budget and does not look at the stop flag (S20): a
+/// stop that arrives while it runs is seen when it returns. The worst-case delay
+/// is the drain's hard deadline, `T - 2 s`: the start gate stops new entries at
+/// `T - 5 s` and the entry in flight is capped at `T - 2 s`. After it the tick
+/// starts no phase and sends nothing.
+#[test]
+fn a_stop_that_arrives_mid_drain_is_seen_within_the_drains_hard_deadline() {
+    let (w, mut cache, seqs) = world_with_entries(4);
+    let stop = bd_cache_sync::StopFlag::new();
+    {
+        let stop = stop.clone();
+        w.switch.on_fingerprint(move || stop.stop());
+    }
+    w.bd.set_cost(4 * SECOND);
+    w.bd.clear_calls();
+    let start = w.clock.elapsed();
+    let settings = bd_cache_sync::TickSettings::from_config(&w.config()).unwrap();
+
+    let reply = bd_cache_sync::tick_with(
+        &mut cache,
+        &settings,
+        &*w.sender,
+        w.after(TICK_BUDGET),
+        &stop,
+    )
+    .unwrap();
+
+    let took = w.clock.elapsed().saturating_sub(start);
+    assert!(reply.stopped, "{reply:?}");
+    assert!(reply.drain.is_some(), "the drain ran to its own end");
+    assert!(
+        reply.synced.is_empty() && reply.active.is_empty(),
+        "no phase after the stop"
+    );
+    assert!(reply.sent.is_empty());
+    assert!(
+        took + bd_cache_model::HARD_MARGIN <= TICK_BUDGET,
+        "the stop took {took:?} to be seen; the bound is the drain's hard deadline"
+    );
+    let _ = seqs;
+}

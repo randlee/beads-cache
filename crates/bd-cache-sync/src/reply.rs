@@ -102,7 +102,7 @@ impl RefusalCode {
             Self::MissingFallbackLead => {
                 "set [tick] fallback_lead to the member told of escalations that belong to no phase"
             }
-            Self::BadMember => "use a member name without whitespace, '@' or a leading '-'",
+            Self::BadMember => "use a member name that follows the rule the detail states",
             Self::MalformedPhases => {
                 "use letters, digits, '-', '_' and '.', with or without the phase- prefix"
             }

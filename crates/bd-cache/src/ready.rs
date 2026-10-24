@@ -102,12 +102,12 @@ pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     s: &ScopeId,
     view: &Bead,
 ) -> Result<Option<Vec<BeadId>>, CacheError> {
-    let Some(entry) = cache.store.base_entry(s, &view.id)? else {
-        return Ok(None);
-    };
     if !s.holds(view) {
         return Ok(None);
     }
+    let Some(entry) = cache.store.base_entry(s, &view.id)? else {
+        return Ok(None);
+    };
     let untouched = !cache.store.has_entries_since(&entry.fetched_at)?;
     if untouched {
         return Ok(Some(entry.blocked_by));
