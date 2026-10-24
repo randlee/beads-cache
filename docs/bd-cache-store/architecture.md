@@ -151,14 +151,17 @@ Decision:
 - The store's own failures are `BD_CACHE.STORE_FAILED`
   (`CacheError::store_failed`): `detail` names the step and the file, and
   the underlying error (rusqlite, I/O, serde_json) is kept as the error's
-  `source`. These are `STORE_FAILED` with no source: a stored row that
-  does not decode, an unknown edge type, an invalid stored id or timestamp
-  (each naming the entry, never skipped); a refused one-connection claim
-  (NFR-BDC-0007); and a journal mode SQLite will not set to WAL. `NO_DATABASE` means only missing or
-  invalid `metadata.json` (REQ-BDC-0102).
+  `source` when there is one. `STORE_FAILED` has no source for: any stored
+  value that does not decode or is inconsistent (`row_json`, an edge or
+  scope kind, an id, timestamp or phase name, journal fields, the ready
+  base, an `outage_since` without `outage_error`), each naming the entry
+  and never skipped; a refused one-connection claim (NFR-BDC-0007); and a
+  journal mode SQLite will not set to WAL. `NO_DATABASE` means only
+  missing or invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
   (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
-  function (`error::failed` / `error::corrupt`) makes the mapping.
+  module makes the mapping: `error::failed` (with a source) and
+  `error::corrupt` (without).
 - `ConfigLoadError` (`load_repo_config`) carries its cause one way only: as
   `Error::source`. Its `Display` names the file and the fix, without the
   cause, so a reporter walking the source chain prints the cause once.

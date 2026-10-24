@@ -1,10 +1,13 @@
 //! How the store reports its own failures (ADR-STORE-0003).
 //!
-//! A failure of the store itself (SQLite, file I/O, a stored value that no
-//! longer decodes) is `BD_CACHE.STORE_FAILED` (a-1 amendment 1): `detail`
-//! names the failing step and the file, and the underlying error is kept as
-//! the error's source ([`CacheError::store_failed`]). `NO_DATABASE` stays for
-//! missing or invalid `metadata.json` only. This module makes the mapping.
+//! A failure of the store itself is `BD_CACHE.STORE_FAILED` (a-1 amendment
+//! 1), with `detail` naming the failing step and the file. SQLite, file I/O
+//! and serde_json failures keep the underlying error as the source
+//! ([`failed`], [`CacheError::store_failed`]). A failure with no underlying
+//! error has no source ([`corrupt`]): a stored value that does not decode or
+//! is inconsistent, a refused one-connection claim, or a journal mode SQLite
+//! will not set to WAL. `NO_DATABASE` stays for missing or invalid
+//! `metadata.json` only. This module makes the mapping.
 
 use std::error::Error;
 use std::fmt::{self, Write as _};
@@ -41,7 +44,9 @@ pub(crate) fn failed(step: Step<'_>, e: impl Error + Send + Sync + 'static) -> C
     CacheError::store_failed(format!("{step}: {}", chain(&e)), e)
 }
 
-/// A stored value that does not decode (a corrupt or foreign row): `STORE_FAILED`, no source.
+/// A store failure with no underlying error (a stored value that does not
+/// decode or is inconsistent, a refused one-connection claim, WAL refused):
+/// `STORE_FAILED`, no source.
 pub(crate) fn corrupt(step: Step<'_>, detail: impl fmt::Display) -> CacheError {
     CacheError::StoreFailed {
         detail: format!("{step}: {detail}"),

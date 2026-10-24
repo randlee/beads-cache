@@ -79,8 +79,10 @@ stale rows. Every mutating method is one `BEGIN IMMEDIATE` transaction;
 `status`, `get_row` and `rows_in_scope` each read one snapshot. `apply_with_readback` refuses a row that
 is not the entry's bead (`BD_CACHE.BD_CONTRACT`, nothing changed). Every
 value read back is validated, and one that does not decode is an error
-naming the entry. The store's own failures are `BD_CACHE.STORE_FAILED`
-keeping the underlying error as the source (ADR-STORE-0003).
+naming the entry. The store's own failures are `BD_CACHE.STORE_FAILED`,
+keeping the underlying error as the source when there is one; an
+undecodable or inconsistent stored value, a refused one-connection claim
+and WAL refused have none (ADR-STORE-0003).
 
 **Refines:** REQ-BDC-0105, 0109, 0405, 0502, 0504, 0601, 0602, 0604, 0901,
 0902, 0909, 0603 (store side)
