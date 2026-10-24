@@ -229,7 +229,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Rerun for fix-a-4-3 on commit `0a150d58ccbe5c1121b06cfe12e0fd893e5a7d66`, the last commit
+Rerun for fix-a-4-4 on commit `4a4198fa731b6524a83833b8248241f16b7fe246`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -282,11 +282,11 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes. Results at `0a150d5` are unchanged from `a71dd39`; bug 15 also failed 5 of 5 separate runs against the restructured race test.
+list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes. Results at `4a4198f` are unchanged from `a71dd39`; bug 15 also failed 5 of 5 separate runs against the restructured race test.
 
 ## Validation
 
-Local, on `0a150d5` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
+Local, on `4a4198f` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
 
 | Gate | Result |
 |---|---|
@@ -297,6 +297,6 @@ Local, on `0a150d5` (macOS; `cargo test --workspace --all-features`: 433 passed,
 | `cargo test --workspace --all-features` | pass |
 | `cargo build --workspace` | pass |
 
-CI on `c698001` (code as at `0a150d5`, plus this document) is green on
-ubuntu, macos and windows, with the compatibility tests running on each:
-run [40078224582](https://github.com/randlee/beads-cache/actions/runs/40078224582).
+CI on `4a4198f`, the last code commit, is green on ubuntu, macos and
+windows, with the compatibility tests running on each: run
+[40078978898](https://github.com/randlee/beads-cache/actions/runs/40078978898).
