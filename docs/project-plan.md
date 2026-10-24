@@ -30,10 +30,17 @@ Naming follows the Plan Naming section of
 
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
-| `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | planning |
+| `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | in progress |
 
 ## Sprints
 
 | Sprint | Phase | Deliverable | Branch | Status |
 |---|---|---|---|---|
-| _none yet_ | | | | |
+| [a-1](plans/phase-a/sprint-a-1-contracts.md) | a | contracts: sc-beads, bd-cache-model, bd-cache skeleton | `sprint/a-1-contracts` | in progress |
+| [a-2](plans/phase-a/sprint-a-2-sc-bd-cli.md) | a | sc-bd-cli | `sprint/a-2-sc-bd-cli` | planned |
+| [a-3](plans/phase-a/sprint-a-3-sc-cron.md) | a | sc-cron prototype | `sprint/a-3-sc-cron` | in progress |
+| [a-4](plans/phase-a/sprint-a-4-store.md) | a | bd-cache-store | `sprint/a-4-store` | planned |
+| [a-5](plans/phase-a/sprint-a-5-core-write.md) | a | bd-cache write path | `sprint/a-5-core-write` | planned |
+| [a-6](plans/phase-a/sprint-a-6-core-read.md) | a | bd-cache read path | `sprint/a-6-core-read` | planned |
+| [a-7](plans/phase-a/sprint-a-7-sync-integration.md) | a | bd-cache-sync and integration | `sprint/a-7-sync-integration` | planned |
+| [a-8](plans/phase-a/sprint-a-8-python-bindings.md) | a | bd-cache-py bindings | `sprint/a-8-python-bindings` | planned |
