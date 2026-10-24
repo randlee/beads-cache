@@ -83,7 +83,7 @@ drain's hard deadline, `T - 2 s`: the start gate (no new entry starts after
 `T - 5 s`) plus one `bd` call (the entry in flight is capped at `T - 2 s`).
 `control.rs` implements this and `tests/tick_budget.rs` tests it.
 
-Note (fix-a-7-4, QA4-006, extends the S20 note): the flag is also checked after the cached root reads and before
+Note (fix-a-7-4, QA4-006, extends the S20 note; **Status:** Approved (lead ruling S24, bc-lead, 2026-10-24)): the flag is also checked after the cached root reads and before
 the one `bd list --id` of the uncached roots (ADR-SYNC-0005). A stop that is
 set by then does not start that call; the tick replies `stopped` with no sync
 and no message, so a stop that arrives after the drain waits at most for the
@@ -186,15 +186,15 @@ superseded: it is constant while no write is in flight, and when a write is in
 flight (pending, or applied since the scope's base was fetched) the scope's
 base is adjusted, as `get` does, until the next sync (QA3-006; ADR-CORE-0206).
 
-Note (fix-a-7-4, ARCH-304, clarifies the S19 amendment): "the scope has synced" means the phase's own scope
+Note (fix-a-7-4, ARCH-304, clarifies the S19 amendment; **Status:** Approved (lead ruling S24, bc-lead, 2026-10-24)): "the scope has synced" means the phase's own scope
 (`phase-<x>`), not the scope `Cache::cached` reports the bead under. A root
 that carries several phase labels is reported under the first known one, and
 that scope's `scope_last_ok_at` says nothing about the phase whose root it is.
 The phase's own `sync_state.last_ok_at` is read instead. `Cache` has no
 accessor for one scope's sync state, and `bd-cache` is outside this layer, so
 the states come from one `Cache::status` (store reads only, no `bd` call) per
-tick, taken only when some root is held in its phase's scope. A one-scope
-accessor in `bd-cache` would replace it. `tests/tick_phases.rs`
+`active_phases` call, taken only when some root is held in its phase's scope
+(accepted by S24; a `Cache::sync_state` accessor is deferred). `tests/tick_phases.rs`
 (`a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`)
 tests it.
 
