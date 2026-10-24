@@ -16,6 +16,7 @@
 
 use std::io::{Read, Write};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use bd_cache_model::{EscalationSender, SendErrorKind};
@@ -151,20 +152,38 @@ fn assert_gone(pid: u32, what: &str) {
 /// Kills the pids it holds when dropped, so a failing test leaves no orphan
 /// sleeping for a minute.
 #[derive(Default)]
-struct Reaper(Vec<u32>);
+struct Reaper(Arc<Mutex<Vec<u32>>>);
 
 impl Reaper {
+    /// Keeps `pid` to be killed.
+    fn add(&self, pid: u32) {
+        self.0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(pid);
+    }
+
     /// Reads the pid in `path` (waiting for it) and keeps it to be killed.
-    fn track(&mut self, path: &str) -> u32 {
+    fn track(&self, path: &str) -> u32 {
         let pid = pid_in(path);
-        self.0.push(pid);
+        self.add(pid);
         pid
+    }
+
+    /// A handle to the same list, for a thread that discovers pids: what it
+    /// found before it panicked is still killed when the reaper drops.
+    fn shared(&self) -> Arc<Mutex<Vec<u32>>> {
+        Arc::clone(&self.0)
     }
 }
 
 impl Drop for Reaper {
     fn drop(&mut self) {
-        for pid in &self.0 {
+        let pids = self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for pid in pids.iter() {
             #[cfg(unix)]
             let _ = std::process::Command::new("kill")
                 .args(["-KILL", &pid.to_string()])
@@ -249,17 +268,17 @@ fn pid_now(path: &str) -> Option<u32> {
 /// (A fake killed before it wrote its pid has nothing left to leak; the
 /// process-tree guarantee itself is asserted by the stop-flag test, which
 /// waits for both processes before it stops them.)
-fn assert_started_ones_are_gone(prefix: &str, reaper: &mut Reaper) {
+fn assert_started_ones_are_gone(prefix: &str, reaper: &Reaper) {
     for file in [format!("{prefix}.pid"), format!("{prefix}.grandchild.pid")] {
         if let Some(pid) = pid_now(&file) {
-            reaper.0.push(pid);
+            reaper.add(pid);
             assert_gone(pid, &file);
         }
     }
 }
 
 fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
-    let mut reaper = Reaper::default();
+    let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("hung");
     let err = sender("hang", &out)
@@ -269,11 +288,11 @@ fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
         .unwrap_err();
     assert_kind(&err, SendErrorKind::TimedOut);
     assert!(err.detail.contains("did not finish"), "{err}");
-    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
+    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
 }
 
 fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
-    let mut reaper = Reaper::default();
+    let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("tree");
     let err = sender("tree", &out)
@@ -282,11 +301,11 @@ fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
         .send("l", "t", "hi")
         .unwrap_err();
     assert_kind(&err, SendErrorKind::TimedOut);
-    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
+    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
 }
 
 fn the_time_a_tick_passes_bounds_the_send() {
-    let mut reaper = Reaper::default();
+    let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("within");
     let started = Instant::now();
@@ -299,7 +318,7 @@ fn the_time_a_tick_passes_bounds_the_send() {
         "{:?}",
         started.elapsed()
     );
-    assert_started_ones_are_gone(&out.display().to_string(), &mut reaper);
+    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
     let none = sender("hang", &out)
         .send_within("l", "t", "hi", Duration::ZERO)
         .unwrap_err();
@@ -307,17 +326,27 @@ fn the_time_a_tick_passes_bounds_the_send() {
 }
 
 fn the_stop_flag_kills_the_child_and_its_descendants() {
-    let mut reaper = Reaper::default();
+    let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("stopped");
     let stop = StopFlag::new();
     // The stop comes only once both processes have started.
     let watcher = {
-        let (flag, prefix) = (stop.clone(), out.display().to_string());
+        let (flag, prefix, found) = (stop.clone(), out.display().to_string(), reaper.shared());
         std::thread::spawn(move || {
+            // Each pid is recorded in the reaper's list as soon as it is read,
+            // so a panic after the first leaves it known and killed.
+            let track = |path: String| {
+                let pid = pid_in(&path);
+                found
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .push(pid);
+                pid
+            };
             let pids = (
-                pid_in(&format!("{prefix}.pid")),
-                pid_in(&format!("{prefix}.grandchild.pid")),
+                track(format!("{prefix}.pid")),
+                track(format!("{prefix}.grandchild.pid")),
             );
             flag.stop();
             pids
@@ -330,7 +359,6 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
         .with_stop(stop)
         .send("l", "t", "hi");
     let (child, grandchild) = watcher.join().unwrap();
-    reaper.0.extend([child, grandchild]);
     let err = result.unwrap_err();
     assert_kind(&err, SendErrorKind::Cancelled);
     assert!(started.elapsed() < Duration::from_secs(15));
@@ -341,7 +369,7 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
 /// A failing atm whose descendant keeps the output pipes open: the send fails
 /// at once with what it could read, and does not wait for the descendant (QA3-003).
 fn a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it() {
-    let mut reaper = Reaper::default();
+    let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("orphan");
     let started = Instant::now();

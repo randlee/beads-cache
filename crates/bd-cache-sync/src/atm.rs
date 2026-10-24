@@ -17,7 +17,9 @@
 //! Windows) and reaped, so a launcher such as `uv run atm` cannot leave a
 //! grandchild delivering a message the tick will send again. And the child's
 //! output is read by threads that are waited for no longer than the time left
-//! in the same budget; output beyond a limit is dropped and the error says so.
+//! in the same budget (clamped to the send deadline, with a floor of
+//! `READ_FLOOR`, so a send overruns its deadline by less than the tick's send
+//! reserve, REQ-SYNC-0011); output beyond a limit is dropped and the error says so.
 //! Each send starts at most three threads (the message writer and one reader per
 //! output stream); they end when the pipes close, so a descendant that outlives
 //! a failed send keeps its readers until it exits (ADR-SYNC-0007). A tick that
@@ -38,7 +40,7 @@ use std::time::{Duration, Instant};
 
 use bd_cache_model::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
 
-use crate::control::StopFlag;
+use crate::control::{SEND_RESERVE, StopFlag};
 use crate::phases::MemberName;
 use crate::tick::TICK_BUDGET;
 
@@ -60,6 +62,25 @@ const POLL: Duration = Duration::from_millis(20);
 /// with a failure: a reader that has its data needs a scheduler slice; one
 /// that does not is held open by a descendant.
 const READ_GRACE: Duration = Duration::from_millis(250);
+/// The least the output readers are waited for even when the send deadline has
+/// all but passed: enough for a scheduler slice, and (with [`READ_GRACE`]) below
+/// the tick's send reserve, so the overrun of a send deadline stays inside it.
+const READ_FLOOR: Duration = Duration::from_millis(50);
+
+// The reserve the tick keeps after the last message (REQ-SYNC-0011) must cover
+// the longest wait after a send's deadline.
+const _: () = assert!(
+    READ_GRACE.as_millis() < SEND_RESERVE.as_millis(),
+    "READ_GRACE must be shorter than the tick's SEND_RESERVE"
+);
+const _: () = assert!(READ_FLOOR.as_millis() <= READ_GRACE.as_millis());
+
+/// When to stop reading a failed child's output: [`READ_GRACE`] from `now`, but
+/// no later than the send deadline `until`, and never less than [`READ_FLOOR`].
+fn read_deadline(now: Instant, until: Instant) -> Instant {
+    let left = until.saturating_duration_since(now);
+    now + READ_GRACE.min(left).max(READ_FLOOR)
+}
 
 /// A timeout the sender refuses to use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -299,22 +320,75 @@ fn capture(mut from: impl Read + Send + 'static) -> mpsc::Receiver<Captured> {
     rx
 }
 
-/// Kills the child and everything it started, then reaps it.
+/// How long the tree kill and the reaping may each take before they are given
+/// up on: a stuck `kill` or `taskkill`, or a child in an uninterruptible state,
+/// must not hold the tick past its end `T`.
+const KILL_BOUND: Duration = Duration::from_secs(1);
+
+/// Polls `child` until it has exited or `bound` has passed; whether it exited.
+fn exited_within(child: &mut Child, bound: Duration) -> bool {
+    let until = Instant::now() + bound;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => return true,
+            Ok(None) => {}
+            Err(_) => return false,
+        }
+        if Instant::now() >= until {
+            return false;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Runs the platform's tree-kill program for at most [`KILL_BOUND`]; a failure
+/// or an overrun is logged, never waited out.
+fn run_tree_kill(mut command: Command, pid: u32) {
+    let mut helper = match command.stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
+        Ok(helper) => helper,
+        Err(e) => {
+            tracing::warn!(error = %e, pid, "cannot start the atm tree kill; killing the child only");
+            return;
+        }
+    };
+    let until = Instant::now() + KILL_BOUND;
+    loop {
+        match helper.try_wait() {
+            Ok(Some(status)) if status.success() => return,
+            Ok(Some(status)) => {
+                tracing::warn!(%status, pid, "killing the atm process tree failed; killing the child only");
+                return;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                tracing::warn!(error = %e, pid, "waiting for the atm tree kill failed; killing the child only");
+                return;
+            }
+        }
+        if Instant::now() >= until {
+            tracing::warn!(
+                pid,
+                "the atm tree kill did not finish in time; giving up on it"
+            );
+            let _ = helper.kill();
+            // Reap it if it dies at once; a stuck one is left, not waited for.
+            let _ = exited_within(&mut helper, Duration::from_millis(50));
+            return;
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+/// Kills the child and everything it started, then reaps it, in bounded time.
 ///
 /// Only called while the child has not been reaped, so its process-group id
 /// (its pid) cannot belong to anything else. The tree is killed with the
 /// platform's own program (`kill` with a negative pid, `taskkill /T`): the
-/// crate has no `unsafe` and no `libc` dependency (ADR-SYNC-0006). A failing
-/// tree kill is logged and the child itself is killed regardless.
+/// crate has no `unsafe` and calls no libc function (ADR-SYNC-0006). Neither
+/// the tree kill nor the reaping waits longer than [`KILL_BOUND`]; a failing
+/// or overrunning tree kill is logged and the child itself is killed regardless.
 fn kill_tree(child: &mut Child) {
-    let run = |mut c: Command| match c.stdout(Stdio::null()).stderr(Stdio::null()).status() {
-        Ok(status) if status.success() => {}
-        outcome => tracing::warn!(
-            ?outcome,
-            pid = child.id(),
-            "killing the atm process tree failed; killing the child only"
-        ),
-    };
+    let pid = child.id();
     #[cfg(unix)]
     {
         // The child leads its own process group (`process_group(0)`), so the
@@ -325,25 +399,27 @@ fn kill_tree(child: &mut Child) {
             "kill"
         };
         let mut kill = Command::new(program);
-        kill.args(["-KILL", "--", &format!("-{}", child.id())]);
-        run(kill);
+        kill.args(["-KILL", "--", &format!("-{pid}")]);
+        run_tree_kill(kill, pid);
     }
     #[cfg(windows)]
     {
         let mut kill = Command::new("taskkill");
-        kill.args(["/T", "/F", "/PID", &child.id().to_string()]);
-        run(kill);
+        kill.args(["/T", "/F", "/PID", &pid.to_string()]);
+        run_tree_kill(kill, pid);
     }
     // The tree kill is absent on other platforms or may have failed: kill the
-    // child itself too. Reaping stops a zombie.
+    // child itself too, and reap it so it is no zombie.
     let _ = child.kill();
-    let _ = child.wait();
+    if !exited_within(child, KILL_BOUND) {
+        tracing::warn!(pid, "the atm child was not reaped in time; giving up on it");
+    }
 }
 
 /// The output of a stream, waited for until `until`: the child has exited, so
 /// a reader that still has no end of stream is held open by a descendant, and
 /// the send does not wait for it. One deadline serves both streams, so the wait
-/// is at most [`READ_GRACE`] in all, inside the tick's send reserve.
+/// is at most [`READ_GRACE`] in all (see [`read_deadline`]), inside the tick's send reserve.
 fn collect(rx: Option<mpsc::Receiver<Captured>>, until: Instant) -> String {
     let Some(rx) = rx else {
         return String::new();
@@ -435,7 +511,7 @@ impl EscalationSender for AtmSender {
         if status.success() {
             return Ok(());
         }
-        let read_until = Instant::now() + READ_GRACE;
+        let read_until = read_deadline(Instant::now(), until);
         let (out, err) = (collect(stdout, read_until), collect(stderr, read_until));
         let said = if err.is_empty() { out } else { err };
         Err(SendError::with_kind(
@@ -518,5 +594,37 @@ mod tests {
         assert_eq!(names("atm.EXE", ".exe;.cmd", true), ["atm.EXE"]);
         assert_eq!(names("atm", ".EXE;junk;;", true), ["atm.EXE"]);
         assert_eq!(names("atm", ".COM;.EXE", false), ["atm"]);
+    }
+
+    /// The read deadline is the grace, cut to the send deadline, never below the floor.
+    #[test]
+    fn the_read_deadline_is_clamped_to_the_send_deadline_with_a_floor() {
+        let now = Instant::now();
+        assert_eq!(
+            read_deadline(now, now + Duration::from_secs(5)),
+            now + READ_GRACE
+        );
+        let near = Duration::from_millis(100);
+        assert_eq!(read_deadline(now, now + near), now + near);
+        assert_eq!(read_deadline(now, now), now + READ_FLOOR);
+    }
+
+    /// Two silent readers share one deadline: the wait is about `READ_GRACE`
+    /// in all, not once per stream (RSH-026).
+    #[test]
+    fn collect_waits_one_shared_grace_for_both_streams() {
+        let (_keep_out, out) = mpsc::channel::<Captured>();
+        let (_keep_err, err) = mpsc::channel::<Captured>();
+        let started = Instant::now();
+        let until = started + READ_GRACE;
+        let (o, e) = (collect(Some(out), until), collect(Some(err), until));
+        let took = started.elapsed();
+        assert_eq!(o, "(output not fully read)");
+        assert_eq!(e, "(output not fully read)");
+        assert!(took >= READ_GRACE.mul_f32(0.9), "{took:?}");
+        assert!(
+            took < READ_GRACE + READ_GRACE.mul_f32(0.8),
+            "waited {took:?}, not one grace"
+        );
     }
 }
