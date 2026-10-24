@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sc_bd_cli::testing::{FakeBd, RecordingInvoker};
-use sc_bd_cli::{BdCli, BoundedError, CliInvoker};
+use sc_bd_cli::{BdCli, BoundedError, CliInvoker, TimeoutPhase};
 use sc_beads::error::BeadsError;
 use sc_beads::testing::contract::{P6_INITIAL_BLOCKED, P6_LABEL};
 use sc_beads::testing::{actor, bead, id, FakeOp, Injection, ManualClock};
@@ -677,22 +677,42 @@ fn a_refused_connection_is_unavailable_and_not_a_timeout() {
 
 #[test]
 fn a_timeout_is_unavailable_with_timed_out_set() {
-    let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(Err(BoundedError::TimedOut)));
+    // Each phase is a timeout, and the reason names where the call was.
+    for phase in [
+        TimeoutPhase::Lock,
+        TimeoutPhase::Child,
+        TimeoutPhase::Output,
+    ] {
+        let rig = Rig::new(
+            RecordingInvoker::new(None).reply_bounded(Err(BoundedError::TimedOut { phase })),
+        );
+        let e = rig
+            .cli
+            .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+            .unwrap_err();
+        assert!(
+            matches!(&e, BeadsCacheError::Unavailable { timed_out: true, reason } if reason.contains(phase.as_str())),
+            "{phase}: {e:?}"
+        );
+        assert!(e.is_timeout());
+    }
+}
+
+#[test]
+fn unreadable_or_oversized_output_is_a_contract_error_not_a_spawn_failure() {
+    let rig = Rig::new(
+        RecordingInvoker::new(None)
+            .reply_bounded(Err(BoundedError::Output(std::io::Error::other("cap")))),
+    );
     let e = rig
         .cli
         .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
         .unwrap_err();
     assert!(
-        matches!(
-            e,
-            BeadsCacheError::Unavailable {
-                timed_out: true,
-                ..
-            }
-        ),
+        matches!(&e, BeadsCacheError::Contract { field, detail, .. } if field == "output" && detail.contains("cap")),
         "{e:?}"
     );
-    assert!(e.is_timeout());
+    assert!(!e.is_unavailable());
 }
 
 #[test]

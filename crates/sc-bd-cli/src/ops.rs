@@ -285,9 +285,14 @@ pub fn create(
 /// `update <id>` with every set field as a flag; the updated issue when it parses.
 ///
 /// When the CLI prints nothing, the issue is fetched with `show <id>`. A result (or
-/// fetched issue) that is JSON but does not deserialize as an issue yields `Ok(None)`.
-/// `updates.cwd` is ignored: the project is `project`. Logs through `log` directly
-/// (ungated), as the app did.
+/// fetched issue) that is JSON but does not deserialize as an issue yields `Ok(None)`:
+/// the update itself succeeded, so a row the tolerant type cannot read is not an error
+/// for the caller. This is btit's behaviour, pinned by the ported test
+/// `update_fallback_is_lenient_about_issue_shape` and kept for REQ-BDC-0906; it is not
+/// silent, because every branch that drops a malformed row logs the serde error through
+/// `tracing` at error level. A caller that needs the row strictly reads it back with
+/// `CacheBackend::list_by_ids`. `updates.cwd` is ignored: the project is `project`. Logs
+/// through `tracing` directly (ungated), as the app did.
 ///
 /// # Errors
 ///
@@ -393,14 +398,7 @@ pub fn update(
             }
         })?;
 
-        let raw_issue: Option<BdRawIssue> = if show_result.is_array() {
-            show_result
-                .as_array()
-                .and_then(|arr| arr.first())
-                .and_then(|v| serde_json::from_value(v.clone()).ok())
-        } else {
-            serde_json::from_value(show_result).ok()
-        };
+        let raw_issue = lenient_issue(&show_result, "fetched issue");
 
         return Ok(raw_issue);
     }
@@ -415,21 +413,7 @@ pub fn update(
         }
     })?;
 
-    let raw_issue: Option<BdRawIssue> = if result.is_array() {
-        tracing::info!("[bd_update] Result is array");
-        result
-            .as_array()
-            .and_then(|arr| arr.first())
-            .and_then(|v| serde_json::from_value(v.clone()).ok())
-    } else {
-        tracing::info!("[bd_update] Result is object");
-        serde_json::from_value(result.clone())
-            .map_err(|e| {
-                tracing::error!("[bd_update] Failed to parse issue from result: {}", e);
-                e
-            })
-            .ok()
-    };
+    let raw_issue = lenient_issue(&result, "update result");
 
     if let Some(ref issue) = raw_issue {
         tracing::info!(
@@ -442,6 +426,30 @@ pub fn update(
     }
 
     Ok(raw_issue)
+}
+
+/// The issue of a JSON object, or of the first element of a JSON array.
+///
+/// `None` when the array is empty or the value does not deserialize as a
+/// [`BdRawIssue`]; the latter is logged with the serde error (see [`update`]).
+fn lenient_issue(value: &serde_json::Value, what: &str) -> Option<BdRawIssue> {
+    let candidate = match value.as_array() {
+        Some(items) => {
+            let Some(first) = items.first() else {
+                tracing::warn!("[bd_update] The {what} is an empty array");
+                return None;
+            };
+            first
+        }
+        None => value,
+    };
+    match serde_json::from_value(candidate.clone()) {
+        Ok(issue) => Some(issue),
+        Err(e) => {
+            tracing::error!("[bd_update] The {what} is not a readable issue: {e}");
+            None
+        }
+    }
 }
 
 /// `close <id>`, with `--suggest-next` when `suggest_next` (a br flag); the CLI's JSON.

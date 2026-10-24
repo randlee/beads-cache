@@ -27,7 +27,7 @@ use sc_beads::{
 };
 use serde_json::{json, Value};
 
-use crate::bounded::BoundedError;
+use crate::bounded::{BoundedError, TimeoutPhase};
 use crate::runner::CliInvoker;
 
 /// bd's status list when `--status` is not given: closed beads are omitted (P-6).
@@ -493,7 +493,9 @@ fn failed(e: BeadsCacheError) -> Result<CliOutput, BoundedError> {
     match e {
         BeadsCacheError::Unavailable {
             timed_out: true, ..
-        } => Err(BoundedError::TimedOut),
+        } => Err(BoundedError::TimedOut {
+            phase: TimeoutPhase::Child,
+        }),
         BeadsCacheError::Unavailable { reason, .. } => Ok(failure(
             1,
             format!("Error: failed to open database: Dolt server unreachable: {reason}"),

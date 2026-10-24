@@ -21,7 +21,7 @@
 
 use std::collections::BTreeSet;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use sc_bd_cli::{BdCli, ProjectLocks};
@@ -69,7 +69,7 @@ impl Live {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos());
         Ok(Some(Self {
-            cli: BdCli::new_with_clock(bin, Arc::new(ProjectLocks::new()), clock),
+            cli: BdCli::new_with_clock(bin, Arc::clone(shared_locks()), clock),
             project: ProjectRef::local(Some(dir)),
             label: format!("live-{}-{nanos}", std::process::id()),
             seq: std::cell::Cell::new(0),
@@ -138,6 +138,13 @@ impl Live {
 /// The deadline of one live call.
 fn deadline() -> Deadline {
     Deadline::after(&SystemClock, CALL)
+}
+
+/// The one lock table of the process: every probe's `BdCli` shares it, so two probes
+/// on one workspace serialize as the cache's callers do.
+fn shared_locks() -> &'static Arc<ProjectLocks> {
+    static LOCKS: OnceLock<Arc<ProjectLocks>> = OnceLock::new();
+    LOCKS.get_or_init(|| Arc::new(ProjectLocks::new()))
 }
 
 fn instant(row: &Bead) -> Result<i64, String> {

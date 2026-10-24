@@ -22,7 +22,7 @@ use sc_beads::{log_debug, log_error, log_info};
 use sc_beads::{CliClient, CliOutput, CliProbe, ProjectRef};
 
 use crate::command::new_command;
-use crate::locks::ProjectLocks;
+use crate::locks::{ProjectLocks, WorkingDir};
 use crate::path::get_extended_path;
 
 /// The working directory for `project`: its `cwd`, else `BEADS_PATH`, else the
@@ -46,6 +46,18 @@ pub fn resolve_working_dir(project: &ProjectRef, client: CliClient) -> Result<St
             client,
         }),
     }
+}
+
+/// [`resolve_working_dir`] as a normalised [`WorkingDir`], the lock key of a project.
+///
+/// # Errors
+///
+/// As [`resolve_working_dir`].
+pub fn resolve_project_dir(
+    project: &ProjectRef,
+    client: CliClient,
+) -> Result<WorkingDir, BeadsError> {
+    resolve_working_dir(project, client).map(|dir| WorkingDir::new(&dir))
 }
 
 /// The argv of one JSON invocation: the words of `command` (so `"comments add"` is two

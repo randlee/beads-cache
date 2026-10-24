@@ -15,7 +15,7 @@ parallel_safe: [a-3, a-4, a-5, a-6]
 requirements:
   owns: [REQ-BDC-0006, REQ-BDC-0106, REQ-BDC-0201, REQ-BDC-0303, REQ-BDC-0905, NFR-BDC-0004, NFR-BDC-0006, REQ-BDCLI-0001, REQ-BDCLI-0002, REQ-BDCLI-0003, REQ-BDCLI-0004, REQ-BDCLI-0005, REQ-BDCLI-0006, REQ-BDCLI-0007, REQ-BDCLI-0008]
   constrained_by: [REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0105, REQ-BDC-0301, REQ-BDC-0302, REQ-BDC-0304, REQ-BDC-0904, REQ-BDC-0906, NFR-BDC-0005]
-adrs: [ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-BDCLI-0001, ADR-BDCLI-0002, ADR-BDCLI-0003]
+adrs: [ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-BDCLI-0001, ADR-BDCLI-0002, ADR-BDCLI-0003]
 owned_paths:
   - "crates/sc-bd-cli/**"
   - ".github/workflows/bd-compat.yml"
@@ -30,8 +30,11 @@ owned_paths:
 Implement btit's traits and `CacheBackend` from a-1 over the `bd` binary, in its own
 crate (a later `sc-bd-http` implements the same traits over `bd serve`), and
 add the bd-release compatibility workflow. Closes when `BdCli` passes a-1's
-backend contract suite through a recording invoker and the workflow passes a
-manual run. The live probes are written and runnable here but do not gate
+backend contract suite through a recording invoker and the workflow's job steps
+pass on the proof runs 40073075092 (pass) and 40073178515 (failure path, issue
+opened), which are a-2's closure evidence. The real `workflow_dispatch` /
+`repository_dispatch` run needs the file on `main` and is owned by a-7 (see the a-7
+sprint doc). The live probes are written and runnable here but do not gate
 closure; their recorded run is a-7's evidence.
 
 ## must_follow rationale
@@ -54,7 +57,9 @@ a-1.
    `dep_add_typed` (`--type`), all with `--actor`.
 3. Error mapping and deadlines (NFR-BDC-0004): exit 13 to
    `Refusal::Precondition`; timeout, cannot-start and connection errors to
-   `BeadsError::Unavailable` (`timed_out` set for a timeout); every call
+   `Unavailable` (`timed_out` set for a timeout) or, for a bd that cannot start,
+   `Btit(BeadsError::Spawn)`, which `is_unavailable()` covers (lead ruling
+   2026-10-24); every call
    stops at the `Deadline` it is handed. The 30 s cap and the cut/outage
    classification belong to the Cache (a-1's `call` helper).
 4. Patch to argv (REQ-BDC-0303): labels, `--set-metadata` with bools as
@@ -101,7 +106,7 @@ a-1.
 | btit's parity and API-freeze tests pass in `sc-bd-cli` | ADR-BDC-0007 |
 | `cargo package -p sc-bd-cli --list` succeeds and the crates.io metadata (license, description, repository, readme) is complete; a full `cargo publish --dry-run` waits until `sc-beads` is published | ADR-BDC-0007 |
 | The live probes compile and run under `SC_BD_LIVE=1` and are skipped otherwise (NFR-BDC-0006) | ADR-BDC-0002 |
-| A `workflow_dispatch` run at the pinned bd version passes; a run whose schema sha differs fails and opens an issue with the diff (REQ-BDC-0905) | ADR-BDC-0007 |
+| The proof runs show the workflow passing at the pinned bd version (40073075092) and a differing schema sha failing and opening an issue with the diff (40073178515); the real `workflow_dispatch` run is a-7's (REQ-BDC-0905) | ADR-BDC-0007 |
 | Planted bug: bools passed as `True` fails a test | boundary:sc-bd-cli |
 
 ## This sprint does not close
@@ -110,7 +115,7 @@ Use of `BdCli` by the cache or a scheduled drain (a-7).
 
 ## Required validation
 
-Crate tests and lints; `cargo build --workspace`; one manual workflow run.
+Crate tests and lints; `cargo build --workspace`; the bd-compat proof runs (40073075092, 40073178515). The real `workflow_dispatch` run is owned by a-7.
 
 ## Public contract
 
@@ -120,19 +125,39 @@ public in the crate is btit's, unchanged (REQ-BDCLI-0001), and pinned by the por
 `tests/cli_api_freeze.rs` and `tests/bd_api_freeze.rs`.
 
 ```rust
-// sc_bd_cli::bounded (re-exported: sc_bd_cli::BoundedError)
+// sc_bd_cli::bounded (re-exported: sc_bd_cli::BoundedError, sc_bd_cli::TimeoutPhase)
+pub const MAX_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+pub enum TimeoutPhase { Lock, Child, Output }
+impl TimeoutPhase { pub fn as_str(self) -> &'static str; }
 #[non_exhaustive]
 pub enum BoundedError {
-    TimedOut,
+    TimedOut { phase: TimeoutPhase },
     Failed(BeadsError),
+    Output(io::Error),
 }
 pub fn run_bounded(
     binary: &str,
     locks: &ProjectLocks,
-    working_dir: &str,
+    working_dir: &WorkingDir,
     argv: &[String],
     timeout: Duration,
 ) -> Result<CliOutput, BoundedError>;
+pub fn run_bounded_capped(
+    binary: &str,
+    locks: &ProjectLocks,
+    working_dir: &WorkingDir,
+    argv: &[String],
+    timeout: Duration,
+    max_output: usize,
+) -> Result<CliOutput, BoundedError>;
+pub fn kill_and_reap(child: &mut Child);
+
+// sc_bd_cli::locks (re-exported: sc_bd_cli::WorkingDir)
+pub struct WorkingDir(String);
+impl WorkingDir { pub fn new(dir: &str) -> Self; pub fn as_str(&self) -> &str; }
+impl ProjectLocks { pub fn guard_dir(&self, working_dir: &WorkingDir) -> Arc<Mutex<()>>; } // guard(&str) unchanged
+// sc_bd_cli::run
+pub fn resolve_project_dir(project: &ProjectRef, client: CliClient) -> Result<WorkingDir, BeadsError>;
 
 // sc_bd_cli::CliInvoker: btit's trait, five required methods unchanged, one provided method added
 fn run_bounded(
@@ -194,9 +219,13 @@ impl FakeBd {
   strict rows or a `Contract` error (a bad row fails the whole call, so nothing is
   stored from it), applies the patch fields in a-1's declared order, and passes
   `DepType` by its wire name.
-- ADR-BDC-0006 is listed only because this crate adds dependencies; they are
-  `serde_json` and `tracing`, both already workspace dependencies of `sc-beads`. No
-  workspace dependency was added, and `Cargo.toml` `[workspace.dependencies]` is untouched.
+- ADR-BDC-0003 (`/v0`-aligned patch): `sc-bd-cli` maps a-1's `Patch`, `Guards` and
+  `Refusal` onto bd flags (`--status`, `--add-label`, `--set-metadata`, `--if-status`,
+  `--if-assignee`, ...) and exit 13 (`Refusal::Precondition`).
+- The crate's dependencies are `serde_json` and `tracing`, both already workspace
+  dependencies; they come from ADR-BDC-0007 (the shared crates, seeded from btit) and
+  ADR-BEADS-0001 (logging through `tracing`). No workspace dependency was added and
+  `[workspace.dependencies]` is untouched.
 - ADR-BEADS-0001..0004 are binding contract decisions this crate implements against:
   the verbatim port and `tracing` logging, `BeadsCacheError`, the strict rows and the
   recorded P-6 probe.
@@ -204,32 +233,30 @@ impl FakeBd {
 
 ## Deviations (all 7 accepted, lead ruling bc-lead 2026-10-24)
 
-Item 3: `run_bounded` is a provided method; note it for btit adoption. Item 4: not atomic; the drain's precondition re-check on the fresh pre-read row is the safety net. Item 7 (btit paths unbounded, cache calls bounded) is accepted as ADR-BDCLI-0002 states.
-
-1. **Cannot-start is `Btit(Spawn)`, not `Unavailable`.** Deliverable 3 says
+1. **Cannot-start is `Btit(Spawn)`, not `Unavailable`.** Deliverable 3 said
    cannot-start maps to `Unavailable`. `BeadsCacheError::Unavailable` carries only a
    `reason` string, so the `io::Error` cause would be lost; a-1's ADR-BEADS-0002
-   already defines `is_unavailable()` to cover btit's `Spawn` ("bd cannot start"), and
-   `bd-cache` classifies on `is_unavailable()`. `BdCli` therefore returns
-   `Btit(BeadsError::Spawn { .. })` for a bd that cannot start, with the source chain.
-   No change to a-1's contract. Ruling requested; the alternative is a text-only
-   `Unavailable`.
+   already defines `is_unavailable()` to cover btit's `Spawn`, and `bd-cache`
+   classifies on `is_unavailable()`. Ruling: accepted; `Btit(Spawn)` stays, with
+   `is_unavailable()` covering it.
 2. **"Connection errors" are recognised from stderr.** bd exits 1 for an unreachable
    database exactly as for any failure; there is no typed signal (ADR-BDCLI-0001).
-   The recognised fragments are one named constant, `UNREACHABLE_MARKERS`, with a
-   live probe that re-checks them on each bd release.
+   The fragments are one named constant, `UNREACHABLE_MARKERS`, re-checked by a live
+   probe on each bd release. Ruling: accepted.
 3. **`CliInvoker` gains one provided method (`run_bounded`).** btit's five required
    methods and all signatures are unchanged; the ported API-freeze tests pass
-   unmodified. Needs the btit side's agreement when btit adopts the crate
-   (ADR-BDC-0007 consequence).
+   unmodified. Note for btit adoption (ADR-BDC-0007 consequence). Ruling: accepted.
 4. **`bd close` has no `--if-*` flags (bd 1.3.0/1.3.1)**, so a guarded close is a
-   read-then-close (ADR-BDCLI-0001). The cache's drain checks the guards on the row
-   it reads first, so the window is the same one a-5 already accepts.
+   read then a close, not atomic (ADR-BDCLI-0001). The drain's precondition re-check
+   on the fresh pre-read row is the safety net. Ruling: accepted.
 5. **The metadata round-trip test restates the validator's accepted set** instead of
-   calling `bd_cache_model::op::meta_value`: a dev-dependency on `bd-cache-model`
-   breaks the CI boundary check (`sc-bd-cli` may depend on `sc-beads` only).
+   calling `bd_cache_model::op::meta_value` (the source of truth, named in the test):
+   a dev-dependency on `bd-cache-model` breaks the CI boundary check. Ruling: accepted.
 6. **Sprint-doc frontmatter `status: in-review`**, per the lead's hand-off rule, not
-   the `complete` of the assignment's gate (`complete` follows QA and merge).
+   the `complete` of the assignment's gate. Ruling: accepted.
+7. **btit paths stay unbounded; cache calls are bounded.** The ported btit operations
+   (`ops`, `run_json`, `run_raw`, the `--version` probe) block until the child exits,
+   as in btit; only the cache calls carry NFR-BDC-0004 (ADR-BDCLI-0002). Ruling: accepted.
 
 ## Evidence
 

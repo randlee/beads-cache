@@ -70,10 +70,10 @@ pub mod testing;
 #[doc(inline)]
 pub use backend::{BdCli, BD_RELEASE_SOURCE};
 #[doc(inline)]
-pub use bounded::BoundedError;
+pub use bounded::{BoundedError, TimeoutPhase};
 #[doc(inline)]
 pub use dolt::{project_dolt_mode, project_uses_dolt_for, DoltMode};
 #[doc(inline)]
-pub use locks::ProjectLocks;
+pub use locks::{ProjectLocks, WorkingDir};
 #[doc(inline)]
 pub use runner::{CliInvoker, CliRunner, ProbeState};

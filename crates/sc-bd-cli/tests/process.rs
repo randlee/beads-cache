@@ -10,7 +10,7 @@
 //! platform CI covers.
 //!
 //! Modes: `ok` (answers `version`, `schema`, `list`), `refuse` (exit 13), `down`
-//! (exit 1, "connection refused"), `slow` (runs 30 s, logging that it is alive),
+//! (exit 1, "connection refused"), `slow` (prints `ready`, then runs 30 s),
 //! `flood` (writes far more than a pipe holds), `stdin` (reads standard input to the
 //! end) and `echo` (prints its argv).
 
@@ -22,8 +22,10 @@ use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use sc_bd_cli::bounded::{run_bounded, BoundedError};
-use sc_bd_cli::{BdCli, ProjectLocks};
+use sc_bd_cli::bounded::{
+    kill_and_reap, run_bounded, run_bounded_capped, BoundedError, TimeoutPhase,
+};
+use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::{
     BeadsCacheError, CacheBackend, Clock, Deadline, Guards, Patch, ProjectRef, Refusal,
     ScopeFilter, SystemClock, BD_SCHEMA_SHA256, BD_VERSION,
@@ -87,19 +89,14 @@ fn child(mode: &str) -> ExitCode {
             ExitCode::from(1)
         }
         ("slow", _) => {
-            let alive = std::env::var_os("BEADS_PATH")
-                .map(|d| Path::new(&d).join("alive"))
-                .unwrap_or_default();
-            for _ in 0..SLOW_CHILD_SECS * 10 {
-                if let Ok(mut f) = fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&alive)
-                {
-                    let _ = writeln!(f, "alive");
-                }
-                std::thread::sleep(Duration::from_millis(100));
+            // The pid first, then the readiness marker: a test that waits for the line
+            // knows the child is running, and one that finds the pid can ask if it still is.
+            if let Some(dir) = std::env::var_os("BEADS_PATH") {
+                let _ = fs::write(Path::new(&dir).join("pid"), std::process::id().to_string());
             }
+            let _ = writeln!(out, "ready");
+            let _ = out.flush();
+            std::thread::sleep(Duration::from_secs(SLOW_CHILD_SECS));
             ExitCode::SUCCESS
         }
         ("flood", _) => {
@@ -192,39 +189,85 @@ fn words(list: &[&str]) -> Vec<String> {
     list.iter().map(|w| (*w).to_owned()).collect()
 }
 
-fn timeout_kills_a_running_child(env: &Env) -> TestResult {
+/// `TimedOut` is returned within its bound, whatever the child does: the deadline is
+/// generous next to process start-up, and nothing is asserted about the child here
+/// (`kill_and_reap_ends_a_running_child` does that, with no timing at all).
+fn a_running_child_is_cut_at_the_deadline(env: &Env) -> TestResult {
     let project = env.project("slow")?;
-    let alive = Path::new(&env.dir("slow")?).join("alive");
+    let pid_file = Path::new(&env.dir("slow")?).join("pid");
+    let _ = fs::remove_file(&pid_file);
     let started = Instant::now();
-    let r = env.cli().list_scope(&project, &scope(), None, after(500));
+    let r = env.cli().list_scope(&project, &scope(), None, after(1_000));
     let took = started.elapsed();
     require(
-        matches!(
-            r,
-            Err(BeadsCacheError::Unavailable {
-                timed_out: true,
-                ..
-            })
-        ),
-        format!("expected a timeout, got {r:?}"),
+        matches!(&r, Err(BeadsCacheError::Unavailable { timed_out: true, reason })
+            if reason.contains(TimeoutPhase::Child.as_str())),
+        format!("expected a timeout in the child phase, got {r:?}"),
     )?;
     require(
         took < GIVE_UP_WITHIN,
         format!("gave up after {took:?}, the child runs {SLOW_CHILD_SECS} s"),
     )?;
-    // A killed child stops writing; one left running would keep appending.
-    std::thread::sleep(Duration::from_millis(300));
-    let first = fs::metadata(&alive)
-        .map_err(|e| format!("alive file: {e}"))?
-        .len();
-    std::thread::sleep(Duration::from_millis(500));
-    let second = fs::metadata(&alive)
-        .map_err(|e| format!("alive file: {e}"))?
-        .len();
-    require(
-        first == second,
-        format!("the child is still running ({first} -> {second} bytes)"),
-    )
+    // `run_bounded` reaps the child before it returns, so if the child got as far as
+    // writing its pid the process is already gone: no waiting, no sleeping. (A child
+    // that had not started within the deadline leaves no pid and nothing to check;
+    // `kill_and_reap_ends_a_running_child` covers the kill itself.)
+    if let Ok(pid) = fs::read_to_string(&pid_file) {
+        require(
+            !process_is_alive(pid.trim()),
+            format!("the child {pid} is still running after the timeout"),
+        )?;
+    }
+    Ok(())
+}
+
+/// Whether a process with this pid exists (`kill -0`; `tasklist` on Windows).
+fn process_is_alive(pid: &str) -> bool {
+    if cfg!(windows) {
+        std::process::Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+            .output()
+            .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains(pid))
+    } else {
+        std::process::Command::new("kill")
+            .args(["-0", pid])
+            .output()
+            .is_ok_and(|o| o.status.success())
+    }
+}
+
+/// `kill_and_reap` ends a directly spawned child: it is reaped, and its stdout
+/// reaches end of file. The child says `ready` first, so nothing here sleeps or
+/// guesses how long start-up takes; the waits are only upper bounds on a failure.
+fn kill_and_reap_ends_a_running_child(env: &Env) -> TestResult {
+    let mut child = std::process::Command::new(&env.exe)
+        .env("BEADS_PATH", env.dir("slow")?)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("spawn: {e}"))?;
+    let stdout = child.stdout.take().ok_or("no stdout")?;
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
+    let (eof_tx, eof_rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let mut reader = std::io::BufReader::new(stdout);
+        let mut line = String::new();
+        let _ = std::io::BufRead::read_line(&mut reader, &mut line);
+        let _ = ready_tx.send(line);
+        let mut rest = Vec::new();
+        let _ = reader.read_to_end(&mut rest);
+        let _ = eof_tx.send(());
+    });
+    let line = ready_rx
+        .recv_timeout(GIVE_UP_WITHIN)
+        .map_err(|e| format!("the child never became ready: {e}"))?;
+    require(line.trim() == "ready", format!("readiness line {line:?}"))?;
+    kill_and_reap(&mut child);
+    eof_rx
+        .recv_timeout(GIVE_UP_WITHIN)
+        .map_err(|e| format!("stdout did not reach EOF after the kill: {e}"))?;
+    let status = child.try_wait().map_err(|e| format!("try_wait: {e}"))?;
+    require(status.is_some(), "the child was not reaped")
 }
 
 fn waiting_for_the_project_lock_is_bounded(env: &Env) -> TestResult {
@@ -238,12 +281,17 @@ fn waiting_for_the_project_lock_is_bounded(env: &Env) -> TestResult {
     let r = run_bounded(
         "definitely-not-a-real-cli-binary-xyz",
         &locks,
-        &wd,
+        &WorkingDir::new(&wd),
         &words(&["list"]),
         Duration::from_millis(300),
     );
     require(
-        matches!(r, Err(BoundedError::TimedOut)),
+        matches!(
+            r,
+            Err(BoundedError::TimedOut {
+                phase: TimeoutPhase::Lock
+            })
+        ),
         format!("expected a timeout waiting for the lock, got {r:?}"),
     )?;
     require(
@@ -276,7 +324,7 @@ fn output_larger_than_a_pipe_is_drained(env: &Env) -> TestResult {
     let out = run_bounded(
         &env.exe,
         &locks,
-        &env.dir("flood")?,
+        &WorkingDir::new(&env.dir("flood")?),
         &words(&["list"]),
         Duration::from_secs(60),
     )
@@ -292,11 +340,28 @@ fn output_larger_than_a_pipe_is_drained(env: &Env) -> TestResult {
     )
 }
 
+/// A stream over the cap is an error naming the cap, and the child is still drained to
+/// the end (it exits instead of stalling on a full pipe).
+fn output_over_the_cap_is_an_error(env: &Env) -> TestResult {
+    let r = run_bounded_capped(
+        &env.exe,
+        &ProjectLocks::new(),
+        &WorkingDir::new(&env.dir("flood")?),
+        &words(&["list"]),
+        Duration::from_secs(60),
+        1024 * 1024,
+    );
+    require(
+        matches!(&r, Err(BoundedError::Output(e)) if e.to_string().contains("cap")),
+        format!("expected an output error naming the cap, got {r:?}"),
+    )
+}
+
 fn standard_input_is_closed(env: &Env) -> TestResult {
     let out = run_bounded(
         &env.exe,
         &ProjectLocks::new(),
-        &env.dir("stdin")?,
+        &WorkingDir::new(&env.dir("stdin")?),
         &words(&["list"]),
         Duration::from_secs(30),
     )
@@ -312,7 +377,7 @@ fn argv_and_working_directory_reach_the_child_verbatim(env: &Env) -> TestResult 
     let out = run_bounded(
         &env.exe,
         &ProjectLocks::new(),
-        &wd,
+        &WorkingDir::new(&wd),
         &words(&[
             "update",
             "b-1",
@@ -421,8 +486,16 @@ fn an_empty_list_is_no_rows(env: &Env) -> TestResult {
 fn run_tests() -> ExitCode {
     let tests: &[(&str, Test)] = &[
         (
-            "timeout_kills_a_running_child",
-            timeout_kills_a_running_child,
+            "a_running_child_is_cut_at_the_deadline",
+            a_running_child_is_cut_at_the_deadline,
+        ),
+        (
+            "kill_and_reap_ends_a_running_child",
+            kill_and_reap_ends_a_running_child,
+        ),
+        (
+            "output_over_the_cap_is_an_error",
+            output_over_the_cap_is_an_error,
         ),
         (
             "waiting_for_the_project_lock_is_bounded",

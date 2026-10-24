@@ -20,6 +20,13 @@ impl BeadsPathGuard {
         std::env::set_var("BEADS_PATH", value);
         Self { previous }
     }
+
+    /// Unsets `BEADS_PATH` (a developer's shell may have it set).
+    fn unset() -> Self {
+        let previous = std::env::var_os("BEADS_PATH");
+        std::env::remove_var("BEADS_PATH");
+        Self { previous }
+    }
 }
 
 impl Drop for BeadsPathGuard {
@@ -53,6 +60,7 @@ fn resolve_working_dir_precedence() {
     );
     drop(guard);
 
+    let _unset = BeadsPathGuard::unset();
     assert_eq!(
         resolve_working_dir(&ProjectRef::local(None), CliClient::Unknown).unwrap(),
         current

@@ -8,10 +8,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use sc_bd_cli::argv;
-use sc_bd_cli::bounded::run_bounded;
+use sc_bd_cli::bounded::{kill_and_reap, run_bounded, run_bounded_capped, MAX_OUTPUT_BYTES};
 use sc_bd_cli::cache::UNREACHABLE_MARKERS;
 use sc_bd_cli::testing::{FakeBd, RecordingInvoker};
-use sc_bd_cli::{BdCli, BoundedError, CliInvoker, ProjectLocks};
+use sc_bd_cli::{BdCli, BoundedError, CliInvoker, ProjectLocks, TimeoutPhase, WorkingDir};
 use sc_beads::error::BeadsError;
 use sc_beads::testing::{FakeBackend, ManualClock};
 use sc_beads::{
@@ -23,19 +23,51 @@ fn assert_send_sync<T: ?Sized + Send + Sync>() {}
 
 #[test]
 fn bounded_run_signature_and_error_variants() {
-    type RunBounded =
-        fn(&str, &ProjectLocks, &str, &[String], Duration) -> Result<CliOutput, BoundedError>;
+    type RunBounded = fn(
+        &str,
+        &ProjectLocks,
+        &WorkingDir,
+        &[String],
+        Duration,
+    ) -> Result<CliOutput, BoundedError>;
+    type RunBoundedCapped = fn(
+        &str,
+        &ProjectLocks,
+        &WorkingDir,
+        &[String],
+        Duration,
+        usize,
+    ) -> Result<CliOutput, BoundedError>;
     let _: RunBounded = run_bounded;
+    let _: RunBoundedCapped = run_bounded_capped;
+    let _: fn(&mut std::process::Child) = kill_and_reap;
+    let _: fn(&ProjectLocks, &WorkingDir) -> std::sync::Arc<std::sync::Mutex<()>> =
+        ProjectLocks::guard_dir;
+    let _: fn(&str) -> WorkingDir = WorkingDir::new;
+    let _: fn(&ProjectRef, sc_beads::CliClient) -> Result<WorkingDir, BeadsError> =
+        sc_bd_cli::run::resolve_project_dir;
+    assert_eq!(MAX_OUTPUT_BYTES, 64 * 1024 * 1024);
+    assert_eq!(WorkingDir::new("/p/"), WorkingDir::new("/p"));
+    let phases = [
+        TimeoutPhase::Lock,
+        TimeoutPhase::Child,
+        TimeoutPhase::Output,
+    ];
+    assert_eq!(phases.len(), 3);
     let errors = [
-        BoundedError::TimedOut,
+        BoundedError::Output(std::io::Error::other("pin")),
+        BoundedError::TimedOut {
+            phase: TimeoutPhase::Lock,
+        },
         BoundedError::Failed(BeadsError::Unsupported {
             operation: "pin",
             client: sc_beads::CliClient::Bd,
         }),
     ];
-    assert_eq!(errors.len(), 2);
-    assert!(std::error::Error::source(&errors[0]).is_none());
-    assert!(std::error::Error::source(&errors[1]).is_some());
+    assert_eq!(errors.len(), 3);
+    assert!(std::error::Error::source(&errors[0]).is_some());
+    assert!(std::error::Error::source(&errors[1]).is_none());
+    assert!(std::error::Error::source(&errors[2]).is_some());
     assert_send_sync::<BoundedError>();
 }
 

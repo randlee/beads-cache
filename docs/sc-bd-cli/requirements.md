@@ -51,15 +51,17 @@ the `argv` unit tests; a-1's backend contract suite (`tests/backend_contract.rs`
 A cache call starts no `bd` when its `Deadline` has passed. Otherwise the child
 runs for at most the time the deadline leaves, counting the wait for the
 per-project lock; at the deadline the child is killed and reaped and the call
-returns `Unavailable { timed_out: true }`. Standard output and error are drained
-while the child runs, so large output cannot stall it. The crate applies no cap
+returns `Unavailable { timed_out: true }` whose reason names the phase (lock, child,
+output). Standard output and error are drained while the child runs, so large output
+cannot stall it, and each is capped at 64 MiB (over the cap is an error). The crate applies no cap
 of its own (the cache owns the 30 s cap).
 
 **Refines:** NFR-BDC-0004, ADR-BDC-0005
 **Acceptance evidence:** `every_call_stops_at_the_deadline_it_is_handed`
-(`tests/cache_calls.rs`); `timeout_kills_a_running_child`,
+(`tests/cache_calls.rs`); `a_running_child_is_cut_at_the_deadline`,
 `waiting_for_the_project_lock_is_bounded`, `an_expired_deadline_starts_nothing`,
-`output_larger_than_a_pipe_is_drained`, `standard_input_is_closed`
+`output_larger_than_a_pipe_is_drained`, `output_over_the_cap_is_an_error`,
+`kill_and_reap_ends_a_running_child`, `standard_input_is_closed`
 (`tests/process.rs`, real processes); the contract rule
 `every_call_stops_at_its_deadline`.
 
@@ -129,9 +131,10 @@ runs the `sc-beads` contract suite and the `sc-bd-cli` tests, then the live
 probes in a scratch workspace; a failure opens or updates one issue per bd version.
 
 **Refines:** REQ-BDC-0905
-**Acceptance evidence:** a `workflow_dispatch` run at the pinned version passes; a
-run with a differing schema sha fails and opens an issue with the diff (run links in
-the sprint document).
+**Acceptance evidence:** proof runs 40073075092 (pinned version passes) and
+40073178515 (a differing schema sha fails and opens an issue with the diff) are a-2's
+closure evidence (sprint document). The real `workflow_dispatch` / `repository_dispatch`
+run needs the file on `main` and is owned by a-7 (see the a-7 sprint doc).
 
 ## REQ-BDCLI-0008: Publish-ready
 

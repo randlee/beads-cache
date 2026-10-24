@@ -116,12 +116,22 @@ Decision:
   spawn. `CliRunner` implements it with `bounded::run_bounded`; `RecordingInvoker`
   and `FakeBd` implement it for tests.
 - `run_bounded` polls: the project lock with `try_lock`, the child with `try_wait`
-  every 5 ms (shortened to the time left), so no wait outlasts the timeout. At the
-  timeout the child is killed and reaped. Two reader threads drain stdout and
-  stderr; after a kill they are given 100 ms to hand back what was written and are
-  then abandoned (they end when the pipes close, even if a grandchild holds them).
-  Standard input is closed. The environment and working directory are btit's:
-  the extended `PATH`, `BEADS_PATH` = the working directory.
+  every 5 ms (shortened to the time left), so no wait outlasts the timeout. A timeout
+  names its phase (`TimeoutPhase`: `Lock`, `Child`, `Output`) and the phase is in the
+  `Unavailable` reason. At the timeout the child is killed and reaped
+  (`kill_and_reap`). Two reader threads drain stdout and stderr and send
+  `io::Result<Vec<u8>>`, so a read error is `BoundedError::Output` with the real
+  `io::Error` as its source (the cache reports it as `Contract`, field `output`, not as
+  a spawn failure). Each stream is capped at `MAX_OUTPUT_BYTES` (64 MiB): the excess is
+  read and dropped so the child is not stalled, and the call fails with a message naming
+  the cap. After a kill the readers are abandoned, not waited for: they end when the
+  pipes close, even if a grandchild holds them, and nothing they hold is needed. After a
+  normal exit, waiting for them is bounded by the same deadline (`Output` phase).
+  Standard input is closed. The environment and working directory are btit's: the
+  extended `PATH`, `BEADS_PATH` = the working directory.
+- The lock key is a `WorkingDir`, built by `run::resolve_project_dir` and normalised
+  (trailing separators dropped, a root kept), so `/p` and `/p/` are one lock;
+  `ProjectLocks::guard(&str)` keeps btit's signature and normalises too.
 - The cache path never probes `--version` (that spawn is unbounded); the crate is
   the bd backend, so it assumes `CliClient::Bd`.
 - `BdCli` holds the `Arc<dyn Clock>` the cache and its store share and turns each

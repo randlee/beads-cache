@@ -276,7 +276,7 @@ impl CliInvoker for CliRunner {
         timeout: Duration,
     ) -> Result<CliOutput, BoundedError> {
         // No probe here: `--version` is an unbounded spawn, and this crate is the bd backend.
-        let wd = crate::run::resolve_working_dir(project, CliClient::Bd)?;
+        let wd = crate::run::resolve_project_dir(project, CliClient::Bd)?;
         crate::bounded::run_bounded(&self.binary, &self.locks, &wd, argv, timeout)
     }
 }

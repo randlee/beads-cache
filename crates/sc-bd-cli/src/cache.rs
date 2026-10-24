@@ -6,7 +6,8 @@
 //!
 //! | Outcome | Result |
 //! |---|---|
-//! | the deadline has already passed, or runs out during the call | `Unavailable { timed_out: true }` |
+//! | the deadline has already passed, or runs out during the call | `Unavailable { timed_out: true }`, the reason naming the phase (lock, child, output) |
+//! | the child's output cannot be read, or exceeds `MAX_OUTPUT_BYTES` | `Contract` (field `output`) |
 //! | `bd` cannot be started (or the project is not local) | `Btit(Spawn)` / `Btit(Unsupported)`: [`BeadsCacheError::is_unavailable`] is true for a spawn failure, and the `io::Error` stays in the `source` chain |
 //! | exit 13 | `Refused(Refusal::Precondition)` |
 //! | any other nonzero exit whose stderr says the server is unreachable (see [`UNREACHABLE_MARKERS`]) | `Unavailable { timed_out: false }` |
@@ -67,9 +68,11 @@ pub const UNREACHABLE_MARKERS: &[&str] = &[
 /// bd 0.49.4's migration failure on stderr, the same marker btit's `spawn_json` uses.
 const SCHEMA_MIGRATION_MARKER: &str = "no such column: spec_id";
 
-fn timed_out(what: &str) -> BeadsCacheError {
+/// The timeout error; `when` says where the call was (a [`TimeoutPhase`] phrase, or
+/// that the deadline had passed before the call started).
+fn timed_out(what: &str, when: &str) -> BeadsCacheError {
     BeadsCacheError::Unavailable {
-        reason: format!("{what} did not finish before its deadline"),
+        reason: format!("{what} did not finish before its deadline ({when})"),
         timed_out: true,
     }
 }
@@ -113,7 +116,7 @@ impl BdCli {
     fn time_left(&self, d: Deadline, what: &str) -> Result<Duration, BeadsCacheError> {
         let left = d.remaining(self.clock.as_ref());
         if left.is_zero() {
-            Err(timed_out(what))
+            Err(timed_out(what, "the deadline had passed before it started"))
         } else {
             Ok(left)
         }
@@ -126,11 +129,21 @@ impl BdCli {
         log_info!("[bd] {what} | bounded to {} ms", left.as_millis());
         let out = match self.inv.run_bounded(p, argv, left) {
             Ok(out) => out,
-            Err(BoundedError::TimedOut) => {
-                log_error!("[bd] {what} timed out after {} ms", left.as_millis());
-                return Err(timed_out(&what));
+            Err(BoundedError::TimedOut { phase }) => {
+                log_error!(
+                    "[bd] {what} timed out {phase} after {} ms",
+                    left.as_millis()
+                );
+                return Err(timed_out(&what, phase.as_str()));
             }
             Err(BoundedError::Failed(e)) => return Err(BeadsCacheError::Btit(e)),
+            // `Unavailable` and `Btit` have no `io::Error` source; the read error is in
+            // the detail and in the log. Output that cannot be read whole, or is over
+            // the cap, is output that cannot meet the row contract.
+            Err(BoundedError::Output(e)) => {
+                log_error!("[bd] {what}: reading the output failed: {e}");
+                return Err(BeadsCacheError::contract(None, "output", e.to_string()));
+            }
         };
         check_exit(&self.inv.binary(), out)
     }
