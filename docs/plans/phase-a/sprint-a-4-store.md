@@ -152,7 +152,7 @@ impl FlockDrainLock {
 ## Requirement scope notes
 
 `owns` lists the crate requirements REQ-STORE-0001..0007
-(`docs/bd-cache-store/requirements.md`, Draft) next to the repo-level ids
+(`docs/bd-cache-store/requirements.md`, Approved, lead ruling bc-lead 2026-10-24) next to the repo-level ids
 they refine. `constrained_by` lists ids whose behaviour another sprint owns
 and whose store side this sprint delivers through the a-1 port rules:
 
@@ -173,7 +173,7 @@ and whose store side this sprint delivers through the a-1 port rules:
 Hand-off notes), ADR-BDC-0007 and ADR-MODEL-0001/0003 and ADR-CORE-0001
 because the store relies on the strict rows, the Python-identical journal
 text, the store rule clarifications and the threading model; ADR-STORE-0001..0003
-are this crate's (Draft).
+are this crate's (Approved, lead ruling bc-lead 2026-10-24).
 
 ## Hand-off notes for the lead
 
@@ -181,7 +181,8 @@ Rulings needed:
 
 1. **Crate ADRs and REQs.** ADR-STORE-0001 (schema), ADR-STORE-0002
    (sharing with `bd_cache.py`), ADR-STORE-0003 (one connection per process,
-   store failures) and REQ-STORE-0001..0007 are Draft.
+   store failures) and REQ-STORE-0001..0007 were Draft. Ruled: Approved
+   (lead ruling, bc-lead, 2026-10-24).
 2. **Store failures have no `CacheError` code (a-1 gap).** The trait allows
    "the implementation's own storage failures", but `CacheError` has no
    variant for them. Until an a-1 amendment adds one (for example

@@ -1,6 +1,6 @@
 # bd-cache-store Requirements
 
-Status: Draft (sprint a-4; awaiting lead approval). Crate-local requirements (domain code `STORE`)
+Status: Approved (lead ruling, bc-lead, 2026-10-24). Crate-local requirements (domain code `STORE`)
 refining [`../requirements.md`](../requirements.md). Architecture:
 [`architecture.md`](architecture.md). Created by sprint a-4.
 
@@ -8,7 +8,7 @@ Test files are under `crates/bd-cache-store/tests/`.
 
 ## REQ-STORE-0001: Locating the file starts no bd process
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `CacheLocation::resolve` reads `dolt_database` and `project_id` from
 `.beads/metadata.json`, or `$BEADS_DIR/metadata.json` when `BEADS_DIR` is
@@ -27,7 +27,7 @@ control character) is `BD_CACHE.NO_DATABASE`.
 
 ## REQ-STORE-0002: Open checks settings, version and identity
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Open sets WAL mode (refused if SQLite keeps another mode) and a 5 s busy
 timeout; `user_version` 0 is initialized to 3, 3 is opened, any other value
@@ -44,7 +44,7 @@ file in one process, while the first store lives, is refused.
 
 ## REQ-STORE-0003: v3 tables unchanged, extensions additive
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
 extensions are the tables `scope`, `scope_member`, `ready_base` and nullable
@@ -58,7 +58,7 @@ Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
 
 ## REQ-STORE-0004: Every CacheStore rule over SQLite
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `SqliteStore` keeps every rule of the `CacheStore` doc comment
 (`bd-cache-model`, ADR-MODEL-0003), including the newer-row guard comparing
@@ -81,7 +81,7 @@ rules); `test_dependents_use_the_edge_index`,
 
 ## REQ-STORE-0005: Cross-process drain lock
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `FlockDrainLock` takes an exclusive non-blocking `flock` (Windows:
 `LockFileEx`) on the cache file's lock file, named as v3 names it
@@ -98,7 +98,7 @@ the process ending, releases it.
 
 ## REQ-STORE-0006: The file is shared with bd_cache.py both ways
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A v3 file `bd_cache.py` wrote opens, and its rows, edges, journal, sync
 state, alert and outage read back equal; `bd_cache.py`'s `get` and `status`
@@ -116,7 +116,7 @@ extended file, the store reads consistent rows and memberships
 
 ## REQ-STORE-0007: The one repository configuration loader
 
-**Status:** Draft (sprint a-4)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `load_repo_config(repo_root)` reads `<repo_root>/.beads/bd-cache.toml` into
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,

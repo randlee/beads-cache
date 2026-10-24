@@ -1,6 +1,6 @@
 # bd-cache-store Architecture
 
-Status: Draft (sprint a-4; the crate ADRs below await lead approval). Crate-local decisions (domain
+Status: Approved (lead ruling, bc-lead, 2026-10-24). Crate-local decisions (domain
 code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). Requirements:
 [`requirements.md`](requirements.md). Created by sprint a-4.
 
@@ -22,7 +22,7 @@ rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and serde_json (the
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Draft (sprint a-4; P-2 fallback, awaiting lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: the file is shared with `bd_cache.py` (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
@@ -73,7 +73,7 @@ migration command, never done on open.
 
 ## ADR-STORE-0002: Sharing the file with bd_cache.py
 
-**Status:** Draft (sprint a-4, awaiting lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: `bd_cache.py` writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
@@ -111,7 +111,7 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Draft (sprint a-4; the failure mapping is a stopgap pending an a-1 amendment)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); the failure mapping is a stopgap pending an a-1 amendment
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 a-1's `CacheError` has a code for every BD-CACHE outcome but none for a
