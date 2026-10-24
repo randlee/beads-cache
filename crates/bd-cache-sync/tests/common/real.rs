@@ -217,7 +217,8 @@ impl Real {
         };
         let beads_clock: Arc<dyn Clock> = Arc::clone(&clock) as Arc<dyn Clock>;
         let backend = BdCli::with_invoker(Box::new(invoker)).with_clock(Arc::clone(&beads_clock));
-        let composed = compose_with(root.path(), backend, Arc::clone(&beads_clock)).unwrap();
+        // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
+        let composed = compose_with(root.path(), backend, Arc::clone(&beads_clock), None).unwrap();
         let sender = Arc::new(RecordingSender::default());
         let spec = schedule_spec(&composed.tick, &composed.name, None).unwrap();
         let job = SyncJob::new(

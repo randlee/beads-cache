@@ -558,6 +558,14 @@ MUTANTS = [('unannounced filter dropped',
   '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
   '                    })\n'
   '                    .unwrap_or(());\n'),
+ ('S34: ComposeError passes the store code through instead of mapping the variant',
+  'crates/bd-cache-sync/src/compose.rs',
+  '            Self::Config(e) => config_code(e),',
+  '            Self::Config(e) => e.code(),'),
+ ('S34: an unreadable configuration is mapped to the invalid-TOML code',
+  'crates/bd-cache-sync/src/compose.rs',
+  '        ConfigLoadError::Read { .. } => "sync_config_unreadable",',
+  '        ConfigLoadError::Read { .. } => "sync_config_invalid_toml",'),
  ('QA6-001: the dating skips entries below the undatable floor',
   'crates/bd-cache-store/src/schema.rs',
   'UPDATE journal INDEXED BY journal_applied_unknown \\\n'
