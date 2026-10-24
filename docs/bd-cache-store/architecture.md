@@ -7,7 +7,7 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 `bd-cache-store` implements a-1's `CacheStore` and `DrainLock` ports
 (`bd-cache-model`) over one SQLite file per dolt database, the file
 BD-CACHE v3's `bd_cache.py` uses. It depends on `bd-cache-model`, `sc-beads`,
-rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and serde_json (the
+rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the
 `row_json` and ready-base text), as the Crate Layout of
 [`../architecture.md`](../architecture.md) lists them.
 
@@ -150,14 +150,17 @@ Decision:
   cache file.
 - The store's own failures are `BD_CACHE.STORE_FAILED`
   (`CacheError::store_failed`): `detail` names the step and the file, and
-  the underlying error (rusqlite, I/O, serde_json) is kept as the error's
+  the underlying error (rusqlite, I/O, `serde_json`) is kept as the error's
   `source` when there is one. `STORE_FAILED` has no source for: any stored
   value that does not decode or is inconsistent (`row_json`, an edge or
   scope kind, an id, timestamp or phase name, journal fields, the ready
   base, an `outage_since` without `outage_error`), each naming the entry
   and never skipped; a refused one-connection claim (NFR-BDC-0007); and a
-  journal mode SQLite will not set to WAL. `NO_DATABASE` means only
-  missing or invalid `metadata.json` (REQ-BDC-0102).
+  journal mode SQLite will not set to WAL. A type-conversion error
+  rusqlite raises while reading a column keeps that rusqlite error as its
+  source (`failed`); a value the store's own validation refuses after
+  reading has no source (`corrupt`). `NO_DATABASE` means only missing or
+  invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
   (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
   module makes the mapping: `error::failed` (with a source) and

@@ -82,7 +82,7 @@ value read back is validated, and one that does not decode is an error
 naming the entry. The store's own failures are `BD_CACHE.STORE_FAILED`,
 keeping the underlying error as the source when there is one; an
 undecodable or inconsistent stored value, a refused one-connection claim
-and WAL refused have none (ADR-STORE-0003).
+and WAL refused have none (ADR-STORE-0003). A type-conversion error rusqlite raises while reading a column keeps that rusqlite error as its source (`failed`); a value the store's own validation refuses after reading has no source (`corrupt`).
 
 **Refines:** REQ-BDC-0105, 0109, 0405, 0502, 0504, 0601, 0602, 0604, 0901,
 0902, 0909, 0603 (store side)

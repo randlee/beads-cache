@@ -6,7 +6,10 @@
 //! ([`failed`], [`CacheError::store_failed`]). A failure with no underlying
 //! error has no source ([`corrupt`]): a stored value that does not decode or
 //! is inconsistent, a refused one-connection claim, or a journal mode SQLite
-//! will not set to WAL. `NO_DATABASE` stays for missing or invalid
+//! will not set to WAL. A type-conversion error rusqlite raises while
+//! reading a column keeps that rusqlite error as its source ([`failed`]); a
+//! value the store's own validation refuses after reading has no source
+//! ([`corrupt`]). `NO_DATABASE` stays for missing or invalid
 //! `metadata.json` only. This module makes the mapping.
 
 use std::error::Error;

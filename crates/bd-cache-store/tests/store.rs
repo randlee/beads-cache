@@ -470,3 +470,48 @@ fn the_outage_is_read_whole_while_another_connection_toggles_it() {
     );
     assert!(reads > 0, "the reader ran");
 }
+
+/// A stored `attempts` that no longer fits is refused by the store's own
+/// validation, as the journal decoder refuses it: `STORE_FAILED`, no source.
+#[test]
+fn an_attempts_count_past_u32_is_store_failed_without_a_source() {
+    let (open, mut store) = fresh("attempts");
+    let seq = store
+        .insert_entry(entry("k", "b1", None), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    Connection::open(&open.path)
+        .unwrap()
+        .execute("UPDATE journal SET attempts = 4294967295", [])
+        .unwrap();
+    let err = store
+        .record_attempt(seq, "x", &ts("2026-10-23T10:00:01Z"))
+        .unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err}");
+    assert!(
+        err.detail()
+            .contains(&format!("journal entry {seq}: attempts:")),
+        "{}",
+        err.detail()
+    );
+    assert!(
+        std::error::Error::source(&err).is_none(),
+        "no source: {err:?}"
+    );
+    let e = store.entry_by_seq(seq).unwrap().unwrap();
+    assert_eq!(e.attempts, u32::MAX, "the refused attempt rolled back");
+    Connection::open(&open.path)
+        .unwrap()
+        .execute("UPDATE journal SET attempts = 4294967296", [])
+        .unwrap();
+    let err = store.entry_by_seq(seq).unwrap_err();
+    assert!(
+        err.detail()
+            .contains(&format!("journal entry {seq}: attempts:")),
+        "{}",
+        err.detail()
+    );
+    assert!(
+        std::error::Error::source(&err).is_none(),
+        "the decoder agrees: {err:?}"
+    );
+}

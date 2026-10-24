@@ -196,9 +196,8 @@ Rulings needed:
    (lead ruling, bc-lead, 2026-10-24).
 2. **Store failures.** Ruled (R2) and done with a-1 amendment 1
    (integrate/phase-a `f3a4a40`, merged here): SQLite and file errors are
-   `BD_CACHE.STORE_FAILED` with the underlying error kept as the source;
-   stored values that do not decode are `STORE_FAILED` without one
-   (ADR-STORE-0003). `NO_DATABASE` means only missing or invalid metadata.
+   `BD_CACHE.STORE_FAILED`, with or without a source as ADR-STORE-0003
+   lists. `NO_DATABASE` means only missing or invalid metadata.
    `status()` fills `StoreStatus.stale` from the same read snapshot as the
    rest of the status.
 3. **serde_json dependency.** The store uses the workspace's `serde_json`

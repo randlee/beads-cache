@@ -791,7 +791,9 @@ impl CacheStore for SqliteStore {
                 .optional()
                 .at(st)?
                 .ok_or_else(|| not_found(seq))?;
-            u32::try_from(attempts).map_err(|e| failed(st, e))
+            // The store's own validation, as `JournalRow::decode` does it: no source.
+            u32::try_from(attempts)
+                .map_err(|e| corrupt(st, format_args!("journal entry {seq}: attempts: {e}")))
         })
     }
 
