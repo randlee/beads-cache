@@ -1,7 +1,7 @@
 //! [`CacheBackend`] for [`BdCli`]: the cache's calls over the `bd` CLI.
 //!
-//! Every call builds its argv with [`argv`](crate::argv), runs it through
-//! [`CliInvoker::run_bounded`] with the time left before the [`Deadline`] it was
+//! Every call builds its argv with [`argv`], runs it through
+//! [`CliInvoker::run_bounded`](crate::CliInvoker::run_bounded) with the time left before the [`Deadline`] it was
 //! handed, and classifies the outcome (ADR-BDCLI-0001):
 //!
 //! | Outcome | Result |

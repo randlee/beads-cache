@@ -54,8 +54,9 @@ impl Live {
             eprintln!("skipped: SC_BD_LIVE is not 1");
             return Ok(None);
         }
-        let dir = std::env::var("SC_BD_LIVE_DIR")
-            .map_err(|_| "SC_BD_LIVE_DIR is not set (see scripts/bd-compat/run-live.sh)")?;
+        let dir = std::env::var("SC_BD_LIVE_DIR").map_err(|e| {
+            format!("SC_BD_LIVE_DIR is not usable ({e}); see scripts/bd-compat/run-live.sh")
+        })?;
         if !Path::new(&dir).join(MARKER).is_file() {
             return Err(format!(
                 "{dir} has no {MARKER}: live probes only run in a scratch workspace made by \
@@ -73,10 +74,6 @@ impl Live {
             label: format!("live-{}-{nanos}", std::process::id()),
             seq: std::cell::Cell::new(0),
         }))
-    }
-
-    fn deadline(&self) -> Deadline {
-        Deadline::after(&SystemClock, CALL)
     }
 
     fn scope(&self) -> ScopeFilter {
@@ -130,12 +127,17 @@ impl Live {
     fn read(&self, id: &BeadId) -> Result<Bead, String> {
         let rows = self
             .cli
-            .list_by_ids(&self.project, std::slice::from_ref(id), self.deadline())
+            .list_by_ids(&self.project, std::slice::from_ref(id), deadline())
             .map_err(|e| e.to_string())?;
         rows.into_iter()
             .next()
             .ok_or_else(|| format!("{id} is not in bd"))
     }
+}
+
+/// The deadline of one live call.
+fn deadline() -> Deadline {
+    Deadline::after(&SystemClock, CALL)
 }
 
 fn instant(row: &Bead) -> Result<i64, String> {
@@ -170,7 +172,7 @@ fn close_and_reopen_bump_the_beads_own_updated_at() -> Result<(), String> {
             Some("probe"),
             &Guards::default(),
             &actor,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
     let closed = live.read(&blocker)?;
@@ -192,7 +194,7 @@ fn close_and_reopen_bump_the_beads_own_updated_at() -> Result<(), String> {
             &reopen,
             &Guards::default(),
             &actor,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
     let reopened = live.read(&blocker)?;
@@ -224,7 +226,7 @@ fn list_by_id_returns_a_closed_bead_only_with_the_status_list() -> Result<(), St
             None,
             &Guards::default(),
             &Live::actor()?,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
 
@@ -237,11 +239,101 @@ fn list_by_id_returns_a_closed_bead_only_with_the_status_list() -> Result<(), St
 
     let with = live
         .cli
-        .list_by_ids(&live.project, std::slice::from_ref(&bead), live.deadline())
+        .list_by_ids(&live.project, std::slice::from_ref(&bead), deadline())
         .map_err(|e| e.to_string())?;
     assert_eq!(with.len(), 1, "the cache's call names all seven statuses");
     assert_eq!(with[0].status.as_deref(), Some("closed"));
     Ok(())
+}
+
+/// The beads of the P-6 probe, created in the live scope.
+struct P6 {
+    /// An open bead that blocks `b` and `parent`.
+    a: BeadId,
+    b: BeadId,
+    parent: BeadId,
+    /// A child of `parent` (inherits its blocked state).
+    child: BeadId,
+    /// Related to `a`, which does not block.
+    related: BeadId,
+    /// A blocker outside the label.
+    outside: BeadId,
+    /// Blocked by `outside`.
+    guarded: BeadId,
+    /// Depends on a closed bead, so it is ready.
+    free: BeadId,
+    /// Deferred into the future.
+    deferred: BeadId,
+}
+
+impl P6 {
+    fn build(live: &Live) -> Result<Self, String> {
+        let a = live.create("open blocker", false)?;
+        let b = live.create("blocked by a", false)?;
+        live.dep(&b, &a, "blocks")?;
+        let parent = live.create("parent blocked by a", false)?;
+        live.dep(&parent, &a, "blocks")?;
+        let child = live.create("child of a blocked parent", false)?;
+        live.dep(&child, &parent, "parent-child")?;
+        let related = live.create("related to a", false)?;
+        live.dep(&related, &a, "related")?;
+        let outside = live.create("blocker outside the label", true)?;
+        let guarded = live.create("blocked by an outside bead", false)?;
+        live.dep(&guarded, &outside, "blocks")?;
+        let done = live.create("closed blocker", false)?;
+        let free = live.create("depends on a closed bead", false)?;
+        live.dep(&free, &done, "blocks")?;
+        live.cli
+            .close_guarded(
+                &live.project,
+                &done,
+                None,
+                &Guards::default(),
+                &Live::actor()?,
+                deadline(),
+            )
+            .map_err(|e| e.to_string())?;
+        let deferred = live.create("deferred into the future", false)?;
+        live.raw(&["update", deferred.as_str(), "--defer", "2099-01-01"])?;
+
+        Ok(Self {
+            a,
+            b,
+            parent,
+            child,
+            related,
+            outside,
+            guarded,
+            free,
+            deferred,
+        })
+    }
+}
+
+/// The cache's `ready` predicate over the scope: open, no future `defer_until`, and
+/// not in `bd blocked` (ADR-BDC-0002).
+fn ready_predicate(
+    live: &Live,
+    blocked: &[sc_beads::BlockedRow],
+) -> Result<BTreeSet<String>, String> {
+    let scope_rows = live
+        .cli
+        .list_scope(&live.project, &live.scope(), None, deadline())
+        .map_err(|e| e.to_string())?;
+    let now = SystemClock.now_utc();
+    let blocked_ids = ids(blocked.iter().map(|r| r.id.clone()));
+    let mut predicate = BTreeSet::new();
+    for row in &scope_rows {
+        let open = row.status.as_deref() == Some("open");
+        let deferred_ahead = match &row.defer_until {
+            Some(t) => Timestamp::parse(t).map_err(|e| e.to_string())? > now,
+            None => false,
+        };
+        if open && !deferred_ahead && !blocked_ids.contains(row.id.as_str()) {
+            predicate.insert(row.id.as_str().to_owned());
+        }
+    }
+    Ok(predicate)
 }
 
 /// The P-6 probe as code: list rows carry no `is_blocked`; `bd blocked` has the shape
@@ -253,33 +345,17 @@ fn blocked_state_matches_the_p6_probe_and_the_ready_predicate() -> Result<(), St
     let Some(live) = Live::open()? else {
         return Ok(());
     };
-    let a = live.create("open blocker", false)?;
-    let b = live.create("blocked by a", false)?;
-    live.dep(&b, &a, "blocks")?;
-    let parent = live.create("parent blocked by a", false)?;
-    live.dep(&parent, &a, "blocks")?;
-    let child = live.create("child of a blocked parent", false)?;
-    live.dep(&child, &parent, "parent-child")?;
-    let related = live.create("related to a", false)?;
-    live.dep(&related, &a, "related")?;
-    let outside = live.create("blocker outside the label", true)?;
-    let guarded = live.create("blocked by an outside bead", false)?;
-    live.dep(&guarded, &outside, "blocks")?;
-    let done = live.create("closed blocker", false)?;
-    let free = live.create("depends on a closed bead", false)?;
-    live.dep(&free, &done, "blocks")?;
-    live.cli
-        .close_guarded(
-            &live.project,
-            &done,
-            None,
-            &Guards::default(),
-            &Live::actor()?,
-            live.deadline(),
-        )
-        .map_err(|e| e.to_string())?;
-    let deferred = live.create("deferred into the future", false)?;
-    live.raw(&["update", deferred.as_str(), "--defer", "2099-01-01"])?;
+    let P6 {
+        a,
+        b,
+        parent,
+        child,
+        related,
+        outside,
+        guarded,
+        free,
+        deferred,
+    } = P6::build(&live)?;
 
     // No list row carries `is_blocked`.
     let listed = live.raw(&[
@@ -304,7 +380,7 @@ fn blocked_state_matches_the_p6_probe_and_the_ready_predicate() -> Result<(), St
     // closed blocker do not block.
     let blocked = live
         .cli
-        .list_blocked(&live.project, &live.scope(), live.deadline())
+        .list_blocked(&live.project, &live.scope(), deadline())
         .map_err(|e| e.to_string())?;
     let blockers = |of: &BeadId| -> Option<BTreeSet<String>> {
         blocked
@@ -332,26 +408,10 @@ fn blocked_state_matches_the_p6_probe_and_the_ready_predicate() -> Result<(), St
     }
 
     // The cache's ready predicate equals `bd ready`.
-    let scope_rows = live
-        .cli
-        .list_scope(&live.project, &live.scope(), None, live.deadline())
-        .map_err(|e| e.to_string())?;
-    let now = SystemClock.now_utc();
-    let blocked_ids = ids(blocked.iter().map(|r| r.id.clone()));
-    let mut predicate = BTreeSet::new();
-    for row in &scope_rows {
-        let open = row.status.as_deref() == Some("open");
-        let deferred_ahead = match &row.defer_until {
-            Some(t) => Timestamp::parse(t).map_err(|e| e.to_string())? > now,
-            None => false,
-        };
-        if open && !deferred_ahead && !blocked_ids.contains(row.id.as_str()) {
-            predicate.insert(row.id.as_str().to_owned());
-        }
-    }
+    let predicate = ready_predicate(&live, &blocked)?;
     let ready = ids(live
         .cli
-        .list_ready(&live.project, &live.scope(), live.deadline())
+        .list_ready(&live.project, &live.scope(), deadline())
         .map_err(|e| e.to_string())?);
     assert_eq!(predicate, ready, "cache ready predicate vs bd ready");
     assert!(ready.contains(a.as_str()) && ready.contains(free.as_str()));
@@ -368,12 +428,12 @@ fn blocked_state_matches_the_p6_probe_and_the_ready_predicate() -> Result<(), St
             None,
             &Guards::default(),
             &Live::actor()?,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
     let after = live
         .cli
-        .list_blocked(&live.project, &live.scope(), live.deadline())
+        .list_blocked(&live.project, &live.scope(), deadline())
         .map_err(|e| e.to_string())?;
     assert!(
         after.iter().all(|r| r.id != guarded),
@@ -406,7 +466,7 @@ fn unmet_guards_exit_13_and_write_nothing() -> Result<(), String> {
         &claim,
         &stale_status,
         &actor,
-        live.deadline(),
+        deadline(),
     );
     assert!(
         matches!(r, Err(BeadsCacheError::Refused(Refusal::Precondition))),
@@ -418,7 +478,7 @@ fn unmet_guards_exit_13_and_write_nothing() -> Result<(), String> {
         None,
         &stale_status,
         &actor,
-        live.deadline(),
+        deadline(),
     );
     assert!(
         matches!(r, Err(BeadsCacheError::Refused(Refusal::Precondition))),
@@ -436,7 +496,7 @@ fn unmet_guards_exit_13_and_write_nothing() -> Result<(), String> {
     };
     let r = live
         .cli
-        .update_guarded(&live.project, &bead, &claim, &held, &actor, live.deadline());
+        .update_guarded(&live.project, &bead, &claim, &held, &actor, deadline());
     assert!(
         matches!(r, Err(BeadsCacheError::Refused(Refusal::Precondition))),
         "{r:?}"
@@ -452,7 +512,7 @@ fn unmet_guards_exit_13_and_write_nothing() -> Result<(), String> {
             &claim,
             &unassigned,
             &actor,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
     assert_eq!(live.read(&bead)?.status.as_deref(), Some("in_progress"));
@@ -495,7 +555,7 @@ fn metadata_values_round_trip_through_real_bd() -> Result<(), String> {
             &patch,
             &Guards::default(),
             &Live::actor()?,
-            live.deadline(),
+            deadline(),
         )
         .map_err(|e| e.to_string())?;
     let row = live.read(&bead)?;
@@ -527,9 +587,7 @@ fn unreachable_server_is_unavailable() -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     let down = ProjectRef::local(Some(dir.to_string_lossy().into_owned()));
-    let r = live
-        .cli
-        .list_scope(&down, &live.scope(), None, live.deadline());
+    let r = live.cli.list_scope(&down, &live.scope(), None, deadline());
     let _ = std::fs::remove_dir_all(&dir);
     let e = r.err().ok_or("a list against a closed port succeeded")?;
     assert!(e.is_unavailable() && !e.is_timeout(), "{e:?}");
@@ -547,7 +605,7 @@ fn fingerprint_reports_what_bd_prints() -> Result<(), String> {
     };
     let fp = live
         .cli
-        .fingerprint(&live.project, live.deadline())
+        .fingerprint(&live.project, deadline())
         .map_err(|e| e.to_string())?;
     let schema = live.raw(&["schema"])?;
     assert_eq!(fp.schema_sha256, schema_sha256(&schema));
