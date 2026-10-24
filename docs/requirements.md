@@ -570,7 +570,9 @@ A slow or unreachable backend does not slow or fail local reads and writes of ca
 
 **Status:** Draft
 
-Cached blocked state stays correct when a blocker inside or outside the cache is closed or reopened.
+Cached blocked state and `ready` stay correct when a blocker inside or outside the cache is closed or reopened, within one sync of the change; a bead whose blocked state is unknown is never reported ready.
+
+*Amended in planning: P-6 probe showed list rows carry no `is_blocked`; blocked state comes from `bd blocked` per scope (ADR-BDC-0002).*
 
 **Source:** user, 2026-10-23 planning discussion
 

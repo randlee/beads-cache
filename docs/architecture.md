@@ -87,8 +87,8 @@ up when the backend responds (ADR-BDC-0005).
 - **Drain:** applies journaled writes through the backend port in `seq`
   order, with achieved checks, preconditions and read-back (BD-CACHE.md).
 - **Sync:** the sync task (on sc-runtime) refreshes each active scope from
-  its own cursor, then re-reads only the cached dependers of blockers whose
-  status changed, inside or outside the cache (ADR-BDC-0002).
+  its own cursor, then replaces the scope's blocked set from one
+  `bd blocked -l <label>` call (ADR-BDC-0002).
 
 ### Open questions
 
@@ -177,63 +177,49 @@ the Python implementation reads the extended file, and the Rust store
 tolerates rows Python leaves in the extension tables. No version bump. Needs agreement on
 https://github.com/randlee/atm-bd-orchestration/issues/557.
 
-## ADR-BDC-0002: Blocked state for dependencies outside the cache
+## ADR-BDC-0002: Blocked state from bd, one query per scope
 
 **Status:** Draft
 
-Context: a filtered cache holds edges whose targets are in no scope. bd
-stores blocked state on each row (`is_blocked` in `bd schema` `types.issue`)
-and settles it inside the transaction of every committing write, including
-the dependers of a closed blocker and parent-child descendants. So `ready`
-does not need the targets' status: it can read `is_blocked` from the cached
-row. But bd settles `is_blocked` **without bumping `updated_at`**
-(`BlockedStateInvariant` in beads `issueops/blockedstate.go`), so
-`bd list --updated-after` never returns a row whose only change is a
-blocked-state flip. When a blocker outside the cache closes, the cached
-depender keeps `is_blocked = true` until something else touches it. After a
-pull or merge, bd recomputes blocked state in a scoped pass that can be
-skipped or fail. This affects the BD-CACHE v3 design and the live Python
-implementation today.
+Context: a filtered cache must answer `ready` and blocked state correctly,
+including when a blocker is outside every scope, and when a blocker is closed
+or reopened. The probe in
+[`research/bd-blocked-state-probe.md`](research/bd-blocked-state-probe.md)
+(P-6) found:
 
-Reopening works the same way: reopening a closed bead re-blocks its dependers
-(for example a downstream sanity bead) without changing their `updated_at`.
+- `bd list --json` and `bd show --json` never emit `is_blocked`, so cached
+  rows carry no blocked state at all (`bd schema` declares it optional).
+- bd settles blocked state without bumping the depender's `updated_at`
+  (`BlockedStateInvariant`, beads `issueops/blockedstate.go`; fenix confirmed
+  18 of 1279 live `blocks` edges), so `--updated-after` sync cannot see it
+  change either.
+- `blocks` edges block; a child inherits its parent's blocked state through
+  `parent-child`; `related` does not block. Other types were not probed.
+- `bd blocked -l <label> --json` returns bd's own blocked set for a label,
+  each row with `blocked_by`, including blockers outside the label and
+  inherited parent-child blocking.
 
-Edges: `bd list --json` rows carry only outgoing edges (`dependencies`) plus a
-`dependent_count`; incoming edges are not listed. The cache's own `edges`
-table, indexed by `depends_on_id`, gives the incoming edges from cached
-beads, which are the only dependers the cache needs to refresh.
+The live Python cache (BD-CACHE v3) is not affected: it never stores or
+serves blocked state, and readiness there comes from live `bd ready`.
 
-Decision: re-read only the dependers of blockers whose status changed, never
-every blocked bead.
+Decision: the cache does not compute blocked state and does not read it from
+rows. Each sync of a scope ends with one `bd blocked -l <scope label> --json`
+call and replaces that scope's stored blocked set (bead id plus
+`blocked_by`) with the result. `ready` for a scope is its cached rows with
+status `open`, minus the stored blocked set, with the journal overlay
+applied. A bead whose blocked state is unknown (its scope has never
+completed this call) is reported as such, never as ready.
 
-1. **Blocker in the cache.** Its own close or reopen bumps its `updated_at`,
-   so scope sync sees the status change; when the drain lands it, the drain
-   marks the bead as a changed blocker. The next sync (the same cron tick, which
-   drains then syncs) looks up the changed blockers' cached dependers through
-   the `edges` index and re-reads just those in one batched `bd list --id`.
-   Repeat to a fixpoint for parent-child descendants. Keeping the refresh in
-   sync leaves the write path free of read-path logic.
-2. **Blocker outside the cache.** The cache keeps the set of outside blocking
-   targets: blocking-edge targets with no scope membership, whether or not a
-   row for them is cached (a `get`-fetched row is still outside). Each sync asks for only
-   the ones that changed: `bd list --id <outside targets> --updated-after
-   <cursor>`, chunked to keep the argument list bounded. Each changed target's
-   cached dependers are re-read as in 1.
-3. **Safety net.** A merge or pull can leave blocked state stale until bd's
-   scoped recompute runs. A full re-read of cached open beads with blocking
-   edges runs only on demand (`doctor`, a manual refresh, or after a backend
-   rebuild), not on every sync.
+Between syncs the blocked set can lag a journaled close or reopen by up to
+one tick; the cron tick drains then syncs, so a drained close is reflected
+in the same tick. This is the same lag BD-CACHE documents for agents'
+direct `bd` reads.
 
-Reads per sync are then bounded by the number of changed blockers' dependers,
-plus one small query for outside targets.
-
-To verify in phase a: that `--id` and `--updated-after` combine as a filter
-intersection, and that `bd close`/`bd reopen` bump the blocker's own
-`updated_at`.
-
-Consequences: one extra small `bd` call per sync for outside targets; no
-reference rows are stored. Report the `updated_at` gap on
-https://github.com/randlee/atm-bd-orchestration/issues/557.
+Consequences: one extra `bd` call per scope per sync, returning only the
+blocked beads; no depender re-reads, no changed-blocker or outside-blocker
+bookkeeping, and no copy of bd's blocking rules to drift. Out-of-scope
+blockers and parent-child inheritance are handled by bd. If the call fails,
+the previous set is kept and marked stale with the scope's sync error.
 
 ## ADR-BDC-0003: Align data vocabulary with the bd serve /v0 API
 
@@ -267,7 +253,7 @@ backend bd supports, including Hosted Dolt and embedded dolt with a remote.
 Decision: all backend access goes through the `sc-beads` traits
 (ADR-BDC-0007). The cache uses `CacheBackend: BeadsBackend`, whose methods
 all take a `Deadline`: `fingerprint`, `list_by_ids`, `list_scope(filter,
-since)`, `list_changed(ids, since)`, `close_guarded`, `update_guarded`,
+since)`, `list_blocked(filter)`, `close_guarded`, `update_guarded`,
 `dep_add_typed`. Phase a builds only the bd CLI implementation (`sc-bd-cli`).
 The cursor is an RFC 3339 string minted by the cache from a sync's start time;
 the backend treats it as opaque, so a commit hash or events `seq` can replace

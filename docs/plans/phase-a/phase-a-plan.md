@@ -1,7 +1,7 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
 Status: planned (scope review round 1, critical review rounds 1 and 2
-applied). P-1 is done; P-2, P-3, P-5 and P-6 are open, with fallbacks below.
+applied). P-1 and P-6 are done; P-2, P-3 and P-5 are open, with fallbacks below.
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
@@ -26,8 +26,7 @@ requirement ids, not the baseline.
 - The `bdc` / `bd-cache` binary (needs sc-command and sc-config).
 - The MCP server, the `sc-bd-http` adapter, DoltHub-specific adapters.
 - Bead creation and comments in the cache journal (out of BD-CACHE v1).
-- An on-demand full blocked-state re-read (ADR-BDC-0002 safety net); the
-  targeted refresh is phase A's mechanism.
+
 - Moving `sc-cron` to sc-runtime; publishing `sc-beads` / `sc-bd-cli` to
   crates.io. Phase A makes them publish-ready (`cargo publish --dry-run`).
 
@@ -36,11 +35,11 @@ requirement ids, not the baseline.
 | Id | Prerequisite | Blocks | Fallback if open at dispatch |
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
-| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
+| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). fenix (2026-10-24): fine with all four; proposes the ADR-BDC-0005 outage rule for v3 and would move the Python schema to match once 0001 and 0005 are agreed. Rand decides. | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
 | P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError` as the shared error type, tolerant and strict rows. btit's traits stay unchanged either way; the cache methods are on `CacheBackend: BeadsBackend`. | a-1 error and row freeze | a-1 keeps btit's `BeadsError` and adds the cache variants; recorded in ADR-BDC-0007. |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
-| P-6 | Manual live probe, run once by the team-lead in a scratch `bd init` workspace: do `bd list --id` and `--updated-after` combine as an intersection? | a-1's `list_changed` implementation note | `list_changed` is `list_by_ids` of the outside blockers filtered on `updated_at` in the backend implementation; the signature is unchanged. |
-| P-5 | The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
+| P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
+| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
 
 ## Boundary map
 
@@ -187,17 +186,21 @@ distinct bugs; the missing one is to be raised on #557.
 
 ## Items to raise on #557
 
-Collected for one comment on randlee/atm-bd-orchestration#557 (not posted):
+Collected for one comment on randlee/atm-bd-orchestration#557 (not posted).
+fenix replied on 2026-10-24 to the first summary:
 
-- `bd` settles `is_blocked` without bumping `updated_at`, so `--updated-after`
-  sync misses blocked-state flips on close and reopen (ADR-BDC-0002).
-- An outage spends retry attempts and escalates every pending write within a
-  few ticks (ADR-BDC-0005).
+- bd settles `is_blocked` without bumping `updated_at`, and list rows never
+  carry it. Confirmed live; does **not** affect v3 (it never serves blocked
+  state); relevant only to a cache that serves `ready` (ADR-BDC-0002).
+- An outage spends retry attempts and escalates every pending write within
+  about 5 ticks. fenix: a real v3 defect; proposing ADR-BDC-0005's rule for
+  v3.
 - Two-deadline drain rule (REQ-BDC-0402) and the additive schema extensions
-  (ADR-BDC-0001, 0004).
-- The Tests section says 19 + 13 = 32 planted bugs but lists 31.
-- `PRECONDITION`'s `unmet` shape differs between the failure table
-  (`{expected, actual}`) and the algorithm (`{key: {expected, actual}}`).
+  (ADR-BDC-0001, 0004). fenix: will state the 25 s budget is a start gate and
+  name the hard deadline on #2219.
+- Planted-bug lists name fewer items than their counts, and the `unmet`
+  shape is `{key: {expected, actual}}` in code. fenix: will fix both on
+  #2219; re-vendor the baseline after.
 
 ## bd release compatibility
 

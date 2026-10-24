@@ -62,8 +62,8 @@ wave-2 fix that needs it.
 
 - P-3: confirms `BeadsError` as the shared error type and the tolerant/strict
   row split. btit's traits stay unchanged regardless.
-- P-6 (manual probe): decides `list_changed`'s implementation note in a-2;
-  the signature is the same either way.
+- P-6: done (`docs/research/bd-blocked-state-probe.md`); it set
+  ADR-BDC-0002's design.
 - Strict `Bead` generation from the bd-1.3.1 schema fixture; generator
   command and pinned sha in the module header.
 
@@ -82,7 +82,9 @@ pub struct Actor(String);
 pub enum DepType { /* bd's dependency types from bd schema; DepType::parse(&str) -> Option<Self>; is_blocking() */ }
 pub struct Edge { pub issue_id: BeadId, pub depends_on_id: BeadId, pub kind: DepType }
 /// Strict row: generated from `bd schema` (deny_unknown_fields) plus the four --json extras.
-pub struct Bead { /* id, status, assignee, labels, metadata, notes, is_blocked, updated_at, dependencies: Vec<Edge>, ... */ }
+pub struct Bead { /* id, status, assignee, labels, metadata, notes, updated_at, dependencies: Vec<Edge>, ...; is_blocked is optional and bd never emits it (ADR-BDC-0002) */ }
+/// One row of `bd blocked --json`, strict.
+pub struct BlockedRow { pub id: BeadId, pub blocked_by: Vec<BeadId> }
 pub struct Fingerprint { pub bd_version: String, pub schema_sha256: String, pub schema_version: String }
 pub enum ScopeFilter { Label(String) }
 pub struct SyncCursor(String); // RFC 3339 derived by the cache from last_ok_at; opaque to the backend
@@ -123,7 +125,7 @@ pub trait CacheBackend: BeadsBackend + Send + Sync {
     fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsError>;
     fn list_by_ids(&self, p: &ProjectRef, ids: &[BeadId], d: Deadline) -> Result<Vec<Bead>, BeadsError>;
     fn list_scope(&self, p: &ProjectRef, f: &ScopeFilter, since: Option<&SyncCursor>, d: Deadline) -> Result<Vec<Bead>, BeadsError>;
-    fn list_changed(&self, p: &ProjectRef, ids: &[BeadId], since: &SyncCursor, d: Deadline) -> Result<Vec<Bead>, BeadsError>;
+        fn list_blocked(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BlockedRow>, BeadsError>; // bd blocked -l
     fn close_guarded(&self, p: &ProjectRef, id: &BeadId, reason: Option<&str>, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
     fn update_guarded(&self, p: &ProjectRef, id: &BeadId, patch: &Patch, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
     fn dep_add_typed(&self, p: &ProjectRef, id: &BeadId, on: &BeadId, kind: DepType, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
@@ -132,9 +134,10 @@ pub trait CacheBackend: BeadsBackend + Send + Sync {
 /// Behind the `testing` feature.
 pub mod testing {
     pub struct ManualClock; // advance(Duration), set_utc(&str)
-    /// Deterministic bd model: validated rows; settles `is_blocked` on dependers and parent-child
-    /// descendants on close/reopen WITHOUT bumping their `updated_at`; `--id` ∩ `--updated-after`
-    /// for list_changed; records the command plan; injects Unavailable (timed_out or not), exit 13
+        /// Deterministic bd model: validated rows without is_blocked; close/reopen bump only the bead's
+    /// own updated_at; list_blocked computes the blocked set as bd does (blocks edges, parent-child
+    /// inheritance, related non-blocking) including blockers outside the label; list_by_ids needs
+    /// the status list for closed beads; records the command plan; injects Unavailable (timed_out or not), exit 13
     /// and Failed per call; advances the ManualClock by a configured cost per call.
     pub struct FakeBackend;
 }
@@ -146,7 +149,7 @@ impl Op {
     pub fn to_args_json(&self) -> String;                                // canonical, Python-compatible
     pub fn overlay(&self, row: &Bead) -> Bead;
     pub fn achieved(&self, row: &Bead) -> bool;                          // dep_add: edge in row.dependencies
-    pub fn changes_status(&self) -> bool;                                // close, or update with a status (reopen)
+    
 }
 pub fn replay(row: &Bead, pending: &[JournalEntry]) -> Bead;            // seq order; escalated skipped
 pub struct Seq(i64); pub struct IdemKey(String);
@@ -165,6 +168,7 @@ pub struct SyncState { pub scope: ScopeId, pub last_started_at: Option<String>, 
 pub struct Outage { pub since: String, pub last_error: String }
 pub enum FingerprintOutcome { Recorded, Unchanged, Rebuilt }
 pub struct UpsertReport { pub stored: Vec<BeadId>, pub skipped_newer: Vec<BeadId>, pub status_changed: Vec<BeadId> }
+pub struct BlockedSet { pub rows: Vec<BlockedRow>, pub fetched_at: String, pub stale: bool }
 pub struct OpenWork { pub pending: u64, pub escalated_unannounced: u64 }
 pub struct StoreStatus { /* meta, journal counts per scope:state, per-scope sync state and bead counts, escalated entries, outage */ }
 
@@ -184,10 +188,10 @@ pub trait CacheStore: Send {
     fn upsert_rows(&mut self, s: Option<&ScopeId>, rows: &[Bead], force: bool) -> Result<UpsertReport, CacheError>;
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError>;
     fn dependents_of(&self, id: &BeadId) -> Result<Vec<Edge>, CacheError>;     // incoming edges, with kind
-    fn outside_blockers(&self) -> Result<Vec<BeadId>, CacheError>;            // blocking-edge targets with no scope membership
-    fn mark_blocker_changed(&mut self, id: &BeadId) -> Result<(), CacheError>;
-    fn changed_blockers(&self) -> Result<Vec<BeadId>, CacheError>;
-    fn clear_changed_blockers(&mut self, ids: &[BeadId]) -> Result<(), CacheError>; // only after a refresh succeeds
+        fn replace_blocked(&mut self, s: &ScopeId, rows: &[BlockedRow], at: &str) -> Result<(), CacheError>; // whole set for the scope
+    fn blocked_in_scope(&self, s: &ScopeId) -> Result<Option<BlockedSet>, CacheError>; // None = never fetched
+    fn mark_blocked_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
+
     fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError>; // any state
     fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError>;
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
@@ -237,15 +241,16 @@ pub enum CallOutcome { Ok, Cut, Outage(String), Error(CacheError) }
 // Replies are provisional: their exact field set is owned by the later `bdc` sprint
 // (REQ-BDC-0806, deferred). Rows are objects, never tuples. Goldens here pin the
 // Rust shapes so wave-2 sprints agree; they are not claimed equal to Python.
-pub struct RowView { pub bead: Bead, pub stale: bool }
+pub struct RowView { pub bead: Bead, pub stale: bool, pub blocked: Option<Vec<BeadId>> /* None = unknown, Some([]) = not blocked */ }
 pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<String>, pub pending: u32, pub outage: Option<Outage> }
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<String>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
+pub struct ReadyReply { pub scope: ScopeId, pub blocked_fetched_at: Option<String>, pub ready: Vec<RowView>, pub unknown: bool }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
 pub struct DrainReport { pub busy: bool, pub applied: Vec<Seq>, pub retrying: Vec<Seq>, pub escalated: Vec<EscalatedItem>,
     pub deferred: Vec<Seq>, pub deferred_in_flight: Vec<Seq>, pub outage: Option<Outage> }
 pub struct EscalatedItem { pub seq: Seq, pub bead: BeadId, pub op: String, pub actor: Actor, pub phase: Option<String>, pub reason: String }
 pub struct SyncReport { pub scope: ScopeId, pub rebuilt: bool, pub model_current: bool, pub stored: u32,
-    pub refreshed_dependers: u32, pub deferred: bool, pub outage: Option<Outage> }
+        pub blocked: u32, pub deferred: bool, pub outage: Option<Outage> }
 pub struct PruneReport { pub scope: ScopeId, pub beads_deleted: u32, pub out_of_scope_swept: u32 }
 pub struct StatusReply { /* StoreStatus plus outage */ }
 
@@ -272,10 +277,11 @@ pub struct Cache<S: CacheStore, L: DrainLock, B: CacheBackend> { /* config, stor
 impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     pub fn new(config: CacheConfig, store: S, lock: L, backend: B, clock: Arc<dyn Clock>) -> Result<Self, CacheError>; // ensure_scope each
     pub fn get(&mut self, id: &BeadId) -> Result<GetReply, CacheError>;                                          // a-6
-    pub fn list(&self, s: &ScopeId, status: Option<&str>, label: Option<&str>) -> Result<ListReply, CacheError>;  // a-6
+        pub fn list(&self, s: &ScopeId, status: Option<&str>, label: Option<&str>) -> Result<ListReply, CacheError>;  // a-6
+    pub fn ready(&self, s: &ScopeId) -> Result<ReadyReply, CacheError>;                                          // a-6
     pub fn write(&mut self, id: &BeadId, op_name: &str, args_json: &str, pre: Guards, key: IdemKey, actor: Actor) -> Result<WriteReply, CacheError>; // a-5
     pub fn drain(&mut self, budget: &DrainBudget) -> Result<DrainReport, CacheError>;                            // a-5
-    pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError>;                          // a-6 (incl. refresh)
+        pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError>;                          // a-6 (incl. blocked set)
     pub fn resolve(&mut self, seq: Seq, note: &str, actor: Actor) -> Result<(), CacheError>;                     // a-6
     pub fn prune(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;                                     // a-6
     pub fn status(&self) -> Result<StatusReply, CacheError>;                                                     // a-6
@@ -288,7 +294,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 //   view::current_view(&self, id) -> Result<Option<(Bead, Freshness)>, CacheError>   // stored row + replay
 //   backend_check::run(&mut self, hard) -> Result<(FingerprintOutcome, bool /*model_current*/), CallOutcome>
 //   miss::fill(&mut self, id) -> Result<Option<Bead>, CacheError>   // under miss_fill_timeout; stored with None
-// Module files a-5 fills: write.rs, drain.rs. a-6 fills: get.rs, list.rs, sync.rs, refresh.rs, resolve.rs, prune.rs, status.rs.
+// Module files a-5 fills: write.rs, drain.rs. a-6 fills: get.rs, list.rs, sync.rs, ready.rs, resolve.rs, prune.rs, status.rs.
 ```
 
 ## Deliverables
@@ -305,8 +311,8 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
    Boundaries section of `docs/architecture.md` forbids. No live probes.
 3. `sc-beads`: btit's types and traits unchanged with the API snapshot
    fixture, `CacheBackend`, rows, errors, `Clock`/`Deadline`, `testing`
-   (REQ-BDC-0906, 0007); bd-1.3.1 fixtures (`bd-schema.json`,
-   `list-rows.json`) with provenance.
+      (REQ-BDC-0906, 0007); bd-1.3.1 fixtures (`bd-schema.json`, `list-rows.json`) with provenance, plus a
+   recorded `bd blocked --json` fixture from the P-6 probe workspace.
 4. `bd-cache-model`: `Op`, `replay`, ports and fakes, `CacheConfig`,
    `DrainBudget`, `CallKind`, replies, `CacheError` with the mapping table
    (REQ-BDC-0301, 0304, 0305, 0802, 0803).
@@ -332,10 +338,10 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 | `test_pinned_model_matches_recorded_schema`, `test_recorded_bd_rows_validate` (REQ-BDC-0007) | boundary:sc-beads |
 | A row with an unknown key, missing key or wrong type is `BeadsError::Contract` naming bead and field (REQ-BDC-0007) | boundary:sc-beads |
 | btit's traits and types match the API snapshot at `8d8e82ae9f85`; cargo features unchanged (REQ-BDC-0906) | ADR-BDC-0007 |
-| `FakeBackend` settles dependers' `is_blocked` on close and reopen without bumping their `updated_at`; `list_changed` returns only ids changed after the cursor | ADR-BDC-0002 |
+| `FakeBackend` rows carry no `is_blocked`; `list_blocked` matches the probe's recorded cases (blocks, parent-child inheritance, related, outside blocker, close and reopen) | ADR-BDC-0002 |
 | `test_bad_ops_are_typed`: bad op name `BAD_OP`; unknown dep type and each rejected metadata class `BAD_ARGS` from `Op::parse` (REQ-BDC-0301, 0304) | boundary:bd-cache-model |
 | `Op::to_args_json` round-trips Python-written journal args fixtures; equal ops compare equal (REQ-BDC-0301) | boundary:bd-cache-model |
-| `overlay`, `achieved`, `changes_status` and `replay` match the op table; replay skips escalated entries (REQ-BDC-0305) | boundary:bd-cache-model |
+| `overlay`, `achieved` and `replay` match the op table; replay skips escalated entries (REQ-BDC-0305) | boundary:bd-cache-model |
 | Golden JSON for every `CacheError` code incl. `PRECONDITION` with `unmet` and `reason`; `exit_code()` is 3; `from_backend` matches the table for every `CallKind` (REQ-BDC-0802, 0803) | boundary:bd-cache-model |
 | `test_schema_change_rebuilds_rows_and_keeps_the_journal`, `test_model_current_when_live_schema_matches_pin`, `test_first_backend_check_records_schema_without_dropping_cached_rows` through `backend_check::run` (REQ-BDC-0105) | boundary:bd-cache |
 | `call` hands `min(call_timeout, hard)`; a timeout after `hard` expired is `Cut` and records no outage; `Unavailable` records the outage and the next success clears it | ADR-BDC-0005 |

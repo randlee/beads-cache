@@ -53,8 +53,7 @@ It uses no code from a-4 or a-6.
    `backend_check::run` (a cut check defers the whole drain), one batched pre-read, per-entry steps (absent,
    achieved, precondition, command, exit 13, retry cap of 5, per-bead hold),
    read-back with `apply_with_readback` and the stale mark, the drain
-   report. Beads whose row is stale are skipped until a sync clears it. An op with `changes_status()` whose read-back status differs from the
-   pre-read calls `mark_blocker_changed` (close and reopen; ADR-BDC-0002).
+   report. Beads whose row is stale are skipped until a sync clears it. 
 3. Outage stop policy in `drain.rs` (ADR-BDC-0005): a `CallOutcome::Outage`
    stops the drain without counting an attempt (the `call` helper records
    it); `Cut` leaves the entry in `deferred_in_flight`. Only errors from a
@@ -76,7 +75,7 @@ It uses no code from a-4 or a-6.
 | A failed read-back marks the entry applied with the error and sets the stale mark; with `FakeStore` holding that row stale, later drains skip the bead's entries until the stale mark is cleared (REQ-BDC-0405) | boundary:bd-cache |
 | An entry whose call is cut by the hard deadline stays pending with unchanged `attempts`, is reported in `deferred_in_flight`, records no outage, and a write that landed is found achieved by the next drain (REQ-BDC-0402) | boundary:bd-cache |
 | With `FakeBackend` returning `Unavailable` for N drains, entries stay pending with unchanged `attempts` and the outage is recorded, then cleared on recovery; a reachable-backend failure still escalates at 5 | ADR-BDC-0005 |
-| A landed close or reopen marks its bead as a changed blocker | ADR-BDC-0002 |
+
 | Planted bugs: no write precondition, no drain precondition, no per-bead hold, no achieved check, no retry cap, no stale flag, no drain lock, per-entry pre-read, no not-found escalation, deferred not reported, drain without deadline, dedupe after the precondition each fail a test | boundary:bd-cache |
 
 ## This sprint does not close

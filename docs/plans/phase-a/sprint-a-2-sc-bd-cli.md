@@ -48,7 +48,7 @@ a-1.
    version` plus sha256 of `bd schema`; never `bd context`, REQ-BDC-0106);
    `list_by_ids` (one `bd list --id a,b,... --status <all 7> -n 0 --json`,
    chunked); `list_scope` (`-l <label>`, `--updated-after` when a cursor is
-   given); `list_changed` (`--id ... --updated-after`); `close_guarded`
+   given); `list_blocked` (`bd blocked -l <label> --json`, strict `BlockedRow`); `close_guarded`
    (`--reason`), `update_guarded` (`--if-status`, `--if-assignee`),
    `dep_add_typed` (`--type`), all with `--actor`.
 3. Error mapping and deadlines (NFR-BDC-0004): exit 13 to
@@ -60,10 +60,11 @@ a-1.
    `true`/`false`, `--unset-metadata`, `--append-notes`.
 5. Live probes (NFR-BDC-0006): `#[ignore]` unless `SC_BD_LIVE=1`, run by the
    team-lead on the `m5-atmbench` testbed account in a scratch `bd init`
-   workspace, never a shared database. They check that `--id` and
-   `--updated-after` combine as an intersection, and that `bd close` and
-   `bd reopen` bump the bead's own `updated_at`. P-6 is a manual run of the intersection probe before a-1 freezes; this
-   coded probe repeats it. a-7 records the full run.
+   workspace, never a shared database. They check that `bd close` and `bd reopen` bump the bead's own
+   `updated_at`, and that `bd list --id` returns a closed bead only with the
+   status list. They repeat the P-6 manual probe (`docs/research/bd-blocked-state-probe.md`)
+   as code: no `is_blocked` in list rows, `bd blocked` shape and inheritance,
+   `--id` needing the status list for closed beads. a-7 records the full run.
 6. bd compatibility workflow `.github/workflows/bd-compat.yml`
    (REQ-BDC-0905), triggered by `repository_dispatch` (type `beads-release`,
    payload `{"version": "<bd version>"}`, see P-5) and `workflow_dispatch`.
@@ -79,8 +80,8 @@ a-1.
    `BD_CONTRACT` failures on running caches after a bd upgrade; it is
    permanent while bd is upstream.
 
-7. `BdCli` is constructed with the shared `Arc<dyn Clock>`; `list_changed`
-   is chunked like `list_by_ids`.
+7. `BdCli` is constructed with the shared `Arc<dyn Clock>`; `list_by_ids` always passes all seven statuses (closed beads are omitted
+   otherwise) and is chunked.
 8. Per-crate docs `docs/sc-bd-cli/requirements.md` and `architecture.md`
    (ADR-BDCLI-0001: argv mapping and error classification).
 

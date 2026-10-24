@@ -101,7 +101,7 @@ write and read paths (a-5, a-6).
 | Incremental sync of a 1000-bead scope under 1 s on the testbed, recorded (or deferred evidence per deliverable 5) | req:NFR-BDC-0003 |
 | A second tick while a blocking sync is still running is skipped and reported busy | req:REQ-BDC-0703 |
 | An outage is announced once per scope with a lead under `backend_unavailable` and reset when it ends; a scope without a lead uses `fallback_lead` | req:REQ-BDC-0704 |
-| `test_e2e_blocker_close_and_reopen_flip_dependers`: a journaled close of a cached blocker, applied by a scheduled drain on the real store, is followed in the same tick by a sync that re-reads only its dependers and flips their `is_blocked`; the same for an outside blocker and for reopen | req:REQ-BDC-0904 |
+| `test_e2e_blocker_close_and_reopen_update_ready`: a journaled close of a cached blocker, applied by a scheduled drain on the real store, makes its depender ready in the same tick's sync; reopen makes it blocked again; the same for a blocker outside every scope | req:REQ-BDC-0904 |
 | An escalation on an entry with no scope goes to `fallback_lead`, and the stop rule still fires | req:REQ-BDC-0706 |
 | `Cargo.lock` is committed; `docs/architecture.md` ADRs and Crate Layout match the shipped crates | phase plan |
 | Planted bugs: unannounced filter dropped, open-work ignores announcement, refusal dropped, team check dropped, closed roots active, stop ignores open work each fail a test | req:REQ-BDC-0705 |
