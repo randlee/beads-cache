@@ -121,10 +121,14 @@ Crate tests and lints; `cargo build --workspace`.
 ## Requirement scope notes
 
 - REQ-CORE-0201..0207 and ADR-CORE-0201..0205 are new crate ids in
-  [`docs/bd-cache/read-path.md`](../../bd-cache/read-path.md), written as
-  Draft for the lead's ruling. ADR-CORE-0201..0203 refine ADR-BDC-0002 and
-  ADR-BDC-0005 (they make the prose rules precise); none amends an
-  Approved ADR.
+  [`docs/bd-cache/read-path.md`](../../bd-cache/read-path.md), Approved
+  (lead ruling, bc-lead, 2026-10-24, R1). ADR-CORE-0201..0203 refine
+  ADR-BDC-0002 and ADR-BDC-0005; none amends an Approved ADR. ADR-BDC-0002's
+  reopen rule was clarified to match ADR-CORE-0201 (R3, `integrate/phase-a`
+  at `60e630f`, merged into this branch).
+- A failed ready-base fetch during sync is not added to `SyncReport` (R4,
+  declined); sync emits a `tracing` warning with the error's code and
+  detail instead (ADR-CORE-0203).
 - REQ-BDC-0503's acceptance case
   `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`
   is a-7's (it spans drain and sync). a-6 tests the sync half: the stale
@@ -138,11 +142,13 @@ Crate tests and lints; `cargo build --workspace`.
   in `FakeStore`.
 - REQ-BDC-0603 and deliverable 7 ("`status` reports each scope's
   `last_ok_at`, stale rows and the outage"): `last_ok_at` and the outage are
-  reported; stale rows are not, because a-1's `StatusReply` is
+  reported; stale rows are not yet, because a-1's `StatusReply` is
   `{ store: StoreStatus }` and `StoreStatus` has no stale-row field.
-  Contract deviation for ruling: an a-1 amendment adding
-  `stale: Vec<BeadId>` (filled from `CacheStore::stale_rows`) to
-  `StoreStatus` or `StatusReply`.
+  **Open item** (R2, lead ruling, bc-lead, 2026-10-24): the lead adds
+  `stale: Vec<BeadId>` to `StoreStatus`, filled from
+  `CacheStore::stale_rows`, in a-1 amendment 1 (`sprint/a-1-amend-1`).
+  Once it is merged into `integrate/phase-a`, a-6 merges it and fills and
+  tests the field. Until then this part of deliverable 7 is not closed.
 - Deliverable 6 (announcement passthroughs) was implemented by a-1 in
   `lib.rs` (ADR-CORE-0002); a-6 adds its tests
   (`announcement_state_passes_through_to_the_store`).
@@ -183,8 +189,8 @@ Crate tests and lints; `cargo build --workspace`.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `3d2bb4f0a24d1aa10dce8ed8c4dbd3272df44f2a`, the last commit
-that changes code (later commits change documents only). Each mutation was
+Run on commit `131b8570ccc78021b2d814c51f1c58257c2637ae` (after the R4 change and the
+merge of `integrate/phase-a` at `60e630f`), the last commit that changes code (later commits change documents only). Each mutation was
 applied to the working tree by a script (one literal replacement, checked to
 match exactly once), the whole `bd-cache` suite was run, and the file was
 restored:
@@ -232,7 +238,8 @@ deliverable.
 | list: status filter dropped | `crates/bd-cache/src/list.rs` | 101 | no | `list_filters_by_status_and_label_on_the_view` |
 
 Every one of the 29 bugs fails at least one test, none by a compile error,
-and `git status` was clean after the run. In a dry run before the evidence
+and every mutated source file was restored after the run (only this
+document's uncommitted edits remained). In a dry run before the evidence
 commit, "rows outside the scope get a blocked state" survived, which showed
 a missing case (a listed row whose view a pending write moves out of the
 scope). The case was added to
@@ -247,7 +254,7 @@ store contract suite does not apply, because a-6 implements no `CacheStore`.
 
 ## Validation
 
-At `3d2bb4f`, locally (macOS):
+At `131b857`, locally (macOS), after merging `integrate/phase-a`:
 
 | Gate | Result |
 |---|---|
@@ -255,7 +262,7 @@ At `3d2bb4f`, locally (macOS):
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps` | pass |
-| `cargo test --workspace --all-features` | pass (304 tests; `bd-cache` 82) |
+| `cargo test --workspace --all-features` | pass (392 tests; `bd-cache` 82) |
 | `cargo build --workspace` | pass |
 
 CI: recorded on the PR.

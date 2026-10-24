@@ -1,7 +1,7 @@
 # bd-cache Read Path
 
-Status: draft (sprint a-6; REQ-CORE-0201..0207 and ADR-CORE-0201..0205
-await the lead's ruling). Crate-local requirements and decisions (domain
+Status: approved (REQ-CORE-0201..0207 and ADR-CORE-0201..0205, lead
+ruling, bc-lead, 2026-10-24). Crate-local requirements and decisions (domain
 code `CORE`) for the read path of `bd-cache`: `get`, `entry`, `refresh`,
 `list`, `ready`, `sync`, `resolve`, `prune` and `status`. Indexed from
 [`architecture.md`](architecture.md); the shared helpers they call (`call`,
@@ -26,7 +26,7 @@ Tests: `tests/read_get.rs`, `tests/read_ready.rs`, `tests/read_journal.rs`,
 
 ### REQ-CORE-0201: get and entry
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `get(id, miss_timeout)` answers a cached bead from the store with its
 pending entries replayed and starts no backend call. A miss makes one
@@ -46,7 +46,7 @@ scope's `last_ok_at`, the number of pending entries and the outage.
 
 ### REQ-CORE-0202: list
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `list(scope, status, label)` returns the scope's cached rows by id, each
 with its pending entries replayed and filtered on that view, with `stale`,
@@ -61,7 +61,7 @@ backend call.
 
 ### REQ-CORE-0203: refresh
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `refresh(ids, timeout)` makes one `list_by_ids` of all the ids (all
 statuses) through `call(Refresh)` under `timeout`, checks the answer as a
@@ -76,7 +76,7 @@ unreachable backend is `BD_UNAVAILABLE`; an empty `ids` makes no call.
 
 ### REQ-CORE-0204: sync
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `sync(scope, d)` registers the scope, runs `backend_check::run`, lists the
 scope with the cursor `last_ok_at - 2 min` once a sync has succeeded,
@@ -89,7 +89,7 @@ start time. Failures follow ADR-CORE-0202.
 
 ### REQ-CORE-0205: Ready base and local adjustment
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Each sync stores the scope's base from `list_blocked` and `list_ready`, with
 the instant taken before the first of the two; a failed or cut fetch keeps
@@ -113,7 +113,7 @@ from the same adjusted base; ready ids with no cached row are only in
 
 ### REQ-CORE-0206: Bounded fresh ready
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `ready(scope, Some(limit))` makes both base calls under one deadline
 `limit` from the call. If both answer, the base is replaced and the reply is
@@ -129,7 +129,7 @@ it returns by the limit. An expired limit is a cut and records no outage.
 
 ### REQ-CORE-0207: resolve, prune, status and the announcement state
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `resolve`, `prune` and `status` apply the store's rules at the clock's
 time (ADR-CORE-0205); the announcement passthroughs on `Cache` (a-1's
@@ -141,8 +141,11 @@ time (ADR-CORE-0205); the announcement passthroughs on `Cache` (a-1's
 
 ## ADR-CORE-0201: Ready adjustment rules
 
-**Status:** Draft (sprint a-6, for lead ruling). Refines ADR-BDC-0002,
-decision 2; it does not amend it.
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24). Refines ADR-BDC-0002,
+decision 2; it does not amend it. ADR-BDC-0002 was clarified to match
+(reopen from `closed` to any other status; children only through the
+parent-block rule; lead ruling, bc-lead, 2026-10-24, `integrate/phase-a`
+at `60e630f`).
 
 Context: ADR-BDC-0002 makes bd's `bd blocked` / `bd ready` answer the base
 and lets reads adjust it for our journal without a bd call. It states the
@@ -205,7 +208,7 @@ unreachable (REQ-BDC-0911); a bead the rules cannot settle stays out of
 
 ## ADR-CORE-0202: Sync failure outcomes
 
-**Status:** Draft (sprint a-6, for lead ruling). Refines ADR-BDC-0005 for
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24). Refines ADR-BDC-0005 for
 `sync`.
 
 Context: ADR-BDC-0005 says a sync that meets an outage records the outage
@@ -233,12 +236,13 @@ the sync, since the rows did sync; an outage it meets is recorded by `call`
 and reported in `SyncReport.outage`.
 
 Consequences: a scheduler tells the three cases apart from the reply type
-and fields alone. The base fetch's error text is not reported (the stale
-mark and `ready`'s basis are); see the sprint's hand-off.
+and fields alone. A base fetch failure is not in `SyncReport` (lead ruling,
+bc-lead, 2026-10-24: no a-1 change); it is visible as the stale mark, as
+`ready`'s basis, and as a `tracing` warning (ADR-CORE-0203).
 
 ## ADR-CORE-0203: Bounded fresh ready
 
-**Status:** Draft (sprint a-6, for lead ruling). Refines ADR-BDC-0002,
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24). Refines ADR-BDC-0002,
 decision 3.
 
 Decision: `ready(scope, Some(limit))` takes `hard = Deadline::after(limit)`
@@ -253,9 +257,16 @@ the cached adjusted answer, basis `Cached`, with `read_fallback` = the
 error text (`"bd blocked / bd ready: no answer within <limit>ms"` for a
 cut). An unreachable backend is still an outage and recorded (REQ-CORE-0001).
 
+When a sync's base fetch fails (any `CallFailure`, ADR-CORE-0202), the
+sync emits one `tracing` warning with fields `phase`, `code` and `detail`
+(a cut is reported as `BD_CACHE.BD_UNAVAILABLE`) before marking the base
+stale. It goes through `sc_beads::logging::tracing` (sc-beads re-exports
+`tracing`; ADR-BDC-0007), so `bd-cache` gains no dependency, and it is not
+gated on sc-beads' `LOGGING_ENABLED` switch: the subscriber decides.
+
 ## ADR-CORE-0204: Read shapes and answer checks
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision:
 
@@ -276,7 +287,7 @@ Decision:
 
 ## ADR-CORE-0205: resolve, prune and status delegate to the store's rules
 
-**Status:** Draft (sprint a-6, for lead ruling)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision: `resolve` calls `CacheStore::resolve` at the clock's UTC time,
 `prune` calls `CacheStore::prune_scope`, and `status` returns
@@ -287,6 +298,8 @@ repeat them, so there is one implementation of each rule. The planted bugs
 "prune ignores escalated" and "resolve accepts any state" are therefore
 planted in `FakeStore` and caught by the core's tests.
 
-Consequences: `status` reports only what `StoreStatus` holds; the stale-row
-list REQ-BDC-0603's sprint text asks for has no field in a-1's
-`StatusReply` (see the sprint doc, Requirement scope notes).
+Consequences: `status` reports only what `StoreStatus` holds. The stale-row
+list REQ-BDC-0603's sprint text asks for gets a field in a-1 amendment 1
+(`StoreStatus.stale: Vec<BeadId>`, filled from `CacheStore::stale_rows`;
+lead ruling, bc-lead, 2026-10-24); a-6 fills and tests it once that
+amendment is on `integrate/phase-a` (open item in the sprint doc).
