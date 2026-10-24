@@ -277,6 +277,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         status::status(self)
     }
 
+    /// Whether `scope` has synced at least once (its `sync_state.last_ok_at` is set).
+    ///
+    /// Reads the scope's sync state alone through [`CacheStore::sync_state`]:
+    /// no `bd` call and no scan of the journal or the rows, unlike
+    /// [`status`](Self::status) (lead ruling S30, QA5-004). A scope that was
+    /// never registered has never synced.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn scope_synced(&self, scope: &ScopeId) -> Result<bool, CacheError> {
+        Ok(self.store.sync_state(scope)?.last_ok_at.is_some())
+    }
+
     /// Escalated entries not yet announced (for an external scheduler's sender).
     ///
     /// # Errors

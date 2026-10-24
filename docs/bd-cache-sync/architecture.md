@@ -106,7 +106,7 @@ failure's underlying code). Each is written only after the sender returns
 `TickReply::refused` and leaves the marker as it was. The delivery is
 at-least-once: a crash between the send and the marker sends again. Every
 send goes through `EscalationSender::send_within` with the time left before
-`T`; with less than half a second left, or the stop flag set, the message is
+`T` less the 1.5 s send reserve (REQ-SYNC-0011, S27); with less than half a second left, or the stop flag set, the message is
 not started, is counted in `TickReply::unsent`, stays unmarked and is sent by
 the next tick (a deferral, not a refusal). Text embedded from errors is
 clipped at 2 KiB. One message goes to each distinct lead for an outage,
@@ -161,6 +161,15 @@ and found closed. `tests/stop_rule.rs`
 (`a_root_bd_does_not_return_never_ends_the_schedule`) and `tests/tick_phases.rs`
 (`a_root_that_bd_does_not_know_is_no_open_root_and_is_reported`) test it.
 
+Note (fix-a-7-5, RBP-F039; S23 semantics unchanged): a root bd answered
+without is also refused with its own `Refusal`, code `phase_root_not_returned`,
+fix "check root in phase-<x>.toml names an existing bead", since its `root`
+likely names no bead. A read of the roots that failed is transient and is not
+refused; it is only reported in `TickReply::unreadable_roots`. Either way the
+root stays unknown and the schedule continues. `tests/tick_phases.rs` (same
+test) and `tests/outage.rs`
+(`test_outage_with_uncached_roots_still_tells_every_configured_lead`) test both.
+
 ## ADR-SYNC-0005: Phases are discovered from files, roots from the cache first
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -190,11 +199,13 @@ Note (fix-a-7-4, ARCH-304, clarifies the S19 amendment; **Status:** Approved (le
 (`phase-<x>`), not the scope `Cache::cached` reports the bead under. A root
 that carries several phase labels is reported under the first known one, and
 that scope's `scope_last_ok_at` says nothing about the phase whose root it is.
-The phase's own `sync_state.last_ok_at` is read instead. `Cache` has no
-accessor for one scope's sync state, and `bd-cache` is outside this layer, so
-the states come from one `Cache::status` (store reads only, no `bd` call) per
-`active_phases` call, taken only when some root is held in its phase's scope
-(accepted by S24; a `Cache::sync_state` accessor is deferred). `tests/tick_phases.rs`
+The phase's own `sync_state.last_ok_at` is read instead, with
+`Cache::scope_synced` (amendment fix-a-7-5, QA5-004; **Status:** Approved
+(lead ruling S30, bc-lead, 2026-10-24)): one `sync_state` row through the
+existing `CacheStore::sync_state` port method, no new port method, no `bd`
+call and no scan of the journal, read only for a root its phase's label
+holds. This replaces the one `Cache::status` per `active_phases` call that S24
+accepted. `tests/tick_phases.rs`
 (`a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`)
 tests it.
 
@@ -274,6 +285,26 @@ and holds a pipe keeps its reader thread until it exits; the process tree is
 killed on a timeout or a stop, but a descendant that escapes the group is not
 the tick's to reap. After a successful send nothing is killed or waited for.
 This closes ARCH-302.
+
+Amendment (fix-a-7-5, RSH-027, REQ-QA-501; **Status:** Approved (lead ruling S27, bc-lead, 2026-10-24)):
+the `atm send` stays inside the tick's send reserve. The tree kill and the
+reaping of the child share one kill deadline, `KILL_BOUND` (1 s) from the start
+of the kill; the tick keeps `SEND_RESERVE` (1.5 s) before `T`, which covers
+`READ_GRACE` (250 ms) plus `KILL_BOUND`. Const assertions in `atm.rs` and
+`control.rs` tie the constants together and to `HARD_MARGIN`.
+`a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`
+(`src/atm.rs`) shows a child and descendant that ignore TERM, with a tree kill
+that hangs, all gone and the call ended inside the reserve.
+
+Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
+a child or tree-kill program still running at the kill deadline is killed and
+handed to one detached reaper thread (`bd-cache-atm-reaper`, started on first
+use, for the life of the host). It polls what it holds every 200 ms and drops
+each process once it has exited, so a given-up process is not left a zombie;
+one that never exits is held without blocking the others.
+`a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper` and
+`a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (`src/atm.rs`)
+check the pid is gone.
 
 Consequences: the Python cron module and this crate can read the same phase
 files; a change of either contract changes this ADR.

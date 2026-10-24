@@ -18,8 +18,24 @@
 //! grandchild delivering a message the tick will send again. And the child's
 //! output is read by threads that are waited for no longer than the time left
 //! in the same budget (clamped to the send deadline, with a floor of
-//! `READ_FLOOR`, so a send overruns its deadline by less than the tick's send
-//! reserve, REQ-SYNC-0011); output beyond a limit is dropped and the error says so.
+//! `READ_FLOOR`); output beyond a limit is dropped and the error says so.
+//!
+//! How far a send can run past its deadline (lead ruling S27, REQ-SYNC-0011):
+//! the deadline is seen within one `POLL`; a child that exited with a failure
+//! then has its output waited for at most `READ_FLOOR` past the deadline, and a
+//! child that is killed is killed and reaped within one shared `KILL_BOUND`
+//! (the tree kill and the reaping of the child share one deadline, and the
+//! last look at the child is one try). Const assertions keep every such
+//! overrun, and `READ_GRACE` plus `KILL_BOUND`, inside the tick's send
+//! reserve (`SEND_RESERVE`, 1.5 s), so the send ends before the tick's end `T`.
+//! The one step not bounded is starting the tree-kill program itself, a local
+//! `fork` and `exec`.
+//!
+//! A child or tree-kill program that is still running at the kill deadline is
+//! killed and handed to one detached reaper thread, which waits for it, so it
+//! is not left a zombie for the life of the host (lead ruling S28,
+//! ADR-SYNC-0007).
+//!
 //! Each send starts at most three threads (the message writer and one reader per
 //! output stream); they end when the pipes close, so a descendant that outlives
 //! a failed send keeps its readers until it exits (ADR-SYNC-0007). A tick that
@@ -34,7 +50,7 @@ use std::fmt;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
-use std::sync::mpsc;
+use std::sync::{OnceLock, mpsc};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -68,12 +84,20 @@ const READ_GRACE: Duration = Duration::from_millis(250);
 const READ_FLOOR: Duration = Duration::from_millis(50);
 
 // The reserve the tick keeps after the last message (REQ-SYNC-0011) must cover
-// the longest wait after a send's deadline.
-const _: () = assert!(
-    READ_GRACE.as_millis() < SEND_RESERVE.as_millis(),
-    "READ_GRACE must be shorter than the tick's SEND_RESERVE"
-);
+// the longest wait after a send's deadline (lead ruling S27).
 const _: () = assert!(READ_FLOOR.as_millis() <= READ_GRACE.as_millis());
+const _: () = assert!(
+    READ_GRACE.as_millis() + KILL_BOUND.as_millis() < SEND_RESERVE.as_millis(),
+    "SEND_RESERVE must cover READ_GRACE plus the shared kill bound"
+);
+const _: () = assert!(
+    POLL.as_millis() + KILL_BOUND.as_millis() + KILL_POLL.as_millis() < SEND_RESERVE.as_millis(),
+    "a killed send must end inside SEND_RESERVE"
+);
+const _: () = assert!(
+    POLL.as_millis() + READ_FLOOR.as_millis() < SEND_RESERVE.as_millis(),
+    "a failed send must end inside SEND_RESERVE"
+);
 
 /// When to stop reading a failed child's output: [`READ_GRACE`] from `now`, but
 /// no later than the send deadline `until`, and never less than [`READ_FLOOR`].
@@ -320,14 +344,19 @@ fn capture(mut from: impl Read + Send + 'static) -> mpsc::Receiver<Captured> {
     rx
 }
 
-/// How long the tree kill and the reaping may each take before they are given
-/// up on: a stuck `kill` or `taskkill`, or a child in an uninterruptible state,
-/// must not hold the tick past its end `T`.
+/// How long the tree kill and the reaping of the child may take together
+/// before they are given up on: one shared kill deadline (lead ruling S27). A
+/// stuck `kill` or `taskkill`, or a child in an uninterruptible state, must not
+/// hold the tick past its end `T`.
 const KILL_BOUND: Duration = Duration::from_secs(1);
+/// How often a process being killed is polled.
+const KILL_POLL: Duration = Duration::from_millis(5);
+/// How often the reaper looks at the processes it holds.
+const REAP_POLL: Duration = Duration::from_millis(200);
 
-/// Polls `child` until it has exited or `bound` has passed; whether it exited.
-fn exited_within(child: &mut Child, bound: Duration) -> bool {
-    let until = Instant::now() + bound;
+/// Polls `child` until it has exited or `until` has passed; whether it exited.
+/// It is always looked at once, even when `until` has already passed.
+fn exited_by(child: &mut Child, until: Instant) -> bool {
     loop {
         match child.try_wait() {
             Ok(Some(_)) => return true,
@@ -337,32 +366,97 @@ fn exited_within(child: &mut Child, bound: Duration) -> bool {
         if Instant::now() >= until {
             return false;
         }
-        thread::sleep(Duration::from_millis(5));
+        thread::sleep(KILL_POLL);
     }
 }
 
-/// Runs the platform's tree-kill program for at most [`KILL_BOUND`]; a failure
-/// or an overrun is logged, never waited out.
-fn run_tree_kill(mut command: Command, pid: u32) {
+/// Hands a killed process that has not been reaped to the one reaper thread,
+/// which waits for it so it is not left a zombie (lead ruling S28).
+///
+/// The thread is started on first use and lives as long as the host; it polls
+/// what it holds every [`REAP_POLL`] and drops each process once it has exited.
+/// A process that never exits (an uninterruptible state) is held, not waited
+/// out, so it cannot keep the others from being reaped.
+fn adopt(child: Child) {
+    static REAPER: OnceLock<Option<mpsc::Sender<Child>>> = OnceLock::new();
+    let reaper = REAPER.get_or_init(|| {
+        let (tx, rx) = mpsc::channel::<Child>();
+        match thread::Builder::new()
+            .name("bd-cache-atm-reaper".to_owned())
+            .spawn(move || reap(&rx))
+        {
+            Ok(_) => Some(tx),
+            Err(e) => {
+                tracing::warn!(error = %e, "cannot start the atm reaper; a killed process may stay a zombie");
+                None
+            }
+        }
+    });
+    let pid = child.id();
+    if reaper.as_ref().is_none_or(|tx| tx.send(child).is_err()) {
+        tracing::warn!(pid, "no atm reaper; the killed process may stay a zombie");
+    }
+}
+
+/// The reaper thread: holds the processes it is given until each has exited.
+fn reap(rx: &mpsc::Receiver<Child>) {
+    let mut held: Vec<Child> = Vec::new();
+    loop {
+        let next = if held.is_empty() {
+            match rx.recv() {
+                Ok(child) => Ok(child),
+                Err(mpsc::RecvError) => Err(mpsc::RecvTimeoutError::Disconnected),
+            }
+        } else {
+            rx.recv_timeout(REAP_POLL)
+        };
+        match next {
+            Ok(child) => held.push(child),
+            Err(mpsc::RecvTimeoutError::Timeout) => {}
+            Err(mpsc::RecvTimeoutError::Disconnected) if held.is_empty() => return,
+            Err(mpsc::RecvTimeoutError::Disconnected) => thread::sleep(REAP_POLL),
+        }
+        // Keep only what is still running; an error means it cannot be waited for.
+        held.retain_mut(|c| matches!(c.try_wait(), Ok(None)));
+    }
+}
+
+/// How a tree kill ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TreeKill {
+    /// The program ran and succeeded.
+    Done,
+    /// It could not be started, failed or could not be waited for.
+    Failed,
+    /// It was still running at the kill deadline: it was killed and handed to
+    /// the reaper.
+    GaveUp {
+        /// The program's pid.
+        pid: u32,
+    },
+}
+
+/// Runs the platform's tree-kill program until `until` at most; a failure or
+/// an overrun is logged, never waited out.
+fn run_tree_kill(mut command: Command, pid: u32, until: Instant) -> TreeKill {
     let mut helper = match command.stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
         Ok(helper) => helper,
         Err(e) => {
             tracing::warn!(error = %e, pid, "cannot start the atm tree kill; killing the child only");
-            return;
+            return TreeKill::Failed;
         }
     };
-    let until = Instant::now() + KILL_BOUND;
     loop {
         match helper.try_wait() {
-            Ok(Some(status)) if status.success() => return,
+            Ok(Some(status)) if status.success() => return TreeKill::Done,
             Ok(Some(status)) => {
                 tracing::warn!(%status, pid, "killing the atm process tree failed; killing the child only");
-                return;
+                return TreeKill::Failed;
             }
             Ok(None) => {}
             Err(e) => {
                 tracing::warn!(error = %e, pid, "waiting for the atm tree kill failed; killing the child only");
-                return;
+                return TreeKill::Failed;
             }
         }
         if Instant::now() >= until {
@@ -371,24 +465,27 @@ fn run_tree_kill(mut command: Command, pid: u32) {
                 "the atm tree kill did not finish in time; giving up on it"
             );
             let _ = helper.kill();
-            // Reap it if it dies at once; a stuck one is left, not waited for.
-            let _ = exited_within(&mut helper, Duration::from_millis(50));
-            return;
+            let helper_pid = helper.id();
+            adopt(helper);
+            return TreeKill::GaveUp { pid: helper_pid };
         }
-        thread::sleep(Duration::from_millis(5));
+        thread::sleep(KILL_POLL);
     }
 }
 
-/// Kills the child and everything it started, then reaps it, in bounded time.
+/// The platform's program that kills the process tree led by `pid`.
 ///
-/// Only called while the child has not been reaped, so its process-group id
-/// (its pid) cannot belong to anything else. The tree is killed with the
-/// platform's own program (`kill` with a negative pid, `taskkill /T`): the
-/// crate has no `unsafe` and calls no libc function (ADR-SYNC-0006). Neither
-/// the tree kill nor the reaping waits longer than [`KILL_BOUND`]; a failing
-/// or overrunning tree kill is logged and the child itself is killed regardless.
-fn kill_tree(child: &mut Child) {
-    let pid = child.id();
+/// The tree is killed with the platform's own program (`kill` with a negative
+/// pid, `taskkill /T`): the crate has no `unsafe` and calls no libc function
+/// (ADR-SYNC-0006). `None` on a platform with neither.
+#[cfg_attr(
+    any(unix, windows),
+    expect(
+        clippy::unnecessary_wraps,
+        reason = "None on a platform with neither program"
+    )
+)]
+fn tree_kill_command(pid: u32) -> Option<Command> {
     #[cfg(unix)]
     {
         // The child leads its own process group (`process_group(0)`), so the
@@ -400,20 +497,58 @@ fn kill_tree(child: &mut Child) {
         };
         let mut kill = Command::new(program);
         kill.args(["-KILL", "--", &format!("-{pid}")]);
-        run_tree_kill(kill, pid);
+        Some(kill)
     }
     #[cfg(windows)]
     {
         let mut kill = Command::new("taskkill");
         kill.args(["/T", "/F", "/PID", &pid.to_string()]);
-        run_tree_kill(kill, pid);
+        Some(kill)
     }
+    #[cfg(not(any(unix, windows)))]
+    {
+        let _ = pid;
+        None
+    }
+}
+
+/// Kills the child and everything it started, then reaps it, in bounded time.
+///
+/// Only called while the child has not been reaped, so its process-group id
+/// (its pid) cannot belong to anything else.
+fn kill_tree(child: Child) {
+    let tree_kill = tree_kill_command(child.id());
+    kill_tree_with(child, tree_kill);
+}
+
+/// [`kill_tree`] with the tree-kill program given.
+///
+/// The tree kill and the reaping share one deadline, [`KILL_BOUND`] from the
+/// start (lead ruling S27). A failing or overrunning tree kill is logged and
+/// the child itself is killed regardless; a child or tree kill not done by the
+/// deadline is handed to the reaper (lead ruling S28).
+fn kill_tree_with(mut child: Child, tree_kill: Option<Command>) -> TreeKill {
+    let pid = child.id();
+    let until = Instant::now() + KILL_BOUND;
+    let outcome = tree_kill.map_or(TreeKill::Failed, |kill| run_tree_kill(kill, pid, until));
     // The tree kill is absent on other platforms or may have failed: kill the
     // child itself too, and reap it so it is no zombie.
     let _ = child.kill();
-    if !exited_within(child, KILL_BOUND) {
-        tracing::warn!(pid, "the atm child was not reaped in time; giving up on it");
+    if !exited_by(&mut child, until) {
+        tracing::warn!(
+            pid,
+            "the atm child was not reaped in time; handing it to the reaper"
+        );
+        adopt(child);
     }
+    outcome
+}
+
+/// How long a reader may still be waited for at `now`: nothing once `until`
+/// has passed, so the second stream of a failed send waits only for what is
+/// left of the one deadline both share.
+fn time_left(until: Instant, now: Instant) -> Duration {
+    until.saturating_duration_since(now)
 }
 
 /// The output of a stream, waited for until `until`: the child has exited, so
@@ -424,7 +559,7 @@ fn collect(rx: Option<mpsc::Receiver<Captured>>, until: Instant) -> String {
     let Some(rx) = rx else {
         return String::new();
     };
-    match rx.recv_timeout(until.saturating_duration_since(Instant::now())) {
+    match rx.recv_timeout(time_left(until, Instant::now())) {
         Ok(c) if c.truncated => format!("{} ... (output truncated)", c.text),
         Ok(c) => c.text,
         Err(_) => "(output not fully read)".to_owned(),
@@ -507,7 +642,7 @@ impl EscalationSender for AtmSender {
                 let _ = stdin.write_all(message.as_bytes());
             }
         });
-        let status = self.wait_for(&mut child, &name, until, timeout)?;
+        let status = self.wait_for(child, &name, until, timeout)?;
         if status.success() {
             return Ok(());
         }
@@ -529,7 +664,7 @@ impl AtmSender {
     /// Waits for the child until `until`, polling; kills its tree on a stop or a timeout.
     fn wait_for(
         &self,
-        child: &mut Child,
+        mut child: Child,
         name: &str,
         until: Instant,
         timeout: Duration,
@@ -572,6 +707,9 @@ impl AtmSender {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    use std::os::unix::process::CommandExt as _;
+
     use super::*;
 
     fn names(binary: &str, pathext: &str, windows: bool) -> Vec<String> {
@@ -609,22 +747,134 @@ mod tests {
         assert_eq!(read_deadline(now, now), now + READ_FLOOR);
     }
 
-    /// Two silent readers share one deadline: the wait is about `READ_GRACE`
-    /// in all, not once per stream (RSH-026).
+    /// Two silent readers share one deadline (RSH-026): the first waits for
+    /// it; the second is collected once it has passed and gets no wait of its
+    /// own (FTQ-019: shown by the deadline, not by an upper bound on the clock).
     #[test]
     fn collect_waits_one_shared_grace_for_both_streams() {
         let (_keep_out, out) = mpsc::channel::<Captured>();
         let (_keep_err, err) = mpsc::channel::<Captured>();
+        let until = Instant::now() + READ_FLOOR;
+        assert_eq!(collect(Some(out), until), "(output not fully read)");
+        let now = Instant::now();
+        assert!(now >= until, "the first stream waited for the deadline");
+        assert_eq!(time_left(until, now), Duration::ZERO);
+        assert_eq!(collect(Some(err), until), "(output not fully read)");
+        // A stream that has its data is still read after the deadline.
+        let (tx, ready) = mpsc::channel();
+        tx.send(Captured {
+            text: "said".to_owned(),
+            truncated: false,
+        })
+        .unwrap();
+        assert_eq!(collect(Some(ready), until), "said");
+    }
+
+    /// Whether a process with this pid exists (a zombie still does).
+    #[cfg(unix)]
+    fn exists(pid: u32) -> bool {
+        Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|s| s.success())
+    }
+
+    /// Waits until the process no longer exists: it was killed and reaped.
+    #[cfg(unix)]
+    fn assert_reaped(pid: u32, what: &str) {
+        let until = Instant::now() + Duration::from_secs(10);
+        while exists(pid) {
+            assert!(
+                Instant::now() < until,
+                "{what} (pid {pid}) still exists: not killed or left a zombie"
+            );
+            thread::sleep(Duration::from_millis(20));
+        }
+    }
+
+    /// Waits for the pid a script wrote to `path`.
+    #[cfg(unix)]
+    fn pid_in(path: &Path) -> u32 {
+        let until = Instant::now() + Duration::from_secs(10);
+        loop {
+            if let Some(pid) = std::fs::read_to_string(path)
+                .ok()
+                .and_then(|t| t.trim().parse().ok())
+            {
+                return pid;
+            }
+            assert!(Instant::now() < until, "{} never appeared", path.display());
+            thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    /// A stuck tree kill is given up on at the shared deadline, inside the
+    /// send reserve, and the reaper waits for it so it is no zombie (S27, S28).
+    #[cfg(unix)]
+    #[test]
+    fn a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped() {
+        let mut stuck = Command::new("sleep");
+        stuck.arg("30");
         let started = Instant::now();
-        let until = started + READ_GRACE;
-        let (o, e) = (collect(Some(out), until), collect(Some(err), until));
+        let outcome = run_tree_kill(stuck, 0, started + READ_FLOOR);
         let took = started.elapsed();
-        assert_eq!(o, "(output not fully read)");
-        assert_eq!(e, "(output not fully read)");
-        assert!(took >= READ_GRACE.mul_f32(0.9), "{took:?}");
-        assert!(
-            took < READ_GRACE + READ_GRACE.mul_f32(0.8),
-            "waited {took:?}, not one grace"
-        );
+        let TreeKill::GaveUp { pid } = outcome else {
+            panic!("{outcome:?}");
+        };
+        assert!(took < SEND_RESERVE, "{took:?}");
+        assert_reaped(pid, "the stuck tree kill");
+    }
+
+    /// A child that ignores TERM, with a descendant that ignores it too, and a
+    /// tree kill that never finishes: the kill and the reaping share one
+    /// deadline, the call ends inside the send reserve, and the child, its
+    /// descendant and the stuck tree kill are all gone (S27, S28).
+    #[cfg(unix)]
+    #[test]
+    fn a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill() {
+        let dir = tempfile::tempdir().unwrap();
+        let (child_pid, grandchild_pid) = (dir.path().join("pid"), dir.path().join("grandchild"));
+        let mut command = Command::new("/bin/sh");
+        command
+            .arg("-c")
+            .arg(r#"trap '' TERM; sleep 30 & echo $! > "$2"; echo $$ > "$1"; wait"#)
+            .arg("sh")
+            .arg(&child_pid)
+            .arg(&grandchild_pid)
+            .process_group(0);
+        let child = command.spawn().unwrap();
+        // Ready: both processes have started and ignore TERM.
+        let (pid, grandchild) = (pid_in(&child_pid), pid_in(&grandchild_pid));
+        assert_eq!(pid, child.id());
+        // The real group kill, made to look stuck: it kills the group, then hangs.
+        let mut tree_kill = Command::new("/bin/sh");
+        tree_kill
+            .arg("-c")
+            .arg(r#"/bin/kill -KILL -- "-$1"; exec sleep 30"#)
+            .arg("sh")
+            .arg(pid.to_string());
+        let started = Instant::now();
+        let outcome = kill_tree_with(child, Some(tree_kill));
+        let took = started.elapsed();
+        assert!(took < SEND_RESERVE, "{took:?}");
+        let TreeKill::GaveUp { pid: helper } = outcome else {
+            panic!("{outcome:?}");
+        };
+        assert_reaped(pid, "the child");
+        assert_reaped(grandchild, "the grandchild");
+        assert_reaped(helper, "the stuck tree kill");
+    }
+
+    /// A child given up on at the kill deadline is reaped by the reaper (S28).
+    #[cfg(unix)]
+    #[test]
+    fn a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper() {
+        let mut child = Command::new("sleep").arg("30").spawn().unwrap();
+        let pid = child.id();
+        child.kill().unwrap();
+        adopt(child);
+        assert_reaped(pid, "the adopted child");
     }
 }

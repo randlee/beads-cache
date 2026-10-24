@@ -22,6 +22,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use bd_cache_model::HARD_MARGIN;
 use sc_beads::{Clock, Deadline};
 
 /// A shared "stop what you are doing" signal.
@@ -65,10 +66,23 @@ impl StopFlag {
 /// a loaded host without letting a tick start a send it cannot finish.
 pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
 
-/// What the tick keeps for its own bookkeeping after the last message (marking
-/// entries, recording alerts, building the reply): a send is never given the
-/// last half second before `T`.
-pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(500);
+/// What the tick keeps after the time it gives a send: the most a send can run
+/// past its deadline, plus the tick's own bookkeeping after the last message
+/// (marking entries, recording alerts, building the reply). A send is never
+/// given the last 1.5 s before `T`.
+///
+/// Sized by lead ruling S27 (REQ-SYNC-0011, ADR-SYNC-0007): it covers
+/// `atm.rs`'s read grace (250 ms) plus its shared kill bound (1 s), which const
+/// assertions there check, with a quarter second to spare.
+pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(1500);
+
+// The sync step's gate sits HARD_MARGIN before `T`; the reserve stays inside
+// it, and a tick that reaches the gate can still start one message (S27).
+const _: () = assert!(SEND_RESERVE.as_millis() < HARD_MARGIN.as_millis());
+const _: () = assert!(
+    MIN_SEND_BUDGET.as_millis() + SEND_RESERVE.as_millis() <= HARD_MARGIN.as_millis(),
+    "a tick at the sync gate must be able to start a message"
+);
 
 /// What a tick may still spend: its end `T`, its clock and the stop flag.
 pub(crate) struct Budget<'a> {
@@ -110,14 +124,17 @@ mod tests {
         let stop = StopFlag::new();
         assert_eq!(
             budget_left(&clock, &stop, Duration::from_secs(25)),
-            Some(Duration::from_millis(24_500))
+            Some(Duration::from_millis(23_500))
         );
-        // 1 s left: 0.5 s after the reserve is exactly the floor.
+        // 2 s left: 0.5 s after the 1.5 s reserve is exactly the floor.
         assert_eq!(
-            budget_left(&clock, &stop, Duration::from_secs(1)),
+            budget_left(&clock, &stop, Duration::from_secs(2)),
             Some(Duration::from_millis(500))
         );
-        assert_eq!(budget_left(&clock, &stop, Duration::from_millis(999)), None);
+        assert_eq!(
+            budget_left(&clock, &stop, Duration::from_millis(1999)),
+            None
+        );
         assert_eq!(budget_left(&clock, &stop, Duration::ZERO), None);
         stop.stop();
         assert_eq!(budget_left(&clock, &stop, Duration::from_secs(25)), None);

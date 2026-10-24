@@ -3,10 +3,10 @@
 
 use std::fmt;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, TickConfig};
+use bd_cache_model::{CacheError, PhaseName, TickConfig};
 use bd_cache_store::{
     CacheLocation, ConfigLoadError, FlockDrainLock, SqliteStore, load_repo_config,
 };
@@ -78,6 +78,16 @@ fn config_code(e: &ConfigLoadError) -> &'static str {
     }
 }
 
+/// The fix of `sync_config_bad_scope`: it states the phase-name rule in the
+/// model's one text ([`PhaseName::RULE`], RBP-F037).
+static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
+         without the phase- prefix",
+        PhaseName::RULE
+    )
+});
+
 /// The fix of a configuration that could not be loaded.
 fn config_fix(e: &ConfigLoadError) -> &'static str {
     match e {
@@ -87,10 +97,7 @@ fn config_fix(e: &ConfigLoadError) -> &'static str {
         ConfigLoadError::Parse { .. } => {
             "correct the key or value of .beads/bd-cache.toml the cause names, or remove unknown keys"
         }
-        ConfigLoadError::Scope { .. } => {
-            "write each scopes entry of .beads/bd-cache.toml as a phase name: letters, digits, \
-             '-', '_' and '.', with or without the phase- prefix"
-        }
+        ConfigLoadError::Scope { .. } => BAD_SCOPE_FIX.as_str(),
         _ => "correct .beads/bd-cache.toml as the cause says, or remove it to use the defaults",
     }
 }

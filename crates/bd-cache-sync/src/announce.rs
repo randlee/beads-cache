@@ -47,9 +47,22 @@ pub enum AlertCause {
 /// The sync cause after `prev` in declaration order (`None` starts the list),
 /// `None` after the last.
 ///
-/// `SyncCause` is not `#[non_exhaustive]`, so this match is exhaustive: a new
-/// variant does not compile until it is placed in the chain, and
-/// [`sync_causes`] (which `AlertCause::from_key` reads) then lists it.
+/// The inverse of `SyncCause::as_str` is kept here, in this crate, because the
+/// model's `error.rs` belongs to another sprint (lead ruling S29). What guards
+/// it, exactly:
+///
+/// - `SyncCause` is not `#[non_exhaustive]`, so this match is exhaustive: a new
+///   variant does not compile until it has an arm here, and each arm names the
+///   variant that follows it.
+/// - The const assertion below walks the chain at compile time and checks that
+///   it lists the variants in declaration order (discriminants 0, 1, 2, ...),
+///   with no gap and no repeat; the round-trip test checks every listed cause
+///   maps back from its key. No count is kept by hand.
+///
+/// What no check can catch: a variant appended after `BdListFailed` whose own
+/// arm answers `None` while `BdListFailed`'s arm is left answering `None` too.
+/// It compiles and is not listed. Adding a variant means changing the arm of
+/// the one before it.
 const fn next_sync_cause(prev: Option<SyncCause>) -> Option<SyncCause> {
     match prev {
         None => Some(SyncCause::BdUnavailable),
@@ -60,6 +73,21 @@ const fn next_sync_cause(prev: Option<SyncCause>) -> Option<SyncCause> {
         Some(SyncCause::BdListFailed) => None,
     }
 }
+
+// The chain lists the variants in declaration order, without gaps or repeats.
+const _: () = {
+    let mut prev = None;
+    let mut index = 0;
+    while let Some(cause) = next_sync_cause(prev) {
+        assert!(
+            cause as usize == index,
+            "next_sync_cause must follow the declaration order of SyncCause"
+        );
+        index += 1;
+        prev = Some(cause);
+    }
+    assert!(index > 0);
+};
 
 /// Every underlying code a sync failure can name, in declaration order.
 fn sync_causes() -> impl Iterator<Item = SyncCause> {
@@ -576,25 +604,15 @@ mod tests {
         assert!(reply.sent.is_empty());
     }
 
-    /// Every `SyncCause` round-trips through its key. The match is exhaustive
-    /// (`SyncCause` is not `#[non_exhaustive]`), so a new variant fails to
-    /// compile here until it is counted, and the count must equal the chain's.
+    /// Every listed `SyncCause` round-trips through its key, and the list is
+    /// in declaration order with distinct keys (S29). The completeness the
+    /// match gives, and its limit, are stated on `next_sync_cause`.
     #[test]
     fn every_sync_cause_round_trips_through_its_key() {
-        fn ordinal(c: SyncCause) -> usize {
-            match c {
-                SyncCause::BdUnavailable => 0,
-                SyncCause::BdVersionFailed => 1,
-                SyncCause::BdSchemaFailed => 2,
-                SyncCause::BdContract => 3,
-                SyncCause::BdListFailed => 4,
-            }
-        }
-        const VARIANTS: usize = 5;
         let listed: Vec<SyncCause> = sync_causes().collect();
-        assert_eq!(listed.len(), VARIANTS, "{listed:?}");
-        for (i, cause) in listed.into_iter().enumerate() {
-            assert_eq!(ordinal(cause), i, "declaration order: {cause:?}");
+        assert!(!listed.is_empty());
+        for (i, cause) in listed.iter().copied().enumerate() {
+            assert_eq!(cause as usize, i, "declaration order: {cause:?}");
             assert_eq!(
                 AlertCause::from_key(cause.as_str()),
                 Some(AlertCause::Sync(cause))
@@ -604,6 +622,8 @@ mod tests {
                 Some(AlertCause::Sync(cause))
             );
         }
+        let keys: std::collections::BTreeSet<&str> = listed.iter().map(|c| c.as_str()).collect();
+        assert_eq!(keys.len(), listed.len(), "distinct keys: {keys:?}");
     }
 
     #[test]

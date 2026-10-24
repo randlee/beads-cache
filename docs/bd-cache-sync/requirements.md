@@ -208,6 +208,20 @@ less than half a second left the message is not started: it is counted in
 `TickReply::unsent`, stays unmarked and the next tick sends it. A tick whose
 sender takes 9 s per message ends within 25 s.
 
+Amendment (fix-a-7-5, RSH-027, REQ-QA-501; **Status:** Approved (lead ruling S27, bc-lead, 2026-10-24)):
+"the time left" is the time before `T` less the send reserve `SEND_RESERVE`,
+1.5 s, so a message is not started with less than 2 s before `T`. The reserve
+covers the most an `atm send` can run past its deadline: the read grace
+(250 ms) plus one shared kill bound (1 s) in which the tree kill and the
+reaping of the child are both done or given up on. Const assertions in
+`atm.rs` and `control.rs` tie `SEND_RESERVE` to `READ_GRACE`, `READ_FLOOR`,
+`KILL_BOUND` and the poll intervals, and keep `MIN_SEND_BUDGET + SEND_RESERVE`
+within the sync step's `HARD_MARGIN` (2 s). Evidence:
+`a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`
+and `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (`src/atm.rs`),
+`a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor`
+(`src/control.rs`).
+
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
 `a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick` (`tests/announce.rs`).

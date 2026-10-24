@@ -17,7 +17,7 @@ use crate::active::active_phases;
 use crate::announce;
 use crate::control::{Budget, StopFlag};
 use crate::phases::{Phase, TickSettings, load_phases};
-use crate::reply::{Refusal, TickReply};
+use crate::reply::{Refusal, RefusalCode, TickReply};
 
 /// The budget of one tick (BD-CACHE.md, Cron module): the schedule's run
 /// timeout, and so the distance from a run's start to its end `T`.
@@ -45,8 +45,9 @@ pub const TICK_BUDGET: std::time::Duration = std::time::Duration::from_secs(25);
 /// 7. every escalated entry not yet announced is sent to its phase's lead
 ///    with the `resolve` command, then marked (REQ-BDC-0705).
 ///
-/// Steps 5 to 7 send within the time left before `T`: a message with less
-/// than half a second left is not started and is counted in
+/// Steps 5 to 7 send within the time left before `T`, less a 1.5 s reserve
+/// for a send's overrun and the tick's bookkeeping: a message with less than
+/// half a second left after the reserve (2 s before `T`) is not started and is counted in
 /// [`TickReply::unsent`]; it stays unmarked and the next tick sends it. The
 /// reply is `refused` when anything was refused or not delivered, and the next
 /// tick retries it (REQ-BDC-0706).
@@ -137,6 +138,11 @@ pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let active = active_phases(cache, &phases, end, stop)?;
     reply.active = active.active.iter().map(|p| p.name.clone()).collect();
     reply.unreadable_roots = active.unreadable.iter().map(|p| p.name.clone()).collect();
+    // A root bd answered without is refused with its own code; it stays
+    // unknown and keeps the schedule going (S23, RBP-F039).
+    reply
+        .refused
+        .extend(active.not_returned.iter().map(root_not_returned));
     if active.stopped {
         // Stopped before the uncached roots were read: no sync, no message.
         reply.stopped = true;
@@ -186,6 +192,19 @@ pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
     )?;
     announce::escalations(cache, sender, settings, &budget, &phases, &mut reply)?;
     Ok(reply.finish())
+}
+
+/// The refusal of a phase whose root bd did not return.
+fn root_not_returned(phase: &Phase) -> Refusal {
+    Refusal::new(
+        RefusalCode::PhaseRootNotReturned,
+        format!(
+            "phase-{}.toml: bd did not return its root {}; the phase counts as inactive \
+             this tick",
+            phase.name,
+            phase.root.as_str()
+        ),
+    )
 }
 
 /// Reads the phase files; an unreadable directory or an unusable file is

@@ -5,6 +5,19 @@ use std::fmt;
 use sc_beads::{Bead, InvalidValue, ScopeFilter};
 use serde::{Serialize, Serializer};
 
+/// The text of [`PHASE_NAME_RULE`], as a literal: `concat!` builds every
+/// message of this crate that states the rule from this one text (RBP-F037).
+macro_rules! phase_name_rule {
+    () => {
+        "one or more ASCII letters, digits, '-', '_' or '.'"
+    };
+}
+
+/// The rule a phase name follows, in words: the one text the validator and
+/// every fix that states the rule use (RBP-F037). Other crates read it as
+/// [`PhaseName::RULE`].
+pub(crate) const PHASE_NAME_RULE: &str = phase_name_rule!();
+
 /// A phase name, the `<x>` of a `phase-<x>` label and the v3 `phase` column.
 ///
 /// Nonempty ASCII letters, digits, `-`, `_` and `.`, so the label is one
@@ -22,6 +35,18 @@ use serde::{Serialize, Serializer};
 pub struct PhaseName(String);
 
 impl PhaseName {
+    /// The rule a phase name follows, in words: the text the validator's
+    /// reason and every fix about a phase name state.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::PhaseName;
+    /// let err = PhaseName::new("b k").unwrap_err();
+    /// assert!(err.reason.contains(PhaseName::RULE));
+    /// ```
+    pub const RULE: &'static str = PHASE_NAME_RULE;
+
     /// Validates a phase name.
     ///
     /// # Errors
@@ -39,7 +64,7 @@ impl PhaseName {
             Err(InvalidValue {
                 kind: "phase name",
                 value: name,
-                reason: "expected ASCII letters, digits, '-', '_' or '.'",
+                reason: concat!("expected ", phase_name_rule!()),
             })
         }
     }
@@ -149,5 +174,24 @@ impl fmt::Display for ScopeId {
 impl Serialize for ScopeId {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(self.name())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The validator states the one rule (RBP-F037).
+    #[test]
+    fn the_validator_states_the_phase_name_rule() {
+        for bad in ["", "b k", "a/b"] {
+            let err = PhaseName::new(bad).unwrap_err();
+            assert!(
+                err.reason.contains(PHASE_NAME_RULE),
+                "{bad:?}: {}",
+                err.reason
+            );
+        }
+        assert_eq!(PhaseName::RULE, PHASE_NAME_RULE);
     }
 }

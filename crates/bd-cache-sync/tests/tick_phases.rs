@@ -113,6 +113,27 @@ fn a_root_that_bd_does_not_know_is_no_open_root_and_is_reported() {
         "no sync of an unknown root's phase"
     );
     assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
+    // A root bd answered without has its own refusal (RBP-F039); the phase
+    // stays unknown, so the schedule goes on (S23).
+    let not_returned: Vec<_> = reply
+        .refused
+        .iter()
+        .filter(|r| r.code == RefusalCode::PhaseRootNotReturned)
+        .collect();
+    assert_eq!(not_returned.len(), 1, "{reply:?}");
+    assert_eq!(
+        not_returned[0].fix,
+        "check root in phase-<x>.toml names an existing bead"
+    );
+    assert!(
+        not_returned[0].detail.contains("phase-z.toml")
+            && not_returned[0].detail.contains("nowhere-1"),
+        "{}",
+        not_returned[0].detail
+    );
+    assert_eq!(reply.outcome, TickOutcome::Refused);
+    let end = w.after(bd_cache_sync::TICK_BUDGET);
+    assert_eq!(stop_reason(&mut cache, &w.config(), end).unwrap(), None);
 }
 
 #[test]

@@ -8,10 +8,15 @@
 //! still seen closing. A root that cannot be read, and a root bd does not
 //! return, is unknown: its phase counts as inactive for this tick and is
 //! reported (BD-CACHE.md, Cron module), and the stop rule keeps going on it
-//! (ADR-SYNC-0004: stop only on positive knowledge).
+//! (ADR-SYNC-0004: stop only on positive knowledge). A root bd answered
+//! without is also refused as `phase_root_not_returned` (its `root` likely
+//! names no bead, RBP-F039); a read that failed is transient and is not.
+//!
+//! Whether a phase's own scope has synced is read with `Cache::scope_synced`
+//! (its `sync_state` row only, lead ruling S30; ADR-SYNC-0005).
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, CacheStore, DrainLock, ScopeId};
+use bd_cache_model::{CacheError, CacheStore, DrainLock};
 use sc_beads::{BeadId, CacheBackend, Deadline};
 
 use crate::control::StopFlag;
@@ -25,6 +30,10 @@ pub(crate) struct ActiveSet {
     /// Phases whose root is unknown: bd could not be read, or its answer did
     /// not return the root. Never known closed.
     pub unreadable: Vec<Phase>,
+    /// The phases of [`unreadable`](Self::unreadable) whose root bd answered
+    /// without (RBP-F039): a root that likely names no bead, which the tick
+    /// refuses as `phase_root_not_returned`. A failed read is not in it.
+    pub not_returned: Vec<Phase>,
     /// The stop flag was set before the uncached roots were read: those roots
     /// are in neither list, and the caller must not act on the set as complete.
     pub stopped: bool,
@@ -43,51 +52,23 @@ enum Cached {
     Unknown,
 }
 
-/// The scopes that have synced at least once, read on first use.
-///
-/// `Cache` has no accessor for one scope's `sync_state`, so the states come
-/// from one [`Cache::status`] (store reads only, no `bd` call), taken only
-/// when some root is held in its phase's scope.
-#[derive(Default)]
-struct SyncedScopes(Option<Vec<ScopeId>>);
-
-impl SyncedScopes {
-    /// True when `scope` has a `last_ok_at`.
-    fn has_synced<S: CacheStore, L: DrainLock, B: CacheBackend>(
-        &mut self,
-        cache: &Cache<S, L, B>,
-        scope: &ScopeId,
-    ) -> Result<bool, CacheError> {
-        if self.0.is_none() {
-            let synced = cache
-                .status()?
-                .store
-                .scopes
-                .into_iter()
-                .filter(|s| s.sync.last_ok_at.is_some())
-                .map(|s| s.sync.scope)
-                .collect();
-            self.0 = Some(synced);
-        }
-        Ok(self.0.as_ref().is_some_and(|s| s.contains(scope)))
-    }
-}
-
 /// One cached read of the root (`Cache::cached`: no bd call, no scan of the
 /// scope): trusted only when the phase's own label holds it and the phase's
 /// own scope has synced, since a sync of that scope is what keeps it current.
 /// A root that carries several phase labels is reported by `Cache::cached`
 /// under the first known one; that scope's sync says nothing about this phase.
+///
+/// The phase's own sync state is read with [`Cache::scope_synced`] (one
+/// `sync_state` row, lead ruling S30), and only for a root its label holds.
 fn cached_root<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     phase: &Phase,
-    synced: &mut SyncedScopes,
 ) -> Result<Cached, CacheError> {
     let Some(reply) = cache.cached(&phase.root)? else {
         return Ok(Cached::Unknown);
     };
     let scope = phase.scope();
-    if scope.holds(&reply.row.bead) && synced.has_synced(cache, &scope)? {
+    if scope.holds(&reply.row.bead) && cache.scope_synced(&scope)? {
         return Ok(Cached::Known {
             closed: is_closed(reply.row.bead.status.as_deref()),
         });
@@ -113,18 +94,18 @@ pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<ActiveSet, CacheError> {
     let clock = cache.clock();
     let mut set = ActiveSet::default();
-    let mut synced = SyncedScopes::default();
     // Phases whose root the cache cannot answer for.
     let mut uncached: Vec<&Phase> = Vec::new();
     let mut open: Vec<&Phase> = Vec::new();
     for phase in phases {
-        match cached_root(cache, phase, &mut synced)? {
+        match cached_root(cache, phase)? {
             Cached::Known { closed: true } => {}
             Cached::Known { closed: false } => open.push(phase),
             Cached::Unknown => uncached.push(phase),
         }
     }
     let mut unreadable: Vec<&Phase> = Vec::new();
+    let mut not_returned: Vec<&Phase> = Vec::new();
     if !uncached.is_empty() && stop.is_stopped() {
         set.stopped = true;
     } else if !uncached.is_empty() {
@@ -145,6 +126,7 @@ pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
                                  inactive this tick and keeps the schedule going"
                             );
                             unreadable.push(phase);
+                            not_returned.push(phase);
                         }
                     }
                 }
@@ -166,6 +148,9 @@ pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
             set.active.push(phase.clone());
         } else if unreadable.iter().any(|o| o.name == phase.name) {
             set.unreadable.push(phase.clone());
+            if not_returned.iter().any(|o| o.name == phase.name) {
+                set.not_returned.push(phase.clone());
+            }
         }
     }
     Ok(set)

@@ -1,6 +1,7 @@
 //! The tick's reply (REQ-BDC-0706).
 
 use std::fmt;
+use std::sync::LazyLock;
 
 use bd_cache_model::{DrainReport, PhaseName, SendError, SendErrorKind, Seq, SyncReport};
 use serde::Serialize;
@@ -47,6 +48,12 @@ pub enum RefusalCode {
     PhaseFileNotRegular,
     /// A phase file is not TOML, has no `root`, or a bad `root` or `lead`.
     PhaseFileInvalid,
+    /// bd answered the read of the phase roots without a phase's root: the
+    /// root is unknown, the phase counts as inactive and the schedule goes on
+    /// (lead ruling S23, ADR-SYNC-0004). A root bd could not be read at all is
+    /// not refused: that is transient and only reported in
+    /// [`TickReply::unreadable_roots`].
+    PhaseRootNotReturned,
     /// A phase in `[tick] phases` has no file.
     PhaseFileMissing,
     /// The phases directory holds more files than are read.
@@ -81,6 +88,7 @@ impl RefusalCode {
             Self::PhaseFileTooLarge => "phase_file_too_large",
             Self::PhaseFileNotRegular => "phase_file_not_regular",
             Self::PhaseFileInvalid => "phase_file_invalid",
+            Self::PhaseRootNotReturned => "phase_root_not_returned",
             Self::PhaseFileMissing => "phase_file_missing",
             Self::PhaseFilesTooMany => "phase_files_too_many",
             Self::SyncFailureUndelivered => "sync_failure_undelivered",
@@ -103,16 +111,12 @@ impl RefusalCode {
                 "set [tick] fallback_lead to the member told of escalations that belong to no phase"
             }
             Self::BadMember => "use a member name that follows the rule the detail states",
-            Self::MalformedPhases => {
-                "use letters, digits, '-', '_' and '.', with or without the phase- prefix"
-            }
+            Self::MalformedPhases => MALFORMED_PHASES_FIX.as_str(),
             Self::EmptyPhases => {
                 "list at least one phase, or remove [tick] phases to sync every phase"
             }
             Self::PhasesDirUnreadable => "create the directory or set [tick] phases_dir",
-            Self::PhaseNotNamed => {
-                "rename the file phase-<name>.toml with letters, digits, '-', '_' or '.'"
-            }
+            Self::PhaseNotNamed => PHASE_NOT_NAMED_FIX.as_str(),
             Self::PhaseFileUnreadable => "make the file readable by the user running the tick",
             Self::PhaseFileTooLarge => {
                 "a phase file holds a root and a lead; remove what else is in it"
@@ -123,6 +127,7 @@ impl RefusalCode {
             Self::PhaseFileInvalid => {
                 "write `root = \"<bead id>\"` and, optionally, `lead = \"<member>\"` as TOML"
             }
+            Self::PhaseRootNotReturned => "check root in phase-<x>.toml names an existing bead",
             Self::PhaseFileMissing => {
                 "add phase-<name>.toml to the phases directory, or remove the name from [tick] phases"
             }
@@ -142,6 +147,23 @@ impl RefusalCode {
         }
     }
 }
+
+/// The fix of [`RefusalCode::MalformedPhases`]: it states the phase-name rule
+/// in the model's one text ([`PhaseName::RULE`], RBP-F037).
+static MALFORMED_PHASES_FIX: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "write each [tick] phases entry as a phase name ({}), with or without the phase- prefix",
+        PhaseName::RULE
+    )
+});
+
+/// The fix of [`RefusalCode::PhaseNotNamed`], with the same rule.
+static PHASE_NOT_NAMED_FIX: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "rename the file phase-<name>.toml, where <name> is {}",
+        PhaseName::RULE
+    )
+});
 
 impl fmt::Display for RefusalCode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -334,5 +356,37 @@ impl TickReply {
             TickOutcome::Refused
         };
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Every fix about a phase name states the model's one rule (RBP-F037).
+    #[test]
+    fn the_phase_name_fixes_state_the_one_rule() {
+        for code in [RefusalCode::MalformedPhases, RefusalCode::PhaseNotNamed] {
+            assert!(
+                code.fix().contains(PhaseName::RULE),
+                "{code}: {}",
+                code.fix()
+            );
+        }
+    }
+
+    /// A root bd did not return has its own code and fix (RBP-F039).
+    #[test]
+    fn a_root_not_returned_has_its_own_code_and_fix() {
+        let code = RefusalCode::PhaseRootNotReturned;
+        assert_eq!(code.as_str(), "phase_root_not_returned");
+        assert_eq!(
+            code.fix(),
+            "check root in phase-<x>.toml names an existing bead"
+        );
+        assert_eq!(
+            serde_json::to_value(code).unwrap(),
+            "phase_root_not_returned"
+        );
     }
 }

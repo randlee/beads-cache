@@ -3,11 +3,18 @@
 use std::fmt;
 use std::time::Duration;
 
+/// The text of [`MEMBER_NAME_RULE`], as a literal: `concat!` builds every
+/// message that states the rule from this one text (RBP-F036).
+macro_rules! member_name_rule {
+    () => {
+        "not empty, with no whitespace, control character or '@', and not starting with '-'"
+    };
+}
+
 /// The rule a member name (a lead or a team) follows, in words: the one text
 /// every message about it uses. A name that breaks it could be read as an option
 /// or split in two when it becomes part of an `atm send` address.
-pub const MEMBER_NAME_RULE: &str =
-    "not empty, with no whitespace, control character or '@', and not starting with '-'";
+pub const MEMBER_NAME_RULE: &str = member_name_rule!();
 
 /// Why a message was not delivered.
 ///
@@ -54,9 +61,10 @@ impl SendErrorKind {
     #[must_use]
     pub fn fix(self) -> &'static str {
         match self {
-            Self::InvalidAddress => {
-                "correct the lead or team name in the configuration or phase file: it must be nonempty, with no whitespace, control character or '@', and must not start with '-'"
-            }
+            Self::InvalidAddress => concat!(
+                "correct the lead or team name in the configuration or phase file: it must be ",
+                member_name_rule!()
+            ),
             Self::NotStartable => "install atm or set its path, and check it is executable",
             Self::TimedOut => {
                 "check that atm and its daemon answer; the message is retried next tick"
@@ -150,11 +158,12 @@ mod tests {
     use super::*;
 
     /// The operator reads the fix: it states the rule in words and names no
-    /// Rust identifier (RBP-F032).
+    /// Rust identifier (RBP-F032); the rule is the one text (RBP-F036).
     #[test]
     fn the_invalid_address_fix_states_the_rule_without_rust_identifiers() {
         let fix = SendErrorKind::InvalidAddress.fix();
         assert!(!fix.contains("MEMBER_NAME_RULE"), "{fix}");
+        assert!(fix.ends_with(MEMBER_NAME_RULE), "{fix}");
         for part in ["whitespace", "control character", "'@'", "'-'"] {
             assert!(fix.contains(part), "{fix} lacks {part}");
             assert!(MEMBER_NAME_RULE.contains(part), "the rule lacks {part}");

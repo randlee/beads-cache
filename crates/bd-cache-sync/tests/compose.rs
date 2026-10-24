@@ -74,6 +74,12 @@ fn compose_errors_have_codes_and_sources() {
     let err = compose(root.path(), "bd", Arc::clone(&clock)).unwrap_err();
     assert_eq!(err.code(), "sync_config_bad_scope", "{err:?}");
     assert!(err.fix().contains("phase name"), "{}", err.fix());
+    // It states the model's one phase-name rule (RBP-F037).
+    assert!(
+        err.fix().contains(bd_cache_model::PhaseName::RULE),
+        "{}",
+        err.fix()
+    );
 
     // A file that cannot be read (a directory in its place).
     let root = repo("");

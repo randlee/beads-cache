@@ -114,6 +114,14 @@ fn test_outage_with_uncached_roots_still_tells_every_configured_lead() {
 
     assert!(reply.active.is_empty(), "{reply:?}");
     assert_eq!(reply.unreadable_roots.len(), 3);
+    // A failed read is transient: not refused as a root bd did not return (RBP-F039).
+    assert!(
+        reply
+            .refused
+            .iter()
+            .all(|r| r.code != bd_cache_sync::RefusalCode::PhaseRootNotReturned),
+        "{reply:?}"
+    );
     let mut told: Vec<String> = w.sender.sent().into_iter().map(|s| s.lead).collect();
     told.sort();
     assert_eq!(
