@@ -17,14 +17,6 @@
 //! the previous run is still in flight is skipped and logged. Every store
 //! write names `(id, generation)`; a fenced write makes the worker reload.
 
-// Slot indices come from `while index < self.slots.len()` loops that remove
-// or advance in step, on the single worker task that owns `slots`; no other
-// task can shrink the vector between the bound check and the access.
-#![allow(
-    clippy::indexing_slicing,
-    reason = "slot indices are bounded by the owning loops on the single worker task"
-)]
-
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -304,24 +296,19 @@ where
                 return;
             }
             let monotonic = self.clock.monotonic_now();
-            let expired = self.slots[index]
+            let Some(slot) = self.slots.get_mut(index) else {
+                return;
+            };
+            let expired = slot
                 .run
                 .as_ref()
                 .is_some_and(|run| run.deadline <= monotonic);
-            let run = if expired {
-                self.slots[index].run.take()
-            } else {
-                None
-            };
+            let run = if expired { slot.run.take() } else { None };
             let Some(mut run) = run else {
                 index += 1;
                 continue;
             };
-            log(
-                &self.slots[index].schedule,
-                "timed_out",
-                "run deadline passed",
-            );
+            log(&slot.schedule, "timed_out", "run deadline passed");
             run.handle.abort();
             let result = match (&mut run.handle).await {
                 Err(error) if error.is_cancelled() => Ok(Report::Ran(RunOutcome::TimedOut)),
@@ -340,7 +327,9 @@ where
             if self.stop_requested() {
                 return;
             }
-            let slot = &mut self.slots[index];
+            let Some(slot) = self.slots.get_mut(index) else {
+                return;
+            };
             let Some(due) = slot.next.filter(|next| *next <= now) else {
                 index += 1;
                 continue;
@@ -357,7 +346,9 @@ where
                 index += 1;
                 continue;
             }
-            let slot = &mut self.slots[index];
+            let Some(slot) = self.slots.get_mut(index) else {
+                return;
+            };
             if slot.run.is_some() {
                 log(
                     &slot.schedule,
@@ -380,7 +371,9 @@ where
                 }
                 self.launch(index);
             }
-            let slot = &self.slots[index];
+            let Some(slot) = self.slots.get(index) else {
+                return;
+            };
             if slot.next.is_none() && slot.run.is_none() {
                 let slot = self.slots.remove(index);
                 self.end(&slot.schedule, EXHAUSTED).await;
@@ -392,7 +385,9 @@ where
 
     fn launch(&mut self, index: usize) {
         let monotonic = self.clock.monotonic_now();
-        let slot = &mut self.slots[index];
+        let Some(slot) = self.slots.get_mut(index) else {
+            return;
+        };
         let timeout = slot.schedule.spec.timeout.get();
         // RunTimeout is at most 24 h, so this cannot overflow in practice.
         let deadline = monotonic.checked_add(timeout).unwrap_or(monotonic);
@@ -410,8 +405,11 @@ where
 
     /// Records a finished run. Returns whether the slot was removed.
     async fn complete(&mut self, index: usize, result: Result<Report, JoinError>) -> bool {
-        self.slots[index].run = None;
-        let schedule = self.slots[index].schedule.clone();
+        let Some(slot) = self.slots.get_mut(index) else {
+            return false;
+        };
+        slot.run = None;
+        let schedule = slot.schedule.clone();
         match result {
             Ok(Report::Stop(reason)) => {
                 self.slots.remove(index);
@@ -429,7 +427,11 @@ where
             }
             Err(error) => log(&schedule, "cancelled", &error.to_string()),
         }
-        if self.slots[index].next.is_none() {
+        if self
+            .slots
+            .get(index)
+            .is_some_and(|slot| slot.next.is_none())
+        {
             self.slots.remove(index);
             self.end(&schedule, EXHAUSTED).await;
             return true;
@@ -500,7 +502,10 @@ where
     async fn drain(&mut self) {
         let mut index = 0;
         while index < self.slots.len() {
-            let Some(mut run) = self.slots[index].run.take() else {
+            let Some(slot) = self.slots.get_mut(index) else {
+                return;
+            };
+            let Some(mut run) = slot.run.take() else {
                 index += 1;
                 continue;
             };
