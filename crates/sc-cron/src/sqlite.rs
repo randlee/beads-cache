@@ -15,6 +15,7 @@
 //! set exactly once it has ended, and repeat the size limits. Timestamps
 //! become text only here, in the fixed-width form [`Timestamp`] displays.
 
+use std::collections::HashSet;
 use std::path::Path;
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
@@ -81,6 +82,9 @@ pub struct SqliteScheduleStore {
     // methods take `&self` from any thread, so the one connection sits
     // behind a mutex. Calls are short single statements or one transaction.
     connection: Mutex<Connection>,
+    // Row ids already warned about as corrupt, so a bad row is reported once
+    // per store rather than on every worker reload.
+    warned: Mutex<HashSet<i64>>,
 }
 
 impl SqliteScheduleStore {
@@ -121,7 +125,20 @@ impl SqliteScheduleStore {
         init_schema(&mut connection)?;
         Ok(Self {
             connection: Mutex::new(connection),
+            warned: Mutex::new(HashSet::new()),
         })
+    }
+
+    /// Warns about a skipped corrupt row, once per row id for this store.
+    fn warn_corrupt(&self, id: Option<i64>, name: Option<&str>, error: &CronError) {
+        if let Some(id) = id {
+            let mut warned = self.warned.lock().unwrap_or_else(PoisonError::into_inner);
+            if !warned.insert(id) {
+                return;
+            }
+        }
+        tracing::warn!(subsystem = "sc_cron", action = "skip_corrupt_row", id = ?id,
+            name = ?name, %error, "skipping corrupt schedule row; other schedules keep running");
     }
 
     fn lock(&self) -> MutexGuard<'_, Connection> {
@@ -261,11 +278,42 @@ impl ScheduleStore for SqliteScheduleStore {
                  ORDER BY created_at, id"
             ))
             .map_err(|error| store_error(&format!("failed to read {TABLE}"), error))?;
-        let raws = statement
-            .query_map([], RawRow::read)
+        let rows = statement
+            .query_map([], |row| {
+                // Keep the id even when the rest of the row cannot be read.
+                Ok(RawRow::read(row).map_err(|error| (row.get::<_, i64>(0).ok(), error)))
+            })
             .and_then(Iterator::collect::<Result<Vec<_>, _>>)
             .map_err(|error| store_error(&format!("failed to read {TABLE}"), error))?;
-        raws.into_iter().map(RawRow::decode).collect()
+        let mut schedules = Vec::with_capacity(rows.len());
+        for row in rows {
+            let (id, name, error) = match row {
+                Ok(raw) => {
+                    let (id, name) = (raw.id, raw.name.clone());
+                    match raw.decode() {
+                        Ok(schedule) => {
+                            schedules.push(schedule);
+                            continue;
+                        }
+                        Err(error) => (Some(id), Some(name), error),
+                    }
+                }
+                Err((id, error)) => (
+                    id,
+                    None,
+                    store_error(&format!("failed to read {TABLE}"), error),
+                ),
+            };
+            // A row that cannot be decoded must not stop the others: skip it.
+            // Any other failure (busy, I/O) still fails the whole call.
+            match &error {
+                CronError::Store(store) if store.kind() == StoreErrorKind::Corrupt => {
+                    self.warn_corrupt(id, name.as_deref(), &error);
+                }
+                _ => return Err(error),
+            }
+        }
+        Ok(schedules)
     }
 
     fn record_run(
