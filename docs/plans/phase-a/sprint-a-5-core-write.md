@@ -190,11 +190,11 @@ signatures in `lib.rs`.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `18a449894e51b35655c5c8fcafb9886df50dda56`, the last commit
-that changes code (later commits change this document only). The run is
-after rulings R1-R5 and covers the 13 earlier mutations plus 4 new ones for
-R1. The script applied each mutation to the working tree on its own, ran
-the whole suite and restored the file:
+Run on commit `e0e0ee3c01e44839d0a35a6dec04421a2daccc50` (fix-a-5-1), the
+last commit that changes code (later commits change this document only).
+The run covers the 13 original mutations, 4 for ruling R1 and 1 for
+QA-002. The script applied each mutation to the working tree on its own,
+ran the whole suite and restored the file:
 
 ```text
 cargo test --workspace --all-features --no-fail-fast
@@ -216,16 +216,17 @@ after the run.
 | no drain lock | the drain does not take the drain lock. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_is_single_writer` |
 | per-entry pre-read | the batched pre-read is empty; each entry lists its own bead. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_cut_pre_read_defers_the_whole_drain`, `a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut`, `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`, `a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending`, `a_read_back_that_answers_without_the_row_is_applied_and_stale`, `an_outage_defers_every_pending_entry_including_stale_held_ones`, `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_drain_writes_in_order_reads_back_and_marks_applied`, `test_failed_pre_read_retries_every_entry`, `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`, `test_unreachable_backend_is_an_outage_that_counts_no_attempt`, `test_write_that_landed_before_a_crash_is_not_repeated` |
 | no not-found escalation | a bead absent from the pre-read is left pending. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_on_absent_bead_escalates_not_found` |
-| deferred not reported | entries skipped at the start gate are not put in `deferred`. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_deadline_defers_unstarted_entries_without_attempts` |
-| drain without deadline | the start gate never passes. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_drain_that_calls_no_bd_still_reports_the_standing_outage`, `a_start_gate_already_passed_defers_everything_without_a_bd_call`, `test_drain_deadline_defers_unstarted_entries_without_attempts` |
+| deferred not reported | entries skipped at the start gate are not put in `deferred`. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`, `test_drain_deadline_defers_unstarted_entries_without_attempts` |
+| drain without deadline | the start gate never passes. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_drain_that_calls_no_bd_still_reports_the_standing_outage`, `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`, `a_start_gate_already_passed_defers_everything_without_a_bd_call`, `test_drain_deadline_defers_unstarted_entries_without_attempts` |
 | v3 check/pre-read codes not an outage | `BD_VERSION_FAILED` / `BD_SCHEMA_FAILED` / `BD_LIST_FAILED` take the retry branch (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt` |
 | every check/pre-read failure an outage | `is_unreachable` is true for every code, `BD_CONTRACT` included (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `test_failed_pre_read_retries_every_entry` |
 | v3 outage not recorded | the drain defers on those codes but skips `note_unavailable` (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt` |
-| held entries not deferred on an outage | stale-held seqs are left out of `deferred` on an outage stop (R1, R3). | `crates/bd-cache/src/drain.rs` | 101 | no | `an_outage_defers_every_pending_entry_including_stale_held_ones` |
+| held entries not deferred on an outage | stale-held seqs are left out of the stop lists (R1, R3). | `crates/bd-cache/src/drain.rs` | 101 | no | `an_outage_defers_every_pending_entry_including_stale_held_ones` |
+| held entries retrying even when unreached | a held entry goes to `retrying` before the start-gate check (QA-002). | `crates/bd-cache/src/drain.rs` | 101 | no | `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut` |
 | dedupe after the precondition | `write` checks the precondition before the idempotency key. | `crates/bd-cache/src/write.rs` | 101 | no | `test_retry_of_a_journaled_precondition_write_is_a_duplicate_not_a_precondition_error` |
 
 Every bug fails at least one test, and none of them by a compile error.
 The table has the twelve bugs from the acceptance criteria, one extra for
-the read side of the stale rule (`stale rows not held`) and four for
-ruling R1. The mutation script is not committed: `.py` files are outside
-this sprint's `owned_paths`, so this table is the record.
+the read side of the stale rule (`stale rows not held`), four for ruling R1
+and one for QA-002. The mutation script is not committed: `.py` files are
+outside this sprint's `owned_paths`, so this table is the record.
