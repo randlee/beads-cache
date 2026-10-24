@@ -14,8 +14,8 @@ must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
   owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, REQ-CORE-0201, REQ-CORE-0202, REQ-CORE-0203, REQ-CORE-0204, REQ-CORE-0205, REQ-CORE-0206, REQ-CORE-0207]
-  constrained_by: [REQ-BDC-0105, REQ-BDC-0109, REQ-BDC-0405, REQ-BDC-0901, REQ-BDC-0903, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0707, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205]
+  constrained_by: [REQ-BDC-0105, REQ-BDC-0109, REQ-BDC-0405, REQ-BDC-0901, REQ-BDC-0903, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0707, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004, REQ-CORE-0103]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205]
 owned_paths:
   - "crates/bd-cache/src/get.rs"
   - "crates/bd-cache/src/refresh.rs"
@@ -135,7 +135,18 @@ Crate tests and lints; `cargo build --workspace`.
   row is re-read forced and its mark cleared, which is what lets a-5's drain
   take the bead's held entries
   (`a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable`).
-  `drain` itself is a-5's and still a stub on this branch.
+  `drain` itself is a-5's; its real implementation has been on this branch
+  since the merge of `integrate/phase-a` at `78aa11d` (fix-a-6-2), and its
+  tests run in this branch's suite.
+- ADR-CORE-0101, 0102 and 0103 are a-5's write-path ADRs
+  ([`docs/bd-cache/write-path.md`](../../bd-cache/write-path.md)), listed
+  because they govern `bd-cache` code in this branch (fix-a-6-3, ARCH-001).
+  ADR-CORE-0101 (drain stop policy) and ADR-CORE-0103 (escalation reasons
+  and drain-time rows) govern a-5's drain; a-6's `sync` is the re-read that
+  clears a stale row's mark and so releases the bead the drain holds
+  (REQ-CORE-0103), and a-6's `resolve` acts on the escalations ADR-CORE-0103
+  describes. ADR-CORE-0102 (write identity and dedupe) does not apply to
+  a-6 code.
 - REQ-BDC-0601 and 0602: the state rules are the store port's (a-1's
   contract suite; a-4 implements them over SQLite). a-6 owns the verbs and
   delegates (ADR-CORE-0205), so its planted bugs for these two are planted
@@ -294,4 +305,7 @@ At `0952573`, locally (macOS), after merging `integrate/phase-a` at `78aa11d`:
 | `cargo test --workspace --all-features` | pass (439 tests; `bd-cache` 127, a-5's included) |
 | `cargo build --workspace` | pass |
 
-CI: recorded on the PR.
+CI (per the CI-evidence convention in the phase plan): run
+[40078422134](https://github.com/randlee/beads-cache/actions/runs/40078422134)
+is green on ubuntu, macos and windows at `47f7c04`, whose only change after
+the last code commit `0952573` is this document.
