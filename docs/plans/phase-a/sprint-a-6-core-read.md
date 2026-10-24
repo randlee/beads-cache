@@ -197,7 +197,7 @@ Crate tests and lints; `cargo build --workspace`.
 | No base is `unknown` | `a_scope_with_no_ready_base_reports_unknown`, `no_base_and_no_fresh_answer_is_unknown` |
 | `blocked` and `missing_rows` | `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows` |
 | Entries vs `fetched_at` | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `escalated_entries_do_not_adjust_the_base` |
-| Rules table rows (ADR-CORE-0201) | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
+| Rules table rows (ADR-CORE-0201) | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
 | `ready` carries `last_ok_at` (ARCH-001) | `ready_replies_carry_the_scopes_last_ok_at`, `a_scope_with_no_ready_base_reports_unknown` |
 | REQ-BDC-0912 (with `Fresh { fetched_at }`, ARCH-002) | `bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage` |
 | Deliverable 6 (REQ-BDC-0604, 0704, 0705, 0707) | `announcement_state_passes_through_to_the_store` |
@@ -206,8 +206,9 @@ Crate tests and lints; `cargo build --workspace`.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `ae32b4606fc72a70ac0e15d3ac588017f48b308e` (fix-a-6-1, after merging
-`integrate/phase-a` at `454b802`), the last commit that changes code (later commits change documents only). Each mutation was
+Run on commit `09525732c89f63817caeba8288f90e0b38985e23` (fix-a-6-2, after merging
+`integrate/phase-a` at `78aa11d`, which brings a-5's real `write` and
+`drain` and their tests into the suite), the last commit that changes code (later commits change documents only). Each mutation was
 applied to the working tree by a script (one literal replacement, checked to
 match exactly once), the whole `bd-cache` suite was run, and the file was
 restored:
@@ -234,15 +235,15 @@ deliverable.
 | sync: a cut not reported deferred | `crates/bd-cache/src/sync.rs` | 101 | no | `a_cut_sync_reports_deferred_and_changes_no_alert` |
 | sync: a failed base fetch not marked stale | `crates/bd-cache/src/sync.rs` | 101 | no | `a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale` |
 | sync: no on-demand scope registration | `crates/bd-cache/src/sync.rs` | 101 | no | `sync_then_list_of_an_unconfigured_phase_works` |
-| ready: close does not release dependers | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `rule_parent_unblock_releases_the_children`, `rule_update_to_closed_is_a_close`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
+| ready: close does not release dependers | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `rule_parent_unblock_releases_the_children`, `rule_update_to_closed_is_a_close`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
 | ready: Update to closed is not a close | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_update_to_closed_is_a_close` |
 | ready: status change keeps the bead ready | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_close_or_status_change_of_the_bead_itself_leaves_ready` |
 | ready: no reopen rule | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_reopen_brings_back_the_beads_own_blockers`, `rule_reopen_from_closed_blocks_the_dependers_again`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
-| ready: no dep_add rule | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_parent_block_blocks_the_children` |
+| ready: no dep_add rule | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_parent_block_blocks_the_children` |
 | ready: an uncached dep_add target does not block | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead` |
 | ready: no parent block | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_parent_block_blocks_the_children` |
-| ready: no parent unblock | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_parent_unblock_releases_the_children` |
-| ready: pending dep_add edges missing from the incoming edges | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child` |
+| ready: no parent unblock | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked`, `rule_parent_unblock_releases_the_children` |
+| ready: pending dep_add edges missing from the incoming edges | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked` |
 | ready: entries applied after the fetch ignored | `crates/bd-cache/src/ready.rs` | 101 | no | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base` |
 | ready: entries applied before the fetch replayed | `crates/bd-cache/src/ready.rs` | 101 | no | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base` |
 | ready: a fresh failure is an error, no fallback | `crates/bd-cache/src/ready.rs` | 101 | no | `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage`, `no_base_and_no_fresh_answer_is_unknown` |
@@ -259,8 +260,7 @@ deliverable.
 | list: status filter dropped | `crates/bd-cache/src/list.rs` | 101 | no | `list_filters_by_status_and_label_on_the_view` |
 
 Every one of the 33 bugs fails at least one test, none by a compile error,
-and every mutated source file was restored after the run (only this
-document's uncommitted edits remained). In a dry run before the evidence
+and `git status` was clean after the run. In a dry run before the evidence
 commit, "rows outside the scope get a blocked state" survived, which showed
 a missing case (a listed row whose view a pending write moves out of the
 scope). The case was added to
@@ -271,7 +271,10 @@ edges missing from the incoming edges" (QA-001) and "status: stale rows
 dropped" (R2), then "ready: last_ok_at not reported" (ARCH-001) and "ready:
 Fresh fetched_at not the fetch instant" (ARCH-002; the fetch instant moved
 back one second, since substituting the adjusted base's `fetched_at` would
-be equivalent after a fresh success).
+be equivalent after a fresh success). fix-a-6-2 added
+`a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked`
+(the drop_blocker path of parent unblock); the pending-edges bug fails all
+three pending-edge regression tests.
 
 Contract suites: `tests/sync_contract.rs` runs a-1's `CacheBackend`
 contract suite (`backend_contract_tests!`, 9 rules) against
@@ -280,7 +283,7 @@ store contract suite does not apply, because a-6 implements no `CacheStore`.
 
 ## Validation
 
-At `ae32b46`, locally (macOS), after merging `integrate/phase-a` at `454b802`:
+At `0952573`, locally (macOS), after merging `integrate/phase-a` at `78aa11d`:
 
 | Gate | Result |
 |---|---|
@@ -288,7 +291,7 @@ At `ae32b46`, locally (macOS), after merging `integrate/phase-a` at `454b802`:
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps` | pass |
-| `cargo test --workspace --all-features` | pass (398 tests; `bd-cache` 86) |
+| `cargo test --workspace --all-features` | pass (439 tests; `bd-cache` 127, a-5's included) |
 | `cargo build --workspace` | pass |
 
 CI: recorded on the PR.
