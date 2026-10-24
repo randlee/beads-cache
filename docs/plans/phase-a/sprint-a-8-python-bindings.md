@@ -15,8 +15,8 @@ must_follow: [a-2, a-4, a-5, a-6]
 parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910, REQ-PY-0001, REQ-PY-0002, REQ-PY-0003, REQ-PY-0004, REQ-PY-0005, REQ-PY-0006, REQ-PY-0007, REQ-PY-0008, REQ-PY-0009, REQ-PY-0010]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0101, REQ-BDC-0104, REQ-BDC-0402, REQ-BDC-0601, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0007]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0002, ADR-CORE-0001, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0104, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0302, REQ-BDC-0402, REQ-BDC-0406, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0002, ADR-CORE-0001, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
 owned_paths:
   - "crates/bd-cache-py/**"
   - ".github/workflows/python.yml"
@@ -62,9 +62,10 @@ atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
    (REQ-BDC-0802, 0803).
 3. Threading per ADR-CORE-0001: the handle owns one connection; calls
    release the GIL while they wait on `bd`. *Amended (lead ruling,
-   2026-10-24, PR #11):* the handle is `Mutex`-guarded, not `unsendable`
-   (ADR-CORE-0001's own-mutex option, ADR-PY-0003), so a handle used or
-   dropped on another thread never panics in PyO3.
+   2026-10-24, PR #11):* the handle is guarded by a closable mutex slot, not
+   `unsendable` (ADR-CORE-0001's own-mutex option, ADR-PY-0003), so a handle
+   used or dropped on another thread never panics in PyO3; `close()`,
+   `closed` and `__exit__` never hold the GIL while they wait.
 4. Packaging: maturin `pyproject.toml` in the crate, abi3 wheels for the
    Python versions atm-bd runs, built in `.github/workflows/python.yml`
    (macOS arm64 and Linux x86_64 at least). Publishing to PyPI is a later
@@ -104,23 +105,29 @@ sync(phase, timeout); drain(start_gate_s, hard_s)
 entry(seq); resolve(seq, note, actor); prune(phase); status()
 unannounced_escalations(); mark_announced(seq)
 sync_alert(phase); set_sync_alert(phase, cause); open_work()
-# also: path, closed, close(), with-statement; module: CacheError,
+# also: path, closed, close(), with-statement; module: CacheError, ClosedError,
 # UNREACHABLE (frozenset), __version__
 ```
 
 Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 `CacheError(Exception)` carries `code`, `detail`, `fix`, `reason`, `payload`,
 `body`, `exit_code`. Bad arguments are `ValueError`; a closed handle is
-`RuntimeError`.
+``ClosedError` (a `RuntimeError`).
 
 ## Requirement scope notes
 
 - REQ-BDC-0910 is owned here; REQ-PY-0001..0010 are this crate's
-  (`docs/bd-cache-py/requirements.md`, Draft: lead ruling needed).
+  (`docs/bd-cache-py/requirements.md`, Approved: lead ruling R1, bc-lead, 2026-10-24).
 - REQ-BDC-0806 (the CLI drop-in) is not closed; REQ-BDC-0911 and 0912 are
   a-6's behaviour, exercised here through the binding. REQ-BDC-0402,
-  0601, 0101, 0104, NFR-BDC-0004 and NFR-BDC-0007 are core and store
-  behaviour reached through the verbs. NFR-BDC-0001 is a-7's; the cached
+  0601, 0101, 0102, 0104, 0202, 0203, 0302, 0406, 0602, 0603, 0604, 0704, 0705,
+  0904, NFR-BDC-0004 and NFR-BDC-0007 are core and store behaviour reached
+  through the verbs (the verb tests check the reply fields they define).
+  REQ-BDC-0804 (a file written by either implementation is read by the other)
+  is a-4's; the bindings open the shared file and the mapping table keeps
+  atm-bd's file path usable through `cache_path`. REQ-BDC-0806 is deferred
+  (not closed here). NFR-BDC-0006 (live tests on the testbed only) applies
+  as: no test here runs a live `bd`; all use the fake program. NFR-BDC-0001 is a-7's; the cached
   `get` number below is informational.
 
 ## Acceptance evidence
@@ -149,83 +156,94 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 ## Interpretations and deviations
 
 - **Threading.** The sprint doc said `unsendable`. CI showed that panics in
-  PyO3 when a handle is touched or freed off its thread, so the handle is
-  `Mutex`-guarded (lead ruling on PR #11; ADR-PY-0003, REQ-PY-0006).
+  PyO3 when a handle is touched or freed off its thread, so the handle owns a
+  closable mutex slot (`src/slot.rs`; ADR-PY-0003, REQ-PY-0006; lead ruling on
+  PR #11). `close()`, `__exit__` and `closed` hold no GIL while they wait.
 - **Additions beyond the verb list:** `Cache.path`, `closed`, `close()`, the
-  `with` statement, `UNREACHABLE` and `__version__`. `path` replaces
-  `status['db']`; `UNREACHABLE` is `bd_cache.py`'s set of that name, which
-  the cron uses; `close()` is needed because a process holds one connection
-  per cache file (NFR-BDC-0007).
+  `with` statement, `UNREACHABLE`, `ClosedError` and `__version__`.
 - **Cache file default** is `.bd-cache/<db>.bd-cache.sqlite3` (decided
   2026-10-24); atm-bd keeps `.atm-bd/` by setting `cache_path`.
-- **Tests use a fake `bd` program** (`tests/fake_bd_main.py`), not a Rust
-  invoker, so the wheel under test is the shipped one and the real process
-  runner, deadlines and strict row parsing are exercised.
-- **Workspace dependencies.** `bd-cache-store` and `sc-bd-cli` are not in
-  `[workspace.dependencies]`; the crate names them as `path` dependencies in
-  its own `Cargo.toml` (no shared file edited). The other dependencies are
-  `workspace = true`.
-- **ci.yml** is unchanged: it excludes `bd-cache-py` as a-1 set up;
-  `python.yml` runs the crate's clippy and `cargo test` itself.
+- **Tests use a fake `bd` program** (`tests/fake_bd_main.py`) so the wheel
+  under test is the shipped one. Time-dependent tests are causal (the fake
+  blocks until a Python thread creates a release file); durations are loose
+  sanity bounds, except the `ready` limit, which asserts the limit plus a
+  stated 0.4 s margin and cites the core test that proves the bound
+  (`crates/bd-cache/tests/read_ready.rs`,
+  `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`).
+- **Workspace dependencies.** `bd-cache-store` and `sc-bd-cli` are in the root
+  `[workspace.dependencies]` (lead ruling R2, bc-lead, 2026-10-24; recorded in
+  phase-a-plan's Shared files table); the crate uses `workspace = true`.
+- **`list` status filter** is not validated: the model has no closed set of
+  statuses (REQ-PY-0005).
+- **ci.yml** is unchanged: it excludes `bd-cache-py`; `python.yml` runs the
+  crate's clippy and `cargo test` on macOS, Linux and Windows (R4).
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `f554cc10294f913cd5e837721068b9f481c3ef46`, the last commit
+Run on commit `42f6ef46b8b144d1c9df4e129cbb7c3527d8ea98`, the last commit
 that changes code (later commits change documents only). Each mutation was
-applied to the working tree, the wheel rebuilt, the whole pytest suite run
-(`cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests`),
-and the file restored with `git checkout`:
+applied to the working tree, the wheel rebuilt, the whole pytest suite and
+`cargo test -p bd-cache-py --lib` run, and the file restored with
+`git checkout`:
 
-| Planted bug | File | Compile error | Failing tests (first; count) |
-|---|---|---|---|
-| typed error drops its payload | `src/error.rs` | no | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 8 |
-| `ready` ignores `fresh_within` | `src/handle.rs` | no | `test_ready_with_a_limit_returns_the_cached_adjusted_answer_when_bd_answers_late`; 4 |
-| `mark_announced` does nothing | `src/handle.rs` | no | `test_an_escalated_entry_is_announced_once_then_marked`; 2 |
-| GIL held during a verb | `src/handle.rs` | no | `test_other_python_threads_run_while_a_verb_waits_on_bd`; 1 |
-| write precondition dropped | `src/handle.rs` | no | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 9 |
-| scopes override ignored | `src/compose.rs` | no | `test_explicit_arguments_override_the_config_file`; 1 |
-| negative timeouts accepted | `src/convert.rs` | no | `test_arguments_that_are_not_valid_values_raise_value_error`; 1 |
-| `close()` keeps the connection | `src/handle.rs` | no | `test_close_ends_the_handle_and_is_idempotent`; 6 |
-| `sync` ignores its timeout | `src/handle.rs` | no | `test_sync_stops_at_its_timeout_when_bd_answers_late`; 1 |
-| `reason` not carried | `src/error.rs` | no | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 1 |
-| `get` ignores `miss_timeout` | `src/handle.rs` | no | `test_a_zero_miss_timeout_is_a_cached_only_get`; 2 |
-| `UNREACHABLE` lacks `BD_LIST_FAILED` | `src/error.rs` | no | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 1 |
-| drain start gate and hard deadline swapped | `src/handle.rs` | no | `test_drain_start_gate_and_hard_deadline_are_separate_bounds`; 1 |
-| `write` swaps idempotency key and actor | `src/handle.rs` | no | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
+```text
+cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && cargo test -p bd-cache-py --lib
+```
 
-Every bug fails at least one test and none by a compile error (the first
-`close()` mutation did not compile and was replaced by the one listed); the
-tree was clean after the run. The mutations are the `old`/`new` pairs of one
-script; the escalation, precondition and `ready` rules themselves are
-a-1/a-5/a-6's and carry their planted bugs there.
+| Planted bug | File | First failing test; failures |
+|---|---|---|
+| typed error drops its payload (no `unmet`) | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 9 |
+| `ready` ignores `fresh_within` | `src/handle.rs` | `test_the_journal_lands_when_bd_returns_and_fresh_ready_agrees`; 5 |
+| `mark_announced` does nothing | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 2 |
+| GIL held during a verb | `src/handle.rs` | `test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_limit`; 3 |
+| write precondition dropped | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
+| scopes override ignored | `src/compose.rs` | `test_explicit_arguments_override_the_config_file`; 1 |
+| negative timeouts accepted | `src/convert.rs` | `test_arguments_that_are_not_valid_values_raise_value_error`; 5 |
+| `close()` does nothing | `src/handle.rs` | `test_max_attempts_from_the_arguments_decides_when_a_failing_write_escalates`; 7 |
+| `__exit__` does not close | `src/handle.rs` | `test_the_handle_is_a_context_manager`; 1 |
+| `sync` ignores its timeout | `src/handle.rs` | `test_sync_stops_at_its_timeout_when_bd_is_blocked`; 1 |
+| `reason` not carried | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 1 |
+| `get` ignores `miss_timeout` | `src/handle.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
+| `UNREACHABLE` lacks BD_LIST_FAILED | `src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
+| drain start gate and hard deadline swapped | `src/handle.rs` | `test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt`; 2 |
+| `write` swaps idempotency key and actor | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
+| one `ProjectLocks` per handle | `src/compose.rs` | `test_handles_on_different_cache_files_never_overlap_their_bd_calls`; 2 |
+| `op` not validated in the binding | `src/handle.rs` | `test_an_unknown_op_is_a_value_error_and_bad_args_are_typed`; 1 |
+| `max_attempts` of 0 accepted | `src/handle.rs` | `test_signed_and_float_timeouts_and_attempts_are_validated[max_attempts-0]`; 1 |
+| `closed` set only after the in-flight verb ends | `src/slot.rs` | `test_close_while_a_verb_is_in_flight`; 2 |
+| poisoned slot keeps its connection | `src/slot.rs` | `a_panicking_verb_drops_the_value_clears_the_poison_and_closes`; 1 |
+| `fix` treated as an envelope key (left out of the attribute) | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 7 |
+
+Every bug fails at least one test and none by a compile error; the tree was
+clean after the run. Failures count pytest and Rust tests together.
 
 ## Validation
 
-Local, macOS arm64, on `f554cc1` (docs after it): `cargo test --workspace
---all-features`: 644 passed; pytest: 72 passed.
+Local, macOS arm64, on `42f6ef4` (documents after it): `cargo test --workspace
+--all-features`: 653 passed; pytest: 88 passed.
 
-| Gate | Result |
+| Gate (with `set -o pipefail`) | Result |
 |---|---|
 | `cargo fmt --all --check` | pass |
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | pass |
 | `cargo test --workspace --all-features` | pass |
-| pytest (`maturin develop`, 72 tests) | pass |
+| pytest (`maturin develop`, 88 tests) | pass |
 
-CI on the last code-changing commit `f554cc1`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40083265242 (clippy and
-test, wheel, pytest on Python 3.9, 3.11 and 3.13 on macos-14 and
-ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40083265243 (success).
-CI run 40082767056 on `fee1893` failed (a tick-count threading test and the
-unsendable panic); both are fixed in `f554cc1`.
+CI on the last code-changing commit `42f6ef4`: CIRUNS
+
+## Fix round 1 (QA-1 at b75b5f3)
+
+Lead rulings R1-R8 (bc-lead, 2026-10-24) applied: REQ-PY and ADR-PY approved
+(R1); workspace dependencies (R2); serde and serde_json recorded (R3); Windows
+in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
+REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
+atm-core call evidence in `crates/bd-cache-py/tests/atm_core_05831df_calls.json`,
+extracted with `atm_core_05831df_extract.py` (R8).
 
 ## Hand-off notes for the lead
 
-1. **Draft ids for a ruling:** REQ-PY-0001..0010 and ADR-PY-0001..0004.
-2. **Status.** Set to `in-review` per the wave-2 hand-off; the dispatch gate
-   text says `complete`, to be set at merge.
-3. **`docs/project-plan.md`** already lists a-8 (status `planned`); not an
-   owned path, so unchanged.
-4. **Publishing** is untouched: no token was read or used.
+1. **Status.** `in-review`; the project-plan row says `in-review` too. Set both
+   to `complete` at merge.
+2. **Publishing** is untouched: no token was read or used.
