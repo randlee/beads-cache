@@ -10,7 +10,7 @@ ADR-BDC-0007; the contract it implements is
 | Module | Contents | Origin |
 |---|---|---|
 | `backend`, `dolt` | `BdCli` (`BeadsBackend`, `CliBackend`, `DoltOperations`), `BD_RELEASE_SOURCE`, Dolt detection, `DoltMode` | btit-bd, with the clock field and constructors of ADR-BDCLI-0002 |
-| `runner`, `run`, `probe`, `path`, `command`, `locks`, `ops` | `CliInvoker` / `CliRunner`, argv assembly and spawns, the `--version` probe, the extended `PATH`, `ProjectLocks`, one function per issue operation | btit-cli, with `tracing` and `CliInvoker::run_bounded` |
+| `runner`, `run`, `probe`, `path`, `command`, `locks`, `ops` | `CliInvoker` / `CliRunner`, argv assembly and spawns, the `--version` probe, the extended `PATH`, `ProjectLocks`, the crate-private `ChildEnv` (ADR-BDCLI-0004), one function per issue operation | btit-cli, with `tracing`, `CliInvoker::run_bounded` and `CliInvoker::set_child_var` |
 | `cache` | `CacheBackend for BdCli`: exit-status classification, guards on close, fingerprint parsing | new |
 | `argv` | the argv of every cache call, as pure functions | new |
 | `bounded` | `run_bounded` and `BoundedError`: the deadline-bounded process run | new |
@@ -172,3 +172,42 @@ the round trip against a real bd.
 Consequences: a bd release that changes metadata coercion or any message the
 classification reads is caught by the compat workflow's live probes, and
 `FakeBd`'s coercion rule (`coerce_metadata`) is the single place to update.
+
+## ADR-BDCLI-0004: A child environment variable set or removed by the runner
+
+**Status:** Approved (lead ruling S40, bc-lead, 2026-10-24; fix-a-7-12, RSH-033)
+
+Context: `bd-cache-sync`'s `compose_with` resolves the cache from an explicit
+`$BEADS_DIR` value (`None` = unset; lead ruling S36), not the process
+environment, so a test does not depend on the machine. Every `bd` the backend
+spawns inherited the process's `BEADS_DIR`, so the cache and `bd` could name
+two beads directories.
+
+Decision: one provided method on `CliInvoker`,
+`set_child_var(&mut self, key: &OsStr, value: Option<&OsStr>)`, sets (`Some`)
+or removes (`None`) `key` in the environment of every child the invoker spawns
+from then on; a later call for the same key replaces the earlier one. The
+provided body does nothing, which is right for an invoker that spawns no
+process (`RecordingInvoker`, `FakeBd`); an invoker that wraps a spawning one
+forwards it. `CliRunner` keeps the changes in a crate-private `ChildEnv` and
+applies them to `run_json`, `run_raw` and `run_bounded` right after
+`new_command`, so the spawn's own `PATH` and `BEADS_PATH` still win for those
+two names; the `--version` probe, which runs in the temp directory for no
+project, does not get them. `CliRunner::with_child_var` and
+`BdCli::with_child_var` are the builders. btit's public functions
+(`run::spawn_json`, `run::run_raw`, `bounded::run_bounded`,
+`bounded::run_bounded_capped`) keep their signatures and an inherited
+environment; the runner calls crate-private variants that take the
+`ChildEnv`. The API-freeze tests are unchanged.
+
+Alternatives rejected: checking at composition that the explicit value equals
+the process's (a test passing `None` on a machine with `BEADS_DIR` set would
+fail, which S36 exists to prevent); changing the public spawn functions'
+signatures (breaks btit's API freeze).
+
+Consequences: `compose_with` sets `BEADS_DIR` on the backend's children to the
+value the cache resolved from, or removes it. Evidence:
+`the_child_environment_reaches_run_raw_and_run_bounded`,
+`without_a_child_variable_the_environment_is_inherited` (`src/runner.rs`),
+`a_later_set_of_a_name_replaces_the_earlier_one` (`src/command.rs`); in
+`bd-cache-sync`, `tests/compose.rs` (S40 cases).

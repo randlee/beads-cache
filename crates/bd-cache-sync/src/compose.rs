@@ -145,7 +145,13 @@ pub fn compose(
 /// an explicit `$BEADS_DIR` value (`None` = unset): the environment is not
 /// read (lead ruling S36, built on [`SqliteStore::open_with`]).
 ///
-/// `backend` must have been built with the same `clock`.
+/// The backend is rebound to `clock` ([`BdCli::with_clock`]), so the cache,
+/// the store and the backend measure every deadline on one clock whatever
+/// clock `backend` was built with (lead ruling S40, RBP-F046). Every `bd` it
+/// spawns gets the same `$BEADS_DIR` the cache resolved from: set to
+/// `beads_dir_env`, or removed when it is `None`
+/// ([`BdCli::with_child_var`]; S40, RSH-033). A backend over a test double
+/// spawns nothing and ignores it.
 ///
 /// # Errors
 ///
@@ -165,6 +171,9 @@ pub fn compose_with(
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
     let lock = store.drain_lock();
     let project = ProjectRef::local(Some(repo_root.to_string_lossy().into_owned()));
+    let backend = backend
+        .with_clock(Arc::clone(&clock))
+        .with_child_var(OsStr::new(BEADS_DIR_ENV), beads_dir_env);
     let cache = Cache::new(repo.cache_config(project), store, lock, backend, clock)
         .map_err(ComposeError::Cache)?;
     let mut tick = repo.tick.unwrap_or_default();

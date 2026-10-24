@@ -1,9 +1,15 @@
 //! `compose` resolves the phases directory against the repository root (QA-008),
 //! and its errors carry this crate's stable codes (S34).
 //!
-//! Every case composes through [`compose_with`] with no `$BEADS_DIR` (lead
-//! ruling S36, FTQ-028): the tests do not read the environment, so a
+//! Every case composes through [`compose_with`] with an explicit `$BEADS_DIR`
+//! (lead ruling S36, FTQ-028): the tests do not read the environment, so a
 //! `BEADS_DIR` set on the machine cannot point them at a real cache.
+//!
+//! The `bd` child sees the value the cache resolved from, not the process's
+//! (lead ruling S40, RSH-033): on Unix the backend runs `/bin/sh`, which
+//! prints the `BEADS_DIR` it was given. One case runs in a child process of
+//! this test binary whose environment sets `BEADS_DIR` (no test mutates its
+//! own environment).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -13,6 +19,8 @@
 
 use std::path::Path;
 use std::sync::Arc;
+#[cfg(unix)]
+use std::time::{Duration, Instant};
 
 use bd_cache_store::ConfigLoadError;
 use bd_cache_sync::{ComposeError, Composed, compose_with};
@@ -125,4 +133,103 @@ fn compose_errors_have_codes_and_sources() {
     assert_eq!(loader.code(), "BD_CACHE.CONFIG_UNREADABLE");
     assert_eq!(err.fix(), loader.fix());
     assert!(err.fix().contains("readable"), "{}", err.fix());
+}
+
+/// Set (to `1`) in the child process of
+/// [`the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one`].
+#[cfg(unix)]
+const CHILD_MARK: &str = "BD_CACHE_SYNC_COMPOSE_S40_CHILD";
+
+/// The `$BEADS_DIR` the composed backend's child sees, `<unset>` when it has
+/// none: the backend runs `/bin/sh` in the repository (S40).
+#[cfg(unix)]
+fn beads_dir_seen_by_the_child(root: &Path, beads_dir_env: Option<&std::ffi::OsStr>) -> String {
+    use sc_beads::ProjectRef;
+    use sc_beads::backend::CliBackend;
+
+    // Built on the system clock; compose_with rebinds it to the given one (S40).
+    let backend = BdCli::new("/bin/sh", Arc::new(ProjectLocks::new()));
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let composed = compose_with(root, backend, clock, beads_dir_env).unwrap();
+    let project = ProjectRef::local(Some(root.to_string_lossy().into_owned()));
+    let out = bd_cache::testing::backend(&composed.cache)
+        .run_raw(&project, &["-c", "printf %s \"${BEADS_DIR-<unset>}\""])
+        .unwrap();
+    assert!(out.success, "{out:?}");
+    out.stdout
+}
+
+/// An explicit `$BEADS_DIR` that differs from the process's (here unset, or
+/// whatever the machine sets) is the one the `bd` child sees (S40, RSH-033).
+#[cfg(unix)]
+#[test]
+fn the_bd_child_sees_the_explicit_beads_dir_not_the_environments() {
+    let root = repo("");
+    let other = tempfile::tempdir().unwrap();
+    std::fs::write(
+        other.path().join("metadata.json"),
+        r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+    )
+    .unwrap();
+    assert_ne!(
+        std::env::var_os("BEADS_DIR").as_deref(),
+        Some(other.path().as_os_str()),
+        "the explicit value differs from the environment"
+    );
+
+    let seen = beads_dir_seen_by_the_child(root.path(), Some(other.path().as_os_str()));
+
+    assert_eq!(Path::new(&seen), other.path());
+}
+
+/// The environment sets `$BEADS_DIR`, the explicit value is `None`: the cache
+/// resolves without it and the `bd` child does not see it either (S40,
+/// RSH-033). Runs in a child process of this test binary whose environment
+/// sets `BEADS_DIR`; in that process it asserts, here it checks the child
+/// passed.
+#[cfg(unix)]
+#[test]
+fn the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one() {
+    const NAME: &str = "the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one";
+    const ELSEWHERE: &str = "/nonexistent/bd-cache-sync-s40-elsewhere";
+    if std::env::var_os(CHILD_MARK).is_some() {
+        assert_eq!(
+            std::env::var_os("BEADS_DIR").as_deref(),
+            Some(std::ffi::OsStr::new(ELSEWHERE)),
+            "the child's environment sets BEADS_DIR"
+        );
+        let root = repo("");
+        assert_eq!(beads_dir_seen_by_the_child(root.path(), None), "<unset>");
+        return;
+    }
+    let mut child = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([NAME, "--exact", "--test-threads=1"])
+        .env(CHILD_MARK, "1")
+        .env("BEADS_DIR", ELSEWHERE)
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    let limit = Instant::now() + Duration::from_secs(120);
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if Instant::now() >= limit {
+            child.kill().unwrap();
+            child.wait().unwrap();
+            panic!("the child test did not finish within 120 s");
+        }
+        std::thread::sleep(Duration::from_millis(20));
+    };
+    let out = child.wait_with_output().unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        status.success(),
+        "{stdout}\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    // The child ran the case, not an empty filter.
+    assert!(stdout.contains("1 passed"), "{stdout}");
 }

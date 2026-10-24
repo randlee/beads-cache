@@ -28,6 +28,8 @@ tracing.workspace = true
 libc.workspace = true
 
 [dev-dependencies]
+# `bd_cache::testing::backend`: the S40 test reaches the composed backend.
+bd-cache = { workspace = true, features = ["testing"] }
 bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
 sc-bd-cli = { workspace = true, features = ["test-support"] }

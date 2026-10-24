@@ -208,13 +208,6 @@ fn assert_reaped(pid: u32, what: &str) {
     );
 }
 
-/// Waits until a process the sender does not own (a grandchild, reparented to
-/// PID 1 once its parent died) is dead. A zombie counts as gone: its reaping
-/// is PID 1's, which in a container may never come (FTQ-024).
-fn assert_gone(pid: u32, what: &str) {
-    wait_until_not(|p| exists(p) && !zombie(p), pid, what, "is still running");
-}
-
 /// Kills the pids it holds when dropped, so a failing test leaves no orphan
 /// sleeping for a minute.
 #[derive(Default)]
@@ -379,8 +372,15 @@ fn an_atm_that_hangs_is_killed_and_reaped() {
     assert_reaped(pids[0], "the hung atm");
 }
 
-/// The kill takes the whole process tree, not just the child (stop-flag
-/// form, FTQ-026).
+/// The stop flag kills the send, child and tree (stop-flag form, FTQ-026).
+///
+/// Only the child's reaping is asserted here (FTQ-030): the tree kill runs
+/// under the production 1 s `KILL_BOUND`, so a host stalled past 1 s gives
+/// it up and a descendant check would fail on the host, not on the code.
+/// That the tree kill takes the descendant is the unit test
+/// `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
+/// in `src/atm.rs`, under its injected 30 s deadline. The grandchild's pid
+/// is still tracked, so the reaper kills it if it is left.
 fn the_stop_flag_kills_the_child_and_its_descendants() {
     let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
@@ -392,7 +392,7 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
     );
     assert_kind(&err, SendErrorKind::Cancelled);
     assert_reaped(pids[0], "the child");
-    assert_gone(pids[1], "the grandchild");
+    assert_eq!(pids.len(), 2, "the grandchild was started and is tracked");
 }
 
 /// The one timer-driven kill (FTQ-026): the time a tick passes bounds the

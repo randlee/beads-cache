@@ -20,7 +20,7 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `control` | `StopFlag` and the tick's time budget for messages |
 | `job` | `SyncJob` (the `sc-cron` `Job`), `TickRun`, `schedule_spec`, `TICK_EXPR` |
 | `atm` | `AtmSender`: `atm send` with the body on stdin, bounded, the whole process tree killed on timeout or stop |
-| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34), the fix text still the loader's |
+| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
 
@@ -140,22 +140,41 @@ given exactly the time left, on the `ManualClock`),
 `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
 (the busy timeout sampled inside the write).
 
-Amendment (fix-a-7-10, RSH-030, RSH-031, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-10, S35, RSH-030, RSH-031, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
 the alert clears without a message (after a passing sync, and at the end of an
 outage) are bounded writes too: they wait at most `Budget::write_wait`, and a
-clear that fails is logged (`tracing::warn`, scope, code) and does not fail the
-tick; the alert stays set and the next tick clears it. A marker write that
-fails after a delivered send logs a structured warning (announcement kind,
-lead, `seq` or scope, error code) and then fails the tick as above, keeping
-the at-least-once delivery. The bound of every bounded write is `T` plus the
-busy handler's sleep slack (tens of ms): `write_wait` is all the time left,
-and SQLite's busy handler sleeps in steps, so a contended write can return one
-step after `T`. It applies to the bounded writes only; the tick's other store
-writes keep the store's own busy timeout. Evidence (`tests/marker_wait.rs`):
-`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` (a
-wrapper store fails one bounded marker write with `STORE_FAILED`: the tick
-returns `Err`, the message was sent once; the next tick sends it again and
-records the marker) and `a_failed_alert_clear_is_logged_and_does_not_fail_the_tick`.
+clear that fails is logged (`tracing::warn`, scope, reason, code) and does not
+fail the tick; the alert stays set and the next tick clears it. The end of an
+outage clears each scope once (a stored scope and a phase file of the same
+phase are one scope), so a failed clear is the next tick's to retry
+(fix-a-7-12, QA8-001). A marker write that fails after a delivered send logs a
+structured warning (announcement kind, lead, `seq` or scope, error code) and
+then fails the tick as above, keeping the at-least-once delivery. The
+announcement and its marked item are one value, `Unmarked` (`SyncFailure`,
+`Outage` with the scope, `Escalation` with the `seq`), and the reason of a
+clear is `ClearReason` (`SyncSucceeded`, `OutageOver`), so the logged kind
+and the marked item cannot disagree (fix-a-7-12, RBP-F045). The bound applies
+to the bounded writes only; the tick's other store writes keep the store's own
+busy timeout; what it is in time is the S39 amendment below. Evidence
+(`tests/marker_wait.rs`, one failing-write test per marker and per clear; a
+wrapper store fails one bounded write with `STORE_FAILED`):
+`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` (the
+tick returns `Err`, the message was sent once; the next tick sends it again
+and records the marker),
+`a_failed_sync_failure_alert_write_fails_the_tick_and_the_next_tick_sends_again`,
+`a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again`,
+`a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it` and
+`a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it`.
+The warnings themselves are not asserted: the workspace has no tracing
+subscriber, and no test name claims the logging (lead ruling S41, QA8-002).
+
+Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24)):
+the bound of every bounded write (the markers after a send and the alert
+clears) is `T` plus the bounded write's own run time (statement, commit,
+fsync, any automatic checkpoint) plus scheduler jitter; the lock wait itself
+never extends past `T`, since `write_wait` is the time left and the store
+waits `min(BUSY_TIMEOUT, that)`. It replaces S35's "`T` plus the busy
+handler's sleep slack (tens of ms)", which bounded the lock wait only.
 
 Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
 `"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
@@ -344,11 +363,18 @@ reaped.
 Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
 the reserve covers the send's overrun, not the marker write after it. That
 write waits for the store's write lock at most the time left before `T`
-(ADR-SYNC-0003, S33 amendment), so a contended store can carry a bounded write
-to `T` plus the busy handler's sleep slack (tens of ms), no further (lead
-ruling S35, ARCH-705, QA7-002); this holds for the bounded writes only (the
-marker writes after a send and the alert clears), not for the tick's other
-store writes. A marker not written in time is sent again next tick.
+(ADR-SYNC-0003, S33 amendment). A marker not written in time is sent again
+next tick.
+
+Amendment (fix-a-7-10, S35, ARCH-705, QA7-002; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+the same bound holds for the alert clears without a message, and for the
+bounded writes only (the marker writes after a send and the alert clears),
+not for the tick's other store writes (ADR-SYNC-0003, S35 amendment). As
+restated by lead ruling S39 (fix-a-7-12, RSH-032; **Status:** Approved (lead
+ruling S39, bc-lead, 2026-10-24)), a contended store bounds such a write by
+`T` plus the bounded write's own run time (statement, commit, fsync, any
+automatic checkpoint) plus scheduler jitter; the lock wait itself never
+extends past `T`. The send reserve is not sized for that run time.
 
 Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
 a child or tree-kill program still running at the kill deadline is killed and

@@ -8,7 +8,7 @@
 //! unannounced, the alert is not recorded), so the next tick sends it again,
 //! and the tick replies `refused` with the list (REQ-BDC-0706).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use bd_cache::Cache;
 use bd_cache_model::{
@@ -229,7 +229,7 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
             cache
                 .set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())
                 .inspect_err(|e| {
-                    unmarked_after_send("sync_failure", lead, Marker::Scope(&scope), e);
+                    unmarked_after_send(Unmarked::SyncFailure(&scope), lead, e);
                 })?;
             reply.sent.push(Announcement {
                 kind: AnnouncementKind::SyncFailure {
@@ -248,26 +248,41 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(())
 }
 
-/// What a marker write after a send marks.
-#[derive(Clone, Copy)]
-enum Marker<'a> {
-    /// An escalated journal entry (`mark_announced`).
-    Entry(Seq),
-    /// A scope's sync alert (`set_sync_alert`).
-    Scope(&'a ScopeId),
+/// The announcement a marker write after a send failed to mark, with the
+/// entry or scope it marks (RBP-F045): the kind and the marked item cannot
+/// disagree.
+#[derive(Debug, Clone, Copy)]
+enum Unmarked<'a> {
+    /// A sync failure of this scope (its `set_sync_alert`).
+    SyncFailure(&'a ScopeId),
+    /// An outage message covering this scope (its `set_sync_alert`).
+    Outage(&'a ScopeId),
+    /// The escalation of this journal entry (its `mark_announced`).
+    Escalation(Seq),
+}
+
+impl Unmarked<'_> {
+    /// The stable name of the announcement, the `kind` field of the warning.
+    const fn kind(self) -> &'static str {
+        match self {
+            Self::SyncFailure(_) => "sync_failure",
+            Self::Outage(_) => "outage",
+            Self::Escalation(_) => "escalation",
+        }
+    }
 }
 
 /// Logs a marker write that failed after its message was delivered (lead
 /// ruling S35, RSH-031): which announcement, to whom, for which entry or
 /// scope, and the error's code. The caller then fails the tick, so the marker
 /// stays unset and the next tick sends the message again (at-least-once).
-fn unmarked_after_send(kind: &str, lead: &MemberName, marker: Marker<'_>, e: &CacheError) {
-    let (seq, scope) = match marker {
-        Marker::Entry(seq) => (Some(seq.get()), None),
-        Marker::Scope(scope) => (None, Some(scope.name())),
+fn unmarked_after_send(what: Unmarked<'_>, lead: &MemberName, e: &CacheError) {
+    let (seq, scope) = match what {
+        Unmarked::Escalation(seq) => (Some(seq.get()), None),
+        Unmarked::SyncFailure(scope) | Unmarked::Outage(scope) => (None, Some(scope.name())),
     };
     tracing::warn!(
-        kind,
+        kind = what.kind(),
         lead = lead.as_str(),
         seq,
         scope,
@@ -275,6 +290,25 @@ fn unmarked_after_send(kind: &str, lead: &MemberName, marker: Marker<'_>, e: &Ca
         error = %e,
         "a delivered message could not be marked; the next tick sends it again"
     );
+}
+
+/// Why an alert is cleared without a message (RBP-F045).
+#[derive(Debug, Clone, Copy)]
+enum ClearReason {
+    /// The phase's sync succeeded.
+    SyncSucceeded,
+    /// The outage that set the alert is over.
+    OutageOver,
+}
+
+impl ClearReason {
+    /// The stable name of the reason, the `why` field of the warning.
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::SyncSucceeded => "sync_succeeded",
+            Self::OutageOver => "outage_over",
+        }
+    }
 }
 
 /// Clears an alert without a message, waiting for the write lock at most
@@ -285,12 +319,12 @@ fn clear_alert<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     budget: &Budget<'_>,
     scope: &ScopeId,
-    why: &str,
+    why: ClearReason,
 ) {
     if let Err(e) = cache.set_sync_alert_within(scope, None, budget.write_wait()) {
         tracing::warn!(
             scope = scope.name(),
-            why,
+            why = why.as_str(),
             code = e.code(),
             error = %e,
             "cannot clear the sync alert; the next tick tries again"
@@ -306,7 +340,7 @@ pub(crate) fn sync_succeeded<S: CacheStore, L: DrainLock, B: CacheBackend>(
     scope: &ScopeId,
 ) -> Result<(), CacheError> {
     if cache.sync_alert(scope)?.is_some() {
-        clear_alert(cache, budget, scope, "sync_succeeded");
+        clear_alert(cache, budget, scope, ClearReason::SyncSucceeded);
     }
     Ok(())
 }
@@ -345,12 +379,15 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let status = cache.status()?.store;
     let Some(outage) = status.outage else {
         // Over: reset every alert this outage set, without a message, each
-        // within the tick's marker-write bound ([`clear_alert`]).
-        let mut scopes: Vec<ScopeId> = status.scopes.iter().map(|s| s.sync.scope.clone()).collect();
+        // within the tick's marker-write bound ([`clear_alert`]). Each scope
+        // once: a phase is both a stored scope and a phase file, and a clear
+        // that failed is the next tick's to retry, not this one's (QA8-001).
+        let mut scopes: BTreeSet<ScopeId> =
+            status.scopes.iter().map(|s| s.sync.scope.clone()).collect();
         scopes.extend(all.iter().map(Phase::scope));
         for scope in scopes {
             if is_outage_alert(cache.sync_alert(&scope)?.as_deref()) {
-                clear_alert(cache, budget, &scope, "outage_over");
+                clear_alert(cache, budget, &scope, ClearReason::OutageOver);
             }
         }
         return Ok(());
@@ -380,7 +417,7 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
                             budget.write_wait(),
                         )
                         .inspect_err(|e| {
-                            unmarked_after_send("outage", lead, Marker::Scope(&scope), e);
+                            unmarked_after_send(Unmarked::Outage(&scope), lead, e);
                         })?;
                 }
                 reply.sent.push(Announcement {
@@ -471,7 +508,7 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
                 cache
                     .mark_announced_within(entry.seq, budget.write_wait())
                     .inspect_err(|e| {
-                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);
+                        unmarked_after_send(Unmarked::Escalation(entry.seq), lead, e);
                     })?;
                 reply.sent.push(Announcement {
                     kind: AnnouncementKind::Escalation { seq: entry.seq },

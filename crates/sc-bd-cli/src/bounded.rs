@@ -31,7 +31,7 @@ use std::time::{Duration, Instant};
 use sc_beads::error::BeadsError;
 use sc_beads::CliOutput;
 
-use crate::command::new_command;
+use crate::command::ChildEnv;
 use crate::locks::{ProjectLocks, WorkingDir};
 use crate::path::get_extended_path;
 
@@ -167,6 +167,28 @@ pub fn run_bounded_capped(
     timeout: Duration,
     max_output: usize,
 ) -> Result<CliOutput, BoundedError> {
+    run_bounded_in(
+        binary,
+        locks,
+        working_dir,
+        argv,
+        timeout,
+        max_output,
+        &ChildEnv::default(),
+    )
+}
+
+/// [`run_bounded_capped`] with `env` applied to the child (a
+/// [`CliRunner`](crate::CliRunner)'s child environment, ADR-BDCLI-0004).
+pub(crate) fn run_bounded_in(
+    binary: &str,
+    locks: &ProjectLocks,
+    working_dir: &WorkingDir,
+    argv: &[String],
+    timeout: Duration,
+    max_output: usize,
+    env: &ChildEnv,
+) -> Result<CliOutput, BoundedError> {
     let start = Instant::now();
     let limit = start
         .checked_add(timeout)
@@ -192,7 +214,8 @@ pub fn run_bounded_capped(
         }
     };
 
-    let mut child = new_command(binary)
+    let mut child = env
+        .command(binary)
         .args(argv)
         .current_dir(working_dir.as_str())
         .env("PATH", get_extended_path())

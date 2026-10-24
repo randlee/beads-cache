@@ -16,9 +16,14 @@
 //!   mistake.
 //! - `SC_BD_BIN`: the `bd` to test (default `bd`).
 //!
-//! The composition is the real one: `compose` (`SqliteStore`, `FlockDrainLock`,
-//! `BdCli` running `bd`), `SyncJob` and the tick. Only the sender is
-//! replaced, by a recorder, because no `atm` message must leave a test.
+//! The composition is the real one: `compose_with` (`SqliteStore`,
+//! `FlockDrainLock`, `BdCli` running `bd`), `SyncJob` and the tick. Only the
+//! sender is replaced, by a recorder, because no `atm` message must leave a
+//! test. As in `tests/common/real.rs`, the composition is given no
+//! `$BEADS_DIR` (`None`, lead ruling S36, ARCH-807) and its `bd` children
+//! run without one (S40); the setup `bd` calls inherit the environment, so a
+//! run with `BEADS_DIR` set is refused rather than split across two
+//! databases.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -34,10 +39,11 @@ use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use bd_cache_model::{EscalationSender, IdemKey, JournalState, ScopeId};
-use bd_cache_sync::{SyncJob, TICK_BUDGET, TickOutcome, TickRun, compose};
+use bd_cache_store::BEADS_DIR_ENV;
+use bd_cache_sync::{SyncJob, TICK_BUDGET, TickOutcome, TickRun, compose_with};
 use common::RecordingSender;
 use sc_bd_cli::bounded::{BoundedError, run_bounded};
-use sc_bd_cli::{ProjectLocks, WorkingDir};
+use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::testing::actor;
 use sc_beads::{BeadId, Clock, Deadline, Guards, SystemClock};
 
@@ -86,6 +92,11 @@ impl Live {
         }
         let dir = PathBuf::from(
             std::env::var("SC_BD_LIVE_DIR").expect("SC_BD_LIVE_DIR (see tests/run-live.sh)"),
+        );
+        assert!(
+            std::env::var_os(BEADS_DIR_ENV).is_none(),
+            "BEADS_DIR is set: the composition and its bd run without it (S36, S40), \
+             the setup bd calls would not; unset it to run the live tests"
         );
         assert!(
             dir.join(MARKER).is_file(),
@@ -158,7 +169,10 @@ impl Live {
         )
         .unwrap();
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-        let composed = compose(&self.dir, &self.bin, clock).expect("compose");
+        let backend =
+            BdCli::new_with_clock(self.bin.as_str(), Arc::clone(locks()), Arc::clone(&clock));
+        // `None`: no `$BEADS_DIR`, whatever the environment holds (S36, ARCH-807).
+        let composed = compose_with(&self.dir, backend, clock, None).expect("compose");
         let sender = Arc::new(RecordingSender::default());
         let job = SyncJob::new(
             composed.cache,

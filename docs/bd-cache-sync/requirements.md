@@ -196,7 +196,23 @@ readiness in the same tick's sync.
 `a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain`,
 `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
 `test_e2e_blocker_close_and_reopen_update_ready` (`tests/e2e.rs`); `tests/live.rs`
-(testbed).
+(testbed, composed with `compose_with(..., None)` like `tests/common/real.rs`,
+ARCH-807).
+
+Amendment (fix-a-7-12, S40, RSH-033, RBP-F046; **Status:** Approved (lead ruling S40, bc-lead, 2026-10-24)):
+`compose_with` rebinds the backend to the clock it is given
+(`BdCli::with_clock`), so no precondition on how the caller built it remains,
+and gives every `bd` the backend spawns the `$BEADS_DIR` the cache resolved
+from: set to the explicit value, or removed when it is `None`
+(`BdCli::with_child_var`, ADR-BDCLI-0004). `compose` passes the
+environment's value, so its children see what they always saw. Evidence
+(`tests/compose.rs`, Unix: the backend runs `/bin/sh`, which prints the
+`BEADS_DIR` it was given):
+`the_bd_child_sees_the_explicit_beads_dir_not_the_environments` (an explicit
+directory that is not the environment's) and
+`the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one`
+(runs in a child process of the test binary whose environment sets
+`BEADS_DIR`).
 
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
@@ -227,20 +243,43 @@ within the sync step's `HARD_MARGIN` (2 s). Evidence:
 Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
 the marker written after a delivered message (`announced_at`, a sync alert)
 waits for the store's write lock at most the time left before `T`, never the
-store's full 5 s busy timeout, so a write lock another process holds can carry
-that write to `T` plus the busy handler's sleep slack (tens of ms), no further
-(lead ruling S35, ARCH-705, QA7-002). The bound applies to the bounded writes
-only: these markers and the alert clears without a message (after a passing
-sync, at the end of an outage), which S35 bounds the same way; a clear that
-fails is logged and does not fail the tick. A marker not written in time fails the tick with the
-store's error and leaves the message unmarked; the next tick sends it again
-(at least once, ADR-SYNC-0003). Evidence: `tests/marker_wait.rs`,
+store's full 5 s busy timeout. A marker not written in time fails the tick
+with the store's error and leaves the message unmarked; the next tick sends it
+again (at least once, ADR-SYNC-0003). Evidence: `tests/marker_wait.rs`,
 `a_marker_write_may_wait_the_time_left_before_t` (`src/control.rs`),
 `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
-(`bd-cache-store/tests/store.rs`); for S35,
-`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` and
-`a_failed_alert_clear_is_logged_and_does_not_fail_the_tick`
-(`tests/marker_wait.rs`).
+(`bd-cache-store/tests/store.rs`).
+
+Amendment (fix-a-7-10, S35, RSH-030, RSH-031, ARCH-705, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+the alert clears without a message (after a passing sync, at the end of an
+outage) are bounded writes too: they wait at most the time left before `T`,
+like the markers. The bound applies to the bounded writes only, these markers
+and clears; the tick's other store writes keep the store's own busy timeout.
+A clear that fails does not fail the tick: the alert stays set and the next
+tick clears it. A marker write that fails after a delivered send logs a
+warning and then fails the tick as above. What the bound is in time is stated
+by the S39 amendment below. Evidence (`tests/marker_wait.rs`), one
+failing-write test per marker and per clear (the last three added by
+fix-a-7-12, QA8-001):
+`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` (the
+escalation marker),
+`a_failed_sync_failure_alert_write_fails_the_tick_and_the_next_tick_sends_again`,
+`a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again`
+(the first phase's alert of an outage message),
+`a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it`
+(the clear after a passing sync) and
+`a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it`;
+`an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t` (the
+clear's wait). The warnings are not asserted: the workspace has no tracing
+subscriber to capture them, and the test names do not claim the logging
+(lead ruling S41, QA8-002).
+
+Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24)):
+a bounded write (a marker after a send, an alert clear) ends by `T` plus the
+bounded write's own run time (statement, commit, fsync, any automatic
+checkpoint) plus scheduler jitter; the lock wait itself never extends past
+`T`. This replaces the "`T` plus the busy handler's sleep slack (tens of ms)"
+of S35, which bounded only the lock wait.
 
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
@@ -263,6 +302,11 @@ given to the `AtmSender` it kills the child and its whole process tree. An
 stop comes once the fakes' pid files are written) and
 `the_time_a_tick_passes_bounds_the_send` (the one timer-driven kill: `TimedOut`
 and its detail only) (`tests/atm_process.rs`; fix-a-7-10, FTQ-026, FTQ-027).
+The stop-flag tree test asserts the child reaped, not the descendant gone
+(fix-a-7-12, FTQ-030): its tree kill runs under the production 1 s
+`KILL_BOUND`, which a stalled host can exceed; the descendant's death is
+`a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
+(`src/atm.rs`, injected 30 s deadline).
 
 ## REQ-SYNC-0013: A cached `get` costs the same at any scope size
 

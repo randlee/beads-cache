@@ -10,7 +10,10 @@
 //! A bounded write that fails (lead ruling S35, QA7-003, RSH-031): a marker
 //! write after a delivered send fails the tick, and the next tick sends the
 //! message again and records its marker (at-least-once); an alert clear that
-//! fails is logged and does not fail the tick.
+//! fails does not fail the tick, and the next tick clears it. Each marker
+//! (escalation, sync failure, outage) and each clear (passing sync, outage
+//! over) has its failing-write test (QA8-001). The warning each failure logs
+//! is not asserted: the workspace has no subscriber to capture it (S41).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -206,9 +209,10 @@ fn a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again() {
 }
 
 /// The alert clear after a passing sync fails: the tick still succeeds and
-/// the alert stays set; the next tick clears it (S35, RSH-030).
+/// the alert stays set; the next tick clears it (S35, RSH-030). The warning
+/// is not asserted (S41).
 #[test]
-fn a_failed_alert_clear_is_logged_and_does_not_fail_the_tick() {
+fn a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it() {
     let w = World::new();
     w.phase("x", Some("lead-x"));
     let (mut cache, _, fail_next) = armable_cache(&w);
@@ -233,6 +237,130 @@ fn a_failed_alert_clear_is_logged_and_does_not_fail_the_tick() {
     tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
 
     assert_eq!(w.store.sync_alert(&scope("x")).unwrap(), None, "cleared");
+}
+
+/// Writes a close of `bead` to the journal, as an agent would.
+fn journal_close(cache: &mut WaitCache, bead: &str, key: &str) {
+    cache
+        .write(
+            &common::id(bead),
+            "close",
+            "{}",
+            sc_beads::Guards::default(),
+            bd_cache_model::IdemKey::new(key).unwrap(),
+            sc_beads::testing::actor("san"),
+        )
+        .unwrap();
+}
+
+/// The sync-failure alert write after a delivered message fails: the tick
+/// fails with the store's error and the alert stays unset; the next tick,
+/// still failing, sends the message again and records the alert (S35,
+/// QA8-001).
+#[test]
+fn a_failed_sync_failure_alert_write_fails_the_tick_and_the_next_tick_sends_again() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let (mut cache, _, fail_next) = armable_cache(&w);
+    w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+    w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+
+    fail_next.store(true, Ordering::SeqCst);
+    let err = tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap_err();
+
+    assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err:?}");
+    assert_eq!(w.sender.sent_to("lead-x").len(), 1, "{:?}", w.sender.sent());
+    assert_eq!(w.store.sync_alert(&scope("x")).unwrap(), None, "unmarked");
+
+    w.next_tick();
+    let reply = tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+
+    assert_eq!(w.sender.sent_to("lead-x").len(), 2, "sent again: {reply:?}");
+    assert_eq!(
+        w.store.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some("BD_CACHE.BD_LIST_FAILED"),
+        "marked"
+    );
+    assert_eq!(w.bd.pending_injections(), 0);
+}
+
+/// The outage alert write of the first phase of a delivered outage message
+/// fails: the tick fails, no phase of that message is marked; the next tick
+/// sends the message again and marks every phase (S35, QA8-001).
+#[test]
+fn a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    w.phase("y", Some("lead-x"));
+    let (mut cache, _, fail_next) = armable_cache(&w);
+    for s in ["x", "y"] {
+        cache
+            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .unwrap();
+    }
+    w.switch.set_down(true);
+
+    fail_next.store(true, Ordering::SeqCst);
+    let err = tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap_err();
+
+    assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err:?}");
+    assert_eq!(w.sender.sent_to("lead-x").len(), 1, "{:?}", w.sender.sent());
+    for s in ["x", "y"] {
+        assert_eq!(w.store.sync_alert(&scope(s)).unwrap(), None, "{s} unmarked");
+    }
+
+    w.next_tick();
+    let reply = tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+
+    assert_eq!(w.sender.sent_to("lead-x").len(), 2, "sent again: {reply:?}");
+    for s in ["x", "y"] {
+        assert_eq!(
+            w.store.sync_alert(&scope(s)).unwrap().as_deref(),
+            Some(bd_cache_sync::OUTAGE_CAUSE),
+            "{s} marked"
+        );
+    }
+}
+
+/// The clear of an outage alert when the outage is over fails: the tick still
+/// succeeds and the alert stays set; the next tick clears it, and the lead is
+/// not told (S35, QA8-001). The phase's root was closed during the outage, so
+/// the phase is not synced and only the outage-over clear touches its alert.
+#[test]
+fn a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let (mut cache, _, fail_next) = armable_cache(&w);
+    cache
+        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .unwrap();
+    w.switch.set_down(true);
+    tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+    assert_eq!(
+        w.store.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some(bd_cache_sync::OUTAGE_CAUSE)
+    );
+    w.sender.clear();
+    journal_close(&mut cache, "rx", "k-root");
+    w.switch.set_down(false);
+
+    w.next_tick();
+    fail_next.store(true, Ordering::SeqCst);
+    let reply = tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+
+    assert!(reply.active.is_empty(), "x is not synced: {reply:?}");
+    assert!(cache.status().unwrap().store.outage.is_none());
+    assert_eq!(
+        w.store.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some(bd_cache_sync::OUTAGE_CAUSE),
+        "the clear failed, the alert stays"
+    );
+
+    w.next_tick();
+    tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+
+    assert_eq!(w.store.sync_alert(&scope("x")).unwrap(), None, "cleared");
+    assert!(w.sender.sent().is_empty(), "recovery is silent");
 }
 
 /// The alert clear after a passing sync, which sends nothing, is given the
