@@ -20,7 +20,7 @@ use sc_bd_cli::argv::ALL_STATUSES;
 use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
-use crate::compose::{self, Composition, OpenError, Overrides};
+use crate::compose::{self, Composition, OpenError, OpenKind, Opened, Overrides};
 use crate::convert::{json_text, reply, seconds};
 use crate::error::{ClosedError, bad_argument, cache_err};
 use crate::slot::{Outcome, Slot};
@@ -52,6 +52,19 @@ struct Inner {
     cache: Composition,
     /// The clock the cache and its backend share; every deadline is minted from it.
     clock: Arc<dyn Clock>,
+}
+
+impl Inner {
+    /// The one place the opened parts become the slot's value (production and tests).
+    fn from_opened(opened: Opened) -> (Self, PathBuf) {
+        (
+            Self {
+                cache: opened.cache,
+                clock: opened.clock,
+            },
+            opened.path,
+        )
+    }
 }
 
 impl fmt::Debug for Inner {
@@ -144,12 +157,10 @@ impl PyCache {
         let opened = py
             .detach(|| compose::open(&repo_root, bd_binary, project_dir.as_deref(), overrides))
             .map_err(|e| open_err(py, e))?;
+        let (inner, path) = Inner::from_opened(opened);
         Ok(Self {
-            path: opened.path,
-            inner: Slot::new(Inner {
-                cache: opened.cache,
-                clock: opened.clock,
-            }),
+            path,
+            inner: Slot::new(inner),
         })
     }
 
@@ -403,9 +414,9 @@ impl PyCache {
 /// The attributes `kind` and `path` are set from the typed values; if setting one
 /// fails, that failure is chained as the exception's `__cause__`.
 fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
-    let decorate = |err: PyErr, kind: &str, path: Option<&PathBuf>| {
+    let decorate = |err: PyErr, kind: OpenKind, path: Option<&PathBuf>| {
         let set = |value: &Bound<'_, PyBaseException>| -> PyResult<()> {
-            value.setattr("kind", kind)?;
+            value.setattr("kind", kind.as_str())?;
             value.setattr("path", path)?;
             Ok(())
         };
@@ -417,11 +428,31 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
     match e {
         OpenError::Config { kind, path, text } => decorate(
             PyValueError::new_err(format!("configuration: {text}")),
-            kind.as_str(),
+            kind,
             path.as_ref(),
         ),
-        OpenError::Read { path, text } => decorate(PyOSError::new_err(text), "read", Some(&path)),
+        OpenError::Read { path, text } => {
+            decorate(PyOSError::new_err(text), OpenKind::Read, Some(&path))
+        }
         OpenError::Cache(e) => cache_err(py, &e),
+    }
+}
+
+/// The advice every closed-handle message ends with.
+const REOPEN: &str = "open a new bd_cache_rs.Cache to keep using it";
+
+/// The `ClosedError` text for an outcome that did not run the verb.
+///
+/// Every message ends with how to recover; a `Panicked` one carries the panic message.
+fn closed_message<R>(outcome: &Outcome<R>) -> String {
+    match outcome {
+        Outcome::Done(_) | Outcome::Closed => format!("the cache is closed; {REOPEN}"),
+        Outcome::Panicked(text) => {
+            format!("the call failed inside the cache ({text}) and the handle was closed; {REOPEN}")
+        }
+        Outcome::Poisoned => format!(
+            "something panicked while holding the cache and the handle was closed; {REOPEN}"
+        ),
     }
 }
 
@@ -437,17 +468,7 @@ impl PyCache {
     {
         match py.detach(|| self.inner.with(f)) {
             Outcome::Done(done) => done.map_err(|e| cache_err(py, &e)),
-            Outcome::Closed => Err(ClosedError::new_err(
-                "the cache is closed; open a new bd_cache_rs.Cache to keep using it",
-            )),
-            Outcome::Panicked(text) => Err(ClosedError::new_err(format!(
-                "the call failed inside the cache ({text}) and the handle was closed; \
-                 open a new bd_cache_rs.Cache to keep using it"
-            ))),
-            Outcome::Poisoned => Err(ClosedError::new_err(
-                "an earlier call failed inside the cache and the handle was closed; \
-                 open a new bd_cache_rs.Cache to keep using it",
-            )),
+            other => Err(ClosedError::new_err(closed_message(&other))),
         }
     }
 
@@ -470,8 +491,6 @@ impl PyCache {
     reason = "test code: a failed unwrap is a test failure"
 )]
 mod tests {
-    use sc_beads::SystemClock;
-
     use super::*;
 
     /// A beads repository with just the metadata the store needs.
@@ -487,16 +506,29 @@ mod tests {
     }
 
     fn inner(dir: &std::path::Path) -> Result<(Inner, PathBuf), OpenError> {
-        let opened = compose::open(dir, "bd", None, Overrides::default())?;
-        let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-        let _ = opened.clock;
-        Ok((
-            Inner {
-                cache: opened.cache,
-                clock,
-            },
-            opened.path,
-        ))
+        Ok(Inner::from_opened(compose::open(
+            dir,
+            "bd",
+            None,
+            Overrides::default(),
+        )?))
+    }
+
+    #[test]
+    fn every_closed_message_says_how_to_recover_and_a_panic_message_carries_the_panic() {
+        let cases: [Outcome<u8>; 3] = [
+            Outcome::Closed,
+            Outcome::Panicked("disk exploded".to_owned()),
+            Outcome::Poisoned,
+        ];
+        for outcome in &cases {
+            assert!(
+                closed_message(outcome).ends_with("open a new bd_cache_rs.Cache to keep using it"),
+                "{outcome:?}"
+            );
+        }
+        assert!(closed_message(&cases[1]).contains("disk exploded"));
+        assert!(closed_message(&cases[2]).contains("something panicked while holding the cache"));
     }
 
     #[test]

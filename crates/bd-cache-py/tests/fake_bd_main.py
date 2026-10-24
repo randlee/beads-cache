@@ -237,7 +237,7 @@ COMMANDS = {
 
 def log(path, **event):
     with open(path + ".calls", "a", encoding="utf-8") as handle:
-        handle.write(json.dumps({"pid": os.getpid(), "at": time.time(), **event}) + "\n")
+        handle.write(json.dumps({"pid": os.getpid(), "at": time.monotonic_ns(), **event}) + "\n")
 
 
 def wait_for(release, seconds):

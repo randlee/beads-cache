@@ -199,7 +199,7 @@ def test_handles_on_different_cache_files_never_overlap_their_bd_calls(repo):
     for t in threads:
         join(t)
     assert errors == []
-    spans = sorted(repo.bd.spans())
+    spans = sorted(repo.bd.spans(), key=lambda s: s[0])
     assert len(spans) == 6
     for (_, end, argv), (start, _, _) in zip(spans, spans[1:]):
         assert end is not None and end <= start, f"bd calls overlapped: {argv} ended {end}, next started {start}"
@@ -233,7 +233,7 @@ def test_spellings_of_one_project_directory_share_one_lock(repo):
     for t in threads:
         join(t)
     assert errors == []
-    spans = sorted(repo.bd.spans())
+    spans = sorted(repo.bd.spans(), key=lambda s: s[0])
     assert len(spans) == 6
     for (_, end, argv), (start, _, _) in zip(spans, spans[1:]):
         assert end is not None and end <= start, f"bd calls overlapped: {argv} ended {end}, next started {start}"

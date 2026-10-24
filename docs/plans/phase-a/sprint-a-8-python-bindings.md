@@ -15,10 +15,12 @@ must_follow: [a-2, a-4, a-5, a-6]
 parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910, REQ-PY-0001, REQ-PY-0002, REQ-PY-0003, REQ-PY-0004, REQ-PY-0005, REQ-PY-0006, REQ-PY-0007, REQ-PY-0008, REQ-PY-0009, REQ-PY-0010]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0104, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0302, REQ-BDC-0402, REQ-BDC-0406, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0002-amendment-a-8, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0101, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0006, REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0104, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0302, REQ-BDC-0402, REQ-BDC-0406, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0906, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0002-amendment-a-8, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0002-amendment-a-5-qa-1, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
 owned_paths:
   - "crates/bd-cache-py/**"
+  - "Cargo.toml"                                # R2, R12: three [workspace.dependencies] lines only (bd-cache-store, sc-bd-cli, dunce)
+  - "docs/architecture.md"                      # R3, R12: the bd-cache-py row of the Crate Layout table only
   - ".github/workflows/python.yml"
   - "docs/bd-cache-py/**"
   # Lead rulings R9 and R11 (bc-lead, 2026-10-24), narrowly:
@@ -184,8 +186,9 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 - **`list` status filter** is validated against `sc_bd_cli::argv::ALL_STATUSES`
   (REQ-PY-0005); `op` is validated against `bd_cache_model::OPS` (R7).
 - **`bd-cache-model`, `bd-cache/src/drain.rs`** (lead rulings R9, R11): the model gained `UNREACHABLE_CODES`, `ENVELOPE_KEYS`,
-  `CacheError::is_unreachable` and `payload_keys` (exhaustive matches) and their
-  tests, in `src/error.rs` plus two re-exports in `lib.rs`; `drain.rs` calls
+  `CacheError::is_unreachable` (an exhaustive match in every build) and their
+  tests (`payload_keys` is `#[cfg(test)]` crate-private test support, exhaustive in
+  test builds, which CI runs), in `src/error.rs` plus two re-exports in `lib.rs`; `drain.rs` calls
   `is_unreachable` instead of its private copy; the decision is the ADR-MODEL-0002
   amendment (a-8) in `docs/bd-cache-model/architecture.md`.
 - **Start-gate ordering** (gate closes while a pre-read is blocked) is the

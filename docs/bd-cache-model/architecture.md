@@ -106,12 +106,15 @@ Decision (additive; no change to the wire format):
 1. **Items.** `bd_cache_model` gains `pub const UNREACHABLE_CODES: [&str; 4]`,
    `pub const ENVELOPE_KEYS: [&str; 5]` and `CacheError::is_unreachable(&self)
    -> bool`, re-exported from `lib.rs` (the two constants). A fourth item,
-   `CacheError::payload_keys`, is `pub(crate)` and test-only: it has no
-   consumer outside this crate's tests, so it is not public API.
-2. **Exhaustive.** `is_unreachable` and `payload_keys` are `match`es with no
-   wildcard arm, so adding a `CacheError` variant does not compile until it is
-   classified. The tests' `witness` function does the same and ties each arm to
-   a sample (`every_arm_has_a_sample`).
+   `CacheError::payload_keys`, is `#[cfg(test)]` and crate-private test support:
+   it has no consumer outside this crate's tests, so it is not public API and
+   does not exist in a non-test build.
+2. **Exhaustive.** `is_unreachable` is a `match` with no wildcard arm, enforced in
+   every build: adding a `CacheError` variant does not compile until it is
+   classified. `payload_keys` and the tests' `witness` (declared once with the
+   variant-name list by the `arms!` macro, tied to the samples by
+   `every_arm_has_a_sample`) are exhaustive too, but only in test builds, which CI
+   runs on every push.
 3. **The unreachable set.** `UNREACHABLE_CODES` is `BD_UNAVAILABLE`,
    `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED`: the set of
    ADR-CORE-0101 (the drain's stop policy) and `bd_cache.py`'s `UNREACHABLE`.

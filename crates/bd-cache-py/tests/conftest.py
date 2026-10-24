@@ -124,7 +124,10 @@ class FakeBd:
         return [argv[0] for argv in self.calls()]
 
     def spans(self):
-        """(start, end, argv) of every call, in start order; `end` is None for a killed call."""
+        """(start, end, argv) of every call, in start order; `end` is None for a killed call.
+
+        Times are `time.monotonic_ns()` readings: one system-wide clock that never steps.
+        """
         ends = {e["pid"]: e["at"] for e in self.events() if e["event"] == "end"}
         return [(e["at"], ends.get(e["pid"]), e["argv"]) for e in self.events() if e["event"] == "start"]
 

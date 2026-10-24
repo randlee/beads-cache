@@ -778,36 +778,43 @@ mod classification_tests {
         })
     }
 
-    /// The index of the variant's arm, one per variant, no wildcard: a new variant does
-    /// not compile until it has an arm here, and [`LAST_ARM`] and `samples` must then
-    /// cover it (`every_arm_has_a_sample`).
-    fn witness(e: &CacheError) -> usize {
-        match e {
-            CacheError::BdUnavailable { .. } => 0,
-            CacheError::NoDatabase { .. } => 1,
-            CacheError::WrongDatabase { .. } => 2,
-            CacheError::NotFound { .. } => 3,
-            CacheError::BdVersionFailed { .. } => 4,
-            CacheError::BdSchemaFailed { .. } => 5,
-            CacheError::BdContract { .. } => 6,
-            CacheError::BdWriteFailed { .. } => 7,
-            CacheError::BdListFailed { .. } => 8,
-            CacheError::SyncFailed { .. } => 9,
-            CacheError::Precondition { .. } => 10,
-            CacheError::IdemConflict { .. } => 11,
-            CacheError::BadOp { .. } => 12,
-            CacheError::BadArgs { .. } => 13,
-            CacheError::BadPrecondition { .. } => 14,
-            CacheError::SchemaVersion { .. } => 15,
-            CacheError::PruneBlocked { .. } => 16,
-            CacheError::NotEscalated { .. } => 17,
-            CacheError::ScopeUnknown { .. } => 18,
-            CacheError::StoreFailed { .. } => 19,
-        }
+    /// Declares, once, the variant names and `witness`, the exhaustive match (no
+    /// wildcard arm) that names each variant: a new variant does not compile until it is
+    /// listed here, and `every_arm_has_a_sample` then needs a sample of it.
+    macro_rules! arms {
+        ($($v:ident),+ $(,)?) => {
+            const ARMS: &[&str] = &[$(stringify!($v)),+];
+
+            fn witness(e: &CacheError) -> &'static str {
+                match e {
+                    $(CacheError::$v { .. } => stringify!($v)),+
+                }
+            }
+        };
     }
 
-    /// The highest index `witness` returns; raise it with every new arm.
-    const LAST_ARM: usize = 19;
+    arms!(
+        BdUnavailable,
+        NoDatabase,
+        WrongDatabase,
+        NotFound,
+        BdVersionFailed,
+        BdSchemaFailed,
+        BdContract,
+        BdWriteFailed,
+        BdListFailed,
+        SyncFailed,
+        Precondition,
+        IdemConflict,
+        BadOp,
+        BadArgs,
+        BadPrecondition,
+        SchemaVersion,
+        PruneBlocked,
+        NotEscalated,
+        ScopeUnknown,
+        StoreFailed,
+    );
 
     /// Samples of every variant, with and without a kept source.
     #[allow(clippy::too_many_lines, reason = "a table of one sample per case")]
@@ -928,8 +935,8 @@ mod classification_tests {
 
     #[test]
     fn every_arm_has_a_sample() {
-        let covered: BTreeSet<usize> = samples().iter().map(witness).collect();
-        assert_eq!(covered, (0..=LAST_ARM).collect::<BTreeSet<_>>());
+        let covered: BTreeSet<&str> = samples().iter().map(witness).collect();
+        assert_eq!(covered, ARMS.iter().copied().collect::<BTreeSet<_>>());
     }
 
     #[test]
