@@ -199,14 +199,14 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `c06ff0aeb4a0df14962d71964cf46ff3597ac55a`, the last commit
+Run on commit `34fdc22ac3e0657650655ccb971db612211d160c`, the last commit
 that changes code (later commits change documents only). Each mutation was
 applied to the working tree, the wheel rebuilt, the whole pytest suite and
-`cargo test -p bd-cache-py -p bd-cache-model --lib` run, and the file restored with
+`cargo test -p bd-cache-py -p bd-cache-model -p bd-cache` run, and the file restored with
 `git checkout`:
 
 ```text
-cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && cargo test -p bd-cache-py -p bd-cache-model --lib
+cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && cargo test -p bd-cache-py -p bd-cache-model -p bd-cache
 ```
 
 | Planted bug | File | First failing test; failures |
@@ -230,21 +230,24 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 | `max_attempts` of 0 accepted | `src/handle.rs` | `test_signed_and_float_timeouts_and_attempts_are_validated[max_attempts-0]`; 1 |
 | `fix` treated as an envelope key (left out of the attribute) | `bd-cache-model/src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 7 |
 | `UNREACHABLE` lacks BD_LIST_FAILED | `bd-cache-model/src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
-| model classifies BdListFailed as reachable | `bd-cache-model/src/error.rs` | `unreachable_codes_are_exactly_the_unreachable_variants`; 1 |
+| model classifies BdListFailed as reachable | `bd-cache-model/src/error.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 1 |
 | `closed` set only after the in-flight verb ends | `src/slot.rs` | `test_close_while_a_verb_is_in_flight`; 2 |
-| a panicking verb keeps its connection | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 1 |
-| a panicking verb does not close the slot | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 1 |
+| a panicking verb keeps its connection | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
+| a panicking verb does not close the slot | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
 | poisoned slot keeps its connection | `src/slot.rs` | `a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once`; 1 |
 | project directory not canonicalized | `src/compose.rs` | `test_spellings_of_one_project_directory_share_one_lock`; 3 |
 | `list` status not validated | `src/handle.rs` | `test_a_status_filter_must_be_a_bd_status`; 1 |
+| repo_root not validated on its own | `src/compose.rs` | `test_a_repo_root_that_is_missing_is_an_argument_error_with_or_without_project_dir`; 3 |
+| a panicking verb on a real composition keeps the file open | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
+| drain keeps its own unreachable set (BdListFailed missing) | `bd-cache/src/drain.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 1 |
 
 Every bug fails at least one test and none by a compile error; the tree was
 clean after the run. Failures count pytest and Rust tests together.
 
 ## Validation
 
-Local, macOS arm64, on `c06ff0a` (documents after it): `cargo test --workspace
---all-features`: 658 passed; pytest: 90 passed.
+Local, macOS arm64, on `34fdc22` (documents after it): `cargo test --workspace
+--all-features`: 660 passed; pytest: 92 passed.
 
 | Gate (with `set -o pipefail`) | Result |
 |---|---|
@@ -253,13 +256,13 @@ Local, macOS arm64, on `c06ff0a` (documents after it): `cargo test --workspace
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | pass |
 | `cargo test --workspace --all-features` | pass |
-| pytest (`maturin develop`, 90 tests) | pass |
+| pytest (`maturin develop`, 92 tests) | pass |
 
-CI on the last code-changing commit `c06ff0a`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40096084086 (rust job on
+CI on the last code-changing commit `34fdc22`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40099143630 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40096084088 (success).
+https://github.com/randlee/beads-cache/actions/runs/40099143636 (success).
 
 
 ## Fix round 1 (QA-1 at b75b5f3)
