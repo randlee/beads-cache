@@ -5,14 +5,14 @@
 //! `sc-cron` `Scheduler` on a manual clock. Only the `bd` process and the
 //! `atm` sender are replaced.
 
-#![allow(
+#![expect(
     clippy::unwrap_used,
     clippy::expect_used,
-    clippy::panic,
     clippy::indexing_slicing,
     reason = "test code: a failed unwrap or index is a test failure"
 )]
 
+use std::ffi::OsStr;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -42,6 +42,9 @@ pub type RealJob = SyncJob<SqliteStore, FlockDrainLock, BdCli>;
 
 /// An invoker in front of `FakeBd` that can be switched to "the Dolt server
 /// is unreachable" for every cache call.
+///
+/// It forwards every method it does not change, `set_child_var` included
+/// (the forwarding rule of `CliInvoker`, ADR-BDCLI-0004; RSH-036).
 #[derive(Clone)]
 pub struct Switched {
     inner: FakeBd,
@@ -86,6 +89,9 @@ impl CliInvoker for Switched {
             });
         }
         self.inner.run_bounded(project, argv, timeout)
+    }
+    fn set_child_var(&mut self, key: &OsStr, value: Option<&OsStr>) {
+        self.inner.set_child_var(key, value);
     }
 }
 

@@ -14,6 +14,9 @@
 //! (escalation, sync failure, outage) and each clear (passing sync, outage
 //! over) has its failing-write test (QA8-001). The warning each failure logs
 //! is not asserted: the workspace has no subscriber to capture it (S41).
+//!
+//! No outage-over clear starts once `T` has passed: the alert stays set and
+//! the next tick clears it (lead ruling S45, RSH-037).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -384,4 +387,47 @@ fn an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t() {
 
     assert_eq!(waits(&recorded), [LEFT], "the clear's wait");
     assert_eq!(w.store.sync_alert(&scope("x")).unwrap(), None);
+}
+
+/// The outage is over but `T` has already passed (`write_wait` is zero): the
+/// tick issues no outage-over clear and the alert stays set; the next tick,
+/// with time left, clears it and tells no one (lead ruling S45, RSH-037).
+#[test]
+fn an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let (mut cache, recorded) = recording_cache(&w);
+    cache
+        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .unwrap();
+    w.switch.set_down(true);
+    tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+    assert_eq!(
+        w.store.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some(bd_cache_sync::OUTAGE_CAUSE)
+    );
+    w.sender.clear();
+    w.switch.set_down(false);
+    // A list that answers ends the outage; the alert is the tick's to clear.
+    cache
+        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .unwrap();
+    assert!(cache.status().unwrap().store.outage.is_none());
+    recorded.lock().unwrap().clear();
+
+    w.next_tick();
+    tick(&mut cache, &w.config(), &*w.sender, w.after(Duration::ZERO)).unwrap();
+
+    assert!(waits(&recorded).is_empty(), "no clear issued after T");
+    assert_eq!(
+        w.store.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some(bd_cache_sync::OUTAGE_CAUSE),
+        "the alert stays for the next tick"
+    );
+
+    w.next_tick();
+    tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
+
+    assert_eq!(w.store.sync_alert(&scope("x")).unwrap(), None, "cleared");
+    assert!(w.sender.sent().is_empty(), "recovery is silent");
 }

@@ -367,6 +367,11 @@ fn outage_body(outage: &Outage, phases: &[&PhaseName]) -> String {
 /// read, never a phase known to be closed. One message goes to each distinct
 /// lead, covering that lead's phases whose alert does not yet read
 /// `backend_unavailable`.
+///
+/// When the outage is over, the alerts are cleared one scope at a time until
+/// `T` has passed ([`Budget::write_wait`] is zero) or the tick is asked to
+/// stop, which also sets [`TickReply::stopped`]; the rest stay set for the
+/// next tick (lead ruling S45).
 pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     sender: &dyn EscalationSender,
@@ -382,10 +387,20 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
         // within the tick's marker-write bound ([`clear_alert`]). Each scope
         // once: a phase is both a stored scope and a phase file, and a clear
         // that failed is the next tick's to retry, not this one's (QA8-001).
+        // No clear starts once `T` has passed or the tick was asked to stop;
+        // the alerts left set are the next tick's to clear (lead ruling S45,
+        // RSH-037).
         let mut scopes: BTreeSet<ScopeId> =
             status.scopes.iter().map(|s| s.sync.scope.clone()).collect();
         scopes.extend(all.iter().map(Phase::scope));
         for scope in scopes {
+            if budget.stop.is_stopped() {
+                reply.stopped = true;
+                break;
+            }
+            if budget.write_wait().is_zero() {
+                break;
+            }
             if is_outage_alert(cache.sync_alert(&scope)?.as_deref()) {
                 clear_alert(cache, budget, &scope, ClearReason::OutageOver);
             }
@@ -633,6 +648,55 @@ mod tests {
             cache.sync_alert(&phase().scope()).unwrap().as_deref(),
             Some("BD_CACHE.BD_CONTRACT")
         );
+    }
+
+    /// When the outage is over, a stopped tick clears no alert and says it
+    /// stopped; the next tick, not stopped, clears it (lead ruling S45,
+    /// RSH-037). `T` passed is the integration test's
+    /// (`tests/marker_wait.rs`).
+    #[test]
+    fn a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does() {
+        let clock = Arc::new(ManualClock::default());
+        let mut cache = cache(&clock);
+        let scope = phase().scope();
+        cache
+            .set_sync_alert(&scope, Some(AlertCause::BackendUnavailable.key()))
+            .unwrap();
+        let sender = Recorder::default();
+        let run = |cache: &mut TestCache, stop: &StopFlag| {
+            let budget = Budget {
+                clock: &*clock,
+                end: Deadline::after(&*clock, Duration::from_secs(25)),
+                stop,
+            };
+            let mut reply = TickReply::started();
+            outage(
+                cache,
+                &sender,
+                &settings(),
+                &budget,
+                &[],
+                &[phase()],
+                &mut reply,
+            )
+            .unwrap();
+            reply
+        };
+
+        let stopped = StopFlag::new();
+        stopped.stop();
+        let reply = run(&mut cache, &stopped);
+        assert!(reply.stopped, "{reply:?}");
+        assert_eq!(
+            cache.sync_alert(&scope).unwrap().as_deref(),
+            Some(OUTAGE_CAUSE),
+            "not cleared by a stopped tick"
+        );
+
+        let reply = run(&mut cache, &StopFlag::new());
+        assert!(!reply.stopped, "{reply:?}");
+        assert_eq!(cache.sync_alert(&scope).unwrap(), None, "cleared");
+        assert!(sender.0.lock().unwrap().is_empty(), "recovery is silent");
     }
 
     #[test]

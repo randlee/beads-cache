@@ -3,7 +3,7 @@
 
 use std::ffi::OsStr;
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bd_cache::Cache;
@@ -144,10 +144,14 @@ pub fn compose(
 /// The backend is rebound to `clock` ([`BdCli::with_clock`]), so the cache,
 /// the store and the backend measure every deadline on one clock whatever
 /// clock `backend` was built with (lead ruling S40, RBP-F046). Every `bd` it
-/// spawns gets the same `$BEADS_DIR` the cache resolved from: set to
-/// `beads_dir_env`, or removed when it is `None`
-/// ([`BdCli::with_child_var`]; S40, RSH-033). A backend over a test double
-/// spawns nothing and ignores it.
+/// spawns gets the same `$BEADS_DIR` the cache resolved from: set to that
+/// value, or removed when there is none ([`BdCli::with_child_var`]; S40,
+/// RSH-033). A backend over a test double spawns nothing and ignores it.
+///
+/// `beads_dir_env` is normalized once, before either uses it (lead ruling
+/// S44, RSH-035, QA9-003): an empty value is `None`, and a relative one is
+/// made absolute against the process's working directory. The store and the
+/// `bd` child, which runs in `repo_root`, therefore name one directory.
 ///
 /// # Errors
 ///
@@ -158,6 +162,8 @@ pub fn compose_with(
     clock: Arc<dyn Clock>,
     beads_dir_env: Option<&OsStr>,
 ) -> Result<Composed, ComposeError> {
+    let beads_dir = normalized_beads_dir(beads_dir_env);
+    let beads_dir_env = beads_dir.as_deref().map(Path::as_os_str);
     let repo = load_repo_config(repo_root).map_err(ComposeError::Config)?;
     let store =
         SqliteStore::open_with(repo_root, &repo, beads_dir_env).map_err(ComposeError::Cache)?;
@@ -175,4 +181,39 @@ pub fn compose_with(
     let mut tick = repo.tick.unwrap_or_default();
     tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));
     Ok(Composed { cache, tick, name })
+}
+
+/// The one `$BEADS_DIR` value the store and every `bd` child are given (lead
+/// ruling S44): `None` for an unset or empty value, else the value made
+/// absolute against the process's working directory ([`std::path::absolute`],
+/// which neither touches the file system nor resolves `..` or links).
+///
+/// A relative value whose working directory cannot be read is kept as it is:
+/// the store then cannot read `metadata.json` there and the composition fails
+/// (`BD_CACHE.NO_DATABASE`) before any `bd` is spawned.
+fn normalized_beads_dir(value: Option<&OsStr>) -> Option<PathBuf> {
+    let dir = Path::new(value.filter(|v| !v.is_empty())?);
+    Some(std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_empty_or_unset_beads_dir_is_none() {
+        assert_eq!(normalized_beads_dir(None), None);
+        assert_eq!(normalized_beads_dir(Some(OsStr::new(""))), None);
+    }
+
+    #[test]
+    fn a_relative_beads_dir_is_made_absolute_against_the_working_directory() {
+        let cwd = std::env::current_dir().unwrap();
+        assert_eq!(
+            normalized_beads_dir(Some(OsStr::new("rel"))),
+            Some(cwd.join("rel"))
+        );
+        let abs = std::env::temp_dir();
+        assert_eq!(normalized_beads_dir(Some(abs.as_os_str())), Some(abs));
+    }
 }

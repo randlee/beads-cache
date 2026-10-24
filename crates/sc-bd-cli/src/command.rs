@@ -38,7 +38,9 @@ pub fn new_command(program: &str) -> Command {
 ///
 /// Applied right after [`new_command`], so the spawn's own `PATH` and `BEADS_PATH`,
 /// set later, still win for those two names. One entry per name: a later
-/// [`set`](Self::set) of a name replaces the earlier one.
+/// [`set`](Self::set) of a name replaces the earlier one. Names compare as the
+/// platform's environment does: exactly on Unix, ASCII case-insensitively on
+/// Windows (`Path` and `PATH` are one variable there; QA9-002).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ChildEnv {
     vars: Vec<(OsString, Option<OsString>)>,
@@ -47,7 +49,7 @@ pub(crate) struct ChildEnv {
 impl ChildEnv {
     /// Sets `key` to `value` in every child (`Some`), or removes it (`None`).
     pub(crate) fn set(&mut self, key: &OsStr, value: Option<&OsStr>) {
-        self.vars.retain(|(k, _)| k.as_os_str() != key);
+        self.vars.retain(|(k, _)| !same_name(k, key));
         self.vars
             .push((key.to_os_string(), value.map(OsStr::to_os_string)));
     }
@@ -65,9 +67,44 @@ impl ChildEnv {
     }
 }
 
+/// Whether `a` and `b` name one environment variable: Windows compares names
+/// without regard to ASCII case, Unix compares them exactly.
+fn same_name(a: &OsStr, b: &OsStr) -> bool {
+    if cfg!(windows) {
+        a.eq_ignore_ascii_case(b)
+    } else {
+        a == b
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A name set again in another case replaces the first entry on Windows,
+    /// where it is the same variable, and is a second entry on Unix (QA9-002).
+    #[test]
+    fn names_compare_as_the_platform_environment_does() {
+        let mut env = ChildEnv::default();
+        env.set(OsStr::new("SC_BD_CASE"), Some(OsStr::new("1")));
+        env.set(OsStr::new("sc_bd_case"), None);
+        if cfg!(windows) {
+            assert_eq!(env.vars, [(OsString::from("sc_bd_case"), None)]);
+        } else {
+            assert_eq!(
+                env.vars,
+                [
+                    (OsString::from("SC_BD_CASE"), Some(OsString::from("1"))),
+                    (OsString::from("sc_bd_case"), None),
+                ]
+            );
+        }
+        assert!(same_name(OsStr::new("A"), OsStr::new("A")));
+        assert_eq!(
+            same_name(OsStr::new("Path"), OsStr::new("PATH")),
+            cfg!(windows)
+        );
+    }
 
     #[test]
     fn a_later_set_of_a_name_replaces_the_earlier_one() {

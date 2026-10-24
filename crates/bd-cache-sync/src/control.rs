@@ -81,8 +81,10 @@ pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
 /// before `T` ([`Budget::write_wait`]). A write lock another process holds
 /// bounds such a write by `T` plus the bounded write's own run time
 /// (statement, commit, fsync, any automatic checkpoint) plus scheduler
-/// jitter; the lock wait itself never extends past `T` (lead ruling S39,
-/// RSH-032). A marker not written in time fails the tick and its message is
+/// jitter (lead ruling S39, RSH-032). The lock wait is capped at the time
+/// left before `T` and may overshoot it by the busy handler's sleep slack,
+/// which counts as scheduler jitter (lead ruling S46, RSH-034). A marker not
+/// written in time fails the tick and its message is
 /// sent again next tick; a clear not written in time is logged and retried
 /// next tick. The tick's other store writes keep the store's own busy timeout.
 pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(1500);
@@ -116,11 +118,13 @@ impl Budget<'_> {
     /// The most a bounded write may wait for the store's write lock: a marker
     /// write after a send (`mark_announced`, a sync alert; lead ruling S33) or
     /// an alert clear without a message (S35). It is the time left before
-    /// `T`, all of it, so the lock wait itself never extends past `T`; the
-    /// write then ends by `T` plus its own run time (statement, commit,
-    /// fsync, any automatic checkpoint) plus scheduler jitter (lead ruling
-    /// S39, RSH-032). The store waits no longer than its own busy timeout
-    /// either.
+    /// `T`, all of it: the lock wait is capped at it and may overshoot it by
+    /// the busy handler's sleep slack, which counts as scheduler jitter (lead
+    /// ruling S46, RSH-034). The write then ends by `T` plus its own run time
+    /// (statement, commit, fsync, any automatic checkpoint) plus scheduler
+    /// jitter (lead ruling S39, RSH-032). The store waits no longer than its
+    /// own busy timeout either. Zero once `T` has passed: the outage-over
+    /// clears then stop (lead ruling S45).
     pub fn write_wait(&self) -> Duration {
         self.end.remaining(self.clock)
     }

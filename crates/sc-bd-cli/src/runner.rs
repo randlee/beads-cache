@@ -109,7 +109,13 @@ pub trait CliInvoker: Send + Sync {
     /// An addition to btit's trait, like [`run_bounded`](Self::run_bounded). The
     /// provided body does nothing: right for an invoker that spawns no process (the
     /// test doubles). [`CliRunner`] applies it to `run_json`, `run_raw` and
-    /// `run_bounded`; an invoker that wraps a spawning one forwards it.
+    /// `run_bounded`.
+    ///
+    /// The forwarding rule (ADR-BDCLI-0004, RSH-036): an invoker that wraps another
+    /// invoker must override this method and forward the call to the wrapped one,
+    /// as it forwards the spawning methods. The provided no-op would otherwise drop
+    /// the change silently, and the wrapped runner's children would inherit the
+    /// process's value instead of the one the composition resolved.
     fn set_child_var(&mut self, _key: &OsStr, _value: Option<&OsStr>) {}
 }
 
@@ -370,6 +376,106 @@ mod tests {
             .run_bounded(&project, &argv, Duration::from_secs(30))
             .unwrap();
         assert_eq!(bounded.stdout, "a|unset|unset", "{bounded:?}");
+    }
+
+    /// The child environment reaches `run_json` too (QA9-001): `/bin/sh -c <script>
+    /// [--no-daemon] --json`, where the trailing words are only the script's `$0`
+    /// and `$1`.
+    #[cfg(unix)]
+    #[test]
+    fn the_child_environment_reaches_run_json() {
+        let script = "printf '%s|%s' \"${SC_BD_A-unset}\" \"${HOME-unset}\"";
+        let runner = CliRunner::new("/bin/sh", Arc::new(ProjectLocks::new()))
+            .with_child_var(OsStr::new("SC_BD_A"), Some(OsStr::new("a")))
+            .with_child_var(OsStr::new("HOME"), None);
+        let json = runner
+            .run_json(&temp_project(), "-c", &[script.to_owned()])
+            .unwrap();
+        assert_eq!(json, "a|unset");
+    }
+
+    /// Set in the child environment to make [`child_env_helper`] report.
+    const HELPER_MARK: &str = "SC_BD_CHILD_ENV_HELPER";
+
+    /// The variables [`child_env_helper`] reports, in order.
+    const HELPER_NAMES: [&str; 3] = ["SC_BD_A", "SC_BD_B", "SC_BD_C"];
+
+    /// Starts the line [`child_env_helper`] prints.
+    const HELPER_LINE: &str = "SC_BD_CHILD_ENV=";
+
+    /// Not a test of its own: when this unit-test binary is re-executed with
+    /// [`HELPER_MARK`] set, this case prints the values of [`HELPER_NAMES`] it was
+    /// given (`unset` for a missing one), read with `env::var_os` and so with the
+    /// platform's own name lookup. Without the mark it does nothing.
+    #[test]
+    fn child_env_helper() {
+        if std::env::var_os(HELPER_MARK).is_none() {
+            return;
+        }
+        let values: Vec<String> = HELPER_NAMES
+            .iter()
+            .map(|n| {
+                std::env::var_os(n)
+                    .map_or_else(|| "unset".to_owned(), |v| v.to_string_lossy().into_owned())
+            })
+            .collect();
+        println!("{HELPER_LINE}{}", values.join("|"));
+    }
+
+    /// The values [`child_env_helper`] printed in `stdout`: libtest prints the
+    /// case's name first on the same line, so the line is found by its marker.
+    fn helper_report(stdout: &str) -> &str {
+        stdout
+            .split_once(HELPER_LINE)
+            .and_then(|(_, rest)| rest.lines().next())
+            .unwrap_or_else(|| panic!("no helper line in {stdout:?}"))
+    }
+
+    /// The child environment reaches `run_json`, `run_raw` and `run_bounded` on
+    /// every platform, Windows included (QA9-002): the runner re-executes this
+    /// unit-test binary as [`child_env_helper`]. A name removed in another case
+    /// (`sc_bd_c` after `SC_BD_C`) is the same variable on Windows and is unset
+    /// there; on Unix it is another name and `SC_BD_C` stays set.
+    #[test]
+    fn the_child_environment_reaches_every_spawn_on_every_platform() {
+        let exe = std::env::current_exe().unwrap();
+        let runner = CliRunner::new(exe.to_string_lossy(), Arc::new(ProjectLocks::new()))
+            .with_child_var(OsStr::new(HELPER_MARK), Some(OsStr::new("1")))
+            .with_child_var(OsStr::new("SC_BD_A"), Some(OsStr::new("a")))
+            .with_child_var(OsStr::new("SC_BD_B"), Some(OsStr::new("b")))
+            .with_child_var(OsStr::new("SC_BD_B"), None)
+            .with_child_var(OsStr::new("SC_BD_C"), Some(OsStr::new("c")))
+            .with_child_var(OsStr::new("sc_bd_c"), None);
+        let expected = if cfg!(windows) {
+            "a|unset|unset"
+        } else {
+            "a|unset|c"
+        };
+        let project = temp_project();
+        // `--` ends libtest's options: the `--json` (and any `--no-daemon`) that
+        // `run_json` appends become name filters that match nothing.
+        let filter = [
+            "runner::tests::child_env_helper",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1",
+        ];
+
+        let raw = runner.run_raw(&project, &filter).unwrap();
+        assert!(raw.success, "{raw:?}");
+        assert_eq!(helper_report(&raw.stdout), expected, "run_raw");
+
+        let argv: Vec<String> = filter.iter().map(|a| (*a).to_owned()).collect();
+        let bounded = runner
+            .run_bounded(&project, &argv, Duration::from_secs(60))
+            .unwrap();
+        assert!(bounded.success, "{bounded:?}");
+        assert_eq!(helper_report(&bounded.stdout), expected, "run_bounded");
+
+        let mut json_args: Vec<String> = argv[1..].to_vec();
+        json_args.push("--".to_owned());
+        let json = runner.run_json(&project, filter[0], &json_args).unwrap();
+        assert_eq!(helper_report(&json), expected, "run_json");
     }
 
     /// Without a child variable the child inherits the environment, as in btit.
