@@ -682,8 +682,8 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
 
 /// Entries `bd_cache.py` applied carry no `applied_at` and no epoch; their
 /// time is `updated_at`, written as `...Z` by it and readable as `+00:00` with
-/// fractions too. Before and after the next open dates them, an old one is not
-/// "since", a recent one is, and one with an unreadable time counts as since:
+/// fractions too. Before and after they are dated (by the check or the next
+/// open), an old one is not "since", a recent one is, and one with an unreadable time counts as since:
 /// the base must never be served without a write Python applied (S18).
 #[test]
 fn entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since() {
@@ -804,10 +804,51 @@ fn no_index_holds_a_function_and_journal_writes_work_without_unixepoch() {
     .unwrap();
     c.execute("DELETE FROM journal WHERE idem_key = 'py'", [])
         .unwrap();
+
+    // Negative control: with the earlier build's expression index back, the
+    // same old-SQLite writer can no longer mark an entry applied.
+    Connection::open(&open.path)
+        .unwrap()
+        .execute(
+            "CREATE INDEX journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied'",
+            [],
+        )
+        .unwrap();
+    // The stand-in is declared deterministic here so the schema loads and
+    // the failure is the index's own: the pending insert is outside the
+    // partial index, the mark to `applied` must evaluate it.
+    let old = Connection::open(&open.path).unwrap();
+    old.create_scalar_function(
+        "unixepoch",
+        -1,
+        rusqlite::functions::FunctionFlags::SQLITE_UTF8
+            | rusqlite::functions::FunctionFlags::SQLITE_DETERMINISTIC,
+        |_| -> rusqlite::Result<i64> {
+            Err(rusqlite::Error::UserFunctionError(
+                "no unixepoch here".into(),
+            ))
+        },
+    )
+    .unwrap();
+    old.execute(
+        "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, actor, \
+         state, attempts, created_at, updated_at) \
+         VALUES ('py2', 'x', 'b2', 'close', '{}', '{}', 'san', 'pending', 0, 't', 't')",
+        [],
+    )
+    .unwrap();
+    let err = old
+        .execute(
+            "UPDATE journal SET state = 'applied', updated_at = 'u' WHERE idem_key = 'py2'",
+            [],
+        )
+        .unwrap_err();
+    assert!(err.to_string().contains("no unixepoch here"), "{err}");
 }
 
 /// `INDEXED BY` is an error when another writer dropped the index: the check
-/// falls back to the unhinted query and stays correct (QA3-007).
+/// falls back to the unhinted query and stays correct (QA3-007), and keeps
+/// to it without trying the hints again (QA4-005).
 #[test]
 fn the_entries_since_check_survives_a_dropped_index() {
     let (open, store) = fresh("dropped-index");
@@ -826,6 +867,36 @@ fn the_entries_since_check_survives_a_dropped_index() {
             .has_entries_since(&ts("2026-10-24T09:00:02Z"))
             .unwrap()
     );
+    assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+
+    // Once missing, the hints are not tried again (QA4-005): indexes of the
+    // same names that no hinted query can use make `INDEXED BY` fail with
+    // another error, and the store still answers, call after call.
+    c.execute_batch(
+        "CREATE INDEX journal_applied_epoch ON journal(applied_epoch) WHERE state = 'never'; \
+         CREATE INDEX journal_applied_unknown ON journal(seq) WHERE state = 'never';",
+    )
+    .unwrap();
+    let trap = c
+        .prepare(bd_cache_store::HAS_ENTRIES_SINCE_SQL)
+        .map(|_| ())
+        .unwrap_err();
+    assert!(
+        !trap.to_string().contains("no such index"),
+        "control: {trap}"
+    );
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:03Z", "later");
+    for _ in 0..3 {
+        assert!(store.has_entries_since(&at).unwrap());
+        assert!(
+            !store
+                .has_entries_since(&ts("2026-10-24T09:00:04Z"))
+                .unwrap()
+        );
+        assert_eq!(store.applied_since(&at).unwrap().len(), 2);
+    }
+    c.execute_batch("DROP INDEX journal_applied_epoch; DROP INDEX journal_applied_unknown;")
+        .unwrap();
     drop(store);
     let again = SqliteStore::open_at(&open.path, &identity()).unwrap();
     let back: i64 = c
@@ -1023,4 +1094,169 @@ fn a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replac
             .blocked_by,
         [id("c")]
     );
+}
+
+/// The SQLite virtual-machine steps one run of `sql` takes on `c`: the SQL
+/// work, independent of the machine's speed.
+fn vm_steps(c: &Connection, sql: &str, args: impl rusqlite::Params) -> i32 {
+    let mut stmt = c.prepare(sql).unwrap();
+    let mut rows = stmt.query(args).unwrap();
+    while rows.next().unwrap().is_some() {}
+    drop(rows);
+    stmt.get_status(rusqlite::StatementStatus::VmStep)
+}
+
+fn undated(path: &std::path::Path) -> i64 {
+    Connection::open(path)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM journal WHERE state = 'applied' AND applied_epoch IS NULL",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap()
+}
+
+/// Entries `bd_cache.py` applies while the store is open have no epoch; the
+/// next journal check dates them, so its SQL work goes back to a few index
+/// probes instead of one `unixepoch` per undated entry (QA4-001). Measured in
+/// SQLite VM steps, never wall-clock.
+#[test]
+fn entries_python_applies_while_open_are_dated_by_the_next_check() {
+    let (open, store) = fresh("dated-while-open");
+    let at = ts("2026-10-24T09:00:00Z");
+    assert!(!store.has_entries_since(&at).unwrap());
+    let c = Connection::open(&open.path).unwrap();
+    let empty = vm_steps(&c, bd_cache_store::HAS_ENTRIES_SINCE_SQL, [at.unix()]);
+
+    seed_python_applied(&open.path, 20_000, "2026-10-24T08:00:00Z", "py");
+    let walking = vm_steps(&c, bd_cache_store::HAS_ENTRIES_SINCE_SQL, [at.unix()]);
+    assert!(
+        walking > 20_000,
+        "control: undated entries are walked one by one ({walking} steps)"
+    );
+
+    assert!(
+        !store.has_entries_since(&at).unwrap(),
+        "old entries are not since"
+    );
+    assert_eq!(undated(&open.path), 0, "the check dated them");
+    let after = vm_steps(&c, bd_cache_store::HAS_ENTRIES_SINCE_SQL, [at.unix()]);
+    assert!(
+        after <= empty + 10,
+        "dated entries cost index probes only: {after} steps, {empty} with none"
+    );
+    let since = vm_steps(&c, bd_cache_store::APPLIED_SINCE_SQL, [at.unix()]);
+    assert!(since < 100, "applied_since reads no history: {since} steps");
+
+    // Recent ones are dated too and still count; so does `applied_since`,
+    // which dates what lands between two checks.
+    seed_python_applied(&open.path, 2, "2026-10-24T09:00:01Z", "new");
+    assert!(store.has_entries_since(&at).unwrap());
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:02Z", "newer");
+    assert_eq!(store.applied_since(&at).unwrap().len(), 3);
+    assert_eq!(undated(&open.path), 0);
+}
+
+/// A writer holding the write lock does not make the check wait: the dating
+/// is skipped (no busy timeout), and the answer is the same, from the
+/// undated entries.
+#[test]
+fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
+    let (open, store) = fresh("dating-busy");
+    let at = ts("2026-10-24T09:00:00Z");
+    seed_python_applied(&open.path, 3, "2026-10-24T08:00:00Z", "old");
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:01Z", "new");
+    let mut c = Connection::open(&open.path).unwrap();
+    let tx = c
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .unwrap();
+    let started = std::time::Instant::now();
+    assert!(store.has_entries_since(&at).unwrap());
+    assert!(
+        !store
+            .has_entries_since(&ts("2026-10-24T09:00:02Z"))
+            .unwrap()
+    );
+    assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+    assert!(
+        started.elapsed() < bd_cache_store::BUSY_TIMEOUT,
+        "the reads did not wait out the busy timeout"
+    );
+    assert_eq!(
+        undated(&open.path),
+        4,
+        "nothing dated while the lock is held"
+    );
+    tx.rollback().unwrap();
+    assert!(store.has_entries_since(&at).unwrap());
+    assert_eq!(undated(&open.path), 0, "dated once the lock is free");
+}
+
+/// `applied_since` reads two partial-index ranges joined by `UNION ALL`;
+/// an `OR` in one `WHERE` would let neither index serve it (QA4-003).
+#[test]
+fn applied_since_reads_both_partial_indexes_and_no_history() {
+    let (open, mut store) = fresh("applied-since-plan");
+    {
+        let mut c = Connection::open(&open.path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    let c = Connection::open(&open.path).unwrap();
+    let plan: Vec<String> = c
+        .prepare(&format!(
+            "EXPLAIN QUERY PLAN {}",
+            bd_cache_store::APPLIED_SINCE_SQL
+        ))
+        .unwrap()
+        .query_map([1_792_749_600_i64], |r| r.get::<_, String>(3))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    assert!(
+        plan.iter()
+            .filter(|d| d.contains("journal"))
+            .all(|d| d.contains("USING")),
+        "{plan:?}"
+    );
+    let joined = plan.join(" | ");
+    for index in ["journal_applied_epoch", "journal_applied_unknown"] {
+        assert!(joined.contains(index), "{index} not in {joined}");
+    }
+    let at = ts("2026-10-23T10:00:00Z");
+    let steps = vm_steps(&c, bd_cache_store::APPLIED_SINCE_SQL, [at.unix()]);
+    assert!(steps < 100, "5000 old entries are not read: {steps} steps");
+    let unhinted = vm_steps(&c, bd_cache_store::APPLIED_SINCE_UNHINTED_SQL, [at.unix()]);
+    assert!(
+        unhinted > 5_000,
+        "control: the unhinted form walks them ({unhinted})"
+    );
+
+    // Both halves answer, in seq order.
+    store.ensure_scope(&x()).unwrap();
+    let mine = store
+        .insert_entry(entry("mine", "b2", Some(x())), &at)
+        .unwrap();
+    seed_python_applied(&open.path, 1, "garbage", "unreadable");
+    store
+        .apply_with_readback(mine, None, None, &ts("2026-10-24T00:00:00Z"))
+        .unwrap();
+    let got = store.applied_since(&at).unwrap();
+    let keys: Vec<&str> = got.iter().map(|e| e.idem_key.as_str()).collect();
+    assert_eq!(keys, ["mine", "unreadable-0"], "seq order, both halves");
+    assert!(got[0].seq < got[1].seq);
 }

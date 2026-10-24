@@ -127,9 +127,17 @@ pub(crate) struct JournalRow {
     pub(crate) applied_at: Option<String>,
 }
 
+/// The `journal` columns [`JournalRow`] reads, in order, as a literal (for `concat!`).
+macro_rules! journal_columns {
+    () => {
+        "seq, idem_key, phase, bead, op, args_json, precondition_json, actor, state, \
+         attempts, last_error, announced_at, created_at, applied_at"
+    };
+}
+pub(crate) use journal_columns;
+
 /// The `journal` columns [`JournalRow`] reads, in order.
-pub(crate) const JOURNAL_COLUMNS: &str = "seq, idem_key, phase, bead, op, args_json, \
-    precondition_json, actor, state, attempts, last_error, announced_at, created_at, applied_at";
+pub(crate) const JOURNAL_COLUMNS: &str = journal_columns!();
 
 impl JournalRow {
     /// Reads the [`JOURNAL_COLUMNS`] of a result row.

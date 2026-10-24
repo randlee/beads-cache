@@ -130,8 +130,9 @@ Decision:
   shared until it is renamed.
 - **`applied_since`** is bounded in SQL by an instant, never text (ADR-STORE-0004):
   `applied_epoch >= ?`, or, for an applied entry with no epoch, its time
-  `COALESCE(applied_at, updated_at)` read by `unixepoch()` in the query, filtered through
-  `journal_pending`'s `state` prefix. **No expression index.** No index holds a
+  `COALESCE(applied_at, updated_at)` read by `unixepoch()` in the query; the two are
+  separate index range reads joined by `UNION ALL` (`APPLIED_SINCE_SQL`, ADR-STORE-0004).
+  **No expression index.** No index holds a
   function, `unixepoch()` included: an index on `unixepoch(..)` would make the
   file's schema unreadable, and every journal write fail, for a `bd_cache.py`
   linked against SQLite older than 3.38 (Ubuntu 22.04 ships 3.37.2). The epoch
@@ -217,17 +218,33 @@ Decision:
   `journal_applied_epoch ON journal(applied_epoch) WHERE state = 'applied'`, and
   `journal_applied_unknown ON journal(seq) WHERE state = 'applied' AND applied_epoch IS NULL`
   (entries with no epoch).
-- **Backfill on open** (`BACKFILL_APPLIED_EPOCH`, in the open transaction): for each applied
-  row with no epoch, `applied_epoch = unixepoch(COALESCE(applied_at, updated_at))`,
+- **Backfill** (`BACKFILL_APPLIED_EPOCH`, an `UPDATE` through `journal_applied_unknown`):
+  for each applied row with no epoch, `applied_epoch = unixepoch(COALESCE(applied_at, updated_at))`,
   where SQLite can read that time. This process's bundled SQLite evaluates
   `unixepoch()`; no index mentions it. `bd_cache.py` writes `%Y-%m-%dT%H:%M:%SZ`,
-  which SQLite reads. Entries `bd_cache.py` applies while the store is open have no
-  epoch until the next open and are found through `journal_applied_unknown`.
+  which SQLite reads. It runs in the open transaction, and again (QA4-001) at the start of
+  `has_entries_since` and `applied_since` whenever `journal_applied_unknown` holds an entry
+  whose time SQLite can read: one `bd_cache.py` applied while the store is open. The test
+  for that is one probe of the index, empty in a healthy file, so the journal check's cost
+  does not grow with what that writer applies; without the dating each such entry would
+  cost the check one `unixepoch()` call (20 000 of them made a cached `get` 1.7 ms). The
+  read-path `UPDATE` is best effort: it runs with no busy timeout, so a writer holding the
+  lock, or a read-only file, leaves the entries undated for now, and the check answers the
+  same from them, only slower; the next read tries again. A cached `get` may therefore write
+  the file (these epochs only); it never waits for the write lock to do so.
 - **Unreadable times count as touched.** A row whose `COALESCE(applied_at, updated_at)`
   SQLite cannot read as a time keeps a NULL epoch, stays in `journal_applied_unknown`,
   and counts as applied since any instant (`COALESCE(... >= ?1, 1)`). Reporting
   activity that did not happen only costs a fresh read; missing it would serve a
-  stale ready answer. `applied_since` agrees with it.
+  stale ready answer. `applied_since` agrees with it. The cost: while such a row exists,
+  every cached `get` of a bead with a stored base takes the adjusted path (the whole base
+  is recomputed). So open, after the backfill, logs a warning naming the seqs of the
+  applied entries still undated (the first 20, and their count). **Operator fix:** find the
+  entry (`SELECT seq, idem_key, bead, updated_at FROM journal WHERE seq = <seq>`) and either
+  resolve it (`UPDATE journal SET state = 'resolved' WHERE seq = <seq>`, which takes it out
+  of the applied set) or delete it (`DELETE FROM journal WHERE seq = <seq>`); an applied
+  entry is history only, so neither loses a pending write. Setting its `updated_at` to a
+  real time works too; the next read dates it.
 - **The pre-existing miss, fixed.** `bd_cache.py`'s `_mark` sets only `state` and
   `updated_at`, so an entry it applied has `applied_at` NULL. Before this fix
   `applied_since` and `has_entries_since` compared `applied_at` alone and so missed
@@ -236,11 +253,23 @@ Decision:
 - `has_entries_since` is three `EXISTS` lookups (`HAS_ENTRIES_SINCE_SQL`): `journal_pending`
   for pending entries; `journal_applied_epoch` for entries with an epoch; and
   `journal_applied_unknown` for those without. The last two are named with `INDEXED BY`,
-  because the planner otherwise scans the applied rows through `journal_pending`. A
-  hinted index another writer dropped makes `INDEXED BY` an error (`no such index`):
-  the store then logs a warning and asks `HAS_ENTRIES_SINCE_UNHINTED_SQL`, the same
-  question without hints (correct, slower on a long history); the next open recreates
-  the index. A test asserts the plan of the hinted query.
+  because the planner otherwise scans the applied rows through `journal_pending`. The
+  first two cost an index probe each whatever the history; the third walks the entries
+  without an epoch, so its cost is the number of those that are older than `at`. The
+  backfill above keeps that number at zero (the entries with an unreadable time stop the
+  walk at once: they count as since), so the check stays bounded; it is not bounded
+  for entries the backfill could not yet date (the write lock was busy).
+- `applied_since` is two range reads joined by `UNION ALL` and ordered by seq
+  (`APPLIED_SINCE_SQL`): `journal_applied_epoch` for `applied_epoch >= at`, and
+  `journal_applied_unknown` for the undated entries. One `WHERE` with an `OR` of the two
+  (the earlier form) lets neither partial index serve it, so it read every applied entry.
+- **A missing hinted index.** An index another writer dropped makes `INDEXED BY` an error
+  (`SQLITE_ERROR`, `no such index`; matched on the code and the message). The store then
+  logs one warning, remembers it, and from then on asks the unhinted form of each journal
+  read (`HAS_ENTRIES_SINCE_UNHINTED_SQL`, `APPLIED_SINCE_UNHINTED_SQL`, and the backfill's):
+  the same question, correct, slower on a long history. The hints are not tried again
+  until the next open, which recreates the indexes. Tests assert the plans of the hinted
+  queries, their SQL work in VM steps, and that the fallback is not retried.
 - **`bd_cache.py` compatibility** (read at atm-core
   `05831dfe866d389feed138add3c29cb93cd6c82b`, `bd_cache.py`): it never creates,
   reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
@@ -264,4 +293,10 @@ pin both methods to their provided bodies for every store; the store tests
 `a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index`,
 `a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace`
 and `the_entries_since_check_uses_indexes_and_ignores_a_long_history` check the
-compatibility claims.
+compatibility claims; `entries_python_applies_while_open_are_dated_by_the_next_check`,
+`the_check_does_not_wait_for_the_write_lock_to_date_entries`,
+`applied_since_reads_both_partial_indexes_and_no_history`,
+`the_entries_since_check_survives_a_dropped_index` (store tests),
+`the_open_finds_the_applied_entries_it_could_not_date` (unit) and
+`a_cached_get_dates_entries_python_applied_while_open` (bd-cache-sync `perf.rs`) check the
+dating, the plans and SQL work (VM steps), the undatable-entry warning and the hint fallback.
