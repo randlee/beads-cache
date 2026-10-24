@@ -43,13 +43,55 @@ like `Unavailable` to `BD_UNAVAILABLE`; btit's `InvalidJson`,
 `UnexpectedShape` and `ParseFailed` to `BD_CONTRACT`; `Refused(NotClosable
 / AlreadyClaimed)` to `PRECONDITION` with the matching `/v0` reason;
 `Refused(Other)` and any other btit error map like `Failed`.
-`CheckFailed { step }` is `BD_VERSION_FAILED` or `BD_SCHEMA_FAILED` by its
-step, and a plain `Failed` on `Check` is `BD_VERSION_FAILED`; no stderr is
-inspected (amended in fix-a-1-1, RBP-F006). `Ready` failures are
+A `Failed` on `Check` is `BD_VERSION_FAILED`. `Ready` failures are
 `BD_LIST_FAILED`; `Sync` failures are `SYNC_FAILED` with cause
-`SyncCause::BdListFailed`. Every mapped error keeps the backend error as
-its `source` (`BackendCause`) and in its JSON as `source: {code, detail}`
-(fix-a-1-1, RBP-F005). Precondition keys are `GuardKey`.
+`SyncCause::BdListFailed`. Precondition keys are `GuardKey`.
+
+### ADR-MODEL-0002 amendment (fix-a-1-1): typed check step and kept source
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-23; RBP-F005, RBP-F006)
+
+Context: the check step was read from a stderr prefix, and mapped errors
+dropped the backend error.
+
+Decision: `CheckFailed { step }` is `BD_VERSION_FAILED` or `BD_SCHEMA_FAILED`
+by its step; no stderr is inspected (RBP-F006). Every mapped error keeps the
+backend error as its `source` (`BackendCause`) and in its JSON as
+`source: {code, detail}` (RBP-F005).
+
+Consequences: `CheckFailed` is a `BeadsCacheError` variant (ADR-BEADS-0002);
+callers can walk `Error::source()` to the bd failure.
+
+### ADR-MODEL-0002 amendment (a-1 amendment 1): store failures are STORE_FAILED
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Context: `CacheStore` methods may fail for the store's own reasons (SQLite
+errors, file I/O, a stored value that does not decode), but `CacheError` had
+no code for them. `bd-cache-store` reported them as `NO_DATABASE`, with the
+source chain flattened into the detail text. The baseline
+(`docs/baseline/BD-CACHE.md`, CLI table) has no v3 code for store or SQLite
+failures, so none could be reused.
+
+Decision: add the additive code `BD_CACHE.STORE_FAILED`,
+`CacheError::StoreFailed { detail, source: Option<StoreCause> }`.
+- `detail` names the failing step and the file.
+- `StoreCause` wraps the underlying error in an `Arc<dyn Error + Send + Sync>`,
+  following the `BackendCause` pattern: it compares by text, `CacheError`
+  stays `Clone + Eq`, `Error::source()` returns the wrapped error, and
+  `to_json` adds `source: {detail}`.
+- `CacheError::store_failed(detail, source)` builds one.
+- It exits 3 like every typed error. Its fix tells the operator to check the
+  file (permissions, free disk space, another holder), or to move a corrupt
+  file aside so the next sync rebuilds it from bd; pending writes in that
+  file are lost.
+
+A store reports its own failures as `STORE_FAILED`. `NO_DATABASE` keeps its
+baseline meaning: missing or invalid `.beads/metadata.json`.
+
+Consequences: `bd-cache-store` (a-4) switches its store-internal failures from
+`NO_DATABASE` to `STORE_FAILED` with the source kept. The code is additive to
+the v3 CLI contract (ADR-BDC-0003), so it needs a note on #557.
 
 ## ADR-MODEL-0003: Store rule clarifications
 
@@ -65,6 +107,68 @@ outage; prune keeps the scope registered and never deletes a bead with an
 open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
+
+### ADR-MODEL-0003 amendment (a-1 amendment 1): status reports stale rows
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Context: sprint a-6 needs status to report stale rows (REQ-BDC-0603, as
+amended in c4a2f8b).
+
+Decision: `StoreStatus` gains `stale: Vec<BeadId>`. `status()` reports the
+same set as `stale_rows`, read as one consistent snapshot with the rest of
+the status. The store contract rule `status_lists_stale_rows_until_reread`
+checks that a failed read-back is listed and that a re-read clears it.
+
+Consequences: every `CacheStore` (FakeStore, a-4's SqliteStore) must report
+`stale` in `status()` from the same snapshot, and passes the new rule.
+
+### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
+
+**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`)
+
+Context: QA-1 found raw strings for keys, scopes and instants, and a call
+result with a dead success variant.
+
+Decision: `IdemKey::new` rejects an empty key; scopes are
+`ScopeId::Phase(PhaseName)` with a validated name (also in
+`ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
+sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
+is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
+Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
+carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
+and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
+unassigned update overlays as no assignee, as bd stores it.
+
+Consequences: invalid keys, scopes and instants cannot be built; callers
+match `CallFailure` instead of an outcome with an unreachable `Ok`.
+
+### ADR-MODEL-0003 amendment (fix-a-1-2): instants, not text
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-23; QA-002)
+
+Context: the newer-row guard compared `updated_at` as text.
+
+Decision: it compares `updated_at` as an instant (second precision), never
+as text; the contract rule `newer_row_guard_compares_instants` checks it with
+offset and fractional timestamps.
+
+Consequences: every `CacheStore` must compare instants (a-4 passes the rule).
+
+### ADR-MODEL-0003 amendment (fix-a-1-3): unparseable instants and absent seqs
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-23; ARCH-201, ARCH-202)
+
+Context: the guard fell back to text order when a value did not parse, and
+the doc left `resolve` on an unknown seq ambiguous.
+
+Decision: when either `updated_at` does not parse, the stored row is not
+newer and the incoming row is stored; text is never ordered (`FakeBackend`'s
+cursor filter likewise lists such a row). `resolve` on an absent seq is
+`NOT_ESCALATED`; `NOT_FOUND` applies to the other seq-taking methods.
+
+Consequences: a corrupt stored timestamp heals on the next upsert; a-4's
+store follows the same rules through the contract suite.
 
 ### ADR-MODEL-0003 amendment (a-1 amendment 2): ready replies say when
 
@@ -105,23 +209,3 @@ toml stays a normal dependency, used only inside `config.rs`; the
 
 Consequences: a toml upgrade is not a breaking change for the model's
 users. a-7 adds a tick key by amending `TickConfig` (an a-1 amendment).
-
-### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
-
-Approved with ADR-MODEL-0003 (lead ruling, 2026-10-23; ruling L5 for `CallFailure`). `IdemKey::new` rejects an empty key; scopes are
-`ScopeId::Phase(PhaseName)` with a validated name (also in
-`ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
-sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
-is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
-Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
-carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
-and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
-unassigned update overlays as no assignee, as bd stores it.
-fix-a-1-2 (QA-002): the newer-row guard compares `updated_at` as an instant
-(second precision), never as text; the contract rule
-`newer_row_guard_compares_instants` checks it with offset and fractional
-timestamps. fix-a-1-3 (ARCH-201; lead ruling, bc-lead, 2026-10-23): when either `updated_at` does not
-parse, the stored row is not newer and the incoming row is stored; text is
-never ordered (`FakeBackend`'s cursor filter likewise lists such a row).
-`resolve` on an absent seq is `NOT_ESCALATED`; `NOT_FOUND` applies to the
-other seq-taking methods (ARCH-202; lead ruling, bc-lead, 2026-10-23).
