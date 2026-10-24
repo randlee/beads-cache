@@ -180,13 +180,27 @@ signatures in `lib.rs`.
   `retrying`; one it never reaches (gate, cut or outage) is `deferred`.
   REQ-CORE-0103 and ADR-CORE-0103 say so. Test:
   `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`.
-- QA-001: with the lead's authorisation for those lines only, the six
-  stale lint overrides and their comment are removed from
-  `crates/bd-cache/src/lib.rs`. Nothing else in `lib.rs` changed. The
+- QA-001: the six stale lint overrides and their comment are removed from
+  `crates/bd-cache/src/lib.rs`, as the ADR-CORE-0002 amendment (a-5 QA-1,
+  Approved, `docs/bd-cache/architecture.md`) allows. Nothing else in
+  `lib.rs` changed. The
   default-feature `cargo clippy --workspace --lib -- -D warnings` passes
   without them.
 - The pre-read dedupes bead ids with a `BTreeSet`, so the batch is in
   bead-id order.
+
+## fix-a-5-2 (QA-2 at 40034ee)
+
+- rust-qa QA-001: `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`
+  (`tests/drain_budget.rs`) pins the start-gate check that runs before the
+  stale-only shortcut, and is listed as REQ-CORE-0103 evidence. The planted
+  bug `stale shortcut before the gate` swaps the two checks.
+- rust-qa note: by ADR-CORE-0101's stop table (read-back row), an
+  unreachable bd at read-back is a failed read-back, and the pass goes on.
+  The code already follows this. Its comment now cites the row, and
+  `an_unreachable_bd_at_read_back_is_a_failed_read_back_and_the_pass_goes_on`
+  (`tests/drain_failures.rs`) covers it. `call` classifies an unreachable
+  read-back as `Error(BD_UNAVAILABLE)`, never as an `Outage`.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 

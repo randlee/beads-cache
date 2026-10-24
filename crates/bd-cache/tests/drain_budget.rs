@@ -217,3 +217,33 @@ fn a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cu
         assert_eq!((e.state, e.attempts), (JournalState::Pending, attempts));
     }
 }
+
+#[test]
+fn a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call() {
+    let w = World::new();
+    let mut c = w.cache();
+    let held = journal(&mut c, "b1", "close", "{}", "k1");
+    // Stale-mark b1 as a failed read-back of an earlier entry would.
+    let at = w.clock.now_utc();
+    let mut seed = w.store.clone();
+    let earlier = seed
+        .insert_entry(
+            common::new_entry("k0", "b1", "update", r#"{"append_notes": "x"}"#),
+            &at,
+        )
+        .unwrap();
+    seed.apply_with_readback(earlier, None, Some("read-back failed"), &at)
+        .unwrap();
+    assert_eq!(store(&c).stale_rows().unwrap(), vec![id("b1")]);
+    w.bd.clear_calls();
+
+    let r = c.drain(&budget(&w, 0, 20)).unwrap();
+    assert_eq!(
+        r.deferred,
+        vec![held],
+        "the gate stops the pass before it reaches the entry"
+    );
+    assert!(r.retrying.is_empty());
+    assert!(w.bd.calls().is_empty());
+    assert_eq!(entry(&c, held).attempts, 0);
+}

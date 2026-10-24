@@ -321,6 +321,10 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
                 return Ok(Flow::Stop);
             }
             Err(CallFailure::Error(err)) if err.backend_cause().is_none() => return Err(err),
+            // ADR-CORE-0101, stop table, read-back row: an unreachable bd (any
+            // code) is a failed read-back, applied with the error, stale, bead
+            // held, and the pass goes on. `call` classifies an unreachable
+            // read-back as `Error(BD_UNAVAILABLE)`, never `Outage`.
             Err(CallFailure::Outage(err) | CallFailure::Error(err)) => err,
         };
         let at = self.cache.clock.now_utc();

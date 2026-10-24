@@ -79,6 +79,7 @@ call is cut, or an outage stops it (ADR-CORE-0101).
 `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only`,
 `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
 `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`
+and `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`
 (`tests/drain_budget.rs`),
 `an_outage_defers_every_pending_entry_including_stale_held_ones`
 (`tests/drain_outage.rs`).
@@ -104,6 +105,11 @@ batched pre-read, and the `call` classification everywhere else:
 | backend check, pre-read | stop; every pending entry `deferred`; no outage | stop; outage recorded; every pending entry `deferred` | stop; `tracing` warning; every pending entry `retrying` | returned as the drain's error (a store failure) |
 | write | entry `deferred_in_flight`; stop | `call` returns `BD_UNAVAILABLE` on a write as an `Error`: it counts an attempt, like the rest | `PRECONDITION` (bd guard, exit 13): escalate. Anything else: one attempt, hold the bead, escalate at `max_attempts` | returned |
 | read-back | entry `deferred_in_flight` (still pending); stop | applied with the error, stale, bead held | applied with the error, stale, bead held | returned |
+
+In the read-back row, an unreachable bd does not stop the pass: the write
+has already run, so the entry is applied with the error, the row is marked
+stale, and the pass goes on to the next entry
+(`an_unreachable_bd_at_read_back_is_a_failed_read_back_and_the_pass_goes_on`).
 
 "Every pending entry" includes entries held for a stale row, so each
 pending entry stays in exactly one report list (REQ-CORE-0102). No attempt

@@ -230,3 +230,35 @@ fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync()
     assert_eq!(w.bd_row("b1").status.as_deref(), Some("closed"));
     assert!(store(&c).stale_rows().unwrap().is_empty());
 }
+
+#[test]
+fn an_unreachable_bd_at_read_back_is_a_failed_read_back_and_the_pass_goes_on() {
+    let w = World::new();
+    let mut c = w.cache();
+    let e1 = journal(&mut c, "b1", "close", "{}", "k1");
+    let e2 = journal(&mut c, "b2", "close", "{}", "k2");
+    // The pre-read lists b1 and b2; the first list of b1 alone is e1's read-back.
+    w.bd.inject_where(
+        |c| matches!(c, FakeCall::ListByIds(ids) if *ids == [id("b1")]),
+        Injection::Unavailable { timed_out: false },
+    );
+    let r = c.drain(&roomy(&w)).unwrap();
+    assert_eq!(
+        r.applied,
+        vec![e1, e2],
+        "applied, and the pass goes on to b2"
+    );
+    assert!(r.deferred.is_empty() && r.deferred_in_flight.is_empty());
+    let e = entry(&c, e1);
+    assert_eq!(e.state, JournalState::Applied);
+    assert!(
+        e.last_error
+            .as_deref()
+            .is_some_and(|m| m.starts_with("BD_CACHE.BD_UNAVAILABLE")),
+        "{:?}",
+        e.last_error
+    );
+    assert_eq!(store(&c).stale_rows().unwrap(), vec![id("b1")]);
+    assert_eq!(r.outage, None, "a read-back records no outage");
+    assert_eq!(w.bd_row("b2").status.as_deref(), Some("closed"));
+}
