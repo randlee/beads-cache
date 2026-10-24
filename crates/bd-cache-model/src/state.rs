@@ -132,4 +132,7 @@ pub struct StoreStatus {
     pub escalated: Vec<JournalEntry>,
     /// The outage, while one holds.
     pub outage: Option<Outage>,
+    /// Rows whose read-back failed and that no store has refreshed since
+    /// (the same set as `CacheStore::stale_rows`), by id (REQ-BDC-0603; a-1 amendment 1).
+    pub stale: Vec<BeadId>,
 }

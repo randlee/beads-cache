@@ -74,3 +74,22 @@ passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`,
 stub files are in a-1's `owned_paths` until ownership hands over to a-5
 (`write.rs`, `drain.rs`) and a-6 (the other eight). `call` returns
 `Result<T, CallFailure>` (ruling L5; ADR-MODEL-0003 amendment).
+
+### ADR-CORE-0002 amendment (a-5 QA-1): the temporary helper overrides leave with a-5
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Context: the six `cfg_attr(..., allow(dead_code))` / `allow(unused_imports)`
+overrides on the helper modules, the `call` re-export and `Cache.lock` were
+temporary, until a-5 and a-6 call the helpers. a-5's write path and drain call
+every one of them, so the overrides are stale once a-5 lands.
+
+Decision: sprint a-5 may remove exactly those six overrides and their comment
+from `lib.rs`; no other `lib.rs` edit is allowed to a-5 or a-6. a-6 does not
+touch `lib.rs`, so whichever of a-5 and a-6 merges second takes the removal
+from `integrate/phase-a` with no conflict. Without the `testing` feature the
+helpers are then used by a-5's code, and CI's default-feature
+`cargo clippy --lib` keeps checking it.
+
+Consequences: the "allowed to be unused until a-5 and a-6 call them" sentence
+above no longer applies once a-5 merges.

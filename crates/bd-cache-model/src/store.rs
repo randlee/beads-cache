@@ -57,6 +57,9 @@ use crate::state::{
 ///   scope holds (with their edges), the scope's journal entries, sync state
 ///   and ready base, and sweeps out-of-scope rows with no open entry. The
 ///   scope stays registered.
+/// - `status().stale` lists exactly the rows `stale_rows` returns: a row
+///   whose read-back failed is listed until a store of it clears the mark
+///   (a-1 amendment 1).
 /// - an unknown `seq` is `NOT_FOUND` for every other seq-taking method
 ///   (`apply_with_readback`, `record_attempt`, `escalate`, `mark_announced`);
 ///   `entry_by_seq` returns `None`.
@@ -67,7 +70,12 @@ use crate::state::{
 /// # Errors
 ///
 /// Every method returns a [`CacheError`]: the codes named above, or the
-/// implementation's own storage failures.
+/// implementation's own storage failures, which it reports as
+/// `STORE_FAILED` ([`CacheError::StoreFailed`], built with
+/// [`CacheError::store_failed`]): the step and file in `detail`, the
+/// underlying error (SQLite, I/O, a stored value that does not decode) kept
+/// as the source. Other codes keep their meanings: a missing or invalid
+/// metadata file is still `NO_DATABASE` (a-1 amendment 1).
 #[expect(
     clippy::missing_errors_doc,
     reason = "error rules are documented once on the trait"
@@ -159,7 +167,11 @@ pub trait CacheStore: Send {
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;
     /// Open work for the stop rule.
     fn open_work(&self) -> Result<OpenWork, CacheError>;
-    /// Status: meta, journal counts, scopes, escalations, outage.
+    /// Status: meta, journal counts, scopes, escalations, outage, and the
+    /// stale rows (`stale`, the same set as [`CacheStore::stale_rows`]).
+    ///
+    /// One consistent snapshot: every field is read at the same point (one
+    /// read transaction for SQLite, one lock for `FakeStore`).
     fn status(&self) -> Result<StoreStatus, CacheError>;
 }
 
