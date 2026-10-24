@@ -231,7 +231,12 @@ Local, macOS arm64, on `42f6ef4` (documents after it): `cargo test --workspace
 | `cargo test --workspace --all-features` | pass |
 | pytest (`maturin develop`, 88 tests) | pass |
 
-CI on the last code-changing commit `42f6ef4`: CIRUNS
+CI on the last code-changing commit `42f6ef4`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40085690694 (rust job on
+macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
+and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40085690769 (success).
+The docs-only head `27bf211` is also green (python 40095045711, ci 40095045761).
 
 ## Fix round 1 (QA-1 at b75b5f3)
 
