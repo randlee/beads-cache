@@ -364,11 +364,11 @@ commands, a fill-in table, and the developer-machine smoke run (not testbed evid
 | REQ-QA-012 | Mutation script and results committed; atm rows name their cases | docs/plans/phase-a/evidence/a-7-planted-bugs.py, .json |
 | REQ-QA-013 | Validation table is the quality-policy command | sprint doc, Validation |
 | RSH-001, RSH-002, QA-001 | Messages are sent inside the tick budget with `send_within(min(timeout, time left))`; unsent ones stay unmarked; atm doc claim now true | `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`; planted 'announcements ignore the tick budget' |
-| RSH-003 | `StopFlag` checked between phases and before each message, kills the atm child; shutdown order documented | `the_stop_flag_ends_a_tick_between_phases`, `the_stop_flag_kills_the_child`, `a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick` |
+| RSH-003 | `StopFlag` checked between phases and before each message, kills the atm child; shutdown order documented | `the_stop_flag_ends_a_tick_between_phases`, `a_stop_that_arrives_mid_tick_ends_it_between_phases`, `the_stop_flag_kills_the_child_and_its_descendants`, `a_stopped_tick_does_nothing_and_the_next_tick_does_it_all` |
 | RSH-005, QA-006 | `should_stop` has a 3 s bound; roots are read from the cache first so the second read is cheap (ActiveSet not shared: not simple) | `STOP_CHECK_BUDGET`, ADR-SYNC-0002 |
 | QA-002 | Poison remembered in a shared flag; reported by the next tick whichever call recovered it | `a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick`; planted 'poison met by the stop check is lost' |
 | QA-007 | Failed outcome names the poison | `a_failed_run_carries_the_poison_note_and_outcomes_are_clipped` |
-| QA-004, RSH-004 | atm child leads a process group (Unix) / `taskkill /T` (Windows); whole tree killed | `the_whole_process_tree_is_killed_not_just_the_child`; planted 'atm kills only the direct child' |
+| QA-004, RSH-004 | atm child leads a process group (Unix) / `taskkill /T` (Windows); whole tree killed | `the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child`; planted 'atm kills only the direct child' |
 | QA-005 | Kill and reap on a `try_wait` error | `atm.rs` `kill_tree` on every exit path |
 | QA-009 | Hang test proves the child is gone with a proof-of-life marker | `an_atm_that_hangs_is_killed_and_gone_at_the_timeout` |
 | FTQ-002 | Capture threads waited for with the remaining budget (100 ms floor); truncation marked | `output_beyond_the_limit_is_dropped_and_the_error_says_so`; planted 'atm truncated output not marked' |
