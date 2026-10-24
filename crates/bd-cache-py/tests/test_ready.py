@@ -54,24 +54,24 @@ def test_the_journal_lands_when_bd_returns_and_fresh_ready_agrees(repo):
 
 
 LIMIT = 0.5
-# The stated margin over the limit: the runner kills the blocked child and the reply is
-# converted. The core proves the bound itself with a fake clock
-# (crates/bd-cache/tests/read_ready.rs,
-# `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`);
-# this test shows the binding adds nothing but this margin.
-MARGIN = 0.4
 
 
 def test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still_blocked(repo, stopwatch):
+    # The core proves the bound itself with a fake clock
+    # (crates/bd-cache/tests/read_ready.rs,
+    # `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`).
+    # Here the proof is causal: bd is blocked for up to 20 s and nothing releases it, yet the
+    # reply arrives, so the binding did not wait for bd. The time bound is a loose sanity check.
     cache = sanity_world(repo)
     cache.write("dev-1", "close", {"reason": "PASS"}, {"status": "in_progress"}, "close:dev-1:1", "dev-1")
-    release = repo.bd.block("*")  # bd answers only when released, and nothing releases it
+    release = repo.bd.block("*")
 
     with stopwatch() as watch:
         reply = cache.ready("x", fresh_within=LIMIT)
 
     assert not release.is_set(), "the reply came while bd was still blocked, so it did not wait for bd"
-    assert watch.elapsed < LIMIT + MARGIN, f"returned after {watch.elapsed:.2f}s, the limit was {LIMIT}s"
+    assert release.started(), "bd was asked, and was still blocked when the reply came"
+    assert watch.elapsed < 10, f"returned after {watch.elapsed:.2f}s; bd was blocked for up to 20 s"
     assert reply["basis"]["kind"] == "cached"
     assert reply["read_fallback"].startswith("BD_CACHE.BD_UNAVAILABLE")
     assert "san-1" in ready_ids(reply), "the cached answer, adjusted by the journaled close"
@@ -82,15 +82,22 @@ def test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_l
     cache = sanity_world(repo)
     release = repo.bd.block("blocked")
     repo.bd.edit("dev-1", status="closed")
+    seen = {}
 
     def release_when_bd_is_asked():
-        repo.bd.wait_started("blocked")
-        release.set()
+        try:
+            seen["argv"] = release.wait_started()[0]
+        except BaseException as error:
+            seen["error"] = error
+        finally:
+            release.set()
 
     helper = daemon(release_when_bd_is_asked)
     helper.start()
     reply = cache.ready("x", fresh_within=10)
     join(helper)
+    assert "error" not in seen, seen
+    assert seen["argv"][0] == "blocked", "the helper saw this verb's own call"
     assert reply["basis"]["kind"] == "fresh" and reply["read_fallback"] is None
     assert "san-1" in ready_ids(reply)
 

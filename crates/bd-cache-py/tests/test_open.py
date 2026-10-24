@@ -52,7 +52,7 @@ def test_an_invalid_config_file_is_a_value_error_with_kind_and_path(repo):
     repo.config("surprise = 1\n")
     with pytest.raises(ValueError, match="bd-cache.toml") as caught:
         repo.open()
-    assert caught.value.kind == "parse" and caught.value.path.endswith("bd-cache.toml")
+    assert caught.value.kind == "parse" and caught.value.path.name == "bd-cache.toml"
 
 
 def test_an_invalid_scope_in_the_config_file_is_a_value_error_of_kind_scope(repo):
@@ -72,7 +72,7 @@ def test_an_unreadable_config_file_is_an_os_error_with_kind_and_path(repo):
             repo.open()
     finally:
         path.chmod(0o600)
-    assert caught.value.kind == "read" and caught.value.path.endswith("bd-cache.toml")
+    assert caught.value.kind == "read" and caught.value.path.name == "bd-cache.toml"
 
 
 @pytest.mark.parametrize("keyword, value", [

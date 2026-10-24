@@ -22,7 +22,7 @@ is not `None` overrides the file's key (`call_timeout_s` and `miss_fill_timeout_
 second open of the same cache file in one process is `BD_CACHE.STORE_FAILED`
 until the first handle is closed (`close()`, or leaving a `with` block). A
 repository without readable `.beads/metadata.json` is `BD_CACHE.NO_DATABASE`;
-an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`) and `path`; an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8 is refused as a `ValueError` (never converted lossily).
+an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`) and `path`; an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
 **Acceptance evidence:** `test_open.py`; Rust `compose::tests`.
@@ -91,13 +91,15 @@ A value that is not a valid bead id, actor, idempotency key, phase name, `op`
 (negative, NaN, infinite) raises `ValueError` naming the argument; a list
 expected where a `str` was given raises `TypeError`. A verb on a closed handle
 raises `bd_cache_rs.ClosedError`, a `RuntimeError` subclass whose message says
-to open a new `Cache`. None of them touches the store. `list`'s `status` is
-not validated: the model has no closed set of statuses (bd's `--status` list
-is the backend's), so an unknown status filters to no rows.
+to open a new `Cache`. None of them touches the store. `list`'s `status` must be
+one of bd's seven statuses (`sc_bd_cli::argv::ALL_STATUSES`: `open`,
+`in_progress`, `blocked`, `deferred`, `closed`, `pinned`, `hooked`); any other
+text is a `ValueError` naming them, so a typo cannot read as "no rows".
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** `test_arguments_that_are_not_valid_values_raise_value_error`,
 `test_an_unknown_op_is_a_value_error_and_bad_args_are_typed`,
+`test_a_status_filter_must_be_a_bd_status`,
 `test_close_ends_the_handle_and_is_idempotent`.
 
 ## REQ-PY-0006: Threading
@@ -110,14 +112,17 @@ close the handle or drop it; verbs run one at a time, and no cross-thread use
 panics. Each verb, `close()`, `__exit__` and `closed` release the GIL or take no
 lock: `closed` is an atomic flag, true as soon as `close()` begins; `close()`
 waits for the in-flight verb with the GIL released and drops the connection
-there. A verb that panics closes the handle (the connection is dropped, the
-poisoned lock cleared) and the next call raises `ClosedError`. Other Python
+there. A verb that panics is caught at the panic: the connection is dropped and
+the handle closed before the call returns (so `closed` is already true and the
+cache file can be opened again), and that call and every later one raise
+`ClosedError`; no `PanicException` reaches Python. Other Python
 threads continue while a verb waits on `bd` or SQLite.
 
 **Refines:** REQ-BDC-0910, ADR-CORE-0001
 **Acceptance evidence:** `test_a_python_thread_runs_while_a_verb_waits_on_bd_and_releases_it`,
 `test_close_while_a_verb_is_in_flight`,
-`test_handles_on_different_cache_files_never_overlap_their_bd_calls`, Rust `slot::tests`,
+`test_handles_on_different_cache_files_never_overlap_their_bd_calls`,
+`test_spellings_of_one_project_directory_share_one_lock`, Rust `slot::tests`,
 `test_any_thread_can_use_the_handle_and_none_panics`,
 `test_verbs_from_several_threads_run_one_at_a_time_without_error`,
 `test_a_handle_can_be_closed_and_dropped_on_another_thread`,

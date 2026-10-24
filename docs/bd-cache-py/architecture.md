@@ -17,7 +17,7 @@ and, third party, on `pyo3` (workspace) with `serde` and `serde_json`
 | Module | Contents |
 |---|---|
 | `lib` | the `#[pymodule]` `bd_cache_rs`: the `Cache` class, `CacheError`, `UNREACHABLE`, `__version__` |
-| `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, validated overrides); the process-wide `ProjectLocks` set |
+| `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, validated overrides, the canonical project directory); the process-wide `ProjectLocks` set |
 | `slot` | pure Rust: the closable, mutex-guarded owner of the `Cache` (close, poison handling) |
 | `handle` | `PyCache`, the Python `Cache`: argument parsing, the sixteen verbs, GIL release |
 | `convert` | `serde_json::Value` to Python objects, JSON text for `write`, seconds to `Duration` |
@@ -50,7 +50,9 @@ third-party `pyo3`, `serde` and `serde_json`. `serde` is used only for the
 `Serialize` bound of replies.
 
 One `ProjectLocks` set per process (a `OnceLock` in `compose`) is shared by every
-handle: `bd` on embedded Dolt must not run twice at once in a project, and two
+handle, keyed by the canonical project directory (std `canonicalize`, with the
+Windows `\\?\` prefix removed by a small helper, so no `dunce` dependency is added;
+an unresolvable directory is refused): `bd` on embedded Dolt must not run twice at once in a project, and two
 handles on one project (different cache files) would otherwise each lock
 separately. It is the only static; it is correctness state and the libraries
 (`sc-bd-cli`) still take the set as an argument. The deadlines of `sync` and
@@ -80,7 +82,11 @@ instance carries `code`, `detail`, `fix`, `reason`, `payload`, `body` and
 `exit_code` as attributes; `payload` is `CacheError::to_json` without the
 fixed keys, `body` is the whole object (REQ-BDC-0802, 0803). A value that is
 not a valid argument is `ValueError`, never a `CacheError`: the cache has no
-code for a caller's malformed id.
+code for a caller's malformed id. That includes an `op` outside
+`bd_cache_model::OPS` and a `list` status outside bd's seven: the binding
+checks them before the core (lead ruling R7, bc-lead, 2026-10-24; the core's
+`BAD_OP` stays for its other callers), so `bd_cache.py`'s `BD_CACHE.BAD_OP`
+becomes `ValueError` here.
 
 Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its
 `as_json()` is `error.body`.
@@ -101,13 +107,19 @@ Decision (amends the sprint doc's "unsendable" wording, per lead ruling of
 their own mutex" option ADR-CORE-0001 names. The handle is `Send + Sync` to
 PyO3; any thread may call a verb, `close()` or drop it. Verbs run one at a
 time. Every verb takes the lock and runs inside `Python::detach`, so a thread
-waiting for the lock or for `bd` holds no GIL. `closed` is an atomic flag set as `close()` begins; `close()`, `__exit__` and
-`closed` never hold the GIL while they wait: `close()` waits for the in-flight
-verb inside `Python::detach` and drops the connection there. A verb that
-panics poisons the lock; the slot then drops the connection (it may be
-mid-statement), clears the poison, closes the handle and the call raises
-`ClosedError` telling the caller to open a new `Cache`. Nothing reuses a
-connection after a panic. Replies are converted after the GIL is taken again. SQLite
+waiting for the lock or for `bd` holds no GIL. `closed` is an atomic flag set
+as `close()` begins; `close()`, `__exit__` and `closed` never hold the GIL
+while they wait: `close()` waits for the in-flight verb inside `Python::detach`
+and drops the connection there. A verb runs under `catch_unwind` inside the
+slot: if it panics, the slot takes and drops the connection (it may be
+mid-statement) and sets `closed` before the call returns, so the cache file can
+be opened again at once, and the call raises `ClosedError` carrying the panic
+message and telling the caller to open a new `Cache`; later calls raise it too.
+No `PanicException` reaches Python. (Built with `panic = "abort"` a panic
+aborts the process, which is what a panic means.) A lock poisoned outside a
+verb (a panic in a `Drop`) is handled the same way: the value is dropped, the
+poison is cleared while the guard is held, and the first call reports it.
+Nothing reuses a connection after a panic. Replies are converted after the GIL is taken again. SQLite
 allows one connection per process per file (NFR-BDC-0007), so a second open
 of the same file in the process is `STORE_FAILED`; threads that want to run
 verbs in parallel open different files.
@@ -191,7 +203,7 @@ people to run), the binding that replaces each, and what differs. `cache` is a
 | `cache.store(row)` | cron, close-vars | covered by `cache.refresh(ids, timeout)`; the sync stores rows by itself |
 | `cache.view(row)` | close-vars | covered by `cache.refresh(ids, timeout)` and `cache.get(bead)`, which replay pending writes |
 | `cache.list(phase, status, label)` | backfill | `cache.list(phase, status=, label=)`; the reply is `{scope, last_ok_at, rows, outage}` with views, not a list of rows; an unknown phase is `SCOPE_UNKNOWN` (sync it first) |
-| `cache.write(bead, op, args, idem_key=, actor=, precondition=)` | sanity hook, backfill | `cache.write(bead, op, args, precondition, idem_key, actor)` (keywords work); `args` and `precondition` may be dicts or JSON text; the reply is `{seq, duplicate}` (Python adds `ok` and `state`; read `cache.entry(seq)["state"]`); a duplicate with another op is `IDEM_CONFLICT` with `payload["seq"]` |
+| `cache.write(bead, op, args, idem_key=, actor=, precondition=)` | sanity hook, backfill | `cache.write(bead, op, args, precondition, idem_key, actor)` (keywords work); `args` and `precondition` may be dicts or JSON text; the reply is `{seq, duplicate}` (Python adds `ok` and `state`; read `cache.entry(seq)["state"]`); a duplicate with another op is `IDEM_CONFLICT` with `payload["seq"]`; an unknown `op` is a `ValueError` here where `bd_cache.py` raised `BD_CACHE.BAD_OP` (ADR-PY-0002) |
 | `cache.drain(deadline=, monotonic=)` and the detached `bd_cache.py drain` command (`drain_now`) | cron, sanity hook | `cache.drain(start_gate_s, hard_s)`: two seconds-from-now bounds (start gate and hard deadline, REQ-BDC-0402) instead of one monotonic deadline; the cron passes `budget - 5` and `budget - 2`. The hook drains in process (`cache.drain(...)` on a thread of its own or left to the cron) instead of spawning a process; the report has no `ok` or `backend`, and carries `deferred_in_flight` and `outage` |
 | `cache.sync(phase, timeout=)` | cron, backfill | `cache.sync(phase, timeout)`; the report is `{scope, rebuilt, model_current, stored, blocked, deferred, outage}`; an unreachable backend returns the report with `outage` set instead of raising `SYNC_FAILED` (ADR-BDC-0005) |
 | `cache.prune(phase)` | `bd_cache.py prune` | `cache.prune(phase)`; `{scope, beads_deleted, out_of_scope_swept}` |

@@ -112,7 +112,7 @@ sync_alert(phase); set_sync_alert(phase, cause); open_work()
 Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 `CacheError(Exception)` carries `code`, `detail`, `fix`, `reason`, `payload`,
 `body`, `exit_code`. Bad arguments are `ValueError`; a closed handle is
-``ClosedError` (a `RuntimeError`).
+`ClosedError` (a `RuntimeError`).
 
 ## Requirement scope notes
 
@@ -140,7 +140,7 @@ Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 | mapping table covers every call at atm-core 05831df | `docs/bd-cache-py/architecture.md`, Mapping; `test_mapping_doc.py` |
 | `task open` path with the backend unreachable | `test_ready.py::test_task_open_path_ready_after_a_dev_close_with_the_backend_unreachable` (no `bd` call logged) |
 | escalated entry announced once | `test_announce.py::test_an_escalated_entry_is_announced_once_then_marked` |
-| `ready(fresh_within=0.5)` with a late `bd` | `test_ready.py::test_ready_with_a_limit_returns_the_cached_adjusted_answer_when_bd_answers_late` (under 1.0 s, `read_fallback` set) |
+| `ready(fresh_within=0.5)` with a late `bd` | `test_ready.py::test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still_blocked` (`read_fallback` set; returns while `bd` is still blocked, loose bound 10 s) |
 | cached `get` recorded | `test_perf.py`: macOS arm64 release build, local, Python 3.14: median 17.5 us, p99 about 20 us over 2000 calls. CI (run below, `-rP`): macos-14 median 22.7-23.0 us, ubuntu-latest median 46.6-47.2 us |
 | wheel builds, suite passes in `python.yml` | CI run below |
 
@@ -167,14 +167,24 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
   under test is the shipped one. Time-dependent tests are causal (the fake
   blocks until a Python thread creates a release file); durations are loose
   sanity bounds, except the `ready` limit, which asserts the limit plus a
-  stated 0.4 s margin and cites the core test that proves the bound
+  loose 10 s bound, the proof being that the reply comes while bd is still blocked,
+  and cites the core test that proves the 0.5 s bound with a fake clock
   (`crates/bd-cache/tests/read_ready.rs`,
   `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`).
 - **Workspace dependencies.** `bd-cache-store` and `sc-bd-cli` are in the root
   `[workspace.dependencies]` (lead ruling R2, bc-lead, 2026-10-24; recorded in
   phase-a-plan's Shared files table); the crate uses `workspace = true`.
-- **`list` status filter** is not validated: the model has no closed set of
-  statuses (REQ-PY-0005).
+- **`list` status filter** is validated against `sc_bd_cli::argv::ALL_STATUSES`
+  (REQ-PY-0005); `op` is validated against `bd_cache_model::OPS` (R7).
+- **`bd-cache-model`** gained `UNREACHABLE_CODES`, `ENVELOPE_KEYS`,
+  `CacheError::is_unreachable` and `payload_keys` (exhaustive matches) and their
+  tests, in `src/error.rs` plus two re-exports in `lib.rs` (lead ruling R9).
+- **Start-gate ordering** (gate closes while a pre-read is blocked) is the
+  core's, tested with a fake clock in `crates/bd-cache/tests/drain_budget.rs`
+  (`test_drain_deadline_defers_unstarted_entries_without_attempts`,
+  `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`); the binding
+  tests keep the spent-gate and hard-deadline cases, which fail if the two
+  bounds are swapped.
 - **ci.yml** is unchanged: it excludes `bd-cache-py`; `python.yml` runs the
   crate's clippy and `cargo test` on macOS, Linux and Windows (R4).
 
@@ -236,7 +246,7 @@ https://github.com/randlee/beads-cache/actions/runs/40085690694 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
 https://github.com/randlee/beads-cache/actions/runs/40085690769 (success).
-The docs-only head `27bf211` is also green (python 40095045711, ci 40095045761).
+
 
 ## Fix round 1 (QA-1 at b75b5f3)
 

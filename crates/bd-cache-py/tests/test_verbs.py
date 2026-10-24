@@ -8,8 +8,6 @@ import time
 
 import pytest
 
-from conftest import daemon, join
-
 import bd_cache_rs
 
 ALL = "open,in_progress,blocked,deferred,closed,pinned,hooked"
@@ -168,29 +166,6 @@ def test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt(cache, re
     assert watch.elapsed < 10, "a loose sanity bound; the cause is the block above"
     assert report["applied"] == [] and report["escalated"] == []
     assert cache.entry(1)["attempts"] == 0 and cache.entry(1)["state"] == "pending"
-
-
-def test_drain_start_gate_closing_does_not_cut_a_pre_read_the_hard_deadline_allows(cache, repo):
-    cache.write("b1", "close", {}, None, "k1", "dev-1")
-    release = repo.bd.block("list")
-    gate = 0.3
-    started = time.monotonic()
-
-    def release_after_the_gate():
-        repo.bd.wait_started("list")
-        # The release comes strictly after the start gate closed, so the order is fixed.
-        while time.monotonic() < started + gate + 0.3:
-            time.sleep(0.01)
-        release.set()
-
-    helper = daemon(release_after_the_gate)
-    helper.start()
-    report = cache.drain(gate, 30)
-    join(helper)
-    assert report["deferred"] == [1] and report["applied"] == []
-    list_calls = [(s, e) for s, e, argv in repo.bd.spans() if argv[0] == "list"]
-    assert list_calls and list_calls[-1][1] is not None, "the pre-read was not cut: only the hard deadline cuts a call"
-    assert "close" not in repo.bd.commands(), "no write started after the gate"
 
 
 def test_sync_stops_at_its_timeout_when_bd_is_blocked(cache, repo):

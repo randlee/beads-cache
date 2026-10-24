@@ -12,20 +12,28 @@ import time
 import pytest
 
 import bd_cache_rs
-from conftest import daemon, join
+from conftest import daemon, join, wait_until
 
 
 def test_a_python_thread_runs_while_a_verb_waits_on_bd_and_releases_it(cache, repo):
     release = repo.bd.block("list")
+    seen = {}
 
-    def release_once_bd_runs():
-        repo.bd.wait_started("list")  # needs the GIL while the verb is blocked inside bd
-        release.set()
+    def release_once_the_verbs_own_call_runs():
+        try:
+            # Needs the GIL while the verb is blocked inside bd; sees only calls made after arming.
+            seen["argv"] = release.wait_started()[0]
+        except BaseException as error:
+            seen["error"] = error
+        finally:
+            release.set()
 
-    helper = daemon(release_once_bd_runs)
+    helper = daemon(release_once_the_verbs_own_call_runs)
     helper.start()
     rows = cache.refresh(["b1"], 10)  # a held GIL would never let the helper release bd
     join(helper)
+    assert "error" not in seen, seen
+    assert seen["argv"][:3] == ["list", "--id", "b1"], "the helper saw this verb's own bd call"
     assert [r["bead"]["id"] for r in rows] == ["b1"]
 
 
@@ -88,19 +96,22 @@ def test_close_while_a_verb_is_in_flight(cache, repo):
             time.sleep(0.005)
 
     def releaser():
-        # `closed` turns true as close() begins, and close() then waits for the verb.
-        while not cache.closed:
-            time.sleep(0.002)
-        base = ticks[0]
-        # The ticker can only advance if close() released the GIL while it waits.
-        while ticks[0] < base + 5:
-            time.sleep(0.002)
-        seen["closed_while_in_flight"] = cache.closed
-        release.set()
+        try:
+            # `closed` turns true as close() begins, and close() then waits for the verb.
+            wait_until(lambda: cache.closed, "close() to begin")
+            base = ticks[0]
+            # The ticker can only advance if close() released the GIL while it waits.
+            wait_until(lambda: ticks[0] >= base + 5, "the ticker to advance during close()")
+            seen["closed_while_in_flight"] = cache.closed
+        except BaseException as error:
+            seen["error"] = error
+        finally:
+            release.set()
 
     in_flight, tick, rel = daemon(verb), daemon(ticker), daemon(releaser)
     in_flight.start()
-    repo.bd.wait_started("list")  # the verb holds the lock inside bd
+    argv = release.wait_started()[0]  # the verb's own call holds the lock inside bd
+    assert argv[:3] == ["list", "--id", "b1"]
     tick.start()
     rel.start()
     cache.close()  # returns only after the verb finished
@@ -109,6 +120,7 @@ def test_close_while_a_verb_is_in_flight(cache, repo):
     stop.set()
     join(tick)
 
+    assert "error" not in seen, seen
     assert "error" not in result, result
     assert [r["bead"]["id"] for r in result["rows"]] == ["b1"], "the in-flight verb finished normally"
     assert seen["closed_while_in_flight"] is True
@@ -191,3 +203,43 @@ def test_handles_on_different_cache_files_never_overlap_their_bd_calls(repo):
     assert len(spans) == 6
     for (_, end, argv), (start, _, _) in zip(spans, spans[1:]):
         assert end is not None and end <= start, f"bd calls overlapped: {argv} ended {end}, next started {start}"
+
+
+def test_spellings_of_one_project_directory_share_one_lock(repo):
+    # `root`, `root/.` and a symlink to it are one directory. The lock key must be the same
+    # string for all of them, or their `bd` calls would overlap.
+    repo.bd.delay("*", 0.2)
+    link = repo.root.parent / "repo-link"
+    try:
+        link.symlink_to(repo.root, target_is_directory=True)
+    except (OSError, NotImplementedError):
+        pytest.skip("symlinks are not available here")
+    spellings = [str(repo.root), str(repo.root) + "/.", str(link)]
+    caches = [repo.open(cache_path=f"c{n}.sqlite3", project_dir=d) for n, d in enumerate(spellings)]
+    barrier = threading.Barrier(3)
+    errors = []
+
+    def work(cache):
+        try:
+            barrier.wait(30)
+            for _ in range(2):
+                cache.refresh(["b1"], 20)
+        except BaseException as error:
+            errors.append(error)
+
+    threads = [daemon(work, c) for c in caches]
+    for t in threads:
+        t.start()
+    for t in threads:
+        join(t)
+    assert errors == []
+    spans = sorted(repo.bd.spans())
+    assert len(spans) == 6
+    for (_, end, argv), (start, _, _) in zip(spans, spans[1:]):
+        assert end is not None and end <= start, f"bd calls overlapped: {argv} ended {end}, next started {start}"
+
+
+def test_a_project_directory_that_does_not_resolve_is_refused(repo):
+    with pytest.raises(ValueError, match="does not resolve") as caught:
+        repo.open(project_dir=str(repo.root / "no-such-dir"))
+    assert caught.value.kind == "argument"

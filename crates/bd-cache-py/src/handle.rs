@@ -5,15 +5,18 @@
 //! mutex" option of ADR-CORE-0001). Any Python thread may use the handle; verbs
 //! run one at a time, and a thread that waits for the lock or for `bd` does so
 //! with the GIL released, so other Python threads keep going. Nothing panics on
-//! a cross-thread use.
+//! a cross-thread use. A verb that panics is caught in the slot: the connection is
+//! dropped and the handle closed at that moment, and that call and every later
+//! one raise `ClosedError` (no `PanicException` reaches Python).
 
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
-use pyo3::exceptions::{PyOSError, PyValueError};
+use pyo3::exceptions::{PyBaseException, PyOSError, PyValueError};
 use pyo3::prelude::*;
+use sc_bd_cli::argv::ALL_STATUSES;
 use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
@@ -156,7 +159,7 @@ impl PyCache {
         self.path.clone()
     }
 
-    /// True once `close()` has run (or a panicking verb closed the handle).
+    /// True once `close()` has run, or a verb that panicked closed the handle.
     ///
     /// True as soon as `close()` begins, even while a verb on another thread is
     /// still finishing.
@@ -276,6 +279,15 @@ impl PyCache {
         label: Option<String>,
     ) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
+        if let Some(st) = status
+            .as_deref()
+            .filter(|st| !ALL_STATUSES.split(',').any(|known| known == *st))
+        {
+            return Err(bad_argument(
+                "status",
+                format!("{st:?} is not a bd status; use one of {ALL_STATUSES}"),
+            ));
+        }
         self.call(py, move |c| {
             c.cache.list(&s, status.as_deref(), label.as_deref())
         })
@@ -387,12 +399,19 @@ impl PyCache {
 }
 
 /// Maps an open failure to its Python exception.
+///
+/// The attributes `kind` and `path` are set from the typed values; if setting one
+/// fails, that failure is chained as the exception's `__cause__`.
 fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
     let decorate = |err: PyErr, kind: &str, path: Option<&PathBuf>| {
-        let value = err.value(py);
-        // Best effort: the message already says everything; the attributes are for code.
-        let _ = value.setattr("kind", kind);
-        let _ = value.setattr("path", path.map(|p| p.to_string_lossy().into_owned()));
+        let set = |value: &Bound<'_, PyBaseException>| -> PyResult<()> {
+            value.setattr("kind", kind)?;
+            value.setattr("path", path)?;
+            Ok(())
+        };
+        if let Err(cause) = set(err.value(py)) {
+            err.set_cause(py, Some(cause));
+        }
         err
     };
     match e {
@@ -421,6 +440,10 @@ impl PyCache {
             Outcome::Closed => Err(ClosedError::new_err(
                 "the cache is closed; open a new bd_cache_rs.Cache to keep using it",
             )),
+            Outcome::Panicked(text) => Err(ClosedError::new_err(format!(
+                "the call failed inside the cache ({text}) and the handle was closed; \
+                 open a new bd_cache_rs.Cache to keep using it"
+            ))),
             Outcome::Poisoned => Err(ClosedError::new_err(
                 "an earlier call failed inside the cache and the handle was closed; \
                  open a new bd_cache_rs.Cache to keep using it",

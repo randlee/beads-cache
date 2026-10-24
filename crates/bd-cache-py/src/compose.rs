@@ -130,12 +130,45 @@ fn project_locks() -> Arc<ProjectLocks> {
     Arc::clone(LOCKS.get_or_init(|| Arc::new(ProjectLocks::new())))
 }
 
-fn utf8<'a>(what: &str, p: &'a Path) -> Result<&'a str, OpenError> {
-    p.to_str().ok_or_else(|| OpenError::Config {
+/// The directory `bd` runs in, resolved to its one canonical spelling.
+///
+/// The lock key is the directory text, so `root`, `root/.`, `root/` and a symlink to
+/// `root` must all become one string, or two handles on one project would run `bd`
+/// at the same time. A directory that does not resolve is refused. On Windows the
+/// `\\?\` prefix `canonicalize` adds is removed (what the `dunce` crate does), so the
+/// path stays the one `bd` and the user see; no dependency is added for it.
+fn project_dir_text(what: &str, p: &Path) -> Result<String, OpenError> {
+    let refuse = |text: String| OpenError::Config {
         kind: "argument",
         path: None,
-        text: format!("{what} {} is not valid UTF-8", p.display()),
-    })
+        text,
+    };
+    p.to_str()
+        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", p.display())))?;
+    let canonical = std::fs::canonicalize(p)
+        .map_err(|e| refuse(format!("{what} {} does not resolve: {e}", p.display())))?;
+    if !canonical.is_dir() {
+        return Err(refuse(format!("{what} {} is not a directory", p.display())));
+    }
+    let text = canonical
+        .to_str()
+        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", canonical.display())))?;
+    Ok(simplify(text).to_owned())
+}
+
+/// Drops the Windows verbatim prefix `\\?\` from a canonical path, unless the path
+/// needs it (`\\?\UNC\...`, or a drive-less device path).
+fn simplify(text: &str) -> &str {
+    match text.strip_prefix(r"\\?\") {
+        Some(rest)
+            if !rest.starts_with(r"UNC\")
+                && rest.as_bytes().get(1) == Some(&b':')
+                && rest.as_bytes().first().is_some_and(u8::is_ascii_alphabetic) =>
+        {
+            rest
+        }
+        _ => text,
+    }
 }
 
 /// Opens the cache of `repo_root`, running `bd_binary` in `project_dir`.
@@ -144,7 +177,8 @@ fn utf8<'a>(what: &str, p: &'a Path) -> Result<&'a str, OpenError> {
 ///
 /// # Errors
 ///
-/// [`OpenError::Config`] for an invalid config file, scope or non-UTF-8 path;
+/// [`OpenError::Config`] for an invalid config file or scope, a non-UTF-8 path, or a
+/// `project_dir` (or the default, `repo_root`) that does not resolve to a directory;
 /// [`OpenError::Read`] for an unreadable config file; [`OpenError::Cache`]
 /// for `NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION` or `STORE_FAILED`.
 pub(crate) fn open(
@@ -153,9 +187,13 @@ pub(crate) fn open(
     project_dir: Option<&Path>,
     overrides: Overrides,
 ) -> Result<Opened, OpenError> {
-    utf8("repo_root", repo_root)?;
-    let dir = project_dir.unwrap_or(repo_root);
-    let project = ProjectRef::local(Some(utf8("project_dir", dir)?.to_owned()));
+    let (what, dir) = project_dir.map_or(("repo_root", repo_root), |d| ("project_dir", d));
+    let project = ProjectRef::local(Some(project_dir_text(what, dir)?));
+    repo_root.to_str().ok_or_else(|| OpenError::Config {
+        kind: "argument",
+        path: None,
+        text: format!("repo_root {} is not valid UTF-8", repo_root.display()),
+    })?;
     let mut config: RepoConfig = load_repo_config(repo_root)?;
     if let Some(p) = overrides.cache_path {
         config.cache_path = Some(p);
@@ -206,6 +244,31 @@ mod tests {
             text.contains("\"b k\"") && text.contains("phase name"),
             "{text}"
         );
+    }
+
+    #[test]
+    fn the_windows_verbatim_prefix_is_dropped_only_where_it_is_not_needed() {
+        assert_eq!(simplify(r"\\?\C:\work\repo"), r"C:\work\repo");
+        assert_eq!(simplify(r"\\?\UNC\host\share"), r"\\?\UNC\host\share");
+        assert_eq!(simplify(r"\\?\Volume{1}\x"), r"\\?\Volume{1}\x");
+        assert_eq!(simplify("/tmp/repo"), "/tmp/repo");
+    }
+
+    #[test]
+    fn spellings_of_one_directory_become_one_lock_key_and_a_missing_one_is_refused() {
+        let dir = std::env::temp_dir();
+        let plain = project_dir_text("project_dir", &dir).unwrap();
+        let dotted = project_dir_text("project_dir", &dir.join(".")).unwrap();
+        let slashed = project_dir_text("project_dir", &dir.join("")).unwrap();
+        assert_eq!(plain, dotted);
+        assert_eq!(plain, slashed);
+        assert!(matches!(
+            project_dir_text("project_dir", &dir.join("no-such-dir-bd-cache-py")),
+            Err(OpenError::Config {
+                kind: "argument",
+                ..
+            })
+        ));
     }
 
     #[cfg(unix)]

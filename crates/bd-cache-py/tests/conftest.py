@@ -129,36 +129,52 @@ class FakeBd:
         return [(e["at"], ends.get(e["pid"]), e["argv"]) for e in self.events() if e["event"] == "start"]
 
     def block(self, command="*", deadline=20):
-        """Makes `command` wait until the returned release file exists (or `deadline` seconds pass)."""
+        """Makes `command` wait until the returned release file exists (or `deadline` seconds pass).
+
+        The returned `Release` remembers how many calls had started when it was armed, so its
+        `wait_started` sees only calls made after that: never a call an earlier step logged.
+        """
         self.load()
         release = self.state_path.with_name(f"release-{command.strip('*') or 'all'}-{len(self.state.get('block', {}))}")
         self.state.setdefault("block", {})[command] = str(release)
         self.state["block_deadline"] = deadline
         self.save()
-        return Release(release, self)
-
-    def wait_started(self, command, count=1, timeout=30):
-        """Blocks the test until `count` calls of `command` have started (their process is running)."""
-        end = time.monotonic() + timeout
-        while time.monotonic() < end:
-            if self.commands().count(command) >= count:
-                return
-            time.sleep(0.005)
-        raise AssertionError(f"no bd {command} started within {timeout}s: {self.commands()}")
+        return Release(release, self, command, baseline=len(self.calls()))
 
 
 class Release:
-    """The release file of a blocked command."""
+    """The release file of a blocked command, and the calls made since it was armed."""
 
-    def __init__(self, path, fake):
+    def __init__(self, path, fake, command, baseline):
         self.path = path
         self.fake = fake
+        self.command = command
+        self.baseline = baseline
 
     def set(self):
         self.path.write_text("go", encoding="utf-8")
 
     def is_set(self):
         return self.path.exists()
+
+    def started(self):
+        """The argv of every call this release blocks that started after it was armed."""
+        later = self.fake.calls()[self.baseline:]
+        return [argv for argv in later if self.command == "*" or argv[0] == self.command]
+
+    def wait_started(self, count=1, timeout=30):
+        """Waits until `count` blocked calls have started since arming; returns their argv."""
+        wait_until(lambda: len(self.started()) >= count, f"{count} blocked bd {self.command} call(s)", timeout)
+        return self.started()
+
+
+def wait_until(predicate, what, seconds=20):
+    """Polls `predicate` against a monotonic deadline; a miss is a descriptive failure, not a hang."""
+    end = time.monotonic() + seconds
+    while not predicate():
+        if time.monotonic() > end:
+            raise AssertionError(f"timed out after {seconds}s waiting for {what}")
+        time.sleep(0.002)
 
 
 def daemon(target, *args):

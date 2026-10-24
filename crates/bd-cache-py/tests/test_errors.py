@@ -145,3 +145,10 @@ def test_a_zero_miss_timeout_is_a_cached_only_get(cache, repo):
     assert cache.get("b1", miss_timeout=0)["row"]["bead"]["id"] == "b1"
     assert raised(cache.get, "zz-9", miss_timeout=0).code == "BD_CACHE.BD_UNAVAILABLE"
     assert len(repo.bd.calls()) == n, "neither a hit nor a zero-time miss calls bd"
+
+
+def test_a_status_filter_must_be_a_bd_status(cache):
+    for status in ("open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"):
+        assert cache.list("x", status=status)["scope"] == "x"
+    with pytest.raises(ValueError, match="status.*opne.*open,in_progress,blocked,deferred,closed,pinned,hooked"):
+        cache.list("x", status="opne")

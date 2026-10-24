@@ -8,10 +8,18 @@
 //! - `close` marks the slot closed *before* it waits for the lock, so
 //!   `is_closed` is true at once, a verb that has not started yet is refused, and
 //!   the in-flight verb finishes; the value is then dropped by the closer;
-//! - a verb that panics poisons the mutex. The slot then drops the value
-//!   (the connection may be mid-statement), clears the poison, closes, and
-//!   reports [`Outcome::Poisoned`] once; later calls see [`Outcome::Closed`].
+//! - a verb that panics is caught at the panic: the slot drops the value (the
+//!   connection may be mid-statement), marks itself closed and reports
+//!   [`Outcome::Panicked`] with the panic message, all before `with` returns, so
+//!   `is_closed` is already true and the file is free to reopen. The panic does not
+//!   reach Python. (With `panic = "abort"` the process aborts instead, which is
+//!   what a panic means, M-PANIC-IS-STOP.)
+//! - the mutex can still be poisoned by a panic outside a verb (a `Drop`); the
+//!   slot then drops the value, clears the poison while holding the guard, closes
+//!   and reports [`Outcome::Poisoned`] once; later calls see [`Outcome::Closed`].
 
+use std::any::Any;
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -22,7 +30,9 @@ pub(crate) enum Outcome<R> {
     Done(R),
     /// The slot is closed; the verb did not run.
     Closed,
-    /// An earlier verb panicked; the slot dropped its value and closed, and this verb did not run.
+    /// The verb panicked with this message; the slot dropped its value and closed.
+    Panicked(String),
+    /// The lock was poisoned by an earlier panic; the slot dropped its value and closed.
     Poisoned,
 }
 
@@ -33,6 +43,15 @@ pub(crate) struct Slot<T> {
     closed: AtomicBool,
 }
 
+/// The text of a panic payload.
+fn message(payload: &(dyn Any + Send)) -> String {
+    payload
+        .downcast_ref::<&str>()
+        .map(|s| (*s).to_owned())
+        .or_else(|| payload.downcast_ref::<String>().cloned())
+        .unwrap_or_else(|| "a panic without a message".to_owned())
+}
+
 impl<T> Slot<T> {
     pub(crate) fn new(value: T) -> Self {
         Self {
@@ -41,7 +60,7 @@ impl<T> Slot<T> {
         }
     }
 
-    /// True once `close` has been called (or a panic closed the slot).
+    /// True once `close` has been called or a panic closed the slot.
     pub(crate) fn is_closed(&self) -> bool {
         self.closed.load(Ordering::SeqCst)
     }
@@ -58,17 +77,28 @@ impl<T> Slot<T> {
                 if self.is_closed() {
                     return Outcome::Closed;
                 }
-                match guard.as_mut() {
-                    Some(v) => Outcome::Done(f(v)),
-                    None => Outcome::Closed,
+                let Some(value) = guard.as_mut() else {
+                    return Outcome::Closed;
+                };
+                // The value is dropped on a panic, so nothing observes it half-updated.
+                match catch_unwind(AssertUnwindSafe(|| f(value))) {
+                    Ok(done) => Outcome::Done(done),
+                    Err(payload) => {
+                        let dropped = guard.take();
+                        self.closed.store(true, Ordering::SeqCst);
+                        drop(guard);
+                        drop(dropped);
+                        Outcome::Panicked(message(payload.as_ref()))
+                    }
                 }
             }
             Err(poisoned) => {
                 let mut guard = poisoned.into_inner();
                 let dropped = guard.take();
                 self.closed.store(true, Ordering::SeqCst);
-                drop(guard);
+                // Cleared while the guard is held, so no other caller sees the poison again.
                 self.value.clear_poison();
+                drop(guard);
                 drop(dropped);
                 Outcome::Poisoned
             }
@@ -83,8 +113,10 @@ impl<T> Slot<T> {
         let taken = match self.value.lock() {
             Ok(mut guard) => guard.take(),
             Err(poisoned) => {
-                let taken = poisoned.into_inner().take();
+                let mut guard = poisoned.into_inner();
+                let taken = guard.take();
                 self.value.clear_poison();
+                drop(guard);
                 taken
             }
         };
@@ -166,33 +198,63 @@ mod tests {
     }
 
     #[test]
-    fn a_panicking_verb_drops_the_value_clears_the_poison_and_closes() {
+    fn a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value() {
         let drops = Arc::new(AtomicUsize::new(0));
-        let slot = Arc::new(Slot::new(Probe(Arc::clone(&drops))));
-        let crashed = {
-            let slot = Arc::clone(&slot);
-            thread::spawn(move || slot.with(|_| panic!("a verb panicked")))
-        };
-        assert!(crashed.join().is_err());
-        assert_eq!(slot.with(|_| 1), Outcome::Poisoned, "told once");
-        assert_eq!(drops.load(Ordering::SeqCst), 1, "the value is gone");
+        let slot = Slot::new(Probe(Arc::clone(&drops)));
+        let outcome = slot.with(|_| -> u32 { panic!("a verb panicked") });
+        // Straight after the panic: closed, the value gone, the panic reported, no poison.
+        assert_eq!(outcome, Outcome::Panicked("a verb panicked".to_owned()));
         assert!(slot.is_closed());
-        assert_eq!(slot.with(|_| 1), Outcome::Closed, "then plainly closed");
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
+        assert!(!slot.value.is_poisoned());
+        assert_eq!(slot.with(|_| 1), Outcome::Closed);
         slot.close();
         assert_eq!(drops.load(Ordering::SeqCst), 1);
     }
 
     #[test]
-    fn close_after_a_panic_still_drops_the_value() {
+    fn a_panic_with_a_formatted_message_is_reported_with_it() {
+        let slot = Slot::new(0_u32);
+        let code = 7;
+        let outcome = slot.with(|_| -> u32 { panic!("failed with code {code}") });
+        assert_eq!(outcome, Outcome::Panicked("failed with code 7".to_owned()));
+    }
+
+    #[test]
+    fn a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once() {
         let drops = Arc::new(AtomicUsize::new(0));
         let slot = Arc::new(Slot::new(Probe(Arc::clone(&drops))));
-        let crashed = {
+        let poisoner = {
             let slot = Arc::clone(&slot);
-            thread::spawn(move || slot.with(|_| panic!("a verb panicked")))
+            thread::spawn(move || {
+                let _guard = slot.value.lock().unwrap();
+                panic!("a drop panicked");
+            })
         };
-        assert!(crashed.join().is_err());
+        assert!(poisoner.join().is_err());
+        assert!(slot.value.is_poisoned());
+        assert_eq!(slot.with(|_| 1), Outcome::Poisoned, "told once");
+        assert!(!slot.value.is_poisoned());
+        assert_eq!(drops.load(Ordering::SeqCst), 1, "the value is gone");
+        assert!(slot.is_closed());
+        assert_eq!(slot.with(|_| 1), Outcome::Closed, "then plainly closed");
+    }
+
+    #[test]
+    fn close_of_a_poisoned_slot_still_drops_the_value() {
+        let drops = Arc::new(AtomicUsize::new(0));
+        let slot = Arc::new(Slot::new(Probe(Arc::clone(&drops))));
+        let poisoner = {
+            let slot = Arc::clone(&slot);
+            thread::spawn(move || {
+                let _guard = slot.value.lock().unwrap();
+                panic!("a drop panicked");
+            })
+        };
+        assert!(poisoner.join().is_err());
         slot.close();
         assert_eq!(drops.load(Ordering::SeqCst), 1);
+        assert!(!slot.value.is_poisoned());
         assert_eq!(slot.with(|_| 1), Outcome::Closed);
     }
 }
