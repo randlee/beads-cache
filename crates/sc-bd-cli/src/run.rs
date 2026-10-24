@@ -7,13 +7,18 @@
 //! `RecordingInvoker` records, exactly the same vector.
 //!
 //! Every spawn sets `PATH` to [`get_extended_path`]; project invocations run in the
-//! project's working directory with `BEADS_PATH` set to it. Spawns block until the
-//! child exits (`Command::output()`, no timeout).
+//! project's working directory with `BEADS_PATH` set to it. The project spawns
+//! ([`spawn_json`], [`run_raw`]) block until the child exits (`Command::output()`, no
+//! timeout), as in btit; see [`ProjectLocks`] on why they must not share a lock set
+//! with the cache. The `--version` probe ([`probe_version_output`]) is bounded by
+//! [`VERSION_PROBE_TIMEOUT`] (PE-RSH-012).
 
 use std::env;
+use std::io;
 use std::process::Output;
 use std::sync::atomic::Ordering;
 use std::sync::PoisonError;
+use std::time::{Duration, Instant};
 
 use sc_beads::error::BeadsError;
 use sc_beads::gates::capabilities_for;
@@ -21,6 +26,7 @@ use sc_beads::logging::VERBOSE_LOGGING;
 use sc_beads::{log_debug, log_error, log_info};
 use sc_beads::{CliClient, CliOutput, CliProbe, ProjectRef};
 
+use crate::bounded::{run_child, BoundedError, MAX_OUTPUT_BYTES};
 use crate::command::{new_command, ChildEnv};
 use crate::locks::{ProjectLocks, WorkingDir};
 use crate::path::get_extended_path;
@@ -90,8 +96,21 @@ pub fn json_invocation(
     (client, json_argv(command, args, no_daemon))
 }
 
+/// The longest a `<binary> --version` probe may run before it is killed
+/// (PE-RSH-012).
+///
+/// `bd --version` prints a constant and touches no database, so it answers in
+/// milliseconds; ten seconds leaves room for a cold start on a loaded host or a
+/// first-run virus scan on Windows, while a binary that hangs (a wrapper script
+/// waiting on a terminal, a broken install) can no longer stall the runner's
+/// first call, which holds the probe cache's lock across the probe.
+pub const VERSION_PROBE_TIMEOUT: Duration = Duration::from_secs(10);
+
 /// Spawns `binary` with exactly `argv` in `working_dir`, holding that directory's
 /// project lock, and returns stdout.
+///
+/// The wait for the lock and the child are unbounded (btit's contract): do not share
+/// `locks` with the cache ([`ProjectLocks`], PE-RSH-012).
 ///
 /// Logs `[bd] <binary> <argv> | cwd: <dir>` before the spawn, `[bd] OK | <n> bytes`
 /// after it, and a 500-character output preview when verbose logging is on.
@@ -99,6 +118,8 @@ pub fn json_invocation(
 /// # Errors
 ///
 /// - [`BeadsError::Spawn`] (`operation: None`) when the process cannot be started.
+/// - [`BeadsError::Unsupported`] when the canonical path of `working_dir` is not UTF-8,
+///   so it cannot key a project lock ([`ProjectLocks::try_guard_dir`]).
 /// - [`BeadsError::SchemaMigration`] when it fails with `no such column: spec_id` on stderr.
 /// - [`BeadsError::CommandFailed`] for any other unsuccessful exit.
 pub fn spawn_json(
@@ -122,7 +143,15 @@ pub(crate) fn spawn_json_in(
     log_info!("[bd] {} {} | cwd: {}", binary, argv.join(" "), working_dir);
 
     // Acquire per-project lock to prevent concurrent Dolt access (causes SIGSEGV).
-    let project_lock = locks.guard(working_dir);
+    let project_lock = locks
+        .try_guard_dir(&WorkingDir::new(working_dir))
+        .map_err(|e| {
+            log_error!("[bd] refusing to lock {}: {}", working_dir, e);
+            BeadsError::Unsupported {
+                operation: "a project directory whose canonical path is not UTF-8",
+                client: CliClient::Unknown,
+            }
+        })?;
     let _guard = project_lock.lock().unwrap_or_else(PoisonError::into_inner);
 
     let output = env
@@ -201,6 +230,8 @@ pub fn run_json(
 
 /// `<binary> <args…>` in `working_dir` with `PATH`/`BEADS_PATH`, no `--json`, no lock.
 ///
+/// Blocks until the child exits, with no timeout (btit's contract, PE-RSH-012).
+///
 /// Any exit status is returned as `Ok`; the caller decides what a failure means.
 ///
 /// # Errors
@@ -232,23 +263,48 @@ pub(crate) fn run_raw_in(
 }
 
 /// `<binary> --version`, run from the system temp directory (so bd never auto-migrates a
-/// project as a side effect of the probe) with the extended `PATH`.
+/// project as a side effect of the probe) with the extended `PATH`, stopped at
+/// [`VERSION_PROBE_TIMEOUT`].
+///
+/// Standard input is closed. The probe leads its own process group, so a timeout
+/// kills everything it started (PE-RSH-012).
 ///
 /// # Errors
 ///
-/// [`BeadsError::Spawn`] (`operation: "--version"`) when the process cannot be started.
+/// [`BeadsError::Spawn`] (`operation: "--version"`) when the process cannot be
+/// started, its output cannot be read, or it runs past [`VERSION_PROBE_TIMEOUT`] (the
+/// source is then an [`io::ErrorKind::TimedOut`] error).
 pub fn probe_version_output(binary: &str) -> Result<CliOutput, BeadsError> {
-    new_command(binary)
-        .arg("--version")
+    probe_version_output_within(binary, VERSION_PROBE_TIMEOUT)
+}
+
+/// [`probe_version_output`] stopped at `timeout` instead of [`VERSION_PROBE_TIMEOUT`].
+pub(crate) fn probe_version_output_within(
+    binary: &str,
+    timeout: Duration,
+) -> Result<CliOutput, BeadsError> {
+    const OPERATION: &str = "--version";
+    let mut command = new_command(binary);
+    command
+        .arg(OPERATION)
         .current_dir(env::temp_dir())
-        .env("PATH", get_extended_path())
-        .output()
-        .map(|output| cli_output(&output))
-        .map_err(|source| BeadsError::Spawn {
-            binary: binary.to_string(),
-            operation: Some("--version".to_string()),
-            source,
-        })
+        .env("PATH", get_extended_path());
+    let start = Instant::now();
+    let limit = start.checked_add(timeout).unwrap_or(start);
+    let spawn = |source: io::Error| BeadsError::Spawn {
+        binary: binary.to_string(),
+        operation: Some(OPERATION.to_string()),
+        source,
+    };
+    match run_child(command, binary, Some(OPERATION), limit, MAX_OUTPUT_BYTES) {
+        Ok(output) => Ok(output),
+        Err(BoundedError::Failed(e)) => Err(e),
+        Err(BoundedError::TimedOut { phase }) => Err(spawn(io::Error::new(
+            io::ErrorKind::TimedOut,
+            format!("timed out {phase} after {timeout:?}"),
+        ))),
+        Err(BoundedError::Output(e)) => Err(spawn(e)),
+    }
 }
 
 /// Lossy UTF-8 view of a finished process.
@@ -360,6 +416,58 @@ mod tests {
         assert!(err
             .to_string()
             .starts_with("Failed to execute definitely-not-a-real-cli-binary-xyz: "));
+    }
+
+    /// A `--version` that hangs is stopped at its bound, and what it started dies
+    /// with it (PE-RSH-012): the script starts a `sleep` and waits for it.
+    #[cfg(unix)]
+    #[test]
+    fn a_hanging_version_probe_is_stopped_at_its_bound() {
+        use std::os::unix::fs::PermissionsExt as _;
+        let dir = env::temp_dir().join(format!("sc-bd-cli-probe-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let pid_file = dir.join("grandchild");
+        let script = dir.join("hanging-bd");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nsleep 30 &\necho $! > '{}'\nwait\n",
+                pid_file.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let started = Instant::now();
+        let err = probe_version_output_within(script.to_str().unwrap(), Duration::from_secs(2))
+            .unwrap_err();
+        let took = started.elapsed();
+        assert!(
+            took < Duration::from_secs(8),
+            "the probe was not bounded: {took:?}"
+        );
+        let BeadsError::Spawn {
+            operation, source, ..
+        } = &err
+        else {
+            panic!("expected a spawn error, got {err:?}");
+        };
+        assert_eq!(operation.as_deref(), Some("--version"));
+        assert_eq!(source.kind(), io::ErrorKind::TimedOut, "{source}");
+
+        let grandchild = std::fs::read_to_string(&pid_file).unwrap();
+        let stat = std::process::Command::new("ps")
+            .args(["-o", "stat=", "-p", grandchild.trim()])
+            .output()
+            .unwrap();
+        let stat = String::from_utf8_lossy(&stat.stdout);
+        assert!(
+            stat.trim().is_empty() || stat.trim_start().starts_with('Z'),
+            "the probe's child {} is still running: {stat:?}",
+            grandchild.trim()
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

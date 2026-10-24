@@ -12,7 +12,10 @@
 //! Modes: `ok` (answers `version`, `schema`, `list`), `refuse` (exit 13), `down`
 //! (exit 1, "connection refused"), `slow` (prints `ready`, then runs 30 s),
 //! `flood` (writes far more than a pipe holds), `stdin` (reads standard input to the
-//! end) and `echo` (prints its argv).
+//! end), `echo` (prints its argv), `spawner` (starts a grandchild that ignores TERM,
+//! writes its pid to `grandchild`, prints `ready`, then runs 30 s; with the argument
+//! `probe` it only prints whether that grandchild still runs) and `orphan` (the
+//! Windows grandchild: writes its pid to `$SC_BD_PID_FILE`, then runs 30 s).
 
 use std::fs;
 use std::io::{Read, Write};
@@ -61,6 +64,9 @@ fn child_mode() -> Option<String> {
 fn child(mode: &str) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let first = args.first().map(String::as_str);
+    if mode == "spawner" || mode == "orphan" {
+        return process_group_child(mode, first);
+    }
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
     match (mode, first) {
@@ -136,6 +142,130 @@ fn child(mode: &str) -> ExitCode {
             ExitCode::from(99)
         }
     }
+}
+
+/// The modes `spawner` and `orphan`, of the process-group test.
+fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
+    let mut out = std::io::stdout();
+    let mut err = std::io::stderr();
+    match (mode, first) {
+        ("spawner", Some("probe")) => {
+            let state = std::env::var_os("BEADS_PATH")
+                .and_then(|dir| fs::read_to_string(Path::new(&dir).join("grandchild")).ok())
+                .map_or("no grandchild", |pid| {
+                    if process_runs(pid.trim()) {
+                        "alive"
+                    } else {
+                        "gone"
+                    }
+                });
+            let _ = writeln!(out, "{state}");
+            ExitCode::SUCCESS
+        }
+        ("spawner", _) => {
+            let Some(dir) = std::env::var_os("BEADS_PATH") else {
+                return ExitCode::from(98);
+            };
+            let dir = PathBuf::from(dir);
+            if spawn_grandchild(&dir.join("grandchild")).is_err() {
+                let _ = writeln!(err, "cannot start the grandchild");
+                return ExitCode::from(97);
+            }
+            let _ = fs::write(dir.join("pid"), std::process::id().to_string());
+            let _ = writeln!(out, "ready");
+            let _ = out.flush();
+            std::thread::sleep(Duration::from_secs(SLOW_CHILD_SECS));
+            ExitCode::SUCCESS
+        }
+        ("orphan", _) => {
+            if let Some(file) = std::env::var_os("SC_BD_PID_FILE") {
+                let _ = fs::write(file, std::process::id().to_string());
+            }
+            std::thread::sleep(Duration::from_secs(SLOW_CHILD_SECS));
+            ExitCode::SUCCESS
+        }
+        _ => ExitCode::from(99),
+    }
+}
+
+/// Starts the `spawner`'s grandchild, which writes its pid to `pid_file` and runs
+/// 30 s, with no standard streams (it holds none of the child's pipes). It stays in
+/// the child's process group, as a `dolt` that `bd` starts does.
+///
+/// On Unix it is a shell that ignores TERM and then becomes `sleep` (an ignored
+/// signal stays ignored across `exec`), so only a KILL of the group ends it. On
+/// Windows it is this binary in mode `orphan`.
+fn spawn_grandchild(pid_file: &Path) -> std::io::Result<()> {
+    let mut command = if cfg!(windows) {
+        let mut c = std::process::Command::new(std::env::current_exe()?);
+        let parent = pid_file
+            .parent()
+            .and_then(Path::parent)
+            .unwrap_or_else(|| Path::new("."));
+        c.env("BEADS_PATH", parent.join(format!("{CHILD_PREFIX}orphan")))
+            .env("SC_BD_PID_FILE", pid_file);
+        c
+    } else {
+        let mut c = std::process::Command::new("/bin/sh");
+        c.arg("-c")
+            .arg(format!(
+                "trap '' TERM; echo $$ > \"$1\"; exec sleep {SLOW_CHILD_SECS}"
+            ))
+            .arg("sh")
+            .arg(pid_file);
+        c
+    };
+    command
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map(drop)
+}
+
+/// Whether `pid` names a running process: not gone, and not a zombie waiting for
+/// PID 1 to reap it (a zombie runs nothing).
+fn process_runs(pid: &str) -> bool {
+    if cfg!(windows) {
+        return process_is_alive(pid);
+    }
+    std::process::Command::new("ps")
+        .args(["-o", "stat=", "-p", pid])
+        .output()
+        .is_ok_and(|o| {
+            let stat = String::from_utf8_lossy(&o.stdout);
+            let stat = stat.trim();
+            !stat.is_empty() && !stat.starts_with('Z')
+        })
+}
+
+/// Reads the pid a child wrote to `path`, waiting up to [`GIVE_UP_WITHIN`].
+fn pid_in(path: &Path) -> Result<String, String> {
+    let until = Instant::now() + GIVE_UP_WITHIN;
+    loop {
+        if let Ok(pid) = fs::read_to_string(path) {
+            if !pid.trim().is_empty() {
+                return Ok(pid.trim().to_owned());
+            }
+        }
+        if Instant::now() >= until {
+            return Err(format!("{} never appeared", path.display()));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+}
+
+/// Kills a process the test left behind, so a failed run does not leak it.
+fn kill_leftover(pid: &str) {
+    let _ = if cfg!(windows) {
+        std::process::Command::new("taskkill")
+            .args(["/F", "/PID", pid])
+            .output()
+    } else {
+        std::process::Command::new("kill")
+            .args(["-KILL", pid])
+            .output()
+    };
 }
 
 // ---- the tests --------------------------------------------------------------------
@@ -268,6 +398,101 @@ fn kill_and_reap_ends_a_running_child(env: &Env) -> TestResult {
         .map_err(|e| format!("stdout did not reach EOF after the kill: {e}"))?;
     let status = child.try_wait().map_err(|e| format!("try_wait: {e}"))?;
     require(status.is_some(), "the child was not reaped")
+}
+
+/// A timed-out bd takes its process group with it (PE-RSH-001): the grandchild it
+/// started, which ignores TERM, is gone when the call returns, and the next call on
+/// the same project, queued behind the project lock while the first one runs, starts
+/// only once the grandchild is gone.
+fn a_timed_out_child_takes_its_process_group_with_it(env: &Env) -> TestResult {
+    let wd = env.dir("spawner")?;
+    let grandchild_file = Path::new(&wd).join("grandchild");
+    let _ = fs::remove_file(&grandchild_file);
+    let _ = fs::remove_file(Path::new(&wd).join("pid"));
+    let locks = Arc::new(ProjectLocks::new());
+
+    let (exe, first_locks, first_wd) = (env.exe.clone(), Arc::clone(&locks), wd.clone());
+    let first = std::thread::spawn(move || {
+        run_bounded(
+            &exe,
+            &first_locks,
+            &WorkingDir::new(&first_wd),
+            &words(&["list"]),
+            Duration::from_secs(3),
+        )
+    });
+    // The grandchild runs, so the first call holds the project lock.
+    let grandchild = pid_in(&grandchild_file)?;
+    let next = run_bounded(
+        &env.exe,
+        &locks,
+        &WorkingDir::new(&wd),
+        &words(&["probe"]),
+        Duration::from_secs(60),
+    );
+    let first = first
+        .join()
+        .map_err(|_panic| "the first call panicked".to_owned())?;
+    let still_runs = process_runs(&grandchild);
+    if still_runs {
+        kill_leftover(&grandchild);
+    }
+    require(
+        matches!(
+            first,
+            Err(BoundedError::TimedOut {
+                phase: TimeoutPhase::Child
+            })
+        ),
+        format!("expected a timeout in the child phase, got {first:?}"),
+    )?;
+    let next = next.map_err(|e| format!("the next call failed: {e}"))?;
+    require(
+        next.stdout.trim() == "gone",
+        format!(
+            "the next call ran while the grandchild {grandchild} was {:?}",
+            next.stdout.trim()
+        ),
+    )?;
+    require(
+        !still_runs,
+        format!("the grandchild {grandchild} outlived the timed-out call"),
+    )
+}
+
+/// Two spellings of one project directory, the directory and a symlink to it, share
+/// its project lock (PE-RBP-F010): a call through the symlink waits for the lock held
+/// through the real path, and times out there.
+#[cfg(unix)]
+fn two_spellings_of_a_project_share_its_lock(env: &Env) -> TestResult {
+    let real = env.dir("ok")?;
+    // The link's own name selects `ok` too, so a call that wrongly got past the lock
+    // runs the fake bd, not this test binary's tests.
+    let links = env.root.join("links");
+    fs::create_dir_all(&links).map_err(|e| format!("create {}: {e}", links.display()))?;
+    let link = links.join(format!("{CHILD_PREFIX}ok"));
+    let _ = fs::remove_file(&link);
+    std::os::unix::fs::symlink(&real, &link).map_err(|e| format!("symlink: {e}"))?;
+    let link = link.to_string_lossy().into_owned();
+    let locks = ProjectLocks::new();
+    let held = locks.guard(&real);
+    let _held = held.lock().map_err(|e| format!("lock: {e}"))?;
+    let r = run_bounded(
+        &env.exe,
+        &locks,
+        &WorkingDir::new(&link),
+        &words(&["list"]),
+        Duration::from_millis(300),
+    );
+    require(
+        matches!(
+            r,
+            Err(BoundedError::TimedOut {
+                phase: TimeoutPhase::Lock
+            })
+        ),
+        format!("the symlink spelling did not wait for the real path's lock: {r:?}"),
+    )
 }
 
 fn waiting_for_the_project_lock_is_bounded(env: &Env) -> TestResult {
@@ -492,6 +717,15 @@ fn run_tests() -> ExitCode {
         (
             "kill_and_reap_ends_a_running_child",
             kill_and_reap_ends_a_running_child,
+        ),
+        (
+            "a_timed_out_child_takes_its_process_group_with_it",
+            a_timed_out_child_takes_its_process_group_with_it,
+        ),
+        #[cfg(unix)]
+        (
+            "two_spellings_of_a_project_share_its_lock",
+            two_spellings_of_a_project_share_its_lock,
         ),
         (
             "output_over_the_cap_is_an_error",

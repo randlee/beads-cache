@@ -34,6 +34,19 @@ pub const BD_RELEASE_SOURCE: ReleaseSource = ReleaseSource {
 /// The Go `bd` CLI (also used for an unrecognized client, which shares bd's defaults
 /// today), over a `Box<dyn CliInvoker>`: a [`CliRunner`] in production, a scripted
 /// `RecordingInvoker` or a `FakeBd` in tests (feature `test-support`).
+///
+/// # Bounded and unbounded calls
+///
+/// The [`CacheBackend`](sc_beads::CacheBackend) methods are deadline-bounded: they wait
+/// for the project lock by polling, kill the `bd` process group at the deadline, and
+/// give up. btit's [`BeadsBackend`], [`CliBackend`] and [`DoltOperations`] methods
+/// keep btit's contract: they block, with no timeout, until `bd` exits, holding the
+/// project lock for a JSON call the whole time (PE-RSH-012). One hung btit call would
+/// make every cache call on that project time out waiting for the lock, so **a
+/// `BdCli` used for btit's calls must not share its [`ProjectLocks`] with the
+/// `BdCli` the cache uses**: construct the cache's with its own lock set. Only the
+/// `--version` probe of the btit calls is bounded
+/// ([`VERSION_PROBE_TIMEOUT`](crate::run::VERSION_PROBE_TIMEOUT)).
 pub struct BdCli {
     pub(crate) inv: Box<dyn CliInvoker>,
     /// The cache's clock: reads the remaining time of each cache call's deadline.
