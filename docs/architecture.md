@@ -389,7 +389,8 @@ accepts it; bd-cache then switches its dependency.
 
 Third-party dependencies of `sc-cron`: cron, chrono, tokio, rusqlite
 (bundled), async-trait, serde_json, getrandom, tracing (amended after a-3
-QA-1). Its schedule store uses its own SQLite file and connection
+QA-1); dev-dependency tempfile for its store tests (lead amendment,
+2026-10-23). Its schedule store uses its own SQLite file and connection
 (NFR-BDC-0007).
 
 Consequences: phase a can deliver the sync task before sc-runtime
