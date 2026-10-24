@@ -73,11 +73,16 @@ pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
 ///
 /// Sized by lead ruling S27 (REQ-SYNC-0011, ADR-SYNC-0007): it covers
 /// `atm.rs`'s read grace (250 ms) plus its shared kill bound (1 s), which const
-/// assertions there check, with a quarter second to spare. The marker writes
-/// after a send are not sized into it: each waits for the store's write lock at
-/// most the time left before `T` ([`Budget::write_wait`], lead ruling S33), so
-/// a write lock another process holds cannot carry the tick past `T`; a marker
-/// not written in time fails the tick and its message is sent again next tick.
+/// assertions there check, with a quarter second to spare. The tick's bounded
+/// writes are not sized into it: the marker writes after a send
+/// (`mark_announced`, a sync alert; lead ruling S33) and the alert clears
+/// without a message (after a passing sync, at the end of an outage; lead
+/// ruling S35) each wait for the store's write lock at most the time left
+/// before `T` ([`Budget::write_wait`]). A write lock another process holds can
+/// carry such a write to `T` plus the busy handler's sleep slack (tens of ms),
+/// no further. A marker not written in time fails the tick and its message is
+/// sent again next tick; a clear not written in time is logged and retried
+/// next tick. The tick's other store writes keep the store's own busy timeout.
 pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(1500);
 
 // The sync step's gate sits HARD_MARGIN before `T`; the reserve stays inside
@@ -106,9 +111,13 @@ impl Budget<'_> {
         (left >= MIN_SEND_BUDGET).then_some(left)
     }
 
-    /// The most a marker write after a send (`mark_announced`, a sync alert)
-    /// may wait for the store's write lock: the time left before `T` (lead
-    /// ruling S33). The store waits no longer than its own busy timeout either.
+    /// The most a bounded write may wait for the store's write lock: a marker
+    /// write after a send (`mark_announced`, a sync alert; lead ruling S33) or
+    /// an alert clear without a message (S35). It is the time left before
+    /// `T`, all of it: SQLite's busy handler sleeps in steps, so the write
+    /// may return up to one sleep step (tens of ms) after `T`, the bound
+    /// being `T` plus that slack. The store waits no longer than its own busy
+    /// timeout either.
     pub fn write_wait(&self) -> Duration {
         self.end.remaining(self.clock)
     }

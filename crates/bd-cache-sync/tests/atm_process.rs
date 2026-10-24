@@ -27,9 +27,9 @@ const FLAG: &str = "--fake-atm=";
 const WAIT: Duration = Duration::from_secs(10);
 /// How long a hanging fake lives at most, so a failing test leaves no long-lived orphan.
 const FAKE_LIFETIME: Duration = Duration::from_secs(25);
-/// How many times a timer-driven kill is tried before a fake that never got
-/// ready in time fails the test (each try doubles the timeout; FTQ-023).
-const ATTEMPTS: u32 = 3;
+/// The sender's own timeout in the stop-flag tests: far above a stop that
+/// comes once the fakes are ready, so the kill is the stop's, never the timer's.
+const GENEROUS: Duration = Duration::from_secs(20);
 
 /// Writes this process's pid to `path` whole: a temporary file renamed into
 /// place, newline-terminated, so a reader sees no file or the whole pid, never
@@ -323,161 +323,99 @@ fn output_beyond_the_limit_is_dropped_and_the_error_says_so() {
     assert!(err.detail.len() < 8 * 1024, "{} bytes", err.detail.len());
 }
 
-/// One timer-driven kill whose fakes were ready before it: the error, the pids
-/// of the files `ready` names (suffixes of the attempt's prefix), and how long
-/// the send took.
-struct ReadyKill {
-    err: bd_cache_model::SendError,
-    pids: Vec<u32>,
-    took: Duration,
-}
-
-/// Readiness handshake for a timer-driven kill (FTQ-023): the attempt that
-/// counts is one where every pid file of `ready` was written, whole, before
-/// the kill. A fake writes its pid first thing, and a killed one writes
-/// nothing more, so a file present once the send has returned was written
-/// before the kill. An attempt that ends with a file missing (the fake was
-/// killed before it got that far: a slow start, nothing to leak) is run again
-/// with twice the timeout, at most [`ATTEMPTS`] times; none ready fails the
-/// test, so it is never vacuous. Every pid found is killed on drop of `reaper`.
-fn once_ready(
-    dir: &Path,
-    name: &str,
+/// Runs one send of the fake `mode` under a stop flag and the [`GENEROUS`]
+/// timeout, and stops it once every pid file of `ready` (suffixes of `out`)
+/// was written whole (FTQ-026): a watcher waits for them, bounded by
+/// [`pid_in`], then calls `stop()`, so the fakes are ready before the kill by
+/// construction. Returns the error and the pids, in the order of `ready`;
+/// each pid is kept by `reaper` as soon as it is read, so a panic leaves no
+/// orphan.
+fn stopped_once_ready(
+    mode: &str,
+    out: &Path,
     ready: &[&str],
-    first: Duration,
     reaper: &Reaper,
-    send: impl Fn(&Path, Duration) -> bd_cache_model::SendError,
-) -> ReadyKill {
-    let mut timeout = first;
-    for attempt in 0..ATTEMPTS {
-        let out = dir.join(format!("{name}-{attempt}"));
-        let started = Instant::now();
-        let err = send(&out, timeout);
-        let took = started.elapsed();
-        let found: Vec<Option<u32>> = ready
-            .iter()
-            .map(|suffix| read_pid(&format!("{}{suffix}", out.display())))
-            .collect();
-        for pid in found.iter().flatten() {
-            reaper.add(*pid);
-        }
-        if let Some(pids) = found.into_iter().collect::<Option<Vec<u32>>>() {
-            return ReadyKill { err, pids, took };
-        }
-        timeout = timeout.saturating_mul(2);
-    }
-    panic!("{name}: no fake was ready before its kill in {ATTEMPTS} attempts");
-}
-
-fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
-    let reaper = Reaper::default();
-    let dir = tempfile::tempdir().unwrap();
-    let kill = once_ready(
-        dir.path(),
-        "hung",
-        &[".pid"],
-        Duration::from_secs(3),
-        &reaper,
-        |out, timeout| {
-            sender("hang", out)
-                .with_timeout(timeout)
-                .unwrap()
-                .send("l", "t", "hi")
-                .unwrap_err()
-        },
-    );
-    assert_kind(&kill.err, SendErrorKind::TimedOut);
-    assert!(kill.err.detail.contains("did not finish"), "{}", kill.err);
-    assert_reaped(kill.pids[0], "the hung atm");
-}
-
-fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
-    let reaper = Reaper::default();
-    let dir = tempfile::tempdir().unwrap();
-    let kill = once_ready(
-        dir.path(),
-        "tree",
-        &[".pid", ".grandchild.pid"],
-        Duration::from_secs(6),
-        &reaper,
-        |out, timeout| {
-            sender("tree", out)
-                .with_timeout(timeout)
-                .unwrap()
-                .send("l", "t", "hi")
-                .unwrap_err()
-        },
-    );
-    assert_kind(&kill.err, SendErrorKind::TimedOut);
-    assert_reaped(kill.pids[0], "the child");
-    assert_gone(kill.pids[1], "the grandchild");
-}
-
-fn the_time_a_tick_passes_bounds_the_send() {
-    let reaper = Reaper::default();
-    let dir = tempfile::tempdir().unwrap();
-    let kill = once_ready(
-        dir.path(),
-        "within",
-        &[".pid"],
-        Duration::from_millis(250),
-        &reaper,
-        |out, timeout| {
-            sender("hang", out)
-                .send_within("l", "t", "hi", timeout)
-                .unwrap_err()
-        },
-    );
-    assert_kind(&kill.err, SendErrorKind::TimedOut);
-    // The tick's time (at most 1 s over the attempts), not the sender's 10 s.
-    assert!(kill.took < Duration::from_secs(5), "{:?}", kill.took);
-    assert_reaped(kill.pids[0], "the hung atm");
-    let out = dir.path().join("none");
-    let none = sender("hang", &out)
-        .send_within("l", "t", "hi", Duration::ZERO)
-        .unwrap_err();
-    assert_kind(&none, SendErrorKind::TimedOut);
-}
-
-fn the_stop_flag_kills_the_child_and_its_descendants() {
-    let reaper = Reaper::default();
-    let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("stopped");
+) -> (bd_cache_model::SendError, Vec<u32>) {
     let stop = StopFlag::new();
-    // The stop comes only once both processes have started.
     let watcher = {
-        let (flag, prefix, found) = (stop.clone(), out.display().to_string(), reaper.shared());
+        let flag = stop.clone();
+        let found = reaper.shared();
+        let paths: Vec<String> = ready
+            .iter()
+            .map(|suffix| format!("{}{suffix}", out.display()))
+            .collect();
         std::thread::spawn(move || {
-            // Each pid is recorded in the reaper's list as soon as it is read,
-            // so a panic after the first leaves it known and killed.
-            let track = |path: String| {
-                let pid = pid_in(&path);
-                found
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .push(pid);
-                pid
-            };
-            let pids = (
-                track(format!("{prefix}.pid")),
-                track(format!("{prefix}.grandchild.pid")),
-            );
+            let pids: Vec<u32> = paths
+                .iter()
+                .map(|path| {
+                    let pid = pid_in(path);
+                    found
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .push(pid);
+                    pid
+                })
+                .collect();
             flag.stop();
             pids
         })
     };
-    let started = Instant::now();
-    let result = sender("tree", &out)
-        .with_timeout(Duration::from_secs(20))
+    let result = sender(mode, out)
+        .with_timeout(GENEROUS)
         .unwrap()
         .with_stop(stop)
         .send("l", "t", "hi");
-    let (child, grandchild) = watcher.join().unwrap();
-    let err = result.unwrap_err();
+    let pids = watcher.join().unwrap();
+    (result.unwrap_err(), pids)
+}
+
+/// A hung `atm` is killed and reaped (stop-flag form, FTQ-026: the kill comes
+/// after the fake is ready, never racing its start).
+fn an_atm_that_hangs_is_killed_and_reaped() {
+    let reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let (err, pids) = stopped_once_ready("hang", &dir.path().join("hung"), &[".pid"], &reaper);
     assert_kind(&err, SendErrorKind::Cancelled);
-    assert!(started.elapsed() < Duration::from_secs(15));
-    assert_reaped(child, "the child");
-    assert_gone(grandchild, "the grandchild");
+    assert_reaped(pids[0], "the hung atm");
+}
+
+/// The kill takes the whole process tree, not just the child (stop-flag
+/// form, FTQ-026).
+fn the_stop_flag_kills_the_child_and_its_descendants() {
+    let reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let (err, pids) = stopped_once_ready(
+        "tree",
+        &dir.path().join("stopped"),
+        &[".pid", ".grandchild.pid"],
+        &reaper,
+    );
+    assert_kind(&err, SendErrorKind::Cancelled);
+    assert_reaped(pids[0], "the child");
+    assert_gone(pids[1], "the grandchild");
+}
+
+/// The one timer-driven kill (FTQ-026): the time a tick passes bounds the
+/// send, shown by the kind and the detail (the tick's 250 ms, not the
+/// sender's own timeout), never by the clock (FTQ-027). Whether the fake got
+/// as far as its pid file before the kill is not asserted; a pid it wrote is
+/// only kept to be killed. Kill and reap mechanics are the stop-flag tests'.
+fn the_time_a_tick_passes_bounds_the_send() {
+    let reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("within");
+    let err = sender("hang", &out)
+        .send_within("l", "t", "hi", Duration::from_millis(250))
+        .unwrap_err();
+    if let Some(pid) = read_pid(&format!("{}.pid", out.display())) {
+        reaper.add(pid);
+    }
+    assert_kind(&err, SendErrorKind::TimedOut);
+    assert!(err.detail.contains("did not finish within 250 ms"), "{err}");
+    let none = sender("hang", &dir.path().join("none"))
+        .send_within("l", "t", "hi", Duration::ZERO)
+        .unwrap_err();
+    assert_kind(&none, SendErrorKind::TimedOut);
 }
 
 /// A failing atm whose descendant keeps the output pipes open: the send fails
@@ -486,16 +424,17 @@ fn a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it() {
     let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("orphan");
-    let started = Instant::now();
     let err = sender("fail-orphan", &out)
         .send("l", "t", "hi")
         .unwrap_err();
-    let took = started.elapsed();
-    reaper.track(&format!("{}.grandchild.pid", out.display()));
+    let grandchild = reaper.track(&format!("{}.grandchild.pid", out.display()));
     assert_kind(&err, SendErrorKind::Exited);
+    // The descendant holds the pipes for its whole life: it still runs once
+    // the send has returned, so the send did not wait for it (FTQ-027: an
+    // order, not a clock bound).
     assert!(
-        took < Duration::from_secs(3),
-        "waited {took:?} for the descendant"
+        exists(grandchild) && !zombie(grandchild),
+        "the send waited for the descendant (pid {grandchild})"
     );
     assert!(
         err.detail.contains("mailbox full") || err.detail.contains("not fully read"),
@@ -580,7 +519,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         std::process::exit(code);
     }
-    let tests: [(&str, fn()); 14] = [
+    let tests: [(&str, fn()); 13] = [
         (
             "delivers_the_body_on_stdin_with_the_reference_invocation",
             delivers_the_body_on_stdin_with_the_reference_invocation,
@@ -598,12 +537,8 @@ fn main() {
             output_beyond_the_limit_is_dropped_and_the_error_says_so,
         ),
         (
-            "an_atm_that_hangs_is_killed_and_gone_at_the_timeout",
-            an_atm_that_hangs_is_killed_and_gone_at_the_timeout,
-        ),
-        (
-            "the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child",
-            the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child,
+            "an_atm_that_hangs_is_killed_and_reaped",
+            an_atm_that_hangs_is_killed_and_reaped,
         ),
         (
             "the_time_a_tick_passes_bounds_the_send",

@@ -871,13 +871,20 @@ mod tests {
         assert_reaped(pid, "the stuck tree kill");
     }
 
-    /// A child that ignores TERM, with a descendant that ignores it too, and a
-    /// tree kill that never finishes: the kill and the reaping share one
-    /// deadline, the call gives the tree kill up at it, and the child and the
-    /// stuck tree kill are reaped and the descendant is dead (S27, S28).
+    /// The real tree kill (`tree_kill_command`) of a child that ignores TERM,
+    /// with a descendant that ignores it too: the group kill finishes, the
+    /// child is reaped and the descendant is dead (S27, S28).
+    ///
+    /// The kill deadline is generous (FTQ-025): this test covers the group
+    /// kill, not the deadline, so no host is slow enough to cut it short. That
+    /// a tree kill still running at the deadline is given up on is
+    /// `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped`'s; that
+    /// `KILL_BOUND` fits the send reserve is the const assertions'.
     #[cfg(unix)]
     #[test]
-    fn a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill() {
+    fn a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill() {
+        /// Far above any host's group kill; never reached by a passing run.
+        const GENEROUS: Duration = Duration::from_secs(30);
         let dir = tempfile::tempdir().unwrap();
         let (child_pid, grandchild_pid) = (dir.path().join("pid"), dir.path().join("grandchild"));
         let mut command = Command::new("/bin/sh");
@@ -892,23 +899,12 @@ mod tests {
         // Ready: both processes have started and ignore TERM.
         let (pid, grandchild) = (pid_in(&child_pid), pid_in(&grandchild_pid));
         assert_eq!(pid, child.id());
-        // The real group kill, made to look stuck: it kills the group, then hangs.
-        let mut tree_kill = Command::new("/bin/sh");
-        tree_kill
-            .arg("-c")
-            .arg(r#"/bin/kill -KILL -- "-$1"; exec sleep 30"#)
-            .arg("sh")
-            .arg(pid.to_string());
-        // The kill deadline is injected (FTQ-021): the call returns at it, with
-        // the tree kill given up on, whatever the host's speed. That the real
-        // KILL_BOUND fits the send reserve is the const assertion's.
-        let outcome = kill_tree_with(child, Some(tree_kill), Instant::now() + READ_FLOOR);
-        let TreeKill::GaveUp { pid: helper } = outcome else {
-            panic!("given up on at the deadline: {outcome:?}");
-        };
+        let tree_kill = tree_kill_command(pid);
+        assert!(tree_kill.is_some(), "unix has a tree-kill program");
+        let outcome = kill_tree_with(child, tree_kill, Instant::now() + GENEROUS);
+        assert_eq!(outcome, TreeKill::Done, "the group kill finished");
         assert_reaped(pid, "the child");
         assert_gone(grandchild, "the grandchild");
-        assert_reaped(helper, "the stuck tree kill");
     }
 
     /// A child given up on at the kill deadline is reaped by the reaper (S28).

@@ -170,7 +170,7 @@ the timeout (10 s) is killed and the send fails; a nonzero exit fails with the
 child's stderr.
 
 **Refines:** REQ-BDC-0704..0706
-**Acceptance evidence:** `tests/atm_process.rs` (its own fake `atm`, 12 cases):
+**Acceptance evidence:** `tests/atm_process.rs` (its own fake `atm`, 13 cases):
 `delivers_the_body_on_stdin_with_the_reference_invocation`,
 `a_large_message_is_not_limited_by_the_argument_list`,
 `a_failing_atm_is_a_send_error_that_says_why`,
@@ -217,21 +217,30 @@ reaping of the child are both done or given up on. Const assertions in
 `atm.rs` and `control.rs` tie `SEND_RESERVE` to `READ_GRACE`, `READ_FLOOR`,
 `KILL_BOUND` and the poll intervals, and keep `MIN_SEND_BUDGET + SEND_RESERVE`
 within the sync step's `HARD_MARGIN` (2 s). Evidence:
-`a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`
-and `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (`src/atm.rs`),
+`a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
+(the group kill, generous deadline; fix-a-7-10, FTQ-025) and
+`a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (the deadline)
+(`src/atm.rs`),
 `a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor`
 (`src/control.rs`).
 
 Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
 the marker written after a delivered message (`announced_at`, a sync alert)
 waits for the store's write lock at most the time left before `T`, never the
-store's full 5 s busy timeout, so a write lock another process holds cannot
-carry the tick past `T`. A marker not written in time fails the tick with the
+store's full 5 s busy timeout, so a write lock another process holds can carry
+that write to `T` plus the busy handler's sleep slack (tens of ms), no further
+(lead ruling S35, ARCH-705, QA7-002). The bound applies to the bounded writes
+only: these markers and the alert clears without a message (after a passing
+sync, at the end of an outage), which S35 bounds the same way; a clear that
+fails is logged and does not fail the tick. A marker not written in time fails the tick with the
 store's error and leaves the message unmarked; the next tick sends it again
 (at least once, ADR-SYNC-0003). Evidence: `tests/marker_wait.rs`,
 `a_marker_write_may_wait_the_time_left_before_t` (`src/control.rs`),
 `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
-(`bd-cache-store/tests/store.rs`).
+(`bd-cache-store/tests/store.rs`); for S35,
+`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` and
+`a_failed_alert_clear_is_logged_and_does_not_fail_the_tick`
+(`tests/marker_wait.rs`).
 
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
@@ -248,9 +257,12 @@ given to the `AtmSender` it kills the child and its whole process tree. An
 
 **Refines:** REQ-BDC-0703
 **Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`
-(`tests/job_threading.rs`); `a_set_stop_flag_skips_the_root_refresh` (`src/active.rs`); `the_stop_flag_kills_the_child`,
-`the_whole_process_tree_is_killed_not_just_the_child`,
-`an_atm_that_hangs_is_killed_and_gone_at_the_timeout` (`tests/atm_process.rs`).
+(`tests/job_threading.rs`); `a_set_stop_flag_skips_the_root_refresh` (`src/active.rs`);
+`the_stop_flag_kills_the_child_and_its_descendants`,
+`an_atm_that_hangs_is_killed_and_reaped` (kill and reap, stop-flag form: the
+stop comes once the fakes' pid files are written) and
+`the_time_a_tick_passes_bounds_the_send` (the one timer-driven kill: `TimedOut`
+and its detail only) (`tests/atm_process.rs`; fix-a-7-10, FTQ-026, FTQ-027).
 
 ## REQ-SYNC-0013: A cached `get` costs the same at any scope size
 

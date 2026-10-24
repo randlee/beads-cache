@@ -48,7 +48,11 @@ MUTANTS = [('unannounced filter dropped',
   '            None => None,'),
  ('escalation not marked announced',
   'crates/bd-cache-sync/src/announce.rs',
-  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;\n',
+  '                cache\n'
+  '                    .mark_announced_within(entry.seq, budget.write_wait())\n'
+  '                    .inspect_err(|e| {\n'
+  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                    })?;\n',
   ''),
  ('escalation message without the resolve command',
   'crates/bd-cache-sync/src/announce.rs',
@@ -63,22 +67,29 @@ MUTANTS = [('unannounced filter dropped',
   '    }'),
  ('sync failure alert not recorded',
   'crates/bd-cache-sync/src/announce.rs',
-  '            cache.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())?;\n',
+  '            cache\n'
+  '                .set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())\n'
+  '                .inspect_err(|e| {\n'
+  '                    unmarked_after_send("sync_failure", lead, Marker::Scope(&scope), e);\n'
+  '                })?;\n',
   ''),
  ('sync success does not clear the alert',
   'crates/bd-cache-sync/src/announce.rs',
-  '    if cache.sync_alert(scope)?.is_some() {\n'
-  '        cache.set_sync_alert(scope, None)?;\n'
-  '    }\n',
+  '        clear_alert(cache, budget, scope, "sync_succeeded");\n',
   ''),
  ('outage alert not recorded after the send',
   'crates/bd-cache-sync/src/announce.rs',
   '                for phase in &phases {\n'
-  '                    cache.set_sync_alert_within(\n'
-  '                        &phase.scope(),\n'
-  '                        Some(AlertCause::BackendUnavailable.key()),\n'
-  '                        budget.write_wait(),\n'
-  '                    )?;\n'
+  '                    let scope = phase.scope();\n'
+  '                    cache\n'
+  '                        .set_sync_alert_within(\n'
+  '                            &scope,\n'
+  '                            Some(AlertCause::BackendUnavailable.key()),\n'
+  '                            budget.write_wait(),\n'
+  '                        )\n'
+  '                        .inspect_err(|e| {\n'
+  '                            unmarked_after_send("outage", lead, Marker::Scope(&scope), e);\n'
+  '                        })?;\n'
   '                }\n'
   '                reply.sent.push(Announcement {\n'
   '                    kind: AnnouncementKind::Outage {',
@@ -86,11 +97,8 @@ MUTANTS = [('unannounced filter dropped',
   '                    kind: AnnouncementKind::Outage {'),
  ('outage alert not reset when it ends',
   'crates/bd-cache-sync/src/announce.rs',
-  '                cache.set_sync_alert(&scope, None)?;\n'
-  '            }\n'
-  '        }\n'
-  '        return Ok(());',
-  '            }\n        }\n        return Ok(());'),
+  '                clear_alert(cache, budget, &scope, "outage_over");\n',
+  ''),
  ('outage: no lead for a scope without one',
   'crates/bd-cache-sync/src/announce.rs',
   '    phase\n'
@@ -318,11 +326,13 @@ MUTANTS = [('unannounced filter dropped',
   '                break;\n'
   '            }\n'
   '            Some(Ok(())) => {\n'
-  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;',
+  '                cache\n'
+  '                    .mark_announced_within',
   '                continue;\n'
   '            }\n'
   '            Some(Ok(())) => {\n'
-  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;'),
+  '                cache\n'
+  '                    .mark_announced_within'),
  ('tick starts although it was asked to stop (RSH-014)',
   'crates/bd-cache-sync/src/tick.rs',
   '    let mut reply = TickReply::started();\n'
@@ -496,19 +506,18 @@ MUTANTS = [('unannounced filter dropped',
  # ---- round-8 fixes (a-7 fix-8): S33 bounded marker writes, QA6-001 ----
  ('S33: the escalation marker waits the full busy timeout, not the time left',
   'crates/bd-cache-sync/src/announce.rs',
-  'cache.mark_announced_within(entry.seq, budget.write_wait())?;\n                reply.sent.push',
-  'cache.mark_announced_within(entry.seq, std::time::Duration::from_secs(5))?;\n'
-  '                reply.sent.push'),
+  '.mark_announced_within(entry.seq, budget.write_wait())',
+  '.mark_announced_within(entry.seq, std::time::Duration::from_secs(5))'),
  ('S33: the sync-failure alert waits the full busy timeout, not the time left',
   'crates/bd-cache-sync/src/announce.rs',
-  'cache.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())?;',
-  'cache.set_sync_alert_within(&scope, Some(cause.key()), std::time::Duration::from_secs(5))?;'),
+  '.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())',
+  '.set_sync_alert_within(&scope, Some(cause.key()), std::time::Duration::from_secs(5))'),
  ('S33: the outage alert waits the full busy timeout, not the time left',
   'crates/bd-cache-sync/src/announce.rs',
-  '                        Some(AlertCause::BackendUnavailable.key()),\n'
-  '                        budget.write_wait(),',
-  '                        Some(AlertCause::BackendUnavailable.key()),\n'
-  '                        std::time::Duration::from_secs(5),'),
+  '                            Some(AlertCause::BackendUnavailable.key()),\n'
+  '                            budget.write_wait(),',
+  '                            Some(AlertCause::BackendUnavailable.key()),\n'
+  '                            std::time::Duration::from_secs(5),'),
  ('S33: write_wait is not the time left before T',
   'crates/bd-cache-sync/src/control.rs',
   '    pub fn write_wait(&self) -> Duration {\n        self.end.remaining(self.clock)\n',
@@ -530,6 +539,25 @@ MUTANTS = [('unannounced filter dropped',
   'crates/bd-cache-store/src/store.rs',
   'self.write_within(wait, "set a sync alert", |tx, at| {',
   'self.write_within(BUSY_TIMEOUT.max(wait), "set a sync alert", |tx, at| {'),
+ # ---- round-10 fixes (a-7 fix-10): S35 bounded clears, marker failure path ----
+ ('S35: an alert clear waits the full busy timeout, not the time left',
+  'crates/bd-cache-sync/src/announce.rs',
+  'cache.set_sync_alert_within(scope, None, budget.write_wait())',
+  'cache.set_sync_alert_within(scope, None, std::time::Duration::from_secs(5))'),
+ ('S35: a failed alert clear fails the tick',
+  'crates/bd-cache-sync/src/announce.rs',
+  'if let Err(e) = cache.set_sync_alert_within(scope, None, budget.write_wait()) {',
+  'if let Err(e) = cache\n'
+  '        .set_sync_alert_within(scope, None, budget.write_wait())\n'
+  '        .inspect_err(|e| panic!("{e}"))\n'
+  '    {'),
+ ('S35: a failed marker write after a delivered send is swallowed',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                    })?;\n',
+  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                    })\n'
+  '                    .unwrap_or(());\n'),
  ('QA6-001: the dating skips entries below the undatable floor',
   'crates/bd-cache-store/src/schema.rs',
   'UPDATE journal INDEXED BY journal_applied_unknown \\\n'

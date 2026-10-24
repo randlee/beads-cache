@@ -7,7 +7,8 @@
 //!
 //! It also records the `wait` of every bounded marker write
 //! (`mark_announced_within`, `set_sync_alert_within`, lead ruling S33), so a
-//! test can check what the tick passed.
+//! test can check what the tick passed, and can be armed to fail the next
+//! bounded write with `BD_CACHE.STORE_FAILED` (lead ruling S35, QA7-003).
 
 #![allow(
     clippy::unwrap_used,
@@ -16,7 +17,7 @@
     reason = "test code: a failed unwrap is a test failure"
 )]
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -32,6 +33,7 @@ pub struct Counting<S> {
     inner: S,
     touched: Arc<AtomicU64>,
     waits: Arc<Mutex<Vec<Duration>>>,
+    fail_next: Arc<AtomicBool>,
 }
 
 impl<S> Counting<S> {
@@ -43,6 +45,7 @@ impl<S> Counting<S> {
                 inner,
                 touched: Arc::clone(&touched),
                 waits: Arc::default(),
+                fail_next: Arc::default(),
             },
             touched,
         )
@@ -53,8 +56,23 @@ impl<S> Counting<S> {
         Arc::clone(&self.waits)
     }
 
-    fn waited(&self, wait: Duration) {
+    /// A switch (shared handle): set it, and the next bounded write fails
+    /// with `BD_CACHE.STORE_FAILED` without reaching the inner store; the
+    /// switch then resets itself.
+    pub fn fail_next_bounded_write(&self) -> Arc<AtomicBool> {
+        Arc::clone(&self.fail_next)
+    }
+
+    /// Records `wait`, then fails if the switch is set.
+    fn waited(&self, wait: Duration) -> Result<(), CacheError> {
         self.waits.lock().unwrap().push(wait);
+        if self.fail_next.swap(false, Ordering::SeqCst) {
+            return Err(CacheError::store_failed(
+                "bounded write",
+                std::io::Error::other("injected"),
+            ));
+        }
+        Ok(())
     }
 
     fn add(&self, n: usize) {
@@ -187,7 +205,7 @@ impl<S: CacheStore> CacheStore for Counting<S> {
         at: &Timestamp,
         wait: Duration,
     ) -> Result<(), CacheError> {
-        self.waited(wait);
+        self.waited(wait)?;
         self.inner.mark_announced_within(seq, at, wait)
     }
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError> {
@@ -211,7 +229,7 @@ impl<S: CacheStore> CacheStore for Counting<S> {
         cause: Option<&str>,
         wait: Duration,
     ) -> Result<(), CacheError> {
-        self.waited(wait);
+        self.waited(wait)?;
         self.inner.set_sync_alert_within(s, cause, wait)
     }
     fn outage(&self) -> Result<Option<Outage>, CacheError> {

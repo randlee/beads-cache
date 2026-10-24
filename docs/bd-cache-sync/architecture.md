@@ -132,15 +132,30 @@ full 5 s busy timeout, so a write lock another process held could carry a tick
 some 3.5 s past `T` against the 1.5 s reserve. A marker that cannot be written
 in time returns the store's usual error (`STORE_FAILED`, `database is locked`):
 the tick fails with it, the message stays unmarked, and the next tick sends it
-again, the at-least-once delivery above. The marker writes of a tick with no
-message (clearing an alert after a passing sync or an ended outage) keep the
-full timeout. Evidence: `tests/marker_wait.rs` (each of the three markers is
+again, the at-least-once delivery above. Evidence: `tests/marker_wait.rs` (each of the three markers is
 given exactly the time left, on the `ManualClock`),
 `a_marker_write_may_wait_the_time_left_before_t` (`src/control.rs`), and in
 `bd-cache-store` `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
 (a lock held by another connection) and
 `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
 (the busy timeout sampled inside the write).
+
+Amendment (fix-a-7-10, RSH-030, RSH-031, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+the alert clears without a message (after a passing sync, and at the end of an
+outage) are bounded writes too: they wait at most `Budget::write_wait`, and a
+clear that fails is logged (`tracing::warn`, scope, code) and does not fail the
+tick; the alert stays set and the next tick clears it. A marker write that
+fails after a delivered send logs a structured warning (announcement kind,
+lead, `seq` or scope, error code) and then fails the tick as above, keeping
+the at-least-once delivery. The bound of every bounded write is `T` plus the
+busy handler's sleep slack (tens of ms): `write_wait` is all the time left,
+and SQLite's busy handler sleeps in steps, so a contended write can return one
+step after `T`. It applies to the bounded writes only; the tick's other store
+writes keep the store's own busy timeout. Evidence (`tests/marker_wait.rs`):
+`a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again` (a
+wrapper store fails one bounded marker write with `STORE_FAILED`: the tick
+returns `Err`, the message was sent once; the next tick sends it again and
+records the marker) and `a_failed_alert_clear_is_logged_and_does_not_fail_the_tick`.
 
 Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
 `"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
@@ -313,11 +328,15 @@ reaping of the child share one kill deadline, `KILL_BOUND` (1 s) from the start
 of the kill; the tick keeps `SEND_RESERVE` (1.5 s) before `T`, which covers
 `READ_GRACE` (250 ms) plus `KILL_BOUND`. Const assertions in `atm.rs` and
 `control.rs` tie the constants together and to `HARD_MARGIN`.
-`a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`
-(`src/atm.rs`) shows a child and descendant that ignore TERM, with a tree kill
-that hangs, all gone, and the tree kill given up at the kill deadline; the
-test injects that deadline and asserts the outcome, not the clock (FTQ-021):
-that `KILL_BOUND` fits the reserve is the const assertions'. A descendant is
+Two tests split the evidence (fix-a-7-10, FTQ-025):
+`a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
+(`src/atm.rs`) runs the real group kill on a child and descendant that ignore
+TERM, under a generous deadline, and shows the child reaped and the descendant
+gone; `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` gives a tree
+kill that only hangs an injected deadline and shows it given up and reaped. No
+test races a short deadline against a real kill; each asserts the outcome, not
+the clock (FTQ-021): that `KILL_BOUND` fits the reserve is the const
+assertions'. A descendant is
 dead once it is a zombie: reparented to PID 1, its reaping is not this
 crate's (FTQ-024); the child and the tree kill, which this crate owns, must be
 reaped.
@@ -325,8 +344,11 @@ reaped.
 Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
 the reserve covers the send's overrun, not the marker write after it. That
 write waits for the store's write lock at most the time left before `T`
-(ADR-SYNC-0003, S33 amendment), so a contended store cannot carry the tick
-past `T` either; a marker not written in time is sent again next tick.
+(ADR-SYNC-0003, S33 amendment), so a contended store can carry a bounded write
+to `T` plus the busy handler's sleep slack (tens of ms), no further (lead
+ruling S35, ARCH-705, QA7-002); this holds for the bounded writes only (the
+marker writes after a send and the alert clears), not for the tick's other
+store writes. A marker not written in time is sent again next tick.
 
 Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
 a child or tree-kill program still running at the kill deadline is killed and

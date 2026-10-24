@@ -167,7 +167,7 @@ pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
             Ok(report) if report.deferred => reply.deferred.push(phase.name.clone()),
             Ok(report) => {
                 if report.outage.is_none() {
-                    announce::sync_succeeded(cache, &phase.scope())?;
+                    announce::sync_succeeded(cache, &budget, &phase.scope())?;
                 }
                 reply.synced.push(report);
             }
