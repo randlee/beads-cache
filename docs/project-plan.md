@@ -36,11 +36,11 @@ Naming follows the Plan Naming section of
 
 | Sprint | Phase | Deliverable | Branch | Status |
 |---|---|---|---|---|
-| [a-1](plans/phase-a/sprint-a-1-contracts.md) | a | contracts: sc-beads, bd-cache-model, bd-cache skeleton | `sprint/a-1-contracts` | in progress |
-| [a-2](plans/phase-a/sprint-a-2-sc-bd-cli.md) | a | sc-bd-cli | `sprint/a-2-sc-bd-cli` | planned |
-| [a-3](plans/phase-a/sprint-a-3-sc-cron.md) | a | sc-cron prototype | `sprint/a-3-sc-cron` | in progress |
-| [a-4](plans/phase-a/sprint-a-4-store.md) | a | bd-cache-store | `sprint/a-4-store` | planned |
-| [a-5](plans/phase-a/sprint-a-5-core-write.md) | a | bd-cache write path | `sprint/a-5-core-write` | planned |
-| [a-6](plans/phase-a/sprint-a-6-core-read.md) | a | bd-cache read path | `sprint/a-6-core-read` | planned |
+| [a-1](plans/phase-a/sprint-a-1-contracts.md) | a | contracts: sc-beads, bd-cache-model, bd-cache skeleton | `sprint/a-1-contracts` | complete |
+| [a-2](plans/phase-a/sprint-a-2-sc-bd-cli.md) | a | sc-bd-cli | `sprint/a-2-sc-bd-cli` | complete |
+| [a-3](plans/phase-a/sprint-a-3-sc-cron.md) | a | sc-cron prototype | `sprint/a-3-sc-cron` | complete |
+| [a-4](plans/phase-a/sprint-a-4-store.md) | a | bd-cache-store | `sprint/a-4-store` | complete |
+| [a-5](plans/phase-a/sprint-a-5-core-write.md) | a | bd-cache write path | `sprint/a-5-core-write` | complete |
+| [a-6](plans/phase-a/sprint-a-6-core-read.md) | a | bd-cache read path | `sprint/a-6-core-read` | complete |
 | [a-7](plans/phase-a/sprint-a-7-sync-integration.md) | a | bd-cache-sync and integration | `sprint/a-7-sync-integration` | in-review |
 | [a-8](plans/phase-a/sprint-a-8-python-bindings.md) | a | bd-cache-py bindings | `sprint/a-8-python-bindings` | complete |

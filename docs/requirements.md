@@ -662,7 +662,7 @@ The beads backend is shared as published crates (`sc-beads` traits, `sc-bd-cli` 
 
 **Status:** Approved
 
-An in-process cached `get` takes under 1 ms.
+An in-process cached `get` takes under 1 ms when at most `READ_DATING_THRESHOLD` (2000) undated journal entries exist and no foreign writer holds the write lock. The one `get` that dates a larger burst, and gets while a foreign writer holds the lock over more than 2000 undated entries, are bounded excursions recorded in ADR-STORE-0004 (lead rulings S26 and S31).
 
 **Source:** BD-CACHE.md Performance
 

@@ -35,11 +35,11 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", 
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 cron = "0.17"
-libc = "0.2"                                              # O_NONBLOCK for opening phase files (bd-cache-sync, a-7)
+libc = "0.2"                                               # O_NONBLOCK for opening phase files (bd-cache-sync, a-7)
 dunce = "1"                                                # canonical paths without the Windows \\?\ prefix, bd-cache-py (a-8, R12)
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
-tempfile = "3.20"                                          # dev-dependency only (sc-cron store tests)
+tempfile = "3.20"                                          # dev-dependency only (sc-cron, bd-cache-sync, bd-cache-py tests)
 pyo3 = "0.30"
 
 [workspace.lints.rust]

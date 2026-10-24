@@ -16,7 +16,7 @@ parallel_safe: [a-8]
 requirements:
   owns: [REQ-BDC-0003, REQ-BDC-0701, REQ-BDC-0702, REQ-BDC-0703, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0706, REQ-BDC-0707, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0003, REQ-SYNC-0001, REQ-SYNC-0002, REQ-SYNC-0003, REQ-SYNC-0004, REQ-SYNC-0005, REQ-SYNC-0006, REQ-SYNC-0007, REQ-SYNC-0008, REQ-SYNC-0009, REQ-SYNC-0010, REQ-SYNC-0011, REQ-SYNC-0012, REQ-SYNC-0013, REQ-STORE-0008]
   constrained_by: [REQ-BDC-0006, REQ-BDC-0101, REQ-BDC-0105, REQ-BDC-0201, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0403, REQ-BDC-0405, REQ-BDC-0406, REQ-BDC-0501, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0604, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0905, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004, REQ-STORE-0001, REQ-STORE-0002, REQ-STORE-0003, REQ-STORE-0004, REQ-STORE-0005, REQ-STORE-0006, REQ-STORE-0007, REQ-MODEL-0001, REQ-MODEL-0002, REQ-MODEL-0003, REQ-MODEL-0004, REQ-MODEL-0005]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205, ADR-CORE-0206, ADR-CRON-0005, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-MODEL-0004, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003, ADR-STORE-0004, ADR-SYNC-0001, ADR-SYNC-0002, ADR-SYNC-0003, ADR-SYNC-0004, ADR-SYNC-0005, ADR-SYNC-0006, ADR-SYNC-0007]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205, ADR-CORE-0206, ADR-CRON-0005, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-MODEL-0004, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003, ADR-STORE-0004, ADR-STORE-0005, ADR-SYNC-0001, ADR-SYNC-0002, ADR-SYNC-0003, ADR-SYNC-0004, ADR-SYNC-0005, ADR-SYNC-0006, ADR-SYNC-0007]
 owned_paths:
   - "crates/bd-cache-sync/**"
   - "crates/bd-cache-sync/benches/**"
@@ -44,6 +44,9 @@ owned_paths:
   - "docs/requirements.md"  # S3/S5 amendments
   - "Cargo.toml"  # S7: workspace dependencies; S14/S18 fix-a-7-3 adds a new workspace dependency (libc, for O_NONBLOCK in phases.rs, RSH-024)
   - "crates/bd-cache-store/src/{store,schema,codec}.rs"  # S4 amendment
+  - "crates/bd-cache-store/Cargo.toml"  # S32: rusqlite functions dev-feature (ADR-STORE-0005)
+  - "crates/bd-cache-store/src/location.rs"  # S32: ConfigLoadError recovery text (RBP-F040)
+  - "crates/bd-cache-model/src/scope.rs"  # S32: PhaseName::RULE
   - "crates/bd-cache-model/src/testing/contract.rs"
   - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment
   - "crates/bd-cache/src/ready.rs"
@@ -200,6 +203,8 @@ helper that was given up on, so none stays a zombie for the host's life; **S29**
 `next_sync_cause` enforces the declaration order and the hand-kept count is gone; **S30** `Cache::scope_synced`
 reads one `sync_state` row through the port, and `active.rs` uses it (ADR-SYNC-0005).
 
+Lead rulings of bc-lead, 2026-10-24, fix-a-7-8 (QA round 6): **S31** NFR-BDC-0001 is amended to state its condition: a cached `get` takes under 1 ms when at most `READ_DATING_THRESHOLD` (2000) undated journal entries exist and no foreign writer holds the write lock; the one `get` that dates a larger burst, and gets while a foreign writer holds the lock over more than 2000 undated entries, are bounded excursions recorded in ADR-STORE-0004 (S26, S31); **S32** a-7's `owned_paths` gain `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`sender.rs` was already listed), and **ADR-STORE-0005** (the `rusqlite` `functions` dev-feature and the one `unsafe` in the store's tests) is Approved under S32; ADR-CORE-0002 is amended for `Cache::scope_synced` (S30); **S33** RSH-029: post-send marker writes are bounded by the tick's remaining time; implemented in sprint/a-7-fix8-code.
+
 ## Deviations from this document
 
 1. **Phase file format** (closed by S10): confirmed against `bd_cache_cron.py` at atm-core `05831df` and two real
@@ -213,7 +218,7 @@ reads one `sync_state` row through the port, and `active.rs` uses it (ADR-SYNC-0
    `in-review` at hand-off. This doc says `in-review`; the lead sets `complete` at merge.
 5. **Edits outside the sprint's `owned_paths`**, each by a lead ruling named in the frontmatter comments:
    `crates/bd-cache` (S2, S4), `crates/bd-cache-model` and `crates/bd-cache-store` (S4, S11), `Cargo.toml` (S7),
-   `docs/requirements.md` (S3, S5), the phase plan (S6, S7), `docs/project-plan.md` (S12).
+   `docs/requirements.md` (S3, S5, S31), the phase plan (S6, S7, S26, S30, S32), `docs/project-plan.md` (S12), and, by S32, `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`MEMBER_NAME_RULE` in `sender.rs`, `PhaseName::RULE` in `scope.rs`, `Cache::scope_synced` of S30, ADR-STORE-0005).
 6. **`SendError` gained a `kind` field** (S11), so the struct literal `SendError { detail }` no longer compiles; the
    constructors `SendError::new` and `with_kind` replace it. No other crate in the workspace or on the a-8 branch
    built one.
@@ -420,6 +425,8 @@ Run on `m5-atmbench` at the last code-changing commit, the merge `7702b67`: a-7 
 limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record; this layer changes tests only. `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
 figures and the developer-machine smoke run. bc-lead's own run at the merge head, due 2026-10-31 (S8, S16), is still the
 owner's to record.
+
+CI evidence (fix-a-7-8): PR #33 at `8f4f07b` is green: ci run [40126278270](https://github.com/randlee/beads-cache/actions/runs/40126278270) and python run [40126278304](https://github.com/randlee/beads-cache/actions/runs/40126278304). The diff `7702b67..8f4f07b` touches only `docs/plans/phase-a/sprint-a-7-sync-integration.md`, `docs/plans/phase-a/evidence/a-7-testbed.md` and `docs/plans/phase-a/evidence/a-7-planted-bugs.json`, so the code CI exercised is the code of `7702b67`. The testbed runs used the `atmbench` account, run by the fix-a-7-6/7 developer.
 
 ## QA round 1 findings and their fixes
 
@@ -637,3 +644,32 @@ ADR documents in layer `sprint/a-7-fix3-sync`, and this evidence in
 | Problem | Fix | Evidence |
 |---|---|---|
 | Opening a directory as a phase file on Windows fails with Unreadable rather than NotAFile, so the NotAFile case differs by platform | `phases.rs` maps that open failure to NotAFile on Windows | layer `sprint/a-7-fix3-sync` (PR #15); green windows-latest run cited in phase 2 |
+
+## QA round 6 findings and their fixes
+
+Reviewed at `8f4f07b`. Docs fixes are in layer `sprint/a-7-fix8-docs`; code fixes in `sprint/a-7-fix8-code`.
+
+| Id | Problem | Fix | Where |
+|---|---|---|---|
+| ARCH-501 (blocking) | `adrs` omits ADR-STORE-0005 | Added after ADR-STORE-0004; named in the rulings (S32) | this doc |
+| ARCH-502, REQ-QA-602 | `owned_paths`, Deviation 5 and the phase plan Shared-files row omit store `Cargo.toml`, `location.rs`, `scope.rs`, S26, S30, ADR-STORE-0005, `MEMBER_NAME_RULE`, `PhaseName::RULE` | Paths added with S32 comments; Deviation 5 and the phase-plan row extended | this doc, `phase-a-plan.md` |
+| ARCH-503 | `Cache::scope_synced` missing from the `lib.rs` row and ADR-CORE-0002 | Row and amendment note (S30/S32) | `docs/bd-cache/architecture.md` |
+| ARCH-504 | `MEMBER_NAME_RULE`, `PhaseName::RULE` missing from the module table and ADR-MODEL-0003 | Rows and amendment bullet | `docs/bd-cache-model/architecture.md` |
+| ARCH-505 | `functions` dev-feature second use and the store's only `unsafe` not in ADR-STORE-0005 / Cargo comment; ADR-STORE-0004 omits two tests | fixed in sprint/a-7-fix8-code | |
+| ARCH-506 | `tempfile` comment names only sc-cron | "dev-dependency only (sc-cron, bd-cache-sync, bd-cache-py tests)" | `Cargo.toml` |
+| ARCH-507 | Boundary map says "No crate exists yet." | Sentence removed | `phase-a-plan.md` |
+| ARCH-508, REQ-QA-603 | Deferred table State stale; runner account not recorded | State set to "final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31"; account `atmbench` recorded | this doc, `evidence/a-7-testbed.md` |
+| REQ-QA-601 | NFR-BDC-0001 unqualified | Amended with the condition (S31) | `docs/requirements.md` |
+| REQ-QA-604 | No green CI cited for the final code commit | CI evidence line (runs 40126278270, 40126278304 on PR #33) | this doc |
+| QA6-001 | Floor invariant fails for a low-seq pending entry applied later | fixed in sprint/a-7-fix8-code | |
+| QA6-002 | `temp_store` leaks its directory on failure | fixed in sprint/a-7-fix8-code | |
+| QA6-003 | `functions` dev-feature justification incomplete | fixed in sprint/a-7-fix8-code | |
+| QA6-004 | `project-plan.md` a-1..a-6 stale | Set to `complete` | `docs/project-plan.md` |
+| QA6-005 | libc comment misaligned; overlong Crate Layout paragraph | Aligned and re-wrapped | `Cargo.toml`, `docs/architecture.md` |
+| RBP-F040 | `ConfigLoadError` recovery text duplicated | fixed in sprint/a-7-fix8-code | |
+| RBP-F041 | `write!(String).unwrap_or_default()` | fixed in sprint/a-7-fix8-code | |
+| FTQ-021 | Timing assertion with thin margin in `atm.rs` | fixed in sprint/a-7-fix8-code | |
+| FTQ-022 | Fixed 500 ms sleep sets the lock window | fixed in sprint/a-7-fix8-code | |
+| FTQ-023 | Kill tests read the pid file with no readiness handshake | fixed in sprint/a-7-fix8-code | |
+| FTQ-024 | Zombie treated as existing | fixed in sprint/a-7-fix8-code | |
+| RSH-029 | Post-send marker writes not bounded by the tick (S33) | fixed in sprint/a-7-fix8-code | |
