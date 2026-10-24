@@ -41,7 +41,7 @@ requirement ids, not the baseline.
 | P-3 | Resolved for errors (user, 2026-10-24): btit's `BeadsError` stays unchanged; cache errors are a separate `BeadsCacheError` in `sc-beads` (wraps `BeadsError`). The tolerant/strict row split stands as planned. | — | — |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
 | P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
-| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
+| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
 
 ## Boundary map
 
