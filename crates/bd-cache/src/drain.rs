@@ -4,10 +4,12 @@
 //!
 //! 1. [`DrainLock::try_acquire`]: held elsewhere, the report is `busy: true`
 //!    and nothing else runs. The guard lives until the pass returns.
-//! 2. Pending entries in seq order. Entries on a bead whose row is stale
-//!    (a failed read-back) are held until a sync re-reads it: they stay
-//!    pending and are reported in `retrying`. With nothing else to run, the
-//!    pass makes no bd call.
+//! 2. Pending entries in seq order. A bead whose row is stale (a failed
+//!    read-back) is held until a sync re-reads it, and a bead whose write
+//!    fails is held for the rest of the pass. A held bead's entries stay
+//!    pending: `retrying` when the pass reaches them, `deferred` when it
+//!    stops first (REQ-CORE-0103). With only stale-held entries the pass
+//!    makes no bd call.
 //! 3. The start gate: once it has passed, every entry not yet started is
 //!    `deferred` (pending, `attempts` unchanged). It is checked before the
 //!    backend check and before each entry.
@@ -39,7 +41,6 @@
 //! (REQ-BDC-0402). Each pending entry appears in exactly one report list.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::mem;
 
 use bd_cache_model::{
     CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock, DrainReport,
@@ -108,38 +109,39 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
             return Ok(());
         }
         self.held = self.cache.store.stale_rows()?.into_iter().collect();
-        let (stale, runnable): (Vec<JournalEntry>, Vec<JournalEntry>) = pending
-            .into_iter()
-            .partition(|e| self.held.contains(&e.bead));
-        self.report.retrying.extend(stale.iter().map(|e| e.seq));
-        if runnable.is_empty() {
+        // Beads with an entry to run: those whose row is not stale.
+        let wanted: BTreeSet<BeadId> = pending
+            .iter()
+            .filter(|e| !self.held.contains(&e.bead))
+            .map(|e| e.bead.clone())
+            .collect();
+        if self.gate_passed() {
+            self.defer(&pending);
             return Ok(());
         }
-        if self.gate_passed() {
-            self.defer(&runnable);
+        if wanted.is_empty() {
+            // Only stale-held entries: each is reached and held, with no bd call.
+            self.report.retrying.extend(pending.iter().map(|e| e.seq));
             return Ok(());
         }
         if let Err(f) = crate::backend_check::run(self.cache, self.hard()) {
-            return self.stop_before_entries(f, &runnable);
+            return self.stop_before_entries(f, &pending);
         }
-        let mut ids: Vec<BeadId> = Vec::new();
-        for e in &runnable {
-            if !ids.contains(&e.bead) {
-                ids.push(e.bead.clone());
-            }
-        }
+        // Each bead once, in bead-id order.
+        let ids: Vec<BeadId> = wanted.iter().cloned().collect();
         let rows = match crate::call(self.cache, CallKind::PreRead, self.hard(), |b, p, d| {
             b.list_by_ids(p, &ids, d)
         }) {
             Ok(rows) => rows,
-            Err(f) => return self.stop_before_entries(f, &runnable),
+            Err(f) => return self.stop_before_entries(f, &pending),
         };
         self.fresh = rows
             .into_iter()
-            .filter(|r| ids.contains(&r.id))
+            .filter(|r| wanted.contains(&r.id))
             .map(|r| (r.id.clone(), r))
             .collect();
-        let mut rest = runnable.iter();
+        // Seq order; a held bead's entries go to `retrying` when reached.
+        let mut rest = pending.iter();
         while let Some(e) = rest.next() {
             if self.gate_passed() {
                 self.report.deferred.push(e.seq);
@@ -160,9 +162,9 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
 
     /// The backend check or the pre-read failed: no entry starts and no attempt is counted.
     ///
+    /// `entries` is every pending entry, those held for a stale row included.
     /// The v3 rule (ADR-CORE-0101): an unreachable backend ([`is_unreachable`])
-    /// or a cut defers every pending entry, including those held for a stale
-    /// row; any other failure retries them all.
+    /// or a cut defers them all; any other failure retries them all.
     fn stop_before_entries(
         &mut self,
         f: CallFailure,
@@ -186,14 +188,11 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
                 false
             }
         };
-        // Only stale-held entries are reported yet; every pending entry goes in one list.
-        let mut all = mem::take(&mut self.report.retrying);
-        all.extend(entries.iter().map(|e| e.seq));
-        all.sort();
+        let seqs = entries.iter().map(|e| e.seq);
         if defer_all {
-            self.report.deferred = all;
+            self.report.deferred.extend(seqs);
         } else {
-            self.report.retrying = all;
+            self.report.retrying.extend(seqs);
         }
         Ok(())
     }

@@ -68,15 +68,20 @@ pass and stay pending with unchanged `attempts`, in two cases. It is held
 from the start of the pass when its row is stale, and stays held across
 passes until a store of the row clears the stale mark (a sync, a-6). It
 is also held for the rest of the pass after one of its writes fails on a
-reachable backend or its read-back fails. Held entries are reported in
-`retrying`, except when an outage or a cut stops the pass before any entry
-starts: then every pending entry, held or not, is reported in `deferred`
-(ADR-CORE-0101).
+reachable backend or its read-back fails. The pass takes entries in seq
+order. A held entry the pass reaches is reported in `retrying`. A held
+entry the pass never reaches is reported in `deferred`, like any unreached
+entry. That happens when the pass stops first: the start gate passes, a
+call is cut, or an outage stops it (ADR-CORE-0101).
 
 **Refines:** REQ-BDC-0404, 0405
 **Acceptance evidence:**
 `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only`,
-`test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`.
+`test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
+`a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`
+(`tests/drain_budget.rs`),
+`an_outage_defers_every_pending_entry_including_stale_held_ones`
+(`tests/drain_outage.rs`).
 
 ## ADR-CORE-0101: Drain stop policy
 
@@ -158,6 +163,8 @@ Decision:
   `apply_with_readback`.
 - `dep_add` passes no guards to bd, because bd's `dep add` takes none, so
   its precondition is checked only against the fresh row.
-- The start gate is checked before the backend check and before each
-  entry. A gate that has already passed defers the whole pass with no bd
-  call.
+- The start gate is checked first, before any bd call, and again before
+  each entry, held or not. If it has passed at the start, every pending
+  entry is `deferred` and no bd call is made. If it passes mid-pass, every
+  entry not yet reached is `deferred`, including a held bead's later
+  entries (REQ-CORE-0103).

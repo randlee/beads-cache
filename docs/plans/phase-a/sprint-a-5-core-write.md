@@ -15,7 +15,7 @@ parallel_safe: [a-2, a-3, a-4, a-6]
 requirements:
   owns: [REQ-BDC-0002, REQ-BDC-0004, REQ-BDC-0005, REQ-BDC-0302, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0403, REQ-BDC-0404, REQ-BDC-0405, REQ-BDC-0406, REQ-CORE-0101, REQ-CORE-0102, REQ-CORE-0103]
   constrained_by: [REQ-BDC-0003, REQ-BDC-0105, REQ-BDC-0202, REQ-BDC-0301, REQ-BDC-0305, REQ-BDC-0803, REQ-BDC-0902, REQ-BDC-0903, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
-adrs: [ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BEADS-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BEADS-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103]
 owned_paths:
   - "crates/bd-cache/src/write.rs"
   - "crates/bd-cache/src/drain.rs"
@@ -53,10 +53,12 @@ It uses no code from a-4 or a-6.
    achieved, precondition, command, exit 13, retry cap of 5, per-bead hold),
    read-back with `apply_with_readback` and the stale mark, the drain
    report. Beads whose row is stale are skipped until a sync clears it. 
-3. Outage stop policy in `drain.rs` (ADR-BDC-0005): a `CallOutcome::Outage`
-   stops the drain without counting an attempt (the `call` helper records
-   it); `Cut` leaves the entry in `deferred_in_flight`. Only errors from a
-   reachable backend count toward the cap.
+3. Outage stop policy in `drain.rs` (ADR-BDC-0005), as given by the stop
+   table in ADR-CORE-0101 (`docs/bd-cache/write-path.md`). A
+   `CallFailure::Outage` stops the drain without counting an attempt (the
+   `call` helper records it). `CallFailure::Cut` leaves the entry in
+   `deferred_in_flight`. Only errors from a reachable backend count toward
+   the cap.
 4. `docs/bd-cache/write-path.md`: crate ADRs for the write path
    (ADR-CORE-01xx).
 
@@ -157,8 +159,9 @@ workspace run.
   `detail`, through `sc_beads::logging::tracing`, so bd-cache's Cargo.toml
   is unchanged.
 - **R3**. Held entries are reported in `retrying`, and every pending entry
-  is in exactly one list. When an outage or a cut stops the pass before
-  any entry starts, held entries are deferred with the rest.
+  is in exactly one list. fix-a-5-1 (QA-002) amended this: a held entry the
+  pass never reaches, because the gate passed, a call was cut or an outage
+  stopped the pass, is `deferred`.
 - **R4**. REQ-CORE-0101..0103 and ADR-CORE-0101..0103 are Approved, as
   amended by R1-R3.
 - **R5**. The read-back gap is closed by a test-local wrapper backend (see
@@ -166,6 +169,24 @@ workspace run.
 
 No a-1 contract is changed. `write` and `drain` keep the delegated
 signatures in `lib.rs`.
+
+## fix-a-5-1 (QA-1 at ce5d6a4)
+
+- ARCH-001: `adrs` lists ADR-BDC-0001.
+- ARCH-002: deliverable 3 names `CallFailure::Outage` / `CallFailure::Cut`
+  and points to ADR-CORE-0101's stop table.
+- QA-002: the drain takes every pending entry, stale-held ones included, in
+  seq order, and checks the start gate first. A held entry it reaches is
+  `retrying`; one it never reaches (gate, cut or outage) is `deferred`.
+  REQ-CORE-0103 and ADR-CORE-0103 say so. Test:
+  `a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut`.
+- QA-001: with the lead's authorisation for those lines only, the six
+  stale lint overrides and their comment are removed from
+  `crates/bd-cache/src/lib.rs`. Nothing else in `lib.rs` changed. The
+  default-feature `cargo clippy --workspace --lib -- -D warnings` passes
+  without them.
+- The pre-read dedupes bead ids with a `BTreeSet`, so the batch is in
+  bead-id order.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 

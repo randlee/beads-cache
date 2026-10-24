@@ -182,3 +182,38 @@ fn a_cut_pre_read_defers_the_whole_drain() {
     assert_eq!(r.outage, None);
     assert!(w.bd.writes().is_empty());
 }
+
+#[test]
+fn a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut() {
+    // Start gate: b1's write fails at t=3 (check, pre-read and write cost 1 s
+    // each), so the gate at 3 s has passed when b1's next entry comes up.
+    let w = World::new();
+    let mut c = w.cache();
+    let failed = journal(&mut c, "b1", "update", r#"{"append_notes": "a"}"#, "k1");
+    let next = journal(&mut c, "b1", "close", "{}", "k2");
+    w.bd.inject(FakeOp::Update, Injection::Failed(1));
+    w.bd.set_cost(Duration::from_secs(1));
+    let r = c.drain(&budget(&w, 3, 20)).unwrap();
+    assert_eq!(r.retrying, vec![failed]);
+    assert_eq!(r.deferred, vec![next], "unreached: deferred, not retrying");
+    assert_eq!(entry(&c, failed).attempts, 1);
+    assert_eq!(entry(&c, next).attempts, 0);
+
+    // Cut: b1 is held after its failed write, b2's write is cut, and b1's next
+    // entry is never reached.
+    let w = World::new();
+    let mut c = w.cache();
+    let failed = journal(&mut c, "b1", "update", r#"{"append_notes": "a"}"#, "k1");
+    let cut = journal(&mut c, "b2", "close", "{}", "k2");
+    let next = journal(&mut c, "b1", "close", "{}", "k3");
+    w.bd.inject(FakeOp::Update, Injection::Failed(1));
+    w.bd.inject(FakeOp::Close, Injection::Delay(Duration::from_secs(10)));
+    let r = c.drain(&budget(&w, 4, 5)).unwrap();
+    assert_eq!(r.retrying, vec![failed]);
+    assert_eq!(r.deferred_in_flight, vec![cut]);
+    assert_eq!(r.deferred, vec![next], "unreached: deferred, not retrying");
+    for (seq, attempts) in [(failed, 1), (cut, 0), (next, 0)] {
+        let e = entry(&c, seq);
+        assert_eq!((e.state, e.attempts), (JournalState::Pending, attempts));
+    }
+}
