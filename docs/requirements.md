@@ -582,11 +582,15 @@ Cached blocked state and `ready` stay correct when a blocker inside or outside t
 
 ## REQ-BDC-0907: Fresh read
 
+**Status:** Approved
+
 A caller can read beads fresh from the backend, bypassing cached rows: one `bd list --id` of the requested beads (all statuses), stored with force, with pending journal entries replayed on top, under a caller-supplied timeout.
 
 **Source:** fenix, 2026-10-24 (atm-bd close-vars and the sanity hook's batched refresh; a cached row can lag a direct `bd update`)
 
 ## REQ-BDC-0908: Journal entry by seq
+
+**Status:** Approved
 
 A caller can read one journal entry by `seq`, in any state.
 
@@ -594,11 +598,15 @@ A caller can read one journal entry by `seq`, in any state.
 
 ## REQ-BDC-0909: On-demand scopes
 
+**Status:** Approved
+
 Syncing a phase that is not configured registers it as an on-demand scope, so a later `list` of it works; only a scope that has never been synced or configured is refused.
 
 **Source:** fenix, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
 
 ## REQ-BDC-0910: Python bindings
+
+**Status:** Approved
 
 The cache is callable in process from Python (maturin / PyO3), with the verbs atm-bd uses today, so atm-bd can replace `bd_cache.py` without the `bdc` binary or sc-runtime.
 
@@ -606,11 +614,15 @@ The cache is callable in process from Python (maturin / PyO3), with the verbs at
 
 ## REQ-BDC-0911: Ready reflects our own writes immediately
 
+**Status:** Approved
+
 After a write journaled through the cache that releases or blocks a bead (for example a dev close releasing its sanity bead), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
 
 **Source:** user, 2026-10-24 (the sanity agent's `atm task open` hook checks ready through the cache one or two turns after assignment and escalates if not ready)
 
 ## REQ-BDC-0912: Bounded fresh ready
+
+**Status:** Approved
 
 A caller can ask `ready` for a fresh answer within a time limit it gives (for example 500 ms, inside a hook's 2.5 s budget). If bd answers in time, the reply uses bd's answer and refreshes the stored base; if not, it returns the cached, locally adjusted answer by the limit, naming the fallback error. The call never exceeds the limit.
 

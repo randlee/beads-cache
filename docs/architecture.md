@@ -134,8 +134,8 @@ integrating with sc-runtime.
 
 | Crate | Responsibility | May depend on | Phase |
 |---|---|---|---|
-| `bd-cache-model` | Pure cache types on top of `sc-beads` rows: `Op` (parse, args JSON, overlay, achieved), journal entries, `replay`, the `CacheStore` and `DrainLock` ports with `FakeStore`, the `EscalationSender` port, `CacheConfig`, `DrainBudget`, reply and report types, `CacheError` with every `BD_CACHE.*` code and the backend-error mapping (ADR-BDC-0003) | `sc-beads`, serde, serde_json | a |
-| `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, `BeadsError` and `Refusal`, `Clock` and `Deadline`, a `FakeBackend` test double (ADR-BDC-0007) | serde, serde_json, sha2, tracing | a |
+| `bd-cache-model` | Pure cache types on top of `sc-beads` rows: `Op` (parse, args JSON, overlay, achieved), journal entries, `replay`, the `CacheStore` and `DrainLock` ports with `FakeStore`, the `EscalationSender` port, `CacheConfig`, `DrainBudget`, reply and report types, `CacheError` with every `BD_CACHE.*` code and the backend-error mapping (ADR-BDC-0003) | `sc-beads`, serde, serde_json, toml (private: parses `RepoConfig`, no toml type in the API; ADR-MODEL-0004) | a |
+| `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, btit's `BeadsError` unchanged plus `BeadsCacheError` and `Refusal` for the cache calls, `Clock` and `Deadline`, a `FakeBackend` test double (ADR-BDC-0007) | serde, serde_json, sha2, tracing | a |
 | `sc-bd-cli` (shared, published) | The bd CLI implementation of the `sc-beads` traits, ported from btit-cli and btit-bd: invoker with a recording test double, probes and version gates, dolt-mode detection, per-project locks; exit 13 as a typed refusal | `sc-beads` | a |
 | `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
 | `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4 | a |
@@ -447,6 +447,20 @@ from scratch, and btit's parity and API-freeze tests come with them.
 bd-incompatible changes become breaking releases of `sc-beads` and
 `sc-bd-cli`. Needs agreement from the btit side on the shared API (sync
 calls, error type, tolerant vs strict rows).
+
+P-3 outcome (sprint a-1, owner amendment by Rand): btit's `BeadsError` is
+unchanged; cache errors are `BeadsCacheError` in `sc-beads`; this resolves
+P-3's error-type question. `BeadsCacheError` carries `Unavailable { reason,
+timed_out }`, `Refused(Refusal)`, `Contract { bead, field, detail }` and
+`Failed { code, stderr }`, plus `Btit(BeadsError)` with
+`From<BeadsError>`; every `CacheBackend` method returns it, and btit's
+traits keep returning `BeadsError`. The calls stay synchronous, and both row
+modes ship: btit's tolerant `BdRawIssue` unchanged, and the strict `Bead`
+generated from `bd schema` (ADR-BEADS-0002 and ADR-BEADS-0003 in
+[`sc-beads/architecture.md`](sc-beads/architecture.md)). Logging moved to
+`tracing` behind btit's unchanged `log_*!` macro names (ADR-BEADS-0001).
+The additional `BeadsCacheError::CheckFailed` variant (typed check step) is
+recorded in ADR-BEADS-0002, accepted by lead ruling (bc-lead, 2026-10-23).
 
 ## ADR-BDC-0008: User metadata extensions as consumer-owned schema packages
 

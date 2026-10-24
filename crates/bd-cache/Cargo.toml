@@ -1,0 +1,27 @@
+[package]
+name = "bd-cache"
+description = "bd-cache core: the Cache facade over a CacheStore, a DrainLock and a CacheBackend."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+# Test hooks onto the crate-private helpers (`bd_cache::testing`).
+testing = []
+
+[dependencies]
+bd-cache-model.workspace = true
+sc-beads.workspace = true
+
+[dev-dependencies]
+bd-cache = { path = ".", features = ["testing"] }
+bd-cache-model = { workspace = true, features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+serde_json.workspace = true
+
+[lints]
+workspace = true
