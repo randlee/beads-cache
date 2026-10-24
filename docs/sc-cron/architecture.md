@@ -333,3 +333,7 @@ crate-level `forbid(unsafe_code)` and `warn(unreachable_pub)`. A dev-dependency
 on itself with `test-utils` means `cargo test --workspace` runs every test.
 It is validated with the workspace commands in the sprint doc
 (`docs/plans/phase-a/sprint-a-3-sc-cron.md`).
+`crates/sc-cron/clippy.toml` sets the `allow-*-in-tests` options so test code may
+use `unwrap`, `expect` and the like; test-only lint exceptions in source use
+`#[expect(..., reason)]` (lead ruling R14, a-8 fix round 6; test lint
+configuration only).

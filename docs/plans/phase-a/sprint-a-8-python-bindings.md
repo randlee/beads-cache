@@ -16,7 +16,7 @@ parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910, REQ-PY-0001, REQ-PY-0002, REQ-PY-0003, REQ-PY-0004, REQ-PY-0005, REQ-PY-0006, REQ-PY-0007, REQ-PY-0008, REQ-PY-0009, REQ-PY-0010]
   constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0006, REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0104, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0302, REQ-BDC-0402, REQ-BDC-0406, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0906, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0002-amendment-a-8, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0002-amendment-a-5-qa-1, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0002-amendment-a-8, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0002-amendment-a-5-qa-1, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205, ADR-STORE-0003, ADR-CRON-0001, ADR-CRON-0002, ADR-CRON-0003, ADR-CRON-0004, ADR-CRON-0005, ADR-CRON-0006, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
 owned_paths:
   - "crates/bd-cache-py/**"
   - "Cargo.toml"                                # R2, R12: three [workspace.dependencies] lines only (bd-cache-store, sc-bd-cli, dunce)
@@ -29,6 +29,10 @@ owned_paths:
   - "crates/bd-cache/src/drain.rs"              # R11: replace the private is_unreachable only
   - "docs/bd-cache/write-path.md"               # R11: the sentence about it only
   - "docs/bd-cache-model/architecture.md"       # R11: the a-8 amendment section and the error.rs row only
+  # Lead ruling R14 (bc-lead, 2026-10-24, a-8 fix round 6): test lint configuration only, no API, dependency or schema change
+  - "crates/sc-cron/clippy.toml"                # R14: allow-*-in-tests only
+  - "crates/sc-cron/src/**"                     # R14: #[allow] -> #[expect(..., reason)] in test modules only
+  - "crates/sc-cron/tests/**"                   # R14: #[allow] -> #[expect(..., reason)] only
 ---
 
 # Sprint a-8 — Python bindings (maturin / PyO3)
@@ -47,7 +51,7 @@ composition and the wheel builds in CI.
 Composes `BdCli` (a-2), `SqliteStore` (a-4) and the write and read paths of
 `Cache` (a-5, a-6). It does not need `bd-cache-sync` or `sc-cron` (a-3, a-7):
 atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
-`sync` through these bindings.
+`sync` through these bindings. It does not depend on sc-cron; under R14 it edits only sc-cron's test lint configuration.
 
 ## Deliverables
 
@@ -197,6 +201,10 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
   `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`); the binding
   tests keep the spent-gate and hard-deadline cases, which fail if the two
   bounds are swapped.
+- **`sc-cron` test lint configuration** (lead ruling R14, bc-lead, 2026-10-24, a-8 fix
+  round 6): `crates/sc-cron/clippy.toml` (`allow-*-in-tests`) and `#[allow]` ->
+  `#[expect(..., reason)]` in `sc-cron` test modules and `tests/*`, commit `1709e3b`
+  (PR #23). No API, dependency or schema change. Recorded in phase-a-plan's Shared files table (owner a-3).
 - **ci.yml** is unchanged: it excludes `bd-cache-py`; `python.yml` runs the
   crate's clippy and `cargo test` on macOS, Linux and Windows (R4).
 
@@ -257,7 +265,7 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 | read open error derives a config kind | `src/handle.rs` | `test_an_unreadable_config_file_is_an_os_error_with_kind_and_path`; 1 |
 
 Every one of the 39 bugs fails at least one test, none by a compile error, and
-none survives; every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
+none survives (the one survivor is the unreachable fallback-arm mutant in the QA round 6 table below); every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
 
 Round 6 mutants are in the QA round 6 section below.
 
@@ -285,14 +293,15 @@ https://github.com/randlee/beads-cache/actions/runs/40104379997 (success).
 
 | Id | Finding | Fix |
 |---|---|---|
+| QA6-001 | `sc-cron` test code used `#[allow]` and had no test lint configuration, so workspace clippy failed on it | `crates/sc-cron/clippy.toml` (`allow-*-in-tests`) plus `#[expect(..., reason)]` in test modules and `tests/*`; commit `1709e3b` (PR #23); lead ruling R14, test lint configuration only |
 | QA6-002 | `handle.rs` test loop `for outcome in &cases` iterated `NotRun` values | Variable renamed `not_run` |
 | QA6-003 | Double blank line before the QA round 5 heading | One blank line deleted |
 | RBP-F025 | `ValueError` kind `config` undocumented; no test pinned the kind texts | `requirements.md` and `architecture.md` document `config` ("any other configuration problem the loader reports; `path` may be `None`"); new unit test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read` asserts the set of `OpenKind::as_str` outputs is exactly {parse, scope, argument, config, read} |
 | (optional) | `OpenKind::Config(ConfigKind::Config)` reads badly | `ConfigKind::Config` renamed `ConfigKind::Other` (two uses, both in `compose.rs`); the Python-visible text stays `config` |
 
-Planted bugs for the round 6 code, each applied to the working tree and the
-restored with `git checkout` (Rust tests via `cargo test -p bd-cache-py`; pytest
-suite re-run on the last one, 92 passed):
+Planted bugs for the round 6 code, each applied to the working tree and then
+restored with `git checkout` (Rust tests via `cargo test -p bd-cache-py`). The
+pytest run that covers the rename is the post-rename run at a36b7df: 92 passed.
 
 | Planted bug | File | First failing test; failures |
 |---|---|---|
@@ -348,3 +357,21 @@ holds (this document cites the last code commit).
 1. **Status.** `in-review`; the project-plan row says `in-review` too. Set both
    to `complete` at merge.
 2. **Publishing** is untouched: no token was read or used.
+
+## QA round 7 findings and their fixes (QA-7 at a36b7df)
+
+Verdicts: arch-qa FAIL (4 blocking), req-qa FAIL (1 blocking), rust-qa minor
+findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
+
+| Id | Finding | Fix |
+|---|---|---|
+| REQ-QA7-001 / ARCH-001 | 13 `sc-cron` files changed outside `owned_paths`; R14 unrecorded | `owned_paths` entries for `crates/sc-cron/clippy.toml`, `src/**`, `tests/**` with an R14 comment; Interpretations bullet for R14 |
+| ARCH-002 | `adrs` lacked ADR-BDC-0006 and ADR-CRON-0001..0006 | Added to `adrs` |
+| ARCH-003 | Shared files table lacked an R14 `sc-cron` row | Amendment note for `crates/sc-cron/**` (owner a-3) in `phase-a-plan.md` |
+| ARCH-004 / QA7-003 / REQ-QA7-002 | Evidence and Validation cited 13d67ab and 661 tests; round 6 code changes and CI runs not cited | Phase 2: names the tests layer's head with its counts and CI run ids |
+| ARCH-005 / QA7-002 | QA6-001 missing from the round 6 table | Row added (clippy.toml plus `#![expect]`, `1709e3b`, R14) |
+| ARCH-006 | must_follow rationale said a-8 does not need sc-cron | Clause added: it does not depend on sc-cron; under R14 it edits only test lint configuration |
+| ARCH-007 | `docs/sc-cron/architecture.md` Build note omitted `clippy.toml` | One sentence added (R14) |
+| QA7-001 / REQ-QA7-003 | "and the restored" typo; pytest re-run cited on the survivor mutant | "and then restored"; the covering pytest run is the post-rename run at a36b7df, 92 passed |
+| REQ-QA7-004 | "none survives" line not cross-referenced to the round 6 survivor | Cross-reference added |
+| FTQ-401, FTQ-402 | Wall-clock assertions in `test_ready.py` and `test_perf.py` | Fixed in the `sprint/a-8-fix7-tests` layer |
