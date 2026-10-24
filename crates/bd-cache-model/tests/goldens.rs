@@ -374,8 +374,29 @@ fn reply_goldens() {
                               "reason": "bd refused: precondition changed (exit 13)"}]})
     );
     assert_eq!(
-        serde_json::to_value(ReadyBasis::Fresh).unwrap(),
-        json!({"kind": "fresh"})
+        serde_json::to_value(ReadyBasis::Fresh {
+            fetched_at: Timestamp::parse("2026-10-23T10:00:05Z").unwrap()
+        })
+        .unwrap(),
+        json!({"kind": "fresh", "fetched_at": "2026-10-23T10:00:05Z"})
+    );
+    // a-1 amendment 2: ready replies carry the scope's last_ok_at and the basis' fetch time.
+    let reply = bd_cache_model::ReadyReply {
+        scope: ScopeId::phase("x").unwrap(),
+        last_ok_at: Some(Timestamp::parse("2026-10-23T10:00:00Z").unwrap()),
+        basis: ReadyBasis::Fresh {
+            fetched_at: Timestamp::parse("2026-10-23T10:00:05Z").unwrap(),
+        },
+        locally_adjusted: true,
+        ready: vec![],
+        read_fallback: None,
+        missing_rows: vec![id("b9")],
+    };
+    assert_eq!(
+        serde_json::to_value(&reply).unwrap(),
+        json!({"scope": "x", "last_ok_at": "2026-10-23T10:00:00Z",
+               "basis": {"kind": "fresh", "fetched_at": "2026-10-23T10:00:05Z"},
+               "locally_adjusted": true, "ready": [], "read_fallback": null, "missing_rows": ["b9"]})
     );
     assert_eq!(
         serde_json::to_value(ReadyBasis::Cached {

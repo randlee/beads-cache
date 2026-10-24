@@ -85,6 +85,8 @@ write and read paths (a-5, a-6).
    Policy in `.claude/project/quality-policy.md`; `docs/bd-cache-sync/`
    requirements and architecture.
 
+- **bd-compat workflow, real run (deferred from a-2, lead ruling bc-lead 2026-10-24).** After develop→main at phase close-out, run `.github/workflows/bd-compat.yml` once by `workflow_dispatch` at the pinned bd version (expect pass) and once by `repository_dispatch` with a different version (expect a failure that opens one issue with the `bd schema` diff). a-2's proof-branch runs 40073075092 and 40073178515 are its interim evidence.
+
 ## Acceptance criteria
 
 | Criterion | Root |

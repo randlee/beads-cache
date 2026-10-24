@@ -50,25 +50,11 @@ pub use bd_cache_model::{
 };
 use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
 
-// The shared helpers are called by the a-5 and a-6 modules and by the
-// `testing` hooks; until those sprints land, only the hooks use them.
-#[cfg_attr(
-    not(feature = "testing"),
-    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
-)]
 mod backend_check;
 mod drain;
 mod get;
 mod list;
-#[cfg_attr(
-    not(feature = "testing"),
-    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
-)]
 mod miss;
-#[cfg_attr(
-    not(feature = "testing"),
-    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
-)]
 mod outage;
 mod prune;
 mod ready;
@@ -76,20 +62,9 @@ mod refresh;
 mod resolve;
 mod status;
 mod sync;
-#[cfg_attr(
-    not(feature = "testing"),
-    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
-)]
 mod view;
 mod write;
 
-#[cfg_attr(
-    not(feature = "testing"),
-    allow(
-        unused_imports,
-        reason = "called by sprints a-5/a-6 and the testing hooks"
-    )
-)]
 pub(crate) use outage::call;
 
 /// The bd-cache facade.
@@ -98,10 +73,6 @@ pub(crate) use outage::call;
 pub struct Cache<S: CacheStore, L: DrainLock, B: CacheBackend> {
     pub(crate) config: CacheConfig,
     pub(crate) store: S,
-    #[allow(
-        dead_code,
-        reason = "read by the drain, sprint a-5; an expect would go stale then"
-    )]
     pub(crate) lock: L,
     pub(crate) backend: B,
     pub(crate) clock: Arc<dyn Clock>,
