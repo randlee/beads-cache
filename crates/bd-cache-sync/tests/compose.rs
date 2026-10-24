@@ -22,8 +22,16 @@
 //! given, not the one it was built with (S40, RBP-F046).
 #![expect(
     clippy::unwrap_used,
-    clippy::panic,
     reason = "test code: a failed unwrap is a test failure"
+)]
+// The only `panic!` outside a `#[test]` function is in the Unix-only child
+// runner, so the expectation exists only where that code is compiled.
+#![cfg_attr(
+    unix,
+    expect(
+        clippy::panic,
+        reason = "test code: a child that times out is a test failure"
+    )
 )]
 
 use std::path::Path;
