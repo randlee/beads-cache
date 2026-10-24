@@ -82,9 +82,8 @@ up when the backend responds (ADR-BDC-0005).
 
 ### Repository configuration
 
-bdc is set up from a config file in the repository, at
-`.bd-cache/config.toml` or `.beads/bd-cache.toml` (one of the two; both
-present is a configuration error). It names the sync scopes, the timeouts
+bdc is set up from `.beads/bd-cache.toml`, next to bd's own files, since the
+cache is an extension of bd. It names the sync scopes, the timeouts
 in `CacheConfig`, and the schema packages to load by path, for example
 `.claude/skills/atm-beads/schemas`, each with an optional enforcement
 override (ADR-BDC-0008). Loading it goes through sc-config after sc-runtime
@@ -421,7 +420,7 @@ Decision (proposed):
   pour, required at close). The skill's own models stay the source and
   export the package.
 - **bdc loads packages at runtime** from the paths in the repository's bdc
-  config (`.bd-cache/config.toml` or `.beads/bd-cache.toml`), with no bdc
+  config (`.beads/bd-cache.toml`), with no bdc
   release needed to add or change one, and validates with a JSON Schema
   validator in `sc-beads` that btit and the later PyO3 bindings share.
 - **Configurable enforcement.** Each package sets a default mode (`off`,
