@@ -1,7 +1,7 @@
 ---
 id: a-1
 phase: a
-status: planned
+status: complete
 closure_type: contract
 target_boundary: sc-beads, bd-cache-model, bd-cache (skeleton and shared helpers)
 vertical_rationale: "Contract sprint for three boundaries every wave-2 sprint consumes: the shared-trait crate, the pure model crate whose behaviour is the contract, and the bd-cache skeleton with the helpers (view, backend_check, miss, outage) that both a-5 and a-6 call, so neither depends on the other."
@@ -110,26 +110,29 @@ impl Deadline {
 /// Refusals: the CLI only produces Precondition (exit 13); NotClosable and
 /// AlreadyClaimed come from the HTTP implementation's 409 codes.
 pub enum Refusal { Precondition, NotClosable, AlreadyClaimed, Other(String) }
-pub enum BeadsError {
+// btit's BeadsError is unchanged (owner amendment, ADR-BDC-0007): cache errors are a separate type.
+pub enum BeadsCacheError {
     Unavailable { reason: String, timed_out: bool }, // timeout, cannot start, connection refused
     Refused(Refusal),
     Contract { bead: Option<BeadId>, field: String, detail: String },
     Failed { code: i32, stderr: String },
-    // btit's existing variants kept
+    Btit(BeadsError),                                // any btit error
 }
+impl From<BeadsError> for BeadsCacheError;
 
 /// The cache's backend surface; implemented by sc-bd-cli (a-2) and FakeBackend.
 /// Implementations are constructed with the same Arc<dyn Clock> as the Cache and
 /// stop each call at the Deadline they are handed; they do not apply their own cap.
+/// Every method returns BeadsCacheError; btit's traits keep returning BeadsError.
 pub trait CacheBackend: BeadsBackend + Send + Sync {
-    fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsError>;
-    fn list_by_ids(&self, p: &ProjectRef, ids: &[BeadId], d: Deadline) -> Result<Vec<Bead>, BeadsError>;
-    fn list_scope(&self, p: &ProjectRef, f: &ScopeFilter, since: Option<&SyncCursor>, d: Deadline) -> Result<Vec<Bead>, BeadsError>;
-            fn list_blocked(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BlockedRow>, BeadsError>; // bd blocked -l
-    fn list_ready(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BeadId>, BeadsError>;        // bd ready -l -n 0
-    fn close_guarded(&self, p: &ProjectRef, id: &BeadId, reason: Option<&str>, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
-    fn update_guarded(&self, p: &ProjectRef, id: &BeadId, patch: &Patch, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
-    fn dep_add_typed(&self, p: &ProjectRef, id: &BeadId, on: &BeadId, kind: DepType, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
+    fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsCacheError>;
+    fn list_by_ids(&self, p: &ProjectRef, ids: &[BeadId], d: Deadline) -> Result<Vec<Bead>, BeadsCacheError>;
+    fn list_scope(&self, p: &ProjectRef, f: &ScopeFilter, since: Option<&SyncCursor>, d: Deadline) -> Result<Vec<Bead>, BeadsCacheError>;
+            fn list_blocked(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BlockedRow>, BeadsCacheError>; // bd blocked -l
+    fn list_ready(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BeadId>, BeadsCacheError>;        // bd ready -l -n 0
+    fn close_guarded(&self, p: &ProjectRef, id: &BeadId, reason: Option<&str>, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsCacheError>;
+    fn update_guarded(&self, p: &ProjectRef, id: &BeadId, patch: &Patch, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsCacheError>;
+    fn dep_add_typed(&self, p: &ProjectRef, id: &BeadId, on: &BeadId, kind: DepType, a: &Actor, d: Deadline) -> Result<(), BeadsCacheError>;
 }
 
 /// Behind the `testing` feature.
@@ -288,8 +291,9 @@ impl CacheError {
     pub fn to_json(&self) -> serde_json::Value;   // {ok: false, code, detail, fix, reason?, ...payload}
     /// Mapping table (contract-tested): Contract -> BD_CONTRACT; Refused(Precondition) -> PRECONDITION;
     /// Failed -> BD_WRITE_FAILED (Write), BD_LIST_FAILED (PreRead, ReadBack, Refresh, MissFill),
-    /// SYNC_FAILED (Sync), BD_VERSION_FAILED / BD_SCHEMA_FAILED (Check); Unavailable -> BD_UNAVAILABLE.
-    pub fn from_backend(e: &BeadsError, kind: CallKind) -> CacheError;
+    /// SYNC_FAILED (Sync), BD_VERSION_FAILED / BD_SCHEMA_FAILED (Check); Unavailable -> BD_UNAVAILABLE;
+    /// Btit(e) by the btit variant (Spawn -> BD_UNAVAILABLE, parse errors -> BD_CONTRACT, else as Failed).
+    pub fn from_backend(e: &BeadsCacheError, kind: CallKind) -> CacheError;
 }
 
 // ================= bd-cache (skeleton + shared helpers) =================

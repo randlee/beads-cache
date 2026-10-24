@@ -1,0 +1,128 @@
+//! `FakeBackend`'s own knobs: injections, per-call cost, deadlines, command plan.
+
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "test code: a failed unwrap or index is a test failure"
+)]
+
+use std::sync::Arc;
+use std::time::Duration;
+
+use sc_beads::testing::{bead, FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
+use sc_beads::{
+    Actor, BeadId, BeadsCacheError, CacheBackend, Clock, Deadline, Guards, ProjectRef, Refusal,
+};
+
+fn setup() -> (Arc<ManualClock>, FakeBackend) {
+    let clock = Arc::new(ManualClock::default());
+    let fake = FakeBackend::new(Arc::clone(&clock));
+    fake.insert(bead("b1"));
+    (clock, fake)
+}
+
+fn ids(id: &str) -> Vec<BeadId> {
+    vec![BeadId::from(id)]
+}
+
+#[test]
+fn a_call_slower_than_its_deadline_is_cut_at_the_deadline() {
+    let (clock, fake) = setup();
+    let p = ProjectRef::local(None);
+    fake.set_cost_for(FakeOp::ListByIds, Duration::from_secs(5));
+    let d = Deadline::after(&*clock, Duration::from_millis(500));
+    let start = clock.elapsed();
+    let r = fake.list_by_ids(&p, &ids("b1"), d);
+    assert!(matches!(
+        r,
+        Err(BeadsCacheError::Unavailable {
+            timed_out: true,
+            ..
+        })
+    ));
+    assert_eq!(
+        clock.elapsed().saturating_sub(start),
+        Duration::from_millis(500)
+    );
+    // A fast call costs its time and answers.
+    fake.set_cost_for(FakeOp::ListByIds, Duration::from_millis(100));
+    let d = Deadline::after(&*clock, Duration::from_millis(500));
+    assert_eq!(fake.list_by_ids(&p, &ids("b1"), d).unwrap().len(), 1);
+    assert_eq!(
+        clock.elapsed().saturating_sub(start),
+        Duration::from_millis(600)
+    );
+}
+
+#[test]
+fn injections_are_consumed_in_order_by_the_first_matching_call() {
+    let (clock, fake) = setup();
+    let p = ProjectRef::local(None);
+    let d = Deadline::after(&*clock, Duration::from_secs(30));
+    let a = Actor::from("san");
+    fake.inject(FakeOp::Close, Injection::Refused(Refusal::Precondition));
+    fake.inject(FakeOp::Close, Injection::Failed(1));
+    fake.inject_where(
+        |c| matches!(c, FakeCall::ListByIds(v) if v.len() == 2),
+        Injection::Unavailable { timed_out: false },
+    );
+    let id = BeadId::from("b1");
+    let g = Guards::default();
+    assert!(matches!(
+        fake.close_guarded(&p, &id, None, &g, &a, d),
+        Err(BeadsCacheError::Refused(Refusal::Precondition))
+    ));
+    assert!(matches!(
+        fake.close_guarded(&p, &id, None, &g, &a, d),
+        Err(BeadsCacheError::Failed { code: 1, .. })
+    ));
+    assert!(
+        fake.list_by_ids(&p, &ids("b1"), d).is_ok(),
+        "one id does not match the injection"
+    );
+    let two = [BeadId::from("b1"), BeadId::from("b2")];
+    assert!(fake.list_by_ids(&p, &two, d).unwrap_err().is_unavailable());
+    assert_eq!(fake.pending_injections(), 0);
+    fake.close_guarded(&p, &id, Some("r"), &g, &a, d).unwrap();
+    assert_eq!(fake.row("b1").unwrap().status.as_deref(), Some("closed"));
+    assert_eq!(fake.writes().len(), 3);
+    assert_eq!(fake.reads().len(), 2);
+    assert_eq!(
+        fake.writes().last(),
+        Some(&FakeCall::Close {
+            id,
+            reason: Some("r".into()),
+            guards: g,
+            actor: a
+        })
+    );
+}
+
+#[test]
+fn a_delay_injection_under_the_deadline_still_answers() {
+    let (clock, fake) = setup();
+    let p = ProjectRef::local(None);
+    fake.inject(
+        FakeOp::Fingerprint,
+        Injection::Delay(Duration::from_millis(100)),
+    );
+    let d = Deadline::after(&*clock, Duration::from_millis(500));
+    assert!(fake.fingerprint(&p, d).is_ok());
+    assert_eq!(clock.elapsed(), Duration::from_millis(100));
+    assert!(!d.expired(&*clock));
+}
+
+#[test]
+fn a_schema_change_changes_the_fingerprint() {
+    let (clock, fake) = setup();
+    let p = ProjectRef::local(None);
+    let d = Deadline::after(&*clock, Duration::from_secs(1));
+    let before = fake.fingerprint(&p, d).unwrap();
+    fake.set_schema("{\"schema_version\": 2}");
+    let after = fake.fingerprint(&p, d).unwrap();
+    assert_ne!(before.schema_sha256, after.schema_sha256);
+    assert_eq!(after.schema_version, "2");
+    assert_eq!(clock.now_utc(), "2026-10-23T10:00:00Z");
+}
