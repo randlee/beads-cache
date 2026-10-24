@@ -2,7 +2,7 @@
 //!
 //! A failure of the store itself is `BD_CACHE.STORE_FAILED` (a-1 amendment
 //! 1), with `detail` naming the failing step and the file. SQLite, file I/O
-//! and serde_json failures keep the underlying error as the source
+//! and `serde_json` failures keep the underlying error as the source
 //! ([`failed`], [`CacheError::store_failed`]). A failure with no underlying
 //! error has no source ([`corrupt`]): a stored value that does not decode or
 //! is inconsistent, a refused one-connection claim, or a journal mode SQLite
