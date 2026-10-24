@@ -1,6 +1,6 @@
 # sc-beads Architecture
 
-Status: draft. Crate-local decisions (domain code `BEADS`). Repo-level
+Status: approved (lead ruling, 2026-10-23). Crate-local decisions (domain code `BEADS`). Repo-level
 context: [`../architecture.md`](../architecture.md), ADR-BDC-0004 and
 ADR-BDC-0007. Created by sprint a-1.
 
@@ -20,7 +20,7 @@ and only on serde, serde_json, sha2 and tracing. It does no I/O.
 
 ## ADR-BEADS-0001: Port btit verbatim; logging through tracing
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Context: REQ-BDC-0906 requires every btit trait and feature to be kept;
 ADR-BDC-0007 moves logging from btit's global macros to `tracing`.
@@ -43,7 +43,7 @@ Consequences: a btit consumer switches with import changes, plus
 
 ## ADR-BEADS-0002: Cache errors are a separate type
 
-**Status:** Draft (owner amendment to sprint a-1, recorded in ADR-BDC-0007)
+**Status:** Approved (lead ruling, 2026-10-23); owner amendment to sprint a-1, recorded in ADR-BDC-0007
 
 Context: P-3 asked whether `BeadsError` is the shared error type. Adding
 cache variants to it would change btit's pinned enum.
@@ -53,13 +53,17 @@ cases (`Unavailable { reason, timed_out }`, `Refused(Refusal)`,
 `Contract { bead, field, detail }`, `Failed { code, stderr }`) plus
 `Btit(BeadsError)`, with `From<BeadsError>`. Every `CacheBackend` method
 returns it; btit's traits keep returning `BeadsError`. `is_unavailable()`
-also covers btit's `Spawn` (bd cannot start). For `fingerprint`, a `Failed`
-stderr starts with the failing subcommand (`version:` / `schema:`) so the
-cache can tell `BD_VERSION_FAILED` from `BD_SCHEMA_FAILED`.
+also covers btit's `Spawn` (bd cannot start). Amended in fix-a-1-1
+(RBP-F006): a failing `fingerprint` step is the typed
+`CheckFailed { step: CheckStep, code, stderr }`, not a `Failed` whose stderr
+names the step, so the cache tells `BD_VERSION_FAILED` from
+`BD_SCHEMA_FAILED` by type. Rand's four variants and `Btit` are unchanged;
+`CheckFailed` is an addition, flagged to the coordinator for owner
+confirmation.
 
 ## ADR-BEADS-0003: Strict rows validated from generated field tables
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Context: serde errors do not name the field of a type mismatch, and
 REQ-BDC-0007 needs the bead and field of every violation.
@@ -77,11 +81,15 @@ rows stored by the Python cache read back. `cargo test` fails while
 `row/generated.rs` differs from the generator's output; regenerate with
 `SC_BEADS_REGENERATE=1 cargo test -p sc-beads --test strict_rows_generated`.
 Fields are in key order, so a serialized row has sorted keys like Python's
-`json.dumps(sort_keys=True)`.
+`json.dumps(sort_keys=True)`. Amended in fix-a-1-1 (RBP-F007): bead ids
+(`id`, a dependency's `issue_id` / `depends_on_id`, `blocked_by` items) are
+checked as `BeadId`s (nonempty, no whitespace, control characters or
+commas) and fail with a field path; `Bead` has no `Default`, since an empty
+id is invalid.
 
 ## ADR-BEADS-0004: FakeBackend follows the recorded probe
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Decision: the P-6 probe was repeated for a-1 with bd 1.3.0 and recorded in
 `tests/fixtures/p6-blocked/` (provenance there); the contract rule
@@ -94,3 +102,16 @@ also counts `parent-child`), erring towards "not ready" (REQ-BDC-0904). The
 recording showed `bd dep add` does not bump the depender's `updated_at`; the
 fake does the same. Clones of a `FakeBackend` share one bd so a test keeps a
 handle after moving the backend into a cache.
+
+### ADR-BEADS-0003 amendment (fix-a-1-1): checked values at the contract
+
+Approved with ADR-BEADS-0003 (lead ruling, 2026-10-23). RBP-F002 and RBP-F007: the shared values are newtypes
+whose constructors validate and return `Result<_, InvalidValue>`:
+`BeadId`, `Sha256Hex` (`Fingerprint.schema_sha256`, `schema_sha256()`), and
+`Timestamp` (RFC 3339 UTC, second precision; `Clock::now_utc` returns it,
+and the store and journal use it for every instant). The assignee of a guard
+or patch is `Assignee { Unassigned, Named }`, with `""` as the wire form of
+`Unassigned`. Serde reads all of them through `try_from`, so invalid input
+never builds an invalid value. Row fields generated from `bd schema`
+(`Bead.updated_at`, ...) stay strings, validated as date-times by the field
+tables. The `testing` module adds `id()` and `edge()` fixture helpers.

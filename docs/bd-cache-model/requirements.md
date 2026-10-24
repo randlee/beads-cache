@@ -1,11 +1,11 @@
 # bd-cache-model Requirements
 
-Status: draft. Crate-local requirements (domain code `MODEL`) refining
+Status: approved (lead ruling, 2026-10-23). Crate-local requirements (domain code `MODEL`) refining
 [`../requirements.md`](../requirements.md). Created by sprint a-1.
 
 ## REQ-MODEL-0001: Journal ops are validated, canonical and pure
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `Op::parse` accepts `close {reason?}`, `update` (a nonempty subset of
 status, assignee, add/remove labels, set/unset metadata, append notes; the
@@ -22,7 +22,7 @@ metadata value bd would coerce and an unknown dependency type are
 
 ## REQ-MODEL-0002: Overlay, achieved and replay follow the op table
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `Op::overlay` applies the op table's overlay; `Op::achieved` holds when the
 row already shows the effect; `replay` overlays a bead's `Pending` entries
@@ -36,7 +36,7 @@ in seq order and skips escalated, resolved and applied ones.
 
 ## REQ-MODEL-0003: Typed errors
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `CacheError` has one variant per `BD_CACHE.*` code with its payload, plus
 `SCOPE_UNKNOWN`; `exit_code()` is 3; `to_json()` is
@@ -49,7 +49,7 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 
 ## REQ-MODEL-0004: Store and lock ports with a contract suite
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `CacheStore` and `DrainLock` are the store ports; every rule in the
 `CacheStore` doc comment has a function in `testing::contract`, which
@@ -60,7 +60,7 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 
 ## REQ-MODEL-0005: Repository configuration
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `RepoConfig` is the `.beads/bd-cache.toml` schema (unknown keys refused);
 `cache_config` derives `CacheConfig` with defaults (30 s call cap, 2 s miss

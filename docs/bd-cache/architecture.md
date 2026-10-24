@@ -1,6 +1,6 @@
 # bd-cache Architecture
 
-Status: draft. Crate-local decisions (domain code `CORE`). Repo-level
+Status: approved (lead ruling, 2026-10-23). Crate-local decisions (domain code `CORE`). Repo-level
 context: [`../architecture.md`](../architecture.md). Created by sprint a-1.
 
 ## Index
@@ -32,7 +32,7 @@ crate depends only on `bd-cache-model` and `sc-beads`, never the store or
 
 ## ADR-CORE-0001: Threading model
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Context: the store holds one SQLite connection per process (NFR-BDC-0007),
 and backend calls block for up to their deadline.
@@ -55,13 +55,22 @@ only for the drain lock.
 
 ## ADR-CORE-0002: Skeleton by delegation
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Decision: each public verb in `lib.rs` delegates to a `pub(crate)` function
 with a fixed signature in its module file (`write::write`, `get::entry`,
 ...). a-1 ships those files as stubs (`unimplemented!`, marked with the
 owning sprint); a-5 and a-6 replace only their own files, so neither edits
 `lib.rs` and they never conflict. The shared helpers are crate-private; the
-`testing` feature exposes thin hooks (`bd_cache::testing`) so integration
+`testing` feature exposes thin hooks (`bd_cache::testing`: `call`,
+`note_unavailable`, `note_ok`, `current_view`, `backend_check`, `miss_fill`,
+and `store` / `store_mut` / `backend` / `clock` accessors) so integration
 tests can drive them, enabled for this crate's own tests through a
-dev-dependency on itself.
+dev-dependency on itself. Without the feature the helpers are allowed to be
+unused (`cfg_attr` on their modules) until a-5 and a-6 call them, and CI
+checks the libraries with default features (`cargo clippy --lib`). The store
+passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`,
+`set_sync_alert`, `open_work`) are implemented in `lib.rs` by a-1. The ten
+stub files are in a-1's `owned_paths` until ownership hands over to a-5
+(`write.rs`, `drain.rs`) and a-6 (the other eight). `call` returns
+`Result<T, CallFailure>` (ruling L5; ADR-MODEL-0003 amendment).

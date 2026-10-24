@@ -212,7 +212,10 @@ fn failed_code(kind: CallKind) -> &'static str {
 
 /// The mapping table, for every `CallKind`.
 #[test]
-#[expect(clippy::too_many_lines, reason = "one assertion per row of the mapping table")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one assertion per row of the mapping table"
+)]
 fn from_backend_matches_the_table_for_every_call_kind() {
     for kind in KINDS {
         let map = |e: &BeadsCacheError| CacheError::from_backend(e, kind);

@@ -1,6 +1,6 @@
 # bd-cache Requirements
 
-Status: draft. Crate-local requirements (domain code `CORE`) refining
+Status: approved (lead ruling, 2026-10-23). Crate-local requirements (domain code `CORE`) refining
 [`../requirements.md`](../requirements.md). This file (sprint a-1) holds the
 skeleton and shared-helper requirements; the write path's are in
 [`write-path.md`](write-path.md) (sprint a-5) and the read path's in
@@ -8,7 +8,7 @@ skeleton and shared-helper requirements; the write path's are in
 
 ## REQ-CORE-0001: One call helper for every backend call
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Every backend call goes through `call(kind, hard, f)`, which hands `f` the
 earlier of `hard` and `CacheConfig::call_timeout` and classifies a failure:
@@ -23,7 +23,7 @@ answering list call clears the outage.
 
 ## REQ-CORE-0002: The outage keeps its start
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Recording an outage keeps `since` from the first failure and stores the
 latest error; clearing removes it.
@@ -33,7 +33,7 @@ latest error; clearing removes it.
 
 ## REQ-CORE-0003: Backend check and rebuild
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `backend_check::run` fingerprints the backend through `call(Check, ..)` and
 applies the store's rebuild rule, reporting the outcome and
@@ -47,7 +47,7 @@ applies the store's rebuild rule, reporting the outcome and
 
 ## REQ-CORE-0004: Views and bounded miss fills
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `view::current_view` returns the stored row with the bead's pending entries
 replayed and starts no bd call; `miss::fill` makes one `list_by_ids` under

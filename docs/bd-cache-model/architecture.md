@@ -1,11 +1,11 @@
 # bd-cache-model Architecture
 
-Status: draft. Crate-local decisions (domain code `MODEL`). Repo-level
+Status: approved (lead ruling, 2026-10-23). Crate-local decisions (domain code `MODEL`). Repo-level
 context: [`../architecture.md`](../architecture.md). Created by sprint a-1.
 
 The crate is pure (no I/O, no clock): timestamps are passed in as RFC 3339
-strings. It depends on `sc-beads`, serde, serde_json and toml (for
-`RepoConfig`'s opaque `schema_packages` and `tick` tables).
+strings. It depends on `sc-beads`, serde, serde_json and, privately, toml
+(ADR-MODEL-0004).
 
 | Module | Contents |
 |---|---|
@@ -14,12 +14,12 @@ strings. It depends on `sc-beads`, serde, serde_json and toml (for
 | `journal`, `scope`, `state` | journal types, `ScopeId`, store-side state and `StoreStatus` |
 | `store`, `sender` | `CacheStore`, `DrainLock` / `DrainGuard`, `EscalationSender` |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
-| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallOutcome`, `CacheError` |
+| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
 
 ## ADR-MODEL-0001: Journal text is written exactly as Python writes it
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Decision: `args_json` and `precondition_json` are rendered by
 `python_json`, which reproduces `json.dumps(..., sort_keys=True)` (sorted
@@ -36,21 +36,24 @@ metadata values are limited to `i64`.
 
 ## ADR-MODEL-0002: Backend error mapping details
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Decision, beyond the sprint table: btit's `Spawn` (bd cannot start) maps
 like `Unavailable` to `BD_UNAVAILABLE`; btit's `InvalidJson`,
 `UnexpectedShape` and `ParseFailed` to `BD_CONTRACT`; `Refused(NotClosable
 / AlreadyClaimed)` to `PRECONDITION` with the matching `/v0` reason;
-`Refused(Other)` and any other btit error map like `Failed`. A failed
-`Check` is `BD_SCHEMA_FAILED` when stderr starts with `schema`, else
-`BD_VERSION_FAILED` (see ADR-BEADS-0002). `Ready` failures are
+`Refused(Other)` and any other btit error map like `Failed`.
+`CheckFailed { step }` is `BD_VERSION_FAILED` or `BD_SCHEMA_FAILED` by its
+step, and a plain `Failed` on `Check` is `BD_VERSION_FAILED`; no stderr is
+inspected (amended in fix-a-1-1, RBP-F006). `Ready` failures are
 `BD_LIST_FAILED`; `Sync` failures are `SYNC_FAILED` with cause
-`BD_CACHE.BD_LIST_FAILED`.
+`SyncCause::BdListFailed`. Every mapped error keeps the backend error as
+its `source` (`BackendCause`) and in its JSON as `source: {code, detail}`
+(fix-a-1-1, RBP-F005). Precondition keys are `GuardKey`.
 
 ## ADR-MODEL-0003: Store rule clarifications
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Decision: these points, not fixed by the sprint contract, are stated in the
 `CacheStore` doc comment and checked by the suite: `escalate` does not
@@ -62,3 +65,35 @@ outage; prune keeps the scope registered and never deletes a bead with an
 open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
+
+## ADR-MODEL-0004: toml is a private parsing dependency
+
+**Status:** Approved (lead ruling, 2026-10-23; ruling L2 on ARCH-007)
+
+Context: `RepoConfig` exposed `toml::Value` and `toml::Table`, and
+`from_toml` exposed `toml::de::Error`, which made the toml crate part of the
+model's public contract.
+
+Decision: no toml type appears in the API. `schema_packages` is
+`Vec<SchemaPackageRef>`, an opaque entry the later schema-package phase will
+open up (`docs/architecture.md`, Repository configuration). `tick` is a
+typed `TickConfig` (`team`, `fallback_lead`, `phases_dir`, `phases`;
+unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
+toml stays a normal dependency, used only inside `config.rs`; the
+`bd-cache-model -> toml` edge is listed in the Crate Layout of
+`docs/architecture.md`.
+
+Consequences: a toml upgrade is not a breaking change for the model's
+users. a-7 adds a tick key by amending `TickConfig` (an a-1 amendment).
+
+### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
+
+Approved with ADR-MODEL-0003 (lead ruling, 2026-10-23; ruling L5 for `CallFailure`). `IdemKey::new` rejects an empty key; scopes are
+`ScopeId::Phase(PhaseName)` with a validated name (also in
+`ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
+sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
+is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
+Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
+carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
+and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
+unassigned update overlays as no assignee, as bd stores it.

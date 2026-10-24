@@ -1,12 +1,12 @@
 # sc-beads Requirements
 
-Status: draft. Crate-local requirements (domain code `BEADS`) refining the
+Status: approved (lead ruling, 2026-10-23). Crate-local requirements (domain code `BEADS`) refining the
 repo-level ids in [`../requirements.md`](../requirements.md). Created by
 sprint a-1.
 
 ## REQ-BEADS-0001: btit's backend contract is kept unchanged
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 btit's `BeadsBackend`, `CliBackend`, `DoltOperations` and `CloseSuggestions`
 traits, the btit-types data types and `BeadsError` (variants, fields, codes
@@ -23,13 +23,14 @@ tests in the ported modules.
 
 ## REQ-BEADS-0002: Cache backend calls are deadline-bounded and typed
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `CacheBackend: BeadsBackend` offers `fingerprint`, `list_by_ids`,
 `list_scope`, `list_blocked`, `list_ready`, `close_guarded`,
 `update_guarded` and `dep_add_typed`; each takes a `Deadline` and returns
-`BeadsCacheError` (`Unavailable`, `Refused`, `Contract`, `Failed`, or
-`Btit` wrapping a `BeadsError`).
+`BeadsCacheError` (`Unavailable`, `Refused`, `Contract`, `Failed`,
+`CheckFailed` naming the failing check step, or `Btit` wrapping a
+`BeadsError`).
 
 **Refines:** REQ-BDC-0006, NFR-BDC-0004 (constraint), ADR-BDC-0004
 **Acceptance evidence:** the `CacheBackend` contract suite
@@ -38,7 +39,7 @@ tests in the ported modules.
 
 ## REQ-BEADS-0003: Strict rows
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 `Bead` is generated from the pinned `bd schema` (bd 1.3.1) plus the four
 `--json` extras; `parse_bd_row` / `parse_bd_rows` / `parse_blocked_rows`
@@ -55,7 +56,7 @@ fails the whole list.
 
 ## REQ-BEADS-0004: Clock and Deadline
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 All time comes from a `Clock` (`now_utc` as RFC 3339 seconds, `now_mono`);
 a `Deadline` is an instant with `at`, `after`, `earliest`, `remaining` and
@@ -66,7 +67,7 @@ a `Deadline` is an instant with `at`, `after`, `earliest`, `remaining` and
 
 ## REQ-BEADS-0005: A deterministic bd for tests
 
-**Status:** Draft
+**Status:** Approved (lead ruling, 2026-10-23)
 
 Behind the `testing` feature, `FakeBackend` models bd as the P-6 probe
 recorded it (rows without `is_blocked`, `bd blocked` with parent-child
