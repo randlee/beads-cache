@@ -24,7 +24,7 @@
 )]
 
 use sc_beads::testing::{edge, id};
-use sc_beads::{Actor, Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
+use sc_beads::{Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
 
 use super::{FakeDrainLock, FakeStore};
 use crate::error::CacheError;
@@ -145,7 +145,7 @@ fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
         bead: id(bead),
         op: Op::Close { reason: None },
         precondition: Guards::default(),
-        actor: Actor::from("san"),
+        actor: sc_beads::testing::actor("san"),
     }
 }
 
@@ -318,6 +318,39 @@ pub fn newer_rows_are_kept_unless_forced(fx: &mut impl StoreFixture) {
     assert_eq!(
         get(&s, "b1").unwrap_or_default_pair().0.status.as_deref(),
         Some("open")
+    );
+}
+
+/// The newer-row guard compares `updated_at` by instant, not text.
+pub fn newer_row_guard_compares_instants(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    // Stored 10:00:00Z written with a +02:00 offset; as text it sorts after 10:00:01Z.
+    let mut stored = row("b1", &["phase-x"], "2026-10-23T12:00:00+02:00");
+    stored.status = Some("blocked".into());
+    ok(s.upsert_rows(Some(&x()), &[stored], false), "stored");
+    let later = row("b1", &["phase-x"], "2026-10-23T10:00:01Z");
+    let r = ok(s.upsert_rows(Some(&x()), &[later], false), "later instant");
+    assert_eq!(
+        r.stored,
+        vec![id("b1")],
+        "a later instant is stored even when its text sorts first"
+    );
+    // Stored 10:00:01.9Z; incoming 09:00:01-01:00 is the same second: not older, stored.
+    let mut frac = row("b2", &["phase-x"], "2026-10-23T10:00:01.9Z");
+    frac.status = Some("blocked".into());
+    ok(s.upsert_rows(Some(&x()), &[frac], false), "fractional");
+    let same = row("b2", &["phase-x"], "2026-10-23T09:00:01-01:00");
+    let r = ok(s.upsert_rows(Some(&x()), &[same], false), "same second");
+    assert_eq!(r.stored, vec![id("b2")]);
+    let earlier = row("b2", &["phase-x"], "2026-10-23T11:00:00+01:01");
+    let r = ok(
+        s.upsert_rows(Some(&x()), &[earlier], false),
+        "earlier instant",
+    );
+    assert_eq!(
+        r.skipped_newer,
+        vec![id("b2")],
+        "09:59:00Z is older than the stored 10:00:01Z"
     );
 }
 
@@ -591,10 +624,15 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
         ),
         2
     );
-    let r = s.resolve(a, "n/a", &Actor::from("lead"), &ts(T1));
+    let r = s.resolve(a, "n/a", &sc_beads::testing::actor("lead"), &ts(T1));
     assert!(matches!(r, Err(CacheError::NotEscalated { .. })), "{r:?}");
     assert!(matches!(
-        s.resolve(Seq::new(999), "n/a", &Actor::from("lead"), &ts(T1)),
+        s.resolve(
+            Seq::new(999),
+            "n/a",
+            &sc_beads::testing::actor("lead"),
+            &ts(T1)
+        ),
         Err(CacheError::NotEscalated { .. })
     ));
     ok(
@@ -623,7 +661,7 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
         "listed until resolved"
     );
     ok(
-        s.resolve(a, "set by hand", &Actor::from("lead"), &ts(T2)),
+        s.resolve(a, "set by hand", &sc_beads::testing::actor("lead"), &ts(T2)),
         "resolve",
     );
     let ea = ok(s.entry_by_key(&key("a")), "a").unwrap_or_else(missing);
@@ -646,7 +684,7 @@ pub fn resolve_note_without_prior_error(fx: &mut impl StoreFixture) {
     let a = ok(s.insert_entry(entry("a", "b1", None), &ts(T0)), "a");
     ok(s.escalate(a, "", &ts(T0)), "escalate");
     ok(
-        s.resolve(a, "set by hand", &Actor::from("lead"), &ts(T1)),
+        s.resolve(a, "set by hand", &sc_beads::testing::actor("lead"), &ts(T1)),
         "resolve",
     );
     let e = ok(s.entry_by_seq(a), "a").unwrap_or_else(missing);
@@ -740,7 +778,7 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
         "escalated blocks"
     );
     ok(
-        s.resolve(p, "done", &Actor::from("lead"), &ts(T1)),
+        s.resolve(p, "done", &sc_beads::testing::actor("lead"), &ts(T1)),
         "resolve",
     );
     ok(
@@ -862,6 +900,7 @@ macro_rules! store_contract_tests {
             a_store_clears_stale,
             membership_follows_labels_on_scoped_upserts_only,
             newer_rows_are_kept_unless_forced,
+            newer_row_guard_compares_instants,
             status_changes_are_reported,
             apply_with_readback_marks_applied,
             fingerprint_rebuild_rule,

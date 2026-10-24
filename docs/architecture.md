@@ -459,6 +459,8 @@ modes ship: btit's tolerant `BdRawIssue` unchanged, and the strict `Bead`
 generated from `bd schema` (ADR-BEADS-0002 and ADR-BEADS-0003 in
 [`sc-beads/architecture.md`](sc-beads/architecture.md)). Logging moved to
 `tracing` behind btit's unchanged `log_*!` macro names (ADR-BEADS-0001).
+The additional `BeadsCacheError::CheckFailed` variant (typed check step) is
+recorded in ADR-BEADS-0002, accepted by lead ruling (bc-lead, 2026-10-23).
 
 ## ADR-BDC-0008: User metadata extensions as consumer-owned schema packages
 

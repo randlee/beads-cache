@@ -74,7 +74,7 @@ fn a_timeout_after_the_hard_deadline_is_a_cut_and_records_no_outage() {
             &id("b2"),
             None,
             &sc_beads::Guards::default(),
-            &"san".into(),
+            &sc_beads::testing::actor("san"),
             d,
         )
     });
@@ -143,7 +143,7 @@ fn unavailable_on_a_write_is_an_error_that_counts_an_attempt_not_an_outage() {
                 &id("b2"),
                 None,
                 &sc_beads::Guards::default(),
-                &"san".into(),
+                &sc_beads::testing::actor("san"),
                 d,
             )
         });
@@ -204,7 +204,7 @@ fn only_an_answering_list_clears_the_outage() {
             &id("b2"),
             None,
             &sc_beads::Guards::default(),
-            &"san".into(),
+            &sc_beads::testing::actor("san"),
             d,
         )
     })

@@ -58,8 +58,8 @@ also covers btit's `Spawn` (bd cannot start). Amended in fix-a-1-1
 `CheckFailed { step: CheckStep, code, stderr }`, not a `Failed` whose stderr
 names the step, so the cache tells `BD_VERSION_FAILED` from
 `BD_SCHEMA_FAILED` by type. Rand's four variants and `Btit` are unchanged;
-`CheckFailed` is an addition, flagged to the coordinator for owner
-confirmation.
+`CheckFailed` is an addition, accepted by lead ruling (bc-lead,
+2026-10-23), as is the nested `source` object in `CacheError::to_json`.
 
 ## ADR-BEADS-0003: Strict rows validated from generated field tables
 
@@ -114,4 +114,9 @@ or patch is `Assignee { Unassigned, Named }`, with `""` as the wire form of
 `Unassigned`. Serde reads all of them through `try_from`, so invalid input
 never builds an invalid value. Row fields generated from `bd schema`
 (`Bead.updated_at`, ...) stay strings, validated as date-times by the field
-tables. The `testing` module adds `id()` and `edge()` fixture helpers.
+tables. The `testing` module adds `id()`, `actor()` and `edge()` fixture
+helpers. fix-a-1-2: `Actor::new` rejects empty and whitespace-only values,
+and `Actor` has no `Default` or infallible `From` (QA-003); `Timestamp` is
+bounded to years 0000..=9999, `parse` refuses text that normalizes outside
+that range, `from_unix` is fallible, and `minus` stops at the first instant
+(QA-001).

@@ -15,8 +15,8 @@ must_follow: []
 parallel_safe: [a-3]
 requirements:
   owns: [REQ-BDC-0007, REQ-BDC-0105, REQ-BDC-0301, REQ-BDC-0304, REQ-BDC-0305, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0906, NFR-BDC-0005]
-  constrained_by: [REQ-BDC-0004, REQ-BDC-0006, REQ-BDC-0008, REQ-BDC-0101, REQ-BDC-0108, REQ-BDC-0202, REQ-BDC-0302, REQ-BDC-0303, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0006, NFR-BDC-0007]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007]
+  constrained_by: [REQ-BDC-0004, REQ-BDC-0006, REQ-BDC-0008, REQ-BDC-0101, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0202, REQ-BDC-0302, REQ-BDC-0303, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0006, NFR-BDC-0007]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0002]
 owned_paths:
   - "Cargo.toml"
   - "rust-toolchain.toml"
@@ -93,13 +93,15 @@ Normative. Layer sprints reference these and do not restate them.
 // Checked values (fix-a-1-1, RBP-F002/F007): constructors validate and return Result<_, InvalidValue>.
 pub struct BeadId(String);    // BeadId::new: nonempty, no whitespace/control chars, no ',' (bd --id separator)
 pub struct Sha256Hex(String); // 64 lower-case hex digits
-pub struct Timestamp(String); // RFC 3339 UTC, seconds; parse(&str), from_unix, minus(Duration); the one timestamp type
+pub struct Timestamp(String); // RFC 3339 UTC, seconds, years 0000..=9999; parse(&str) and from_unix(i64) -> Result;
+                              // unix(), minus(Duration) (stops at 0000-01-01), as_str(); the one timestamp type
 pub enum Assignee { Unassigned, Named(String) } // wire form: "" = Unassigned
 pub enum CheckStep { Version, Schema }
-pub struct Actor(String);
+pub struct Actor(String);     // Actor::new: nonempty, not whitespace only; no Default, no From
 pub enum DepType { /* bd's dependency types from bd schema; DepType::parse(&str) -> Option<Self>; is_blocking() */ }
-pub struct Edge { pub issue_id: BeadId, pub depends_on_id: BeadId, pub kind: DepType }
-/// Strict row: generated from `bd schema` (deny_unknown_fields) plus the four --json extras.
+pub struct Edge { pub issue_id: BeadId, pub depends_on_id: BeadId, pub kind: DepType } // Edge::new(BeadId, BeadId, DepType)
+/// Strict row: generated from `bd schema` (deny_unknown_fields) plus the four --json extras. No Default.
+/// parse_bd_row(&Value), parse_bd_rows(&str), parse_blocked_rows(&str) -> Result<_, BeadsCacheError>; schema_sha256(&str) -> Sha256Hex
 pub struct Bead { /* id, status, assignee, labels, metadata, notes, updated_at, dependencies: Vec<Edge>, ...; is_blocked is optional and bd never emits it (ADR-BDC-0002) */ }
 /// One row of `bd blocked --json`, strict.
 pub struct BlockedRow { pub id: BeadId, pub blocked_by: Vec<BeadId> }
@@ -123,6 +125,7 @@ impl Deadline {
     pub fn earliest(self, other: Deadline) -> Deadline;
     pub fn remaining(&self, clock: &dyn Clock) -> Duration;
     pub fn expired(&self, clock: &dyn Clock) -> bool;
+    pub fn instant(&self) -> std::time::Instant;
 }
 
 /// Refusals: the CLI only produces Precondition (exit 13); NotClosable and
@@ -156,7 +159,7 @@ pub trait CacheBackend: BeadsBackend + Send + Sync {
 
 /// Behind the `testing` feature.
 pub mod testing {
-    pub struct ManualClock; // advance(Duration), set_utc(&str)
+    pub struct ManualClock; // new(&str), Default (2026-10-23T10:00:00Z), advance(Duration), set_utc(&str), elapsed()
         /// Deterministic bd model: validated rows without is_blocked; close/reopen bump only the bead's
     /// own updated_at; list_blocked computes the blocked set as bd does (blocks edges, parent-child
     /// inheritance with the child's blocked_by listing its parent, related non-blocking) including
@@ -164,7 +167,8 @@ pub mod testing {
     /// the status list for closed beads; records the command plan; injects Unavailable (timed_out or not), exit 13,
     /// Failed and CheckFailed per call; advances the ManualClock by a configured cost per call. Clones share one bd.
     pub struct FakeBackend;
-    pub fn bead(id: &str) -> Bead; pub fn id(s: &str) -> BeadId; pub fn edge(from: &str, to: &str, kind: DepType) -> Edge;
+    pub fn bead(id: &str) -> Bead; pub fn id(s: &str) -> BeadId; pub fn actor(s: &str) -> Actor;
+    pub fn edge(from: &str, to: &str, kind: DepType) -> Edge; // fixture helpers; panic on invalid input
     pub mod contract { pub trait BackendFixture; pub struct World; } // + macro backend_contract_tests!
 }
 
@@ -175,9 +179,15 @@ impl Op {
     pub fn to_args_json(&self) -> String;                                // canonical, Python-compatible
     pub fn overlay(&self, row: &Bead) -> Bead;
     pub fn achieved(&self, row: &Bead) -> bool;                          // dep_add: edge in row.dependencies
-    
+    pub fn name(&self) -> &'static str; pub fn args_value(&self) -> serde_json::Value;
 }
 pub fn replay(row: &Bead, pending: &[JournalEntry]) -> Bead;            // seq order; escalated skipped
+pub fn normalize(row: &Bead) -> Bead;                                   // stored form: counts dropped, edges sorted
+pub fn phase_of(row: &Bead) -> Option<PhaseName>;
+pub fn parse_precondition(json: &str) -> Result<Guards, CacheError>;    // BAD_PRECONDITION
+pub fn precondition_json(g: &Guards) -> String;                         // Python-identical
+pub fn unmet(row: &Bead, g: &Guards) -> BTreeMap<GuardKey, Unmet>;
+pub fn python_json(v: &serde_json::Value) -> String;                     // json.dumps(sort_keys=True)
 pub struct Seq(i64); pub struct IdemKey(String); // IdemKey::new validates (nonempty) -> Result<_, InvalidValue>
 pub enum JournalState { Pending, Applied, Escalated, Resolved }
 pub struct JournalEntry { pub seq: Seq, pub idem_key: IdemKey, pub scope: Option<ScopeId>, pub bead: BeadId,
@@ -189,7 +199,7 @@ pub struct PhaseName(String); // validated: ASCII letters, digits, '-', '_', '.'
 pub enum ScopeId { Phase(PhaseName) }
 impl ScopeId {
     pub fn phase(name: &str) -> Result<ScopeId, InvalidValue>; pub fn parse(s: &str) -> Option<ScopeId>; // "phase-x" or "x"
-    pub fn name(&self) -> &str; pub fn label(&self) -> String;
+    pub fn name(&self) -> &str; pub fn phase_name(&self) -> &PhaseName; pub fn label(&self) -> String; pub fn holds(&self, row: &Bead) -> bool;
     pub fn filter(&self) -> ScopeFilter;                       // Phase(x) -> Label("phase-x")
     pub fn from_labels(labels: &[String]) -> Option<ScopeId>;  // first phase-<x> label (the v3 `phase` column)
 }
@@ -200,12 +210,16 @@ pub enum FingerprintOutcome { Recorded, Unchanged, Rebuilt }
 pub struct UpsertReport { pub stored: Vec<BeadId>, pub skipped_newer: Vec<BeadId>, pub status_changed: Vec<BeadId> }
 pub struct ReadyBase { pub blocked: Vec<BlockedRow>, pub ready: Vec<BeadId>, pub fetched_at: Timestamp, pub stale: bool }
 pub struct OpenWork { pub pending: u64, pub escalated_unannounced: u64 }
-pub struct StoreStatus { /* meta, journal counts per scope:state, per-scope sync state and bead counts, escalated entries, outage */ }
+pub struct StoreStatus { pub meta: BTreeMap<String, String>, pub journal: BTreeMap<String, u64> /* "<phase>:<state>", None = no phase */,
+    pub scopes: Vec<ScopeStatus>, pub escalated: Vec<JournalEntry>, pub outage: Option<Outage> }
+pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 
 /// Store port; a-4 implements it over SQLite. Rules (checked by the contract suite):
 /// - get_row(upsert(b)) == normalize(b): `dependencies` rebuilt from the edges table, counts absent.
 /// - upsert writes the bead's outgoing edges from `Bead.dependencies`, replacing the old ones.
 /// - any successful store of a bead clears `stale`.
+/// - unforced upserts skip a row whose stored updated_at is a later instant (skipped_newer); updated_at is
+///   compared as an RFC 3339 instant at second precision, never as text; forced upserts always store.
 /// - upsert_rows(Some(s), ..) sets membership of s from the row's labels; upsert_rows(None, ..)
 ///   never changes existing membership (a new row stored with None has none: out-of-scope row).
 /// - status_changed lists existing rows whose status text changed, forced or not; new rows excluded.
@@ -227,22 +241,22 @@ pub trait CacheStore: Send {
     fn upsert_rows(&mut self, s: Option<&ScopeId>, rows: &[Bead], force: bool) -> Result<UpsertReport, CacheError>;
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError>;
     fn dependents_of(&self, id: &BeadId) -> Result<Vec<Edge>, CacheError>;     // incoming edges, with kind
-            fn replace_ready_base(&mut self, s: &ScopeId, blocked: &[BlockedRow], ready: &[BeadId], at: &str) -> Result<(), CacheError>; // whole base for the scope
+            fn replace_ready_base(&mut self, s: &ScopeId, blocked: &[BlockedRow], ready: &[BeadId], at: &Timestamp) -> Result<(), CacheError>; // whole base for the scope
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError>; // None = never fetched
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
 
         fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError>; // any state
     fn entry_by_seq(&self, seq: Seq) -> Result<Option<JournalEntry>, CacheError>;
-    fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError>;
+    fn insert_entry(&mut self, e: NewEntry, at: &Timestamp) -> Result<Seq, CacheError>;
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
         fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
-    fn applied_since(&self, at: &str) -> Result<Vec<JournalEntry>, CacheError>;
-    fn apply_with_readback(&mut self, seq: Seq, row: Option<&Bead>, err: Option<&str>, at: &str) -> Result<(), CacheError>; // one transaction
-    fn record_attempt(&mut self, seq: Seq, err: &str, at: &str) -> Result<u32, CacheError>;
-    fn escalate(&mut self, seq: Seq, reason: &str, at: &str) -> Result<(), CacheError>;
-    fn resolve(&mut self, seq: Seq, note: &str, actor: &Actor, at: &str) -> Result<(), CacheError>; // NOT_ESCALATED
+    fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError>;
+    fn apply_with_readback(&mut self, seq: Seq, row: Option<&Bead>, err: Option<&str>, at: &Timestamp) -> Result<(), CacheError>; // one transaction
+    fn record_attempt(&mut self, seq: Seq, err: &str, at: &Timestamp) -> Result<u32, CacheError>;
+    fn escalate(&mut self, seq: Seq, reason: &str, at: &Timestamp) -> Result<(), CacheError>;
+    fn resolve(&mut self, seq: Seq, note: &str, actor: &Actor, at: &Timestamp) -> Result<(), CacheError>; // NOT_ESCALATED
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
-    fn mark_announced(&mut self, seq: Seq, at: &str) -> Result<(), CacheError>;
+    fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError>;
     fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError>;
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError>;
@@ -280,8 +294,10 @@ pub struct CacheConfig {
     pub miss_fill_timeout: Duration, // default 2 s (ADR-BDC-0005)
     pub max_attempts: u32,           // 5
 }
+impl CacheConfig { pub fn new(project: ProjectRef, scopes: Vec<ScopeId>) -> CacheConfig; } // defaults
 /// REQ-BDC-0402. a-7 builds it from the tick end T: start_gate = T - 5 s, hard = T - 2 s.
 pub struct DrainBudget { pub start_gate: Deadline, pub hard: Deadline }
+impl DrainBudget { pub fn before_tick_end(end: Deadline) -> DrainBudget; }
 
 /// Which call failed, for mapping backend errors.
 pub enum CallKind { Check, PreRead, Write, ReadBack, Sync, Refresh, MissFill, Ready }
@@ -322,7 +338,8 @@ pub enum GuardKey { Status, Assignee }
 pub enum SyncCause { BdUnavailable, BdVersionFailed, BdSchemaFailed, BdContract, BdListFailed }
 pub struct BackendCause(/* Arc<BeadsCacheError> */);
 impl CacheError {
-    pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str;
+    pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str; pub fn detail(&self) -> &str;
+    pub fn backend_cause(&self) -> Option<&BackendCause>;
     pub fn reason(&self) -> Option<&'static str>; // /v0: precondition_failed, not_closable, already_claimed
     pub fn exit_code(&self) -> i32;               // 3 for every typed error
     pub fn to_json(&self) -> serde_json::Value;   // {ok: false, code, detail, fix, reason?, ...payload, source?}
@@ -339,6 +356,7 @@ impl CacheError {
 pub struct Cache<S: CacheStore, L: DrainLock, B: CacheBackend> { /* config, store, lock, backend, clock: Arc<dyn Clock> */ }
 impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     pub fn new(config: CacheConfig, store: S, lock: L, backend: B, clock: Arc<dyn Clock>) -> Result<Self, CacheError>; // ensure_scope each
+    pub fn config(&self) -> &CacheConfig;
         pub fn get(&mut self, id: &BeadId, miss_timeout: Option<Duration>) -> Result<GetReply, CacheError>;          // a-6
     pub fn refresh(&mut self, ids: &[BeadId], timeout: Duration) -> Result<Vec<RowView>, CacheError>;            // a-6: fresh read, stored with force, overlay applied
     pub fn entry(&self, seq: Seq) -> Result<JournalEntry, CacheError>;                                          // a-6
@@ -476,6 +494,21 @@ the behaviour.
   `DrainGuard` port, `FakeDrainLock` and the contract rule
   `drain_lock_is_exclusive`; a-4 implements it with `flock`, and a-5 takes it
   in `drain`.
+
+The same split holds for every store-rule requirement in `constrained_by`
+(fix-a-1-2, REQ-QA-001). a-1 defines the port rules in the `CacheStore` doc
+comment and encodes them in the store contract suite. The owning sprint
+delivers the behaviour (a-4 the store, a-5 and a-6 the verbs):
+
+| Requirement | Rule a-1 encodes | Contract rule | Owner |
+|---|---|---|---|
+| REQ-BDC-0107 (cache schema) | rows, edges, journal and sync state as port types; RFC 3339 instants (`Timestamp`) | every rule | a-4 |
+| REQ-BDC-0109 (edge index) | `dependents_of` from stored outgoing edges | `upsert_replaces_outgoing_edges` | a-4 |
+| REQ-BDC-0405 (read-back) | `apply_with_readback` stores and marks applied in one call; failure marks stale | `apply_with_readback_marks_applied`, `a_store_clears_stale` | a-5 (a-4 store side) |
+| REQ-BDC-0502 (newer-row guard) | unforced upserts skip a later stored instant; forced always store | `newer_rows_are_kept_unless_forced`, `newer_row_guard_compares_instants` | a-6 (a-4 store side) |
+| REQ-BDC-0504 (sync state) | `sync_state` / `record_sync` round trip | `sync_state_alerts_and_outage_round_trip` | a-6 |
+| REQ-BDC-0601 (resolve) | escalated only, note appended | `journal_lifecycle`, `resolve_note_without_prior_error` | a-6 |
+| REQ-BDC-0602 (prune) | `PRUNE_BLOCKED` with open entries; scope beads, journal and sync state deleted | `prune_scope_rules` | a-6 |
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 

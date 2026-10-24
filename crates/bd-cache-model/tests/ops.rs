@@ -12,7 +12,7 @@ use bd_cache_model::{
     precondition_json, replay, unmet,
 };
 use sc_beads::testing::{bead, edge, id};
-use sc_beads::{Actor, Bead, DepType, Guards, MetaValue, Patch};
+use sc_beads::{Bead, DepType, Guards, MetaValue, Patch};
 
 const PY_ARGS: &str = include_str!("fixtures/python-journal-args.json");
 
@@ -295,7 +295,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
         bead: id("b1"),
         op,
         precondition: Guards::default(),
-        actor: Actor::from("san"),
+        actor: sc_beads::testing::actor("san"),
         state,
         attempts: 0,
         last_error: None,

@@ -646,7 +646,14 @@ impl CacheBackend for FakeBackend {
         Ok(s.rows
             .values()
             .filter(|r| r.has_label(&label))
-            .filter(|r| since.is_none_or(|c| r.updated_at.as_str() > c.as_str()))
+            .filter(|r| {
+                since.is_none_or(|c| {
+                    match (rfc3339_to_unix(&r.updated_at), rfc3339_to_unix(c.as_str())) {
+                        (Some(row), Some(cursor)) => row > cursor,
+                        _ => r.updated_at.as_str() > c.as_str(),
+                    }
+                })
+            })
             .cloned()
             .collect())
     }

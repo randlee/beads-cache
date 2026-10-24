@@ -352,7 +352,7 @@ fn reply_goldens() {
             seq: Seq::new(2),
             bead: id("b1"),
             op: "update".into(),
-            actor: "san".into(),
+            actor: sc_beads::testing::actor("san"),
             phase: Some(PhaseName::new("x").unwrap()),
             reason: "bd refused: precondition changed (exit 13)".into(),
         }],

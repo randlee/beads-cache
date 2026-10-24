@@ -303,10 +303,65 @@ impl<'de> Deserialize<'de> for Assignee {
     }
 }
 
-string_newtype!(
-    /// The actor a write is made as (`bd ... --actor <actor>`).
-    Actor
-);
+/// The actor a write is made as (`bd ... --actor <actor>`).
+///
+/// Nonempty and not all whitespace: every journaled write names who made it.
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::Actor;
+/// assert_eq!(Actor::new("san").unwrap().as_str(), "san");
+/// assert!(Actor::new("").is_err());
+/// assert!(Actor::new("  ").is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Actor(String);
+
+impl Actor {
+    /// Validates and wraps an actor.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty or whitespace-only actor.
+    pub fn new(value: impl Into<String>) -> Result<Self, InvalidValue> {
+        let value = value.into();
+        if value.trim().is_empty() {
+            return Err(InvalidValue {
+                kind: "actor",
+                value,
+                reason: "empty or whitespace only",
+            });
+        }
+        Ok(Self(value))
+    }
+
+    /// The actor.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Actor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl TryFrom<String> for Actor {
+    type Error = InvalidValue;
+    fn try_from(value: String) -> Result<Self, InvalidValue> {
+        Self::new(value)
+    }
+}
+
+impl From<Actor> for String {
+    fn from(a: Actor) -> String {
+        a.0
+    }
+}
 string_newtype!(
     /// An opaque sync cursor handed back to [`CacheBackend::list_scope`].
     ///

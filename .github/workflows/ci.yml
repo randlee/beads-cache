@@ -23,9 +23,15 @@ env:
   RUSTFLAGS: -D warnings
   EXCLUDE: --exclude bd-cache-py
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
-  rust:
-    name: fmt, clippy, test, publish dry-run, boundaries
+  # fmt, docs, the publish dry run and the boundary check are platform
+  # independent: ubuntu only.
+  lint:
+    name: fmt, doc, publish dry-run, boundaries
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -36,28 +42,13 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # bd-cache-store's compatibility test (sprint a-4) runs the reference
-      # Python implementation with uv.
-      - uses: astral-sh/setup-uv@v6
-
       - name: Format
         run: cargo fmt --all --check
-
-      - name: Clippy
-        run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
-
-      # Default features: the libraries must be warning-free without their
-      # `testing` features (helpers are crate-private until a-5/a-6 call them).
-      - name: Clippy (libraries, default features)
-        run: cargo clippy --workspace $EXCLUDE --lib -- -D warnings
 
       - name: Docs
         run: cargo doc --workspace $EXCLUDE --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
-
-      - name: Test
-        run: cargo test --workspace $EXCLUDE --all-features
 
       - name: Publish dry run (sc-beads)
         run: cargo publish --dry-run -p sc-beads
@@ -104,3 +95,35 @@ jobs:
               sys.exit(1)
           print(f"boundaries ok: {sorted(members)}")
           PY
+
+  # Clippy and tests on every supported OS (QA-004).
+  test:
+    name: clippy and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      # bd-cache-store's compatibility test (sprint a-4) runs the reference
+      # Python implementation with uv.
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Clippy
+        run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
+
+      # Default features: the libraries must be warning-free without their
+      # `testing` features (helpers are crate-private until a-5/a-6 call them).
+      - name: Clippy (libraries, default features)
+        run: cargo clippy --workspace $EXCLUDE --lib -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace $EXCLUDE --all-features

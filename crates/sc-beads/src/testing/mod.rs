@@ -21,7 +21,7 @@ pub use clock::ManualClock;
 #[doc(inline)]
 pub use fake::{FakeBackend, FakeCall, FakeOp, Injection};
 
-use crate::cache::{BeadId, Edge};
+use crate::cache::{Actor, BeadId, Edge};
 use crate::row::{Bead, DepType};
 
 /// The `created_at` / `updated_at` of rows made by [`bead`].
@@ -65,6 +65,17 @@ pub fn bead(id: &str) -> Bead {
 #[expect(clippy::panic, reason = "an invalid fixture id is a test bug")]
 pub fn id(s: &str) -> BeadId {
     BeadId::new(s).unwrap_or_else(|e| panic!("testing::id: {e}"))
+}
+
+/// An [`Actor`] from a fixture string.
+///
+/// # Panics
+///
+/// When `s` is empty or whitespace (a test bug).
+#[must_use]
+#[expect(clippy::panic, reason = "an invalid fixture actor is a test bug")]
+pub fn actor(s: &str) -> Actor {
+    Actor::new(s).unwrap_or_else(|e| panic!("testing::actor: {e}"))
 }
 
 /// An [`Edge`] `from -> to` from fixture strings.

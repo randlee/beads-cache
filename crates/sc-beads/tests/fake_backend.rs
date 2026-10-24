@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use sc_beads::testing::{bead, id, FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
 use sc_beads::{
-    Actor, BeadId, BeadsCacheError, CacheBackend, Clock, Deadline, Guards, ProjectRef, Refusal,
+    BeadId, BeadsCacheError, CacheBackend, Clock, Deadline, Guards, ProjectRef, Refusal,
 };
 
 fn setup() -> (Arc<ManualClock>, FakeBackend) {
@@ -61,7 +61,7 @@ fn injections_are_consumed_in_order_by_the_first_matching_call() {
     let (clock, fake) = setup();
     let p = ProjectRef::local(None);
     let d = Deadline::after(&*clock, Duration::from_secs(30));
-    let a = Actor::from("san");
+    let a = sc_beads::testing::actor("san");
     fake.inject(FakeOp::Close, Injection::Refused(Refusal::Precondition));
     fake.inject(FakeOp::Close, Injection::Failed(1));
     fake.inject_where(

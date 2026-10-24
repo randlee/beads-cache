@@ -48,34 +48,67 @@ impl Timestamp {
     ///
     /// [`InvalidValue`] for anything else.
     pub fn parse(s: &str) -> Result<Self, InvalidValue> {
-        rfc3339_to_unix(s)
-            .map(Self::from_unix)
-            .ok_or_else(|| InvalidValue {
-                kind: "timestamp",
-                value: s.to_owned(),
-                reason: "expected an RFC 3339 date-time with a timezone",
-            })
+        let invalid = |reason| InvalidValue {
+            kind: "timestamp",
+            value: s.to_owned(),
+            reason,
+        };
+        let secs = rfc3339_to_unix(s)
+            .ok_or_else(|| invalid("expected an RFC 3339 date-time with a timezone"))?;
+        if (Self::MIN_UNIX..=Self::MAX_UNIX).contains(&secs) {
+            Ok(Self(unix_to_rfc3339(secs)))
+        } else {
+            Err(invalid("outside years 0000..=9999 once normalized to UTC"))
+        }
     }
 
     /// The instant `secs` after the Unix epoch.
-    #[must_use]
-    pub fn from_unix(secs: i64) -> Self {
-        Self(unix_to_rfc3339(secs))
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] when the instant is outside years 0000..=9999 (UTC),
+    /// which the four-digit RFC 3339 year cannot represent.
+    pub fn from_unix(secs: i64) -> Result<Self, InvalidValue> {
+        if (Self::MIN_UNIX..=Self::MAX_UNIX).contains(&secs) {
+            Ok(Self(unix_to_rfc3339(secs)))
+        } else {
+            Err(InvalidValue {
+                kind: "timestamp",
+                value: secs.to_string(),
+                reason: "outside years 0000..=9999",
+            })
+        }
     }
+
+    /// Seconds since the Unix epoch of `0000-01-01T00:00:00Z`, the earliest instant.
+    pub const MIN_UNIX: i64 = -62_167_219_200;
+    /// Seconds since the Unix epoch of `9999-12-31T23:59:59Z`, the latest instant.
+    pub const MAX_UNIX: i64 = 253_402_300_799;
 
     /// Seconds since the Unix epoch.
+    ///
+    /// # Panics
+    ///
+    /// Never: the text is built by [`Timestamp::from_unix`], which only
+    /// renders instants this parser reads back.
     #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "invariant: the stored text is a normalized in-range RFC 3339 instant"
+    )]
     pub fn unix(&self) -> i64 {
-        rfc3339_to_unix(&self.0).unwrap_or_default()
+        rfc3339_to_unix(&self.0).expect("Timestamp text is always valid RFC 3339")
     }
 
-    /// This instant moved back by `d` (whole seconds).
+    /// This instant moved back by `d` (whole seconds), stopping at
+    /// `0000-01-01T00:00:00Z`.
     #[must_use]
     pub fn minus(&self, d: Duration) -> Self {
-        Self::from_unix(
-            self.unix()
-                .saturating_sub(i64::try_from(d.as_secs()).unwrap_or(i64::MAX)),
-        )
+        let secs = self
+            .unix()
+            .saturating_sub(i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+            .max(Self::MIN_UNIX);
+        Self(unix_to_rfc3339(secs))
     }
 
     /// The text.
@@ -134,7 +167,8 @@ impl Clock for SystemClock {
         let secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
-        Timestamp::from_unix(secs)
+        // A clock past year 9999 is a host misconfiguration; report the last instant.
+        Timestamp(unix_to_rfc3339(secs.min(Timestamp::MAX_UNIX)))
     }
 
     fn now_mono(&self) -> Instant {
@@ -392,5 +426,28 @@ mod tests {
         assert!(!far.expired(&clock));
         let huge = Deadline::after(&clock, Duration::MAX);
         assert!(!huge.expired(&clock));
+    }
+
+    #[test]
+    fn timestamps_are_bounded_to_four_digit_years() {
+        let first = Timestamp::parse("0000-01-01T00:00:00Z").unwrap();
+        assert_eq!(first.unix(), Timestamp::MIN_UNIX);
+        let last = Timestamp::parse("9999-12-31T23:59:59Z").unwrap();
+        assert_eq!(last.unix(), Timestamp::MAX_UNIX);
+        // Valid text that normalizes outside the range is refused.
+        assert!(Timestamp::parse("0000-01-01T00:00:00+00:01").is_err());
+        assert!(Timestamp::parse("9999-12-31T23:59:59-00:01").is_err());
+        assert!(Timestamp::from_unix(Timestamp::MIN_UNIX - 1).is_err());
+        assert!(Timestamp::from_unix(Timestamp::MAX_UNIX + 1).is_err());
+        assert_eq!(
+            Timestamp::from_unix(0).unwrap().as_str(),
+            "1970-01-01T00:00:00Z"
+        );
+        assert_eq!(
+            first.minus(Duration::from_secs(1)),
+            first,
+            "minus stops at the first instant"
+        );
+        assert!(SystemClock.now_utc() < last);
     }
 }

@@ -21,7 +21,7 @@ use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
 use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
-use sc_beads::{Actor, Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
+use sc_beads::{Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
 
 /// The cache under test.
 pub type TestCache = Cache<FakeStore, FakeDrainLock, FakeBackend>;
@@ -174,6 +174,6 @@ pub fn new_entry(key: &str, bead: &str, op: &str, args: &str) -> NewEntry {
         bead: id(bead),
         op: Op::parse(op, args).unwrap_or_else(|e| panic!("{op} {args}: {e}")),
         precondition: Guards::default(),
-        actor: Actor::from("san"),
+        actor: sc_beads::testing::actor("san"),
     }
 }

@@ -3,8 +3,8 @@
 Status: approved (lead ruling, 2026-10-23). Crate-local decisions (domain code `MODEL`). Repo-level
 context: [`../architecture.md`](../architecture.md). Created by sprint a-1.
 
-The crate is pure (no I/O, no clock): timestamps are passed in as RFC 3339
-strings. It depends on `sc-beads`, serde, serde_json and, privately, toml
+The crate is pure (no I/O, no clock): timestamps are passed in as
+`sc_beads::Timestamp` values (RFC 3339 UTC, second precision). It depends on `sc-beads`, serde, serde_json and, privately, toml
 (ADR-MODEL-0004).
 
 | Module | Contents |
@@ -97,3 +97,7 @@ Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
 carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
 and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
 unassigned update overlays as no assignee, as bd stores it.
+fix-a-1-2 (QA-002): the newer-row guard compares `updated_at` as an instant
+(second precision), never as text; the contract rule
+`newer_row_guard_compares_instants` checks it with offset and fractional
+timestamps.

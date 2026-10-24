@@ -417,18 +417,40 @@ fn generated_strict_rows_are_current() {
 /// How long the rustfmt subprocess may run before the test kills it and fails.
 const RUSTFMT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
 
-/// Formats `src` with rustfmt (edition 2021, as `cargo fmt` formats this crate).
+/// The edition `cargo fmt` uses for this crate: its own `edition`, else the workspace's.
+fn crate_edition() -> String {
+    let edition_in = |path: PathBuf| -> Option<String> {
+        let text = std::fs::read_to_string(path).ok()?;
+        text.lines().find_map(|l| {
+            let v = l
+                .trim()
+                .strip_prefix("edition")?
+                .trim_start()
+                .strip_prefix('=')?;
+            Some(v.trim().trim_matches('"').to_owned())
+        })
+    };
+    edition_in(root().join("Cargo.toml"))
+        .or_else(|| edition_in(root().join("../../Cargo.toml")))
+        .unwrap_or_else(|| panic!("no edition in crates/sc-beads/Cargo.toml or the workspace"))
+}
+
+/// Formats `src` with rustfmt at the crate's edition, as `cargo fmt` formats it.
 ///
 /// Fails the test, never silently falls back: a missing rustfmt, a rustfmt
-/// error, or a run longer than [`RUSTFMT_TIMEOUT`] (the child is killed) all
-/// panic with the reason.
+/// error, or a run longer than [`RUSTFMT_TIMEOUT`] all panic with the reason.
+/// The deadline starts before the input is written; stdin is written and
+/// stdout/stderr drained on their own threads, so a stuck child cannot block
+/// the test. On timeout the child is killed and reaped, then the threads joined.
 fn rustfmt(src: &str) -> String {
     use std::io::{Read as _, Write as _};
     use std::process::{Command, Stdio};
     use std::time::Instant;
 
+    let started = Instant::now();
+    let edition = crate_edition();
     let mut child = Command::new("rustfmt")
-        .args(["--edition", "2021", "--emit", "stdout"])
+        .args(["--edition", edition.as_str(), "--emit", "stdout"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -436,9 +458,11 @@ fn rustfmt(src: &str) -> String {
         .unwrap_or_else(|e| {
             panic!("rustfmt could not start ({e}); install the rustfmt component listed in rust-toolchain.toml")
         });
+    let mut stdin = child.stdin.take().unwrap();
+    let input = src.to_owned();
+    let writer = std::thread::spawn(move || stdin.write_all(input.as_bytes()));
     let mut stdout = child.stdout.take().unwrap();
     let mut stderr = child.stderr.take().unwrap();
-    // Drain both pipes on threads so a large output cannot block the child.
     let out = std::thread::spawn(move || {
         let mut buf = String::new();
         stdout.read_to_string(&mut buf).map(|_| buf)
@@ -447,13 +471,6 @@ fn rustfmt(src: &str) -> String {
         let mut buf = String::new();
         stderr.read_to_string(&mut buf).map(|_| buf)
     });
-    child
-        .stdin
-        .take()
-        .unwrap()
-        .write_all(src.as_bytes())
-        .unwrap();
-    let started = Instant::now();
     let status = loop {
         if let Some(status) = child.try_wait().unwrap() {
             break status;
@@ -461,12 +478,15 @@ fn rustfmt(src: &str) -> String {
         if started.elapsed() > RUSTFMT_TIMEOUT {
             let _ = child.kill();
             let _ = child.wait();
-            panic!("rustfmt did not finish within {RUSTFMT_TIMEOUT:?}; killed it");
+            let _ = writer.join();
+            panic!("rustfmt did not finish within {RUSTFMT_TIMEOUT:?}; killed and reaped it");
         }
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
+    let written = writer.join().unwrap();
     let formatted = out.join().unwrap().unwrap();
     let diagnostics = err.join().unwrap().unwrap_or_default();
     assert!(status.success(), "rustfmt failed ({status}): {diagnostics}");
+    written.unwrap_or_else(|e| panic!("writing rustfmt's input failed: {e}"));
     formatted
 }

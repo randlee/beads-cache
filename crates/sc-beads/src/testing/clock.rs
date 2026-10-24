@@ -105,11 +105,21 @@ impl Clock for ManualClock {
     fn now_utc(&self) -> Timestamp {
         let s = lock(&self.state);
         let since_anchor = s.elapsed.saturating_sub(s.anchor_elapsed).as_secs();
-        Timestamp::from_unix(s.utc_anchor + i64::try_from(since_anchor).unwrap_or(i64::MAX / 2))
+        let secs = s
+            .utc_anchor
+            .saturating_add(i64::try_from(since_anchor).unwrap_or(i64::MAX))
+            .clamp(Timestamp::MIN_UNIX, Timestamp::MAX_UNIX);
+        // In range after the clamp; a failure here is a ManualClock bug.
+        Timestamp::from_unix(secs).unwrap_or_else(|e| unreachable_clock(&e))
     }
 
     fn now_mono(&self) -> Instant {
         let s = lock(&self.state);
         s.origin + s.elapsed
     }
+}
+
+#[expect(clippy::panic, reason = "a clamped instant is always in range")]
+fn unreachable_clock(e: &crate::cache::InvalidValue) -> Timestamp {
+    panic!("ManualClock produced {e}")
 }

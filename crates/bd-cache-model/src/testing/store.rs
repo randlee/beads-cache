@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex};
 
-use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
+use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp, rfc3339_to_unix};
 
 use super::lock;
 use crate::error::CacheError;
@@ -23,6 +23,15 @@ const META_VERSION: &str = "bd_version";
 const META_SCHEMA_VERSION: &str = "bd_schema_version";
 const META_OUTAGE_SINCE: &str = "outage_since";
 const META_OUTAGE_ERROR: &str = "outage_error";
+
+/// True when `stored` is a later instant than `incoming` (RFC 3339 compared by
+/// instant at second precision; text that does not parse falls back to text order).
+fn newer(stored: &str, incoming: &str) -> bool {
+    match (rfc3339_to_unix(stored), rfc3339_to_unix(incoming)) {
+        (Some(a), Some(b)) => a > b,
+        _ => stored > incoming,
+    }
+}
 
 fn alert_key(s: &ScopeId) -> String {
     format!("sync_alert:{}", s.name())
@@ -189,7 +198,7 @@ impl CacheStore for FakeStore {
                 .map(|(b, _)| (b.updated_at.clone(), b.status.clone()));
             if let Some((updated_at, _)) = &existing
                 && !force
-                && *updated_at > row.updated_at
+                && newer(updated_at, &row.updated_at)
             {
                 report.skipped_newer.push(row.id.clone());
                 continue;

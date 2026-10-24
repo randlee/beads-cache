@@ -24,8 +24,10 @@ use crate::state::{
 ///   (added when the row carries `s`'s label, removed when it does not);
 ///   `upsert_rows(None, ..)` never changes existing membership (a new row
 ///   stored with `None` has none: an out-of-scope row).
-/// - unforced upserts skip a row whose stored `updated_at` is newer
-///   (`skipped_newer`); forced upserts always store.
+/// - unforced upserts skip a row whose stored `updated_at` is a later
+///   instant (`skipped_newer`); `updated_at` is compared as an RFC 3339
+///   instant at second precision, never as text (`12:00:00+02:00` equals
+///   `10:00:00Z`); forced upserts always store.
 /// - `status_changed` lists existing rows whose status text changed, forced
 ///   or not; new rows excluded.
 /// - `apply_with_readback(seq, None, Some(err))` marks the entry applied with
