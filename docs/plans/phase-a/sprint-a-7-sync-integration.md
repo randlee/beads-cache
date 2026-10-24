@@ -184,6 +184,22 @@ the store, model and core docs, `crates/bd-cache-model/src/lib.rs` and two store
 commented guard); **S16** the testbed is due 2026-10-31, owner bc-lead; **S17** the tick checks its budget
 after every send and stops sending once it is spent (the rest is counted in `unsent`).
 
+## Rulings applied in fix-a-7-4 and fix-a-7-5 (QA rounds 4 and 5)
+
+Lead rulings of bc-lead, 2026-10-24: **S22** the `libc` dependency (ADR-SYNC-0006) and the atm output-reading
+amendment (ADR-SYNC-0007) are Approved; **S23** a root that bd does not return is unknown: neither open nor
+unreadable, reported with the unreadable roots, and the stop rule answers Continue (ADR-SYNC-0004); **S24** the
+stop flag is checked before the root refresh (extends the S20 note), and a cached root is trusted only when the
+phase's own scope has synced (ADR-SYNC-0005 note); **S25** the journal reads date the entries `bd_cache.py` applied
+while the store is open, best effort, with no busy wait (ADR-STORE-0004); **S26** that dating runs only above
+`READ_DATING_THRESHOLD` (2000) undated entries and never waits for the write lock; ADR-STORE-0004 Approved, an
+exception note in ADR-STORE-0002's Concurrency bullet, and the port docs allow a write that neither waits nor changes
+the answer; **S27** the tree kill and the reap of a send's child share one `KILL_BOUND` (1 s) deadline, and
+`SEND_RESERVE` is 1.5 s (REQ-SYNC-0011, ADR-SYNC-0007); **S28** one detached reaper thread takes a child or
+helper that was given up on, so none stays a zombie for the host's life; **S29** the compile-time check of
+`next_sync_cause` enforces the declaration order and the hand-kept count is gone; **S30** `Cache::scope_synced`
+reads one `sync_state` row through the port, and `active.rs` uses it (ADR-SYNC-0005).
+
 ## Deviations from this document
 
 1. **Phase file format** (closed by S10): confirmed against `bd_cache_cron.py` at atm-core `05831df` and two real
@@ -246,7 +262,7 @@ can unblock any bead), so `get` costs the old amount until the next sync; ADR-CO
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on `9e45418` (65 mutants); the two that survived (a stop arriving between phases, and the outcome clip checked against its own constant) got tests and were re-run on `bc1e4ab`, the last commit that changes code (later commits change documents only); the source of the others is identical at both commits. The script
+The first 65 mutants were run on `9e45418` (the 94-mutant re-run at `9f3ceb5` is under "Re-run at the final code commit" below); the two that survived (a stop arriving between phases, and the outcome clip checked against its own constant) got tests and were re-run on `bc1e4ab`, the last commit that changes code (later commits change documents only); the source of the others is identical at both commits. The script
 and its raw results are committed: `docs/plans/phase-a/evidence/a-7-planted-bugs.py` and `.json`. It applies each
 mutation to the working tree (one literal replacement, checked to match exactly once), runs the whole crate suite,
 and restores the file:
@@ -329,6 +345,58 @@ The six bugs the sprint names come first; the rest are this sprint's own rules a
 Every one of the 65 bugs fails at least one test, none by a compile error, and `git status` was clean after the
 run.
 
+### Re-run at the final code commit (fix-a-7-6)
+
+The script was brought up to the code after rounds 4 and 5 (S26 to S30) and run in full on `9f3ceb5`
+(94 mutants, macOS arm64, `CARGO_INCREMENTAL=0`): **90 of 94 killed** (88 by a failing test, 2 by a
+compile-time assertion), **4 survive**, each with its reason below. Results:
+`docs/plans/phase-a/evidence/a-7-planted-bugs.json` (`survived` carries the reason; `const_assert` marks a
+build-time kill). The runner now counts `error[E0080]` (a broken `const _: () = assert!(..)`) as a kill.
+
+Patterns that no longer matched after rounds 3 to 5 and were rewritten (the mutated code moved, the rule did not):
+
+| Mutant | File | Killed by |
+|---|---|---|
+| a cached root is trusted without its scope having synced | `crates/bd-cache-sync/src/active.rs` | `a_phase_whose_root_cannot_be_read_never_ends_the_schedule`, `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs` |
+| unreadable root stops the schedule | `crates/bd-cache-sync/src/tick.rs` | `a_phase_whose_root_cannot_be_read_never_ends_the_schedule`, `a_root_bd_does_not_return_never_ends_the_schedule`, `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported` |
+| applied_since misses entries bd_cache.py applied (S18) | `crates/bd-cache-store/src/schema.rs` | `a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree`, `a_scheduled_tick_with_a_slow_bd_ends_within_its_budget`, `a_small_burst_is_walked_and_not_dated_until_past_the_threshold` (+12 more) |
+| a missing hinted index is an error (QA3-007) | `crates/bd-cache-store/src/store.rs` | `the_entries_since_check_survives_a_dropped_index` |
+| a descendant holding the pipes is waited for in full (QA3-003) | `crates/bd-cache-sync/src/atm.rs` | `a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it`, `atm::tests::the_read_deadline_is_clamped_to_the_send_deadline_with_a_floor`, `atm_process (process test)` |
+| open does not date the entries bd_cache.py applied | `crates/bd-cache-store/src/store.rs` | `entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since`, `store::tests::the_open_finds_the_applied_entries_it_could_not_date` |
+
+Mutants for the round 4 and 5 fixes:
+
+| Mutant | File | Killed by |
+|---|---|---|
+| S26: threshold dropped, every pass dates (count skipped) | `crates/bd-cache-store/src/store.rs` | `a_small_burst_is_walked_and_not_dated_until_past_the_threshold`, `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`, `entries_python_applies_while_open_are_dated_by_the_next_check` |
+| S26: dating never runs (reads always walk the undated entries) | `crates/bd-cache-store/src/store.rs` | `a_cached_get_dates_entries_python_applied_while_open`, `a_small_burst_is_walked_and_not_dated_until_past_the_threshold`, `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating` (+3 more) |
+| S26: threshold off by one (dates at the threshold) | `crates/bd-cache-store/src/store.rs` | `a_small_burst_is_walked_and_not_dated_until_past_the_threshold` |
+| QA5-002: the undatable floor rises onto the first dateable entry | `crates/bd-cache-store/src/store.rs` | **survived**: GAP (off by one, minor): the floor then hides the first dateable entry from the undated count, so the dating starts one entry later than the threshold says; reached only after a skipped dating (write lock held). No test pins floor == first - 1. |
+| QA5-002: the undatable floor rises past a dateable entry | `crates/bd-cache-store/src/store.rs` | `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating` |
+| QA5-003: the busy timeout is not restored after the no-wait dating | `crates/bd-cache-store/src/store.rs` | `a_write_after_a_skipped_dating_waits_for_the_lock_again` |
+| QA5-003: the dating waits for the write lock (no NoWait) | `crates/bd-cache-store/src/store.rs` | **survived**: GAP (timing only): with the lock held by the same thread the wait ends with BUSY and the answer is the same; telling the two apart needs an elapsed-time assertion, which FTQ-020 removed as stall-sensitive. The restore of the timeout is killed (a_write_after_a_skipped_dating_waits_for_the_lock_again). |
+| S27: the tree kill and the reaping do not share one deadline | `crates/bd-cache-sync/src/atm.rs` | **survived**: UNREACHABLE: the two deadlines differ only when the child is still alive after SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill bound, the KILL_BOUND value and SEND_RESERVE are each killed. |
+| S27: the kill bound is far too long | `crates/bd-cache-sync/src/atm.rs` | compile-time assertion (`const _: () = assert!`) fails the build |
+| S27: the tree kill is not given up at the deadline | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
+| S28: a child not reaped in time is dropped, not handed to the reaper | `crates/bd-cache-sync/src/atm.rs` | **survived**: UNREACHABLE: the call site runs only for a child that outlives SIGKILL by KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop). |
+| S28: the reaper lets go of every process at once | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
+| S28: the reaper never looks at what it holds | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
+| S27: SEND_RESERVE shrunk below the read grace plus the kill bound | `crates/bd-cache-sync/src/control.rs` | compile-time assertion (`const _: () = assert!`) fails the build |
+| RBP-F039: a root bd did not return is not refused | `crates/bd-cache-sync/src/tick.rs` | `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported` |
+| RBP-F039: a root bd did not return is never recorded | `crates/bd-cache-sync/src/active.rs` | `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported` |
+| QA5-004: scope_synced says every scope has synced | `crates/bd-cache/src/lib.rs` | `a_phase_whose_root_cannot_be_read_never_ends_the_schedule`, `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs` |
+
+Survivors, none an equivalent mutant; each is a gap named for the lead:
+
+- **QA5-002 off by one**: the floor rising onto the first dateable entry (`first`, not `first - 1`) is not caught;
+  the effect is that the dating starts one entry past the threshold, after a skipped dating. A test pinning the
+  floor would kill it.
+- **QA5-003 no `NoWait`**: telling a read that waits from one that does not needs an elapsed-time assertion, which
+  FTQ-020 removed as stall-sensitive. The restore of the timeout is killed.
+- **S27 shared deadline** and **S28 `adopt` at the `kill_tree_with` call site**: reachable only by a child that
+  outlives `SIGKILL` for `KILL_BOUND` (an uninterruptible state), which no portable test can make. The tree-kill
+  bound, `KILL_BOUND`, `SEND_RESERVE` and the reaper itself are killed.
+
 ## bd-compat workflow, real run
 
 `docs/plans/phase-a/evidence/a-7-bd-compat.md`. `workflow_dispatch` ran for real on this branch (pinned version
@@ -339,8 +407,10 @@ bc-lead, due at the `develop` -> `main` merge** (S9), not a-7 sprint gates.
 
 ## Testbed
 
-Deferred evidence, **owner bc-lead, due 2026-10-31** (S8, S16; the lead runs it at the final commit), `docs/plans/phase-a/evidence/a-7-testbed.md`: the
-commands, a fill-in table, and the developer-machine smoke run (not testbed evidence).
+Run on `m5-atmbench` at the last code-changing commit `9f3ceb5`: a-7 live 2/2, incremental sync 380 ms against the 1 s
+limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
+figures and the developer-machine smoke run. bc-lead's own run at the merge head, due 2026-10-31 (S8, S16), is still the
+owner's to record.
 
 ## QA round 1 findings and their fixes
 
@@ -437,23 +507,85 @@ commands, a fill-in table, and the developer-machine smoke run (not testbed evid
 | RBP-F024, F025, F026 | No `write!` into a String; one `MEMBER_RULE` text; join failure outcome has a code and hint | phases.rs, announce.rs, job.rs |
 | RBP notes | EXISTS for pending/applied emptiness (QA2-001); duplicated `doc(inline)` removed | lib.rs |
 
+## QA round 4 findings and their fixes
+
+Reviewed at `bd44f85` (layer `sprint/a-7-fix3-sync`). Fixes: PR #22 (`sprint/a-7-fix4-store`), PR #18
+(`sprint/a-7-fix4-atm`), PR #21 (`sprint/a-7-fix4-sync`, top of stack #17). Test names are those in the PR bodies.
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| ARCH-301, ARCH-302 | ADR-SYNC-0006 (libc) and ADR-SYNC-0007 (atm output) amendments Approved (S22) | `docs/bd-cache-sync/architecture.md` |
+| ARCH-303 | Crate Layout row lists `libc (Unix only: O_NONBLOCK)` | `docs/architecture.md` |
+| ARCH-304 | A cached root is trusted only when the phase's own scope has `last_ok_at` (S24) | `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs` |
+| ARCH-305 | A root bd does not return is unknown and reported; `stop_reason` answers Continue (S23) | `a_root_bd_does_not_return_never_ends_the_schedule`, `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported` |
+| ARCH-306 | atm.rs comment no longer says there is no libc dependency | `atm.rs` |
+| ARCH-307 | REQ-STORE-0003 lists all four extension indexes | `docs/bd-cache-store/requirements.md` |
+| QA4-001 (important) | Undated entries `bd_cache.py` applied while open are dated before the journal check asks (S25); best effort, no busy wait; get median 16.0 us at 20k rows (was 1.73 ms) | store tests measure SQLite VM steps |
+| QA4-002 | `perf.rs` seeds `applied_epoch`; a separate undated case measures SQL work in VM steps | `perf.rs` |
+| QA4-003 | `applied_since` is a `UNION ALL` over the two partial indexes, ordered by seq; plan and VM-step assertions | `bd-cache-store` tests |
+| QA4-004 | Open warns with the seqs of applied entries it could not date; ADR-STORE-0004 gives the operator fix | `bd-cache-store` open tests |
+| QA4-005 | A missing index is matched on the `SQLITE_ERROR` code and message; warned once, then unhinted queries until the next open | `the_entries_since_check_survives_a_dropped_index` |
+| QA4-006 | The stop flag is checked before the root `bd list --id` | `active::tests::a_set_stop_flag_skips_the_root_refresh` |
+| RSH-021, RSH-025, RSH-026 | atm send bounded (read grace clamped to the send deadline; kill path polled with a bound); collect tested with a shared deadline | `atm.rs`, `atm_process.rs` |
+| FTQ-016, FTQ-017, FTQ-018 | `run-live.sh` cleanup on EXIT/INT/TERM; deferral reported as inconclusive; pids tracked as discovered | `run-live.sh`, `live.rs`, `atm_process.rs` |
+| RBP-F030 | `ComposeError::Cache` fix returns `e.fix()` | `compose_errors_have_codes_and_sources` |
+| RBP-F031 | Outage targets use `is_outage_alert` | `an_outage_alert_in_bd_cache_pys_form_is_not_announced_again` |
+| RBP-F032 | InvalidAddress fix in operator wording | `the_invalid_address_fix_states_the_rule_without_rust_identifiers` |
+| RBP-F033 | `SYNC_CAUSES` replaced by an exhaustive `next_sync_cause` match | `every_sync_cause_round_trips_through_its_key` |
+| RBP-F034 | Code and fix per config-load variant | `compose_errors_have_codes_and_sources` |
+| RBP-F035 | `FakeDrainLock` uses `AtomicBool` | existing drain-lock tests |
+| req-qa | PASS, no findings | |
+
+## QA round 5 findings and their fixes
+
+Reviewed at `9990a10` (`sprint/a-7-fix4-sync`). Fixes: PR #28 (`sprint/a-7-fix5-store`), PR #29
+(`sprint/a-7-fix5-sync`), and fix-a-7-6 (PR #30: the Windows temp-dir fix and the evidence).
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| ARCH-401 (blocking) | Logging goes through `sc_beads::logging::tracing`; the direct `tracing` dependency is removed | `crates/bd-cache-store/Cargo.toml` |
+| ARCH-402, REQ-QA-502 | S25/S26 Approved in ADR-STORE-0004; ADR-STORE-0002 Concurrency exception note; port docs allow a write that neither waits nor changes the answer | `docs/bd-cache-store/architecture.md`, `bd-cache-model/src/store.rs` |
+| ARCH-403 | New ADR-STORE-0005 records the store dependencies (incl. `rusqlite` `functions`, dev) | `docs/bd-cache-store/architecture.md` |
+| REQ-QA-501, RSH-027 | Tree kill and child reap share `KILL_BOUND` (1 s); `SEND_RESERVE` 1.5 s; const asserts tie the constants to `HARD_MARGIN`; REQ-SYNC-0011 and ADR-SYNC-0007 amended (S27) | `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped`, `a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`; planted S27 |
+| RSH-028 | One detached reaper thread (`bd-cache-atm-reaper`) takes a child or helper given up on (S28) | `a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper`; planted S28 |
+| REQ-QA-503 | The message-prefix reliance of the missing-index test is recorded in ADR-STORE-0004 | ADR-STORE-0004 |
+| QA5-001 | Read-path dating only above `READ_DATING_THRESHOLD` = 2000, never waits (S26); measurements in ADR-STORE-0004 | `a_small_burst_is_walked_and_not_dated_until_past_the_threshold`; planted S26 |
+| QA5-002 | One warning per new highest undatable seq; a floor keeps known unreadable entries out of the count and never rises past a dateable one | `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`, `undatable_entries_written_while_open_are_warned_once_and_not_walked_again`; planted QA5-002 |
+| QA5-003 | `NoWait` drop guard restores `BUSY_TIMEOUT` | `a_write_after_a_skipped_dating_waits_for_the_lock_again`; planted QA5-003 |
+| QA5-004 | `Cache::scope_synced` reads only `sync_state` (S30) | `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`; planted QA5-004 |
+| QA5-005 | Dead `allow` removed | `store.rs` tests |
+| FTQ-019 | The collect test uses an already-passed Instant; no upper bound on the clock | `atm.rs` tests |
+| FTQ-020 | Elapsed-time assertion removed from the store test | `tests/store.rs` |
+| RBP-F036 | Member rule and InvalidAddress fix built from one text (`macro_rules!` + `concat!`) | `sender.rs` |
+| RBP-F037 | `PhaseName::RULE` used by the validator and every fix that states the rule; fix-a-7-6 also uses it in `ConfigLoadError::Scope` | `compose.rs`, `reply.rs` tests; `location.rs` |
+| RBP-F038 | Compile-time check enforces the declaration order of `next_sync_cause`; hand count removed (S29) | `announce.rs` |
+| RBP-F039 | `phase_root_not_returned` refusal, separate from a read failure; S23 unchanged | `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported`; planted RBP-F039 |
+
+### CI fix on #28 (windows-latest)
+
+| Problem | Fix | Evidence |
+|---|---|---|
+| `store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again` panicked with `Os { code: 267, NotADirectory }`: the temp dir name held the `{:?}` of `SystemTime`, whose text Windows rejects in a path | The name uses nanos since the epoch; no other `{:?}` time in a path exists in the workspace | `9f3ceb5`; PR #30 CI green on ubuntu, macos and windows |
+
 ## Validation
 
-At `bc1e4ab` (the last code commit), locally (macOS arm64, Rust 1.98.1), the quality-policy phase-end command
-with `set -o pipefail`:
+At `9f3ceb5` (the last code-changing commit; later commits change documents and the evidence script only), locally
+(macOS arm64, Rust 1.98.1), each gate under `bash -c 'set -o pipefail; ...'`:
 
 | Gate | Result |
 |---|---|
-| `cargo fmt --all --check` | pass |
-| `cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings` | pass |
-| `cargo clippy --workspace --exclude bd-cache-py --lib -- -D warnings` | pass |
-| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude bd-cache-py --no-deps` | pass |
-| `cargo test --workspace --exclude bd-cache-py --all-features` | pass (743 passed, 16 ignored) |
-| CI boundary check (`cargo metadata` against the Boundaries table) | pass |
+| `cargo fmt --all -- --check` | pass |
+| `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
+| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features` | pass |
+| `cargo test --workspace --all-features` | pass (779 passed, 0 failed, 16 ignored) |
+| Planted bugs, 94 mutants | 90 killed (2 by a compile-time assertion), 4 survive with reasons (see Evidence: planted bugs) |
+| Testbed (`m5-atmbench`, bd 1.3.2, `9f3ceb5`) | a-7 live 2/2; incremental sync 380 ms < 1 s; a-2 7/7 with `SC_BD_PINNED_ANY=1` (`evidence/a-7-testbed.md`) |
 
 CI (per the CI-evidence convention in the phase plan): run
-[40102640467](https://github.com/randlee/beads-cache/actions/runs/40102640467) is green on ubuntu, macos and
-windows at `bc1e4ab`, the last code commit; later commits change documents only.
+[40118172977](https://github.com/randlee/beads-cache/actions/runs/40118172977) of PR #30 is green on ubuntu, macos and
+windows at `9f3ceb5`, the last code-changing commit. It fixes the windows-latest failure of run 40117695818 on PR #28
+(`Os { code: 267, NotADirectory }`). Earlier green run on the sprint's first final code commit:
+[40102640467](https://github.com/randlee/beads-cache/actions/runs/40102640467) at `bc1e4ab`.
 
 ## QA round 3 findings and their fixes
 

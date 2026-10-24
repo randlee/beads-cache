@@ -3,6 +3,7 @@
 Usage: python3 docs/plans/phase-a/evidence/a-7-planted-bugs.py [name-filter]
 Each mutant is one literal replacement checked to match exactly once; the suite
 of the crates it touches runs, the file is restored. Results: a-7-planted-bugs.json.
+A mutant is killed by a failing test, or by a compile-time assertion (`const_assert`).
 """
 """Plants each bug (one literal replacement, checked to match exactly once),
 runs the bd-cache-sync suite, records the failing tests, restores the file."""
@@ -155,8 +156,8 @@ MUTANTS = [('unannounced filter dropped',
   '                    };'),
  ('unreadable root stops the schedule',
   'crates/bd-cache-sync/src/tick.rs',
-  'if !active.active.is_empty() || !active.unreadable.is_empty() {',
-  'if !active.active.is_empty() {'),
+  'if active.stopped || !active.active.is_empty() || !active.unreadable.is_empty() {',
+  'if active.stopped || !active.active.is_empty() {'),
  ('configuration the tick refuses can stop the schedule',
   'crates/bd-cache-sync/src/tick.rs',
   '    let Ok(settings) = TickSettings::from_config(config) else {\n'
@@ -339,8 +340,8 @@ MUTANTS = [('unannounced filter dropped',
   '    if false {'),
  ('a cached root is trusted without its scope having synced',
   'crates/bd-cache-sync/src/active.rs',
-  'phase.scope().holds(&reply.row.bead) && reply.scope_last_ok_at.is_some()',
-  'true'),
+  'if scope.holds(&reply.row.bead) && cache.scope_synced(&scope)? {',
+  'if scope.holds(&reply.row.bead) {'),
  ('base_entry trusts the index of a base another writer replaced',
   'crates/bd-cache-store/src/store.rs',
   '            if indexed != Some(1) {',
@@ -367,21 +368,27 @@ MUTANTS = [('unannounced filter dropped',
   '    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_epoch',
   'SELECT \\\n    0 OR \\\n    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_epoch'),
  ('applied_since misses entries bd_cache.py applied (S18)',
-  'crates/bd-cache-store/src/store.rs',
-  'COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1)))",',
-  '0))",'),
- ('open does not date the entries bd_cache.py applied',
   'crates/bd-cache-store/src/schema.rs',
-  'UPDATE journal SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at))',
-  'UPDATE journal SET applied_epoch = 0'),
+  "journal_applied_unknown \\\n"
+  "     WHERE state = 'applied' AND applied_epoch IS NULL \\\n"
+  "     AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1) \\\n"
+  '     ORDER BY seq"',
+  "journal_applied_unknown \\\n"
+  "     WHERE state = 'applied' AND applied_epoch IS NULL \\\n"
+  "     AND 0 \\\n"
+  '     ORDER BY seq"'),
+ ('open does not date the entries bd_cache.py applied',
+  'crates/bd-cache-store/src/store.rs',
+  '    tx.execute_batch(BACKFILL_APPLIED_EPOCH)\n',
+  '    tx.execute_batch("SELECT 1")\n'),
  ('the expression index of an earlier build is kept',
   'crates/bd-cache-store/src/schema.rs',
   'DROP INDEX IF EXISTS journal_applied_at;\n',
   ''),
  ('a missing hinted index is an error (QA3-007)',
   'crates/bd-cache-store/src/store.rs',
-  'Err(e) if e.to_string().contains("no such index") => {',
-  'Err(e) if false && e.to_string().contains("no such index") => {'),
+  'Err(e) if is_missing_index(&e) => {',
+  'Err(e) if false && is_missing_index(&e) => {'),
  ('a stored alert is compared as raw text (S21)',
   'crates/bd-cache-sync/src/announce.rs',
   '        Self::from_key(key.trim())',
@@ -412,8 +419,100 @@ MUTANTS = [('unannounced filter dropped',
   'Op::Close { .. } => row.status.as_deref() == Some("nope"),'),
  ('a descendant holding the pipes is waited for in full (QA3-003)',
   'crates/bd-cache-sync/src/atm.rs',
-  'let read_until = Instant::now() + READ_GRACE;',
-  'let read_until = Instant::now() + Duration::from_secs(30);')]
+  '    now + READ_GRACE.min(left).max(READ_FLOOR)',
+  '    let _ = (left, READ_FLOOR);\n    now + Duration::from_secs(30)'),
+ # ---- round-5 fixes (a-7 fix-5/6) ----
+ ('S26: threshold dropped, every pass dates (count skipped)',
+  'crates/bd-cache-store/src/store.rs',
+  'Ok(n) => n >= limit && self.date_now(),',
+  'Ok(_) => self.date_now(),'),
+ ('S26: dating never runs (reads always walk the undated entries)',
+  'crates/bd-cache-store/src/store.rs',
+  'Ok(n) => n >= limit && self.date_now(),',
+  'Ok(_) => false,'),
+ ('S26: threshold off by one (dates at the threshold)',
+  'crates/bd-cache-store/src/store.rs',
+  'let limit = i64::from(READ_DATING_THRESHOLD) + 1;\n        let waiting',
+  'let limit = i64::from(READ_DATING_THRESHOLD);\n        let waiting'),
+ ('QA5-002: the undatable floor rises onto the first dateable entry',
+  'crates/bd-cache-store/src/store.rs',
+  'Some(first) => first.saturating_sub(1),',
+  'Some(first) => first,'),
+ ('QA5-002: the undatable floor rises past a dateable entry',
+  'crates/bd-cache-store/src/store.rs',
+  'Some(first) => first.saturating_sub(1),',
+  'Some(_) => i64::MAX,'),
+ ('QA5-003: the busy timeout is not restored after the no-wait dating',
+  'crates/bd-cache-store/src/store.rs',
+  'if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {',
+  'if let Err(e) = Ok::<(), rusqlite::Error>(()) {'),
+ ('QA5-003: the dating waits for the write lock (no NoWait)',
+  'crates/bd-cache-store/src/store.rs',
+  'conn.busy_timeout(Duration::ZERO)?;',
+  'conn.busy_timeout(BUSY_TIMEOUT)?;'),
+ ('S27: the tree kill and the reaping do not share one deadline',
+  'crates/bd-cache-sync/src/atm.rs',
+  'if !exited_by(&mut child, until) {',
+  'if !exited_by(&mut child, Instant::now() + KILL_BOUND) {'),
+ ('S27: the kill bound is far too long',
+  'crates/bd-cache-sync/src/atm.rs',
+  'const KILL_BOUND: Duration = Duration::from_secs(1);',
+  'const KILL_BOUND: Duration = Duration::from_secs(30);'),
+ ('S27: the tree kill is not given up at the deadline',
+  'crates/bd-cache-sync/src/atm.rs',
+  '        if Instant::now() >= until {\n            tracing::warn!(\n                pid,\n'
+  '                "the atm tree kill did not finish in time; giving up on it"',
+  '        if false {\n            tracing::warn!(\n                pid,\n'
+  '                "the atm tree kill did not finish in time; giving up on it"'),
+ ('S28: a child not reaped in time is dropped, not handed to the reaper',
+  'crates/bd-cache-sync/src/atm.rs',
+  '        adopt(child);\n    }\n    outcome',
+  '        drop(child);\n    }\n    outcome'),
+ ('S28: the reaper lets go of every process at once',
+  'crates/bd-cache-sync/src/atm.rs',
+  'held.retain_mut(|c| matches!(c.try_wait(), Ok(None)));',
+  'held.retain_mut(|_| false);'),
+ ('S28: the reaper never looks at what it holds',
+  'crates/bd-cache-sync/src/atm.rs',
+  'held.retain_mut(|c| matches!(c.try_wait(), Ok(None)));',
+  'held.retain_mut(|_| true);'),
+ ('S27: SEND_RESERVE shrunk below the read grace plus the kill bound',
+  'crates/bd-cache-sync/src/control.rs',
+  'pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(1500);',
+  'pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(500);'),
+ ('RBP-F039: a root bd did not return is not refused',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    reply\n        .refused\n        .extend(active.not_returned.iter().map(root_not_returned));',
+  '    let _ = root_not_returned;'),
+ ('RBP-F039: a root bd did not return is never recorded',
+  'crates/bd-cache-sync/src/active.rs',
+  '                set.not_returned.push(phase.clone());',
+  '                let _ = phase;'),
+ ('QA5-004: scope_synced says every scope has synced',
+  'crates/bd-cache/src/lib.rs',
+  'Ok(self.store.sync_state(scope)?.last_ok_at.is_some())',
+  'Ok(self.store.sync_state(scope).map(|_| true)?)')]
+
+# Mutants that survive the suite, each with the reason (not "equivalent": a gap or a
+# case no portable test can reach). The runner copies the reason into the results.
+SURVIVORS = {
+    'QA5-002: the undatable floor rises onto the first dateable entry':
+        'GAP (off by one, minor): the floor then hides the first dateable entry from the '
+        'undated count, so the dating starts one entry later than the threshold says; '
+        'reached only after a skipped dating (write lock held). No test pins floor == first - 1.',
+    'QA5-003: the dating waits for the write lock (no NoWait)':
+        'GAP (timing only): with the lock held by the same thread the wait ends with BUSY '
+        'and the answer is the same; telling the two apart needs an elapsed-time assertion, '
+        'which FTQ-020 removed as stall-sensitive. The restore of the timeout is killed '
+        '(a_write_after_a_skipped_dating_waits_for_the_lock_again).',
+    'S27: the tree kill and the reaping do not share one deadline':
+        'UNREACHABLE: the two deadlines differ only when the child is still alive after '
+        'SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill '
+        'bound, the KILL_BOUND value and SEND_RESERVE are each killed.',
+    'S28: a child not reaped in time is dropped, not handed to the reaper':
+        'UNREACHABLE: the call site runs only for a child that outlives SIGKILL by '
+        'KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop).',
+}
 
 def run(only=None):
     results = []
@@ -435,14 +534,23 @@ def run(only=None):
             out = p.stdout + p.stderr
         finally:
             path.write_text(text)
-        compile_error = ("could not compile" in out) or re.search(r"^error(\[E\d+\])?:", out, re.M) is not None and p.returncode == 101 and "test result" not in out
+        # A compile-time assertion (`const _: () = assert!(..)`) that the mutant breaks
+        # kills it at build time: error[E0080], evaluation of a constant failed.
+        const_assert = "error[E0080]" in out
+        compile_error = not const_assert and (
+            "could not compile" in out
+            or (re.search(r"^error(\[E\d+\])?:", out, re.M) is not None
+                and p.returncode == 101 and "test result" not in out))
         failed = sorted(set(re.findall(r"^test (\S+) \.\.\. FAILED", out, re.M)))
         # harness=false process test prints a panic instead
         if "tests/atm_process" in out and "panicked" in out and "atm_process" not in "".join(failed):
             if re.search(r"Running tests/atm_process.rs[\s\S]*?panicked", out):
                 failed.append("atm_process (process test)")
-        results.append({"bug": name, "file": rel, "exit": p.returncode, "compile_error": bool(compile_error), "failed": failed})
-        print(("OK  " if failed and not compile_error else "MISS"), name, p.returncode, failed[:4], flush=True)
+        res = {"bug": name, "file": rel, "exit": p.returncode, "compile_error": bool(compile_error), "const_assert": const_assert, "failed": failed}
+        if not failed and not const_assert and name in SURVIVORS:
+            res["survived"] = SURVIVORS[name]
+        results.append(res)
+        print(("OK  " if (failed or const_assert) and not compile_error else "MISS"), name, p.returncode, failed[:4], flush=True)
     return results
 
 if __name__ == "__main__":
