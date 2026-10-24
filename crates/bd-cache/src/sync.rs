@@ -16,7 +16,8 @@
 //! 6. the ready base: `list_blocked` and `list_ready` (`CallKind::Ready`)
 //!    and `replace_ready_base`, its `at` taken before the first of the two;
 //!    if either fails the previous base is kept and marked stale
-//!    (ADR-BDC-0002);
+//!    (ADR-BDC-0002) and a `tracing` warning names the error's code and
+//!    detail (ADR-CORE-0203);
 //! 7. `sync_state`: `last_ok_at` is the sync's start time (REQ-BDC-0504).
 //!
 //! Failures of steps 2 to 5 (ADR-BDC-0005, ADR-CORE-0202):
@@ -101,7 +102,16 @@ pub(crate) fn sync<S: CacheStore, L: DrainLock, B: CacheBackend>(
             report.blocked = base.blocked_len();
         }
         // The previous base stays, marked stale; an outage is already recorded.
-        Err(_) => cache.store.mark_ready_base_stale(s)?,
+        Err(failure) => {
+            let e = failure.into_error("bd blocked / bd ready: cut by the sync deadline");
+            sc_beads::logging::tracing::warn!(
+                phase = %s,
+                code = e.code(),
+                detail = e.detail(),
+                "ready base fetch failed; the previous base is kept, marked stale"
+            );
+            cache.store.mark_ready_base_stale(s)?;
+        }
     }
     cache.store.record_sync(&SyncState {
         scope: s.clone(),
