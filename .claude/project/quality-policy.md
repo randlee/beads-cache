@@ -12,9 +12,24 @@ their own prompts.
 - Architecture index: `docs/architecture.md`
 - Project plan: `docs/project-plan.md`
 - Team protocol: `docs/team-protocol.md`
-- Per-crate docs: none declared. When this section declares them, each crate
-  in scope carries `docs/<crate>/requirements.md` and
-  `docs/<crate>/architecture.md`, indexed from the baseline docs above.
+- Per-crate docs: every crate carries `docs/<crate>/requirements.md` and
+  `docs/<crate>/architecture.md`, created by the sprint that creates the
+  crate and indexed from the baseline docs above. Repo-level requirements
+  (`REQ-BDC-*`) and ADRs (`ADR-BDC-*`) stay in the root docs; crate-local
+  requirements and ADRs use the crate's domain code
+  (`REQ-<DOMAIN>-nnnn`, `ADR-<DOMAIN>-nnnn`) and trace to the repo-level
+  ids they refine.
+
+  | Crate | Domain code | Created by |
+  |---|---|---|
+  | `sc-beads` | `BEADS` | a-1 |
+  | `bd-cache-model` | `MODEL` | a-1 |
+  | `bd-cache` | `CORE` | a-1 (`requirements.md`, `architecture.md` index); a-5 `write-path.md`, a-6 `read-path.md` |
+  | `sc-bd-cli` | `BDCLI` | a-2 |
+  | `sc-cron` | `CRON` | a-3 |
+  | `bd-cache-store` | `STORE` | a-4 |
+  | `bd-cache-sync` | `SYNC` | a-7 |
+  | `bd-cache-py` | `PY` | a-8 |
 
 ## Reviewer Policy
 
