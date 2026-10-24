@@ -267,3 +267,7 @@ Local, on the commit above (macOS):
 | `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps` | pass |
 | `cargo test --workspace --all-features` | pass |
 | `cargo build --workspace` | pass |
+
+CI on `efd14ef` (code as at `1064d24`, plus this document) is green on
+ubuntu, macos and windows, with the compatibility tests running on each:
+run [40072300354](https://github.com/randlee/beads-cache/actions/runs/40072300354).
