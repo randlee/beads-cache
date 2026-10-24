@@ -195,8 +195,10 @@ def test_drain_start_gate_closing_does_not_cut_a_pre_read_the_hard_deadline_allo
 
 def test_sync_stops_at_its_timeout_when_bd_is_blocked(cache, repo):
     release = repo.bd.block("*")
+    started = time.monotonic()
     report = cache.sync("x", 0.4)
     assert not release.is_set(), "it returned while bd was still blocked"
+    assert time.monotonic() - started < 10, "a loose sanity bound: the block lasts 20 s"
     assert report["deferred"] or report["outage"], report
 
 
