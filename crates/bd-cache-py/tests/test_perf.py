@@ -2,8 +2,9 @@
 
 NFR-BDC-0001 (the cached-get budget) is sprint a-7's, measured in Rust. This
 records what the same call costs from Python, including the reply conversion,
-so atm-bd can compare it with `bd_cache.py`. The only assertion is a loose
-sanity bound; the numbers go to the pytest report (`-rP` shows them).
+so atm-bd can compare it with `bd_cache.py`. The only
+assertion is causal (the fake bd's call log is unchanged across the loop); the timings go to the
+pytest report (`-rP` shows them) and are never asserted.
 """
 
 import statistics
@@ -12,8 +13,9 @@ import time
 RUNS = 2000
 
 
-def test_cached_get_through_the_binding_is_recorded(cache, record_property, capsys):
+def test_cached_get_through_the_binding_is_recorded(repo, cache, record_property, capsys):
     cache.get("b1")  # warm: connection, statement cache
+    calls = repo.bd.calls()
     samples = []
     for _ in range(RUNS):
         start = time.perf_counter()
@@ -26,4 +28,4 @@ def test_cached_get_through_the_binding_is_recorded(cache, record_property, caps
     record_property("cached_get_p99_us", round(p99, 1))
     with capsys.disabled():
         print(f"\ncached get via bd_cache_rs: median {median:.1f} us, p99 {p99:.1f} us over {RUNS} calls")
-    assert median < 5_000, "a cached get takes milliseconds: something is calling bd"
+    assert repo.bd.calls() == calls, "a cached get must not call bd; timing is recorded, not asserted"

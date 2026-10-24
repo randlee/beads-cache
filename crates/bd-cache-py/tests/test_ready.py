@@ -106,6 +106,8 @@ def test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_l
 def test_ready_with_a_limit_and_bd_down_falls_back_and_records_the_outage(repo):
     cache = sanity_world(repo)
     repo.bd.down()
-    reply = cache.ready("x", fresh_within=2)
+    # A down bd fails at once, so a 10 s budget is always met by the failure rather than by the
+    # clock: the fallback and the outage record do not depend on how fast this machine is.
+    reply = cache.ready("x", fresh_within=10)
     assert reply["basis"]["kind"] == "cached" and reply["read_fallback"]
     assert cache.status()["outage"]["last_error"].startswith("BD_CACHE.BD_UNAVAILABLE")
