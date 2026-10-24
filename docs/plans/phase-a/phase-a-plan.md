@@ -264,3 +264,10 @@ Each sprint doc lists `requirements.owns`, `requirements.constrained_by`,
 criteria with roots (`boundary:<crate>` or `ADR-BDC-nnnn` in boundary
 sprints; `req:<id>` in a-7), and `owned_paths`. Reviewers per
 `.claude/project/quality-policy.md`.
+
+CI evidence in a sprint doc (lead ruling, bc-lead, 2026-10-24): the sprint
+doc cites the green CI run on its last code-changing commit. CI at the PR
+head is verified by the quality manager from the PR's GitHub checks and
+recorded in the QA report, not in the sprint doc. A doc-only commit after
+the cited run does not make the citation stale, so no sprint has to chase
+its own head.
