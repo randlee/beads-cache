@@ -12,8 +12,9 @@ recommended_agent: rust-developer
 recommended_model: opus
 must_follow: []
 parallel_safe: [a-1, a-2, a-4, a-5]
-baseline_sections:
-  - "BD-CACHE.md: Cron module (schedule, timeouts, stop)"
+requirements:
+  - REQ-BDC-0703
+  - NFR-BDC-0004
 adrs: [ADR-BDC-0006]
 owned_paths:
   - "crates/sc-cron/**"

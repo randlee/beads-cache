@@ -12,12 +12,35 @@ recommended_agent: rust-developer
 recommended_model: opus
 must_follow: [a-4]
 parallel_safe: [a-2, a-3]
-baseline_sections:
-  - "BD-CACHE.md: Goals"
-  - "BD-CACHE.md: How it works"
-  - "BD-CACHE.md: Failure handling"
-  - "BD-CACHE.md: Algorithms"
-  - "BD-CACHE.md: Tests (planted-bug checks)"
+requirements:
+  - REQ-BDC-0001
+  - REQ-BDC-0002
+  - REQ-BDC-0003
+  - REQ-BDC-0004
+  - REQ-BDC-0005
+  - REQ-BDC-0008
+  - REQ-BDC-0105
+  - REQ-BDC-0202
+  - REQ-BDC-0203
+  - REQ-BDC-0302
+  - REQ-BDC-0401
+  - REQ-BDC-0402
+  - REQ-BDC-0403
+  - REQ-BDC-0404
+  - REQ-BDC-0405
+  - REQ-BDC-0406
+  - REQ-BDC-0501
+  - REQ-BDC-0502
+  - REQ-BDC-0503
+  - REQ-BDC-0504
+  - REQ-BDC-0601
+  - REQ-BDC-0602
+  - REQ-BDC-0603
+  - REQ-BDC-0802
+  - REQ-BDC-0903
+  - REQ-BDC-0904
+  - NFR-BDC-0001
+  - NFR-BDC-0005
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
   - "crates/bd-cache/**"

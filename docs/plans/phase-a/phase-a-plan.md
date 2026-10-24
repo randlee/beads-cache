@@ -1,6 +1,6 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
-Status: draft, not yet hardened. Prerequisite P-1 (requirement ids) is open.
+Status: draft, not yet hardened. P-1 is done; P-2 and P-3 are open.
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
@@ -41,14 +41,21 @@ Python acceptance suite (`test_bd_cache.py`, 41 tests; `test_bd_cache_cron.py`,
   crates.io. Phase A makes them publish-ready (`cargo publish --dry-run`);
   the release and btit's switch follow the phase.
 
+## Requirements deferred from phase A
+
+| Id | Disposition |
+|---|---|
+| REQ-BDC-0801, REQ-BDC-0805, NFR-BDC-0002 | The `bdc` / `bd-cache` binary waits for sc-command and sc-config. Phase A meets their JSON and error-code content through the library (REQ-BDC-0802, 0803). |
+
 ## Prerequisites before dispatch
 
 | Id | Prerequisite | Owner |
 |---|---|---|
-| P-1 | Draw the BD-CACHE.md contract into `docs/requirements.md` as `REQ-BDC-nnnn` / `NFR-BDC-nnnn` ids (one per testable statement, verbatim provenance, no new requirements), then replace each sprint's `baseline_sections` with its `requirements` list. | team-lead, on this plan branch |
+| P-1 | Done: `docs/requirements.md` holds `REQ-BDC-*` / `NFR-BDC-*` drawn from BD-CACHE.md (with section provenance) and from planning (source "user"); every sprint lists its ids. | team-lead |
 | P-2 | Agreement on #557 (randlee/atm-bd-orchestration#557) for the additive v3 extensions in ADR-BDC-0001, 0002, 0003 and 0005, or a recorded decision to diverge. Blocks a-4's schema freeze, not a-1. | owner |
 | P-3 | beads-task-issue-tracker agreement on the shared `sc-beads` API: synchronous calls, `BeadsError` as the shared error type, tolerant and strict row modes (ADR-BDC-0007). Blocks a-1's trait freeze. | owner |
 | P-4 | sc-runtime team informed of `sc-cron` (name, eventual home). Does not block dispatch. | owner |
+| P-5 | The existing beads-release trigger (today it drives the hermes team's fork maintenance) also sends `repository_dispatch` type `beads-release` with the bd version to randlee/beads-cache, with a token allowed to dispatch there. Needed before a-2's workflow can be proven by a real release; a-2 proves it with `workflow_dispatch`. | owner |
 
 ## Boundary map
 
@@ -138,8 +145,16 @@ impl CacheError { pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'sta
 - a-6 → a-2, a-3, a-5: composes the real adapter, the scheduler and the core.
 - a-3 is parallel_safe with every other sprint until a-6.
 
+## bd release compatibility
+
+beads-cache is more sensitive to bd changes than btit: it validates rows
+strictly and keeps cache files across bd upgrades. a-2 adds a CI workflow
+that runs on every beads release (P-5) and checks the new bd against the
+pinned fingerprint, the contract tests and the live probes, opening an issue
+on any break. The shared crates make the fix a single upgrade, released as a
+semver-major version that every consumer takes (ADR-BDC-0007).
+
 ## QA consumption
 
-Each sprint doc lists `baseline_sections` (to become `requirements` after
-P-1), `adrs`, deliverables, acceptance criteria with roots, and
+Each sprint doc lists `requirements`, `adrs`, deliverables, acceptance criteria with roots, and
 `owned_paths`. Reviewers per `.claude/project/quality-policy.md`.

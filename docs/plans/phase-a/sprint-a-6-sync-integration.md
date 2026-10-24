@@ -12,10 +12,20 @@ recommended_agent: rust-developer
 recommended_model: sonnet
 must_follow: [a-2, a-3, a-5]
 parallel_safe: []
-baseline_sections:
-  - "BD-CACHE.md: Cron module"
-  - "BD-CACHE.md: Tests (live integration)"
-  - "BD-CACHE.md: Performance (targets)"
+requirements:
+  - REQ-BDC-0003
+  - REQ-BDC-0701
+  - REQ-BDC-0702
+  - REQ-BDC-0703
+  - REQ-BDC-0704
+  - REQ-BDC-0705
+  - REQ-BDC-0706
+  - REQ-BDC-0707
+  - REQ-BDC-0903
+  - NFR-BDC-0001
+  - NFR-BDC-0003
+  - NFR-BDC-0004
+  - NFR-BDC-0006
 adrs: [ADR-BDC-0002, ADR-BDC-0005, ADR-BDC-0006]
 owned_paths:
   - "crates/bd-cache-sync/**"

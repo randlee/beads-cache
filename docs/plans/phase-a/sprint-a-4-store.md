@@ -12,9 +12,20 @@ recommended_agent: rust-developer
 recommended_model: opus
 must_follow: [a-1]
 parallel_safe: [a-2, a-3]
-baseline_sections:
-  - "BD-CACHE.md: Storage"
-  - "BD-CACHE.md: Scope"
+requirements:
+  - REQ-BDC-0101
+  - REQ-BDC-0102
+  - REQ-BDC-0103
+  - REQ-BDC-0104
+  - REQ-BDC-0105
+  - REQ-BDC-0107
+  - REQ-BDC-0108
+  - REQ-BDC-0109
+  - REQ-BDC-0604
+  - REQ-BDC-0804
+  - REQ-BDC-0901
+  - REQ-BDC-0902
+  - NFR-BDC-0007
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
   - "crates/bd-cache-store/**"

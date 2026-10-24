@@ -12,11 +12,16 @@ recommended_agent: rust-developer
 recommended_model: opus
 must_follow: []
 parallel_safe: [a-3]
-baseline_sections:   # replaced by `requirements` after P-1
-  - "BD-CACHE.md: Bead shape (the contract with bd)"
-  - "BD-CACHE.md: Journal operations"
-  - "BD-CACHE.md: CLI (error code table)"
-  - "BD-CACHE.md: Rust shape"
+requirements:
+  - REQ-BDC-0007
+  - REQ-BDC-0108
+  - REQ-BDC-0301
+  - REQ-BDC-0303
+  - REQ-BDC-0304
+  - REQ-BDC-0305
+  - REQ-BDC-0803
+  - REQ-BDC-0906
+  - NFR-BDC-0005
 adrs: [ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0007]
 owned_paths:
   - "Cargo.toml"
