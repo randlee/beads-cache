@@ -19,7 +19,11 @@ file, invalid JSON, a missing or non-string key, an empty project id or a
 database name that is not a file name on every supported platform (empty,
 `.`, `..`, a path separator, a control character, any of `: * ? " < > |`, a
 trailing dot or space, a Windows device name including `CONIN$` and
-`CONOUT$`) is `BD_CACHE.NO_DATABASE`.
+`CONOUT$`) is `BD_CACHE.NO_DATABASE`. `CacheLocation::resolve_with` and
+`SqliteStore::open_with` take the `$BEADS_DIR` value as an argument (`None` =
+unset) and read no environment; `resolve` and `SqliteStore::open` pass the
+process's own. Tests use the `_with` forms, so none depends on the ambient
+`BEADS_DIR` (lead ruling S36).
 
 **Refines:** REQ-BDC-0101, 0102
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`,
@@ -143,7 +147,10 @@ extended file, the store reads consistent rows and memberships
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,
 invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
 not a phase name is a `ConfigLoadError`. Its message names the file and a
-fix; the cause is carried once, as `Error::source`.
+fix; the cause is carried once, as `Error::source`. Each variant has one
+store-neutral code, `BD_CACHE.CONFIG_UNREADABLE`, `BD_CACHE.CONFIG_INVALID` or
+`BD_CACHE.CONFIG_BAD_SCOPE`, and one fix (`ConfigLoadError::code`, `fix`;
+ADR-STORE-0003 amendment, lead ruling S34).
 
 **Refines:** REQ-BDC-0101 (`cache_path`); a-1's `RepoConfig` contract
 **Acceptance evidence:** `missing_repo_config_is_the_default`,

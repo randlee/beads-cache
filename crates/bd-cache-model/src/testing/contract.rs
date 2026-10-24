@@ -23,6 +23,8 @@
     reason = "contract rules index results they have just asserted the shape of"
 )]
 
+use std::time::Duration;
+
 use sc_beads::testing::{edge, id};
 use sc_beads::{Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
 
@@ -846,6 +848,74 @@ pub fn sync_state_alerts_and_outage_round_trip(fx: &mut impl StoreFixture) {
     assert_eq!(ok(s.outage(), "cleared"), None);
 }
 
+/// The bounded marker writes leave the post-state of their unbounded forms, with a
+/// non-zero wait and with a zero one, on a free lock (lead ruling S33, QA7-004):
+/// `mark_announced_within` as `mark_announced`, `set_sync_alert_within` as
+/// `set_sync_alert`, clearing with `None` included.
+pub fn bounded_marker_writes_match_the_unbounded_forms(fx: &mut impl StoreFixture) {
+    for wait in [Duration::from_millis(250), Duration::ZERO] {
+        let mut s = fx.open();
+        let bounded = ok(s.insert_entry(entry("a", "b1", Some(x())), &ts(T0)), "a");
+        let unbounded = ok(s.insert_entry(entry("b", "b2", Some(x())), &ts(T0)), "b");
+        let left = ok(s.insert_entry(entry("c", "b3", Some(x())), &ts(T0)), "c");
+        for seq in [bounded, unbounded, left] {
+            ok(s.escalate(seq, "gone", &ts(T1)), "escalate");
+        }
+        ok(s.mark_announced_within(bounded, &ts(T2), wait), "within");
+        ok(s.mark_announced(unbounded, &ts(T2)), "unbounded");
+        let un: Vec<Seq> = ok(s.unannounced_escalations(), "unannounced")
+            .into_iter()
+            .map(|e| e.seq)
+            .collect();
+        assert_eq!(un, vec![left], "{wait:?}: only the unmarked one is left");
+        assert_eq!(ok(s.open_work(), "open").escalated_unannounced, 1);
+        let marked = |s: &_, seq| {
+            let e = ok(CacheStore::entry_by_seq(s, seq), "entry").unwrap_or_else(missing);
+            (e.state, e.announced_at, e.last_error)
+        };
+        assert_eq!(
+            marked(&s, bounded),
+            marked(&s, unbounded),
+            "{wait:?}: the bounded form marks as the unbounded one"
+        );
+        assert_eq!(
+            marked(&s, bounded).1.as_ref().map(Timestamp::as_str),
+            Some(T2)
+        );
+
+        // Alerts: set, replace, clear; the bounded and unbounded forms agree.
+        ok(
+            s.set_sync_alert_within(&x(), Some("BD_CACHE.SYNC_FAILED: boom"), wait),
+            "set within",
+        );
+        ok(
+            s.set_sync_alert(&y(), Some("BD_CACHE.SYNC_FAILED: boom")),
+            "set",
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "alert"),
+            ok(s.sync_alert(&y()), "control")
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "alert").as_deref(),
+            Some("BD_CACHE.SYNC_FAILED: boom"),
+            "{wait:?}"
+        );
+        ok(
+            s.set_sync_alert_within(&x(), Some("BD_CACHE.SYNC_FAILED: other"), wait),
+            "replace within",
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "replaced").as_deref(),
+            Some("BD_CACHE.SYNC_FAILED: other")
+        );
+        ok(s.set_sync_alert_within(&x(), None, wait), "clear within");
+        ok(s.set_sync_alert(&y(), None), "clear");
+        assert_eq!(ok(s.sync_alert(&x()), "cleared"), None, "{wait:?}");
+        assert_eq!(ok(s.sync_alert(&y()), "control cleared"), None);
+    }
+}
+
 /// Prune: refused with open entries; keeps beads another scope holds; sweeps out-of-scope rows
 /// with no open entry; deletes the scope's journal and sync state.
 pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
@@ -1059,6 +1129,7 @@ macro_rules! store_contract_tests {
             journal_lifecycle,
             resolve_note_without_prior_error,
             sync_state_alerts_and_outage_round_trip,
+            bounded_marker_writes_match_the_unbounded_forms,
             prune_scope_rules,
             status_counts,
             status_lists_stale_rows_until_reread,

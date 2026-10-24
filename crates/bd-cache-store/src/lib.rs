@@ -23,20 +23,21 @@
 //! use bd_cache_model::{CacheStore, DrainLock};
 //! use bd_cache_store::{SqliteStore, load_repo_config};
 //!
-//! let root = std::env::temp_dir().join(format!("bdc-doc-lib-{}", std::process::id()));
+//! let dir = tempfile::TempDir::new()?;
+//! let root = dir.path();
 //! std::fs::create_dir_all(root.join(".beads"))?;
 //! std::fs::write(
 //!     root.join(".beads").join("metadata.json"),
 //!     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
 //! )?;
-//! let config = load_repo_config(&root)?;
-//! let store = SqliteStore::open(&root, &config)?;
+//! let config = load_repo_config(root)?;
+//! // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
+//! let store = SqliteStore::open_with(root, &config, None)?;
 //! assert!(store.path().ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
 //! let lock = store.drain_lock();
 //! let guard = lock.try_acquire()?;
 //! assert!(guard.is_some() && lock.try_acquire()?.is_none());
 //! # drop((guard, store));
-//! # std::fs::remove_dir_all(&root)?;
 //! # Ok(())
 //! # }
 //! ```

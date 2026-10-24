@@ -16,7 +16,7 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 |---|---|
 | `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `CacheLocation`, `load_repo_config` and `ConfigLoadError` |
 | `schema` | the v3 DDL as `bd_cache.py` runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
-| `store` | `SqliteStore`: open (settings, version, identity), every `CacheStore` method |
+| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `$BEADS_DIR`, S36, and `open_at`), every `CacheStore` method |
 | `codec` | encoding and validated decoding of stored rows, edges, journal entries, ready bases and timestamps |
 | `lock` | `FlockDrainLock` and its guard |
 | `registry` | the process-wide claim that keeps one connection per cache file (ADR-STORE-0003) |
@@ -171,7 +171,7 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -207,20 +207,43 @@ Decision:
   `error::corrupt` (without).
 - `ConfigLoadError` (`load_repo_config`) carries its cause one way only: as
   `Error::source`. Its `Display` names the file and the fix, without the
-  cause, so a reporter walking the source chain prints the cause once.
-  It owns its code and fix (`ConfigLoadError::code`, `ConfigLoadError::fix`;
-  RBP-F040): one stable code and one fix text per variant
-  (`sync_config_unreadable`, `sync_config_invalid_toml`,
-  `sync_config_bad_scope`), and its `Display` states that same fix, so a caller
-  (`bd-cache-sync`'s `ComposeError`) delegates instead of keeping its own copy.
+  cause, so a reporter walking the source chain prints the cause once. Its
+  code and fix are the amendment below.
 
 Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
 workspace without bd metadata (`NO_DATABASE`), and walks the source chain
 with `Error::source`.
 
+### ADR-STORE-0003 amendment (a-7, S34)
+
+**Status:** Approved (lead ruling S34, bc-lead, 2026-10-24)
+
+Context: `bd-cache-sync`'s `ComposeError` kept its own copy of the code and fix of
+each way `.beads/bd-cache.toml` fails to load (RBP-F040). Moving them next to the type
+(fix-a-7-6) made them store API, but recorded them by rewriting the Decision above in
+place (ARCH-701), and the store then emitted the sync crate's `sync_config_*` codes,
+a consumer's namespace (ARCH-702, RBP-F043).
+
+Decision:
+- `ConfigLoadError::code` and `ConfigLoadError::fix` are public store API: one stable
+  code and one fix text per variant, and `Display` states that same fix after `fix:`.
+- The codes are store-neutral, in the `BD_CACHE.` namespace of the store's other
+  codes: `BD_CACHE.CONFIG_UNREADABLE` (`Read`: the file exists but cannot be read),
+  `BD_CACHE.CONFIG_INVALID` (`Parse`: bad TOML, an unknown key or a wrong type) and
+  `BD_CACHE.CONFIG_BAD_SCOPE` (`Scope`: a `scopes` entry is not a phase name; its fix
+  states `PhaseName::RULE`).
+- A consumer with codes of its own maps the variants at its own boundary; the store
+  names no consumer's codes. `bd-cache-sync` keeps its `sync_config_*` codes by mapping
+  `ConfigLoadError` variants in `ComposeError` and uses `fix()` as the recovery text.
+  `bd-cache-py` maps the variants to its own exception kinds and does not use `code()`.
+
+Consequences: changing a code or a fix text changes store API, and the tests that pin
+them (`tests/location.rs`, the `ConfigLoadError::code` doctest). A new variant needs a
+code and a fix here, and a mapping in each consumer.
+
 ## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below); amends ADR-STORE-0001 (the extension tables, columns and indexes)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below; NFR-BDC-0001's condition stated by lead ruling S31, see Remaining latency; floor invariant restated per rise for QA7-001, fix-a-7-10); amends ADR-STORE-0001 (the extension tables, columns and indexes)
 and ADR-STORE-0002 (what is read as one snapshot, what a foreign writer may leave, and the
 Concurrency bullet: the journal reads may write, as the exception noted there)
 
@@ -279,35 +302,45 @@ Decision:
   21-25 ms at 20 000), after which `get` is back to 22 us. 2000 keeps the walked `get` under
   0.2 ms, a fifth of NFR-BDC-0001's 1 ms with room for a machine several times slower,
   while the commit it avoids costs 2 ms or more, ten times the walk.
-  *Remaining latency against NFR-BDC-0001:* above the threshold, the one `get` that dates
+  *Remaining latency against NFR-BDC-0001* (lead ruling S31: NFR-BDC-0001 now states
+  the condition, at most `READ_DATING_THRESHOLD` undated entries and no foreign writer
+  holding the write lock, and names these excursions): above the threshold, the one `get` that dates
   is a one-off excursion past 1 ms (2-31 ms as measured, growing with the burst); every
   later `get` is back under it. While another writer holds the write lock over more than
   2000 undated entries, each `get` walks them (1.3 ms median at 20 000) until the lock
   is free. A burst at or below the threshold costs at most the walk, about 0.2 ms, and
   writes nothing.
 - **Unreadable entries on the read path (QA5-002).** The store keeps a floor of known
-  unreadable entries: every entry that was applied and undated when the floor last
-  rose, at or below it, has an unreadable time. The count above starts at the floor,
-  so those entries are not walked by the count on every call. The floor rises after a
-  dating or a new warning, through the unreadable entries above it and never past an
-  applied entry the dating can date (`FIRST_DATEABLE_ABOVE_SQL`), so no such entry is
-  hidden from the count. The store also remembers the highest seq it has examined:
+  unreadable entries. The count above starts at the floor, so those entries are not
+  walked by the count on every call. The floor rises after a dating or a new warning,
+  through the unreadable entries above it and never past an applied entry the dating
+  can date (`FIRST_DATEABLE_ABOVE_SQL`). **The invariant holds per rise (QA7-001):** a
+  rise from an old floor to a new one passes only the entries between the two (above
+  the old, at or below the new), and every one of those that was applied and undated
+  when the floor rose had an unreadable time, so no dateable entry above the old floor
+  is hidden from the count. Entries already below the old floor are not examined again
+  by a rise: the floor says nothing about them, and one of them may be readable (the
+  case below), also after later rises. The store also remembers the highest seq it has examined:
   each read looks at the undated entries above it only (`LAST_UNDATED_SQL`,
   `UNDATABLE_BETWEEN_SQL`), so each entry's time is read there once, and warns once
   for each new highest undatable seq (the open warns about all of them and starts both
   marks there).
   **Entries applied below the floor (QA6-001).** An entry still pending when the floor
   rose above its seq, which `bd_cache.py` applies later without an epoch, sits below
-  the floor: it is not in the threshold count and is not examined for a warning. It is
-  answered as every undated entry is (the journal reads do not use the floor), and it
-  is dated by the next dating, past the threshold or at the next open, because the
-  backfill dates every readable entry whatever its seq. Until then reads walk that one
+  the floor: it is not in the threshold count and is not examined for a warning, and a
+  later rise (one driven by a warning alone included) does not examine it either. It is
+  answered correctly, as every undated entry is (the journal reads do not use the
+  floor, and read its own time), and it is dated by the next dating, past the
+  threshold or at the next open, because the backfill dates every readable entry
+  whatever its seq. Until then reads walk that one
   entry. Capping the floor below the lowest pending seq was rejected: while an old
   entry stayed pending (during an outage, for hours), every unreadable entry above it
   would be back in the count, and past the threshold every read would try the dating
   again, the per-read walk and write this floor removed. Pinned by
   `a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`
-  (unit).
+  (unit), which also raises the floor a second time from a warning alone after the
+  entry is applied below it: the entry stays undated and answered by its own time
+  until the next dating dates it (QA7-001).
 - **Unreadable times count as touched.** A row whose `COALESCE(applied_at, updated_at)`
   SQLite cannot read as a time keeps a NULL epoch, stays in `journal_applied_unknown`,
   and counts as applied since any instant (`COALESCE(... >= ?1, 1)`). Reporting
@@ -397,7 +430,7 @@ dating, the plans and SQL work (VM steps), the undatable-entry warning and the h
 
 ## ADR-STORE-0005: Dependencies and test-only features
 
-**Status:** Approved (lead ruling S26, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8)
 
 Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
 crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),
@@ -423,7 +456,8 @@ Decision:
     the statement and drops it before the function returns, so it neither outlives the
     call nor leaves the thread;
   - `tempfile`: the unit tests' cache files live in a `TempDir`, removed on drop after
-    the store closes, also when a test fails (QA6-002);
+    the store closes, also when a test fails (QA6-002); the doctests' workspaces too
+    (QA7-005);
   - `bd-cache-model` with `testing`: the store contract suite (`store_contract.rs`);
   - `sc-beads` with `testing`: bead, id and actor fixtures (tests and doctests).
 

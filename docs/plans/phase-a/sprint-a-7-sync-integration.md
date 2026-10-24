@@ -46,6 +46,7 @@ owned_paths:
   - "crates/bd-cache-store/src/{store,schema,codec}.rs"  # S4 amendment
   - "crates/bd-cache-store/Cargo.toml"  # S32: rusqlite functions dev-feature (ADR-STORE-0005)
   - "crates/bd-cache-store/src/location.rs"  # S32: ConfigLoadError recovery text (RBP-F040)
+  - "crates/bd-cache-store/tests/location.rs"  # S32/RBP-F040: tests for ConfigLoadError::code/fix
   - "crates/bd-cache-model/src/scope.rs"  # S32: PhaseName::RULE
   - "crates/bd-cache-model/src/testing/contract.rs"
   - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment; S33: store.rs gains mark_announced_within / set_sync_alert_within
@@ -205,6 +206,8 @@ reads one `sync_state` row through the port, and `active.rs` uses it (ADR-SYNC-0
 
 Lead rulings of bc-lead, 2026-10-24, fix-a-7-8 (QA round 6): **S31** NFR-BDC-0001 is amended to state its condition: a cached `get` takes under 1 ms when at most `READ_DATING_THRESHOLD` (2000) undated journal entries exist and no foreign writer holds the write lock; the one `get` that dates a larger burst, and gets while a foreign writer holds the lock over more than 2000 undated entries, are bounded excursions recorded in ADR-STORE-0004 (S26, S31); **S32** a-7's `owned_paths` gain `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`sender.rs` was already listed), and **ADR-STORE-0005** (the `rusqlite` `functions` dev-feature and the one `unsafe` in the store's tests) is Approved under S32; ADR-CORE-0002 is amended for `Cache::scope_synced` (S30); **S33** RSH-029: post-send marker writes are bounded by the tick's remaining time; implemented in sprint/a-7-fix8-code.
 
+Lead rulings of bc-lead, 2026-10-24, fix-a-7-10 (QA round 7): **S34** (ARCH-701/702, RBP-F043) `ConfigLoadError::code`/`fix` are store API recorded as an ADR-STORE-0003 amendment; the store emits store-neutral codes `BD_CACHE.CONFIG_UNREADABLE` / `BD_CACHE.CONFIG_INVALID` / `BD_CACHE.CONFIG_BAD_SCOPE`; bd-cache-sync's `ComposeError` keeps its stable `sync_config_*` codes by mapping the `ConfigLoadError` variant at its own boundary; **S35** (RSH-030/031, QA7-002/003) the no-message alert clears are also bounded by `Budget::write_wait` and a failed clear is logged (warn) without failing the tick; a marker write that fails after a delivered send logs a structured warn (kind, lead, seq or scope, code) and then propagates (at-least-once kept); docs state the bound as "T plus the busy handler's sleep slack (tens of ms)" for post-send markers only; a tick-level test covers fail-then-resend; **S36** (FTQ-028) `compose` and `SqliteStore::open` gain explicit `beads_dir` seams for tests (`resolve_with` style); no env mutation in tests.
+
 ## Deviations from this document
 
 1. **Phase file format** (closed by S10): confirmed against `bd_cache_cron.py` at atm-core `05831df` and two real
@@ -218,7 +221,7 @@ Lead rulings of bc-lead, 2026-10-24, fix-a-7-8 (QA round 6): **S31** NFR-BDC-000
    `in-review` at hand-off. This doc says `in-review`; the lead sets `complete` at merge.
 5. **Edits outside the sprint's `owned_paths`**, each by a lead ruling named in the frontmatter comments:
    `crates/bd-cache` (S2, S4), `crates/bd-cache-model` and `crates/bd-cache-store` (S4, S11), `Cargo.toml` (S7),
-   `docs/requirements.md` (S3, S5, S31), the phase plan (S6, S7, S26, S30, S32), `docs/project-plan.md` (S12), and, by S32, `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`MEMBER_NAME_RULE` in `sender.rs`, `PhaseName::RULE` in `scope.rs`, `Cache::scope_synced` of S30, ADR-STORE-0005), and, by S33, `CacheStore::mark_announced_within` / `set_sync_alert_within` in `crates/bd-cache-model/src/store.rs` with their `Cache` passthroughs in `crates/bd-cache/src/lib.rs`.
+   `docs/requirements.md` (S3, S5, S31), the phase plan (S6, S7, S26, S30, S32), `docs/project-plan.md` (S12), and, by S32, `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`MEMBER_NAME_RULE` in `sender.rs`, `PhaseName::RULE` in `scope.rs`, `Cache::scope_synced` of S30, ADR-STORE-0005), and, by S33, `CacheStore::mark_announced_within` / `set_sync_alert_within` in `crates/bd-cache-model/src/store.rs` with their `Cache` passthroughs in `crates/bd-cache/src/lib.rs`, and, by S34, `ConfigLoadError::code`/`fix` in `crates/bd-cache-store/src/location.rs` (store API, ADR-STORE-0003 amendment), with S35 (no-message alert clears bounded by `Budget::write_wait`; failed marker writes logged) and S36 (`beads_dir` seams in `compose` and `SqliteStore::open`) recorded as rulings that add no new path.
 6. **`SendError` gained a `kind` field** (S11), so the struct literal `SendError { detail }` no longer compiles; the
    constructors `SendError::new` and `with_kind` replace it. No other crate in the workspace or on the a-8 branch
    built one.
@@ -423,7 +426,7 @@ call sites given the full busy timeout; `Budget::write_wait` not the time left; 
 ignoring the wait; the store not capping it at `BUSY_TIMEOUT`; `mark_announced_within` and
 `set_sync_alert_within` made unbounded) and one for QA6-001 (the dating skips the entries below
 the undatable floor). By the lead's change of plan (the user's decision), the full re-run is
-deferred to `integrate/phase-a` after a-7 lands, owner bc-lead, due 2026-10-25, and
+deferred to `integrate/phase-a`, owner bc-lead, due 2026-10-25, and
 `a-7-planted-bugs.json` keeps the `7702b67` results above. A developer run of only the nine new
 mutants, before the plan change (not recorded evidence), had each one fail its targeted tests
 (`tests/marker_wait.rs`, `control::tests::a_marker_write_may_wait_the_time_left_before_t`,
@@ -442,11 +445,11 @@ bc-lead, due at the `develop` -> `main` merge** (S9), not a-7 sprint gates.
 ## Testbed
 
 Last recorded run, on `m5-atmbench` at the merge `7702b67`: a-7 live 2/2, incremental sync 391 ms against the 1 s
-limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record. The last code-changing commit is now `24456c5` (S33, fix-a-7-8; the merge `9110187` has identical code). The testbed and planted-bugs re-runs for that code are deferred to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25). `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
-figures and the developer-machine smoke run. bc-lead's own run at the merge head, due 2026-10-31 (S8, S16), is still the
+limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record. The last code-changing commit at fix-a-7-8 was `24456c5` (S33; the merge `9110187` has the same code); code changed after `7702b67`, so the last recorded run is not of the a-7 code. The re-run of the planted bugs and the testbed at the a-7 code on `integrate/phase-a` is due 2026-10-25 (owner bc-lead). `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
+figures and the developer-machine smoke run. bc-lead's separate run at the merge head, due 2026-10-31 (S8, S16), is still the
 owner's to record.
 
-CI evidence (fix-a-7-8): PR #33 at `8f4f07b` is green: ci run [40126278270](https://github.com/randlee/beads-cache/actions/runs/40126278270) and python run [40126278304](https://github.com/randlee/beads-cache/actions/runs/40126278304). The diff `7702b67..8f4f07b` touches only `docs/plans/phase-a/sprint-a-7-sync-integration.md`, `docs/plans/phase-a/evidence/a-7-testbed.md` and `docs/plans/phase-a/evidence/a-7-planted-bugs.json`, so the code CI exercised is the code of `7702b67`. The testbed runs used the `atmbench` account, run by the fix-a-7-6/7 developer.
+Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`): PR #33 at `8f4f07b` was green: ci run [40126278270](https://github.com/randlee/beads-cache/actions/runs/40126278270) and python run [40126278304](https://github.com/randlee/beads-cache/actions/runs/40126278304). It is kept as a record of that head only; it is not evidence for the current code, whose final commits carry their own CI. The testbed runs used the `atmbench` account, run by the fix-a-7-6/7 developer.
 
 ## QA round 1 findings and their fixes
 
@@ -677,9 +680,9 @@ Reviewed at `8f4f07b`. Docs fixes are in layer `sprint/a-7-fix8-docs`; code fixe
 | ARCH-503 | `Cache::scope_synced` missing from the `lib.rs` row and ADR-CORE-0002 | Row and amendment note (S30/S32) | `docs/bd-cache/architecture.md` |
 | ARCH-504 | `MEMBER_NAME_RULE`, `PhaseName::RULE` missing from the module table and ADR-MODEL-0003 | Rows and amendment bullet | `docs/bd-cache-model/architecture.md` |
 | ARCH-505 | `functions` dev-feature second use and the store's only `unsafe` not in ADR-STORE-0005 / Cargo comment; ADR-STORE-0004 omits two tests | With QA6-003: the Cargo comment and ADR-STORE-0005 name the busy-timeout probe tests and the test-only `get_connection` as the crate's only `unsafe`, with its SAFETY argument; ADR-STORE-0004's Consequences list `the_floor_stops_one_below_the_first_dateable_entry` and `the_dating_update_runs_with_no_busy_timeout_and_restores_it` (`24456c5`) | `crates/bd-cache-store/Cargo.toml`, `docs/bd-cache-store/architecture.md` |
-| ARCH-506 | `tempfile` comment names only sc-cron | "dev-dependency only (sc-cron, bd-cache-sync, bd-cache-py tests)" | `Cargo.toml` |
+| ARCH-506 | `tempfile` comment names only sc-cron | The `Cargo.toml` comment names the crates whose tests use it: "(sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)" (bd-cache-store joined with QA6-002) | `Cargo.toml` comments |
 | ARCH-507 | Boundary map says "No crate exists yet." | Sentence removed | `phase-a-plan.md` |
-| ARCH-508, REQ-QA-603 | Deferred table State stale; runner account not recorded | State set to "final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31"; account `atmbench` recorded | this doc, `evidence/a-7-testbed.md` |
+| ARCH-508, REQ-QA-603 | Deferred table State stale; runner account not recorded | Round 6 set the State; fix-a-7-10 (REQ-QA-702) rewrote it. The State column now reads: "run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16)"; the Due column reads "2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run)". Account `atmbench` recorded | this doc, `evidence/a-7-testbed.md` |
 | REQ-QA-601 | NFR-BDC-0001 unqualified | Amended with the condition (S31) | `docs/requirements.md` |
 | REQ-QA-604 | No green CI cited for the final code commit | CI evidence line (runs 40126278270, 40126278304 on PR #33) | this doc |
 | QA6-001 | Floor invariant fails for a low-seq pending entry applied later | Invariant and ADR-STORE-0004 reworded (the real fix, capping the floor below MIN(pending seq), was rejected: while an old entry stays pending, every unreadable entry above it would be counted again and each read past the threshold would retry the dating, the per-read walk QA5-002 removed). Such an entry is answered, is not counted, and is dated by the next dating. Pinned by `a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`; mutant added, its run deferred with the re-run (`24456c5`) | `crates/bd-cache-store/src/store.rs`, `docs/bd-cache-store/architecture.md` |
@@ -694,3 +697,38 @@ Reviewed at `8f4f07b`. Docs fixes are in layer `sprint/a-7-fix8-docs`; code fixe
 | FTQ-023 | Kill tests read the pid file with no readiness handshake | The fakes write their pid whole (temporary file, rename, newline); an empty or partial file reads as absent. The three timer-driven kill tests count only an attempt whose pid files were all written before the kill, retried with the timeout doubled up to 3 times; none ready fails the test (`24456c5`) | `crates/bd-cache-sync/tests/atm_process.rs` |
 | FTQ-024 | Zombie treated as existing | `assert_gone` treats a zombie as gone (`/proc/<pid>/stat` on Linux, `ps -o stat=` elsewhere) and is used for the grandchild, which PID 1 owns; `assert_reaped` stays strict for the processes the code owns (the child, the tree kill), so the reaper mutants are still killed; 10 s deadline kept (`24456c5`) | `crates/bd-cache-sync/src/atm.rs`, `tests/atm_process.rs` |
 | RSH-029 | Post-send marker writes not bounded by the tick (S33) | `CacheStore::mark_announced_within` / `set_sync_alert_within` (provided bodies ignore the wait), `Cache` passthroughs, `Budget::write_wait` (time left before `T`); `SqliteStore::write_within` runs the one transaction with busy timeout `min(BUSY_TIMEOUT, wait)` (`BusyWait` drop guard). A write not done in time is `STORE_FAILED` and the message is resent next tick. Tests: `tests/marker_wait.rs`, `a_marker_write_may_wait_the_time_left_before_t`, `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`, `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`; 8 mutants added; their run is deferred with the re-run (`24456c5`) | `crates/bd-cache-model/src/store.rs`, `crates/bd-cache/src/lib.rs`, `crates/bd-cache-store/src/store.rs`, `crates/bd-cache-sync/src/{announce,control}.rs`, ADR-SYNC-0003/0007, ADR-STORE-0002, REQ-SYNC-0011 |
+
+## QA round 7 findings and their fixes
+
+Reviewed at `b3e5754` (PR #37, top of the stack). Fixes: three parallel layers, `sprint/a-7-fix10-docs` (this one, the leader), `sprint/a-7-fix10-store` and `sprint/a-7-fix10-sync`. Lead rulings S34-S36 are recorded above.
+
+| Finding | Problem | Fix | Evidence |
+|---|---|---|---|
+| REQ-QA-701 | Testbed doc lines said the last recorded run (`7702b67`) was the last code-changing commit and that no code changed after it | Rewritten: `7702b67` is the last recorded run, not the last code-changing commit; code changed after it (`24456c5`, S33; `9110187` same code); the re-run is deferred to `integrate/phase-a` (bc-lead) | `evidence/a-7-testbed.md` |
+| ARCH-706 | Testbed heading `:90` called the `7702b67` run the last code-changing commit | Heading retitled "Last recorded testbed run, the merge `7702b67` (not the last code-changing commit)"; Status heading restated | `evidence/a-7-testbed.md` |
+| REQ-QA-702 | Two dates (2026-10-25 and 2026-10-31) for one deferred obligation, with the table, sprint doc and REQ-QA-603 row disagreeing | One date per obligation: the re-run of the planted bugs and the testbed at the a-7 code is due 2026-10-25; bc-lead's merge-head run (S8/S16) stays due 2026-10-31. Due and State columns, the Testbed section and the REQ-QA-603 row agree, and the row quotes the table text | `evidence/a-7-testbed.md`, this doc |
+| REQ-QA-703 | `crates/bd-cache-store/tests/location.rs` missing from `owned_paths` | Added with an S32/RBP-F040 comment | this doc's frontmatter |
+| REQ-QA-706 | CI evidence line for fix-a-7-8 claimed the code CI exercised was that of `7702b67`; "documents" used for `Cargo.toml` comments | Retitled "Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`)", the claim dropped, no CI cited for the current code; "Cargo.toml comments" wording | this doc |
+| ARCH-707 | ARCH-506 row did not quote the shipped `tempfile` comment | Row quotes "(sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)" | this doc |
+| ARCH-708 | Phase plan Shared-files row for `docs/requirements.md` omits the a-7 amendments | Row adds "a-7 amendments by lead rulings S3, S5, S31 (bc-lead, 2026-10-24)" | `phase-a-plan.md` |
+| ARCH-701 | `ConfigLoadError::code`/`fix` not recorded as store API (plan side) | Plan row and Deviation 5 name S34 (ADR-STORE-0003 amendment), S35 and S36; rulings S34-S36 recorded after S33. ADR side: fixed in sprint/a-7-fix10-store | `phase-a-plan.md`, this doc |
+| QA7-001 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| QA7-004 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| QA7-005 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| RBP-F042 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| RBP-F043 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| ARCH-702 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| ARCH-703 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| ARCH-704 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| REQ-QA-705 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| FTQ-028 (store side) | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| FTQ-029 | See the QA-7 report | fixed in sprint/a-7-fix10-store | that layer |
+| FTQ-025 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| FTQ-026 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| FTQ-027 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| FTQ-028 (sync side) | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| RSH-030 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| RSH-031 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| QA7-002 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| QA7-003 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |
+| ARCH-705 | See the QA-7 report | fixed in sprint/a-7-fix10-sync | that layer |

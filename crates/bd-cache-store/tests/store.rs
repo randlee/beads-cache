@@ -1254,13 +1254,12 @@ fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
 }
 
 /// A bounded marker write gives up on a write lock another connection holds
-/// within its wait, not after the 5 s busy timeout, and writes nothing (lead
-/// ruling S33): the escalation stays unannounced and the alert unset, so the
-/// next tick sends the message again. Causal: the holder keeps the lock until
-/// both writes have returned, so their failure is the held lock's (`database
-/// is locked`), not a race with its release. The one clock check is loose: a
-/// 50 ms wait against `BUSY_TIMEOUT` (5 s), not a tight upper bound. That the
-/// busy timeout is back after the write is the unit test's causal probe
+/// and writes nothing (lead ruling S33): the escalation stays unannounced and
+/// the alert unset, so the next tick sends the message again. Causal: the
+/// holder keeps the lock until both writes have returned, so their failure is
+/// the held lock's (`database is locked`), not a race with its release. No
+/// clock check (FTQ-029): that each write waits at most its wait, and that the
+/// busy timeout is back after it, is the unit test's causal probe
 /// (`a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`);
 /// the 500 ms hold this replaces is gone (FTQ-022).
 #[test]
@@ -1275,10 +1274,8 @@ fn a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait() {
         .unwrap();
 
     let wait = std::time::Duration::from_millis(50);
-    let started = std::time::Instant::now();
     let marked = store.mark_announced_within(seq, &at, wait);
     let alerted = store.set_sync_alert_within(&x(), Some("cause"), wait);
-    let took = started.elapsed();
     // Released only now, after both writes returned.
     tx.rollback().unwrap();
 
@@ -1287,10 +1284,6 @@ fn a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait() {
         assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{what}: {err:?}");
         assert!(err.detail().contains("locked"), "{what}: {}", err.detail());
     }
-    assert!(
-        took < bd_cache_store::BUSY_TIMEOUT,
-        "both gave up within their wait, not the busy timeout: {took:?}"
-    );
     assert_eq!(
         store.unannounced_escalations().unwrap().len(),
         1,

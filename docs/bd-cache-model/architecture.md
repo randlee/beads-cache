@@ -240,9 +240,9 @@ found. The serialized basis changes from `{"kind": "fresh"}` to
 needed. The `scope_last_ok_at` / `last_ok_at` naming split across read
 replies is left for the bdc sprint (REQ-BDC-0806) to settle.
 
-### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since` and `send_within`
+### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since`, `send_within`, `mark_announced_within` and `set_sync_alert_within`
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24)
 
 Context: the ports are a-1's contract, and a-4, a-5, a-6 and a-8 build on them.
 Sprint a-7 changed them, by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24) and
@@ -281,9 +281,13 @@ Decision:
 - `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
 - `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send marker writes, bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
 
-Consequences: every `CacheStore` passes the two new contract rules (FakeStore
-through the provided bodies, SqliteStore through its indexes); `EscalationSender`
-implementations keep compiling. The earlier wording that `EscalationSender` and
+Consequences: every `CacheStore` passes the new contract rules (FakeStore
+through the provided bodies, SqliteStore through its indexes and bounded writes),
+`bounded_marker_writes_match_the_unbounded_forms` included (QA7-004: each `_within`
+method with a non-zero and a zero wait on a free lock leaves the post-state of its
+unbounded form, clearing an alert with `None` included); `EscalationSender`
+implementations keep compiling. A store or wrapper that can wait overrides both
+`_within` methods (forwarding the wait); the provided bodies are unbounded. The earlier wording that `EscalationSender` and
 `RepoConfig.tick` were "frozen in a-1" meant "defined in a-1"; they change only
 by an amendment like this one.
 

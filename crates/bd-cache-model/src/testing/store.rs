@@ -1,7 +1,6 @@
 //! [`FakeStore`] and [`FakeDrainLock`].
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt::Write as _;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -409,8 +408,10 @@ impl CacheStore for FakeStore {
         };
         e.state = JournalState::Resolved;
         let mut text = e.last_error.take().unwrap_or_default();
-        // Writing to a String cannot fail.
-        write!(text, " | resolved by {actor}: {note}").unwrap_or_default();
+        text.push_str(" | resolved by ");
+        text.push_str(actor.as_str());
+        text.push_str(": ");
+        text.push_str(note);
         e.last_error = Some(text);
         Ok(())
     }
