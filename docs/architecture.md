@@ -138,7 +138,7 @@ integrating with sc-runtime.
 | `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, btit's `BeadsError` unchanged plus `BeadsCacheError` and `Refusal` for the cache calls, `Clock` and `Deadline`, a `FakeBackend` test double (ADR-BDC-0007) | serde, serde_json, sha2, tracing | a |
 | `sc-bd-cli` (shared, published) | The bd CLI implementation of the `sc-beads` traits, ported from btit-cli and btit-bd: invoker with a recording test double, probes and version gates, dolt-mode detection, per-project locks; exit 13 as a typed refusal | `sc-beads` | a |
 | `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
-| `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4 | a |
+| `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4, serde_json | a |
 | `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
@@ -252,9 +252,12 @@ Decision: bd's answer is the base; our journaled writes adjust it locally.
      becomes empty, and whose own status is `open`, is ready. Repeat through
      parent-child (a child is listed as blocked by its blocked parent).
    - A close is a `Close` op or an `Update` whose status is `closed`. A
-     reopen is an `Update` to status `open` of a bead whose view was
-     `closed`: add X back to `blocked_by` of beads with a blocking edge to X
-     (cached edges, `DepType::is_blocking`).
+     reopen is an `Update` to any status other than `closed` of a bead whose
+     view was `closed`: add X back to `blocked_by` of beads with a blocking,
+     non-parent-child edge to X (cached edges, `DepType::is_blocking`), and
+     recompute X's own `blocked_by` from its cached edges. Its parent-child
+     children are blocked only if X itself ends up blocked (next rule).
+     (Clarified by lead ruling, bc-lead, 2026-10-24, after a-6.)
    - Parent-child, from stored edges: bd lists a child of a blocked parent as
      blocked by the parent (probe), so unblocking a parent clears it from its
      children's `blocked_by`, and blocking a parent adds it.
