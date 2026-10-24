@@ -92,7 +92,7 @@ fn count(n: i64) -> u64 {
 /// let root = std::env::temp_dir().join(format!("bdc-doc-store-{}", std::process::id()));
 /// std::fs::create_dir_all(root.join(".beads"))?;
 /// std::fs::write(
-///     root.join(".beads/metadata.json"),
+///     root.join(".beads").join("metadata.json"),
 ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
 /// )?;
 /// let mut store = SqliteStore::open(&root, &RepoConfig::default())?;
@@ -163,20 +163,20 @@ impl SqliteStore {
             std::fs::create_dir_all(dir)
                 .map_err(|e| failed(at("create the cache directory"), &e))?;
         }
-        let name = path
-            .file_name()
-            .ok_or_else(|| corrupt(at("open"), "the cache path names no file"))?;
-        let canonical_dir = dir
-            .unwrap_or_else(|| Path::new("."))
+        let conn = Connection::open(path).at(at("open"))?;
+        // The file exists now: claim its canonical path (symlinks and `.`
+        // segments resolved). On a refused claim the connection closes on
+        // return, before it has read or written anything.
+        let canonical = path
             .canonicalize()
-            .map_err(|e| failed(at("resolve the cache directory"), &e))?;
-        let claim = Registration::claim(&canonical_dir.join(name)).ok_or_else(|| {
+            .map_err(|e| failed(at("resolve the cache file"), &e))?;
+        let claim = Registration::claim(&canonical).ok_or_else(|| {
             corrupt(
                 at("open"),
                 "this process already has a connection to the cache file (NFR-BDC-0007)",
             )
         })?;
-        let mut conn = Connection::open(path).at(at("open"))?;
+        let mut conn = conn;
         conn.busy_timeout(BUSY_TIMEOUT)
             .at(at("set the busy timeout"))?;
         let mode: String = conn
@@ -210,6 +210,19 @@ impl SqliteStore {
 
     fn at<'a>(&'a self, what: &'a str) -> Step<'a> {
         step(&self.path, what)
+    }
+
+    /// Runs `f` in one `BEGIN IMMEDIATE` transaction, committed when `f` succeeds.
+    fn write<T>(
+        &mut self,
+        what: &str,
+        f: impl FnOnce(&Transaction<'_>, Step<'_>) -> Result<T, CacheError>,
+    ) -> Result<T, CacheError> {
+        let at = step(&self.path, what);
+        let tx = begin(&mut self.conn, at)?;
+        let out = f(&tx, at)?;
+        tx.commit().at(at)?;
+        Ok(out)
     }
 
     /// Stores one row inside `tx` (see the `CacheStore` rules).
@@ -494,13 +507,13 @@ const HAS_OPEN_ENTRY: &str =
 
 impl CacheStore for SqliteStore {
     fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError> {
-        let at = self.at("ensure scope");
-        self.conn
-            .prepare_cached("INSERT OR IGNORE INTO scope(name, kind) VALUES (?1, 'phase')")
-            .at(at)?
-            .execute([s.name()])
-            .at(at)?;
-        Ok(())
+        self.write("ensure scope", |tx, at| {
+            tx.prepare_cached("INSERT OR IGNORE INTO scope(name, kind) VALUES (?1, 'phase')")
+                .at(at)?
+                .execute([s.name()])
+                .at(at)?;
+            Ok(())
+        })
     }
 
     fn scopes(&self) -> Result<Vec<ScopeId>, CacheError> {
@@ -637,17 +650,17 @@ impl CacheStore for SqliteStore {
         ready: &[BeadId],
         at: &Timestamp,
     ) -> Result<(), CacheError> {
-        let st = self.at("replace a ready base");
-        let (blocked, ready) = encode_ready(st, blocked, ready)?;
-        self.conn
-            .prepare_cached(
+        let (blocked, ready) = encode_ready(self.at("replace a ready base"), blocked, ready)?;
+        self.write("replace a ready base", |tx, st| {
+            tx.prepare_cached(
                 "INSERT OR REPLACE INTO ready_base(scope, blocked_json, ready_json, fetched_at, \
                  stale) VALUES (?1, ?2, ?3, ?4, 0)",
             )
             .at(st)?
             .execute([s.name(), &blocked, &ready, at.as_str()])
             .at(st)?;
-        Ok(())
+            Ok(())
+        })
     }
 
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {
@@ -675,13 +688,13 @@ impl CacheStore for SqliteStore {
     }
 
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError> {
-        let at = self.at("mark a ready base stale");
-        self.conn
-            .prepare_cached("UPDATE ready_base SET stale = 1 WHERE scope = ?1")
-            .at(at)?
-            .execute([s.name()])
-            .at(at)?;
-        Ok(())
+        self.write("mark a ready base stale", |tx, at| {
+            tx.prepare_cached("UPDATE ready_base SET stale = 1 WHERE scope = ?1")
+                .at(at)?
+                .execute([s.name()])
+                .at(at)?;
+            Ok(())
+        })
     }
 
     fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError> {
@@ -749,11 +762,13 @@ impl CacheStore for SqliteStore {
     }
 
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError> {
-        // applied_at is compared as an instant (after decoding), never as text.
+        // Bounded in SQL by `unixepoch(applied_at)`, an instant (seconds), not
+        // text; the decoded `Timestamp` re-checks it. A stored value SQLite
+        // cannot read as a time is NULL there and never matches.
         let mut out = self.entries(
             self.at("read applied entries"),
-            "state = 'applied' AND applied_at IS NOT NULL",
-            [],
+            "state = 'applied' AND unixepoch(applied_at) >= ?1",
+            [at.unix()],
         )?;
         out.retain(|e| e.applied_at.as_ref().is_some_and(|t| t.unix() >= at.unix()));
         Ok(out)
@@ -776,6 +791,17 @@ impl CacheStore for SqliteStore {
             .at(st)?
             .ok_or_else(|| not_found(seq))?;
         match row {
+            Some(row) if row.id.as_str() != bead => {
+                return Err(CacheError::BdContract {
+                    bead: Some(row.id.clone()),
+                    field: "id".into(),
+                    detail: format!(
+                        "read-back row {} is not the bead of journal entry {seq} ({bead})",
+                        row.id
+                    ),
+                    source: None,
+                });
+            }
             Some(row) => {
                 Self::store_row(&tx, st, None, row, true)?;
             }
@@ -797,36 +823,36 @@ impl CacheStore for SqliteStore {
     }
 
     fn record_attempt(&mut self, seq: Seq, err: &str, at: &Timestamp) -> Result<u32, CacheError> {
-        let st = self.at("record an attempt");
-        let attempts: i64 = self
-            .conn
-            .prepare_cached(
-                "UPDATE journal SET attempts = attempts + 1, last_error = ?2, updated_at = ?3 \
-                 WHERE seq = ?1 RETURNING attempts",
-            )
-            .at(st)?
-            .query_row(params![seq.get(), err, at.as_str()], |r| r.get(0))
-            .optional()
-            .at(st)?
-            .ok_or_else(|| not_found(seq))?;
-        u32::try_from(attempts).map_err(|e| failed(st, &e))
+        self.write("record an attempt", |tx, st| {
+            let attempts: i64 = tx
+                .prepare_cached(
+                    "UPDATE journal SET attempts = attempts + 1, last_error = ?2, updated_at = ?3 \
+                     WHERE seq = ?1 RETURNING attempts",
+                )
+                .at(st)?
+                .query_row(params![seq.get(), err, at.as_str()], |r| r.get(0))
+                .optional()
+                .at(st)?
+                .ok_or_else(|| not_found(seq))?;
+            u32::try_from(attempts).map_err(|e| failed(st, &e))
+        })
     }
 
     fn escalate(&mut self, seq: Seq, reason: &str, at: &Timestamp) -> Result<(), CacheError> {
-        let st = self.at("escalate");
-        let n = self
-            .conn
-            .prepare_cached(
-                "UPDATE journal SET state = 'escalated', last_error = ?2, updated_at = ?3 \
-                 WHERE seq = ?1",
-            )
-            .at(st)?
-            .execute(params![seq.get(), reason, at.as_str()])
-            .at(st)?;
-        if n == 0 {
-            return Err(not_found(seq));
-        }
-        Ok(())
+        self.write("escalate", |tx, st| {
+            let n = tx
+                .prepare_cached(
+                    "UPDATE journal SET state = 'escalated', last_error = ?2, updated_at = ?3 \
+                     WHERE seq = ?1",
+                )
+                .at(st)?
+                .execute(params![seq.get(), reason, at.as_str()])
+                .at(st)?;
+            if n == 0 {
+                return Err(not_found(seq));
+            }
+            Ok(())
+        })
     }
 
     fn resolve(
@@ -872,17 +898,17 @@ impl CacheStore for SqliteStore {
     }
 
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
-        let st = self.at("mark announced");
-        let n = self
-            .conn
-            .prepare_cached("UPDATE journal SET announced_at = ?2 WHERE seq = ?1")
-            .at(st)?
-            .execute(params![seq.get(), at.as_str()])
-            .at(st)?;
-        if n == 0 {
-            return Err(not_found(seq));
-        }
-        Ok(())
+        self.write("mark announced", |tx, st| {
+            let n = tx
+                .prepare_cached("UPDATE journal SET announced_at = ?2 WHERE seq = ?1")
+                .at(st)?
+                .execute(params![seq.get(), at.as_str()])
+                .at(st)?;
+            if n == 0 {
+                return Err(not_found(seq));
+            }
+            Ok(())
+        })
     }
 
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError> {
@@ -949,9 +975,8 @@ impl CacheStore for SqliteStore {
     }
 
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
-        let at = self.at("record sync state");
-        self.conn
-            .prepare_cached(
+        self.write("record sync state", |tx, at| {
+            tx.prepare_cached(
                 "INSERT INTO sync_state(phase, last_started_at, last_ok_at, last_error) \
                  VALUES (?1, ?2, ?3, ?4) ON CONFLICT(phase) DO UPDATE SET \
                  last_started_at = excluded.last_started_at, last_ok_at = excluded.last_ok_at, \
@@ -965,7 +990,8 @@ impl CacheStore for SqliteStore {
                 st.last_error,
             ])
             .at(at)?;
-        Ok(())
+            Ok(())
+        })
     }
 
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
@@ -973,22 +999,21 @@ impl CacheStore for SqliteStore {
     }
 
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
-        let at = self.at("set a sync alert");
         let key = alert_key(s);
-        match cause {
-            Some(c) => self
-                .conn
-                .prepare_cached("INSERT OR REPLACE INTO meta VALUES (?1, ?2)")
-                .at(at)?
-                .execute([key.as_str(), c]),
-            None => self
-                .conn
-                .prepare_cached("DELETE FROM meta WHERE key = ?1")
-                .at(at)?
-                .execute([key.as_str()]),
-        }
-        .at(at)?;
-        Ok(())
+        self.write("set a sync alert", |tx, at| {
+            match cause {
+                Some(c) => tx
+                    .prepare_cached("INSERT OR REPLACE INTO meta VALUES (?1, ?2)")
+                    .at(at)?
+                    .execute([key.as_str(), c]),
+                None => tx
+                    .prepare_cached("DELETE FROM meta WHERE key = ?1")
+                    .at(at)?
+                    .execute([key.as_str()]),
+            }
+            .at(at)?;
+            Ok(())
+        })
     }
 
     fn outage(&self) -> Result<Option<Outage>, CacheError> {

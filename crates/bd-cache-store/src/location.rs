@@ -19,18 +19,60 @@ use serde_json::Value;
 pub const BEADS_DIR_ENV: &str = "BEADS_DIR";
 /// The default cache directory, under the repository root.
 pub const DEFAULT_CACHE_DIR: &str = ".bd-cache";
-/// The repository configuration file, under the repository root.
+/// The repository configuration file, under the repository root (for display;
+/// paths are built with [`Path::join`] per component).
 pub const REPO_CONFIG_FILE: &str = ".beads/bd-cache.toml";
 
-/// A validated `dolt_database` name: nonempty, usable as a file name.
+fn repo_config_path(repo_root: &Path) -> PathBuf {
+    repo_root.join(".beads").join("bd-cache.toml")
+}
+
+/// Characters no file name may hold on some supported platform.
+const UNPORTABLE_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'];
+
+/// Windows device names, refused with any extension (`nul.x` is the device too).
+const DEVICE_NAMES: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// Why `name` is not a file name on every supported platform, if it is not.
+fn unportable(name: &str) -> Option<&'static str> {
+    if name.is_empty() {
+        return Some("empty");
+    }
+    if name == "." || name == ".." {
+        return Some("a relative directory name");
+    }
+    if name
+        .chars()
+        .any(|c| UNPORTABLE_CHARS.contains(&c) || c.is_control())
+    {
+        return Some("holds a path separator, a control character or one of : * ? \" < > |");
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return Some("ends with a dot or a space");
+    }
+    let stem = name.split('.').next().unwrap_or(name);
+    if DEVICE_NAMES.iter().any(|d| d.eq_ignore_ascii_case(stem)) {
+        return Some("a Windows device name");
+    }
+    None
+}
+
+/// A validated `dolt_database` name: a file name on every supported platform.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DoltDatabase(String);
 
 impl DoltDatabase {
     /// Validates a database name.
     ///
-    /// The name becomes part of the cache file name, so it may not be empty,
-    /// `.` or `..`, or hold a path separator (`/`, `\`) or a control character.
+    /// The name becomes part of the cache file name on every platform, so it
+    /// may not be empty, `.` or `..`; hold a path separator (`/`, `\`), a
+    /// control character or any of `: * ? " < > |`; end with a dot or a space;
+    /// or be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
+    /// `LPT1`-`LPT9`, any case, with or without an extension). This is
+    /// stricter than `bd_cache.py`, which refuses only `/`.
     ///
     /// # Errors
     ///
@@ -43,18 +85,13 @@ impl DoltDatabase {
     /// assert_eq!(DoltDatabase::new("atm-dev").unwrap().as_str(), "atm-dev");
     /// assert!(DoltDatabase::new("a/b").is_err());
     /// assert!(DoltDatabase::new("").is_err());
+    /// assert!(DoltDatabase::new("nul").is_err());
     /// ```
     pub fn new(name: impl Into<String>) -> Result<Self, CacheError> {
         let name = name.into();
-        let bad = name.is_empty()
-            || name == "."
-            || name == ".."
-            || name
-                .chars()
-                .any(|c| c == '/' || c == '\\' || c.is_control());
-        if bad {
+        if let Some(why) = unportable(&name) {
             return Err(CacheError::NoDatabase {
-                detail: format!("invalid dolt_database {name:?}"),
+                detail: format!("invalid dolt_database {name:?}: {why}"),
             });
         }
         Ok(Self(name))
@@ -198,11 +235,11 @@ impl CacheLocation {
     /// let root = std::env::temp_dir().join(format!("bdc-doc-loc-{}", std::process::id()));
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(
-    ///     root.join(".beads/metadata.json"),
+    ///     root.join(".beads").join("metadata.json"),
     ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
     /// )?;
     /// let loc = CacheLocation::resolve_with(&root, &RepoConfig::default(), None)?;
-    /// assert!(loc.cache_path.ends_with(".bd-cache/atm-dev.bd-cache.sqlite3"));
+    /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
     /// # std::fs::remove_dir_all(&root)?;
     /// # Ok(())
     /// # }
@@ -256,11 +293,22 @@ pub enum ConfigLoadError {
 impl fmt::Display for ConfigLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Read { path, .. } => write!(f, "cannot read {}", path.display()),
-            Self::Parse { path, .. } => write!(f, "invalid {}", path.display()),
+            Self::Read { path, source } => write!(
+                f,
+                "cannot read {}: {}; fix: make the file readable, or remove it to use the defaults",
+                path.display(),
+                crate::error::chain(source)
+            ),
+            Self::Parse { path, source } => write!(
+                f,
+                "invalid {}: {}; fix: correct the key or value named, or remove unknown keys",
+                path.display(),
+                crate::error::chain(source)
+            ),
             Self::Scope { path, value } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name (letters, digits, '-', '_', '.')",
+                "invalid {}: scopes entry {value:?} is not a phase name; fix: use letters, \
+                 digits, '-', '_' and '.', with or without the phase- prefix",
                 path.display()
             ),
         }
@@ -295,16 +343,16 @@ impl std::error::Error for ConfigLoadError {
 /// let root = std::env::temp_dir().join(format!("bdc-doc-cfg-{}", std::process::id()));
 /// std::fs::create_dir_all(root.join(".beads"))?;
 /// assert_eq!(bd_cache_store::load_repo_config(&root)?, Default::default());
-/// std::fs::write(root.join(".beads/bd-cache.toml"), "scopes = [\"bk\"]\n")?;
+/// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"bk\"]\n")?;
 /// assert_eq!(bd_cache_store::load_repo_config(&root)?.scopes, ["bk"]);
-/// std::fs::write(root.join(".beads/bd-cache.toml"), "surprise = 1\n")?;
+/// std::fs::write(root.join(".beads").join("bd-cache.toml"), "surprise = 1\n")?;
 /// assert!(bd_cache_store::load_repo_config(&root).is_err());
 /// # std::fs::remove_dir_all(&root)?;
 /// # Ok(())
 /// # }
 /// ```
 pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError> {
-    let path = repo_root.join(REPO_CONFIG_FILE);
+    let path = repo_config_path(repo_root);
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(RepoConfig::default()),

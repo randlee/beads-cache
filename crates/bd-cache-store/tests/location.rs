@@ -110,7 +110,7 @@ fn test_missing_metadata_is_typed() {
         r#"{"dolt_database": "testdb", "project_id": 7}"#,
         r#"{"dolt_database": "testdb", "project_id": " "}"#,
     ] {
-        std::fs::write(tmp.path().join(".beads/metadata.json"), bad).unwrap();
+        std::fs::write(tmp.path().join(".beads").join("metadata.json"), bad).unwrap();
         let err =
             CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), None).unwrap_err();
         assert_eq!(err.code(), "BD_CACHE.NO_DATABASE", "{bad}");
@@ -120,10 +120,15 @@ fn test_missing_metadata_is_typed() {
 
 #[test]
 fn identity_values_are_validated() {
-    for bad in ["", ".", "..", "a/b", "a\\b", "a\nb"] {
+    for bad in [
+        "", ".", "..", "a/b", "a\\b", "a\nb", "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b",
+        "db.", "db ", "CON", "con", "Nul", "aux.db", "COM1", "lpt9", "PRN",
+    ] {
         assert!(DoltDatabase::new(bad).is_err(), "{bad:?}");
     }
-    assert!(DoltDatabase::new("atm-dev").is_ok());
+    for good in ["atm-dev", "testdb", "a.b", "console", "com10", "lpt", "x_1"] {
+        assert!(DoltDatabase::new(good).is_ok(), "{good:?}");
+    }
     assert!(ProjectId::new("").is_err());
     assert!(ProjectId::new("p-1").is_ok());
 }
@@ -138,7 +143,7 @@ fn missing_repo_config_is_the_default() {
 fn repo_config_is_parsed_and_unknown_keys_refused() {
     let tmp = TempDir::new("cfg");
     std::fs::create_dir_all(tmp.path().join(".beads")).unwrap();
-    let file = tmp.path().join(".beads/bd-cache.toml");
+    let file = tmp.path().join(".beads").join("bd-cache.toml");
     std::fs::write(
         &file,
         "cache_path = \".atm-bd/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n\
@@ -154,6 +159,11 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     std::fs::write(&file, "surprise = 1\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
     assert!(matches!(err, ConfigLoadError::Parse { .. }), "{err:?}");
+    let shown = err.to_string();
+    assert!(
+        shown.contains("surprise") && shown.contains("fix:"),
+        "Display carries the cause and a fix: {shown}"
+    );
     assert!(
         std::error::Error::source(&err).is_some(),
         "keeps the parse error"
@@ -171,7 +181,8 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
 fn unreadable_repo_config_is_an_error_not_the_default() {
     let tmp = TempDir::new("cfg-dir");
     // A directory where the file should be: present but unreadable as text.
-    std::fs::create_dir_all(tmp.path().join(".beads/bd-cache.toml")).unwrap();
+    std::fs::create_dir_all(tmp.path().join(".beads").join("bd-cache.toml")).unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
     assert!(matches!(err, ConfigLoadError::Read { .. }), "{err:?}");
+    assert!(err.to_string().contains("fix:"), "{err}");
 }

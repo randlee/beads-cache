@@ -26,12 +26,12 @@
 //! let root = std::env::temp_dir().join(format!("bdc-doc-lib-{}", std::process::id()));
 //! std::fs::create_dir_all(root.join(".beads"))?;
 //! std::fs::write(
-//!     root.join(".beads/metadata.json"),
+//!     root.join(".beads").join("metadata.json"),
 //!     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
 //! )?;
 //! let config = load_repo_config(&root)?;
 //! let store = SqliteStore::open(&root, &config)?;
-//! assert!(store.path().ends_with(".bd-cache/atm-dev.bd-cache.sqlite3"));
+//! assert!(store.path().ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
 //! let lock = store.drain_lock();
 //! let guard = lock.try_acquire()?;
 //! assert!(guard.is_some() && lock.try_acquire()?.is_none());

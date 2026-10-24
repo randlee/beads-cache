@@ -75,13 +75,14 @@ mod tests {
         let e = Outer(std::io::Error::other("disk full"));
         let step = Step {
             what: "upsert",
-            path: Path::new("/tmp/x.sqlite3"),
+            path: &Path::new("cache").join("x.sqlite3"),
         };
         let err = failed(step, &e);
         assert_eq!(err.code(), "BD_CACHE.NO_DATABASE");
+        let file = Path::new("cache").join("x.sqlite3");
         assert_eq!(
             err.detail(),
-            "cache store /tmp/x.sqlite3: upsert: outer: disk full"
+            format!("cache store {}: upsert: outer: disk full", file.display())
         );
     }
 }

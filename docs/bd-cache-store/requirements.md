@@ -16,8 +16,9 @@ set and not empty, and names the file `cache_path` from
 `.beads/bd-cache.toml` (relative to the repository root) or
 `<repo>/.bd-cache/<dolt_database>.bd-cache.sqlite3`. A missing or unreadable
 file, invalid JSON, a missing or non-string key, an empty project id or a
-database name that is not a file name (empty, `.`, `..`, a path separator, a
-control character) is `BD_CACHE.NO_DATABASE`.
+database name that is not a file name on every supported platform (empty,
+`.`, `..`, a path separator, a control character, any of `: * ? " < > |`, a
+trailing dot or space, a Windows device name) is `BD_CACHE.NO_DATABASE`.
 
 **Refines:** REQ-BDC-0101, 0102
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`,
@@ -34,13 +35,15 @@ timeout; `user_version` 0 is initialized to 3, 3 is opened, any other value
 is `BD_CACHE.SCHEMA_VERSION` and the file is left unchanged. The first open
 records `dolt_database` and `project_id` in `meta`; a later open with
 another `project_id` is `BD_CACHE.WRONG_DATABASE`. A second open of the same
-file in one process, while the first store lives, is refused.
+file in one process, while the first store lives, is refused, also through
+another path (a symlink) that resolves to it.
 
 **Refines:** REQ-BDC-0103, 0104; NFR-BDC-0007
 **Acceptance evidence:** `test_newer_cache_schema_is_refused`,
 `version_zero_is_initialized_to_three_and_three_is_kept`,
 `test_file_from_another_project_is_refused`, `wal_mode_and_busy_timeout`,
-`one_connection_per_process` (`open.rs`).
+`one_connection_per_process`, `one_connection_per_process_through_a_symlink`
+(Unix) (`open.rs`).
 
 ## REQ-STORE-0003: v3 tables unchanged, extensions additive
 
@@ -67,8 +70,11 @@ written from `Bead.dependencies` and the edges index by target, membership
 from labels on scoped upserts only, stale clearing, the rebuild rule keeping
 the journal, ready bases, persisted scopes, `applied_since` on
 `applied_at`, announce marks, sync alerts and the outage record, and
-`prune_scope` keeping beads another scope holds. Every value read back is
-validated, and one that does not decode is an error naming the entry.
+`prune_scope` keeping beads another scope holds. Every mutating method is
+one `BEGIN IMMEDIATE` transaction. `apply_with_readback` refuses a row that
+is not the entry's bead (`BD_CACHE.BD_CONTRACT`, nothing changed). Every
+value read back is validated, and one that does not decode is an error
+naming the entry.
 
 **Refines:** REQ-BDC-0105, 0109, 0405, 0502, 0504, 0601, 0602, 0604, 0901,
 0902, 0909 (store side)
@@ -77,7 +83,8 @@ rules); `test_dependents_use_the_edge_index`,
 `test_escalations_are_unannounced_until_marked`, `test_sync_alert_round_trip`,
 `test_pending_work_counts_as_open`,
 `pruning_a_scope_deletes_only_beads_no_other_scope_holds`,
-`undecodable_stored_values_are_errors_not_skipped` (`store.rs`).
+`undecodable_stored_values_are_errors_not_skipped`,
+`a_read_back_row_of_another_bead_is_refused_and_changes_nothing` (`store.rs`).
 
 ## REQ-STORE-0005: Cross-process drain lock
 
@@ -121,7 +128,8 @@ extended file, the store reads consistent rows and memberships
 `load_repo_config(repo_root)` reads `<repo_root>/.beads/bd-cache.toml` into
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,
 invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
-not a phase name is a `ConfigLoadError` keeping its cause.
+not a phase name is a `ConfigLoadError` keeping its cause, whose message
+shows the cause chain and a fix.
 
 **Refines:** REQ-BDC-0101 (`cache_path`); a-1's `RepoConfig` contract
 **Acceptance evidence:** `missing_repo_config_is_the_default`,

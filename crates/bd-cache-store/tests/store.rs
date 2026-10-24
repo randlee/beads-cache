@@ -359,3 +359,33 @@ fn a_guard_dropped_on_another_thread_releases_the_lock() {
     std::thread::spawn(move || drop(guard)).join().unwrap();
     assert!(lock.try_acquire().unwrap().is_some());
 }
+
+#[test]
+fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
+    let (_open, mut store) = fresh("readback-id");
+    store
+        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .unwrap();
+    let seq = store
+        .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    let err = store
+        .apply_with_readback(
+            seq,
+            Some(&row("b2", &["phase-x"])),
+            None,
+            &ts("2026-10-23T10:00:01Z"),
+        )
+        .unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.BD_CONTRACT", "{err}");
+    assert!(
+        store.get_row(&id("b2")).unwrap().is_none(),
+        "nothing stored"
+    );
+    let e = store.entry_by_seq(seq).unwrap().unwrap();
+    assert_eq!(
+        e.state,
+        bd_cache_model::JournalState::Pending,
+        "still pending"
+    );
+}

@@ -14,8 +14,8 @@ must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-5, a-6]
 requirements:
   owns: [REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0103, REQ-BDC-0104, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0901, NFR-BDC-0007, REQ-STORE-0001, REQ-STORE-0002, REQ-STORE-0003, REQ-STORE-0004, REQ-STORE-0005, REQ-STORE-0006, REQ-STORE-0007]
-  constrained_by: [REQ-BDC-0105, REQ-BDC-0401, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0902, REQ-BDC-0909, NFR-BDC-0005]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0003, ADR-CORE-0001, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003]
+  constrained_by: [REQ-BDC-0105, REQ-BDC-0401, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0001, NFR-BDC-0005]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0003, ADR-CORE-0001, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003]
 owned_paths:
   - "crates/bd-cache-store/**"
   - "docs/bd-cache-store/**"
@@ -120,7 +120,8 @@ pub const BEADS_DIR_ENV: &str = "BEADS_DIR";
 pub const DEFAULT_CACHE_DIR: &str = ".bd-cache";
 pub const REPO_CONFIG_FILE: &str = ".beads/bd-cache.toml";
 
-pub struct DoltDatabase(/* private */);  // new(impl Into<String>) -> Result<Self, CacheError> (NO_DATABASE): nonempty, not . or .., no / \ or control char; as_str
+pub struct DoltDatabase(/* private */);  // new(impl Into<String>) -> Result<Self, CacheError> (NO_DATABASE): a portable file name: nonempty, not . or ..,
+                                         // no / \ : * ? " < > | or control char, no trailing dot or space, not a Windows device name; as_str
 pub struct ProjectId(/* private */);     // new(impl Into<String>) -> Result<Self, CacheError> (NO_DATABASE): not blank; as_str
 pub struct DatabaseIdentity { pub dolt_database: DoltDatabase, pub project_id: ProjectId }
 impl DatabaseIdentity { pub fn read(beads_dir: &Path) -> Result<Self, CacheError>; } // <beads_dir>/metadata.json; NO_DATABASE
@@ -162,15 +163,21 @@ and whose store side this sprint delivers through the a-1 port rules:
 | REQ-BDC-0401 (single drain writer) | `FlockDrainLock` | a-5 (`drain` takes it) |
 | REQ-BDC-0405 (read-back) | `apply_with_readback` in one transaction | a-5 |
 | REQ-BDC-0502 (newer-row guard) | instant comparison in `upsert_rows` | a-6 |
+| REQ-BDC-0503 (stale rows re-read) | `stale_rows`; any store clears `stale` (`a_store_clears_stale`) | a-6 (sync) |
 | REQ-BDC-0504 (sync state) | `sync_state` / `record_sync` | a-6 |
 | REQ-BDC-0601 (resolve) | `resolve` note and `NOT_ESCALATED` | a-6 |
 | REQ-BDC-0602 (prune) | `prune_scope` | a-6 |
 | REQ-BDC-0902 (filtered cache) | out-of-scope rows and the sweep | a-6 |
+| REQ-BDC-0903 (slow or unreachable backend) | no store method calls the backend; the outage record (`outage` / `set_outage`) | a-1 helpers, a-5, a-6 |
+| REQ-BDC-0904 (blocked state across the cache edge) | the per-scope ready base (`blocked_by`, ready ids, `fetched_at`, stale mark) and edges by target with their kind | a-6 |
+| REQ-BDC-0907 (fresh read) | forced `upsert_rows(None, ..)`: stored whatever its age, membership unchanged | a-6 (`refresh`) |
+| REQ-BDC-0908 (journal entry by seq) | `entry_by_seq` in any state | a-6 (`entry`) |
 | REQ-BDC-0909 (on-demand scopes) | persisted `ensure_scope` | a-6 |
+| REQ-BDC-0911 (ready reflects our writes) | `pending_entries` and `applied_since` on `journal.applied_at`, no backend call | a-6 (`ready`) |
+| NFR-BDC-0001 (in-process get under 1 ms) | `get_row` is one primary-key lookup plus the bead's edges by the `edges` primary-key prefix, on the process's open connection | a-7 owns the measurement |
 | NFR-BDC-0005 | planted-bug evidence below | all sprints |
 
-`adrs` lists ADR-BDC-0006 because this crate adds a dependency edge (see
-Hand-off notes), ADR-BDC-0007 and ADR-MODEL-0001/0003 and ADR-CORE-0001
+`adrs` lists ADR-BDC-0007, ADR-MODEL-0001/0003 and ADR-CORE-0001
 because the store relies on the strict rows, the Python-identical journal
 text, the store rule clarifications and the threading model; ADR-STORE-0001..0003
 are this crate's (Approved, lead ruling bc-lead 2026-10-24).
@@ -191,11 +198,11 @@ Rulings needed:
    file and whole source chain in `detail` (ADR-STORE-0003). The chain is
    text, not `Error::source`, until then; the change is local to
    `crates/bd-cache-store/src/error.rs`.
-3. **serde_json dependency.** The Crate Layout row of `docs/architecture.md`
-   lists `rusqlite (bundled), fs4` for `bd-cache-store`; the store also uses
-   the workspace's `serde_json` (encoding `row_json` and the ready base,
-   reading `metadata.json`). No workspace dependency was added; the row
-   needs `serde_json` (an a-1 / shared-doc amendment).
+3. **serde_json dependency.** The store uses the workspace's `serde_json`
+   (encoding `row_json` and the ready base, reading `metadata.json`). Ruled
+   (R3): the Crate Layout row of `docs/architecture.md` for `bd-cache-store`
+   lists it (integrate/phase-a `6ecccf3`, merged here). No workspace
+   dependency was added.
 
 Interpretations (no contract change):
 

@@ -209,3 +209,25 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
         assert!(indexes.iter().any(|i| i == index), "{index} in {indexes:?}");
     }
 }
+
+#[cfg(unix)]
+#[test]
+fn one_connection_per_process_through_a_symlink() {
+    let tmp = TempDir::new("one-conn-link");
+    let path = file(&tmp);
+    let first = SqliteStore::open_at(&path, &identity()).unwrap();
+    let link = tmp.path().join("link.sqlite3");
+    std::os::unix::fs::symlink(&path, &link).unwrap();
+    let err = SqliteStore::open_at(&link, &identity()).unwrap_err();
+    assert!(err.detail().contains("NFR-BDC-0007"), "{}", err.detail());
+    let dir_link = tmp.path().join("dir-link");
+    std::os::unix::fs::symlink(tmp.path().join(".bd-cache"), &dir_link).unwrap();
+    let err =
+        SqliteStore::open_at(&dir_link.join("testdb.bd-cache.sqlite3"), &identity()).unwrap_err();
+    assert!(err.detail().contains("NFR-BDC-0007"), "{}", err.detail());
+    drop(first);
+    assert!(
+        SqliteStore::open_at(&link, &identity()).is_ok(),
+        "released on drop"
+    );
+}

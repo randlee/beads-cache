@@ -3,7 +3,9 @@
 Copied byte for byte from randlee/atm-core at
 `05831dfe866d389feed138add3c29cb93cd6c82b` (PR randlee/atm-core#2219), for
 the compatibility tests in `../compat.rs` (REQ-BDC-0804). Do not edit these
-files; re-vendor them from a later atm-core commit instead.
+files; re-vendor them from a later atm-core commit instead. The local
+`.gitattributes` keeps every file here LF on all platforms, so the sha256
+values below hold on a Windows checkout too.
 
 | File | Source path at `05831df` | sha256 (LF) |
 |---|---|---|

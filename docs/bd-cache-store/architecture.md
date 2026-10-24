@@ -8,7 +8,8 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 (`bd-cache-model`) over one SQLite file per dolt database, the file
 BD-CACHE v3's `bd_cache.py` uses. It depends on `bd-cache-model`, `sc-beads`,
 rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and serde_json (the
-`row_json` and ready-base text; see Hand-off notes in the sprint doc).
+`row_json` and ready-base text), as the Crate Layout of
+[`../architecture.md`](../architecture.md) lists them.
 
 | Module | Contents |
 |---|---|
@@ -102,7 +103,20 @@ Decision:
   current UTC time, as `bd_cache.py` writes its own clock. No value the port
   returns depends on it; every other timestamp comes from the caller.
 - **Concurrency.** Every mutating method is one `BEGIN IMMEDIATE`
-  transaction under the 5 s busy timeout, as `bd_cache.py`'s writes are.
+  transaction under the 5 s busy timeout, as `bd_cache.py`'s writes are,
+  single-statement ones included (`SqliteStore::write`).
+- **Database names.** `DoltDatabase` is stricter than `bd_cache.py` (which
+  refuses only `/`): the name becomes a file name on every supported
+  platform, so `\`, `: * ? " < > |`, control characters, a trailing dot or
+  space and the Windows device names (`CON`, `PRN`, `AUX`, `NUL`,
+  `COM1`-`COM9`, `LPT1`-`LPT9`, any case, any extension) are
+  `NO_DATABASE`. A database `bd_cache.py` accepts with such a name cannot be
+  shared until it is renamed.
+- **`applied_since`** is bounded in SQL by `unixepoch(applied_at) >= ?`
+  (an instant, never text), filtered through `journal_pending`'s `state`
+  prefix. No expression index is added: an index on `unixepoch(..)` would
+  make the file's schema unreadable to a `bd_cache.py` linked against
+  SQLite older than 3.38.
 
 Consequences: rows and memberships stay consistent across a `bd_cache.py`
 prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
@@ -120,9 +134,11 @@ created, a stored value that does not decode); its trait docs say a method
 may return "the implementation's own storage failures".
 
 Decision:
-- `SqliteStore::open_at` claims the canonical path of the file in a
-  process-wide set (a `Mutex<BTreeSet<PathBuf>>`, released when the store
-  drops); a second open of the same file in the same process is refused.
+- `SqliteStore::open_at` opens the file, then claims its canonical path
+  (symlinks and `.` segments resolved) in a process-wide set (a
+  `Mutex<BTreeSet<PathBuf>>`, released when the store drops); a second open
+  of the same file in the same process, under any path that resolves to it,
+  is refused and its connection closed before it reads or writes.
 - Until a-1 adds a code, the store's own failures are
   `BD_CACHE.NO_DATABASE` ("the cache file cannot be used"), with the step,
   the file and the whole source chain rendered in `detail`. A stored row

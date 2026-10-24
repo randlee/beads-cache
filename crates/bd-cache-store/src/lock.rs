@@ -33,7 +33,8 @@ impl FlockDrainLock {
     ///
     /// ```
     /// use bd_cache_store::FlockDrainLock;
-    /// let lock = FlockDrainLock::for_cache_file("/r/.bd-cache/atm-dev.bd-cache.sqlite3".as_ref());
+    /// let cache = std::path::Path::new("repo").join(".bd-cache").join("atm-dev.bd-cache.sqlite3");
+    /// let lock = FlockDrainLock::for_cache_file(&cache);
     /// assert!(lock.path().ends_with("atm-dev.bd-cache.drain.lock"));
     /// ```
     #[must_use]
