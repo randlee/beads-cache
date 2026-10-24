@@ -1,23 +1,21 @@
-//! `status` (REQ-BDC-0603).
+//! `status` (REQ-BDC-0603; ADR-BDC-0005).
 //!
-//! Owned by sprint a-6, which replaces the stub below; the signature is
-//! the contract `lib.rs` delegates to (sprint a-1, Public contract).
+//! The store's status: the `meta` table, journal counts per `phase:state`,
+//! each scope's sync state (with `last_ok_at`) and bead count, every
+//! escalated entry until it is resolved, the stale rows (a read-back failed;
+//! the next sync re-reads them), and the outage while one holds. Starts no
+//! bd call.
 
-use bd_cache_model::{CacheError, StatusReply};
+use bd_cache_model::{CacheError, CacheStore, DrainLock, StatusReply};
+use sc_beads::CacheBackend;
 
 use crate::Cache;
 
-use bd_cache_model::{CacheStore, DrainLock};
-use sc_beads::CacheBackend;
-
-/// Stub until sprint a-6.
-#[expect(
-    clippy::unimplemented,
-    reason = "skeleton: sprint a-6 fills this function"
-)]
+/// `status()`: see the module docs.
 pub(crate) fn status<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
 ) -> Result<StatusReply, CacheError> {
-    let _ = cache;
-    unimplemented!("status::status: sprint a-6")
+    Ok(StatusReply {
+        store: cache.store.status()?,
+    })
 }
