@@ -25,6 +25,8 @@ requirement ids, not the baseline.
 
 - The `bdc` / `bd-cache` binary (needs sc-command and sc-config).
 - The MCP server, the `sc-bd-http` adapter, DoltHub-specific adapters.
+- Python bindings (maturin / PyO3) for the CLI operations; planned after
+  sc-runtime integration (see Target Design in `docs/architecture.md`).
 - Bead creation and comments in the cache journal (out of BD-CACHE v1).
 
 - Moving `sc-cron` to sc-runtime; publishing `sc-beads` / `sc-bd-cli` to

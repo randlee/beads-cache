@@ -70,6 +70,13 @@ up when the backend responds (ADR-BDC-0005).
 - The MCP server is a second front end over the same core. No upstream beads
   project offers MCP over HTTP today (`beads-mcp` is stdio only, and
   `bd serve` is HTTP but not MCP), so beads-cache provides it.
+- Python bindings (maturin / PyO3), planned after sc-runtime integration,
+  are a third front end: a `bd-cache-py` crate wrapping the concrete
+  composition (`SqliteStore`, its drain lock, `BdCli`) and exposing the same
+  operations as the CLI, so Python callers such as atm-core's hooks run in
+  process instead of spawning `bdc`. Phase A keeps this cheap: the replies
+  and `CacheError` already serialize to the CLI's JSON, and the core takes
+  plain config values rather than sc-runtime types.
 - All writes go through `bd` (see the research docs: writes through the
   DoltHub SQL API bypass bd's guards and events journal).
 
