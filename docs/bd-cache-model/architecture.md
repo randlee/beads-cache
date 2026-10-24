@@ -242,7 +242,7 @@ replies is left for the bdc sprint (REQ-BDC-0806) to settle.
 
 ### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since`, `send_within`, `mark_announced_within` and `set_sync_alert_within`
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24); `set_sync_alert_within` also used for the alert clears that send no message by lead ruling S35 (bc-lead, 2026-10-24, fix-a-7-10)
 
 Context: the ports are a-1's contract, and a-4, a-5, a-6 and a-8 build on them.
 Sprint a-7 changed them, by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24) and
@@ -279,7 +279,7 @@ Decision:
   to the struct literal** `SendError { detail }`; no other crate in the workspace
   or on the a-8 branch built one. `SendErrorKind` is `#[non_exhaustive]`.
 - `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
-- `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send marker writes, bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
+- `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send markers and the alert clears that send no message (S35), bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
 
 Consequences: every `CacheStore` passes the new contract rules (FakeStore
 through the provided bodies, SqliteStore through its indexes and bounded writes),

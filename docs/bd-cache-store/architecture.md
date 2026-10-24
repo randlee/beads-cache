@@ -171,7 +171,7 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -216,34 +216,50 @@ with `Error::source`.
 
 ### ADR-STORE-0003 amendment (a-7, S34)
 
-**Status:** Approved (lead ruling S34, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling S34, bc-lead, 2026-10-24); codes moved out of the
+`BD_CACHE.` namespace by lead ruling S37 (ARCH-801) and `#[non_exhaustive]` removed by
+lead ruling S38 (RBP-F044, QA8-003, ARCH-808), bc-lead, 2026-10-24, fix-a-7-12
 
 Context: `bd-cache-sync`'s `ComposeError` kept its own copy of the code and fix of
 each way `.beads/bd-cache.toml` fails to load (RBP-F040). Moving them next to the type
 (fix-a-7-6) made them store API, but recorded them by rewriting the Decision above in
 place (ARCH-701), and the store then emitted the sync crate's `sync_config_*` codes,
-a consumer's namespace (ARCH-702, RBP-F043).
+a consumer's namespace (ARCH-702, RBP-F043). S34 first gave them `BD_CACHE.CONFIG_*`
+codes; but every `BD_CACHE.*` code is a `CacheError` code (REQ-MODEL-0003, REQ-BDC-0803),
+and `ConfigLoadError` is not a `CacheError` (ARCH-801, S37). A consumer's wildcard arm
+over the `#[non_exhaustive]` enum mapped any later variant to an existing code with no
+compile-time check (RBP-F044, QA8-003, ARCH-808, S38).
 
 Decision:
 - `ConfigLoadError::code` and `ConfigLoadError::fix` are public store API: one stable
   code and one fix text per variant, and `Display` states that same fix after `fix:`.
-- The codes are store-neutral, in the `BD_CACHE.` namespace of the store's other
-  codes: `BD_CACHE.CONFIG_UNREADABLE` (`Read`: the file exists but cannot be read),
-  `BD_CACHE.CONFIG_INVALID` (`Parse`: bad TOML, an unknown key or a wrong type) and
-  `BD_CACHE.CONFIG_BAD_SCOPE` (`Scope`: a `scopes` entry is not a phase name; its fix
-  states `PhaseName::RULE`).
+- The codes are store-owned and lowercase (S37): `store_config_unreadable` (`Read`:
+  the file exists but cannot be read), `store_config_invalid` (`Parse`: bad TOML, an
+  unknown key or a wrong type) and `store_config_bad_scope` (`Scope`: a `scopes` entry
+  is not a phase name; its fix states `PhaseName::RULE`). They are **not `CacheError`
+  codes** (the `BD_CACHE.*` namespace belongs to `CacheError` alone) and **not
+  CLI-contract codes**: no CLI reply carries them; a consumer that reports a
+  configuration failure reports its own code.
+- `ConfigLoadError` is exhaustive, not `#[non_exhaustive]` (S38): each consumer matches
+  every variant, with no wildcard arm.
 - A consumer with codes of its own maps the variants at its own boundary; the store
   names no consumer's codes. `bd-cache-sync` keeps its `sync_config_*` codes by mapping
   `ConfigLoadError` variants in `ComposeError` and uses `fix()` as the recovery text.
   `bd-cache-py` maps the variants to its own exception kinds and does not use `code()`.
 
 Consequences: changing a code or a fix text changes store API, and the tests that pin
-them (`tests/location.rs`, the `ConfigLoadError::code` doctest). A new variant needs a
-code and a fix here, and a mapping in each consumer.
+them (`tests/location.rs`: `repo_config_is_parsed_and_unknown_keys_refused`,
+`unreadable_repo_config_is_an_error_not_the_default`; the `ConfigLoadError::code`
+doctest). A new variant needs a code and a fix here, and a mapping in each consumer;
+the mechanism that enforces the mapping is the compiler (S38): because the enum is
+exhaustive and the consumers' matches have no wildcard arm (`bd-cache-sync`'s
+`ComposeError` code mapping, `bd-cache-py`'s `From<ConfigLoadError> for OpenError`), a
+new variant is a compile error (`E0004`, non-exhaustive patterns) in each consumer
+until it is mapped. Adding a variant is therefore a breaking change to store API.
 
 ## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below; NFR-BDC-0001's condition stated by lead ruling S31, see Remaining latency; floor invariant restated per rise for QA7-001, fix-a-7-10); amends ADR-STORE-0001 (the extension tables, columns and indexes)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below; NFR-BDC-0001's condition stated by lead ruling S31, see Remaining latency; floor invariant restated per rise, restatement only, no decision change (QA7-001, fix-a-7-10)); amends ADR-STORE-0001 (the extension tables, columns and indexes)
 and ADR-STORE-0002 (what is read as one snapshot, what a foreign writer may leave, and the
 Concurrency bullet: the journal reads may write, as the exception noted there)
 
@@ -430,7 +446,7 @@ dating, the plans and SQL work (VM steps), the undatable-entry warning and the h
 
 ## ADR-STORE-0005: Dependencies and test-only features
 
-**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8)
+**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10)
 
 Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
 crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),

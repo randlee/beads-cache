@@ -12,11 +12,11 @@ sprint, and the testbed items are deferred evidence:
 
 | Item | Owner | Due | State |
 |---|---|---|---|
-| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
-| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
-| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
+| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the final a-7 code (see the sprint doc Validation) deferred to integrate/phase-a after a-7 lands (bc-lead, due 2026-10-25); merge-head run due 2026-10-31 (S8, S16) |
+| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the final a-7 code (see the sprint doc Validation) deferred to integrate/phase-a after a-7 lands (bc-lead, due 2026-10-25); merge-head run due 2026-10-31 (S8, S16) |
+| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the final a-7 code (see the sprint doc Validation) deferred to integrate/phase-a after a-7 lands (bc-lead, due 2026-10-25); merge-head run due 2026-10-31 (S8, S16) |
 
-Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`). `7702b67` is the last recorded run, not the last code-changing commit: code changed after it. The last code-changing commit is `24456c5` (S33; the merge `9110187` has the same code), and later fix layers change code again. The re-run at the a-7 code is deferred to `integrate/phase-a` (owner bc-lead, due 2026-10-25). bc-lead's separate run at the merge head (S8, S16) stays due 2026-10-31.
+Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`). `7702b67` is the last recorded run, not the last code-changing commit: code changed after it. Code changed again after it in later fix layers; the last code-changing commit is recorded in Validation (the sprint doc). The re-run at the a-7 code is deferred to `integrate/phase-a` (owner bc-lead, due 2026-10-25). bc-lead's separate run at the merge head (S8, S16) stays due 2026-10-31.
 
 ## Commands (on `m5-atmbench`)
 
@@ -54,7 +54,7 @@ What the two tests do:
 
 ### fix-a-7-8: run deferred to `integrate/phase-a` (owner bc-lead, 2026-10-25)
 
-The last code-changing commit of fix-a-7-8 is `24456c5` (S33 bounded marker writes,
+Historical: the last code-changing commit of fix-a-7-8 was `24456c5` (S33 bounded marker writes,
 QA6-001..003, RBP-F040/041, FTQ-021..024). The merge `9110187` of the docs layer
 `sprint/a-7-fix8-docs` after it brings in documents and `Cargo.toml` comments only, so its code
 is that of `24456c5`. By the lead's change of plan (the user's decision), the testbed run for this
@@ -71,8 +71,7 @@ To check that the two live tests are correct before handing them to the
 testbed, they were run on the developer's machine through
 `crates/bd-cache-sync/tests/run-live.sh` (a scratch Dolt 2.3.5 server on a
 loopback port and a scratch workspace, both removed afterwards), macOS arm64,
-`bd version 1.3.0`, `SC_BD_PINNED_ANY=1`, at the sprint's last code commit
-`bc1e4ab` (one record; earlier runs are not kept):
+`bd version 1.3.0`, `SC_BD_PINNED_ANY=1`, at `bc1e4ab` (historical, round 5; it was then the last code commit; one record; earlier runs are not kept):
 
 ```text
 test a_journaled_write_lands_in_a_real_bd_through_the_tick ... ok
