@@ -6,11 +6,9 @@
 //! park at the new time (the worker has settled), the job's entry or drop
 //! counters, or the recording store's write log.
 
-#![allow(
+#![expect(
     clippy::expect_used,
-    clippy::unwrap_used,
     clippy::panic,
-    clippy::indexing_slicing,
     clippy::clone_on_ref_ptr,
     clippy::unused_self,
     clippy::duration_suboptimal_units,
