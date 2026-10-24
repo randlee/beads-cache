@@ -1,26 +1,40 @@
 //! `list` of a known scope (REQ-BDC-0203, 0902, 0909).
 //!
-//! Owned by sprint a-6, which replaces the stub below; the signature is
-//! the contract `lib.rs` delegates to (sprint a-1, Public contract).
+//! The scope's cached rows, by id, each with its pending entries replayed
+//! and filtered on that view (`status`, `label`), so a list agrees with
+//! `get`. A scope never configured or synced is `SCOPE_UNKNOWN` naming the
+//! known scopes; it is never answered from a partial cache. Starts no bd call.
 
-use bd_cache_model::{CacheError, ListReply, ScopeId};
-
-use crate::Cache;
-
-use bd_cache_model::{CacheStore, DrainLock};
+use bd_cache_model::{CacheError, CacheStore, DrainLock, ListReply, ScopeId, replay};
 use sc_beads::CacheBackend;
 
-/// Stub until sprint a-6.
-#[expect(
-    clippy::unimplemented,
-    reason = "skeleton: sprint a-6 fills this function"
-)]
+use crate::Cache;
+use crate::ready::{adjusted, require_known, row_view};
+
+/// `list(scope, status, label)`: see the module docs.
 pub(crate) fn list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     s: &ScopeId,
     status: Option<&str>,
     label: Option<&str>,
 ) -> Result<ListReply, CacheError> {
-    let _ = (cache, s, status, label);
-    unimplemented!("list::list: sprint a-6")
+    require_known(cache, s)?;
+    let adj = adjusted(cache, s)?;
+    let mut rows = Vec::new();
+    for (row, freshness) in cache.store.rows_in_scope(s)? {
+        let view = replay(&row, &cache.store.pending_for(&row.id)?);
+        if status.is_some_and(|want| view.status.as_deref() != Some(want)) {
+            continue;
+        }
+        if label.is_some_and(|want| !view.has_label(want)) {
+            continue;
+        }
+        rows.push(row_view(view, freshness, adj.as_ref()));
+    }
+    Ok(ListReply {
+        scope: s.clone(),
+        last_ok_at: cache.store.sync_state(s)?.last_ok_at,
+        rows,
+        outage: cache.store.outage()?,
+    })
 }
