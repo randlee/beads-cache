@@ -573,6 +573,7 @@ impl CacheStore for FakeStore {
             scopes,
             escalated,
             outage: self.outage()?,
+            stale: self.stale_rows()?,
         })
     }
 }

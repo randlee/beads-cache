@@ -211,7 +211,8 @@ pub struct UpsertReport { pub stored: Vec<BeadId>, pub skipped_newer: Vec<BeadId
 pub struct ReadyBase { pub blocked: Vec<BlockedRow>, pub ready: Vec<BeadId>, pub fetched_at: Timestamp, pub stale: bool }
 pub struct OpenWork { pub pending: u64, pub escalated_unannounced: u64 }
 pub struct StoreStatus { pub meta: BTreeMap<String, String>, pub journal: BTreeMap<String, u64> /* "<phase>:<state>", None = no phase */,
-    pub scopes: Vec<ScopeStatus>, pub escalated: Vec<JournalEntry>, pub outage: Option<Outage> }
+    pub scopes: Vec<ScopeStatus>, pub escalated: Vec<JournalEntry>, pub outage: Option<Outage>,
+    pub stale: Vec<BeadId> /* a-1 amendment 1: the stale_rows set, REQ-BDC-0603 */ }
 pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 
 /// Store port; a-4 implements it over SQLite. Rules (checked by the contract suite):
@@ -232,6 +233,8 @@ pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 ///   scope never stored one; mark_ready_base_stale on a missing base is a no-op; prune_scope deletes it.
 /// - applied_since(at) returns entries applied at or after `at`, in seq order.
 /// A store reports its own failures (SQLite, I/O, undecodable values) as STORE_FAILED (a-1 amendment 1).
+/// - status().stale lists exactly the rows stale_rows returns; a failed read-back is listed until re-read
+///   (a-1 amendment 1).
 /// Every `at` is `&Timestamp` (fix-a-1-1, RBP-F002); the full rule list, with the clarifications of
 /// ADR-MODEL-0003, is the doc comment in crates/bd-cache-model/src/store.rs.
 pub trait CacheStore: Send {
@@ -495,6 +498,7 @@ needs it (see the amendment rule under Outcome and closure).
 | # | Branch | Needed by | Change | Ruling |
 |---|---|---|---|---|
 | 1 | `sprint/a-1-amend-1` | a-4 | `CacheError::StoreFailed` (`BD_CACHE.STORE_FAILED`): `detail` (step and file) and an optional `StoreCause` source kept by `Error::source()` and rendered as `source: {detail}` in `to_json`; recovery fix text; golden; `CacheStore` doc note that a store reports its own failures as `STORE_FAILED`; ADR-MODEL-0002 amendment. The baseline has no v3 code for store failures, so none was reused. a-4 switches its store errors from `NO_DATABASE` itself. | lead ruling, bc-lead, 2026-10-24 |
+| 1 | `sprint/a-1-amend-1` | a-6 | `StoreStatus.stale: Vec<BeadId>` (REQ-BDC-0603): the `stale_rows` set, filled by `FakeStore`; `CacheStore` docs say `status()` reports it; store contract rule `status_lists_stale_rows_until_reread` (a failed read-back is listed, a re-read clears it). | lead ruling, bc-lead, 2026-10-24 |
 
 ## Requirement scope notes
 

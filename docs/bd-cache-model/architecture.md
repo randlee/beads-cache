@@ -78,6 +78,10 @@ Decision: add the additive code `BD_CACHE.STORE_FAILED`,
 A store reports its own failures as `STORE_FAILED`. `NO_DATABASE` keeps its
 baseline meaning: missing or invalid `.beads/metadata.json`.
 
+The same amendment adds `StoreStatus.stale: Vec<BeadId>` for sprint a-6
+(REQ-BDC-0603). `status()` reports the same set as `stale_rows`, and the
+store contract rule `status_lists_stale_rows_until_reread` checks it.
+
 ## ADR-MODEL-0003: Store rule clarifications
 
 **Status:** Approved (lead ruling, 2026-10-23)

@@ -57,6 +57,9 @@ use crate::state::{
 ///   scope holds (with their edges), the scope's journal entries, sync state
 ///   and ready base, and sweeps out-of-scope rows with no open entry. The
 ///   scope stays registered.
+/// - `status().stale` lists exactly the rows `stale_rows` returns: a row
+///   whose read-back failed is listed until a store of it clears the mark
+///   (a-1 amendment 1).
 /// - an unknown `seq` is `NOT_FOUND` for every other seq-taking method
 ///   (`apply_with_readback`, `record_attempt`, `escalate`, `mark_announced`);
 ///   `entry_by_seq` returns `None`.
@@ -164,7 +167,8 @@ pub trait CacheStore: Send {
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;
     /// Open work for the stop rule.
     fn open_work(&self) -> Result<OpenWork, CacheError>;
-    /// Status: meta, journal counts, scopes, escalations, outage.
+    /// Status: meta, journal counts, scopes, escalations, outage, and the
+    /// stale rows (`stale`, the same set as [`CacheStore::stale_rows`]).
     fn status(&self) -> Result<StoreStatus, CacheError>;
 }
 
