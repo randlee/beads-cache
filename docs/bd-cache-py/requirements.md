@@ -22,7 +22,7 @@ is not `None` overrides the file's key (`call_timeout_s` and `miss_fill_timeout_
 second open of the same cache file in one process is `BD_CACHE.STORE_FAILED`
 until the first handle is closed (`close()`, or leaving a `with` block). A
 repository without readable `.beads/metadata.json` is `BD_CACHE.NO_DATABASE`;
-an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`, `config`) and `path` (`config` is any other configuration problem the loader reports; `path` may be `None`); an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
+an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`, `config`) and `path` (`config` is reserved; not produced while ConfigLoadError has no further variants (S38/S42); `path` may be `None`); an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
 **Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`); Rust `compose::tests`.

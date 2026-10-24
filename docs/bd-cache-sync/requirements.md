@@ -199,6 +199,22 @@ readiness in the same tick's sync.
 (testbed, composed with `compose_with(..., None)` like `tests/common/real.rs`,
 ARCH-807).
 
+Amendment (fix-a-7-10 and fix-a-7-12, S34, S37, S38, RBP-F044, QA8-003, REQ-QA-709; **Status:** Approved (lead rulings S34, S37 and S38, bc-lead, 2026-10-24)):
+a `.beads/bd-cache.toml` that cannot be loaded is a `ComposeError::Config`
+whose code is this crate's, mapped from the `ConfigLoadError` variant:
+`Read` is `sync_config_unreadable`, `Parse` `sync_config_invalid_toml`,
+`Scope` `sync_config_bad_scope` (S34). The loader keeps its own
+store-owned codes, `store_config_unreadable` / `store_config_invalid` /
+`store_config_bad_scope` (S37), and its fix text, which `ComposeError::fix`
+returns. The mapping is an exhaustive match with no wildcard arm, since
+`ConfigLoadError` is not `#[non_exhaustive]` (S38): a variant the store adds
+fails to compile here until it has a code. Evidence:
+`compose_errors_have_codes_and_sources` (`tests/compose.rs`: each of the
+three variants, its `sync_config_*` code, the loader's `store_config_*` code
+and fix, and a missing `metadata.json` as the cache error's
+`BD_CACHE.NO_DATABASE`), and
+`a_relative_phases_dir_and_the_default_are_rooted_at_the_repository`.
+
 Amendment (fix-a-7-12, S40, RSH-033, RBP-F046; **Status:** Approved (lead ruling S40, bc-lead, 2026-10-24)):
 `compose_with` rebinds the backend to the clock it is given
 (`BdCli::with_clock`), so no precondition on how the caller built it remains,

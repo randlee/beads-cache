@@ -91,8 +91,9 @@ code for a caller's malformed id. That includes an `op` outside
 checks them before the core (lead ruling R7, bc-lead, 2026-10-24; the core's
 `BAD_OP` stays for its other callers), so `bd_cache.py`'s `BD_CACHE.BAD_OP`
 becomes `ValueError` here. An invalid configuration is a `ValueError` whose `kind` is
-`parse`, `scope`, `argument` or `config`; `config` is any other configuration
-problem the loader reports, and `path` may be `None`. An unreadable config
+`parse`, `scope`, `argument` or `config`; `config` is reserved; not produced
+while ConfigLoadError has no further variants (S38/S42), and `path` may be
+`None`. An unreadable config
 file is an `OSError` of kind `read`.
 
 Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its
