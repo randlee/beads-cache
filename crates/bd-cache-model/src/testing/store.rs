@@ -100,6 +100,28 @@ impl State {
         })
     }
 
+    fn outage(&self) -> Option<Outage> {
+        self.meta
+            .get(META_OUTAGE_SINCE)
+            .and_then(|since| Timestamp::parse(since).ok())
+            .map(|since| Outage {
+                since,
+                last_error: self
+                    .meta
+                    .get(META_OUTAGE_ERROR)
+                    .cloned()
+                    .unwrap_or_default(),
+            })
+    }
+
+    fn stale(&self) -> Vec<BeadId> {
+        self.rows
+            .iter()
+            .filter(|(_, (_, stale))| *stale)
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
     fn entries(&self, f: impl Fn(&JournalEntry) -> bool) -> Vec<JournalEntry> {
         self.journal.values().filter(|e| f(e)).cloned().collect()
     }
@@ -224,12 +246,7 @@ impl CacheStore for FakeStore {
     }
 
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError> {
-        Ok(lock(&self.state)
-            .rows
-            .iter()
-            .filter(|(_, (_, stale))| *stale)
-            .map(|(id, _)| id.clone())
-            .collect())
+        Ok(lock(&self.state).stale())
     }
 
     fn dependents_of(&self, id: &BeadId) -> Result<Vec<Edge>, CacheError> {
@@ -457,15 +474,7 @@ impl CacheStore for FakeStore {
     }
 
     fn outage(&self) -> Result<Option<Outage>, CacheError> {
-        let st = lock(&self.state);
-        Ok(st
-            .meta
-            .get(META_OUTAGE_SINCE)
-            .and_then(|since| Timestamp::parse(since).ok())
-            .map(|since| Outage {
-                since,
-                last_error: st.meta.get(META_OUTAGE_ERROR).cloned().unwrap_or_default(),
-            }))
+        Ok(lock(&self.state).outage())
     }
 
     fn set_outage(&mut self, o: Option<&Outage>) -> Result<(), CacheError> {
@@ -564,16 +573,14 @@ impl CacheStore for FakeStore {
                     .unwrap_or_else(|| SyncState::new(s.clone())),
             })
             .collect();
-        let meta = st.meta.clone();
-        let escalated = st.entries(|e| e.state == JournalState::Escalated);
-        drop(st);
+        // One guard for the whole reply: a consistent snapshot.
         Ok(StoreStatus {
-            meta,
+            meta: st.meta.clone(),
             journal,
             scopes,
-            escalated,
-            outage: self.outage()?,
-            stale: self.stale_rows()?,
+            escalated: st.entries(|e| e.state == JournalState::Escalated),
+            outage: st.outage(),
+            stale: st.stale(),
         })
     }
 }

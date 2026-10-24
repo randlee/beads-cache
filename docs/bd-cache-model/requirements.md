@@ -40,7 +40,9 @@ in seq order and skips escalated, resolved and applied ones.
 
 `CacheError` has one variant per `BD_CACHE.*` code with its payload, plus
 `SCOPE_UNKNOWN` and `STORE_FAILED` (a-1 amendment 1); `exit_code()` is 3; `to_json()` is
-`{ok: false, code, detail, fix, reason?, ...payload}`; `from_backend` maps
+`{ok: false, code, detail, fix, reason?, ...payload, source?}`, where
+`source` is `{code, detail}` for an error mapped from a backend error and
+`{detail}` for a `STORE_FAILED` with a cause; `from_backend` maps
 backend errors by `CallKind` per the table in `src/error.rs`.
 
 **Refines:** REQ-BDC-0802, 0803
@@ -56,7 +58,7 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 `FakeStore` + `FakeDrainLock` pass and every implementation must pass.
 
 **Refines:** NFR-BDC-0005, ADR-BDC-0004
-**Acceptance evidence:** `tests/store_contract.rs` (17 rules).
+**Acceptance evidence:** `tests/store_contract.rs`: the 19 rules of `store_contract_tests!` (`round_trip_is_normalize`, `upsert_replaces_outgoing_edges`, `a_store_clears_stale`, `membership_follows_labels_on_scoped_upserts_only`, `newer_rows_are_kept_unless_forced`, `newer_row_guard_compares_instants`, `status_changes_are_reported`, `apply_with_readback_marks_applied`, `fingerprint_rebuild_rule`, `scopes_persist_across_restarts`, `ready_base_rules`, `applied_since_is_inclusive_and_ordered`, `journal_lifecycle`, `resolve_note_without_prior_error`, `sync_state_alerts_and_outage_round_trip`, `prune_scope_rules`, `status_counts`, `status_lists_stale_rows_until_reread`, `drain_lock_is_exclusive`), including `status_lists_stale_rows_until_reread` (a-1 amendment 1).
 
 ## REQ-MODEL-0005: Repository configuration
 

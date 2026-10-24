@@ -169,6 +169,9 @@ pub trait CacheStore: Send {
     fn open_work(&self) -> Result<OpenWork, CacheError>;
     /// Status: meta, journal counts, scopes, escalations, outage, and the
     /// stale rows (`stale`, the same set as [`CacheStore::stale_rows`]).
+    ///
+    /// One consistent snapshot: every field is read at the same point (one
+    /// read transaction for SQLite, one lock for `FakeStore`).
     fn status(&self) -> Result<StoreStatus, CacheError>;
 }
 

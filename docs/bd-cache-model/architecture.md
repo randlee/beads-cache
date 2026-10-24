@@ -53,7 +53,7 @@ its `source` (`BackendCause`) and in its JSON as `source: {code, detail}`
 
 ### ADR-MODEL-0002 amendment (a-1 amendment 1): store failures are STORE_FAILED
 
-(lead ruling, bc-lead, 2026-10-24, a-1 amendment 1)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: `CacheStore` methods may fail for the store's own reasons (SQLite
 errors, file I/O, a stored value that does not decode), but `CacheError` had
@@ -78,10 +78,6 @@ Decision: add the additive code `BD_CACHE.STORE_FAILED`,
 A store reports its own failures as `STORE_FAILED`. `NO_DATABASE` keeps its
 baseline meaning: missing or invalid `.beads/metadata.json`.
 
-The same amendment adds `StoreStatus.stale: Vec<BeadId>` for sprint a-6
-(REQ-BDC-0603). `status()` reports the same set as `stale_rows`, and the
-store contract rule `status_lists_stale_rows_until_reread` checks it.
-
 ## ADR-MODEL-0003: Store rule clarifications
 
 **Status:** Approved (lead ruling, 2026-10-23)
@@ -96,6 +92,16 @@ outage; prune keeps the scope registered and never deletes a bead with an
 open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
+
+### ADR-MODEL-0003 amendment (a-1 amendment 1): status reports stale rows
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Sprint a-6 needs status to report stale rows (REQ-BDC-0603, as amended in
+c4a2f8b). `StoreStatus` gains `stale: Vec<BeadId>`. `status()` reports the
+same set as `stale_rows`, read as one consistent snapshot with the rest of
+the status. The store contract rule `status_lists_stale_rows_until_reread`
+checks that a failed read-back is listed and that a re-read clears it.
 
 ## ADR-MODEL-0004: toml is a private parsing dependency
 
