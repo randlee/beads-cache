@@ -16,11 +16,17 @@ parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910, REQ-PY-0001, REQ-PY-0002, REQ-PY-0003, REQ-PY-0004, REQ-PY-0005, REQ-PY-0006, REQ-PY-0007, REQ-PY-0008, REQ-PY-0009, REQ-PY-0010]
   constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0104, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0302, REQ-BDC-0402, REQ-BDC-0406, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0002, ADR-CORE-0001, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0002-amendment-a-8, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0101, ADR-STORE-0003, ADR-PY-0001, ADR-PY-0002, ADR-PY-0003, ADR-PY-0004]
 owned_paths:
   - "crates/bd-cache-py/**"
   - ".github/workflows/python.yml"
   - "docs/bd-cache-py/**"
+  # Lead rulings R9 and R11 (bc-lead, 2026-10-24), narrowly:
+  - "crates/bd-cache-model/src/error.rs"        # R9: the code classification only
+  - "crates/bd-cache-model/src/lib.rs"          # R9: the two re-exports only
+  - "crates/bd-cache/src/drain.rs"              # R11: replace the private is_unreachable only
+  - "docs/bd-cache/write-path.md"               # R11: the sentence about it only
+  - "docs/bd-cache-model/architecture.md"       # R11: the a-8 amendment section and the error.rs row only
 ---
 
 # Sprint a-8 — Python bindings (maturin / PyO3)
@@ -173,12 +179,15 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
   `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`).
 - **Workspace dependencies.** `bd-cache-store` and `sc-bd-cli` are in the root
   `[workspace.dependencies]` (lead ruling R2, bc-lead, 2026-10-24; recorded in
-  phase-a-plan's Shared files table); the crate uses `workspace = true`.
+  phase-a-plan's Shared files table); the crate uses `workspace = true`. `dunce` is a third workspace dependency
+  added for this crate (lead ruling R12).
 - **`list` status filter** is validated against `sc_bd_cli::argv::ALL_STATUSES`
   (REQ-PY-0005); `op` is validated against `bd_cache_model::OPS` (R7).
-- **`bd-cache-model`** gained `UNREACHABLE_CODES`, `ENVELOPE_KEYS`,
+- **`bd-cache-model`, `bd-cache/src/drain.rs`** (lead rulings R9, R11): the model gained `UNREACHABLE_CODES`, `ENVELOPE_KEYS`,
   `CacheError::is_unreachable` and `payload_keys` (exhaustive matches) and their
-  tests, in `src/error.rs` plus two re-exports in `lib.rs` (lead ruling R9).
+  tests, in `src/error.rs` plus two re-exports in `lib.rs`; `drain.rs` calls
+  `is_unreachable` instead of its private copy; the decision is the ADR-MODEL-0002
+  amendment (a-8) in `docs/bd-cache-model/architecture.md`.
 - **Start-gate ordering** (gate closes while a pre-read is blocked) is the
   core's, tested with a fake clock in `crates/bd-cache/tests/drain_budget.rs`
   (`test_drain_deadline_defers_unstarted_entries_without_attempts`,
@@ -261,6 +270,13 @@ in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
 REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
 atm-core call evidence in `crates/bd-cache-py/tests/atm_core_05831df_calls.json`,
 extracted with `atm_core_05831df_extract.py` (R8).
+
+## Fix round 3 (QA-3 at bdff45f)
+
+Lead rulings R11, R12 and R13 (bc-lead, 2026-10-24) applied: `dunce` canonicalizes
+the project directory (workspace dependency `dunce`, ADR-PY-0001); a missing or
+non-directory `repo_root` is `ValueError` (`kind` `argument`) with or without
+`project_dir`.
 
 ## Fix round 2 (QA-2 at 1a984b8)
 

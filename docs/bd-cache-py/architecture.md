@@ -18,7 +18,7 @@ and, third party, on `pyo3` (workspace) with `serde` and `serde_json`
 |---|---|
 | `lib` | the `#[pymodule]` `bd_cache_rs`: the `Cache` class, `CacheError`, `UNREACHABLE`, `__version__` |
 | `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, validated overrides, the canonical project directory); the process-wide `ProjectLocks` set |
-| `slot` | pure Rust: the closable, mutex-guarded owner of the `Cache` (close, poison handling) |
+| `slot` | pure Rust: the closable, mutex-guarded owner of the `Cache` (close, panic handling; poisoning is defensive) |
 | `handle` | `PyCache`, the Python `Cache`: argument parsing, the sixteen verbs, GIL release |
 | `convert` | `serde_json::Value` to Python objects, JSON text for `write`, seconds to `Duration` |
 | `error` | `CacheError`, `ClosedError` and the `BD_CACHE.*` error to exception mapping |
@@ -46,13 +46,15 @@ right arguments (the argv `bd` saw) and return what it returned.
 Dependencies (lead ruling R2, R3): the crate takes `bd-cache`, `bd-cache-store`,
 `bd-cache-model`, `sc-bd-cli` and `sc-beads` through `[workspace.dependencies]`
 (`bd-cache-store` and `sc-bd-cli` were added there for this crate), and the
-third-party `pyo3`, `serde` and `serde_json`. `serde` is used only for the
+third-party `pyo3`, `serde`, `serde_json` and `dunce` (the last for canonical
+paths, lead ruling R12). `serde` is used only for the
 `Serialize` bound of replies.
 
 One `ProjectLocks` set per process (a `OnceLock` in `compose`) is shared by every
-handle, keyed by the canonical project directory (std `canonicalize`, with the
-Windows `\\?\` prefix removed by a small helper, so no `dunce` dependency is added;
-an unresolvable directory is refused): `bd` on embedded Dolt must not run twice at once in a project, and two
+handle, keyed by the canonical project directory (`dunce::canonicalize`: the
+std canonical path, without the Windows `\\?\` verbatim prefix where the plain
+form is valid; `dunce` is a workspace dependency added for this crate, lead
+ruling R12, bc-lead, 2026-10-24; an unresolvable directory is refused): `bd` on embedded Dolt must not run twice at once in a project, and two
 handles on one project (different cache files) would otherwise each lock
 separately. It is the only static; it is correctness state and the libraries
 (`sc-bd-cli`) still take the set as an argument. The deadlines of `sync` and
@@ -117,8 +119,9 @@ be opened again at once, and the call raises `ClosedError` carrying the panic
 message and telling the caller to open a new `Cache`; later calls raise it too.
 No `PanicException` reaches Python. (Built with `panic = "abort"` a panic
 aborts the process, which is what a panic means.) A lock poisoned outside a
-verb (a panic in a `Drop`) is handled the same way: the value is dropped, the
-poison is cleared while the guard is held, and the first call reports it.
+verb (a panic in a `Drop`; defensive, nothing in production does this) is handled
+the same way: the value is dropped, the poison is cleared while the guard is
+held, and the first call reports it.
 Nothing reuses a connection after a panic. Replies are converted after the GIL is taken again. SQLite
 allows one connection per process per file (NFR-BDC-0007), so a second open
 of the same file in the process is `STORE_FAILED`; threads that want to run
@@ -196,7 +199,7 @@ people to run), the binding that replaces each, and what differs. `cache` is a
 
 | `bd_cache.py` | Called by | Binding and differences |
 |---|---|---|
-| `BdCache(root, runner=, clock=, db_path=)` | all hooks, cron | `bd_cache_rs.Cache(root, bd_binary=, cache_path=)`; `runner` (a `subprocess.run` stand-in) becomes `bd_binary`, a program path (tests pass a recording program); `clock` has no equivalent; `db_path` is `cache_path`; the default file is `.bd-cache/<db>.bd-cache.sqlite3`, not `.atm-bd/`, so set `cache_path` to keep the Python file; raises `CacheError` (`NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`) as before |
+| `BdCache(root, runner=, clock=, db_path=)` | all hooks, cron | `bd_cache_rs.Cache(root, bd_binary=, cache_path=)`; `runner` (a `subprocess.run` stand-in) becomes `bd_binary`, a program path (tests pass a recording program); `clock` has no equivalent; `db_path` is `cache_path`; the default file is `.bd-cache/<db>.bd-cache.sqlite3`, not `.atm-bd/`, so set `cache_path` to keep the Python file; raises `CacheError` (`NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`) as before for a repository that exists; a `repo_root` that is missing or not a directory is a `ValueError` (`kind` `argument`), with or without `project_dir` |
 | `cache.get(bead, miss_timeout=)` | sanity hook, backfill, close-vars | `cache.get(bead, miss_timeout=)`; the reply is `{row, ...}`, the row dict of Python is `reply["row"]["bead"]`; `reply["row"]["blocked"]` is new |
 | `cache.cached(bead)` | cron (`active_phases`) | `cache.get(bead, miss_timeout=0)`: a hit returns, a miss raises `BD_UNAVAILABLE` without a `bd` call (where Python returned `None`) |
 | `cache.bd_rows(ids, timeout)` then `cache.store(row, force=True)` | sanity hook (`refresh`), cron, close-vars | one call, `cache.refresh(ids, timeout)`: returns a list of views (not a dict by id) already stored with force and with pending writes replayed, so Python's `view(row)` is not needed |

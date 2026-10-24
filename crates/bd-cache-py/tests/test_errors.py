@@ -150,5 +150,8 @@ def test_a_zero_miss_timeout_is_a_cached_only_get(cache, repo):
 def test_a_status_filter_must_be_a_bd_status(cache):
     for status in ("open", "in_progress", "blocked", "deferred", "closed", "pinned", "hooked"):
         assert cache.list("x", status=status)["scope"] == "x"
-    with pytest.raises(ValueError, match="status.*opne.*open,in_progress,blocked,deferred,closed,pinned,hooked"):
+    with pytest.raises(ValueError) as caught:
         cache.list("x", status="opne")
+    assert str(caught.value) == (
+        'status: "opne" is not a bd status; use one of open,in_progress,blocked,deferred,closed,pinned,hooked'
+    )

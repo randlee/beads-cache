@@ -417,7 +417,7 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
     match e {
         OpenError::Config { kind, path, text } => decorate(
             PyValueError::new_err(format!("configuration: {text}")),
-            kind,
+            kind.as_str(),
             path.as_ref(),
         ),
         OpenError::Read { path, text } => decorate(PyOSError::new_err(text), "read", Some(&path)),
@@ -459,5 +459,66 @@ impl PyCache {
     {
         let value = self.run(py, f)?;
         reply(py, &value)
+    }
+}
+
+#[cfg(test)]
+#[allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "test code: a failed unwrap is a test failure"
+)]
+mod tests {
+    use sc_beads::SystemClock;
+
+    use super::*;
+
+    /// A beads repository with just the metadata the store needs.
+    fn repo() -> tempfile::TempDir {
+        let dir = tempfile::TempDir::new().unwrap();
+        std::fs::create_dir(dir.path().join(".beads")).unwrap();
+        std::fs::write(
+            dir.path().join(".beads").join("metadata.json"),
+            r#"{"dolt_database": "panic-test", "project_id": "p-1"}"#,
+        )
+        .unwrap();
+        dir
+    }
+
+    fn inner(dir: &std::path::Path) -> Result<(Inner, PathBuf), OpenError> {
+        let opened = compose::open(dir, "bd", None, Overrides::default())?;
+        let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+        let _ = opened.clock;
+        Ok((
+            Inner {
+                cache: opened.cache,
+                clock,
+            },
+            opened.path,
+        ))
+    }
+
+    #[test]
+    fn a_panicking_verb_on_a_real_composition_closes_the_slot_and_frees_the_cache_file() {
+        let dir = repo();
+        let (value, path) = inner(dir.path()).unwrap_or_else(|e| panic!("{e:?}"));
+        let slot = Slot::new(value);
+        // The file is held while the handle lives.
+        assert!(matches!(
+            compose::open(dir.path(), "bd", None, Overrides::default()),
+            Err(OpenError::Cache(ModelError::StoreFailed { .. }))
+        ));
+        let outcome = slot.with(|v| -> u32 {
+            let _ = &v.cache;
+            panic!("a verb panicked")
+        });
+        assert_eq!(outcome, Outcome::Panicked("a verb panicked".to_owned()));
+        assert!(slot.is_closed());
+        // The connection went with the panic: the same file opens again at once.
+        let (again, again_path) = inner(dir.path()).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(again_path, path);
+        drop(again);
+        assert_eq!(slot.with(|_| 1), Outcome::Closed);
     }
 }

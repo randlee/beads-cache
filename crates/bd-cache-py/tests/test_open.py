@@ -157,3 +157,20 @@ def test_a_missing_bd_is_an_outage_not_a_crash(repo):
 
 def test_the_module_reports_the_wheel_version():
     assert bd_cache_rs.__version__.count(".") == 2
+
+
+def test_a_repo_root_that_is_missing_is_an_argument_error_with_or_without_project_dir(repo, tmp_path):
+    missing = str(tmp_path / "no-such-root")
+    for kwargs in ({}, {"project_dir": str(repo.root)}):
+        with pytest.raises(ValueError, match="repo_root.*does not resolve") as caught:
+            bd_cache_rs.Cache(missing, bd_binary=str(repo.bd.binary), **kwargs)
+        assert caught.value.kind == "argument", kwargs
+
+
+def test_a_repo_root_that_is_a_file_is_an_argument_error_with_or_without_project_dir(repo, tmp_path):
+    a_file = tmp_path / "a-file"
+    a_file.write_text("x", encoding="utf-8")
+    for kwargs in ({}, {"project_dir": str(repo.root)}):
+        with pytest.raises(ValueError, match="repo_root.*is not a directory") as caught:
+            bd_cache_rs.Cache(str(a_file), bd_binary=str(repo.bd.binary), **kwargs)
+        assert caught.value.kind == "argument", kwargs

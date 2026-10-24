@@ -33,13 +33,38 @@ pub(crate) struct Overrides {
     pub(crate) max_attempts: Option<u32>,
 }
 
+/// What kind of configuration problem an [`OpenError::Config`] is (its `kind` attribute).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ConfigKind {
+    /// `.beads/bd-cache.toml` is not valid TOML, has an unknown key or a mistyped value.
+    Parse,
+    /// A `scopes` entry is not a phase name.
+    Scope,
+    /// An argument is invalid: a path that is not UTF-8, missing or not a directory.
+    Argument,
+    /// Any other problem the loader reports.
+    Config,
+}
+
+impl ConfigKind {
+    /// The text of the `kind` attribute.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Parse => "parse",
+            Self::Scope => "scope",
+            Self::Argument => "argument",
+            Self::Config => "config",
+        }
+    }
+}
+
 /// Why a cache could not be opened.
 #[derive(Debug)]
 pub(crate) enum OpenError {
     /// The config file or an argument is invalid: a `ValueError` with `kind` and `path`.
     Config {
-        /// `read`-independent kind: `parse`, `scope`, `argument` or `config`.
-        kind: &'static str,
+        /// What is wrong.
+        kind: ConfigKind,
         /// The file the problem is in, when there is one.
         path: Option<PathBuf>,
         /// The message, with the cause chain.
@@ -75,17 +100,17 @@ impl From<ConfigLoadError> for OpenError {
         match e {
             ConfigLoadError::Read { path, .. } => Self::Read { path, text },
             ConfigLoadError::Parse { path, .. } => Self::Config {
-                kind: "parse",
+                kind: ConfigKind::Parse,
                 path: Some(path),
                 text,
             },
             ConfigLoadError::Scope { path, .. } => Self::Config {
-                kind: "scope",
+                kind: ConfigKind::Scope,
                 path: Some(path),
                 text,
             },
             _ => Self::Config {
-                kind: "config",
+                kind: ConfigKind::Config,
                 path: None,
                 text,
             },
@@ -130,45 +155,53 @@ fn project_locks() -> Arc<ProjectLocks> {
     Arc::clone(LOCKS.get_or_init(|| Arc::new(ProjectLocks::new())))
 }
 
+fn refuse(text: String) -> OpenError {
+    OpenError::Config {
+        kind: ConfigKind::Argument,
+        path: None,
+        text,
+    }
+}
+
+/// Checks the repository root: valid UTF-8 and an existing directory.
+///
+/// Validated on its own, before `project_dir`, so a bad root is the same
+/// `ValueError` (`kind` `argument`) whether or not `project_dir` is given.
+fn check_repo_root(p: &Path) -> Result<(), OpenError> {
+    p.to_str()
+        .ok_or_else(|| refuse(format!("repo_root {} is not valid UTF-8", p.display())))?;
+    match std::fs::metadata(p) {
+        Ok(m) if m.is_dir() => Ok(()),
+        Ok(_) => Err(refuse(format!(
+            "repo_root {} is not a directory",
+            p.display()
+        ))),
+        Err(e) => Err(refuse(format!(
+            "repo_root {} does not resolve: {e}",
+            p.display()
+        ))),
+    }
+}
+
 /// The directory `bd` runs in, resolved to its one canonical spelling.
 ///
 /// The lock key is the directory text, so `root`, `root/.`, `root/` and a symlink to
 /// `root` must all become one string, or two handles on one project would run `bd`
-/// at the same time. A directory that does not resolve is refused. On Windows the
-/// `\\?\` prefix `canonicalize` adds is removed (what the `dunce` crate does), so the
-/// path stays the one `bd` and the user see; no dependency is added for it.
+/// at the same time. A directory that does not resolve is refused. `dunce`
+/// canonicalizes like `std::fs::canonicalize` but, on Windows, returns the plain
+/// `C:\...` form where it is valid, not the `\\?\` verbatim form (R12).
 fn project_dir_text(what: &str, p: &Path) -> Result<String, OpenError> {
-    let refuse = |text: String| OpenError::Config {
-        kind: "argument",
-        path: None,
-        text,
-    };
     p.to_str()
         .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", p.display())))?;
-    let canonical = std::fs::canonicalize(p)
+    let canonical = dunce::canonicalize(p)
         .map_err(|e| refuse(format!("{what} {} does not resolve: {e}", p.display())))?;
     if !canonical.is_dir() {
         return Err(refuse(format!("{what} {} is not a directory", p.display())));
     }
-    let text = canonical
+    canonical
         .to_str()
-        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", canonical.display())))?;
-    Ok(simplify(text).to_owned())
-}
-
-/// Drops the Windows verbatim prefix `\\?\` from a canonical path, unless the path
-/// needs it (`\\?\UNC\...`, or a drive-less device path).
-fn simplify(text: &str) -> &str {
-    match text.strip_prefix(r"\\?\") {
-        Some(rest)
-            if !rest.starts_with(r"UNC\")
-                && rest.as_bytes().get(1) == Some(&b':')
-                && rest.as_bytes().first().is_some_and(u8::is_ascii_alphabetic) =>
-        {
-            rest
-        }
-        _ => text,
-    }
+        .map(str::to_owned)
+        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", canonical.display())))
 }
 
 /// Opens the cache of `repo_root`, running `bd_binary` in `project_dir`.
@@ -177,8 +210,9 @@ fn simplify(text: &str) -> &str {
 ///
 /// # Errors
 ///
-/// [`OpenError::Config`] for an invalid config file or scope, a non-UTF-8 path, or a
-/// `project_dir` (or the default, `repo_root`) that does not resolve to a directory;
+/// [`OpenError::Config`] for an invalid config file or scope, a `repo_root` that is not
+/// UTF-8 or not an existing directory (checked first, whether or not `project_dir` is
+/// given), or a `project_dir` that is not UTF-8 or does not resolve to a directory;
 /// [`OpenError::Read`] for an unreadable config file; [`OpenError::Cache`]
 /// for `NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION` or `STORE_FAILED`.
 pub(crate) fn open(
@@ -187,13 +221,9 @@ pub(crate) fn open(
     project_dir: Option<&Path>,
     overrides: Overrides,
 ) -> Result<Opened, OpenError> {
+    check_repo_root(repo_root)?;
     let (what, dir) = project_dir.map_or(("repo_root", repo_root), |d| ("project_dir", d));
     let project = ProjectRef::local(Some(project_dir_text(what, dir)?));
-    repo_root.to_str().ok_or_else(|| OpenError::Config {
-        kind: "argument",
-        path: None,
-        text: format!("repo_root {} is not valid UTF-8", repo_root.display()),
-    })?;
     let mut config: RepoConfig = load_repo_config(repo_root)?;
     if let Some(p) = overrides.cache_path {
         config.cache_path = Some(p);
@@ -247,16 +277,9 @@ mod tests {
     }
 
     #[test]
-    fn the_windows_verbatim_prefix_is_dropped_only_where_it_is_not_needed() {
-        assert_eq!(simplify(r"\\?\C:\work\repo"), r"C:\work\repo");
-        assert_eq!(simplify(r"\\?\UNC\host\share"), r"\\?\UNC\host\share");
-        assert_eq!(simplify(r"\\?\Volume{1}\x"), r"\\?\Volume{1}\x");
-        assert_eq!(simplify("/tmp/repo"), "/tmp/repo");
-    }
-
-    #[test]
     fn spellings_of_one_directory_become_one_lock_key_and_a_missing_one_is_refused() {
-        let dir = std::env::temp_dir();
+        let tmp = tempfile::TempDir::new().unwrap();
+        let dir = tmp.path().to_path_buf();
         let plain = project_dir_text("project_dir", &dir).unwrap();
         let dotted = project_dir_text("project_dir", &dir.join(".")).unwrap();
         let slashed = project_dir_text("project_dir", &dir.join("")).unwrap();
@@ -265,7 +288,7 @@ mod tests {
         assert!(matches!(
             project_dir_text("project_dir", &dir.join("no-such-dir-bd-cache-py")),
             Err(OpenError::Config {
-                kind: "argument",
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
@@ -276,20 +299,39 @@ mod tests {
     fn a_non_utf8_path_is_refused_not_converted_lossily() {
         use std::ffi::OsStr;
         use std::os::unix::ffi::OsStrExt;
-        let bad = Path::new(OsStr::from_bytes(b"/tmp/\xff\xfe"));
+        let tmp = tempfile::TempDir::new().unwrap();
+        let bad = tmp.path().join(OsStr::from_bytes(b"\xff\xfe"));
         assert!(matches!(
-            open(bad, "bd", None, Overrides::default()),
+            open(&bad, "bd", None, Overrides::default()),
             Err(OpenError::Config {
-                kind: "argument",
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
         assert!(matches!(
-            open(Path::new("/tmp"), "bd", Some(bad), Overrides::default()),
+            open(tmp.path(), "bd", Some(&bad), Overrides::default()),
             Err(OpenError::Config {
-                kind: "argument",
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
+    }
+
+    #[test]
+    fn a_repo_root_that_is_missing_or_a_file_is_one_argument_error_with_or_without_project_dir() {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let missing = tmp.path().join("no-such-root");
+        let file = tmp.path().join("a-file");
+        std::fs::write(&file, "x").unwrap();
+        for root in [&missing, &file] {
+            for project_dir in [None, Some(tmp.path())] {
+                let r = open(root, "bd", project_dir, Overrides::default());
+                assert!(
+                    matches!(&r, Err(OpenError::Config { kind: ConfigKind::Argument, text, .. }) if text.starts_with("repo_root")),
+                    "{root:?} {project_dir:?}: {:?}",
+                    r.err()
+                );
+            }
+        }
     }
 }

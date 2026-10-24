@@ -14,9 +14,11 @@
 //!   `is_closed` is already true and the file is free to reopen. The panic does not
 //!   reach Python. (With `panic = "abort"` the process aborts instead, which is
 //!   what a panic means, M-PANIC-IS-STOP.)
-//! - the mutex can still be poisoned by a panic outside a verb (a `Drop`); the
-//!   slot then drops the value, clears the poison while holding the guard, closes
-//!   and reports [`Outcome::Poisoned`] once; later calls see [`Outcome::Closed`].
+//! - [`Outcome::Poisoned`] is defensive. Verbs run under `catch_unwind`, so the lock
+//!   is not poisoned by them; only a panic elsewhere while the guard is held (a
+//!   `Drop` of the value) could, and nothing in production does that. If it ever
+//!   happens the slot drops the value, clears the poison while holding the guard,
+//!   closes and reports `Poisoned` once; later calls see [`Outcome::Closed`].
 
 use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
@@ -32,7 +34,8 @@ pub(crate) enum Outcome<R> {
     Closed,
     /// The verb panicked with this message; the slot dropped its value and closed.
     Panicked(String),
-    /// The lock was poisoned by an earlier panic; the slot dropped its value and closed.
+    /// Defensive (see the module docs): the lock was poisoned by a panic outside a verb;
+    /// the slot dropped its value and closed.
     Poisoned,
 }
 
@@ -184,7 +187,12 @@ mod tests {
             thread::spawn(move || slot.close())
         };
         // `is_closed` turns true while the verb is still holding the lock.
+        let end = std::time::Instant::now() + Duration::from_secs(30);
         while !slot.is_closed() {
+            assert!(
+                std::time::Instant::now() < end,
+                "close() never marked the slot closed"
+            );
             thread::yield_now();
         }
         assert_eq!(slot.with(|_| 1), Outcome::Closed, "a new verb is refused");
