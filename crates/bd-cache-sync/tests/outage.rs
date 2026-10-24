@@ -267,3 +267,32 @@ fn during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_dr
     assert!(cache.get(&common::id("bx"), None).unwrap().outage.is_none());
     assert_eq!(w.sender.sent().len(), 2, "recovery is silent");
 }
+
+/// The alert is reset when the outage ends even for a scope that is not
+/// synced that tick (here its root was closed by a journaled write, so the
+/// phase is no longer active), and the lead is not told.
+#[test]
+fn the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends() {
+    let (w, mut cache) = two_phases();
+    w.switch.set_down(true);
+    w.tick(&mut cache);
+    assert_eq!(alert(&cache, "x").as_deref(), Some(OUTAGE_CAUSE));
+    w.sender.clear();
+
+    // During the outage the lead of phase x closes its root: journaled, visible at once.
+    let seq = w.journal_close(&mut cache, "rx", "k-root");
+    w.switch.set_down(false);
+    w.next_tick();
+    let back = w.tick(&mut cache);
+
+    assert_eq!(back.drain.as_ref().unwrap().applied, [seq], "{back:?}");
+    assert_eq!(
+        back.active,
+        [scope("y").phase_name().clone()],
+        "x is no longer active"
+    );
+    assert!(cache.status().unwrap().store.outage.is_none());
+    assert_eq!(alert(&cache, "x"), None, "reset although x was not synced");
+    assert_eq!(alert(&cache, "y"), None);
+    assert!(w.sender.sent().is_empty(), "recovery is silent");
+}

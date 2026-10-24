@@ -43,6 +43,7 @@ fn test_tick_budget_defers_drain_entries() {
     // = 20 s) but its read-back would end at 24 s, past the hard deadline
     // (T - 2 s = 23 s).
     w.bd.set_cost(6 * SECOND);
+    w.bd.clear_calls(); // forget the setup's sync
     let start = w.clock.elapsed();
 
     let reply = w.tick(&mut cache);
@@ -64,6 +65,21 @@ fn test_tick_budget_defers_drain_entries() {
         w.clock.elapsed().saturating_sub(start) <= TICK_BUDGET,
         "the tick took {:?}",
         w.clock.elapsed().saturating_sub(start)
+    );
+    // The deferred sync made no bd call at all: only the drain's backend check
+    // and none of the sync's.
+    let calls = w.bd.calls();
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| c.op() == FakeOp::Fingerprint)
+            .count(),
+        1,
+        "{calls:?}"
+    );
+    assert!(
+        calls.iter().all(|c| c.op() != FakeOp::ListScope),
+        "{calls:?}"
     );
     // A deferral is not a refusal.
     assert_eq!(reply.outcome, TickOutcome::PassThrough, "{reply:?}");

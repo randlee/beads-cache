@@ -227,3 +227,107 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::{Arc, Mutex};
+
+    use bd_cache_model::testing::{FakeDrainLock, FakeStore};
+    use bd_cache_model::{CacheConfig, SendError};
+    use sc_beads::testing::{FakeBackend, ManualClock};
+    use sc_beads::{Clock, ProjectRef};
+
+    use super::*;
+
+    /// Records what it is asked to send.
+    #[derive(Default)]
+    struct Recorder(Mutex<Vec<String>>);
+
+    impl EscalationSender for Recorder {
+        fn send(&self, lead: &str, _team: &str, _body: &str) -> Result<(), SendError> {
+            self.0.lock().unwrap().push(lead.to_owned());
+            Ok(())
+        }
+    }
+
+    fn cache() -> Cache<FakeStore, FakeDrainLock, FakeBackend> {
+        let clock = Arc::new(ManualClock::default());
+        Cache::new(
+            CacheConfig::new(ProjectRef::local(None), vec![]),
+            FakeStore::new(),
+            FakeDrainLock::new(),
+            FakeBackend::new(Arc::clone(&clock)),
+            clock as Arc<dyn Clock>,
+        )
+        .unwrap()
+    }
+
+    fn phase() -> Phase {
+        Phase {
+            name: PhaseName::new("x").unwrap(),
+            root: sc_beads::testing::id("rx"),
+            lead: Some("lead-x".into()),
+        }
+    }
+
+    fn settings() -> TickSettings {
+        TickSettings::from_config(&bd_cache_model::TickConfig {
+            team: Some("t".into()),
+            fallback_lead: Some("f".into()),
+            ..bd_cache_model::TickConfig::default()
+        })
+        .unwrap()
+    }
+
+    fn sync_failed(cause: Option<SyncCause>) -> CacheError {
+        CacheError::SyncFailed {
+            detail: "phase x: scripted".into(),
+            scope: Some(ScopeId::phase("x").unwrap()),
+            cause,
+            source: None,
+        }
+    }
+
+    /// An unreachable backend is the outage's to announce, never a phase's:
+    /// the sync reports it as an outage, but a `SYNC_FAILED` that names
+    /// `BD_UNAVAILABLE` as its cause (the baseline's rule) is held back too.
+    #[test]
+    fn a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase() {
+        let sender = Recorder::default();
+        let mut cache = cache();
+        let mut reply = TickReply::started();
+        sync_failure(
+            &mut cache,
+            &sender,
+            &settings(),
+            &phase(),
+            &sync_failed(Some(SyncCause::BdUnavailable)),
+            &mut reply,
+        )
+        .unwrap();
+        assert!(sender.0.lock().unwrap().is_empty());
+        assert!(reply.sent.is_empty() && reply.refused.is_empty());
+        assert_eq!(cache.sync_alert(&phase().scope()).unwrap(), None);
+
+        // Any other cause is announced, and keyed by its code.
+        sync_failure(
+            &mut cache,
+            &sender,
+            &settings(),
+            &phase(),
+            &sync_failed(Some(SyncCause::BdContract)),
+            &mut reply,
+        )
+        .unwrap();
+        assert_eq!(*sender.0.lock().unwrap(), ["lead-x"]);
+        assert_eq!(
+            cache.sync_alert(&phase().scope()).unwrap().as_deref(),
+            Some("BD_CACHE.BD_CONTRACT")
+        );
+        // A SYNC_FAILED with no known cause is keyed by its own code.
+        assert_eq!(
+            cause_key(&sync_failed(None)),
+            "BD_CACHE.SYNC_FAILED".to_owned()
+        );
+    }
+}

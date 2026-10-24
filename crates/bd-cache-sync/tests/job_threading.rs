@@ -58,8 +58,10 @@ fn a_second_tick_while_a_blocking_sync_is_running_is_skipped_and_reported_busy()
     };
     w.switch.gate.wait_entered(1);
 
-    let second = job.run_blocking(w.after(TICK_BUDGET));
-    assert!(matches!(second, TickRun::Busy), "{second:?}");
+    let second = done(job.run_blocking(w.after(TICK_BUDGET)));
+    assert!(second.busy, "{second:?}");
+    assert_eq!(second.outcome, TickOutcome::Refused);
+    assert!(second.synced.is_empty() && second.drain.is_none());
     // The skipped tick made no bd call of its own.
     assert_eq!(
         w.bd.calls()

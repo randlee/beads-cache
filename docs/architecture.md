@@ -107,7 +107,7 @@ values. Format details (keys, and how it relates to BD-CACHE's
   wait for the drain.
 - **Drain:** applies journaled writes through the backend port in `seq`
   order, with achieved checks, preconditions and read-back (BD-CACHE.md).
-- **Sync:** the sync task (on sc-runtime) refreshes each active scope from
+- **Sync:** the sync task (`bd-cache-sync` on `sc-cron` in phase a, on sc-runtime later) refreshes each active scope from
   its own cursor, then refreshes the scope's ready/blocked base from
   `bd blocked -l` and `bd ready -l`; reads adjust that base for our journaled
   writes without a bd call (ADR-BDC-0002).
@@ -125,12 +125,12 @@ values. Format details (keys, and how it relates to BD-CACHE's
 
 ## Crate Layout
 
-Status: proposed for phase a. Phase a builds only the crates that do not
-depend on sc-runtime crates (sc-config, sc-transport, sc-command,
-sc-runtime), which are being built in parallel. sc-runtime has no cron or
-scheduler crate today, so phase a also prototypes one here (`sc-cron`) and
-builds the sync task on it, to finish more of the deliverables before
-integrating with sc-runtime.
+Status: as shipped by sprints a-1 to a-7 for phase a (`bd-cache-py` is sprint
+a-8's). Phase a builds only the crates that do not depend on sc-runtime
+crates (sc-config, sc-transport, sc-command, sc-runtime), which are being
+built in parallel. sc-runtime has no cron or scheduler crate today, so phase
+a also prototypes one here (`sc-cron`) and builds the sync task on it, to
+finish more of the deliverables before integrating with sc-runtime.
 
 | Crate | Responsibility | May depend on | Phase |
 |---|---|---|---|
@@ -142,7 +142,7 @@ integrating with sc-runtime.
 | `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
-| `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
+| `bd-cache-sync` | The sync task on `sc-cron`: `tick` (drain with `T - 5 s` / `T - 2 s`, then sync each active phase, deferring any not started by `T - 2 s`), `stop_reason`, announcements through `EscalationSender` (sync failures once per cause, outage once per scope as the alert `backend_unavailable`, escalations once with the `resolve` command; `AtmSender`, which runs `atm send`, is one implementation), `SyncJob` (the `sc-cron` job: `Cache` in `Arc<Mutex<_>>` under `spawn_blocking`), `schedule_spec`, and `compose` (the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, toml (phase files), tracing | a |
 | `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3 | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
@@ -150,7 +150,11 @@ Phase a acceptance runs through the core library API with the fake
 backend: the ported cases from `test_bd_cache.py` (44), the 13 cases from
 `test_bd_cache_cron.py` against the sync task with an injected sender, and
 the bd-1.3.1 contract fixtures. `sc-cron` carries its own tests, ported from
-atm-cron where they apply.
+atm-cron where they apply. Sprint a-7 adds the end-to-end flow through the
+real composition (`SqliteStore`, `FlockDrainLock`, `BdCli` over a recording
+fake `bd`, `SyncJob` on a scheduler) in CI, and the same flow against a
+scratch `bd` workspace on the testbed
+(`docs/plans/phase-a/evidence/a-7-testbed.md`).
 
 ## Boundaries and Dependencies
 
@@ -179,6 +183,22 @@ per-crate docs. ADR template: `**Status:**` (Draft, Proposed, Approved,
 Active, Superseded), context, decision, and consequences. An ADR changes only
 through a later ADR that names the one it amends or supersedes. Domain
 code: `BDC`.
+
+### Implementation of the repo-level ADRs (phase a)
+
+Where each ADR is implemented and decided in detail, from the crate docs
+(a-7 keeps this table current):
+
+| ADR | Status | Implemented in |
+|---|---|---|
+| ADR-BDC-0001 | Approved | `bd-cache-store` (ADR-STORE-0001, 0002: scope registry, membership), `bd-cache` (ADR-CORE-0204, 0205: scoped reads, prune) |
+| ADR-BDC-0002 | Approved | `bd-cache` (ADR-CORE-0201, 0203: the ready adjustment, bounded fresh ready), `bd-cache-store` (ready base), `bd-cache-sync` (the base is refreshed by each sync; end-to-end in `tests/e2e.rs`) |
+| ADR-BDC-0003 | Approved | `bd-cache-model` (ADR-MODEL-0001, 0002: ops, patch shapes, error reasons) |
+| ADR-BDC-0004 | Approved | `sc-beads` (`CacheBackend`, ADR-BEADS-0002), `sc-bd-cli` (ADR-BDCLI-0001, 0002) |
+| ADR-BDC-0005 | Approved | `bd-cache` (REQ-CORE-0001, 0002; ADR-CORE-0101, 0202), `bd-cache-sync` (ADR-SYNC-0002, 0003: the outage announcement) |
+| ADR-BDC-0006 | Approved | `sc-cron` (ADR-CRON-0001..0006), `bd-cache-sync` (dependencies listed in the Crate Layout) |
+| ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0003) |
+| ADR-BDC-0008 | Draft | not in phase a |
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 

@@ -37,9 +37,7 @@ pub const TICK_EXPR: &str = "*/30 * * * * *";
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum TickRun {
-    /// An earlier tick still holds the cache; this one did nothing.
-    Busy,
-    /// The tick ran; the reply says how it went.
+    /// The tick ran, or was skipped: the reply says which (`busy`) and how it went.
     Done(Box<TickReply>),
     /// The tick failed with a store or cache error.
     Failed(CacheError),
@@ -85,7 +83,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
 
     fn run_tick(&self, end: Deadline) -> TickRun {
         let Some(mut held) = self.try_hold() else {
-            return TickRun::Busy;
+            return TickRun::Done(Box::new(TickReply::busy()));
         };
         match tick(
             &mut held.guard,
@@ -241,9 +239,6 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
 /// Maps a finished run to the scheduler's outcome.
 fn outcome_of(run: TickRun) -> RunOutcome {
     match run {
-        TickRun::Busy => RunOutcome::Refused(
-            "busy: an earlier tick still holds the cache; this tick was skipped".to_owned(),
-        ),
         TickRun::Done(reply) => match reply.outcome {
             TickOutcome::PassThrough => RunOutcome::Ok,
             TickOutcome::Refused => RunOutcome::Refused(reply.refused.join("; ")),
