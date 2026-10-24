@@ -162,6 +162,7 @@ fn status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage(
     );
     assert!(st.meta.contains_key("bd_schema_sha256"));
     assert_eq!(st.outage, None);
+    assert!(st.stale.is_empty());
 
     w.bd.inject(
         FakeOp::ListScope,
@@ -169,6 +170,20 @@ fn status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage(
     );
     c.sync(&x(), w.after(T30)).unwrap();
     assert!(c.status().unwrap().store.outage.is_some());
+}
+
+#[test]
+fn status_reports_stale_rows_until_a_sync_rereads_them() {
+    let w = World::new();
+    let mut c = synced(&w);
+    let seq = journal(&mut c, &w, "k1", "b2");
+    let at = w.clock.now_utc();
+    store_mut(&mut c)
+        .apply_with_readback(seq, None, Some("BD_CACHE.BD_UNAVAILABLE: timeout"), &at)
+        .unwrap();
+    assert_eq!(c.status().unwrap().store.stale, vec![id("b2")]);
+    c.sync(&x(), w.after(T30)).unwrap();
+    assert!(c.status().unwrap().store.stale.is_empty());
 }
 
 #[test]
