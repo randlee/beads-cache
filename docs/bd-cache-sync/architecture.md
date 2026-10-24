@@ -76,6 +76,13 @@ Consequences: a tick never waits for a mutex, so ticks cannot queue up
 behind a stuck task; the host's own reads and writes use `with_cache` (which
 waits, so not from async code) or `try_with_cache` (which does not).
 
+Note (fix-a-7-3, lead ruling S20, QA3-005): the drain keeps its own budget and
+does not look at the stop flag; a stop that arrives while it runs is seen when
+it returns. The worst-case shutdown delay while a drain runs is therefore the
+drain's hard deadline, `T - 2 s`: the start gate (no new entry starts after
+`T - 5 s`) plus one `bd` call (the entry in flight is capped at `T - 2 s`).
+`control.rs` implements this and `tests/tick_budget.rs` tests it.
+
 ## ADR-SYNC-0003: Announcements record their marker only after delivery, inside the tick's budget
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -105,6 +112,15 @@ amended by lead ruling S3, bc-lead, 2026-10-24).
 Consequences: a lead hears of an outage once per outage, however many ticks
 it lasts; a sender that is down for hours is retried every tick without
 losing anything; a slow sender cannot push a tick past `T`.
+
+Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
+`"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
+the bare key. The tick reads the code before the first `": "` with
+`AlertCause::from_key` (through `AlertCause::from_stored`), so an alert written
+in the Python form does not make it announce the same cause again. Python
+records the generic `BD_CACHE.SYNC_FAILED` for every sync failure, and that
+covers any sync cause; any other stored code covers only itself, so a different
+cause is announced. `tests/announce.rs` pins both cases.
 
 ## ADR-SYNC-0004: The stop rule requires positive knowledge
 
@@ -139,6 +155,17 @@ the scope; it is paid once per active phase per tick, not per read.
 Consequences: a root that carries no `phase-<x>` label is read from bd every
 tick; the phase is no worse off than the baseline's uncached-root rule.
 
+Amendment (fix-a-7-3, lead ruling S19, ARCH-202; **Status:** Approved,
+bc-lead, 2026-10-24): phase roots are read with `Cache::cached`, not
+`Cache::list`: one bead, no `bd` call and no scan of the scope. The answer is
+trusted only when the phase's own label (`phase-<x>`) holds the bead and the
+scope has synced (`scope_last_ok_at` is set), because a sync is what keeps the
+row current; otherwise the root is unknown and is read with the one
+`Cache::refresh` above. The cost stated above ("proportional to the scope") is
+superseded: it is constant while no write is in flight, and when a write is in
+flight (pending, or applied since the scope's base was fetched) the scope's
+base is adjusted, as `get` does, until the next sync (QA3-006; ADR-CORE-0206).
+
 ## ADR-SYNC-0006: Third-party and dev dependencies of bd-cache-sync
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -158,8 +185,15 @@ schedule payload), `toml` (the phase files; the `[tick]` table is parsed by
 takes a `chrono::Duration`), `rusqlite` (tests seed and inspect the cache file),
 `tokio`'s `test-util` feature (the scheduler tests), and the `testing`, `test-support` and
 `test-utils` features of the crates above. The process tree of `atm` is killed
-with the platform's `kill`/`taskkill` programs rather than a `libc` or
-`windows-sys` dependency, so the crate has no `unsafe`.
+with the platform's `kill`/`taskkill` programs rather than a `windows-sys`
+dependency, so the crate has no `unsafe`.
+
+Amendment (fix-a-7-3, RSH-024): `libc` is a normal dependency on Unix only
+(`[target.'cfg(unix)'.dependencies]` in the crate, `libc = "0.2"` in the root
+`[workspace.dependencies]`). It supplies the `O_NONBLOCK` constant alone, used
+to open a phase file so that one that is a FIFO cannot block the tick while it
+holds the cache mutex; the file's type is then checked on the opened handle.
+No `libc` function is called, so the crate still has no `unsafe`.
 
 Consequences: a new dependency is a change to this ADR.
 
@@ -193,6 +227,16 @@ Decision (confirmed against that commit with `gh api`; ported fixtures
   texts differ (the resolve command is `bd-cache resolve`, the Rust CLI's
   name); everything else a lead needs is the same (the entry, the error, the
   recovery).
+
+Amendment (fix-a-7-3, RSH-023): the output of `atm` is read by threads
+bounded as `atm.rs` documents. Each send starts at most three threads (the
+message writer and one reader per output stream). A reader keeps at most
+`CAPTURE_LIMIT` (4096 bytes) and drops the rest, and the error says so; the
+threads are waited for no longer than the time left in the tick's budget. They
+end when the pipes close, so a descendant of `atm` that outlives a failed send
+and holds a pipe keeps its reader thread until it exits; the process tree is
+killed on a timeout or a stop, but a descendant that escapes the group is not
+the tick's to reap. After a successful send nothing is killed or waited for.
 
 Consequences: the Python cron module and this crate can read the same phase
 files; a change of either contract changes this ADR.

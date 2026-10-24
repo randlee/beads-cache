@@ -237,6 +237,59 @@ fn test_sync_failure_is_announced_once_per_cause() {
     assert_eq!(w.sender.sent_to("lead-x").len(), 3);
 }
 
+/// `bd_cache.py` stores a scope's alert as `"<code>: <detail>"` (atm-core
+/// `05831df`); the tick must read the code, not compare the whole text.
+#[test]
+fn a_python_format_sync_alert_for_the_same_cause_is_not_announced_again() {
+    for stored in [
+        // The generic code the Python cron records for every sync failure.
+        "BD_CACHE.SYNC_FAILED: boom",
+        // The same underlying code, in the Python "<code>: <detail>" form.
+        "BD_CACHE.BD_LIST_FAILED: boom",
+    ] {
+        let w = World::new();
+        w.phase("x", Some("lead-x"));
+        let mut cache = w.cache();
+        cache.set_sync_alert(&scope("x"), Some(stored)).unwrap();
+        w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+
+        let reply = w.tick(&mut cache);
+
+        assert!(reply.sent.is_empty(), "{stored}: {reply:?}");
+        assert!(
+            w.sender.sent().is_empty(),
+            "{stored}: {:?}",
+            w.sender.sent()
+        );
+        assert_eq!(
+            cache.sync_alert(&scope("x")).unwrap().as_deref(),
+            Some(stored),
+            "the Python-written alert is left as it was"
+        );
+    }
+}
+
+#[test]
+fn a_python_format_sync_alert_for_a_different_cause_is_announced() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let mut cache = w.cache();
+    cache
+        .set_sync_alert(&scope("x"), Some("BD_CACHE.BD_VERSION_FAILED: boom"))
+        .unwrap();
+    w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+
+    let reply = w.tick(&mut cache);
+
+    let sent = w.sender.sent_to("lead-x");
+    assert_eq!(sent.len(), 1, "{reply:?}");
+    assert!(sent[0].body.contains("BD_LIST_FAILED"), "{}", sent[0].body);
+    assert_eq!(
+        cache.sync_alert(&scope("x")).unwrap().as_deref(),
+        Some("BD_CACHE.BD_LIST_FAILED")
+    );
+}
+
 #[test]
 fn an_undelivered_sync_failure_is_refused_and_retried_not_recorded() {
     let w = World::new();
