@@ -63,7 +63,8 @@ write and read paths (a-5, a-6).
    refused and retried like any announcement (REQ-BDC-0704, 0706). The tick is a library entry point,
    `tick(&mut Cache, &TickConfig, &dyn EscalationSender, end: Deadline)`, so it
    can be driven by `sc-cron` here or by an external scheduler such as the
-   ATM cron module (through the later `bdc tick` or Python bindings); only
+   ATM cron module through the later `bdc tick` (the Python path composes
+   `drain`, `sync` and the announcement verbs instead); only
    one ticker may run per cache file. The tick reads its keys from
    `RepoConfig.tick` via a-4's `load_repo_config`.
 3. End-to-end tests (`crates/bd-cache-sync/tests/`): a journaled write applied by a scheduled

@@ -51,7 +51,7 @@ code from a-4 or a-5.
    and the scope's `last_ok_at`.
 2. `list` (REQ-BDC-0203, 0902): rows of a scope with the overlay, `stale`
    per row, `last_ok_at`, and the `--status` / `--label` filters; an
-   unconfigured scope is `SCOPE_UNKNOWN` naming the configured scopes.
+   unknown scope is `SCOPE_UNKNOWN` naming the known scopes.
 3. `sync(scope, deadline)` (REQ-BDC-0501..0504, 0008): `backend_check::run`,
    cursor minted from the sync start time and sent as `last_ok_at - 2 min`,
    validate every row before storing any, newer-row guard, stale re-read

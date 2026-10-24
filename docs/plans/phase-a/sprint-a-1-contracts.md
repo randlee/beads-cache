@@ -238,7 +238,7 @@ pub trait EscalationSender: Send + Sync { fn send(&self, lead: &str, team: &str,
 /// The `.beads/bd-cache.toml` schema; a-4 owns the one loader (bd_cache_store::load_repo_config).
 pub struct RepoConfig { pub cache_path: Option<PathBuf>, pub scopes: Vec<String>, pub call_timeout_s: Option<u64>,
     pub miss_fill_timeout_ms: Option<u64>, pub max_attempts: Option<u32>,
-    pub schema_packages: Vec<SchemaPackageRef> /* ADR-BDC-0008, ignored in phase a */,
+        pub schema_packages: Vec<toml::Value> /* opaque; ADR-BDC-0008, ignored in phase a */,
     pub tick: Option<toml::Table> /* bd-cache-sync's keys: team, fallback_lead, phases dir */ }
 impl RepoConfig { pub fn cache_config(&self, project: ProjectRef) -> CacheConfig; }
 pub struct CacheConfig {
@@ -279,7 +279,7 @@ pub struct StatusReply { /* StoreStatus plus outage */ }
 /// NOT_FOUND, BD_VERSION_FAILED, BD_SCHEMA_FAILED, BD_CONTRACT{bead, field}, BD_WRITE_FAILED,
 /// BD_LIST_FAILED, SYNC_FAILED, PRECONDITION{unmet: key -> {expected, actual}}, IDEM_CONFLICT,
 /// BAD_OP, BAD_ARGS, BAD_PRECONDITION, SCHEMA_VERSION, PRUNE_BLOCKED, NOT_ESCALATED;
-/// plus SCOPE_UNKNOWN{configured} (additive). NO_TOML is never emitted (Python-only).
+/// plus SCOPE_UNKNOWN{known} (additive). NO_TOML is never emitted (Python-only).
 pub enum CacheError { /* ... */ }
 impl CacheError {
     pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str;
@@ -337,8 +337,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 1. Workspace `Cargo.toml` (`members = ["crates/*"]`) with every phase-A
    third-party dependency in `[workspace.dependencies]` (rusqlite bundled,
       fs4, serde, serde_json, sha2, toml, tracing, tokio, async-trait, chrono, cron,
-   criterion, pyo3); `rust-toolchain.toml`; `.gitignore` with `/Cargo.lock`
-   (removed by a-7).
+   criterion, pyo3); `rust-toolchain.toml`; `.gitignore` with `/Cargo.lock` (removed at phase close-out).
 2. `.github/workflows/ci.yml`: `cargo fmt --all --check`, `cargo clippy
    --all-targets --all-features -- -D warnings`, `cargo test --workspace
    --all-features`, `cargo publish --dry-run -p sc-beads`, uv installed for
