@@ -361,6 +361,30 @@ fn a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child() {
 }
 
 #[test]
+fn a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked() {
+    // The drop_blocker path of parent unblock: the child's only edge onto
+    // its parent is pending, so it is not in the store's edge index.
+    let w = World::new();
+    w.add("c3", |_| {});
+    let mut c = synced(&w);
+    assert_eq!(blocked_of(&mut c, "s1"), Some(vec![id("b1")]));
+    journal(
+        &mut c,
+        &w,
+        "k1",
+        "c3",
+        "dep_add",
+        r#"{"depends_on": "s1", "type": "parent-child"}"#,
+    );
+    assert_eq!(blocked_of(&mut c, "c3"), Some(vec![id("s1")]));
+    assert!(!ids(&c.ready(&x(), None).unwrap()).contains(&id("c3")));
+    journal(&mut c, &w, "k2", "b1", "close", "{}");
+    let r = c.ready(&x(), None).unwrap();
+    assert!(ids(&r).contains(&id("c3")), "{:?}", ids(&r));
+    assert_eq!(blocked_of(&mut c, "c3"), Some(vec![]));
+}
+
+#[test]
 fn escalated_entries_do_not_adjust_the_base() {
     let w = World::new();
     let mut c = synced(&w);
