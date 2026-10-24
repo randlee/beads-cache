@@ -59,16 +59,16 @@ To check that the two live tests are correct before handing them to the
 testbed, they were run once on the developer's machine through
 `crates/bd-cache-sync/tests/run-live.sh` (a scratch Dolt 2.3.5 server on a
 loopback port and a scratch workspace, both removed afterwards), macOS arm64,
-`bd version 1.3.0`, `SC_BD_PINNED_ANY=1`, at sprint commit `2bad273`:
+`bd version 1.3.0`, `SC_BD_PINNED_ANY=1`, at sprint commit `0332079` (the last code commit):
 
 ```text
 test a_journaled_write_lands_in_a_real_bd_through_the_tick ... ok
-full sync of 1000+ beads (whole tick): 649ms; incremental sync: 459ms (6 rows stored, 0 blocked)
+full sync of 1000+ beads (whole tick): 600ms; incremental sync: 544ms (6 rows stored, 0 blocked)
 test an_incremental_sync_of_a_1000_bead_phase_is_under_1_s ... ok
-test result: ok. 2 passed; 0 failed; 0 ignored; finished in 11.58s
+test result: ok. 2 passed; 0 failed; 0 ignored; finished in 11.35s
 ```
 
-Incremental sync of a 1000-bead phase: 459 ms against the 1 s limit
+Incremental sync of a 1000-bead phase: 544 ms against the 1 s limit (459 ms in an earlier run at `2bad273`)
 (NFR-BDC-0003). This is a debug build on an idle laptop with a local Dolt
 server; it is a sanity figure, not the recorded NFR evidence, which is the
 testbed's.
