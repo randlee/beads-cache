@@ -83,7 +83,9 @@ A read of a cached bead is answered from the local SQLite file and starts no `bd
 
 **Status:** Draft
 
-Every write either lands in `bd` (verified by a read-back), is refused at write time with a typed error, or is escalated to the phase lead with the fix; no write is dropped, retried forever or guessed.
+Every write either lands in `bd` (verified by a read-back), is refused at write time with a typed error, is escalated to the phase lead with the fix, or stays pending while the backend is unreachable; no write is dropped or guessed, and a reachable backend never retries one past `MAX_ATTEMPTS`.
+
+*Amended in planning (ADR or review): an unreachable backend leaves writes pending without spending attempts (ADR-BDC-0005); additive to the baseline, needs randlee/atm-bd-orchestration#557.*
 
 **Source:** BD-CACHE.md Goals 2, Failure handling
 **Acceptance evidence:** `test_retries_exhausted_escalate_and_never_silently_drop`
@@ -154,7 +156,9 @@ Missing or invalid metadata is `BD_CACHE.NO_DATABASE`.
 
 **Status:** Draft
 
-The file uses WAL mode, a 5 s busy timeout and `PRAGMA user_version` equal to the cache schema version (3). A file with another nonzero version is refused (`BD_CACHE.SCHEMA_VERSION`); version 0 is initialized.
+The file uses WAL mode, a 5 s busy timeout and `PRAGMA user_version` 3. A file with another nonzero version is refused (`BD_CACHE.SCHEMA_VERSION`); version 0 is initialized. The Rust store never changes `user_version` without P-2 agreement; any later version change is an explicit migration command, never done on open.
+
+*Amended in planning (ADR or review): schema version is held at 3 so Python and Rust can share a file (review PLAN-CRIT-003).*
 
 **Source:** BD-CACHE.md Storage
 **Acceptance evidence:** `test_newer_cache_schema_is_refused`
@@ -190,7 +194,9 @@ Identity comes from `.beads/metadata.json`; `bd context` is never called.
 
 **Status:** Draft
 
-The file holds the `meta`, `beads`, `edges`, `journal` and `sync_state` tables and indexes given in BD-CACHE.md; `phase` is the suffix of the bead's first `phase-<x>` label; timestamps are RFC 3339 UTC, second precision.
+The file holds the `meta`, `beads`, `edges`, `journal` and `sync_state` tables and indexes given in BD-CACHE.md, unchanged; extensions are additional tables and nullable columns only. `phase` is the suffix of the bead's first `phase-<x>` label; timestamps are RFC 3339 UTC, second precision.
+
+*Amended in planning (ADR or review): extensions are additive only (ADR-BDC-0001, 0002, 0004, 0005).*
 
 **Source:** BD-CACHE.md Storage (DDL)
 
@@ -218,7 +224,7 @@ Edges are stored as outgoing `{issue_id, depends_on_id, type}` rows indexed by t
 Every backend read is `bd list --id a,b,... --status open,in_progress,blocked,deferred,closed,pinned,hooked -n 0 --json` or its label form; `bd show` is never called.
 
 **Source:** BD-CACHE.md Bead shape
-**Acceptance evidence:** `test_drain_pre_reads_all_pending_beads_in_one_call`
+**Acceptance evidence:** sc-bd-cli recorded-argv tests
 
 ## REQ-BDC-0202: get
 
@@ -294,7 +300,9 @@ The drain takes an exclusive non-blocking lock on `.atm-bd/<dolt_database>.bd-ca
 
 **Status:** Draft
 
-An entry not started by the drain's deadline (monotonic) is reported in `deferred`, stays pending and keeps its `attempts`; an entry that has started runs to completion.
+The drain has two deadlines: a start gate (entries not started by it are reported in `deferred`, stay pending and keep their `attempts`) and a hard deadline that caps every `bd` call. A call cut short by the hard deadline leaves its entry pending with `attempts` unchanged, is reported as `deferred_in_flight`, and is neither an outage nor an attempt; the next drain's achieved check catches a write that landed.
+
+*Amended in planning (ADR or review): resolves the conflict between "a started entry runs to completion" and capping calls at the time left (review PLAN-CRIT-013).*
 
 **Source:** BD-CACHE.md Algorithms (drain), Performance
 **Acceptance evidence:** `test_drain_deadline_defers_unstarted_entries_without_attempts`
@@ -303,7 +311,9 @@ An entry not started by the drain's deadline (monotonic) is reported in `deferre
 
 **Status:** Draft
 
-With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry; if that fails, every entry retries.
+With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry. If that read fails on a reachable backend, every entry retries; if the backend is unreachable, the drain stops with no attempt counted.
+
+*Amended in planning (ADR or review): ADR-BDC-0005.*
 
 **Source:** BD-CACHE.md Algorithms (drain)
 **Acceptance evidence:** `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_failed_pre_read_retries_every_entry`
@@ -312,7 +322,9 @@ With pending entries, the drain runs the backend check, then one batched `bd lis
 
 **Status:** Draft
 
-For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure or timeout adds one attempt, keeps the entry pending and holds that bead for the pass; reaching `MAX_ATTEMPTS` (5) escalates.
+For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass or whose row is stale: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure from a reachable backend adds one attempt, keeps the entry pending and holds that bead for the pass, and reaching `MAX_ATTEMPTS` (5) escalates. A timeout, a backend that cannot start, or a refused connection is an outage: the drain stops there and no attempt is counted.
+
+*Amended in planning (ADR or review): timeouts and unreachable backends no longer spend attempts (ADR-BDC-0005); additive, needs #557.*
 
 **Source:** BD-CACHE.md Algorithms (drain steps 1-4)
 **Acceptance evidence:** `test_drain_on_absent_bead_escalates_not_found`, `test_concurrent_backend_change_escalates_instead_of_overwriting`, `test_bd_guard_refusal_exit_13_escalates`, `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only`
@@ -498,7 +510,9 @@ The error codes are exactly those in BD-CACHE.md's table, each with its fix text
 
 **Status:** Draft
 
-The CLI, JSON replies, exit codes, error codes and SQLite file are unchanged from the Python implementation, so a file written by one is read by the other.
+The SQLite file is shared with the Python implementation: a file written by either is read by the other. The Rust store writes the v3 tables unchanged plus only additive tables and nullable columns.
+
+*Amended in planning (ADR or review): split from the CLI half, now REQ-BDC-0806 (review PLAN-CRIT-003).*
 
 **Source:** BD-CACHE.md Rust shape
 
@@ -509,6 +523,14 @@ The CLI, JSON replies, exit codes, error codes and SQLite file are unchanged fro
 The primary command is `bd-cache`, with the alias `bdc`.
 
 **Source:** user, 2026-10-23 planning discussion
+
+## REQ-BDC-0806: CLI and JSON drop-in
+
+**Status:** Draft
+
+The `bd-cache` CLI, its JSON replies and exit codes are unchanged from the Python implementation, so hooks can switch binaries without edits.
+
+**Source:** BD-CACHE.md Rust shape (split from REQ-BDC-0804)
 
 ## REQ-BDC-0901: Several phases at once
 
@@ -522,7 +544,9 @@ One cache file holds several `phase-*` scopes at once.
 
 **Status:** Draft
 
-The cache holds only the beads in its configured scopes, never a whole database.
+Sync holds only the beads in the configured scopes, never a whole database. A row fetched by `get` or `write` outside every scope is kept with no scope membership, refreshed by the drain's read-back, and swept by `prune` once it has no pending or escalated entry.
+
+*Amended in planning (ADR or review): defines out-of-scope rows (review PLAN-CRIT-008).*
 
 **Source:** user, 2026-10-23 planning discussion
 
@@ -604,7 +628,9 @@ Unit tests run with no `bd` and no dolt, using a deterministic fake runner; each
 
 **Status:** Draft
 
-Live integration tests run only on the testbed, never in CI unit suites.
+Live integration tests run only on the testbed or in the release-triggered bd compatibility workflow (REQ-BDC-0905), never in unit or pull-request suites.
+
+*Amended in planning (ADR or review): the compat workflow is the one permitted CI use of live probes (review PLAN-CRIT-024).*
 
 **Source:** BD-CACHE.md Tests
 
@@ -618,6 +644,13 @@ SQLite is bundled (`rusqlite` with `bundled`); one connection per process.
 
 ## Per-Crate Requirements
 
-When the workspace declares per-crate docs (see
-`.claude/project/quality-policy.md`), each crate's requirements live in
-`docs/<crate>/requirements.md` and are indexed here.
+Each crate's requirements live in `docs/<crate>/requirements.md` (see
+`.claude/project/quality-policy.md`) and refine the ids above:
+
+- [`sc-beads`](sc-beads/requirements.md) (`REQ-BEADS-*`)
+- [`bd-cache-model`](bd-cache-model/requirements.md) (`REQ-MODEL-*`)
+- [`bd-cache`](bd-cache/requirements.md) (`REQ-CORE-*`)
+- [`sc-bd-cli`](sc-bd-cli/requirements.md) (`REQ-BDCLI-*`)
+- [`sc-cron`](sc-cron/requirements.md) (`REQ-CRON-*`)
+- [`bd-cache-store`](bd-cache-store/requirements.md) (`REQ-STORE-*`)
+- [`bd-cache-sync`](bd-cache-sync/requirements.md) (`REQ-SYNC-*`)

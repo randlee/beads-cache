@@ -1,6 +1,6 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
-Status: planned (scope review round 1 applied; critical review pending).
+Status: planned (scope review round 1 and critical review round 1 applied).
 P-1 is done; P-2, P-3 and P-5 are open, with fallbacks below.
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
@@ -35,8 +35,9 @@ requirement ids, not the baseline.
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
 | P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). | a-4 schema freeze | a-4 ships the extensions as schema version 4 with a v3 read-and-migrate path, and records the divergence in its note. |
-| P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError`, tolerant and strict rows. | a-1 trait freeze | a-1 keeps btit's traits unchanged and adds the cache methods in a separate `CacheBackend: BeadsBackend` extension trait; the delta is recorded in a-1's doc. |
+| P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError` as the shared error type, tolerant and strict rows. btit's traits stay unchanged either way; the cache methods are on `CacheBackend: BeadsBackend`. | a-1 error and row freeze | a-1 keeps btit's `BeadsError` and adds the cache variants; recorded in ADR-BDC-0007. |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
+| P-6 | Live probe, run once by the team-lead in a scratch `bd init` workspace: do `bd list --id` and `--updated-after` combine as an intersection? | a-1's `list_changed` implementation note | `list_changed` is `list_by_ids` of the outside blockers filtered on `updated_at` in the backend implementation; the signature is unchanged. |
 | P-5 | The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
 
 ## Boundary map
@@ -64,7 +65,10 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
 | `Cargo.lock` | a-7 | a-1 adds `/Cargo.lock` to `.gitignore`; a-7 removes that line and commits the lock. |
 | `.gitignore`, `rust-toolchain.toml` | a-1 | a-7 edits `.gitignore` once (the lock line). |
-| `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Each writes its decisions and probe results to its own note, `docs/plans/phase-a/notes/a-<n>.md`; a-7 folds the notes into the ADRs and updates Crate Layout. |
+| `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
+| `docs/<crate>/**` | the sprint that creates the crate | `docs/bd-cache/` is created by a-1; a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`. |
+| `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. |
+| `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
 | `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
 
 ## Sprints and waves
@@ -83,6 +87,8 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 - Width: 5 (a-2, a-3, a-4, a-5, a-6 together).
 - Sprint count: 7. Tracks: 6. `must_follow` edges: 9. Every wave-2 pair is
   `parallel_safe`; a-3 has no inbound edge and may start in wave 1.
+- Testbed-only evidence never gates a boundary sprint; it is a-7's, with a
+  deferred-evidence outcome when the testbed is unavailable.
 
 ## Requirement ownership
 
@@ -96,9 +102,9 @@ Each requirement has exactly one owner. Sprint docs list `owns` and
 | a-3 | none (governed by ADR-BDC-0006) |
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
-| a-6 | REQ-BDC-0001, 0008, 0105, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904; NFR-BDC-0001 |
-| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0003 |
-| deferred | REQ-BDC-0801, 0805; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
+| a-6 | REQ-BDC-0001, 0008, 0105, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904 |
+| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
+| deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
 ## Ported Python cases
 
@@ -167,12 +173,26 @@ distinct bugs; the missing one is to be raised on #557.
 
 | Planted bug | Owner |
 |---|---|
-| no metadata coercion guard; skip validation; no dep-type check | a-1 |
+| no overlay; no metadata coercion guard; skip validation; no dep-type check | a-1 |
 | bools passed as `True` | a-2 |
 | no newer-row guard; skip project-id check; rebuild deletes journal; no `mark_announced`; no set/clear sync alert | a-4 |
 | no write precondition; no drain precondition; no per-bead hold; no achieved check; no retry cap; no stale flag; no drain lock; per-entry pre-read; no not-found escalation; deferred not reported; drain without deadline | a-5 |
-| no overlay; skip rebuild; rebuild on first check; prune ignores escalated; resolve accepts any state | a-6 |
+| skip rebuild; rebuild on first check; prune ignores escalated; resolve accepts any state | a-6 |
 | unannounced filter dropped; open-work ignores announcement; refusal dropped; team check dropped; closed roots active; stop ignores open work | a-7 |
+
+## Items to raise on #557
+
+Collected for one comment on randlee/atm-bd-orchestration#557 (not posted):
+
+- `bd` settles `is_blocked` without bumping `updated_at`, so `--updated-after`
+  sync misses blocked-state flips on close and reopen (ADR-BDC-0002).
+- An outage spends retry attempts and escalates every pending write within a
+  few ticks (ADR-BDC-0005).
+- Two-deadline drain rule (REQ-BDC-0402) and the additive schema extensions
+  (ADR-BDC-0001, 0004).
+- The Tests section says 19 + 13 = 32 planted bugs but lists 31.
+- `PRECONDITION`'s `unmet` shape differs between the failure table
+  (`{expected, actual}`) and the algorithm (`{key: {expected, actual}}`).
 
 ## bd release compatibility
 

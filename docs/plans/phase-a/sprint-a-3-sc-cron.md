@@ -18,7 +18,7 @@ requirements:
 adrs: [ADR-BDC-0006]
 owned_paths:
   - "crates/sc-cron/**"
-  - "docs/plans/phase-a/notes/a-3.md"
+  - "docs/sc-cron/**"
 ---
 
 # Sprint a-3 — sc-cron prototype
@@ -38,10 +38,11 @@ wave 1.
 ## Decision prerequisites
 
 - Generic job payload and an `sc-cron` error type in place of atm-cron's
-  `HookRequest`, `TeamName`, `PhaseId`, `AtmError`. The choice goes to
-  `docs/plans/phase-a/notes/a-3.md`; a-7 folds it into ADR-BDC-0006.
-- Runtime: tokio, as atm-cron. Blocking job work runs outside the scheduler
-  (callers use `spawn_blocking`).
+  `HookRequest`, `TeamName`, `PhaseId`, `AtmError`. The choice is ADR-CRON-0001
+  in `docs/sc-cron/architecture.md`.
+- Runtime: tokio, as atm-cron. A job receives its run deadline and must
+  honour it: blocking work runs under `spawn_blocking` with the same deadline
+  passed down, so a timed-out run never keeps working past it.
 
 ## Public contract
 
@@ -91,7 +92,8 @@ pub enum CronError { BadExpression(String), Store(String), Fenced }
    clock.
 3. `SqliteScheduleStore` (bundled SQLite).
 4. `Clock` and `JitterSource` with system and test implementations.
-5. Tests ported from atm-cron's `tests/expr.rs`, `tests/worker.rs` and the
+5. Per-crate docs `docs/sc-cron/requirements.md` and `architecture.md`.
+6. Tests ported from atm-cron's `tests/expr.rs`, `tests/worker.rs` and the
    store tests, where they apply without ATM types.
 
 ## Acceptance criteria
@@ -101,7 +103,7 @@ pub enum CronError { BadExpression(String), Store(String), Fenced }
 | An invalid expression is refused before anything is stored | ADR-BDC-0006 |
 | Missed ticks are replayed per policy; the stop check runs before every run | ADR-BDC-0006 |
 | A run from an older generation cannot record its result (`record_run` returns false) | ADR-BDC-0006 |
-| A run that exceeds its timeout is recorded as `TimedOut` and does not delay the next tick | ADR-BDC-0006 |
+| A run that exceeds its timeout is recorded as `TimedOut`, the job saw the deadline, and the next tick is not delayed | ADR-BDC-0006 |
 | `cargo tree -p sc-cron` shows no bd-cache, sc-beads or ATM crate | ADR-BDC-0006 |
 
 ## This sprint does not close

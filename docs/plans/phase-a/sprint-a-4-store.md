@@ -18,16 +18,16 @@ requirements:
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
   - "crates/bd-cache-store/**"
-  - "docs/plans/phase-a/notes/a-4.md"
+  - "docs/bd-cache-store/**"
 ---
 
 # Sprint a-4 — SQLite store
 
 ## Outcome and closure
 
-Implement a-1's `CacheStore` port over SQLite. Closes when `SqliteStore`
-passes a-1's store contract suite and its own cases, and reads a v3 file
-written by the Python implementation.
+Implement a-1's `CacheStore` and `DrainLock` ports over SQLite and flock.
+Closes when `SqliteStore` passes a-1's contract suite and its own cases, and
+files are shared with the Python implementation in both directions.
 
 ## must_follow rationale
 
@@ -36,9 +36,10 @@ Implements the `CacheStore` trait and stores the `Bead`, `Edge` and
 
 ## Decision prerequisites
 
-P-2. If open at dispatch: ship the extensions as schema version 4 with a v3
-read-and-migrate path. Either way, record the schema decision in
-`docs/plans/phase-a/notes/a-4.md`; a-7 folds it into ADR-BDC-0001.
+P-2. Either way `user_version` stays 3 and the extensions are additive tables
+and nullable columns only (REQ-BDC-0103, 0107, 0804). If P-2 is refused, a
+later version change is an explicit migration command, never done on open.
+Record the schema as ADR-STORE-0001 in `docs/bd-cache-store/architecture.md`.
 
 ## Deliverables
 
@@ -52,14 +53,22 @@ read-and-migrate path. Either way, record the schema decision in
    changed-blocker set and outside-blocker derivation (ADR-BDC-0002), nullable
    `revision` and `sync_state` columns `backend_kind`, `endpoint`,
    `replica_id`, `journal_seq` (ADR-BDC-0004).
-4. Every `CacheStore` method, including the newer-row guard and forced
+4. Every `CacheStore` method, including `ensure_scope`, membership from
+   labels on scoped upserts, the stale-clearing rule, the outage record,
+   out-of-scope rows stored with no membership and swept by `prune_scope`, the newer-row guard and forced
    upsert, row normalization (REQ-BDC-0108), the edges index by target
    (REQ-BDC-0109), `apply_with_readback` in one transaction,
    `record_fingerprint` with the rebuild rule (deletes beads, edges and
    cursors in one transaction, keeps the journal), announce marks
    (REQ-BDC-0604), sync alerts, and `prune_scope` keeping beads another scope
    holds.
-5. Compatibility: a Python-written v3 file opens and reads (REQ-BDC-0804).
+5. `DrainLock` with `flock` on `.atm-bd/<dolt_database>.bd-cache.drain.lock`
+   (cross-process; REQ-BDC-0401 constraint).
+6. Compatibility both ways (REQ-BDC-0804): the reference `bd_cache.py`,
+   `bd_models.py` and a v3 fixture, vendored at atm-core `015bdfb` under
+   `crates/bd-cache-store/tests/compat/`, run with `uv` to read a file the
+   Rust store wrote; and the Rust store reads a Python-written one.
+7. Per-crate docs `docs/bd-cache-store/requirements.md` and `architecture.md`.
 
 ## Acceptance criteria
 
@@ -70,7 +79,8 @@ read-and-migrate path. Either way, record the schema decision in
 | `test_newer_cache_schema_is_refused`, `test_file_from_another_project_is_refused` (REQ-BDC-0103, 0104) | boundary:bd-cache-store |
 | `test_dependents_use_the_edge_index` (REQ-BDC-0109) | boundary:bd-cache-store |
 | `test_escalations_are_unannounced_until_marked`, `test_sync_alert_round_trip`, `test_pending_work_counts_as_open` (REQ-BDC-0604) | boundary:bd-cache-store |
-| A v3 file written by the Python implementation opens, and its rows, edges and journal read back equal (REQ-BDC-0804) | boundary:bd-cache-store |
+| A v3 file written by the Python implementation opens, and its rows, edges and journal read back equal; the vendored Python `get` and `status` read a file written by the Rust store, extension tables present (REQ-BDC-0804) | boundary:bd-cache-store |
+| Two processes contend for the drain lock; only one acquires it | boundary:bd-cache-store |
 | Pruning a scope deletes only beads no other scope holds (REQ-BDC-0901) | ADR-BDC-0001 |
 | Planted bugs: no newer-row guard, skip project-id check, rebuild deletes journal, no `mark_announced`, no set/clear sync alert each fail a test | boundary:bd-cache-store |
 

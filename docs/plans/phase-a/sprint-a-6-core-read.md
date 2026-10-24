@@ -13,8 +13,8 @@ recommended_model: opus
 must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
-  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0105, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, NFR-BDC-0001]
-  constrained_by: [REQ-BDC-0903, REQ-BDC-0901, NFR-BDC-0004]
+  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0105, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904]
+  constrained_by: [REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
   - "crates/bd-cache/src/get.rs"
@@ -26,7 +26,7 @@ owned_paths:
   - "crates/bd-cache/src/status.rs"
   - "crates/bd-cache/tests/read_*.rs"
   - "crates/bd-cache/tests/sync_*.rs"
-  - "crates/bd-cache/benches/**"
+  - "docs/bd-cache/read-path.md"
 ---
 
 # Sprint a-6 — core read path
@@ -35,32 +35,36 @@ owned_paths:
 
 Fill the read-path modules of the `bd-cache` skeleton from a-1, tested only
 against `FakeStore` and `FakeBackend`. Closes when its cases and planted-bug
-checks pass and the in-process `get` meets its latency target.
+checks pass. The `get` latency target is measured by a-7 on the real store.
 
 ## must_follow rationale
 
-Consumes the `Cache` skeleton, `CacheStore`, `BeadsBackend` and model types
-from a-1. It uses no code from a-4 or a-5.
+Consumes the `Cache` skeleton and its `view`, `backend_check` and `miss`
+helpers, `CacheStore`, `CacheBackend` and model types from a-1. It uses no
+code from a-4 or a-5.
 
 ## Deliverables
 
-1. `get` (REQ-BDC-0001, 0202): cached row with pending entries replayed in
-   `seq` order (escalated skipped), miss-once fetch, `NOT_FOUND`; out of
-   every scope, a `get` may fetch once.
-2. `list` (REQ-BDC-0203, 0902): rows of a scope with the overlay; a scope
-   that is not configured is refused with the configured scopes named.
-3. `sync` per scope (REQ-BDC-0105, 0501..0504, 0008): backend check through
-   `record_fingerprint` (rebuilt, model_current), incremental cursor with the
-   2-minute overlap, validate every row before storing any, newer-row guard,
-   stale re-read, `SYNC_FAILED` recorded.
+1. `get` (REQ-BDC-0001, 0202): `view::current_view`, else `miss::fill`
+   (stored with no membership), else `NOT_FOUND`; the reply carries `stale`
+   and the scope's `last_ok_at`.
+2. `list` (REQ-BDC-0203, 0902): rows of a scope with the overlay, `stale`
+   per row, `last_ok_at`, and the `--status` / `--label` filters; an
+   unconfigured scope is `SCOPE_UNKNOWN` naming the configured scopes.
+3. `sync` per scope (REQ-BDC-0105, 0501..0504, 0008): `backend_check::run`,
+   cursor minted from the sync start time and sent as `last_ok_at - 2 min`,
+   validate every row before storing any, newer-row guard, stale re-read,
+   `SYNC_FAILED` recorded for a reachable backend; `Unavailable` records the
+   outage instead (ADR-BDC-0005).
 4. `refresh` (REQ-BDC-0904, ADR-BDC-0002): after the scope lists, re-read only
    the cached dependers of changed blockers (`take_changed_blockers`, plus
-   beads whose status changed in this sync) and of outside blockers returned
+   `UpsertReport::status_changed`) and of outside blockers returned
    by `list_changed`, to a fixpoint over parent-child.
-5. `resolve`, `prune`, `status` (REQ-BDC-0601..0603); `status` also reports
-   each scope's `last_ok_at`, stale rows and the outage state
-   (ADR-BDC-0005).
-6. Benchmark for in-process `get` (NFR-BDC-0001).
+5. `resolve`, `prune` (with the out-of-scope sweep), `status`
+   (REQ-BDC-0601..0603); `status` reports each scope's `last_ok_at`, stale
+   rows and the outage (ADR-BDC-0005).
+6. `docs/bd-cache/read-path.md`: crate ADRs for the read path
+   (ADR-CORE-02xx).
 
 ## Acceptance criteria
 
@@ -72,9 +76,11 @@ from a-1. It uses no code from a-4 or a-5.
 | `test_sync_is_incremental_and_never_replaces_a_newer_row`, `test_sync_failure_is_typed_and_recorded` (REQ-BDC-0501, 0502, 0504) | boundary:bd-cache |
 | A stale row is re-read by the next sync and its bead's held entries become drainable (REQ-BDC-0503) | boundary:bd-cache |
 | `test_prune_refuses_with_unapplied_writes`, `test_resolve_closes_only_escalated_entries_and_unblocks_prune`, `test_resolve_keeps_the_note_when_the_entry_had_no_error` (REQ-BDC-0601, 0602) | boundary:bd-cache |
-| `list` of an unconfigured scope is refused, naming the configured scopes (REQ-BDC-0902) | boundary:bd-cache |
+| `list` of an unconfigured scope is `SCOPE_UNKNOWN` naming the configured scopes; a `get` miss outside every scope is stored with no membership and swept by `prune` once it has no open entry (REQ-BDC-0902) | boundary:bd-cache |
+| `get` and `list` replies carry `stale` per row and the scope's `last_ok_at`; a cached `get` starts no backend call; `list --status` and `--label` filter (REQ-BDC-0001, 0203) | boundary:bd-cache |
+| A sync that meets `Unavailable` records the outage and no `SYNC_FAILED` | ADR-BDC-0005 |
 | Closing or reopening a blocker, cached or outside, flips its cached dependers' `is_blocked` after one sync, and the sync re-reads only those dependers (REQ-BDC-0904) | ADR-BDC-0002 |
-| In-process cached `get` under 1 ms on the benchmark (NFR-BDC-0001) | boundary:bd-cache |
+
 | Planted bugs: no overlay, skip rebuild, rebuild on first check, prune ignores escalated, resolve accepts any state each fail a test | boundary:bd-cache |
 
 ## This sprint does not close
@@ -84,4 +90,4 @@ Scheduled sync with the real store and backend, and escalation delivery
 
 ## Required validation
 
-Crate tests, lints and the `get` benchmark; `cargo build --workspace`.
+Crate tests and lints; `cargo build --workspace`.

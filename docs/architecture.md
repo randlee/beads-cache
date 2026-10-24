@@ -112,15 +112,15 @@ integrating with sc-runtime.
 
 | Crate | Responsibility | May depend on | Phase |
 |---|---|---|---|
-| `bd-cache-model` | Cache types on top of `sc-beads` rows: `Edge`, `Op`, `Patch` (`/v0`-aligned), guards, `Refusal`, `CacheError` with every `BD_CACHE.*` code and its fix text, overlay and `achieved` logic | serde | aa |
+| `bd-cache-model` | Pure cache types on top of `sc-beads` rows: `Op` (parse, args JSON, overlay, achieved), journal entries, `replay`, the `CacheStore` and `DrainLock` ports with `FakeStore`, the `EscalationSender` port, `Clock` and `Deadline`, `CacheConfig`, reply and report types, `CacheError` with every `BD_CACHE.*` code (ADR-BDC-0003) | `sc-beads`, serde, serde_json | a |
 | `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, `BeadsError` and `Refusal`, a `FakeBackend` test double (ADR-BDC-0007) | serde | a |
 | `sc-bd-cli` (shared, published) | The bd CLI implementation of the `sc-beads` traits, ported from btit-cli and btit-bd: invoker with a recording test double, probes and version gates, dolt-mode detection, per-project locks; exit 13 as a typed refusal | `sc-beads` | a |
 | `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
-| `bd-cache-store` | SQLite file: BD-CACHE v3 schema plus the additive ADR-BDC extensions, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index | model, rusqlite (bundled) | aa |
-| `bd-cache` (core library) | `get`, `write`, `drain`, `sync`, `resolve`, `prune`, `status`, `ready`/blocked refresh (ADR-BDC-0002), outage handling (ADR-BDC-0005); takes plain config values and a clock, no runtime | model, `sc-beads`, store | a |
+| `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4 | a |
+| `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the targeted blocked refresh (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite | a |
-| sync task | scheduled drain and sync per BD-CACHE's cron module, on `sc-cron`; escalation delivery behind an injected sender (the ATM `atm send` sender is one implementation) | core, `sc-cron` | a |
+| `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
@@ -250,14 +250,16 @@ Context: released bd (1.3.0/1.3.1) has no `id` or `updated_after` filter on
 `bd serve`, and bd serve needs a dolt sql-server. The bd CLI works with every
 backend bd supports, including Hosted Dolt and embedded dolt with a remote.
 
-Decision: all backend access goes through one port, the `sc-beads`
-`BeadsBackend` trait (ADR-BDC-0007) (`fingerprint`,
-`list_by_ids`, `list_since(scope, cursor)`, `get`, `close`,
-`update(patch, guards)`, `dep_add`, optional `sync_remote`). Phase a builds
-only the bd CLI adapter. The sync cursor is opaque (a timestamp today; a dolt
-commit hash or events `seq` later). Nullable `revision`, `backend_kind`,
-`endpoint`, `replica_id` and `journal_seq` columns leave room for the HTTP
-adapter without a schema change.
+Decision: all backend access goes through the `sc-beads` traits
+(ADR-BDC-0007). The cache uses `CacheBackend: BeadsBackend`, whose methods
+all take a `Deadline`: `fingerprint`, `list_by_ids`, `list_scope(filter,
+since)`, `list_changed(ids, since)`, `close_guarded`, `update_guarded`,
+`dep_add_typed`. Phase a builds only the bd CLI implementation (`sc-bd-cli`).
+The cursor is an RFC 3339 string minted by the cache from a sync's start time;
+the backend treats it as opaque, so a commit hash or events `seq` can replace
+it later. Nullable `revision`, `backend_kind`, `endpoint`, `replica_id` and
+`journal_seq` columns leave room for the HTTP implementation without a schema
+change.
 
 Consequences: an HTTP adapter can be added when a bd release ships the
 missing filters; beads-task-issue-tracker already plans one for the same
@@ -275,19 +277,24 @@ after `MAX_ATTEMPTS` (5) transient failures, so a backend outage of a few
 cron ticks escalates every pending write to the phase lead.
 
 Decision:
-- Reads never wait on the backend. Every read reply carries the scope's
-  `last_ok_at` (and `stale` per row), so callers and MCP tools can see how
-  fresh the data is.
-- Backend unreachable (`BD_CACHE.BD_UNAVAILABLE`: timeout, connection
-  refused, cannot start) is a backend state, not an entry failure. While it
-  holds, the drain stops at the first such failure, the entry's `attempts`
-  is not increased, and later entries are not tried. Only failures from a
-  reachable backend (`BD_WRITE_FAILED`, guard refusal) count towards
-  `MAX_ATTEMPTS` or escalate.
-- The drain and sync retry with backoff while the backend is unreachable, and
-  `status` reports the outage (since when, last error). A sustained outage is
-  announced once, like a sync failure, not once per entry.
-- Each `bd` call is capped at the time left before the caller's deadline.
+- Reads never wait long on the backend. Every read reply carries the scope's
+  `last_ok_at` and `stale` per row, so callers and MCP tools can see how
+  fresh the data is. A cache miss fetches with a short deadline
+  (`CacheConfig::miss_fill_timeout`, default 2 s) and returns
+  `BD_CACHE.BD_UNAVAILABLE` when it expires.
+- Backend unreachable (timeout, connection refused, cannot start) is a
+  backend state, recorded in the store as the outage (since when, last
+  error) and cleared by the next successful call. While it holds, the drain
+  stops at the first such failure without counting an attempt, and a sync
+  that meets it records the outage instead of an announced `SYNC_FAILED`.
+  Only failures from a reachable backend (`BD_WRITE_FAILED`, guard refusal)
+  count towards `MAX_ATTEMPTS` or escalate.
+- No extra backoff: the cron tick (30 s) is the retry interval. `status`
+  reports the outage. A sustained outage is announced to the phase lead once,
+  under the stable cause key `backend_unavailable`, and its end clears it.
+- The drain has a start gate and a hard deadline (REQ-BDC-0402): each `bd`
+  call is capped at the time left before the hard deadline; a call cut short
+  by it is neither an outage nor an attempt.
 
 Consequences: a long outage leaves writes pending rather than escalated; when
 the backend returns, preconditions are re-checked against fresh rows, so
@@ -340,7 +347,10 @@ guards, `close` takes no reason, there is no per-call deadline, and rows are
 parsed tolerantly into `BdRawIssue`.
 
 Decision: three shared crates, built in this repository and published to
-crates.io:
+crates.io. btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits are
+kept unchanged; the cache's methods go in a separate extension trait,
+`CacheBackend: BeadsBackend`, which `sc-bd-cli` (and later `sc-bd-http`)
+implements alongside btit's traits:
 
 - `sc-beads`: the backend contract only (traits, row types, errors,
   `FakeBackend`), seeded from btit-beads and btit-types.
@@ -370,6 +380,13 @@ calls, error type, tolerant vs strict rows).
 
 ## Per-Crate Architecture
 
-When the workspace declares per-crate docs (see
-`.claude/project/quality-policy.md`), each crate's architecture lives in
-`docs/<crate>/architecture.md` and is indexed here.
+Each crate's architecture and crate-local ADRs live in
+`docs/<crate>/architecture.md` (see `.claude/project/quality-policy.md`):
+
+- [`sc-beads`](sc-beads/architecture.md) (`ADR-BEADS-*`)
+- [`bd-cache-model`](bd-cache-model/architecture.md) (`ADR-MODEL-*`)
+- [`bd-cache`](bd-cache/architecture.md) (`ADR-CORE-*`)
+- [`sc-bd-cli`](sc-bd-cli/architecture.md) (`ADR-BDCLI-*`)
+- [`sc-cron`](sc-cron/architecture.md) (`ADR-CRON-*`)
+- [`bd-cache-store`](bd-cache-store/architecture.md) (`ADR-STORE-*`)
+- [`bd-cache-sync`](bd-cache-sync/architecture.md) (`ADR-SYNC-*`)

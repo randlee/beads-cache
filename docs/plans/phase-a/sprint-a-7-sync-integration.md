@@ -14,12 +14,15 @@ recommended_model: sonnet
 must_follow: [a-2, a-3, a-4, a-5, a-6]
 parallel_safe: []
 requirements:
-  owns: [REQ-BDC-0003, REQ-BDC-0701, REQ-BDC-0702, REQ-BDC-0703, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0706, REQ-BDC-0707, REQ-BDC-0903, NFR-BDC-0003]
-  constrained_by: [REQ-BDC-0405, REQ-BDC-0503, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0006]
+  owns: [REQ-BDC-0003, REQ-BDC-0701, REQ-BDC-0702, REQ-BDC-0703, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0706, REQ-BDC-0707, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0003]
+  constrained_by: [REQ-BDC-0405, REQ-BDC-0503, NFR-BDC-0004, NFR-BDC-0006]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0005, ADR-BDC-0006]
 owned_paths:
   - "crates/bd-cache-sync/**"
   - "tests/e2e/**"
+  - "crates/bd-cache/benches/**"
+  - "docs/bd-cache-sync/**"
+  - "docs/plans/phase-a/evidence/**"
   - "Cargo.lock"
   - ".gitignore"
   - "docs/architecture.md"
@@ -45,21 +48,32 @@ write and read paths (a-5, a-6).
    before the end, then sync each active scope, deferring scopes not
    started 2 s before the end; one schedule per repository with a team
    (REQ-BDC-0701); active phases from `.atm-bd/phase-*.toml` and the
-   configured list (REQ-BDC-0702); stop rule (REQ-BDC-0707); scheduled on
-   `sc-cron`.
+   configured list (REQ-BDC-0702); stop rule (REQ-BDC-0707); scheduled on `sc-cron`. The `Cache` is held in
+   `Arc<Mutex<_>>` and called under `spawn_blocking` with the tick deadline;
+   a tick that finds the mutex held is skipped and reported busy, so ticks
+   never overlap.
 2. Announcements (REQ-BDC-0704..0706): sync failures once per cause,
    escalations once with the `resolve` command, undelivered messages
    refused and retried, through a-1's `EscalationSender`; an implementation
-   that runs `atm send <lead>@<team> --team tool` as `cron`.
+   that runs `atm send <lead>@<team> --team tool` as `cron`. A sustained
+   outage is announced once under the cause key `backend_unavailable` and
+   cleared when it ends (ADR-BDC-0005).
 3. End-to-end tests (`tests/e2e/`): a journaled write applied by a scheduled
    drain through `BdCli` with a recording invoker in CI, and against a
    scratch `bd` workspace on the testbed (REQ-BDC-0003); an outage of
    several ticks (REQ-BDC-0903).
-4. Performance on the testbed (NFR-BDC-0003): incremental sync of a
-   1000-bead scope.
-5. Repository bookkeeping: remove `/Cargo.lock` from `.gitignore` and commit
-   the lock; fold `docs/plans/phase-a/notes/a-2.md`, `a-3.md`, `a-4.md` into
-   ADR-BDC-0002, 0006, 0001; update Crate Layout to the shipped state.
+4. Performance: in-process cached `get` on `SqliteStore` (criterion bench,
+   NFR-BDC-0001); incremental sync of a 1000-bead scope on the testbed
+   (NFR-BDC-0003).
+5. Testbed evidence (team-lead on `m5-atmbench`): the a-2 live probes, the
+   end-to-end run against scratch `bd`, and the sync timing, recorded in
+   `docs/plans/phase-a/evidence/`. If the testbed is unavailable, the
+   recording-invoker results close the sprint and the testbed items are
+   recorded as deferred evidence with an owner and date.
+6. Repository bookkeeping: remove `/Cargo.lock` from `.gitignore` and commit
+   the lock; update ADR-BDC statuses and Crate Layout in
+   `docs/architecture.md` from the crate docs; `docs/bd-cache-sync/`
+   requirements and architecture.
 
 ## Acceptance criteria
 
@@ -75,7 +89,10 @@ write and read paths (a-5, a-6).
 | `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`, through the real store | req:REQ-BDC-0003 |
 | A write journaled through the core lands in `bd` via the scheduled drain and is verified by read-back, end to end | req:REQ-BDC-0003 |
 | During an outage of several ticks, reads answer with staleness reported, no escalation is sent, and the journal drains on recovery (the attempts rule itself is a-5's) | req:REQ-BDC-0903 |
-| Incremental sync of a 1000-bead scope under 1 s on the testbed, recorded | req:NFR-BDC-0003 |
+| In-process cached `get` on `SqliteStore` under 1 ms (bench) | req:NFR-BDC-0001 |
+| Incremental sync of a 1000-bead scope under 1 s on the testbed, recorded (or deferred evidence per deliverable 5) | req:NFR-BDC-0003 |
+| A second tick while a blocking sync is still running is skipped and reported busy | req:REQ-BDC-0703 |
+| A sustained outage is announced once under `backend_unavailable` and cleared when it ends | req:REQ-BDC-0903 |
 | `Cargo.lock` is committed; `docs/architecture.md` ADRs and Crate Layout match the shipped crates | phase plan |
 | Planted bugs: unannounced filter dropped, open-work ignores announcement, refusal dropped, team check dropped, closed roots active, stop ignores open work each fail a test | req:REQ-BDC-0705 |
 
