@@ -194,7 +194,8 @@ struct State {
 /// - `list_by_ids` returns closed beads too, as an implementation passing
 ///   bd's full status list does (bd omits them without it); absent ids are
 ///   missing from the result.
-/// - `list_scope` filters by label and, with a cursor, `updated_at > since`.
+/// - `list_scope` filters by label and, with a cursor, `updated_at > since`
+///   compared as instants (a value that does not parse is listed).
 /// - `list_blocked` computes the blocked set as bd does: a non-closed bead is
 ///   blocked by each non-closed target of a `blocks`, `conditional-blocks` or
 ///   `waits-for` edge, and a child (`parent-child` edge) of a blocked parent
@@ -650,7 +651,9 @@ impl CacheBackend for FakeBackend {
                 since.is_none_or(|c| {
                     match (rfc3339_to_unix(&r.updated_at), rfc3339_to_unix(c.as_str())) {
                         (Some(row), Some(cursor)) => row > cursor,
-                        _ => r.updated_at.as_str() > c.as_str(),
+                        // Unparseable: never text-ordered; the row is listed, so a
+                        // sync stores it rather than silently missing it.
+                        _ => true,
                     }
                 })
             })

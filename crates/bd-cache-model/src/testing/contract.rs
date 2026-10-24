@@ -352,6 +352,22 @@ pub fn newer_row_guard_compares_instants(fx: &mut impl StoreFixture) {
         vec![id("b2")],
         "09:59:00Z is older than the stored 10:00:01Z"
     );
+    // A stored updated_at that does not parse is never newer: the incoming row is stored.
+    let mut odd = row("b3", &["phase-x"], T2);
+    odd.updated_at = "not-a-time".into();
+    ok(
+        s.upsert_rows(Some(&x()), &[odd], false),
+        "unparseable stored",
+    );
+    let r = ok(
+        s.upsert_rows(Some(&x()), &[row("b3", &["phase-x"], T0)], false),
+        "after unparseable",
+    );
+    assert_eq!(
+        r.stored,
+        vec![id("b3")],
+        "unparseable is not newer; no text order"
+    );
 }
 
 /// `status_changed` lists existing rows whose status changed, forced or not; new rows excluded.

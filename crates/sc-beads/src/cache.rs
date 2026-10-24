@@ -938,4 +938,17 @@ mod tests {
         );
         assert!(serde_json::from_value::<BeadId>(serde_json::json!("a,b")).is_err());
     }
+
+    #[test]
+    fn empty_or_whitespace_actors_are_refused_when_deserialized() {
+        for bad in ["", "   ", "\t\n"] {
+            assert!(
+                serde_json::from_value::<Actor>(serde_json::json!(bad)).is_err(),
+                "{bad:?}"
+            );
+            assert!(Actor::new(bad).is_err(), "{bad:?}");
+        }
+        let a: Actor = serde_json::from_value(serde_json::json!("san")).unwrap();
+        assert_eq!(a.as_str(), "san");
+    }
 }

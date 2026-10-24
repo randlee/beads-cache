@@ -100,4 +100,8 @@ unassigned update overlays as no assignee, as bd stores it.
 fix-a-1-2 (QA-002): the newer-row guard compares `updated_at` as an instant
 (second precision), never as text; the contract rule
 `newer_row_guard_compares_instants` checks it with offset and fractional
-timestamps.
+timestamps. fix-a-1-3 (ARCH-201): when either `updated_at` does not
+parse, the stored row is not newer and the incoming row is stored; text is
+never ordered (`FakeBackend`'s cursor filter likewise lists such a row).
+`resolve` on an absent seq is `NOT_ESCALATED`; `NOT_FOUND` applies to the
+other seq-taking methods (ARCH-202).

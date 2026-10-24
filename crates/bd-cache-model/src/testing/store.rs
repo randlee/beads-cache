@@ -25,11 +25,12 @@ const META_OUTAGE_SINCE: &str = "outage_since";
 const META_OUTAGE_ERROR: &str = "outage_error";
 
 /// True when `stored` is a later instant than `incoming` (RFC 3339 compared by
-/// instant at second precision; text that does not parse falls back to text order).
+/// instant at second precision). When either value does not parse, the stored
+/// row is not newer, so the incoming row is stored; text is never ordered.
 fn newer(stored: &str, incoming: &str) -> bool {
     match (rfc3339_to_unix(stored), rfc3339_to_unix(incoming)) {
         (Some(a), Some(b)) => a > b,
-        _ => stored > incoming,
+        _ => false,
     }
 }
 

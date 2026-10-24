@@ -27,7 +27,8 @@ use crate::state::{
 /// - unforced upserts skip a row whose stored `updated_at` is a later
 ///   instant (`skipped_newer`); `updated_at` is compared as an RFC 3339
 ///   instant at second precision, never as text (`12:00:00+02:00` equals
-///   `10:00:00Z`); forced upserts always store.
+///   `10:00:00Z`); when either value does not parse, the stored row is not
+///   newer and the incoming row is stored; forced upserts always store.
 /// - `status_changed` lists existing rows whose status text changed, forced
 ///   or not; new rows excluded.
 /// - `apply_with_readback(seq, None, Some(err))` marks the entry applied with
@@ -49,14 +50,16 @@ use crate::state::{
 /// - journal reads (`pending_entries`, `pending_for`, `unannounced_escalations`)
 ///   are in seq order; `insert_entry` on a used key is `IDEM_CONFLICT`;
 ///   `escalate` does not change `attempts`; `resolve` on an entry that is
-///   not escalated is `NOT_ESCALATED`, else it appends
+///   not escalated, or on an absent seq, is `NOT_ESCALATED`, else it appends
 ///   `" | resolved by <actor>: <note>"` to `last_error`.
 /// - `prune_scope` is `PRUNE_BLOCKED` while the scope has a pending or
 ///   escalated entry; otherwise it deletes the scope's beads that no other
 ///   scope holds (with their edges), the scope's journal entries, sync state
 ///   and ready base, and sweeps out-of-scope rows with no open entry. The
 ///   scope stays registered.
-/// - an unknown `seq` is `NOT_FOUND`.
+/// - an unknown `seq` is `NOT_FOUND` for every other seq-taking method
+///   (`apply_with_readback`, `record_attempt`, `escalate`, `mark_announced`);
+///   `entry_by_seq` returns `None`.
 ///
 /// Timestamps are [`Timestamp`]s supplied by the caller (`at`), so a store
 /// reads no clock.

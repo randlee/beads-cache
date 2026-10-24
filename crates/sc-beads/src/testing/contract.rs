@@ -158,6 +158,18 @@ fn recorded_ready(text: &str) -> BTreeSet<String> {
     ids(&rows.unwrap_or_default())
 }
 
+/// `updated_at` as an instant; a value that does not parse fails the contract.
+#[expect(
+    clippy::panic,
+    reason = "a contract rule reports a failure by panicking, as assert! does"
+)]
+fn instant(updated_at: &str) -> i64 {
+    match crate::clock::rfc3339_to_unix(updated_at) {
+        Some(t) => t,
+        None => panic!("updated_at {updated_at:?} is not an RFC 3339 date-time"),
+    }
+}
+
 #[expect(
     clippy::panic,
     reason = "a contract rule reports a failure by panicking, as assert! does"
@@ -346,7 +358,7 @@ pub fn close_and_reopen_bump_only_the_beads_own_updated_at(fx: &mut impl Backend
     assert_eq!(closed.status.as_deref(), Some("closed"));
     assert_eq!(closed.close_reason.as_deref(), Some("done"));
     assert!(
-        closed.updated_at.as_str() > bead("x1").updated_at.as_str(),
+        instant(&closed.updated_at) > instant(&bead("x1").updated_at),
         "close bumps the bead"
     );
     clock.advance(Duration::from_secs(5));
@@ -368,7 +380,7 @@ pub fn close_and_reopen_bump_only_the_beads_own_updated_at(fx: &mut impl Backend
     let reopened = read("x1");
     assert_eq!(reopened.status.as_deref(), Some("open"));
     assert!(
-        reopened.updated_at > closed.updated_at,
+        instant(&reopened.updated_at) > instant(&closed.updated_at),
         "reopen bumps the bead"
     );
     assert_eq!(
