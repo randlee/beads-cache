@@ -244,7 +244,7 @@ store's error and leaves the message unmarked; the next tick sends it again
 
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
-`a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick` (`tests/announce.rs`).
+`a_stopped_tick_does_nothing_and_the_next_tick_does_it_all` (`tests/announce.rs`).
 
 ## REQ-SYNC-0012: Cooperative shutdown
 
