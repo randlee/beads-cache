@@ -51,7 +51,7 @@ MUTANTS = [('unannounced filter dropped',
   '                cache\n'
   '                    .mark_announced_within(entry.seq, budget.write_wait())\n'
   '                    .inspect_err(|e| {\n'
-  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                        unmarked_after_send(Unmarked::Escalation(entry.seq), lead, e);\n'
   '                    })?;\n',
   ''),
  ('escalation message without the resolve command',
@@ -70,12 +70,12 @@ MUTANTS = [('unannounced filter dropped',
   '            cache\n'
   '                .set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())\n'
   '                .inspect_err(|e| {\n'
-  '                    unmarked_after_send("sync_failure", lead, Marker::Scope(&scope), e);\n'
+  '                    unmarked_after_send(Unmarked::SyncFailure(&scope), lead, e);\n'
   '                })?;\n',
   ''),
  ('sync success does not clear the alert',
   'crates/bd-cache-sync/src/announce.rs',
-  '        clear_alert(cache, budget, scope, "sync_succeeded");\n',
+  '        clear_alert(cache, budget, scope, ClearReason::SyncSucceeded);\n',
   ''),
  ('outage alert not recorded after the send',
   'crates/bd-cache-sync/src/announce.rs',
@@ -88,7 +88,7 @@ MUTANTS = [('unannounced filter dropped',
   '                            budget.write_wait(),\n'
   '                        )\n'
   '                        .inspect_err(|e| {\n'
-  '                            unmarked_after_send("outage", lead, Marker::Scope(&scope), e);\n'
+  '                            unmarked_after_send(Unmarked::Outage(&scope), lead, e);\n'
   '                        })?;\n'
   '                }\n'
   '                reply.sent.push(Announcement {\n'
@@ -97,7 +97,7 @@ MUTANTS = [('unannounced filter dropped',
   '                    kind: AnnouncementKind::Outage {'),
  ('outage alert not reset when it ends',
   'crates/bd-cache-sync/src/announce.rs',
-  '                clear_alert(cache, budget, &scope, "outage_over");\n',
+  '                clear_alert(cache, budget, &scope, ClearReason::OutageOver);\n',
   ''),
  ('outage: no lead for a scope without one',
   'crates/bd-cache-sync/src/announce.rs',
@@ -553,9 +553,9 @@ MUTANTS = [('unannounced filter dropped',
   '    {'),
  ('S35: a failed marker write after a delivered send is swallowed',
   'crates/bd-cache-sync/src/announce.rs',
-  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                        unmarked_after_send(Unmarked::Escalation(entry.seq), lead, e);\n'
   '                    })?;\n',
-  '                        unmarked_after_send("escalation", lead, Marker::Entry(entry.seq), e);\n'
+  '                        unmarked_after_send(Unmarked::Escalation(entry.seq), lead, e);\n'
   '                    })\n'
   '                    .unwrap_or(());\n'),
  ('S34: ComposeError passes the store code through instead of mapping the variant',
@@ -566,6 +566,23 @@ MUTANTS = [('unannounced filter dropped',
   'crates/bd-cache-sync/src/compose.rs',
   '        ConfigLoadError::Read { .. } => "sync_config_unreadable",',
   '        ConfigLoadError::Read { .. } => "sync_config_invalid_toml",'),
+ # ---- round-12 fixes (a-7 fix-12): S38 exhaustive mapping, S40 compose inputs, QA8-001 ----
+ ('S38: the exhaustive config mapping swaps the bad-scope and invalid-TOML codes',
+  'crates/bd-cache-sync/src/compose.rs',
+  '        ConfigLoadError::Scope { .. } => "sync_config_bad_scope",',
+  '        ConfigLoadError::Scope { .. } => "sync_config_invalid_toml",'),
+ ('S40: compose_with does not give the bd child the resolved BEADS_DIR',
+  'crates/bd-cache-sync/src/compose.rs',
+  '        .with_child_var(OsStr::new(BEADS_DIR_ENV), beads_dir_env);',
+  ';'),
+ ('S40: the runner does not apply its child environment to run_raw',
+  'crates/sc-bd-cli/src/runner.rs',
+  'crate::run::run_raw_in(&self.binary, &wd, args, &self.child_env)',
+  'crate::run::run_raw(&self.binary, &wd, args)'),
+ ('QA8-001: the outage-over clear visits a scope twice in one tick',
+  'crates/bd-cache-sync/src/announce.rs',
+  '        let mut scopes: BTreeSet<ScopeId> =',
+  '        let mut scopes: Vec<ScopeId> ='),
  ('QA6-001: the dating skips entries below the undatable floor',
   'crates/bd-cache-store/src/schema.rs',
   'UPDATE journal INDEXED BY journal_applied_unknown \\\n'

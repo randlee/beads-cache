@@ -49,20 +49,16 @@ pub enum ComposeError {
 /// `sync_config_bad_scope`.
 ///
 /// Mapped from the [`ConfigLoadError`] variant, not from the store's own
-/// `BD_CACHE.CONFIG_*` code, so a change of the store's codes does not change
-/// this crate's. The enum is `#[non_exhaustive]`: a way of failing the store
-/// adds later reads as `sync_config_invalid_toml`, the file not being a valid
-/// configuration, until it is given a code here.
-#[expect(
-    clippy::match_same_arms,
-    reason = "Parse is named so its code is visible; the wildcard is the non_exhaustive fallback"
-)]
+/// `store_config_*` code (lead ruling S37), so a change of the store's codes
+/// does not change this crate's. The match is exhaustive, with no wildcard
+/// arm: `ConfigLoadError` is not `#[non_exhaustive]` (lead ruling S38), so a
+/// way of failing the store adds later does not compile here until it is
+/// given a code.
 fn config_code(e: &ConfigLoadError) -> &'static str {
     match e {
         ConfigLoadError::Read { .. } => "sync_config_unreadable",
-        ConfigLoadError::Scope { .. } => "sync_config_bad_scope",
         ConfigLoadError::Parse { .. } => "sync_config_invalid_toml",
-        _ => "sync_config_invalid_toml",
+        ConfigLoadError::Scope { .. } => "sync_config_bad_scope",
     }
 }
 

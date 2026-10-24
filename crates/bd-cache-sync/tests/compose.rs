@@ -1,5 +1,7 @@
 //! `compose` resolves the phases directory against the repository root (QA-008),
-//! and its errors carry this crate's stable codes (S34).
+//! and its errors carry this crate's stable `sync_config_*` codes (S34), one
+//! per `ConfigLoadError` variant, beside the store's own `store_config_*`
+//! codes (S37).
 //!
 //! Every case composes through [`compose_with`] with an explicit `$BEADS_DIR`
 //! (lead ruling S36, FTQ-028): the tests do not read the environment, so a
@@ -81,14 +83,14 @@ fn compose_errors_have_codes_and_sources() {
         panic!("{err:?}");
     };
     // This crate's stable code, mapped from the variant, not the store's own
-    // code passed through (S34); the loader's fix, one text per way of
-    // failing (RBP-F040).
+    // `store_config_*` code passed through (S34, S37); the loader's fix, one
+    // text per way of failing (RBP-F040).
     assert!(
         matches!(loader, ConfigLoadError::Parse { .. }),
         "{loader:?}"
     );
     assert_eq!(err.code(), "sync_config_invalid_toml");
-    assert_eq!(loader.code(), "BD_CACHE.CONFIG_INVALID");
+    assert_eq!(loader.code(), "store_config_invalid");
     assert_eq!(err.fix(), loader.fix());
     assert!(err.fix().contains("remove unknown keys"), "{}", err.fix());
     assert!(std::error::Error::source(&err).is_some());
@@ -110,7 +112,7 @@ fn compose_errors_have_codes_and_sources() {
     let ComposeError::Config(loader) = &err else {
         panic!("{err:?}");
     };
-    assert_eq!(loader.code(), "BD_CACHE.CONFIG_BAD_SCOPE");
+    assert_eq!(loader.code(), "store_config_bad_scope");
     assert_eq!(err.fix(), loader.fix());
     assert!(err.fix().contains("phase name"), "{}", err.fix());
     // It states the model's one phase-name rule (RBP-F037).
@@ -130,7 +132,7 @@ fn compose_errors_have_codes_and_sources() {
     let ComposeError::Config(loader) = &err else {
         panic!("{err:?}");
     };
-    assert_eq!(loader.code(), "BD_CACHE.CONFIG_UNREADABLE");
+    assert_eq!(loader.code(), "store_config_unreadable");
     assert_eq!(err.fix(), loader.fix());
     assert!(err.fix().contains("readable"), "{}", err.fix());
 }
