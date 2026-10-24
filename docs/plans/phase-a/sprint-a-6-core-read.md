@@ -13,7 +13,7 @@ recommended_model: opus
 must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
-  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909]
+  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911]
   constrained_by: [REQ-BDC-0105, REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
@@ -58,12 +58,11 @@ code from a-4 or a-5.
    `SYNC_FAILED` recorded for a reachable backend; an outage records the
    outage instead; a cut sets `SyncReport.deferred` with no `SYNC_FAILED` and
    no alert change (ADR-BDC-0005).
-4. Blocked set and `ready` (REQ-BDC-0904, ADR-BDC-0002): each sync of a scope
-   ends with `list_blocked(scope.filter())` through `call` and
-   `replace_blocked`; on failure the previous set is kept and
-   `mark_blocked_stale`. `ready(scope)` returns the scope's open rows (with
-   the overlay) minus the blocked set; `unknown` when the scope has never
-   fetched one. `get`/`list` rows carry `blocked`.
+4. Ready base and `ready` (REQ-BDC-0904, 0911, ADR-BDC-0002): each sync of a
+   scope ends with `list_blocked` and `list_ready` through `call` and
+   `replace_ready_base`; on failure the previous base is kept and marked
+   stale. `ready(scope)` applies the journal rules in ADR-BDC-0002 to the
+   base with no backend call, and reports `unknown` when there is no base.
 5. `refresh(ids, timeout)` (REQ-BDC-0907): one `list_by_ids` with all
    statuses, stored with force, overlay applied; `entry(seq)` (REQ-BDC-0908);
    `get` takes an optional caller miss timeout. A `sync` of an unconfigured
@@ -88,9 +87,10 @@ code from a-4 or a-5.
 | `list` of a scope never configured or synced is `SCOPE_UNKNOWN` naming the known scopes; a `get` miss outside every scope is stored with no membership and swept by `prune` once it has no open entry (REQ-BDC-0902) | boundary:bd-cache |
 | `get` and `list` replies carry `stale` per row and the scope's `last_ok_at`; a cached `get` starts no backend call; `list --status` and `--label` filter (REQ-BDC-0001, 0203) | boundary:bd-cache |
 | `test_sync_records_an_outage_and_a_passing_sync_clears_it`; a sync that meets an outage records it and no `SYNC_FAILED`; a cut sync reports `deferred` and changes no alert | ADR-BDC-0005 |
-| A failed `list_blocked` keeps the previous set, marked stale | ADR-BDC-0002 |
+| A failed `list_blocked` or `list_ready` keeps the previous base, marked stale | ADR-BDC-0002 |
 | After a blocker (cached or outside every scope) is closed in the backend, one sync makes its depender ready; after it is reopened, one sync makes the depender blocked again; a child of a blocked parent is not ready (REQ-BDC-0904) | ADR-BDC-0002 |
-| A scope that has never fetched its blocked set reports `unknown` and no ready beads | ADR-BDC-0002 |
+| With the backend unreachable, a journaled close of a bead's only blocker makes it ready at once; a journaled reopen blocks it again (REQ-BDC-0911) | ADR-BDC-0002 |
+| A scope with no ready base reports `unknown` | ADR-BDC-0002 |
 | Planted bugs: prune ignores escalated, resolve accepts any state each fail a test | boundary:bd-cache |
 
 ## This sprint does not close

@@ -604,6 +604,12 @@ The cache is callable in process from Python (maturin / PyO3), with the verbs at
 
 **Source:** user, 2026-10-24 (atm already provides tokio and cron; the bindings need nothing from sc-runtime)
 
+## REQ-BDC-0911: Ready reflects our own writes immediately
+
+After a write journaled through the cache that releases or blocks a bead (for example a dev close releasing its sanity bead), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
+
+**Source:** user, 2026-10-24 (the sanity agent's `atm task open` hook checks ready through the cache one or two turns after assignment and escalates if not ready)
+
 ## REQ-BDC-0905: bd release compatibility check
 
 **Status:** Draft

@@ -15,7 +15,7 @@ must_follow: [a-2, a-4, a-5, a-6]
 parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, NFR-BDC-0002]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0002]
 adrs: [ADR-BDC-0003, ADR-BDC-0005, ADR-CORE-0001]
 owned_paths:
   - "crates/bd-cache-py/**"
@@ -74,6 +74,7 @@ atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
 | A typed error raises the exception with `code`, `fix` and payload; `PRECONDITION` carries `unmet` | req:REQ-BDC-0910 |
 | `refresh` returns fresh rows with the overlay; `entry(seq)` returns an entry in any state; `sync` then `list` of an unconfigured phase works | req:REQ-BDC-0910 |
 | The mapping table in `docs/bd-cache-py/architecture.md` covers every `bd_cache.py` function the atm-bd hooks and `bd_cache_cron.py` call at atm-core 05831df | req:REQ-BDC-0910 |
+| The `task open` path: after a dev close journaled through the binding, `ready` for its sanity bead is true with the backend unreachable (REQ-BDC-0911) | req:REQ-BDC-0910 |
 | An in-process cached `get` through the binding takes under 1 ms median (no process start) | req:REQ-BDC-0910 |
 | The wheel builds and the pytest suite passes in `python.yml` | req:REQ-BDC-0910 |
 

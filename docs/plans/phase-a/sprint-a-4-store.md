@@ -54,8 +54,8 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
    (REQ-BDC-0103); project id record and `WRONG_DATABASE` (REQ-BDC-0104);
    bundled rusqlite, one connection per process (NFR-BDC-0007).
 3. Schema: the baseline v3 tables and indexes (REQ-BDC-0107) plus the
-   extensions: `scope` and `scope_member` (REQ-BDC-0901, ADR-BDC-0001), a per-scope `blocked_set` table (bead, `blocked_by`, fetched_at, stale;
-   ADR-BDC-0002), nullable
+   extensions: `scope` and `scope_member` (REQ-BDC-0901, ADR-BDC-0001), a per-scope ready base (blocked rows with `blocked_by`, ready ids,
+   fetched_at, stale; ADR-BDC-0002), nullable
    `revision` and `sync_state` columns `backend_kind`, `endpoint`,
    `replica_id`, `journal_seq` (ADR-BDC-0004).
 4. Every `CacheStore` method and every rule in a-1's `CacheStore` doc comment

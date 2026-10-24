@@ -48,7 +48,8 @@ a-1.
    version` plus sha256 of `bd schema`; never `bd context`, REQ-BDC-0106);
    `list_by_ids` (one `bd list --id a,b,... --status <all 7> -n 0 --json`,
    chunked); `list_scope` (`-l <label>`, `--updated-after` when a cursor is
-   given); `list_blocked` (`bd blocked -l <label> --json`, strict `BlockedRow`); `close_guarded`
+   given); `list_blocked` (`bd blocked -l <label> --json`, strict `BlockedRow`);
+   `list_ready` (`bd ready -l <label> -n 0 --json`); `close_guarded`
    (`--reason`), `update_guarded` (`--if-status`, `--if-assignee`),
    `dep_add_typed` (`--type`), all with `--actor`.
 3. Error mapping and deadlines (NFR-BDC-0004): exit 13 to

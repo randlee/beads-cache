@@ -108,8 +108,9 @@ values. Format details (keys, and how it relates to BD-CACHE's
 - **Drain:** applies journaled writes through the backend port in `seq`
   order, with achieved checks, preconditions and read-back (BD-CACHE.md).
 - **Sync:** the sync task (on sc-runtime) refreshes each active scope from
-  its own cursor, then replaces the scope's blocked set from one
-  `bd blocked -l <label>` call (ADR-BDC-0002).
+  its own cursor, then refreshes the scope's ready/blocked base from
+  `bd blocked -l` and `bd ready -l`; reads adjust that base for our journaled
+  writes without a bd call (ADR-BDC-0002).
 
 ### Open questions
 
@@ -225,27 +226,45 @@ or reopened. The probe in
 The live Python cache (BD-CACHE v3) is not affected: it never stores or
 serves blocked state, and readiness there comes from live `bd ready`.
 
-Decision: the cache does not compute blocked state and does not read it from
-rows. Each sync of a scope ends with one `bd blocked -l <scope label> --json`
-call and replaces that scope's stored blocked set (bead id plus
-`blocked_by`) with the result. `ready` for a scope is its cached rows with
-status `open` and no future `defer_until`, minus the stored blocked set, with
-the journal overlay applied. This matches `bd ready` as probed (it counts
-only `open`, excluding in_progress, deferred, blocked, pinned, hooked and
-future-deferred beads; assignment does not matter); a-2's live probe checks
-the two agree. A bead whose blocked state is unknown (its scope has never
-completed this call) is reported as such, never as ready.
+Readiness changes in the workflows this cache serves come from our own
+writes: a dev close releases its sanity bead, which is then assigned
+(`atm assign task`); the sanity agent's `atm task open` hook checks
+`ready` through the cache (Python bindings) one or two turns later and
+escalates if the bead is not ready. Under host load bd cannot be asked in
+time (calls time out even at 30 s), so `ready` must reflect our writes
+without a bd call, and a stale "not ready" after our own close would raise a
+false escalation.
 
-Between syncs the blocked set can lag a journaled close or reopen by up to
-one tick; the cron tick drains then syncs, so a drained close is reflected
-in the same tick. This is the same lag BD-CACHE documents for agents'
-direct `bd` reads.
+Decision: bd's answer is the base; our journaled writes adjust it locally.
 
-Consequences: one extra `bd` call per scope per sync, returning only the
-blocked beads; no depender re-reads, no changed-blocker or outside-blocker
-bookkeeping, and no copy of bd's blocking rules to drift. Out-of-scope
-blockers and parent-child inheritance are handled by bd. If the call fails,
-the previous set is kept and marked stale with the scope's sync error.
+1. **Base.** Each scope's sync ends with `bd blocked -l <label> --json`
+   (blocked beads with `blocked_by`) and `bd ready -l <label> -n 0 --json`,
+   stored as the scope's base with its fetch time. bd stays the authority for
+   everything the cache does not model (custom statuses, issue types,
+   deferral, wisps). A failed or cut fetch keeps the previous base, marked
+   stale.
+2. **Local adjustment for our ops.** Reads apply the pending and applied-but-
+   not-yet-resynced journal entries to the base with these rules:
+   - close of X: remove X from every stored `blocked_by`; a bead whose list
+     becomes empty, and whose own status is `open`, is ready. Repeat through
+     parent-child (a child is listed as blocked by its blocked parent).
+   - reopen of X (status back to `open`): add X back to `blocked_by` of beads
+     with a blocking edge to X (cached edges).
+   - dep_add `blocks` onto a target that is not closed: add the target to the
+     bead's `blocked_by`.
+   - close or status change of the bead itself: it leaves `ready`.
+3. **No base yet** (cold cache): `ready` reports `unknown`; the caller's own
+   checks (for example the `task open` hook's escalation) cover it.
+
+Readers must go through the cache (bindings, `bdc`, later MCP); raw `bd`
+reads see the backend only after the drain lands. Every `ready` reply says
+its basis (bd fetch time, locally adjusted).
+
+Consequences: two small `bd` calls per scope per sync (`bd blocked` measured
+0.07-0.08 s on a loaded atm-dev host); a ready transition caused by our own
+write is visible immediately even with bd unreachable; changes made outside
+the cache arrive only when a sync gets through. The live Python cache is
+not affected (it never serves blocked state).
 
 ## ADR-BDC-0003: Align data vocabulary with the bd serve /v0 API
 
@@ -279,7 +298,7 @@ backend bd supports, including Hosted Dolt and embedded dolt with a remote.
 Decision: all backend access goes through the `sc-beads` traits
 (ADR-BDC-0007). The cache uses `CacheBackend: BeadsBackend`, whose methods
 all take a `Deadline`: `fingerprint`, `list_by_ids`, `list_scope(filter,
-since)`, `list_blocked(filter)`, `close_guarded`, `update_guarded`,
+since)`, `list_blocked(filter)`, `list_ready(filter)`, `close_guarded`, `update_guarded`,
 `dep_add_typed`. Phase a builds only the bd CLI implementation (`sc-bd-cli`).
 The cursor is an RFC 3339 string minted by the cache from a sync's start time;
 the backend treats it as opaque, so a commit hash or events `seq` can replace

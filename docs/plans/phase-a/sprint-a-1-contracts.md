@@ -125,7 +125,8 @@ pub trait CacheBackend: BeadsBackend + Send + Sync {
     fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsError>;
     fn list_by_ids(&self, p: &ProjectRef, ids: &[BeadId], d: Deadline) -> Result<Vec<Bead>, BeadsError>;
     fn list_scope(&self, p: &ProjectRef, f: &ScopeFilter, since: Option<&SyncCursor>, d: Deadline) -> Result<Vec<Bead>, BeadsError>;
-        fn list_blocked(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BlockedRow>, BeadsError>; // bd blocked -l
+            fn list_blocked(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BlockedRow>, BeadsError>; // bd blocked -l
+    fn list_ready(&self, p: &ProjectRef, f: &ScopeFilter, d: Deadline) -> Result<Vec<BeadId>, BeadsError>;        // bd ready -l -n 0
     fn close_guarded(&self, p: &ProjectRef, id: &BeadId, reason: Option<&str>, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
     fn update_guarded(&self, p: &ProjectRef, id: &BeadId, patch: &Patch, g: &Guards, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
     fn dep_add_typed(&self, p: &ProjectRef, id: &BeadId, on: &BeadId, kind: DepType, a: &Actor, d: Deadline) -> Result<(), BeadsError>;
@@ -168,7 +169,7 @@ pub struct SyncState { pub scope: ScopeId, pub last_started_at: Option<String>, 
 pub struct Outage { pub since: String, pub last_error: String }
 pub enum FingerprintOutcome { Recorded, Unchanged, Rebuilt }
 pub struct UpsertReport { pub stored: Vec<BeadId>, pub skipped_newer: Vec<BeadId>, pub status_changed: Vec<BeadId> }
-pub struct BlockedSet { pub rows: Vec<BlockedRow>, pub fetched_at: String, pub stale: bool }
+pub struct ReadyBase { pub blocked: Vec<BlockedRow>, pub ready: Vec<BeadId>, pub fetched_at: String, pub stale: bool }
 pub struct OpenWork { pub pending: u64, pub escalated_unannounced: u64 }
 pub struct StoreStatus { /* meta, journal counts per scope:state, per-scope sync state and bead counts, escalated entries, outage */ }
 
@@ -188,9 +189,9 @@ pub trait CacheStore: Send {
     fn upsert_rows(&mut self, s: Option<&ScopeId>, rows: &[Bead], force: bool) -> Result<UpsertReport, CacheError>;
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError>;
     fn dependents_of(&self, id: &BeadId) -> Result<Vec<Edge>, CacheError>;     // incoming edges, with kind
-        fn replace_blocked(&mut self, s: &ScopeId, rows: &[BlockedRow], at: &str) -> Result<(), CacheError>; // whole set for the scope
-    fn blocked_in_scope(&self, s: &ScopeId) -> Result<Option<BlockedSet>, CacheError>; // None = never fetched
-    fn mark_blocked_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
+            fn replace_ready_base(&mut self, s: &ScopeId, blocked: &[BlockedRow], ready: &[BeadId], at: &str) -> Result<(), CacheError>; // whole base for the scope
+    fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError>; // None = never fetched
+    fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
 
         fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError>; // any state
     fn entry_by_seq(&self, seq: Seq) -> Result<Option<JournalEntry>, CacheError>;
@@ -245,7 +246,7 @@ pub enum CallOutcome { Ok, Cut, Outage(String), Error(CacheError) }
 pub struct RowView { pub bead: Bead, pub stale: bool, pub blocked: Option<Vec<BeadId>> /* None = unknown, Some([]) = not blocked */ }
 pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<String>, pub pending: u32, pub outage: Option<Outage> }
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<String>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
-pub struct ReadyReply { pub scope: ScopeId, pub blocked_fetched_at: Option<String>, pub ready: Vec<RowView>, pub unknown: bool }
+pub struct ReadyReply { pub scope: ScopeId, pub base_fetched_at: Option<String>, pub locally_adjusted: bool, pub ready: Vec<RowView>, pub unknown: bool }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
 pub struct DrainReport { pub busy: bool, pub applied: Vec<Seq>, pub retrying: Vec<Seq>, pub escalated: Vec<EscalatedItem>,
     pub deferred: Vec<Seq>, pub deferred_in_flight: Vec<Seq>, pub outage: Option<Outage> }
