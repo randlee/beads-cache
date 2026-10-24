@@ -249,3 +249,37 @@ fn the_stop_flag_ends_a_tick_between_phases() {
     assert!(run.synced.is_empty(), "no phase was started");
     assert!(job.stop_flag().is_stopped());
 }
+
+/// A stop that arrives while a phase is syncing ends the tick before the next
+/// phase starts, but lets the phase in progress finish.
+#[test]
+fn a_stop_that_arrives_mid_tick_ends_it_between_phases() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    w.phase("y", Some("lead-y"));
+    let stop = bd_cache_sync::StopFlag::new();
+    let job = SyncJob::with_stop(
+        w.cache(),
+        &w.config(),
+        Arc::clone(&w.sender) as Arc<dyn bd_cache_model::EscalationSender>,
+        stop.clone(),
+    )
+    .unwrap();
+    w.switch.gate.arm();
+    let running = {
+        let job = job.clone();
+        let end = w.after(TICK_BUDGET);
+        thread::spawn(move || job.run_blocking(end))
+    };
+    // The first phase is inside its `bd list`; ask for the stop, then let it go.
+    w.switch.gate.wait_entered(1);
+    stop.stop();
+    w.switch.gate.open();
+    let reply = done(running.join().unwrap());
+    assert!(reply.stopped, "{reply:?}");
+    assert_eq!(
+        reply.synced.len(),
+        1,
+        "the phase in progress finished, the next did not start"
+    );
+}

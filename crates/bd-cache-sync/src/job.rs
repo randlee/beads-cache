@@ -512,7 +512,7 @@ mod tests {
             "x".repeat(10_000),
         ));
         match outcome_of(TickRun::Done(Box::new(long))) {
-            RunOutcome::Refused(m) => assert!(m.len() < MAX_OUTCOME_BYTES + 32, "{}", m.len()),
+            RunOutcome::Refused(m) => assert!(m.len() < 1024 + 32, "{}", m.len()),
             other => panic!("{other:?}"),
         }
     }
