@@ -163,7 +163,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
     /// The backend check or the pre-read failed: no entry starts and no attempt is counted.
     ///
     /// `entries` is every pending entry, those held for a stale row included.
-    /// The v3 rule (ADR-CORE-0101): an unreachable backend ([`is_unreachable`])
+    /// The v3 rule (ADR-CORE-0101): an unreachable backend ([`CacheError::is_unreachable`])
     /// or a cut defers them all; any other failure retries them all.
     fn stop_before_entries(
         &mut self,
@@ -175,7 +175,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
             CallFailure::Cut | CallFailure::Outage(_) => true,
             // A store failure inside the helper (no backend cause) is the drain's error.
             CallFailure::Error(e) if e.backend_cause().is_none() => return Err(e),
-            CallFailure::Error(e) if is_unreachable(&e) => {
+            CallFailure::Error(e) if e.is_unreachable() => {
                 crate::outage::note_unavailable(self.cache, &e.to_string())?;
                 true
             }
@@ -350,17 +350,4 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
         });
         Ok(())
     }
-}
-
-/// The codes BD-CACHE v3 counts as an unreachable backend at the backend
-/// check and the pre-read (`UNREACHABLE`; ADR-CORE-0101), matched on the
-/// typed error, never on its text.
-fn is_unreachable(e: &CacheError) -> bool {
-    matches!(
-        e,
-        CacheError::BdUnavailable { .. }
-            | CacheError::BdVersionFailed { .. }
-            | CacheError::BdSchemaFailed { .. }
-            | CacheError::BdListFailed { .. }
-    )
 }

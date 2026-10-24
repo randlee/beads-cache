@@ -39,6 +39,22 @@ use crate::scope::ScopeId;
 /// Exit code of every typed error (REQ-BDC-0802).
 pub const TYPED_ERROR_EXIT: i32 = 3;
 
+/// The codes that mean `bd` could not answer at all: a backend outage, never a
+/// write attempt (the set `bd_cache.py` calls `UNREACHABLE`).
+///
+/// [`CacheError::is_unreachable`] is the same set by variant; a test keeps the two equal.
+pub const UNREACHABLE_CODES: [&str; 4] = [
+    "BD_CACHE.BD_UNAVAILABLE",
+    "BD_CACHE.BD_VERSION_FAILED",
+    "BD_CACHE.BD_SCHEMA_FAILED",
+    "BD_CACHE.BD_LIST_FAILED",
+];
+
+/// The keys of [`CacheError::to_json`] that every error object has, or has on its
+/// own account (`reason`, for `PRECONDITION`); every other key is the code's payload
+/// (`CacheError::payload_keys`, which the tests use to keep this list and `to_json` equal).
+pub const ENVELOPE_KEYS: [&str; 5] = ["ok", "code", "detail", "fix", "reason"];
+
 /// A precondition key (REQ-BDC-0302).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum GuardKey {
@@ -422,6 +438,68 @@ impl CacheError {
         }
     }
 
+    /// True when `bd` could not answer at all (the [`UNREACHABLE_CODES`] variants).
+    ///
+    /// An exhaustive match: a new variant must be classified here to compile.
+    #[must_use]
+    pub fn is_unreachable(&self) -> bool {
+        match self {
+            Self::BdUnavailable { .. }
+            | Self::BdVersionFailed { .. }
+            | Self::BdSchemaFailed { .. }
+            | Self::BdListFailed { .. } => true,
+            Self::NoDatabase { .. }
+            | Self::WrongDatabase { .. }
+            | Self::NotFound { .. }
+            | Self::BdContract { .. }
+            | Self::BdWriteFailed { .. }
+            | Self::SyncFailed { .. }
+            | Self::Precondition { .. }
+            | Self::IdemConflict { .. }
+            | Self::BadOp { .. }
+            | Self::BadArgs { .. }
+            | Self::BadPrecondition { .. }
+            | Self::SchemaVersion { .. }
+            | Self::PruneBlocked { .. }
+            | Self::NotEscalated { .. }
+            | Self::ScopeUnknown { .. }
+            | Self::StoreFailed { .. } => false,
+        }
+    }
+
+    /// The payload keys [`to_json`](Self::to_json) adds to the envelope for this
+    /// code (not counting the `source` a mapped error adds).
+    ///
+    /// An exhaustive match: a new variant must be classified here to compile. Test
+    /// only (`pub(crate)`, no consumer outside this crate's tests: ADR-MODEL-0002
+    /// amendment, a-8).
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn payload_keys(&self) -> &'static [&'static str] {
+        match self {
+            Self::BdContract { .. } => &["bead", "field"],
+            Self::Precondition { .. } => &["unmet"],
+            Self::IdemConflict { .. } => &["seq"],
+            Self::SyncFailed { .. } => &["cause", "phase"],
+            Self::ScopeUnknown { .. } => &["known"],
+            Self::BdUnavailable { .. }
+            | Self::NoDatabase { .. }
+            | Self::WrongDatabase { .. }
+            | Self::NotFound { .. }
+            | Self::BdVersionFailed { .. }
+            | Self::BdSchemaFailed { .. }
+            | Self::BdWriteFailed { .. }
+            | Self::BdListFailed { .. }
+            | Self::BadOp { .. }
+            | Self::BadArgs { .. }
+            | Self::BadPrecondition { .. }
+            | Self::SchemaVersion { .. }
+            | Self::PruneBlocked { .. }
+            | Self::NotEscalated { .. }
+            | Self::StoreFailed { .. } => &[],
+        }
+    }
+
     /// The `/v0` refusal reason: `precondition_failed`, `not_closable` or `already_claimed`.
     #[must_use]
     pub fn reason(&self) -> Option<&'static str> {
@@ -676,5 +754,236 @@ impl std::error::Error for CacheError {
         }
         self.backend_cause()
             .map(|c| c.error() as &(dyn std::error::Error + 'static))
+    }
+}
+
+#[cfg(test)]
+mod classification_tests {
+    use std::collections::BTreeSet;
+
+    use super::*;
+
+    fn d() -> String {
+        "detail".to_owned()
+    }
+
+    fn backend() -> BackendCause {
+        BackendCause::new(BeadsCacheError::Unavailable {
+            reason: "down".to_owned(),
+            timed_out: false,
+        })
+    }
+
+    /// Declares, once, the variant names and `witness`, the exhaustive match (no
+    /// wildcard arm) that names each variant: a new variant does not compile until it is
+    /// listed here, and `every_arm_has_a_sample` then needs a sample of it.
+    macro_rules! arms {
+        ($($v:ident),+ $(,)?) => {
+            const ARMS: &[&str] = &[$(stringify!($v)),+];
+
+            fn witness(e: &CacheError) -> &'static str {
+                match e {
+                    $(CacheError::$v { .. } => stringify!($v)),+
+                }
+            }
+        };
+    }
+
+    arms!(
+        BdUnavailable,
+        NoDatabase,
+        WrongDatabase,
+        NotFound,
+        BdVersionFailed,
+        BdSchemaFailed,
+        BdContract,
+        BdWriteFailed,
+        BdListFailed,
+        SyncFailed,
+        Precondition,
+        IdemConflict,
+        BadOp,
+        BadArgs,
+        BadPrecondition,
+        SchemaVersion,
+        PruneBlocked,
+        NotEscalated,
+        ScopeUnknown,
+        StoreFailed,
+    );
+
+    /// Samples of every variant, with and without a kept source.
+    #[expect(clippy::too_many_lines, reason = "a table of one sample per case")]
+    fn samples() -> Vec<CacheError> {
+        let x = ScopeId::phase("x").unwrap();
+        let unmet = BTreeMap::from([(
+            GuardKey::Status,
+            Unmet {
+                expected: "open".to_owned(),
+                actual: "closed".to_owned(),
+            },
+        )]);
+        let store = || Some(StoreCause::new(std::io::Error::other("disk")));
+        vec![
+            CacheError::BdUnavailable {
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdUnavailable {
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::NoDatabase { detail: d() },
+            CacheError::WrongDatabase { detail: d() },
+            CacheError::NotFound { detail: d() },
+            CacheError::BdVersionFailed {
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdVersionFailed {
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::BdSchemaFailed {
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdSchemaFailed {
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::BdContract {
+                bead: Some(BeadId::new("b1").unwrap()),
+                field: "priority".to_owned(),
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdContract {
+                bead: None,
+                field: String::new(),
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::BdWriteFailed {
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdWriteFailed {
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::BdListFailed {
+                detail: d(),
+                source: None,
+            },
+            CacheError::BdListFailed {
+                detail: d(),
+                source: Some(backend()),
+            },
+            CacheError::SyncFailed {
+                detail: d(),
+                scope: Some(x.clone()),
+                cause: Some(SyncCause::BdContract),
+                source: None,
+            },
+            CacheError::SyncFailed {
+                detail: d(),
+                scope: None,
+                cause: None,
+                source: Some(backend()),
+            },
+            CacheError::Precondition {
+                detail: d(),
+                unmet: unmet.clone(),
+                reason: PreconditionReason::PreconditionFailed,
+                source: None,
+            },
+            CacheError::Precondition {
+                detail: d(),
+                unmet: BTreeMap::new(),
+                reason: PreconditionReason::AlreadyClaimed,
+                source: Some(backend()),
+            },
+            CacheError::IdemConflict {
+                detail: d(),
+                seq: Seq::new(1),
+            },
+            CacheError::BadOp { detail: d() },
+            CacheError::BadArgs { detail: d() },
+            CacheError::BadPrecondition { detail: d() },
+            CacheError::SchemaVersion { detail: d() },
+            CacheError::PruneBlocked { detail: d() },
+            CacheError::NotEscalated { detail: d() },
+            CacheError::ScopeUnknown {
+                detail: d(),
+                known: vec![x],
+            },
+            CacheError::StoreFailed {
+                detail: d(),
+                source: None,
+            },
+            CacheError::StoreFailed {
+                detail: d(),
+                source: store(),
+            },
+        ]
+    }
+
+    #[test]
+    fn every_arm_has_a_sample() {
+        let covered: BTreeSet<&str> = samples().iter().map(witness).collect();
+        assert_eq!(covered, ARMS.iter().copied().collect::<BTreeSet<_>>());
+    }
+
+    #[test]
+    fn unreachable_codes_are_exactly_the_unreachable_variants() {
+        let listed: BTreeSet<&str> = UNREACHABLE_CODES.into_iter().collect();
+        let mut found = BTreeSet::new();
+        for e in samples() {
+            assert_eq!(
+                listed.contains(e.code()),
+                e.is_unreachable(),
+                "{}",
+                e.code()
+            );
+            if e.is_unreachable() {
+                // An unreachable error is one of the sync causes (the drain and the sync agree).
+                assert!(SyncCause::of(&e).is_some(), "{}", e.code());
+                found.insert(e.code());
+            }
+        }
+        assert_eq!(found, listed);
+    }
+
+    #[test]
+    fn the_envelope_source_and_payload_keys_match_to_json_for_every_sample() {
+        let envelope: BTreeSet<&str> = ENVELOPE_KEYS.into_iter().collect();
+        for e in &samples() {
+            let body = e.to_json();
+            let keys: BTreeSet<&str> = body
+                .as_object()
+                .unwrap()
+                .keys()
+                .map(String::as_str)
+                .collect();
+            for always in ["ok", "code", "detail", "fix"] {
+                assert!(keys.contains(always), "{}: no {always}", e.code());
+            }
+            assert_eq!(
+                keys.contains("reason"),
+                e.reason().is_some(),
+                "{}",
+                e.code()
+            );
+            let has_source = e.backend_cause().is_some() || e.store_cause().is_some();
+            assert_eq!(keys.contains("source"), has_source, "{}", e.code());
+            let payload: BTreeSet<&str> = keys
+                .difference(&envelope)
+                .copied()
+                .filter(|k| *k != "source")
+                .collect();
+            let want: BTreeSet<&str> = e.payload_keys().iter().copied().collect();
+            assert_eq!(payload, want, "{}", e.code());
+        }
     }
 }

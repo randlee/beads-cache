@@ -116,8 +116,9 @@ pending entry stays in exactly one report list (REQ-CORE-0102). No attempt
 is counted in any row of the check and pre-read line. After a stop, every
 entry not yet started is `deferred`.
 
-The codes are matched on the typed `CacheError` variant (`is_unreachable`
-in `drain.rs`), never on error text. An unreachable backend that `call` has
+The codes are matched on the typed `CacheError` variant
+(`CacheError::is_unreachable` in `bd-cache-model`, the one definition of the
+set, `UNREACHABLE_CODES`; lead ruling R11), never on error text. An unreachable backend that `call` has
 already recorded (`CallFailure::Outage`) is not recorded again. For the
 other codes the drain records the outage itself through
 `outage::note_unavailable`, which keeps the outage's start and stores the

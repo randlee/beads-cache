@@ -333,3 +333,7 @@ crate-level `forbid(unsafe_code)` and `warn(unreachable_pub)`. A dev-dependency
 on itself with `test-utils` means `cargo test --workspace` runs every test.
 It is validated with the workspace commands in the sprint doc
 (`docs/plans/phase-a/sprint-a-3-sc-cron.md`).
+Test lint configuration (lead rulings R14 and R15, a-8 fix round 6 and QA-8): `clippy.toml`
+`allow-*-in-tests`; the src test-module `#[allow]` blocks are removed; the integration
+tests `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level
+`#![expect(..., reason)]`.
