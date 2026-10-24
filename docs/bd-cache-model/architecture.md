@@ -181,7 +181,8 @@ its basis, including bd's fetch time, but `ReadyBasis::Fresh` carried none.
 
 Decision:
 - `ReadyReply` gains `last_ok_at: Option<Timestamp>`, the scope's last
-  successful sync, as `GetReply` and `ListReply` have.
+  successful sync, as `ListReply` has (`GetReply` carries it as
+  `scope_last_ok_at`).
 - `ReadyBasis::Fresh` becomes `Fresh { fetched_at: Timestamp }`: the
   instant taken before the first `list_blocked` / `list_ready` call of that
   answer, the same instant a refreshed base stores. Every basis except
@@ -189,6 +190,16 @@ Decision:
 - Serialized: `"last_ok_at"` on the reply, and
   `{"kind": "fresh", "fetched_at": ...}` for the basis (golden in
   `tests/goldens.rs`).
+
+Consequences: a-6 (bd-cache read path) fills `ReadyReply.last_ok_at` from the
+scope's sync state and `Fresh.fetched_at` with the instant it takes before
+the first `list_blocked` / `list_ready` call, the same instant the refreshed
+base stores. This closes the ADR-BDC-0002 and ADR-BDC-0005 gaps a-6 QA-1
+found. The serialized basis changes from `{"kind": "fresh"}` to
+`{"kind": "fresh", "fetched_at": ...}`; reply shapes are provisional
+(REQ-BDC-0806, deferred) and not claimed equal to Python, so no #557 note is
+needed. The `scope_last_ok_at` / `last_ok_at` naming split across read
+replies is left for the bdc sprint (REQ-BDC-0806) to settle.
 
 ## ADR-MODEL-0004: toml is a private parsing dependency
 
