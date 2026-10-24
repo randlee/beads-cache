@@ -27,9 +27,13 @@ process's own. Tests use the `_with` forms, so none depends on the ambient
 
 **Refines:** REQ-BDC-0101, 0102
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`,
-`test_beads_dir_env_names_the_database`, `test_missing_metadata_is_typed`,
+`test_beads_dir_env_names_the_database` (`resolve_with` with an explicit and an
+empty `$BEADS_DIR`, and `resolve` reading the real environment only in the child
+process `beads_dir_env_child`, S36), `test_missing_metadata_is_typed`
+(`resolve_with(.., None)` and `SqliteStore::open_with(.., None)`, S36),
 `configured_cache_path_is_taken_from_the_repository_root`,
-`identity_values_are_validated` (`location.rs`).
+`identity_values_are_validated` (`tests/location.rs`); the
+`SqliteStore::open_with(root, .., None)` doctests (`src/store.rs`, `src/lib.rs`).
 
 ## REQ-STORE-0002: Open checks settings, version and identity
 
@@ -148,14 +152,19 @@ a-1's `RepoConfig`: a missing file is the default; an unreadable file,
 invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
 not a phase name is a `ConfigLoadError`. Its message names the file and a
 fix; the cause is carried once, as `Error::source`. Each variant has one
-store-neutral code, `BD_CACHE.CONFIG_UNREADABLE`, `BD_CACHE.CONFIG_INVALID` or
-`BD_CACHE.CONFIG_BAD_SCOPE`, and one fix (`ConfigLoadError::code`, `fix`;
-ADR-STORE-0003 amendment, lead ruling S34).
+store-owned code, `store_config_unreadable`, `store_config_invalid` or
+`store_config_bad_scope` (not `CacheError` codes and not CLI-contract codes), and
+one fix (`ConfigLoadError::code`, `fix`; ADR-STORE-0003 amendment, lead rulings S34
+and S37). `ConfigLoadError` is exhaustive, so a new variant fails to compile in each
+consumer until it is mapped (lead ruling S38).
 
 **Refines:** REQ-BDC-0101 (`cache_path`); a-1's `RepoConfig` contract
 **Acceptance evidence:** `missing_repo_config_is_the_default`,
-`repo_config_is_parsed_and_unknown_keys_refused`,
-`unreadable_repo_config_is_an_error_not_the_default` (`location.rs`).
+`repo_config_is_parsed_and_unknown_keys_refused` (the `store_config_invalid` and
+`store_config_bad_scope` codes, `Display` ending with `fix()`),
+`unreadable_repo_config_is_an_error_not_the_default` (the `store_config_unreadable`
+code) (`tests/location.rs`, S37); the `ConfigLoadError::code` doctest
+(`src/location.rs`).
 
 ## REQ-STORE-0008: Cached reads cost the same at any scope size and journal length
 

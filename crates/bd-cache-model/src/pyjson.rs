@@ -72,9 +72,14 @@ fn push_unicode_escape(out: &mut String, unit: u16) {
     }
 }
 
-/// The lowercase hex digit of a nibble (`n` < 16).
+/// The lowercase hex digit of the low nibble of `n` (the high nibble is
+/// ignored, so the function is total).
+#[expect(
+    clippy::indexing_slicing,
+    reason = "the index is masked to 0..16, the length of the 16-byte table"
+)]
 fn hex_digit(n: u8) -> char {
-    char::from(if n < 10 { b'0' + n } else { b'a' - 10 + n })
+    char::from(b"0123456789abcdef"[usize::from(n & 0x0f)])
 }
 
 fn write_str(out: &mut String, s: &str) {
@@ -114,5 +119,14 @@ mod tests {
             python_json(&v),
             r#"{"a": [], "emoji": "\ud83d\ude00", "n": -3, "q": "tab\tquote\"back\\nl\nbell\u0007del\u007f", "z": {}}"#
         );
+    }
+
+    #[test]
+    fn hex_digit_is_total_and_reads_the_low_nibble() {
+        let digits: String = (0u8..16).map(hex_digit).collect();
+        assert_eq!(digits, "0123456789abcdef");
+        for n in 0..=u8::MAX {
+            assert_eq!(hex_digit(n), hex_digit(n & 0x0f), "{n}");
+        }
     }
 }

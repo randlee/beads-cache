@@ -271,8 +271,11 @@ impl CacheLocation {
 /// `Display` names the file and the fix; the cause (the I/O or parse error)
 /// is carried only as [`Error::source`](std::error::Error::source), so a
 /// reporter that walks the source chain prints it once.
+///
+/// Exhaustive on purpose (lead ruling S38): a consumer matches every variant
+/// with no wildcard arm, so a new variant fails to compile in each consumer
+/// until it maps it.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum ConfigLoadError {
     /// The file exists but could not be read.
     Read {
@@ -308,12 +311,13 @@ static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
 });
 
 impl ConfigLoadError {
-    /// A stable, store-neutral code, one per way the file fails to load
-    /// (RBP-F040; ADR-STORE-0003 amendment, lead ruling S34):
-    /// `BD_CACHE.CONFIG_UNREADABLE`, `BD_CACHE.CONFIG_INVALID` (not a valid
+    /// A stable, store-owned code, one per way the file fails to load
+    /// (RBP-F040; ADR-STORE-0003 amendment, lead rulings S34 and S37):
+    /// `store_config_unreadable`, `store_config_invalid` (not a valid
     /// configuration: bad TOML, an unknown key, a wrong type) and
-    /// `BD_CACHE.CONFIG_BAD_SCOPE`. A consumer with codes of its own maps
-    /// the variants at its boundary.
+    /// `store_config_bad_scope`. These are not [`CacheError`] codes (the
+    /// `BD_CACHE.*` namespace is `CacheError`'s) and not CLI-contract codes.
+    /// A consumer with codes of its own maps the variants at its boundary.
     ///
     /// # Examples
     ///
@@ -324,7 +328,7 @@ impl ConfigLoadError {
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"b k\"]\n")?;
     /// let err = bd_cache_store::load_repo_config(root).unwrap_err();
-    /// assert_eq!(err.code(), "BD_CACHE.CONFIG_BAD_SCOPE");
+    /// assert_eq!(err.code(), "store_config_bad_scope");
     /// assert!(err.to_string().contains(err.fix()));
     /// # Ok(())
     /// # }
@@ -332,9 +336,9 @@ impl ConfigLoadError {
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Read { .. } => "BD_CACHE.CONFIG_UNREADABLE",
-            Self::Parse { .. } => "BD_CACHE.CONFIG_INVALID",
-            Self::Scope { .. } => "BD_CACHE.CONFIG_BAD_SCOPE",
+            Self::Read { .. } => "store_config_unreadable",
+            Self::Parse { .. } => "store_config_invalid",
+            Self::Scope { .. } => "store_config_bad_scope",
         }
     }
 

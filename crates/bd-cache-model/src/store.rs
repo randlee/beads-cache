@@ -182,7 +182,8 @@ pub trait CacheStore: Send {
     /// [`CacheStore::mark_announced`], waiting at most `wait` for a write lock
     /// another process holds (lead ruling S33).
     ///
-    /// The tick's marker writes after a send pass the time left before its
+    /// The tick's bounded writes, the post-send markers and the alert clears
+    /// that send no message (lead ruling S35), pass the time left before its
     /// end, so a contended write cannot carry the tick past it: one that cannot
     /// finish in time returns the store's usual error, the entry stays
     /// unannounced, and the next tick sends it again (at least once). The
@@ -212,6 +213,9 @@ pub trait CacheStore: Send {
     /// [`CacheStore::set_sync_alert`], waiting at most `wait` for a write lock
     /// another process holds, as [`CacheStore::mark_announced_within`] (lead
     /// ruling S33): an alert not recorded in time is announced again next tick.
+    /// The tick also clears an alert (`None`) through this method when it
+    /// sends no message (lead ruling S35); a clear not recorded in time is
+    /// retried next tick.
     fn set_sync_alert_within(
         &mut self,
         s: &ScopeId,
