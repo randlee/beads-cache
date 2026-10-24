@@ -515,3 +515,68 @@ fn an_attempts_count_past_u32_is_store_failed_without_a_source() {
         "the decoder agrees: {err:?}"
     );
 }
+
+/// The per-bead index of a ready base (ADR-STORE-0004) lives and dies with the
+/// base: a replace swaps it, a prune and a schema rebuild delete it.
+#[test]
+fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
+    use bd_cache_model::FingerprintOutcome;
+    use sc_beads::{BlockedRow, Fingerprint, Sha256Hex};
+
+    let (open, mut store) = fresh("base-index");
+    let indexed = |scope: &str| -> i64 {
+        Connection::open(&open.path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM ready_base_blocked WHERE scope = ?1",
+                [scope],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    let blocked = |bead: &str, by: &str| BlockedRow {
+        id: id(bead),
+        blocked_by: vec![id(by)],
+    };
+    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&y()).unwrap();
+    store
+        .replace_ready_base(
+            &x(),
+            &[blocked("a", "b"), blocked("c", "b")],
+            &[],
+            &ts("2026-10-23T10:00:00Z"),
+        )
+        .unwrap();
+    store
+        .replace_ready_base(&y(), &[blocked("a", "z")], &[], &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    assert_eq!((indexed("x"), indexed("y")), (2, 1));
+    store
+        .replace_ready_base(&x(), &[blocked("a", "b")], &[], &ts("2026-10-23T10:00:05Z"))
+        .unwrap();
+    assert_eq!(indexed("x"), 1, "a replace swaps the whole index");
+
+    store.prune_scope(&y()).unwrap();
+    assert_eq!(
+        (indexed("x"), indexed("y")),
+        (1, 0),
+        "a prune takes its own scope's index only"
+    );
+
+    let sha = |c: char| Sha256Hex::new(c.to_string().repeat(64)).unwrap();
+    let fp = |c| Fingerprint {
+        bd_version: "1.3.1".into(),
+        schema_sha256: sha(c),
+        schema_version: "1".into(),
+    };
+    assert_eq!(
+        store.record_fingerprint(&fp('a')).unwrap(),
+        FingerprintOutcome::Recorded
+    );
+    assert_eq!(
+        store.record_fingerprint(&fp('b')).unwrap(),
+        FingerprintOutcome::Rebuilt
+    );
+    assert_eq!(indexed("x"), 0, "a rebuild drops every base and its index");
+}
