@@ -4,7 +4,7 @@ Sprint a-7 (`docs/plans/phase-a/sprint-a-7-sync-integration.md`, deliverable 5).
 The testbed is the `m5-atmbench` account, run by the lead (bc-lead) (NFR-BDC-0006:
 live tests run only there and in the bd-compat workflow).
 
-## Status: run for fix-a-7-8's code (`24456c5`) deferred to `integrate/phase-a` after a-7 lands (bc-lead, 2026-10-25); last recorded run at merge `7702b67`
+## Status: re-run at the a-7 code deferred to `integrate/phase-a` (bc-lead, due 2026-10-25); merge-head run due 2026-10-31; last recorded run at merge `7702b67`
 
 The developer session that wrote this sprint has no access to `m5-atmbench`.
 Under deliverable 5, the recording-invoker results (CI, below) close the
@@ -12,12 +12,11 @@ sprint, and the testbed items are deferred evidence:
 
 | Item | Owner | Due | State |
 |---|---|---|---|
-| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
-| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
-| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
+| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
+| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-25 (re-run at the a-7 code); 2026-10-31 (merge-head run) | run at 7702b67 recorded; re-run at the a-7 code (24456c5/9110187, same code) deferred to integrate/phase-a, due 2026-10-25; merge-head run due 2026-10-31 (S8, S16) |
 
-Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the testbed ran at `9f3ceb5`; the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`) and now the last code-changing commit. bc-lead's run at the merge head is due 2026-10-31; no code changes between
-`7702b67` and the head, only documents and the evidence script.
+Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`). `7702b67` is the last recorded run, not the last code-changing commit: code changed after it. The last code-changing commit is `24456c5` (S33; the merge `9110187` has the same code), and later fix layers change code again. The re-run at the a-7 code is deferred to `integrate/phase-a` (owner bc-lead, due 2026-10-25). bc-lead's separate run at the merge head (S8, S16) stays due 2026-10-31.
 
 ## Commands (on `m5-atmbench`)
 
@@ -87,7 +86,7 @@ Incremental sync of a 1000-bead phase: 508 ms against the 1 s limit
 server; it is a sanity figure, not the recorded NFR evidence, which is the
 testbed's.
 
-### Testbed run at the last code-changing commit, the merge `7702b67` (m5-atmbench)
+### Last recorded testbed run, the merge `7702b67` (m5-atmbench; not the last code-changing commit)
 
 Same host, bd 1.3.2 (dev), 2026-10-24 19:05Z, the same recipe: `git archive` of `7702b67` into
 `~/github/beads-cache-a7-7702b67`, remote scripts `~/run-a7-testbed-7702b67.sh` and `~/run-a2-pinnedany-7702b67.sh`.
