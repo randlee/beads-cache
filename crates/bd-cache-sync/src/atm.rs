@@ -518,18 +518,17 @@ fn tree_kill_command(pid: u32) -> Option<Command> {
 /// (its pid) cannot belong to anything else.
 fn kill_tree(child: Child) {
     let tree_kill = tree_kill_command(child.id());
-    kill_tree_with(child, tree_kill);
+    kill_tree_with(child, tree_kill, Instant::now() + KILL_BOUND);
 }
 
-/// [`kill_tree`] with the tree-kill program given.
+/// [`kill_tree`] with the tree-kill program and the kill deadline given.
 ///
-/// The tree kill and the reaping share one deadline, [`KILL_BOUND`] from the
-/// start (lead ruling S27). A failing or overrunning tree kill is logged and
-/// the child itself is killed regardless; a child or tree kill not done by the
-/// deadline is handed to the reaper (lead ruling S28).
-fn kill_tree_with(mut child: Child, tree_kill: Option<Command>) -> TreeKill {
+/// The tree kill and the reaping share one deadline, `until` ([`KILL_BOUND`]
+/// from the start, lead ruling S27). A failing or overrunning tree kill is
+/// logged and the child itself is killed regardless; a child or tree kill not
+/// done by the deadline is handed to the reaper (lead ruling S28).
+fn kill_tree_with(mut child: Child, tree_kill: Option<Command>, until: Instant) -> TreeKill {
     let pid = child.id();
-    let until = Instant::now() + KILL_BOUND;
     let outcome = tree_kill.map_or(TreeKill::Failed, |kill| run_tree_kill(kill, pid, until));
     // The tree kill is absent on other platforms or may have failed: kill the
     // child itself too, and reap it so it is no zombie.
@@ -781,17 +780,63 @@ mod tests {
             .is_ok_and(|s| s.success())
     }
 
-    /// Waits until the process no longer exists: it was killed and reaped.
+    /// Whether the process is a zombie: dead, not yet reaped by its parent.
+    /// On Linux the state field of `/proc/<pid>/stat` (after the `)` that ends
+    /// the command name), elsewhere `ps -o stat=`; both say `Z`.
+    #[cfg(target_os = "linux")]
+    fn zombie(pid: u32) -> bool {
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|stat| {
+                let (_, rest) = stat.rsplit_once(')')?;
+                Some(rest.trim_start().starts_with('Z'))
+            })
+            .unwrap_or(false)
+    }
+
+    /// See the Linux form.
+    #[cfg(all(unix, not(target_os = "linux")))]
+    fn zombie(pid: u32) -> bool {
+        Command::new("ps")
+            .args(["-o", "stat=", "-p", &pid.to_string()])
+            .stderr(Stdio::null())
+            .output()
+            .is_ok_and(|o| {
+                String::from_utf8_lossy(&o.stdout)
+                    .trim_start()
+                    .starts_with('Z')
+            })
+    }
+
+    /// Waits until `alive(pid)` is false, up to 10 s.
     #[cfg(unix)]
-    fn assert_reaped(pid: u32, what: &str) {
+    fn wait_until_not(alive: impl Fn(u32) -> bool, pid: u32, what: &str, state: &str) {
         let until = Instant::now() + Duration::from_secs(10);
-        while exists(pid) {
-            assert!(
-                Instant::now() < until,
-                "{what} (pid {pid}) still exists: not killed or left a zombie"
-            );
+        while alive(pid) {
+            assert!(Instant::now() < until, "{what} (pid {pid}) {state}");
             thread::sleep(Duration::from_millis(20));
         }
+    }
+
+    /// Waits until a process this code owns (a child it spawned, or one it
+    /// handed to the reaper) no longer exists: killed and reaped. A zombie
+    /// fails it: reaping it is this code's job (S28).
+    #[cfg(unix)]
+    fn assert_reaped(pid: u32, what: &str) {
+        wait_until_not(
+            exists,
+            pid,
+            what,
+            "still exists: not killed or left a zombie",
+        );
+    }
+
+    /// Waits until a process this code does not own (a grandchild, reparented
+    /// to PID 1 when its parent died) is dead. A zombie counts as gone: its
+    /// reaping is PID 1's, and a container's PID 1 may never do it (FTQ-024).
+    #[cfg(unix)]
+    fn assert_gone(pid: u32, what: &str) {
+        wait_until_not(|p| exists(p) && !zombie(p), pid, what, "is still running");
     }
 
     /// Waits for the pid a script wrote to `path`.
@@ -810,27 +855,26 @@ mod tests {
         }
     }
 
-    /// A stuck tree kill is given up on at the shared deadline, inside the
-    /// send reserve, and the reaper waits for it so it is no zombie (S27, S28).
+    /// A stuck tree kill is given up on at the shared deadline, and the reaper
+    /// waits for it so it is no zombie (S27, S28).
     #[cfg(unix)]
     #[test]
     fn a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped() {
         let mut stuck = Command::new("sleep");
         stuck.arg("30");
-        let started = Instant::now();
-        let outcome = run_tree_kill(stuck, 0, started + READ_FLOOR);
-        let took = started.elapsed();
+        // The deadline is the test's; that KILL_BOUND fits the send reserve is
+        // the const assertion's (FTQ-021): no clock bound here.
+        let outcome = run_tree_kill(stuck, 0, Instant::now() + READ_FLOOR);
         let TreeKill::GaveUp { pid } = outcome else {
-            panic!("{outcome:?}");
+            panic!("given up on at the deadline: {outcome:?}");
         };
-        assert!(took < SEND_RESERVE, "{took:?}");
         assert_reaped(pid, "the stuck tree kill");
     }
 
     /// A child that ignores TERM, with a descendant that ignores it too, and a
     /// tree kill that never finishes: the kill and the reaping share one
-    /// deadline, the call ends inside the send reserve, and the child, its
-    /// descendant and the stuck tree kill are all gone (S27, S28).
+    /// deadline, the call gives the tree kill up at it, and the child and the
+    /// stuck tree kill are reaped and the descendant is dead (S27, S28).
     #[cfg(unix)]
     #[test]
     fn a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill() {
@@ -855,15 +899,15 @@ mod tests {
             .arg(r#"/bin/kill -KILL -- "-$1"; exec sleep 30"#)
             .arg("sh")
             .arg(pid.to_string());
-        let started = Instant::now();
-        let outcome = kill_tree_with(child, Some(tree_kill));
-        let took = started.elapsed();
-        assert!(took < SEND_RESERVE, "{took:?}");
+        // The kill deadline is injected (FTQ-021): the call returns at it, with
+        // the tree kill given up on, whatever the host's speed. That the real
+        // KILL_BOUND fits the send reserve is the const assertion's.
+        let outcome = kill_tree_with(child, Some(tree_kill), Instant::now() + READ_FLOOR);
         let TreeKill::GaveUp { pid: helper } = outcome else {
-            panic!("{outcome:?}");
+            panic!("given up on at the deadline: {outcome:?}");
         };
         assert_reaped(pid, "the child");
-        assert_reaped(grandchild, "the grandchild");
+        assert_gone(grandchild, "the grandchild");
         assert_reaped(helper, "the stuck tree kill");
     }
 

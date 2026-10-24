@@ -310,6 +310,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         self.store.mark_announced(seq, &at)
     }
 
+    /// [`Cache::mark_announced`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33): the tick passes the time it
+    /// has left, so the marker write cannot carry it past its end.
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::mark_announced`]; a write lock held past `wait` is the
+    /// store's usual failure (`STORE_FAILED` for SQLite), and the entry stays
+    /// unannounced.
+    pub fn mark_announced_within(&mut self, seq: Seq, wait: Duration) -> Result<(), CacheError> {
+        let at = self.clock.now_utc();
+        self.store.mark_announced_within(seq, &at, wait)
+    }
+
     /// The scope's last announced sync-failure cause.
     ///
     /// # Errors
@@ -326,6 +340,22 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// Store errors.
     pub fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
         self.store.set_sync_alert(s, cause)
+    }
+
+    /// [`Cache::set_sync_alert`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33), as
+    /// [`Cache::mark_announced_within`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::mark_announced_within`]; the alert is left as it was.
+    pub fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        self.store.set_sync_alert_within(s, cause, wait)
     }
 
     /// Pending and unannounced-escalated counts (the stop rule).

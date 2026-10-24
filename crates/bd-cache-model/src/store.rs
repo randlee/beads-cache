@@ -1,5 +1,7 @@
 //! The store port ([`CacheStore`]) and the cross-process drain lock ([`DrainLock`]).
 
+use std::time::Duration;
+
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
@@ -177,6 +179,25 @@ pub trait CacheStore: Send {
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
     /// Records that an escalation was announced.
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
+    /// [`CacheStore::mark_announced`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33).
+    ///
+    /// The tick's marker writes after a send pass the time left before its
+    /// end, so a contended write cannot carry the tick past it: one that cannot
+    /// finish in time returns the store's usual error, the entry stays
+    /// unannounced, and the next tick sends it again (at least once). The
+    /// provided body ignores `wait`, for a store that never waits for a lock
+    /// held elsewhere (the in-memory `FakeStore`); a store that can wait
+    /// overrides it.
+    fn mark_announced_within(
+        &mut self,
+        seq: Seq,
+        at: &Timestamp,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        let _ = wait;
+        self.mark_announced(seq, at)
+    }
     /// Applies the rebuild rule to a fresh fingerprint (REQ-BDC-0105).
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError>;
     /// A scope's sync state (all `None` before its first sync).
@@ -187,6 +208,18 @@ pub trait CacheStore: Send {
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError>;
     /// Sets (`Some`) or clears (`None`) the scope's sync alert.
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError>;
+    /// [`CacheStore::set_sync_alert`], waiting at most `wait` for a write lock
+    /// another process holds, as [`CacheStore::mark_announced_within`] (lead
+    /// ruling S33): an alert not recorded in time is announced again next tick.
+    fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        let _ = wait;
+        self.set_sync_alert(s, cause)
+    }
     /// The outage, while one holds.
     fn outage(&self) -> Result<Option<Outage>, CacheError>;
     /// Records (`Some`) or clears (`None`) the outage.

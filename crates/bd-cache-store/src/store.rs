@@ -2,6 +2,7 @@
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
@@ -116,7 +117,9 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 /// journal reads `has_entries_since` and `applied_since` may also write: when
 /// more than [`READ_DATING_THRESHOLD`] entries another writer applied wait to
 /// be dated, they date them, never waiting for the write lock, and answer the
-/// same either way (ADR-STORE-0004, lead rulings S25/S26).
+/// same either way (ADR-STORE-0004, lead rulings S25/S26). The bounded marker
+/// writes (`mark_announced_within`, `set_sync_alert_within`) wait at most the
+/// time they are given, never more than [`BUSY_TIMEOUT`] (lead ruling S33).
 ///
 /// # Examples
 ///
@@ -150,11 +153,17 @@ pub struct SqliteStore {
     /// Set, with one warning, when a hinted journal index is found missing:
     /// from then on the journal reads ask their unhinted form (ADR-STORE-0004).
     hints_missing: Cell<bool>,
-    /// The floor of known unreadable entries: every undated entry at or below
-    /// this seq has an unreadable time (warned about). The read path counts
-    /// only undated entries above it, so the entries no dating can date are
-    /// not walked on every call (QA5-002). It never rises past an entry the
-    /// dating can date, so none is hidden from the count.
+    /// The floor of known unreadable entries: every entry that was applied and
+    /// undated when the floor last rose, at or below this seq, has an
+    /// unreadable time (warned about). The read path counts only undated
+    /// entries above it for the threshold, so the entries no dating can date
+    /// are not walked on every call (QA5-002). It never rises past an applied
+    /// entry the dating can date. An entry still pending when it rose, which
+    /// `bd_cache.py` applies later without an epoch, can sit below it: that
+    /// entry is answered as every undated entry is (the journal reads do not
+    /// use the floor), is left out of the threshold count, and is dated by the
+    /// next dating, which dates every readable entry whatever its seq, or at
+    /// the next open (QA6-001).
     undatable_through: Cell<i64>,
     /// Every undated entry with a seq at or below this one has had its time
     /// examined; only higher seqs are examined (and warned about) again.
@@ -301,7 +310,7 @@ impl SqliteStore {
     /// index lookups (ADR-STORE-0004, lead ruling S26). At or below the
     /// threshold nothing is written: the reads walk them, which is cheaper
     /// than a commit. Best effort and never waits: the `UPDATE` runs with no
-    /// busy timeout ([`NoWait`]), and when the write lock is held elsewhere,
+    /// busy timeout ([`BusyWait`] of zero), and when the write lock is held elsewhere,
     /// or the file is read-only, nothing is dated now and the reads answer
     /// the same from the undated entries, only slower.
     ///
@@ -338,7 +347,7 @@ impl SqliteStore {
     /// The non-waiting `UPDATE` of [`SqliteStore::date_undated`]; `true` when
     /// it ran, so every entry with a readable time is dated.
     fn date_now(&self) -> bool {
-        let _no_wait = match NoWait::new(&self.conn, &self.path) {
+        let _no_wait = match BusyWait::new(&self.conn, &self.path, Duration::ZERO) {
             Ok(guard) => guard,
             Err(e) => {
                 tracing::debug!(error = %e, "could not drop the busy timeout to date entries");
@@ -427,11 +436,24 @@ impl SqliteStore {
         what: &str,
         f: impl FnOnce(&Transaction<'_>, Step<'_>) -> Result<T, CacheError>,
     ) -> Result<T, CacheError> {
+        write_on(&mut self.conn, step(&self.path, what), f)
+    }
+
+    /// [`SqliteStore::write`] waiting at most `wait` for a write lock held
+    /// elsewhere, never more than [`BUSY_TIMEOUT`] (lead ruling S33): the busy
+    /// timeout is `min(BUSY_TIMEOUT, wait)` for this one transaction
+    /// ([`BusyWait`]) and back to [`BUSY_TIMEOUT`] after it. A lock held past
+    /// `wait` is the usual `STORE_FAILED` (SQLite's `database is locked`).
+    fn write_within<T>(
+        &mut self,
+        wait: Duration,
+        what: &str,
+        f: impl FnOnce(&Transaction<'_>, Step<'_>) -> Result<T, CacheError>,
+    ) -> Result<T, CacheError> {
         let at = step(&self.path, what);
-        let tx = begin(&mut self.conn, at)?;
-        let out = f(&tx, at)?;
-        tx.commit().at(at)?;
-        Ok(out)
+        let mut conn = BusyWait::new(&mut self.conn, &self.path, wait.min(BUSY_TIMEOUT))
+            .at(step(&self.path, "set the busy timeout"))?;
+        write_on(&mut conn, at, f)
     }
 
     /// Stores one row inside `tx` (see the `CacheStore` rules).
@@ -610,22 +632,41 @@ impl SqliteStore {
     }
 }
 
-/// Sets the connection's busy timeout to zero, and back to [`BUSY_TIMEOUT`]
-/// when dropped, also on unwind (QA5-003): the read-path dating never waits
-/// for the write lock, and every later write waits as before.
-struct NoWait<'c> {
-    conn: &'c Connection,
-    path: &'c Path,
+/// Sets the connection's busy timeout to `wait` while it lives, and back to
+/// [`BUSY_TIMEOUT`] when dropped, also on unwind (QA5-003, lead ruling S33).
+/// The read-path dating holds it at zero, so it never waits for the write
+/// lock; a bounded write ([`SqliteStore::write_within`]) holds it at the time
+/// the caller has left. Every later write waits as before.
+///
+/// `C` is `&Connection` for a guard over a read (the dating runs from
+/// `&self`) and `&mut Connection` for one a transaction is begun on.
+struct BusyWait<'p, C: Deref<Target = Connection>> {
+    conn: C,
+    path: &'p Path,
 }
 
-impl<'c> NoWait<'c> {
-    fn new(conn: &'c Connection, path: &'c Path) -> rusqlite::Result<Self> {
-        conn.busy_timeout(Duration::ZERO)?;
+impl<'p, C: Deref<Target = Connection>> BusyWait<'p, C> {
+    fn new(conn: C, path: &'p Path, wait: Duration) -> rusqlite::Result<Self> {
+        conn.busy_timeout(wait)?;
         Ok(Self { conn, path })
     }
 }
 
-impl Drop for NoWait<'_> {
+impl<C: Deref<Target = Connection>> Deref for BusyWait<'_, C> {
+    type Target = Connection;
+
+    fn deref(&self) -> &Connection {
+        &self.conn
+    }
+}
+
+impl<C: DerefMut<Target = Connection>> DerefMut for BusyWait<'_, C> {
+    fn deref_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
+}
+
+impl<C: Deref<Target = Connection>> Drop for BusyWait<'_, C> {
     fn drop(&mut self) {
         if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {
             tracing::warn!(
@@ -641,6 +682,18 @@ impl Drop for NoWait<'_> {
 fn begin<'c>(conn: &'c mut Connection, at: Step<'_>) -> Result<Transaction<'c>, CacheError> {
     conn.transaction_with_behavior(TransactionBehavior::Immediate)
         .at(at)
+}
+
+/// Runs `f` in one [`begin`] transaction on `conn`, committed when `f` succeeds.
+fn write_on<T>(
+    conn: &mut Connection,
+    at: Step<'_>,
+    f: impl FnOnce(&Transaction<'_>, Step<'_>) -> Result<T, CacheError>,
+) -> Result<T, CacheError> {
+    let tx = begin(conn, at)?;
+    let out = f(&tx, at)?;
+    tx.commit().at(at)?;
+    Ok(out)
 }
 
 /// Schema, version and identity checks of [`SqliteStore::open_at`], in one
@@ -1212,7 +1265,16 @@ impl CacheStore for SqliteStore {
     }
 
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
-        self.write("mark announced", |tx, st| {
+        self.mark_announced_within(seq, at, BUSY_TIMEOUT)
+    }
+
+    fn mark_announced_within(
+        &mut self,
+        seq: Seq,
+        at: &Timestamp,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        self.write_within(wait, "mark announced", |tx, st| {
             let n = tx
                 .prepare_cached("UPDATE journal SET announced_at = ?2 WHERE seq = ?1")
                 .at(st)?
@@ -1314,8 +1376,17 @@ impl CacheStore for SqliteStore {
     }
 
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
+        self.set_sync_alert_within(s, cause, BUSY_TIMEOUT)
+    }
+
+    fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
         let key = alert_key(s);
-        self.write("set a sync alert", |tx, at| {
+        self.write_within(wait, "set a sync alert", |tx, at| {
             match cause {
                 Some(c) => tx
                     .prepare_cached("INSERT OR REPLACE INTO meta VALUES (?1, ?2)")
@@ -1608,6 +1679,9 @@ impl SqliteStore {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicI64, Ordering};
+
     use super::*;
     use crate::location::{DoltDatabase, ProjectId};
 
@@ -1650,7 +1724,8 @@ mod tests {
             tx.execute(
                 "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
                  actor, state, attempts, created_at, updated_at) VALUES \
-                 (?1, 'x', 'b', 'close', '{}', '{}', 'a', 'applied', 0, 't', ?2)",
+                 (?1, 'x', 'b', 'close', '{}', '{}', 'a', 'applied', 0, \
+                 '2026-10-24T07:00:00Z', ?2)",
                 [format!("{tag}-{i}"), updated_at.to_owned()],
             )
             .unwrap();
@@ -1671,15 +1746,9 @@ mod tests {
     /// walking them (QA5-002).
     #[test]
     fn undatable_entries_written_while_open_are_warned_once_and_not_walked_again() {
-        let dir = std::env::temp_dir().join(format!(
-            "bdc-store-undatable-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_nanos())
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("u.sqlite3");
+        // Removed on drop, after the stores below (declared later, dropped first).
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("u.sqlite3");
         let identity = DatabaseIdentity {
             dolt_database: DoltDatabase::new("p").unwrap(),
             project_id: ProjectId::new("p-p").unwrap(),
@@ -1729,26 +1798,29 @@ mod tests {
         assert_eq!(reopened.undatable_through.get(), highest_bad + 3);
         assert_eq!(reopened.note_undatable().unwrap(), None);
         drop(reopened);
-        std::fs::remove_dir_all(&dir).unwrap();
     }
 
-    /// A store on a fresh file in a temp dir (removed by the caller).
-    fn temp_store(tag: &str) -> (std::path::PathBuf, PathBuf, SqliteStore) {
-        let dir = std::env::temp_dir().join(format!(
-            "bdc-store-{tag}-{}-{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map_or(0, |d| d.as_nanos())
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("t.sqlite3");
+    /// A store on a fresh file in a temp dir. Field order matters: the store
+    /// closes before the directory is removed, also when a test fails (QA6-002).
+    struct TempStore {
+        store: SqliteStore,
+        path: PathBuf,
+        _dir: tempfile::TempDir,
+    }
+
+    fn temp_store() -> TempStore {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("t.sqlite3");
         let identity = DatabaseIdentity {
             dolt_database: DoltDatabase::new("p").unwrap(),
             project_id: ProjectId::new("p-p").unwrap(),
         };
         let store = SqliteStore::open_at(&path, &identity).unwrap();
-        (dir, path, store)
+        TempStore {
+            store,
+            path,
+            _dir: dir,
+        }
     }
 
     fn undated_count(path: &Path) -> i64 {
@@ -1769,7 +1841,7 @@ mod tests {
     /// is passed. A floor of F would leave it out of the count and undated.
     #[test]
     fn the_floor_stops_one_below_the_first_dateable_entry() {
-        let (dir, path, store) = temp_store("floor-exact");
+        let TempStore { store, path, _dir } = temp_store();
         let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
 
         // Seqs 1..=3 unreadable, seq 4 (= F) readable: below the threshold,
@@ -1808,8 +1880,50 @@ mod tests {
             )
             .unwrap();
         assert!(epoch.is_some(), "entry F itself is dated");
-        drop(store);
-        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The busy timeout in effect inside a write, read by a temporary
+    /// trigger `name`: `trigger` (`AFTER <event> ON main.<table>`) calls
+    /// `probe_busy_timeout()`, which reads `PRAGMA busy_timeout` on the
+    /// connection running the statement, once it holds the write lock, and
+    /// stores it in the returned cell (-1 until the trigger fires). Causal, no
+    /// timing.
+    fn probe_busy_timeout(conn: &Connection, name: &str, trigger: &str) -> Arc<AtomicI64> {
+        let seen = Arc::new(AtomicI64::new(-1));
+        let sink = Arc::clone(&seen);
+        conn.create_scalar_function(
+            "probe_busy_timeout",
+            0,
+            rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+            move |ctx| {
+                // SAFETY: rusqlite's contract for `get_connection` is that the
+                // returned `ConnectionRef` is not sent to, or used from,
+                // another thread (rusqlite issue 643). It is used only here,
+                // for one read, on the thread running this statement, and is
+                // dropped before the closure returns: it neither outlives the
+                // call nor leaves this thread.
+                let ms: i64 =
+                    unsafe { ctx.get_connection() }?
+                        .query_row("PRAGMA busy_timeout", [], |r| r.get(0))?;
+                sink.store(ms, Ordering::SeqCst);
+                Ok(0_i64)
+            },
+        )
+        .unwrap();
+        conn.execute_batch(&format!(
+            "CREATE TEMP TRIGGER {name} {trigger} BEGIN SELECT probe_busy_timeout(); END;"
+        ))
+        .unwrap();
+        seen
+    }
+
+    fn busy_timeout_ms(c: &Connection) -> i64 {
+        c.query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+            .unwrap()
+    }
+
+    fn ms(d: Duration) -> i64 {
+        i64::try_from(d.as_millis()).unwrap()
     }
 
     /// The dating `UPDATE` runs with a zero busy timeout, and the timeout is
@@ -1821,45 +1935,15 @@ mod tests {
     /// causal, no timing.
     #[test]
     fn the_dating_update_runs_with_no_busy_timeout_and_restores_it() {
-        use std::sync::Arc;
-        use std::sync::atomic::{AtomicI64, Ordering};
-
-        let (dir, path, store) = temp_store("dating-nowait");
+        let TempStore { store, path, _dir } = temp_store();
         let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
-        let seen = Arc::new(AtomicI64::new(-1));
-        let sink = Arc::clone(&seen);
-        store
-            .conn
-            .create_scalar_function(
-                "probe_busy_timeout",
-                0,
-                rusqlite::functions::FunctionFlags::SQLITE_UTF8,
-                move |ctx| {
-                    // SAFETY: the connection is only read, on the thread
-                    // that is running this statement.
-                    let ms: i64 = unsafe { ctx.get_connection() }?.query_row(
-                        "PRAGMA busy_timeout",
-                        [],
-                        |r| r.get(0),
-                    )?;
-                    sink.store(ms, Ordering::SeqCst);
-                    Ok(0_i64)
-                },
-            )
-            .unwrap();
-        store
-            .conn
-            .execute_batch(
-                "CREATE TEMP TRIGGER probe_dating AFTER UPDATE ON main.journal \
-                 BEGIN SELECT probe_busy_timeout(); END;",
-            )
-            .unwrap();
-        let inside = |c: &Connection| -> i64 {
-            c.query_row("PRAGMA busy_timeout", [], |r| r.get(0))
-                .unwrap()
-        };
-        let normal = i64::try_from(BUSY_TIMEOUT.as_millis()).unwrap();
-        assert_eq!(inside(&store.conn), normal, "control: the usual timeout");
+        let seen = probe_busy_timeout(&store.conn, "probe_dating", "AFTER UPDATE ON main.journal");
+        let normal = ms(BUSY_TIMEOUT);
+        assert_eq!(
+            busy_timeout_ms(&store.conn),
+            normal,
+            "control: the usual timeout"
+        );
 
         seed_applied(
             &path,
@@ -1870,8 +1954,133 @@ mod tests {
         assert!(!store.has_entries_since(&at).unwrap());
         assert_eq!(undated_count(&path), 0, "the dating ran");
         assert_eq!(seen.load(Ordering::SeqCst), 0, "no busy timeout inside it");
-        assert_eq!(inside(&store.conn), normal, "restored afterwards");
-        drop(store);
-        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
+    }
+
+    /// A bounded marker write runs with `min(BUSY_TIMEOUT, wait)` as its busy
+    /// timeout, and the timeout is back afterwards (lead ruling S33). Sampled
+    /// from inside each write by a temporary trigger, as the dating's is:
+    /// causal, no timing. The contended case is `tests/store.rs`
+    /// (`a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`).
+    #[test]
+    fn a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout() {
+        let TempStore {
+            mut store, _dir, ..
+        } = temp_store();
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        let x = ScopeId::phase("x").unwrap();
+        let normal = ms(BUSY_TIMEOUT);
+
+        let alert = probe_busy_timeout(&store.conn, "probe_alert", "AFTER INSERT ON main.meta");
+        let quarter = Duration::from_millis(250);
+        store.set_sync_alert_within(&x, Some("c"), quarter).unwrap();
+        assert_eq!(alert.load(Ordering::SeqCst), ms(quarter), "the time left");
+        assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
+        store
+            .set_sync_alert_within(&x, Some("d"), Duration::ZERO)
+            .unwrap();
+        assert_eq!(alert.load(Ordering::SeqCst), 0, "no time left: no wait");
+        // The unbounded form is the usual timeout.
+        store.set_sync_alert(&x, Some("e")).unwrap();
+        assert_eq!(alert.load(Ordering::SeqCst), normal);
+
+        let seq = store
+            .insert_entry(
+                bd_cache_model::NewEntry {
+                    idem_key: IdemKey::new("k").unwrap(),
+                    scope: None,
+                    bead: sc_beads::testing::id("b"),
+                    op: bd_cache_model::Op::Close { reason: None },
+                    precondition: sc_beads::Guards::default(),
+                    actor: sc_beads::testing::actor("san"),
+                },
+                &at,
+            )
+            .unwrap();
+        store.escalate(seq, "gone", &at).unwrap();
+        let mark = probe_busy_timeout(
+            &store.conn,
+            "probe_mark",
+            "AFTER UPDATE OF announced_at ON main.journal",
+        );
+        // More time left than the store's own timeout: capped at it.
+        store
+            .mark_announced_within(seq, &at, Duration::from_secs(60))
+            .unwrap();
+        assert_eq!(
+            mark.load(Ordering::SeqCst),
+            normal,
+            "capped at BUSY_TIMEOUT"
+        );
+        assert_eq!(busy_timeout_ms(&store.conn), normal);
+        assert!(store.unannounced_escalations().unwrap().is_empty());
+    }
+
+    /// QA6-001, the chosen behaviour (ADR-STORE-0004): an entry still pending
+    /// when the floor rose above its seq, then applied by `bd_cache.py`
+    /// without an epoch, is below the floor. It is answered as every undated
+    /// entry is, it is not in the threshold count, and the next dating dates it.
+    #[test]
+    fn a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating() {
+        let TempStore { store, path, _dir } = temp_store();
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        // Seq 1 pending (bd_cache.py's), seqs 2..=4 applied with unreadable times.
+        Connection::open(&path)
+            .unwrap()
+            .execute(
+                "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                 actor, state, attempts, created_at, updated_at) VALUES \
+                 ('low', 'x', 'b', 'close', '{}', '{}', 'a', 'pending', 0, \
+                 '2026-10-24T07:00:00Z', '2026-10-24T07:00:00Z')",
+                [],
+            )
+            .unwrap();
+        seed_applied(&path, "bad", 3, "garbage");
+        assert!(store.has_entries_since(&at).unwrap());
+        assert_eq!(
+            store.undatable_through.get(),
+            4,
+            "the floor rose past seq 1"
+        );
+
+        // bd_cache.py applies seq 1, with a readable time and no epoch.
+        Connection::open(&path)
+            .unwrap()
+            .execute(
+                "UPDATE journal SET state = 'applied', applied_at = '2026-10-24T08:30:00Z', \
+                 updated_at = '2026-10-24T08:30:00Z' WHERE seq = 1",
+                [],
+            )
+            .unwrap();
+        let seqs = |since: &str| -> Vec<i64> {
+            store
+                .applied_since(&Timestamp::parse(since).unwrap())
+                .unwrap()
+                .iter()
+                .map(|e| e.seq.get())
+                .collect()
+        };
+        // Answered by its own time; the unreadable ones count as every instant.
+        assert_eq!(seqs("2026-10-24T08:00:00Z"), [1, 2, 3, 4]);
+        assert_eq!(seqs("2026-10-24T09:00:00Z"), [2, 3, 4]);
+        assert_eq!(store.undatable_through.get(), 4, "the floor stays");
+        assert_eq!(undated_count(&path), 4, "not dated: below the threshold");
+
+        // The next dating dates it, whatever its seq.
+        seed_applied(
+            &path,
+            "more",
+            usize::try_from(READ_DATING_THRESHOLD).unwrap() + 1,
+            "2026-10-24T08:00:00Z",
+        );
+        assert!(store.has_entries_since(&at).unwrap());
+        let epoch: Option<i64> = Connection::open(&path)
+            .unwrap()
+            .query_row("SELECT applied_epoch FROM journal WHERE seq = 1", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(epoch, Some(at.unix() - 1_800), "seq 1 is dated by its time");
+        assert_eq!(undated_count(&path), 3, "only the unreadable ones remain");
     }
 }

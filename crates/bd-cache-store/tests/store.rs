@@ -1253,45 +1253,58 @@ fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
     assert_eq!(undated(&open.path), 0, "dated once the lock is free");
 }
 
-/// The non-waiting dating puts the busy timeout back (QA5-003): another
-/// connection holds the write lock and releases it after about 500 ms; a read
-/// tries to date during the hold and gives up at once, and a store write
-/// started during the hold waits for the lock and succeeds.
+/// A bounded marker write gives up on a write lock another connection holds
+/// within its wait, not after the 5 s busy timeout, and writes nothing (lead
+/// ruling S33): the escalation stays unannounced and the alert unset, so the
+/// next tick sends the message again. Causal: the holder keeps the lock until
+/// both writes have returned, so their failure is the held lock's (`database
+/// is locked`), not a race with its release. The one clock check is loose: a
+/// 50 ms wait against `BUSY_TIMEOUT` (5 s), not a tight upper bound. That the
+/// busy timeout is back after the write is the unit test's causal probe
+/// (`a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`);
+/// the 500 ms hold this replaces is gone (FTQ-022).
 #[test]
-fn a_write_after_a_skipped_dating_waits_for_the_lock_again() {
-    let (open, mut store) = fresh("busy-restored");
+fn a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait() {
+    let (open, mut store) = fresh("bounded-marker");
     let at = ts("2026-10-24T09:00:00Z");
-    seed_python_applied(&open.path, threshold() + 1, "2026-10-24T08:00:00Z", "old");
-    let (held_tx, held) = std::sync::mpsc::channel();
-    let (go_tx, go) = std::sync::mpsc::channel::<()>();
-    let path = open.path.clone();
-    let holder = std::thread::spawn(move || {
-        let mut c = Connection::open(&path).unwrap();
-        let tx = c
-            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-            .unwrap();
-        held_tx.send(()).unwrap();
-        // The read below runs before the release starts, whatever the timing.
-        go.recv().unwrap();
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        tx.commit().unwrap();
-    });
-    held.recv().unwrap();
-    assert!(!store.has_entries_since(&at).unwrap());
-    assert_eq!(
-        undated(&open.path),
-        i64::from(READ_DATING_THRESHOLD) + 1,
-        "the dating was skipped under the lock"
+    let seq = store.insert_entry(entry("k1", "b1", None), &at).unwrap();
+    store.escalate(seq, "gone", &at).unwrap();
+    let mut c = Connection::open(&open.path).unwrap();
+    let tx = c
+        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+        .unwrap();
+
+    let wait = std::time::Duration::from_millis(50);
+    let started = std::time::Instant::now();
+    let marked = store.mark_announced_within(seq, &at, wait);
+    let alerted = store.set_sync_alert_within(&x(), Some("cause"), wait);
+    let took = started.elapsed();
+    // Released only now, after both writes returned.
+    tx.rollback().unwrap();
+
+    for (what, result) in [("mark", marked), ("alert", alerted)] {
+        let err = result.expect_err(what);
+        assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{what}: {err:?}");
+        assert!(err.detail().contains("locked"), "{what}: {}", err.detail());
+    }
+    assert!(
+        took < bd_cache_store::BUSY_TIMEOUT,
+        "both gave up within their wait, not the busy timeout: {took:?}"
     );
-    go_tx.send(()).unwrap();
+    assert_eq!(
+        store.unannounced_escalations().unwrap().len(),
+        1,
+        "not marked: sent again next tick"
+    );
+    assert_eq!(store.sync_alert(&x()).unwrap(), None);
+
+    // With the lock free, the same bounded writes succeed (the next tick).
+    store.mark_announced_within(seq, &at, wait).unwrap();
     store
-        .set_sync_alert(&x(), Some("after the hold"))
-        .expect("the write waits out the hold: the busy timeout is back");
-    holder.join().unwrap();
-    assert_eq!(
-        store.sync_alert(&x()).unwrap().as_deref(),
-        Some("after the hold")
-    );
+        .set_sync_alert_within(&x(), Some("cause"), wait)
+        .unwrap();
+    assert!(store.unannounced_escalations().unwrap().is_empty());
+    assert_eq!(store.sync_alert(&x()).unwrap().as_deref(), Some("cause"));
 }
 
 /// `applied_since` reads two partial-index ranges joined by `UNION ALL`;

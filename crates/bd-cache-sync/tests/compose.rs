@@ -54,7 +54,11 @@ fn compose_errors_have_codes_and_sources() {
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let root = repo("surprise = 1\n");
     let err = compose(root.path(), "bd", Arc::clone(&clock)).unwrap_err();
-    assert!(matches!(err, ComposeError::Config(_)));
+    let ComposeError::Config(loader) = &err else {
+        panic!("{err:?}");
+    };
+    // The loader's own code and fix, one text per way of failing (RBP-F040).
+    assert_eq!((err.code(), err.fix()), (loader.code(), loader.fix()));
     assert_eq!(err.code(), "sync_config_invalid_toml");
     assert!(err.fix().contains("remove unknown keys"), "{}", err.fix());
     assert!(std::error::Error::source(&err).is_some());

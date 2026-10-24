@@ -3,10 +3,10 @@
 
 use std::fmt;
 use std::path::Path;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, PhaseName, TickConfig};
+use bd_cache_model::{CacheError, TickConfig};
 use bd_cache_store::{
     CacheLocation, ConfigLoadError, FlockDrainLock, SqliteStore, load_repo_config,
 };
@@ -43,62 +43,26 @@ pub enum ComposeError {
 }
 
 impl ComposeError {
-    /// A stable code: for the configuration, one per way it fails
-    /// (`sync_config_unreadable`; `sync_config_invalid_toml` for a file that is
-    /// not a valid configuration; `sync_config_bad_scope`; `sync_config_invalid`
-    /// for any other), else the `BD_CACHE.*` code of the cache error.
+    /// A stable code: for the configuration, the loader's own
+    /// ([`ConfigLoadError::code`], one per way it fails), else the
+    /// `BD_CACHE.*` code of the cache error.
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Config(e) => config_code(e),
+            Self::Config(e) => e.code(),
             Self::Cache(e) => e.code(),
         }
     }
 
-    /// What to do about it: for the configuration, the fix of the way it
-    /// failed; for the cache, the cache error's own fix.
+    /// What to do about it: for the configuration, the loader's own fix
+    /// ([`ConfigLoadError::fix`], the text its message states); for the
+    /// cache, the cache error's own fix.
     #[must_use]
     pub fn fix(&self) -> &'static str {
         match self {
-            Self::Config(e) => config_fix(e),
+            Self::Config(e) => e.fix(),
             Self::Cache(e) => e.fix(),
         }
-    }
-}
-
-/// The code of a configuration that could not be loaded.
-fn config_code(e: &ConfigLoadError) -> &'static str {
-    match e {
-        ConfigLoadError::Read { .. } => "sync_config_unreadable",
-        ConfigLoadError::Parse { .. } => "sync_config_invalid_toml",
-        ConfigLoadError::Scope { .. } => "sync_config_bad_scope",
-        // A way of failing a later `bd-cache-store` adds (`ConfigLoadError`
-        // is `#[non_exhaustive]`).
-        _ => "sync_config_invalid",
-    }
-}
-
-/// The fix of `sync_config_bad_scope`: it states the phase-name rule in the
-/// model's one text ([`PhaseName::RULE`], RBP-F037).
-static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
-    format!(
-        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
-         without the phase- prefix",
-        PhaseName::RULE
-    )
-});
-
-/// The fix of a configuration that could not be loaded.
-fn config_fix(e: &ConfigLoadError) -> &'static str {
-    match e {
-        ConfigLoadError::Read { .. } => {
-            "make .beads/bd-cache.toml readable by this process, or remove it to use the defaults"
-        }
-        ConfigLoadError::Parse { .. } => {
-            "correct the key or value of .beads/bd-cache.toml the cause names, or remove unknown keys"
-        }
-        ConfigLoadError::Scope { .. } => BAD_SCOPE_FIX.as_str(),
-        _ => "correct .beads/bd-cache.toml as the cause says, or remove it to use the defaults",
     }
 }
 

@@ -13,7 +13,7 @@
 //! `metadata.json` only. This module makes the mapping.
 
 use std::error::Error;
-use std::fmt::{self, Write as _};
+use std::fmt;
 use std::path::Path;
 
 use bd_cache_model::CacheError;
@@ -36,8 +36,8 @@ pub(crate) fn chain(e: &dyn Error) -> String {
     let mut text = e.to_string();
     let mut next = e.source();
     while let Some(cause) = next {
-        // Writing to a String cannot fail.
-        write!(text, ": {cause}").unwrap_or_default();
+        text.push_str(": ");
+        text.push_str(&cause.to_string());
         next = cause.source();
     }
     text

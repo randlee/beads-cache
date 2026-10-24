@@ -121,6 +121,27 @@ Consequences: a lead hears of an outage once per outage, however many ticks
 it lasts; a sender that is down for hours is retried every tick without
 losing anything; a slow sender cannot push a tick past `T`.
 
+Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
+the marker written after a delivery (`announced_at`, a sync-failure alert, an
+outage alert) waits for the store's write lock at most the time left before
+`T`: the tick passes `Budget::write_wait` (`T` less now) to
+`Cache::mark_announced_within` and `Cache::set_sync_alert_within`, and the
+store waits `min(BUSY_TIMEOUT, that)` (`CacheStore::mark_announced_within`,
+`set_sync_alert_within`; ADR-STORE-0002). Before, the marker took the store's
+full 5 s busy timeout, so a write lock another process held could carry a tick
+some 3.5 s past `T` against the 1.5 s reserve. A marker that cannot be written
+in time returns the store's usual error (`STORE_FAILED`, `database is locked`):
+the tick fails with it, the message stays unmarked, and the next tick sends it
+again, the at-least-once delivery above. The marker writes of a tick with no
+message (clearing an alert after a passing sync or an ended outage) keep the
+full timeout. Evidence: `tests/marker_wait.rs` (each of the three markers is
+given exactly the time left, on the `ManualClock`),
+`a_marker_write_may_wait_the_time_left_before_t` (`src/control.rs`), and in
+`bd-cache-store` `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
+(a lock held by another connection) and
+`a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
+(the busy timeout sampled inside the write).
+
 Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
 `"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
 the bare key. The tick reads the code before the first `": "` with
@@ -294,7 +315,18 @@ of the kill; the tick keeps `SEND_RESERVE` (1.5 s) before `T`, which covers
 `control.rs` tie the constants together and to `HARD_MARGIN`.
 `a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`
 (`src/atm.rs`) shows a child and descendant that ignore TERM, with a tree kill
-that hangs, all gone and the call ended inside the reserve.
+that hangs, all gone, and the tree kill given up at the kill deadline; the
+test injects that deadline and asserts the outcome, not the clock (FTQ-021):
+that `KILL_BOUND` fits the reserve is the const assertions'. A descendant is
+dead once it is a zombie: reparented to PID 1, its reaping is not this
+crate's (FTQ-024); the child and the tree kill, which this crate owns, must be
+reaped.
+
+Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
+the reserve covers the send's overrun, not the marker write after it. That
+write waits for the store's write lock at most the time left before `T`
+(ADR-SYNC-0003, S33 amendment), so a contended store cannot carry the tick
+past `T` either; a marker not written in time is sent again next tick.
 
 Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
 a child or tree-kill program still running at the kill deadline is killed and

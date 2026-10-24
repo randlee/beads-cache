@@ -4,6 +4,10 @@
 //! return (rows, ids, entries, blocked rows), so a read that loads a whole
 //! scope shows up as a count that grows with the scope. It is a
 //! deterministic stand-in for latency (NFR-BDC-0001).
+//!
+//! It also records the `wait` of every bounded marker write
+//! (`mark_announced_within`, `set_sync_alert_within`, lead ruling S33), so a
+//! test can check what the tick passed.
 
 #![allow(
     clippy::unwrap_used,
@@ -12,8 +16,9 @@
     reason = "test code: a failed unwrap is a test failure"
 )]
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use bd_cache_model::{
     BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry,
@@ -26,6 +31,7 @@ use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 pub struct Counting<S> {
     inner: S,
     touched: Arc<AtomicU64>,
+    waits: Arc<Mutex<Vec<Duration>>>,
 }
 
 impl<S> Counting<S> {
@@ -36,9 +42,19 @@ impl<S> Counting<S> {
             Self {
                 inner,
                 touched: Arc::clone(&touched),
+                waits: Arc::default(),
             },
             touched,
         )
+    }
+
+    /// The `wait` of every bounded marker write so far, in order (shared handle).
+    pub fn waits(&self) -> Arc<Mutex<Vec<Duration>>> {
+        Arc::clone(&self.waits)
+    }
+
+    fn waited(&self, wait: Duration) {
+        self.waits.lock().unwrap().push(wait);
     }
 
     fn add(&self, n: usize) {
@@ -165,6 +181,15 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
         self.inner.mark_announced(seq, at)
     }
+    fn mark_announced_within(
+        &mut self,
+        seq: Seq,
+        at: &Timestamp,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        self.waited(wait);
+        self.inner.mark_announced_within(seq, at, wait)
+    }
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError> {
         self.inner.record_fingerprint(f)
     }
@@ -179,6 +204,15 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
         self.inner.set_sync_alert(s, cause)
+    }
+    fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        self.waited(wait);
+        self.inner.set_sync_alert_within(s, cause, wait)
     }
     fn outage(&self) -> Result<Option<Outage>, CacheError> {
         self.inner.outage()

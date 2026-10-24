@@ -27,6 +27,29 @@ const FLAG: &str = "--fake-atm=";
 const WAIT: Duration = Duration::from_secs(10);
 /// How long a hanging fake lives at most, so a failing test leaves no long-lived orphan.
 const FAKE_LIFETIME: Duration = Duration::from_secs(25);
+/// How many times a timer-driven kill is tried before a fake that never got
+/// ready in time fails the test (each try doubles the timeout; FTQ-023).
+const ATTEMPTS: u32 = 3;
+
+/// Writes this process's pid to `path` whole: a temporary file renamed into
+/// place, newline-terminated, so a reader sees no file or the whole pid, never
+/// part of one (FTQ-023).
+fn write_pid(path: &str) {
+    let tmp = format!("{path}.tmp");
+    std::fs::write(&tmp, format!("{}\n", std::process::id())).unwrap();
+    std::fs::rename(&tmp, path).unwrap();
+}
+
+/// The pid in a file [`write_pid`] wrote; `None` while it is absent, empty or
+/// not newline-terminated (not written whole).
+fn read_pid(path: &str) -> Option<u32> {
+    std::fs::read_to_string(path)
+        .ok()?
+        .strip_suffix('\n')?
+        .trim()
+        .parse()
+        .ok()
+}
 
 /// The fake `atm`: `<exe> --fake-atm=<mode> <out-prefix> <atm args...>`.
 fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
@@ -60,13 +83,13 @@ fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
         "deaf" => 0,
         // Records its pid at once, then never finishes.
         "hang" => {
-            std::fs::write(format!("{out}.pid"), std::process::id().to_string()).unwrap();
+            write_pid(&format!("{out}.pid"));
             std::thread::sleep(FAKE_LIFETIME);
             0
         }
         // Starts a grandchild that hangs, then hangs itself.
         "tree" => {
-            std::fs::write(format!("{out}.pid"), std::process::id().to_string()).unwrap();
+            write_pid(&format!("{out}.pid"));
             let exe = std::env::current_exe().unwrap();
             #[expect(
                 clippy::zombie_processes,
@@ -102,14 +125,11 @@ fn sender(mode: &str, out: &Path) -> AtmSender {
         .with_leading_args([format!("{FLAG}{mode}"), out.display().to_string()])
 }
 
-/// Waits until `path` exists and returns the pid in it.
+/// Waits (up to [`WAIT`]) until `path` holds a whole pid and returns it.
 fn pid_in(path: &str) -> u32 {
     let until = Instant::now() + WAIT;
     loop {
-        if let Some(pid) = std::fs::read_to_string(path)
-            .ok()
-            .and_then(|text| text.trim().parse().ok())
-        {
+        if let Some(pid) = read_pid(path) {
             return pid;
         }
         assert!(
@@ -120,8 +140,8 @@ fn pid_in(path: &str) -> u32 {
     }
 }
 
-/// Whether a process with this pid is running.
-fn alive(pid: u32) -> bool {
+/// Whether a process with this pid exists (on Unix a zombie still does).
+fn exists(pid: u32) -> bool {
     #[cfg(unix)]
     let status = std::process::Command::new("kill")
         .args(["-0", &pid.to_string()])
@@ -137,16 +157,62 @@ fn alive(pid: u32) -> bool {
     status.unwrap_or(false)
 }
 
-/// Waits (up to [`WAIT`]) until the process is gone.
-fn assert_gone(pid: u32, what: &str) {
+/// Whether the process is a zombie: dead, not yet reaped by its parent. On
+/// Linux the state field of `/proc/<pid>/stat` (after the `)` that ends the
+/// command name), on other Unixes `ps -o stat=`; both say `Z`. Windows has none.
+fn zombie(pid: u32) -> bool {
+    #[cfg(target_os = "linux")]
+    let z = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+        .ok()
+        .and_then(|stat| {
+            let (_, rest) = stat.rsplit_once(')')?;
+            Some(rest.trim_start().starts_with('Z'))
+        })
+        .unwrap_or(false);
+    #[cfg(all(unix, not(target_os = "linux")))]
+    let z = std::process::Command::new("ps")
+        .args(["-o", "stat=", "-p", &pid.to_string()])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .is_ok_and(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .trim_start()
+                .starts_with('Z')
+        });
+    #[cfg(not(unix))]
+    let z = {
+        let _ = pid;
+        false
+    };
+    z
+}
+
+/// Waits (up to [`WAIT`]) until `running(pid)` is false.
+fn wait_until_not(running: impl Fn(u32) -> bool, pid: u32, what: &str, state: &str) {
     let until = Instant::now() + WAIT;
-    while alive(pid) {
-        assert!(
-            Instant::now() < until,
-            "{what} (pid {pid}) is still running"
-        );
+    while running(pid) {
+        assert!(Instant::now() < until, "{what} (pid {pid}) {state}");
         std::thread::sleep(Duration::from_millis(50));
     }
+}
+
+/// Waits until a process the sender owns (the `atm` child it spawned) no
+/// longer exists: killed and reaped. A zombie fails it: reaping its own child
+/// is the sender's job (S28).
+fn assert_reaped(pid: u32, what: &str) {
+    wait_until_not(
+        exists,
+        pid,
+        what,
+        "still exists: not killed or left a zombie",
+    );
+}
+
+/// Waits until a process the sender does not own (a grandchild, reparented to
+/// PID 1 once its parent died) is dead. A zombie counts as gone: its reaping
+/// is PID 1's, which in a container may never come (FTQ-024).
+fn assert_gone(pid: u32, what: &str) {
+    wait_until_not(|p| exists(p) && !zombie(p), pid, what, "is still running");
 }
 
 /// Kills the pids it holds when dropped, so a failing test leaves no orphan
@@ -257,68 +323,116 @@ fn output_beyond_the_limit_is_dropped_and_the_error_says_so() {
     assert!(err.detail.len() < 8 * 1024, "{} bytes", err.detail.len());
 }
 
-/// The pid in `path`, if the fake has written it by now.
-fn pid_now(path: &str) -> Option<u32> {
-    std::fs::read_to_string(path)
-        .ok()
-        .and_then(|text| text.trim().parse().ok())
+/// One timer-driven kill whose fakes were ready before it: the error, the pids
+/// of the files `ready` names (suffixes of the attempt's prefix), and how long
+/// the send took.
+struct ReadyKill {
+    err: bd_cache_model::SendError,
+    pids: Vec<u32>,
+    took: Duration,
 }
 
-/// After a timer-driven kill: whatever the fakes had started by then is gone.
-/// (A fake killed before it wrote its pid has nothing left to leak; the
-/// process-tree guarantee itself is asserted by the stop-flag test, which
-/// waits for both processes before it stops them.)
-fn assert_started_ones_are_gone(prefix: &str, reaper: &Reaper) {
-    for file in [format!("{prefix}.pid"), format!("{prefix}.grandchild.pid")] {
-        if let Some(pid) = pid_now(&file) {
-            reaper.add(pid);
-            assert_gone(pid, &file);
+/// Readiness handshake for a timer-driven kill (FTQ-023): the attempt that
+/// counts is one where every pid file of `ready` was written, whole, before
+/// the kill. A fake writes its pid first thing, and a killed one writes
+/// nothing more, so a file present once the send has returned was written
+/// before the kill. An attempt that ends with a file missing (the fake was
+/// killed before it got that far: a slow start, nothing to leak) is run again
+/// with twice the timeout, at most [`ATTEMPTS`] times; none ready fails the
+/// test, so it is never vacuous. Every pid found is killed on drop of `reaper`.
+fn once_ready(
+    dir: &Path,
+    name: &str,
+    ready: &[&str],
+    first: Duration,
+    reaper: &Reaper,
+    send: impl Fn(&Path, Duration) -> bd_cache_model::SendError,
+) -> ReadyKill {
+    let mut timeout = first;
+    for attempt in 0..ATTEMPTS {
+        let out = dir.join(format!("{name}-{attempt}"));
+        let started = Instant::now();
+        let err = send(&out, timeout);
+        let took = started.elapsed();
+        let found: Vec<Option<u32>> = ready
+            .iter()
+            .map(|suffix| read_pid(&format!("{}{suffix}", out.display())))
+            .collect();
+        for pid in found.iter().flatten() {
+            reaper.add(*pid);
         }
+        if let Some(pids) = found.into_iter().collect::<Option<Vec<u32>>>() {
+            return ReadyKill { err, pids, took };
+        }
+        timeout = timeout.saturating_mul(2);
     }
+    panic!("{name}: no fake was ready before its kill in {ATTEMPTS} attempts");
 }
 
 fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
     let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("hung");
-    let err = sender("hang", &out)
-        .with_timeout(Duration::from_secs(3))
-        .unwrap()
-        .send("l", "t", "hi")
-        .unwrap_err();
-    assert_kind(&err, SendErrorKind::TimedOut);
-    assert!(err.detail.contains("did not finish"), "{err}");
-    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
+    let kill = once_ready(
+        dir.path(),
+        "hung",
+        &[".pid"],
+        Duration::from_secs(3),
+        &reaper,
+        |out, timeout| {
+            sender("hang", out)
+                .with_timeout(timeout)
+                .unwrap()
+                .send("l", "t", "hi")
+                .unwrap_err()
+        },
+    );
+    assert_kind(&kill.err, SendErrorKind::TimedOut);
+    assert!(kill.err.detail.contains("did not finish"), "{}", kill.err);
+    assert_reaped(kill.pids[0], "the hung atm");
 }
 
 fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
     let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("tree");
-    let err = sender("tree", &out)
-        .with_timeout(Duration::from_secs(6))
-        .unwrap()
-        .send("l", "t", "hi")
-        .unwrap_err();
-    assert_kind(&err, SendErrorKind::TimedOut);
-    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
+    let kill = once_ready(
+        dir.path(),
+        "tree",
+        &[".pid", ".grandchild.pid"],
+        Duration::from_secs(6),
+        &reaper,
+        |out, timeout| {
+            sender("tree", out)
+                .with_timeout(timeout)
+                .unwrap()
+                .send("l", "t", "hi")
+                .unwrap_err()
+        },
+    );
+    assert_kind(&kill.err, SendErrorKind::TimedOut);
+    assert_reaped(kill.pids[0], "the child");
+    assert_gone(kill.pids[1], "the grandchild");
 }
 
 fn the_time_a_tick_passes_bounds_the_send() {
     let reaper = Reaper::default();
     let dir = tempfile::tempdir().unwrap();
-    let out = dir.path().join("within");
-    let started = Instant::now();
-    let err = sender("hang", &out)
-        .send_within("l", "t", "hi", Duration::from_millis(250))
-        .unwrap_err();
-    assert_kind(&err, SendErrorKind::TimedOut);
-    assert!(
-        started.elapsed() < Duration::from_secs(5),
-        "{:?}",
-        started.elapsed()
+    let kill = once_ready(
+        dir.path(),
+        "within",
+        &[".pid"],
+        Duration::from_millis(250),
+        &reaper,
+        |out, timeout| {
+            sender("hang", out)
+                .send_within("l", "t", "hi", timeout)
+                .unwrap_err()
+        },
     );
-    assert_started_ones_are_gone(&out.display().to_string(), &reaper);
+    assert_kind(&kill.err, SendErrorKind::TimedOut);
+    // The tick's time (at most 1 s over the attempts), not the sender's 10 s.
+    assert!(kill.took < Duration::from_secs(5), "{:?}", kill.took);
+    assert_reaped(kill.pids[0], "the hung atm");
+    let out = dir.path().join("none");
     let none = sender("hang", &out)
         .send_within("l", "t", "hi", Duration::ZERO)
         .unwrap_err();
@@ -362,7 +476,7 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
     let err = result.unwrap_err();
     assert_kind(&err, SendErrorKind::Cancelled);
     assert!(started.elapsed() < Duration::from_secs(15));
-    assert_gone(child, "the child");
+    assert_reaped(child, "the child");
     assert_gone(grandchild, "the grandchild");
 }
 

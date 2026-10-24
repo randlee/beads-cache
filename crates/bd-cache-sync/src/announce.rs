@@ -226,7 +226,7 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
     match deliver(sender, budget, lead, settings, &body, reply) {
         None => {}
         Some(Ok(())) => {
-            cache.set_sync_alert(&scope, Some(cause.key()))?;
+            cache.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())?;
             reply.sent.push(Announcement {
                 kind: AnnouncementKind::SyncFailure {
                     phase: phase.name.clone(),
@@ -315,9 +315,10 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
             None => {}
             Some(Ok(())) => {
                 for phase in &phases {
-                    cache.set_sync_alert(
+                    cache.set_sync_alert_within(
                         &phase.scope(),
                         Some(AlertCause::BackendUnavailable.key()),
+                        budget.write_wait(),
                     )?;
                 }
                 reply.sent.push(Announcement {
@@ -405,7 +406,7 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
                 break;
             }
             Some(Ok(())) => {
-                cache.mark_announced(entry.seq)?;
+                cache.mark_announced_within(entry.seq, budget.write_wait())?;
                 reply.sent.push(Announcement {
                     kind: AnnouncementKind::Escalation { seq: entry.seq },
                     lead: lead.clone(),

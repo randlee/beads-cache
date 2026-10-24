@@ -73,7 +73,11 @@ pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
 ///
 /// Sized by lead ruling S27 (REQ-SYNC-0011, ADR-SYNC-0007): it covers
 /// `atm.rs`'s read grace (250 ms) plus its shared kill bound (1 s), which const
-/// assertions there check, with a quarter second to spare.
+/// assertions there check, with a quarter second to spare. The marker writes
+/// after a send are not sized into it: each waits for the store's write lock at
+/// most the time left before `T` ([`Budget::write_wait`], lead ruling S33), so
+/// a write lock another process holds cannot carry the tick past `T`; a marker
+/// not written in time fails the tick and its message is sent again next tick.
 pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(1500);
 
 // The sync step's gate sits HARD_MARGIN before `T`; the reserve stays inside
@@ -100,6 +104,13 @@ impl Budget<'_> {
         }
         let left = self.end.remaining(self.clock).saturating_sub(SEND_RESERVE);
         (left >= MIN_SEND_BUDGET).then_some(left)
+    }
+
+    /// The most a marker write after a send (`mark_announced`, a sync alert)
+    /// may wait for the store's write lock: the time left before `T` (lead
+    /// ruling S33). The store waits no longer than its own busy timeout either.
+    pub fn write_wait(&self) -> Duration {
+        self.end.remaining(self.clock)
     }
 }
 
@@ -138,5 +149,23 @@ mod tests {
         assert_eq!(budget_left(&clock, &stop, Duration::ZERO), None);
         stop.stop();
         assert_eq!(budget_left(&clock, &stop, Duration::from_secs(25)), None);
+    }
+
+    /// A marker write may wait the time left before `T`, all of it and no
+    /// more, and nothing once `T` has passed (S33).
+    #[test]
+    fn a_marker_write_may_wait_the_time_left_before_t() {
+        let clock = Arc::new(ManualClock::default());
+        let stop = StopFlag::new();
+        let budget = Budget {
+            clock: &*clock,
+            end: Deadline::after(&*clock, Duration::from_secs(3)),
+            stop: &stop,
+        };
+        assert_eq!(budget.write_wait(), Duration::from_secs(3));
+        clock.advance(Duration::from_millis(2_250));
+        assert_eq!(budget.write_wait(), Duration::from_millis(750));
+        clock.advance(Duration::from_secs(1));
+        assert_eq!(budget.write_wait(), Duration::ZERO);
     }
 }

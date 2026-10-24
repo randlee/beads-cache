@@ -85,7 +85,7 @@ migration command, never done on open.
 
 ## ADR-STORE-0002: Sharing the file with bd_cache.py
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24)
 
 Context: `bd_cache.py` writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
@@ -121,13 +121,32 @@ Decision:
   `bd_cache.py` applied while the store is open, only when more than
   `READ_DATING_THRESHOLD` (2000) such entries wait, and with the busy timeout
   set to zero, so they never wait for the write lock; the answer is the same
-  whether or not the `UPDATE` runs. Every read that
+  whether or not the `UPDATE` runs. **Bounded marker writes** (lead ruling S33,
+  below). Every read that
   needs more than one value sees one snapshot: `status`, `get_row` and
   `rows_in_scope` run in one read transaction (`SqliteStore::read`);
   `outage` (both meta keys) and `open_work` (both counts) are one statement
   each. Open checks `user_version` and `project_id` (and creates the
   schema) before it sets WAL, so a refused file keeps its journal mode;
   `bd_cache.py`'s own order (WAL first) does not constrain ours.
+- **Bounded marker writes (S33).**
+  **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24).
+  `mark_announced_within` and `set_sync_alert_within` (port methods whose
+  provided bodies ignore the wait, for a store that never waits) run their one
+  `BEGIN IMMEDIATE` transaction with the busy timeout `min(BUSY_TIMEOUT, wait)`
+  and put `BUSY_TIMEOUT` back after it (`SqliteStore::write_within`; `BusyWait`,
+  the drop guard the read-path dating uses at zero, also restores on unwind).
+  The tick passes the time it has left, so a write lock another process holds
+  cannot carry it past its end; a lock held past the wait is the usual
+  `STORE_FAILED` (`database is locked`) and nothing is written. The store keeps
+  the SQLite details: the caller passes a `Duration`, never a pragma.
+  `mark_announced` and `set_sync_alert` are these with `BUSY_TIMEOUT`. Tests:
+  `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
+  (unit; the timeout sampled inside each write by a temporary trigger: the wait,
+  zero, and `BUSY_TIMEOUT` for a longer wait) and
+  `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
+  (`tests/store.rs`; a lock held by another connection until both writes have
+  returned).
 - **Database names.** `DoltDatabase` is stricter than `bd_cache.py` (which
   refuses only `/`): the name becomes a file name on every supported
   platform, so `\`, `: * ? " < > |`, control characters, a trailing dot or
@@ -189,6 +208,11 @@ Decision:
 - `ConfigLoadError` (`load_repo_config`) carries its cause one way only: as
   `Error::source`. Its `Display` names the file and the fix, without the
   cause, so a reporter walking the source chain prints the cause once.
+  It owns its code and fix (`ConfigLoadError::code`, `ConfigLoadError::fix`;
+  RBP-F040): one stable code and one fix text per variant
+  (`sync_config_unreadable`, `sync_config_invalid_toml`,
+  `sync_config_bad_scope`), and its `Display` states that same fix, so a caller
+  (`bd-cache-sync`'s `ComposeError`) delegates instead of keeping its own copy.
 
 Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
 workspace without bd metadata (`NO_DATABASE`), and walks the source chain
@@ -241,8 +265,8 @@ Decision:
   range read that evaluates no function, capped at the threshold + 1; one index probe
   in a healthy file). At or below `READ_DATING_THRESHOLD` (2000) nothing is written and
   the read walks the undated entries. Above it the read first runs the backfill as one
-  autocommit `UPDATE` with the busy timeout set to zero (`NoWait`, a drop guard that
-  restores `BUSY_TIMEOUT`, also on unwind), so it never waits for the write lock; a
+  autocommit `UPDATE` with the busy timeout set to zero (`BusyWait` at zero, a drop guard
+  that restores `BUSY_TIMEOUT`, also on unwind), so it never waits for the write lock; a
   writer holding the lock, or a read-only file, leaves the entries undated for now, the
   read answers the same from them, and the next read tries again. The answer never
   depends on whether the `UPDATE` ran.
@@ -262,18 +286,28 @@ Decision:
   is free. A burst at or below the threshold costs at most the walk, about 0.2 ms, and
   writes nothing.
 - **Unreadable entries on the read path (QA5-002).** The store keeps a floor of known
-  unreadable entries: every undated entry at or below it has an unreadable time. The
-  count above starts at the floor, so those entries are not walked by the count on
-  every call. The floor rises after a dating or a new warning, through the unreadable
-  entries above it and never past an entry the dating can date
-  (`FIRST_DATEABLE_ABOVE_SQL`), so no dateable entry is hidden from the count. The
-  store also remembers the highest seq it has examined: each read looks at the undated
-  entries above it only (`LAST_UNDATED_SQL`, `UNDATABLE_BETWEEN_SQL`), so each entry's
-  time is read there once, and warns once for each new highest undatable seq (the open
-  warns about all of them and starts both marks there). Known residual: an entry
-  `bd_cache.py` applies with a seq below those marks (an old pending entry it applies
-  late) is not examined or counted by the read path until the next open, which dates
-  it or warns about it; the reads stay correct, only that entry is walked.
+  unreadable entries: every entry that was applied and undated when the floor last
+  rose, at or below it, has an unreadable time. The count above starts at the floor,
+  so those entries are not walked by the count on every call. The floor rises after a
+  dating or a new warning, through the unreadable entries above it and never past an
+  applied entry the dating can date (`FIRST_DATEABLE_ABOVE_SQL`), so no such entry is
+  hidden from the count. The store also remembers the highest seq it has examined:
+  each read looks at the undated entries above it only (`LAST_UNDATED_SQL`,
+  `UNDATABLE_BETWEEN_SQL`), so each entry's time is read there once, and warns once
+  for each new highest undatable seq (the open warns about all of them and starts both
+  marks there).
+  **Entries applied below the floor (QA6-001).** An entry still pending when the floor
+  rose above its seq, which `bd_cache.py` applies later without an epoch, sits below
+  the floor: it is not in the threshold count and is not examined for a warning. It is
+  answered as every undated entry is (the journal reads do not use the floor), and it
+  is dated by the next dating, past the threshold or at the next open, because the
+  backfill dates every readable entry whatever its seq. Until then reads walk that one
+  entry. Capping the floor below the lowest pending seq was rejected: while an old
+  entry stayed pending (during an outage, for hours), every unreadable entry above it
+  would be back in the count, and past the threshold every read would try the dating
+  again, the per-read walk and write this floor removed. Pinned by
+  `a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`
+  (unit).
 - **Unreadable times count as touched.** A row whose `COALESCE(applied_at, updated_at)`
   SQLite cannot read as a time keeps a NULL epoch, stays in `journal_applied_unknown`,
   and counts as applied since any instant (`COALESCE(... >= ?1, 1)`). Reporting
@@ -346,12 +380,18 @@ and `the_entries_since_check_uses_indexes_and_ignores_a_long_history` check the
 compatibility claims; `entries_python_applies_while_open_are_dated_by_the_next_check`,
 `the_check_does_not_wait_for_the_write_lock_to_date_entries`,
 `a_small_burst_is_walked_and_not_dated_until_past_the_threshold` (S26: no commit at or below
-the threshold, `PRAGMA data_version`), `a_write_after_a_skipped_dating_waits_for_the_lock_again`
-(QA5-003: the busy timeout is restored), `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`,
+the threshold, `PRAGMA data_version`), `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`,
 `applied_since_reads_both_partial_indexes_and_no_history`,
 `the_entries_since_check_survives_a_dropped_index` (store tests),
 `the_open_finds_the_applied_entries_it_could_not_date`,
-`undatable_entries_written_while_open_are_warned_once_and_not_walked_again` (unit, QA5-002) and
+`undatable_entries_written_while_open_are_warned_once_and_not_walked_again` (unit, QA5-002),
+`the_floor_stops_one_below_the_first_dateable_entry` (unit, QA5-002: the floor is F - 1),
+`the_dating_update_runs_with_no_busy_timeout_and_restores_it` (unit, QA5-003: the busy
+timeout sampled inside the `UPDATE` by a temporary trigger is 0, and is back afterwards;
+it replaces the timed `a_write_after_a_skipped_dating_waits_for_the_lock_again`, removed
+for FTQ-022),
+`a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating` (unit,
+QA6-001) and
 `a_cached_get_dates_entries_python_applied_while_open` (bd-cache-sync `perf.rs`) check the
 dating, the plans and SQL work (VM steps), the undatable-entry warning and the hint fallback.
 
@@ -371,7 +411,19 @@ Decision:
 - Dev-dependencies, test builds only:
   - rusqlite with `functions`: a test registers its own `unixepoch` that fails, standing
     in for a `bd_cache.py` on SQLite older than 3.38
-    (`no_index_holds_a_function_and_journal_writes_work_without_unixepoch`);
+    (`no_index_holds_a_function_and_journal_writes_work_without_unixepoch`); and the
+    busy-timeout probe tests (`store.rs` unit tests,
+    `the_dating_update_runs_with_no_busy_timeout_and_restores_it`, QA5-003, and
+    `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`, S33)
+    register `probe_busy_timeout`, which a temporary trigger calls from inside the
+    store's write to read `PRAGMA busy_timeout` (QA6-003). That function's
+    `Context::get_connection` call is the crate's only `unsafe`, in test code only.
+    SAFETY: rusqlite marks it unsafe because a `ConnectionRef` could be sent to another
+    thread (rusqlite issue 643); the probe uses it for one read on the thread running
+    the statement and drops it before the function returns, so it neither outlives the
+    call nor leaves the thread;
+  - `tempfile`: the unit tests' cache files live in a `TempDir`, removed on drop after
+    the store closes, also when a test fails (QA6-002);
   - `bd-cache-model` with `testing`: the store contract suite (`store_contract.rs`);
   - `sc-beads` with `testing`: bead, id and actor fixtures (tests and doctests).
 

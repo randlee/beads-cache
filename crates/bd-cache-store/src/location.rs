@@ -11,6 +11,7 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId};
 use serde_json::Value;
@@ -296,25 +297,75 @@ pub enum ConfigLoadError {
     },
 }
 
+/// The fix of [`ConfigLoadError::Scope`]: it states the phase-name rule in the
+/// model's one text ([`PhaseName::RULE`], RBP-F037).
+static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
+         without the phase- prefix",
+        PhaseName::RULE
+    )
+});
+
+impl ConfigLoadError {
+    /// A stable code, one per way the file fails to load (RBP-F040):
+    /// `sync_config_unreadable`, `sync_config_invalid_toml` (not a valid
+    /// configuration: bad TOML, an unknown key, a wrong type) and
+    /// `sync_config_bad_scope`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let root = std::env::temp_dir().join(format!("bdc-doc-cfg-code-{}", std::process::id()));
+    /// std::fs::create_dir_all(root.join(".beads"))?;
+    /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"b k\"]\n")?;
+    /// let err = bd_cache_store::load_repo_config(&root).unwrap_err();
+    /// assert_eq!(err.code(), "sync_config_bad_scope");
+    /// assert!(err.to_string().contains(err.fix()));
+    /// # std::fs::remove_dir_all(&root)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Read { .. } => "sync_config_unreadable",
+            Self::Parse { .. } => "sync_config_invalid_toml",
+            Self::Scope { .. } => "sync_config_bad_scope",
+        }
+    }
+
+    /// What to do about it: one text per way the file fails, the one
+    /// [`Display`](fmt::Display) states after `fix:` (RBP-F040).
+    #[must_use]
+    pub fn fix(&self) -> &'static str {
+        match self {
+            Self::Read { .. } => {
+                "make .beads/bd-cache.toml readable by this process, or remove it to use the defaults"
+            }
+            Self::Parse { .. } => {
+                "correct the key or value of .beads/bd-cache.toml the cause names, or remove unknown keys"
+            }
+            Self::Scope { .. } => BAD_SCOPE_FIX.as_str(),
+        }
+    }
+}
+
 impl fmt::Display for ConfigLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Read { path, .. } => write!(
-                f,
-                "cannot read {}; fix: make the file readable, or remove it to use the defaults",
-                path.display()
-            ),
-            Self::Parse { path, .. } => write!(
-                f,
-                "invalid {}; fix: correct the key or value the cause names, or remove unknown keys",
-                path.display()
-            ),
+            Self::Read { path, .. } => {
+                write!(f, "cannot read {}; fix: {}", path.display(), self.fix())
+            }
+            Self::Parse { path, .. } => {
+                write!(f, "invalid {}; fix: {}", path.display(), self.fix())
+            }
             Self::Scope { path, value } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: use {}, \
-                 with or without the phase- prefix",
+                "invalid {}: scopes entry {value:?} is not a phase name; fix: {}",
                 path.display(),
-                PhaseName::RULE
+                self.fix()
             ),
         }
     }

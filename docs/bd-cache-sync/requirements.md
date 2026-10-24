@@ -222,6 +222,17 @@ and `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (`src/atm.rs`),
 `a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor`
 (`src/control.rs`).
 
+Amendment (fix-a-7-8, RSH-029; **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24)):
+the marker written after a delivered message (`announced_at`, a sync alert)
+waits for the store's write lock at most the time left before `T`, never the
+store's full 5 s busy timeout, so a write lock another process holds cannot
+carry the tick past `T`. A marker not written in time fails the tick with the
+store's error and leaves the message unmarked; the next tick sends it again
+(at least once, ADR-SYNC-0003). Evidence: `tests/marker_wait.rs`,
+`a_marker_write_may_wait_the_time_left_before_t` (`src/control.rs`),
+`a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
+(`bd-cache-store/tests/store.rs`).
+
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
 `a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick` (`tests/announce.rs`).
