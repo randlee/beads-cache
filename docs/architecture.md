@@ -182,7 +182,7 @@ code: `BDC`.
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: BD-CACHE v3 syncs per `phase-<x>` label, one `sync_state` row per
 phase, and stores one `phase` column per bead (its first `phase-*` label).
@@ -203,7 +203,7 @@ https://github.com/randlee/atm-bd-orchestration/issues/557.
 
 ## ADR-BDC-0002: Blocked state from bd, one query per scope
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: a filtered cache must answer `ready` and blocked state correctly,
 including when a blocker is outside every scope, and when a blocker is closed
@@ -282,7 +282,7 @@ not affected (it never serves blocked state).
 
 ## ADR-BDC-0003: Align data vocabulary with the bd serve /v0 API
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: the CLI, the MCP tools and a later HTTP backend adapter should share
 one set of types. bd serve's OpenAPI v0 spec and `bd list --json` use the
@@ -303,7 +303,7 @@ needs agreement on #557.
 
 ## ADR-BDC-0004: Backend port with the bd CLI adapter first
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: released bd (1.3.0/1.3.1) has no `id` or `updated_after` filter on
 `bd serve`, and bd serve needs a dolt sql-server. The bd CLI works with every
@@ -327,7 +327,7 @@ and edge changes is tracked for a later commit-hash cursor.
 
 ## ADR-BDC-0005: The backend may be slow or unreachable
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: two deployments are expected: a dolt server on a remote machine over
 an unreliable network, and a local server on a host so loaded that `bd`
@@ -368,7 +368,7 @@ retry-cap behaviour; needs agreement on #557.
 
 ## ADR-BDC-0006: Prototype a SQLite-backed cron crate here for sc-runtime
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: the sync task needs a scheduler (BD-CACHE's cron drains and syncs
 every 30 s). sc-runtime has no cron or scheduler crate. atm-core's `atm-cron`
@@ -394,7 +394,7 @@ could later adopt it.
 
 ## ADR-BDC-0007: Shared beads backend crates, seeded from btit
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: beads-task-issue-tracker already has a Rust bd backend:
 `btit-beads` (transport-neutral `BeadsBackend`, `CliBackend` and
