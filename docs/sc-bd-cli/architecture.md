@@ -99,7 +99,7 @@ probes before it fails a running cache.
 
 ## ADR-BDCLI-0002: Deadline-bounded calls beside btit's unbounded ones
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDCLI-0004 (lead ruling S40)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDCLI-0004 (lead rulings S40/S47)
 
 Context: btit's transport blocks until the child exits (`Command::output()`), which
 is the behaviour REQ-BDC-0906 asks to keep for btit's operations. NFR-BDC-0004 needs
@@ -177,7 +177,7 @@ classification reads is caught by the compat workflow's live probes, and
 
 ## ADR-BDCLI-0004: A child environment variable set or removed by the runner
 
-**Status:** Approved (lead ruling S40, bc-lead, 2026-10-24; fix-a-7-12, RSH-033); amends ADR-BDCLI-0002 (lead ruling S47, fix-a-7-14, ARCH-903)
+**Status:** Approved (lead ruling S40, bc-lead, 2026-10-24; fix-a-7-12, RSH-033); amends ADR-BDCLI-0002 (lead ruling S47, fix-a-7-14, ARCH-903); forwarding rule narrowed by lead ruling S52 and the platform rule stated by lead ruling S50 (fix-a-7-15, ARCH-1002, RSH-040, QA10-002)
 **Traces to:** REQ-BDCLI-0009
 
 Context: `bd-cache-sync`'s `compose_with` resolves the cache from an explicit
@@ -192,18 +192,26 @@ or removes (`None`) `key` in the environment of every child the invoker spawns
 from then on; a later call for the same key replaces the earlier one. The
 provided body does nothing, which is right for an invoker that spawns no
 process (`RecordingInvoker`, `FakeBd`). The forwarding rule: an invoker that
-wraps another invoker overrides `set_child_var` and forwards it to the wrapped
-one, as it forwards the spawning methods; the provided no-op would otherwise
-drop the change silently and the wrapped runner's children would inherit the
-process's value (fix-a-7-14, RSH-036; the rule is stated on the trait, and
-`bd-cache-sync`'s test wrapper `Switched` follows it). `CliRunner` keeps the changes in a crate-private `ChildEnv` and
+wraps one which spawns processes or acts on child variables (a `CliRunner`, or
+another wrapper that forwards) overrides `set_child_var` and forwards it to the
+wrapped one, as it forwards the spawning methods; the provided no-op would
+otherwise drop the change silently and the wrapped runner's children would
+inherit the process's value (fix-a-7-14, RSH-036; the rule is stated on the
+trait, and `bd-cache-sync`'s test wrapper `Switched` follows it). A wrapper over
+a no-op invoker is exempt, since there is no child to give the variable to:
+for example `sc-bd-cli`'s test wrapper `Shared(Arc<RecordingInvoker>)` keeps
+the provided body (lead ruling S52, ARCH-1002). `CliRunner` keeps the changes in a crate-private `ChildEnv` and
 applies them to `run_json`, `run_raw` and `run_bounded` right after
 `new_command`, so the spawn's own `PATH` and `BEADS_PATH` still win for those
 two names; the `--version` probe, which runs in the temp directory for no
 project, does not get them. `CliRunner::with_child_var` and
-`BdCli::with_child_var` are the builders. One entry per name, with names
-compared as the platform's environment does: exactly on Unix, ASCII
-case-insensitively on Windows (fix-a-7-14, QA9-002). btit's public functions
+`BdCli::with_child_var` are the builders. One entry per name: `ChildEnv` dedups
+names exactly on Unix and ASCII case-insensitively on Windows (fix-a-7-14,
+QA9-002). Names are ASCII (`ChildEnv::set` has `debug_assert!` that the name is
+ASCII), so that fold is all of Windows' rule for them; and whatever the dedup
+leaves, `std::process::Command` applies the platform's full rule when it builds
+the child's environment, where the last change of a variable wins, as the last
+`set` does (lead ruling S50, RSH-040, QA10-002). btit's public functions
 (`run::spawn_json`, `run::run_raw`, `bounded::run_bounded`,
 `bounded::run_bounded_capped`) keep their signatures and an inherited
 environment; the runner calls crate-private variants that take the
@@ -222,8 +230,14 @@ variables (S47). Evidence (REQ-BDCLI-0009):
 `the_child_environment_reaches_run_json` (fix-a-7-14, QA9-001),
 `the_child_environment_reaches_every_spawn_on_every_platform` (fix-a-7-14,
 QA9-002: re-executes the unit-test binary as `child_env_helper`, so the
-windows-latest leg runs it too),
+windows-latest leg runs it too; the helper is `#[ignore]` and run with
+`--ignored --exact`, so it is not counted as a passing test, QA10-004; each
+re-executed leg runs on a worker thread bounded by 60 s, FTQ-032). That
+end-to-end test checks the variables' delivery; the dedup of names is checked
+by the unit test `names_compare_as_the_platform_environment_does`, since on
+Windows `Command` would deliver the same environment without it (QA10-004),
 `without_a_child_variable_the_environment_is_inherited` (`src/runner.rs`),
 `a_later_set_of_a_name_replaces_the_earlier_one`,
-`names_compare_as_the_platform_environment_does` (`src/command.rs`); in
+`names_compare_as_the_platform_environment_does`,
+`a_non_ascii_name_is_refused_in_debug_builds` (S50) (`src/command.rs`); in
 `bd-cache-sync`, `tests/compose.rs` (S40 and S44 cases).

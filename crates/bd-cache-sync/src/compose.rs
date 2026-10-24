@@ -3,13 +3,15 @@
 
 use std::ffi::OsStr;
 use std::fmt;
+use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bd_cache::Cache;
 use bd_cache_model::{CacheError, TickConfig};
 use bd_cache_store::{
-    BEADS_DIR_ENV, ConfigLoadError, FlockDrainLock, SqliteStore, load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
+    load_repo_config,
 };
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
@@ -41,6 +43,28 @@ pub enum ComposeError {
     Config(ConfigLoadError),
     /// The store could not be opened, or a scope could not be registered.
     Cache(CacheError),
+    /// The `$BEADS_DIR` value is relative and cannot be made absolute (the
+    /// working directory cannot be read); the store was not opened (lead
+    /// ruling S48).
+    BeadsDir {
+        /// The value as given.
+        value: PathBuf,
+        /// Why it cannot be made absolute.
+        source: io::Error,
+    },
+}
+
+/// The stable code of [`ComposeError::BeadsDir`] (lead ruling S48).
+const BEADS_DIR_CODE: &str = "sync_beads_dir_unresolvable";
+
+/// The fix of [`ComposeError::BeadsDir`] (lead ruling S48).
+const BEADS_DIR_FIX: &str = "set an absolute BEADS_DIR, or run from a readable working directory";
+
+impl From<BeadsDirError> for ComposeError {
+    fn from(e: BeadsDirError) -> Self {
+        let (value, source) = e.into_parts();
+        Self::BeadsDir { value, source }
+    }
 }
 
 /// This crate's stable code of a configuration that cannot be loaded, one per
@@ -65,24 +89,27 @@ fn config_code(e: &ConfigLoadError) -> &'static str {
 impl ComposeError {
     /// A stable code: for the configuration, this crate's `sync_config_*`
     /// code of the way it failed (mapped from the [`ConfigLoadError`]
-    /// variant, lead ruling S34), else the `BD_CACHE.*` code of the cache
-    /// error.
+    /// variant, lead ruling S34); for the cache, the `BD_CACHE.*` code of the
+    /// cache error; for `$BEADS_DIR`, `sync_beads_dir_unresolvable` (S48).
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
             Self::Config(e) => config_code(e),
             Self::Cache(e) => e.code(),
+            Self::BeadsDir { .. } => BEADS_DIR_CODE,
         }
     }
 
     /// What to do about it: for the configuration, the loader's own fix
     /// ([`ConfigLoadError::fix`], the text its message states); for the
-    /// cache, the cache error's own fix.
+    /// cache, the cache error's own fix; for `$BEADS_DIR`, an absolute value
+    /// or a readable working directory (S48).
     #[must_use]
     pub fn fix(&self) -> &'static str {
         match self {
             Self::Config(e) => e.fix(),
             Self::Cache(e) => e.fix(),
+            Self::BeadsDir { .. } => BEADS_DIR_FIX,
         }
     }
 }
@@ -92,6 +119,11 @@ impl fmt::Display for ComposeError {
         match self {
             Self::Config(_) => f.write_str("cannot load .beads/bd-cache.toml"),
             Self::Cache(_) => f.write_str("cannot open the cache of the repository"),
+            Self::BeadsDir { value, .. } => write!(
+                f,
+                "cannot make BEADS_DIR {} absolute against the working directory",
+                value.display()
+            ),
         }
     }
 }
@@ -101,6 +133,7 @@ impl std::error::Error for ComposeError {
         match self {
             Self::Config(e) => Some(e),
             Self::Cache(e) => Some(e),
+            Self::BeadsDir { source, .. } => Some(source),
         }
     }
 }
@@ -118,9 +151,10 @@ impl std::error::Error for ComposeError {
 ///
 /// # Errors
 ///
-/// [`ComposeError`] for an invalid configuration, a missing or unreadable
-/// `.beads/metadata.json`, a cache file of another project or schema, or a
-/// store that cannot be opened.
+/// [`ComposeError`] for a `$BEADS_DIR` that cannot be made absolute
+/// ([`ComposeError::BeadsDir`], before the store opens), an invalid
+/// configuration, a missing or unreadable `.beads/metadata.json`, a cache
+/// file of another project or schema, or a store that cannot be opened.
 pub fn compose(
     repo_root: &Path,
     bd_binary: &str,
@@ -148,10 +182,14 @@ pub fn compose(
 /// value, or removed when there is none ([`BdCli::with_child_var`]; S40,
 /// RSH-033). A backend over a test double spawns nothing and ignores it.
 ///
-/// `beads_dir_env` is normalized once, before either uses it (lead ruling
-/// S44, RSH-035, QA9-003): an empty value is `None`, and a relative one is
-/// made absolute against the process's working directory. The store and the
-/// `bd` child, which runs in `repo_root`, therefore name one directory.
+/// `beads_dir_env` is validated once, into one [`BeadsDirOverride`], before
+/// either uses it (lead rulings S44 and S49, RSH-035, QA9-003, RBP-F047): an
+/// empty value is `None`, and a relative one is made absolute against the
+/// process's working directory (per platform as [`BeadsDirOverride`]
+/// states). The store and the `bd` child, which runs in `repo_root`,
+/// therefore name one directory. A relative value that cannot be made
+/// absolute fails the composition (fail closed, lead ruling S48): there is
+/// no fallback to the relative value.
 ///
 /// # Errors
 ///
@@ -162,20 +200,38 @@ pub fn compose_with(
     clock: Arc<dyn Clock>,
     beads_dir_env: Option<&OsStr>,
 ) -> Result<Composed, ComposeError> {
-    let beads_dir = normalized_beads_dir(beads_dir_env);
-    let beads_dir_env = beads_dir.as_deref().map(Path::as_os_str);
+    compose_with_override(
+        repo_root,
+        backend,
+        clock,
+        BeadsDirOverride::new(beads_dir_env),
+    )
+}
+
+/// [`compose_with`] from the result of validating `$BEADS_DIR`, so a test can
+/// give it a value that could not be made absolute (lead ruling S48): that
+/// error fails the composition before the configuration is read or the store
+/// opened.
+fn compose_with_override(
+    repo_root: &Path,
+    backend: BdCli,
+    clock: Arc<dyn Clock>,
+    beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
+) -> Result<Composed, ComposeError> {
+    let beads_dir = beads_dir?;
     let repo = load_repo_config(repo_root).map_err(ComposeError::Config)?;
-    let store =
-        SqliteStore::open_with(repo_root, &repo, beads_dir_env).map_err(ComposeError::Cache)?;
+    let store = SqliteStore::open_with(repo_root, &repo, beads_dir.as_ref())
+        .map_err(ComposeError::Cache)?;
     let name = store
         .path()
         .file_name()
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
     let lock = store.drain_lock();
     let project = ProjectRef::local(Some(repo_root.to_string_lossy().into_owned()));
-    let backend = backend
-        .with_clock(Arc::clone(&clock))
-        .with_child_var(OsStr::new(BEADS_DIR_ENV), beads_dir_env);
+    let backend = backend.with_clock(Arc::clone(&clock)).with_child_var(
+        OsStr::new(BEADS_DIR_ENV),
+        beads_dir.as_ref().map(BeadsDirOverride::as_os_str),
+    );
     let cache = Cache::new(repo.cache_config(project), store, lock, backend, clock)
         .map_err(ComposeError::Cache)?;
     let mut tick = repo.tick.unwrap_or_default();
@@ -183,37 +239,53 @@ pub fn compose_with(
     Ok(Composed { cache, tick, name })
 }
 
-/// The one `$BEADS_DIR` value the store and every `bd` child are given (lead
-/// ruling S44): `None` for an unset or empty value, else the value made
-/// absolute against the process's working directory ([`std::path::absolute`],
-/// which neither touches the file system nor resolves `..` or links).
-///
-/// A relative value whose working directory cannot be read is kept as it is:
-/// the store then cannot read `metadata.json` there and the composition fails
-/// (`BD_CACHE.NO_DATABASE`) before any `bd` is spawned.
-fn normalized_beads_dir(value: Option<&OsStr>) -> Option<PathBuf> {
-    let dir = Path::new(value.filter(|v| !v.is_empty())?);
-    Some(std::path::absolute(dir).unwrap_or_else(|_| dir.to_path_buf()))
-}
-
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
+
     use super::*;
+    use sc_beads::SystemClock;
 
+    /// A `$BEADS_DIR` that could not be made absolute fails the composition
+    /// with its own code, fix and the I/O error as source, before the store
+    /// opens: no cache file is created, though the repository has a valid
+    /// `metadata.json` (lead ruling S48, QA10-001, RSH-038, RBP-F048).
     #[test]
-    fn an_empty_or_unset_beads_dir_is_none() {
-        assert_eq!(normalized_beads_dir(None), None);
-        assert_eq!(normalized_beads_dir(Some(OsStr::new(""))), None);
-    }
-
-    #[test]
-    fn a_relative_beads_dir_is_made_absolute_against_the_working_directory() {
-        let cwd = std::env::current_dir().unwrap();
-        assert_eq!(
-            normalized_beads_dir(Some(OsStr::new("rel"))),
-            Some(cwd.join("rel"))
+    fn an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens() {
+        let root = tempfile::tempdir().unwrap();
+        let beads = root.path().join(".beads");
+        std::fs::create_dir_all(&beads).unwrap();
+        std::fs::write(
+            beads.join("metadata.json"),
+            r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+        )
+        .unwrap();
+        let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+        let backend = BdCli::new("bd", Arc::new(ProjectLocks::new()));
+        let unresolvable = BeadsDirError::new(
+            "rel",
+            io::Error::new(io::ErrorKind::NotFound, "getcwd failed"),
         );
-        let abs = std::env::temp_dir();
-        assert_eq!(normalized_beads_dir(Some(abs.as_os_str())), Some(abs));
+
+        let err =
+            compose_with_override(root.path(), backend, clock, Err(unresolvable)).unwrap_err();
+
+        assert!(
+            matches!(&err, ComposeError::BeadsDir { value, source }
+                if value == Path::new("rel") && source.kind() == io::ErrorKind::NotFound),
+            "{err:?}"
+        );
+        assert_eq!(err.code(), "sync_beads_dir_unresolvable");
+        assert_eq!(
+            err.fix(),
+            "set an absolute BEADS_DIR, or run from a readable working directory"
+        );
+        assert!(err.to_string().contains("BEADS_DIR rel"), "{err}");
+        assert!(!err.to_string().contains("getcwd"), "{err}");
+        assert_eq!(err.source().unwrap().to_string(), "getcwd failed");
+        assert!(
+            !root.path().join(".bd-cache").exists(),
+            "the store was not opened"
+        );
     }
 }

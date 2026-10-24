@@ -2,7 +2,6 @@
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
-use std::ffi::OsStr;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -21,7 +20,7 @@ use crate::codec::{
     encode_row, index_blocked, is_newer, opt_timestamp, scope, timestamp,
 };
 use crate::error::{Step, corrupt, failed};
-use crate::location::{CacheLocation, DatabaseIdentity};
+use crate::location::{BeadsDirOverride, CacheLocation, DatabaseIdentity, env_beads_dir};
 use crate::lock::FlockDrainLock;
 use crate::registry::Registration;
 use crate::schema::{
@@ -197,23 +196,24 @@ impl SqliteStore {
     ///
     /// The file is located from `config` and `.beads/metadata.json`
     /// ([`CacheLocation::resolve`], `$BEADS_DIR` aware); no `bd` process starts.
+    /// The environment's value is validated as an explicit one is
+    /// ([`BeadsDirOverride::from_env`]; lead ruling S49).
     ///
     /// # Errors
     ///
-    /// As [`CacheLocation::resolve`] and [`SqliteStore::open_at`].
+    /// As [`CacheLocation::resolve`] and [`SqliteStore::open_at`]: a
+    /// `$BEADS_DIR` that cannot be made absolute is `BD_CACHE.NO_DATABASE`,
+    /// its detail naming the value and the I/O error, before any file is read.
     pub fn open(repo_root: &Path, config: &RepoConfig) -> Result<Self, CacheError> {
-        Self::open_with(
-            repo_root,
-            config,
-            std::env::var_os(crate::location::BEADS_DIR_ENV).as_deref(),
-        )
+        Self::open_with(repo_root, config, env_beads_dir()?.as_ref())
     }
 
     /// Opens (creating when absent) the cache file of `repo_root` with an
-    /// explicit `$BEADS_DIR` value (`None` = unset), as
+    /// explicit `$BEADS_DIR` override (`None` = unset), as
     /// [`CacheLocation::resolve_with`]: the environment is not read, so a
     /// test or a caller that has its own value is not machine-dependent
-    /// (lead ruling S36).
+    /// (lead ruling S36). The override is already absolute
+    /// ([`BeadsDirOverride`], lead ruling S49).
     ///
     /// # Errors
     ///
@@ -221,9 +221,9 @@ impl SqliteStore {
     pub fn open_with(
         repo_root: &Path,
         config: &RepoConfig,
-        beads_dir_env: Option<&OsStr>,
+        beads_dir: Option<&BeadsDirOverride>,
     ) -> Result<Self, CacheError> {
-        let loc = CacheLocation::resolve_with(repo_root, config, beads_dir_env)?;
+        let loc = CacheLocation::resolve_with(repo_root, config, beads_dir)?;
         Self::open_at(&loc.cache_path, &loc.identity)
     }
 

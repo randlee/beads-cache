@@ -149,27 +149,33 @@ description, repository and readme. A full `cargo publish --dry-run` waits until
 
 ## REQ-BDCLI-0009: A runner gives its children the variables it was told to
 
-**Status:** Approved (lead ruling S47, bc-lead, 2026-10-24; fix-a-7-14, ARCH-903; the hook is lead ruling S40)
+**Status:** Approved (lead ruling S47, bc-lead, 2026-10-24; fix-a-7-14, ARCH-903; the hook is lead ruling S40); forwarding rule narrowed by lead ruling S52 and the name rule stated by lead ruling S50 (fix-a-7-15)
 
 A variable set (`Some`) or removed (`None`) through `CliInvoker::set_child_var`,
 or the `CliRunner::with_child_var` / `BdCli::with_child_var` builders, is set
 on or removed from every child `CliRunner` spawns for a project: `run_json`,
 `run_raw` and `run_bounded`, on every platform. A later call for the same name
-replaces the earlier one; names compare as the platform's environment does
-(exactly on Unix, ASCII case-insensitively on Windows). The spawn's own `PATH`
+replaces the earlier one: the runner dedups names exactly on Unix and ASCII
+case-insensitively on Windows, names are ASCII (asserted in debug builds), and
+`std::process::Command` applies the platform's full rule, so the last call still
+wins (S50). The spawn's own `PATH`
 and `BEADS_PATH` still win, and the `--version` probe does not get them.
 Without such a call the child inherits the environment, as in btit. An invoker
-that wraps another forwards the call (the provided body is a no-op for
-invokers that spawn nothing). btit's public spawn functions and the
+that wraps one which spawns processes or acts on child variables forwards the
+call; a wrapper over a no-op invoker (one that spawns nothing and keeps the
+provided no-op body, such as the test wrapper `Shared(Arc<RecordingInvoker>)`)
+is exempt (S52). btit's public spawn functions and the
 API-freeze tests are unchanged. Design: ADR-BDCLI-0004, which amends
 ADR-BDCLI-0002.
 
-**Refines:** REQ-BDCLI-0001, REQ-SYNC-0010 (S40, S44)
+**Refines:** REQ-BDCLI-0001, REQ-BDC-0101 (the `$BEADS_DIR` the cache file is located from reaches `bd` too; S40, S44). It does not refine REQ-SYNC-0010: a lower crate's requirement does not refine a consumer's (S52)
 **Acceptance evidence:** `the_child_environment_reaches_run_raw_and_run_bounded`,
 `the_child_environment_reaches_run_json`,
 `the_child_environment_reaches_every_spawn_on_every_platform`,
 `without_a_child_variable_the_environment_is_inherited` (`src/runner.rs`);
 `a_later_set_of_a_name_replaces_the_earlier_one`,
-`names_compare_as_the_platform_environment_does` (`src/command.rs`); the
-unchanged `tests/cli_api_freeze.rs`, `tests/bd_api_freeze.rs` and
-`tests/cache_api_freeze.rs`.
+`names_compare_as_the_platform_environment_does` (the dedup),
+`a_non_ascii_name_is_refused_in_debug_builds` (S50) (`src/command.rs`); the
+unchanged `crates/sc-bd-cli/tests/cli_api_freeze.rs`,
+`crates/sc-bd-cli/tests/bd_api_freeze.rs` and
+`crates/sc-bd-cli/tests/cache_api_freeze.rs`.

@@ -38,17 +38,31 @@ pub fn new_command(program: &str) -> Command {
 ///
 /// Applied right after [`new_command`], so the spawn's own `PATH` and `BEADS_PATH`,
 /// set later, still win for those two names. One entry per name: a later
-/// [`set`](Self::set) of a name replaces the earlier one. Names compare as the
-/// platform's environment does: exactly on Unix, ASCII case-insensitively on
-/// Windows (`Path` and `PATH` are one variable there; QA9-002).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// [`set`](Self::set) of a name replaces the earlier one.
+///
+/// What "one name" is (lead ruling S50, RSH-040, QA10-002): `ChildEnv` compares
+/// names exactly on Unix and ASCII case-insensitively on Windows (`Path` and
+/// `PATH` are one variable there; QA9-002). Names are ASCII (`set` asserts it in
+/// debug builds), so that is the whole of Windows' rule for them. Whatever this
+/// dedup leaves, `std::process::Command` applies the platform's full rule when it
+/// builds the child's environment, and its last change of a variable wins, as
+/// the last `set` does here.
+#[derive(Debug, Clone, Default)]
 pub(crate) struct ChildEnv {
     vars: Vec<(OsString, Option<OsString>)>,
 }
 
 impl ChildEnv {
     /// Sets `key` to `value` in every child (`Some`), or removes it (`None`).
+    ///
+    /// `key` is an ASCII name (asserted in debug builds; lead ruling S50): the
+    /// dedup's Windows comparison folds ASCII case only.
     pub(crate) fn set(&mut self, key: &OsStr, value: Option<&OsStr>) {
+        debug_assert!(
+            key.is_ascii(),
+            "child variable names are ASCII: {}",
+            key.display()
+        );
         self.vars.retain(|(k, _)| !same_name(k, key));
         self.vars
             .push((key.to_os_string(), value.map(OsStr::to_os_string)));
@@ -67,8 +81,9 @@ impl ChildEnv {
     }
 }
 
-/// Whether `a` and `b` name one environment variable: Windows compares names
-/// without regard to ASCII case, Unix compares them exactly.
+/// Whether `a` and `b` name one environment variable in [`ChildEnv`]'s dedup:
+/// without regard to ASCII case on Windows, exactly on Unix. For the ASCII names
+/// [`ChildEnv::set`] takes, that is the platform's rule (lead ruling S50).
 fn same_name(a: &OsStr, b: &OsStr) -> bool {
     if cfg!(windows) {
         a.eq_ignore_ascii_case(b)
@@ -104,6 +119,15 @@ mod tests {
             same_name(OsStr::new("Path"), OsStr::new("PATH")),
             cfg!(windows)
         );
+    }
+
+    /// A non-ASCII name is a programming error, caught in debug builds (lead
+    /// ruling S50, RSH-040).
+    #[cfg(debug_assertions)]
+    #[test]
+    #[should_panic(expected = "child variable names are ASCII")]
+    fn a_non_ascii_name_is_refused_in_debug_builds() {
+        ChildEnv::default().set(OsStr::new("SC_BD_\u{e9}"), None);
     }
 
     #[test]
