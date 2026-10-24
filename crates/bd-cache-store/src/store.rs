@@ -1,5 +1,6 @@
 //! [`SqliteStore`]: the [`CacheStore`] over one SQLite file shared with `bd_cache.py`.
 
+use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -21,9 +22,11 @@ use crate::location::{CacheLocation, DatabaseIdentity};
 use crate::lock::FlockDrainLock;
 use crate::registry::Registration;
 use crate::schema::{
-    BACKFILL_APPLIED_EPOCH, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
-    HAS_ENTRIES_SINCE_SQL, HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, RECONCILE_MEMBERSHIP,
-    SCHEMA_VERSION, V3_SCHEMA,
+    APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, BACKFILL_APPLIED_EPOCH,
+    BACKFILL_APPLIED_EPOCH_UNHINTED, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
+    HAS_DATEABLE_SQL, HAS_DATEABLE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
+    HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, RECONCILE_MEMBERSHIP, SCHEMA_VERSION, UNDATED_SEQS,
+    V3_SCHEMA,
 };
 
 /// SQLite's busy timeout on the shared file (REQ-BDC-0103).
@@ -74,6 +77,20 @@ fn count(n: i64) -> u64 {
     u64::try_from(n).unwrap_or_default()
 }
 
+/// Is `e` SQLite's `no such index` (an `INDEXED BY` naming an index another
+/// writer dropped)? A generic `SQLITE_ERROR` whose message names the case:
+/// SQLite has no more specific code for it.
+fn is_missing_index(e: &rusqlite::Error) -> bool {
+    matches!(
+        e,
+        rusqlite::Error::SqliteFailure(f, Some(msg))
+            if f.extended_code == rusqlite::ffi::SQLITE_ERROR && msg.starts_with("no such index")
+    )
+}
+
+/// How many seqs the open's warning about undatable entries names.
+const UNDATED_SEQS_LOGGED: usize = 20;
+
 /// The BD-CACHE v3 SQLite store (ADR-STORE-0001), shared with `bd_cache.py`.
 ///
 /// One `SqliteStore` is the process's one connection to its cache file
@@ -81,7 +98,10 @@ fn count(n: i64) -> u64 {
 /// store on it is alive, is refused. The store is `Send` but not `Sync`, as
 /// the `Cache` that owns it (ADR-CORE-0001). Every mutating method runs in one
 /// `BEGIN IMMEDIATE` transaction, so a concurrent writer in another process
-/// (a hook, the Python implementation) waits up to [`BUSY_TIMEOUT`].
+/// (a hook, the Python implementation) waits up to [`BUSY_TIMEOUT`]. The
+/// journal reads `has_entries_since` and `applied_since` may also write: they
+/// date the entries another writer applied without an epoch, never waiting
+/// for the write lock (ADR-STORE-0004).
 ///
 /// # Examples
 ///
@@ -112,6 +132,9 @@ pub struct SqliteStore {
     // Field order matters: the connection closes before the claim is released.
     conn: Connection,
     path: PathBuf,
+    /// Set, with one warning, when a hinted journal index is found missing:
+    /// from then on the journal reads ask their unhinted form (ADR-STORE-0004).
+    hints_missing: Cell<bool>,
     _claim: Registration,
 }
 
@@ -199,6 +222,7 @@ impl SqliteStore {
         Ok(Self {
             conn,
             path: path.to_path_buf(),
+            hints_missing: Cell::new(false),
             _claim: claim,
         })
     }
@@ -217,6 +241,72 @@ impl SqliteStore {
 
     fn at<'a>(&'a self, what: &'a str) -> Step<'a> {
         step(&self.path, what)
+    }
+
+    /// Runs `run` with the `hinted` SQL (which names its indexes with
+    /// `INDEXED BY`) unless a hinted index was found missing before; on
+    /// `no such index` warns once, remembers it, and runs `unhinted`, as every
+    /// later call does without trying the hints again (ADR-STORE-0004).
+    fn hinted<T>(
+        &self,
+        hinted: &str,
+        unhinted: &str,
+        run: impl Fn(&str) -> rusqlite::Result<T>,
+    ) -> rusqlite::Result<T> {
+        if !self.hints_missing.get() {
+            match run(hinted) {
+                Err(e) if is_missing_index(&e) => {
+                    self.hints_missing.set(true);
+                    tracing::warn!(
+                        path = %self.path.display(),
+                        error = %e,
+                        "a journal index is missing; asking without index hints until the next open"
+                    );
+                }
+                other => return other,
+            }
+        }
+        run(unhinted)
+    }
+
+    /// Dates the entries applied without an epoch since the last backfill
+    /// (`bd_cache.py`'s, written while this store is open), so the journal
+    /// reads stay index lookups (ADR-STORE-0004). Best effort and never
+    /// waits: the `UPDATE` runs with no busy timeout, and when the write lock
+    /// is held elsewhere, or the file is read-only, nothing is dated now and
+    /// the reads answer the same from the undated entries, only slower.
+    fn date_undated(&self) {
+        let dateable = self.hinted(HAS_DATEABLE_SQL, HAS_DATEABLE_UNHINTED_SQL, |sql| {
+            self.conn.prepare_cached(sql)?.query_row([], |r| r.get(0))
+        });
+        match dateable {
+            Ok(true) => {}
+            Ok(false) => return,
+            Err(e) => {
+                tracing::debug!(error = %e, "could not look for undated journal entries");
+                return;
+            }
+        }
+        if let Err(e) = self.conn.busy_timeout(Duration::ZERO) {
+            tracing::debug!(error = %e, "could not drop the busy timeout to date entries");
+            return;
+        }
+        let dated = self.hinted(
+            BACKFILL_APPLIED_EPOCH,
+            BACKFILL_APPLIED_EPOCH_UNHINTED,
+            |sql| self.conn.prepare_cached(sql)?.execute([]),
+        );
+        if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {
+            tracing::warn!(
+                path = %self.path.display(),
+                error = %e,
+                "could not restore the busy timeout"
+            );
+        }
+        match dated {
+            Ok(n) => tracing::debug!(entries = n, "dated journal entries applied elsewhere"),
+            Err(e) => tracing::debug!(error = %e, "could not date journal entries now"),
+        }
     }
 
     /// Runs `f` in one `BEGIN IMMEDIATE` transaction, committed when `f` succeeds.
@@ -370,18 +460,22 @@ impl SqliteStore {
         filter: &str,
         args: impl rusqlite::Params,
     ) -> Result<Vec<JournalEntry>, CacheError> {
-        let mut stmt = self
+        let rows = self
             .conn
             .prepare_cached(&format!(
                 "SELECT {JOURNAL_COLUMNS} FROM journal WHERE {filter} ORDER BY seq"
             ))
+            .and_then(|mut stmt| Self::journal_rows(&mut stmt, args))
             .at(at)?;
-        let rows = stmt.query_map(args, JournalRow::from_sql).at(at)?;
-        let mut out = Vec::new();
-        for r in rows {
-            out.push(r.at(at)?.decode(at)?);
-        }
-        Ok(out)
+        rows.into_iter().map(|r| r.decode(at)).collect()
+    }
+
+    /// The [`JOURNAL_COLUMNS`] rows a prepared journal query returns.
+    fn journal_rows(
+        stmt: &mut rusqlite::Statement<'_>,
+        args: impl rusqlite::Params,
+    ) -> rusqlite::Result<Vec<JournalRow>> {
+        stmt.query_map(args, JournalRow::from_sql)?.collect()
     }
 
     fn meta(&self, at: Step<'_>, key: &str) -> Result<Option<String>, CacheError> {
@@ -449,6 +543,7 @@ fn initialize(
         .at(at("create the extension indexes"))?;
     tx.execute_batch(BACKFILL_APPLIED_EPOCH)
         .at(at("date the entries bd_cache.py applied"))?;
+    warn_undatable(&tx, path)?;
     tx.pragma_update(None, "user_version", SCHEMA_VERSION)
         .at(at("set user_version"))?;
     let recorded: Option<String> = tx
@@ -486,6 +581,32 @@ fn initialize(
     tx.execute_batch(RECONCILE_MEMBERSHIP)
         .at(at("take over membership"))?;
     tx.commit().at(at("initialize"))
+}
+
+/// Warns about applied entries the backfill could not date: their time is
+/// unreadable, so they count as applied since every instant and keep `get`
+/// of their scope on the adjusted path until an operator resolves or deletes
+/// them (ADR-STORE-0004). They still count: correctness comes first.
+fn warn_undatable(tx: &Transaction<'_>, path: &Path) -> Result<(), CacheError> {
+    let seqs = undatable_seqs(tx).at(step(path, "find undatable journal entries"))?;
+    if !seqs.is_empty() {
+        tracing::warn!(
+            path = %path.display(),
+            count = seqs.len(),
+            seqs = ?seqs.iter().take(UNDATED_SEQS_LOGGED).collect::<Vec<_>>(),
+            "applied journal entries have an unreadable time and count as applied since \
+             every instant, so ready answers of their scope are always adjusted; resolve \
+             or delete them (ADR-STORE-0004)"
+        );
+    }
+    Ok(())
+}
+
+/// The seqs of applied entries still without an epoch, by seq.
+fn undatable_seqs(conn: &Connection) -> rusqlite::Result<Vec<i64>> {
+    conn.prepare(UNDATED_SEQS)?
+        .query_map([], |r| r.get(0))?
+        .collect()
 }
 
 /// Deletes a bead with its outgoing edges and memberships.
@@ -689,22 +810,17 @@ impl CacheStore for SqliteStore {
     }
 
     fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
-        let st = self.at("ask whether the journal has entries since");
-        let ask = |sql: &str| -> rusqlite::Result<bool> {
-            self.conn
-                .prepare_cached(sql)?
-                .query_row([at.unix()], |r| r.get(0))
-        };
-        match ask(HAS_ENTRIES_SINCE_SQL) {
-            Ok(found) => Ok(found),
-            // Another writer dropped a hinted index: `INDEXED BY` is then an
-            // error. Ask without the hints; the next open recreates the index.
-            Err(e) if e.to_string().contains("no such index") => {
-                tracing::warn!(error = %e, "a journal index is missing; asking without it");
-                ask(HAS_ENTRIES_SINCE_UNHINTED_SQL).at(st)
-            }
-            Err(e) => Err(e).at(st),
-        }
+        self.date_undated();
+        self.hinted(
+            HAS_ENTRIES_SINCE_SQL,
+            HAS_ENTRIES_SINCE_UNHINTED_SQL,
+            |sql| {
+                self.conn
+                    .prepare_cached(sql)?
+                    .query_row([at.unix()], |r| r.get(0))
+            },
+        )
+        .at(self.at("ask whether the journal has entries since"))
     }
 
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {
@@ -811,12 +927,17 @@ impl CacheStore for SqliteStore {
         // sets when it marks the entry; one whose time cannot be read counts
         // as applied since (ADR-STORE-0004). Such an entry has no `applied_at`
         // to decode, and is kept.
-        let mut out = self.entries(
-            self.at("read applied entries"),
-            "state = 'applied' AND (applied_epoch >= ?1 OR (applied_epoch IS NULL AND \
-             COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1)))",
-            [at.unix()],
-        )?;
+        self.date_undated();
+        let st = self.at("read applied entries");
+        let rows = self
+            .hinted(APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, |sql| {
+                Self::journal_rows(&mut *self.conn.prepare_cached(sql)?, [at.unix()])
+            })
+            .at(st)?;
+        let mut out = rows
+            .into_iter()
+            .map(|r| r.decode(st))
+            .collect::<Result<Vec<_>, _>>()?;
         out.retain(|e| e.applied_at.as_ref().is_none_or(|t| t.unix() >= at.unix()));
         Ok(out)
     }
@@ -1338,5 +1459,47 @@ impl SqliteStore {
             outage: self.outage()?,
             stale: self.stale_rows()?,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::unwrap_used,
+        reason = "test code: a failed unwrap is a test failure"
+    )]
+    use super::*;
+    use crate::location::{DoltDatabase, ProjectId};
+
+    /// The open's warning names exactly the applied entries left undated
+    /// (QA4-004): the unreadable one, not the dated one nor a pending one.
+    #[test]
+    fn the_open_finds_the_applied_entries_it_could_not_date() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        let identity = DatabaseIdentity {
+            dolt_database: DoltDatabase::new("p").unwrap(),
+            project_id: ProjectId::new("p-p").unwrap(),
+        };
+        let path = Path::new(":memory:");
+        initialize(&mut conn, path, &identity).unwrap();
+        conn.execute_batch(
+            "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+             actor, state, attempts, created_at, updated_at) VALUES \
+             ('ok', 'x', 'b', 'close', '{}', '{}', 'a', 'applied', 0, 't', '2026-10-24T09:00:00Z'), \
+             ('bad', 'x', 'b', 'close', '{}', '{}', 'a', 'applied', 0, 't', 'yesterday'), \
+             ('wait', 'x', 'b', 'close', '{}', '{}', 'a', 'pending', 0, 't', 'yesterday');",
+        )
+        .unwrap();
+        assert_eq!(
+            undatable_seqs(&conn).unwrap(),
+            [1, 2],
+            "before the backfill"
+        );
+        initialize(&mut conn, path, &identity).unwrap();
+        assert_eq!(
+            undatable_seqs(&conn).unwrap(),
+            [2],
+            "only the unreadable one"
+        );
     }
 }

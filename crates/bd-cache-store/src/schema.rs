@@ -1,5 +1,7 @@
 //! The file schema: BD-CACHE v3 unchanged plus additive extensions (ADR-STORE-0001).
 
+use crate::codec::journal_columns;
+
 /// `PRAGMA user_version` of the shared file (REQ-BDC-0103); never changed on open.
 pub const SCHEMA_VERSION: i32 = 3;
 
@@ -78,26 +80,63 @@ CREATE INDEX IF NOT EXISTS journal_applied_unknown ON journal(seq) WHERE state =
 /// `bd_cache.py` (which sets `state` and `updated_at` and never `applied_at`),
 /// or before the column existed. The time of such an entry is `applied_at` if
 /// it has one, else `updated_at`; a value SQLite cannot read as a time stays
-/// NULL and keeps counting as "applied since" (conservative). Run in the open
-/// transaction; `unixepoch()` is evaluated by this process's bundled SQLite
-/// and appears in no index.
-pub(crate) const BACKFILL_APPLIED_EPOCH: &str = "
-UPDATE journal SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at))
-WHERE state = 'applied' AND applied_epoch IS NULL
-  AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL;
-";
+/// NULL and keeps counting as "applied since" (conservative). `unixepoch()` is
+/// evaluated by this process's bundled SQLite and appears in no index.
+///
+/// Run in the open transaction, and again by the reads that ask the journal
+/// (`has_entries_since`, `applied_since`) whenever [`HAS_DATEABLE_SQL`] finds
+/// an entry `bd_cache.py` applied since (ADR-STORE-0004): the work is one
+/// `journal_applied_unknown` walk over the entries not yet dated, so the
+/// journal check stays three index lookups however many entries that writer
+/// applies while this store is open.
+pub(crate) const BACKFILL_APPLIED_EPOCH: &str = "\
+UPDATE journal INDEXED BY journal_applied_unknown \
+SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \
+WHERE state = 'applied' AND applied_epoch IS NULL \
+  AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL";
+
+/// [`BACKFILL_APPLIED_EPOCH`] without the index hint (see [`HAS_ENTRIES_SINCE_UNHINTED_SQL`]).
+pub(crate) const BACKFILL_APPLIED_EPOCH_UNHINTED: &str = "\
+UPDATE journal SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \
+WHERE state = 'applied' AND applied_epoch IS NULL \
+  AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL";
+
+/// Is there an applied entry without an epoch whose time SQLite can read,
+/// that is, one [`BACKFILL_APPLIED_EPOCH`] would date? A walk of
+/// `journal_applied_unknown`, which after a backfill holds only the entries
+/// with an unreadable time (warned about at open), so it is empty in a
+/// healthy file and the check is one index probe.
+pub(crate) const HAS_DATEABLE_SQL: &str = "SELECT EXISTS (SELECT 1 FROM journal \
+    INDEXED BY journal_applied_unknown WHERE state = 'applied' AND applied_epoch IS NULL \
+    AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL)";
+
+/// [`HAS_DATEABLE_SQL`] without the index hint.
+pub(crate) const HAS_DATEABLE_UNHINTED_SQL: &str = "SELECT EXISTS (SELECT 1 FROM journal \
+    WHERE state = 'applied' AND applied_epoch IS NULL \
+    AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL)";
+
+/// The seqs of applied entries left without an epoch after a backfill: their
+/// time cannot be read, so they count as "applied since" every instant and
+/// keep every `get` of their scope on the adjusted (slow) path. Read at open
+/// to warn (ADR-STORE-0004 names the operator's fix).
+pub(crate) const UNDATED_SEQS: &str = "SELECT seq FROM journal \
+    INDEXED BY journal_applied_unknown \
+    WHERE state = 'applied' AND applied_epoch IS NULL ORDER BY seq";
 
 /// `CacheStore::has_entries_since`: is anything pending, or applied at or
-/// after `?1` (Unix seconds)? Three index lookups, so the cost does not grow
-/// with the journal's history (`tests/store.rs` asserts the query plan):
-/// pending entries (`journal_pending`); entries this store applied, by
-/// `applied_epoch` (`journal_applied_epoch`); and entries applied without an
-/// epoch (`bd_cache.py`'s, or unreadable times: `journal_applied_unknown`),
-/// whose time is `applied_at` else `updated_at`, and which count as applied
-/// since when that time is unreadable. The planner, without statistics, scans
-/// the applied rows through `journal_pending` unless told otherwise, so the
-/// last two name their index; [`HAS_ENTRIES_SINCE_UNHINTED_SQL`] is the same
-/// question for a file another writer dropped one of them from.
+/// after `?1` (Unix seconds)? Three index lookups (`tests/store.rs` asserts
+/// the query plan): pending entries (`journal_pending`); entries with an
+/// epoch, by `applied_epoch` (`journal_applied_epoch`); and entries applied
+/// without one (`journal_applied_unknown`), whose time is `applied_at` else
+/// `updated_at`, and which count as applied since when that time is
+/// unreadable. The last lookup walks the undated entries, so its cost grows
+/// with their number: the store dates them (`BACKFILL_APPLIED_EPOCH`) at
+/// open and before each check that finds one dateable, which leaves only
+/// entries with an unreadable time, and the first of those answers `true`.
+/// The planner, without statistics, scans the applied rows through
+/// `journal_pending` unless told otherwise, so the last two name their index;
+/// [`HAS_ENTRIES_SINCE_UNHINTED_SQL`] is the same question for a file another
+/// writer dropped one of them from.
 pub const HAS_ENTRIES_SINCE_SQL: &str = "SELECT \
     EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR \
     EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_epoch \
@@ -107,14 +146,46 @@ pub const HAS_ENTRIES_SINCE_SQL: &str = "SELECT \
         AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1))";
 
 /// [`HAS_ENTRIES_SINCE_SQL`] without the index hints: correct whatever indexes
-/// exist, slower on a long history. Used, with a warning, when a hinted index
-/// is missing (`INDEXED BY` is an error then), and the indexes are recreated
-/// at the next open.
+/// exist, slower on a long history. Used, after one warning, for the rest of
+/// the store's life once a hinted index is found missing (`INDEXED BY` is an
+/// error then); the next open recreates the indexes.
 pub const HAS_ENTRIES_SINCE_UNHINTED_SQL: &str = "SELECT \
     EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR \
     EXISTS (SELECT 1 FROM journal WHERE state = 'applied' AND applied_epoch >= ?1) OR \
     EXISTS (SELECT 1 FROM journal WHERE state = 'applied' AND applied_epoch IS NULL \
         AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1))";
+
+/// `CacheStore::applied_since`: the entries applied at or after `?1` (Unix
+/// seconds), by seq. Two index range reads joined by `UNION ALL` (disjoint:
+/// one has an epoch, the other none), so neither walks the applied history:
+/// entries with an epoch through `journal_applied_epoch`, and undated ones
+/// through `journal_applied_unknown`, kept when their time is at or after
+/// `?1` or unreadable. An `OR` of the two in one `WHERE` would let neither
+/// partial index serve the query (`tests/store.rs` asserts the plan).
+pub const APPLIED_SINCE_SQL: &str = concat!(
+    "SELECT ",
+    journal_columns!(),
+    " FROM journal INDEXED BY journal_applied_epoch \
+     WHERE state = 'applied' AND applied_epoch >= ?1 \
+     UNION ALL SELECT ",
+    journal_columns!(),
+    " FROM journal INDEXED BY journal_applied_unknown \
+     WHERE state = 'applied' AND applied_epoch IS NULL \
+     AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1) \
+     ORDER BY seq"
+);
+
+/// [`APPLIED_SINCE_SQL`] without the index hints.
+pub const APPLIED_SINCE_UNHINTED_SQL: &str = concat!(
+    "SELECT ",
+    journal_columns!(),
+    " FROM journal WHERE state = 'applied' AND applied_epoch >= ?1 \
+     UNION ALL SELECT ",
+    journal_columns!(),
+    " FROM journal WHERE state = 'applied' AND applied_epoch IS NULL \
+     AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1) \
+     ORDER BY seq"
+);
 
 /// Membership of rows another implementation wrote, taken from their `phase`
 /// column and made authoritative; leftover `scope_member` rows of deleted

@@ -56,7 +56,9 @@ another path (a symlink) that resolves to it.
 The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
 extensions are the tables `scope`, `scope_member`, `ready_base` and
 `ready_base_blocked`, nullable columns only (including `ready_base.indexed` and `journal.applied_epoch`) and
-the plain partial indexes `journal_applied_epoch` and `journal_applied_unknown`; no index holds a function (ADR-STORE-0001, as amended by ADR-STORE-0004). Stored rows are normalized and `row_json` is
+the plain indexes `scope_member_bead` (`scope_member(bead)`), `beads_membership_unknown`,
+`journal_applied_epoch` and `journal_applied_unknown` (the last three partial); no index
+holds a function (ADR-STORE-0001, as amended by ADR-STORE-0004, has the DDL). Stored rows are normalized and `row_json` is
 Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
 
 *Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; `bd_cache.py` never reads them, and none uses a function, so a `bd_cache.py` on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*

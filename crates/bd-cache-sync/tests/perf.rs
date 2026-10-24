@@ -102,7 +102,8 @@ fn a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads() {
 }
 
 /// NFR-BDC-0001 with a long journal (S13): thousands of applied entries older
-/// than the base do not change what a cached `get` reads. The matching
+/// than the base, dated as this store applies them (`applied_epoch` set), do
+/// not change what a cached `get` reads. The matching
 /// assertion that the journal check is an index lookup is
 /// `the_entries_since_check_uses_indexes_and_ignores_a_long_history`
 /// (bd-cache-store).
@@ -121,9 +122,10 @@ fn a_cached_get_reads_the_same_with_thousands_of_old_applied_entries() {
             let mut ins = tx
                 .prepare(
                     "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
-                     actor, state, attempts, created_at, updated_at, applied_at) \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
                      VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
-                     '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                     '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', \
+                     1767225600)",
                 )
                 .unwrap();
             for i in 0..5_000 {
@@ -136,6 +138,70 @@ fn a_cached_get_reads_the_same_with_thousands_of_old_applied_entries() {
     let reply = cache.get(&id, None).unwrap();
     assert_eq!(reply.row.blocked, Some(vec![sc_beads::testing::id("b1")]));
     assert_eq!(touched.load(Ordering::SeqCst), empty, "history is not read");
+}
+
+/// The SQLite virtual-machine steps of one journal check on `c`.
+fn check_steps(c: &rusqlite::Connection, at: i64) -> i32 {
+    let mut stmt = c.prepare(bd_cache_store::HAS_ENTRIES_SINCE_SQL).unwrap();
+    let _: bool = stmt.query_row([at], |r| r.get(0)).unwrap();
+    stmt.get_status(rusqlite::StatementStatus::VmStep)
+}
+
+/// The same with entries `bd_cache.py` applies while the cache is open (no
+/// `applied_at`, no epoch, QA4-002): a cached `get` still makes the same
+/// store calls, and its journal check dates them, so the SQL work of the
+/// next check is index probes again, not one per entry. Measured in SQLite
+/// VM steps, never wall-clock.
+#[test]
+fn a_cached_get_dates_entries_python_applied_while_open() {
+    let (dir, mut cache, touched) = synced_cache(100);
+    let id = sc_beads::testing::id("b0");
+    cache.get(&id, None).unwrap();
+    touched.store(0, Ordering::SeqCst);
+    cache.get(&id, None).unwrap();
+    let empty = touched.load(Ordering::SeqCst);
+    let path = dir.path().join("perf.sqlite3");
+    let c = rusqlite::Connection::open(&path).unwrap();
+    let base_at: i64 = c
+        .query_row(
+            "SELECT unixepoch(fetched_at) FROM ready_base WHERE scope = 'x'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    let idle = check_steps(&c, base_at);
+    {
+        let mut c = rusqlite::Connection::open(&path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '1999-01-01T00:00:00Z', '1999-01-01T00:00:00Z')",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("py-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    let walking = check_steps(&c, base_at);
+    assert!(
+        walking > 5_000,
+        "control: undated entries are walked ({walking})"
+    );
+    touched.store(0, Ordering::SeqCst);
+    let reply = cache.get(&id, None).unwrap();
+    assert_eq!(reply.row.blocked, Some(vec![sc_beads::testing::id("b1")]));
+    assert_eq!(touched.load(Ordering::SeqCst), empty, "history is not read");
+    let after = check_steps(&c, base_at);
+    assert!(
+        after <= idle + 10,
+        "the get dated them: {after} steps, {idle} before they landed"
+    );
 }
 
 /// With a write in flight the whole base is adjusted (a blocker's close can
