@@ -24,7 +24,26 @@ pub enum SendErrorKind {
     Other,
 }
 
+impl serde::Serialize for SendErrorKind {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
 impl SendErrorKind {
+    /// The stable name of the kind, for reports.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::InvalidAddress => "invalid_address",
+            Self::NotStartable => "not_startable",
+            Self::TimedOut => "timed_out",
+            Self::Cancelled => "cancelled",
+            Self::Exited => "exited",
+            Self::Other => "other",
+        }
+    }
+
     /// What the operator can do about it.
     #[must_use]
     pub fn fix(self) -> &'static str {
@@ -84,6 +103,12 @@ impl fmt::Display for SendError {
 impl std::error::Error for SendError {}
 
 /// Sends one message to a phase lead.
+///
+/// `lead` and `team` are member names the caller has already validated
+/// (bd-cache-sync's `MemberName`: nonempty, no whitespace, control character or
+/// `@`, no leading `-`); the port does not repeat the check. An implementation
+/// that passes them to a program or a network address keeps its own defensive
+/// guard, as `AtmSender` does, and answers [`SendErrorKind::InvalidAddress`].
 pub trait EscalationSender: Send + Sync {
     /// Delivers `body` to `lead` in `team`.
     ///

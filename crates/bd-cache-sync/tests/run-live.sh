@@ -23,17 +23,31 @@ cleanup() {
 trap cleanup EXIT
 
 # Runs a command for at most $1 seconds, with no dependency on GNU timeout
-# (macOS has none): a watchdog terminates it, then kills it.
+# (macOS has none). The command runs in its own process group (job control), so
+# the watchdog's TERM, then KILL, reaches cargo, the test binary and any `bd`
+# it started; on a normal exit the watchdog and its `sleep` are stopped.
 run_bounded() {
   local secs="$1"; shift
+  set -m
   "$@" &
   local pid=$!
-  ( sleep "$secs"; echo "run-live.sh: timed out after ${secs}s; terminating" >&2
-    kill -TERM "$pid" 2>/dev/null; sleep 10; kill -KILL "$pid" 2>/dev/null ) &
+  set +m
+  (
+    sleep "$secs" &
+    local nap=$!
+    trap 'kill "$nap" 2>/dev/null; exit 0' TERM
+    wait "$nap" || exit 0
+    echo "run-live.sh: timed out after ${secs}s; terminating the test run" >&2
+    kill -TERM -- "-$pid" 2>/dev/null || kill -TERM "$pid" 2>/dev/null || true
+    sleep 10 &
+    nap=$!
+    wait "$nap" || exit 0
+    kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
+  ) &
   local watchdog=$!
   local status=0
   wait "$pid" || status=$?
-  kill "$watchdog" 2>/dev/null || true
+  kill -TERM "$watchdog" 2>/dev/null || true
   wait "$watchdog" 2>/dev/null || true
   return "$status"
 }

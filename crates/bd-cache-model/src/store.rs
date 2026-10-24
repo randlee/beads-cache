@@ -114,10 +114,19 @@ pub trait CacheStore: Send {
     ///
     /// Equal to [`BaseEntry::of`] applied to [`CacheStore::ready_base`]. The
     /// provided body loads the whole base; an implementation that can answer
-    /// from an index overrides it, so a cached `get` costs the same whatever
+    /// from an index overrides it (and reads head and entry in one snapshot), so a cached `get` costs the same whatever
     /// the size of the scope (NFR-BDC-0001).
     fn base_entry(&self, s: &ScopeId, id: &BeadId) -> Result<Option<BaseEntry>, CacheError> {
         Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)))
+    }
+    /// Whether any journal entry is pending, or was applied at or after `at`.
+    ///
+    /// Equal to "`pending_entries` or `applied_since(at)` is not empty". The
+    /// provided body loads both lists; an implementation that can ask the
+    /// question of an index overrides it, so a cached `get` does not read the
+    /// journal's history (NFR-BDC-0001).
+    fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
+        Ok(!self.pending_entries()?.is_empty() || !self.applied_since(at)?.is_empty())
     }
     /// Marks the scope's ready base stale.
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;

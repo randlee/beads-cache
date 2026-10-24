@@ -241,7 +241,7 @@ fn a_journaled_write_lands_in_a_real_bd_through_the_tick() {
 /// beads changed since, as it does in a long-lived cache.
 #[test]
 #[ignore = "live bd test: run through tests/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)"]
-fn an_incremental_sync_of_a_1000_bead_phase_is_under_1_s() {
+fn an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported() {
     let Some(live) = Live::open() else {
         return;
     };
@@ -278,6 +278,11 @@ fn an_incremental_sync_of_a_1000_bead_phase_is_under_1_s() {
         .expect("incremental sync");
     let took = started.elapsed();
 
+    assert!(
+        !report.deferred,
+        "inconclusive, not a regression: the sync was deferred by its deadline (the host is \
+         too loaded for a measurement); rerun when it is idle"
+    );
     // The figure for the record (docs/plans/phase-a/evidence/a-7-testbed.md).
     // Wall-clock time on a shared host is reported, not gated; what gates is
     // that the sync was incremental, which is what makes it fast.

@@ -58,6 +58,11 @@ impl StopFlag {
 /// a loaded host without letting a tick start a send it cannot finish.
 pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
 
+/// What the tick keeps for its own bookkeeping after the last message (marking
+/// entries, recording alerts, building the reply): a send is never given the
+/// last half second before `T`.
+pub(crate) const SEND_RESERVE: Duration = Duration::from_millis(500);
+
 /// What a tick may still spend: its end `T`, its clock and the stop flag.
 pub(crate) struct Budget<'a> {
     pub clock: &'a dyn Clock,
@@ -72,7 +77,42 @@ impl Budget<'_> {
         if self.stop.is_stopped() {
             return None;
         }
-        let left = self.end.remaining(self.clock);
+        let left = self.end.remaining(self.clock).saturating_sub(SEND_RESERVE);
         (left >= MIN_SEND_BUDGET).then_some(left)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use sc_beads::testing::ManualClock;
+
+    use super::*;
+
+    fn budget_left(clock: &Arc<ManualClock>, stop: &StopFlag, left: Duration) -> Option<Duration> {
+        Budget {
+            clock: &**clock,
+            end: Deadline::after(&**clock, left),
+            stop,
+        }
+        .send_budget()
+    }
+
+    #[test]
+    fn a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor() {
+        let clock = Arc::new(ManualClock::default());
+        let stop = StopFlag::new();
+        assert_eq!(
+            budget_left(&clock, &stop, Duration::from_secs(25)),
+            Some(Duration::from_millis(24_500))
+        );
+        // 1 s left: 0.5 s after the reserve is exactly the floor.
+        assert_eq!(
+            budget_left(&clock, &stop, Duration::from_secs(1)),
+            Some(Duration::from_millis(500))
+        );
+        assert_eq!(budget_left(&clock, &stop, Duration::from_millis(999)), None);
+        assert_eq!(budget_left(&clock, &stop, Duration::ZERO), None);
+        stop.stop();
+        assert_eq!(budget_left(&clock, &stop, Duration::from_secs(25)), None);
     }
 }

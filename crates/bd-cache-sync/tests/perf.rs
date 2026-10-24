@@ -101,6 +101,43 @@ fn a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads() {
     );
 }
 
+/// NFR-BDC-0001 with a long journal (S13): thousands of applied entries older
+/// than the base do not change what a cached `get` reads. The matching
+/// assertion that the journal check is an index lookup is
+/// `the_entries_since_check_uses_indexes_and_ignores_a_long_history`
+/// (bd-cache-store).
+#[test]
+fn a_cached_get_reads_the_same_with_thousands_of_old_applied_entries() {
+    let (dir, mut cache, touched) = synced_cache(100);
+    let id = sc_beads::testing::id("b0");
+    cache.get(&id, None).unwrap();
+    touched.store(0, Ordering::SeqCst);
+    cache.get(&id, None).unwrap();
+    let empty = touched.load(Ordering::SeqCst);
+    {
+        let mut c = rusqlite::Connection::open(dir.path().join("perf.sqlite3")).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    touched.store(0, Ordering::SeqCst);
+    let reply = cache.get(&id, None).unwrap();
+    assert_eq!(reply.row.blocked, Some(vec![sc_beads::testing::id("b1")]));
+    assert_eq!(touched.load(Ordering::SeqCst), empty, "history is not read");
+}
+
 /// With a write in flight the whole base is adjusted (a blocker's close can
 /// unblock any bead), so the cost grows with the scope until the next sync:
 /// the fast path is only for a base no entry can have changed.
@@ -159,6 +196,28 @@ fn an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base() {
         Some(vec![]),
         "the applied close of b1 unblocks b0, though the stored base still lists it"
     );
+}
+
+/// `Cache::cached`, which the tick uses to read a phase's root, reads the same
+/// at any scope size and never calls bd.
+#[test]
+fn a_cached_read_of_one_bead_touches_the_same_rows_at_10_and_1000_beads() {
+    let touched_by = |beads: usize| {
+        let (_dir, cache, touched) = synced_cache(beads);
+        let id = sc_beads::testing::id("b0");
+        cache.cached(&id).unwrap();
+        touched.store(0, Ordering::SeqCst);
+        let reply = cache.cached(&id).unwrap().unwrap();
+        assert!(reply.scope_last_ok_at.is_some());
+        assert!(
+            cache
+                .cached(&sc_beads::testing::id("nobody"))
+                .unwrap()
+                .is_none()
+        );
+        touched.load(Ordering::SeqCst)
+    };
+    assert_eq!(touched_by(10), touched_by(1000));
 }
 
 fn median(mut samples: Vec<Duration>) -> Duration {

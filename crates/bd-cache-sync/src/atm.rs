@@ -19,7 +19,10 @@
 //! output is read by threads that are waited for no longer than the time left
 //! in the same budget; output beyond a limit is dropped and the error says so.
 //! A tick that sends several messages passes each one the time left before
-//! its end `T` ([`tick`](crate::tick)).
+//! its end `T` ([`tick`](crate::tick)). After a successful send nothing is
+//! killed or waited for: the child has been reaped, so its process-group id may
+//! already belong to another process, and a descendant that outlives a delivered
+//! message is the program's own business.
 
 use std::ffi::{OsStr, OsString};
 use std::fmt;
@@ -50,10 +53,10 @@ pub const SEND_TIMEOUT: Duration = Duration::from_secs(10);
 const CAPTURE_LIMIT: usize = 4096;
 /// How often a running child is polled.
 const POLL: Duration = Duration::from_millis(20);
-/// The least time given to the output readers after the child has exited,
-/// even when the send's budget is spent: a reader that already has its data
-/// needs a scheduler slice, not a second.
-const READ_GRACE: Duration = Duration::from_millis(100);
+/// The longest the output readers are waited for after the child has exited
+/// with a failure: a reader that has its data needs a scheduler slice; one
+/// that does not is held open by a descendant.
+const READ_GRACE: Duration = Duration::from_millis(250);
 
 /// A timeout the sender refuses to use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -246,39 +249,54 @@ fn capture(mut from: impl Read + Send + 'static) -> mpsc::Receiver<Captured> {
 }
 
 /// Kills the child and everything it started, then reaps it.
+///
+/// Only called while the child has not been reaped, so its process-group id
+/// (its pid) cannot belong to anything else. The tree is killed with the
+/// platform's own program (`kill` with a negative pid, `taskkill /T`): the
+/// crate has no `unsafe` and no `libc` dependency (ADR-SYNC-0006). A failing
+/// tree kill is logged and the child itself is killed regardless.
 fn kill_tree(child: &mut Child) {
-    let quiet = |mut c: Command| {
-        let _ = c.stdout(Stdio::null()).stderr(Stdio::null()).status();
+    let run = |mut c: Command| match c.stdout(Stdio::null()).stderr(Stdio::null()).status() {
+        Ok(status) if status.success() => {}
+        outcome => tracing::warn!(
+            ?outcome,
+            pid = child.id(),
+            "killing the atm process tree failed; killing the child only"
+        ),
     };
     #[cfg(unix)]
     {
         // The child leads its own process group (`process_group(0)`), so the
         // negative pid names the group.
-        let mut kill = Command::new("kill");
+        let program = if Path::new("/bin/kill").is_file() {
+            "/bin/kill"
+        } else {
+            "kill"
+        };
+        let mut kill = Command::new(program);
         kill.args(["-KILL", "--", &format!("-{}", child.id())]);
-        quiet(kill);
+        run(kill);
     }
     #[cfg(windows)]
     {
         let mut kill = Command::new("taskkill");
         kill.args(["/T", "/F", "/PID", &child.id().to_string()]);
-        quiet(kill);
+        run(kill);
     }
-    // The group kill cannot reach a child that already left it, and is absent
-    // on other platforms: kill the child itself too. Reaping stops a zombie.
+    // The tree kill is absent on other platforms or may have failed: kill the
+    // child itself too. Reaping stops a zombie.
     let _ = child.kill();
     let _ = child.wait();
 }
 
-/// The output of a stream, waited for no longer than `until`.
-fn collect(rx: Option<mpsc::Receiver<Captured>>, until: Instant) -> String {
+/// The output of a stream, waited for at most [`READ_GRACE`]: the child has
+/// exited, so a reader that still has no end of stream is held open by a
+/// descendant, and the send does not wait for it.
+fn collect(rx: Option<mpsc::Receiver<Captured>>) -> String {
     let Some(rx) = rx else {
         return String::new();
     };
-    let wait = until
-        .saturating_duration_since(Instant::now())
-        .max(READ_GRACE);
-    match rx.recv_timeout(wait) {
+    match rx.recv_timeout(READ_GRACE) {
         Ok(c) if c.truncated => format!("{} ... (output truncated)", c.text),
         Ok(c) => c.text,
         Err(_) => "(output not fully read)".to_owned(),
@@ -297,12 +315,20 @@ impl EscalationSender for AtmSender {
         body: &str,
         timeout: Duration,
     ) -> Result<(), SendError> {
-        let (Ok(lead), Ok(team)) = (MemberName::new(lead), MemberName::new(team)) else {
-            return Err(SendError::with_kind(
+        // Defensive: the tick passes names it validated (`MemberName`), but the
+        // port takes text, and this text becomes a command-line argument.
+        let lead = MemberName::new(lead).map_err(|e| {
+            SendError::with_kind(
                 SendErrorKind::InvalidAddress,
-                format!("{lead:?}@{team:?} is not an address atm send can take"),
-            ));
-        };
+                format!("the lead {:?} is not an address atm send can take", e.value),
+            )
+        })?;
+        let team = MemberName::new(team).map_err(|e| {
+            SendError::with_kind(
+                SendErrorKind::InvalidAddress,
+                format!("the team {:?} is not an address atm send can take", e.value),
+            )
+        })?;
         let timeout = timeout.min(self.timeout);
         if timeout.is_zero() {
             return Err(SendError::with_kind(
@@ -311,7 +337,15 @@ impl EscalationSender for AtmSender {
             ));
         }
         let name = self.binary.to_string_lossy();
-        let mut command = Command::new(&self.binary);
+        // Spawn the program found, not the bare name: on Windows `resolve`
+        // accepts `.cmd` and `.bat`, which a bare name would not find.
+        let program = self.resolve().map_err(|e| {
+            SendError::with_kind(
+                SendErrorKind::NotStartable,
+                format!("cannot start {name}: {}", e.detail),
+            )
+        })?;
+        let mut command = Command::new(program);
         command
             .args(&self.leading_args)
             .args(self.args(&lead, &team))
@@ -369,7 +403,7 @@ impl EscalationSender for AtmSender {
                 Err(e) => {
                     kill_tree(&mut child);
                     return Err(SendError::with_kind(
-                        SendErrorKind::Exited,
+                        SendErrorKind::Other,
                         format!("waiting for {name}: {e}"),
                     ));
                 }
@@ -378,7 +412,7 @@ impl EscalationSender for AtmSender {
         if status.success() {
             return Ok(());
         }
-        let (out, err) = (collect(stdout, until), collect(stderr, until));
+        let (out, err) = (collect(stdout), collect(stderr));
         let said = if err.is_empty() { out } else { err };
         Err(SendError::with_kind(
             SendErrorKind::Exited,

@@ -25,6 +25,13 @@
 //! - [`compose`]: the real `SqliteStore` + `FlockDrainLock` + `BdCli`
 //!   cache of a repository, read from `.beads/bd-cache.toml`.
 //!
+//! # Codes
+//!
+//! Every error this crate reports has a stable lower-case code
+//! (`RefusalCode::as_str`, `ScheduleError::code`, `ComposeError::code`), with
+//! the `BD_CACHE.*` codes of the core passed through where the cause is a
+//! `CacheError`. The code, not the message, is what a program matches on.
+//!
 //! # One ticker per cache file
 //!
 //! Either `sc-cron` runs this crate, or an external scheduler (the ATM cron
@@ -57,6 +64,7 @@ mod control;
 mod job;
 mod phases;
 mod reply;
+mod text;
 mod tick;
 
 #[doc(inline)]
@@ -66,7 +74,6 @@ pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_T
 #[doc(inline)]
 pub use compose::{ComposeError, Composed, RealCache, compose, compose_with};
 #[doc(inline)]
-#[doc(inline)]
 pub use control::StopFlag;
 #[doc(inline)]
 pub use job::{STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun, schedule_spec};
@@ -74,6 +81,7 @@ pub use job::{STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun, sch
 pub use phases::{
     ConfigRefusal, DEFAULT_PHASES_DIR, InvalidMember, MAX_PHASE_FILE_BYTES, MAX_PHASE_FILES,
     MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError, TickSettings, load_phases,
+    rooted_phases_dir,
 };
 #[doc(inline)]
 pub use reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickOutcome, TickReply};

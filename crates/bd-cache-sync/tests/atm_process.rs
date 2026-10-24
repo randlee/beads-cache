@@ -22,8 +22,8 @@ use bd_cache_model::{EscalationSender, SendErrorKind};
 use bd_cache_sync::{AtmSender, StopFlag, TICK_BUDGET};
 
 const FLAG: &str = "--fake-atm=";
-/// How long a hanging fake waits before it proves it is still alive.
-const ALIVE_AFTER: Duration = Duration::from_millis(1500);
+/// How long a test waits for a child to show it started, or to be gone.
+const WAIT: Duration = Duration::from_secs(10);
 
 /// The fake `atm`: `<exe> --fake-atm=<mode> <out-prefix> <atm args...>`.
 fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
@@ -55,15 +55,15 @@ fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
         }
         // Exits at once without reading its input.
         "deaf" => 0,
-        // Never finishes; proves it was not killed by writing `<out>.alive`.
+        // Records its pid at once, then never finishes.
         "hang" => {
-            std::thread::sleep(ALIVE_AFTER);
-            std::fs::write(format!("{out}.alive"), "alive").unwrap();
+            std::fs::write(format!("{out}.pid"), std::process::id().to_string()).unwrap();
             std::thread::sleep(Duration::from_secs(60));
             0
         }
         // Starts a grandchild that hangs, then hangs itself.
         "tree" => {
+            std::fs::write(format!("{out}.pid"), std::process::id().to_string()).unwrap();
             let exe = std::env::current_exe().unwrap();
             #[expect(
                 clippy::zombie_processes,
@@ -73,7 +73,6 @@ fn fake_atm(mode: &str, out: &str, args: &[String]) -> i32 {
                 .args([&format!("{FLAG}hang"), &format!("{out}.grandchild")])
                 .spawn()
                 .unwrap();
-            std::fs::write(format!("{out}.spawned"), "yes").unwrap();
             std::thread::sleep(Duration::from_secs(60));
             0
         }
@@ -86,9 +85,71 @@ fn sender(mode: &str, out: &Path) -> AtmSender {
         .with_leading_args([format!("{FLAG}{mode}"), out.display().to_string()])
 }
 
-/// True when the fake wrote its proof of life after the kill window.
-fn alive_marker(prefix: &str) -> bool {
-    Path::new(&format!("{prefix}.alive")).exists()
+/// Waits until `path` exists and returns the pid in it.
+fn pid_in(path: &str) -> u32 {
+    let until = Instant::now() + WAIT;
+    loop {
+        if let Some(pid) = std::fs::read_to_string(path)
+            .ok()
+            .and_then(|text| text.trim().parse().ok())
+        {
+            return pid;
+        }
+        assert!(
+            Instant::now() < until,
+            "{path} never appeared: the fake did not start"
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+}
+
+/// Whether a process with this pid is running.
+fn alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    let status = std::process::Command::new("kill")
+        .args(["-0", &pid.to_string()])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|s| s.success());
+    #[cfg(windows)]
+    let status = std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()));
+    status.unwrap_or(false)
+}
+
+/// Waits (up to [`WAIT`]) until the process is gone.
+fn assert_gone(pid: u32, what: &str) {
+    let until = Instant::now() + WAIT;
+    while alive(pid) {
+        assert!(
+            Instant::now() < until,
+            "{what} (pid {pid}) is still running"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Kills the pids it holds when dropped, so a failing test leaves no orphan
+/// sleeping for a minute.
+struct Reaper(Vec<u32>);
+
+impl Drop for Reaper {
+    fn drop(&mut self) {
+        for pid in &self.0 {
+            #[cfg(unix)]
+            let _ = std::process::Command::new("kill")
+                .args(["-KILL", &pid.to_string()])
+                .stderr(std::process::Stdio::null())
+                .status();
+            #[cfg(windows)]
+            let _ = std::process::Command::new("taskkill")
+                .args(["/F", "/PID", &pid.to_string()])
+                .output();
+        }
+    }
 }
 
 fn delivers_the_body_on_stdin_with_the_reference_invocation() {
@@ -154,39 +215,34 @@ fn output_beyond_the_limit_is_dropped_and_the_error_says_so() {
 fn an_atm_that_hangs_is_killed_and_gone_at_the_timeout() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("hung");
-    let started = Instant::now();
     let err = sender("hang", &out)
-        .with_timeout(Duration::from_millis(300))
+        .with_timeout(Duration::from_secs(3))
         .unwrap()
         .send("l", "t", "hi")
         .unwrap_err();
     assert_eq!(err.kind, SendErrorKind::TimedOut);
     assert!(err.detail.contains("did not finish"), "{err}");
-    assert!(started.elapsed() < Duration::from_secs(10));
-    // Gone: a live child writes its marker 1.5 s after it started.
-    std::thread::sleep(ALIVE_AFTER + Duration::from_secs(1));
-    assert!(
-        !alive_marker(&out.display().to_string()),
-        "the child was not killed"
-    );
+    // It had started (its pid is there) and it is gone.
+    let pid = pid_in(&format!("{}.pid", out.display()));
+    let _reaper = Reaper(vec![pid]);
+    assert_gone(pid, "the timed-out atm");
 }
 
-fn the_whole_process_tree_is_killed_not_just_the_child() {
+fn the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("tree");
     let err = sender("tree", &out)
-        .with_timeout(Duration::from_millis(800))
+        .with_timeout(Duration::from_secs(6))
         .unwrap()
         .send("l", "t", "hi")
         .unwrap_err();
     assert_eq!(err.kind, SendErrorKind::TimedOut);
-    // The grandchild existed when the kill came (else the check below proves nothing).
-    assert!(Path::new(&format!("{}.spawned", out.display())).exists());
-    std::thread::sleep(ALIVE_AFTER + Duration::from_secs(1));
-    assert!(
-        !alive_marker(&format!("{}.grandchild", out.display())),
-        "the grandchild outlived the kill"
-    );
+    // Both processes had started, and both are gone.
+    let child = pid_in(&format!("{}.pid", out.display()));
+    let grandchild = pid_in(&format!("{}.grandchild.pid", out.display()));
+    let _reaper = Reaper(vec![child, grandchild]);
+    assert_gone(child, "the child");
+    assert_gone(grandchild, "the grandchild");
 }
 
 fn the_time_a_tick_passes_bounds_the_send() {
@@ -208,25 +264,35 @@ fn the_time_a_tick_passes_bounds_the_send() {
     assert_eq!(none.kind, SendErrorKind::TimedOut);
 }
 
-fn the_stop_flag_kills_the_child() {
+fn the_stop_flag_kills_the_child_and_its_descendants() {
     let dir = tempfile::tempdir().unwrap();
     let out = dir.path().join("stopped");
     let stop = StopFlag::new();
-    let flag = stop.clone();
-    let stopper = std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(250));
-        flag.stop();
-    });
+    // The stop comes only once both processes have started.
+    let watcher = {
+        let (flag, prefix) = (stop.clone(), out.display().to_string());
+        std::thread::spawn(move || {
+            let pids = (
+                pid_in(&format!("{prefix}.pid")),
+                pid_in(&format!("{prefix}.grandchild.pid")),
+            );
+            flag.stop();
+            pids
+        })
+    };
     let started = Instant::now();
     let err = sender("tree", &out)
+        .with_timeout(Duration::from_secs(20))
+        .unwrap()
         .with_stop(stop)
         .send("l", "t", "hi")
         .unwrap_err();
-    stopper.join().unwrap();
+    let (child, grandchild) = watcher.join().unwrap();
+    let _reaper = Reaper(vec![child, grandchild]);
     assert_eq!(err.kind, SendErrorKind::Cancelled);
-    assert!(started.elapsed() < Duration::from_secs(5));
-    std::thread::sleep(ALIVE_AFTER + Duration::from_secs(1));
-    assert!(!alive_marker(&format!("{}.grandchild", out.display())));
+    assert!(started.elapsed() < Duration::from_secs(15));
+    assert_gone(child, "the child");
+    assert_gone(grandchild, "the grandchild");
 }
 
 fn an_atm_that_exits_without_reading_still_counts_as_delivered_by_its_status() {
@@ -304,16 +370,16 @@ fn main() {
             an_atm_that_hangs_is_killed_and_gone_at_the_timeout,
         ),
         (
-            "the_whole_process_tree_is_killed_not_just_the_child",
-            the_whole_process_tree_is_killed_not_just_the_child,
+            "the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child",
+            the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child,
         ),
         (
             "the_time_a_tick_passes_bounds_the_send",
             the_time_a_tick_passes_bounds_the_send,
         ),
         (
-            "the_stop_flag_kills_the_child",
-            the_stop_flag_kills_the_child,
+            "the_stop_flag_kills_the_child_and_its_descendants",
+            the_stop_flag_kills_the_child_and_its_descendants,
         ),
         (
             "an_atm_that_exits_without_reading_still_counts_as_delivered_by_its_status",
@@ -332,9 +398,22 @@ fn main() {
             a_timeout_that_no_message_could_use_is_refused,
         ),
     ];
+    let mut failed = 0;
     for (name, test) in tests {
-        test();
-        println!("test {name} ... ok");
+        // A failing case is named and the others still run.
+        if std::panic::catch_unwind(test).is_ok() {
+            println!("test {name} ... ok");
+        } else {
+            failed += 1;
+            println!("test {name} ... FAILED");
+        }
     }
-    println!("\ntest result: ok. {} passed", tests.len());
+    println!(
+        "\ntest result: {}. {} passed; {failed} failed",
+        if failed == 0 { "ok" } else { "FAILED" },
+        tests.len() - failed
+    );
+    if failed > 0 {
+        std::process::exit(101);
+    }
 }

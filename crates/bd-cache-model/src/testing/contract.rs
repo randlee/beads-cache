@@ -637,6 +637,30 @@ pub fn base_entry_rules(fx: &mut impl StoreFixture) {
     assert!(ok(s.base_entry(&x(), &id("b2")), "pruned").is_none());
 }
 
+/// `has_entries_since(at)` is "something pending, or applied at or after `at`".
+pub fn has_entries_since_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert!(!ok(s.has_entries_since(&ts(T0)), "empty journal"));
+    let seq = ok(s.insert_entry(entry("k1", "b1", None), &ts(T0)), "insert");
+    assert!(ok(
+        s.has_entries_since(&ts(T2)),
+        "a pending entry counts at any time"
+    ));
+    ok(
+        s.apply_with_readback(seq, None, None, &ts(T1)),
+        "apply at T1",
+    );
+    assert!(ok(s.has_entries_since(&ts(T0)), "applied after T0"));
+    assert!(ok(s.has_entries_since(&ts(T1)), "inclusive at T1"));
+    assert!(!ok(s.has_entries_since(&ts(T2)), "applied before T2"));
+    let esc = ok(s.insert_entry(entry("k2", "b2", None), &ts(T1)), "insert 2");
+    ok(s.escalate(esc, "why", &ts(T1)), "escalate");
+    assert!(!ok(
+        s.has_entries_since(&ts(T2)),
+        "an escalated entry is neither pending nor applied"
+    ),);
+}
+
 /// `applied_since(at)` returns entries applied at or after `at`, in seq order.
 pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
@@ -1030,6 +1054,7 @@ macro_rules! store_contract_tests {
             scopes_persist_across_restarts,
             ready_base_rules,
             base_entry_rules,
+            has_entries_since_rules,
             applied_since_is_inclusive_and_ordered,
             journal_lifecycle,
             resolve_note_without_prior_error,

@@ -37,7 +37,7 @@ use sc_beads::{
 
 use crate::Cache;
 
-const CLOSED: &str = "closed";
+const CLOSED: &str = crate::CLOSED_STATUS;
 const OPEN: &str = "open";
 
 /// A scope's ready base with our journal applied (ADR-BDC-0002).
@@ -108,8 +108,7 @@ pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     if !s.holds(view) {
         return Ok(None);
     }
-    let untouched = cache.store.pending_entries()?.is_empty()
-        && cache.store.applied_since(&entry.fetched_at)?.is_empty();
+    let untouched = !cache.store.has_entries_since(&entry.fetched_at)?;
     if untouched {
         return Ok(Some(entry.blocked_by));
     }

@@ -107,6 +107,13 @@ impl<S: CacheStore> CacheStore for Counting<S> {
         }
         r
     }
+    fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
+        let r = self.inner.has_entries_since(at);
+        if r.is_ok() {
+            self.add(0);
+        }
+        r
+    }
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError> {
         self.inner.mark_ready_base_stale(s)
     }

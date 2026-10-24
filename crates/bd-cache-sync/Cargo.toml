@@ -30,6 +30,7 @@ sc-bd-cli = { workspace = true, features = ["test-support"] }
 sc-cron = { workspace = true, features = ["test-utils"] }
 chrono.workspace = true
 criterion.workspace = true
+rusqlite.workspace = true
 tempfile.workspace = true
 tokio = { workspace = true, features = ["test-util"] }
 

@@ -120,8 +120,17 @@ pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
         stop,
     };
     let mut reply = TickReply::started();
+    if stop.is_stopped() {
+        reply.stopped = true;
+        return Ok(reply.finish());
+    }
 
     reply.drain = Some(cache.drain(&DrainBudget::before_tick_end(end))?);
+    if stop.is_stopped() {
+        // The drain is the long part; do not start reading phases after it.
+        reply.stopped = true;
+        return Ok(reply.finish());
+    }
 
     let phases = read_phases(settings, &mut reply);
     let active = active_phases(cache, &phases, end)?;

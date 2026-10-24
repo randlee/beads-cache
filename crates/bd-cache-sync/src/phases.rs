@@ -16,7 +16,7 @@
 
 use std::collections::BTreeSet;
 use std::fmt;
-use std::io;
+use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
 
 use bd_cache_model::{PhaseName, ScopeId, TickConfig};
@@ -36,6 +36,9 @@ pub const MAX_PHASE_FILE_BYTES: u64 = 64 * 1024;
 /// The most phase files read from the directory (atm-core has five).
 pub const MAX_PHASE_FILES: usize = 256;
 
+/// The member-name rule, in words, as every message states it.
+pub(crate) const MEMBER_RULE: &str = "a name that is not empty, has no whitespace, control character or '@', and does not start with '-'";
+
 /// `phase-<x>.toml`: the name prefix of a phase file.
 const FILE_PREFIX: &str = "phase-";
 /// `phase-<x>.toml`: the extension of a phase file.
@@ -50,11 +53,7 @@ pub struct InvalidMember {
 
 impl fmt::Display for InvalidMember {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "{:?} cannot be addressed; use a name without spaces, '@' or a leading '-'",
-            self.value
-        )
+        write!(f, "{:?} cannot be addressed; use {MEMBER_RULE}", self.value)
     }
 }
 
@@ -62,9 +61,10 @@ impl std::error::Error for InvalidMember {}
 
 /// A lead's or a team's name, valid in an `atm send` address.
 ///
-/// Nonempty, no whitespace or control character, no `@`, no leading `-`, so it
-/// cannot be read as an option or split into two arguments. This is the one
-/// validator: settings, phase files and the sender all use it.
+/// A name is not empty, has no whitespace, control character or `@`, and does
+/// not start with `-`, so it cannot be read as an option or split into two
+/// arguments. This is the one validator: settings and phase
+/// files use it, and the sender repeats it as a guard.
 ///
 /// # Examples
 ///
@@ -75,7 +75,8 @@ impl std::error::Error for InvalidMember {}
 /// assert!(MemberName::new("a b").is_err());
 /// assert!(MemberName::new("a@b").is_err());
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[serde(transparent)]
 pub struct MemberName(String);
 
 impl MemberName {
@@ -243,16 +244,6 @@ impl TickSettings {
         })
     }
 
-    /// The same settings with the phases directory resolved against `repo_root`
-    /// when it is relative.
-    #[must_use]
-    pub fn rooted_at(mut self, repo_root: &Path) -> Self {
-        if self.phases_dir.is_relative() {
-            self.phases_dir = repo_root.join(&self.phases_dir);
-        }
-        self
-    }
-
     /// The ATM team of the phase leads.
     #[must_use]
     pub fn team(&self) -> &MemberName {
@@ -275,6 +266,19 @@ impl TickSettings {
     #[must_use]
     pub fn only(&self) -> Option<&[PhaseName]> {
         self.only.as_deref()
+    }
+}
+
+/// The phases directory a repository uses: `dir` (default [`DEFAULT_PHASES_DIR`]),
+/// resolved against `repo_root` when relative. The one implementation of the
+/// rule; `compose` calls it.
+#[must_use]
+pub fn rooted_phases_dir(dir: Option<&Path>, repo_root: &Path) -> PathBuf {
+    let dir = dir.unwrap_or_else(|| Path::new(DEFAULT_PHASES_DIR));
+    if dir.is_relative() {
+        repo_root.join(dir)
+    } else {
+        dir.to_path_buf()
     }
 }
 
@@ -364,6 +368,11 @@ pub enum PhaseFileProblem {
         /// Where it was looked for.
         dir: PathBuf,
     },
+    /// The path is not a regular file (a pipe, a device, a directory).
+    NotAFile {
+        /// The path.
+        file: PathBuf,
+    },
     /// The directory holds more than [`MAX_PHASE_FILES`] phase files.
     TooManyFiles {
         /// The directory.
@@ -397,9 +406,12 @@ impl fmt::Display for PhaseFileProblem {
             }
             Self::BadLead { file, lead } => write!(
                 f,
-                "{}: lead {lead:?} cannot be addressed (no spaces, '@' or leading '-')",
+                "{}: lead {lead:?} cannot be addressed (use {MEMBER_RULE})",
                 file.display()
             ),
+            Self::NotAFile { file } => {
+                write!(f, "{}: not a regular file", file.display())
+            }
             Self::NoFile { phase, dir } => write!(
                 f,
                 "configured phase {phase} has no phase-{phase}.toml in {}",
@@ -414,9 +426,38 @@ impl fmt::Display for PhaseFileProblem {
     }
 }
 
+impl PhaseFileProblem {
+    /// The refusal code a tick reports for it.
+    #[must_use]
+    pub fn code(&self) -> RefusalCode {
+        match self {
+            Self::NotAPhaseName { .. } => RefusalCode::PhaseNotNamed,
+            Self::Unreadable { .. } => RefusalCode::PhaseFileUnreadable,
+            Self::TooLarge { .. } => RefusalCode::PhaseFileTooLarge,
+            Self::NotAFile { .. } => RefusalCode::PhaseFileNotRegular,
+            Self::NotAPhaseFile { .. } | Self::BadRoot { .. } | Self::BadLead { .. } => {
+                RefusalCode::PhaseFileInvalid
+            }
+            Self::NoFile { .. } => RefusalCode::PhaseFileMissing,
+            Self::TooManyFiles { .. } => RefusalCode::PhaseFilesTooMany,
+        }
+    }
+
+    /// What to do about it; the code's fix, except where the problem knows more.
+    #[must_use]
+    pub fn fix(&self) -> String {
+        match self {
+            Self::BadLead { .. } => format!("set lead to {MEMBER_RULE}, or remove it"),
+            _ => self.code().fix().to_owned(),
+        }
+    }
+}
+
+impl std::error::Error for PhaseFileProblem {}
+
 impl From<PhaseFileProblem> for Refusal {
     fn from(p: PhaseFileProblem) -> Self {
-        Refusal::new(RefusalCode::PhaseFile, p.to_string())
+        Refusal::new(p.code(), p.to_string()).with_fix(p.fix())
     }
 }
 
@@ -542,14 +583,28 @@ fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
         file: file(),
         reason: e.to_string(),
     };
-    let bytes = std::fs::metadata(path).map_err(unreadable)?.len();
-    if bytes > MAX_PHASE_FILE_BYTES {
+    let meta = std::fs::metadata(path).map_err(unreadable)?;
+    // Checked before opening: opening a pipe would block.
+    if !meta.is_file() {
+        return Err(PhaseFileProblem::NotAFile { file: file() });
+    }
+    if meta.len() > MAX_PHASE_FILE_BYTES {
         return Err(PhaseFileProblem::TooLarge {
             file: file(),
-            bytes,
+            bytes: meta.len(),
         });
     }
-    let text = std::fs::read_to_string(path).map_err(unreadable)?;
+    // Bounded again while reading: the file may grow after the check.
+    let mut text = String::new();
+    std::fs::File::open(path)
+        .and_then(|f| f.take(MAX_PHASE_FILE_BYTES + 1).read_to_string(&mut text))
+        .map_err(unreadable)?;
+    if text.len() as u64 > MAX_PHASE_FILE_BYTES {
+        return Err(PhaseFileProblem::TooLarge {
+            file: file(),
+            bytes: text.len() as u64,
+        });
+    }
     let parsed: PhaseFile = toml::from_str(&text).map_err(|e| PhaseFileProblem::NotAPhaseFile {
         file: file(),
         reason: e.message().to_owned(),

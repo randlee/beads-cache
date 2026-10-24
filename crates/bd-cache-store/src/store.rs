@@ -21,8 +21,8 @@ use crate::location::{CacheLocation, DatabaseIdentity};
 use crate::lock::FlockDrainLock;
 use crate::registry::Registration;
 use crate::schema::{
-    EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES, IN_SCOPE, RECONCILE_MEMBERSHIP,
-    SCHEMA_VERSION, V3_SCHEMA,
+    EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES, HAS_ENTRIES_SINCE_SQL, IN_SCOPE,
+    RECONCILE_MEMBERSHIP, SCHEMA_VERSION, V3_SCHEMA,
 };
 
 /// SQLite's busy timeout on the shared file (REQ-BDC-0103).
@@ -635,44 +635,63 @@ impl CacheStore for SqliteStore {
     }
 
     fn base_entry(&self, s: &ScopeId, id: &BeadId) -> Result<Option<BaseEntry>, CacheError> {
-        let at = self.at("read a ready base entry");
-        let head: Option<(String, i64, Option<i64>)> = self
-            .conn
-            .prepare_cached("SELECT fetched_at, stale, indexed FROM ready_base WHERE scope = ?1")
-            .at(at)?
-            .query_row([s.name()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
-            .optional()
-            .at(at)?;
-        let Some((fetched_at, stale, indexed)) = head else {
-            return Ok(None);
-        };
-        if indexed != Some(1) {
-            // A base stored before the index existed: read it whole.
-            return Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)));
-        }
-        let json: Option<String> = self
-            .conn
-            .prepare_cached(
-                "SELECT blocked_by_json FROM ready_base_blocked WHERE scope = ?1 AND bead = ?2",
-            )
-            .at(at)?
-            .query_row([s.name(), id.as_str()], |r| r.get(0))
-            .optional()
-            .at(at)?;
-        let blocked_by = match json {
-            Some(json) => serde_json::from_str(&json).map_err(|e| {
-                corrupt(
-                    at,
-                    format_args!("ready base blocked_by_json of {id} is not a list of ids: {e}"),
+        // One read transaction: the head and the bead's row are one snapshot,
+        // also while another process replaces the base (ADR-STORE-0004).
+        self.read("read a ready base entry", || {
+            let at = self.at("read a ready base entry");
+            let head: Option<(String, i64, Option<i64>)> = self
+                .conn
+                .prepare_cached(
+                    "SELECT fetched_at, stale, indexed FROM ready_base WHERE scope = ?1",
                 )
-            })?,
-            None => Vec::new(),
-        };
-        Ok(Some(BaseEntry {
-            fetched_at: timestamp(at, "ready base fetched_at", &fetched_at)?,
-            stale: stale != 0,
-            blocked_by,
-        }))
+                .at(at)?
+                .query_row([s.name()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .optional()
+                .at(at)?;
+            let Some((fetched_at, stale, indexed)) = head else {
+                return Ok(None);
+            };
+            if indexed != Some(1) {
+                // A base another writer stored, or stored before the index
+                // existed (ADR-STORE-0004): read it whole.
+                return Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)));
+            }
+            let json: Option<String> = self
+                .conn
+                .prepare_cached(
+                    "SELECT blocked_by_json FROM ready_base_blocked \
+                     WHERE scope = ?1 AND bead = ?2",
+                )
+                .at(at)?
+                .query_row([s.name(), id.as_str()], |r| r.get(0))
+                .optional()
+                .at(at)?;
+            let blocked_by = match json {
+                Some(json) => serde_json::from_str(&json).map_err(|e| {
+                    corrupt(
+                        at,
+                        format_args!(
+                            "ready base blocked_by_json of {id} is not a list of ids: {e}"
+                        ),
+                    )
+                })?,
+                None => Vec::new(),
+            };
+            Ok(Some(BaseEntry {
+                fetched_at: timestamp(at, "ready base fetched_at", &fetched_at)?,
+                stale: stale != 0,
+                blocked_by,
+            }))
+        })
+    }
+
+    fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
+        let st = self.at("ask whether the journal has entries since");
+        self.conn
+            .prepare_cached(HAS_ENTRIES_SINCE_SQL)
+            .at(st)?
+            .query_row([at.unix()], |r| r.get(0))
+            .at(st)
     }
 
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {

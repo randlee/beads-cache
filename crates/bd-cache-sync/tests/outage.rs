@@ -225,7 +225,7 @@ fn a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once() {
     let shared = reply
         .sent
         .iter()
-        .find(|a| a.lead == "shared")
+        .find(|a| a.lead.as_str() == "shared")
         .map(|a| a.kind.clone());
     assert!(matches!(shared, Some(AnnouncementKind::Outage { phases }) if phases.len() == 2));
 }

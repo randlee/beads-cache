@@ -25,34 +25,32 @@ pub(crate) struct ActiveSet {
 
 /// True when the row's status is `closed`.
 fn is_closed(status: Option<&str>) -> bool {
-    status == Some("closed")
+    status == Some(bd_cache::CLOSED_STATUS)
 }
 
 /// What the cache knows of a phase's root.
 enum Cached {
-    /// The root is in the scope with this closed-ness.
+    /// The root is in the phase's scope, which has synced, with this closed-ness.
     Known { closed: bool },
-    /// Not in the scope's rows (never synced, or not labelled with the phase).
+    /// Not held, not in the phase, or the scope never synced.
     Unknown,
 }
 
+/// One cached read of the root (`Cache::cached`: no bd call, no scan of the
+/// scope): trusted only when the phase's own label holds it and its scope has
+/// synced, since a sync is what keeps it current.
 fn cached_root<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     phase: &Phase,
 ) -> Result<Cached, CacheError> {
-    match cache.list(&phase.scope(), None, None) {
-        Ok(reply) => {
-            Ok(reply
-                .rows
-                .iter()
-                .find(|r| r.bead.id == phase.root)
-                .map_or(Cached::Unknown, |r| Cached::Known {
-                    closed: is_closed(r.bead.status.as_deref()),
-                }))
+    Ok(match cache.cached(&phase.root)? {
+        Some(reply) if phase.scope().holds(&reply.row.bead) && reply.scope_last_ok_at.is_some() => {
+            Cached::Known {
+                closed: is_closed(reply.row.bead.status.as_deref()),
+            }
         }
-        Err(CacheError::ScopeUnknown { .. }) => Ok(Cached::Unknown),
-        Err(e) => Err(e),
-    }
+        _ => Cached::Unknown,
+    })
 }
 
 /// Finds the active phases among `phases`.

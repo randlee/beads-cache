@@ -360,3 +360,48 @@ fn the_phase_files_atm_core_keeps_are_read() {
         ]
     );
 }
+
+/// A path named like a phase file that is not a regular file is reported, not
+/// opened (a pipe would block the tick) (RSH-017).
+#[test]
+fn a_phase_file_that_is_not_a_regular_file_is_reported_not_read() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    std::fs::create_dir(w.dir.path().join("phase-dir.toml")).unwrap();
+    let set = bd_cache_sync::load_phases(w.dir.path(), None).unwrap();
+    assert_eq!(set.phases.len(), 1);
+    assert!(matches!(
+        set.problems.as_slice(),
+        [bd_cache_sync::PhaseFileProblem::NotAFile { .. }]
+    ));
+    assert_eq!(set.problems[0].code(), RefusalCode::PhaseFileNotRegular);
+    assert!(!set.problems[0].fix().is_empty());
+}
+
+/// Each problem has its own code and fix (RBP-F018).
+#[test]
+fn phase_file_problems_have_their_own_codes() {
+    let w = World::new();
+    std::fs::write(w.dir.path().join("phase-a.toml"), "root = 1\n").unwrap();
+    std::fs::write(
+        w.dir.path().join("phase-b.toml"),
+        "root = \"r\"\nlead = \"a b\"\n",
+    )
+    .unwrap();
+    std::fs::write(w.dir.path().join("phase-c d.toml"), "root = \"r\"\n").unwrap();
+    let mut cfg = w.config();
+    cfg.phases = Some(vec!["ghost".into(), "a".into(), "b".into()]);
+    let mut cache = w.cache();
+    let reply = w.tick_with(&mut cache, &cfg);
+    let codes: std::collections::BTreeSet<&str> =
+        reply.refused.iter().map(|r| r.code.as_str()).collect();
+    assert!(codes.contains("phase_file_invalid"), "{codes:?}");
+    assert!(codes.contains("phase_file_missing"), "{codes:?}");
+    assert!(reply.refused.iter().all(|r| !r.fix.is_empty()));
+    let bad_lead = reply
+        .refused
+        .iter()
+        .find(|r| r.detail.contains("phase-b.toml"))
+        .unwrap();
+    assert!(bad_lead.fix.contains("whitespace"), "{}", bad_lead.fix);
+}

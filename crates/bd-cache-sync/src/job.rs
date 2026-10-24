@@ -45,6 +45,7 @@ use crate::atm::AtmSender;
 use crate::control::StopFlag;
 use crate::phases::{ConfigRefusal, TickSettings};
 use crate::reply::{Refusal, RefusalCode, TickOutcome, TickReply};
+use crate::text::clip;
 use crate::tick::{TICK_BUDGET, stop_reason_with, tick_with};
 
 /// The cron expression of the schedule: every 30 s (BD-CACHE.md, Cron module).
@@ -308,18 +309,6 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
     }
 }
 
-/// Clips `text` to `limit` bytes on a character boundary.
-fn clip(text: String, limit: usize) -> String {
-    if text.len() <= limit {
-        return text;
-    }
-    let mut end = limit;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{} ... (truncated)", text.get(..end).unwrap_or_default())
-}
-
 /// Maps a finished run to the scheduler's outcome.
 fn outcome_of(run: TickRun) -> RunOutcome {
     match run {
@@ -327,7 +316,7 @@ fn outcome_of(run: TickRun) -> RunOutcome {
             TickOutcome::PassThrough => RunOutcome::Ok,
             TickOutcome::Refused => {
                 let list: Vec<String> = reply.refused.iter().map(ToString::to_string).collect();
-                RunOutcome::Refused(clip(list.join("; "), MAX_OUTCOME_BYTES))
+                RunOutcome::Refused(clip(&list.join("; "), MAX_OUTCOME_BYTES))
             }
         },
         TickRun::Failed { error, poisoned } => {
@@ -337,7 +326,7 @@ fn outcome_of(run: TickRun) -> RunOutcome {
                 ""
             };
             RunOutcome::Failed(clip(
-                format!("{}: {}{note}", error.code(), error.detail()),
+                &format!("{}: {}{note}", error.code(), error.detail()),
                 MAX_OUTCOME_BYTES,
             ))
         }
@@ -356,7 +345,9 @@ where
         let end = Deadline::at(deadline);
         match tokio::task::spawn_blocking(move || shared.run_tick(end)).await {
             Ok(run) => outcome_of(run),
-            Err(e) => RunOutcome::Failed(format!("the tick task did not finish: {e}")),
+            Err(e) => RunOutcome::Failed(format!(
+                "tick_task_failed: the tick task did not finish ({e}); look for a panic in the log"
+            )),
         }
     }
 
@@ -399,16 +390,30 @@ impl ScheduleError {
     }
 }
 
+impl ScheduleError {
+    /// What to do about it.
+    #[must_use]
+    pub fn fix(&self) -> String {
+        match self {
+            Self::Config(c) => c.code().fix().to_owned(),
+            Self::PhasesDir(_) => RefusalCode::PhasesDirUnreadable.fix().to_owned(),
+            Self::Sender(e) => e.fix().to_owned(),
+            Self::Cron(_) => {
+                "use a repository name sc-cron accepts (1 to 128 characters, no control characters)"
+                    .to_owned()
+            }
+        }
+    }
+}
+
+/// The message says what failed; the cause is the `source`, so a reporter that
+/// walks the chain prints it once.
 impl std::fmt::Display for ScheduleError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Config(c) => write!(f, "the sync schedule is refused: {c}"),
-            Self::PhasesDir(d) => write!(
-                f,
-                "the phases directory {} does not exist; create it or set [tick] phases_dir",
-                d.display()
-            ),
-            Self::Sender(e) => write!(f, "the sync schedule cannot send messages: {}", e.detail),
+            Self::Config(_) => f.write_str("the sync schedule is refused"),
+            Self::PhasesDir(d) => write!(f, "the phases directory {} does not exist", d.display()),
+            Self::Sender(_) => f.write_str("the sync schedule cannot send messages"),
             Self::Cron(_) => f.write_str("sc-cron refused the sync schedule"),
         }
     }
@@ -502,8 +507,10 @@ mod tests {
             matches!(&failed, RunOutcome::Failed(m) if m.contains("poisoned") && m.contains("NOT_FOUND")),
             "{failed:?}"
         );
-        let long =
-            TickReply::refused_with(Refusal::new(RefusalCode::PhaseFile, "x".repeat(10_000)));
+        let long = TickReply::refused_with(Refusal::new(
+            RefusalCode::PhaseFileInvalid,
+            "x".repeat(10_000),
+        ));
         match outcome_of(TickRun::Done(Box::new(long))) {
             RunOutcome::Refused(m) => assert!(m.len() < MAX_OUTCOME_BYTES + 32, "{}", m.len()),
             other => panic!("{other:?}"),

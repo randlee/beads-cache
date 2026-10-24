@@ -2,7 +2,7 @@
 //! `bd` CLI behind one [`Cache`] (ADR-BDC-0004, ADR-SYNC-0001).
 
 use std::fmt;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 
 use bd_cache::Cache;
@@ -13,7 +13,7 @@ use bd_cache_store::{
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
 
-use crate::phases::DEFAULT_PHASES_DIR;
+use crate::phases::rooted_phases_dir;
 
 /// The cache over the real store, drain lock and `bd`.
 pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
@@ -43,11 +43,11 @@ pub enum ComposeError {
 }
 
 impl ComposeError {
-    /// A stable code: `SYNC_CONFIG_INVALID`, or the `BD_CACHE.*` code of the cache error.
+    /// A stable code: `sync_config_invalid`, or the `BD_CACHE.*` code of the cache error.
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Config(_) => "SYNC_CONFIG_INVALID",
+            Self::Config(_) => "sync_config_invalid",
             Self::Cache(e) => e.code(),
         }
     }
@@ -119,14 +119,6 @@ pub fn compose_with(
         .file_name()
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
     let mut tick = repo.tick.unwrap_or_default();
-    let dir: PathBuf = tick
-        .phases_dir
-        .take()
-        .unwrap_or_else(|| PathBuf::from(DEFAULT_PHASES_DIR));
-    tick.phases_dir = Some(if dir.is_relative() {
-        repo_root.join(dir)
-    } else {
-        dir
-    });
+    tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));
     Ok(Composed { cache, tick, name })
 }

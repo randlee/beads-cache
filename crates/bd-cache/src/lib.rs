@@ -67,6 +67,10 @@ mod write;
 
 pub(crate) use outage::call;
 
+/// The status text of a closed bead (bd's `closed`); the one literal the cache
+/// and its callers compare against.
+pub const CLOSED_STATUS: &str = "closed";
+
 /// The bd-cache facade.
 ///
 /// Not `Sync` (one store connection); see the crate docs, Threading.
@@ -145,6 +149,17 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         miss_timeout: Option<Duration>,
     ) -> Result<GetReply, CacheError> {
         get::get(self, id, miss_timeout)
+    }
+
+    /// The cached bead as `get` would answer, or `None` when the cache does not
+    /// hold it. Never calls bd and never fills a miss, and costs the same
+    /// whatever the size of the bead's scope (NFR-BDC-0001).
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn cached(&self, id: &BeadId) -> Result<Option<GetReply>, CacheError> {
+        get::cached(self, id)
     }
 
     /// A fresh read of `ids` (one `bd list --id`, all statuses) under `timeout`,

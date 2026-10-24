@@ -193,7 +193,7 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             assert!(!notnull, "{table}.{name} must be nullable");
         }
     }
-    for table in ["scope", "scope_member", "ready_base"] {
+    for table in ["scope", "scope_member", "ready_base", "ready_base_blocked"] {
         assert!(!names(table).is_empty(), "{table} exists");
     }
     let indexes: Vec<String> = {
@@ -205,7 +205,22 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             .collect::<Result<_, _>>()
             .unwrap()
     };
-    for index in ["beads_phase", "edges_target", "journal_pending"] {
+    // Additive since sprint a-7 (ADR-STORE-0004): the ready base's index column
+    // is nullable, so a writer that does not know it leaves it NULL.
+    let ready_base: Vec<(String, bool)> = columns("ready_base")
+        .into_iter()
+        .map(|(n, _, notnull)| (n, notnull))
+        .collect();
+    assert!(
+        ready_base.contains(&("indexed".to_owned(), false)),
+        "ready_base.indexed is nullable: {ready_base:?}"
+    );
+    for index in [
+        "beads_phase",
+        "edges_target",
+        "journal_pending",
+        "journal_applied_at",
+    ] {
         assert!(indexes.iter().any(|i| i == index), "{index} in {indexes:?}");
     }
 }

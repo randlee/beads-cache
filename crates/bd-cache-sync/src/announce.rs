@@ -9,7 +9,6 @@
 //! and the tick replies `refused` with the list (REQ-BDC-0706).
 
 use std::collections::BTreeMap;
-use std::fmt::Write as _;
 
 use bd_cache::Cache;
 use bd_cache_model::{
@@ -21,6 +20,7 @@ use sc_beads::CacheBackend;
 use crate::control::Budget;
 use crate::phases::{MemberName, Phase, TickSettings};
 use crate::reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickReply};
+use crate::text::clip;
 
 /// The alert cause key of an outage (ADR-BDC-0005): each active scope's lead
 /// hears it once, and the alert is reset when the outage ends.
@@ -44,6 +44,15 @@ pub enum AlertCause {
     SyncFailed,
 }
 
+/// Every underlying code a sync failure can name.
+const SYNC_CAUSES: [SyncCause; 5] = [
+    SyncCause::BdUnavailable,
+    SyncCause::BdVersionFailed,
+    SyncCause::BdSchemaFailed,
+    SyncCause::BdContract,
+    SyncCause::BdListFailed,
+];
+
 impl AlertCause {
     /// The stable key stored in the alert.
     #[must_use]
@@ -53,6 +62,21 @@ impl AlertCause {
             Self::Sync(c) => c.as_str(),
             Self::SyncFailed => SYNC_FAILED_KEY,
         }
+    }
+
+    /// The cause a stored key names; `None` for a key this crate never writes.
+    #[must_use]
+    pub fn from_key(key: &str) -> Option<Self> {
+        if key == OUTAGE_CAUSE {
+            return Some(Self::BackendUnavailable);
+        }
+        if key == SYNC_FAILED_KEY {
+            return Some(Self::SyncFailed);
+        }
+        SYNC_CAUSES
+            .into_iter()
+            .find(|c| c.as_str() == key)
+            .map(Self::Sync)
     }
 
     /// The cause of a failed sync.
@@ -65,16 +89,10 @@ impl AlertCause {
     }
 }
 
-/// Clips `text` to [`MAX_TEXT_BYTES`] on a character boundary.
-fn clip(text: &str) -> String {
-    if text.len() <= MAX_TEXT_BYTES {
-        return text.to_owned();
+impl serde::Serialize for AlertCause {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.key())
     }
-    let mut end = MAX_TEXT_BYTES;
-    while !text.is_char_boundary(end) {
-        end -= 1;
-    }
-    format!("{} ... (truncated)", text.get(..end).unwrap_or_default())
 }
 
 /// The lead of a phase for alerts about the backend: its own, else the fallback.
@@ -83,11 +101,6 @@ fn alert_lead<'a>(phase: &'a Phase, settings: &'a TickSettings) -> &'a MemberNam
         .lead
         .as_ref()
         .unwrap_or_else(|| settings.fallback_lead())
-}
-
-/// A refusal for a message the sender could not deliver, with the sender's own fix.
-fn undelivered(code: RefusalCode, what: &str, e: &SendError) -> Refusal {
-    Refusal::new(code, format!("{what}: {e}")).with_fix(e.fix())
 }
 
 /// Sends one message within the tick's budget.
@@ -139,7 +152,7 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
          This cause is reported once; you will hear again only if the cause changes or the \
          sync recovers and fails again.",
         name = phase.name,
-        error = clip(&error.to_string()),
+        error = clip(&error.to_string(), MAX_TEXT_BYTES),
         key = cause.key(),
     );
     match deliver(sender, budget, lead, settings, &body, reply) {
@@ -149,12 +162,12 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
             reply.sent.push(Announcement {
                 kind: AnnouncementKind::SyncFailure {
                     phase: phase.name.clone(),
-                    cause: cause.key().to_owned(),
+                    cause,
                 },
-                lead: lead.to_string(),
+                lead: lead.clone(),
             });
         }
-        Some(Err(e)) => reply.refused.push(undelivered(
+        Some(Err(e)) => reply.refused.push(Refusal::undelivered(
             RefusalCode::SyncFailureUndelivered,
             &format!("sync failure of phase {}", phase.name),
             &e,
@@ -184,7 +197,7 @@ fn outage_body(outage: &Outage, phases: &[&PhaseName]) -> String {
          Cached reads continue and are marked stale, and writes stay journaled; nothing is lost \
          and no write is escalated while this lasts. This is reported once per outage.",
         since = outage.since,
-        error = clip(&outage.last_error),
+        error = clip(&outage.last_error, MAX_TEXT_BYTES),
         phases = names.join(", "),
     )
 }
@@ -211,7 +224,7 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
         let mut scopes: Vec<ScopeId> = status.scopes.iter().map(|s| s.sync.scope.clone()).collect();
         scopes.extend(all.iter().map(Phase::scope));
         for scope in scopes {
-            if cache.sync_alert(&scope)?.as_deref() == Some(OUTAGE_CAUSE) {
+            if cache.sync_alert(&scope)?.as_deref() == Some(AlertCause::BackendUnavailable.key()) {
                 cache.set_sync_alert(&scope, None)?;
             }
         }
@@ -219,7 +232,9 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
     };
     let mut by_lead: BTreeMap<&MemberName, Vec<&Phase>> = BTreeMap::new();
     for phase in targets {
-        if cache.sync_alert(&phase.scope())?.as_deref() != Some(OUTAGE_CAUSE) {
+        if cache.sync_alert(&phase.scope())?.as_deref()
+            != Some(AlertCause::BackendUnavailable.key())
+        {
             by_lead
                 .entry(alert_lead(phase, settings))
                 .or_default()
@@ -233,16 +248,19 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
             None => {}
             Some(Ok(())) => {
                 for phase in &phases {
-                    cache.set_sync_alert(&phase.scope(), Some(OUTAGE_CAUSE))?;
+                    cache.set_sync_alert(
+                        &phase.scope(),
+                        Some(AlertCause::BackendUnavailable.key()),
+                    )?;
                 }
                 reply.sent.push(Announcement {
                     kind: AnnouncementKind::Outage {
                         phases: names.into_iter().cloned().collect(),
                     },
-                    lead: lead.to_string(),
+                    lead: lead.clone(),
                 });
             }
-            Some(Err(e)) => reply.refused.push(undelivered(
+            Some(Err(e)) => reply.refused.push(Refusal::undelivered(
                 RefusalCode::OutageUndelivered,
                 &format!("outage message to {lead}"),
                 &e,
@@ -254,22 +272,20 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
 
 /// The text of an escalation message: the entry, the error and the recovery.
 fn escalation_body(e: &JournalEntry) -> String {
-    let mut body = format!(
-        "bd-cache: write #{seq} to {bead} ({op}, by {actor}) was not applied and needs you.\n",
+    format!(
+        "bd-cache: write #{seq} to {bead} ({op}, by {actor}) was not applied and needs you.\n\
+         Error: {error}\n\
+         Check the bead in bd and set the intended state, then run:\n  \
+         bd-cache resolve {seq} --note \"<what you did>\" --actor <you>",
         seq = e.seq,
         bead = e.bead,
         op = e.op.name(),
         actor = e.actor,
-    );
-    let _ = write!(
-        body,
-        "Error: {error}\n\
-         Check the bead in bd and set the intended state, then run:\n  \
-         bd-cache resolve {seq} --note \"<what you did>\" --actor <you>",
-        error = clip(e.last_error.as_deref().unwrap_or("(no reason recorded)")),
-        seq = e.seq,
-    );
-    body
+        error = clip(
+            e.last_error.as_deref().unwrap_or("(no reason recorded)"),
+            MAX_TEXT_BYTES
+        ),
+    )
 }
 
 /// Sends every escalated entry that has not been announced to its phase's
@@ -283,7 +299,9 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
     phases: &[Phase],
     reply: &mut TickReply,
 ) -> Result<(), CacheError> {
-    for entry in cache.unannounced_escalations()? {
+    let entries = cache.unannounced_escalations()?;
+    let total = entries.len();
+    for (done, entry) in entries.into_iter().enumerate() {
         let lead = match &entry.scope {
             None => Some(settings.fallback_lead()),
             Some(scope) => phases
@@ -310,15 +328,23 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
             &escalation_body(&entry),
             reply,
         ) {
-            None => {}
+            // The budget is spent (or the tick was asked to stop): this entry
+            // and every one after it wait for the next tick, unmarked.
+            None => {
+                let rest = total.saturating_sub(done + 1);
+                reply.unsent = reply
+                    .unsent
+                    .saturating_add(u32::try_from(rest).unwrap_or(u32::MAX));
+                break;
+            }
             Some(Ok(())) => {
                 cache.mark_announced(entry.seq)?;
                 reply.sent.push(Announcement {
                     kind: AnnouncementKind::Escalation { seq: entry.seq },
-                    lead: lead.to_string(),
+                    lead: lead.clone(),
                 });
             }
-            Some(Err(e)) => reply.refused.push(undelivered(
+            Some(Err(e)) => reply.refused.push(Refusal::undelivered(
                 RefusalCode::EscalationUndelivered,
                 &format!("escalation #{}", entry.seq),
                 &e,
@@ -452,12 +478,29 @@ mod tests {
     }
 
     #[test]
-    fn embedded_text_is_clipped_on_a_character_boundary() {
-        assert_eq!(clip("short"), "short");
-        let long = "\u{e9}".repeat(MAX_TEXT_BYTES);
-        let clipped = clip(&long);
-        assert!(clipped.ends_with("(truncated)"));
-        assert!(clipped.len() < MAX_TEXT_BYTES + 32);
+    fn alert_causes_round_trip_through_their_keys() {
+        for cause in [
+            AlertCause::BackendUnavailable,
+            AlertCause::SyncFailed,
+            AlertCause::Sync(SyncCause::BdContract),
+            AlertCause::Sync(SyncCause::BdListFailed),
+        ] {
+            assert_eq!(AlertCause::from_key(cause.key()), Some(cause));
+        }
+        assert_eq!(AlertCause::from_key("something else"), None);
+    }
+
+    #[test]
+    fn embedded_error_text_is_clipped() {
+        let long = "x".repeat(MAX_TEXT_BYTES * 2);
+        let body = outage_body(
+            &Outage {
+                since: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
+                last_error: long,
+            },
+            &[],
+        );
+        assert!(body.contains("(truncated)") && body.len() < MAX_TEXT_BYTES + 512);
     }
 
     /// A sender that is asked after the stop flag is set is not asked at all.

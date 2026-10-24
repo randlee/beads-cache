@@ -55,7 +55,7 @@ fn compose_errors_have_codes_and_sources() {
     let root = repo("surprise = 1\n");
     let err = compose(root.path(), "bd", Arc::clone(&clock)).unwrap_err();
     assert!(matches!(err, ComposeError::Config(_)));
-    assert_eq!(err.code(), "SYNC_CONFIG_INVALID");
+    assert_eq!(err.code(), "sync_config_invalid");
     assert!(std::error::Error::source(&err).is_some());
     assert!(!err.to_string().contains("surprise"));
 

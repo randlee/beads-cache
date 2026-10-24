@@ -580,3 +580,227 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
     );
     assert_eq!(indexed("x"), 0, "a rebuild drops every base and its index");
 }
+
+/// `has_entries_since` answers from indexes, not from the journal's history
+/// (QA2-001): thousands of applied entries older than the base do not make it
+/// scan, and the query plan says so.
+#[test]
+fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
+    let (open, mut store) = fresh("entries-since");
+    {
+        let mut c = Connection::open(&open.path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z')",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    assert!(
+        !store
+            .has_entries_since(&ts("2026-10-23T10:00:00Z"))
+            .unwrap(),
+        "old applied entries are not 'since'"
+    );
+    assert!(
+        store
+            .has_entries_since(&ts("2026-10-01T00:00:00Z"))
+            .unwrap()
+    );
+
+    let c = Connection::open(&open.path).unwrap();
+    let plan: Vec<String> = c
+        .prepare(&format!(
+            "EXPLAIN QUERY PLAN {}",
+            bd_cache_store::HAS_ENTRIES_SINCE_SQL
+        ))
+        .unwrap()
+        .query_map([1_792_749_600_i64], |r| r.get::<_, String>(3))
+        .unwrap()
+        .collect::<Result<_, _>>()
+        .unwrap();
+    let plan = plan.join(" | ");
+    assert!(plan.contains("journal_applied_at"), "{plan}");
+    assert!(plan.contains("journal_pending"), "{plan}");
+    assert!(!plan.contains("SCAN journal"), "{plan}");
+    // And a pending entry still counts, whatever the time.
+    store.ensure_scope(&x()).unwrap();
+    store
+        .insert_entry(entry("fresh", "b9", Some(x())), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    assert!(
+        store
+            .has_entries_since(&ts("2030-01-01T00:00:00Z"))
+            .unwrap()
+    );
+}
+
+/// `bd_cache.py` (atm-core `05831df`) never creates, reads or writes `ready_base`,
+/// `ready_base_blocked` or `scope_member`: its rebuild deletes `edges`, `beads`
+/// and `sync_state`, and its prune deletes a phase's `edges`, `beads`,
+/// `journal` and `sync_state` rows. Neither touches a stored base or its index
+/// (ADR-STORE-0004), so after them `base_entry` still equals the whole base.
+#[test]
+fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() {
+    use bd_cache_model::BaseEntry;
+    use sc_beads::BlockedRow;
+
+    let (open, mut store) = fresh("python-rewrite");
+    store.ensure_scope(&x()).unwrap();
+    let blocked = [BlockedRow {
+        id: id("a"),
+        blocked_by: vec![id("b"), id("c")],
+    }];
+    store
+        .replace_ready_base(&x(), &blocked, &[id("d")], &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    let agree = |store: &SqliteStore| {
+        let base = store.ready_base(&x()).unwrap().unwrap();
+        for bead in ["a", "d", "nobody"] {
+            assert_eq!(
+                store.base_entry(&x(), &id(bead)).unwrap().unwrap(),
+                BaseEntry::of(&base, &id(bead)),
+                "{bead}"
+            );
+        }
+    };
+    agree(&store);
+    let c = Connection::open(&open.path).unwrap();
+    // bd_cache.py's rebuild, then its prune of phase x.
+    c.execute_batch(
+        "DELETE FROM edges; DELETE FROM beads; DELETE FROM sync_state; \
+         DELETE FROM journal WHERE phase = 'x';",
+    )
+    .unwrap();
+    agree(&store);
+}
+
+/// A base another writer replaces with `INSERT OR REPLACE` (the way every
+/// `bd_cache.py` write is spelled, and what a future Python `ready_base` writer
+/// would do), without the `indexed` column, resets `indexed` to NULL: the
+/// index rows left behind are ignored and the base is read whole.
+#[test]
+fn a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index() {
+    use sc_beads::BlockedRow;
+
+    let (open, mut store) = fresh("python-base");
+    store.ensure_scope(&x()).unwrap();
+    store
+        .replace_ready_base(
+            &x(),
+            &[BlockedRow {
+                id: id("a"),
+                blocked_by: vec![id("b")],
+            }],
+            &[],
+            &ts("2026-10-23T10:00:00Z"),
+        )
+        .unwrap();
+    assert_eq!(
+        store
+            .base_entry(&x(), &id("a"))
+            .unwrap()
+            .unwrap()
+            .blocked_by,
+        [id("b")]
+    );
+    let c = Connection::open(&open.path).unwrap();
+    c.execute(
+        "INSERT OR REPLACE INTO ready_base(scope, blocked_json, ready_json, fetched_at, stale) \
+         VALUES ('x', '[{\"id\": \"a\", \"blocked_by\": [\"z\"]}]', '[]', '2026-10-23T10:05:00Z', 0)",
+        [],
+    )
+    .unwrap();
+    let indexed: Option<i64> = c
+        .query_row(
+            "SELECT indexed FROM ready_base WHERE scope = 'x'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(indexed, None, "a replace without the column resets it");
+    let entry = store.base_entry(&x(), &id("a")).unwrap().unwrap();
+    assert_eq!(
+        entry.blocked_by,
+        [id("z")],
+        "the blob wins over the stale index"
+    );
+    assert_eq!(entry.fetched_at.as_str(), "2026-10-23T10:05:00Z");
+    // The next Rust replace indexes again and drops the stale rows.
+    store
+        .replace_ready_base(&x(), &[], &[], &ts("2026-10-23T10:10:00Z"))
+        .unwrap();
+    let left: i64 = c
+        .query_row("SELECT COUNT(*) FROM ready_base_blocked", [], |r| r.get(0))
+        .unwrap();
+    assert_eq!(left, 0);
+    assert!(
+        store
+            .base_entry(&x(), &id("a"))
+            .unwrap()
+            .unwrap()
+            .blocked_by
+            .is_empty()
+    );
+}
+
+/// A file written before the index existed (no `ready_base_blocked` table, no
+/// `indexed` column) opens, its base reads whole, and the next replace migrates it.
+#[test]
+fn a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace() {
+    use sc_beads::BlockedRow;
+
+    let (open, store) = fresh("pre-index");
+    drop(store);
+    {
+        let c = Connection::open(&open.path).unwrap();
+        c.execute_batch(
+            "DROP TABLE ready_base_blocked; ALTER TABLE ready_base DROP COLUMN indexed; \
+             INSERT INTO scope(name) VALUES ('x'); \
+             INSERT INTO ready_base(scope, blocked_json, ready_json, fetched_at, stale) \
+             VALUES ('x', '[{\"id\": \"a\", \"blocked_by\": [\"b\", \"b\"]}]', '[\"d\"]', \
+             '2026-10-23T10:00:00Z', 0);",
+        )
+        .unwrap();
+    }
+    let mut store = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    let old = store.base_entry(&x(), &id("a")).unwrap().unwrap();
+    assert_eq!(old.blocked_by, [id("b")], "read whole, repeats merged");
+    store
+        .replace_ready_base(
+            &x(),
+            &[BlockedRow {
+                id: id("a"),
+                blocked_by: vec![id("c")],
+            }],
+            &[],
+            &ts("2026-10-23T10:01:00Z"),
+        )
+        .unwrap();
+    let c = Connection::open(&open.path).unwrap();
+    let indexed: Option<i64> = c
+        .query_row(
+            "SELECT indexed FROM ready_base WHERE scope = 'x'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(indexed, Some(1));
+    assert_eq!(
+        store
+            .base_entry(&x(), &id("a"))
+            .unwrap()
+            .unwrap()
+            .blocked_by,
+        [id("c")]
+    );
+}

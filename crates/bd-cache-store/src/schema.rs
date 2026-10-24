@@ -60,7 +60,18 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
 /// Created after the extension columns exist.
 pub(crate) const EXTENSION_INDEXES: &str = "
 CREATE INDEX IF NOT EXISTS beads_membership_unknown ON beads(id) WHERE membership_known IS NULL;
+CREATE INDEX IF NOT EXISTS journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied';
 ";
+
+/// `CacheStore::has_entries_since`: is anything pending, or applied at or
+/// after `?1` (Unix seconds)? Both halves are index lookups
+/// (`journal_pending`, `journal_applied_at`; the planner prefers the first
+/// for both, so the second is named), so the cost does not grow with
+/// the journal's history; `tests/store.rs` asserts the query plan.
+pub const HAS_ENTRIES_SINCE_SQL: &str = "SELECT \
+    EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR \
+    EXISTS (SELECT 1 FROM journal INDEXED BY journal_applied_at \
+        WHERE state = 'applied' AND unixepoch(applied_at) >= ?1)";
 
 /// Membership of rows another implementation wrote, taken from their `phase`
 /// column and made authoritative; leftover `scope_member` rows of deleted

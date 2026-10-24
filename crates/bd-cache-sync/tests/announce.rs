@@ -196,7 +196,7 @@ fn test_sync_failure_is_announced_once_per_cause() {
     assert!(sent[0].body.contains("phase x"), "{}", sent[0].body);
     assert!(matches!(
         &first.sent[0].kind,
-        AnnouncementKind::SyncFailure { cause, .. } if cause == "BD_CACHE.BD_LIST_FAILED"
+        AnnouncementKind::SyncFailure { cause, .. } if cause.key() == "BD_CACHE.BD_LIST_FAILED"
     ));
     assert_eq!(
         cache.sync_alert(&x).unwrap().as_deref(),
@@ -347,7 +347,7 @@ fn bd_cache_sync_test_slow(w: &World, cost: Duration) -> std::sync::Arc<common::
 
 /// A tick asked to stop sends nothing more and leaves the entries unmarked.
 #[test]
-fn a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick() {
+fn a_stopped_tick_does_nothing_and_the_next_tick_does_it_all() {
     let (w, mut cache, seq) = world_with_escalation();
     let stop = bd_cache_sync::StopFlag::new();
     stop.stop();
@@ -362,8 +362,65 @@ fn a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick() {
     .unwrap();
     assert!(reply.stopped, "{reply:?}");
     assert!(w.sender.attempts().is_empty());
-    assert_eq!(w.entry(seq).state, JournalState::Escalated);
+    // Stopped before it began: it did not even drain, so nothing is lost or half done.
+    assert!(reply.drain.is_none());
+    assert_eq!(w.entry(seq).state, JournalState::Pending);
     assert!(w.entry(seq).announced_at.is_none());
     let next = w.tick(&mut cache);
     assert_eq!(next.sent.len(), 1, "{next:?}");
+}
+
+/// A sender that ignores the time it is given (the provided `send_within`)
+/// cannot push the tick on: the tick checks its budget after every send and
+/// leaves the rest unsent and unmarked (S17).
+#[test]
+fn a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran() {
+    struct Deaf {
+        clock: std::sync::Arc<sc_beads::testing::ManualClock>,
+        calls: std::sync::atomic::AtomicUsize,
+    }
+    impl bd_cache_model::EscalationSender for Deaf {
+        fn send(&self, _: &str, _: &str, _: &str) -> Result<(), bd_cache_model::SendError> {
+            self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.clock.advance(Duration::from_secs(9));
+            Ok(())
+        }
+    }
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    for i in 0..8 {
+        w.add(&format!("e{i}"), Some("x"), |_| {});
+    }
+    let mut cache = w.cache();
+    cache
+        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .unwrap();
+    let seqs: Vec<_> = (0..8)
+        .map(|i| w.journal_close(&mut cache, &format!("e{i}"), &format!("k{i}")))
+        .collect();
+    for i in 0..8 {
+        w.bd.remove(&format!("e{i}"));
+    }
+    let deaf = Deaf {
+        clock: std::sync::Arc::clone(&w.clock),
+        calls: std::sync::atomic::AtomicUsize::new(0),
+    };
+
+    let reply = bd_cache_sync::tick(
+        &mut cache,
+        &w.config(),
+        &deaf,
+        w.after(bd_cache_sync::TICK_BUDGET),
+    )
+    .unwrap();
+
+    // 25 s: sends start at 0, 9 and 18 s (the third overruns T), then nothing.
+    assert_eq!(deaf.calls.load(std::sync::atomic::Ordering::SeqCst), 3);
+    assert_eq!(reply.sent.len(), 3);
+    assert_eq!(reply.unsent, 5, "{reply:?}");
+    let marked = seqs
+        .iter()
+        .filter(|s| w.entry(**s).announced_at.is_some())
+        .count();
+    assert_eq!(marked, 3, "the rest stay unmarked for the next tick");
 }

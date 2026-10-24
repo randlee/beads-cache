@@ -2,8 +2,11 @@
 
 use std::fmt;
 
-use bd_cache_model::{DrainReport, PhaseName, Seq, SyncReport};
+use bd_cache_model::{DrainReport, PhaseName, SendError, SendErrorKind, Seq, SyncReport};
 use serde::Serialize;
+
+use crate::announce::AlertCause;
+use crate::phases::MemberName;
 
 /// How a tick ended, in the words of the BD-CACHE cron module.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -34,8 +37,20 @@ pub enum RefusalCode {
     EmptyPhases,
     /// The phases directory cannot be read.
     PhasesDirUnreadable,
-    /// A phase file, or a configured phase's file, is unusable.
-    PhaseFile,
+    /// A `phase-*.toml` name after the prefix is not a phase name.
+    PhaseNotNamed,
+    /// A phase file cannot be read.
+    PhaseFileUnreadable,
+    /// A phase file is larger than the cap.
+    PhaseFileTooLarge,
+    /// A phase file is not a regular file.
+    PhaseFileNotRegular,
+    /// A phase file is not TOML, has no `root`, or a bad `root` or `lead`.
+    PhaseFileInvalid,
+    /// A phase in `[tick] phases` has no file.
+    PhaseFileMissing,
+    /// The phases directory holds more files than are read.
+    PhaseFilesTooMany,
     /// A sync-failure message was not delivered (REQ-BDC-0704).
     SyncFailureUndelivered,
     /// An outage message was not delivered (REQ-BDC-0704).
@@ -61,7 +76,13 @@ impl RefusalCode {
             Self::MalformedPhases => "malformed_phases",
             Self::EmptyPhases => "empty_phases",
             Self::PhasesDirUnreadable => "phases_dir_unreadable",
-            Self::PhaseFile => "phase_file",
+            Self::PhaseNotNamed => "phase_not_named",
+            Self::PhaseFileUnreadable => "phase_file_unreadable",
+            Self::PhaseFileTooLarge => "phase_file_too_large",
+            Self::PhaseFileNotRegular => "phase_file_not_regular",
+            Self::PhaseFileInvalid => "phase_file_invalid",
+            Self::PhaseFileMissing => "phase_file_missing",
+            Self::PhaseFilesTooMany => "phase_files_too_many",
             Self::SyncFailureUndelivered => "sync_failure_undelivered",
             Self::OutageUndelivered => "outage_undelivered",
             Self::EscalationUndelivered => "escalation_undelivered",
@@ -81,7 +102,7 @@ impl RefusalCode {
             Self::MissingFallbackLead => {
                 "set [tick] fallback_lead to the member told of escalations that belong to no phase"
             }
-            Self::BadMember => "use a name without spaces, '@' or a leading '-'",
+            Self::BadMember => "use a member name without whitespace, '@' or a leading '-'",
             Self::MalformedPhases => {
                 "use letters, digits, '-', '_' and '.', with or without the phase- prefix"
             }
@@ -89,7 +110,23 @@ impl RefusalCode {
                 "list at least one phase, or remove [tick] phases to sync every phase"
             }
             Self::PhasesDirUnreadable => "create the directory or set [tick] phases_dir",
-            Self::PhaseFile => "correct or remove the file named, or add the missing phase file",
+            Self::PhaseNotNamed => {
+                "rename the file phase-<name>.toml with letters, digits, '-', '_' or '.'"
+            }
+            Self::PhaseFileUnreadable => "make the file readable by the user running the tick",
+            Self::PhaseFileTooLarge => {
+                "a phase file holds a root and a lead; remove what else is in it"
+            }
+            Self::PhaseFileNotRegular => {
+                "replace it with a regular file (not a pipe, device or directory)"
+            }
+            Self::PhaseFileInvalid => {
+                "write `root = \"<bead id>\"` and, optionally, `lead = \"<member>\"` as TOML"
+            }
+            Self::PhaseFileMissing => {
+                "add phase-<name>.toml to the phases directory, or remove the name from [tick] phases"
+            }
+            Self::PhaseFilesTooMany => "remove the phase files that are not in use",
             Self::SyncFailureUndelivered
             | Self::OutageUndelivered
             | Self::EscalationUndelivered => {
@@ -126,6 +163,9 @@ impl fmt::Display for RefusalCode {
 pub struct Refusal {
     /// What kind of refusal.
     pub code: RefusalCode,
+    /// For an undelivered message, why the sender failed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub send_kind: Option<SendErrorKind>,
     /// What exactly, for a person.
     pub detail: String,
     /// What to do about it.
@@ -138,9 +178,19 @@ impl Refusal {
     pub fn new(code: RefusalCode, detail: impl Into<String>) -> Self {
         Self {
             code,
+            send_kind: None,
             detail: detail.into(),
             fix: code.fix().to_owned(),
         }
+    }
+
+    /// This refusal for a message the sender could not deliver: it keeps the
+    /// sender's kind and fix.
+    #[must_use]
+    pub fn undelivered(code: RefusalCode, what: &str, e: &SendError) -> Self {
+        let mut r = Self::new(code, format!("{what}: {e}")).with_fix(e.fix());
+        r.send_kind = Some(e.kind);
+        r
     }
 
     /// This refusal with another fix text.
@@ -170,8 +220,8 @@ pub enum AnnouncementKind {
     SyncFailure {
         /// The phase.
         phase: PhaseName,
-        /// The stable cause key now recorded as the phase's alert.
-        cause: String,
+        /// The cause now recorded as the phase's alert.
+        cause: AlertCause,
     },
     /// The start of a backend outage (REQ-BDC-0704, ADR-BDC-0005).
     Outage {
@@ -187,7 +237,7 @@ pub struct Announcement {
     #[serde(flatten)]
     pub kind: AnnouncementKind,
     /// Who it went to.
-    pub lead: String,
+    pub lead: MemberName,
 }
 
 /// The result of one tick.
