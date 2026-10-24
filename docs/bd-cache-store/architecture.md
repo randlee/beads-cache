@@ -74,7 +74,7 @@ migration command, never done on open.
 
 ## ADR-STORE-0002: Sharing the file with bd_cache.py
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24)
 
 Context: `bd_cache.py` writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
@@ -131,7 +131,7 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -156,11 +156,11 @@ Decision:
   the entry; they are never skipped. `NO_DATABASE` means only missing or
   invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
-  (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq.
+  (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
+  function (`error::failed` / `error::corrupt`) makes the mapping.
 - `ConfigLoadError` (`load_repo_config`) carries its cause one way only: as
   `Error::source`. Its `Display` names the file and the fix, without the
-  cause, so a reporter walking the source chain prints the cause once. One
-  function (`error::failed` / `error::corrupt`) makes the mapping.
+  cause, so a reporter walking the source chain prints the cause once.
 
 Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
 workspace without bd metadata (`NO_DATABASE`), and walks the source chain

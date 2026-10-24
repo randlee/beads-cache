@@ -142,12 +142,14 @@ impl SqliteStore {
 
     /// Opens (creating when absent) the cache file at `path` for `identity`.
     ///
-    /// Sets WAL mode and a 5 s busy timeout, checks `user_version` (0 is
-    /// initialized to 3, 3 is opened, anything else refused), creates the v3
-    /// tables and the additive extensions when absent, records `dolt_database`
-    /// and `project_id` on first open and checks `project_id` on every later
-    /// one, and takes over the membership of rows `bd_cache.py` wrote
-    /// (ADR-STORE-0002). `user_version` is never changed from 3.
+    /// In order (ADR-STORE-0002): sets a 5 s busy timeout; then, in one
+    /// transaction, checks `user_version` (0 is initialized to 3, 3 is
+    /// opened, anything else refused), creates the v3 tables and the additive
+    /// extensions when absent, records `dolt_database` and `project_id` on
+    /// first open and checks `project_id` on every later one, and takes over
+    /// the membership of rows `bd_cache.py` wrote; then sets WAL mode. A
+    /// refused file is left as it was, its journal mode included.
+    /// `user_version` is never changed from 3.
     ///
     /// # Errors
     ///

@@ -393,47 +393,79 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
 /// The outage is read in one snapshot: a writer setting and clearing it (one
 /// transaction each, as both implementations do) never makes the read see
 /// one key without the other.
+///
+/// The reader starts once the writer has completed a full set/clear cycle,
+/// then reads until the writer has toggled [`TOGGLES`] times; every stage has
+/// a hard deadline that fails naming it. The writer reports its own errors.
 #[test]
 fn the_outage_is_read_whole_while_another_connection_toggles_it() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::time::{Duration, Instant};
+
+    const TOGGLES: u32 = 2_000;
+    const STAGE_TIMEOUT: Duration = Duration::from_secs(60);
+
     let (open, store) = fresh("outage-race");
     let path = open.path.clone();
-    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop = Arc::new(AtomicBool::new(false));
+    let toggles = Arc::new(AtomicU32::new(0));
+    let (ready_tx, ready_rx) = std::sync::mpsc::channel();
     let writer = {
-        let stop = std::sync::Arc::clone(&stop);
-        std::thread::spawn(move || {
-            let c = Connection::open(&path).unwrap();
-            c.busy_timeout(std::time::Duration::from_secs(5)).unwrap();
-            let mut toggles = 0_u32;
-            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+        let (stop, toggles) = (Arc::clone(&stop), Arc::clone(&toggles));
+        std::thread::spawn(move || -> rusqlite::Result<()> {
+            let c = Connection::open(&path)?;
+            c.busy_timeout(Duration::from_secs(5))?;
+            while !stop.load(Ordering::Relaxed) {
                 c.execute_batch(
                     "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
                      ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x'); COMMIT;",
-                )
-                .unwrap();
+                )?;
                 c.execute_batch(
                     "BEGIN IMMEDIATE; DELETE FROM meta WHERE key IN ('outage_since', 'outage_error'); COMMIT;",
-                )
-                .unwrap();
-                toggles += 1;
+                )?;
+                if toggles.fetch_add(1, Ordering::Relaxed) == 0 {
+                    let _ = ready_tx.send(());
+                }
             }
-            toggles
+            Ok(())
         })
     };
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let finish = |stop: &AtomicBool| {
+        stop.store(true, Ordering::Relaxed);
+        writer.join().expect("the writer thread panicked")
+    };
+
+    if ready_rx.recv_timeout(STAGE_TIMEOUT).is_err() {
+        let result = finish(&stop);
+        panic!(
+            "stage 1: the writer did not complete a set/clear cycle within {STAGE_TIMEOUT:?} ({result:?})"
+        );
+    }
+    let deadline = Instant::now() + STAGE_TIMEOUT;
     let mut reads = 0_u32;
     let mut failure = None;
-    while std::time::Instant::now() < deadline {
+    while toggles.load(Ordering::Relaxed) < TOGGLES {
+        if Instant::now() >= deadline {
+            let done = toggles.load(Ordering::Relaxed);
+            let result = finish(&stop);
+            panic!(
+                "stage 2: the writer reached {done} of {TOGGLES} toggles within {STAGE_TIMEOUT:?} ({result:?})"
+            );
+        }
         if let Err(e) = store.outage() {
             failure = Some(e);
             break;
         }
         reads += 1;
     }
-    stop.store(true, std::sync::atomic::Ordering::Relaxed);
-    let toggles = writer.join().unwrap();
+    let done = toggles.load(Ordering::Relaxed);
+    if let Err(e) = finish(&stop) {
+        panic!("the writer failed after {done} toggles: {e}");
+    }
     assert!(
         failure.is_none(),
-        "after {reads} reads, {toggles} toggles: {failure:?}"
+        "after {reads} reads, {done} toggles: {failure:?}"
     );
-    assert!(toggles > 0 && reads > 0);
+    assert!(reads > 0, "the reader ran");
 }
