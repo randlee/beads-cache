@@ -2,9 +2,9 @@
 
 NFR-BDC-0001 (the cached-get budget) is sprint a-7's, measured in Rust. This
 records what the same call costs from Python, including the reply conversion,
-so atm-bd can compare it with `bd_cache.py`. The only
-assertion is causal (the fake bd's call log is unchanged across the loop); the timings go to the
-pytest report (`-rP` shows them) and are never asserted.
+so atm-bd can compare it with `bd_cache.py`. The only assertion is causal (the
+fake bd's call log is unchanged across the loop); the timings go to the pytest
+report (`-rP` shows them) and are never asserted.
 """
 
 import statistics

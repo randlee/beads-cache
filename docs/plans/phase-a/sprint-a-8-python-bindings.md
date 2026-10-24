@@ -31,8 +31,9 @@ owned_paths:
   - "docs/bd-cache-model/architecture.md"       # R11: the a-8 amendment section and the error.rs row only
   # Lead ruling R14 (bc-lead, 2026-10-24, a-8 fix round 6): test lint configuration only, no API, dependency or schema change
   - "crates/sc-cron/clippy.toml"                # R14: allow-*-in-tests only
-  - "crates/sc-cron/src/**"                     # R14: #[allow] -> #[expect(..., reason)] in test modules only
-  - "crates/sc-cron/tests/**"                   # R14: #[allow] -> #[expect(..., reason)] only
+  - "crates/sc-cron/src/**"                     # R14: the src test-module #[allow] blocks are removed
+  - "crates/sc-cron/tests/**"                   # R14: tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]
+  - "docs/sc-cron/architecture.md"              # R14/R15: the Build note clippy.toml sentence only
 ---
 
 # Sprint a-8 — Python bindings (maturin / PyO3)
@@ -51,7 +52,7 @@ composition and the wheel builds in CI.
 Composes `BdCli` (a-2), `SqliteStore` (a-4) and the write and read paths of
 `Cache` (a-5, a-6). It does not need `bd-cache-sync` or `sc-cron` (a-3, a-7):
 atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
-`sync` through these bindings. It does not depend on sc-cron; under R14 it edits only sc-cron's test lint configuration.
+`sync` through these bindings. It does not depend on sc-cron; under R14 and R15 it edits sc-cron's test lint configuration plus one sentence of `docs/sc-cron/architecture.md`.
 
 ## Deliverables
 
@@ -201,10 +202,11 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
   `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`); the binding
   tests keep the spent-gate and hard-deadline cases, which fail if the two
   bounds are swapped.
-- **`sc-cron` test lint configuration** (lead ruling R14, bc-lead, 2026-10-24, a-8 fix
-  round 6): `crates/sc-cron/clippy.toml` (`allow-*-in-tests`) and `#[allow]` ->
-  `#[expect(..., reason)]` in `sc-cron` test modules and `tests/*`, commit `1709e3b`
-  (PR #23). No API, dependency or schema change. Recorded in phase-a-plan's Shared files table (owner a-3).
+- **`sc-cron` test lint configuration** (lead rulings R14 and R15, bc-lead, 2026-10-24, a-8 fix
+  round 6 and QA-8): clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]; commit `1709e3b`
+  (PR #23). R15 extends R14 to the one Build-note sentence in `docs/sc-cron/architecture.md` that
+  describes the `clippy.toml` test allowances. No API, dependency or schema change. Recorded in
+  phase-a-plan's Shared files table (owner a-3).
 - **ci.yml** is unchanged: it excludes `bd-cache-py`; `python.yml` runs the
   crate's clippy and `cargo test` on macOS, Linux and Windows (R4).
 
@@ -265,7 +267,7 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 | read open error derives a config kind | `src/handle.rs` | `test_an_unreadable_config_file_is_an_os_error_with_kind_and_path`; 1 |
 
 Every one of the 39 bugs fails at least one test, none by a compile error, and
-none survives (the one survivor is the unreachable fallback-arm mutant in the QA round 6 table below); every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
+none of the 39 survives; the round 6 set below has one survivor, the unreachable fallback-arm mutant; every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
 
 Round 6 mutants are in the QA round 6 section below.
 
@@ -293,7 +295,7 @@ https://github.com/randlee/beads-cache/actions/runs/40108869268 (success).
 
 | Id | Finding | Fix |
 |---|---|---|
-| QA6-001 | `sc-cron` test code used `#[allow]` and had no test lint configuration, so workspace clippy failed on it | `crates/sc-cron/clippy.toml` (`allow-*-in-tests`) plus `#[expect(..., reason)]` in test modules and `tests/*`; commit `1709e3b` (PR #23); lead ruling R14, test lint configuration only |
+| QA6-001 | `sc-cron` test code used `#[allow]` and had no test lint configuration, so workspace clippy failed on it | clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]; commit `1709e3b` (PR #23); lead ruling R14, test lint configuration only |
 | QA6-002 | `handle.rs` test loop `for outcome in &cases` iterated `NotRun` values | Variable renamed `not_run` |
 | QA6-003 | Double blank line before the QA round 5 heading | One blank line deleted |
 | RBP-F025 | `ValueError` kind `config` undocumented; no test pinned the kind texts | `requirements.md` and `architecture.md` document `config` ("any other configuration problem the loader reports; `path` may be `None`"); new unit test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read` asserts the set of `OpenKind::as_str` outputs is exactly {parse, scope, argument, config, read} |
@@ -375,3 +377,14 @@ findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
 | QA7-001 / REQ-QA7-003 | "and the restored" typo; pytest re-run cited on the survivor mutant | "and then restored"; the covering pytest run is the post-rename run at a36b7df, 92 passed |
 | REQ-QA7-004 | "none survives" line not cross-referenced to the round 6 survivor | Cross-reference added |
 | FTQ-401, FTQ-402 | Wall-clock assertions in `test_ready.py` and `test_perf.py` | Fixed in `42d0604` (`sprint/a-8-fix7-tests`, PR #26): FTQ-401 `test_ready.py` sets `fresh_within=10`; FTQ-402 `test_perf.py` makes the perf check causal (no wall-clock median assertion). Evidence: 92 pytest passed, CI green as above |
+
+## QA round 8 findings and their fixes (QA-8 at 36e813e)
+
+| Id | Finding | Fix |
+|---|---|---|
+| ARCH-801 | The `docs/sc-cron/architecture.md` Build-note edit was outside `owned_paths`; no ruling recorded | Lead ruling R15 (bc-lead, 2026-10-24) recorded: `owned_paths` entry for `docs/sc-cron/architecture.md` (R14/R15, the Build note `clippy.toml` sentence only); R14 row in phase-a-plan's Shared files table names it under R15; the must_follow clause and the R14 Interpretations bullet now say a-8 edits sc-cron's test lint configuration plus that one doc sentence |
+| QA8-001 | The R14 change was described inconsistently across sites | One wording at all five sites (sprint doc owned_paths, Interpretations, QA round 6 row; phase-a-plan R14 row; `docs/sc-cron/architecture.md` Build note): "clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]"; the sc-cron doc says "integration tests" |
+| QA8-002 | "none survives" line contradicted the round 6 survivor | Reworded: "none of the 39 survives; the round 6 set below has one survivor, the unreachable fallback-arm mutant" |
+| QA8-003 | Module docstring of `crates/bd-cache-py/tests/test_perf.py` was wrapped ragged | Docstring re-wrapped to the file's width; docstring only |
+
+The `test_perf.py` change is a docstring edit to a test file, not a code change, so Validation and Evidence keep citing `42d0604` as the last code-changing commit.
