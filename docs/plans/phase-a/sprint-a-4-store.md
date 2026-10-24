@@ -297,6 +297,6 @@ Local, on `0a150d5` (macOS; `cargo test --workspace --all-features`: 433 passed,
 | `cargo test --workspace --all-features` | pass |
 | `cargo build --workspace` | pass |
 
-CI on `decf804` (code as at `a71dd39`, plus this document) is green on
+CI on `c698001` (code as at `0a150d5`, plus this document) is green on
 ubuntu, macos and windows, with the compatibility tests running on each:
-run [40077231826](https://github.com/randlee/beads-cache/actions/runs/40077231826).
+run [40078224582](https://github.com/randlee/beads-cache/actions/runs/40078224582).
