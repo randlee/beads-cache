@@ -130,8 +130,8 @@ later step.
 ## Crate Layout
 
 Status: as shipped by sprints a-1 to a-8 for phase a. Phase a builds only the
-crates that do not depend on sc-runtime crates (sc-config, sc-transport, sc-
-command, sc-runtime), which are being built in parallel. sc-runtime has no
+crates that do not depend on sc-runtime crates (sc-config, sc-transport,
+sc-command, sc-runtime), which are being built in parallel. sc-runtime has no
 cron or scheduler crate today, so phase a also prototypes one here (`sc-cron`)
 and builds the sync task on it, to finish more of the deliverables before
 integrating with sc-runtime.
