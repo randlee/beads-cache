@@ -186,9 +186,10 @@ pub trait CacheStore: Send {
     /// end, so a contended write cannot carry the tick past it: one that cannot
     /// finish in time returns the store's usual error, the entry stays
     /// unannounced, and the next tick sends it again (at least once). The
-    /// provided body ignores `wait`, for a store that never waits for a lock
-    /// held elsewhere (the in-memory `FakeStore`); a store that can wait
-    /// overrides it.
+    /// provided body ignores `wait` (it is unbounded), for a store that never
+    /// waits for a lock held elsewhere (the in-memory `FakeStore`); a store or
+    /// wrapper that can wait overrides both `_within` methods, forwarding the
+    /// wait.
     fn mark_announced_within(
         &mut self,
         seq: Seq,

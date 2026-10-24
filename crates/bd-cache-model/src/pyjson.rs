@@ -7,8 +7,6 @@
 //! surrogate pair). Writing the same text from Rust keeps a file shared with
 //! the Python implementation byte-identical (REQ-BDC-0804).
 
-use std::fmt::Write as _;
-
 use serde_json::Value;
 
 /// Renders `v` exactly as Python's `json.dumps(v, sort_keys=True)` does.
@@ -64,6 +62,21 @@ fn write_value(out: &mut String, v: &Value) {
     }
 }
 
+/// Pushes `\uXXXX` for one UTF-16 code unit, four lowercase hex digits, as
+/// Python's `json.dumps` writes it.
+fn push_unicode_escape(out: &mut String, unit: u16) {
+    out.push_str("\\u");
+    for byte in unit.to_be_bytes() {
+        out.push(hex_digit(byte >> 4));
+        out.push(hex_digit(byte & 0x0f));
+    }
+}
+
+/// The lowercase hex digit of a nibble (`n` < 16).
+fn hex_digit(n: u8) -> char {
+    char::from(if n < 10 { b'0' + n } else { b'a' - 10 + n })
+}
+
 fn write_str(out: &mut String, s: &str) {
     out.push('"');
     for c in s.chars() {
@@ -79,8 +92,7 @@ fn write_str(out: &mut String, s: &str) {
             c => {
                 let mut units = [0u16; 2];
                 for u in c.encode_utf16(&mut units) {
-                    // Writing to a String cannot fail.
-                    write!(out, "\\u{u:04x}").unwrap_or_default();
+                    push_unicode_escape(out, *u);
                 }
             }
         }

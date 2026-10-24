@@ -2,6 +2,7 @@
 
 use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet};
+use std::ffi::OsStr;
 use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -128,20 +129,21 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 /// use bd_cache_model::{CacheStore, RepoConfig, ScopeId};
 /// use bd_cache_store::SqliteStore;
 ///
-/// let root = std::env::temp_dir().join(format!("bdc-doc-store-{}", std::process::id()));
+/// let dir = tempfile::TempDir::new()?;
+/// let root = dir.path();
 /// std::fs::create_dir_all(root.join(".beads"))?;
 /// std::fs::write(
 ///     root.join(".beads").join("metadata.json"),
 ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
 /// )?;
-/// let mut store = SqliteStore::open(&root, &RepoConfig::default())?;
+/// // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
+/// let mut store = SqliteStore::open_with(root, &RepoConfig::default(), None)?;
 /// let x = ScopeId::phase("x")?;
 /// let mut b = sc_beads::testing::bead("b1");
 /// b.labels = vec!["phase-x".into()];
 /// store.upsert_rows(Some(&x), &[b], false)?;
 /// assert_eq!(store.rows_in_scope(&x)?.len(), 1);
 /// # drop(store);
-/// # std::fs::remove_dir_all(&root)?;
 /// # Ok(())
 /// # }
 /// ```
@@ -153,17 +155,23 @@ pub struct SqliteStore {
     /// Set, with one warning, when a hinted journal index is found missing:
     /// from then on the journal reads ask their unhinted form (ADR-STORE-0004).
     hints_missing: Cell<bool>,
-    /// The floor of known unreadable entries: every entry that was applied and
-    /// undated when the floor last rose, at or below this seq, has an
-    /// unreadable time (warned about). The read path counts only undated
-    /// entries above it for the threshold, so the entries no dating can date
-    /// are not walked on every call (QA5-002). It never rises past an applied
-    /// entry the dating can date. An entry still pending when it rose, which
-    /// `bd_cache.py` applies later without an epoch, can sit below it: that
-    /// entry is answered as every undated entry is (the journal reads do not
-    /// use the floor), is left out of the threshold count, and is dated by the
-    /// next dating, which dates every readable entry whatever its seq, or at
-    /// the next open (QA6-001).
+    /// The floor of known unreadable entries. The read path counts only
+    /// undated entries above it for the threshold, so the entries no dating
+    /// can date are not walked on every call (QA5-002).
+    ///
+    /// The invariant holds per rise (QA7-001): a rise from an old floor to a
+    /// new one passes only the entries between the two (above the old, at or
+    /// below the new), and every one of those that was applied and undated
+    /// when the floor rose had an unreadable time (warned about); a rise never
+    /// passes an applied entry the dating can date. Entries already below the
+    /// old floor are not examined again by a rise, so the floor says nothing
+    /// about them: an entry still pending when an earlier rise passed it,
+    /// which `bd_cache.py` applies later without an epoch, sits below the
+    /// floor with a readable time, and stays there through later rises. Such
+    /// an entry is answered correctly (the journal reads do not use the
+    /// floor, and read its own time), is left out of the threshold count, and
+    /// is dated by the next dating, which dates every readable entry whatever
+    /// its seq, or at the next open (QA6-001).
     undatable_through: Cell<i64>,
     /// Every undated entry with a seq at or below this one has had its time
     /// examined; only higher seqs are examined (and warned about) again.
@@ -184,7 +192,8 @@ enum Stored {
 }
 
 impl SqliteStore {
-    /// Opens (creating when absent) the cache file of `repo_root`.
+    /// Opens (creating when absent) the cache file of `repo_root`, reading
+    /// `$BEADS_DIR` from the environment.
     ///
     /// The file is located from `config` and `.beads/metadata.json`
     /// ([`CacheLocation::resolve`], `$BEADS_DIR` aware); no `bd` process starts.
@@ -193,7 +202,28 @@ impl SqliteStore {
     ///
     /// As [`CacheLocation::resolve`] and [`SqliteStore::open_at`].
     pub fn open(repo_root: &Path, config: &RepoConfig) -> Result<Self, CacheError> {
-        let loc = CacheLocation::resolve(repo_root, config)?;
+        Self::open_with(
+            repo_root,
+            config,
+            std::env::var_os(crate::location::BEADS_DIR_ENV).as_deref(),
+        )
+    }
+
+    /// Opens (creating when absent) the cache file of `repo_root` with an
+    /// explicit `$BEADS_DIR` value (`None` = unset), as
+    /// [`CacheLocation::resolve_with`]: the environment is not read, so a
+    /// test or a caller that has its own value is not machine-dependent
+    /// (lead ruling S36).
+    ///
+    /// # Errors
+    ///
+    /// As [`CacheLocation::resolve_with`] and [`SqliteStore::open_at`].
+    pub fn open_with(
+        repo_root: &Path,
+        config: &RepoConfig,
+        beads_dir_env: Option<&OsStr>,
+    ) -> Result<Self, CacheError> {
+        let loc = CacheLocation::resolve_with(repo_root, config, beads_dir_env)?;
         Self::open_at(&loc.cache_path, &loc.identity)
     }
 
@@ -2020,6 +2050,9 @@ mod tests {
     /// when the floor rose above its seq, then applied by `bd_cache.py`
     /// without an epoch, is below the floor. It is answered as every undated
     /// entry is, it is not in the threshold count, and the next dating dates it.
+    /// A second rise, driven by a warning alone, passes only the entries above
+    /// the old floor: the readable entry below it is not examined again and
+    /// stays undated and answered until the next dating (QA7-001).
     #[test]
     fn a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating() {
         let TempStore { store, path, _dir } = temp_store();
@@ -2066,6 +2099,35 @@ mod tests {
         assert_eq!(store.undatable_through.get(), 4, "the floor stays");
         assert_eq!(undated_count(&path), 4, "not dated: below the threshold");
 
+        // A second rise from a warning alone (QA7-001): seq 5 is unreadable,
+        // below the threshold, so nothing is dated; the warning raises the
+        // floor from 4 to 5. The rise passes only seq 5; seq 1, readable and
+        // below the old floor, is not examined again and stays undated.
+        seed_applied(&path, "worse", 1, "garbage");
+        assert!(store.has_entries_since(&at).unwrap());
+        assert_eq!(
+            store.undatable_through.get(),
+            5,
+            "the warning raised the floor"
+        );
+        let seq1_epoch = || -> Option<i64> {
+            Connection::open(&path)
+                .unwrap()
+                .query_row("SELECT applied_epoch FROM journal WHERE seq = 1", [], |r| {
+                    r.get(0)
+                })
+                .unwrap()
+        };
+        assert_eq!(
+            seq1_epoch(),
+            None,
+            "below the old floor: not dated by a rise"
+        );
+        assert_eq!(undated_count(&path), 5, "nothing dated");
+        // Still answered by its own time, below the new floor too.
+        assert_eq!(seqs("2026-10-24T08:00:00Z"), [1, 2, 3, 4, 5]);
+        assert_eq!(seqs("2026-10-24T09:00:00Z"), [2, 3, 4, 5]);
+
         // The next dating dates it, whatever its seq.
         seed_applied(
             &path,
@@ -2074,13 +2136,11 @@ mod tests {
             "2026-10-24T08:00:00Z",
         );
         assert!(store.has_entries_since(&at).unwrap());
-        let epoch: Option<i64> = Connection::open(&path)
-            .unwrap()
-            .query_row("SELECT applied_epoch FROM journal WHERE seq = 1", [], |r| {
-                r.get(0)
-            })
-            .unwrap();
-        assert_eq!(epoch, Some(at.unix() - 1_800), "seq 1 is dated by its time");
-        assert_eq!(undated_count(&path), 3, "only the unreadable ones remain");
+        assert_eq!(
+            seq1_epoch(),
+            Some(at.unix() - 1_800),
+            "seq 1 is dated by its time"
+        );
+        assert_eq!(undated_count(&path), 4, "only the unreadable ones remain");
     }
 }

@@ -235,15 +235,15 @@ impl CacheLocation {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use bd_cache_model::RepoConfig;
     /// use bd_cache_store::CacheLocation;
-    /// let root = std::env::temp_dir().join(format!("bdc-doc-loc-{}", std::process::id()));
+    /// let dir = tempfile::TempDir::new()?;
+    /// let root = dir.path();
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(
     ///     root.join(".beads").join("metadata.json"),
     ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
     /// )?;
-    /// let loc = CacheLocation::resolve_with(&root, &RepoConfig::default(), None)?;
+    /// let loc = CacheLocation::resolve_with(root, &RepoConfig::default(), None)?;
     /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
-    /// # std::fs::remove_dir_all(&root)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -308,31 +308,33 @@ static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
 });
 
 impl ConfigLoadError {
-    /// A stable code, one per way the file fails to load (RBP-F040):
-    /// `sync_config_unreadable`, `sync_config_invalid_toml` (not a valid
+    /// A stable, store-neutral code, one per way the file fails to load
+    /// (RBP-F040; ADR-STORE-0003 amendment, lead ruling S34):
+    /// `BD_CACHE.CONFIG_UNREADABLE`, `BD_CACHE.CONFIG_INVALID` (not a valid
     /// configuration: bad TOML, an unknown key, a wrong type) and
-    /// `sync_config_bad_scope`.
+    /// `BD_CACHE.CONFIG_BAD_SCOPE`. A consumer with codes of its own maps
+    /// the variants at its boundary.
     ///
     /// # Examples
     ///
     /// ```
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-    /// let root = std::env::temp_dir().join(format!("bdc-doc-cfg-code-{}", std::process::id()));
+    /// let dir = tempfile::TempDir::new()?;
+    /// let root = dir.path();
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"b k\"]\n")?;
-    /// let err = bd_cache_store::load_repo_config(&root).unwrap_err();
-    /// assert_eq!(err.code(), "sync_config_bad_scope");
+    /// let err = bd_cache_store::load_repo_config(root).unwrap_err();
+    /// assert_eq!(err.code(), "BD_CACHE.CONFIG_BAD_SCOPE");
     /// assert!(err.to_string().contains(err.fix()));
-    /// # std::fs::remove_dir_all(&root)?;
     /// # Ok(())
     /// # }
     /// ```
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Read { .. } => "sync_config_unreadable",
-            Self::Parse { .. } => "sync_config_invalid_toml",
-            Self::Scope { .. } => "sync_config_bad_scope",
+            Self::Read { .. } => "BD_CACHE.CONFIG_UNREADABLE",
+            Self::Parse { .. } => "BD_CACHE.CONFIG_INVALID",
+            Self::Scope { .. } => "BD_CACHE.CONFIG_BAD_SCOPE",
         }
     }
 
@@ -396,14 +398,14 @@ impl std::error::Error for ConfigLoadError {
 ///
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = std::env::temp_dir().join(format!("bdc-doc-cfg-{}", std::process::id()));
+/// let dir = tempfile::TempDir::new()?;
+/// let root = dir.path();
 /// std::fs::create_dir_all(root.join(".beads"))?;
-/// assert_eq!(bd_cache_store::load_repo_config(&root)?, Default::default());
+/// assert_eq!(bd_cache_store::load_repo_config(root)?, Default::default());
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"bk\"]\n")?;
-/// assert_eq!(bd_cache_store::load_repo_config(&root)?.scopes, ["bk"]);
+/// assert_eq!(bd_cache_store::load_repo_config(root)?.scopes, ["bk"]);
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "surprise = 1\n")?;
-/// assert!(bd_cache_store::load_repo_config(&root).is_err());
-/// # std::fs::remove_dir_all(&root)?;
+/// assert!(bd_cache_store::load_repo_config(root).is_err());
 /// # Ok(())
 /// # }
 /// ```
