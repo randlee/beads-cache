@@ -1672,9 +1672,11 @@ mod tests {
     #[test]
     fn undatable_entries_written_while_open_are_warned_once_and_not_walked_again() {
         let dir = std::env::temp_dir().join(format!(
-            "bdc-store-undatable-{}-{:?}",
+            "bdc-store-undatable-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos())
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("u.sqlite3");

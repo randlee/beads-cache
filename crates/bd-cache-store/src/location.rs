@@ -12,7 +12,7 @@ use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use bd_cache_model::{CacheError, ConfigError, RepoConfig, ScopeId};
+use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -311,9 +311,10 @@ impl fmt::Display for ConfigLoadError {
             ),
             Self::Scope { path, value } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: use letters, \
-                 digits, '-', '_' and '.', with or without the phase- prefix",
-                path.display()
+                "invalid {}: scopes entry {value:?} is not a phase name; fix: use {}, \
+                 with or without the phase- prefix",
+                path.display(),
+                PhaseName::RULE
             ),
         }
     }
