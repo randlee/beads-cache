@@ -1,6 +1,6 @@
 # beads-cache Project Plan
 
-Status: no phases planned yet.
+Status: phase a in progress (see the Phases and Sprints tables).
 
 ## Context
 
