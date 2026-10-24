@@ -228,7 +228,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Rerun for fix-a-4-4 on commit `4a4198fa731b6524a83833b8248241f16b7fe246`, the last commit
+Rerun for fix-a-4-5 on commit `77a7303ee7fe39ec08715aaa98aa3d979d80020f`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -257,6 +257,7 @@ git checkout -- <file>
 | outage read in two statements | `src/store.rs` | 101 | no | `the_outage_is_read_whole_while_another_connection_toggles_it` |
 | WAL set before the checks | `src/store.rs` | 101 | no | `a_refused_file_keeps_its_journal_mode_version_and_data` |
 | `CONIN$` accepted | `src/location.rs` | 101 | no | `identity_values_are_validated` |
+| attempts overflow keeps a source | `src/store.rs` | 101 | no | `an_attempts_count_past_u32_is_store_failed_without_a_source` |
 
 The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
@@ -278,14 +279,15 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 15. `outage` reads `outage_since` and `outage_error` in two statements.
 16. `open_at` sets WAL before `initialize` runs the version and identity checks.
 17. `DoltDatabase` accepts `CONIN$`.
+18. `record_attempt` maps an `attempts` count past `u32` through `failed` (keeping the conversion error as a source) instead of `corrupt`.
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes. Results at `4a4198f` are unchanged from `a71dd39`; bug 15 also failed 5 of 5 separate runs against the restructured race test.
+list; 7 to 18 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2, fix-a-4-2 and fix-a-4-5 changes. Results for bugs 1 to 17 at `77a7303` are unchanged from `a71dd39`; bug 15 also failed 5 of 5 separate runs against the restructured race test.
 
 ## Validation
 
-Local, on `4a4198f` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
+Local, on `77a7303` (macOS; `cargo test --workspace --all-features`: 434 passed, store contract suite 19 rules):
 
 | Gate | Result |
 |---|---|
@@ -296,6 +298,6 @@ Local, on `4a4198f` (macOS; `cargo test --workspace --all-features`: 433 passed,
 | `cargo test --workspace --all-features` | pass |
 | `cargo build --workspace` | pass |
 
-CI on `4a4198f`, the last code commit, is green on ubuntu, macos and
+CI on `77a7303`, the last code commit, is green on ubuntu, macos and
 windows, with the compatibility tests running on each: run
-[40078978898](https://github.com/randlee/beads-cache/actions/runs/40078978898).
+[40080014418](https://github.com/randlee/beads-cache/actions/runs/40080014418).
