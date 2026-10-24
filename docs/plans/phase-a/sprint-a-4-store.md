@@ -226,7 +226,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Rerun for fix-a-4-1 on commit `0d2e0a198759d9c022f2726086097f078f8dea8f`, the last commit
+Rerun after R2 (a-1 amendment 1) on commit `28a1c863304965be2b9dc354b513d866ca0691c4`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -250,6 +250,8 @@ git checkout -- <file>
 | one-connection claim on the raw path | `src/store.rs` | 101 | no | `one_connection_per_process_through_a_symlink` |
 | Windows device names accepted | `src/location.rs` | 101 | no | `identity_values_are_validated` |
 | `applied_since` unbounded below | `src/store.rs` | 101 | no | `applied_since_is_inclusive_and_ordered` |
+| store failures mapped to `NO_DATABASE` | `src/error.rs` | 101 | no | `a_store_failure_is_store_failed_with_its_source`, `error::tests::failures_carry_the_step_the_file_and_the_whole_chain` |
+| `status` omits stale rows | `src/store.rs` | 101 | no | `status_lists_stale_rows_until_reread` |
 
 The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
@@ -266,14 +268,16 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 10. `open_at` claims the path as given, not its canonical form.
 11. `DoltDatabase` accepts Windows device names.
 12. `applied_since`'s SQL bound and instant filter are removed.
+13. `error::failed` builds `NO_DATABASE` (no source) instead of `STORE_FAILED`.
+14. `status` returns an empty `stale` list.
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 to 12 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1 changes.
+list; 7 to 14 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003, the fix-a-4-1 changes and the R2 changes.
 
 ## Validation
 
-Local, on `0d2e0a1` (macOS; `cargo test --workspace --all-features`: 387 passed):
+Local, on `28a1c86` (macOS; `cargo test --workspace --all-features`: 391 passed, store contract suite 19 rules):
 
 | Gate | Result |
 |---|---|
