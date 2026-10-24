@@ -1,0 +1,55 @@
+[package]
+name = "sc-cron"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+authors = ["Rand Lee <rand@randlee.com>"]
+license = "MIT"
+repository = "https://github.com/randlee/beads-cache"
+description = "SQLite-backed cron scheduler with generation fencing, jitter and missed-tick replay."
+readme = false
+keywords = ["cron", "scheduler", "sqlite", "tokio"]
+categories = ["date-and-time", "asynchronous"]
+
+# Self-contained until sprint a-1 lands the workspace root; then every
+# version below moves to `[workspace.dependencies]` and this file switches to
+# `workspace = true` inheritance.
+
+[features]
+# Deterministic `ManualClock` and `SeqJitter` for tests of this crate and of
+# its callers.
+test-utils = []
+
+[dependencies]
+async-trait = "0.1.89"
+chrono = { version = "0.4.42", default-features = false, features = ["clock", "std"] }
+cron = "0.17.0"
+getrandom = "0.4.0"
+rusqlite = { version = "0.40.0", features = ["bundled"] }
+serde_json = "1.0.140"
+tokio = { version = "1.47.0", features = ["macros", "rt", "sync", "time"] }
+tracing = "0.1.41"
+
+[dev-dependencies]
+tempfile = "3.20.0"
+tokio = { version = "1.47.0", features = ["macros", "rt", "rt-multi-thread", "sync", "time", "test-util"] }
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+unreachable_pub = "warn"
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+
+[[test]]
+name = "expr"
+required-features = ["test-utils"]
+
+[[test]]
+name = "worker"
+required-features = ["test-utils"]
+
+[[test]]
+name = "sqlite_store"
+required-features = ["test-utils"]

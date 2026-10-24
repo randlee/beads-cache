@@ -1,7 +1,7 @@
 ---
 id: a-3
 phase: a
-status: planned
+status: complete
 closure_type: boundary
 target_boundary: sc-cron
 track: cron
