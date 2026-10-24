@@ -289,6 +289,60 @@ fn a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblo
 }
 
 #[test]
+fn a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked() {
+    // QA-001: the pending edge is in the child's view but not yet in the
+    // store's edge index.
+    let w = World::new();
+    w.add("c1", |_| {});
+    assert!(w.bd.add_edge("c1", "s1", DepType::ParentChild));
+    let mut c = synced(&w);
+    journal(
+        &mut c,
+        &w,
+        "k1",
+        "c1",
+        "dep_add",
+        r#"{"depends_on": "s1", "type": "blocks"}"#,
+    );
+    journal(&mut c, &w, "k2", "b1", "close", "{}");
+    let r = c.ready(&x(), None).unwrap();
+    assert!(!ids(&r).contains(&id("c1")), "{:?}", ids(&r));
+    assert!(ids(&r).contains(&id("s1")));
+    assert_eq!(blocked_of(&mut c, "c1"), Some(vec![id("s1")]), "s1 is open");
+}
+
+#[test]
+fn a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child() {
+    let w = World::new();
+    w.add("p1", |_| {});
+    w.add("c3", |_| {});
+    let mut c = synced(&w);
+    journal(
+        &mut c,
+        &w,
+        "k1",
+        "c3",
+        "dep_add",
+        r#"{"depends_on": "p1", "type": "parent-child"}"#,
+    );
+    assert!(
+        ids(&c.ready(&x(), None).unwrap()).contains(&id("c3")),
+        "p1 is not blocked yet"
+    );
+    journal(
+        &mut c,
+        &w,
+        "k2",
+        "p1",
+        "dep_add",
+        r#"{"depends_on": "b1", "type": "blocks"}"#,
+    );
+    let r = c.ready(&x(), None).unwrap();
+    assert!(!ids(&r).contains(&id("c3")), "{:?}", ids(&r));
+    assert_eq!(blocked_of(&mut c, "c3"), Some(vec![id("p1")]));
+}
+
+#[test]
 fn escalated_entries_do_not_adjust_the_base() {
     let w = World::new();
     let mut c = synced(&w);
@@ -444,7 +498,9 @@ fn bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_o
     assert!(
         r.read_fallback
             .as_deref()
-            .is_some_and(|t| t.contains("500ms")),
+            .is_some_and(|t| t.starts_with("BD_CACHE.BD_UNAVAILABLE: ")
+                && t.contains("500ms")
+                && t.ends_with("; retry, or run sync")),
         "{:?}",
         r.read_fallback
     );

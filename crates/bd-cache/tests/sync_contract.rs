@@ -36,7 +36,9 @@ use sc_beads::{
 #[derive(Debug, Clone)]
 struct StrictBackend {
     inner: FakeBackend,
-    /// A row appended to the next list answer (bd misbehaving).
+    /// A row appended to the next list answer (bd misbehaving). `Arc<Mutex>`
+    /// because `CacheBackend` is `Send + Sync` with `&self` methods, and the test
+    /// keeps a clone to set the row after the cache has taken its own.
     extra: Arc<Mutex<Option<Bead>>>,
 }
 

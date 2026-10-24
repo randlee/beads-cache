@@ -18,6 +18,9 @@
 //! | a bead becomes blocked (parent block) | it joins `blocked_by` of each `parent-child` child |
 //! | a bead becomes unblocked (parent unblock) | it leaves `blocked_by` of each child listing it only as parent; a bead with an empty list joins `ready` when its view is `open`, in the scope and not deferred |
 //!
+//! Incoming edges are the store's edge index plus the edges of pending
+//! `dep_add` entries, as the views see them.
+//!
 //! Every rule errs towards "not ready": a bead the rules cannot settle stays
 //! out of `ready` until the next sync (REQ-BDC-0904).
 
@@ -72,19 +75,17 @@ pub(crate) fn row_view(view: Bead, freshness: Freshness, adjusted: Option<&Adjus
     }
 }
 
-/// The registered scope a view belongs to: its first `phase-<x>` label whose
-/// scope the cache knows; `None` for a bead outside every scope.
+/// The registered scope a view belongs to: its v3 phase
+/// ([`ScopeId::from_labels`]) when that scope is known, else the first known
+/// scope that holds the view; `None` for a bead outside every scope.
 pub(crate) fn scope_for<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     view: &Bead,
 ) -> Result<Option<ScopeId>, CacheError> {
     let known = cache.store.scopes()?;
-    Ok(view
-        .labels
-        .iter()
-        .filter_map(|l| l.strip_prefix("phase-"))
-        .filter_map(|x| ScopeId::phase(x).ok())
-        .find(|s| known.contains(s)))
+    Ok(ScopeId::from_labels(&view.labels)
+        .filter(|s| known.contains(s))
+        .or_else(|| known.into_iter().find(|s| s.holds(view))))
 }
 
 /// `SCOPE_UNKNOWN`, naming the known scopes, unless `s` was configured or
@@ -237,14 +238,21 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     })
 }
 
-/// Why a requested fresh answer fell back to the cached one.
+/// Hint appended to every `read_fallback`.
+const FALLBACK_HINT: &str = "retry, or run sync";
+
+/// Why a requested fresh answer fell back to the cached one: the stable
+/// code first (`BD_CACHE.BD_UNAVAILABLE` for a cut), then the detail and a
+/// next step.
 fn fallback_reason(failure: CallFailure, limit: Duration) -> String {
     match failure {
         CallFailure::Cut => format!(
-            "bd blocked / bd ready: no answer within {}ms",
+            "BD_CACHE.BD_UNAVAILABLE: bd blocked / bd ready: no answer within {}ms; {FALLBACK_HINT}",
             limit.as_millis()
         ),
-        CallFailure::Outage(e) | CallFailure::Error(e) => e.to_string(),
+        CallFailure::Outage(e) | CallFailure::Error(e) => {
+            format!("{}: {}; {FALLBACK_HINT}", e.code(), e.detail())
+        }
     }
 }
 
@@ -371,12 +379,24 @@ impl<'a, S: CacheStore> Engine<'a, S> {
         Ok(facts)
     }
 
-    /// Incoming edges of a bead from the edges index, memoized.
+    /// Incoming edges of a bead as the views see them, memoized: the store's
+    /// edge index plus the edges of pending `dep_add` entries onto the bead,
+    /// which replay adds to the views but the index does not hold yet.
     fn dependents(&mut self, id: &BeadId) -> Result<Vec<Edge>, CacheError> {
         if let Some(d) = self.dependents.get(id) {
             return Ok(d.clone());
         }
-        let d = self.store.dependents_of(id)?;
+        let mut d = self.store.dependents_of(id)?;
+        for e in self.pending {
+            if let Op::DepAdd { depends_on, kind } = &e.op
+                && depends_on == id
+            {
+                let edge = Edge::new(e.bead.clone(), depends_on.clone(), *kind);
+                if !d.contains(&edge) {
+                    d.push(edge);
+                }
+            }
+        }
         self.dependents.insert(id.clone(), d.clone());
         Ok(d)
     }
