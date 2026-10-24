@@ -18,7 +18,8 @@ set and not empty, and names the file `cache_path` from
 file, invalid JSON, a missing or non-string key, an empty project id or a
 database name that is not a file name on every supported platform (empty,
 `.`, `..`, a path separator, a control character, any of `: * ? " < > |`, a
-trailing dot or space, a Windows device name) is `BD_CACHE.NO_DATABASE`.
+trailing dot or space, a Windows device name including `CONIN$` and
+`CONOUT$`) is `BD_CACHE.NO_DATABASE`.
 
 **Refines:** REQ-BDC-0101, 0102
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`,
@@ -30,18 +31,21 @@ trailing dot or space, a Windows device name) is `BD_CACHE.NO_DATABASE`.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-Open sets WAL mode (refused if SQLite keeps another mode) and a 5 s busy
-timeout; `user_version` 0 is initialized to 3, 3 is opened, any other value
-is `BD_CACHE.SCHEMA_VERSION` and the file is left unchanged. The first open
+Open sets a 5 s busy timeout; `user_version` 0 is initialized to 3, 3 is
+opened, any other value is `BD_CACHE.SCHEMA_VERSION`. The first open
 records `dolt_database` and `project_id` in `meta`; a later open with
-another `project_id` is `BD_CACHE.WRONG_DATABASE`. A second open of the same
+another `project_id` is `BD_CACHE.WRONG_DATABASE`. A refused file is left
+unchanged: version, data and journal mode (both checks run before WAL is
+set). An accepted file is then set to WAL mode (refused if SQLite keeps
+another mode). A second open of the same
 file in one process, while the first store lives, is refused, also through
 another path (a symlink) that resolves to it.
 
 **Refines:** REQ-BDC-0103, 0104; NFR-BDC-0007
 **Acceptance evidence:** `test_newer_cache_schema_is_refused`,
 `version_zero_is_initialized_to_three_and_three_is_kept`,
-`test_file_from_another_project_is_refused`, `wal_mode_and_busy_timeout`,
+`test_file_from_another_project_is_refused`,
+`a_refused_file_keeps_its_journal_mode_version_and_data`, `wal_mode_and_busy_timeout`,
 `one_connection_per_process`, `one_connection_per_process_through_a_symlink`
 (Unix) (`open.rs`).
 
@@ -131,8 +135,8 @@ extended file, the store reads consistent rows and memberships
 `load_repo_config(repo_root)` reads `<repo_root>/.beads/bd-cache.toml` into
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,
 invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
-not a phase name is a `ConfigLoadError` keeping its cause, whose message
-shows the cause chain and a fix.
+not a phase name is a `ConfigLoadError`. Its message names the file and a
+fix; the cause is carried once, as `Error::source`.
 
 **Refines:** REQ-BDC-0101 (`cache_path`); a-1's `RepoConfig` contract
 **Acceptance evidence:** `missing_repo_config_is_the_default`,

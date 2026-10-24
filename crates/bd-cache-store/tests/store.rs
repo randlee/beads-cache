@@ -389,3 +389,51 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
         "still pending"
     );
 }
+
+/// The outage is read in one snapshot: a writer setting and clearing it (one
+/// transaction each, as both implementations do) never makes the read see
+/// one key without the other.
+#[test]
+fn the_outage_is_read_whole_while_another_connection_toggles_it() {
+    let (open, store) = fresh("outage-race");
+    let path = open.path.clone();
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let writer = {
+        let stop = std::sync::Arc::clone(&stop);
+        std::thread::spawn(move || {
+            let c = Connection::open(&path).unwrap();
+            c.busy_timeout(std::time::Duration::from_secs(5)).unwrap();
+            let mut toggles = 0_u32;
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
+                     ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x'); COMMIT;",
+                )
+                .unwrap();
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; DELETE FROM meta WHERE key IN ('outage_since', 'outage_error'); COMMIT;",
+                )
+                .unwrap();
+                toggles += 1;
+            }
+            toggles
+        })
+    };
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+    let mut reads = 0_u32;
+    let mut failure = None;
+    while std::time::Instant::now() < deadline {
+        if let Err(e) = store.outage() {
+            failure = Some(e);
+            break;
+        }
+        reads += 1;
+    }
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    let toggles = writer.join().unwrap();
+    assert!(
+        failure.is_none(),
+        "after {reads} reads, {toggles} toggles: {failure:?}"
+    );
+    assert!(toggles > 0 && reads > 0);
+}

@@ -121,8 +121,30 @@ fn test_missing_metadata_is_typed() {
 #[test]
 fn identity_values_are_validated() {
     for bad in [
-        "", ".", "..", "a/b", "a\\b", "a\nb", "a:b", "a*b", "a?b", "a\"b", "a<b", "a>b", "a|b",
-        "db.", "db ", "CON", "con", "Nul", "aux.db", "COM1", "lpt9", "PRN",
+        "",
+        ".",
+        "..",
+        "a/b",
+        "a\\b",
+        "a\nb",
+        "a:b",
+        "a*b",
+        "a?b",
+        "a\"b",
+        "a<b",
+        "a>b",
+        "a|b",
+        "db.",
+        "db ",
+        "CON",
+        "con",
+        "Nul",
+        "aux.db",
+        "COM1",
+        "lpt9",
+        "PRN",
+        "CONIN$",
+        "conout$.db",
     ] {
         assert!(DoltDatabase::new(bad).is_err(), "{bad:?}");
     }
@@ -161,8 +183,15 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     assert!(matches!(err, ConfigLoadError::Parse { .. }), "{err:?}");
     let shown = err.to_string();
     assert!(
-        shown.contains("surprise") && shown.contains("fix:"),
-        "Display carries the cause and a fix: {shown}"
+        shown.contains("bd-cache.toml") && shown.contains("fix:") && !shown.contains("surprise"),
+        "Display names the file and the fix, not the cause: {shown}"
+    );
+    let cause = std::error::Error::source(&err)
+        .map(ToString::to_string)
+        .unwrap_or_default();
+    assert!(
+        cause.contains("surprise"),
+        "the cause is carried once, as the source: {cause}"
     );
     assert!(
         std::error::Error::source(&err).is_some(),

@@ -104,12 +104,18 @@ Decision:
   returns depends on it; every other timestamp comes from the caller.
 - **Concurrency.** Every mutating method is one `BEGIN IMMEDIATE`
   transaction under the 5 s busy timeout, as `bd_cache.py`'s writes are,
-  single-statement ones included (`SqliteStore::write`).
+  single-statement ones included (`SqliteStore::write`). Every read that
+  needs more than one value sees one snapshot: `status`, `get_row` and
+  `rows_in_scope` run in one read transaction (`SqliteStore::read`);
+  `outage` (both meta keys) and `open_work` (both counts) are one statement
+  each. Open checks `user_version` and `project_id` (and creates the
+  schema) before it sets WAL, so a refused file keeps its journal mode;
+  `bd_cache.py`'s own order (WAL first) does not constrain ours.
 - **Database names.** `DoltDatabase` is stricter than `bd_cache.py` (which
   refuses only `/`): the name becomes a file name on every supported
   platform, so `\`, `: * ? " < > |`, control characters, a trailing dot or
   space and the Windows device names (`CON`, `PRN`, `AUX`, `NUL`,
-  `COM1`-`COM9`, `LPT1`-`LPT9`, any case, any extension) are
+  `COM1`-`COM9`, `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, any extension) are
   `NO_DATABASE`. A database `bd_cache.py` accepts with such a name cannot be
   shared until it is renamed.
 - **`applied_since`** is bounded in SQL by `unixepoch(applied_at) >= ?`
@@ -138,7 +144,10 @@ Decision:
   (symlinks and `.` segments resolved) in a process-wide set (a
   `Mutex<BTreeSet<PathBuf>>`, released when the store drops); a second open
   of the same file in the same process, under any path that resolves to it,
-  is refused and its connection closed before it reads or writes.
+  is refused and its connection closed before it reads or writes. Known
+  limit: `canonicalize` resolves symlinks, not hard links, so a hard link to
+  the cache file is a second path with its own claim; do not hard-link the
+  cache file.
 - The store's own failures are `BD_CACHE.STORE_FAILED`
   (`CacheError::store_failed`): `detail` names the step and the file, and
   the underlying error (rusqlite, I/O, serde_json) is kept as the error's
@@ -147,7 +156,10 @@ Decision:
   the entry; they are never skipped. `NO_DATABASE` means only missing or
   invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
-  (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
+  (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq.
+- `ConfigLoadError` (`load_repo_config`) carries its cause one way only: as
+  `Error::source`. Its `Display` names the file and the fix, without the
+  cause, so a reporter walking the source chain prints the cause once. One
   function (`error::failed` / `error::corrupt`) makes the mapping.
 
 Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a

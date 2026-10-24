@@ -254,3 +254,39 @@ fn a_store_failure_is_store_failed_with_its_source() {
     assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err}");
     assert!(std::error::Error::source(&err).is_some());
 }
+
+#[test]
+fn a_refused_file_keeps_its_journal_mode_version_and_data() {
+    let tmp = TempDir::new("refused-untouched");
+    let path = file(&tmp);
+    drop(SqliteStore::open_at(&path, &identity()).unwrap());
+    let snapshot = |c: &Connection| -> (String, i32, i64) {
+        (
+            c.pragma_query_value(None, "journal_mode", |r| r.get(0))
+                .unwrap(),
+            c.pragma_query_value(None, "user_version", |r| r.get(0))
+                .unwrap(),
+            c.query_row("SELECT COUNT(*) FROM sqlite_master", [], |r| r.get(0))
+                .unwrap(),
+        )
+    };
+    {
+        let c = raw(&path);
+        let _: String = c
+            .pragma_update_and_check(None, "journal_mode", "DELETE", |r| r.get(0))
+            .unwrap();
+    }
+    let before = snapshot(&raw(&path));
+    assert_eq!(before.0, "delete");
+    // Another project: refused, nothing changes, WAL is not set.
+    let err = SqliteStore::open_at(&path, &identity_of("testdb", "p-2")).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.WRONG_DATABASE");
+    assert_eq!(snapshot(&raw(&path)), before);
+    // A newer schema: likewise.
+    raw(&path).pragma_update(None, "user_version", 99).unwrap();
+    let before = snapshot(&raw(&path));
+    let err = SqliteStore::open_at(&path, &identity()).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.SCHEMA_VERSION");
+    assert_eq!(snapshot(&raw(&path)), before);
+    assert_eq!(before.0, "delete", "the journal mode is untouched");
+}

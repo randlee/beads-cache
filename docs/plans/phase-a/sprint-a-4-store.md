@@ -15,7 +15,7 @@ parallel_safe: [a-2, a-3, a-5, a-6]
 requirements:
   owns: [REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0103, REQ-BDC-0104, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0901, NFR-BDC-0007, REQ-STORE-0001, REQ-STORE-0002, REQ-STORE-0003, REQ-STORE-0004, REQ-STORE-0005, REQ-STORE-0006, REQ-STORE-0007]
   constrained_by: [REQ-BDC-0105, REQ-BDC-0401, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0001, NFR-BDC-0005]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0003, ADR-CORE-0001, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003]
 owned_paths:
   - "crates/bd-cache-store/**"
   - "docs/bd-cache-store/**"
@@ -121,7 +121,7 @@ pub const DEFAULT_CACHE_DIR: &str = ".bd-cache";
 pub const REPO_CONFIG_FILE: &str = ".beads/bd-cache.toml";
 
 pub struct DoltDatabase(/* private */);  // new(impl Into<String>) -> Result<Self, CacheError> (NO_DATABASE): a portable file name: nonempty, not . or ..,
-                                         // no / \ : * ? " < > | or control char, no trailing dot or space, not a Windows device name; as_str
+                                         // no / \ : * ? " < > | or control char, no trailing dot or space, not a Windows device name (incl. CONIN$, CONOUT$); as_str
 pub struct ProjectId(/* private */);     // new(impl Into<String>) -> Result<Self, CacheError> (NO_DATABASE): not blank; as_str
 pub struct DatabaseIdentity { pub dolt_database: DoltDatabase, pub project_id: ProjectId }
 impl DatabaseIdentity { pub fn read(beads_dir: &Path) -> Result<Self, CacheError>; } // <beads_dir>/metadata.json; NO_DATABASE
@@ -180,7 +180,10 @@ and whose store side this sprint delivers through the a-1 port rules:
 
 `adrs` lists ADR-BDC-0007, ADR-MODEL-0001/0003 and ADR-CORE-0001
 because the store relies on the strict rows, the Python-identical journal
-text, the store rule clarifications and the threading model; ADR-STORE-0001..0003
+text, the store rule clarifications and the threading model. It lists
+ADR-MODEL-0002 (the error mapping) because its a-1 amendment 1 adds
+`STORE_FAILED` with a kept source, which the store's failures use
+(ADR-STORE-0003); ADR-STORE-0001..0003
 are this crate's (Approved, lead ruling bc-lead 2026-10-24).
 
 ## Hand-off notes for the lead

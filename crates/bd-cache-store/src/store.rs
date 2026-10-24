@@ -179,6 +179,10 @@ impl SqliteStore {
         let mut conn = conn;
         conn.busy_timeout(BUSY_TIMEOUT)
             .at(at("set the busy timeout"))?;
+        // Version and identity are checked (and the schema created) before
+        // WAL is set, so a refused file is left exactly as it was, journal
+        // mode included.
+        initialize(&mut conn, path, identity)?;
         let mode: String = conn
             .pragma_update_and_check(None, "journal_mode", "WAL", |r| r.get(0))
             .at(at("set WAL mode"))?;
@@ -188,7 +192,6 @@ impl SqliteStore {
                 format_args!("SQLite kept journal_mode {mode}"),
             ));
         }
-        initialize(&mut conn, path, identity)?;
         Ok(Self {
             conn,
             path: path.to_path_buf(),
@@ -392,16 +395,6 @@ impl SqliteStore {
             .prepare_cached(&format!("SELECT COUNT(*) FROM beads b WHERE {IN_SCOPE}"))
             .at(at)?
             .query_row([s.name()], |r| r.get(0))
-            .at(at)?;
-        Ok(count(n))
-    }
-
-    fn count_where(&self, at: Step<'_>, filter: &str) -> Result<u64, CacheError> {
-        let n: i64 = self
-            .conn
-            .prepare_cached(&format!("SELECT COUNT(*) FROM journal WHERE {filter}"))
-            .at(at)?
-            .query_row([], |r| r.get(0))
             .at(at)?;
         Ok(count(n))
     }
@@ -979,12 +972,25 @@ impl CacheStore for SqliteStore {
 
     fn outage(&self) -> Result<Option<Outage>, CacheError> {
         let at = self.at("read the outage");
-        let Some(since) = self.meta(at, META_OUTAGE_SINCE)? else {
+        // One statement, so both keys come from one snapshot: a concurrent
+        // set or clear (one transaction in either implementation) is seen
+        // whole or not at all.
+        let (since, last_error): (Option<String>, Option<String>) = self
+            .conn
+            .prepare_cached(
+                "SELECT (SELECT value FROM meta WHERE key = ?1), \
+                 (SELECT value FROM meta WHERE key = ?2)",
+            )
+            .at(at)?
+            .query_row([META_OUTAGE_SINCE, META_OUTAGE_ERROR], |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })
+            .at(at)?;
+        let Some(since) = since else {
             return Ok(None);
         };
-        let last_error = self
-            .meta(at, META_OUTAGE_ERROR)?
-            .ok_or_else(|| corrupt(at, "outage_since is set without outage_error"))?;
+        let last_error =
+            last_error.ok_or_else(|| corrupt(at, "outage_since is set without outage_error"))?;
         Ok(Some(Outage {
             since: timestamp(at, "outage_since", &since)?,
             last_error,
@@ -1087,10 +1093,19 @@ impl CacheStore for SqliteStore {
 
     fn open_work(&self) -> Result<OpenWork, CacheError> {
         let at = self.at("count open work");
+        // One statement: both counts from one snapshot.
+        let (pending, escalated): (i64, i64) = self
+            .conn
+            .prepare_cached(
+                "SELECT COALESCE(SUM(state = 'pending'), 0), \
+                 COALESCE(SUM(state = 'escalated' AND announced_at IS NULL), 0) FROM journal",
+            )
+            .at(at)?
+            .query_row([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .at(at)?;
         Ok(OpenWork {
-            pending: self.count_where(at, "state = 'pending'")?,
-            escalated_unannounced: self
-                .count_where(at, "state = 'escalated' AND announced_at IS NULL")?,
+            pending: count(pending),
+            escalated_unannounced: count(escalated),
         })
     }
 

@@ -33,7 +33,8 @@ const UNPORTABLE_CHARS: &[char] = &['/', '\\', ':', '*', '?', '"', '<', '>', '|'
 /// Windows device names, refused with any extension (`nul.x` is the device too).
 const DEVICE_NAMES: &[&str] = &[
     "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9", "CONIN$",
+    "CONOUT$",
 ];
 
 /// Why `name` is not a file name on every supported platform, if it is not.
@@ -71,7 +72,8 @@ impl DoltDatabase {
     /// may not be empty, `.` or `..`; hold a path separator (`/`, `\`), a
     /// control character or any of `: * ? " < > |`; end with a dot or a space;
     /// or be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
-    /// `LPT1`-`LPT9`, any case, with or without an extension). This is
+    /// `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, with or without an
+    /// extension). This is
     /// stricter than `bd_cache.py`, which refuses only `/`.
     ///
     /// # Errors
@@ -264,6 +266,10 @@ impl CacheLocation {
 }
 
 /// `.beads/bd-cache.toml` could not be loaded.
+///
+/// `Display` names the file and the fix; the cause (the I/O or parse error)
+/// is carried only as [`Error::source`](std::error::Error::source), so a
+/// reporter that walks the source chain prints it once.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum ConfigLoadError {
@@ -293,17 +299,15 @@ pub enum ConfigLoadError {
 impl fmt::Display for ConfigLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Read { path, source } => write!(
+            Self::Read { path, .. } => write!(
                 f,
-                "cannot read {}: {}; fix: make the file readable, or remove it to use the defaults",
-                path.display(),
-                crate::error::chain(source)
+                "cannot read {}; fix: make the file readable, or remove it to use the defaults",
+                path.display()
             ),
-            Self::Parse { path, source } => write!(
+            Self::Parse { path, .. } => write!(
                 f,
-                "invalid {}: {}; fix: correct the key or value named, or remove unknown keys",
-                path.display(),
-                crate::error::chain(source)
+                "invalid {}; fix: correct the key or value the cause names, or remove unknown keys",
+                path.display()
             ),
             Self::Scope { path, value } => write!(
                 f,
