@@ -40,6 +40,7 @@ scope's `last_ok_at`, the number of pending entries and the outage.
 **Acceptance evidence:** `test_miss_fetches_once_then_serves_from_cache`,
 `test_miss_on_unknown_bead_is_typed`, `a_miss_is_bounded_by_the_callers_timeout`,
 `get_and_list_replies_carry_stale_per_row_and_the_scopes_last_ok_at`,
+`ready_replies_carry_the_scopes_last_ok_at`,
 `get_replays_pending_entries_and_counts_them`,
 `replies_carry_the_outage_while_one_holds`,
 `entry_returns_an_entry_in_any_state` (`tests/read_get.rs`).
@@ -95,7 +96,9 @@ Each sync stores the scope's base from `list_blocked` and `list_ready`, with
 the instant taken before the first of the two; a failed or cut fetch keeps
 the previous base, marked stale. `ready(scope, None)` makes no backend
 call: it applies the rules of ADR-CORE-0201 to the base and reports
-`unknown` when there is none. `get`, `list` and `ready` rows take `blocked`
+`unknown` when there is none. Every `ready` reply carries the scope's
+`last_ok_at` (`sync_state(s).last_ok_at`; only a sync moves it, a fresh
+answer does not). `get`, `list` and `ready` rows take `blocked`
 from the same adjusted base; ready ids with no cached row are only in
 `missing_rows`.
 
@@ -117,7 +120,8 @@ from the same adjusted base; ready ids with no cached row are only in
 
 `ready(scope, Some(limit))` makes both base calls under one deadline
 `limit` from the call. If both answer, the base is replaced and the reply is
-`Fresh`, still adjusted by the journal; if not, the reply is the cached
+`Fresh { fetched_at }` with the new base's fetch instant, still adjusted
+by the journal; if not, the reply is the cached
 adjusted answer (or `unknown`) with `read_fallback` naming the failure, and
 it returns by the limit. An expired limit is a cut and records no outage.
 
@@ -252,7 +256,8 @@ once and hands it to both `call(Ready, hard, ..)`s, so `call` caps each at
 `min(hard, call_timeout)`, an expired limit is a `Cut` (no outage), and the
 second call only gets what the first left. On success the fetched base
 replaces the stored one (its `at` taken before the first call) and the
-reply is that base adjusted by the journal, basis `Fresh`. On any failure
+reply is that base adjusted by the journal, basis
+`Fresh { fetched_at: at }` (a-1 amendment 2; fix-a-6-1 ARCH-002). On any failure
 the stored base is left as it is, not marked stale (a missed fresh read is
 not a failed refresh; only a sync's base fetch marks it), and the reply is
 the cached adjusted answer, basis `Cached`, with `read_fallback` =
