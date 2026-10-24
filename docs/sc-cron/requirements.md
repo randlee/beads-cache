@@ -1,6 +1,6 @@
 # sc-cron Requirements
 
-Status: draft. Requirements below are Draft until approved.
+Status: approved. REQ-CRON-0001..0012 are Approved (lead ruling 2026-10-24, a-3 QA-2).
 
 Domain code: `CRON`. Owned by sprint a-3 (`requirements.owns` in
 [sprint-a-3-sc-cron.md](../plans/phase-a/sprint-a-3-sc-cron.md)).
@@ -21,7 +21,7 @@ Architecture and crate-local ADRs: [architecture.md](architecture.md).
 
 ## REQ-CRON-0001: Parse before write
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 Schedule input is validated before anything is stored, once, by type:
 `ScheduleName` (1 to `MAX_NAME_LEN` = 128 bytes, no surrounding whitespace,
@@ -40,7 +40,7 @@ schedule, and each row is bounded by the limits above.
 
 ## REQ-CRON-0002: Next-run computation in UTC
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 The grammar is the `cron` crate's in UTC: six or seven fields, seconds
 first, year optional, or `@yearly`, `@monthly`, `@weekly`, `@daily`,
@@ -53,7 +53,7 @@ further occurrence ends the schedule with reason `no future occurrence`.
 
 ## REQ-CRON-0003: Jitter
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 `start` draws one jitter per schedule from the injected `JitterSource`,
 in `[0, min(period / 2, 30 min))`, where the period is the gap between the
@@ -64,7 +64,7 @@ life of the schedule, and is drawn again only when the name is restarted.
 
 ## REQ-CRON-0004: Missed-tick replay per policy
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 An occurrence is missed when the worker sees it only after the occurrence
 following it is also due: the process was down or the host was suspended.
@@ -78,7 +78,7 @@ from its next future occurrence.
 
 ## REQ-CRON-0005: Stop check and per-run timeout
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 Before every run the worker asks `Job::should_stop`. `Stop(reason)` ends the
 schedule with that reason and nothing runs. Stop check and run share the
@@ -95,7 +95,7 @@ REQ-BDC-0703, NFR-BDC-0004
 
 ## REQ-CRON-0006: One run in flight per schedule
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 A tick that comes due while the schedule's previous run is still in flight
 is skipped and logged, not queued. A run that panics is recorded as
@@ -105,7 +105,7 @@ is skipped and logged, not queued. A run that panics is recorded as
 
 ## REQ-CRON-0007: Generation fencing
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 Every schedule has an id that is stable for its name and a generation that
 rises each time an ended name is started again. Every run-state write
@@ -118,7 +118,7 @@ makes the worker reload at once.
 
 ## REQ-CRON-0008: Stores read no clock
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 `ScheduleStore` methods take every instant as a `Timestamp` argument (UTC,
 microsecond precision, valid by construction) and keep it as given; text
@@ -129,7 +129,7 @@ that does not parse is a `Corrupt` store error, never silently replaced.
 
 ## REQ-CRON-0009: SQLite store
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 `SqliteScheduleStore` implements `ScheduleStore` over bundled SQLite, in one
 `sc_cron_schedule` table on its own database file and its own connection.
@@ -147,7 +147,7 @@ that exceed the REQ-CRON-0001 limits. Schedules survive reopening the file.
 
 ## REQ-CRON-0010: Injected time and randomness
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 The scheduler reads time only through `Clock` and randomness only through
 `JitterSource`. `SystemClock` and `SystemJitter` are the real
@@ -161,7 +161,7 @@ moving monotonic time.
 
 ## REQ-CRON-0011: No ATM or bd-cache types
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 `sc-cron` depends on no bd-cache, sc-beads or ATM crate, and no such type
 appears in its API. A schedule's input is an opaque `serde_json::Value`, and
@@ -177,13 +177,14 @@ and Dependencies (`sc-cron` may depend on none)
 
 ## REQ-CRON-0012: Bounded shutdown
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
 `WorkerHandle::shutdown(deadline)` stops ticking and waits for each in-flight
 run until that run's own deadline, recording its outcome. If the shutdown
 deadline passes first, the worker and its runs are aborted and record
 nothing. The worker checks for shutdown between slots, so no new run starts
-after shutdown is requested. Dropping the handle also stops the worker, but
+after shutdown is requested; a shutdown that arrives during a reload still
+keeps every unchanged in-flight run for the drain. Dropping the handle also stops the worker, but
 the drain then runs detached; callers await `shutdown` to know outcomes were
 recorded. A scheduler runs at most one worker at a time. `Scheduler::start`
 and `stop` are synchronous store calls; `start_async` and `stop_async` run

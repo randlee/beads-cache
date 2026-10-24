@@ -154,7 +154,8 @@ between slots:
 1. Reload from `list_active` if signalled (by `start`, `stop` or a fenced
    write) or a retry is due. A slot whose `(id, generation)` is unchanged is
    kept with its run in flight. Any other old slot is dropped, which cancels
-   its run. A failed reload (including a corrupt row) is logged with its
+   its run. If shutdown is requested mid-reload, no new slot is built but
+   unchanged slots are still kept, so their runs reach the drain. A failed reload (including a corrupt row) is logged with its
    code and retried after 1 s, doubling to 60 s (the shift is capped, so it
    never overflows).
 2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,

@@ -234,18 +234,22 @@ where
     }
 
     /// Keeps the slots whose `(id, generation)` is unchanged, builds the rest.
+    ///
+    /// Once shutdown is requested no new slot is built (that needs store
+    /// calls), but the keep-matching pass still runs to the end: an unchanged
+    /// slot's in-flight run must reach `drain` and be recorded, not be
+    /// cancelled by dropping its slot.
     async fn merge(&mut self, rows: Vec<Schedule>) {
         let mut previous = std::mem::take(&mut self.slots);
         for schedule in rows.into_iter().filter(Schedule::is_active) {
-            if self.stop_requested() {
-                break;
-            }
             let kept = previous.iter().position(|slot| {
                 slot.schedule.id == schedule.id && slot.schedule.generation == schedule.generation
             });
             if let Some(index) = kept {
                 self.slots.push(previous.swap_remove(index));
-            } else if let Some(slot) = self.new_slot(schedule).await {
+            } else if !self.stop_requested()
+                && let Some(slot) = self.new_slot(schedule).await
+            {
                 self.slots.push(slot);
             }
         }

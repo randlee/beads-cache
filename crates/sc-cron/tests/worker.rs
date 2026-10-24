@@ -181,6 +181,10 @@ enum Write {
 struct RecordingStore {
     inner: SqliteScheduleStore,
     writes: watch::Sender<Vec<Write>>,
+    /// When set, the next `list_active` signals `listing` and blocks until
+    /// the test sends on the paired sender: a reload held mid-flight.
+    list_gate: Mutex<Option<std::sync::mpsc::Receiver<()>>>,
+    listing: watch::Sender<usize>,
 }
 
 impl RecordingStore {
@@ -188,7 +192,23 @@ impl RecordingStore {
         Self {
             inner: SqliteScheduleStore::open_in_memory().expect("store"),
             writes: watch::Sender::new(Vec::new()),
+            list_gate: Mutex::new(None),
+            listing: watch::Sender::new(0),
         }
+    }
+
+    /// Holds the next `list_active` until the returned sender sends.
+    fn gate_next_list(&self) -> std::sync::mpsc::Sender<()> {
+        let (open, gate) = std::sync::mpsc::channel();
+        *self.list_gate.lock().expect("gate") = Some(gate);
+        open
+    }
+
+    async fn wait_listing(&self, count: usize) {
+        wait_on(&self.listing, "list_active entered", |value| {
+            *value >= count
+        })
+        .await;
     }
 
     fn log(&self, write: Write) {
@@ -231,7 +251,14 @@ impl ScheduleStore for RecordingStore {
     }
 
     fn list_active(&self) -> Result<Vec<Schedule>, CronError> {
-        self.inner.list_active()
+        let gate = self.list_gate.lock().expect("gate").take();
+        let rows = self.inner.list_active();
+        self.listing.send_modify(|count| *count += 1);
+        if let Some(gate) = gate {
+            // Runs on the blocking pool; a dropped sender also opens the gate.
+            let _ = gate.recv();
+        }
+        rows
     }
 
     fn record_run(
@@ -832,6 +859,48 @@ async fn shutdown_drains_a_finishing_run_and_records_it() {
     fixture.job.release();
     assert!(shutting.await.expect("shutdown task"), "drained in time");
     assert_eq!(fixture.row(&schedule).last_outcome, Some(RunOutcome::Ok));
+}
+
+#[tokio::test]
+async fn shutdown_during_a_reload_still_drains_and_records_the_in_flight_run() {
+    let fixture = Fixture::new();
+    let held = fixture.start(spec("held", "0 * * * * *", 300));
+    fixture.job.then(Behavior::Hold(RunOutcome::Ok));
+    let worker = fixture.worker().await;
+    fixture.step(60).await;
+    fixture.job.wait_entered(1).await;
+
+    // A second start makes the worker reload; hold that reload in list_active.
+    let listed = *fixture.store.listing.borrow();
+    let open = fixture.store.gate_next_list();
+    fixture.start(fixture.spec("second"));
+    fixture.store.wait_listing(listed + 1).await;
+
+    // Request shutdown while the reload is held: the first poll of
+    // `shutdown` sends the stop signal before it awaits anything.
+    let mut shutting = Box::pin(worker.shutdown(tokio::time::Instant::now() + WAIT));
+    std::future::poll_fn(|context| {
+        let _ = shutting.as_mut().poll(context);
+        std::task::Poll::Ready(())
+    })
+    .await;
+
+    // Let the reload finish. The held run's slot must survive the merge and
+    // reach the drain, which parks on the run's deadline.
+    let parks = fixture.clock.parks();
+    open.send(()).expect("open gate");
+    fixture.clock.wait_parks_above(parks).await;
+    assert_eq!(fixture.job.runs(), 1);
+    assert_eq!(fixture.row(&held).last_outcome, None, "still draining");
+
+    fixture.job.release();
+    assert!(shutting.await, "shutdown waited for the held run");
+    assert_eq!(fixture.row(&held).last_outcome, Some(RunOutcome::Ok));
+    assert_eq!(
+        *fixture.job.dropped.borrow(),
+        0,
+        "the held run was not cancelled"
+    );
 }
 
 #[tokio::test]
