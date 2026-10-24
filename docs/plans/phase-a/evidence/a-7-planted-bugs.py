@@ -48,7 +48,7 @@ MUTANTS = [('unannounced filter dropped',
   '            None => None,'),
  ('escalation not marked announced',
   'crates/bd-cache-sync/src/announce.rs',
-  '                cache.mark_announced(entry.seq)?;\n',
+  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;\n',
   ''),
  ('escalation message without the resolve command',
   'crates/bd-cache-sync/src/announce.rs',
@@ -63,7 +63,7 @@ MUTANTS = [('unannounced filter dropped',
   '    }'),
  ('sync failure alert not recorded',
   'crates/bd-cache-sync/src/announce.rs',
-  '            cache.set_sync_alert(&scope, Some(cause.key()))?;\n',
+  '            cache.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())?;\n',
   ''),
  ('sync success does not clear the alert',
   'crates/bd-cache-sync/src/announce.rs',
@@ -74,9 +74,10 @@ MUTANTS = [('unannounced filter dropped',
  ('outage alert not recorded after the send',
   'crates/bd-cache-sync/src/announce.rs',
   '                for phase in &phases {\n'
-  '                    cache.set_sync_alert(\n'
+  '                    cache.set_sync_alert_within(\n'
   '                        &phase.scope(),\n'
   '                        Some(AlertCause::BackendUnavailable.key()),\n'
+  '                        budget.write_wait(),\n'
   '                    )?;\n'
   '                }\n'
   '                reply.sent.push(Announcement {\n'
@@ -317,11 +318,11 @@ MUTANTS = [('unannounced filter dropped',
   '                break;\n'
   '            }\n'
   '            Some(Ok(())) => {\n'
-  '                cache.mark_announced(entry.seq)?;',
+  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;',
   '                continue;\n'
   '            }\n'
   '            Some(Ok(())) => {\n'
-  '                cache.mark_announced(entry.seq)?;'),
+  '                cache.mark_announced_within(entry.seq, budget.write_wait())?;'),
  ('tick starts although it was asked to stop (RSH-014)',
   'crates/bd-cache-sync/src/tick.rs',
   '    let mut reply = TickReply::started();\n'
@@ -446,10 +447,10 @@ MUTANTS = [('unannounced filter dropped',
   'crates/bd-cache-store/src/store.rs',
   'if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {',
   'if let Err(e) = Ok::<(), rusqlite::Error>(()) {'),
- ('QA5-003: the dating waits for the write lock (no NoWait)',
+ ('QA5-003: the dating waits for the write lock (BusyWait not at zero)',
   'crates/bd-cache-store/src/store.rs',
-  'conn.busy_timeout(Duration::ZERO)?;',
-  'conn.busy_timeout(BUSY_TIMEOUT)?;'),
+  'BusyWait::new(&self.conn, &self.path, Duration::ZERO)',
+  'BusyWait::new(&self.conn, &self.path, BUSY_TIMEOUT)'),
  ('S27: the tree kill and the reaping do not share one deadline',
   'crates/bd-cache-sync/src/atm.rs',
   'if !exited_by(&mut child, until) {',
@@ -491,7 +492,54 @@ MUTANTS = [('unannounced filter dropped',
  ('QA5-004: scope_synced says every scope has synced',
   'crates/bd-cache/src/lib.rs',
   'Ok(self.store.sync_state(scope)?.last_ok_at.is_some())',
-  'Ok(self.store.sync_state(scope).map(|_| true)?)')]
+  'Ok(self.store.sync_state(scope).map(|_| true)?)'),
+ # ---- round-8 fixes (a-7 fix-8): S33 bounded marker writes, QA6-001 ----
+ ('S33: the escalation marker waits the full busy timeout, not the time left',
+  'crates/bd-cache-sync/src/announce.rs',
+  'cache.mark_announced_within(entry.seq, budget.write_wait())?;\n                reply.sent.push',
+  'cache.mark_announced_within(entry.seq, std::time::Duration::from_secs(5))?;\n'
+  '                reply.sent.push'),
+ ('S33: the sync-failure alert waits the full busy timeout, not the time left',
+  'crates/bd-cache-sync/src/announce.rs',
+  'cache.set_sync_alert_within(&scope, Some(cause.key()), budget.write_wait())?;',
+  'cache.set_sync_alert_within(&scope, Some(cause.key()), std::time::Duration::from_secs(5))?;'),
+ ('S33: the outage alert waits the full busy timeout, not the time left',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                        Some(AlertCause::BackendUnavailable.key()),\n'
+  '                        budget.write_wait(),',
+  '                        Some(AlertCause::BackendUnavailable.key()),\n'
+  '                        std::time::Duration::from_secs(5),'),
+ ('S33: write_wait is not the time left before T',
+  'crates/bd-cache-sync/src/control.rs',
+  '    pub fn write_wait(&self) -> Duration {\n        self.end.remaining(self.clock)\n',
+  '    pub fn write_wait(&self) -> Duration {\n'
+  '        self.end.remaining(self.clock).max(Duration::from_secs(5))\n'),
+ ('S33: the store ignores the wait (full busy timeout)',
+  'crates/bd-cache-store/src/store.rs',
+  'BusyWait::new(&mut self.conn, &self.path, wait.min(BUSY_TIMEOUT))',
+  'BusyWait::new(&mut self.conn, &self.path, BUSY_TIMEOUT.max(wait))'),
+ ('S33: the store does not cap the wait at BUSY_TIMEOUT',
+  'crates/bd-cache-store/src/store.rs',
+  'BusyWait::new(&mut self.conn, &self.path, wait.min(BUSY_TIMEOUT))',
+  'BusyWait::new(&mut self.conn, &self.path, wait)'),
+ ('S33: mark_announced_within is the unbounded write',
+  'crates/bd-cache-store/src/store.rs',
+  'self.write_within(wait, "mark announced", |tx, st| {',
+  'self.write_within(BUSY_TIMEOUT.max(wait), "mark announced", |tx, st| {'),
+ ('S33: set_sync_alert_within is the unbounded write',
+  'crates/bd-cache-store/src/store.rs',
+  'self.write_within(wait, "set a sync alert", |tx, at| {',
+  'self.write_within(BUSY_TIMEOUT.max(wait), "set a sync alert", |tx, at| {'),
+ ('QA6-001: the dating skips entries below the undatable floor',
+  'crates/bd-cache-store/src/schema.rs',
+  'UPDATE journal INDEXED BY journal_applied_unknown \\\n'
+  'SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \\\n'
+  "WHERE state = 'applied' AND applied_epoch IS NULL \\\n",
+  'UPDATE journal INDEXED BY journal_applied_unknown \\\n'
+  'SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \\\n'
+  "WHERE state = 'applied' AND applied_epoch IS NULL \\\n"
+  "  AND seq > COALESCE((SELECT MAX(seq) FROM journal WHERE state = 'applied' \\\n"
+  "  AND applied_epoch IS NULL AND unixepoch(COALESCE(applied_at, updated_at)) IS NULL), 0) \\\n")]
 
 # Mutants that survive the suite, each with the reason (not "equivalent": a gap or a
 # case no portable test can reach). The runner copies the reason into the results.

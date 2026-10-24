@@ -4,7 +4,7 @@ Sprint a-7 (`docs/plans/phase-a/sprint-a-7-sync-integration.md`, deliverable 5).
 The testbed is the `m5-atmbench` account, run by the lead (bc-lead) (NFR-BDC-0006:
 live tests run only there and in the bd-compat workflow).
 
-## Status: final-code-commit run recorded (merge `7702b67`); bc-lead's merge-head run due 2026-10-31
+## Status: run for fix-a-7-8's code (`24456c5`) deferred to `integrate/phase-a` after a-7 lands (bc-lead, 2026-10-25); last recorded run at merge `7702b67`
 
 The developer session that wrote this sprint has no access to `m5-atmbench`.
 Under deliverable 5, the recording-invoker results (CI, below) close the
@@ -12,9 +12,9 @@ sprint, and the testbed items are deferred evidence:
 
 | Item | Owner | Due | State |
 |---|---|---|---|
-| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31 |
-| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31 |
-| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31 |
+| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
 
 Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the testbed ran at `9f3ceb5`; the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`) and now the last code-changing commit. bc-lead's run at the merge head is due 2026-10-31; no code changes between
 `7702b67` and the head, only documents and the evidence script.
@@ -52,6 +52,19 @@ What the two tests do:
   fewer than 50 rows, and reports the time against the 1 s limit (PASS/OVER; the time is reported, not asserted).
 
 ## Recorded runs
+
+### fix-a-7-8: run deferred to `integrate/phase-a` (owner bc-lead, 2026-10-25)
+
+The last code-changing commit of fix-a-7-8 is `24456c5` (S33 bounded marker writes,
+QA6-001..003, RBP-F040/041, FTQ-021..024). The merge `9110187` of the docs layer
+`sprint/a-7-fix8-docs` after it brings in documents and `Cargo.toml` comments only, so its code
+is that of `24456c5`. By the lead's change of plan (the user's decision), the testbed run for this
+code is deferred to `integrate/phase-a` after a-7 lands: owner bc-lead, due 2026-10-25, same
+recipe as below (`git archive` of the commit, `~/run-a7-testbed-<sha7>.sh`,
+`~/run-a2-pinnedany-<sha7>.sh`). Not recorded evidence: a developer run at `9110187`, made on
+`atmbench` before the plan change (2026-10-24 20:14Z), had the same results as the run at `7702b67`
+(a-2 6/7 pinned, 7/7 with `SC_BD_PINNED_ANY=1`; a-7 live 2/2; incremental sync 402.2 ms, full tick
+524.9 ms; logs `~/a7-testbed-9110187.log`, `~/a2-pinnedany-9110187.log`).
 
 ### Developer smoke run (not testbed evidence)
 

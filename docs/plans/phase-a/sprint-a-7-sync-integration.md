@@ -411,6 +411,26 @@ The two survivors of the `9f3ceb5` run that could be tested are closed by tests 
   that reads `PRAGMA busy_timeout` from inside the dating `UPDATE`, after it holds the lock. It asserts the value is 0
   there and 5000 ms again afterwards, with no wall-clock bound. It passed 20 of 20 runs, on the pre-merge tree and on the merge.
 
+### fix-a-7-8: re-run deferred to `integrate/phase-a` (owner bc-lead, 2026-10-25)
+
+fix-a-7-8 changes code (last code-changing commit `24456c5`; the merge `9110187` adds documents
+and `Cargo.toml` comments only). The script is brought up to that code: the five patterns that
+moved were rewritten (`escalation not marked announced`, `sync failure alert not recorded`,
+`outage alert not recorded after the send`, `announcing goes on after the budget is spent (S17)`
+on the `_within` call sites; `QA5-003: the dating waits for the write lock (BusyWait not at
+zero)`), and nine mutants were added, for 103 in all: eight for S33 (each of the three marker
+call sites given the full busy timeout; `Budget::write_wait` not the time left; the store
+ignoring the wait; the store not capping it at `BUSY_TIMEOUT`; `mark_announced_within` and
+`set_sync_alert_within` made unbounded) and one for QA6-001 (the dating skips the entries below
+the undatable floor). By the lead's change of plan (the user's decision), the full re-run is
+deferred to `integrate/phase-a` after a-7 lands, owner bc-lead, due 2026-10-25, and
+`a-7-planted-bugs.json` keeps the `7702b67` results above. A developer run of only the nine new
+mutants, before the plan change (not recorded evidence), had each one fail its targeted tests
+(`tests/marker_wait.rs`, `control::tests::a_marker_write_may_wait_the_time_left_before_t`,
+`a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`,
+`store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`,
+`store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`).
+
 ## bd-compat workflow, real run
 
 `docs/plans/phase-a/evidence/a-7-bd-compat.md`. `workflow_dispatch` ran for real on this branch (pinned version
@@ -585,23 +605,24 @@ Reviewed at `9990a10` (`sprint/a-7-fix4-sync`). Fixes: PR #28 (`sprint/a-7-fix5-
 
 ## Validation
 
-At `7702b67` (the merge of `integrate/phase-a` at `71084a5`, a-8 landed; the last code-changing commit; the test commit `16d7792` is its parent), locally
-(macOS arm64, Rust 1.98.1), each gate under `bash -c 'set -o pipefail; ...'`:
+At the merge `9110187` (fix-a-7-8: the docs layer `sprint/a-7-fix8-docs` at `d702f19` merged forward; it brings in documents and `Cargo.toml` comments only, so its code is that of `24456c5`, the last code-changing commit), locally (macOS arm64, Rust 1.98.1, `CARGO_INCREMENTAL=0`), each gate under `bash -c 'set -o pipefail; ...'`. The quality-policy commands (`.claude/project/quality-policy.md`, Validation Policy, with `--exclude bd-cache-py`) and the whole-workspace forms both pass:
 
 | Gate | Result |
 |---|---|
-| `cargo fmt --all -- --check` | pass |
-| `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
-| `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features` | pass |
-| `cargo test --workspace --all-features` | pass (801 passed, 0 failed, 16 ignored); `cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests`: 92 passed |
-| Planted bugs, 94 mutants | 92 killed (2 by a compile-time assertion), 2 survive, justified: unreachable without an uninterruptible process (see Evidence: planted bugs) |
-| Testbed (`m5-atmbench`, bd 1.3.2, `7702b67`) | a-7 live 2/2; incremental sync 391 ms < 1 s; a-2 7/7 with `SC_BD_PINNED_ANY=1` (`evidence/a-7-testbed.md`) |
+| `cargo fmt --all --check` | pass |
+| `cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings` | pass |
+| `cargo clippy --workspace --exclude bd-cache-py --lib -- -D warnings` | pass |
+| `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude bd-cache-py --no-deps` | pass |
+| `cargo test --workspace --exclude bd-cache-py --all-features` | pass (791 passed, 0 failed) |
+| `cargo clippy --workspace --all-targets --all-features -- -D warnings`; `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`; `cargo test --workspace --all-features` | pass; pass; pass (808 passed, 0 failed) |
+| `cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests` | 92 passed |
+| New and changed tests, 20 runs each | 20 of 20 green (`store::tests`, `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`, `tests/location.rs` config tests, `atm::tests`, `control::tests`, `tests/marker_wait.rs`, `tests/compose.rs`, `tests/atm_process.rs`) |
+| Planted bugs | **deferred** to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25); the committed results stay those of `7702b67` (see Evidence: planted bugs) |
+| Testbed (`m5-atmbench`) | **deferred** to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25); the last recorded run is at `7702b67` (`evidence/a-7-testbed.md`) |
 
-CI (per the CI-evidence convention in the phase plan): run
-[40118172977](https://github.com/randlee/beads-cache/actions/runs/40118172977) of PR #30 is green on ubuntu, macos and
-windows at `9f3ceb5`, the previous last code-changing commit (CI for `7702b67` runs on this layer's PR). It fixes the windows-latest failure of run 40117695818 on PR #28
-(`Os { code: 267, NotADirectory }`). Earlier green run on the sprint's first final code commit:
-[40102640467](https://github.com/randlee/beads-cache/actions/runs/40102640467) at `bc1e4ab`.
+CI (per the CI-evidence convention in the phase plan): PR #35 at `9110187` is green: ci run
+[40128788343](https://github.com/randlee/beads-cache/actions/runs/40128788343) (ubuntu, macos, windows) and python run
+[40128788296](https://github.com/randlee/beads-cache/actions/runs/40128788296).
 
 ## QA round 3 findings and their fixes
 
@@ -655,21 +676,21 @@ Reviewed at `8f4f07b`. Docs fixes are in layer `sprint/a-7-fix8-docs`; code fixe
 | ARCH-502, REQ-QA-602 | `owned_paths`, Deviation 5 and the phase plan Shared-files row omit store `Cargo.toml`, `location.rs`, `scope.rs`, S26, S30, ADR-STORE-0005, `MEMBER_NAME_RULE`, `PhaseName::RULE` | Paths added with S32 comments; Deviation 5 and the phase-plan row extended | this doc, `phase-a-plan.md` |
 | ARCH-503 | `Cache::scope_synced` missing from the `lib.rs` row and ADR-CORE-0002 | Row and amendment note (S30/S32) | `docs/bd-cache/architecture.md` |
 | ARCH-504 | `MEMBER_NAME_RULE`, `PhaseName::RULE` missing from the module table and ADR-MODEL-0003 | Rows and amendment bullet | `docs/bd-cache-model/architecture.md` |
-| ARCH-505 | `functions` dev-feature second use and the store's only `unsafe` not in ADR-STORE-0005 / Cargo comment; ADR-STORE-0004 omits two tests | fixed in sprint/a-7-fix8-code | |
+| ARCH-505 | `functions` dev-feature second use and the store's only `unsafe` not in ADR-STORE-0005 / Cargo comment; ADR-STORE-0004 omits two tests | With QA6-003: the Cargo comment and ADR-STORE-0005 name the busy-timeout probe tests and the test-only `get_connection` as the crate's only `unsafe`, with its SAFETY argument; ADR-STORE-0004's Consequences list `the_floor_stops_one_below_the_first_dateable_entry` and `the_dating_update_runs_with_no_busy_timeout_and_restores_it` (`24456c5`) | `crates/bd-cache-store/Cargo.toml`, `docs/bd-cache-store/architecture.md` |
 | ARCH-506 | `tempfile` comment names only sc-cron | "dev-dependency only (sc-cron, bd-cache-sync, bd-cache-py tests)" | `Cargo.toml` |
 | ARCH-507 | Boundary map says "No crate exists yet." | Sentence removed | `phase-a-plan.md` |
 | ARCH-508, REQ-QA-603 | Deferred table State stale; runner account not recorded | State set to "final-code-commit run recorded (7702b67); bc-lead merge-head run due 2026-10-31"; account `atmbench` recorded | this doc, `evidence/a-7-testbed.md` |
 | REQ-QA-601 | NFR-BDC-0001 unqualified | Amended with the condition (S31) | `docs/requirements.md` |
 | REQ-QA-604 | No green CI cited for the final code commit | CI evidence line (runs 40126278270, 40126278304 on PR #33) | this doc |
-| QA6-001 | Floor invariant fails for a low-seq pending entry applied later | fixed in sprint/a-7-fix8-code | |
-| QA6-002 | `temp_store` leaks its directory on failure | fixed in sprint/a-7-fix8-code | |
-| QA6-003 | `functions` dev-feature justification incomplete | fixed in sprint/a-7-fix8-code | |
+| QA6-001 | Floor invariant fails for a low-seq pending entry applied later | Invariant and ADR-STORE-0004 reworded (the real fix, capping the floor below MIN(pending seq), was rejected: while an old entry stays pending, every unreadable entry above it would be counted again and each read past the threshold would retry the dating, the per-read walk QA5-002 removed). Such an entry is answered, is not counted, and is dated by the next dating. Pinned by `a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`; mutant added, its run deferred with the re-run (`24456c5`) | `crates/bd-cache-store/src/store.rs`, `docs/bd-cache-store/architecture.md` |
+| QA6-002 | `temp_store` leaks its directory on failure | `tempfile` dev-dependency; `temp_store` returns a `TempStore` whose fields drop the store before the `TempDir`; the undatable-entry test uses a `TempDir` declared before its stores (`24456c5`) | `crates/bd-cache-store/Cargo.toml`, `src/store.rs` |
+| QA6-003 | `functions` dev-feature justification incomplete | See ARCH-505; the SAFETY comment names rusqlite's contract (issue 643): the `ConnectionRef` is used for one read on the statement's thread and dropped before the closure returns (`24456c5`) | `crates/bd-cache-store/Cargo.toml`, `src/store.rs`, ADR-STORE-0005 |
 | QA6-004 | `project-plan.md` a-1..a-6 stale | Set to `complete` | `docs/project-plan.md` |
 | QA6-005 | libc comment misaligned; overlong Crate Layout paragraph | Aligned and re-wrapped | `Cargo.toml`, `docs/architecture.md` |
-| RBP-F040 | `ConfigLoadError` recovery text duplicated | fixed in sprint/a-7-fix8-code | |
-| RBP-F041 | `write!(String).unwrap_or_default()` | fixed in sprint/a-7-fix8-code | |
-| FTQ-021 | Timing assertion with thin margin in `atm.rs` | fixed in sprint/a-7-fix8-code | |
-| FTQ-022 | Fixed 500 ms sleep sets the lock window | fixed in sprint/a-7-fix8-code | |
-| FTQ-023 | Kill tests read the pid file with no readiness handshake | fixed in sprint/a-7-fix8-code | |
-| FTQ-024 | Zombie treated as existing | fixed in sprint/a-7-fix8-code | |
-| RSH-029 | Post-send marker writes not bounded by the tick (S33) | fixed in sprint/a-7-fix8-code | |
+| RBP-F040 | `ConfigLoadError` recovery text duplicated | `ConfigLoadError::code()` and `fix()` next to the type, one fix per variant, `Display` states `fix()`; `ComposeError` delegates; `config_code`, `config_fix` and `BAD_SCOPE_FIX` deleted from `compose.rs`, and the wildcard code arm with them; tests assert `Display` ends with `fix()` and that `ComposeError` returns the loader's code and fix (`24456c5`) | `crates/bd-cache-store/src/location.rs`, `crates/bd-cache-sync/src/compose.rs`, tests |
+| RBP-F041 | `write!(String).unwrap_or_default()` | `push_str` (`24456c5`) | `crates/bd-cache-store/src/error.rs` |
+| FTQ-021 | Timing assertion with thin margin in `atm.rs` | `kill_tree_with` takes its deadline; both tests (lines 826 and 861 before) inject it and assert `GaveUp` plus reaped, no `took < SEND_RESERVE`; the const assertions keep the bound (`24456c5`) | `crates/bd-cache-sync/src/atm.rs` |
+| FTQ-022 | Fixed 500 ms sleep sets the lock window | Deleted `a_write_after_a_skipped_dating_waits_for_the_lock_again`: the causal trigger test covers the restore, and the S33 contention test `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait` holds the lock until the writes return (`24456c5`) | `crates/bd-cache-store/tests/store.rs` |
+| FTQ-023 | Kill tests read the pid file with no readiness handshake | The fakes write their pid whole (temporary file, rename, newline); an empty or partial file reads as absent. The three timer-driven kill tests count only an attempt whose pid files were all written before the kill, retried with the timeout doubled up to 3 times; none ready fails the test (`24456c5`) | `crates/bd-cache-sync/tests/atm_process.rs` |
+| FTQ-024 | Zombie treated as existing | `assert_gone` treats a zombie as gone (`/proc/<pid>/stat` on Linux, `ps -o stat=` elsewhere) and is used for the grandchild, which PID 1 owns; `assert_reaped` stays strict for the processes the code owns (the child, the tree kill), so the reaper mutants are still killed; 10 s deadline kept (`24456c5`) | `crates/bd-cache-sync/src/atm.rs`, `tests/atm_process.rs` |
+| RSH-029 | Post-send marker writes not bounded by the tick (S33) | `CacheStore::mark_announced_within` / `set_sync_alert_within` (provided bodies ignore the wait), `Cache` passthroughs, `Budget::write_wait` (time left before `T`); `SqliteStore::write_within` runs the one transaction with busy timeout `min(BUSY_TIMEOUT, wait)` (`BusyWait` drop guard). A write not done in time is `STORE_FAILED` and the message is resent next tick. Tests: `tests/marker_wait.rs`, `a_marker_write_may_wait_the_time_left_before_t`, `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`, `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`; 8 mutants added; their run is deferred with the re-run (`24456c5`) | `crates/bd-cache-model/src/store.rs`, `crates/bd-cache/src/lib.rs`, `crates/bd-cache-store/src/store.rs`, `crates/bd-cache-sync/src/{announce,control}.rs`, ADR-SYNC-0003/0007, ADR-STORE-0002, REQ-SYNC-0011 |
