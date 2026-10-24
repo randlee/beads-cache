@@ -315,3 +315,28 @@ fn a_bad_row_in_a_refresh_or_miss_fill_stores_nothing() {
     );
     assert!(w.store.row_ids().is_empty(), "nothing stored");
 }
+
+/// `StrictBackend` is a faithful `CacheBackend`: it passes a-1's backend
+/// contract suite, so the tests above exercise only the strict validation.
+mod strict_backend_contract {
+    use std::sync::Arc;
+
+    use sc_beads::testing::contract::{BackendFixture, World};
+    use sc_beads::testing::{FakeBackend, ManualClock};
+
+    use super::StrictBackend;
+
+    struct StrictFixture;
+
+    impl BackendFixture for StrictFixture {
+        type Backend = StrictBackend;
+
+        fn backend(&mut self, world: &World, clock: Arc<ManualClock>) -> StrictBackend {
+            let fake = FakeBackend::new(clock);
+            fake.insert_all(world.rows.iter().cloned());
+            StrictBackend::new(fake)
+        }
+    }
+
+    sc_beads::backend_contract_tests!(StrictFixture);
+}
