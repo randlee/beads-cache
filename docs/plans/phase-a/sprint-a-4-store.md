@@ -46,7 +46,9 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
 
 ## Deliverables
 
-1. File location from `.beads/metadata.json` (`$BEADS_DIR` aware), starting
+1. File location from the configured `cache_path` (default
+   `.bd-cache/<dolt_database>.bd-cache.sqlite3`), with `dolt_database` and
+   `project_id` from `.beads/metadata.json` (`$BEADS_DIR` aware), starting
    no `bd` process (REQ-BDC-0101); `NO_DATABASE` (REQ-BDC-0102).
 2. Open: WAL, 5 s busy timeout, `user_version` check and `SCHEMA_VERSION`
    (REQ-BDC-0103); project id record and `WRONG_DATABASE` (REQ-BDC-0104);
@@ -67,10 +69,10 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
    cursors in one transaction, keeps the journal), announce marks
    (REQ-BDC-0604), sync alerts, and `prune_scope` keeping beads another scope
    holds.
-5. `DrainLock` with `flock` on `.atm-bd/<dolt_database>.bd-cache.drain.lock`
+5. `DrainLock` with `flock` on `<cache file>.drain.lock`
    (cross-process; REQ-BDC-0401 constraint).
 6. Compatibility both ways (REQ-BDC-0804): the reference `bd_cache.py`,
-   `bd_models.py` and a v3 fixture, vendored at atm-core `015bdfb` under
+   `bd_models.py` and a v3 fixture, vendored at atm-core `05831df` under
    `crates/bd-cache-store/tests/compat/`, run with `uv` (installed by a-1's CI) to read a file the Rust store wrote;
    and the Rust store reads a Python-written one.
 7. Per-crate docs `docs/bd-cache-store/requirements.md` and `architecture.md`.

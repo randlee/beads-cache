@@ -83,7 +83,12 @@ up when the backend responds (ADR-BDC-0005).
 ### Repository configuration
 
 bdc is set up from `.beads/bd-cache.toml`, next to bd's own files, since the
-cache is an extension of bd. It names the sync scopes, the timeouts
+cache is an extension of bd. It sets `cache_path` (default `.bd-cache/<dolt_database>.bd-cache.sqlite3`,
+with the drain lock beside it), so btit and other consumers find the cache
+wherever it lands. Pointing `cache_path` at a different file switches caches
+in one line; that makes separate caches with unrelated schema packages
+possible (different teams, different skills), though it is not a feature to
+encourage. It also names the sync scopes, the timeouts
 in `CacheConfig`, and the schema packages to load by path, for example
 `.claude/skills/atm-beads/schemas`, each with an optional enforcement
 override (ADR-BDC-0008). Loading it goes through sc-config after sc-runtime
@@ -224,8 +229,11 @@ Decision: the cache does not compute blocked state and does not read it from
 rows. Each sync of a scope ends with one `bd blocked -l <scope label> --json`
 call and replaces that scope's stored blocked set (bead id plus
 `blocked_by`) with the result. `ready` for a scope is its cached rows with
-status `open`, minus the stored blocked set, with the journal overlay
-applied. A bead whose blocked state is unknown (its scope has never
+status `open` and no future `defer_until`, minus the stored blocked set, with
+the journal overlay applied. This matches `bd ready` as probed (it counts
+only `open`, excluding in_progress, deferred, blocked, pinned, hooked and
+future-deferred beads; assignment does not matter); a-2's live probe checks
+the two agree. A bead whose blocked state is unknown (its scope has never
 completed this call) is reported as such, never as ready.
 
 Between syncs the blocked set can lag a journaled close or reopen by up to
@@ -300,11 +308,16 @@ Decision:
   fresh the data is. A cache miss fetches with a short deadline
   (`CacheConfig::miss_fill_timeout`, default 2 s) and returns
   `BD_CACHE.BD_UNAVAILABLE` when it expires.
-- Backend unreachable (timeout, connection refused, cannot start) is a
-  backend state, recorded in the store as the outage (since when, last
-  error) and cleared by the next successful call. While it holds, the drain
-  stops at the first such failure without counting an attempt, and a sync
-  that meets it records the outage instead of an announced `SYNC_FAILED`.
+- Backend unreachable (timeout, connection refused, cannot start) at the
+  backend check, the drain pre-read or a sync or refresh list is a backend
+  state, recorded in the store as the outage (since when, latest error). It
+  is cleared only by a `bd list` that answers: `bd version` can pass while
+  lists time out on a loaded host. A write that fails or times out counts an
+  attempt, as in v3, since it may have reached the backend. While it holds, the drain
+  stops without counting an attempt, and a sync that meets it records the
+  outage instead of an announced `SYNC_FAILED`. These are the rules v3 adopted
+  at atm-core 05831df (Rand approved); the two implementations must apply the
+  same rules because they share a journal, and only one may drain it.
   Only failures from a reachable backend (`BD_WRITE_FAILED`, guard refusal)
   count towards `MAX_ATTEMPTS` or escalate.
 - No extra backoff: the cron tick (30 s) is the retry interval. `status`
@@ -451,13 +464,16 @@ Decision (proposed):
   sandboxed plain-Python rule scripts are a possible later addition.
 
 Open:
-- Structured values. `bd update --set-metadata` stores only flat scalars
-  (REQ-BDC-0303), and BD-CACHE v1 keeps structured metadata out of the
-  journal, so arrays like the QA reviewer list can be read and validated but
-  not written through the cache today. `bd update --metadata <json>` and the
-  `/v0` `metadata: {merge, set, unset}` patch can carry them; whether
-  `--metadata` merges or replaces must be probed first. Where these values
-  live and how they are written is being confirmed with fenix.
+- Structured values (fenix, 2026-10-24). Lists such as the QA bead's
+  `reviewers_round1` and the dev bead's `requirements` / `adrs` are written
+  at pour by `bd import` and stored as real lists. Later per-key writes use
+  `--set-metadata k=<json text>`, which bd stores as a string that readers
+  decode; the journal already accepts such strings when they round-trip.
+  The one structured rewrite after pour is the stack bead's `layers` list,
+  a read-modify-write through `bd update --metadata @file`, which atm-bd
+  treats as replacing the whole object (not yet probed). The cache needs a
+  whole-metadata replace op guarded by a precondition on the previous value
+  for that case.
 - The manifest format and the version-stamp key.
 - Long term, schema packages may live in dolt as an extension table, so a
   database carries its own schemas and versions. Out of scope for this

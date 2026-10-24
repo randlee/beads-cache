@@ -138,7 +138,9 @@ A sync or fetch whose result contains one row that fails validation stores no ro
 
 **Status:** Draft
 
-The cache file is `<repo>/.atm-bd/<dolt_database>.bd-cache.sqlite3`; `dolt_database` and `project_id` come from `.beads/metadata.json` (`$BEADS_DIR` when set), so locating the file starts no `bd` process.
+The cache file's location is set by `cache_path` in `.beads/bd-cache.toml`, defaulting to `<repo>/.bd-cache/<dolt_database>.bd-cache.sqlite3`; `dolt_database` and `project_id` come from `.beads/metadata.json` (`$BEADS_DIR` when set), so locating the file starts no `bd` process. A consumer such as btit finds the cache by reading that config.
+
+*Amended in planning: the cache is not atm-bd-specific, so it moves from `.atm-bd/` to `.bd-cache/` by default; atm-bd can point `cache_path` at its existing `.atm-bd/` file during cutover (user, 2026-10-24).*
 
 **Source:** BD-CACHE.md Storage
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`, `test_beads_dir_env_names_the_database`
@@ -291,7 +293,9 @@ A metadata value is accepted only as an int, a bool, or a string without surroun
 
 **Status:** Draft
 
-The drain takes an exclusive non-blocking lock on `.atm-bd/<dolt_database>.bd-cache.drain.lock`; when it is held the drain returns `{busy: true}`.
+The drain takes an exclusive non-blocking lock on `<cache file>.drain.lock`, next to the cache file; when it is held the drain returns `{busy: true}`.
+
+*Amended in planning: the lock follows the configured cache path (REQ-BDC-0101).*
 
 **Source:** BD-CACHE.md Algorithms (drain)
 **Acceptance evidence:** `test_drain_is_single_writer`
@@ -311,9 +315,9 @@ The drain has two deadlines: a start gate (entries not started by it are reporte
 
 **Status:** Draft
 
-With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry. If that read fails on a reachable backend, every entry retries; if the backend is unreachable, the drain stops with no attempt counted.
+With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry. If the backend is unreachable at either step, the cache records an outage, counts no attempt and stops the drain.
 
-*Amended in planning (ADR or review): ADR-BDC-0005.*
+*Amended in planning: v3 at 05831df: a failed pre-read is an outage, not a retry of every entry.*
 
 **Source:** BD-CACHE.md Algorithms (drain)
 **Acceptance evidence:** `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_failed_pre_read_retries_every_entry`
@@ -322,9 +326,9 @@ With pending entries, the drain runs the backend check, then one batched `bd lis
 
 **Status:** Draft
 
-For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass or whose row is stale: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure from a reachable backend adds one attempt, keeps the entry pending and holds that bead for the pass, and reaching `MAX_ATTEMPTS` (5) escalates. A timeout, a backend that cannot start, or a refused connection is an outage: the drain stops there and no attempt is counted.
+For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass or whose row is stale: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure or timeout of the write itself adds one attempt, keeps the entry pending and holds that bead for the pass, and reaching `MAX_ATTEMPTS` (5) escalates. An unreachable backend at the backend check or the pre-read is an outage: the drain stops there and no attempt is counted. A call cut short by the drain's hard deadline is neither (REQ-BDC-0402).
 
-*Amended in planning (ADR or review): timeouts and unreachable backends no longer spend attempts (ADR-BDC-0005); additive, needs #557.*
+*Amended in planning: aligned with v3 at atm-core 05831df, where Rand approved the outage rule: outages are detected at the check, pre-read and sync lists; a write that fails or times out still counts an attempt.*
 
 **Source:** BD-CACHE.md Algorithms (drain steps 1-4)
 **Acceptance evidence:** `test_drain_on_absent_bead_escalates_not_found`, `test_concurrent_backend_change_escalates_instead_of_overwriting`, `test_bd_guard_refusal_exit_13_escalates`, `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only`
@@ -575,6 +579,24 @@ Cached blocked state and `ready` stay correct when a blocker inside or outside t
 *Amended in planning: P-6 probe showed list rows carry no `is_blocked`; blocked state comes from `bd blocked` per scope (ADR-BDC-0002).*
 
 **Source:** user, 2026-10-23 planning discussion
+
+## REQ-BDC-0907: Fresh read
+
+A caller can read beads fresh from the backend, bypassing cached rows: one `bd list --id` of the requested beads (all statuses), stored with force, with pending journal entries replayed on top, under a caller-supplied timeout.
+
+**Source:** fenix, 2026-10-24 (atm-bd close-vars and the sanity hook's batched refresh; a cached row can lag a direct `bd update`)
+
+## REQ-BDC-0908: Journal entry by seq
+
+A caller can read one journal entry by `seq`, in any state.
+
+**Source:** fenix, 2026-10-24 (atm-task-close.py reads the entry after its synchronous drain)
+
+## REQ-BDC-0909: On-demand scopes
+
+Syncing a phase that is not configured registers it as an on-demand scope, so a later `list` of it works; only a scope that has never been synced or configured is refused.
+
+**Source:** fenix, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
 
 ## REQ-BDC-0905: bd release compatibility check
 

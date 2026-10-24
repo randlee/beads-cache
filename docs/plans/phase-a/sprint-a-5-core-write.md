@@ -66,7 +66,7 @@ It uses no code from a-4 or a-6.
 | Criterion | Root |
 |---|---|
 | `test_write_is_visible_to_reads_but_cache_row_is_untouched`, `test_precondition_checked_at_write_time`, `test_duplicate_idem_key_is_one_entry_and_a_conflicting_reuse_is_refused`, `test_dep_add_overlays_then_lands_as_a_real_edge` (REQ-BDC-0002, 0302, 0004) | boundary:bd-cache |
-| `test_drain_writes_in_order_reads_back_and_marks_applied`, `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_failed_pre_read_retries_every_entry` (REQ-BDC-0403, 0405) | boundary:bd-cache |
+| `test_drain_writes_in_order_reads_back_and_marks_applied`, `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_unreachable_backend_is_an_outage_that_counts_no_attempt`, `test_a_reachable_backend_refusing_the_write_still_counts_attempts` (REQ-BDC-0403, 0404, 0405) | boundary:bd-cache |
 | `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only`, `test_retries_exhausted_escalate_and_never_silently_drop`, `test_concurrent_backend_change_escalates_instead_of_overwriting`, `test_bd_guard_refusal_exit_13_escalates`, `test_drain_on_absent_bead_escalates_not_found` (REQ-BDC-0404) | boundary:bd-cache |
 | `test_write_that_landed_before_a_crash_is_not_repeated` (REQ-BDC-0005) | boundary:bd-cache |
 | `test_drain_is_single_writer`, `test_drain_deadline_defers_unstarted_entries_without_attempts` (REQ-BDC-0401, 0402) | boundary:bd-cache |
@@ -74,7 +74,7 @@ It uses no code from a-4 or a-6.
 | During an outage a write to a cached bead is journaled; a write to an uncached bead returns `BD_UNAVAILABLE` within `miss_fill_timeout` | ADR-BDC-0005 |
 | A failed read-back marks the entry applied with the error and sets the stale mark; with `FakeStore` holding that row stale, later drains skip the bead's entries until the stale mark is cleared (REQ-BDC-0405) | boundary:bd-cache |
 | An entry whose call is cut by the hard deadline stays pending with unchanged `attempts`, is reported in `deferred_in_flight`, records no outage, and a write that landed is found achieved by the next drain (REQ-BDC-0402) | boundary:bd-cache |
-| With `FakeBackend` returning `Unavailable` for N drains, entries stay pending with unchanged `attempts` and the outage is recorded, then cleared on recovery; a reachable-backend failure still escalates at 5 | ADR-BDC-0005 |
+| With `FakeBackend` unreachable at the check or pre-read for N drains, entries stay pending with unchanged `attempts` and the outage is recorded, then cleared when a list answers; a write that fails or times out on a reachable backend counts attempts and escalates at 5 | ADR-BDC-0005 |
 
 | Planted bugs: no write precondition, no drain precondition, no per-bead hold, no achieved check, no retry cap, no stale flag, no drain lock, per-entry pre-read, no not-found escalation, deferred not reported, drain without deadline, dedupe after the precondition each fail a test | boundary:bd-cache |
 

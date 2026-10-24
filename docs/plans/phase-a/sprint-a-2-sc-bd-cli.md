@@ -64,7 +64,10 @@ a-1.
    `updated_at`, and that `bd list --id` returns a closed bead only with the
    status list. They repeat the P-6 manual probe (`docs/research/bd-blocked-state-probe.md`)
    as code: no `is_blocked` in list rows, `bd blocked` shape and inheritance,
-   `--id` needing the status list for closed beads. a-7 records the full run.
+   `--id` needing the status list for closed beads, and that the cache's
+   `ready` predicate (open, no future `defer_until`, not in `bd blocked`)
+   equals `bd ready -l <label> --json` for a probe scope. a-7 records the
+   full run.
 6. bd compatibility workflow `.github/workflows/bd-compat.yml`
    (REQ-BDC-0905), triggered by `repository_dispatch` (type `beads-release`,
    payload `{"version": "<bd version>"}`, see P-5) and `workflow_dispatch`.

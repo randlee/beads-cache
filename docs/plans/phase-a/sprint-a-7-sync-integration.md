@@ -62,7 +62,11 @@ write and read paths (a-5, a-6).
    that runs `atm send <lead>@<team> --team tool` as `cron`. An outage is announced through the per-scope sync alert with the cause
    key `backend_unavailable`, so each active scope's lead hears it once;
    when it ends the alert is reset and no message is sent; a failed send is
-   refused and retried like any announcement (REQ-BDC-0704, 0706).
+   refused and retried like any announcement (REQ-BDC-0704, 0706). The tick is a library entry point,
+   `tick(&mut Cache, &TickConfig, &dyn EscalationSender, end: Deadline)`, so it
+   can be driven by `sc-cron` here or by an external scheduler such as the
+   ATM cron module (through the later `bdc tick` or Python bindings); only
+   one ticker may run per cache file.
 3. End-to-end tests (`crates/bd-cache-sync/tests/`): a journaled write applied by a scheduled
    drain through `BdCli` with a recording invoker in CI, and against a
    scratch `bd` workspace on the testbed (REQ-BDC-0003); an outage of
@@ -93,6 +97,7 @@ write and read paths (a-5, a-6).
 | `test_escalation_is_sent_once_to_the_phase_lead` | req:REQ-BDC-0705 |
 | `test_undelivered_escalation_is_retried_and_the_tick_refuses` | req:REQ-BDC-0706 |
 | `test_stop_only_when_no_active_phase_and_no_open_work` | req:REQ-BDC-0707 |
+| `test_backend_outage_is_announced_once_and_sync_failures_are_not`, `test_outage_with_uncached_roots_still_tells_every_configured_lead`, `test_outage_is_not_cleared_while_only_the_backend_check_answers`, `test_undelivered_outage_announcement_is_retried` | req:REQ-BDC-0903 |
 | `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`, through the real store | req:REQ-BDC-0003 |
 | A write journaled through the core lands in `bd` via the scheduled drain and is verified by read-back, end to end | req:REQ-BDC-0003 |
 | During an outage of several ticks, reads of cached beads answer with

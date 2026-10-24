@@ -17,7 +17,7 @@ implementation; ADR-BDC-0007), the SQLite store, the core library, a cron
 prototype `sc-cron` (ADR-BDC-0006), and the sync task on it.
 
 Baseline contract: [`docs/baseline/BD-CACHE.md`](../../baseline/BD-CACHE.md),
-vendored from randlee/atm-core#2219 at `015bdfb`. Requirements are drawn from
+vendored from randlee/atm-core#2219 at `05831df`. Requirements are drawn from
 it into [`docs/requirements.md`](../../requirements.md); sprint docs cite
 requirement ids, not the baseline.
 
@@ -107,7 +107,7 @@ Each requirement has exactly one owner. Sprint docs list `owns` and
 | a-3 | none (governed by ADR-BDC-0006) |
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
-| a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904 |
+| a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904, 0907, 0908, 0909 |
 | a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
 | deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
@@ -120,6 +120,7 @@ The one authoritative list. Rust tests keep the Python name.
 | test_pinned_model_matches_recorded_schema | a-1 |
 | test_recorded_bd_rows_validate | a-1 |
 | test_bad_ops_are_typed | a-1 |
+| test_outage_keeps_its_start_time_and_latest_error | a-1 |
 | test_schema_change_rebuilds_rows_and_keeps_the_journal | a-1 |
 | test_model_current_when_live_schema_matches_pin | a-1 |
 | test_first_backend_check_records_schema_without_dropping_cached_rows | a-1 |
@@ -141,7 +142,8 @@ The one authoritative list. Rust tests keep the Python name.
 | test_drain_writes_in_order_reads_back_and_marks_applied | a-5 |
 | test_drain_pre_reads_all_pending_beads_in_one_call | a-5 |
 | test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only | a-5 |
-| test_failed_pre_read_retries_every_entry | a-5 |
+| test_unreachable_backend_is_an_outage_that_counts_no_attempt | a-5 |
+| test_a_reachable_backend_refusing_the_write_still_counts_attempts | a-5 |
 | test_retries_exhausted_escalate_and_never_silently_drop | a-5 |
 | test_concurrent_backend_change_escalates_instead_of_overwriting | a-5 |
 | test_bd_guard_refusal_exit_13_escalates | a-5 |
@@ -158,6 +160,7 @@ The one authoritative list. Rust tests keep the Python name.
 | test_prune_refuses_with_unapplied_writes | a-6 |
 | test_resolve_closes_only_escalated_entries_and_unblocks_prune | a-6 |
 | test_resolve_keeps_the_note_when_the_entry_had_no_error | a-6 |
+| test_sync_records_an_outage_and_a_passing_sync_clears_it | a-6 |
 | test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync | a-7 (spans drain and sync; a-5 and a-6 each test their half) |
 | test_tick_syncs_only_phases_with_an_open_root | a-7 |
 | test_escalation_is_sent_once_to_the_phase_lead | a-7 |
@@ -168,14 +171,19 @@ The one authoritative list. Rust tests keep the Python name.
 | test_tick_budget_defers_drain_entries | a-7 |
 | test_custom_phases_limits_sync_and_stop | a-7 |
 | test_malformed_custom_phases_is_refused | a-7 |
+| test_backend_outage_is_announced_once_and_sync_failures_are_not | a-7 |
+| test_outage_with_uncached_roots_still_tells_every_configured_lead | a-7 |
+| test_outage_is_not_cleared_while_only_the_backend_check_answers | a-7 |
+| test_undelivered_outage_announcement_is_retried | a-7 |
 
-Counts: 41 + 9 = 50 (a-1 6, a-2 2, a-4 9, a-5 15, a-6 8, a-7 10).
+Counts: 44 + 13 = 57 (a-1 7, a-2 2, a-4 9, a-5 16, a-6 9, a-7 14), from the baseline at 05831df.
 
 ## Planted-bug checks
 
 Each planted bug from the baseline's Tests section must fail at least one
-test in its owner's suite. The baseline says 19 + 13 = 32 but lists 31
-distinct bugs; the missing one is to be raised on #557.
+test in its owner's suite. The baseline (05831df) lists them as examples
+("among them"); new planted bugs for the outage tests are added by the
+owning sprint.
 
 | Planted bug | Owner |
 |---|---|
@@ -186,23 +194,42 @@ distinct bugs; the missing one is to be raised on #557.
 | prune ignores escalated; resolve accepts any state | a-6 |
 | unannounced filter dropped; open-work ignores announcement; refusal dropped; team check dropped; closed roots active; stop ignores open work | a-7 |
 
+## atm-bd adoption and cutover
+
+From fenix's review (2026-10-24):
+
+- atm-bd uses the cache in process (it imports `bd_cache.py`), so it can
+  adopt the Rust cache only through the `bdc` binary or the Python bindings.
+  Both come after phase A as planned, so phase A does not yet replace the
+  Python cache for atm-bd. The verbs it needs are in a-1's contract: `get`
+  with a caller miss timeout, `refresh` (fresh read, stored, overlay),
+  `write`, `list`, `sync`, `entry(seq)`, `drain`, and `tick`.
+- Cutover is one step: stop the ATM cron registration, switch the consumers,
+  then let the Rust side drain. The file stays at `user_version` 3 with
+  additive tables (REQ-BDC-0103), so the Python hooks can still open it;
+  fenix offers to make v3 accept the extended shape. The two implementations
+  must never drain the same journal at the same time.
+- One ticker per cache file: either `sc-cron` runs `bd-cache-sync`, or the
+  ATM cron module calls `tick` with atm-bd's lead lookup and `atm send`
+  behind `EscalationSender`.
+
 ## Items to raise on #557
 
-Collected for one comment on randlee/atm-bd-orchestration#557 (not posted).
-fenix replied on 2026-10-24 to the first summary:
+Collected for one comment on randlee/atm-bd-orchestration#557 (not posted),
+updated with fenix's replies of 2026-10-24:
 
-- bd settles `is_blocked` without bumping `updated_at`, and list rows never
-  carry it. Confirmed live; does **not** affect v3 (it never serves blocked
-  state); relevant only to a cache that serves `ready` (ADR-BDC-0002).
-- An outage spends retry attempts and escalates every pending write within
-  about 5 ticks. fenix: a real v3 defect; proposing ADR-BDC-0005's rule for
-  v3.
-- Two-deadline drain rule (REQ-BDC-0402) and the additive schema extensions
-  (ADR-BDC-0001, 0004). fenix: will state the 25 s budget is a start gate and
-  name the hard deadline on #2219.
-- Planted-bug lists name fewer items than their counts, and the `unmet`
-  shape is `{key: {expected, actual}}` in code. fenix: will fix both on
-  #2219; re-vendor the baseline after.
+- Gap 2 (outage spends attempts): fixed in v3 at atm-core 05831df, Rand
+  approved; this plan now follows the same rules (ADR-BDC-0005).
+- Blocked state: v3 is not affected; this cache uses `bd blocked` per scope
+  (ADR-BDC-0002). fenix agrees.
+- The additive schema extensions (ADR-BDC-0001, 0004) at `user_version` 3,
+  and whether v3 should accept them (fenix offered).
+- Two-deadline drain (REQ-BDC-0402): v3 now documents its 25 s deadline as a
+  start gate; the hard deadline is Rust-only so far.
+- Cache file location (decided, user 2026-10-24): the cache is not
+  atm-bd-specific, so it defaults to `.bd-cache/` and its path is set by
+  `cache_path` in `.beads/bd-cache.toml`. atm-bd can keep its `.atm-bd/` file
+  by pointing `cache_path` at it until v3 follows.
 
 ## bd release compatibility
 

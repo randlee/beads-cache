@@ -192,7 +192,8 @@ pub trait CacheStore: Send {
     fn blocked_in_scope(&self, s: &ScopeId) -> Result<Option<BlockedSet>, CacheError>; // None = never fetched
     fn mark_blocked_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
 
-    fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError>; // any state
+        fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError>; // any state
+    fn entry_by_seq(&self, seq: Seq) -> Result<Option<JournalEntry>, CacheError>;
     fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError>;
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
@@ -224,7 +225,7 @@ pub struct SendError { pub detail: String }
 pub trait EscalationSender: Send + Sync { fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError>; }
 
 pub struct CacheConfig {
-    pub project: ProjectRef, pub scopes: Vec<ScopeId>,
+    pub project: ProjectRef, pub scopes: Vec<ScopeId>, // configured; sync of another phase registers it on demand (REQ-BDC-0909)
     pub call_timeout: Duration,      // single owner of the 30 s per-call cap
     pub miss_fill_timeout: Duration, // default 2 s (ADR-BDC-0005)
     pub max_attempts: u32,           // 5
@@ -276,7 +277,9 @@ impl CacheError {
 pub struct Cache<S: CacheStore, L: DrainLock, B: CacheBackend> { /* config, store, lock, backend, clock: Arc<dyn Clock> */ }
 impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     pub fn new(config: CacheConfig, store: S, lock: L, backend: B, clock: Arc<dyn Clock>) -> Result<Self, CacheError>; // ensure_scope each
-    pub fn get(&mut self, id: &BeadId) -> Result<GetReply, CacheError>;                                          // a-6
+        pub fn get(&mut self, id: &BeadId, miss_timeout: Option<Duration>) -> Result<GetReply, CacheError>;          // a-6
+    pub fn refresh(&mut self, ids: &[BeadId], timeout: Duration) -> Result<Vec<RowView>, CacheError>;            // a-6: fresh read, stored with force, overlay applied
+    pub fn entry(&self, seq: Seq) -> Result<JournalEntry, CacheError>;                                          // a-6
         pub fn list(&self, s: &ScopeId, status: Option<&str>, label: Option<&str>) -> Result<ListReply, CacheError>;  // a-6
     pub fn ready(&self, s: &ScopeId) -> Result<ReadyReply, CacheError>;                                          // a-6
     pub fn write(&mut self, id: &BeadId, op_name: &str, args_json: &str, pre: Guards, key: IdemKey, actor: Actor) -> Result<WriteReply, CacheError>; // a-5
@@ -288,8 +291,10 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 }
 // Helpers implemented and tested by a-1 (pub(crate)); a-5 and a-6 call them:
 //   call(kind, hard: Deadline, f) -> CallOutcome
-//       hands f `hard.earliest(after(call_timeout))`; classifies the result (Cut iff timed_out and
-//       hard expired); runs outage::note_unavailable / note_ok.
+//       hands f `hard.earliest(after(call_timeout))`; classifies the result: Cut iff timed_out and
+//       hard expired; for Check, PreRead, Sync, Refresh and MissFill an Unavailable is an Outage;
+//       for Write an Unavailable is an Error that counts an attempt (v3 rule); note_ok only after a
+//       list call (PreRead, ReadBack, Sync, Refresh, MissFill) answers, never after Check alone.
 //   outage::{note_unavailable(&mut self, err), note_ok(&mut self)}   // record on Unavailable, clear on next success
 //   view::current_view(&self, id) -> Result<Option<(Bead, Freshness)>, CacheError>   // stored row + replay
 //   backend_check::run(&mut self, hard) -> Result<(FingerprintOutcome, bool /*model_current*/), CallOutcome>
@@ -344,7 +349,8 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 | `overlay`, `achieved` and `replay` match the op table; replay skips escalated entries (REQ-BDC-0305) | boundary:bd-cache-model |
 | Golden JSON for every `CacheError` code incl. `PRECONDITION` with `unmet` and `reason`; `exit_code()` is 3; `from_backend` matches the table for every `CallKind` (REQ-BDC-0802, 0803) | boundary:bd-cache-model |
 | `test_schema_change_rebuilds_rows_and_keeps_the_journal`, `test_model_current_when_live_schema_matches_pin`, `test_first_backend_check_records_schema_without_dropping_cached_rows` through `backend_check::run` (REQ-BDC-0105) | boundary:bd-cache |
-| `call` hands `min(call_timeout, hard)`; a timeout after `hard` expired is `Cut` and records no outage; `Unavailable` records the outage and the next success clears it | ADR-BDC-0005 |
+| `call` hands `min(call_timeout, hard)`; a timeout after `hard` expired is `Cut` and records no outage; `Unavailable` on a check or list records the outage, on a write counts an attempt; only an answering list clears it | ADR-BDC-0005 |
+| `test_outage_keeps_its_start_time_and_latest_error` | ADR-BDC-0005 |
 | `miss::fill` stops at `miss_fill_timeout` with `BD_UNAVAILABLE`; `view::current_view` replays pending entries | boundary:bd-cache |
 | Both contract suites pass against the fakes, covering every listed store rule (NFR-BDC-0005) | ADR-BDC-0004 |
 | CI runs green on the sprint PR, including the boundary `cargo metadata` check | boundary:bd-cache |
