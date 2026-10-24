@@ -128,6 +128,39 @@ fn a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree() {
     assert!(touched.load(Ordering::SeqCst) > 100);
 }
 
+/// An entry applied after the base was fetched is part of the answer too: the
+/// stored base still lists the blocker, the journal has closed it.
+#[test]
+fn an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base() {
+    let (_dir, mut cache, _touched) = synced_cache(20);
+    cache
+        .write(
+            &sc_beads::testing::id("b1"),
+            "close",
+            "{}",
+            sc_beads::Guards::default(),
+            bd_cache_model::IdemKey::new("k").unwrap(),
+            sc_beads::testing::actor("san"),
+        )
+        .unwrap();
+    let budget = bd_cache_model::DrainBudget::before_tick_end(sc_beads::Deadline::after(
+        &*cache.clock(),
+        Duration::from_secs(25),
+    ));
+    let report = cache.drain(&budget).unwrap();
+    assert_eq!(report.applied.len(), 1, "{report:?}");
+    assert!(
+        cache.open_work().unwrap().pending == 0,
+        "nothing is pending now"
+    );
+    let reply = cache.get(&sc_beads::testing::id("b0"), None).unwrap();
+    assert_eq!(
+        reply.row.blocked,
+        Some(vec![]),
+        "the applied close of b1 unblocks b0, though the stored base still lists it"
+    );
+}
+
 fn median(mut samples: Vec<Duration>) -> Duration {
     samples.sort();
     samples[samples.len() / 2]
