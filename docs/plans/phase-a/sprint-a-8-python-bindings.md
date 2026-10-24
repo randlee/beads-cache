@@ -30,9 +30,9 @@ owned_paths:
   - "docs/bd-cache/write-path.md"               # R11: the sentence about it only
   - "docs/bd-cache-model/architecture.md"       # R11: the a-8 amendment section and the error.rs row only
   # Lead ruling R14 (bc-lead, 2026-10-24, a-8 fix round 6): test lint configuration only, no API, dependency or schema change
-  - "crates/sc-cron/clippy.toml"                # R14: allow-*-in-tests only
-  - "crates/sc-cron/src/**"                     # R14: the src test-module #[allow] blocks are removed
-  - "crates/sc-cron/tests/**"                   # R14: tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]
+  - "crates/sc-cron/clippy.toml"                # R14: `allow-*-in-tests` only
+  - "crates/sc-cron/src/**"                     # R14: the src test-module `#[allow]` blocks are removed
+  - "crates/sc-cron/tests/**"                   # R14: `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level `#![expect(..., reason)]`
   - "docs/sc-cron/architecture.md"              # R14/R15: the Build note clippy.toml sentence only
 ---
 
@@ -202,11 +202,13 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
   `a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call`); the binding
   tests keep the spent-gate and hard-deadline cases, which fail if the two
   bounds are swapped.
-- **`sc-cron` test lint configuration** (lead rulings R14 and R15, bc-lead, 2026-10-24, a-8 fix
-  round 6 and QA-8): clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]; commit `1709e3b`
-  (PR #23). R15 extends R14 to the one Build-note sentence in `docs/sc-cron/architecture.md` that
-  describes the `clippy.toml` test allowances. No API, dependency or schema change. Recorded in
-  phase-a-plan's Shared files table (owner a-3).
+- **`sc-cron` test lint configuration** (lead rulings R14 and R15, bc-lead, 2026-10-24, a-8
+  fix round 6 and QA-8): `clippy.toml` `allow-*-in-tests`; the src test-module `#[allow]`
+  blocks are removed; `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use
+  crate-level `#![expect(..., reason)]`; commit `1709e3b` (PR #23). R15 extends R14 to the
+  one Build-note sentence in `docs/sc-cron/architecture.md` that describes the `clippy.toml`
+  test allowances. No API, dependency or schema change. Recorded in phase-a-plan's Shared
+  files table (owner a-3).
 - **ci.yml** is unchanged: it excludes `bd-cache-py`; `python.yml` runs the
   crate's clippy and `cargo test` on macOS, Linux and Windows (R4).
 
@@ -295,7 +297,7 @@ https://github.com/randlee/beads-cache/actions/runs/40108869268 (success).
 
 | Id | Finding | Fix |
 |---|---|---|
-| QA6-001 | `sc-cron` test code used `#[allow]` and had no test lint configuration, so workspace clippy failed on it | clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]; commit `1709e3b` (PR #23); lead ruling R14, test lint configuration only |
+| QA6-001 | `sc-cron` test code used `#[allow]` and had no test lint configuration, so workspace clippy failed on it | `clippy.toml` `allow-*-in-tests`; the src test-module `#[allow]` blocks are removed; `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level `#![expect(..., reason)]`; commit `1709e3b` (PR #23); lead ruling R14, test lint configuration only |
 | QA6-002 | `handle.rs` test loop `for outcome in &cases` iterated `NotRun` values | Variable renamed `not_run` |
 | QA6-003 | Double blank line before the QA round 5 heading | One blank line deleted |
 | RBP-F025 | `ValueError` kind `config` undocumented; no test pinned the kind texts | `requirements.md` and `architecture.md` document `config` ("any other configuration problem the loader reports; `path` may be `None`"); new unit test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read` asserts the set of `OpenKind::as_str` outputs is exactly {parse, scope, argument, config, read} |
@@ -388,3 +390,12 @@ findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
 | QA8-003 | Module docstring of `crates/bd-cache-py/tests/test_perf.py` was wrapped ragged | Docstring re-wrapped to the file's width; docstring only |
 
 The `test_perf.py` change is a docstring edit to a test file, not a code change, so Validation and Evidence keep citing `42d0604` as the last code-changing commit.
+
+## QA round 9 findings and their fixes (QA-9 at 67e0143)
+
+| Id | Finding | Fix |
+|---|---|---|
+| ARCH-901 | The `docs/sc-cron/architecture.md` Build note cited "lead rulings R14 and R15, a-8 fix round 6" but omitted QA-8, where R15 was recorded | Parenthetical now reads "(lead rulings R14 and R15, a-8 fix round 6 and QA-8)" |
+| QA9-001 | The R14 wording left code identifiers as plain text: `clippy.toml`, `allow-*-in-tests`, `#[allow]`, `#![expect(..., reason)]` and the `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` paths | Identifiers put in backticks, matching `docs/sc-cron/architecture.md`, in the sprint doc `owned_paths` comments, Interpretations bullet and QA round 6 row, and the phase-a-plan R14 row; the Interpretations bullet re-wrapped to the width of its neighbours. No wording change beyond backticks and the wrap |
+
+This round is docs-only: no code, test or configuration file changed, so `42d0604` remains the last code-changing commit and Validation and Evidence keep citing it.
