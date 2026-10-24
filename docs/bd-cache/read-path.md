@@ -190,7 +190,9 @@ Details:
   (deferral, custom statuses) is bd's call, settled at the next sync.
 - Every view used (status, labels, `defer_until`, edges) is the current
   view: the stored row with the bead's pending entries replayed. Incoming
-  edges come from the store's edge index (`dependents_of`).
+  edges are the store's edge index (`dependents_of`) plus the edges of
+  pending `dep_add` entries onto the bead, so the rules see the same edges
+  as the views (fix-a-6-1, QA-001).
 - The rules are idempotent, so an entry already reflected in the base (one
   applied at or after `fetched_at` that bd saw) changes nothing.
 - Recursion terminates: each step of parent block turns one more bead from
@@ -253,9 +255,10 @@ replaces the stored one (its `at` taken before the first call) and the
 reply is that base adjusted by the journal, basis `Fresh`. On any failure
 the stored base is left as it is, not marked stale (a missed fresh read is
 not a failed refresh; only a sync's base fetch marks it), and the reply is
-the cached adjusted answer, basis `Cached`, with `read_fallback` = the
-error text (`"bd blocked / bd ready: no answer within <limit>ms"` for a
-cut). An unreachable backend is still an outage and recorded (REQ-CORE-0001).
+the cached adjusted answer, basis `Cached`, with `read_fallback` =
+`"<code>: <detail>; retry, or run sync"`. The code is the error's stable
+`BD_CACHE.*` code, and `BD_CACHE.BD_UNAVAILABLE` for a cut, whose detail is
+`"bd blocked / bd ready: no answer within <limit>ms"` (fix-a-6-1, RBP-F002). An unreachable backend is still an outage and recorded (REQ-CORE-0001).
 
 When a sync's base fetch fails (any `CallFailure`, ADR-CORE-0202), the
 sync emits one `tracing` warning with fields `phase`, `code` and `detail`
@@ -273,9 +276,11 @@ Decision:
 - `list` filters `status` and `label` on the view (stored row with pending
   entries replayed), so a pending close leaves `--status open` at once and
   agrees with `get`.
-- A bead's scope for `get` and `refresh` is the first `phase-<x>` label of
-  its view whose scope is registered; a bead with none (out of scope) has
-  no `scope_last_ok_at` and `blocked: None`.
+- A bead's scope for `get` and `refresh` is its v3 phase
+  (`ScopeId::from_labels`, the first `phase-<x>` label) when that scope is
+  registered, else the first registered scope that holds the view
+  (`ScopeId::holds`). A bead with none (out of scope) has no
+  `scope_last_ok_at` and `blocked: None`.
 - `refresh` returns rows in request order without repeats; ids bd does not
   know are absent (not an error), and the rows are stored with membership
   unchanged, like a miss fill.

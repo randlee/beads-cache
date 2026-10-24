@@ -14,8 +14,8 @@ must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
   owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, REQ-CORE-0201, REQ-CORE-0202, REQ-CORE-0203, REQ-CORE-0204, REQ-CORE-0205, REQ-CORE-0206, REQ-CORE-0207]
-  constrained_by: [REQ-BDC-0105, REQ-BDC-0109, REQ-BDC-0405, REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205]
+  constrained_by: [REQ-BDC-0105, REQ-BDC-0109, REQ-BDC-0405, REQ-BDC-0901, REQ-BDC-0903, REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0707, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205]
 owned_paths:
   - "crates/bd-cache/src/get.rs"
   - "crates/bd-cache/src/refresh.rs"
@@ -151,7 +151,21 @@ Crate tests and lints; `cargo build --workspace`.
   tests the field. Until then this part of deliverable 7 is not closed.
 - Deliverable 6 (announcement passthroughs) was implemented by a-1 in
   `lib.rs` (ADR-CORE-0002); a-6 adds its tests
-  (`announcement_state_passes_through_to_the_store`).
+  (`announcement_state_passes_through_to_the_store`). The passthroughs serve
+  REQ-BDC-0604 (an escalation stays unannounced until `mark_announced`,
+  which records `announced_at` at the clock's time), and the scheduler-side
+  requirements built on them: REQ-BDC-0704 (`sync_alert` /
+  `set_sync_alert`), REQ-BDC-0705 (`unannounced_escalations`,
+  `mark_announced`) and REQ-BDC-0707 (`open_work`). Those are listed in
+  `constrained_by`; announcing is a-7's, the store side a-4's.
+- ADR-BEADS-0001 is listed because the R4 warning goes through the
+  `tracing` re-export of `sc_beads::logging` (ADR-BEADS-0001, port btit
+  verbatim; logging through tracing).
+- **Open items after a-1 amendment 2** (`sprint/a-1-amend-2`; fix-a-6-1
+  ARCH-001, ARCH-002): fill `ReadyReply.last_ok_at` from
+  `sync_state(s).last_ok_at` and `ReadyBasis::Fresh { fetched_at }` from
+  the fresh base's `at`, with tests, once that amendment is on
+  `integrate/phase-a`.
 - REQ-BDC-0109 (edge index) and REQ-BDC-0405 (read-back stale mark) are
   constraints: the ready rules read incoming edges through `dependents_of`,
   and sync clears the stale mark the drain sets.
@@ -182,9 +196,9 @@ Crate tests and lints; `cargo build --workspace`.
 | No base is `unknown` | `a_scope_with_no_ready_base_reports_unknown`, `no_base_and_no_fresh_answer_is_unknown` |
 | `blocked` and `missing_rows` | `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows` |
 | Entries vs `fetched_at` | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `escalated_entries_do_not_adjust_the_base` |
-| Rules table rows (ADR-CORE-0201) | `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
+| Rules table rows (ADR-CORE-0201) | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
 | REQ-BDC-0912 | `bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage` |
-| Deliverable 6 | `announcement_state_passes_through_to_the_store`; `status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage` (deliverable 7) |
+| Deliverable 6 (REQ-BDC-0604, 0704, 0705, 0707) | `announcement_state_passes_through_to_the_store`; `status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage` (deliverable 7) |
 | Planted bugs | below |
 
 ## Evidence: planted bugs (NFR-BDC-0005)
