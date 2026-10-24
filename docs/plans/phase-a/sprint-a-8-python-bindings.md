@@ -210,8 +210,8 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `13d67ab328d5981fb2be4e2a446a68c53ae1b80d`, the last commit
-that changes code (later commits change documents only). 39 mutants: the 29 of
+The 39 mutants of the earlier rounds ran on commit `13d67ab328d5981fb2be4e2a446a68c53ae1b80d`; the
+last commit that changes code is `42d0604` (see Validation; later commits change documents only). 39 mutants: the 29 of
 the earlier rounds, re-run, and 10 for the QA-5 code (the `NotRun` mapping and
 the `ConfigKind`/`OpenKind` derivation). Each mutation was
 applied to the working tree, the wheel rebuilt, the whole pytest suite and
@@ -271,8 +271,8 @@ Round 6 mutants are in the QA round 6 section below.
 
 ## Validation
 
-Local, macOS arm64, on `13d67ab` (documents after it): `cargo test --workspace
---all-features`: 661 passed; pytest: 92 passed.
+Local, macOS arm64, on `42d0604`, the last code-changing commit (later commits change
+documents only): `cargo test --workspace --all-features`: 662 passed; pytest: 92 passed.
 
 | Gate (with `set -o pipefail`) | Result |
 |---|---|
@@ -283,11 +283,11 @@ Local, macOS arm64, on `13d67ab` (documents after it): `cargo test --workspace
 | `cargo test --workspace --all-features` | pass |
 | pytest (`maturin develop`, 92 tests) | pass |
 
-CI on the last code-changing commit `13d67ab`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40104379936 (rust job on
+CI on the last code-changing commit `42d0604`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40108869209 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40104379997 (success).
+https://github.com/randlee/beads-cache/actions/runs/40108869268 (success).
 
 ## QA round 6 findings and their fixes (QA-6 at 0d743f0)
 
@@ -368,10 +368,10 @@ findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
 | REQ-QA7-001 / ARCH-001 | 13 `sc-cron` files changed outside `owned_paths`; R14 unrecorded | `owned_paths` entries for `crates/sc-cron/clippy.toml`, `src/**`, `tests/**` with an R14 comment; Interpretations bullet for R14 |
 | ARCH-002 | `adrs` lacked ADR-BDC-0006 and ADR-CRON-0001..0006 | Added to `adrs` |
 | ARCH-003 | Shared files table lacked an R14 `sc-cron` row | Amendment note for `crates/sc-cron/**` (owner a-3) in `phase-a-plan.md` |
-| ARCH-004 / QA7-003 / REQ-QA7-002 | Evidence and Validation cited 13d67ab and 661 tests; round 6 code changes and CI runs not cited | Phase 2: names the tests layer's head with its counts and CI run ids |
+| ARCH-004 / QA7-003 / REQ-QA7-002 | Evidence and Validation cited 13d67ab and 661 tests; round 6 code changes and CI runs not cited | Evidence and Validation name `42d0604`, the last code-changing commit (tests layer head): 662 cargo tests and 92 pytest passed locally; CI `python.yml` 40108869209 and `ci.yml` 40108869268 green |
 | ARCH-005 / QA7-002 | QA6-001 missing from the round 6 table | Row added (clippy.toml plus `#![expect]`, `1709e3b`, R14) |
 | ARCH-006 | must_follow rationale said a-8 does not need sc-cron | Clause added: it does not depend on sc-cron; under R14 it edits only test lint configuration |
 | ARCH-007 | `docs/sc-cron/architecture.md` Build note omitted `clippy.toml` | One sentence added (R14) |
 | QA7-001 / REQ-QA7-003 | "and the restored" typo; pytest re-run cited on the survivor mutant | "and then restored"; the covering pytest run is the post-rename run at a36b7df, 92 passed |
 | REQ-QA7-004 | "none survives" line not cross-referenced to the round 6 survivor | Cross-reference added |
-| FTQ-401, FTQ-402 | Wall-clock assertions in `test_ready.py` and `test_perf.py` | Fixed in the `sprint/a-8-fix7-tests` layer |
+| FTQ-401, FTQ-402 | Wall-clock assertions in `test_ready.py` and `test_perf.py` | Fixed in `42d0604` (`sprint/a-8-fix7-tests`, PR #26): FTQ-401 `test_ready.py` sets `fresh_within=10`; FTQ-402 `test_perf.py` makes the perf check causal (no wall-clock median assertion). Evidence: 92 pytest passed, CI green as above |
