@@ -688,7 +688,9 @@ Live integration tests run only on the testbed or in the release-triggered bd co
 
 **Status:** Draft
 
-SQLite is bundled (`rusqlite` with `bundled`); one connection per process.
+SQLite is bundled (`rusqlite` with `bundled`). The cache file has one connection per process. Other stores in the same process (for example `sc-cron`'s schedule store) use their own database file and their own connection, never a second connection to the cache file.
+
+*Amended in planning: scoped to the cache file (a-3 QA-1, REQ-QA-002).*
 
 **Source:** BD-CACHE.md Rust shape
 

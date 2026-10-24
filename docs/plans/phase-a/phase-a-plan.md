@@ -102,7 +102,10 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 ## Requirement ownership
 
 Each requirement has exactly one owner. Sprint docs list `owns` and
-`constrained_by`.
+`constrained_by`. Crate-level requirements (`REQ-<DOMAIN>-*` in `docs/<crate>/requirements.md`)
+are owned by the sprint that creates the crate and are listed in its `owns`;
+crate ADRs (`ADR-<DOMAIN>-*`) are listed in its `adrs` and approved by the lead
+before the sprint merges.
 
 | Owner | Requirements |
 |---|---|
