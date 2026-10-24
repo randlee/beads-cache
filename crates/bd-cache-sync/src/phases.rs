@@ -621,7 +621,19 @@ fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
     // Open first, then look at the handle: a path checked and then opened could
     // be swapped for a pipe in between, and opening a pipe for reading blocks
     // (the tick holds the cache while it reads phase files).
-    let mut handle = open_without_blocking(path).map_err(unreadable)?;
+    let mut handle = match open_without_blocking(path) {
+        Ok(handle) => handle,
+        Err(e) => {
+            // Windows refuses to open a directory with "access denied", which
+            // would read as `Unreadable`; a path that exists and is not a regular
+            // file is `NotAFile` on every platform. Only the error path looks at
+            // the path, so the handle-based check above stays the primary one.
+            return Err(match std::fs::metadata(path) {
+                Ok(m) if !m.is_file() => PhaseFileProblem::NotAFile { file: file() },
+                _ => unreadable(e),
+            });
+        }
+    };
     let meta = handle.metadata().map_err(unreadable)?;
     if !meta.is_file() {
         return Err(PhaseFileProblem::NotAFile { file: file() });

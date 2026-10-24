@@ -55,11 +55,11 @@ another path (a symlink) that resolves to it.
 
 The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
 extensions are the tables `scope`, `scope_member`, `ready_base` and
-`ready_base_blocked`, nullable columns only (including `ready_base.indexed`) and
-the index `journal_applied_at` (ADR-STORE-0001, as amended by ADR-STORE-0004). Stored rows are normalized and `row_json` is
+`ready_base_blocked`, nullable columns only (including `ready_base.indexed` and `journal.applied_epoch`) and
+the plain partial indexes `journal_applied_epoch` and `journal_applied_unknown`; no index holds a function (ADR-STORE-0001, as amended by ADR-STORE-0004). Stored rows are normalized and `row_json` is
 Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
 
-*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed` and `journal_applied_at` are additive in the same way; `bd_cache.py` never reads them.*
+*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; `bd_cache.py` never reads them, and none uses a function, so a `bd_cache.py` on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*
 
 **Refines:** REQ-BDC-0107, 0108, 0804; ADR-BDC-0001, 0002, 0004
 **Acceptance evidence:** `v3_tables_are_unchanged_and_extensions_are_additive`
@@ -155,8 +155,8 @@ fix; the cause is carried once, as `Error::source`.
 `base_entry` reads one bead's entry of a scope's ready base from a per-bead
 index, in one read snapshot, and falls back to reading the whole base when it
 was not stored with the index (stored before it existed, or replaced by another
-writer). `has_entries_since` is two index lookups, whatever the journal's
-history. Neither changes what a reader sees.
+writer). `has_entries_since` is three index lookups (pending, applied with an epoch, applied without one), whatever the journal's
+history; an entry `bd_cache.py` applied is dated by `updated_at`, and one with an unreadable time counts as touched. Neither changes what a reader sees.
 
 **Refines:** NFR-BDC-0001; ADR-STORE-0004
 **Acceptance evidence:** `base_entry_rules`, `has_entries_since_rules` (the store

@@ -219,7 +219,10 @@ Decision:
   rule `base_entry_rules` pins it.
 - `CacheStore::has_entries_since(at) -> bool`: "something is pending, or was
   applied at or after `at`". The provided body loads both lists; an
-  implementation answers from indexes. Contract rule `has_entries_since_rules`.
+  implementation answers from indexes. An entry's applied time is its
+  `applied_at`, else, for an entry applied by `bd_cache.py` (which sets only
+  `updated_at`), its `updated_at`; an entry whose time cannot be read counts as
+  applied since (conservative). `applied_since` follows the same rule (ADR-STORE-0004). Contract rule `has_entries_since_rules`.
 - `EscalationSender::send_within(lead, team, body, timeout)`: a provided method
   that ignores `timeout` and calls `send`; a sender that can bound its work
   overrides it. The caller checks its own budget after every send, so a sender
