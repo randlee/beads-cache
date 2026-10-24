@@ -58,11 +58,29 @@ fn a_scope_with_no_ready_base_reports_unknown() {
     let mut c = w.cache();
     let r = c.ready(&x(), None).unwrap();
     assert_eq!(r.basis, ReadyBasis::Unknown);
+    assert_eq!(r.last_ok_at, None, "never synced");
     assert!(r.ready.is_empty() && r.missing_rows.is_empty() && !r.locally_adjusted);
     assert!(w.bd.calls().is_empty(), "no limit, no bd call");
     // Rows read before any base carry no blocked state.
     c.get(&id("s1"), None).unwrap();
     assert_eq!(blocked_of(&mut c, "s1"), None);
+}
+
+#[test]
+fn ready_replies_carry_the_scopes_last_ok_at() {
+    let w = World::new();
+    let first = w.clock.now_utc();
+    let mut c = synced(&w);
+    let r = c.ready(&x(), None).unwrap();
+    assert_eq!(r.last_ok_at, Some(first.clone()));
+    // A failed sync keeps it; a fresh answer does not move it (only a sync does).
+    w.clock.advance(Duration::from_secs(60));
+    w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+    c.sync(&x(), w.after(T30)).unwrap_err();
+    assert_eq!(c.ready(&x(), Some(LIMIT)).unwrap().last_ok_at, Some(first));
+    let second = w.clock.now_utc();
+    c.sync(&x(), w.after(T30)).unwrap();
+    assert_eq!(c.ready(&x(), None).unwrap().last_ok_at, Some(second));
 }
 
 #[test]
@@ -453,7 +471,13 @@ fn bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base() {
         w.clock.elapsed().saturating_sub(t0),
         Duration::from_millis(100)
     );
-    assert_eq!(r.basis, ReadyBasis::Fresh);
+    assert_eq!(
+        r.basis,
+        ReadyBasis::Fresh {
+            fetched_at: start.clone()
+        },
+        "fetched_at is the instant before bd's answer was asked for"
+    );
     assert_eq!(r.read_fallback, None);
     assert_eq!(ids(&r), vec![id("b2"), id("s1")]);
     let new = store(&c).ready_base(&x()).unwrap().unwrap();
@@ -463,10 +487,12 @@ fn bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base() {
 
     // bd's answer is still adjusted for entries pending.
     journal(&mut c, &w, "k1", "b2", "close", "{}");
+    w.clock.advance(Duration::from_secs(5));
+    let again = w.clock.now_utc();
     let r = c.ready(&x(), Some(LIMIT)).unwrap();
     assert_eq!(
         (r.basis.clone(), ids(&r)),
-        (ReadyBasis::Fresh, vec![id("s1")])
+        (ReadyBasis::Fresh { fetched_at: again }, vec![id("s1")])
     );
     assert!(r.locally_adjusted);
 }

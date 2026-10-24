@@ -188,7 +188,8 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     fresh_within: Option<Duration>,
 ) -> Result<ReadyReply, CacheError> {
     require_known(cache, s)?;
-    let mut fresh = false;
+    // The fetch instant of bd's answer, when one came in time.
+    let mut fresh: Option<Timestamp> = None;
     let mut read_fallback = None;
     if let Some(limit) = fresh_within {
         // One deadline for both calls: the caller's limit expiring is a cut,
@@ -197,14 +198,16 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
         match fetch_base(cache, s, hard) {
             Ok(base) => {
                 store_base(cache, s, &base)?;
-                fresh = true;
+                fresh = Some(base.at);
             }
             Err(failure) => read_fallback = Some(fallback_reason(failure, limit)),
         }
     }
+    let last_ok_at = cache.store.sync_state(s)?.last_ok_at;
     let Some(adj) = adjusted(cache, s)? else {
         return Ok(ReadyReply {
             scope: s.clone(),
+            last_ok_at,
             basis: ReadyBasis::Unknown,
             locally_adjusted: false,
             ready: Vec::new(),
@@ -220,16 +223,16 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
             None => missing_rows.push(id.clone()),
         }
     }
-    let basis = if fresh {
-        ReadyBasis::Fresh
-    } else {
-        ReadyBasis::Cached {
+    let basis = match fresh {
+        Some(fetched_at) => ReadyBasis::Fresh { fetched_at },
+        None => ReadyBasis::Cached {
             fetched_at: adj.fetched_at.clone(),
             stale: adj.stale,
-        }
+        },
     };
     Ok(ReadyReply {
         scope: s.clone(),
+        last_ok_at,
         basis,
         locally_adjusted: adj.changed,
         ready,
