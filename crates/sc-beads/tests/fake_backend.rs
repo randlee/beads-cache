@@ -126,3 +126,26 @@ fn a_schema_change_changes_the_fingerprint() {
     assert_eq!(after.schema_version, "2");
     assert_eq!(clock.now_utc().as_str(), "2026-10-23T10:00:00Z");
 }
+
+#[test]
+fn a_cursor_lists_a_row_whose_updated_at_does_not_parse() {
+    let (clock, fake) = setup();
+    let mut odd = bead("o1");
+    odd.labels = vec!["phase-x".into()];
+    odd.updated_at = "not-a-time".into();
+    let mut old = bead("old");
+    old.labels = vec!["phase-x".into()];
+    fake.insert_all([odd, old]);
+    let scope = sc_beads::ScopeFilter::Label("phase-x".into());
+    let cursor = sc_beads::SyncCursor::new("2026-10-23T09:30:00Z");
+    let d = Deadline::after(&*clock, Duration::from_secs(1));
+    let rows = fake
+        .list_scope(&ProjectRef::local(None), &scope, Some(&cursor), d)
+        .unwrap();
+    let ids: Vec<&str> = rows.iter().map(|r| r.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        ["o1"],
+        "unparseable is listed; the 09:00 row is before the cursor"
+    );
+}
