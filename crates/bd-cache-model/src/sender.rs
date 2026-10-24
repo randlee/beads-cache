@@ -55,7 +55,7 @@ impl SendErrorKind {
     pub fn fix(self) -> &'static str {
         match self {
             Self::InvalidAddress => {
-                "correct the lead and team names to follow MEMBER_NAME_RULE (the detail states it)"
+                "correct the lead or team name in the configuration or phase file: it must be nonempty, with no whitespace, control character or '@', and must not start with '-'"
             }
             Self::NotStartable => "install atm or set its path, and check it is executable",
             Self::TimedOut => {
@@ -142,5 +142,22 @@ pub trait EscalationSender: Send + Sync {
     ) -> Result<(), SendError> {
         let _ = timeout;
         self.send(lead, team, body)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The operator reads the fix: it states the rule in words and names no
+    /// Rust identifier (RBP-F032).
+    #[test]
+    fn the_invalid_address_fix_states_the_rule_without_rust_identifiers() {
+        let fix = SendErrorKind::InvalidAddress.fix();
+        assert!(!fix.contains("MEMBER_NAME_RULE"), "{fix}");
+        for part in ["whitespace", "control character", "'@'", "'-'"] {
+            assert!(fix.contains(part), "{fix} lacks {part}");
+            assert!(MEMBER_NAME_RULE.contains(part), "the rule lacks {part}");
+        }
     }
 }

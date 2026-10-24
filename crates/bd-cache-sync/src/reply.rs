@@ -265,7 +265,8 @@ pub struct TickReply {
     pub synced: Vec<SyncReport>,
     /// Active phases whose sync did not start before the budget's margin (REQ-BDC-0703).
     pub deferred: Vec<PhaseName>,
-    /// Phases whose root could not be read this tick, so they count as inactive.
+    /// Phases whose root could not be read this tick, or that bd did not
+    /// return, so they count as inactive (and never as closed: ADR-SYNC-0004).
     pub unreadable_roots: Vec<PhaseName>,
     /// The messages delivered this tick.
     pub sent: Vec<Announcement>,

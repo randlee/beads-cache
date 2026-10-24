@@ -43,28 +43,55 @@ pub enum ComposeError {
 }
 
 impl ComposeError {
-    /// A stable code: `sync_config_invalid`, or the `BD_CACHE.*` code of the cache error.
+    /// A stable code: for the configuration, one per way it fails
+    /// (`sync_config_unreadable`; `sync_config_invalid_toml` for a file that is
+    /// not a valid configuration; `sync_config_bad_scope`; `sync_config_invalid`
+    /// for any other), else the `BD_CACHE.*` code of the cache error.
     #[must_use]
     pub fn code(&self) -> &'static str {
         match self {
-            Self::Config(_) => "sync_config_invalid",
+            Self::Config(e) => config_code(e),
             Self::Cache(e) => e.code(),
+        }
+    }
+
+    /// What to do about it: for the configuration, the fix of the way it
+    /// failed; for the cache, the cache error's own fix.
+    #[must_use]
+    pub fn fix(&self) -> &'static str {
+        match self {
+            Self::Config(e) => config_fix(e),
+            Self::Cache(e) => e.fix(),
         }
     }
 }
 
-impl ComposeError {
-    /// What to do about it.
-    #[must_use]
-    pub fn fix(&self) -> &'static str {
-        match self {
-            Self::Config(_) => {
-                "correct .beads/bd-cache.toml as the cause says, or remove it to use the defaults"
-            }
-            Self::Cache(_) => {
-                "run from the beads root (or set BEADS_DIR) and check the cache file is this project's"
-            }
+/// The code of a configuration that could not be loaded.
+fn config_code(e: &ConfigLoadError) -> &'static str {
+    match e {
+        ConfigLoadError::Read { .. } => "sync_config_unreadable",
+        ConfigLoadError::Parse { .. } => "sync_config_invalid_toml",
+        ConfigLoadError::Scope { .. } => "sync_config_bad_scope",
+        // A way of failing a later `bd-cache-store` adds (`ConfigLoadError`
+        // is `#[non_exhaustive]`).
+        _ => "sync_config_invalid",
+    }
+}
+
+/// The fix of a configuration that could not be loaded.
+fn config_fix(e: &ConfigLoadError) -> &'static str {
+    match e {
+        ConfigLoadError::Read { .. } => {
+            "make .beads/bd-cache.toml readable by this process, or remove it to use the defaults"
         }
+        ConfigLoadError::Parse { .. } => {
+            "correct the key or value of .beads/bd-cache.toml the cause names, or remove unknown keys"
+        }
+        ConfigLoadError::Scope { .. } => {
+            "write each scopes entry of .beads/bd-cache.toml as a phase name: letters, digits, \
+             '-', '_' and '.', with or without the phase- prefix"
+        }
+        _ => "correct .beads/bd-cache.toml as the cause says, or remove it to use the defaults",
     }
 }
 

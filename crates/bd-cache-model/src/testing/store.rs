@@ -2,6 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp, rfc3339_to_unix};
@@ -589,7 +590,7 @@ impl CacheStore for FakeStore {
 /// An in-process drain lock; clones share one lock.
 #[derive(Debug, Clone, Default)]
 pub struct FakeDrainLock {
-    held: Arc<Mutex<bool>>,
+    held: Arc<AtomicBool>,
 }
 
 impl FakeDrainLock {
@@ -602,17 +603,17 @@ impl FakeDrainLock {
     /// True while a guard is alive.
     #[must_use]
     pub fn is_held(&self) -> bool {
-        *lock(&self.held)
+        self.held.load(Ordering::SeqCst)
     }
 }
 
 struct FakeGuard {
-    held: Arc<Mutex<bool>>,
+    held: Arc<AtomicBool>,
 }
 
 impl Drop for FakeGuard {
     fn drop(&mut self) {
-        *lock(&self.held) = false;
+        self.held.store(false, Ordering::SeqCst);
     }
 }
 
@@ -620,11 +621,14 @@ impl DrainGuard for FakeGuard {}
 
 impl DrainLock for FakeDrainLock {
     fn try_acquire(&self) -> Result<Option<Box<dyn DrainGuard>>, CacheError> {
-        let mut held = lock(&self.held);
-        if *held {
+        // Free -> held in one step: two callers cannot both win.
+        if self
+            .held
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
             return Ok(None);
         }
-        *held = true;
         Ok(Some(Box::new(FakeGuard {
             held: Arc::clone(&self.held),
         })))

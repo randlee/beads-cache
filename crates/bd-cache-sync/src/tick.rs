@@ -99,7 +99,8 @@ pub fn tick<S: CacheStore, L: DrainLock, B: CacheBackend>(
 
 /// [`tick`] over settings that are already validated, and with a stop flag.
 ///
-/// The flag is checked between phases and before every message; a tick that
+/// The flag is checked after the drain, before the one `bd list --id` of the
+/// uncached phase roots, between phases and before every message; a tick that
 /// finds it set ends early with [`TickReply::stopped`] and leaves what it
 /// did not send unmarked.
 ///
@@ -133,9 +134,14 @@ pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
     }
 
     let phases = read_phases(settings, &mut reply);
-    let active = active_phases(cache, &phases, end)?;
+    let active = active_phases(cache, &phases, end, stop)?;
     reply.active = active.active.iter().map(|p| p.name.clone()).collect();
     reply.unreadable_roots = active.unreadable.iter().map(|p| p.name.clone()).collect();
+    if active.stopped {
+        // Stopped before the uncached roots were read: no sync, no message.
+        reply.stopped = true;
+        return Ok(reply.finish());
+    }
 
     let gate = Deadline::at(
         end.instant()
@@ -204,8 +210,8 @@ fn read_phases(settings: &TickSettings, reply: &mut TickReply) -> Vec<Phase> {
 /// The schedule stops when no phase is active and no journal entry is pending
 /// or escalated-and-unannounced. It stops only on positive knowledge: a
 /// configuration that would be refused, an unreadable phases directory or
-/// phase file, a root that cannot be read, and a store that cannot be asked
-/// all answer `None` (keep going), so an outage or a typo cannot end the
+/// phase file, a root that cannot be read or that bd does not return, and a
+/// store that cannot be asked all answer `None` (keep going), so an outage or a typo cannot end the
 /// schedule (ADR-SYNC-0004). `end` bounds the one `bd list --id` of uncached
 /// roots.
 ///
@@ -264,8 +270,9 @@ pub fn stop_reason_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
     if !set.problems.is_empty() {
         return Ok(None);
     }
-    let active = active_phases(cache, &set.phases, end)?;
-    if !active.active.is_empty() || !active.unreadable.is_empty() {
+    // No stop flag here: the stop check has its own small budget (`end`).
+    let active = active_phases(cache, &set.phases, end, &StopFlag::new())?;
+    if active.stopped || !active.active.is_empty() || !active.unreadable.is_empty() {
         return Ok(None);
     }
     let work = cache.open_work()?;

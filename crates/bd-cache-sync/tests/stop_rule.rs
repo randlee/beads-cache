@@ -108,3 +108,23 @@ fn configuration_the_tick_would_refuse_never_ends_the_schedule() {
     std::fs::write(w.dir.path().join("phase-y.toml"), "oops").unwrap();
     assert_eq!(stop(&w, &mut cache), None);
 }
+
+/// A root bd does not return is unknown, not closed (lead ruling S23,
+/// ARCH-305): the tick counts its phase inactive and reports it, and the stop
+/// rule keeps going until bd shows the root closed.
+#[test]
+fn a_root_bd_does_not_return_never_ends_the_schedule() {
+    let w = World::new();
+    w.phase_file("x", "rgone", Some("lead-x"));
+    let mut cache = w.cache();
+
+    assert_eq!(stop(&w, &mut cache), None, "not returned is not closed");
+    let reply = w.tick(&mut cache);
+    assert!(reply.active.is_empty(), "{reply:?}");
+    assert_eq!(reply.unreadable_roots, [scope("x").phase_name().clone()]);
+    assert_eq!(stop(&w, &mut cache), None);
+
+    // Once bd knows the root and it is closed: positive knowledge, stop.
+    w.add("rgone", Some("x"), |b| b.status = Some("closed".into()));
+    assert!(stop(&w, &mut cache).is_some());
+}

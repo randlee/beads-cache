@@ -44,14 +44,27 @@ pub enum AlertCause {
     SyncFailed,
 }
 
-/// Every underlying code a sync failure can name.
-const SYNC_CAUSES: [SyncCause; 5] = [
-    SyncCause::BdUnavailable,
-    SyncCause::BdVersionFailed,
-    SyncCause::BdSchemaFailed,
-    SyncCause::BdContract,
-    SyncCause::BdListFailed,
-];
+/// The sync cause after `prev` in declaration order (`None` starts the list),
+/// `None` after the last.
+///
+/// `SyncCause` is not `#[non_exhaustive]`, so this match is exhaustive: a new
+/// variant does not compile until it is placed in the chain, and
+/// [`sync_causes`] (which `AlertCause::from_key` reads) then lists it.
+const fn next_sync_cause(prev: Option<SyncCause>) -> Option<SyncCause> {
+    match prev {
+        None => Some(SyncCause::BdUnavailable),
+        Some(SyncCause::BdUnavailable) => Some(SyncCause::BdVersionFailed),
+        Some(SyncCause::BdVersionFailed) => Some(SyncCause::BdSchemaFailed),
+        Some(SyncCause::BdSchemaFailed) => Some(SyncCause::BdContract),
+        Some(SyncCause::BdContract) => Some(SyncCause::BdListFailed),
+        Some(SyncCause::BdListFailed) => None,
+    }
+}
+
+/// Every underlying code a sync failure can name, in declaration order.
+fn sync_causes() -> impl Iterator<Item = SyncCause> {
+    std::iter::successors(next_sync_cause(None), |c| next_sync_cause(Some(*c)))
+}
 
 impl AlertCause {
     /// The stable key stored in the alert.
@@ -73,10 +86,7 @@ impl AlertCause {
         if key == SYNC_FAILED_KEY {
             return Some(Self::SyncFailed);
         }
-        SYNC_CAUSES
-            .into_iter()
-            .find(|c| c.as_str() == key)
-            .map(Self::Sync)
+        sync_causes().find(|c| c.as_str() == key).map(Self::Sync)
     }
 
     /// The cause a stored alert value names, in either writer's format: this
@@ -262,9 +272,8 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
     };
     let mut by_lead: BTreeMap<&MemberName, Vec<&Phase>> = BTreeMap::new();
     for phase in targets {
-        if cache.sync_alert(&phase.scope())?.as_deref()
-            != Some(AlertCause::BackendUnavailable.key())
-        {
+        // Either writer's form: the bare key, or `bd_cache.py`'s `"<code>: <detail>"`.
+        if !is_outage_alert(cache.sync_alert(&phase.scope())?.as_deref()) {
             by_lead
                 .entry(alert_lead(phase, settings))
                 .or_default()
@@ -565,6 +574,36 @@ mod tests {
             "Python already told the lead"
         );
         assert!(reply.sent.is_empty());
+    }
+
+    /// Every `SyncCause` round-trips through its key. The match is exhaustive
+    /// (`SyncCause` is not `#[non_exhaustive]`), so a new variant fails to
+    /// compile here until it is counted, and the count must equal the chain's.
+    #[test]
+    fn every_sync_cause_round_trips_through_its_key() {
+        fn ordinal(c: SyncCause) -> usize {
+            match c {
+                SyncCause::BdUnavailable => 0,
+                SyncCause::BdVersionFailed => 1,
+                SyncCause::BdSchemaFailed => 2,
+                SyncCause::BdContract => 3,
+                SyncCause::BdListFailed => 4,
+            }
+        }
+        const VARIANTS: usize = 5;
+        let listed: Vec<SyncCause> = sync_causes().collect();
+        assert_eq!(listed.len(), VARIANTS, "{listed:?}");
+        for (i, cause) in listed.into_iter().enumerate() {
+            assert_eq!(ordinal(cause), i, "declaration order: {cause:?}");
+            assert_eq!(
+                AlertCause::from_key(cause.as_str()),
+                Some(AlertCause::Sync(cause))
+            );
+            assert_eq!(
+                AlertCause::from_stored(&format!("{}: detail", cause.as_str())),
+                Some(AlertCause::Sync(cause))
+            );
+        }
     }
 
     #[test]

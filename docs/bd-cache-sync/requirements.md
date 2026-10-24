@@ -37,15 +37,18 @@ configured phase with no file is listed as refused while the phases that are
 usable still run. A phase is active while its root is not closed: a root the
 cache holds in the phase's scope is read from the cache, every other root in
 one `bd list --id` under the miss-fill timeout. A root that cannot be read, or
-that bd does not know, makes its phase inactive for the tick; unreadable
-roots are reported.
+that bd does not know, makes its phase inactive for the tick; both are
+reported as unreadable roots, and neither counts as closed for the stop rule
+(lead ruling S23, ADR-SYNC-0004).
 
 **Refines:** REQ-BDC-0702
 **Acceptance evidence:** `test_tick_syncs_only_phases_with_an_open_root`,
 `test_custom_phases_limits_sync_and_stop`,
 `test_malformed_custom_phases_is_refused`,
 `a_root_the_cache_holds_is_read_from_the_cache_and_a_closing_root_ends_the_phase`,
-`a_configured_phase_without_a_file_and_a_broken_file_are_refused_but_the_rest_runs`
+`a_configured_phase_without_a_file_and_a_broken_file_are_refused_but_the_rest_runs`,
+`a_root_that_bd_does_not_know_is_no_open_root_and_is_reported`,
+`a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`
 (`tests/tick_phases.rs`).
 
 ## REQ-SYNC-0003: One schedule per repository, with a team and a fallback lead
@@ -135,7 +138,8 @@ by a list that answers (a-1's `call`), never by the backend check.
 `test_outage_is_not_cleared_while_only_the_backend_check_answers`,
 `test_undelivered_outage_announcement_is_retried`,
 `a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once`,
-`during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_drains`
+`during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_drains`,
+`an_outage_alert_in_bd_cache_pys_form_is_not_announced_again`
 (`tests/outage.rs`); `an_outage_of_several_ticks_through_the_real_store_and_cli` (`tests/e2e.rs`).
 
 ## REQ-SYNC-0008: The stop rule never stops on uncertainty
@@ -145,12 +149,14 @@ by a list that answers (a-1's `call`), never by the backend check.
 `stop_reason` stops the schedule when no phase is active and no journal entry
 is pending or escalated-and-unannounced. It answers "keep going" when the
 `[tick]` table would be refused, the phases directory or a phase file cannot be
-read, a root cannot be read, or the store fails.
+read, a root cannot be read or bd does not return it (lead ruling S23), or the
+store fails.
 
 **Refines:** REQ-BDC-0707
 **Acceptance evidence:** `test_stop_only_when_no_active_phase_and_no_open_work`,
 `a_phase_whose_root_cannot_be_read_never_ends_the_schedule`,
-`configuration_the_tick_would_refuse_never_ends_the_schedule` (`tests/stop_rule.rs`).
+`configuration_the_tick_would_refuse_never_ends_the_schedule`,
+`a_root_bd_does_not_return_never_ends_the_schedule` (`tests/stop_rule.rs`).
 
 ## REQ-SYNC-0009: `atm send` is bounded and carries the message on stdin
 
@@ -210,13 +216,14 @@ sender takes 9 s per message ends within 25 s.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-A `StopFlag` ends a running tick between phases and before every message;
+A `StopFlag` ends a running tick after the drain, before the one
+`bd list --id` of the uncached phase roots, between phases and before every message;
 given to the `AtmSender` it kills the child and its whole process tree. An
 `atm` that outlives its timeout takes its descendants with it.
 
 **Refines:** REQ-BDC-0703
 **Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`
-(`tests/job_threading.rs`); `the_stop_flag_kills_the_child`,
+(`tests/job_threading.rs`); `a_set_stop_flag_skips_the_root_refresh` (`src/active.rs`); `the_stop_flag_kills_the_child`,
 `the_whole_process_tree_is_killed_not_just_the_child`,
 `an_atm_that_hangs_is_killed_and_gone_at_the_timeout` (`tests/atm_process.rs`).
 

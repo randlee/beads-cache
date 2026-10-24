@@ -2,7 +2,8 @@
 //!
 //! `sc-cron` times a run out by dropping its future, which never stops a
 //! blocking thread. A host that is shutting down sets a [`StopFlag`]: the tick
-//! checks it between phases and before every message, and an [`AtmSender`]
+//! checks it after the drain, before the one `bd list --id` of the uncached
+//! phase roots, between phases and before every message, and an [`AtmSender`]
 //! built with the same flag kills its child process. Shutdown order:
 //!
 //! The drain keeps its own budget and does not look at the flag: a stop that

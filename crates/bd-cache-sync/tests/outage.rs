@@ -335,3 +335,36 @@ fn an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed() {
     assert_eq!(alert(&cache, "y"), None);
     assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
 }
+
+/// An outage alert in `bd_cache.py`'s form (`"backend_unavailable: <detail>"`)
+/// already told the lead: the tick reads the cause, not the raw text, so it
+/// does not announce the same outage again (RBP-F031, S21).
+#[test]
+fn an_outage_alert_in_bd_cache_pys_form_is_not_announced_again() {
+    let (w, mut cache) = two_phases();
+    cache
+        .set_sync_alert(
+            &scope("x"),
+            Some("backend_unavailable: BD_CACHE.BD_UNAVAILABLE: bd did not answer"),
+        )
+        .unwrap();
+    w.switch.set_down(true);
+
+    let reply = w.tick(&mut cache);
+
+    let told: Vec<String> = w.sender.sent().into_iter().map(|s| s.lead).collect();
+    assert_eq!(told, ["lead-y"], "{reply:?}");
+    // The Python alert is left as it is; y now carries this crate's key.
+    assert!(
+        alert(&cache, "x")
+            .unwrap()
+            .starts_with("backend_unavailable: ")
+    );
+    assert_eq!(alert(&cache, "y").as_deref(), Some(OUTAGE_CAUSE));
+
+    // When the outage ends, the Python-form alert is reset with the rest.
+    w.switch.set_down(false);
+    w.next_tick();
+    w.tick(&mut cache);
+    assert_eq!(alert(&cache, "x"), None);
+}

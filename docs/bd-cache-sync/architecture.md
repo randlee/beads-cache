@@ -83,6 +83,14 @@ drain's hard deadline, `T - 2 s`: the start gate (no new entry starts after
 `T - 5 s`) plus one `bd` call (the entry in flight is capped at `T - 2 s`).
 `control.rs` implements this and `tests/tick_budget.rs` tests it.
 
+Note (fix-a-7-4, QA4-006, extends the S20 note): the flag is also checked after the cached root reads and before
+the one `bd list --id` of the uncached roots (ADR-SYNC-0005). A stop that is
+set by then does not start that call; the tick replies `stopped` with no sync
+and no message, so a stop that arrives after the drain waits at most for the
+store reads of the roots. A stop that arrives while that call runs is seen
+when it returns, within the miss-fill timeout. `active.rs` implements this and
+`a_set_stop_flag_skips_the_root_refresh` tests it.
+
 ## ADR-SYNC-0003: Announcements record their marker only after delivery, inside the tick's budget
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -141,6 +149,18 @@ Consequences: an outage or a typo in `phases_dir` cannot end the schedule; an
 unreadable phase file keeps it going until fixed. A registration of the
 schedule is removed only by a clean `Stop` or by the operator.
 
+Amendment (fix-a-7-4, ARCH-305; **Status:** Approved (lead ruling S23,
+bc-lead, 2026-10-24)): a phase root that bd does not return from the
+`bd list --id` of the uncached roots is unknown, not closed: the rule is "stop
+only on positive knowledge". The tick counts the phase inactive (it is not
+synced), logs a warning, and reports it in `TickReply::unreadable_roots`
+with the roots that could not be read; it is also an outage target, since it
+is never known to be closed (ADR-SYNC-0003). `stop_reason` answers `Continue`
+while any such root remains; a root counts towards `Stop` only once it was read
+and found closed. `tests/stop_rule.rs`
+(`a_root_bd_does_not_return_never_ends_the_schedule`) and `tests/tick_phases.rs`
+(`a_root_that_bd_does_not_know_is_no_open_root_and_is_reported`) test it.
+
 ## ADR-SYNC-0005: Phases are discovered from files, roots from the cache first
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -166,6 +186,18 @@ superseded: it is constant while no write is in flight, and when a write is in
 flight (pending, or applied since the scope's base was fetched) the scope's
 base is adjusted, as `get` does, until the next sync (QA3-006; ADR-CORE-0206).
 
+Note (fix-a-7-4, ARCH-304, clarifies the S19 amendment): "the scope has synced" means the phase's own scope
+(`phase-<x>`), not the scope `Cache::cached` reports the bead under. A root
+that carries several phase labels is reported under the first known one, and
+that scope's `scope_last_ok_at` says nothing about the phase whose root it is.
+The phase's own `sync_state.last_ok_at` is read instead. `Cache` has no
+accessor for one scope's sync state, and `bd-cache` is outside this layer, so
+the states come from one `Cache::status` (store reads only, no `bd` call) per
+tick, taken only when some root is held in its phase's scope. A one-scope
+accessor in `bd-cache` would replace it. `tests/tick_phases.rs`
+(`a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`)
+tests it.
+
 ## ADR-SYNC-0006: Third-party and dev dependencies of bd-cache-sync
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -188,12 +220,15 @@ takes a `chrono::Duration`), `rusqlite` (tests seed and inspect the cache file),
 with the platform's `kill`/`taskkill` programs rather than a `windows-sys`
 dependency, so the crate has no `unsafe`.
 
-Amendment (fix-a-7-3, RSH-024): `libc` is a normal dependency on Unix only
+Amendment (fix-a-7-3, RSH-024; **Status:** Approved (lead ruling S22, bc-lead, 2026-10-24)):
+`libc` is a normal dependency on Unix only
 (`[target.'cfg(unix)'.dependencies]` in the crate, `libc = "0.2"` in the root
 `[workspace.dependencies]`). It supplies the `O_NONBLOCK` constant alone, used
 to open a phase file so that one that is a FIFO cannot block the tick while it
 holds the cache mutex; the file's type is then checked on the opened handle.
-No `libc` function is called, so the crate still has no `unsafe`.
+No `libc` function is called, so the crate still has no `unsafe`. The
+Crate Layout row of `docs/architecture.md` lists it (ARCH-303). This closes
+ARCH-301.
 
 Consequences: a new dependency is a change to this ADR.
 
@@ -228,7 +263,8 @@ Decision (confirmed against that commit with `gh api`; ported fixtures
   name); everything else a lead needs is the same (the entry, the error, the
   recovery).
 
-Amendment (fix-a-7-3, RSH-023): the output of `atm` is read by threads
+Amendment (fix-a-7-3, RSH-023; **Status:** Approved (lead ruling S22, bc-lead, 2026-10-24)):
+the output of `atm` is read by threads
 bounded as `atm.rs` documents. Each send starts at most three threads (the
 message writer and one reader per output stream). A reader keeps at most
 `CAPTURE_LIMIT` (4096 bytes) and drops the rest, and the error says so; the
@@ -237,6 +273,7 @@ end when the pipes close, so a descendant of `atm` that outlives a failed send
 and holds a pipe keeps its reader thread until it exits; the process tree is
 killed on a timeout or a stop, but a descendant that escapes the group is not
 the tick's to reap. After a successful send nothing is killed or waited for.
+This closes ARCH-302.
 
 Consequences: the Python cron module and this crate can read the same phase
 files; a change of either contract changes this ADR.

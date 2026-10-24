@@ -98,14 +98,21 @@ fn a_root_the_cache_holds_is_read_from_the_cache_and_a_closing_root_ends_the_pha
     assert!(synced_labels(&w).is_empty(), "a closed phase is not synced");
 }
 
+/// A root bd does not know is no open root, so its phase is not synced; it is
+/// unknown, not closed, and is reported with the unreadable roots (lead ruling
+/// S23, ADR-SYNC-0004).
 #[test]
-fn a_root_that_bd_does_not_know_is_no_open_root() {
+fn a_root_that_bd_does_not_know_is_no_open_root_and_is_reported() {
     let w = World::new();
     w.phase_file("z", "nowhere-1", Some("lead-z"));
     let mut cache = w.cache();
     let reply = w.tick(&mut cache);
     assert!(reply.active.is_empty());
-    assert!(reply.unreadable_roots.is_empty());
+    assert!(
+        synced_labels(&w).is_empty(),
+        "no sync of an unknown root's phase"
+    );
+    assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
 }
 
 #[test]
@@ -434,4 +441,49 @@ fn a_phase_file_that_is_a_pipe_does_not_block_the_tick() {
         set.problems.as_slice(),
         [bd_cache_sync::PhaseFileProblem::NotAFile { .. }]
     ));
+}
+
+/// A root that carries two phase labels is cached under the first known scope.
+/// That scope's sync says nothing about the phase whose root it is: the cached
+/// row is trusted only once the phase's own scope has synced (ARCH-304).
+#[test]
+fn a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs() {
+    let w = World::new();
+    w.phase_file("x", "rx", Some("lead-x"));
+    w.add("rx", None, |b| {
+        b.labels = vec!["phase-a".into(), "phase-x".into()];
+    });
+    let mut cache = w.cache();
+    // Phase a syncs and caches the root (open); phase x never synced.
+    cache
+        .sync(&scope("a"), w.after(std::time::Duration::from_secs(20)))
+        .unwrap();
+    assert!(
+        cache
+            .cached(&id("rx"))
+            .unwrap()
+            .unwrap()
+            .scope_last_ok_at
+            .is_some(),
+        "the cached reply carries phase a's sync"
+    );
+    w.close_in_bd("rx");
+    w.bd.clear_calls();
+
+    let reply = w.tick(&mut cache);
+
+    assert!(reply.active.is_empty(), "the root closed in bd: {reply:?}");
+    assert_eq!(
+        w.bd.calls()
+            .iter()
+            .filter(|c| c.op() == FakeOp::ListByIds)
+            .count(),
+        1,
+        "the root was read from bd, not trusted on phase a's sync"
+    );
+    assert!(
+        stop_reason(&mut cache, &w.config(), w.after(bd_cache_sync::TICK_BUDGET))
+            .unwrap()
+            .is_some()
+    );
 }
