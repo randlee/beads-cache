@@ -411,14 +411,17 @@ Decision (proposed):
 - **bdc loads packages at runtime** from configured paths, with no bdc
   release needed to add or change one, and validates with a JSON Schema
   validator in `sc-beads` that btit and the later PyO3 bindings share.
-- **Several versions at once.** A pour stamps the package and version into
-  the bead's metadata (for example `schema: "atm-beads/qa-bead@3"`). bdc keeps
-  every configured version loaded and validates each bead against the
-  version it was poured with, so beads poured before a skill upgrade stay
-  valid under their old schema while new beads use the new one. A bead whose
-  stamped version is not loaded is reported (and refused on write when the
-  package says `enforce`). An unstamped bead is validated against the
-  package's current version, or skipped, per package setting.
+- **Configurable enforcement.** Each package sets a default mode (`off`,
+  `warn` or `enforce`), and a repository's bdc configuration can override it
+  per package. `off` loads nothing; `warn` reports violations; `enforce`
+  also refuses violating writes.
+- **Versions.** A pour stamps the package and version into the bead's
+  metadata (for example `schema: "atm-beads/qa-bead@3"`), so a bead always
+  says which schema it was made under. The first implementation loads one
+  version per package and reports beads stamped with another version
+  instead of validating them. Loading several versions at once is the
+  extension for long-lived viewers such as btit, where schemas change over
+  a database's life; the stamp is what makes it possible later.
 - **Enforced on writes in bdc:** the view after the write is checked against
   the bead's schema; a violation is a typed refusal
   (`BD_CACHE.EXTENSION_INVALID` with the failing fields), or a warning when
@@ -444,6 +447,9 @@ Open:
   `--metadata` merges or replaces must be probed first. Where these values
   live and how they are written is being confirmed with fenix.
 - The manifest format and the version-stamp key.
+- Long term, schema packages may live in dolt as an extension table, so a
+  database carries its own schemas and versions. Out of scope for this
+  work; the package format should not rule it out.
 
 Consequences: adds schema-package loading, version selection and a validator
 to `sc-beads`, a new error code, and a pour-time version stamp in each
