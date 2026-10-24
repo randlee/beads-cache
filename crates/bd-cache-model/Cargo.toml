@@ -1,0 +1,27 @@
+[package]
+name = "bd-cache-model"
+description = "Pure bd-cache model: journal ops, replay, store and sender ports, configuration, replies and typed errors."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[features]
+# FakeStore, FakeDrainLock and the CacheStore + DrainLock contract suite.
+testing = ["sc-beads/testing"]
+
+[dependencies]
+sc-beads.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+
+[dev-dependencies]
+bd-cache-model = { path = ".", features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

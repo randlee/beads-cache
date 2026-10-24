@@ -1,0 +1,301 @@
+# btit public API snapshot at randlee/beads-task-issue-tracker 8d8e82ae9f85
+# (crates/btit-types/src and crates/btit-beads/src). Extraction rule, also
+# implemented by tests/btit_api_snapshot.rs: for each file, the code before
+# its `#[cfg(test)]` line; keep trimmed lines starting with `pub `, plus
+# lines starting with `fn ` in backend.rs (trait methods). Generated once; do not edit.
+
+## types/backend.rs
+pub enum ProjectRef {
+pub fn local(cwd: Option<String>) -> Self {
+pub struct RelationType {
+pub value: &'static str,
+pub label: &'static str,
+pub struct DoltOpResult {
+pub success: bool,
+pub message: String,
+pub detail: String,
+## types/cli.rs
+pub enum CliClient {
+pub struct CliVersion {
+pub major: u32,
+pub minor: u32,
+pub patch: u32,
+pub struct CliProbe {
+pub client: CliClient,
+pub version: Option<CliVersion>,
+pub raw: String,
+pub struct BackendCapabilities {
+pub supports_daemon_flag: bool,
+pub uses_jsonl_files: bool,
+pub uses_dolt_backend: bool,
+pub supports_list_all_flag: bool,
+pub supports_delete_hard_flag: bool,
+pub struct ReleaseSource {
+pub api_url: &'static str,
+pub releases_url: &'static str,
+pub struct CliOutput {
+pub status: Option<i32>,
+pub success: bool,
+pub stdout: String,
+pub stderr: String,
+pub struct CompatibilityInfo {
+pub binary: String,
+pub found: bool,
+pub version: String,
+pub client_type: String,
+pub version_tuple: Option<Vec<u32>>,
+pub legacy: bool,
+pub min_supported_major: u32,
+pub supports_daemon_flag: bool,
+pub uses_jsonl_files: bool,
+pub uses_dolt_backend: bool,
+pub supports_list_all_flag: bool,
+pub searched_paths: Vec<String>,
+pub warnings: Vec<String>,
+## types/fs.rs
+pub struct DirectoryEntry {
+pub name: String,
+pub path: String,
+pub is_directory: bool,
+pub has_beads: bool,
+pub uses_dolt: bool,
+pub struct PurgeResult {
+pub deleted_count: usize,
+pub deleted_folders: Vec<String>,
+pub struct FsListResult {
+pub current_path: String,
+pub has_beads: bool,
+pub uses_dolt: bool,
+pub entries: Vec<DirectoryEntry>,
+## types/issue.rs
+pub struct BdRawDependency {
+pub id: Option<String>,
+pub issue_id: Option<String>,
+pub depends_on_id: Option<String>,
+pub dependency_type: Option<String>,
+pub created_at: Option<String>,
+pub created_by: Option<String>,
+pub struct BdRawDependent {
+pub id: Option<String>,
+pub title: Option<String>,
+pub status: Option<String>,
+pub priority: Option<i32>,
+pub issue_type: Option<String>,
+pub dependency_type: Option<String>,
+pub struct BdRawIssue {
+pub id: String,
+pub title: String,
+pub description: Option<String>,
+pub status: String,
+pub priority: i32,
+pub issue_type: String,
+pub owner: Option<String>,
+pub assignee: Option<String>,
+pub labels: Option<Vec<String>>,
+pub created_at: String,
+pub created_by: Option<String>,
+pub updated_at: String,
+pub closed_at: Option<String>,
+pub close_reason: Option<String>,
+pub blocked_by: Option<Vec<String>>,
+pub blocks: Option<Vec<String>>,
+pub comments: Option<Vec<BdRawComment>>,
+pub external_ref: Option<String>,
+pub estimate: Option<i32>,
+pub design: Option<String>,
+pub acceptance_criteria: Option<String>,
+pub notes: Option<String>,
+pub parent: Option<String>,
+pub dependents: Option<Vec<BdRawDependent>>,
+pub dependencies: Option<Vec<BdRawDependency>>,
+pub dependency_count: Option<i32>,
+pub dependent_count: Option<i32>,
+pub metadata: Option<serde_json::Value>,
+pub spec_id: Option<String>,
+pub comment_count: Option<i32>,
+pub struct BdRawComment {
+pub id: serde_json::Value,
+pub issue_id: Option<String>,
+pub author: String,
+pub text: Option<String>,
+pub content: Option<String>,
+pub created_at: String,
+pub struct Issue {
+pub id: String,
+pub title: String,
+pub description: String,
+pub issue_type: String,
+pub status: String,
+pub priority: String,
+pub assignee: Option<String>,
+pub labels: Vec<String>,
+pub created_at: String,
+pub updated_at: String,
+pub closed_at: Option<String>,
+pub comments: Vec<Comment>,
+pub blocked_by: Option<Vec<String>>,
+pub blocks: Option<Vec<String>>,
+pub external_ref: Option<String>,
+pub estimate_minutes: Option<i32>,
+pub design_notes: Option<String>,
+pub acceptance_criteria: Option<String>,
+pub working_notes: Option<String>,
+pub parent: Option<ParentIssue>,
+pub children: Option<Vec<ChildIssue>>,
+pub relations: Option<Vec<Relation>>,
+pub metadata: Option<serde_json::Value>,
+pub spec_id: Option<String>,
+pub comment_count: Option<i32>,
+pub dependency_count: Option<i32>,
+pub dependent_count: Option<i32>,
+pub struct Comment {
+pub id: String,
+pub author: String,
+pub content: String,
+pub created_at: String,
+pub struct ChildIssue {
+pub id: String,
+pub title: String,
+pub status: String,
+pub priority: String,
+pub struct ParentIssue {
+pub id: String,
+pub title: String,
+pub status: String,
+pub priority: String,
+pub struct Relation {
+pub id: String,
+pub title: String,
+pub status: String,
+pub priority: String,
+pub relation_type: String,
+pub direction: String,
+pub struct CountResult {
+pub count: usize,
+pub by_type: HashMap<String, usize>,
+pub by_priority: HashMap<String, usize>,
+pub last_updated: Option<String>,
+## types/payload.rs
+pub struct ListQuery {
+pub status: Option<Vec<String>>,
+pub issue_type: Option<Vec<String>>,
+pub priority: Option<Vec<String>>,
+pub assignee: Option<String>,
+pub include_all: Option<bool>,
+pub struct ListOptions {
+pub query: ListQuery,
+pub cwd: Option<String>,
+pub struct CwdOptions {
+pub cwd: Option<String>,
+pub struct CreatePayload {
+pub title: String,
+pub description: Option<String>,
+pub issue_type: Option<String>,
+pub priority: Option<String>,
+pub assignee: Option<String>,
+pub labels: Option<Vec<String>>,
+pub external_ref: Option<String>,
+pub estimate_minutes: Option<i32>,
+pub design_notes: Option<String>,
+pub acceptance_criteria: Option<String>,
+pub working_notes: Option<String>,
+pub parent: Option<String>,
+pub spec_id: Option<String>,
+pub cwd: Option<String>,
+pub struct UpdatePayload {
+pub title: Option<String>,
+pub description: Option<String>,
+pub issue_type: Option<String>,
+pub status: Option<String>,
+pub priority: Option<String>,
+pub assignee: Option<String>,
+pub labels: Option<Vec<String>>,
+pub external_ref: Option<String>,
+pub estimate_minutes: Option<i32>,
+pub design_notes: Option<String>,
+pub acceptance_criteria: Option<String>,
+pub working_notes: Option<String>,
+pub parent: Option<String>,
+pub metadata: Option<String>,
+pub spec_id: Option<String>,
+pub cwd: Option<String>,
+## backend.rs
+pub trait BeadsBackend: Send + Sync {
+fn project_uses_dolt(&self, project: &ProjectRef) -> bool;
+fn list(&self, project: &ProjectRef, query: &ListQuery) -> Result<Vec<BdRawIssue>, BeadsError>;
+fn ready(&self, project: &ProjectRef) -> Result<Vec<BdRawIssue>, BeadsError>;
+fn status(&self, project: &ProjectRef) -> Result<serde_json::Value, BeadsError>;
+fn show(&self, project: &ProjectRef, id: &str) -> Result<Option<BdRawIssue>, BeadsError>;
+fn create(
+fn update(
+fn close(&self, project: &ProjectRef, id: &str) -> Result<serde_json::Value, BeadsError>;
+fn search(&self, project: &ProjectRef, query: &str) -> Result<Vec<BdRawIssue>, BeadsError>;
+fn label_add(&self, project: &ProjectRef, id: &str, label: &str) -> Result<(), BeadsError>;
+fn label_remove(&self, project: &ProjectRef, id: &str, label: &str) -> Result<(), BeadsError>;
+fn delete(&self, project: &ProjectRef, id: &str) -> Result<(), BeadsError>;
+fn comment_add(&self, project: &ProjectRef, id: &str, content: &str) -> Result<(), BeadsError>;
+fn dep_add(
+fn dep_remove(
+fn relation_types(&self) -> Vec<RelationType>;
+fn sync(&self, project: &ProjectRef) -> Result<(), BeadsError>;
+fn cli(&self) -> Option<&dyn CliBackend> {
+fn dolt(&self) -> Option<&dyn DoltOperations> {
+fn close_suggestions(&self) -> Option<&dyn CloseSuggestions> {
+pub trait CliBackend: BeadsBackend {
+fn binary(&self) -> String;
+fn probe(&self) -> Option<CliProbe>;
+fn client(&self) -> CliClient;
+fn version(&self) -> Option<CliVersion>;
+fn capabilities(&self) -> BackendCapabilities;
+fn run_raw(&self, project: &ProjectRef, args: &[&str]) -> Result<CliOutput, BeadsError>;
+fn release_source(&self) -> ReleaseSource;
+pub trait DoltOperations: Send + Sync {
+fn doctor_fix(&self, project: &ProjectRef) -> Result<DoltOpResult, BeadsError>;
+fn migrate_to_dolt(&self, project: &ProjectRef) -> Result<DoltOpResult, BeadsError>;
+fn init(&self, project: &ProjectRef, prefix: &str) -> Result<DoltOpResult, BeadsError>;
+fn import_jsonl(&self, project: &ProjectRef, file: &Path) -> Result<DoltOpResult, BeadsError>;
+pub trait CloseSuggestions: Send + Sync {
+fn close_suggesting_next(
+## compat.rs
+pub fn cli_compatibility_warnings(client: CliClient, version: Option<CliVersion>) -> Vec<String> {
+## detect.rs
+pub const CLI_CANDIDATES: &[&str] = &["bd", "br"];
+pub const CLI_FALLBACK: &str = "bd";
+pub const MIN_SUPPORTED_BD_MAJOR: u32 = 1;
+pub struct CliSelection {
+pub fn binary(&self) -> &str {
+pub fn probe(&self) -> Option<&CliProbe> {
+pub fn is_legacy(&self) -> bool {
+pub fn is_legacy_bd(client: CliClient, version: Option<CliVersion>) -> bool {
+pub fn rank_cli_candidate(probe: &CliProbe) -> u8 {
+pub fn select_default_binary<F: Fn(&str) -> Option<CliProbe>>(
+pub fn parse_cli_probe(stdout: &str) -> CliProbe {
+pub fn cli_client_name(client: CliClient) -> &'static str {
+pub fn detect_cli_client(version_str: &str) -> CliClient {
+pub fn parse_bd_version(version_str: &str) -> Option<CliVersion> {
+## error.rs
+pub enum ExpectedShape {
+pub enum ParseTarget {
+pub enum BeadsError {
+pub fn code(&self) -> &'static str {
+pub fn remediation(&self) -> &'static str {
+## gates.rs
+pub fn supports_daemon_flag_for(client: CliClient, major: u32, minor: u32, _patch: u32) -> bool {
+pub fn uses_jsonl_files_for(client: CliClient, major: u32, minor: u32, _patch: u32) -> bool {
+pub fn supports_list_all_flag_for(client: CliClient, major: u32, minor: u32, _patch: u32) -> bool {
+pub fn supports_delete_hard_flag_for(
+pub fn uses_dolt_backend_for(client: CliClient, major: u32, minor: u32, _patch: u32) -> bool {
+pub fn capabilities_for(client: CliClient, version: Option<CliVersion>) -> BackendCapabilities {
+## issues.rs
+pub fn priority_to_string(priority: i32) -> String {
+pub fn priority_to_number(priority: &str) -> String {
+pub fn normalize_issue_type(issue_type: &str) -> String {
+pub fn normalize_issue_status(status: &str) -> String {
+pub fn transform_issue(raw: BdRawIssue) -> Issue {
+pub fn normalize_metadata(value: Option<serde_json::Value>) -> Option<serde_json::Value> {
+## parse.rs
+pub fn parse_issues_tolerant(output: &str, context: &str) -> Result<Vec<BdRawIssue>, BeadsError> {
+## logging.rs
+pub use log;
+pub static LOGGING_ENABLED: AtomicBool = AtomicBool::new(false);
+pub static VERBOSE_LOGGING: AtomicBool = AtomicBool::new(false);
