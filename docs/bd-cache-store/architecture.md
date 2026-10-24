@@ -14,9 +14,9 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 
 | Module | Contents |
 |---|---|
-| `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `CacheLocation`, `load_repo_config` and `ConfigLoadError` |
+| `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `BeadsDirOverride` and `BeadsDirError` (the one validated `$BEADS_DIR`, S49), `CacheLocation`, `beads_dir`, `load_repo_config` and `ConfigLoadError` |
 | `schema` | the v3 DDL as `bd_cache.py` runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
-| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `$BEADS_DIR`, S36, and `open_at`), every `CacheStore` method |
+| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method |
 | `codec` | encoding and validated decoding of stored rows, edges, journal entries, ready bases and timestamps |
 | `lock` | `FlockDrainLock` and its guard |
 | `registry` | the process-wide claim that keeps one connection per cache file (ADR-STORE-0003) |
@@ -171,7 +171,7 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -256,6 +256,58 @@ exhaustive and the consumers' matches have no wildcard arm (`bd-cache-sync`'s
 `ComposeError` code mapping, `bd-cache-py`'s `From<ConfigLoadError> for OpenError`), a
 new variant is a compile error (`E0004`, non-exhaustive patterns) in each consumer
 until it is mapped. Adding a variant is therefore a breaking change to store API.
+
+### ADR-STORE-0003 amendment (a-7, S48/S49): one validated `$BEADS_DIR`
+
+**Status:** Approved (lead rulings S48 and S49, bc-lead, 2026-10-24, fix-a-7-15;
+QA10-001, RSH-038, RBP-F047, RBP-F048; per-platform wording by lead ruling S50, RSH-039)
+
+Context: S44 normalized `$BEADS_DIR` (empty is unset, relative is made absolute) inside
+`bd-cache-sync`'s `compose_with` only, and the store still took a raw `Option<&OsStr>`,
+so another pairing of the store and a `bd` child could name two directories again
+(RBP-F047). A value whose working directory could not be read was kept relative,
+which reintroduced that split and dropped the I/O error (QA10-001, RSH-038, RBP-F048).
+
+Decision:
+- The rule lives in one validated type, `BeadsDirOverride` (a newtype over an absolute
+  `PathBuf`). `BeadsDirOverride::new(Option<&OsStr>)` is the one fallible constructor:
+  unset or empty is `Ok(None)`; any other value is made absolute with
+  `std::path::absolute` against the process's working directory. On Unix that joins a
+  relative path with the working directory and resolves nothing (no `..`, no link;
+  only `.` components and repeated separators drop out, as `Path::components` does);
+  on Windows it calls `GetFullPathNameW`, which also resolves `.` and `..` textually,
+  without touching the file system (S50). `BeadsDirOverride::from_env` is `new` over
+  the process's `$BEADS_DIR`. `as_path` and `as_os_str` give the value to the store and
+  to a child.
+- It fails closed (S48): a value that cannot be made absolute is a `BeadsDirError`,
+  never a relative fallback. `BeadsDirError` names the value in `Display` and carries
+  the `io::Error` only as `Error::source`; `value()` and `into_parts()` hand both to a
+  consumer that maps it to an error of its own, and `BeadsDirError::new` lets a
+  consumer build one to test that mapping.
+- `SqliteStore::open_with`, `CacheLocation::resolve_with` and `beads_dir` take
+  `Option<&BeadsDirOverride>` instead of `Option<&OsStr>` (a signature change of store
+  API; `bd-cache-store` is not a btit API).
+- The environment-reading paths, `SqliteStore::open` and `CacheLocation::resolve`, build
+  the override with `from_env`. An unresolvable environment value is
+  `BD_CACHE.NO_DATABASE`, its detail naming the value and the I/O error, before any file
+  is read: the beads directory cannot be located, which is what `NO_DATABASE` reports,
+  and its fix ("run from the beads repository root (or set BEADS_DIR) after bd init")
+  applies. `bd-cache-py`, which opens through `SqliteStore::open`, raises it as it raises
+  any `NO_DATABASE`.
+- `bd-cache-sync`'s `compose_with` builds the override once and passes the same value to
+  `SqliteStore::open_with` and its `as_os_str()` to `BdCli::with_child_var`; it maps a
+  `BeadsDirError` to its own `ComposeError::BeadsDir` (`sync_beads_dir_unresolvable`).
+
+Consequences: the store and every `bd` child of a composition cannot be given two
+different directories, since both take the one value the type holds. A consumer that
+has a raw value calls `BeadsDirOverride::new` and handles its error. Evidence
+(`src/location.rs` unit tests): `an_unset_or_empty_beads_dir_is_no_override`,
+`a_relative_beads_dir_is_made_absolute_against_the_working_directory`,
+`an_absolute_beads_dir_is_kept` and
+`a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause` (the
+`absolute` step injected to fail; also the `NO_DATABASE` mapping of the
+environment-reading paths); the `BeadsDirOverride` doctest; `tests/location.rs`
+(`test_beads_dir_env_names_the_database` through the type).
 
 ## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 

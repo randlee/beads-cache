@@ -244,14 +244,36 @@ unset one). Evidence (`tests/compose.rs`, Unix):
 `a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child`
 (a child process of the test binary whose working directory is not the
 repository: the store reads `metadata.json` there and the child sees the
-absolute path); the unit tests `an_empty_or_unset_beads_dir_is_none` and
-`a_relative_beads_dir_is_made_absolute_against_the_working_directory`
-(`src/compose.rs`). The two child-process cases drain the child's output on
+absolute path); the unit tests `an_unset_or_empty_beads_dir_is_no_override` and
+`a_relative_beads_dir_is_made_absolute_against_the_working_directory`, which
+were in `src/compose.rs` and moved with the rule to `bd-cache-store`'s
+`src/location.rs` (S49 amendment below). The two child-process cases drain the child's output on
 reader threads, bound it by 120 s and print it on failure (FTQ-031). The
 clock rebinding of S40 is pinned by
 `the_composed_backend_measures_deadlines_on_the_composition_clock` (a
 backend on the system clock, composed with a manual clock an hour ahead: a
 deadline passed on the manual clock is refused without a spawn).
+
+Amendment (fix-a-7-15, S48, S49, QA10-001, QA10-003, RSH-038, RBP-F047, RBP-F048; **Status:** Approved (lead rulings S48 and S49, bc-lead, 2026-10-24)):
+the normalization of S44 lives in one validated type,
+`bd_cache_store::BeadsDirOverride` (ADR-STORE-0003 amendment, S48/S49):
+`compose_with` builds it once from its `beads_dir_env` and passes the same
+value to `SqliteStore::open_with` and its `as_os_str()` to
+`BdCli::with_child_var`. It fails closed (S48): a relative value that cannot
+be made absolute (the working directory cannot be read) fails the
+composition with `ComposeError::BeadsDir { value, source }` before the
+configuration is read or the store opened, with the stable code
+`sync_beads_dir_unresolvable`, the fix "set an absolute BEADS_DIR, or run
+from a readable working directory", and the `io::Error` as `source()`; the
+earlier fallback to the relative value is gone. Evidence:
+`an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens`
+(`src/compose.rs`: the error injected through the private seam
+`compose_with_override`; no cache file is created) and the store's
+`a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause` (the
+`absolute` step injected to fail). A child-process case whose output
+reader does not finish within 10 s after the child ends prints
+`<stdout reader did not finish within 10s>` (or the stderr one) in that
+stream's place, not an empty output (QA10-003, `tests/compose.rs`).
 
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
@@ -321,11 +343,6 @@ before `T` and may overshoot it by the busy handler's sleep slack, which
 counts as scheduler jitter (S46). This replaces the "`T` plus the busy
 handler's sleep slack (tens of ms)" of S35, which bounded only the lock wait.
 
-Amendment (fix-a-7-14, S46, RSH-034; **Status:** Approved (lead ruling S46, bc-lead, 2026-10-24)):
-"the lock wait itself never extends past `T`" (S39) is withdrawn: the busy
-handler sleeps in steps, so a wait capped at the time left can end up to one
-sleep step after `T`. That slack is scheduler jitter; the bound is unchanged.
-
 Amendment (fix-a-7-14, S45, RSH-037; **Status:** Approved (lead ruling S45, bc-lead, 2026-10-24)):
 when an outage is over, the tick clears its alerts one scope at a time and
 stops once the time left before `T` is zero or the stop flag is set; the
@@ -336,9 +353,17 @@ Evidence:
 `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
 (`src/announce.rs`).
 
+Amendment (fix-a-7-14, S46, RSH-034; **Status:** Approved (lead ruling S46, bc-lead, 2026-10-24)):
+"the lock wait itself never extends past `T`" (S39) is withdrawn: the busy
+handler sleeps in steps, so a wait capped at the time left can end up to one
+sleep step after `T`. That slack is scheduler jitter; the bound is unchanged.
+
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
-`a_stopped_tick_does_nothing_and_the_next_tick_does_it_all` (`tests/announce.rs`).
+`a_stopped_tick_does_nothing_and_the_next_tick_does_it_all` (`tests/announce.rs`);
+the S45 outage-over clears: `an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it`
+(`tests/marker_wait.rs`) and `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
+(`src/announce.rs`).
 
 ## REQ-SYNC-0012: Cooperative shutdown
 

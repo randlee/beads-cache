@@ -35,6 +35,24 @@ process `beads_dir_env_child`, S36), `test_missing_metadata_is_typed`
 `identity_values_are_validated` (`tests/location.rs`); the
 `SqliteStore::open_with(root, .., None)` doctests (`src/store.rs`, `src/lib.rs`).
 
+Amendment (fix-a-7-15, S48, S49, S50, RBP-F047, RBP-F048, QA10-001, RSH-038, RSH-039; **Status:** Approved (lead rulings S48 and S49, bc-lead, 2026-10-24)):
+the `$BEADS_DIR` value is one validated type, `BeadsDirOverride`, built once by
+`BeadsDirOverride::new(Option<&OsStr>)`: unset or empty is `None`, any other value is
+made absolute with `std::path::absolute` against the process's working directory (on
+Unix joined with it, resolving nothing; on Windows through `GetFullPathNameW`, which
+resolves `.` and `..` textually; S50). A value that cannot be made absolute is a
+`BeadsDirError` (the value, and the I/O error as its source), never kept relative
+(S48). `CacheLocation::resolve_with`, `SqliteStore::open_with` and `beads_dir` take
+`Option<&BeadsDirOverride>`; `resolve` and `SqliteStore::open` build it from the
+environment with `BeadsDirOverride::from_env`, and an unresolvable environment value
+is `BD_CACHE.NO_DATABASE` naming the value and the I/O error. Evidence (`src/location.rs`):
+`an_unset_or_empty_beads_dir_is_no_override`,
+`a_relative_beads_dir_is_made_absolute_against_the_working_directory`,
+`an_absolute_beads_dir_is_kept`,
+`a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause` (the `absolute`
+step injected to fail); the `BeadsDirOverride` doctest; `test_beads_dir_env_names_the_database`
+(`tests/location.rs`, through the type). Design: the ADR-STORE-0003 amendment (S48/S49).
+
 ## REQ-STORE-0002: Open checks settings, version and identity
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
