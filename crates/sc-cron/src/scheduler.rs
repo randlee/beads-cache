@@ -1,26 +1,29 @@
 //! The scheduler: starts and stops schedules and spawns the worker that runs them.
 //!
-//! [`Scheduler::start`] validates the spec and parses the expression before
-//! anything is written, draws the schedule's jitter, computes its first run
-//! and stores it. [`Scheduler::spawn_worker`] starts the one tokio task that
-//! ticks every active schedule; `start` and `stop` signal it to reload, so a
-//! new schedule ticks without a restart.
+//! [`Scheduler::start`] checks the payload size and that the expression has
+//! a future occurrence before anything is written (name, expression and
+//! timeout are already valid by type), draws the schedule's jitter, computes
+//! its first run and stores it. [`Scheduler::spawn_worker`] starts the one
+//! tokio task that ticks every active schedule. `start` and `stop` signal it
+//! to reload, so a new schedule ticks without a restart.
+//!
+//! `start` and `stop` call the synchronous store directly. From async code
+//! use [`Scheduler::start_async`] and [`Scheduler::stop_async`], which run
+//! the same calls on tokio's blocking pool so a busy database never blocks
+//! an executor thread.
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
 
 use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
+use crate::limits::encode_payload;
 use crate::worker::Worker;
 use crate::{
     Clock, CronError, Generation, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
-    ScheduleSpec, ScheduleStore, expr, jitter, timestamp,
+    ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
 };
-
-/// Longest timeout a schedule may carry.
-pub const MAX_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// What the worker does with occurrences that came due while it could not run them.
 ///
@@ -37,6 +40,51 @@ pub enum MissedTickPolicy {
     Coalesce,
     /// Drop missed occurrences; run again at the next future occurrence.
     Skip,
+}
+
+/// What `start`, `stop` and their async forms share, so the async forms can
+/// move it onto the blocking pool.
+struct Core<S, C, J> {
+    store: Arc<S>,
+    clock: Arc<C>,
+    jitter: Arc<J>,
+    reload: watch::Sender<u64>,
+}
+
+impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
+    fn start(&self, spec: ScheduleSpec) -> Result<Schedule, CronError> {
+        encode_payload(&spec.payload)?;
+        let now = self.clock.now();
+        spec.expr.require_future(now)?;
+        let jitter = jitter::draw(&spec.expr, now, self.jitter.as_ref());
+        let next = spec.expr.next_run(jitter, now).ok_or_else(|| {
+            CronError::BadExpression("expression has no future occurrence".into())
+        })?;
+        let schedule = NewSchedule {
+            spec,
+            jitter,
+            next_run_at: Timestamp::from_datetime(next),
+        };
+        let created = self
+            .store
+            .create(&schedule, Timestamp::from_datetime(now))?;
+        self.signal_reload();
+        Ok(created)
+    }
+
+    fn stop(&self, id: ScheduleId, generation: Generation, reason: &str) -> Result<(), CronError> {
+        let at = Timestamp::from_datetime(self.clock.now());
+        if !self.store.stop(id, generation, at, reason)? {
+            return Err(CronError::Fenced { id, generation });
+        }
+        self.signal_reload();
+        Ok(())
+    }
+
+    fn signal_reload(&self) {
+        self.reload
+            .send_modify(|version| *version = version.wrapping_add(1));
+    }
 }
 
 /// Starts, stops and runs schedules kept in a [`ScheduleStore`].
@@ -57,26 +105,18 @@ pub enum MissedTickPolicy {
 ///     Arc::new(SystemClock),
 ///     Arc::new(SystemJitter),
 /// );
-/// let schedule = scheduler.start(ScheduleSpec {
-///     name: "sync".into(),
-///     expr: "*/30 * * * * *".into(),
-///     timeout: Duration::from_secs(25),
-///     payload: serde_json::json!({"scope": "phase-a"}),
-/// })?;
+/// let spec = ScheduleSpec::new("sync", "*/30 * * * * *", Duration::from_secs(25), serde_json::json!({}))?;
+/// let schedule = scheduler.start(spec.clone())?;
 /// assert!(schedule.is_active());
 ///
-/// // Five-field expressions are refused before anything is stored.
-/// let five_field = ScheduleSpec { name: "other".into(), expr: "* * * * *".into(), ..schedule.spec };
-/// assert!(matches!(scheduler.start(five_field), Err(CronError::BadExpression(_))));
+/// // A second start of an active name is refused and stores nothing.
+/// assert!(matches!(scheduler.start(spec), Err(CronError::AlreadyActive(_))));
 /// assert_eq!(scheduler.store().list_active()?.len(), 1);
-/// # Ok::<(), sc_cron::CronError>(())
+/// # Ok::<(), CronError>(())
 /// ```
 pub struct Scheduler<S: ScheduleStore, C: Clock, J: JitterSource> {
-    store: Arc<S>,
-    clock: Arc<C>,
-    jitter: Arc<J>,
+    core: Arc<Core<S, C, J>>,
     policy: MissedTickPolicy,
-    reload: watch::Sender<u64>,
     worker_live: Arc<AtomicBool>,
 }
 
@@ -92,11 +132,13 @@ where
     #[must_use]
     pub fn new(store: Arc<S>, clock: Arc<C>, jitter: Arc<J>) -> Self {
         Self {
-            store,
-            clock,
-            jitter,
+            core: Arc::new(Core {
+                store,
+                clock,
+                jitter,
+                reload: watch::channel(0).0,
+            }),
             policy: MissedTickPolicy::default(),
-            reload: watch::channel(0).0,
             worker_live: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -111,52 +153,42 @@ where
     /// Returns the store, for reading schedules and their run state.
     #[must_use]
     pub fn store(&self) -> &Arc<S> {
-        &self.store
+        &self.core.store
     }
 
-    /// Validates, parses and stores a new schedule; parses before any write.
+    /// Stores a new schedule, checking it before any write.
     ///
     /// Restarting an ended name keeps its id and raises its generation, so
-    /// any run still in flight from the old generation is fenced. The store
-    /// call is synchronous; from async code, call this on the blocking pool.
+    /// any run still in flight from the old generation is fenced. This
+    /// calls the store synchronously; from async code use
+    /// [`Scheduler::start_async`].
     ///
     /// # Errors
     ///
-    /// [`CronError::InvalidSpec`] for an empty name or a timeout outside
-    /// 1 ms..=[`MAX_TIMEOUT`], [`CronError::BadExpression`] for an expression
-    /// that does not parse, has five fields or has no future occurrence, both
-    /// before anything is stored; then the store's errors, including
-    /// [`CronError::AlreadyActive`].
+    /// [`CronError::InvalidSpec`] for a payload over
+    /// [`MAX_PAYLOAD_BYTES`](crate::MAX_PAYLOAD_BYTES) and
+    /// [`CronError::BadExpression`] for an expression with no future
+    /// occurrence, both before anything is stored; then the store's errors,
+    /// including [`CronError::AlreadyActive`].
     pub fn start(&self, spec: ScheduleSpec) -> Result<Schedule, CronError> {
-        if spec.name.trim().is_empty() {
-            return Err(CronError::InvalidSpec("name is empty".into()));
-        }
-        if spec.timeout < Duration::from_millis(1) || spec.timeout > MAX_TIMEOUT {
-            return Err(CronError::InvalidSpec(format!(
-                "timeout must be between 1 ms and {} s",
-                MAX_TIMEOUT.as_secs()
-            )));
-        }
-        let now = self.clock.now();
-        let parsed = expr::parse(&spec.expr, now)?;
-        let jitter = jitter::draw(&parsed, now, self.jitter.as_ref());
-        let next = expr::next_run(&parsed, jitter, now).ok_or_else(|| {
-            CronError::BadExpression("expression has no future occurrence".into())
-        })?;
-        let schedule = NewSchedule {
-            spec,
-            jitter,
-            next_run_at: timestamp::format(next),
-        };
-        let created = self.store.create(&schedule, &timestamp::format(now))?;
-        self.signal_reload();
-        Ok(created)
+        self.core.start(spec)
+    }
+
+    /// [`Scheduler::start`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::start`], or [`CronError::Store`] if the blocking task
+    /// panics.
+    pub async fn start_async(&self, spec: ScheduleSpec) -> Result<Schedule, CronError> {
+        let core = Arc::clone(&self.core);
+        blocking(move || core.start(spec)).await
     }
 
     /// Ends schedule `(id, generation)` with `reason`; its ticks stop.
     ///
-    /// A run already in flight is cancelled and records nothing. Like
-    /// [`Scheduler::start`], the store call is synchronous.
+    /// A run already in flight is cancelled and records nothing. This calls
+    /// the store synchronously; from async code use [`Scheduler::stop_async`].
     ///
     /// # Errors
     ///
@@ -168,20 +200,42 @@ where
         generation: Generation,
         reason: &str,
     ) -> Result<(), CronError> {
-        let at = timestamp::format(self.clock.now());
-        if !self.store.stop(id, generation, &at, reason)? {
-            return Err(CronError::Fenced);
-        }
-        self.signal_reload();
-        Ok(())
+        self.core.stop(id, generation, reason)
+    }
+
+    /// [`Scheduler::stop`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::stop`], or [`CronError::Store`] if the blocking task
+    /// panics.
+    pub async fn stop_async(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        reason: &str,
+    ) -> Result<(), CronError> {
+        let core = Arc::clone(&self.core);
+        let reason = reason.to_owned();
+        blocking(move || core.stop(id, generation, &reason)).await
     }
 
     /// Spawns the worker that runs `job` for every active schedule.
     ///
     /// The worker loads the active schedules from the store, then sleeps on
     /// the clock until the next run, run deadline or reload signal. A failed
-    /// load is retried with a backoff of 1 s doubling to 60 s. Dropping or
-    /// shutting down the returned handle stops it.
+    /// load is retried with a backoff of 1 s doubling to 60 s.
+    ///
+    /// Stop the worker with [`WorkerHandle::shutdown`] and await it: that is
+    /// the only way to know in-flight outcomes were recorded before the
+    /// process exits. Dropping the handle only signals the worker, which
+    /// then drains detached.
+    ///
+    /// Run timeouts cancel a run at its next `.await`. A job that blocks a
+    /// runtime thread without awaiting cannot be cancelled, and on a
+    /// current-thread runtime it would also stall the worker; use a
+    /// multi-thread runtime and `spawn_blocking` for blocking work (see
+    /// [`Job`]).
     ///
     /// # Panics
     ///
@@ -197,28 +251,38 @@ where
             "sc-cron: a worker for this scheduler is already running"
         );
         let live = LiveGuard(Arc::clone(&self.worker_live));
+        let reload = self.core.reload.subscribe();
+        let (shutdown, shutdown_rx) = oneshot::channel();
         let worker = Worker::new(
-            Arc::clone(&self.store),
-            Arc::clone(&self.clock),
+            Arc::clone(&self.core.store),
+            Arc::clone(&self.core.clock),
             job,
             self.policy,
+            shutdown_rx,
         );
-        let reload = self.reload.subscribe();
-        let (shutdown, shutdown_rx) = oneshot::channel();
         let task = tokio::spawn(async move {
             let _live = live;
-            worker.run(reload, shutdown_rx).await;
+            worker.run(reload).await;
         });
         WorkerHandle {
             shutdown: Some(shutdown),
             task: Some(task),
         }
     }
+}
 
-    fn signal_reload(&self) {
-        self.reload
-            .send_modify(|version| *version = version.wrapping_add(1));
-    }
+/// Runs `operation` on the blocking pool, mapping a panic to a store error.
+async fn blocking<T: Send + 'static>(
+    operation: impl FnOnce() -> Result<T, CronError> + Send + 'static,
+) -> Result<T, CronError> {
+    tokio::task::spawn_blocking(operation)
+        .await
+        .map_err(|error| {
+            CronError::Store(
+                StoreError::new(StoreErrorKind::Other, "blocking store task failed")
+                    .with_source(error),
+            )
+        })?
 }
 
 impl<S: ScheduleStore, C: Clock, J: JitterSource> std::fmt::Debug for Scheduler<S, C, J> {
@@ -239,7 +303,11 @@ impl Drop for LiveGuard {
     }
 }
 
-/// Owner of a running worker; dropping it asks the worker to stop.
+/// Owner of a running worker; await [`WorkerHandle::shutdown`] to stop it.
+///
+/// Dropping the handle signals the worker to stop, but the worker then
+/// drains its in-flight runs detached, and their outcomes are lost if the
+/// process exits first.
 #[derive(Debug)]
 pub struct WorkerHandle {
     shutdown: Option<oneshot::Sender<()>>,
@@ -249,10 +317,10 @@ pub struct WorkerHandle {
 impl WorkerHandle {
     /// Stops the worker, waiting for in-flight runs until `deadline`.
     ///
-    /// The worker stops ticking and waits for each in-flight run until that
-    /// run's own deadline, recording its outcome. If `deadline` passes first,
-    /// the worker and its runs are aborted and record nothing. Returns
-    /// whether the worker finished before `deadline`.
+    /// The worker stops launching runs, then waits for each in-flight run
+    /// until that run's own deadline, recording its outcome. If `deadline`
+    /// passes first, the worker and its runs are aborted and record nothing.
+    /// Returns whether the worker finished before `deadline`.
     pub async fn shutdown(mut self, deadline: tokio::time::Instant) -> bool {
         if let Some(shutdown) = self.shutdown.take() {
             // The worker may already have exited; nothing to signal then.

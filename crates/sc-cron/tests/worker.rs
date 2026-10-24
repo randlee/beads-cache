@@ -1,6 +1,10 @@
 //! Worker behaviour under a manual clock: ticking, missed-tick policy, stop
 //! checks, timeouts, generation fencing, jitter and shutdown. Ported from
 //! atm-cron's `tests/worker.rs` where the cases apply without ATM types.
+//!
+//! No test polls. A test waits on one of three signals: the manual clock's
+//! park at the new time (the worker has settled), the job's entry or drop
+//! counters, or the recording store's write log.
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -11,13 +15,20 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sc_cron::{
     Clock, CronError, Generation, Job, ManualClock, MissedTickPolicy, NewSchedule, RunOutcome,
-    Schedule, ScheduleSpec, ScheduleStore, Scheduler, SeqJitter, SqliteScheduleStore, StopDecision,
-    WorkerHandle,
+    RunTimeout, Schedule, ScheduleId, ScheduleSpec, ScheduleStore, Scheduler, SeqJitter,
+    SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
 };
 use serde_json::{Value, json};
 use tokio::sync::watch;
 
 const WAIT: Duration = Duration::from_secs(10);
+
+/// Waits on `receiver` until `condition` holds, failing the test after ten seconds.
+async fn wait_on<T>(receiver: &watch::Sender<T>, what: &str, condition: impl FnMut(&T) -> bool) {
+    let mut receiver = receiver.subscribe();
+    let reached = tokio::time::timeout(WAIT, receiver.wait_for(condition)).await;
+    assert!(matches!(reached, Ok(Ok(_))), "timed out waiting for {what}");
+}
 
 /// What the test job does on one run.
 enum Behavior {
@@ -33,14 +44,14 @@ enum Behavior {
 
 /// Counts run futures dropped before they returned.
 struct DropProbe<'a> {
-    dropped: &'a AtomicUsize,
+    dropped: &'a watch::Sender<usize>,
     armed: bool,
 }
 
 impl Drop for DropProbe<'_> {
     fn drop(&mut self) {
         if self.armed {
-            self.dropped.fetch_add(1, Ordering::SeqCst);
+            self.dropped.send_modify(|count| *count += 1);
         }
     }
 }
@@ -51,7 +62,7 @@ struct TestJob {
     stops: Mutex<VecDeque<StopDecision>>,
     runs: Mutex<Vec<(Value, Instant)>>,
     stop_checks: AtomicUsize,
-    dropped: AtomicUsize,
+    dropped: watch::Sender<usize>,
     entered: watch::Sender<usize>,
     release: watch::Sender<bool>,
 }
@@ -76,10 +87,6 @@ impl TestJob {
         self.stop_checks.load(Ordering::SeqCst)
     }
 
-    fn dropped(&self) -> usize {
-        self.dropped.load(Ordering::SeqCst)
-    }
-
     fn deadlines(&self) -> Vec<Instant> {
         self.runs
             .lock()
@@ -94,13 +101,17 @@ impl TestJob {
     }
 
     async fn wait_entered(&self, count: usize) {
-        let mut entered = self.entered.subscribe();
-        let reached = tokio::time::timeout(WAIT, entered.wait_for(|value| *value >= count)).await;
-        assert!(
-            matches!(reached, Ok(Ok(_))),
-            "expected {count} runs, saw {}",
-            *self.entered.borrow()
-        );
+        wait_on(&self.entered, &format!("{count} runs"), |value| {
+            *value >= count
+        })
+        .await;
+    }
+
+    async fn wait_dropped(&self, count: usize) {
+        wait_on(&self.dropped, &format!("{count} dropped runs"), |value| {
+            *value >= count
+        })
+        .await;
     }
 }
 
@@ -147,10 +158,130 @@ impl Job for TestJob {
     }
 }
 
-type TestScheduler = Scheduler<SqliteScheduleStore, ManualClock, SeqJitter>;
+/// One write the worker made, and whether the store applied it.
+#[derive(Clone, Debug, PartialEq)]
+enum Write {
+    Run {
+        id: ScheduleId,
+        outcome: RunOutcome,
+        changed: bool,
+    },
+    Next {
+        id: ScheduleId,
+        changed: bool,
+    },
+    Stop {
+        id: ScheduleId,
+        reason: String,
+        changed: bool,
+    },
+}
+
+/// A store that logs every write after it completes, for tests to wait on.
+struct RecordingStore {
+    inner: SqliteScheduleStore,
+    writes: watch::Sender<Vec<Write>>,
+}
+
+impl RecordingStore {
+    fn new() -> Self {
+        Self {
+            inner: SqliteScheduleStore::open_in_memory().expect("store"),
+            writes: watch::Sender::new(Vec::new()),
+        }
+    }
+
+    fn log(&self, write: Write) {
+        self.writes.send_modify(|writes| writes.push(write));
+    }
+
+    async fn wait_write(&self, what: &str, condition: impl Fn(&Write) -> bool) {
+        wait_on(&self.writes, what, |writes| writes.iter().any(&condition)).await;
+    }
+
+    async fn wait_recorded(&self, schedule: &Schedule, outcome: RunOutcome) {
+        let id = schedule.id;
+        self.wait_write(&format!("{outcome} recorded"), |write| {
+            *write
+                == Write::Run {
+                    id,
+                    outcome: outcome.clone(),
+                    changed: true,
+                }
+        })
+        .await;
+    }
+
+    async fn wait_stopped(&self, schedule: &Schedule) {
+        let id = schedule.id;
+        self.wait_write("schedule stopped", |write| {
+            matches!(write, Write::Stop { id: stopped, changed: true, .. } if *stopped == id)
+        })
+        .await;
+    }
+}
+
+impl ScheduleStore for RecordingStore {
+    fn create(&self, schedule: &NewSchedule, created_at: Timestamp) -> Result<Schedule, CronError> {
+        self.inner.create(schedule, created_at)
+    }
+
+    fn get(&self, id: ScheduleId) -> Result<Option<Schedule>, CronError> {
+        self.inner.get(id)
+    }
+
+    fn list_active(&self) -> Result<Vec<Schedule>, CronError> {
+        self.inner.list_active()
+    }
+
+    fn record_run(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        outcome: &RunOutcome,
+    ) -> Result<bool, CronError> {
+        let changed = self.inner.record_run(id, generation, at, outcome)?;
+        self.log(Write::Run {
+            id,
+            outcome: outcome.clone(),
+            changed,
+        });
+        Ok(changed)
+    }
+
+    fn set_next(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        next_run_at: Timestamp,
+    ) -> Result<bool, CronError> {
+        let changed = self.inner.set_next(id, generation, next_run_at)?;
+        self.log(Write::Next { id, changed });
+        Ok(changed)
+    }
+
+    fn stop(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        reason: &str,
+    ) -> Result<bool, CronError> {
+        let changed = self.inner.stop(id, generation, at, reason)?;
+        self.log(Write::Stop {
+            id,
+            reason: reason.to_owned(),
+            changed,
+        });
+        Ok(changed)
+    }
+}
+
+type TestScheduler = Scheduler<RecordingStore, ManualClock, SeqJitter>;
 
 struct Fixture {
-    store: Arc<SqliteScheduleStore>,
+    store: Arc<RecordingStore>,
     clock: Arc<ManualClock>,
     jitter: Arc<SeqJitter>,
     scheduler: TestScheduler,
@@ -161,13 +292,27 @@ fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("timestamp")
 }
 
+fn ts(text: &str) -> Timestamp {
+    text.parse().expect("timestamp")
+}
+
+fn spec(name: &str, expr: &str, timeout_secs: u64) -> ScheduleSpec {
+    ScheduleSpec::new(
+        name,
+        expr,
+        Duration::from_secs(timeout_secs),
+        json!({"name": name, "goal": {"ready": true}}),
+    )
+    .expect("spec")
+}
+
 impl Fixture {
     fn new() -> Self {
         Self::with_policy(MissedTickPolicy::Coalesce)
     }
 
     fn with_policy(policy: MissedTickPolicy) -> Self {
-        let store = Arc::new(SqliteScheduleStore::open_in_memory().expect("store"));
+        let store = Arc::new(RecordingStore::new());
         let clock = Arc::new(ManualClock::new(at("2026-10-19T00:00:00Z")));
         let jitter = Arc::new(SeqJitter::default());
         let scheduler = Scheduler::new(store.clone(), clock.clone(), jitter.clone())
@@ -181,13 +326,9 @@ impl Fixture {
         }
     }
 
+    /// A spec that runs every minute at :00 with a 20 s timeout.
     fn spec(&self, name: &str) -> ScheduleSpec {
-        ScheduleSpec {
-            name: name.into(),
-            expr: "0 * * * * *".into(),
-            timeout: Duration::from_secs(20),
-            payload: json!({"name": name, "goal": {"ready": true}}),
-        }
+        spec(name, "0 * * * * *", 20)
     }
 
     fn start(&self, spec: ScheduleSpec) -> Schedule {
@@ -213,14 +354,31 @@ impl Fixture {
             .expect("get")
             .expect("row exists")
     }
-}
 
-/// Polls `condition` until it holds, failing the test after ten seconds.
-async fn eventually(what: &str, condition: impl Fn() -> bool) {
-    let deadline = tokio::time::Instant::now() + WAIT;
-    while !condition() {
-        assert!(tokio::time::Instant::now() < deadline, "timed out: {what}");
-        tokio::time::sleep(Duration::from_millis(2)).await;
+    /// Ends and restarts `spec` straight in the store, as another process
+    /// would: this scheduler's worker gets no reload signal.
+    fn restart_externally(
+        &self,
+        first: &Schedule,
+        spec: ScheduleSpec,
+        next_run_at: &str,
+    ) -> Schedule {
+        let now = Timestamp::from_datetime(self.clock.now());
+        assert!(
+            self.store
+                .stop(first.id, first.generation, now, "external")
+                .expect("stop")
+        );
+        self.store
+            .create(
+                &NewSchedule {
+                    spec,
+                    jitter: Duration::ZERO,
+                    next_run_at: ts(next_run_at),
+                },
+                now,
+            )
+            .expect("restart")
     }
 }
 
@@ -233,10 +391,7 @@ async fn shutdown(handle: WorkerHandle) {
 async fn ticks_fire_only_when_the_manual_clock_reaches_them() {
     let fixture = Fixture::new();
     let schedule = fixture.start(fixture.spec("tick"));
-    assert_eq!(
-        schedule.next_run_at.as_deref(),
-        Some("2026-10-19T00:01:00.000000Z")
-    );
+    assert_eq!(schedule.next_run_at, Some(ts("2026-10-19T00:01:00Z")));
     let worker = fixture.worker().await;
     fixture.step(59).await;
     assert_eq!(fixture.job.runs(), 0);
@@ -246,14 +401,8 @@ async fn ticks_fire_only_when_the_manual_clock_reaches_them() {
     assert_eq!(fixture.job.runs(), 1);
     let row = fixture.row(&schedule);
     assert_eq!(row.last_outcome, Some(RunOutcome::Ok));
-    assert_eq!(
-        row.last_run_at.as_deref(),
-        Some("2026-10-19T00:01:00.000000Z")
-    );
-    assert_eq!(
-        row.next_run_at.as_deref(),
-        Some("2026-10-19T00:02:00.000000Z")
-    );
+    assert_eq!(row.last_run_at, Some(ts("2026-10-19T00:01:00Z")));
+    assert_eq!(row.next_run_at, Some(ts("2026-10-19T00:02:00Z")));
     let (payload, _) = fixture.job.runs.lock().expect("runs")[0].clone();
     assert_eq!(payload, schedule.spec.payload);
 }
@@ -298,8 +447,8 @@ async fn ticks_missed_while_down_are_replayed_once_at_worker_start() {
     fixture.step(0).await;
     assert_eq!(fixture.job.runs(), 1);
     assert_eq!(
-        fixture.row(&schedule).next_run_at.as_deref(),
-        Some("2026-10-19T03:01:00.000000Z")
+        fixture.row(&schedule).next_run_at,
+        Some(ts("2026-10-19T03:01:00Z"))
     );
     fixture.step(30).await;
     fixture.job.wait_entered(2).await;
@@ -334,9 +483,7 @@ async fn a_late_but_not_missed_tick_runs_under_skip() {
 #[tokio::test]
 async fn tick_while_in_flight_is_skipped() {
     let fixture = Fixture::new();
-    let mut spec = fixture.spec("held");
-    spec.timeout = Duration::from_secs(300);
-    fixture.start(spec);
+    fixture.start(spec("held", "0 * * * * *", 300));
     fixture.job.then(Behavior::Hold(RunOutcome::Ok));
     let worker = fixture.worker().await;
     fixture.step(60).await;
@@ -366,14 +513,14 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
         assert_eq!(fixture.job.stop_checks(), expected);
     }
     fixture.step(60).await;
-    eventually("schedule ended", || !fixture.row(&schedule).is_active()).await;
+    fixture.store.wait_stopped(&schedule).await;
     fixture.step(120).await;
     shutdown(worker).await;
     assert_eq!(fixture.job.runs(), 2);
     assert_eq!(fixture.job.stop_checks(), 3);
     let row = fixture.row(&schedule);
     assert_eq!(row.stop_reason.as_deref(), Some("phase closed"));
-    assert_eq!(row.ended_at.as_deref(), Some("2026-10-19T00:03:00.000000Z"));
+    assert_eq!(row.ended_at, Some(ts("2026-10-19T00:03:00Z")));
     assert_eq!(row.next_run_at, None);
     assert!(fixture.store.list_active().expect("list").is_empty());
 }
@@ -381,9 +528,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
 #[tokio::test]
 async fn timed_out_run_is_recorded_saw_its_deadline_and_does_not_delay_the_next_tick() {
     let fixture = Fixture::new();
-    let mut spec = fixture.spec("slow");
-    spec.timeout = Duration::from_secs(30);
-    let schedule = fixture.start(spec);
+    let schedule = fixture.start(spec("slow", "0 * * * * *", 30));
     fixture.job.then(Behavior::Hang);
     let worker = fixture.worker().await;
     let launched_at = fixture.clock.monotonic_now() + Duration::from_secs(60);
@@ -399,21 +544,36 @@ async fn timed_out_run_is_recorded_saw_its_deadline_and_does_not_delay_the_next_
     fixture.step(1).await;
     let row = fixture.row(&schedule);
     assert_eq!(row.last_outcome, Some(RunOutcome::TimedOut));
-    assert_eq!(
-        row.last_run_at.as_deref(),
-        Some("2026-10-19T00:01:30.000000Z")
-    );
-    eventually("hung run dropped", || fixture.job.dropped() == 1).await;
+    assert_eq!(row.last_run_at, Some(ts("2026-10-19T00:01:30Z")));
+    fixture.job.wait_dropped(1).await;
 
     fixture.step(30).await;
     fixture.job.wait_entered(2).await;
     shutdown(worker).await;
     let row = fixture.row(&schedule);
     assert_eq!(row.last_outcome, Some(RunOutcome::Ok));
-    assert_eq!(
-        row.last_run_at.as_deref(),
-        Some("2026-10-19T00:02:00.000000Z")
-    );
+    assert_eq!(row.last_run_at, Some(ts("2026-10-19T00:02:00Z")));
+}
+
+#[tokio::test]
+async fn a_wall_clock_jump_does_not_time_a_run_out_early() {
+    let fixture = Fixture::new();
+    let schedule = fixture.start(spec("jump", "0 * * * * *", 30));
+    fixture.job.then(Behavior::Hold(RunOutcome::Ok));
+    let worker = fixture.worker().await;
+    fixture.step(60).await;
+    fixture.job.wait_entered(1).await;
+    // Wall time leaps an hour; monotonic time does not move.
+    let parks = fixture.clock.parks();
+    fixture.clock.jump_wall(at("2026-10-19T01:01:00Z"));
+    fixture
+        .clock
+        .wait_parked_at(parks, at("2026-10-19T01:01:00Z"))
+        .await;
+    assert_eq!(fixture.row(&schedule).last_outcome, None, "not timed out");
+    fixture.job.release();
+    fixture.store.wait_recorded(&schedule, RunOutcome::Ok).await;
+    shutdown(worker).await;
 }
 
 #[tokio::test]
@@ -426,41 +586,27 @@ async fn a_run_from_an_older_generation_cannot_record() {
     fixture.step(60).await;
     fixture.job.wait_entered(1).await;
 
-    // Another process ends and restarts the schedule; this worker gets no signal.
-    let now = "2026-10-19T00:01:00.000000Z";
-    assert!(
-        fixture
-            .store
-            .stop(first.id, first.generation, now, "external")
-            .expect("stop")
-    );
-    let restarted = fixture
-        .store
-        .create(
-            &NewSchedule {
-                spec,
-                jitter: Duration::ZERO,
-                next_run_at: "2026-10-19T00:02:00.000000Z".into(),
-            },
-            now,
-        )
-        .expect("restart");
+    let restarted = fixture.restart_externally(&first, spec, "2026-10-19T00:02:00Z");
     assert_eq!(restarted.id, first.id);
     assert_eq!(Some(restarted.generation), first.generation.next());
 
-    let parks = fixture.clock.parks();
     fixture.job.release();
-    fixture.clock.wait_parks_above(parks).await;
+    let id = first.id;
+    fixture
+        .store
+        .wait_write("fenced record", |write| {
+            *write
+                == Write::Run {
+                    id,
+                    outcome: RunOutcome::Ok,
+                    changed: false,
+                }
+        })
+        .await;
     let row = fixture.row(&first);
     assert_eq!(row.generation, restarted.generation);
     assert_eq!(row.last_outcome, None);
     assert_eq!(row.last_run_at, None);
-    assert!(
-        !fixture
-            .store
-            .record_run(first.id, first.generation, now, &RunOutcome::Ok)
-            .expect("stale record")
-    );
 
     // The fenced write made the worker reload: the new generation ticks.
     fixture.step(60).await;
@@ -468,10 +614,7 @@ async fn a_run_from_an_older_generation_cannot_record() {
     shutdown(worker).await;
     let row = fixture.row(&first);
     assert_eq!(row.last_outcome, Some(RunOutcome::Ok));
-    assert_eq!(
-        row.last_run_at.as_deref(),
-        Some("2026-10-19T00:02:00.000000Z")
-    );
+    assert_eq!(row.last_run_at, Some(ts("2026-10-19T00:02:00Z")));
 }
 
 #[tokio::test]
@@ -480,24 +623,7 @@ async fn a_fenced_launch_reloads_at_once_and_runs_the_new_generation() {
     let spec = fixture.spec("fenced-launch");
     let first = fixture.start(spec.clone());
     let worker = fixture.worker().await;
-
-    // Another process restarts the schedule before its tick; no signal here.
-    let now = "2026-10-19T00:00:00.000000Z";
-    fixture
-        .store
-        .stop(first.id, first.generation, now, "external")
-        .expect("stop");
-    fixture
-        .store
-        .create(
-            &NewSchedule {
-                spec,
-                jitter: Duration::ZERO,
-                next_run_at: "2026-10-19T00:01:30.000000Z".into(),
-            },
-            now,
-        )
-        .expect("restart");
+    fixture.restart_externally(&first, spec, "2026-10-19T00:01:30Z");
 
     // The stale slot's tick is fenced at `set_next`, so it does not run...
     fixture.step(60).await;
@@ -508,10 +634,7 @@ async fn a_fenced_launch_reloads_at_once_and_runs_the_new_generation() {
     shutdown(worker).await;
     let row = fixture.row(&first);
     assert_eq!(row.generation.get(), 2);
-    assert_eq!(
-        row.last_run_at.as_deref(),
-        Some("2026-10-19T00:01:30.000000Z")
-    );
+    assert_eq!(row.last_run_at, Some(ts("2026-10-19T00:01:30Z")));
 }
 
 #[tokio::test]
@@ -528,7 +651,7 @@ async fn restart_through_the_scheduler_cancels_the_old_generation_run() {
         .stop(first.id, first.generation, "manual")
         .expect("stop");
     let restarted = fixture.start(spec);
-    eventually("old run dropped", || fixture.job.dropped() == 1).await;
+    fixture.job.wait_dropped(1).await;
     fixture.job.release();
     shutdown(worker).await;
     assert_eq!(fixture.job.runs(), 1);
@@ -551,15 +674,19 @@ async fn stop_ends_ticks_and_a_stale_stop_is_fenced() {
     fixture.step(120).await;
     shutdown(worker).await;
     assert_eq!(fixture.job.runs(), 0);
-    assert_eq!(
-        fixture
-            .scheduler
-            .stop(schedule.id, schedule.generation, "again"),
-        Err(CronError::Fenced)
+    let error = fixture
+        .scheduler
+        .stop(schedule.id, schedule.generation, "again")
+        .expect_err("stale stop");
+    assert!(
+        matches!(error, CronError::Fenced { id, generation }
+            if id == schedule.id && generation == schedule.generation),
+        "{error:?}"
     );
+    assert_eq!(error.code(), "FENCED");
     let row = fixture.row(&schedule);
     assert_eq!(row.stop_reason.as_deref(), Some("done"));
-    assert_eq!(row.ended_at.as_deref(), Some("2026-10-19T00:00:00.000000Z"));
+    assert_eq!(row.ended_at, Some(ts("2026-10-19T00:00:00Z")));
 }
 
 #[tokio::test]
@@ -585,17 +712,13 @@ async fn refused_and_failed_runs_are_recorded_and_the_schedule_stays_active() {
     fixture.job.then(Behavior::Return(failed.clone()));
     let worker = fixture.worker().await;
     fixture.step(60).await;
-    eventually("refused recorded", || {
-        fixture.row(&schedule).last_outcome.as_ref() == Some(&refused)
-    })
-    .await;
+    fixture.store.wait_recorded(&schedule, refused).await;
     fixture.step(60).await;
-    eventually("failed recorded", || {
-        fixture.row(&schedule).last_outcome.as_ref() == Some(&failed)
-    })
-    .await;
+    fixture.store.wait_recorded(&schedule, failed.clone()).await;
     shutdown(worker).await;
-    assert!(fixture.row(&schedule).is_active());
+    let row = fixture.row(&schedule);
+    assert!(row.is_active());
+    assert_eq!(row.last_outcome, Some(failed));
 }
 
 #[tokio::test]
@@ -605,11 +728,10 @@ async fn panicking_run_records_failed_and_the_worker_keeps_ticking() {
     fixture.job.then(Behavior::Panic("boom"));
     let worker = fixture.worker().await;
     fixture.step(60).await;
-    let panicked = RunOutcome::Failed("job panicked: boom".into());
-    eventually("panic recorded", || {
-        fixture.row(&schedule).last_outcome.as_ref() == Some(&panicked)
-    })
-    .await;
+    fixture
+        .store
+        .wait_recorded(&schedule, RunOutcome::Failed("job panicked: boom".into()))
+        .await;
     fixture.step(60).await;
     fixture.job.wait_entered(2).await;
     shutdown(worker).await;
@@ -619,13 +741,11 @@ async fn panicking_run_records_failed_and_the_worker_keeps_ticking() {
 #[tokio::test]
 async fn last_finite_occurrence_ends_the_schedule() {
     let fixture = Fixture::new();
-    let mut spec = fixture.spec("finite");
-    spec.expr = "0 0 1 20 10 * 2026".into();
-    let schedule = fixture.start(spec);
+    let schedule = fixture.start(spec("finite", "0 0 1 20 10 * 2026", 20));
     let worker = fixture.worker().await;
     fixture.step(25 * 60 * 60).await;
     fixture.job.wait_entered(1).await;
-    eventually("schedule ended", || !fixture.row(&schedule).is_active()).await;
+    fixture.store.wait_stopped(&schedule).await;
     shutdown(worker).await;
     let row = fixture.row(&schedule);
     assert_eq!(row.last_outcome, Some(RunOutcome::Ok));
@@ -641,9 +761,7 @@ async fn jitter_is_half_the_period_capped_at_thirty_minutes() {
     ] {
         let fixture = Fixture::new();
         fixture.jitter.push(bound - Duration::from_secs(1));
-        let mut spec = fixture.spec("jitter");
-        spec.expr = expr.into();
-        let schedule = fixture.start(spec);
+        let schedule = fixture.start(spec("jitter", expr, 20));
         assert_eq!(schedule.jitter, bound - Duration::from_secs(1), "{expr}");
         assert_eq!(fixture.jitter.calls(), [bound], "{expr}");
     }
@@ -654,9 +772,7 @@ async fn worker_fires_at_occurrence_plus_jitter() {
     let fixture = Fixture::new();
     fixture.clock.advance(chrono::Duration::minutes(30));
     fixture.jitter.push(Duration::from_secs(600));
-    let mut spec = fixture.spec("jitter");
-    spec.expr = "@hourly".into();
-    fixture.start(spec);
+    fixture.start(spec("jitter", "@hourly", 20));
     let worker = fixture.worker().await;
     fixture.step(1800).await;
     fixture.step(599).await;
@@ -671,9 +787,7 @@ async fn worker_fires_at_occurrence_plus_jitter() {
 async fn restart_inside_the_jitter_window_still_fires_that_occurrence() {
     let fixture = Fixture::new();
     fixture.jitter.push(Duration::from_secs(600));
-    let mut spec = fixture.spec("window");
-    spec.expr = "@hourly".into();
-    fixture.start(spec);
+    fixture.start(spec("window", "@hourly", 20));
     shutdown(fixture.worker().await).await;
     fixture.clock.set(at("2026-10-19T00:05:00Z"));
     let worker = fixture.worker().await;
@@ -704,20 +818,19 @@ async fn a_worker_can_be_spawned_again_after_shutdown() {
 #[tokio::test]
 async fn shutdown_drains_a_finishing_run_and_records_it() {
     let fixture = Fixture::new();
-    let mut spec = fixture.spec("drain");
-    spec.timeout = Duration::from_secs(300);
-    let schedule = fixture.start(spec);
+    let schedule = fixture.start(spec("drain", "0 * * * * *", 300));
     fixture.job.then(Behavior::Hold(RunOutcome::Ok));
     let worker = fixture.worker().await;
     fixture.step(60).await;
     fixture.job.wait_entered(1).await;
-    let job = fixture.job.clone();
-    let release = tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(20)).await;
-        job.release();
-    });
-    shutdown(worker).await;
-    release.await.expect("release task");
+    // Handshake: the worker parks once more only when it is in the drain,
+    // waiting on the held run's deadline. Release the run after that.
+    let parks = fixture.clock.parks();
+    let shutting = tokio::spawn(worker.shutdown(tokio::time::Instant::now() + WAIT));
+    fixture.clock.wait_parks_above(parks).await;
+    assert_eq!(fixture.row(&schedule).last_outcome, None, "still draining");
+    fixture.job.release();
+    assert!(shutting.await.expect("shutdown task"), "drained in time");
     assert_eq!(fixture.row(&schedule).last_outcome, Some(RunOutcome::Ok));
 }
 
@@ -733,7 +846,7 @@ async fn shutdown_deadline_aborts_a_hung_run_and_records_nothing() {
         .shutdown(tokio::time::Instant::now() + Duration::from_millis(50))
         .await;
     assert!(!stopped, "the hung run outlives the shutdown deadline");
-    eventually("hung run dropped", || fixture.job.dropped() == 1).await;
+    fixture.job.wait_dropped(1).await;
     assert_eq!(fixture.row(&schedule).last_outcome, None);
 }
 
@@ -742,5 +855,9 @@ async fn a_new_schedule_starts_at_the_first_generation() {
     let fixture = Fixture::new();
     let schedule = fixture.start(fixture.spec("first"));
     assert_eq!(schedule.generation, Generation::FIRST);
-    assert_eq!(schedule.created_at, "2026-10-19T00:00:00.000000Z");
+    assert_eq!(schedule.created_at, ts("2026-10-19T00:00:00Z"));
+    assert_eq!(
+        schedule.spec.timeout,
+        RunTimeout::new(Duration::from_secs(20)).expect("timeout")
+    );
 }

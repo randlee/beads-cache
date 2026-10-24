@@ -13,12 +13,22 @@ use crate::{RunOutcome, StopDecision};
 /// the schedule's timeout. When the budget runs out the scheduler drops the
 /// future and records [`RunOutcome::TimedOut`]; the next tick is not delayed.
 ///
-/// Dropping a future cannot stop work already handed to
-/// `tokio::task::spawn_blocking`. A job that blocks passes the deadline down
-/// into the blocking closure and has it give up at the deadline, so a
-/// timed-out run never keeps working past it. The deadline is on
-/// [`Clock::monotonic_now`](crate::Clock::monotonic_now)'s timeline, which is
-/// `Instant::now` under [`SystemClock`](crate::SystemClock).
+/// # Cancellation is cooperative
+///
+/// Dropping a future stops it only at its next `.await`. Two consequences:
+///
+/// - Work handed to `tokio::task::spawn_blocking` cannot be stopped at all.
+///   A job that blocks passes the deadline down into the blocking closure
+///   and has it give up at the deadline, so a timed-out run never keeps
+///   working past it.
+/// - A job that blocks a runtime thread without awaiting cannot be timed
+///   out, and on a current-thread runtime it also stalls the worker and
+///   every other schedule. Run the scheduler on a multi-thread runtime for
+///   the hard timeout guarantee, and never block inside `run`.
+///
+/// The deadline is on [`Clock::monotonic_now`](crate::Clock::monotonic_now)'s
+/// timeline, which is `Instant::now` under
+/// [`SystemClock`](crate::SystemClock).
 ///
 /// A panic in either method is caught and recorded as
 /// [`RunOutcome::Failed`]; the schedule keeps ticking.

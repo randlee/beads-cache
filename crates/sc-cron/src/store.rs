@@ -1,13 +1,13 @@
 //! The schedule-store port.
 //!
-//! Stores read no clock: every timestamp is an argument, in the RFC 3339 UTC
-//! form the scheduler writes. Every run-state write names `(id, generation)`
-//! and changes nothing, returning `Ok(false)`, unless that pair is the active
-//! schedule, so a run that outlives its schedule never writes over a
-//! restarted one. Calls are synchronous; the scheduler's worker runs them on
-//! tokio's blocking pool.
+//! Stores read no clock: every instant is a [`Timestamp`] argument, valid by
+//! construction. Every run-state write names `(id, generation)` and changes
+//! nothing, returning `Ok(false)`, unless that pair is the active schedule,
+//! so a run that outlives its schedule never writes over a restarted one.
+//! Calls are synchronous; the scheduler's worker runs them on tokio's
+//! blocking pool.
 
-use crate::{CronError, Generation, NewSchedule, RunOutcome, Schedule, ScheduleId};
+use crate::{CronError, Generation, NewSchedule, RunOutcome, Schedule, ScheduleId, Timestamp};
 
 /// Durable storage for schedules and their run state.
 pub trait ScheduleStore: Send + Sync {
@@ -20,9 +20,10 @@ pub trait ScheduleStore: Send + Sync {
     /// # Errors
     ///
     /// [`CronError::AlreadyActive`] if the name is active,
-    /// [`CronError::InvalidSpec`] if a field cannot be stored, and
+    /// [`CronError::InvalidSpec`] if the payload is over
+    /// [`MAX_PAYLOAD_BYTES`](crate::MAX_PAYLOAD_BYTES), and
     /// [`CronError::Store`] if storage fails or the generation is exhausted.
-    fn create(&self, schedule: &NewSchedule, created_at: &str) -> Result<Schedule, CronError>;
+    fn create(&self, schedule: &NewSchedule, created_at: Timestamp) -> Result<Schedule, CronError>;
 
     /// Returns one schedule, active or ended.
     ///
@@ -35,13 +36,14 @@ pub trait ScheduleStore: Send + Sync {
     ///
     /// # Errors
     ///
-    /// [`CronError::Store`] if storage fails or a row does not decode.
+    /// [`CronError::Store`] if storage fails or any row does not decode; a
+    /// corrupt row is reported, never skipped.
     fn list_active(&self) -> Result<Vec<Schedule>, CronError>;
 
     /// Records a finished run's time and outcome.
     ///
-    /// Returns `Ok(false)` without writing when `(id, generation)` is not the active
-    /// schedule: the run is fenced.
+    /// Returns `Ok(false)` without writing when `(id, generation)` is not
+    /// the active schedule: the run is fenced.
     ///
     /// # Errors
     ///
@@ -50,7 +52,7 @@ pub trait ScheduleStore: Send + Sync {
         &self,
         id: ScheduleId,
         generation: Generation,
-        at: &str,
+        at: Timestamp,
         outcome: &RunOutcome,
     ) -> Result<bool, CronError>;
 
@@ -63,7 +65,7 @@ pub trait ScheduleStore: Send + Sync {
         &self,
         id: ScheduleId,
         generation: Generation,
-        next_run_at: &str,
+        next_run_at: Timestamp,
     ) -> Result<bool, CronError>;
 
     /// Ends the schedule at `at` with `reason`; `Ok(false)` when fenced.
@@ -75,7 +77,7 @@ pub trait ScheduleStore: Send + Sync {
         &self,
         id: ScheduleId,
         generation: Generation,
-        at: &str,
+        at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError>;
 }

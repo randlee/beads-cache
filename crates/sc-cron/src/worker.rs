@@ -1,31 +1,36 @@
 //! The worker task that ticks every active schedule.
 //!
-//! The worker keeps one slot per active schedule: its stored row, its parsed
-//! expression, its next run time and at most one run in flight. Each loop
-//! pass it (1) reloads the rows if signalled or a retry is due, (2) times out
-//! runs past their deadline, (3) launches the runs that are due, then sleeps
-//! on the clock until the next run time, the nearest run deadline, a reload
-//! signal, a run finishing or shutdown. The worker is the only caller of
-//! [`Clock::sleep_until`], so a manual clock's park count tells a test that
-//! the worker has settled.
+//! The worker keeps one slot per active schedule: its stored row (whose
+//! expression is already parsed), its next run time and at most one run in
+//! flight. Each loop pass it (1) reloads the rows if signalled or a retry is
+//! due, (2) times out runs past their deadline, (3) launches the runs that
+//! are due, then sleeps on the clock until the next run time, the nearest
+//! run deadline, a reload signal, a run finishing or shutdown. The worker is
+//! the only caller of [`Clock::sleep_until`], so a manual clock's parks tell
+//! a test that the worker has settled. Shutdown is checked between slots,
+//! so a stop request is honoured before the next store call.
 //!
 //! Each run is its own tokio task: stop check, then the job, under one
-//! deadline. A timed-out run is aborted at its deadline by the worker loop,
-//! so the next tick is never delayed by it. A tick that comes due while the
-//! previous run is still in flight is skipped and logged. Every store write
-//! names `(id, generation)`; a fenced write makes the worker reload.
+//! deadline on the clock's monotonic timeline. A timed-out run is aborted at
+//! its deadline by the worker loop, so the next tick is never delayed by it,
+//! and a wall-clock jump cannot cut it short. A tick that comes due while
+//! the previous run is still in flight is skipped and logged. Every store
+//! write names `(id, generation)`; a fenced write makes the worker reload.
 
-use chrono::{DateTime, Utc};
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
+use std::time::Instant;
+
+use chrono::{DateTime, Utc};
 use tokio::sync::{oneshot, watch};
 use tokio::task::{JoinError, JoinHandle};
 
+use crate::clock::{sleep_until_monotonic, wall_after};
 use crate::{
     Clock, CronError, Job, MissedTickPolicy, RunOutcome, Schedule, ScheduleStore, StopDecision,
-    expr, timestamp,
+    StoreError, StoreErrorKind, Timestamp,
 };
 
 /// Stop reason recorded when an expression has no further occurrence.
@@ -43,15 +48,8 @@ enum Report {
 /// One run in flight.
 struct InFlight {
     handle: JoinHandle<Report>,
-    deadline: DateTime<Utc>,
-}
-
-/// One active schedule as the worker tracks it.
-struct Slot {
-    schedule: Schedule,
-    parsed: cron::Schedule,
-    next: Option<DateTime<Utc>>,
-    run: Option<InFlight>,
+    /// On the clock's monotonic timeline.
+    deadline: Instant,
 }
 
 /// Dropping a run cancels it, wherever it is held; aborting a finished task
@@ -63,6 +61,13 @@ impl Drop for InFlight {
     }
 }
 
+/// One active schedule as the worker tracks it.
+struct Slot {
+    schedule: Schedule,
+    next: Option<DateTime<Utc>>,
+    run: Option<InFlight>,
+}
+
 /// Backoff for a failed reload: 1 s doubling per failure, capped at 60 s.
 #[derive(Debug, Default)]
 struct ReloadRetry {
@@ -72,12 +77,12 @@ struct ReloadRetry {
 
 const RELOAD_RETRY_MAX_SECS: i64 = 60;
 
+/// Largest shift used for the backoff: 2^6 = 64 s is already past the cap.
+const RELOAD_RETRY_MAX_SHIFT: u32 = 6;
+
 impl ReloadRetry {
     fn delay(failures: u32) -> chrono::Duration {
-        let secs = 1i64
-            .checked_shl(failures)
-            .unwrap_or(RELOAD_RETRY_MAX_SECS)
-            .min(RELOAD_RETRY_MAX_SECS);
+        let secs = (1i64 << failures.min(RELOAD_RETRY_MAX_SHIFT)).min(RELOAD_RETRY_MAX_SECS);
         chrono::Duration::seconds(secs)
     }
 
@@ -100,6 +105,8 @@ pub(crate) struct Worker<S, C> {
     clock: Arc<C>,
     job: Arc<dyn Job>,
     policy: MissedTickPolicy,
+    shutdown: oneshot::Receiver<()>,
+    stopping: bool,
     slots: Vec<Slot>,
     reload_wanted: bool,
     retry: ReloadRetry,
@@ -115,37 +122,54 @@ where
         clock: Arc<C>,
         job: Arc<dyn Job>,
         policy: MissedTickPolicy,
+        shutdown: oneshot::Receiver<()>,
     ) -> Self {
         Self {
             store,
             clock,
             job,
             policy,
+            shutdown,
+            stopping: false,
             slots: Vec::new(),
             reload_wanted: true,
             retry: ReloadRetry::default(),
         }
     }
 
-    pub(crate) async fn run(
-        mut self,
-        mut reload: watch::Receiver<u64>,
-        mut shutdown: oneshot::Receiver<()>,
-    ) {
+    /// Returns whether shutdown was requested, without waiting.
+    fn stop_requested(&mut self) -> bool {
+        if !self.stopping {
+            // A sent value and a dropped handle both mean stop.
+            self.stopping = !matches!(
+                self.shutdown.try_recv(),
+                Err(oneshot::error::TryRecvError::Empty)
+            );
+        }
+        self.stopping
+    }
+
+    pub(crate) async fn run(mut self, mut reload: watch::Receiver<u64>) {
         let mut reload_open = true;
         loop {
+            if self.stop_requested() {
+                break;
+            }
             if self.reload_wanted || self.retry.is_due(self.clock.now()) {
                 self.reload().await;
             }
+            self.expire().await;
             let now = self.clock.now();
-            self.expire(now).await;
             self.launch_due(now).await;
+            if self.stop_requested() {
+                break;
+            }
             // A fenced write asks for a reload: do it now, not at the next wake.
             let wake = if self.reload_wanted { now } else { self.wake() };
             let clock = Arc::clone(&self.clock);
             tokio::select! {
                 biased;
-                _ = &mut shutdown => break,
+                _ = &mut self.shutdown => break,
                 changed = reload.changed(), if reload_open => {
                     // A dropped scheduler cannot signal again; keep ticking.
                     reload_open = changed.is_ok();
@@ -160,17 +184,24 @@ where
         self.drain().await;
     }
 
-    /// The earliest instant the worker has something to do.
+    /// The earliest wall-clock instant the worker has something to do.
     fn wake(&self) -> DateTime<Utc> {
+        let (now, monotonic) = (self.clock.now(), self.clock.monotonic_now());
         let slots = self.slots.iter().flat_map(|slot| {
-            slot.next
-                .into_iter()
-                .chain(slot.run.as_ref().map(|run| run.deadline))
+            let deadline = slot
+                .run
+                .as_ref()
+                .map(|run| wall_after(now, run.deadline.saturating_duration_since(monotonic)));
+            slot.next.into_iter().chain(deadline)
         });
         slots
             .chain(self.retry.due)
             .min()
             .unwrap_or(DateTime::<Utc>::MAX_UTC)
+    }
+
+    fn now_stamp(&self) -> Timestamp {
+        Timestamp::from_datetime(self.clock.now())
     }
 
     async fn store_call<T: Send + 'static>(
@@ -180,7 +211,11 @@ where
         let store = Arc::clone(&self.store);
         tokio::task::spawn_blocking(move || operation(store.as_ref()))
             .await
-            .map_err(|error| CronError::Store(format!("store task failed: {error}")))?
+            .map_err(|error| {
+                CronError::Store(
+                    StoreError::new(StoreErrorKind::Other, "store task failed").with_source(error),
+                )
+            })?
     }
 
     async fn reload(&mut self) {
@@ -191,8 +226,8 @@ where
                 self.merge(rows).await;
             }
             Err(error) => {
-                tracing::error!(subsystem = "sc_cron", action = "reload_failed", %error,
-                    "schedule reload failed: {error}");
+                tracing::error!(subsystem = "sc_cron", action = "reload_failed",
+                    code = error.code(), %error, "schedule reload failed: {error}");
                 self.retry.failed(self.clock.now());
             }
         }
@@ -202,6 +237,9 @@ where
     async fn merge(&mut self, rows: Vec<Schedule>) {
         let mut previous = std::mem::take(&mut self.slots);
         for schedule in rows.into_iter().filter(Schedule::is_active) {
+            if self.stop_requested() {
+                break;
+            }
             let kept = previous.iter().position(|slot| {
                 slot.schedule.id == schedule.id && slot.schedule.generation == schedule.generation
             });
@@ -220,22 +258,16 @@ where
     }
 
     async fn new_slot(&mut self, schedule: Schedule) -> Option<Slot> {
-        let parsed = match expr::parse_syntax(&schedule.spec.expr) {
-            Ok(parsed) => parsed,
-            Err(error) => {
-                tracing::error!(subsystem = "sc_cron", action = "load_failed",
-                    schedule = %schedule.id, %error, "stored schedule not loaded: {error}");
-                return None;
-            }
-        };
-        let stored = schedule
-            .next_run_at
-            .as_deref()
-            .and_then(|text| timestamp::parse(text).ok());
-        let next = match stored {
-            Some(next) => Some(next),
+        let next = match schedule.next_run_at {
+            Some(next) => Some(next.as_datetime()),
             None => {
-                let next = expr::next_run(&parsed, schedule.jitter, self.clock.now());
+                // The port allows an active row without a next run (a store
+                // that never had one); compute it. A corrupt stored value
+                // never reaches here: it fails decoding in the store.
+                let next = schedule
+                    .spec
+                    .expr
+                    .next_run(schedule.jitter, self.clock.now());
                 if let Some(next) = next {
                     self.persist_next(&schedule, next).await;
                 }
@@ -248,28 +280,37 @@ where
         }
         Some(Slot {
             schedule,
-            parsed,
             next,
             run: None,
         })
     }
 
-    /// Times out every run past its deadline; the run records `TimedOut`.
-    async fn expire(&mut self, now: DateTime<Utc>) {
+    /// Times out every run past its monotonic deadline; the run records `TimedOut`.
+    async fn expire(&mut self) {
         let mut index = 0;
         while index < self.slots.len() {
+            if self.stop_requested() {
+                return;
+            }
+            let monotonic = self.clock.monotonic_now();
             let expired = self.slots[index]
                 .run
                 .as_ref()
-                .is_some_and(|run| run.deadline <= now);
-            if !expired {
-                index += 1;
-                continue;
-            }
-            let Some(mut run) = self.slots[index].run.take() else {
+                .is_some_and(|run| run.deadline <= monotonic);
+            let run = if expired {
+                self.slots[index].run.take()
+            } else {
+                None
+            };
+            let Some(mut run) = run else {
                 index += 1;
                 continue;
             };
+            log(
+                &self.slots[index].schedule,
+                "timed_out",
+                "run deadline passed",
+            );
             run.handle.abort();
             let result = match (&mut run.handle).await {
                 Err(error) if error.is_cancelled() => Ok(Report::Ran(RunOutcome::TimedOut)),
@@ -285,15 +326,17 @@ where
     async fn launch_due(&mut self, now: DateTime<Utc>) {
         let mut index = 0;
         while index < self.slots.len() {
+            if self.stop_requested() {
+                return;
+            }
             let slot = &mut self.slots[index];
             let Some(due) = slot.next.filter(|next| *next <= now) else {
                 index += 1;
                 continue;
             };
-            let jitter = slot.schedule.jitter;
-            let missed =
-                expr::next_run(&slot.parsed, jitter, due).is_some_and(|after| after <= now);
-            let next = expr::next_run(&slot.parsed, jitter, now);
+            let (expr, jitter) = (&slot.schedule.spec.expr, slot.schedule.jitter);
+            let missed = expr.next_run(jitter, due).is_some_and(|after| after <= now);
+            let next = expr.next_run(jitter, now);
             slot.next = next;
             let schedule = slot.schedule.clone();
             if let Some(next) = next
@@ -324,7 +367,7 @@ where
                         "missed occurrences run once",
                     );
                 }
-                self.launch(index, now);
+                self.launch(index);
             }
             let slot = &self.slots[index];
             if slot.next.is_none() && slot.run.is_none() {
@@ -336,15 +379,12 @@ where
         }
     }
 
-    fn launch(&mut self, index: usize, now: DateTime<Utc>) {
+    fn launch(&mut self, index: usize) {
         let monotonic = self.clock.monotonic_now();
         let slot = &mut self.slots[index];
-        let timeout = slot.schedule.spec.timeout;
+        let timeout = slot.schedule.spec.timeout.get();
+        // RunTimeout is at most 24 h, so this cannot overflow in practice.
         let deadline = monotonic.checked_add(timeout).unwrap_or(monotonic);
-        let wall_deadline = chrono::Duration::from_std(timeout)
-            .ok()
-            .and_then(|timeout| now.checked_add_signed(timeout))
-            .unwrap_or(DateTime::<Utc>::MAX_UTC);
         let job = Arc::clone(&self.job);
         let payload = slot.schedule.spec.payload.clone();
         let handle = tokio::spawn(async move {
@@ -354,10 +394,7 @@ where
             }
         });
         log(&slot.schedule, "launched", "run started");
-        slot.run = Some(InFlight {
-            handle,
-            deadline: wall_deadline,
-        });
+        slot.run = Some(InFlight { handle, deadline });
     }
 
     /// Records a finished run. Returns whether the slot was removed.
@@ -391,25 +428,25 @@ where
 
     async fn record(&mut self, schedule: &Schedule, outcome: RunOutcome) {
         let (id, generation) = (schedule.id, schedule.generation);
-        let at = timestamp::format(self.clock.now());
+        let at = self.now_stamp();
         let text = outcome.to_string();
         let result = self
-            .store_call(move |store| store.record_run(id, generation, &at, &outcome))
+            .store_call(move |store| store.record_run(id, generation, at, &outcome))
             .await;
         match result {
             Ok(true) => log(schedule, "recorded", &text),
             Ok(false) => self.fenced(schedule, "record_run"),
             Err(error) => tracing::error!(subsystem = "sc_cron", action = "record_failed",
-                schedule = %id, %error, "run outcome not recorded: {error}"),
+                schedule = %id, code = error.code(), %error, "run outcome not recorded: {error}"),
         }
     }
 
     /// Stores the next run time; returns `false` only when fenced.
     async fn persist_next(&mut self, schedule: &Schedule, next: DateTime<Utc>) -> bool {
         let (id, generation) = (schedule.id, schedule.generation);
-        let next = timestamp::format(next);
+        let next = Timestamp::from_datetime(next);
         match self
-            .store_call(move |store| store.set_next(id, generation, &next))
+            .store_call(move |store| store.set_next(id, generation, next))
             .await
         {
             Ok(true) => true,
@@ -420,7 +457,7 @@ where
             Err(error) => {
                 // The in-memory next run still drives this process.
                 tracing::error!(subsystem = "sc_cron", action = "set_next_failed",
-                    schedule = %id, %error, "next run not stored: {error}");
+                    schedule = %id, code = error.code(), %error, "next run not stored: {error}");
                 true
             }
         }
@@ -428,16 +465,16 @@ where
 
     async fn end(&mut self, schedule: &Schedule, reason: &str) {
         let (id, generation) = (schedule.id, schedule.generation);
-        let at = timestamp::format(self.clock.now());
+        let at = self.now_stamp();
         let owned = reason.to_owned();
         match self
-            .store_call(move |store| store.stop(id, generation, &at, &owned))
+            .store_call(move |store| store.stop(id, generation, at, &owned))
             .await
         {
             Ok(true) => log(schedule, "stopped", reason),
             Ok(false) => self.fenced(schedule, "stop"),
             Err(error) => tracing::error!(subsystem = "sc_cron", action = "stop_failed",
-                schedule = %id, %error, "schedule stop not stored: {error}"),
+                schedule = %id, code = error.code(), %error, "schedule stop not stored: {error}"),
         }
     }
 
@@ -457,9 +494,10 @@ where
                 continue;
             };
             let clock = Arc::clone(&self.clock);
+            let deadline = run.deadline;
             let result = tokio::select! {
                 result = &mut run.handle => result,
-                () = clock.sleep_until(run.deadline) => {
+                () = sleep_until_monotonic(clock.as_ref(), deadline) => {
                     run.handle.abort();
                     match (&mut run.handle).await {
                         Err(error) if error.is_cancelled() => Ok(Report::Ran(RunOutcome::TimedOut)),
@@ -521,6 +559,25 @@ mod tests {
         assert_eq!(delays, expected);
         assert!(!retry.is_due(now));
         assert!(retry.is_due(now + chrono::Duration::seconds(60)));
+    }
+
+    #[test]
+    fn reload_retry_delay_never_overflows() {
+        for failures in (62..=64).chain([u32::MAX - 1, u32::MAX]) {
+            assert_eq!(
+                ReloadRetry::delay(failures),
+                chrono::Duration::seconds(60),
+                "{failures}"
+            );
+        }
+        let now = DateTime::<Utc>::UNIX_EPOCH;
+        let mut retry = ReloadRetry {
+            failures: u32::MAX,
+            due: None,
+        };
+        retry.failed(now);
+        assert_eq!(retry.failures, u32::MAX);
+        assert_eq!(retry.due, Some(now + chrono::Duration::seconds(60)));
     }
 
     #[test]

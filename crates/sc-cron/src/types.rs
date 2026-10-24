@@ -1,14 +1,22 @@
-//! Schedule identity, specification, stored state and run results.
+//! Schedule identity, validated input, stored state and run results.
 //!
 //! A schedule is identified by its [`ScheduleId`], stable for the life of
 //! its name, and fenced by its [`Generation`], which a store raises each time
 //! an ended schedule is started again. Every run-state write names both, so a
 //! run that began under an older generation can never write over the
 //! restarted schedule.
+//!
+//! Input is validated once, when its type is built: [`ScheduleName`],
+//! [`CronExpr`](crate::CronExpr) and [`RunTimeout`] cannot hold an invalid
+//! value, so the scheduler and stores never check them again.
 
 use std::fmt;
 use std::num::NonZeroU32;
+use std::str::FromStr;
 use std::time::Duration;
+
+use crate::limits::{MAX_NAME_LEN, MAX_TIMEOUT};
+use crate::{CronError, CronExpr, Timestamp};
 
 /// Stable row id of one schedule; kept when an ended name is started again.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -73,24 +81,157 @@ impl fmt::Display for Generation {
     }
 }
 
+/// A valid schedule name.
+///
+/// A name is 1 to [`MAX_NAME_LEN`](crate::MAX_NAME_LEN) bytes, has no
+/// leading or trailing whitespace and no control characters. This is the
+/// one definition of a valid name; the scheduler and the store both rely on
+/// it.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct ScheduleName(String);
+
+impl ScheduleName {
+    /// Validates `name`.
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::InvalidSpec`] if `name` breaks a rule above.
+    pub fn new(name: impl Into<String>) -> Result<Self, CronError> {
+        let name = name.into();
+        let invalid = |why: &str| CronError::InvalidSpec(format!("name {name:?} {why}"));
+        if name.is_empty() {
+            return Err(invalid("is empty"));
+        }
+        if name.len() > MAX_NAME_LEN {
+            return Err(invalid(&format!("is longer than {MAX_NAME_LEN} bytes")));
+        }
+        if name.trim() != name {
+            return Err(invalid("has leading or trailing whitespace"));
+        }
+        if name.chars().any(char::is_control) {
+            return Err(invalid("contains a control character"));
+        }
+        Ok(Self(name))
+    }
+
+    /// Returns the name.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl FromStr for ScheduleName {
+    type Err = CronError;
+
+    fn from_str(name: &str) -> Result<Self, Self::Err> {
+        Self::new(name)
+    }
+}
+
+impl fmt::Display for ScheduleName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl AsRef<str> for ScheduleName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// A valid run timeout: whole milliseconds, 1 ms to [`MAX_TIMEOUT`](crate::MAX_TIMEOUT).
+///
+/// The timeout bounds a stop check and its run together.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct RunTimeout(Duration);
+
+impl RunTimeout {
+    /// Validates `timeout`, dropping precision finer than a millisecond.
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::InvalidSpec`] if `timeout` is under 1 ms or over
+    /// [`MAX_TIMEOUT`](crate::MAX_TIMEOUT).
+    pub fn new(timeout: Duration) -> Result<Self, CronError> {
+        let millis = timeout.as_millis();
+        if millis == 0 || timeout > MAX_TIMEOUT {
+            return Err(CronError::InvalidSpec(format!(
+                "timeout {timeout:?} is outside 1 ms..={} s",
+                MAX_TIMEOUT.as_secs()
+            )));
+        }
+        // `millis` is at most MAX_TIMEOUT in ms, far below u64::MAX.
+        Ok(Self(Duration::from_millis(
+            u64::try_from(millis).unwrap_or(u64::MAX),
+        )))
+    }
+
+    /// Returns the timeout.
+    #[must_use]
+    pub const fn get(self) -> Duration {
+        self.0
+    }
+}
+
 /// What a caller asks the scheduler to run.
 ///
-/// `expr` uses the `cron` crate's grammar in UTC: six or seven fields,
-/// seconds first and year optional, or one of `@yearly`, `@monthly`,
-/// `@weekly`, `@daily`, `@hourly`. Five-field expressions are refused.
-/// `timeout` bounds the stop check and the run together; it must be at least
-/// one millisecond. `payload` is opaque to the scheduler and handed to the
-/// [`Job`](crate::Job) on every stop check and run.
+/// `payload` is opaque to the scheduler and handed to the [`Job`](crate::Job)
+/// on every stop check and run. Its compact JSON encoding is limited to
+/// [`MAX_PAYLOAD_BYTES`](crate::MAX_PAYLOAD_BYTES), checked by
+/// [`ScheduleSpec::new`], by [`Scheduler::start`](crate::Scheduler::start)
+/// and by the store, with one rule.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScheduleSpec {
     /// Unique name; an active schedule's name cannot be started again.
-    pub name: String,
-    /// Cron expression, parsed before anything is stored.
-    pub expr: String,
+    pub name: ScheduleName,
+    /// Cron expression.
+    pub expr: CronExpr,
     /// Budget for one stop check plus run.
-    pub timeout: Duration,
+    pub timeout: RunTimeout,
     /// Opaque job input.
     pub payload: serde_json::Value,
+}
+
+impl ScheduleSpec {
+    /// Validates every field and builds a spec.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    ///
+    /// let spec = sc_cron::ScheduleSpec::new(
+    ///     "sync",
+    ///     "*/30 * * * * *",
+    ///     Duration::from_secs(25),
+    ///     serde_json::json!({"scope": "phase-a"}),
+    /// )?;
+    /// assert_eq!(spec.name.as_str(), "sync");
+    /// # Ok::<(), sc_cron::CronError>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::InvalidSpec`] for an invalid name, timeout, over-long
+    /// expression or over-size payload; [`CronError::BadExpression`] for an
+    /// expression that does not parse.
+    pub fn new(
+        name: &str,
+        expr: &str,
+        timeout: Duration,
+        payload: serde_json::Value,
+    ) -> Result<Self, CronError> {
+        let spec = Self {
+            name: ScheduleName::new(name)?,
+            expr: CronExpr::parse(expr)?,
+            timeout: RunTimeout::new(timeout)?,
+            payload,
+        };
+        crate::limits::encode_payload(&spec.payload)?;
+        Ok(spec)
+    }
 }
 
 /// A schedule as the scheduler asks a store to create it.
@@ -101,16 +242,16 @@ pub struct ScheduleSpec {
 pub struct NewSchedule {
     /// The caller's specification.
     pub spec: ScheduleSpec,
-    /// Fixed offset added to every occurrence of the expression.
+    /// Fixed offset added to every occurrence, in whole milliseconds.
     pub jitter: Duration,
-    /// First run time, RFC 3339 UTC.
-    pub next_run_at: String,
+    /// First run time.
+    pub next_run_at: Timestamp,
 }
 
 /// One stored schedule with its run state.
 ///
-/// Timestamps are RFC 3339 UTC text exactly as the scheduler passed them to
-/// the store. A schedule is active while `ended_at` is `None`.
+/// A schedule is active while `ended_at` is `None`; an active schedule
+/// always has a `next_run_at`, an ended one never does.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Schedule {
     /// Stable id.
@@ -122,15 +263,15 @@ pub struct Schedule {
     /// Fixed jitter added to each occurrence.
     pub jitter: Duration,
     /// When it was (re)started.
-    pub created_at: String,
+    pub created_at: Timestamp,
     /// When it next runs; `None` once ended.
-    pub next_run_at: Option<String>,
+    pub next_run_at: Option<Timestamp>,
     /// When the last recorded run finished.
-    pub last_run_at: Option<String>,
+    pub last_run_at: Option<Timestamp>,
     /// The last recorded run's result.
     pub last_outcome: Option<RunOutcome>,
     /// When it ended; `None` while active.
-    pub ended_at: Option<String>,
+    pub ended_at: Option<Timestamp>,
     /// Why it ended, when it has.
     pub stop_reason: Option<String>,
 }
@@ -193,6 +334,50 @@ mod tests {
         let id = ScheduleId::new(42);
         assert_eq!(id.get(), 42);
         assert_eq!(id.to_string(), "42");
+    }
+
+    #[test]
+    fn schedule_name_has_one_validation_rule() {
+        assert!(ScheduleName::new("sync-phase-a").is_ok());
+        let longest = "n".repeat(MAX_NAME_LEN);
+        assert!(ScheduleName::new(longest.as_str()).is_ok());
+        for bad in [
+            String::new(),
+            "  ".into(),
+            " sync".into(),
+            "sync ".into(),
+            "a\nb".into(),
+            "n".repeat(MAX_NAME_LEN + 1),
+        ] {
+            assert!(
+                matches!(
+                    ScheduleName::new(bad.as_str()),
+                    Err(CronError::InvalidSpec(_))
+                ),
+                "{bad:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn run_timeout_bounds_and_truncates_to_milliseconds() {
+        assert_eq!(
+            RunTimeout::new(Duration::from_micros(1500))
+                .map(RunTimeout::get)
+                .ok(),
+            Some(Duration::from_millis(1))
+        );
+        assert!(RunTimeout::new(MAX_TIMEOUT).is_ok());
+        for bad in [
+            Duration::ZERO,
+            Duration::from_micros(999),
+            MAX_TIMEOUT + Duration::from_millis(1),
+        ] {
+            assert!(matches!(
+                RunTimeout::new(bad),
+                Err(CronError::InvalidSpec(_))
+            ));
+        }
     }
 
     #[test]

@@ -6,13 +6,11 @@
 //! upper bound is half the expression's period, capped at 30 minutes, so a
 //! jittered run never drifts into the following occurrence.
 
-#[cfg(feature = "test-utils")]
-use std::collections::VecDeque;
-#[cfg(feature = "test-utils")]
-use std::sync::{Mutex, PoisonError};
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+
+use crate::CronExpr;
 
 /// Largest jitter any schedule gets.
 pub(crate) const MAX_JITTER: Duration = Duration::from_secs(30 * 60);
@@ -21,7 +19,8 @@ pub(crate) const MAX_JITTER: Duration = Duration::from_secs(30 * 60);
 pub trait JitterSource: Send + Sync {
     /// Returns an offset in `[0, max)`, or zero when `max` is zero.
     ///
-    /// The scheduler clamps a larger value to `max`.
+    /// The scheduler clamps a larger value to `max` and drops precision
+    /// finer than a millisecond.
     fn jitter(&self, max: Duration) -> Duration;
 }
 
@@ -55,65 +54,79 @@ impl JitterSource for SystemJitter {
     }
 }
 
-/// Jitter that replays preset offsets in order, then returns zero.
-///
-/// It also records every `max` it was asked for, so a test can check the
-/// bound the scheduler computed.
 #[cfg(feature = "test-utils")]
-#[derive(Debug, Default)]
-pub struct SeqJitter {
-    values: Mutex<VecDeque<Duration>>,
-    calls: Mutex<Vec<Duration>>,
-}
+pub use seq::SeqJitter;
 
 #[cfg(feature = "test-utils")]
-impl SeqJitter {
-    /// Creates a source that returns `values` in order.
-    #[must_use]
-    pub fn new(values: impl IntoIterator<Item = Duration>) -> Self {
-        Self {
-            values: Mutex::new(values.into_iter().collect()),
-            calls: Mutex::new(Vec::new()),
+mod seq {
+    use std::collections::VecDeque;
+    use std::sync::{Mutex, PoisonError};
+    use std::time::Duration;
+
+    use super::JitterSource;
+
+    /// Jitter that replays preset offsets in order, then returns zero.
+    ///
+    /// It also records every `max` it was asked for, so a test can check the
+    /// bound the scheduler computed.
+    #[derive(Debug, Default)]
+    pub struct SeqJitter {
+        // `JitterSource::jitter` takes `&self` and the source is shared
+        // across threads (`Send + Sync`), so the queue and the call log need
+        // interior mutability. One mutex covers both: every call reads one
+        // and appends to the other.
+        state: Mutex<SeqState>,
+    }
+
+    #[derive(Debug, Default)]
+    struct SeqState {
+        values: VecDeque<Duration>,
+        calls: Vec<Duration>,
+    }
+
+    impl SeqJitter {
+        /// Creates a source that returns `values` in order.
+        #[must_use]
+        pub fn new(values: impl IntoIterator<Item = Duration>) -> Self {
+            Self {
+                state: Mutex::new(SeqState {
+                    values: values.into_iter().collect(),
+                    calls: Vec::new(),
+                }),
+            }
+        }
+
+        /// Queues one more offset.
+        pub fn push(&self, value: Duration) {
+            self.lock().values.push_back(value);
+        }
+
+        /// Returns every `max` passed to [`JitterSource::jitter`] so far.
+        #[must_use]
+        pub fn calls(&self) -> Vec<Duration> {
+            self.lock().calls.clone()
+        }
+
+        fn lock(&self) -> std::sync::MutexGuard<'_, SeqState> {
+            // The state is two plain collections; a panic mid-update leaves
+            // them usable, so poisoning is ignored.
+            self.state.lock().unwrap_or_else(PoisonError::into_inner)
         }
     }
 
-    /// Queues one more offset.
-    pub fn push(&self, value: Duration) {
-        self.values
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push_back(value);
-    }
-
-    /// Returns every `max` passed to [`JitterSource::jitter`] so far.
-    #[must_use]
-    pub fn calls(&self) -> Vec<Duration> {
-        self.calls
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+    impl JitterSource for SeqJitter {
+        fn jitter(&self, max: Duration) -> Duration {
+            let mut state = self.lock();
+            state.calls.push(max);
+            state.values.pop_front().unwrap_or_default()
+        }
     }
 }
 
-#[cfg(feature = "test-utils")]
-impl JitterSource for SeqJitter {
-    fn jitter(&self, max: Duration) -> Duration {
-        self.calls
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(max);
-        self.values
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .pop_front()
-            .unwrap_or_default()
-    }
-}
-
-/// The jitter bound for `schedule` as of `now`: half the gap between its next
+/// The jitter bound for `expr` as of `now`: half the gap between its next
 /// two occurrences, capped at [`MAX_JITTER`]; zero with fewer than two.
-pub(crate) fn bound(schedule: &cron::Schedule, now: DateTime<Utc>) -> Duration {
-    let mut occurrences = schedule.after(&now);
+pub(crate) fn bound(expr: &CronExpr, now: DateTime<Utc>) -> Duration {
+    let mut occurrences = expr.schedule().after(&now);
     match (occurrences.next(), occurrences.next()) {
         (Some(first), Some(second)) => ((second - first) / 2)
             .to_std()
@@ -123,56 +136,61 @@ pub(crate) fn bound(schedule: &cron::Schedule, now: DateTime<Utc>) -> Duration {
     }
 }
 
-/// Draws a jitter for `schedule` from `source`, clamped to the bound.
-pub(crate) fn draw(
-    schedule: &cron::Schedule,
-    now: DateTime<Utc>,
-    source: &dyn JitterSource,
-) -> Duration {
-    let max = bound(schedule, now);
-    source.jitter(max).min(max)
+/// Draws a jitter for `expr` from `source`: clamped to the bound and
+/// truncated to whole milliseconds, so it round-trips through a store.
+pub(crate) fn draw(expr: &CronExpr, now: DateTime<Utc>, source: &dyn JitterSource) -> Duration {
+    let max = bound(expr, now);
+    let drawn = source.jitter(max).min(max);
+    Duration::from_millis(u64::try_from(drawn.as_millis()).unwrap_or(0))
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     fn at(text: &str) -> DateTime<Utc> {
         text.parse().expect("timestamp")
     }
 
+    fn expr(text: &str) -> CronExpr {
+        CronExpr::parse(text).expect("expression")
+    }
+
     #[test]
     fn bound_is_half_the_period_capped_at_thirty_minutes() {
         let now = at("2026-10-19T00:00:00Z");
-        for (expr, expected) in [
+        for (text, expected) in [
             ("0 * * * * *", Duration::from_secs(30)),
             ("@hourly", MAX_JITTER),
             ("@daily", MAX_JITTER),
             ("*/10 * * * * *", Duration::from_secs(5)),
         ] {
-            let schedule = cron::Schedule::from_str(expr).expect("expression");
-            assert_eq!(bound(&schedule, now), expected, "{expr}");
+            assert_eq!(bound(&expr(text), now), expected, "{text}");
         }
     }
 
     #[test]
     fn bound_is_zero_for_a_last_occurrence() {
-        let schedule = cron::Schedule::from_str("0 0 0 20 10 * 2026").expect("expression");
-        assert_eq!(bound(&schedule, at("2026-10-19T00:00:00Z")), Duration::ZERO);
+        assert_eq!(
+            bound(&expr("0 0 0 20 10 * 2026"), at("2026-10-19T00:00:00Z")),
+            Duration::ZERO
+        );
     }
 
     #[cfg(feature = "test-utils")]
     #[test]
-    fn draw_clamps_an_out_of_range_source() {
-        let schedule = cron::Schedule::from_str("0 * * * * *").expect("expression");
-        let source = SeqJitter::new([Duration::from_secs(600)]);
+    fn draw_clamps_and_truncates_an_out_of_range_source() {
+        let source = SeqJitter::new([Duration::from_secs(600), Duration::from_micros(1500)]);
+        let now = at("2026-10-19T00:00:00Z");
         assert_eq!(
-            draw(&schedule, at("2026-10-19T00:00:00Z"), &source),
+            draw(&expr("0 * * * * *"), now, &source),
             Duration::from_secs(30)
         );
-        assert_eq!(source.calls(), [Duration::from_secs(30)]);
+        assert_eq!(
+            draw(&expr("0 * * * * *"), now, &source),
+            Duration::from_millis(1)
+        );
+        assert_eq!(source.calls(), [Duration::from_secs(30); 2]);
     }
 
     #[test]

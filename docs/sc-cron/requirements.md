@@ -2,7 +2,9 @@
 
 Status: draft. Requirements below are Draft until approved.
 
-Domain code: `CRON`. `sc-cron` is the prototype cron scheduler of
+Domain code: `CRON`. Owned by sprint a-3 (`requirements.owns` in
+[sprint-a-3-sc-cron.md](../plans/phase-a/sprint-a-3-sc-cron.md)).
+`sc-cron` is the prototype cron scheduler of
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime),
 extracted from atm-core's `atm-cron` (ADR-069 there). It owns no repo-level
 requirement. It is constrained by
@@ -10,7 +12,10 @@ requirement. It is constrained by
 [NFR-BDC-0004](../requirements.md#nfr-bdc-0004-bd-calls-bounded-by-the-deadline),
 which a-7 (`bd-cache-sync`) meets on top of REQ-CRON-0005: the sync
 schedule's timeout is the tick budget, and the deadline the job receives is
-the one its `bd` calls are capped at.
+the one its `bd` calls are capped at. It is also constrained by
+[NFR-BDC-0007](../requirements.md#nfr-bdc-0007-bundled-sqlite) (bundled
+SQLite; its schedule store uses its own file and connection), which
+REQ-CRON-0009 meets.
 
 Architecture and crate-local ADRs: [architecture.md](architecture.md).
 
@@ -18,10 +23,18 @@ Architecture and crate-local ADRs: [architecture.md](architecture.md).
 
 **Status:** Draft
 
-`Scheduler::start` validates the name and timeout and parses the expression
-before anything is stored. An expression that does not parse, has five
-fields or has no future occurrence is refused with
-`CronError::BadExpression` and nothing is written.
+Schedule input is validated before anything is stored, once, by type:
+`ScheduleName` (1 to `MAX_NAME_LEN` = 128 bytes, no surrounding whitespace,
+no control characters), `CronExpr` (at most `MAX_EXPR_LEN` = 256 bytes,
+parsed), `RunTimeout` (1 ms to `MAX_TIMEOUT` = 24 h) and a payload of at
+most `MAX_PAYLOAD_BYTES` = 64 KiB of compact JSON, checked by
+`ScheduleSpec::new`, `Scheduler::start` and the store with one rule.
+`Scheduler::start` also refuses an expression with no future occurrence.
+An expression that does not parse, has five fields or has no future
+occurrence is `CronError::BadExpression`; any other invalid field or
+exceeded limit is `CronError::InvalidSpec`. Nothing is written either way.
+The number of active schedules is not capped: the caller creates every
+schedule, and each row is bounded by the limits above.
 
 **Refines:** ADR-BDC-0006 (expression parse before write)
 
@@ -69,9 +82,13 @@ from its next future occurrence.
 
 Before every run the worker asks `Job::should_stop`. `Stop(reason)` ends the
 schedule with that reason and nothing runs. Stop check and run share the
-schedule's timeout. The job receives the deadline. A run still going at the
-deadline is cancelled and recorded as `RunOutcome::TimedOut`, and the next
-tick fires on time.
+schedule's timeout. The job receives the deadline, on the clock's monotonic
+timeline. A run still going at the deadline is cancelled and recorded as
+`RunOutcome::TimedOut`, and the next tick fires on time. The worker measures
+the deadline on the monotonic timeline, so a wall-clock jump never times a
+run out early. Cancellation is cooperative, at the run's next `.await`; the
+hard timeout guarantee needs a multi-thread runtime and a job that never
+blocks a runtime thread (documented on `Job`).
 
 **Refines:** ADR-BDC-0006 (stop check before every run); constrained by
 REQ-BDC-0703, NFR-BDC-0004
@@ -103,8 +120,10 @@ makes the worker reload at once.
 
 **Status:** Draft
 
-`ScheduleStore` methods take every timestamp as an argument (RFC 3339 UTC
-text) and keep it as given. No store reads a clock.
+`ScheduleStore` methods take every instant as a `Timestamp` argument (UTC,
+microsecond precision, valid by construction) and keep it as given; text
+exists only at the SQL boundary. No store reads a clock. A stored timestamp
+that does not parse is a `Corrupt` store error, never silently replaced.
 
 **Refines:** ADR-BDC-0006 (stores that read no clock)
 
@@ -113,9 +132,16 @@ text) and keep it as given. No store reads a clock.
 **Status:** Draft
 
 `SqliteScheduleStore` implements `ScheduleStore` over bundled SQLite, in one
-`sc_cron_schedule` table that can share a database file with other tables.
-Creating a schedule is one immediate transaction. Table CHECKs refuse rows
-whose end state contradicts itself. Schedules survive reopening the file.
+`sc_cron_schedule` table on its own database file and its own connection.
+It never opens a second connection to another store's file (NFR-BDC-0007 as
+amended). On open it sets the busy timeout, then WAL, then checks
+`PRAGMA user_version`. A fresh file gets the schema at `SCHEMA_VERSION`; a
+file at another version, or one holding other tables, is refused with
+`StoreErrorKind::SchemaMismatch`. Creating a schedule is one immediate
+transaction. Table CHECKs refuse rows whose end state contradicts itself or
+that exceed the REQ-CRON-0001 limits. Schedules survive reopening the file.
+
+**Constrained by:** NFR-BDC-0007
 
 **Refines:** ADR-BDC-0006 (rusqlite store)
 
@@ -127,6 +153,9 @@ The scheduler reads time only through `Clock` and randomness only through
 `JitterSource`. `SystemClock` and `SystemJitter` are the real
 implementations. `ManualClock` and `SeqJitter`, behind feature
 `test-utils`, make every behaviour testable without real waits.
+`ManualClock` records the time each park observed, so a test waits for the
+worker to settle at the new time, and `jump_wall` steps wall time without
+moving monotonic time.
 
 **Refines:** ADR-BDC-0006
 
@@ -136,8 +165,12 @@ implementations. `ManualClock` and `SeqJitter`, behind feature
 
 `sc-cron` depends on no bd-cache, sc-beads or ATM crate, and no such type
 appears in its API. A schedule's input is an opaque `serde_json::Value`, and
-every failure is a `CronError`. `cargo tree -p sc-cron` shows only
-third-party crates.
+every failure is a `CronError` with a stable `code()` (`BAD_EXPRESSION`,
+`INVALID_SPEC`, `ALREADY_ACTIVE`, `STORE_FAILED`, `FENCED`) and `recovery()`
+text. A store failure is a `StoreError` with a `StoreErrorKind` (`Busy`,
+`Corrupt`, `SchemaMismatch`, `Unavailable`, `Other`) and its underlying
+error as `Error::source`. `Fenced` names the id and generation.
+`cargo tree -p sc-cron` shows only third-party crates.
 
 **Refines:** ADR-BDC-0006; [architecture.md](../architecture.md) Boundaries
 and Dependencies (`sc-cron` may depend on none)
@@ -149,7 +182,11 @@ and Dependencies (`sc-cron` may depend on none)
 `WorkerHandle::shutdown(deadline)` stops ticking and waits for each in-flight
 run until that run's own deadline, recording its outcome. If the shutdown
 deadline passes first, the worker and its runs are aborted and record
-nothing. Dropping the handle also stops the worker. A scheduler runs at most
-one worker at a time.
+nothing. The worker checks for shutdown between slots, so no new run starts
+after shutdown is requested. Dropping the handle also stops the worker, but
+the drain then runs detached; callers await `shutdown` to know outcomes were
+recorded. A scheduler runs at most one worker at a time. `Scheduler::start`
+and `stop` are synchronous store calls; `start_async` and `stop_async` run
+them on tokio's blocking pool.
 
 **Refines:** ADR-BDC-0006

@@ -3,23 +3,38 @@
 //! `sc-cron` runs a caller's [`Job`] on cron schedules kept in a
 //! [`ScheduleStore`]. It was extracted from atm-core's `atm-cron`
 //! (ADR-BDC-0006) and carries no ATM or bd-cache types: a schedule's input
-//! is an opaque JSON payload and every failure is a [`CronError`].
+//! is an opaque JSON payload and every failure is a [`CronError`] with a
+//! stable [`code`](CronError::code).
 //!
-//! - [`Scheduler::start`] parses the expression before anything is written,
-//!   draws a per-schedule jitter and stores the first run time.
+//! - Input is validated once, by type: [`ScheduleName`], [`CronExpr`],
+//!   [`RunTimeout`], [`Timestamp`], within the [limits](MAX_PAYLOAD_BYTES).
+//! - [`Scheduler::start`] checks the expression has a future occurrence
+//!   before anything is written, draws a per-schedule jitter and stores the
+//!   first run time.
 //! - [`Scheduler::spawn_worker`] starts one tokio task that runs every
 //!   active schedule: it asks [`Job::should_stop`] before every run, bounds
-//!   stop check and run by the schedule's timeout (recording
-//!   [`RunOutcome::TimedOut`] without delaying the next tick), skips a tick
-//!   whose previous run is still in flight and handles missed ticks per
-//!   [`MissedTickPolicy`].
+//!   stop check and run by the schedule's timeout on the monotonic clock
+//!   (recording [`RunOutcome::TimedOut`] without delaying the next tick),
+//!   skips a tick whose previous run is still in flight and handles missed
+//!   ticks per [`MissedTickPolicy`].
 //! - Every run-state write names `(id, generation)`; a run from an older
 //!   generation is fenced and records nothing.
-//! - Stores read no clock: every timestamp is an argument.
-//!   [`SqliteScheduleStore`] is the rusqlite (bundled) implementation.
+//! - Stores read no clock: every instant is a [`Timestamp`] argument.
+//!   [`SqliteScheduleStore`] is the rusqlite (bundled) implementation, on
+//!   its own database file.
 //! - Time and randomness are injected through [`Clock`] and
 //!   [`JitterSource`]. Feature `test-utils` adds the deterministic
 //!   `ManualClock` and `SeqJitter`.
+//!
+//! # Runtime requirements
+//!
+//! - [`Scheduler::start`] and [`Scheduler::stop`] call the store
+//!   synchronously. From async code use [`Scheduler::start_async`] and
+//!   [`Scheduler::stop_async`], which run on tokio's blocking pool.
+//! - Run timeouts are cooperative (see [`Job`]); use a multi-thread tokio
+//!   runtime so a misbehaving job cannot stall the worker.
+//! - Stop the worker by awaiting [`WorkerHandle::shutdown`]; dropping the
+//!   handle drains detached and can lose in-flight outcomes at process exit.
 //!
 //! # Examples
 //!
@@ -52,12 +67,8 @@
 //!     Arc::new(SystemClock),
 //!     Arc::new(SystemJitter),
 //! );
-//! scheduler.start(ScheduleSpec {
-//!     name: "sync".into(),
-//!     expr: "*/30 * * * * *".into(),
-//!     timeout: Duration::from_secs(25),
-//!     payload: serde_json::json!({}),
-//! })?;
+//! let spec = ScheduleSpec::new("sync", "*/30 * * * * *", Duration::from_secs(25), serde_json::json!({}))?;
+//! scheduler.start_async(spec).await?;
 //! let worker = scheduler.spawn_worker(Arc::new(Sync));
 //! // ... later
 //! worker.shutdown(tokio::time::Instant::now() + Duration::from_secs(30)).await;
@@ -70,6 +81,7 @@ mod error;
 mod expr;
 mod jitter;
 mod job;
+mod limits;
 mod scheduler;
 mod sqlite;
 mod store;
@@ -83,7 +95,9 @@ pub use clock::ManualClock;
 #[doc(inline)]
 pub use clock::{Clock, SystemClock};
 #[doc(inline)]
-pub use error::CronError;
+pub use error::{CronError, StoreError, StoreErrorKind};
+#[doc(inline)]
+pub use expr::CronExpr;
 #[cfg(feature = "test-utils")]
 #[doc(inline)]
 pub use jitter::SeqJitter;
@@ -92,12 +106,17 @@ pub use jitter::{JitterSource, SystemJitter};
 #[doc(inline)]
 pub use job::Job;
 #[doc(inline)]
-pub use scheduler::{MAX_TIMEOUT, MissedTickPolicy, Scheduler, WorkerHandle};
+pub use limits::{MAX_EXPR_LEN, MAX_NAME_LEN, MAX_PAYLOAD_BYTES, MAX_TIMEOUT};
 #[doc(inline)]
-pub use sqlite::SqliteScheduleStore;
+pub use scheduler::{MissedTickPolicy, Scheduler, WorkerHandle};
+#[doc(inline)]
+pub use sqlite::{SCHEMA_VERSION, SqliteScheduleStore};
 #[doc(inline)]
 pub use store::ScheduleStore;
 #[doc(inline)]
+pub use timestamp::Timestamp;
+#[doc(inline)]
 pub use types::{
-    Generation, NewSchedule, RunOutcome, Schedule, ScheduleId, ScheduleSpec, StopDecision,
+    Generation, NewSchedule, RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleName,
+    ScheduleSpec, StopDecision,
 };
