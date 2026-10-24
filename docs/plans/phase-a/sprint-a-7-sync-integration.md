@@ -492,7 +492,7 @@ Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`): PR #33 at `8f4f0
 | RSH-006, RBP-F009 | `# Blocking` docs and `try_with_cache` | `try_with_cache_does_not_wait_for_a_running_tick` |
 | RSH-007 | Phase file size cap (64 KiB) and count cap (256) | `a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded`; planted caps |
 | RSH-008 | Refused outcome clipped to 1 KiB | unit test in job.rs; planted 'recorded outcome not clipped' |
-| RSH-009 | Embedded error text clipped to 2 KiB on a char boundary | `embedded_text_is_clipped_on_a_character_boundary` (renamed/replaced in fix-a-7-10: unit test `embedded_error_text_is_clipped` in announce.rs); planted 'embedded error text not clipped' |
+| RSH-009 | Embedded error text clipped to 2 KiB on a char boundary | `embedded_text_is_clipped_on_a_character_boundary` (now covered by `text::tests::short_text_is_kept_and_long_text_is_cut_on_a_character_boundary` for the character boundary and `announce::tests::embedded_error_text_is_clipped` for the 2 KiB limit in message bodies); planted 'embedded error text not clipped' |
 | RSH-010 | `SyncJob::new` validates and returns `Result` | `a_job_with_an_unusable_config_is_refused_at_construction` |
 | RSH-011 | Empty `phases` list refused | `an_empty_phase_list_is_refused_not_a_schedule_that_ends_at_once`; planted 'empty phase list accepted' |
 | RSH-012 | `with_timeout` returns `Result` (zero and >= tick budget refused) | `a_timeout_that_no_message_could_use_is_refused` |
