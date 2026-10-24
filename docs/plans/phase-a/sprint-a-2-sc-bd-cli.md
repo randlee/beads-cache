@@ -260,9 +260,9 @@ impl FakeBd {
 
 ## Evidence
 
-Code evidence SHA: `bdda20714e0dbcca9f6138acb3ffe20b08fa3c4d`, the merge of
-`integrate/phase-a` (`aabdbf8`, a-3 merged) into `74874d2`, the last commit that
-changes `crates/sc-bd-cli`. Documentation commits after it do not change code.
+Code evidence SHA: `a75b8077dd811a4659a8d82751d6b47a9b57d9b8` (fix-a-2-1, on top of the
+merge of `integrate/phase-a` at `7c689bf`), the last commit that changes
+`crates/sc-bd-cli`. Documentation commits after it do not change code.
 
 ### Local gates (macOS arm64, Rust 1.98.1)
 
@@ -276,10 +276,10 @@ cargo test --workspace --all-features                            ok
 cargo package -p sc-bd-cli --list                                ok (34 files; license, description, repository, readme set)
 ```
 
-`sc-bd-cli` runs 148 tests and 7 ignored live probes: 47 unit tests, 9 backend
-contract rules through `BdCli` over `FakeBd`, 21 cache-call tests, 11 real-process
+`sc-bd-cli` runs 153 tests and 7 ignored live probes: 48 unit tests, 9 backend
+contract rules through `BdCli` over `FakeBd`, 22 cache-call tests, 13 real-process
 tests, 5 API-pin tests, the ported btit tests (7 + 3 API-freeze, 20 argv table, 19
-behaviour, 3 dolt mode, 1 parity, 1 working-dir), and 1 doctest. The CI boundary
+behaviour, 3 dolt mode, 1 parity, 1 working-dir), and 2 doctests. The CI boundary
 check (`docs/architecture.md`, Boundaries) passes locally: `sc-bd-cli` depends on
 `sc-beads` only.
 
@@ -298,15 +298,18 @@ cargo test -p sc-bd-cli --all-features --no-fail-fast
 | 2 | `check_exit` compares the exit status with `-13`, so exit 13 is `Failed` | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `cache::tests::exit_13_is_a_precondition_refusal_whatever_stderr_says`, `exit_13_is_a_precondition_refusal`, `fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for`, `unmet_guards_are_refused` |
 | 3 | `ALL_STATUSES` drops `closed` | `crates/sc-bd-cli/src/argv.rs` | 101 | no | `argv::tests::reads_are_the_baseline_forms`, `argv_signatures_and_constants`, `close_and_reopen_bump_only_the_beads_own_updated_at`, `list_by_ids_is_chunked_deduplicated_and_names_all_seven_statuses`, `list_by_ids_returns_every_status`, `list_scope_filters_by_label_and_cursor`, `recorded_argv_of_every_read_matches_the_baseline_forms` |
 | 4 | `time_left` never reports an expired deadline | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `an_expired_deadline_starts_nothing`, `every_call_stops_at_its_deadline`, `every_call_stops_at_the_deadline_it_is_handed` |
-| 5 | `timed_out()` builds `Unavailable { timed_out: false }` | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_timeout_is_unavailable_with_timed_out_set`, `an_expired_deadline_starts_nothing`, `every_call_stops_at_its_deadline`, `every_call_stops_at_the_deadline_it_is_handed`, `fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for`, `timeout_kills_a_running_child` |
+| 5 | `timed_out()` builds `Unavailable { timed_out: false }` | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_running_child_is_cut_at_the_deadline`, `a_timeout_is_unavailable_with_timed_out_set`, `an_expired_deadline_starts_nothing`, `every_call_stops_at_its_deadline`, `every_call_stops_at_the_deadline_it_is_handed`, `fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for` |
 | 6 | `check_exit` recognises no unreachable-server text | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_refused_connection_is_unavailable_and_not_a_timeout`, `an_unreachable_server_is_unavailable`, `cache::tests::unreachable_server_is_unavailable_not_timed_out`, `fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for` |
-| 7 | `run_bounded` does not kill the child at the deadline | `crates/sc-bd-cli/src/bounded.rs` | 101 | no | `timeout_kills_a_running_child` |
+| 7 | `kill_and_reap` does not kill the child (so a timeout leaves it running) | `crates/sc-bd-cli/src/bounded.rs` | 101 | no | `a_running_child_is_cut_at_the_deadline`, `kill_and_reap_ends_a_running_child` |
 | 8 | `list_scope` drops `--updated-after` | `crates/sc-bd-cli/src/argv.rs` | 101 | no | `argv::tests::reads_are_the_baseline_forms`, `list_scope_filters_by_label_and_cursor`, `recorded_argv_of_every_read_matches_the_baseline_forms` |
 | 9 | `push_actor` adds no `--actor` | `crates/sc-bd-cli/src/argv.rs` | 101 | no | `a_guarded_close_reads_the_bead_first_and_closes_only_when_the_guards_hold`, `argv::tests::unassign_is_an_empty_assignee_word`, `argv::tests::update_lists_every_field_in_order_then_guards_then_actor`, `argv::tests::writes_are_the_baseline_forms`, `blocked_and_ready_match_the_p6_probe`, `close_and_reopen_bump_only_the_beads_own_updated_at`, `fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for`, `recorded_argv_of_every_write_matches_the_baseline_forms`, `test_metadata_values_round_trip_through_bd_coercion`, `unmet_guards_are_refused`, `writes_apply_their_effect` |
 | 10 | `IDS_PER_CALL` is 1 000 000 (one huge chunk) | `crates/sc-bd-cli/src/argv.rs` | 101 | no | `argv_signatures_and_constants`, `list_by_ids_is_chunked_deduplicated_and_names_all_seven_statuses` |
 | 11 | `list_by_ids` keeps repeated ids | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `list_by_ids_is_chunked_deduplicated_and_names_all_seven_statuses` |
 | 12 | `close_guarded` skips the guard pre-read | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_guarded_close_of_an_unknown_bead_fails_and_is_not_a_refusal`, `a_guarded_close_reads_the_bead_first_and_closes_only_when_the_guards_hold`, `unmet_guards_are_refused` |
 | 13 | `fingerprint` also runs `bd context` | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_failing_check_step_is_named`, `fingerprint_reports_version_and_schema`, `test_backend_check_does_not_need_bd_context` |
+| 14 | `WorkingDir::new` keeps trailing separators (`/p` and `/p/` are two locks) | `crates/sc-bd-cli/src/locks.rs` | 101 | no | `bounded_run_signature_and_error_variants`, `locks::tests::spellings_of_one_directory_share_a_lock` |
+| 15 | the output cap is not enforced | `crates/sc-bd-cli/src/bounded.rs` | 101 | no | `output_over_the_cap_is_an_error` |
+| 16 | a timeout reason omits its phase | `crates/sc-bd-cli/src/cache.rs` | 101 | no | `a_running_child_is_cut_at_the_deadline`, `a_timeout_is_unavailable_with_timed_out_set` |
 
 Every bug fails at least one test, none by a compile error (exit 101 is a test
 failure; the output has `test ... FAILED` lines and no `could not compile`), and the
@@ -317,7 +320,7 @@ tree was clean after the run. The bool bug (1) is the assignment's planted bug
 
 `scripts/bd-compat/run-live.sh` (scratch Dolt server 2.3.5 on a free loopback port, own
 `DOLT_ROOT_PATH`, `bd init --server --external` in a temp directory; both removed on
-exit) at the evidence SHA, macOS arm64:
+exit) at the evidence SHA, macOS arm64 (bd 1.3.1 re-run after fix-a-2-1: 7 passed; the bd 1.3.0 run is from the earlier SHA):
 
 - bd 1.3.1 (the pinned release, installed by `scripts/bd-compat/install-bd.sh 1.3.1`,
   checksum-verified): 7 passed. The P-6 probe holds as code: no `is_blocked` in list
