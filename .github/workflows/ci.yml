@@ -1,7 +1,7 @@
 # Workspace gates for every push and pull request (sprint a-1).
 #
-# bd-cache-py (a PyO3 extension module) does not link under `cargo test`, so
-# the workspace gates exclude it; python.yml (sprint a-8) is that crate's gate.
+# bd-cache-py (a PyO3 extension module) is excluded from the workspace gates
+# because python.yml (sprint a-8) owns that crate's gate.
 # bd-compat.yml (sprint a-2) runs the live bd probes; this workflow runs none.
 name: ci
 
@@ -50,8 +50,8 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
 
-      - name: Publish dry run (sc-beads)
-        run: cargo publish --dry-run -p sc-beads
+      - name: Publish dry run (sc-beads, sc-bd-cli, sc-cron)
+        run: cargo publish --dry-run -p sc-beads -p sc-bd-cli -p sc-cron
 
       - name: Crate boundaries (docs/architecture.md, Boundaries and Dependencies)
         run: |
