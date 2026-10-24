@@ -29,6 +29,7 @@ their own prompts.
   | `sc-cron` | `CRON` | a-3 |
   | `bd-cache-store` | `STORE` | a-4 |
   | `bd-cache-sync` | `SYNC` | a-7 |
+  | `bd-cache-py` | `PY` | a-8 |
 
 ## Reviewer Policy
 

@@ -14,7 +14,8 @@ Build every bd-cache crate that does not depend on an sc-runtime crate
 parallel), so the most deliverables are done before integration: the cache
 model, the shared beads backend crates (`sc-beads` traits, `sc-bd-cli`
 implementation; ADR-BDC-0007), the SQLite store, the core library, a cron
-prototype `sc-cron` (ADR-BDC-0006), and the sync task on it.
+prototype `sc-cron` (ADR-BDC-0006), the sync task on it, and Python
+bindings (`bd-cache-py`) so atm-bd can adopt the Rust cache in process.
 
 Baseline contract: [`docs/baseline/BD-CACHE.md`](../../baseline/BD-CACHE.md),
 vendored from randlee/atm-core#2219 at `05831df`. Requirements are drawn from
@@ -25,8 +26,7 @@ requirement ids, not the baseline.
 
 - The `bdc` / `bd-cache` binary (needs sc-command and sc-config).
 - The MCP server, the `sc-bd-http` adapter, DoltHub-specific adapters.
-- Python bindings (maturin / PyO3) for the CLI operations; planned after
-  sc-runtime integration (see Target Design in `docs/architecture.md`).
+
 - Bead creation and comments in the cache journal (out of BD-CACHE v1).
 
 - Moving `sc-cron` to sc-runtime; publishing `sc-beads` / `sc-bd-cli` to
@@ -57,6 +57,7 @@ declared, so boundaries are reviewed against `docs/architecture.md`.
 | `sc-cron` | a-3 | scheduler, schedule-store port, rusqlite store | a-7 |
 | `bd-cache-store` | a-4 | implements `CacheStore` over SQLite | a-7 |
 | `bd-cache-sync` | a-7 | sync task | later `bdc` and daemon |
+| `bd-cache-py` | a-8 | Python module over the real composition | atm-bd |
 
 Normative signatures: [a-1](sprint-a-1-contracts.md#public-contract) and,
 for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
@@ -70,7 +71,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | `.gitignore`, `rust-toolchain.toml` | a-1 | a-7 edits `.gitignore` once (the lock line). |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
 | `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. |
-| `.github/workflows/ci.yml` | a-1 | Workspace gates; a-2 adds only `bd-compat.yml`. |
+| `.github/workflows/ci.yml` | a-1 | Workspace gates; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
 | `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
 | `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
@@ -87,10 +88,12 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | [a-5](sprint-a-5-core-write.md) | boundary (consumer) | `bd-cache` write path | 2 | core | a-1 |
 | [a-6](sprint-a-6-core-read.md) | boundary (consumer) | `bd-cache` read path | 2 | core | a-1 |
 | [a-7](sprint-a-7-sync-integration.md) | integration | `bd-cache-sync` and composition | 3 | integration | a-2, a-3, a-4, a-5, a-6 |
+| [a-8](sprint-a-8-python-bindings.md) | integration | `bd-cache-py` | 3 | python | a-2, a-4, a-5, a-6 |
 
-- Critical path: 3 sprints (a-1 → any wave-2 sprint → a-7).
-- Width: 5 (a-2, a-3, a-4, a-5, a-6 together).
-- Sprint count: 7. Tracks: 6. `must_follow` edges: 9. Every wave-2 pair is
+- Critical path: 3 sprints (a-1 → any wave-2 sprint → a-7 or a-8).
+- Width: 5 (a-2, a-3, a-4, a-5, a-6 together); a-7 and a-8 run in parallel
+  in wave 3.
+- Sprint count: 8. Tracks: 7. `must_follow` edges: 13. Every wave-2 pair is
   `parallel_safe`; a-3 has no inbound edge and may start in wave 1.
 - Testbed-only evidence never gates a boundary sprint; it is a-7's, with a
   deferred-evidence outcome when the testbed is unavailable.
@@ -108,6 +111,7 @@ Each requirement has exactly one owner. Sprint docs list `owns` and
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
 | a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904, 0907, 0908, 0909 |
+| a-8 | REQ-BDC-0910 |
 | a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
 | deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
@@ -198,10 +202,11 @@ owning sprint.
 
 From fenix's review (2026-10-24):
 
-- atm-bd uses the cache in process (it imports `bd_cache.py`), so it can
-  adopt the Rust cache only through the `bdc` binary or the Python bindings.
-  Both come after phase A as planned, so phase A does not yet replace the
-  Python cache for atm-bd. The verbs it needs are in a-1's contract: `get`
+- atm-bd uses the cache in process (it imports `bd_cache.py`), so it adopts
+  the Rust cache through the Python bindings (a-8), in phase A. atm-bd keeps
+  its own scheduling: `bd_cache_cron.py` under ATM cron calls `drain` and
+  `sync` through the bindings, so `sc-cron` and `bd-cache-sync` are not on
+  atm-bd's path. The verbs it needs are in a-1's contract: `get`
   with a caller miss timeout, `refresh` (fresh read, stored, overlay),
   `write`, `list`, `sync`, `entry(seq)`, `drain`, and `tick`.
 - Cutover is one step: stop the ATM cron registration, switch the consumers,

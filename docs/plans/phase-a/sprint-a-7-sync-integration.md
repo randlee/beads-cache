@@ -12,7 +12,7 @@ worktree: sprint/a-7-sync-integration
 recommended_agent: rust-developer
 recommended_model: sonnet
 must_follow: [a-2, a-3, a-4, a-5, a-6]
-parallel_safe: []
+parallel_safe: [a-8]
 requirements:
   owns: [REQ-BDC-0003, REQ-BDC-0701, REQ-BDC-0702, REQ-BDC-0703, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0706, REQ-BDC-0707, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0003]
   constrained_by: [REQ-BDC-0405, REQ-BDC-0503, REQ-BDC-0904, NFR-BDC-0004, NFR-BDC-0006]

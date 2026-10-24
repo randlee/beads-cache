@@ -598,6 +598,12 @@ Syncing a phase that is not configured registers it as an on-demand scope, so a 
 
 **Source:** fenix, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
 
+## REQ-BDC-0910: Python bindings
+
+The cache is callable in process from Python (maturin / PyO3), with the verbs atm-bd uses today, so atm-bd can replace `bd_cache.py` without the `bdc` binary or sc-runtime.
+
+**Source:** user, 2026-10-24 (atm already provides tokio and cron; the bindings need nothing from sc-runtime)
+
 ## REQ-BDC-0905: bd release compatibility check
 
 **Status:** Draft
@@ -686,3 +692,4 @@ Each crate's requirements live in `docs/<crate>/requirements.md` (see
 - [`sc-cron`](sc-cron/requirements.md) (`REQ-CRON-*`)
 - [`bd-cache-store`](bd-cache-store/requirements.md) (`REQ-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/requirements.md) (`REQ-SYNC-*`)
+- [`bd-cache-py`](bd-cache-py/requirements.md) (`REQ-PY-*`)

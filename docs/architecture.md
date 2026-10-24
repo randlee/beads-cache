@@ -70,13 +70,11 @@ up when the backend responds (ADR-BDC-0005).
 - The MCP server is a second front end over the same core. No upstream beads
   project offers MCP over HTTP today (`beads-mcp` is stdio only, and
   `bd serve` is HTTP but not MCP), so beads-cache provides it.
-- Python bindings (maturin / PyO3), planned after sc-runtime integration,
-  are a third front end: a `bd-cache-py` crate wrapping the concrete
-  composition (`SqliteStore`, its drain lock, `BdCli`) and exposing the same
-  operations as the CLI, so Python callers such as atm-core's hooks run in
-  process instead of spawning `bdc`. Phase A keeps this cheap: the replies
-  and `CacheError` already serialize to the CLI's JSON, and the core takes
-  plain config values rather than sc-runtime types.
+- Python bindings (maturin / PyO3) are a third front end, built in phase a
+  (sprint a-8): a `bd-cache-py` crate wrapping the concrete composition
+  (`SqliteStore`, its drain lock, `BdCli`) with the verbs atm-bd uses, so
+  atm-bd replaces `bd_cache.py` in process. They need nothing from
+  sc-runtime; atm-bd keeps its own scheduling through ATM cron.
 - All writes go through `bd` (see the research docs: writes through the
   DoltHub SQL API bypass bd's guards and events journal).
 
@@ -144,6 +142,7 @@ integrating with sc-runtime.
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
+| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3 | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
@@ -166,6 +165,7 @@ workspace crates (third-party edges are in the Crate Layout table):
 | `bd-cache-store` | `bd-cache-model`, `sc-beads` |
 | `bd-cache` | `bd-cache-model`, `sc-beads` (never the store or `sc-bd-cli`) |
 | `bd-cache-sync` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-cron`, `sc-beads` |
+| `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads` |
 
 `bd-cache-model` does no I/O. `sc-beads`, `sc-bd-cli` and `sc-cron` depend on
 no bd-cache crate, so they can move or be published on their own.
@@ -495,3 +495,4 @@ Each crate's architecture and crate-local ADRs live in
 - [`sc-cron`](sc-cron/architecture.md) (`ADR-CRON-*`)
 - [`bd-cache-store`](bd-cache-store/architecture.md) (`ADR-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/architecture.md) (`ADR-SYNC-*`)
+- [`bd-cache-py`](bd-cache-py/architecture.md) (`ADR-PY-*`)
