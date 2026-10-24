@@ -1,20 +1,20 @@
 //! `resolve` of an escalated entry (REQ-BDC-0601).
 //!
-//! Owned by sprint a-6, which replaces the stub below; the signature is
-//! the contract `lib.rs` delegates to (sprint a-1, Public contract).
+//! The lead set the bead by hand after an escalation; the entry becomes
+//! `resolved` (never replayed, no longer blocking `prune`) and the note is
+//! appended to its `last_error` as `" | resolved by <actor>: <note>"`. The
+//! state rule is the store's (`CacheStore::resolve`): any entry that is not
+//! escalated, or an absent seq, is `NOT_ESCALATED`.
 
-use bd_cache_model::{CacheError, Seq};
-use sc_beads::Actor;
+use bd_cache_model::{CacheError, CacheStore, DrainLock, Seq};
+use sc_beads::{Actor, CacheBackend};
 
 use crate::Cache;
 
-use bd_cache_model::{CacheStore, DrainLock};
-use sc_beads::CacheBackend;
-
-/// Stub until sprint a-6.
+/// `resolve(seq, note, actor)` at the clock's UTC time: see the module docs.
 #[expect(
-    clippy::unimplemented,
-    reason = "skeleton: sprint a-6 fills this function"
+    clippy::needless_pass_by_value,
+    reason = "signature fixed by the a-1 public contract (Cache::resolve takes Actor)"
 )]
 pub(crate) fn resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
@@ -22,6 +22,6 @@ pub(crate) fn resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
     note: &str,
     actor: Actor,
 ) -> Result<(), CacheError> {
-    let _ = (cache, seq, note, actor);
-    unimplemented!("resolve::resolve: sprint a-6")
+    let at = cache.clock.now_utc();
+    cache.store.resolve(seq, note, &actor, &at)
 }
