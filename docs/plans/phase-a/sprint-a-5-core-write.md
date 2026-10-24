@@ -15,7 +15,7 @@ parallel_safe: [a-2, a-3, a-4, a-6]
 requirements:
   owns: [REQ-BDC-0002, REQ-BDC-0004, REQ-BDC-0005, REQ-BDC-0302, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0403, REQ-BDC-0404, REQ-BDC-0405, REQ-BDC-0406, REQ-CORE-0101, REQ-CORE-0102, REQ-CORE-0103]
   constrained_by: [REQ-BDC-0003, REQ-BDC-0105, REQ-BDC-0202, REQ-BDC-0301, REQ-BDC-0305, REQ-BDC-0803, REQ-BDC-0902, REQ-BDC-0903, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
-adrs: [ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103]
+adrs: [ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BEADS-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0101, ADR-CORE-0102, ADR-CORE-0103]
 owned_paths:
   - "crates/bd-cache/src/write.rs"
   - "crates/bd-cache/src/drain.rs"
@@ -122,48 +122,66 @@ in the criteria table map as follows:
 | Unreachable at check or pre-read for N drains, then recovery; reachable write failures count and escalate at 5 | `drain_outage.rs`: `test_unreachable_backend_is_an_outage_that_counts_no_attempt` (7 drains, alternating check and pre-read), `a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut`; `drain_failures.rs`: `test_a_reachable_backend_refusing_the_write_still_counts_attempts`, `test_retries_exhausted_escalate_and_never_silently_drop` |
 
 REQ-BDC-0403's listed evidence `test_failed_pre_read_retries_every_entry`
-is in `drain_failures.rs`. It covers a reachable pre-read failure:
-entries `retrying`, no attempt and no outage (ADR-CORE-0101).
+is in `drain_scripted.rs`. A pre-read failing with `BD_CONTRACT` puts every
+entry in `retrying`, with no attempt and no outage. The v3 outage codes at
+the check and pre-read are covered by
+`a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`
+and `an_outage_defers_every_pending_entry_including_stale_held_ones`, both
+in `drain_outage.rs` (ADR-CORE-0101). FakeBackend cannot script a read-back
+that answers without the bead's row. `drain_scripted.rs` therefore wraps it
+in a test-local `CacheBackend` that answers chosen `list_by_ids` calls
+outside the fake's lock, and tests that branch in
+`a_read_back_that_answers_without_the_row_is_applied_and_stale`. No a-1
+hook was needed.
 
 The contract suites in `bd_cache_model::testing` and `sc_beads::testing`
 test `CacheStore` / `DrainLock` and `CacheBackend` implementations. a-5 adds
 none, so it has no new suite to run. The existing suites pass in the
 workspace run.
 
-## Decisions for the lead
+## Lead rulings (bc-lead, 2026-10-24)
 
-The decisions are recorded as Draft entries in `docs/bd-cache/write-path.md`
-(REQ-CORE-0101..0103, ADR-CORE-0101..0103) and need a ruling:
+`docs/bd-cache/write-path.md` applies these rulings:
 
-1. **Reachable check or pre-read failure** (ADR-CORE-0101). The pass stops
-   with no attempt and no outage, and its entries are reported in
-   `retrying`. This follows a-1's `call` classification and ADR-BDC-0005.
-   BD-CACHE v3 instead treats `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and
-   `BD_LIST_FAILED` at those steps as unreachable and records an outage.
-2. **No report field for that error** (ADR-CORE-0101). `DrainReport`
-   cannot carry the error that stopped such a pass. An additive field
-   would be an a-1 amendment.
-3. **Held entries are reported in `retrying`** (REQ-CORE-0102, 0103). This
-   covers stale beads and beads with a failed write in the pass, so every
-   pending entry is in exactly one report list.
+- **R1** (ADR-CORE-0101). The drain follows BD-CACHE v3 at the backend
+  check and the batched pre-read:
+  - `BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and
+    `BD_LIST_FAILED` record the outage and stop the pass with no attempt,
+    and every pending seq goes in `deferred`.
+  - Any other failure, such as `BD_CONTRACT`, retries every entry with no
+    attempt.
+  - The codes are matched on the typed variant. The outage is recorded
+    through `outage::note_unavailable`. No a-1 file changed.
+- **R2**. There is no `DrainReport` field and no a-1 amendment. Failures
+  that are not an outage emit a `tracing` warning with `code` and
+  `detail`, through `sc_beads::logging::tracing`, so bd-cache's Cargo.toml
+  is unchanged.
+- **R3**. Held entries are reported in `retrying`, and every pending entry
+  is in exactly one list. When an outage or a cut stops the pass before
+  any entry starts, held entries are deferred with the rest.
+- **R4**. REQ-CORE-0101..0103 and ADR-CORE-0101..0103 are Approved, as
+  amended by R1-R3.
+- **R5**. The read-back gap is closed by a test-local wrapper backend (see
+  Acceptance evidence).
 
 No a-1 contract is changed. `write` and `drain` keep the delegated
 signatures in `lib.rs`.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `b780b704f6c40855110473b17fc35280996d3900`, the last commit
-that changes code (later commits change this document only). The script
-applied each mutation to the working tree on its own, ran the whole suite
-and restored the file:
+Run on commit `18a449894e51b35655c5c8fcafb9886df50dda56`, the last commit
+that changes code (later commits change this document only). The run is
+after rulings R1-R5 and covers the 13 earlier mutations plus 4 new ones for
+R1. The script applied each mutation to the working tree on its own, ran
+the whole suite and restored the file:
 
 ```text
 cargo test --workspace --all-features --no-fail-fast
 git checkout -- <file>
 ```
 
-The unmutated tree passes the same command. After the run, `git diff --
-crates` was empty.
+The unmutated tree passes the same command. The tree was clean before and
+after the run.
 
 | Planted bug | Mutation | File | Exit | Compile error | Failing tests |
 |---|---|---|---|---|---|
@@ -172,15 +190,21 @@ crates` was empty.
 | no per-bead hold | a failed write does not hold its bead. | `crates/bd-cache/src/drain.rs` | 101 | no | `every_pending_entry_is_in_exactly_one_report_list`, `test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only` |
 | no achieved check | the drain skips `Op::achieved`. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending`, `a_write_cut_by_the_hard_deadline_is_deferred_in_flight_and_found_achieved_next_drain`, `test_write_that_landed_before_a_crash_is_not_repeated` |
 | no retry cap | the drain never escalates at `max_attempts`. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_retries_exhausted_escalate_and_never_silently_drop`, `the_retry_cap_is_the_configured_max_attempts` |
-| no stale flag | a failed read-back stores the pre-read row, so no stale mark is set. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync` |
-| stale rows not held | the drain ignores `stale_rows`. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync` |
+| no stale flag | a failed read-back stores the pre-read row, so no stale mark is set. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_read_back_that_answers_without_the_row_is_applied_and_stale`, `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync` |
+| stale rows not held | the drain ignores `stale_rows`. | `crates/bd-cache/src/drain.rs` | 101 | no | `an_outage_defers_every_pending_entry_including_stale_held_ones`, `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync` |
 | no drain lock | the drain does not take the drain lock. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_is_single_writer` |
-| per-entry pre-read | the batched pre-read is empty; each entry lists its own bead. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_cut_pre_read_defers_the_whole_drain`, `a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut`, `a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending`, `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_drain_writes_in_order_reads_back_and_marks_applied`, `test_failed_pre_read_retries_every_entry`, `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`, `test_unreachable_backend_is_an_outage_that_counts_no_attempt`, `test_write_that_landed_before_a_crash_is_not_repeated` |
+| per-entry pre-read | the batched pre-read is empty; each entry lists its own bead. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_cut_pre_read_defers_the_whole_drain`, `a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut`, `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`, `a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending`, `a_read_back_that_answers_without_the_row_is_applied_and_stale`, `an_outage_defers_every_pending_entry_including_stale_held_ones`, `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_drain_writes_in_order_reads_back_and_marks_applied`, `test_failed_pre_read_retries_every_entry`, `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`, `test_unreachable_backend_is_an_outage_that_counts_no_attempt`, `test_write_that_landed_before_a_crash_is_not_repeated` |
 | no not-found escalation | a bead absent from the pre-read is left pending. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_on_absent_bead_escalates_not_found` |
 | deferred not reported | entries skipped at the start gate are not put in `deferred`. | `crates/bd-cache/src/drain.rs` | 101 | no | `test_drain_deadline_defers_unstarted_entries_without_attempts` |
 | drain without deadline | the start gate never passes. | `crates/bd-cache/src/drain.rs` | 101 | no | `a_drain_that_calls_no_bd_still_reports_the_standing_outage`, `a_start_gate_already_passed_defers_everything_without_a_bd_call`, `test_drain_deadline_defers_unstarted_entries_without_attempts` |
+| v3 check/pre-read codes not an outage | `BD_VERSION_FAILED` / `BD_SCHEMA_FAILED` / `BD_LIST_FAILED` take the retry branch (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt` |
+| every check/pre-read failure an outage | `is_unreachable` is true for every code, `BD_CONTRACT` included (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `test_failed_pre_read_retries_every_entry` |
+| v3 outage not recorded | the drain defers on those codes but skips `note_unavailable` (R1). | `crates/bd-cache/src/drain.rs` | 101 | no | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt` |
+| held entries not deferred on an outage | stale-held seqs are left out of `deferred` on an outage stop (R1, R3). | `crates/bd-cache/src/drain.rs` | 101 | no | `an_outage_defers_every_pending_entry_including_stale_held_ones` |
 | dedupe after the precondition | `write` checks the precondition before the idempotency key. | `crates/bd-cache/src/write.rs` | 101 | no | `test_retry_of_a_journaled_precondition_write_is_a_duplicate_not_a_precondition_error` |
 
 Every bug fails at least one test, and none of them by a compile error.
-The table has the twelve bugs from the acceptance criteria plus one extra,
-`stale rows not held`, which plants the read side of the stale rule.
+The table has the twelve bugs from the acceptance criteria, one extra for
+the read side of the stale rule (`stale rows not held`) and four for
+ruling R1. The mutation script is not committed: `.py` files are outside
+this sprint's `owned_paths`, so this table is the record.
