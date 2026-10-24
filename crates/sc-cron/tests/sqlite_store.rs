@@ -401,14 +401,47 @@ fn a_corrupt_row_is_a_corrupt_store_error_naming_the_row() {
                 [],
             )
             .expect("corrupt");
-        let error = fresh.store.list_active().expect_err("corrupt row refused");
+        // `get` names the row; `list_active` skips it (PE-RSH-007).
+        let error = fresh.store.get(row.id).expect_err("corrupt row refused");
         assert!(
             matches!(&error, CronError::Store(store)
                 if store.kind() == StoreErrorKind::Corrupt
                     && store.context().contains(&format!("sc_cron_schedule id {}", row.id))),
             "{column}: {error}"
         );
-        assert_eq!(store_kind(fresh.store.get(row.id)), StoreErrorKind::Corrupt);
+        assert!(
+            fresh.store.list_active().expect("list").is_empty(),
+            "{column}"
+        );
+    }
+}
+
+#[test]
+fn a_corrupt_active_row_is_skipped_and_the_good_schedule_still_lists() {
+    for (column, value) in [
+        ("payload", "'not json'"),
+        ("last_outcome", "'exit'"),
+        ("next_run_at", "'soon'"),
+        ("expr", "'* * * * *'"),
+        ("payload", "x'00ff'"),
+    ] {
+        let h = Harness::new();
+        let bad = h.create("bad", 3);
+        let good = h.create("good", 4);
+        h.sql()
+            .execute(
+                &format!("UPDATE sc_cron_schedule SET {column} = {value} WHERE id = ?1"),
+                [i64::try_from(bad.id.get()).expect("id")],
+            )
+            .expect("corrupt");
+        // Twice: the second reload skips the same row again.
+        for _ in 0..2 {
+            assert_eq!(
+                h.store.list_active().expect("list"),
+                vec![good.clone()],
+                "{column}"
+            );
+        }
     }
 }
 

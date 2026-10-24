@@ -325,6 +325,15 @@ Decision:
 Consequences: a-7 codes against the signatures above. The sprint doc's
 Public contract points here.
 
+Amendment (PE-RSH-007): `SqliteScheduleStore::list_active` decodes rows one
+at a time. A row that fails to decode (`Corrupt`: bad expression, payload
+that is not JSON, unknown outcome, bad timestamp) is skipped with a
+`tracing::warn` naming its id, name and the error, once per row id per store
+instance, and the other schedules are returned and keep running. The row is
+left as is, not ended, so it can be repaired. `get(id)` still returns the
+`Corrupt` error for that row. Busy, I/O and other non-corrupt failures still
+fail the whole call.
+
 ## Build note
 
 `sc-cron` is a workspace member (`members = ["crates/*"]`). It inherits the
