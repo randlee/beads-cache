@@ -129,8 +129,7 @@ later step.
 
 ## Crate Layout
 
-Status: as shipped by sprints a-1 to a-7 for phase a (`bd-cache-py` is sprint
-a-8's). Phase a builds only the crates that do not depend on sc-runtime
+Status: as shipped by sprints a-1 to a-8 for phase a. Phase a builds only the crates that do not depend on sc-runtime
 crates (sc-config, sc-transport, sc-command, sc-runtime), which are being
 built in parallel. sc-runtime has no cron or scheduler crate today, so phase
 a also prototypes one here (`sc-cron`) and builds the sync task on it, to
@@ -147,7 +146,7 @@ finish more of the deliverables before integrating with sc-runtime.
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: `tick` (drain with `T - 5 s` / `T - 2 s`, then sync each active phase, deferring any not started by `T - 2 s`), `stop_reason`, announcements through `EscalationSender` (sync failures once per cause, outage once per scope as the alert `backend_unavailable`, escalations once with the `resolve` command; `AtmSender`, which runs `atm send`, is one implementation), `SyncJob` (the `sc-cron` job: `Cache` in `Arc<Mutex<_>>` under `spawn_blocking`), `schedule_spec`, and `compose` (the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, toml (phase files), tracing, libc (Unix only: O_NONBLOCK) (the list is ADR-SYNC-0006) | a |
-| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3 | a |
+| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3, serde, serde_json, dunce | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
@@ -575,4 +574,4 @@ Each crate's architecture and crate-local ADRs live in
 - [`sc-cron`](sc-cron/architecture.md) (`ADR-CRON-*`)
 - [`bd-cache-store`](bd-cache-store/architecture.md) (`ADR-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/architecture.md) (`ADR-SYNC-*`)
-- `bd-cache-py` (`ADR-PY-*`): its `docs/bd-cache-py/architecture.md` is created by sprint a-8 (not part of a-7)
+- [`bd-cache-py`](bd-cache-py/architecture.md) (`ADR-PY-*`)

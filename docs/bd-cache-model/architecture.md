@@ -14,7 +14,7 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 | `journal`, `scope`, `state` | journal types, `ScopeId`, store-side state, `BaseEntry` and `StoreStatus` |
 | `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind` |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
-| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` |
+| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8) |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
 
 ## ADR-MODEL-0001: Journal text is written exactly as Python writes it
@@ -92,6 +92,45 @@ baseline meaning: missing or invalid `.beads/metadata.json`.
 Consequences: `bd-cache-store` (a-4) switches its store-internal failures from
 `NO_DATABASE` to `STORE_FAILED` with the source kept. The code is additive to
 the v3 CLI contract (ADR-BDC-0003), so it needs a note on #557.
+
+### ADR-MODEL-0002 amendment (a-8, lead ruling R9): the code classification
+
+**Status:** Approved (lead rulings R9 and R11, bc-lead, 2026-10-24)
+
+Context: the Python bindings (a-8) and the drain (a-5) each kept their own copy
+of which codes mean "bd could not answer" and which keys of a typed error's JSON
+are envelope rather than payload. Copies drift when a variant is added.
+
+Decision (additive; no change to the wire format):
+
+1. **Items.** `bd_cache_model` gains `pub const UNREACHABLE_CODES: [&str; 4]`,
+   `pub const ENVELOPE_KEYS: [&str; 5]` and `CacheError::is_unreachable(&self)
+   -> bool`, re-exported from `lib.rs` (the two constants). A fourth item,
+   `CacheError::payload_keys`, is `#[cfg(test)]` and crate-private test support:
+   it has no consumer outside this crate's tests, so it is not public API and
+   does not exist in a non-test build.
+2. **Exhaustive.** `is_unreachable` is a `match` with no wildcard arm, enforced in
+   every build: adding a `CacheError` variant does not compile until it is
+   classified. `payload_keys` and the tests' `witness` (declared once with the
+   variant-name list by the `arms!` macro, tied to the samples by
+   `every_arm_has_a_sample`) are exhaustive too, but only in test builds, which CI
+   runs on every push.
+3. **The unreachable set.** `UNREACHABLE_CODES` is `BD_UNAVAILABLE`,
+   `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED`: the set of
+   ADR-CORE-0101 (the drain's stop policy) and `bd_cache.py`'s `UNREACHABLE`.
+   `is_unreachable` is that set by variant, a test keeps the constant and the
+   method equal, and the drain (`bd-cache/src/drain.rs`) now calls the method
+   instead of its own copy (R11).
+4. **The envelope.** `ENVELOPE_KEYS` (`ok`, `code`, `detail`, `fix`, `reason`)
+   plus `payload_keys` (and the `source` a mapped or store error adds) are
+   exactly the keys of `CacheError::to_json`, for every variant and with and
+   without a kept source (`the_envelope_source_and_payload_keys_match_to_json_for_every_sample`).
+5. **Consumers.** `bd-cache-py` builds its `UNREACHABLE` frozenset from
+   `UNREACHABLE_CODES` and splits an error's `payload` from the envelope with
+   `ENVELOPE_KEYS`; `bd-cache` (drain) uses `is_unreachable`. `to_json` and every
+   code, fix text and exit status are unchanged.
+
+Consequences: one definition of each set; a new variant must be classified.
 
 ## ADR-MODEL-0003: Store rule clarifications
 

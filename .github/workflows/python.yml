@@ -1,0 +1,122 @@
+# Python bindings gate (sprint a-8): the gate for bd-cache-py, which ci.yml leaves out
+# of the workspace gates because a PyO3 crate needs a Python to link against.
+#
+#   rust    clippy and cargo test for the crate, on macOS, Linux and Windows
+#   wheel   one abi3 wheel per platform (maturin), kept as an artifact; macOS and
+#           Linux only: the atm-bd hooks run on POSIX only
+#   test    the pytest suite against the installed wheel, Python 3.9, 3.11, 3.13
+#
+# Nothing here publishes: the pypi / testpypi environments belong to a later
+# release step (docs/bd-cache-py/architecture.md, ADR-PY-0004).
+name: python
+
+on:
+  push:
+    branches: [main, develop, "integrate/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: python-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  rust:
+    name: clippy and test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clippy
+        run: cargo clippy -p bd-cache-py --all-targets --all-features -- -D warnings
+
+      - name: Test
+        run: cargo test -p bd-cache-py --all-features
+
+  wheel:
+    name: wheel (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install the pinned toolchain (rust-toolchain.toml)
+        run: rustup show active-toolchain || rustup toolchain install
+
+      - uses: Swatinem/rust-cache@v2
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the abi3 wheel
+        run: |
+          python -m pip install "maturin>=1.7,<2"
+          maturin build --release --manifest-path crates/bd-cache-py/Cargo.toml --out dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist/*.whl
+          if-no-files-found: error
+
+  test:
+    name: pytest (${{ matrix.os }}, python ${{ matrix.python }})
+    needs: wheel
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-14, ubuntu-latest]
+        python: ["3.9", "3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: wheel-${{ matrix.os }}
+          path: dist
+
+      - name: Install the wheel and pytest
+        run: |
+          python -m pip install pytest
+          python -m pip install dist/*.whl
+
+      # The tests import the installed wheel; run from outside the crate so the
+      # source tree cannot shadow it. -rP prints the recorded cached-get numbers.
+      - name: pytest
+        run: python -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider
