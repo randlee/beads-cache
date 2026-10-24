@@ -1,160 +1,192 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
-Status: draft, not yet hardened. P-1 is done; P-2 and P-3 are open.
+Status: planned (scope review round 1 applied; critical review pending).
+P-1 is done; P-2, P-3 and P-5 are open, with fallbacks below.
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
-`sprint/a-<n>-<slug>`, cut from `integrate/phase-a` or the top of their
-track's stack.
+`sprint/a-<n>-<slug>`, cut from `integrate/phase-a`.
 
 ## Intent
 
 Build every bd-cache crate that does not depend on an sc-runtime crate
 (sc-config, sc-transport, sc-command, sc-runtime are being built in
-parallel), so the most deliverables are done before integration:
+parallel), so the most deliverables are done before integration: the cache
+model, the shared beads backend crates (`sc-beads` traits, `sc-bd-cli`
+implementation; ADR-BDC-0007), the SQLite store, the core library, a cron
+prototype `sc-cron` (ADR-BDC-0006), and the sync task on it.
 
-1. the cache types (`bd-cache-model`);
-2. the shared beads backend crates, seeded from beads-task-issue-tracker's
-   btit crates and published to crates.io for btit to use (ADR-BDC-0007):
-   `sc-beads` (traits, types, errors, test double) and `sc-bd-cli` (the
-   bd CLI implementation); `sc-bd-http` follows when bd ships the filters it
-   needs;
-3. the SQLite store (`bd-cache-store`);
-4. the core library (`bd-cache`): get, write, drain, sync, resolve, prune,
-   status, the improved ready/blocked refresh and outage handling;
-5. a SQLite-backed cron prototype `sc-cron`, extracted from atm-core's
-   atm-cron, meant to move to sc-runtime (ADR-BDC-0006);
-6. the sync task on `sc-cron` (`bd-cache-sync`).
-
-Baseline contract: atm-core `BD-CACHE.md` (PR randlee/atm-core#2219). The
-Python acceptance suite (`test_bd_cache.py`, 41 tests; `test_bd_cache_cron.py`,
-9 tests) is ported to Rust and run against the fake backend.
+Baseline contract: [`docs/baseline/BD-CACHE.md`](../../baseline/BD-CACHE.md),
+vendored from randlee/atm-core#2219 at `015bdfb`. Requirements are drawn from
+it into [`docs/requirements.md`](../../requirements.md); sprint docs cite
+requirement ids, not the baseline.
 
 ## Non-goals
 
-- The `bdc` / `bd-cache` binary. It needs sc-command and sc-config; it comes
-  after sc-runtime integration. Phase A exercises the CLI contract's JSON
-  replies and error codes through the library.
-- The MCP server, the `bd serve` HTTP adapter, DoltHub-specific adapters.
+- The `bdc` / `bd-cache` binary (needs sc-command and sc-config).
+- The MCP server, the `sc-bd-http` adapter, DoltHub-specific adapters.
 - Bead creation and comments in the cache journal (out of BD-CACHE v1).
-- Moving `sc-cron` to sc-runtime, and publishing `sc-beads` / `sc-bd-cli` to
-  crates.io. Phase A makes them publish-ready (`cargo publish --dry-run`);
-  the release and btit's switch follow the phase.
+- Moving `sc-cron` to sc-runtime; publishing `sc-beads` / `sc-bd-cli` to
+  crates.io. Phase A makes them publish-ready (`cargo publish --dry-run`).
 
-## Requirements deferred from phase A
+## Prerequisites
 
-| Id | Disposition |
-|---|---|
-| REQ-BDC-0801, REQ-BDC-0805, NFR-BDC-0002 | The `bdc` / `bd-cache` binary waits for sc-command and sc-config. Phase A meets their JSON and error-code content through the library (REQ-BDC-0802, 0803). |
-
-## Prerequisites before dispatch
-
-| Id | Prerequisite | Owner |
-|---|---|---|
-| P-1 | Done: `docs/requirements.md` holds `REQ-BDC-*` / `NFR-BDC-*` drawn from BD-CACHE.md (with section provenance) and from planning (source "user"); every sprint lists its ids. | team-lead |
-| P-2 | Agreement on #557 (randlee/atm-bd-orchestration#557) for the additive v3 extensions in ADR-BDC-0001, 0002, 0003 and 0005, or a recorded decision to diverge. Blocks a-4's schema freeze, not a-1. | owner |
-| P-3 | beads-task-issue-tracker agreement on the shared `sc-beads` API: synchronous calls, `BeadsError` as the shared error type, tolerant and strict row modes (ADR-BDC-0007). Blocks a-1's trait freeze. | owner |
-| P-4 | sc-runtime team informed of `sc-cron` (name, eventual home). Does not block dispatch. | owner |
-| P-5 | The existing beads-release trigger (today it drives the hermes team's fork maintenance) also sends `repository_dispatch` type `beads-release` with the bd version to randlee/beads-cache, with a token allowed to dispatch there. Needed before a-2's workflow can be proven by a real release; a-2 proves it with `workflow_dispatch`. | owner |
+| Id | Prerequisite | Blocks | Fallback if open at dispatch |
+|---|---|---|---|
+| P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
+| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). | a-4 schema freeze | a-4 ships the extensions as schema version 4 with a v3 read-and-migrate path, and records the divergence in its note. |
+| P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError`, tolerant and strict rows. | a-1 trait freeze | a-1 keeps btit's traits unchanged and adds the cache methods in a separate `CacheBackend: BeadsBackend` extension trait; the delta is recorded in a-1's doc. |
+| P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
+| P-5 | The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
 
 ## Boundary map
 
 No crate exists yet. Each crate is one boundary; no boundary manifests are
-declared (quality policy: boundaries are reviewed against
-`docs/architecture.md`).
+declared, so boundaries are reviewed against `docs/architecture.md`.
 
-| Boundary | Contract | Depends on | Consumed by |
+| Boundary | Produced by | Contract | Consumed by |
 |---|---|---|---|
-| `bd-cache-model` | `Op`, `Patch`, `Guards`, `Refusal`, `CacheError` and codes, `Edge`, `JournalEntry`, overlay and `achieved` (pure) | serde, `sc-beads` row types | store, core, sync |
-| `sc-beads` | `BeadsBackend` trait (btit) plus the cache extensions, strict `Bead` row, tolerant `BdRawIssue`, `BeadsError`, `Fingerprint`, `FakeBackend` test double | serde, serde_json, tracing | model, store, core, sync, `sc-bd-cli`, btit |
-| `sc-bd-cli` | `BdCli` implementing the `sc-beads` traits over the `bd` binary | `sc-beads` | sync composition, btit |
-| `bd-cache-store` | SQLite file location, schema v3 plus extensions, meta and rebuild rule, journal, scopes and membership, edges index, transactional API used by core | model, `sc-beads` rows, rusqlite (bundled) | core |
-| `bd-cache` | `Cache` facade: get, list, write, drain, sync, resolve, prune, status, ready/blocked refresh, outage state | model, store, `sc-beads` trait | sync, later `bdc` and MCP |
-| `sc-cron` | scheduler, schedule store port and rusqlite store, `Clock`, jitter, generation fencing | cron, chrono, tokio, rusqlite, tracing | sync |
-| `bd-cache-sync` | sync task: tick (drain then sync per active scope), stop rule, escalation sender port | core, `sc-cron`, `sc-bd-cli` | later `bdc` and daemon |
+| `sc-beads` | a-1 | backend traits, rows, `BeadsError`, `FakeBackend` | a-2, a-4, a-5, a-6, a-7, btit |
+| `bd-cache-model` | a-1 | journal and cache types, `CacheStore` port and `FakeStore`, `EscalationSender` port, `CacheError` | a-4, a-5, a-6, a-7 |
+| `bd-cache` facade | a-1 (skeleton) | `Cache` struct and module layout; method bodies filled by a-5 and a-6 | a-7 |
+| `sc-bd-cli` | a-2 | implements `sc-beads` traits over `bd` | a-7, btit |
+| `sc-cron` | a-3 | scheduler, schedule-store port, rusqlite store | a-7 |
+| `bd-cache-store` | a-4 | implements `CacheStore` over SQLite | a-7 |
+| `bd-cache-sync` | a-7 | sync task | later `bdc` and daemon |
 
-Workspace `Cargo.toml` uses `members = ["crates/*"]`, so adding a crate edits
-no shared file. `Cargo.lock` is regenerated by every sprint and is the one
-shared file; conflicts are resolved by rebasing onto the parent layer, never
-by hand-editing another sprint's dependencies.
+Normative signatures: [a-1](sprint-a-1-contracts.md#public-contract) and,
+for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 
-## Contract handoff
+## Shared files
 
-a-1 freezes these signatures (sketch; a-1's doc carries the normative
-version). Later sprints reference them and do not restate them.
-
-```rust
-// sc-beads (btit trait kept; cache extensions added)
-pub trait BeadsBackend: Send + Sync {
-    fn fingerprint(&self, project: &ProjectRef, deadline: Deadline) -> Result<Fingerprint, BeadsError>;
-    fn list_by_ids(&self, project: &ProjectRef, ids: &[BeadId], deadline: Deadline) -> Result<Vec<Bead>, BeadsError>;
-    fn list_since(&self, project: &ProjectRef, filter: &ScopeFilter, cursor: Option<&SyncCursor>, deadline: Deadline) -> Result<(Vec<Bead>, SyncCursor), BeadsError>;
-    fn close(&self, project: &ProjectRef, id: &BeadId, reason: Option<&str>, guards: &Guards, actor: &Actor, deadline: Deadline) -> Result<(), BeadsError>;
-    fn update(&self, project: &ProjectRef, id: &BeadId, patch: &Patch, guards: &Guards, actor: &Actor, deadline: Deadline) -> Result<(), BeadsError>;
-    fn dep_add(&self, project: &ProjectRef, id: &BeadId, depends_on: &BeadId, kind: DepType, actor: &Actor, deadline: Deadline) -> Result<(), BeadsError>;
-    // ... btit's existing list/show/create/search/label/comment/dep_remove/sync methods
-}
-
-pub enum BeadsError { Unavailable { .. }, Refused(Refusal), Contract { bead: Option<BeadId>, field: String, .. }, Failed { code: i32, stderr: String }, /* btit variants */ }
-pub enum Refusal { Precondition, NotClosable, AlreadyClaimed, Other(String) } // bd exit 13 -> Precondition
-
-// bd-cache-model
-pub enum Op { Close { reason: Option<String> }, Update(Patch), DepAdd { depends_on: BeadId, kind: DepType } }
-impl Op {
-    pub fn overlay(&self, bead: &Bead) -> Bead;
-    pub fn achieved(&self, bead: &Bead, edges: &[Edge]) -> bool;
-}
-pub enum CacheError { /* exactly the BD_CACHE.* codes */ }
-impl CacheError { pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str; }
-```
+| File | Owner | Rule |
+|---|---|---|
+| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
+| `Cargo.lock` | a-7 | a-1 adds `/Cargo.lock` to `.gitignore`; a-7 removes that line and commits the lock. |
+| `.gitignore`, `rust-toolchain.toml` | a-1 | a-7 edits `.gitignore` once (the lock line). |
+| `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Each writes its decisions and probe results to its own note, `docs/plans/phase-a/notes/a-<n>.md`; a-7 folds the notes into the ADRs and updates Crate Layout. |
+| `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
 
 ## Sprints and waves
 
-| Sprint | Closure | Boundary | Wave | Track | must_follow |
+| Sprint | Closure | Target boundary | Wave | Track | must_follow |
 |---|---|---|---|---|---|
-| [a-1](sprint-a-1-contracts.md) | contract | `bd-cache-model` + `sc-beads` | 1 | cache | — |
-| [a-2](sprint-a-2-sc-bd-cli.md) | boundary (implementer) | `sc-bd-cli` | 2 | backend | a-1 (`BeadsBackend` extensions) |
-| [a-3](sprint-a-3-sc-cron.md) | boundary | `sc-cron` | 1 | cron | — |
-| [a-4](sprint-a-4-store.md) | boundary | `bd-cache-store` | 2 | cache | a-1 (model and row types) |
-| [a-5](sprint-a-5-core.md) | boundary (consumer) | `bd-cache` | 3 | cache | a-4 (store transactional API) |
-| [a-6](sprint-a-6-sync-integration.md) | integration | `bd-cache-sync` | 4 | cache | a-2, a-3, a-5 |
+| [a-1](sprint-a-1-contracts.md) | contract | `sc-beads`, `bd-cache-model`, `bd-cache` skeleton | 1 | contracts | — |
+| [a-2](sprint-a-2-sc-bd-cli.md) | boundary (implementer) | `sc-bd-cli` | 2 | backend | a-1 |
+| [a-3](sprint-a-3-sc-cron.md) | boundary | `sc-cron` | 1-2 (no inbound edge) | cron | — |
+| [a-4](sprint-a-4-store.md) | boundary (implementer) | `bd-cache-store` | 2 | store | a-1 |
+| [a-5](sprint-a-5-core-write.md) | boundary (consumer) | `bd-cache` write path | 2 | core | a-1 |
+| [a-6](sprint-a-6-core-read.md) | boundary (consumer) | `bd-cache` read path | 2 | core | a-1 |
+| [a-7](sprint-a-7-sync-integration.md) | integration | `bd-cache-sync` and composition | 3 | integration | a-2, a-3, a-4, a-5, a-6 |
 
-- Critical path: 4 sprints (a-1 → a-4 → a-5 → a-6). It exceeds three because
-  the core consumes the store's transactional API (journal insert with
-  precondition check, read-back store plus applied mark in one transaction),
-  which cannot be hoisted into a-1 without a speculative store trait.
-- Width: 2 (wave 1: a-1, a-3; wave 2: a-2, a-4; a-3 may run into wave 2).
-- Sprint count: 6.
+- Critical path: 3 sprints (a-1 → any wave-2 sprint → a-7).
+- Width: 5 (a-2, a-3, a-4, a-5, a-6 together).
+- Sprint count: 7. Tracks: 6. `must_follow` edges: 9. Every wave-2 pair is
+  `parallel_safe`; a-3 has no inbound edge and may start in wave 1.
 
-## Acceptance ownership
+## Requirement ownership
 
-- Ported Python cases are split by the crate that implements the behaviour:
-  row validation and contract fixtures in a-1; file location, metadata,
-  project id, schema version and rebuild rule in a-4; overlay, write,
-  drain, sync, resolve, prune and status in a-5; the 9 cron cases and the
-  end-to-end composition in a-6. a-1's doc carries the case-to-sprint table.
-- Feature-level behaviour (a hook-style read and journaled write applied by
-  a scheduled drain through the real bd CLI adapter) closes only in a-6.
+Each requirement has exactly one owner. Sprint docs list `owns` and
+`constrained_by`.
 
-## Dependency edges
+| Owner | Requirements |
+|---|---|
+| a-1 | REQ-BDC-0007, 0301, 0304, 0305, 0802, 0803, 0906; NFR-BDC-0005 |
+| a-2 | REQ-BDC-0006, 0106, 0201, 0303, 0905; NFR-BDC-0004, 0006 |
+| a-3 | none (governed by ADR-BDC-0006) |
+| a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
+| a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
+| a-6 | REQ-BDC-0001, 0008, 0105, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904; NFR-BDC-0001 |
+| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0003 |
+| deferred | REQ-BDC-0801, 0805; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
-- a-2 → a-1: `sc-bd-cli` implements the `BeadsBackend` extensions and strict row parsing
-  a-1 defines.
-- a-4 → a-1: stores `Bead` rows and journal entries typed in a-1.
-- a-5 → a-4: calls the store's transactional API.
-- a-6 → a-2, a-3, a-5: composes the real adapter, the scheduler and the core.
-- a-3 is parallel_safe with every other sprint until a-6.
+## Ported Python cases
+
+The one authoritative list. Rust tests keep the Python name.
+
+| Python case | Owner |
+|---|---|
+| test_pinned_model_matches_recorded_schema | a-1 |
+| test_recorded_bd_rows_validate | a-1 |
+| test_bad_ops_are_typed | a-1 |
+| test_backend_check_does_not_need_bd_context | a-2 |
+| test_metadata_values_round_trip_through_bd_coercion | a-2 |
+| test_cache_file_is_named_for_the_dolt_database | a-4 |
+| test_missing_metadata_is_typed | a-4 |
+| test_beads_dir_env_names_the_database | a-4 |
+| test_file_from_another_project_is_refused | a-4 |
+| test_newer_cache_schema_is_refused | a-4 |
+| test_dependents_use_the_edge_index | a-4 |
+| test_escalations_are_unannounced_until_marked | a-4 |
+| test_sync_alert_round_trip | a-4 |
+| test_pending_work_counts_as_open | a-4 |
+| test_write_is_visible_to_reads_but_cache_row_is_untouched | a-5 |
+| test_precondition_checked_at_write_time | a-5 |
+| test_duplicate_idem_key_is_one_entry_and_a_conflicting_reuse_is_refused | a-5 |
+| test_dep_add_overlays_then_lands_as_a_real_edge | a-5 |
+| test_drain_writes_in_order_reads_back_and_marks_applied | a-5 |
+| test_drain_pre_reads_all_pending_beads_in_one_call | a-5 |
+| test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only | a-5 |
+| test_failed_pre_read_retries_every_entry | a-5 |
+| test_retries_exhausted_escalate_and_never_silently_drop | a-5 |
+| test_concurrent_backend_change_escalates_instead_of_overwriting | a-5 |
+| test_bd_guard_refusal_exit_13_escalates | a-5 |
+| test_drain_on_absent_bead_escalates_not_found | a-5 |
+| test_write_that_landed_before_a_crash_is_not_repeated | a-5 |
+| test_drain_is_single_writer | a-5 |
+| test_drain_deadline_defers_unstarted_entries_without_attempts | a-5 |
+| test_contract_violation_is_typed_and_sync_stores_nothing | a-6 |
+| test_schema_change_rebuilds_rows_and_keeps_the_journal | a-6 |
+| test_model_current_when_live_schema_matches_pin | a-6 |
+| test_first_backend_check_records_schema_without_dropping_cached_rows | a-6 |
+| test_miss_fetches_once_then_serves_from_cache | a-6 |
+| test_miss_on_unknown_bead_is_typed | a-6 |
+| test_sync_is_incremental_and_never_replaces_a_newer_row | a-6 |
+| test_sync_failure_is_typed_and_recorded | a-6 |
+| test_prune_refuses_with_unapplied_writes | a-6 |
+| test_resolve_closes_only_escalated_entries_and_unblocks_prune | a-6 |
+| test_resolve_keeps_the_note_when_the_entry_had_no_error | a-6 |
+| test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync | a-7 (spans drain and sync; a-5 and a-6 each test their half) |
+| test_tick_syncs_only_phases_with_an_open_root | a-7 |
+| test_escalation_is_sent_once_to_the_phase_lead | a-7 |
+| test_undelivered_escalation_is_retried_and_the_tick_refuses | a-7 |
+| test_sync_failure_is_announced_once_per_cause | a-7 |
+| test_missing_team_is_refused | a-7 |
+| test_stop_only_when_no_active_phase_and_no_open_work | a-7 |
+| test_tick_budget_defers_drain_entries | a-7 |
+| test_custom_phases_limits_sync_and_stop | a-7 |
+| test_malformed_custom_phases_is_refused | a-7 |
+
+Counts: 41 + 9 = 50 (a-1 3, a-2 2, a-4 9, a-5 15, a-6 11, a-7 10).
+
+## Planted-bug checks
+
+Each planted bug from the baseline's Tests section must fail at least one
+test in its owner's suite. The baseline says 19 + 13 = 32 but lists 31
+distinct bugs; the missing one is to be raised on #557.
+
+| Planted bug | Owner |
+|---|---|
+| no metadata coercion guard; skip validation; no dep-type check | a-1 |
+| bools passed as `True` | a-2 |
+| no newer-row guard; skip project-id check; rebuild deletes journal; no `mark_announced`; no set/clear sync alert | a-4 |
+| no write precondition; no drain precondition; no per-bead hold; no achieved check; no retry cap; no stale flag; no drain lock; per-entry pre-read; no not-found escalation; deferred not reported; drain without deadline | a-5 |
+| no overlay; skip rebuild; rebuild on first check; prune ignores escalated; resolve accepts any state | a-6 |
+| unannounced filter dropped; open-work ignores announcement; refusal dropped; team check dropped; closed roots active; stop ignores open work | a-7 |
 
 ## bd release compatibility
 
-beads-cache is more sensitive to bd changes than btit: it validates rows
-strictly and keeps cache files across bd upgrades. a-2 adds a CI workflow
-that runs on every beads release (P-5) and checks the new bd against the
-pinned fingerprint, the contract tests and the live probes, opening an issue
-on any break. The shared crates make the fix a single upgrade, released as a
+beads-cache validates rows strictly and keeps cache files across bd upgrades,
+so it is more sensitive to bd changes than btit. a-2 adds a CI workflow that
+runs on every beads release (P-5): it checks the new bd against the pinned
+fingerprint, the contract tests and the live probes, and opens an issue on
+any break. The fix is one upgrade of the shared crates, released as a
 semver-major version that every consumer takes (ADR-BDC-0007).
 
 ## QA consumption
 
-Each sprint doc lists `requirements`, `adrs`, deliverables, acceptance criteria with roots, and
-`owned_paths`. Reviewers per `.claude/project/quality-policy.md`.
+Each sprint doc lists `requirements.owns`, `requirements.constrained_by`,
+`adrs`, deliverables tagged with the requirement they serve, acceptance
+criteria with roots (`boundary:<crate>` or `ADR-BDC-nnnn` in boundary
+sprints; `req:<id>` in a-7), and `owned_paths`. Reviewers per
+`.claude/project/quality-policy.md`.

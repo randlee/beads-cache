@@ -194,10 +194,12 @@ Decision: re-read only the dependers of blockers whose status changed, never
 every blocked bead.
 
 1. **Blocker in the cache.** Its own close or reopen bumps its `updated_at`,
-   so scope sync (or the drain's read-back) sees the status change. The cache
-   then looks up that bead's cached dependers through the `edges` index and
-   re-reads just those in one batched `bd list --id`. Repeat to a fixpoint for
-   parent-child descendants.
+   so scope sync sees the status change; when the drain lands it, the drain
+   marks the bead as a changed blocker. The next sync (the same cron tick, which
+   drains then syncs) looks up the changed blockers' cached dependers through
+   the `edges` index and re-reads just those in one batched `bd list --id`.
+   Repeat to a fixpoint for parent-child descendants. Keeping the refresh in
+   sync leaves the write path free of read-path logic.
 2. **Blocker outside the cache.** The cache keeps the set of outside blocking
    targets (edge targets that are not cached rows). Each sync asks for only
    the ones that changed: `bd list --id <outside targets> --updated-after
