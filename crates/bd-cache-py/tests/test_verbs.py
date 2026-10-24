@@ -150,6 +150,28 @@ def test_drain_with_a_spent_start_gate_defers_without_calling_bd(cache, repo):
     assert cache.entry(1)["state"] == "pending" and cache.entry(1)["attempts"] == 0
 
 
+def test_drain_start_gate_and_hard_deadline_are_separate_bounds(cache, repo):
+    cache.write("b1", "close", {}, None, "k1", "dev-1")
+    n = len(repo.bd.calls())
+    # The gate is spent, the hard deadline is not: nothing starts.
+    report = cache.drain(0, 20)
+    assert report["deferred"] == [1] and report["deferred_in_flight"] == []
+    assert len(repo.bd.calls()) == n
+    # The gate is open, a slow bd runs into the hard deadline: the call is cut, not an attempt.
+    repo.bd.delay("*", 3)
+    report = cache.drain(20, 0.5)
+    assert report["applied"] == [] and report["escalated"] == []
+    assert cache.entry(1)["attempts"] == 0
+
+
+def test_sync_stops_at_its_timeout_when_bd_answers_late(cache, repo, stopwatch):
+    repo.bd.delay("*", 5)
+    with stopwatch() as watch:
+        report = cache.sync("x", 0.4)
+    assert watch.elapsed < 2.0, f"sync took {watch.elapsed:.2f}s with a 0.4 s timeout"
+    assert report["deferred"] or report["outage"], report
+
+
 def test_entry_returns_every_field_of_a_journal_entry(cache):
     cache.write("b2", "update", {"status": "in_progress"}, {"assignee": ""}, "k-fields", "dev-1")
     entry = cache.entry(1)
