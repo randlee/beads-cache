@@ -229,7 +229,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Rerun for fix-a-4-2 on commit `a71dd3913a8de680f63ac060204af98cad6b87f9`, the last commit
+Rerun for fix-a-4-3 on commit `0a150d58ccbe5c1121b06cfe12e0fd893e5a7d66`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -282,11 +282,11 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes.
+list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes. Results at `0a150d5` are unchanged from `a71dd39`; bug 15 also failed 5 of 5 separate runs against the restructured race test.
 
 ## Validation
 
-Local, on `a71dd39` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
+Local, on `0a150d5` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
 
 | Gate | Result |
 |---|---|
