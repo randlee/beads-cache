@@ -368,7 +368,7 @@ retry-cap behaviour; needs agreement on #557.
 
 ## ADR-BDC-0006: Prototype a SQLite-backed cron crate here for sc-runtime
 
-**Status:** Approved (lead ruling 2026-10-24, after a-3 QA-2: covers the decision text as amended in integrate/phase-a 3f87332, including the third-party dependency list cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing)
+**Status:** Approved (lead ruling 2026-10-24, after a-3 QA-2: covers the decision text as amended in integrate/phase-a 3f87332, including the third-party dependency list cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing; extended by lead ruling 2026-10-23 to cover the integrate/phase-a 4dbc1ad amendment adding the dev-dependency tempfile)
 
 Context: the sync task needs a scheduler (BD-CACHE's cron drains and syncs
 every 30 s). sc-runtime has no cron or scheduler crate. atm-core's `atm-cron`
@@ -389,7 +389,8 @@ accepts it; bd-cache then switches its dependency.
 
 Third-party dependencies of `sc-cron`: cron, chrono, tokio, rusqlite
 (bundled), async-trait, serde_json, getrandom, tracing (amended after a-3
-QA-1). Its schedule store uses its own SQLite file and connection
+QA-1); dev-dependency tempfile for its store tests (lead amendment,
+2026-10-23). Its schedule store uses its own SQLite file and connection
 (NFR-BDC-0007).
 
 Consequences: phase a can deliver the sync task before sc-runtime
