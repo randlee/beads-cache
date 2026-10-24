@@ -69,7 +69,7 @@ new handle type; the Python verbs stay the same. The default cache file is
 
 ## ADR-PY-0002: Replies are builtin objects; one exception class
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the config kind is reserved
 
 Context: atm-bd reads `bd_cache.py`'s JSON dicts today. The `bd-cache-model`
 reply types derive `Serialize`.

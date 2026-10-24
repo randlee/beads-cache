@@ -33,3 +33,7 @@ rustc-ice-*.txt
 
 # bd-cache files and drain locks created by local runs
 .bd-cache/
+
+# Python bytecode (S43)
+__pycache__/
+*.pyc
