@@ -11,8 +11,8 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 |---|---|
 | `op` | `Op`, `replay`, `normalize`, `phase_of`, precondition parse / canonical JSON / `unmet` |
 | `pyjson` | `python_json`: Python `json.dumps(sort_keys=True)` text |
-| `journal`, `scope`, `state` | journal types, `ScopeId`, store-side state and `StoreStatus` |
-| `store`, `sender` | `CacheStore`, `DrainLock` / `DrainGuard`, `EscalationSender` |
+| `journal`, `scope`, `state` | journal types, `ScopeId`, store-side state, `BaseEntry` and `StoreStatus` |
+| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind` |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
 | `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
@@ -200,6 +200,43 @@ found. The serialized basis changes from `{"kind": "fresh"}` to
 (REQ-BDC-0806, deferred) and not claimed equal to Python, so no #557 note is
 needed. The `scope_last_ok_at` / `last_ok_at` naming split across read
 replies is left for the bdc sprint (REQ-BDC-0806) to settle.
+
+### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since` and `send_within`
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2)
+
+Context: the ports are a-1's contract, and a-4, a-5, a-6 and a-8 build on them.
+Sprint a-7 changed them, by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24) and
+S14/S15 (fix-a-7-2), to make a cached `get` independent of the size of its scope
+and journal (NFR-BDC-0001) and to bound the sync task's messages:
+
+Decision:
+- `CacheStore::base_entry(scope, id) -> Option<BaseEntry>`: one bead's entry of
+  the scope's stored ready base (fetch instant, stale mark, the bead's
+  `blocked_by`), equal to `BaseEntry::of(ready_base(scope), id)`. The provided
+  body loads the whole base; an implementation with an index overrides it and
+  reads the head and the entry in one snapshot (ADR-STORE-0004). The contract
+  rule `base_entry_rules` pins it.
+- `CacheStore::has_entries_since(at) -> bool`: "something is pending, or was
+  applied at or after `at`". The provided body loads both lists; an
+  implementation answers from indexes. Contract rule `has_entries_since_rules`.
+- `EscalationSender::send_within(lead, team, body, timeout)`: a provided method
+  that ignores `timeout` and calls `send`; a sender that can bound its work
+  overrides it. The caller checks its own budget after every send, so a sender
+  that ignores the timeout costs at most the send in flight. `lead` and `team`
+  stay `&str`: callers pass names they validated, and a sender that builds a
+  command line keeps a defensive guard (S15).
+- `SendError` gains `kind: SendErrorKind` (`InvalidAddress`, `NotStartable`,
+  `TimedOut`, `Cancelled`, `Exited`, `Other`; `as_str`, `fix`, `Serialize`) and
+  the constructors `SendError::new` and `with_kind`. **This is a breaking change
+  to the struct literal** `SendError { detail }`; no other crate in the workspace
+  or on the a-8 branch built one. `SendErrorKind` is `#[non_exhaustive]`.
+
+Consequences: every `CacheStore` passes the two new contract rules (FakeStore
+through the provided bodies, SqliteStore through its indexes); `EscalationSender`
+implementations keep compiling. The earlier wording that `EscalationSender` and
+`RepoConfig.tick` were "frozen in a-1" meant "defined in a-1"; they change only
+by an amendment like this one.
 
 ## ADR-MODEL-0004: toml is a private parsing dependency
 

@@ -54,9 +54,12 @@ another path (a symlink) that resolves to it.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
-extensions are the tables `scope`, `scope_member`, `ready_base` and nullable
-columns only (ADR-STORE-0001). Stored rows are normalized and `row_json` is
+extensions are the tables `scope`, `scope_member`, `ready_base` and
+`ready_base_blocked`, nullable columns only (including `ready_base.indexed`) and
+the index `journal_applied_at` (ADR-STORE-0001, as amended by ADR-STORE-0004). Stored rows are normalized and `row_json` is
 Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
+
+*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed` and `journal_applied_at` are additive in the same way; `bd_cache.py` never reads them.*
 
 **Refines:** REQ-BDC-0107, 0108, 0804; ADR-BDC-0001, 0002, 0004
 **Acceptance evidence:** `v3_tables_are_unchanged_and_extensions_are_additive`
@@ -144,3 +147,22 @@ fix; the cause is carried once, as `Error::source`.
 **Acceptance evidence:** `missing_repo_config_is_the_default`,
 `repo_config_is_parsed_and_unknown_keys_refused`,
 `unreadable_repo_config_is_an_error_not_the_default` (`location.rs`).
+
+## REQ-STORE-0008: Cached reads cost the same at any scope size and journal length
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2)
+
+`base_entry` reads one bead's entry of a scope's ready base from a per-bead
+index, in one read snapshot, and falls back to reading the whole base when it
+was not stored with the index (stored before it existed, or replaced by another
+writer). `has_entries_since` is two index lookups, whatever the journal's
+history. Neither changes what a reader sees.
+
+**Refines:** NFR-BDC-0001; ADR-STORE-0004
+**Acceptance evidence:** `base_entry_rules`, `has_entries_since_rules` (the store
+contract suite, both stores); `the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild`,
+`the_entries_since_check_uses_indexes_and_ignores_a_long_history` (query plan),
+`a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement`,
+`a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index`,
+`a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace`
+(`store.rs`); `v3_tables_are_unchanged_and_extensions_are_additive` (`open.rs`).

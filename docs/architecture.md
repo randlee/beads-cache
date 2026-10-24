@@ -196,7 +196,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR | Status | Implemented in |
 |---|---|---|
 | ADR-BDC-0001 | Approved | `bd-cache-store` (ADR-STORE-0001, 0002: scope registry, membership), `bd-cache` (ADR-CORE-0204, 0205: scoped reads, prune) |
-| ADR-BDC-0002 | Approved | `bd-cache` (ADR-CORE-0201, 0203: the ready adjustment, bounded fresh ready), `bd-cache-store` (ready base), `bd-cache-sync` (the base is refreshed by each sync; end-to-end in `tests/e2e.rs`) |
+| ADR-BDC-0002 | Approved | `bd-cache` (ADR-CORE-0201, 0203: the ready adjustment, bounded fresh ready; ADR-CORE-0206: `get` reads the bead's own entry), `bd-cache-store` (ready base; ADR-STORE-0004: its per-bead index), `bd-cache-sync` (the base is refreshed by each sync; end-to-end in `tests/e2e.rs`) |
 | ADR-BDC-0003 | Approved | `bd-cache-model` (ADR-MODEL-0001, 0002: ops, patch shapes, error reasons) |
 | ADR-BDC-0004 | Approved | `sc-beads` (`CacheBackend`, ADR-BEADS-0002), `sc-bd-cli` (ADR-BDCLI-0001, 0002) |
 | ADR-BDC-0005 | Approved | `bd-cache` (REQ-CORE-0001, 0002; ADR-CORE-0101, 0202), `bd-cache-sync` (ADR-SYNC-0003: the outage announcement; ADR-SYNC-0002: the threading it runs under) |

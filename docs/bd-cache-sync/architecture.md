@@ -8,7 +8,7 @@ Repo-level context: [`../architecture.md`](../architecture.md). Requirements:
 atm-core) in Rust, scheduled on `sc-cron` (ADR-BDC-0006). It composes the
 core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 (`sc-bd-cli`) and the scheduler (`sc-cron`). Its only inbound contract is
-`EscalationSender` and `RepoConfig.tick`, both frozen in a-1.
+`EscalationSender` and `RepoConfig.tick`, both defined in a-1 and amended only by lead ruling (the ports by ADR-MODEL-0003's a-7 amendment).
 
 | Module | Contents |
 |---|---|
@@ -155,7 +155,8 @@ Decision: normal dependencies: `bd-cache`, `bd-cache-model`, `bd-cache-store`,
 schedule payload), `toml` (the phase files; the `[tick]` table is parsed by
 `bd-cache-model`, ADR-MODEL-0004), `tracing`. Dev dependencies: `tempfile`,
 `criterion` (the informational bench), `chrono` (`sc-cron`'s `ManualClock`
-takes a `chrono::Duration`), and the `testing`, `test-support` and
+takes a `chrono::Duration`), `rusqlite` (tests seed and inspect the cache file),
+`tokio`'s `test-util` feature (the scheduler tests), and the `testing`, `test-support` and
 `test-utils` features of the crates above. The process tree of `atm` is killed
 with the platform's `kill`/`taskkill` programs rather than a `libc` or
 `windows-sys` dependency, so the crate has no `unsafe`.

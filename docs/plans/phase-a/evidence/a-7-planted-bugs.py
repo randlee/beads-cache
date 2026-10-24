@@ -12,7 +12,350 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 S = "crates/bd-cache-sync/src/"
 M = "crates/bd-cache-model/src/testing/store.rs"
 
-MUTANTS = [('unannounced filter dropped', 'crates/bd-cache-model/src/testing/store.rs', 'entries(|e| e.state == JournalState::Escalated && e.announced_at.is_none())', 'entries(|e| e.state == JournalState::Escalated)'), ('open-work ignores announcement', 'crates/bd-cache-model/src/testing/store.rs', '                e.state == JournalState::Escalated && e.announced_at.is_none()\n            }),', '                e.state == JournalState::Escalated\n            }),'), ('refusal dropped', 'crates/bd-cache-sync/src/announce.rs', '            Some(Err(e)) => reply.refused.push(undelivered(\n                RefusalCode::EscalationUndelivered,\n                &format!("escalation #{}", entry.seq),\n                &e,\n            )),', '            Some(Err(_)) => {}'), ('team check dropped', 'crates/bd-cache-sync/src/phases.rs', 'let team = member(config.team.as_deref(), "team", ConfigRefusal::MissingTeam)?;', 'let team = MemberName::new(config.team.clone().unwrap_or_else(|| "t".to_owned())).map_err(|e| ConfigRefusal::BadMember { key: "team", value: e.value })?;'), ('closed roots active', 'crates/bd-cache-sync/src/active.rs', 'status == Some("closed")', 'status == Some("never-closed")'), ('stop ignores open work', 'crates/bd-cache-sync/src/tick.rs', '    if work.any() {\n        return Ok(None);\n    }\n', ''), ('fallback lead dropped for entries with no scope', 'crates/bd-cache-sync/src/announce.rs', '            None => Some(settings.fallback_lead()),', '            None => None,'), ('escalation not marked announced', 'crates/bd-cache-sync/src/announce.rs', '                cache.mark_announced(entry.seq)?;\n', ''), ('escalation message without the resolve command', 'crates/bd-cache-sync/src/announce.rs', '         bd-cache resolve {seq} --note', '         bd-cache {seq} --note'), ('sync failure announced every tick (alert not compared)', 'crates/bd-cache-sync/src/announce.rs', '    if cache.sync_alert(&scope)?.as_deref() == Some(cause.key()) {\n        return Ok(());\n    }\n', ''), ('sync failure alert not recorded', 'crates/bd-cache-sync/src/announce.rs', '            cache.set_sync_alert(&scope, Some(cause.key()))?;\n', ''), ('sync success does not clear the alert', 'crates/bd-cache-sync/src/announce.rs', '    if cache.sync_alert(scope)?.is_some() {\n        cache.set_sync_alert(scope, None)?;\n    }\n', ''), ('outage alert not recorded after the send', 'crates/bd-cache-sync/src/announce.rs', '                    cache.set_sync_alert(&phase.scope(), Some(OUTAGE_CAUSE))?;\n', ''), ('outage alert not reset when it ends', 'crates/bd-cache-sync/src/announce.rs', '            if cache.sync_alert(&scope)?.as_deref() == Some(OUTAGE_CAUSE) {\n                cache.set_sync_alert(&scope, None)?;\n            }\n', ''), ('outage: no lead for a scope without one', 'crates/bd-cache-sync/src/announce.rs', '    phase\n        .lead\n        .as_ref()\n        .unwrap_or_else(|| settings.fallback_lead())', '    phase.lead.as_ref().unwrap_or_else(|| settings.team())'), ('outage not told to every configured lead when no root is readable', 'crates/bd-cache-sync/src/tick.rs', '        .chain(active.unreadable.iter())\n', ''), ('outage message per phase instead of per lead', 'crates/bd-cache-sync/src/announce.rs', '    for (lead, phases) in by_lead {\n', '    for (lead, phases) in by_lead.into_iter().flat_map(|(l, ps)| ps.into_iter().map(move |p| (l, vec![p]))) {\n'), ('undelivered outage message recorded as delivered', 'crates/bd-cache-sync/src/announce.rs', '            Some(Err(e)) => reply.refused.push(undelivered(\n                RefusalCode::OutageUndelivered,\n                &format!("outage message to {lead}"),\n                &e,\n            )),', '            Some(Err(_)) => {\n                for phase in &phases {\n                    cache.set_sync_alert(&phase.scope(), Some(OUTAGE_CAUSE))?;\n                }\n            }'), ('sync failure of an unreachable cause announced per phase', 'crates/bd-cache-sync/src/announce.rs', '    if cause == AlertCause::Sync(SyncCause::BdUnavailable) {\n        return Ok(());\n    }\n', ''), ('drain without the start gate and hard deadline', 'crates/bd-cache-sync/src/tick.rs', 'cache.drain(&DrainBudget::before_tick_end(end))?', 'cache.drain(&DrainBudget { start_gate: end, hard: end })?'), ('sync not deferred before T - 2 s', 'crates/bd-cache-sync/src/tick.rs', '    let gate = Deadline::at(\n        end.instant()\n            .checked_sub(HARD_MARGIN)\n            .unwrap_or_else(|| end.instant()),\n    );', '    let gate = end;'), ('sync run with no deadline (a day)', 'crates/bd-cache-sync/src/tick.rs', 'cache.sync(&phase.scope(), end)', 'cache.sync(&phase.scope(), Deadline::after(&*clock, std::time::Duration::from_secs(86_400)))'), ('custom phase list ignored', 'crates/bd-cache-sync/src/phases.rs', '        if only.is_some_and(|only| !only.contains(&name)) {\n            continue;\n        }\n', ''), ('malformed phase entry skipped instead of refused', 'crates/bd-cache-sync/src/phases.rs', '                    let name = ScopeId::parse(entry)\n                        .map(|s| s.phase_name().clone())\n                        .ok_or_else(|| ConfigRefusal::MalformedPhases {\n                            entry: entry.clone(),\n                        })?;', '                    let Some(name) = ScopeId::parse(entry).map(|s| s.phase_name().clone()) else {\n                        continue;\n                    };'), ('unreadable root stops the schedule', 'crates/bd-cache-sync/src/tick.rs', 'if !active.active.is_empty() || !active.unreadable.is_empty() {', 'if !active.active.is_empty() {'), ('configuration the tick refuses can stop the schedule', 'crates/bd-cache-sync/src/tick.rs', '    let Ok(settings) = TickSettings::from_config(config) else {\n        return Ok(None);\n    };', '    let settings = TickSettings::from_config(config).unwrap_or_else(|_| TickSettings::from_config(&TickConfig { team: Some("t".into()), fallback_lead: Some("f".into()), phases_dir: config.phases_dir.clone(), phases: None }).unwrap());'), ('broken phase file does not hold the stop rule', 'crates/bd-cache-sync/src/tick.rs', '    if !set.problems.is_empty() {\n        return Ok(None);\n    }\n', ''), ('busy: stop check stops under a running task', 'crates/bd-cache-sync/src/job.rs', '            // Busy: a blocking task is still working; never stop under it.\n            return StopDecision::Continue;', '            return StopDecision::Stop("busy".to_owned());'), ('busy tick not reported (runs as an empty pass-through)', 'crates/bd-cache-sync/src/job.rs', '            return TickRun::Done(Box::new(TickReply::busy()));', '            return TickRun::Done(Box::new(TickReply::started()));'), ('poison not cleared (reported on every tick)', 'crates/bd-cache-sync/src/job.rs', '        self.cache.clear_poison();\n', ''), ('poisoned mutex not reported', 'crates/bd-cache-sync/src/job.rs', '                if poisoned {\n                    reply.poisoned = true;', '                if false && poisoned {\n                    reply.poisoned = true;'), ('a refused tick reported as ok to the scheduler', 'crates/bd-cache-sync/src/job.rs', '            TickOutcome::Refused => {\n                let list', '            TickOutcome::Refused => RunOutcome::Ok,\n            TickOutcome::PassThrough if false => {\n                let list'), ('schedule started without a team', 'crates/bd-cache-sync/src/job.rs', '    let settings = TickSettings::from_config(config)?;\n    if let Some(atm)', '    let settings = TickSettings::from_config(&TickConfig { team: Some(config.team.clone().unwrap_or_default()), ..config.clone() }).or_else(|_| TickSettings::from_config(&TickConfig { team: Some("t".into()), ..config.clone() }))?;\n    if let Some(atm)'), ('atm address not validated', 'crates/bd-cache-sync/src/phases.rs', "        let ok = !name.is_empty()\n            && !name.starts_with('-')\n            && !name\n                .chars()\n                .any(|c| c.is_whitespace() || c.is_control() || c == '@');", '        let ok = !name.is_empty();'), ('atm message not on stdin', 'crates/bd-cache-sync/src/atm.rs', '                let _ = stdin.write_all(message.as_bytes());', '                let _ = stdin.write_all(b"");'), ('compose ignores the [tick] table', 'crates/bd-cache-sync/src/compose.rs', '    let mut tick = repo.tick.unwrap_or_default();', '    let mut tick = TickConfig::default();\n    let _ = repo.tick;\n    tick.team = Some("atm-dev".into());\n    tick.fallback_lead = Some("team-lead".into());'), ('announcements ignore the tick budget', 'crates/bd-cache-sync/src/control.rs', '        let left = self.end.remaining(self.clock);\n        (left >= MIN_SEND_BUDGET).then_some(left)', '        let _ = self.end.remaining(self.clock);\n        Some(std::time::Duration::from_secs(10))'), ('announcements ignore the stop flag', 'crates/bd-cache-sync/src/control.rs', '        if self.stop.is_stopped() {\n            return None;\n        }\n', ''), ('tick ignores the stop flag between phases', 'crates/bd-cache-sync/src/tick.rs', '        if stop.is_stopped() {\n            reply.stopped = true;\n            break;\n        }\n', ''), ('atm kills only the direct child', 'crates/bd-cache-sync/src/atm.rs', '            command.process_group(0);', '            let _ = &command;'), ('atm ignores the time the tick passes', 'crates/bd-cache-sync/src/atm.rs', '        let timeout = timeout.min(self.timeout);', '        let timeout = self.timeout;'), ('atm ignores the stop flag', 'crates/bd-cache-sync/src/atm.rs', '            if self.stop.is_stopped() {\n                kill_tree(&mut child);', '            if false {\n                kill_tree(&mut child);'), ('atm invocation without the reference environment', 'crates/bd-cache-sync/src/atm.rs', '            .env("ATM_IDENTITY", &self.identity)\n', ''), ('atm truncated output not marked', 'crates/bd-cache-sync/src/atm.rs', '        Ok(c) if c.truncated => format!("{} ... (output truncated)", c.text),\n', ''), ('poison met by the stop check is lost', 'crates/bd-cache-sync/src/job.rs', '        self.poison_unreported.store(true, Ordering::SeqCst);\n', '        self.poison_unreported.store(false, Ordering::SeqCst);\n'), ('empty phase list accepted', 'crates/bd-cache-sync/src/phases.rs', '            Some(list) if list.is_empty() => return Err(ConfigRefusal::EmptyPhases),\n', ''), ('phase file size not capped', 'crates/bd-cache-sync/src/phases.rs', '    if bytes > MAX_PHASE_FILE_BYTES {', '    if bytes > u64::MAX {'), ('phase file count not capped', 'crates/bd-cache-sync/src/phases.rs', '        if files.len() >= MAX_PHASE_FILES {', '        if files.len() >= usize::MAX {'), ('compose does not root the phases directory', 'crates/bd-cache-sync/src/compose.rs', '    tick.phases_dir = Some(if dir.is_relative() {\n        repo_root.join(dir)\n    } else {\n        dir\n    });', '    tick.phases_dir = Some(dir);'), ('embedded error text not clipped', 'crates/bd-cache-sync/src/announce.rs', '    if text.len() <= MAX_TEXT_BYTES {\n        return text.to_owned();\n    }', '    if true {\n        return text.to_owned();\n    }'), ('recorded outcome not clipped', 'crates/bd-cache-sync/src/job.rs', '    if text.len() <= limit {\n        return text;\n    }', '    if true {\n        return text;\n    }'), ('get ignores a pending entry (fast path always)', 'crates/bd-cache/src/ready.rs', '    let untouched = cache.store.pending_entries()?.is_empty()\n        && cache.store.applied_since(&entry.fetched_at)?.is_empty();', '    let untouched = true;'), ('get fast path ignores entries applied since the fetch', 'crates/bd-cache/src/ready.rs', '        && cache.store.applied_since(&entry.fetched_at)?.is_empty();', '        && true;'), ('get loads the whole base again', 'crates/bd-cache/src/ready.rs', '    let Some(entry) = cache.store.base_entry(s, &view.id)? else {\n        return Ok(None);\n    };', '    let Some(entry) = cache.store.ready_base(s)?.map(|b| bd_cache_model::BaseEntry::of(&b, &view.id)) else {\n        return Ok(None);\n    };'), ('store index not replaced with the base', 'crates/bd-cache-store/src/store.rs', '            tx.prepare_cached("DELETE FROM ready_base_blocked WHERE scope = ?1")\n                .at(st)?\n                .execute([s.name()])\n                .at(st)?;\n', ''), ('store index survives a prune', 'crates/bd-cache-store/src/store.rs', '            "DELETE FROM ready_base_blocked WHERE scope = ?1",\n', ''), ('store index keeps duplicate blockers', 'crates/bd-cache-store/src/codec.rs', '            if !list.contains(&b) {\n                list.push(b);\n            }', '            list.push(b);')]
+MUTANTS = [('unannounced filter dropped',
+  'crates/bd-cache-model/src/testing/store.rs',
+  'entries(|e| e.state == JournalState::Escalated && e.announced_at.is_none())',
+  'entries(|e| e.state == JournalState::Escalated)'),
+ ('open-work ignores announcement',
+  'crates/bd-cache-model/src/testing/store.rs',
+  '                e.state == JournalState::Escalated && e.announced_at.is_none()\n            }),',
+  '                e.state == JournalState::Escalated\n            }),'),
+ ('refusal dropped',
+  'crates/bd-cache-sync/src/announce.rs',
+  '            Some(Err(e)) => reply.refused.push(Refusal::undelivered(\n'
+  '                RefusalCode::EscalationUndelivered,\n'
+  '                &format!("escalation #{}", entry.seq),\n'
+  '                &e,\n'
+  '            )),',
+  '            Some(Err(_)) => {}'),
+ ('team check dropped',
+  'crates/bd-cache-sync/src/phases.rs',
+  'let team = member(config.team.as_deref(), "team", ConfigRefusal::MissingTeam)?;',
+  'let team = MemberName::new(config.team.clone().unwrap_or_else(|| "t".to_owned())).map_err(|e| '
+  'ConfigRefusal::BadMember { key: "team", value: e.value })?;'),
+ ('closed roots active',
+  'crates/bd-cache-sync/src/active.rs',
+  'status == Some(bd_cache::CLOSED_STATUS)',
+  'status == Some("never-closed")'),
+ ('stop ignores open work',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    if work.any() {\n        return Ok(None);\n    }\n',
+  ''),
+ ('fallback lead dropped for entries with no scope',
+  'crates/bd-cache-sync/src/announce.rs',
+  '            None => Some(settings.fallback_lead()),',
+  '            None => None,'),
+ ('escalation not marked announced',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                cache.mark_announced(entry.seq)?;\n',
+  ''),
+ ('escalation message without the resolve command',
+  'crates/bd-cache-sync/src/announce.rs',
+  '         bd-cache resolve {seq} --note',
+  '         bd-cache {seq} --note'),
+ ('sync failure announced every tick (alert not compared)',
+  'crates/bd-cache-sync/src/announce.rs',
+  '    if cache.sync_alert(&scope)?.as_deref() == Some(cause.key()) {\n'
+  '        return Ok(());\n'
+  '    }\n',
+  ''),
+ ('sync failure alert not recorded',
+  'crates/bd-cache-sync/src/announce.rs',
+  '            cache.set_sync_alert(&scope, Some(cause.key()))?;\n',
+  ''),
+ ('sync success does not clear the alert',
+  'crates/bd-cache-sync/src/announce.rs',
+  '    if cache.sync_alert(scope)?.is_some() {\n'
+  '        cache.set_sync_alert(scope, None)?;\n'
+  '    }\n',
+  ''),
+ ('outage alert not recorded after the send',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                for phase in &phases {\n'
+  '                    cache.set_sync_alert(\n'
+  '                        &phase.scope(),\n'
+  '                        Some(AlertCause::BackendUnavailable.key()),\n'
+  '                    )?;\n'
+  '                }\n'
+  '                reply.sent.push(Announcement {\n'
+  '                    kind: AnnouncementKind::Outage {',
+  '                reply.sent.push(Announcement {\n'
+  '                    kind: AnnouncementKind::Outage {'),
+ ('outage alert not reset when it ends',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                cache.set_sync_alert(&scope, None)?;\n'
+  '            }\n'
+  '        }\n'
+  '        return Ok(());',
+  '            }\n        }\n        return Ok(());'),
+ ('outage: no lead for a scope without one',
+  'crates/bd-cache-sync/src/announce.rs',
+  '    phase\n'
+  '        .lead\n'
+  '        .as_ref()\n'
+  '        .unwrap_or_else(|| settings.fallback_lead())',
+  '    phase.lead.as_ref().unwrap_or_else(|| settings.team())'),
+ ('outage not told to every configured lead when no root is readable',
+  'crates/bd-cache-sync/src/tick.rs',
+  '        .chain(active.unreadable.iter())\n',
+  ''),
+ ('outage message per phase instead of per lead',
+  'crates/bd-cache-sync/src/announce.rs',
+  '    for (lead, phases) in by_lead {\n',
+  '    for (lead, phases) in by_lead.into_iter().flat_map(|(l, ps)| ps.into_iter().map(move |p| '
+  '(l, vec![p]))) {\n'),
+ ('undelivered outage message recorded as delivered',
+  'crates/bd-cache-sync/src/announce.rs',
+  '            Some(Err(e)) => reply.refused.push(Refusal::undelivered(\n'
+  '                RefusalCode::OutageUndelivered,\n'
+  '                &format!("outage message to {lead}"),\n'
+  '                &e,\n'
+  '            )),',
+  '            Some(Err(_)) => {\n'
+  '                for phase in &phases {\n'
+  '                    cache.set_sync_alert(&phase.scope(), '
+  'Some(AlertCause::BackendUnavailable.key()))?;\n'
+  '                }\n'
+  '            }'),
+ ('sync failure of an unreachable cause announced per phase',
+  'crates/bd-cache-sync/src/announce.rs',
+  '    if cause == AlertCause::Sync(SyncCause::BdUnavailable) {\n        return Ok(());\n    }\n',
+  ''),
+ ('drain without the start gate and hard deadline',
+  'crates/bd-cache-sync/src/tick.rs',
+  'cache.drain(&DrainBudget::before_tick_end(end))?',
+  'cache.drain(&DrainBudget { start_gate: end, hard: end })?'),
+ ('sync not deferred before T - 2 s',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    let gate = Deadline::at(\n'
+  '        end.instant()\n'
+  '            .checked_sub(HARD_MARGIN)\n'
+  '            .unwrap_or_else(|| end.instant()),\n'
+  '    );',
+  '    let gate = end;'),
+ ('sync run with no deadline (a day)',
+  'crates/bd-cache-sync/src/tick.rs',
+  'cache.sync(&phase.scope(), end)',
+  'cache.sync(&phase.scope(), Deadline::after(&*clock, std::time::Duration::from_secs(86_400)))'),
+ ('custom phase list ignored',
+  'crates/bd-cache-sync/src/phases.rs',
+  '        if only.is_some_and(|only| !only.contains(&name)) {\n            continue;\n        }\n',
+  ''),
+ ('malformed phase entry skipped instead of refused',
+  'crates/bd-cache-sync/src/phases.rs',
+  '                    let name = ScopeId::parse(entry)\n'
+  '                        .map(|s| s.phase_name().clone())\n'
+  '                        .ok_or_else(|| ConfigRefusal::MalformedPhases {\n'
+  '                            entry: entry.clone(),\n'
+  '                        })?;',
+  '                    let Some(name) = ScopeId::parse(entry).map(|s| s.phase_name().clone()) else '
+  '{\n'
+  '                        continue;\n'
+  '                    };'),
+ ('unreadable root stops the schedule',
+  'crates/bd-cache-sync/src/tick.rs',
+  'if !active.active.is_empty() || !active.unreadable.is_empty() {',
+  'if !active.active.is_empty() {'),
+ ('configuration the tick refuses can stop the schedule',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    let Ok(settings) = TickSettings::from_config(config) else {\n'
+  '        return Ok(None);\n'
+  '    };',
+  '    let settings = TickSettings::from_config(config).unwrap_or_else(|_| '
+  'TickSettings::from_config(&TickConfig { team: Some("t".into()), fallback_lead: '
+  'Some("f".into()), phases_dir: config.phases_dir.clone(), phases: None }).unwrap());'),
+ ('broken phase file does not hold the stop rule',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    if !set.problems.is_empty() {\n        return Ok(None);\n    }\n',
+  ''),
+ ('busy: stop check stops under a running task',
+  'crates/bd-cache-sync/src/job.rs',
+  '            // Busy: a blocking task is still working; never stop under it.\n'
+  '            return StopDecision::Continue;',
+  '            return StopDecision::Stop("busy".to_owned());'),
+ ('busy tick not reported (runs as an empty pass-through)',
+  'crates/bd-cache-sync/src/job.rs',
+  '            return TickRun::Done(Box::new(TickReply::busy()));',
+  '            return TickRun::Done(Box::new(TickReply::started()));'),
+ ('poison not cleared (reported on every tick)',
+  'crates/bd-cache-sync/src/job.rs',
+  '        self.cache.clear_poison();\n',
+  ''),
+ ('poisoned mutex not reported',
+  'crates/bd-cache-sync/src/job.rs',
+  '                if poisoned {\n                    reply.poisoned = true;',
+  '                if false && poisoned {\n                    reply.poisoned = true;'),
+ ('a refused tick reported as ok to the scheduler',
+  'crates/bd-cache-sync/src/job.rs',
+  '            TickOutcome::Refused => {\n                let list',
+  '            TickOutcome::Refused => RunOutcome::Ok,\n'
+  '            TickOutcome::PassThrough if false => {\n'
+  '                let list'),
+ ('schedule started without a team',
+  'crates/bd-cache-sync/src/job.rs',
+  '    let settings = TickSettings::from_config(config)?;\n    if let Some(atm)',
+  '    let settings = TickSettings::from_config(&TickConfig { team: '
+  'Some(config.team.clone().unwrap_or_default()), ..config.clone() }).or_else(|_| '
+  'TickSettings::from_config(&TickConfig { team: Some("t".into()), ..config.clone() }))?;\n'
+  '    if let Some(atm)'),
+ ('atm address not validated',
+  'crates/bd-cache-sync/src/phases.rs',
+  '        let ok = !name.is_empty()\n'
+  "            && !name.starts_with('-')\n"
+  '            && !name\n'
+  '                .chars()\n'
+  "                .any(|c| c.is_whitespace() || c.is_control() || c == '@');",
+  '        let ok = !name.is_empty();'),
+ ('atm message not on stdin',
+  'crates/bd-cache-sync/src/atm.rs',
+  '                let _ = stdin.write_all(message.as_bytes());',
+  '                let _ = stdin.write_all(b"");'),
+ ('compose ignores the [tick] table',
+  'crates/bd-cache-sync/src/compose.rs',
+  '    let mut tick = repo.tick.unwrap_or_default();',
+  '    let mut tick = TickConfig::default();\n'
+  '    let _ = repo.tick;\n'
+  '    tick.team = Some("atm-dev".into());\n'
+  '    tick.fallback_lead = Some("team-lead".into());'),
+ ('announcements ignore the tick budget',
+  'crates/bd-cache-sync/src/control.rs',
+  '        let left = self.end.remaining(self.clock).saturating_sub(SEND_RESERVE);\n'
+  '        (left >= MIN_SEND_BUDGET).then_some(left)',
+  '        let _ = self.end.remaining(self.clock);\n'
+  '        Some(std::time::Duration::from_secs(10))'),
+ ('announcements ignore the stop flag',
+  'crates/bd-cache-sync/src/control.rs',
+  '        if self.stop.is_stopped() {\n            return None;\n        }\n',
+  ''),
+ ('tick ignores the stop flag between phases',
+  'crates/bd-cache-sync/src/tick.rs',
+  '        if stop.is_stopped() {\n'
+  '            reply.stopped = true;\n'
+  '            break;\n'
+  '        }\n',
+  ''),
+ ('atm kills only the direct child',
+  'crates/bd-cache-sync/src/atm.rs',
+  '            command.process_group(0);',
+  '            let _ = &command;'),
+ ('atm ignores the time the tick passes',
+  'crates/bd-cache-sync/src/atm.rs',
+  '        let timeout = timeout.min(self.timeout);',
+  '        let timeout = self.timeout;'),
+ ('atm ignores the stop flag',
+  'crates/bd-cache-sync/src/atm.rs',
+  '            if self.stop.is_stopped() {\n                kill_tree(&mut child);',
+  '            if false {\n                kill_tree(&mut child);'),
+ ('atm invocation without the reference environment',
+  'crates/bd-cache-sync/src/atm.rs',
+  '            .env("ATM_IDENTITY", &self.identity)\n',
+  ''),
+ ('atm truncated output not marked',
+  'crates/bd-cache-sync/src/atm.rs',
+  '        Ok(c) if c.truncated => format!("{} ... (output truncated)", c.text),\n',
+  ''),
+ ('poison met by the stop check is lost',
+  'crates/bd-cache-sync/src/job.rs',
+  '        self.poison_unreported.store(true, Ordering::SeqCst);\n',
+  '        self.poison_unreported.store(false, Ordering::SeqCst);\n'),
+ ('empty phase list accepted',
+  'crates/bd-cache-sync/src/phases.rs',
+  '            Some(list) if list.is_empty() => return Err(ConfigRefusal::EmptyPhases),\n',
+  ''),
+ ('phase file size not capped',
+  'crates/bd-cache-sync/src/phases.rs',
+  'pub const MAX_PHASE_FILE_BYTES: u64 = 64 * 1024;',
+  'pub const MAX_PHASE_FILE_BYTES: u64 = u64::MAX / 2;'),
+ ('phase file count not capped',
+  'crates/bd-cache-sync/src/phases.rs',
+  '        if files.len() >= MAX_PHASE_FILES {',
+  '        if files.len() >= usize::MAX {'),
+ ('compose does not root the phases directory',
+  'crates/bd-cache-sync/src/compose.rs',
+  '    tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));',
+  '    let _ = rooted_phases_dir;'),
+ ('embedded error text not clipped',
+  'crates/bd-cache-sync/src/text.rs',
+  '    if text.len() <= limit {\n        return text.to_owned();\n    }',
+  '    if true {\n        return text.to_owned();\n    }'),
+ ('recorded outcome not clipped',
+  'crates/bd-cache-sync/src/job.rs',
+  'const MAX_OUTCOME_BYTES: usize = 1024;',
+  'const MAX_OUTCOME_BYTES: usize = usize::MAX / 2;'),
+ ('get ignores a pending entry (fast path always)',
+  'crates/bd-cache/src/ready.rs',
+  '    let untouched = !cache.store.has_entries_since(&entry.fetched_at)?;',
+  '    let untouched = true;'),
+ ('get fast path ignores entries applied since the fetch',
+  'crates/bd-cache-store/src/schema.rs',
+  'unixepoch(applied_at) >= ?1)";',
+  'unixepoch(applied_at) >= ?1 AND 0)";'),
+ ('get loads the whole base again',
+  'crates/bd-cache/src/ready.rs',
+  '    let Some(entry) = cache.store.base_entry(s, &view.id)? else {\n'
+  '        return Ok(None);\n'
+  '    };',
+  '    let Some(entry) = cache.store.ready_base(s)?.map(|b| bd_cache_model::BaseEntry::of(&b, '
+  '&view.id)) else {\n'
+  '        return Ok(None);\n'
+  '    };'),
+ ('store index not replaced with the base',
+  'crates/bd-cache-store/src/store.rs',
+  '            tx.prepare_cached("DELETE FROM ready_base_blocked WHERE scope = ?1")\n'
+  '                .at(st)?\n'
+  '                .execute([s.name()])\n'
+  '                .at(st)?;\n',
+  ''),
+ ('store index survives a prune',
+  'crates/bd-cache-store/src/store.rs',
+  '            "DELETE FROM ready_base_blocked WHERE scope = ?1",\n',
+  ''),
+ ('store index keeps duplicate blockers',
+  'crates/bd-cache-store/src/codec.rs',
+  '            if !list.contains(&b) {\n                list.push(b);\n            }',
+  '            list.push(b);'),
+ ('get fast path ignores a pending entry (store check)',
+  'crates/bd-cache-store/src/schema.rs',
+  "EXISTS (SELECT 1 FROM journal WHERE state = 'pending') OR",
+  '0 OR'),
+ ('announcing goes on after the budget is spent (S17)',
+  'crates/bd-cache-sync/src/announce.rs',
+  '                break;\n'
+  '            }\n'
+  '            Some(Ok(())) => {\n'
+  '                cache.mark_announced(entry.seq)?;',
+  '                continue;\n'
+  '            }\n'
+  '            Some(Ok(())) => {\n'
+  '                cache.mark_announced(entry.seq)?;'),
+ ('tick starts although it was asked to stop (RSH-014)',
+  'crates/bd-cache-sync/src/tick.rs',
+  '    let mut reply = TickReply::started();\n'
+  '    if stop.is_stopped() {\n'
+  '        reply.stopped = true;\n'
+  '        return Ok(reply.finish());\n'
+  '    }\n',
+  '    let mut reply = TickReply::started();\n'),
+ ('send gets no reserve before T (QA2-007)',
+  'crates/bd-cache-sync/src/control.rs',
+  '.saturating_sub(SEND_RESERVE);',
+  '.saturating_sub(Duration::ZERO);'),
+ ('a phase file that is not a regular file is opened (RSH-017)',
+  'crates/bd-cache-sync/src/phases.rs',
+  '    if !meta.is_file() {',
+  '    if false {'),
+ ('a cached root is trusted without its scope having synced',
+  'crates/bd-cache-sync/src/active.rs',
+  'phase.scope().holds(&reply.row.bead) && reply.scope_last_ok_at.is_some()',
+  'true'),
+ ('base_entry trusts the index of a base another writer replaced',
+  'crates/bd-cache-store/src/store.rs',
+  '            if indexed != Some(1) {',
+  '            if false && indexed != Some(1) {'),
+ ('store index not marked on replace',
+  'crates/bd-cache-store/src/store.rs',
+  'stale, indexed) VALUES (?1, ?2, ?3, ?4, 0, 1)',
+  'stale, indexed) VALUES (?1, ?2, ?3, ?4, 0, NULL)')]
 
 def run(only=None):
     results = []

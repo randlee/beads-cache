@@ -5,6 +5,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "announcement_state_passes_through_to_the_store",
+   "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_escalation_is_sent_once_to_the_phase_lead"
   ]
@@ -16,6 +18,8 @@
   "compile_error": false,
   "failed": [
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
+   "announcement_state_passes_through_to_the_store",
+   "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_stop_only_when_no_active_phase_and_no_open_work"
   ]
@@ -83,6 +87,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
    "an_escalation_is_announced_once_and_the_store_remembers_it",
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
    "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
@@ -342,6 +347,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "an_address_that_could_be_read_as_an_option_is_refused_before_any_process_starts",
+   "phase_file_problems_have_their_own_codes",
    "test_missing_team_is_refused",
    "atm_process (process test)"
   ]
@@ -352,6 +359,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "a_large_message_is_not_limited_by_the_argument_list",
+   "delivers_the_body_on_stdin_with_the_reference_invocation",
    "atm_process (process test)"
   ]
  },
@@ -370,6 +379,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
+   "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget"
   ]
  },
@@ -379,8 +390,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick",
-   "announce::tests::a_stopped_tick_sends_nothing_and_counts_the_message_unsent"
+   "announce::tests::a_stopped_tick_sends_nothing_and_counts_the_message_unsent",
+   "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor"
   ]
  },
  {
@@ -389,7 +400,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "the_stop_flag_ends_a_tick_between_phases"
+   "a_stop_that_arrives_mid_tick_ends_it_between_phases"
   ]
  },
  {
@@ -398,6 +409,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "the_stop_flag_kills_the_child_and_its_descendants",
+   "the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child",
    "atm_process (process test)"
   ]
  },
@@ -407,6 +420,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "the_time_a_tick_passes_bounds_the_send",
    "atm_process (process test)"
   ]
  },
@@ -416,6 +430,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "the_stop_flag_kills_the_child_and_its_descendants",
    "atm_process (process test)"
   ]
  },
@@ -425,6 +440,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "delivers_the_body_on_stdin_with_the_reference_invocation",
    "atm_process (process test)"
   ]
  },
@@ -434,6 +450,7 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
+   "output_beyond_the_limit_is_dropped_and_the_error_says_so",
    "atm_process (process test)"
   ]
  },
@@ -485,11 +502,13 @@
  },
  {
   "bug": "embedded error text not clipped",
-  "file": "crates/bd-cache-sync/src/announce.rs",
+  "file": "crates/bd-cache-sync/src/text.rs",
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "announce::tests::embedded_text_is_clipped_on_a_character_boundary"
+   "announce::tests::embedded_error_text_is_clipped",
+   "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped",
+   "text::tests::short_text_is_kept_and_long_text_is_cut_on_a_character_boundary"
   ]
  },
  {
@@ -507,16 +526,28 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree"
+   "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
+   "a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child",
+   "a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked",
+   "an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base",
+   "rule_blocking_dep_add_onto_an_open_target_blocks_the_bead",
+   "rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead",
+   "rule_parent_block_blocks_the_children",
+   "rule_parent_unblock_releases_the_children",
+   "rule_reopen_brings_back_the_beads_own_blockers",
+   "rule_reopen_from_closed_blocks_the_dependers_again",
+   "with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once"
   ]
  },
  {
   "bug": "get fast path ignores entries applied since the fetch",
-  "file": "crates/bd-cache/src/ready.rs",
+  "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base"
+   "an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base",
+   "has_entries_since_rules",
+   "the_entries_since_check_uses_indexes_and_ignores_a_long_history"
   ]
  },
  {
@@ -525,7 +556,8 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads"
+   "a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads",
+   "a_cached_read_of_one_bead_touches_the_same_rows_at_10_and_1000_beads"
   ]
  },
  {
@@ -534,7 +566,10 @@
   "exit": 101,
   "compile_error": false,
   "failed": [
-   "test_e2e_blocker_close_and_reopen_update_ready"
+   "a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index",
+   "base_entry_rules",
+   "test_e2e_blocker_close_and_reopen_update_ready",
+   "the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild"
   ]
  },
  {
@@ -553,6 +588,82 @@
   "compile_error": false,
   "failed": [
    "base_entry_rules"
+  ]
+ },
+ {
+  "bug": "get fast path ignores a pending entry (store check)",
+  "file": "crates/bd-cache-store/src/schema.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
+   "has_entries_since_rules",
+   "the_entries_since_check_uses_indexes_and_ignores_a_long_history"
+  ]
+ },
+ {
+  "bug": "announcing goes on after the budget is spent (S17)",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget"
+  ]
+ },
+ {
+  "bug": "tick starts although it was asked to stop (RSH-014)",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_stopped_tick_does_nothing_and_the_next_tick_does_it_all"
+  ]
+ },
+ {
+  "bug": "send gets no reserve before T (QA2-007)",
+  "file": "crates/bd-cache-sync/src/control.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor"
+  ]
+ },
+ {
+  "bug": "a phase file that is not a regular file is opened (RSH-017)",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_file_that_is_not_a_regular_file_is_reported_not_read"
+  ]
+ },
+ {
+  "bug": "a cached root is trusted without its scope having synced",
+  "file": "crates/bd-cache-sync/src/active.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_whose_root_cannot_be_read_never_ends_the_schedule"
+  ]
+ },
+ {
+  "bug": "base_entry trusts the index of a base another writer replaced",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index",
+   "a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace"
+  ]
+ },
+ {
+  "bug": "store index not marked on replace",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace"
   ]
  }
 ]

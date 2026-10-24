@@ -23,7 +23,7 @@ rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal_applied_at`)
 
 Context: the file is shared with `bd_cache.py` (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
@@ -43,6 +43,10 @@ CREATE TABLE scope_member (scope TEXT NOT NULL, bead TEXT NOT NULL, PRIMARY KEY 
 CREATE INDEX scope_member_bead ON scope_member(bead);
 CREATE TABLE ready_base (scope TEXT PRIMARY KEY, blocked_json TEXT NOT NULL,
   ready_json TEXT NOT NULL, fetched_at TEXT NOT NULL, stale INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE ready_base_blocked (scope TEXT NOT NULL, bead TEXT NOT NULL,
+  blocked_by_json TEXT NOT NULL, PRIMARY KEY (scope, bead)) WITHOUT ROWID;   -- ADR-STORE-0004
+ALTER TABLE ready_base ADD COLUMN indexed INTEGER;       -- ADR-STORE-0004
+CREATE INDEX journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied';  -- ADR-STORE-0004
 ALTER TABLE beads ADD COLUMN membership_known INTEGER;   -- ADR-STORE-0002
 ALTER TABLE beads ADD COLUMN revision TEXT;              -- ADR-BDC-0004
 ALTER TABLE journal ADD COLUMN applied_at TEXT;          -- set by apply_with_readback
@@ -173,22 +177,50 @@ Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
 workspace without bd metadata (`NO_DATABASE`), and walks the source chain
 with `Error::source`.
 
-## ADR-STORE-0004: A per-bead index of the ready base (a-7 amendment)
+## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 
-**Status:** Approved (lead ruling S4, bc-lead, 2026-10-24: an a-4 amendment made in sprint a-7)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); amends ADR-STORE-0001 (the extension tables, columns and indexes)
+and ADR-STORE-0002 (what is read as one snapshot, and what a foreign writer may leave)
 
-Context: `CacheStore::base_entry` (ADR-CORE-0206) must answer one bead's
-blockers without decoding the whole base.
+Context: `CacheStore::base_entry` and `has_entries_since` (ADR-MODEL-0003's a-7
+amendment, ADR-CORE-0206) must not cost more as the scope or the journal grows.
 
-Decision: an additive table `ready_base_blocked(scope, bead, blocked_by_json)`
-(`WITHOUT ROWID`, primary key `(scope, bead)`) holds one row per blocked bead,
-written in the same transaction as `ready_base` by `replace_ready_base` and
-deleted with it by a rebuild and by `prune_scope`; and a nullable column
-`ready_base.indexed` (1 when the index belongs to the stored base). A base
-stored before the index existed has `indexed` NULL and is read whole, so no
-migration is needed. The blockers are merged in order without repeats, as the
-core merges them, and a bead without blockers has no row. `bd_cache.py` never
-reads either; the file stays at `user_version` 3.
+Decision:
+- An additive table `ready_base_blocked(scope, bead, blocked_by_json)`
+  (`WITHOUT ROWID`, primary key `(scope, bead)`) holds one row per blocked bead,
+  written in the same transaction as `ready_base` by `replace_ready_base` and
+  deleted with it by a rebuild and by `prune_scope`; a nullable column
+  `ready_base.indexed` is 1 when the index belongs to the stored base. The
+  blockers are merged in order without repeats; a bead without blockers has no row.
+- `base_entry` runs in one read transaction (`SqliteStore::read`), so the head
+  and the bead's row are one snapshot even while another process replaces the
+  base. A base with `indexed` NULL is read whole, inside the same transaction.
+- A partial expression index `journal_applied_at ON journal(unixepoch(applied_at))
+  WHERE state = 'applied'`, and `has_entries_since` as two `EXISTS` lookups
+  (`journal_pending`, and `journal_applied_at` named with `INDEXED BY`, because the
+  planner otherwise scans the applied rows through `journal_pending`). The query
+  is `HAS_ENTRIES_SINCE_SQL`; a test asserts its plan.
+- **`bd_cache.py` compatibility** (read at atm-core
+  `05831dfe866d389feed138add3c29cb93cd6c82b`, `bd_cache.py`): it never creates,
+  reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
+  rebuild deletes `edges`, `beads` and `sync_state` (lines 359-361); its prune
+  deletes a phase's `edges`, `beads`, `journal` and `sync_state` rows (611-614);
+  every other write is `INSERT OR REPLACE` on `meta` and `beads`. So a stored
+  base and its index survive its rebuild and prune together and stay in
+  agreement (ADR-STORE-0002: the next sync replaces them). Were a foreign writer to
+  `INSERT OR REPLACE` a `ready_base` row without the new column, `indexed` would
+  reset to NULL and the left-over index rows would be ignored; an in-place
+  `UPDATE` of `blocked_json` is the one write the index could not see, and no
+  known writer does it. The tests below pin each case.
+- A file written before this ADR (no table, no column) opens unchanged
+  (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN` when absent) and its
+  base reads whole until the next replace indexes it. The file stays at
+  `user_version` 3.
 
-Consequences: the contract suite's `base_entry_rules` pins `base_entry` to
-`BaseEntry::of(ready_base)` for every store.
+Consequences: the contract suite's `base_entry_rules` and `has_entries_since_rules`
+pin both methods to their provided bodies for every store; the store tests
+`a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement`,
+`a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index`,
+`a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace`
+and `the_entries_since_check_uses_indexes_and_ignores_a_long_history` check the
+compatibility claims.
