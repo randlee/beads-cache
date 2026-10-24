@@ -1,6 +1,6 @@
 # sc-bd-cli Architecture
 
-Status: approved (lead ruling, bc-lead, 2026-10-24). Repo-level
+Status: approved (lead ruling, bc-lead, 2026-10-24). Repo-level context:
 [`../architecture.md`](../architecture.md), ADR-BDC-0004, ADR-BDC-0005 and
 ADR-BDC-0007; the contract it implements is
 [`../sc-beads/architecture.md`](../sc-beads/architecture.md). Created by sprint a-2.
