@@ -1,0 +1,288 @@
+//! The sync task against a real `bd` in a scratch workspace (REQ-BDC-0003,
+//! NFR-BDC-0003, NFR-BDC-0006).
+//!
+//! Every test here is `#[ignore]`d and also returns at once unless
+//! `SC_BD_LIVE=1`, so neither `cargo test` nor `cargo test -- --ignored`
+//! touches a database by accident. They run on the `m5-atmbench` testbed
+//! through `tests/run-live.sh`, which starts a scratch Dolt server with
+//! `scripts/bd-compat/setup-scratch.sh` and removes it afterwards.
+//!
+//! Environment (set by the script):
+//!
+//! - `SC_BD_LIVE=1`: run the tests.
+//! - `SC_BD_LIVE_DIR`: the scratch workspace. It must contain
+//!   `.beads/sc-bd-live-scratch`, the marker `setup-scratch.sh` writes; a
+//!   workspace without it is refused, so a shared database cannot be used by
+//!   mistake.
+//! - `SC_BD_BIN`: the `bd` to test (default `bd`).
+//!
+//! The composition is the real one: `compose` (`SqliteStore`, `FlockDrainLock`,
+//! `BdCli` running `bd`), `SyncJob` and the tick. Only the sender is
+//! replaced, by a recorder, because no `atm` message must leave a test.
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    reason = "test code: a failed unwrap or index is a test failure"
+)]
+
+mod common;
+
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use bd_cache_model::{EscalationSender, IdemKey, JournalState, ScopeId};
+use bd_cache_sync::{SyncJob, TICK_BUDGET, TickOutcome, TickRun, compose};
+use common::RecordingSender;
+use sc_beads::testing::actor;
+use sc_beads::{BeadId, Clock, Deadline, Guards, SystemClock};
+
+const MARKER: &str = ".beads/sc-bd-live-scratch";
+/// bd stamps `updated_at` with second precision.
+const TICK: Duration = Duration::from_millis(1_300);
+/// NFR-BDC-0003.
+const SYNC_LIMIT: Duration = Duration::from_secs(1);
+/// Beads in the large phase (NFR-BDC-0003).
+const BEADS: usize = 1000;
+
+struct Live {
+    dir: PathBuf,
+    bin: String,
+    /// A phase name no other run uses.
+    phase: String,
+}
+
+impl Live {
+    /// `None` unless `SC_BD_LIVE=1`; panics when set but not a scratch workspace.
+    fn open() -> Option<Self> {
+        if std::env::var("SC_BD_LIVE").as_deref() != Ok("1") {
+            eprintln!("skipped: SC_BD_LIVE is not 1");
+            return None;
+        }
+        let dir = PathBuf::from(
+            std::env::var("SC_BD_LIVE_DIR").expect("SC_BD_LIVE_DIR (see tests/run-live.sh)"),
+        );
+        assert!(
+            dir.join(MARKER).is_file(),
+            "{} has no {MARKER}: live tests only run in a scratch workspace made by \
+             scripts/bd-compat/setup-scratch.sh, never in a shared database",
+            dir.display()
+        );
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |d| d.as_nanos());
+        Some(Self {
+            bin: std::env::var("SC_BD_BIN").unwrap_or_else(|_| "bd".to_owned()),
+            dir,
+            phase: format!("live{nanos}"),
+        })
+    }
+
+    /// Runs `bd <args>` in the scratch workspace.
+    fn bd(&self, args: &[&str]) -> String {
+        let out = Command::new(&self.bin)
+            .args(args)
+            .current_dir(&self.dir)
+            .output()
+            .unwrap_or_else(|e| panic!("cannot start {}: {e}", self.bin));
+        assert!(
+            out.status.success(),
+            "bd {args:?} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    /// Creates a bead in the phase and returns its id.
+    fn create(&self, title: &str) -> BeadId {
+        let label = format!("phase-{}", self.phase);
+        let out = self.bd(&["create", title, "--labels", &label, "--json"]);
+        let value: serde_json::Value = serde_json::from_str(&out).expect("bd create --json");
+        BeadId::new(value["id"].as_str().expect("an id")).unwrap()
+    }
+
+    /// Writes the repository configuration and the phase file, and builds the
+    /// real composition.
+    fn job(&self, root: &BeadId) -> (RealJob, Arc<RecordingSender>) {
+        let phases = self.dir.join(format!(".atm-bd-{}", self.phase));
+        std::fs::create_dir_all(&phases).unwrap();
+        std::fs::write(
+            phases.join(format!("phase-{}.toml", self.phase)),
+            format!("root = \"{root}\"\nlead = \"live-lead\"\n"),
+        )
+        .unwrap();
+        // Literal strings: a Windows path has backslashes.
+        std::fs::write(
+            self.dir.join(".beads").join("bd-cache.toml"),
+            format!(
+                "[tick]\nteam = \"live-team\"\nfallback_lead = \"live-fallback\"\nphases_dir = '{}'\n",
+                phases.display()
+            ),
+        )
+        .unwrap();
+        let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+        let composed = compose(&self.dir, &self.bin, Arc::clone(&clock)).expect("compose");
+        let sender = Arc::new(RecordingSender::default());
+        let job = SyncJob::new(
+            composed.cache,
+            composed.tick,
+            Arc::clone(&sender) as Arc<dyn EscalationSender>,
+            clock,
+        );
+        (job, sender)
+    }
+
+    fn scope(&self) -> ScopeId {
+        ScopeId::phase(&self.phase).unwrap()
+    }
+}
+
+type RealJob =
+    SyncJob<bd_cache_store::SqliteStore, bd_cache_store::FlockDrainLock, sc_bd_cli::BdCli>;
+
+fn tick(job: &RealJob) -> bd_cache_sync::TickReply {
+    match job.run_blocking(Deadline::after(&SystemClock, TICK_BUDGET)) {
+        TickRun::Done(reply) => *reply,
+        other => panic!("the tick did not run: {other:?}"),
+    }
+}
+
+fn write_close(job: &RealJob, bead: &BeadId, key: &str) -> bd_cache_model::Seq {
+    job.with_cache(|c| {
+        c.write(
+            bead,
+            "close",
+            r#"{"reason": "live"}"#,
+            Guards::default(),
+            IdemKey::new(key).unwrap(),
+            actor("bd-cache-live"),
+        )
+        .unwrap()
+        .seq
+    })
+}
+
+/// A write journaled through the core lands in a real `bd` via the tick's
+/// drain and is verified by read-back (REQ-BDC-0003).
+#[test]
+#[ignore = "live bd test: run through tests/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)"]
+fn a_journaled_write_lands_in_a_real_bd_through_the_tick() {
+    let Some(live) = Live::open() else {
+        return;
+    };
+    let root = live.create("live root");
+    let bead = live.create("live bead");
+    let (job, sender) = live.job(&root);
+
+    let first = tick(&job);
+    assert_eq!(first.outcome, TickOutcome::PassThrough, "{first:?}");
+    assert_eq!(first.synced.len(), 1, "{first:?}");
+    assert!(first.synced[0].stored >= 2);
+
+    let seq = write_close(&job, &bead, "live-k1");
+    let second = tick(&job);
+    assert_eq!(second.outcome, TickOutcome::PassThrough, "{second:?}");
+    assert_eq!(second.drain.as_ref().unwrap().applied, [seq], "{second:?}");
+    let entry = job.with_cache(|c| c.entry(seq).unwrap());
+    assert_eq!(entry.state, JournalState::Applied);
+    assert!(entry.last_error.is_none(), "read back cleanly: {entry:?}");
+    // And bd itself says so.
+    let shown = live.bd(&["show", bead.as_str(), "--json"]);
+    assert!(shown.contains("\"closed\""), "{shown}");
+    assert!(sender.sent().is_empty(), "nothing escalated or announced");
+    assert!(
+        !job.with_cache(|c| c.list(&live.scope(), None, None).unwrap())
+            .rows
+            .is_empty()
+    );
+}
+
+/// An incremental sync of a 1000-bead phase takes under 1 s (NFR-BDC-0003).
+///
+/// The beads are imported with an `updated_at` far in the past, so the
+/// incremental sync (cursor = last success - 2 min) fetches only the few
+/// beads changed since, as it does in a long-lived cache.
+#[test]
+#[ignore = "live bd test: run through tests/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)"]
+fn an_incremental_sync_of_a_1000_bead_phase_is_under_1_s() {
+    let Some(live) = Live::open() else {
+        return;
+    };
+    let root = live.create("live root");
+    import_beads(&live, BEADS);
+    let (job, _sender) = live.job(&root);
+
+    let started = Instant::now();
+    let full = tick(&job);
+    let full_took = started.elapsed();
+    assert_eq!(full.synced.len(), 1, "{full:?}");
+    assert!(
+        usize::try_from(full.synced[0].stored).unwrap() > BEADS,
+        "{full:?}"
+    );
+
+    // A few beads change in bd, then the incremental sync.
+    std::thread::sleep(TICK);
+    let ids = job.with_cache(|c| {
+        c.list(&live.scope(), None, None)
+            .unwrap()
+            .rows
+            .into_iter()
+            .take(5)
+            .map(|r| r.bead.id)
+            .collect::<Vec<_>>()
+    });
+    for id in &ids {
+        live.bd(&["update", id.as_str(), "--notes", "changed"]);
+    }
+    std::thread::sleep(TICK);
+    let end = Deadline::after(&SystemClock, TICK_BUDGET);
+    let started = Instant::now();
+    let report = job
+        .with_cache(|c| c.sync(&live.scope(), end))
+        .expect("incremental sync");
+    let took = started.elapsed();
+
+    eprintln!(
+        "full sync of {BEADS}+ beads (whole tick): {full_took:?}; incremental sync: {took:?} \
+         ({} rows stored, {} blocked)",
+        report.stored, report.blocked
+    );
+    assert!(
+        usize::try_from(report.stored).unwrap() < 50,
+        "the sync was not incremental: {report:?}"
+    );
+    assert!(
+        took < SYNC_LIMIT,
+        "incremental sync took {took:?}, the limit is {SYNC_LIMIT:?}"
+    );
+}
+
+/// Imports `n` open beads of the phase, last updated an hour ago.
+fn import_beads(live: &Live, n: usize) {
+    let hour_ago = (std::time::SystemTime::now() - Duration::from_secs(3600))
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let stamp = sc_beads::unix_to_rfc3339(i64::try_from(hour_ago).unwrap());
+    let label = format!("phase-{}", live.phase);
+    let mut lines = String::new();
+    for i in 0..n {
+        let record = serde_json::json!({
+            "title": format!("live bead {i}"),
+            "status": "open",
+            "priority": 2,
+            "issue_type": "task",
+            "labels": [label],
+            "created_at": stamp,
+            "updated_at": stamp,
+        });
+        lines.push_str(&record.to_string());
+        lines.push('\n');
+    }
+    let file: &Path = &live.dir.join(format!("import-{}.jsonl", live.phase));
+    std::fs::write(file, lines).unwrap();
+    live.bd(&["import", &file.display().to_string()]);
+}

@@ -1,0 +1,49 @@
+[package]
+name = "bd-cache-sync"
+description = "The bd-cache sync task: the tick (drain, then sync each active phase), the stop rule and the announcements, scheduled on sc-cron."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+bd-cache.workspace = true
+bd-cache-model.workspace = true
+sc-beads.workspace = true
+# Not in the workspace dependency table (a-1 declared only the crates sprints 2-6
+# consume); path dependencies on sibling crates need no table entry.
+bd-cache-store = { path = "../bd-cache-store" }
+sc-bd-cli = { path = "../sc-bd-cli" }
+sc-cron = { path = "../sc-cron" }
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+bd-cache-model = { workspace = true, features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+sc-bd-cli = { path = "../sc-bd-cli", features = ["test-support"] }
+sc-cron = { path = "../sc-cron", features = ["test-utils"] }
+chrono.workspace = true
+criterion.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+
+# The process test is its own fake `atm` (see the file's header), so it has no libtest harness.
+[[test]]
+name = "atm_process"
+harness = false
+
+# Informational latency numbers for NFR-BDC-0001; the asserting test is tests/perf.rs.
+[[bench]]
+name = "get"
+harness = false
+
+[lints]
+workspace = true
