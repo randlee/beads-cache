@@ -1,0 +1,24 @@
+[package]
+name = "bd-cache-store"
+description = "SQLite CacheStore and flock DrainLock for bd-cache, sharing the BD-CACHE v3 file with the Python implementation."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+bd-cache-model.workspace = true
+sc-beads.workspace = true
+rusqlite.workspace = true
+fs4.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+bd-cache-model = { workspace = true, features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true
