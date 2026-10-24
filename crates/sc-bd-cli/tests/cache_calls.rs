@@ -130,7 +130,7 @@ fn labelled(name: &str, label: &str) -> Bead {
 /// `context` command still answers the check.
 #[test]
 fn test_backend_check_does_not_need_bd_context() {
-    let schema = include_str!("../src/testing/bd-schema-1.3.1.json");
+    let schema = include_str!("fixtures/bd-schema-1.3.1.json");
     let rig = Rig::new(
         RecordingInvoker::new(None)
             .reply_bounded(ok("bd version 1.3.1 (dev)\n"))

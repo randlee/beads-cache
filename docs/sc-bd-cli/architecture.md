@@ -151,7 +151,7 @@ Decision: the feature keeps btit's name, `test-support` (it enables
 btit), and additionally enables `sc-beads/testing` for `FakeBd`. The crate stays on
 edition 2021 like `sc-beads` and for the same reason (ADR-BEADS-0001: the ported
 bodies compile unchanged). `FakeBd` carries a byte-for-byte copy of the pinned
-`bd schema` fixture (`src/testing/bd-schema-1.3.1.json`) so the package is
+`bd schema` fixture (`tests/fixtures/bd-schema-1.3.1.json`, LF-pinned by `.gitattributes`) so the package is
 self-contained; a unit test fails if its sha drifts from `BD_SCHEMA_SHA256`.
 `tests/process.rs` has no libtest harness: the test binary is its own fake `bd`
 (selected by the working directory name through `BEADS_PATH`), which needs no

@@ -30,7 +30,7 @@ use sc_beads::{
 };
 
 const CHILD_PREFIX: &str = "sc-bd-cli-child-";
-const SCHEMA: &str = include_str!("../src/testing/bd-schema-1.3.1.json");
+const SCHEMA: &str = include_str!("fixtures/bd-schema-1.3.1.json");
 
 /// What `slow` and the readers get: far longer than any test waits.
 const SLOW_CHILD_SECS: u64 = 30;

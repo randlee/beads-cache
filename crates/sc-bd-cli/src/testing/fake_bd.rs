@@ -37,7 +37,7 @@ const DEFAULT_STATUSES: &[&str] = &["open", "in_progress", "blocked", "deferred"
 ///
 /// A byte-for-byte copy of `sc-beads/tests/fixtures/bd-1.3.1/bd-schema.json`; the test
 /// `schema_copy_is_the_pinned_schema` fails if it drifts from `BD_SCHEMA_SHA256`.
-const PINNED_SCHEMA: &str = include_str!("bd-schema-1.3.1.json");
+const PINNED_SCHEMA: &str = include_str!("../../tests/fixtures/bd-schema-1.3.1.json");
 
 struct State {
     schema: String,
