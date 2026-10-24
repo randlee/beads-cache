@@ -30,7 +30,7 @@ Naming follows the Plan Naming section of
 
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
-| _none yet_ | | | |
+| `aa` | SQLite cache schema and the `bd` CLI backend adapter | not yet written | planning |
 
 ## Sprints
 

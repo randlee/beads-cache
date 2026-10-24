@@ -12,6 +12,11 @@ implementation and scoped to the cache functionality, delivered first as a
 minimum viable product (MVP). Anything left out of the MVP is recorded below
 as out of scope, not dropped silently.
 
+beads-cache is limited to the SQLite beads cache application. The hooks,
+TUI and other orchestration features of `atm-bd-orchestration` stay in
+atm-core. The application runs a sync task that keeps the cache in step with
+a dolt server, which may be local or remote.
+
 beads-cache is built against sc-runtime, which is being specified in
 parallel. Needs that sc-runtime does not yet meet go to the sc-runtime team
 as requests; beads-cache does not work around them locally.

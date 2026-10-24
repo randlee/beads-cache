@@ -26,6 +26,11 @@ sc-runtime team as requests rather than local workarounds.
   and the Python code disagree, report it on that issue.
 - Upstream dependency: sc-runtime (https://github.com/randlee/sc-runtime).
 
+CLI: the primary command is `bd-cache`, with the alias `bdc`.
+
+Backend research: [bd serve HTTP API](research/bd-serve-http.md) and
+[DoltHub sync without a local server](research/dolthub-sync.md).
+
 To be filled: main components and how data flows between them.
 
 ## Crate Layout
