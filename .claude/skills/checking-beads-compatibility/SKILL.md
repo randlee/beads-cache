@@ -1,5 +1,5 @@
 ---
-name: beads-compatibility
+name: checking-beads-compatibility
 version: 0.1.0
 description: >
   Check a new beads/bd release against beads-cache from start to finish: a hosted
@@ -89,7 +89,7 @@ multi-line ssh commands.
 ```bash
 D="github/beads-cache-compat-$X-$SHA7"
 git archive --format=tar "$SHA" | ssh -o BatchMode=yes atmbench@rand-m5 "mkdir -p $D && tar -xf - -C $D"
-scp -o BatchMode=yes .claude/skills/beads-compatibility/scripts/run-bd-compat.sh "atmbench@rand-m5:run-bd-compat-$X.sh"
+scp -o BatchMode=yes .claude/skills/checking-beads-compatibility/scripts/run-bd-compat.sh "atmbench@rand-m5:run-bd-compat-$X.sh"
 ssh -o BatchMode=yes atmbench@rand-m5 "chmod +x run-bd-compat-$X.sh && ./run-bd-compat-$X.sh $X $SHA7"
 ```
 

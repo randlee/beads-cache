@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Live bd compatibility runs on the testbed (atmbench@rand-m5). Copied there as
-# ~/run-bd-compat-<version>.sh by the beads-compatibility skill and run as:
+# ~/run-bd-compat-<version>.sh by the checking-beads-compatibility skill and run as:
 #
 #   ~/run-bd-compat-<version>.sh <bd version> <sha7>
 #
