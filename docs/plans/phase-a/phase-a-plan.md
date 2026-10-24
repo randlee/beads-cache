@@ -45,7 +45,7 @@ requirement ids, not the baseline.
 
 ## Boundary map
 
-No crate exists yet. Each crate is one boundary; no boundary manifests are
+Each crate is one boundary; no boundary manifests are
 declared, so boundaries are reviewed against `docs/architecture.md`.
 
 | Boundary | Produced by | Contract | Consumed by |
@@ -75,7 +75,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | `.github/workflows/ci.yml` | a-1 | Workspace gates, excluding `bd-cache-py`; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
 | `.beads/bd-cache.toml` schema | a-1 (`RepoConfig`), a-4 (the one loader) | a-7 and a-8 consume the loader. |
 | `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
-| `crates/bd-cache/src/{lib,get,ready}.rs`, `crates/bd-cache-model/src/{store,state,sender}.rs`, `crates/bd-cache-store/src/{store,schema,codec}.rs` | a-1, a-4, a-6 | a-7 amendment by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24): `Cache::clock()`, the per-bead `CacheStore::base_entry` (indexed by the store), `EscalationSender::send_within` and `SendError` kinds. Documented in the crates' own docs. |
+| `crates/bd-cache/src/{lib,get,ready}.rs`, `crates/bd-cache-model/src/{store,state,sender}.rs`, `crates/bd-cache-store/src/{store,schema,codec}.rs` | a-1, a-4, a-6 | a-7 amendment by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24): `Cache::clock()`, the per-bead `CacheStore::base_entry` (indexed by the store), `EscalationSender::send_within` and `SendError` kinds. Documented in the crates' own docs. Later rulings: S26 (read-path dating threshold, ADR-STORE-0004), S30 (`Cache::scope_synced`, ADR-CORE-0002 amendment), S32 (ADR-STORE-0005; `crates/bd-cache-store/Cargo.toml`, `src/location.rs`, `crates/bd-cache-model/src/scope.rs`: `PhaseName::RULE`, and `MEMBER_NAME_RULE` in `sender.rs`). |
 | `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
 | `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
