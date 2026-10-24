@@ -100,6 +100,10 @@ fn every_error() -> Vec<CacheError> {
             detail: d("phase zz is not a known scope"),
             known: vec![ScopeId::phase("x").unwrap(), ScopeId::phase("y").unwrap()],
         },
+        CacheError::StoreFailed {
+            detail: d("open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked"),
+            source: None,
+        },
     ]
 }
 
@@ -146,6 +150,9 @@ fn golden_json_for_every_code() {
                "fix": "resolve only entries listed as escalated in status"}),
         json!({"ok": false, "code": "BD_CACHE.SCOPE_UNKNOWN", "detail": "phase zz is not a known scope",
                "fix": "sync the scope first, or use one of the known scopes", "known": ["x", "y"]}),
+        json!({"ok": false, "code": "BD_CACHE.STORE_FAILED",
+               "detail": "open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked",
+               "fix": "check the cache file named in detail (permissions, free disk space, another process holding it); if it is corrupt, move it aside and the next sync rebuilds it from bd (pending writes in it are lost)"}),
     ];
     let errors = every_error();
     assert_eq!(errors.len(), goldens.len());
@@ -155,7 +162,7 @@ fn golden_json_for_every_code() {
         assert_eq!(e.to_string(), format!("{}: {}", e.code(), e.detail()));
     }
     let codes: std::collections::BTreeSet<_> = errors.iter().map(CacheError::code).collect();
-    assert_eq!(codes.len(), 19, "one variant per code");
+    assert_eq!(codes.len(), 20, "one variant per code");
     assert!(
         !codes.contains("BD_CACHE.NO_TOML"),
         "NO_TOML is never emitted"
@@ -411,4 +418,35 @@ fn mapped_errors_keep_their_source_chain() {
     );
     let direct = CacheError::BadArgs { detail: "x".into() };
     assert!(direct.source().is_none() && direct.to_json().get("source").is_none());
+}
+
+/// A store failure keeps the underlying error as its source and in its JSON (a-1 amendment 1).
+#[test]
+fn store_failures_keep_their_source() {
+    use std::error::Error as _;
+    let io = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "permission denied");
+    let e = CacheError::store_failed("open /repo/.bd-cache/testdb.bd-cache.sqlite3", io);
+    assert_eq!(e.code(), "BD_CACHE.STORE_FAILED");
+    assert_eq!(e.exit_code(), 3);
+    assert_eq!(
+        e.source().map(ToString::to_string).as_deref(),
+        Some("permission denied")
+    );
+    assert_eq!(
+        e.store_cause().map(|c| c.error().to_string()).as_deref(),
+        Some("permission denied")
+    );
+    assert!(e.backend_cause().is_none());
+    assert_eq!(
+        e.to_json(),
+        json!({"ok": false, "code": "BD_CACHE.STORE_FAILED",
+               "detail": "open /repo/.bd-cache/testdb.bd-cache.sqlite3",
+               "fix": e.fix(),
+               "source": {"detail": "permission denied"}})
+    );
+    let again = CacheError::store_failed(
+        "open /repo/.bd-cache/testdb.bd-cache.sqlite3",
+        std::io::Error::other("permission denied"),
+    );
+    assert_eq!(e, again, "store causes compare by text");
 }

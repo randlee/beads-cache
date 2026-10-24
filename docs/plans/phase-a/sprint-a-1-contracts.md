@@ -231,6 +231,7 @@ pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 ///   instant taken before the sync's first list_blocked/list_ready call. ready_base is None only when the
 ///   scope never stored one; mark_ready_base_stale on a missing base is a no-op; prune_scope deletes it.
 /// - applied_since(at) returns entries applied at or after `at`, in seq order.
+/// A store reports its own failures (SQLite, I/O, undecodable values) as STORE_FAILED (a-1 amendment 1).
 /// Every `at` is `&Timestamp` (fix-a-1-1, RBP-F002); the full rule list, with the clarifications of
 /// ADR-MODEL-0003, is the doc comment in crates/bd-cache-model/src/store.rs.
 pub trait CacheStore: Send {
@@ -330,6 +331,8 @@ pub struct StatusReply { /* StoreStatus plus outage */ }
 /// BD_LIST_FAILED, SYNC_FAILED, PRECONDITION{unmet: key -> {expected, actual}}, IDEM_CONFLICT,
 /// BAD_OP, BAD_ARGS, BAD_PRECONDITION, SCHEMA_VERSION, PRUNE_BLOCKED, NOT_ESCALATED;
 /// plus SCOPE_UNKNOWN{known: Vec<ScopeId>} (additive). NO_TOML is never emitted (Python-only).
+/// a-1 amendment 1: STORE_FAILED{detail, source: Option<StoreCause>} (additive): a store's own failure
+/// (SQLite, file I/O, an undecodable stored value); CacheError::store_failed(detail, source) builds it.
 /// PRECONDITION's unmet is BTreeMap<GuardKey, Unmet>; SYNC_FAILED's cause is Option<SyncCause>.
 /// Variants a backend failure can produce carry `source: Option<BackendCause>` (the BeadsCacheError
 /// they were mapped from), returned by Error::source and rendered as `source: {code, detail}` in to_json.
@@ -337,6 +340,9 @@ pub enum CacheError { /* ... */ }
 pub enum GuardKey { Status, Assignee }
 pub enum SyncCause { BdUnavailable, BdVersionFailed, BdSchemaFailed, BdContract, BdListFailed }
 pub struct BackendCause(/* Arc<BeadsCacheError> */);
+pub struct StoreCause(/* Arc<dyn Error + Send + Sync> */); // a-1 amendment 1; source of STORE_FAILED, to_json source: {detail}
+impl CacheError { pub fn store_failed(detail: impl Into<String>, source: impl Error + Send + Sync + 'static) -> CacheError;
+    pub fn store_cause(&self) -> Option<&StoreCause>; }
 impl CacheError {
     pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str; pub fn detail(&self) -> &str;
     pub fn backend_cause(&self) -> Option<&BackendCause>;
@@ -480,6 +486,15 @@ pub mod testing {
 | CI runs green on the sprint PR, including the boundary `cargo metadata` check | boundary:bd-cache |
 | `cargo publish --dry-run -p sc-beads` passes | ADR-BDC-0007 |
 | Planted bugs: no overlay, no metadata coercion guard, skip validation, no dep-type check, skip rebuild, rebuild on first check each fail a test; so do a FakeBackend bug and a replay bug (evidence below, NFR-BDC-0005) | boundary:bd-cache-model |
+
+## Amendments
+
+Each amendment is merged into `integrate/phase-a` before the wave-2 work that
+needs it (see the amendment rule under Outcome and closure).
+
+| # | Branch | Needed by | Change | Ruling |
+|---|---|---|---|---|
+| 1 | `sprint/a-1-amend-1` | a-4 | `CacheError::StoreFailed` (`BD_CACHE.STORE_FAILED`): `detail` (step and file) and an optional `StoreCause` source kept by `Error::source()` and rendered as `source: {detail}` in `to_json`; recovery fix text; golden; `CacheStore` doc note that a store reports its own failures as `STORE_FAILED`; ADR-MODEL-0002 amendment. The baseline has no v3 code for store failures, so none was reused. a-4 switches its store errors from `NO_DATABASE` itself. | lead ruling, bc-lead, 2026-10-24 |
 
 ## Requirement scope notes
 

@@ -67,7 +67,12 @@ use crate::state::{
 /// # Errors
 ///
 /// Every method returns a [`CacheError`]: the codes named above, or the
-/// implementation's own storage failures.
+/// implementation's own storage failures, which it reports as
+/// `STORE_FAILED` ([`CacheError::StoreFailed`], built with
+/// [`CacheError::store_failed`]): the step and file in `detail`, the
+/// underlying error (SQLite, I/O, a stored value that does not decode) kept
+/// as the source. Other codes keep their meanings: a missing or invalid
+/// metadata file is still `NO_DATABASE` (a-1 amendment 1).
 #[expect(
     clippy::missing_errors_doc,
     reason = "error rules are documented once on the trait"

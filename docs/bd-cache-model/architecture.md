@@ -51,6 +51,33 @@ inspected (amended in fix-a-1-1, RBP-F006). `Ready` failures are
 its `source` (`BackendCause`) and in its JSON as `source: {code, detail}`
 (fix-a-1-1, RBP-F005). Precondition keys are `GuardKey`.
 
+### ADR-MODEL-0002 amendment (a-1 amendment 1): store failures are STORE_FAILED
+
+(lead ruling, bc-lead, 2026-10-24, a-1 amendment 1)
+
+Context: `CacheStore` methods may fail for the store's own reasons (SQLite
+errors, file I/O, a stored value that does not decode), but `CacheError` had
+no code for them. `bd-cache-store` reported them as `NO_DATABASE`, with the
+source chain flattened into the detail text. The baseline
+(`docs/baseline/BD-CACHE.md`, CLI table) has no v3 code for store or SQLite
+failures, so none could be reused.
+
+Decision: add the additive code `BD_CACHE.STORE_FAILED`,
+`CacheError::StoreFailed { detail, source: Option<StoreCause> }`.
+- `detail` names the failing step and the file.
+- `StoreCause` wraps the underlying error in an `Arc<dyn Error + Send + Sync>`,
+  following the `BackendCause` pattern: it compares by text, `CacheError`
+  stays `Clone + Eq`, `Error::source()` returns the wrapped error, and
+  `to_json` adds `source: {detail}`.
+- `CacheError::store_failed(detail, source)` builds one.
+- It exits 3 like every typed error. Its fix tells the operator to check the
+  file (permissions, free disk space, another holder), or to move a corrupt
+  file aside so the next sync rebuilds it from bd; pending writes in that
+  file are lost.
+
+A store reports its own failures as `STORE_FAILED`. `NO_DATABASE` keeps its
+baseline meaning: missing or invalid `.beads/metadata.json`.
+
 ## ADR-MODEL-0003: Store rule clarifications
 
 **Status:** Approved (lead ruling, 2026-10-23)

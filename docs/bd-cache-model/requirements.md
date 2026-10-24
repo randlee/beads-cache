@@ -39,7 +39,7 @@ in seq order and skips escalated, resolved and applied ones.
 **Status:** Approved (lead ruling, 2026-10-23)
 
 `CacheError` has one variant per `BD_CACHE.*` code with its payload, plus
-`SCOPE_UNKNOWN`; `exit_code()` is 3; `to_json()` is
+`SCOPE_UNKNOWN` and `STORE_FAILED` (a-1 amendment 1); `exit_code()` is 3; `to_json()` is
 `{ok: false, code, detail, fix, reason?, ...payload}`; `from_backend` maps
 backend errors by `CallKind` per the table in `src/error.rs`.
 
