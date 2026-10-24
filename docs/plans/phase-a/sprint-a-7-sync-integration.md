@@ -262,7 +262,7 @@ can unblock any bead), so `get` costs the old amount until the next sync; ADR-CO
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-The first 65 mutants were run on `9e45418` (the 94-mutant re-run at `9f3ceb5` is under "Re-run at the final code commit" below); the two that survived (a stop arriving between phases, and the outcome clip checked against its own constant) got tests and were re-run on `bc1e4ab`, the last commit that changes code (later commits change documents only); the source of the others is identical at both commits. The script
+The first 65 mutants were run on `9e45418` (the 94-mutant re-run at the merge `7702b67` is under "Re-run at the final code commit" below); the two that survived (a stop arriving between phases, and the outcome clip checked against its own constant) got tests and were re-run on `bc1e4ab`, the last commit that changes code (later commits change documents only); the source of the others is identical at both commits. The script
 and its raw results are committed: `docs/plans/phase-a/evidence/a-7-planted-bugs.py` and `.json`. It applies each
 mutation to the working tree (one literal replacement, checked to match exactly once), runs the whole crate suite,
 and restores the file:
@@ -345,11 +345,11 @@ The six bugs the sprint names come first; the rest are this sprint's own rules a
 Every one of the 65 bugs fails at least one test, none by a compile error, and `git status` was clean after the
 run.
 
-### Re-run at the final code commit (fix-a-7-6)
+### Re-run at the final code commit (fix-a-7-7, merge `7702b67`)
 
-The script was brought up to the code after rounds 4 and 5 (S26 to S30) and run in full on `9f3ceb5`
-(94 mutants, macOS arm64, `CARGO_INCREMENTAL=0`): **90 of 94 killed** (88 by a failing test, 2 by a
-compile-time assertion), **4 survive**, each with its reason below. Results:
+The script was brought up to the code after rounds 4 and 5 (S26 to S30) and run in full on `9f3ceb5` (90 of 94 killed, 4 survivors) and again on the merge commit `7702b67`, which is now the last code-changing commit
+(94 mutants, macOS arm64, `CARGO_INCREMENTAL=0`): **92 of 94 killed** (90 by a failing test, 2 by a
+compile-time assertion), **2 survive**, both `justified: unreachable without an uninterruptible process`. The layer `sprint/a-7-fix7-tests` changes tests only (two new `bd-cache-store` tests, commit `16d7792`); the merge `7702b67` brings in a-8. Results:
 `docs/plans/phase-a/evidence/a-7-planted-bugs.json` (`survived` carries the reason; `const_assert` marks a
 build-time kill). The runner now counts `error[E0080]` (a broken `const _: () = assert!(..)`) as a kill.
 
@@ -371,14 +371,14 @@ Mutants for the round 4 and 5 fixes:
 | S26: threshold dropped, every pass dates (count skipped) | `crates/bd-cache-store/src/store.rs` | `a_small_burst_is_walked_and_not_dated_until_past_the_threshold`, `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`, `entries_python_applies_while_open_are_dated_by_the_next_check` |
 | S26: dating never runs (reads always walk the undated entries) | `crates/bd-cache-store/src/store.rs` | `a_cached_get_dates_entries_python_applied_while_open`, `a_small_burst_is_walked_and_not_dated_until_past_the_threshold`, `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating` (+3 more) |
 | S26: threshold off by one (dates at the threshold) | `crates/bd-cache-store/src/store.rs` | `a_small_burst_is_walked_and_not_dated_until_past_the_threshold` |
-| QA5-002: the undatable floor rises onto the first dateable entry | `crates/bd-cache-store/src/store.rs` | **survived**: GAP (off by one, minor): the floor then hides the first dateable entry from the undated count, so the dating starts one entry later than the threshold says; reached only after a skipped dating (write lock held). No test pins floor == first - 1. |
-| QA5-002: the undatable floor rises past a dateable entry | `crates/bd-cache-store/src/store.rs` | `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating` |
-| QA5-003: the busy timeout is not restored after the no-wait dating | `crates/bd-cache-store/src/store.rs` | `a_write_after_a_skipped_dating_waits_for_the_lock_again` |
-| QA5-003: the dating waits for the write lock (no NoWait) | `crates/bd-cache-store/src/store.rs` | **survived**: GAP (timing only): with the lock held by the same thread the wait ends with BUSY and the answer is the same; telling the two apart needs an elapsed-time assertion, which FTQ-020 removed as stall-sensitive. The restore of the timeout is killed (a_write_after_a_skipped_dating_waits_for_the_lock_again). |
-| S27: the tree kill and the reaping do not share one deadline | `crates/bd-cache-sync/src/atm.rs` | **survived**: UNREACHABLE: the two deadlines differ only when the child is still alive after SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill bound, the KILL_BOUND value and SEND_RESERVE are each killed. |
+| QA5-002: the undatable floor rises onto the first dateable entry | `crates/bd-cache-store/src/store.rs` | `store::tests::the_floor_stops_one_below_the_first_dateable_entry` |
+| QA5-002: the undatable floor rises past a dateable entry | `crates/bd-cache-store/src/store.rs` | `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`, `store::tests::the_floor_stops_one_below_the_first_dateable_entry` |
+| QA5-003: the busy timeout is not restored after the no-wait dating | `crates/bd-cache-store/src/store.rs` | `a_write_after_a_skipped_dating_waits_for_the_lock_again`, `store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it` |
+| QA5-003: the dating waits for the write lock (no NoWait) | `crates/bd-cache-store/src/store.rs` | `store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it` |
+| S27: the tree kill and the reaping do not share one deadline | `crates/bd-cache-sync/src/atm.rs` | **survived, justified: unreachable without an uninterruptible process**: the two deadlines differ only when the child is still alive after SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill bound, the KILL_BOUND value and SEND_RESERVE are each killed. |
 | S27: the kill bound is far too long | `crates/bd-cache-sync/src/atm.rs` | compile-time assertion (`const _: () = assert!`) fails the build |
 | S27: the tree kill is not given up at the deadline | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
-| S28: a child not reaped in time is dropped, not handed to the reaper | `crates/bd-cache-sync/src/atm.rs` | **survived**: UNREACHABLE: the call site runs only for a child that outlives SIGKILL by KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop). |
+| S28: a child not reaped in time is dropped, not handed to the reaper | `crates/bd-cache-sync/src/atm.rs` | **survived, justified: unreachable without an uninterruptible process**: the call site runs only for a child that outlives SIGKILL by KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop). |
 | S28: the reaper lets go of every process at once | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
 | S28: the reaper never looks at what it holds | `crates/bd-cache-sync/src/atm.rs` | `atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill`, `atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper`, `atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` |
 | S27: SEND_RESERVE shrunk below the read grace plus the kill bound | `crates/bd-cache-sync/src/control.rs` | compile-time assertion (`const _: () = assert!`) fails the build |
@@ -386,16 +386,25 @@ Mutants for the round 4 and 5 fixes:
 | RBP-F039: a root bd did not return is never recorded | `crates/bd-cache-sync/src/active.rs` | `a_root_that_bd_does_not_know_is_no_open_root_and_is_reported` |
 | QA5-004: scope_synced says every scope has synced | `crates/bd-cache/src/lib.rs` | `a_phase_whose_root_cannot_be_read_never_ends_the_schedule`, `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs` |
 
-Survivors, none an equivalent mutant; each is a gap named for the lead:
+Survivors (2), none an equivalent mutant, both marked `justified: unreachable without an uninterruptible process` in the `.json`:
 
-- **QA5-002 off by one**: the floor rising onto the first dateable entry (`first`, not `first - 1`) is not caught;
-  the effect is that the dating starts one entry past the threshold, after a skipped dating. A test pinning the
-  floor would kill it.
-- **QA5-003 no `NoWait`**: telling a read that waits from one that does not needs an elapsed-time assertion, which
-  FTQ-020 removed as stall-sensitive. The restore of the timeout is killed.
 - **S27 shared deadline** and **S28 `adopt` at the `kill_tree_with` call site**: reachable only by a child that
   outlives `SIGKILL` for `KILL_BOUND` (an uninterruptible state), which no portable test can make. The tree-kill
   bound, `KILL_BOUND`, `SEND_RESERVE` and the reaper itself are killed.
+
+The two survivors of the `9f3ceb5` run that could be tested are closed by tests (no production change; neither test exposed a bug):
+
+- **QA5-002 off by one**: `store::tests::the_floor_stops_one_below_the_first_dateable_entry`. Three unreadable entries
+  (seq 1 to 3) and a dateable one at seq F = 4; the first read skips the dating (below the threshold), and the test
+  asserts `undatable_through == F - 1`, then seeds `READ_DATING_THRESHOLD` more dateable entries and asserts the next
+  read dates F too (only the three unreadable remain undated, and F has an epoch). The mutant (`first`) leaves F out of
+  the count and fails it.
+- **QA5-003 no `NoWait`**: `store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it`. A channel
+  design (a holder thread keeps `BEGIN IMMEDIATE` until the read returns) cannot tell the mutant apart: the mutant's wait
+  is bounded by `BUSY_TIMEOUT` (5 s), ends in `SQLITE_BUSY` and the read returns with the lock still held, as the correct
+  code does. The test is causal instead (approved by bc-lead): a temporary SQL trigger on `journal` calls a scalar function
+  that reads `PRAGMA busy_timeout` from inside the dating `UPDATE`, after it holds the lock. It asserts the value is 0
+  there and 5000 ms again afterwards, with no wall-clock bound. It passed 20 of 20 runs, on the pre-merge tree and on the merge.
 
 ## bd-compat workflow, real run
 
@@ -407,8 +416,8 @@ bc-lead, due at the `develop` -> `main` merge** (S9), not a-7 sprint gates.
 
 ## Testbed
 
-Run on `m5-atmbench` at the last code-changing commit `9f3ceb5`: a-7 live 2/2, incremental sync 380 ms against the 1 s
-limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
+Run on `m5-atmbench` at the last code-changing commit, the merge `7702b67`: a-7 live 2/2, incremental sync 391 ms against the 1 s
+limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record; this layer changes tests only. `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
 figures and the developer-machine smoke run. bc-lead's own run at the merge head, due 2026-10-31 (S8, S16), is still the
 owner's to record.
 
@@ -569,7 +578,7 @@ Reviewed at `9990a10` (`sprint/a-7-fix4-sync`). Fixes: PR #28 (`sprint/a-7-fix5-
 
 ## Validation
 
-At `9f3ceb5` (the last code-changing commit; later commits change documents and the evidence script only), locally
+At `7702b67` (the merge of `integrate/phase-a` at `71084a5`, a-8 landed; the last code-changing commit; the test commit `16d7792` is its parent), locally
 (macOS arm64, Rust 1.98.1), each gate under `bash -c 'set -o pipefail; ...'`:
 
 | Gate | Result |
@@ -577,13 +586,13 @@ At `9f3ceb5` (the last code-changing commit; later commits change documents and 
 | `cargo fmt --all -- --check` | pass |
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
 | `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps --all-features` | pass |
-| `cargo test --workspace --all-features` | pass (779 passed, 0 failed, 16 ignored) |
-| Planted bugs, 94 mutants | 90 killed (2 by a compile-time assertion), 4 survive with reasons (see Evidence: planted bugs) |
-| Testbed (`m5-atmbench`, bd 1.3.2, `9f3ceb5`) | a-7 live 2/2; incremental sync 380 ms < 1 s; a-2 7/7 with `SC_BD_PINNED_ANY=1` (`evidence/a-7-testbed.md`) |
+| `cargo test --workspace --all-features` | pass (801 passed, 0 failed, 16 ignored); `cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests`: 92 passed |
+| Planted bugs, 94 mutants | 92 killed (2 by a compile-time assertion), 2 survive, justified: unreachable without an uninterruptible process (see Evidence: planted bugs) |
+| Testbed (`m5-atmbench`, bd 1.3.2, `7702b67`) | a-7 live 2/2; incremental sync 391 ms < 1 s; a-2 7/7 with `SC_BD_PINNED_ANY=1` (`evidence/a-7-testbed.md`) |
 
 CI (per the CI-evidence convention in the phase plan): run
 [40118172977](https://github.com/randlee/beads-cache/actions/runs/40118172977) of PR #30 is green on ubuntu, macos and
-windows at `9f3ceb5`, the last code-changing commit. It fixes the windows-latest failure of run 40117695818 on PR #28
+windows at `9f3ceb5`, the previous last code-changing commit (CI for `7702b67` runs on this layer's PR). It fixes the windows-latest failure of run 40117695818 on PR #28
 (`Os { code: 267, NotADirectory }`). Earlier green run on the sprint's first final code commit:
 [40102640467](https://github.com/randlee/beads-cache/actions/runs/40102640467) at `bc1e4ab`.
 

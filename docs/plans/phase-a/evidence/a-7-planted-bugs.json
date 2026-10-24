@@ -4,56 +4,57 @@
   "file": "crates/bd-cache-model/src/testing/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "announcement_state_passes_through_to_the_store",
    "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_escalation_is_sent_once_to_the_phase_lead"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "open-work ignores announcement",
   "file": "crates/bd-cache-model/src/testing/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
    "announcement_state_passes_through_to_the_store",
    "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_stop_only_when_no_active_phase_and_no_open_work"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "refusal dropped",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_undelivered_escalation_is_retried_and_the_tick_refuses"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "team check dropped",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "configuration_the_tick_would_refuse_never_ends_the_schedule",
    "test_missing_team_is_refused"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "closed roots active",
   "file": "crates/bd-cache-sync/src/active.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_bd_does_not_return_never_ends_the_schedule",
@@ -67,34 +68,34 @@
    "test_stop_only_when_no_active_phase_and_no_open_work",
    "test_tick_syncs_only_phases_with_an_open_root",
    "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "stop ignores open work",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_stop_only_when_no_active_phase_and_no_open_work"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "fallback lead dropped for entries with no scope",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "escalation not marked announced",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
    "an_escalation_is_announced_once_and_the_store_remembers_it",
@@ -104,59 +105,59 @@
    "test_escalation_is_sent_once_to_the_phase_lead",
    "test_stop_only_when_no_active_phase_and_no_open_work",
    "test_undelivered_escalation_is_retried_and_the_tick_refuses"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "escalation message without the resolve command",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
    "test_escalation_is_sent_once_to_the_phase_lead"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync failure announced every tick (alert not compared)",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_python_format_sync_alert_for_the_same_cause_is_not_announced_again",
    "announce::tests::an_alert_in_bd_cache_pys_format_is_read_and_covers_the_failure_it_announced",
    "test_sync_failure_is_announced_once_per_cause"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync failure alert not recorded",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_python_format_sync_alert_for_a_different_cause_is_announced",
    "announce::tests::a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase",
    "test_sync_failure_is_announced_once_per_cause"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync success does not clear the alert",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_sync_failure_is_announced_once_per_cause"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "outage alert not recorded after the send",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once",
    "an_outage_alert_in_bd_cache_pys_form_is_not_announced_again",
@@ -167,424 +168,424 @@
    "test_outage_with_uncached_roots_still_tells_every_configured_lead",
    "test_undelivered_outage_announcement_is_retried",
    "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "outage alert not reset when it ends",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "outage: no lead for a scope without one",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_without_a_lead_hears_about_a_sync_failure_through_the_fallback_lead",
    "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once",
    "test_outage_with_uncached_roots_still_tells_every_configured_lead"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "outage not told to every configured lead when no root is readable",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed",
    "test_outage_with_uncached_roots_still_tells_every_configured_lead"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "outage message per phase instead of per lead",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "undelivered outage message recorded as delivered",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_undelivered_outage_announcement_is_retried"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync failure of an unreachable cause announced per phase",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "announce::tests::a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "drain without the start gate and hard deadline",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_stop_that_arrives_mid_drain_is_seen_within_the_drains_hard_deadline",
    "test_tick_budget_defers_drain_entries"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync not deferred before T - 2 s",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_tick_budget_defers_drain_entries"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "sync run with no deadline (a day)",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "no_tick_exceeds_25_s_with_every_bd_call_timing_out"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "custom phase list ignored",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_custom_phases_limits_sync_and_stop"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "malformed phase entry skipped instead of refused",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "configuration_the_tick_would_refuse_never_ends_the_schedule",
    "test_malformed_custom_phases_is_refused"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "unreadable root stops the schedule",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_bd_does_not_return_never_ends_the_schedule",
    "a_root_that_bd_does_not_know_is_no_open_root_and_is_reported"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "configuration the tick refuses can stop the schedule",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "configuration_the_tick_would_refuse_never_ends_the_schedule"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "broken phase file does not hold the stop rule",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "configuration_the_tick_would_refuse_never_ends_the_schedule"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "busy: stop check stops under a running task",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
    "should_stop_returns_continue_when_busy"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "busy tick not reported (runs as an empty pass-through)",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
    "a_second_tick_while_a_blocking_sync_is_running_is_skipped_and_reported_busy"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "poison not cleared (reported on every tick)",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
    "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "poisoned mutex not reported",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
    "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a refused tick reported as ok to the scheduler",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
    "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
    "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "schedule started without a team",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "test_missing_team_is_refused"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm address not validated",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_address_that_could_be_read_as_an_option_is_refused_before_any_process_starts",
    "phase_file_problems_have_their_own_codes",
    "test_missing_team_is_refused",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm message not on stdin",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_large_message_is_not_limited_by_the_argument_list",
    "delivers_the_body_on_stdin_with_the_reference_invocation",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "compose ignores the [tick] table",
   "file": "crates/bd-cache-sync/src/compose.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_relative_phases_dir_and_the_default_are_rooted_at_the_repository"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "announcements ignore the tick budget",
   "file": "crates/bd-cache-sync/src/control.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
    "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "announcements ignore the stop flag",
   "file": "crates/bd-cache-sync/src/control.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "announce::tests::a_stopped_tick_sends_nothing_and_counts_the_message_unsent",
    "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "tick ignores the stop flag between phases",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_stop_that_arrives_mid_tick_ends_it_between_phases"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm kills only the direct child",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_stop_flag_kills_the_child_and_its_descendants",
    "the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm ignores the time the tick passes",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_time_a_tick_passes_bounds_the_send",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm ignores the stop flag",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_stop_flag_kills_the_child_and_its_descendants",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm invocation without the reference environment",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "delivers_the_body_on_stdin_with_the_reference_invocation",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "atm truncated output not marked",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "output_beyond_the_limit_is_dropped_and_the_error_says_so",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "poison met by the stop check is lost",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
    "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "empty phase list accepted",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "an_empty_phase_list_is_refused_not_a_schedule_that_ends_at_once"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "phase file size not capped",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "phase file count not capped",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "compose does not root the phases directory",
   "file": "crates/bd-cache-sync/src/compose.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_relative_phases_dir_and_the_default_are_rooted_at_the_repository"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "embedded error text not clipped",
   "file": "crates/bd-cache-sync/src/text.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "announce::tests::embedded_error_text_is_clipped",
    "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped",
    "text::tests::short_text_is_kept_and_long_text_is_cut_on_a_character_boundary"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "recorded outcome not clipped",
   "file": "crates/bd-cache-sync/src/job.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "get ignores a pending entry (fast path always)",
   "file": "crates/bd-cache/src/ready.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_cached_get_dates_entries_python_applied_while_open",
    "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
@@ -598,145 +599,145 @@
    "rule_reopen_brings_back_the_beads_own_blockers",
    "rule_reopen_from_closed_blocks_the_dependers_again",
    "with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "get loads the whole base again",
   "file": "crates/bd-cache/src/ready.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads",
    "a_cached_read_of_one_bead_touches_the_same_rows_at_10_and_1000_beads"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "store index not replaced with the base",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index",
    "base_entry_rules",
    "test_e2e_blocker_close_and_reopen_update_ready",
    "the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "store index survives a prune",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "store index keeps duplicate blockers",
   "file": "crates/bd-cache-store/src/codec.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "base_entry_rules"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "announcing goes on after the budget is spent (S17)",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "tick starts although it was asked to stop (RSH-014)",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_stopped_tick_does_nothing_and_the_next_tick_does_it_all"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "send gets no reserve before T (QA2-007)",
   "file": "crates/bd-cache-sync/src/control.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "control::tests::a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a phase file that is not a regular file is opened (RSH-017)",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_file_that_is_a_pipe_does_not_block_the_tick",
    "a_phase_file_that_is_not_a_regular_file_is_reported_not_read"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a cached root is trusted without its scope having synced",
   "file": "crates/bd-cache-sync/src/active.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "base_entry trusts the index of a base another writer replaced",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index",
    "a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "store index not marked on replace",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a journal index holds a function (S18)",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_cached_get_dates_entries_python_applied_while_open",
    "applied_since_reads_both_partial_indexes_and_no_history",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
    "no_index_holds_a_function_and_journal_writes_work_without_unixepoch"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "entries bd_cache.py applied are not counted by has_entries_since (S18)",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_cached_get_dates_entries_python_applied_while_open",
    "a_cached_get_reads_the_same_with_thousands_of_old_applied_entries",
@@ -755,32 +756,34 @@
    "entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
    "has_entries_since_rules",
+   "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it",
+   "store::tests::the_floor_stops_one_below_the_first_dateable_entry",
    "store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again",
    "test_e2e_blocker_close_and_reopen_update_ready",
    "test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync",
    "the_check_does_not_wait_for_the_write_lock_to_date_entries",
    "the_entries_since_check_survives_a_dropped_index",
    "the_entries_since_check_uses_indexes_and_ignores_a_long_history"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "has_entries_since ignores pending entries",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
    "has_entries_since_rules",
    "the_entries_since_check_uses_indexes_and_ignores_a_long_history"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "applied_since misses entries bd_cache.py applied (S18)",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
    "a_scheduled_tick_with_a_slow_bd_ends_within_its_budget",
@@ -797,8 +800,7 @@
    "test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync",
    "the_check_does_not_wait_for_the_write_lock_to_date_entries",
    "the_python_get_and_status_read_a_file_the_rust_store_wrote"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "open does not date the entries bd_cache.py applied",
@@ -816,175 +818,182 @@
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_expression_index_of_an_earlier_build_is_dropped_on_open"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a missing hinted index is an error (QA3-007)",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "the_entries_since_check_survives_a_dropped_index"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a stored alert is compared as raw text (S21)",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_python_format_sync_alert_for_the_same_cause_is_not_announced_again",
    "an_outage_alert_in_bd_cache_pys_form_is_not_announced_again",
    "announce::tests::an_alert_in_bd_cache_pys_format_is_read_and_covers_the_failure_it_announced",
    "announce::tests::every_sync_cause_round_trips_through_its_key"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a generic stored alert does not cover a specific cause (S21)",
   "file": "crates/bd-cache-sync/src/announce.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_python_format_sync_alert_for_the_same_cause_is_not_announced_again",
    "announce::tests::an_alert_in_bd_cache_pys_format_is_read_and_covers_the_failure_it_announced"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a file without an execute bit resolves (QA3-008)",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_file_without_an_execute_bit_does_not_resolve",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a phase file is opened blocking (RSH-024)",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_file_that_is_a_pipe_does_not_block_the_tick"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "the tick goes on after the drain although stopped (S20)",
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_stop_that_arrives_mid_drain_is_seen_within_the_drains_hard_deadline"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "the model's close test uses another status",
   "file": "crates/bd-cache-model/src/op.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending",
    "a_write_cut_by_the_hard_deadline_is_deferred_in_flight_and_found_achieved_next_drain",
    "close_overlay_and_achieved",
    "test_write_that_landed_before_a_crash_is_not_repeated"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "a descendant holding the pipes is waited for in full (QA3-003)",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it",
    "atm::tests::the_read_deadline_is_clamped_to_the_send_deadline_with_a_floor",
    "atm_process (process test)"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "S26: threshold dropped, every pass dates (count skipped)",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold",
    "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
-   "entries_python_applies_while_open_are_dated_by_the_next_check"
-  ],
-  "const_assert": false
+   "entries_python_applies_while_open_are_dated_by_the_next_check",
+   "store::tests::the_floor_stops_one_below_the_first_dateable_entry"
+  ]
  },
  {
   "bug": "S26: dating never runs (reads always walk the undated entries)",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_cached_get_dates_entries_python_applied_while_open",
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold",
    "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
+   "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it",
+   "store::tests::the_floor_stops_one_below_the_first_dateable_entry",
    "store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again",
    "the_check_does_not_wait_for_the_write_lock_to_date_entries"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "S26: threshold off by one (dates at the threshold)",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "QA5-002: the undatable floor rises onto the first dateable entry",
   "file": "crates/bd-cache-store/src/store.rs",
-  "exit": 0,
+  "exit": 101,
   "compile_error": false,
-  "failed": [],
   "const_assert": false,
-  "survived": "GAP (off by one, minor): the floor then hides the first dateable entry from the undated count, so the dating starts one entry later than the threshold says; reached only after a skipped dating (write lock held). No test pins floor == first - 1."
+  "failed": [
+   "store::tests::the_floor_stops_one_below_the_first_dateable_entry"
+  ]
  },
  {
   "bug": "QA5-002: the undatable floor rises past a dateable entry",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
-   "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating"
-  ],
-  "const_assert": false
+   "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
+   "store::tests::the_floor_stops_one_below_the_first_dateable_entry"
+  ]
  },
  {
   "bug": "QA5-003: the busy timeout is not restored after the no-wait dating",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
-   "a_write_after_a_skipped_dating_waits_for_the_lock_again"
-  ],
-  "const_assert": false
+   "a_write_after_a_skipped_dating_waits_for_the_lock_again",
+   "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it"
+  ]
  },
  {
   "bug": "QA5-003: the dating waits for the write lock (no NoWait)",
   "file": "crates/bd-cache-store/src/store.rs",
-  "exit": 0,
+  "exit": 101,
   "compile_error": false,
-  "failed": [],
   "const_assert": false,
-  "survived": "GAP (timing only): with the lock held by the same thread the wait ends with BUSY and the answer is the same; telling the two apart needs an elapsed-time assertion, which FTQ-020 removed as stall-sensitive. The restore of the timeout is killed (a_write_after_a_skipped_dating_waits_for_the_lock_again)."
+  "failed": [
+   "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it"
+  ]
  },
  {
   "bug": "S27: the tree kill and the reaping do not share one deadline",
@@ -993,7 +1002,7 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [],
-  "survived": "UNREACHABLE: the two deadlines differ only when the child is still alive after SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill bound, the KILL_BOUND value and SEND_RESERVE are each killed."
+  "survived": "justified: unreachable without an uninterruptible process. The two deadlines differ only when the child is still alive after SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill bound, the KILL_BOUND value and SEND_RESERVE are each killed."
  },
  {
   "bug": "S27: the kill bound is far too long",
@@ -1019,33 +1028,33 @@
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 0,
   "compile_error": false,
-  "failed": [],
   "const_assert": false,
-  "survived": "UNREACHABLE: the call site runs only for a child that outlives SIGKILL by KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop)."
+  "failed": [],
+  "survived": "justified: unreachable without an uninterruptible process. The call site runs only for a child that outlives SIGKILL by KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop)."
  },
  {
   "bug": "S28: the reaper lets go of every process at once",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill",
    "atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper",
    "atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "S28: the reaper never looks at what it holds",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill",
    "atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper",
    "atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "S27: SEND_RESERVE shrunk below the read grace plus the kill bound",
@@ -1060,30 +1069,30 @@
   "file": "crates/bd-cache-sync/src/tick.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_root_that_bd_does_not_know_is_no_open_root_and_is_reported"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "RBP-F039: a root bd did not return is never recorded",
   "file": "crates/bd-cache-sync/src/active.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_root_that_bd_does_not_know_is_no_open_root_and_is_reported"
-  ],
-  "const_assert": false
+  ]
  },
  {
   "bug": "QA5-004: scope_synced says every scope has synced",
   "file": "crates/bd-cache/src/lib.rs",
   "exit": 101,
   "compile_error": false,
+  "const_assert": false,
   "failed": [
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs"
-  ],
-  "const_assert": false
+  ]
  }
 ]

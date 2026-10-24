@@ -4,7 +4,7 @@ Sprint a-7 (`docs/plans/phase-a/sprint-a-7-sync-integration.md`, deliverable 5).
 The testbed is the `m5-atmbench` account, run by the lead (bc-lead) (NFR-BDC-0006:
 live tests run only there and in the bd-compat workflow).
 
-## Status: final-code-commit run recorded (`9f3ceb5`); bc-lead's merge-head run due 2026-10-31
+## Status: final-code-commit run recorded (merge `7702b67`); bc-lead's merge-head run due 2026-10-31
 
 The developer session that wrote this sprint has no access to `m5-atmbench`.
 Under deliverable 5, the recording-invoker results (CI, below) close the
@@ -16,9 +16,8 @@ sprint, and the testbed items are deferred evidence:
 | End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | pre-final run recorded; re-run at final head |
 | Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | pre-final run recorded; re-run at final head |
 
-Date of this record: 2026-10-24. The run at `9f3ceb5`, the last code-changing commit (below), was made on the testbed
-account by the fix-a-7-6 developer. bc-lead's run at the merge head is due 2026-10-31; no code changes between
-`9f3ceb5` and the head, only documents and the evidence script.
+Date of this record: 2026-10-24. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the testbed ran at `9f3ceb5`; the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`) and now the last code-changing commit. bc-lead's run at the merge head is due 2026-10-31; no code changes between
+`7702b67` and the head, only documents and the evidence script.
 
 ## Commands (on `m5-atmbench`)
 
@@ -75,7 +74,21 @@ Incremental sync of a 1000-bead phase: 508 ms against the 1 s limit
 server; it is a sanity figure, not the recorded NFR evidence, which is the
 testbed's.
 
-### Testbed run at the last code-changing commit `9f3ceb5` (m5-atmbench)
+### Testbed run at the last code-changing commit, the merge `7702b67` (m5-atmbench)
+
+Same host, bd 1.3.2 (dev), 2026-10-24 19:05Z, the same recipe: `git archive` of `7702b67` into
+`~/github/beads-cache-a7-7702b67`, remote scripts `~/run-a7-testbed-7702b67.sh` and `~/run-a2-pinnedany-7702b67.sh`.
+
+| Item | Result | Figure |
+|---|---|---|
+| a-2 live probes | 6/7 pass | `fingerprint_reports_what_bd_prints` fails: bd 1.3.2 is not the pinned 1.3.1 (as designed) |
+| a-2 live probes, `SC_BD_PINNED_ANY=1` | 7/7 pass | 7 probes |
+| a-7 live (2 tests) | pass, 2/2 | applied, no read-back error |
+| NFR-BDC-0003 incremental sync of 1000 beads | PASS | full tick 531.4 ms; incremental sync 391.0 ms (6 rows stored, 0 blocked); limit 1 s |
+
+Logs on the testbed: `~/a7-testbed-7702b67.log`, `~/a2-pinnedany-7702b67.log`.
+
+### Testbed run at `9f3ceb5` (m5-atmbench)
 
 Host `m5-atmbench` (atmbench@rand-m5), bd 1.3.2 (dev) against the pinned 1.3.1, debug build, 2026-10-24. The tree
 was `git archive` of `9f3ceb5` into `~/github/beads-cache-a7-9f3ceb5`, run by the remote script files
