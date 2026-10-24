@@ -323,3 +323,13 @@ plus, for the second run, a forced expected schema sha and one line deleted from
 Issue #8 was closed with a note that it came from the proof. A first real
 `workflow_dispatch` run and a `repository_dispatch` run (P-5) are possible once the
 workflow is on `main`; the lead decides whether that gates closure.
+
+### CI
+
+PR [#9](https://github.com/randlee/beads-cache/pull/9). CI run
+[40075405492](https://github.com/randlee/beads-cache/actions/runs/40075405492) at
+`04453d8` is green on ubuntu, macos and windows. The first run (`b9eb355`) failed
+on Windows only: the schema copy used by `FakeBd` was checked out with CRLF and its
+sha differed. The copy moved to `crates/sc-bd-cli/tests/fixtures/`, which
+`.gitattributes` pins to LF. Code evidence above is unchanged by that move apart from
+this path (re-run: all sc-bd-cli tests pass).
