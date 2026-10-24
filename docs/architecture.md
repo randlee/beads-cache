@@ -252,9 +252,12 @@ Decision: bd's answer is the base; our journaled writes adjust it locally.
      becomes empty, and whose own status is `open`, is ready. Repeat through
      parent-child (a child is listed as blocked by its blocked parent).
    - A close is a `Close` op or an `Update` whose status is `closed`. A
-     reopen is an `Update` to status `open` of a bead whose view was
-     `closed`: add X back to `blocked_by` of beads with a blocking edge to X
-     (cached edges, `DepType::is_blocking`).
+     reopen is an `Update` to any status other than `closed` of a bead whose
+     view was `closed`: add X back to `blocked_by` of beads with a blocking,
+     non-parent-child edge to X (cached edges, `DepType::is_blocking`), and
+     recompute X's own `blocked_by` from its cached edges. Its parent-child
+     children are blocked only if X itself ends up blocked (next rule).
+     (Clarified by lead ruling, bc-lead, 2026-10-24, after a-6.)
    - Parent-child, from stored edges: bd lists a child of a blocked parent as
      blocked by the parent (probe), so unblocking a parent clears it from its
      children's `blocked_by`, and blocking a parent adds it.
