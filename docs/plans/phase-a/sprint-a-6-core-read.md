@@ -1,7 +1,7 @@
 ---
 id: a-6
 phase: a
-status: planned
+status: in-review
 closure_type: boundary
 target_boundary: bd-cache (read path)
 track: core
@@ -13,9 +13,9 @@ recommended_model: opus
 must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
-  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912]
-  constrained_by: [REQ-BDC-0105, REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005]
+  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, REQ-CORE-0201, REQ-CORE-0202, REQ-CORE-0203, REQ-CORE-0204, REQ-CORE-0205, REQ-CORE-0206, REQ-CORE-0207]
+  constrained_by: [REQ-BDC-0105, REQ-BDC-0109, REQ-BDC-0405, REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004, NFR-BDC-0005, REQ-CORE-0001, REQ-CORE-0002, REQ-CORE-0003, REQ-CORE-0004]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0002, ADR-MODEL-0003, ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0201, ADR-CORE-0202, ADR-CORE-0203, ADR-CORE-0204, ADR-CORE-0205]
 owned_paths:
   - "crates/bd-cache/src/get.rs"
   - "crates/bd-cache/src/refresh.rs"
@@ -117,3 +117,66 @@ Scheduled sync with the real store and backend, and escalation delivery
 ## Required validation
 
 Crate tests and lints; `cargo build --workspace`.
+
+## Requirement scope notes
+
+- REQ-CORE-0201..0207 and ADR-CORE-0201..0205 are new crate ids in
+  [`docs/bd-cache/read-path.md`](../../bd-cache/read-path.md), written as
+  Draft for the lead's ruling. ADR-CORE-0201..0203 refine ADR-BDC-0002 and
+  ADR-BDC-0005 (they make the prose rules precise); none amends an
+  Approved ADR.
+- REQ-BDC-0503's acceptance case
+  `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`
+  is a-7's (it spans drain and sync). a-6 tests the sync half: the stale
+  row is re-read forced and its mark cleared, which is what lets a-5's drain
+  take the bead's held entries
+  (`a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable`).
+  `drain` itself is a-5's and still a stub on this branch.
+- REQ-BDC-0601 and 0602: the state rules are the store port's (a-1's
+  contract suite; a-4 implements them over SQLite). a-6 owns the verbs and
+  delegates (ADR-CORE-0205), so its planted bugs for these two are planted
+  in `FakeStore`.
+- REQ-BDC-0603 and deliverable 7 ("`status` reports each scope's
+  `last_ok_at`, stale rows and the outage"): `last_ok_at` and the outage are
+  reported; stale rows are not, because a-1's `StatusReply` is
+  `{ store: StoreStatus }` and `StoreStatus` has no stale-row field.
+  Contract deviation for ruling: an a-1 amendment adding
+  `stale: Vec<BeadId>` (filled from `CacheStore::stale_rows`) to
+  `StoreStatus` or `StatusReply`.
+- Deliverable 6 (announcement passthroughs) was implemented by a-1 in
+  `lib.rs` (ADR-CORE-0002); a-6 adds its tests
+  (`announcement_state_passes_through_to_the_store`).
+- REQ-BDC-0109 (edge index) and REQ-BDC-0405 (read-back stale mark) are
+  constraints: the ready rules read incoming edges through `dependents_of`,
+  and sync clears the stale mark the drain sets.
+- NFR-BDC-0001 (cached `get` under 1 ms) is measured by a-7 on the real
+  store; a-6 keeps a cached `get` free of backend calls.
+- The cache's own answer checks (an unrequested bead in a `list --id`
+  answer, a scope row without the scope's label) are tested through a
+  wrapper that runs every row through `sc_beads::parse_bd_rows`, the
+  `sc-bd-cli` validation path (`tests/sync_contract.rs`), because
+  `FakeBackend` returns typed rows and has no contract-error injection.
+
+## Acceptance evidence
+
+| Criterion | Tests |
+|---|---|
+| REQ-BDC-0001, 0202 | `test_miss_fetches_once_then_serves_from_cache`, `test_miss_on_unknown_bead_is_typed` (`tests/read_get.rs`) |
+| REQ-BDC-0008 | `test_contract_violation_is_typed_and_sync_stores_nothing`, `a_scope_list_row_without_the_scope_label_stores_nothing`, `a_bad_row_in_a_refresh_or_miss_fill_stores_nothing` (`tests/sync_contract.rs`) |
+| REQ-BDC-0501, 0502, 0504 | `test_sync_is_incremental_and_never_replaces_a_newer_row`, `test_sync_failure_is_typed_and_recorded`, `a_rebuild_drops_the_cursor_so_the_next_list_is_full` (`tests/sync_rows.rs`) |
+| REQ-BDC-0503 | `a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable` |
+| REQ-BDC-0601, 0602 | `test_prune_refuses_with_unapplied_writes`, `test_resolve_closes_only_escalated_entries_and_unblocks_prune`, `test_resolve_keeps_the_note_when_the_entry_had_no_error`, `prune_deletes_the_scopes_beads_journal_sync_state_and_ready_base` (`tests/read_journal.rs`) |
+| REQ-BDC-0907, 0908, 0909 | `refresh_reads_fresh_rows_past_a_stale_cache_and_returns_them_with_the_overlay`, `refresh_is_bounded_by_its_timeout_and_an_empty_refresh_calls_nothing`, `entry_returns_an_entry_in_any_state`, `sync_then_list_of_an_unconfigured_phase_works` |
+| REQ-BDC-0902 | `list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes`, `ready_of_an_unknown_scope_is_scope_unknown`, `a_get_miss_outside_every_scope_is_stored_with_no_membership_and_swept_by_prune_once_it_has_no_open_entry` |
+| REQ-BDC-0001, 0203 | `get_and_list_replies_carry_stale_per_row_and_the_scopes_last_ok_at`, `list_filters_by_status_and_label_on_the_view`, `get_replays_pending_entries_and_counts_them`, `a_miss_is_bounded_by_the_callers_timeout` |
+| ADR-BDC-0005 (sync) | `test_sync_records_an_outage_and_a_passing_sync_clears_it`, `an_unreachable_backend_check_is_an_outage_too`, `a_cut_sync_reports_deferred_and_changes_no_alert`, `replies_carry_the_outage_while_one_holds` |
+| ADR-BDC-0002 (base kept stale) | `a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale`, `each_sync_stores_the_ready_base_fetched_after_the_rows` |
+| REQ-BDC-0904 | `after_a_cached_blocker_closes_in_bd_one_sync_makes_its_depender_ready_and_reopen_blocks_it`, `after_a_blocker_outside_every_scope_closes_in_bd_one_sync_makes_its_depender_ready`, `a_child_of_a_blocked_parent_is_not_ready` |
+| REQ-BDC-0911 | `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` (`tests/read_ready.rs`) |
+| No base is `unknown` | `a_scope_with_no_ready_base_reports_unknown`, `no_base_and_no_fresh_answer_is_unknown` |
+| `blocked` and `missing_rows` | `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows` |
+| Entries vs `fetched_at` | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `escalated_entries_do_not_adjust_the_base` |
+| Rules table rows (ADR-CORE-0201) | `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
+| REQ-BDC-0912 | `bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage` |
+| Deliverable 6 | `announcement_state_passes_through_to_the_store`; `status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage` (deliverable 7) |
+| Planted bugs | below |

@@ -369,6 +369,18 @@ fn rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_onl
     // A bead outside every scope is in no base.
     w.bd.insert(sc_beads::testing::bead("o1"));
     assert_eq!(c.get(&id("o1"), None).unwrap().row.blocked, None);
+    // Nor is a listed bead whose view a pending write moves out of the scope.
+    journal(
+        &mut c,
+        &w,
+        "k1",
+        "b2",
+        "update",
+        r#"{"remove_labels": ["phase-x"]}"#,
+    );
+    let l = c.list(&x(), None, None).unwrap();
+    let b2 = l.rows.iter().find(|r| r.bead.id == id("b2")).unwrap();
+    assert_eq!(b2.blocked, None);
 }
 
 #[test]
