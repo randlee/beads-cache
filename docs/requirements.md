@@ -317,7 +317,7 @@ The drain has two deadlines: a start gate (entries not started by it are reporte
 
 With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry. If the backend is unreachable at either step, the cache records an outage, counts no attempt and stops the drain.
 
-*Amended in planning: v3 at 05831df: a failed pre-read is an outage, not a retry of every entry.*
+*Amended in planning: v3 at 05831df: an unreachable-class failure (`BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED`) at the check or pre-read is an outage; any other pre-read failure retries every entry with no attempt counted (lead ruling, bc-lead, 2026-10-24, a-5 R1).*
 
 **Source:** BD-CACHE.md Algorithms (drain)
 **Acceptance evidence:** `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_failed_pre_read_retries_every_entry`
