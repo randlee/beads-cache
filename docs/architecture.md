@@ -386,6 +386,48 @@ bd-incompatible changes become breaking releases of `sc-beads` and
 `sc-bd-cli`. Needs agreement from the btit side on the shared API (sync
 calls, error type, tolerant vs strict rows).
 
+## ADR-BDC-0008: User metadata extensions
+
+**Status:** Draft (later phase; not in phase a)
+
+Context: teams extend beads with their own fields in bd's free-form
+`metadata`, and may require some of them. atm-beads already does this:
+Pydantic models (`bead_schema.py`) exported as JSON Schemas
+(`atm-beads/schemas/`), role-based required fields stamped at pour and
+required at close (`close_fields.py`), and structured values such as a QA
+bead's array of required review agents. bd itself accepts any metadata and
+enforces none of it, and btit will want to show these fields too.
+
+Decision (proposed):
+- Extensions are JSON Schema files kept in the repository, each describing
+  `metadata` for the beads it selects (by `issue_type`, a label, or a
+  `metadata.role` value), with lifecycle rules such as required at pour or
+  required at close. A team's own models (for example atm-beads' Pydantic
+  models) can stay the source and export them.
+- One validator, in `sc-beads`, beside the strict bd row type, so bdc, btit
+  and Python tools (via the exported schemas and the later PyO3 bindings)
+  agree.
+- bdc enforces on writes: the view after the write is checked against the
+  selected schemas, and a violation is a typed refusal
+  (`BD_CACHE.EXTENSION_INVALID` with the failing fields), or a warning when
+  the extension is marked `warn`.
+- Sync never rejects rows for extension violations (agents still write with
+  raw `bd`); it records them and `get` / `status` report them. bd's own row
+  contract stays strict and separate.
+- btit uses the same schemas to render typed fields, build edit forms and
+  show violations.
+
+Open: structured values. `bd update --set-metadata` stores only flat
+scalars (REQ-BDC-0303), and BD-CACHE v1 excludes structured metadata from
+the journal, so arrays like the QA reviewer list can be read and validated
+but not written through the cache today. `bd update --metadata <json>` and
+the `/v0` `metadata: {merge, set, unset}` patch can carry them; whether
+`--metadata` merges or replaces the whole object must be probed before the
+journal supports it.
+
+Consequences: adds a schema-selection model and validator to `sc-beads` and a
+new error code; needs the structured-metadata write path settled first.
+
 ## Per-Crate Architecture
 
 Each crate's architecture and crate-local ADRs live in
