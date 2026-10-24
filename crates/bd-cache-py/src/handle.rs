@@ -23,7 +23,7 @@ use serde::Serialize;
 use crate::compose::{self, Composition, OpenError, OpenKind, Opened, Overrides};
 use crate::convert::{json_text, reply, seconds};
 use crate::error::{ClosedError, bad_argument, cache_err};
-use crate::slot::{Outcome, Slot};
+use crate::slot::{NotRun, Slot};
 
 /// The cache of one repository: the SQLite store, the flock drain lock and the `bd` CLI.
 ///
@@ -428,7 +428,7 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
     match e {
         OpenError::Config { kind, path, text } => decorate(
             PyValueError::new_err(format!("configuration: {text}")),
-            kind,
+            kind.into(),
             path.as_ref(),
         ),
         OpenError::Read { path, text } => {
@@ -441,16 +441,16 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
 /// The advice every closed-handle message ends with.
 const REOPEN: &str = "open a new bd_cache_rs.Cache to keep using it";
 
-/// The `ClosedError` text for an outcome that did not run the verb.
+/// The `ClosedError` text for a verb that did not run.
 ///
 /// Every message ends with how to recover; a `Panicked` one carries the panic message.
-fn closed_message<R>(outcome: &Outcome<R>) -> String {
-    match outcome {
-        Outcome::Done(_) | Outcome::Closed => format!("the cache is closed; {REOPEN}"),
-        Outcome::Panicked(text) => {
+fn closed_message(not_run: &NotRun) -> String {
+    match not_run {
+        NotRun::Closed => format!("the cache is closed; {REOPEN}"),
+        NotRun::Panicked(text) => {
             format!("the call failed inside the cache ({text}) and the handle was closed; {REOPEN}")
         }
-        Outcome::Poisoned => format!(
+        NotRun::Poisoned => format!(
             "something panicked while holding the cache and the handle was closed; {REOPEN}"
         ),
     }
@@ -467,8 +467,8 @@ impl PyCache {
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
     {
         match py.detach(|| self.inner.with(f)) {
-            Outcome::Done(done) => done.map_err(|e| cache_err(py, &e)),
-            other => Err(ClosedError::new_err(closed_message(&other))),
+            Ok(done) => done.map_err(|e| cache_err(py, &e)),
+            Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
         }
     }
 
@@ -484,9 +484,8 @@ impl PyCache {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::unwrap_used,
-    clippy::expect_used,
     clippy::panic,
     reason = "test code: a failed unwrap is a test failure"
 )]
@@ -516,10 +515,10 @@ mod tests {
 
     #[test]
     fn every_closed_message_says_how_to_recover_and_a_panic_message_carries_the_panic() {
-        let cases: [Outcome<u8>; 3] = [
-            Outcome::Closed,
-            Outcome::Panicked("disk exploded".to_owned()),
-            Outcome::Poisoned,
+        let cases = [
+            NotRun::Closed,
+            NotRun::Panicked("disk exploded".to_owned()),
+            NotRun::Poisoned,
         ];
         for outcome in &cases {
             assert!(
@@ -545,12 +544,12 @@ mod tests {
             let _ = &v.cache;
             panic!("a verb panicked")
         });
-        assert_eq!(outcome, Outcome::Panicked("a verb panicked".to_owned()));
+        assert_eq!(outcome, Err(NotRun::Panicked("a verb panicked".to_owned())));
         assert!(slot.is_closed());
         // The connection went with the panic: the same file opens again at once.
         let (again, again_path) = inner(dir.path()).unwrap_or_else(|e| panic!("{e:?}"));
         assert_eq!(again_path, path);
         drop(again);
-        assert_eq!(slot.with(|_| 1), Outcome::Closed);
+        assert_eq!(slot.with(|_| 1), Err(NotRun::Closed));
     }
 }

@@ -33,9 +33,9 @@ pub(crate) struct Overrides {
     pub(crate) max_attempts: Option<u32>,
 }
 
-/// The `kind` attribute of an open failure: what sort of problem it is.
+/// What kind of problem an [`OpenError::Config`] is (a `ValueError`'s `kind`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum OpenKind {
+pub(crate) enum ConfigKind {
     /// `.beads/bd-cache.toml` is not valid TOML, has an unknown key or a mistyped value.
     Parse,
     /// A `scopes` entry is not a phase name.
@@ -44,18 +44,33 @@ pub(crate) enum OpenKind {
     Argument,
     /// Any other problem the loader reports.
     Config,
+}
+
+/// The `kind` attribute of an open failure: a [`ConfigKind`], or a read failure.
+///
+/// `Read` is the kind of [`OpenError::Read`] only; [`OpenError::Config`] cannot hold it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum OpenKind {
+    /// A configuration problem (a `ValueError`).
+    Config(ConfigKind),
     /// `.beads/bd-cache.toml` exists but cannot be read (an `OSError`).
     Read,
+}
+
+impl From<ConfigKind> for OpenKind {
+    fn from(kind: ConfigKind) -> Self {
+        Self::Config(kind)
+    }
 }
 
 impl OpenKind {
     /// The text of the `kind` attribute.
     pub(crate) fn as_str(self) -> &'static str {
         match self {
-            Self::Parse => "parse",
-            Self::Scope => "scope",
-            Self::Argument => "argument",
-            Self::Config => "config",
+            Self::Config(ConfigKind::Parse) => "parse",
+            Self::Config(ConfigKind::Scope) => "scope",
+            Self::Config(ConfigKind::Argument) => "argument",
+            Self::Config(ConfigKind::Config) => "config",
             Self::Read => "read",
         }
     }
@@ -67,7 +82,7 @@ pub(crate) enum OpenError {
     /// The config file or an argument is invalid: a `ValueError` with `kind` and `path`.
     Config {
         /// What is wrong.
-        kind: OpenKind,
+        kind: ConfigKind,
         /// The file the problem is in, when there is one.
         path: Option<PathBuf>,
         /// The message, with the cause chain.
@@ -103,17 +118,17 @@ impl From<ConfigLoadError> for OpenError {
         match e {
             ConfigLoadError::Read { path, .. } => Self::Read { path, text },
             ConfigLoadError::Parse { path, .. } => Self::Config {
-                kind: OpenKind::Parse,
+                kind: ConfigKind::Parse,
                 path: Some(path),
                 text,
             },
             ConfigLoadError::Scope { path, .. } => Self::Config {
-                kind: OpenKind::Scope,
+                kind: ConfigKind::Scope,
                 path: Some(path),
                 text,
             },
             _ => Self::Config {
-                kind: OpenKind::Config,
+                kind: ConfigKind::Config,
                 path: None,
                 text,
             },
@@ -160,7 +175,7 @@ fn project_locks() -> Arc<ProjectLocks> {
 
 fn refuse(text: String) -> OpenError {
     OpenError::Config {
-        kind: OpenKind::Argument,
+        kind: ConfigKind::Argument,
         path: None,
         text,
     }
@@ -254,7 +269,7 @@ pub(crate) fn open(
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::unwrap_used,
     reason = "test code: a failed unwrap is a test failure"
 )]
@@ -291,7 +306,7 @@ mod tests {
         assert!(matches!(
             project_dir_text("project_dir", &dir.join("no-such-dir-bd-cache-py")),
             Err(OpenError::Config {
-                kind: OpenKind::Argument,
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
@@ -307,14 +322,14 @@ mod tests {
         assert!(matches!(
             open(&bad, "bd", None, Overrides::default()),
             Err(OpenError::Config {
-                kind: OpenKind::Argument,
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
         assert!(matches!(
             open(tmp.path(), "bd", Some(&bad), Overrides::default()),
             Err(OpenError::Config {
-                kind: OpenKind::Argument,
+                kind: ConfigKind::Argument,
                 ..
             })
         ));
@@ -330,7 +345,7 @@ mod tests {
             for project_dir in [None, Some(tmp.path())] {
                 let r = open(root, "bd", project_dir, Overrides::default());
                 assert!(
-                    matches!(&r, Err(OpenError::Config { kind: OpenKind::Argument, text, .. }) if text.starts_with("repo_root")),
+                    matches!(&r, Err(OpenError::Config { kind: ConfigKind::Argument, text, .. }) if text.starts_with("repo_root")),
                     "{root:?} {project_dir:?}: {:?}",
                     r.err()
                 );

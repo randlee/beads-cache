@@ -10,27 +10,25 @@
 //!   the in-flight verb finishes; the value is then dropped by the closer;
 //! - a verb that panics is caught at the panic: the slot drops the value (the
 //!   connection may be mid-statement), marks itself closed and reports
-//!   [`Outcome::Panicked`] with the panic message, all before `with` returns, so
+//!   [`NotRun::Panicked`] with the panic message, all before `with` returns, so
 //!   `is_closed` is already true and the file is free to reopen. The panic does not
 //!   reach Python. (With `panic = "abort"` the process aborts instead, which is
 //!   what a panic means, M-PANIC-IS-STOP.)
-//! - [`Outcome::Poisoned`] is defensive. Verbs run under `catch_unwind`, so the lock
+//! - [`NotRun::Poisoned`] is defensive. Verbs run under `catch_unwind`, so the lock
 //!   is not poisoned by them; only a panic elsewhere while the guard is held (a
 //!   `Drop` of the value) could, and nothing in production does that. If it ever
 //!   happens the slot drops the value, clears the poison while holding the guard,
-//!   closes and reports `Poisoned` once; later calls see [`Outcome::Closed`].
+//!   closes and reports `Poisoned` once; later calls see [`NotRun::Closed`].
 
 use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// What running a verb on a [`Slot`] came to.
+/// Why a verb did not run on a [`Slot`] (the `Err` of [`Slot::with`]).
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) enum Outcome<R> {
-    /// The verb ran and returned this.
-    Done(R),
-    /// The slot is closed; the verb did not run.
+pub(crate) enum NotRun {
+    /// The slot is closed.
     Closed,
     /// The verb panicked with this message; the slot dropped its value and closed.
     Panicked(String),
@@ -69,29 +67,29 @@ impl<T> Slot<T> {
     }
 
     /// Runs `f` on the value when the slot is open.
-    pub(crate) fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> Outcome<R> {
+    pub(crate) fn with<R>(&self, f: impl FnOnce(&mut T) -> R) -> Result<R, NotRun> {
         if self.is_closed() {
-            return Outcome::Closed;
+            return Err(NotRun::Closed);
         }
         match self.value.lock() {
             Ok(mut guard) => {
                 // Checked again under the lock: a close that began while this
                 // verb waited must refuse it.
                 if self.is_closed() {
-                    return Outcome::Closed;
+                    return Err(NotRun::Closed);
                 }
                 let Some(value) = guard.as_mut() else {
-                    return Outcome::Closed;
+                    return Err(NotRun::Closed);
                 };
                 // The value is dropped on a panic, so nothing observes it half-updated.
                 match catch_unwind(AssertUnwindSafe(|| f(value))) {
-                    Ok(done) => Outcome::Done(done),
+                    Ok(done) => Ok(done),
                     Err(payload) => {
                         let dropped = guard.take();
                         self.closed.store(true, Ordering::SeqCst);
                         drop(guard);
                         drop(dropped);
-                        Outcome::Panicked(message(payload.as_ref()))
+                        Err(NotRun::Panicked(message(payload.as_ref())))
                     }
                 }
             }
@@ -103,7 +101,7 @@ impl<T> Slot<T> {
                 self.value.clear_poison();
                 drop(guard);
                 drop(dropped);
-                Outcome::Poisoned
+                Err(NotRun::Poisoned)
             }
         }
     }
@@ -128,9 +126,8 @@ impl<T> Slot<T> {
 }
 
 #[cfg(test)]
-#[allow(
+#[expect(
     clippy::unwrap_used,
-    clippy::expect_used,
     clippy::panic,
     reason = "test code: a failed unwrap is a test failure"
 )]
@@ -156,13 +153,13 @@ mod tests {
     fn runs_verbs_and_close_drops_the_value() {
         let drops = Arc::new(AtomicUsize::new(0));
         let slot = Slot::new(Probe(Arc::clone(&drops)));
-        assert_eq!(slot.with(|_| 7), Outcome::Done(7));
+        assert_eq!(slot.with(|_| 7), Ok(7));
         assert!(!slot.is_closed());
         slot.close();
         slot.close();
         assert!(slot.is_closed());
         assert_eq!(drops.load(Ordering::SeqCst), 1);
-        assert_eq!(slot.with(|_| 7), Outcome::Closed);
+        assert_eq!(slot.with(|_| 7), Err(NotRun::Closed));
     }
 
     #[test]
@@ -195,13 +192,13 @@ mod tests {
             );
             thread::yield_now();
         }
-        assert_eq!(slot.with(|_| 1), Outcome::Closed, "a new verb is refused");
-        release_tx.send(()).unwrap();
         assert_eq!(
-            verb.join().unwrap(),
-            Outcome::Done(1),
-            "the in-flight verb finished"
+            slot.with(|_| 1),
+            Err(NotRun::Closed),
+            "a new verb is refused"
         );
+        release_tx.send(()).unwrap();
+        assert_eq!(verb.join().unwrap(), Ok(1), "the in-flight verb finished");
         closer.join().unwrap();
     }
 
@@ -211,11 +208,11 @@ mod tests {
         let slot = Slot::new(Probe(Arc::clone(&drops)));
         let outcome = slot.with(|_| -> u32 { panic!("a verb panicked") });
         // Straight after the panic: closed, the value gone, the panic reported, no poison.
-        assert_eq!(outcome, Outcome::Panicked("a verb panicked".to_owned()));
+        assert_eq!(outcome, Err(NotRun::Panicked("a verb panicked".to_owned())));
         assert!(slot.is_closed());
         assert_eq!(drops.load(Ordering::SeqCst), 1);
         assert!(!slot.value.is_poisoned());
-        assert_eq!(slot.with(|_| 1), Outcome::Closed);
+        assert_eq!(slot.with(|_| 1), Err(NotRun::Closed));
         slot.close();
         assert_eq!(drops.load(Ordering::SeqCst), 1);
     }
@@ -225,7 +222,10 @@ mod tests {
         let slot = Slot::new(0_u32);
         let code = 7;
         let outcome = slot.with(|_| -> u32 { panic!("failed with code {code}") });
-        assert_eq!(outcome, Outcome::Panicked("failed with code 7".to_owned()));
+        assert_eq!(
+            outcome,
+            Err(NotRun::Panicked("failed with code 7".to_owned()))
+        );
     }
 
     #[test]
@@ -241,11 +241,11 @@ mod tests {
         };
         assert!(poisoner.join().is_err());
         assert!(slot.value.is_poisoned());
-        assert_eq!(slot.with(|_| 1), Outcome::Poisoned, "told once");
+        assert_eq!(slot.with(|_| 1), Err(NotRun::Poisoned), "told once");
         assert!(!slot.value.is_poisoned());
         assert_eq!(drops.load(Ordering::SeqCst), 1, "the value is gone");
         assert!(slot.is_closed());
-        assert_eq!(slot.with(|_| 1), Outcome::Closed, "then plainly closed");
+        assert_eq!(slot.with(|_| 1), Err(NotRun::Closed), "then plainly closed");
     }
 
     #[test]
@@ -263,6 +263,6 @@ mod tests {
         slot.close();
         assert_eq!(drops.load(Ordering::SeqCst), 1);
         assert!(!slot.value.is_poisoned());
-        assert_eq!(slot.with(|_| 1), Outcome::Closed);
+        assert_eq!(slot.with(|_| 1), Err(NotRun::Closed));
     }
 }

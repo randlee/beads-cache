@@ -11,8 +11,10 @@ concrete composition and converts arguments, replies and errors.
 
 It depends on `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli` and
 `sc-beads` (the Boundaries table of [`../architecture.md`](../architecture.md))
-and, third party, on `pyo3` (workspace) with `serde` and `serde_json`
-(already in the workspace) to convert replies; `serde` and `serde_json` are allowed third-party dependencies of this crate (lead ruling R3, bc-lead, 2026-10-24).
+and, third party, on `pyo3`, `serde` and `serde_json` (to convert replies) and
+`dunce` (canonical paths), all through `[workspace.dependencies]`; `serde` and
+`serde_json` are allowed third-party dependencies of this crate (lead ruling R3)
+and `dunce` was added for it (lead ruling R12), bc-lead, 2026-10-24.
 
 | Module | Contents |
 |---|---|

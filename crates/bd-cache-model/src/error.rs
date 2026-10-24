@@ -758,10 +758,6 @@ impl std::error::Error for CacheError {
 }
 
 #[cfg(test)]
-#[allow(
-    clippy::unwrap_used,
-    reason = "test code: a failed unwrap is a test failure"
-)]
 mod classification_tests {
     use std::collections::BTreeSet;
 
@@ -817,7 +813,7 @@ mod classification_tests {
     );
 
     /// Samples of every variant, with and without a kept source.
-    #[allow(clippy::too_many_lines, reason = "a table of one sample per case")]
+    #[expect(clippy::too_many_lines, reason = "a table of one sample per case")]
     fn samples() -> Vec<CacheError> {
         let x = ScopeId::phase("x").unwrap();
         let unmet = BTreeMap::from([(
