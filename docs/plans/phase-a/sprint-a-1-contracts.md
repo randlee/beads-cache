@@ -316,8 +316,8 @@ impl CallFailure { pub fn into_error(self, cut_detail: impl Into<String>) -> Cac
 pub struct RowView { pub bead: Bead, pub stale: bool, pub blocked: Option<Vec<BeadId>> /* None = unknown, Some([]) = not blocked */ }
 pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<Timestamp>, pub pending: u32, pub outage: Option<Outage> }
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<Timestamp>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
-pub enum ReadyBasis { Fresh, Cached { fetched_at: Timestamp, stale: bool }, Unknown }
-pub struct ReadyReply { pub scope: ScopeId, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
+pub enum ReadyBasis { Fresh { fetched_at: Timestamp /* a-1 amendment 2 */ }, Cached { fetched_at: Timestamp, stale: bool }, Unknown }
+pub struct ReadyReply { pub scope: ScopeId, pub last_ok_at: Option<Timestamp> /* a-1 amendment 2, ADR-BDC-0005 */, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
         pub read_fallback: Option<String> /* why a requested fresh answer fell back */,
     pub missing_rows: Vec<BeadId> /* ready per bd but no cached row yet; omitted from `ready` */ }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
@@ -499,6 +499,7 @@ needs it (see the amendment rule under Outcome and closure).
 |---|---|---|---|---|
 | 1 | `sprint/a-1-amend-1` | a-4 | `CacheError::StoreFailed` (`BD_CACHE.STORE_FAILED`): `detail` (step and file) and an optional `StoreCause` source kept by `Error::source()` and rendered as `source: {detail}` in `to_json`; recovery fix text; golden; `CacheStore` doc note that a store reports its own failures as `STORE_FAILED`; ADR-MODEL-0002 amendment. The baseline has no v3 code for store failures, so none was reused. a-4 switches its store errors from `NO_DATABASE` itself. | lead ruling, bc-lead, 2026-10-24 |
 | 1 | `sprint/a-1-amend-1` | a-6 | `StoreStatus.stale: Vec<BeadId>` (REQ-BDC-0603): the `stale_rows` set, filled by `FakeStore`; `CacheStore` docs say `status()` reports it; store contract rule `status_lists_stale_rows_until_reread` (a failed read-back is listed, a re-read clears it). | lead ruling, bc-lead, 2026-10-24 |
+| 2 | `sprint/a-1-amend-2` | a-6 | `ReadyReply.last_ok_at: Option<Timestamp>` (ADR-BDC-0005: every read reply carries the scope's `last_ok_at`); `ReadyBasis::Fresh { fetched_at: Timestamp }` (ADR-BDC-0002: the basis states bd's fetch time); goldens; ADR-MODEL-0003 amendment (a-1 amendment 2). | lead ruling, bc-lead, 2026-10-24 |
 
 ## Requirement scope notes
 
