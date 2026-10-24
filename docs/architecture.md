@@ -386,47 +386,68 @@ bd-incompatible changes become breaking releases of `sc-beads` and
 `sc-bd-cli`. Needs agreement from the btit side on the shared API (sync
 calls, error type, tolerant vs strict rows).
 
-## ADR-BDC-0008: User metadata extensions
+## ADR-BDC-0008: User metadata extensions as consumer-owned schema packages
 
 **Status:** Draft (later phase; not in phase a)
 
 Context: teams extend beads with their own fields in bd's free-form
-`metadata`, and may require some of them. atm-beads already does this:
-Pydantic models (`bead_schema.py`) exported as JSON Schemas
-(`atm-beads/schemas/`), role-based required fields stamped at pour and
-required at close (`close_fields.py`), and structured values such as a QA
-bead's array of required review agents. bd itself accepts any metadata and
-enforces none of it, and btit will want to show these fields too.
+`metadata`, and may require some of them. atm-beads already does this: its
+Pydantic models (`bead_schema.py`) are exported as JSON Schemas in
+randlee/atm-core `.claude/skills/atm-beads/schemas/` (dev, fix, sanity, qa,
+finding, gate, root, sprint and stack beads), with role-based fields
+stamped at pour and required at close (`close_fields.py`), and structured
+values such as the QA bead's list of required review agents. bd accepts any
+metadata and enforces none of it. The schemas belong to the skill that
+defines them and change when that skill is upgraded, so they cannot be
+compiled into, or released with, the shared crates.
 
 Decision (proposed):
-- Extensions are JSON Schema files kept in the repository, each describing
-  `metadata` for the beads it selects (by `issue_type`, a label, or a
-  `metadata.role` value), with lifecycle rules such as required at pour or
-  required at close. A team's own models (for example atm-beads' Pydantic
-  models) can stay the source and export them.
-- One validator, in `sc-beads`, beside the strict bd row type, so bdc, btit
-  and Python tools (via the exported schemas and the later PyO3 bindings)
-  agree.
-- bdc enforces on writes: the view after the write is checked against the
-  selected schemas, and a violation is a typed refusal
+- **Schema packages ship with their consumer.** A package is a directory the
+  skill owns (for atm-beads, its `schemas/`), plus a small manifest: package
+  name, version, and for each schema the beads it selects (`issue_type`, a
+  label, or a `metadata.role` value) and its lifecycle rules (required at
+  pour, required at close). The skill's own models stay the source and
+  export the package.
+- **bdc loads packages at runtime** from configured paths, with no bdc
+  release needed to add or change one, and validates with a JSON Schema
+  validator in `sc-beads` that btit and the later PyO3 bindings share.
+- **Several versions at once.** A pour stamps the package and version into
+  the bead's metadata (for example `schema: "atm-beads/qa-bead@3"`). bdc keeps
+  every configured version loaded and validates each bead against the
+  version it was poured with, so beads poured before a skill upgrade stay
+  valid under their old schema while new beads use the new one. A bead whose
+  stamped version is not loaded is reported (and refused on write when the
+  package says `enforce`). An unstamped bead is validated against the
+  package's current version, or skipped, per package setting.
+- **Enforced on writes in bdc:** the view after the write is checked against
+  the bead's schema; a violation is a typed refusal
   (`BD_CACHE.EXTENSION_INVALID` with the failing fields), or a warning when
-  the extension is marked `warn`.
-- Sync never rejects rows for extension violations (agents still write with
-  raw `bd`); it records them and `get` / `status` report them. bd's own row
+  the package marks it `warn`.
+- **Reported, not rejected, on sync:** agents still write with raw `bd`, so
+  sync records violations and `get` / `status` show them. bd's own row
   contract stays strict and separate.
-- btit uses the same schemas to render typed fields, build edit forms and
-  show violations.
+- **btit** uses the same packages to render typed fields, build edit forms
+  and show violations.
+- Rules that JSON Schema cannot express (for example "ids, or exactly
+  `["NONE"]`", or checks across beads) are either written as JSON Schema
+  where possible (`if`/`then`, `dependentRequired`) or left to the skill's
+  own Python validation in CI or `doctor`. Running Pydantic in-process is not
+  an option (Pydantic's Monty interpreter cannot import third-party packages);
+  sandboxed plain-Python rule scripts are a possible later addition.
 
-Open: structured values. `bd update --set-metadata` stores only flat
-scalars (REQ-BDC-0303), and BD-CACHE v1 excludes structured metadata from
-the journal, so arrays like the QA reviewer list can be read and validated
-but not written through the cache today. `bd update --metadata <json>` and
-the `/v0` `metadata: {merge, set, unset}` patch can carry them; whether
-`--metadata` merges or replaces the whole object must be probed before the
-journal supports it.
+Open:
+- Structured values. `bd update --set-metadata` stores only flat scalars
+  (REQ-BDC-0303), and BD-CACHE v1 keeps structured metadata out of the
+  journal, so arrays like the QA reviewer list can be read and validated but
+  not written through the cache today. `bd update --metadata <json>` and the
+  `/v0` `metadata: {merge, set, unset}` patch can carry them; whether
+  `--metadata` merges or replaces must be probed first. Where these values
+  live and how they are written is being confirmed with fenix.
+- The manifest format and the version-stamp key.
 
-Consequences: adds a schema-selection model and validator to `sc-beads` and a
-new error code; needs the structured-metadata write path settled first.
+Consequences: adds schema-package loading, version selection and a validator
+to `sc-beads`, a new error code, and a pour-time version stamp in each
+consuming skill.
 
 ## Per-Crate Architecture
 
