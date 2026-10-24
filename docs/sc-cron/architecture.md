@@ -1,6 +1,6 @@
 # sc-cron Architecture
 
-Status: draft. Domain code: `CRON`. Requirements:
+Status: approved. ADR-CRON-0001..0006 are Approved (lead ruling 2026-10-24, a-3 QA-1). Domain code: `CRON`. Requirements:
 [requirements.md](requirements.md). Governing repo-level decision:
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime).
 Created by sprint a-3, which lists ADR-CRON-0001..0006 in its `adrs`.
@@ -155,9 +155,10 @@ between slots:
    write) or a retry is due. A slot whose `(id, generation)` is unchanged is
    kept with its run in flight. Any other old slot is dropped, which cancels
    its run. If shutdown is requested mid-reload, no new slot is built but
-   unchanged slots are still kept, so their runs reach the drain. A failed reload (including a corrupt row) is logged with its
-   code and retried after 1 s, doubling to 60 s (the shift is capped, so it
-   never overflows).
+   unchanged slots are still kept, so their runs reach the drain. A failed
+   reload (including a corrupt row) is logged with its code and retried
+   after 1 s, doubling to 60 s (the shift is capped, so it never
+   overflows).
 2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,
    and record `TimedOut`.
 3. For each due slot: compute and store the next run (a fenced `set_next`
