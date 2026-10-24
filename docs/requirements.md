@@ -412,6 +412,8 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 `status` returns the `meta` table, journal counts per `phase:state`, per-phase sync state and bead counts, and every escalated entry until it is resolved.
 
+*Amended (lead ruling, bc-lead, 2026-10-24): `status` also lists the stale rows (beads whose read-back failed, REQ-BDC-0405) until they are re-read; carried by `StoreStatus.stale` (a-1 amendment 1).*
+
 **Source:** BD-CACHE.md CLI, Failure handling
 **Acceptance evidence:** a-6 status tests
 
