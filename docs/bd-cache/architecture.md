@@ -25,7 +25,7 @@ crate depends only on `bd-cache-model` and `sc-beads`, never the store or
 | `lib.rs` | a-1 | `Cache`, `new`, the public verbs (each delegates to its module), the store passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert`, `open_work`), the `testing` hooks |
 | `outage.rs` | a-1 | `call`, `classify`, `note_unavailable`, `note_ok` |
 | `view.rs`, `backend_check.rs`, `miss.rs` | a-1 | `current_view`, `run`, `fill` |
-| `write.rs`, `drain.rs` | a-5 | stubs until a-5 |
+| `write.rs`, `drain.rs` | a-5 | write path and drain (`docs/bd-cache/write-path.md`) |
 | `get.rs`, `refresh.rs`, `list.rs`, `sync.rs`, `ready.rs`, `resolve.rs`, `prune.rs`, `status.rs` | a-6 | stubs until a-6 |
 | `tests/common/` | a-1 | `World` (the Python suite's world) and fixtures |
 | `tests/helpers_*.rs` | a-1 | helper tests |
