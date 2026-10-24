@@ -327,9 +327,9 @@ Public contract points here.
 
 ## Build note
 
-Until sprint a-1's workspace root lands, `crates/sc-cron/Cargo.toml` is
-self-contained (explicit versions, no `workspace = true`). A dev-dependency
-on itself with `test-utils` means plain `cargo test --manifest-path
-crates/sc-cron/Cargo.toml` runs every test. Once a-1 merges, an amendment
-moves the dependencies to `[workspace.dependencies]`, switches the crate to
-workspace inheritance, and `cargo build --workspace` covers it.
+`sc-cron` is a workspace member (`members = ["crates/*"]`). It inherits the
+package fields, `[workspace.dependencies]` and `[workspace.lints]`, plus
+crate-level `forbid(unsafe_code)` and `warn(unreachable_pub)`. A dev-dependency
+on itself with `test-utils` means `cargo test --workspace` runs every test.
+It is validated with the workspace commands in the sprint doc
+(`docs/plans/phase-a/sprint-a-3-sc-cron.md`).

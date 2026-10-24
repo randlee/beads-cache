@@ -61,9 +61,11 @@ fn store_kind(result: Result<impl std::fmt::Debug, CronError>) -> StoreErrorKind
 }
 
 struct Harness {
-    _root: TempDir,
-    path: PathBuf,
+    // Fields drop in declaration order: the store (and its connection) must
+    // close before the temp dir is removed, or Windows cannot delete the file.
     store: SqliteScheduleStore,
+    path: PathBuf,
+    _root: TempDir,
 }
 
 impl Harness {
