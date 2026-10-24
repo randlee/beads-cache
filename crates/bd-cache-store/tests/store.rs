@@ -443,9 +443,10 @@ fn the_outage_is_read_whole_while_another_connection_toggles_it() {
         );
     }
     let deadline = Instant::now() + STAGE_TIMEOUT;
-    let mut reads = 0_u32;
-    let mut failure = None;
-    while toggles.load(Ordering::Relaxed) < TOGGLES {
+    // One read before the loop, so `reads > 0` holds however fast the writer is.
+    let mut failure = store.outage().err();
+    let mut reads = 1_u32;
+    while failure.is_none() && toggles.load(Ordering::Relaxed) < TOGGLES {
         if Instant::now() >= deadline {
             let done = toggles.load(Ordering::Relaxed);
             let result = finish(&stop);

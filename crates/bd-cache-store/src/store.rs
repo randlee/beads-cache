@@ -157,7 +157,8 @@ impl SqliteStore {
     /// - `BD_CACHE.WRONG_DATABASE`: the file records another `project_id` (REQ-BDC-0104).
     /// - `BD_CACHE.STORE_FAILED`: the file cannot be created or opened, is not
     ///   SQLite, refuses WAL, or this process already has a connection to it
-    ///   (NFR-BDC-0007; ADR-STORE-0003); the underlying error is the source.
+    ///   (NFR-BDC-0007; ADR-STORE-0003); the underlying error, when there is
+    ///   one, is the source.
     pub fn open_at(path: &Path, identity: &DatabaseIdentity) -> Result<Self, CacheError> {
         let at = |what| step(path, what);
         let dir = path.parent().filter(|d| !d.as_os_str().is_empty());

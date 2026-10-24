@@ -151,9 +151,10 @@ Decision:
 - The store's own failures are `BD_CACHE.STORE_FAILED`
   (`CacheError::store_failed`): `detail` names the step and the file, and
   the underlying error (rusqlite, I/O, serde_json) is kept as the error's
-  `source`. A stored row that does not decode, an unknown edge type, an
-  invalid stored id or timestamp are `STORE_FAILED` with no source, naming
-  the entry; they are never skipped. `NO_DATABASE` means only missing or
+  `source`. These are `STORE_FAILED` with no source: a stored row that
+  does not decode, an unknown edge type, an invalid stored id or timestamp
+  (each naming the entry, never skipped); a refused one-connection claim
+  (NFR-BDC-0007); and a journal mode SQLite will not set to WAL. `NO_DATABASE` means only missing or
   invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
   (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
