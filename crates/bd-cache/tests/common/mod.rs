@@ -21,7 +21,7 @@ use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
 use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
-use sc_beads::{Actor, Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef};
+use sc_beads::{Actor, Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
 
 /// The cache under test.
 pub type TestCache = Cache<FakeStore, FakeDrainLock, FakeBackend>;
@@ -36,13 +36,23 @@ pub const START: &str = "2026-10-23T10:00:00Z";
 /// The `phase-x` scope.
 #[must_use]
 pub fn x() -> ScopeId {
-    ScopeId::phase("x")
+    ScopeId::phase("x").unwrap_or_else(|e| panic!("{e}"))
 }
 
 /// A bead id.
 #[must_use]
 pub fn id(s: &str) -> BeadId {
-    BeadId::from(s)
+    sc_beads::testing::id(s)
+}
+
+/// A [`Timestamp`] from fixture text.
+///
+/// # Panics
+///
+/// When `s` is not RFC 3339 (a fixture bug).
+#[must_use]
+pub fn ts(s: &str) -> Timestamp {
+    Timestamp::parse(s).unwrap_or_else(|e| panic!("{e}"))
 }
 
 /// A world: bd, store, lock and clock, as shared handles.
@@ -91,7 +101,7 @@ impl World {
     pub fn add(&self, name: &str, f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
         b.labels = vec!["phase-x".into()];
-        b.updated_at = self.clock.now_utc();
+        b.updated_at = self.clock.now_utc().into();
         f(&mut b);
         self.bd.insert(b.clone());
         self.clock.advance(Duration::from_secs(1));
@@ -159,7 +169,7 @@ impl Default for World {
 #[must_use]
 pub fn new_entry(key: &str, bead: &str, op: &str, args: &str) -> NewEntry {
     NewEntry {
-        idem_key: IdemKey::new(key),
+        idem_key: IdemKey::new(key).unwrap_or_else(|e| panic!("{e}")),
         scope: Some(x()),
         bead: id(bead),
         op: Op::parse(op, args).unwrap_or_else(|e| panic!("{op} {args}: {e}")),

@@ -40,11 +40,14 @@ fn sample_config_parses_and_derives_defaults() {
         1,
         "schema packages are kept opaque"
     );
-    assert_eq!(cfg.tick.as_ref().unwrap()["team"].as_str(), Some("atm-dev"));
+    let tick = cfg.tick.as_ref().unwrap();
+    assert_eq!(tick.team.as_deref(), Some("atm-dev"));
+    assert_eq!(tick.fallback_lead.as_deref(), Some("team-lead"));
+    assert_eq!(tick.phases_dir, Some(PathBuf::from(".atm-bd")));
     let cache = cfg.cache_config(ProjectRef::local(Some("/repo".into())));
     assert_eq!(
         cache.scopes,
-        vec![ScopeId::phase("bk"), ScopeId::phase("bj")]
+        vec![ScopeId::phase("bk").unwrap(), ScopeId::phase("bj").unwrap()]
     );
     assert_eq!(cache.call_timeout, Duration::from_secs(30));
     assert_eq!(cache.miss_fill_timeout, Duration::from_millis(500));
@@ -61,6 +64,11 @@ fn empty_config_is_all_defaults_and_unknown_keys_are_errors() {
     assert_eq!(cache.miss_fill_timeout, Duration::from_secs(2));
     assert!(RepoConfig::from_toml("surprise = true").is_err());
     assert!(RepoConfig::from_toml("scopes = \"bk\"").is_err());
+    let e = RepoConfig::from_toml("[tick]\nteams = \"x\"").unwrap_err();
+    assert!(
+        e.to_string().starts_with("invalid .beads/bd-cache.toml: "),
+        "{e}"
+    );
 }
 
 #[test]

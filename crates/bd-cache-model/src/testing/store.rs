@@ -4,7 +4,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::sync::{Arc, Mutex};
 
-use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint};
+use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use super::lock;
 use crate::error::CacheError;
@@ -111,7 +111,7 @@ impl State {
 /// let mut store = FakeStore::new();
 /// let mut b = sc_beads::testing::bead("b1");
 /// b.labels = vec!["phase-x".into()];
-/// let x = ScopeId::phase("x");
+/// let x = ScopeId::phase("x").unwrap();
 /// store.upsert_rows(Some(&x), &[b], false).unwrap();
 /// assert_eq!(store.rows_in_scope(&x).unwrap().len(), 1);
 /// ```
@@ -236,14 +236,14 @@ impl CacheStore for FakeStore {
         s: &ScopeId,
         blocked: &[BlockedRow],
         ready: &[BeadId],
-        at: &str,
+        at: &Timestamp,
     ) -> Result<(), CacheError> {
         lock(&self.state).ready.insert(
             s.clone(),
             ReadyBase {
                 blocked: blocked.to_vec(),
                 ready: ready.to_vec(),
-                fetched_at: at.to_owned(),
+                fetched_at: at.clone(),
                 stale: false,
             },
         );
@@ -273,7 +273,7 @@ impl CacheStore for FakeStore {
         Ok(lock(&self.state).journal.get(&seq).cloned())
     }
 
-    fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError> {
+    fn insert_entry(&mut self, e: NewEntry, at: &Timestamp) -> Result<Seq, CacheError> {
         let mut st = lock(&self.state);
         if let Some(held) = st.journal.values().find(|j| j.idem_key == e.idem_key) {
             return Err(CacheError::IdemConflict {
@@ -300,7 +300,7 @@ impl CacheStore for FakeStore {
                 attempts: 0,
                 last_error: None,
                 announced_at: None,
-                created_at: at.to_owned(),
+                created_at: at.clone(),
                 applied_at: None,
             },
         );
@@ -315,9 +315,9 @@ impl CacheStore for FakeStore {
         Ok(lock(&self.state).entries(|e| e.state == JournalState::Pending && e.bead == *id))
     }
 
-    fn applied_since(&self, at: &str) -> Result<Vec<JournalEntry>, CacheError> {
+    fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError> {
         Ok(lock(&self.state).entries(|e| {
-            e.state == JournalState::Applied && e.applied_at.as_deref().is_some_and(|t| t >= at)
+            e.state == JournalState::Applied && e.applied_at.as_ref().is_some_and(|t| t >= at)
         }))
     }
 
@@ -326,7 +326,7 @@ impl CacheStore for FakeStore {
         seq: Seq,
         row: Option<&Bead>,
         err: Option<&str>,
-        at: &str,
+        at: &Timestamp,
     ) -> Result<(), CacheError> {
         let mut st = lock(&self.state);
         let bead = st.entry_mut(seq)?.bead.clone();
@@ -341,11 +341,11 @@ impl CacheStore for FakeStore {
         let e = st.entry_mut(seq)?;
         e.state = JournalState::Applied;
         e.last_error = err.map(str::to_owned);
-        e.applied_at = Some(at.to_owned());
+        e.applied_at = Some(at.clone());
         Ok(())
     }
 
-    fn record_attempt(&mut self, seq: Seq, err: &str, _at: &str) -> Result<u32, CacheError> {
+    fn record_attempt(&mut self, seq: Seq, err: &str, _at: &Timestamp) -> Result<u32, CacheError> {
         let mut st = lock(&self.state);
         let e = st.entry_mut(seq)?;
         e.attempts += 1;
@@ -353,7 +353,7 @@ impl CacheStore for FakeStore {
         Ok(e.attempts)
     }
 
-    fn escalate(&mut self, seq: Seq, reason: &str, _at: &str) -> Result<(), CacheError> {
+    fn escalate(&mut self, seq: Seq, reason: &str, _at: &Timestamp) -> Result<(), CacheError> {
         let mut st = lock(&self.state);
         let e = st.entry_mut(seq)?;
         e.state = JournalState::Escalated;
@@ -366,7 +366,7 @@ impl CacheStore for FakeStore {
         seq: Seq,
         note: &str,
         actor: &Actor,
-        _at: &str,
+        _at: &Timestamp,
     ) -> Result<(), CacheError> {
         let mut st = lock(&self.state);
         let e = st
@@ -391,9 +391,9 @@ impl CacheStore for FakeStore {
             .entries(|e| e.state == JournalState::Escalated && e.announced_at.is_none()))
     }
 
-    fn mark_announced(&mut self, seq: Seq, at: &str) -> Result<(), CacheError> {
+    fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
         let mut st = lock(&self.state);
-        st.entry_mut(seq)?.announced_at = Some(at.to_owned());
+        st.entry_mut(seq)?.announced_at = Some(at.clone());
         Ok(())
     }
 
@@ -401,7 +401,9 @@ impl CacheStore for FakeStore {
         let mut st = lock(&self.state);
         let outcome = match st.meta.get(META_SHA) {
             None => FingerprintOutcome::Recorded,
-            Some(sha) if *sha == f.schema_sha256 => return Ok(FingerprintOutcome::Unchanged),
+            Some(sha) if sha == f.schema_sha256.as_str() => {
+                return Ok(FingerprintOutcome::Unchanged);
+            }
             Some(_) => FingerprintOutcome::Rebuilt,
         };
         if outcome == FingerprintOutcome::Rebuilt {
@@ -411,7 +413,7 @@ impl CacheStore for FakeStore {
             st.sync.clear();
             st.ready.clear();
         }
-        st.meta.insert(META_SHA.into(), f.schema_sha256.clone());
+        st.meta.insert(META_SHA.into(), f.schema_sha256.to_string());
         st.meta.insert(META_VERSION.into(), f.bd_version.clone());
         st.meta
             .insert(META_SCHEMA_VERSION.into(), f.schema_version.clone());
@@ -446,16 +448,21 @@ impl CacheStore for FakeStore {
 
     fn outage(&self) -> Result<Option<Outage>, CacheError> {
         let st = lock(&self.state);
-        Ok(st.meta.get(META_OUTAGE_SINCE).map(|since| Outage {
-            since: since.clone(),
-            last_error: st.meta.get(META_OUTAGE_ERROR).cloned().unwrap_or_default(),
-        }))
+        Ok(st
+            .meta
+            .get(META_OUTAGE_SINCE)
+            .and_then(|since| Timestamp::parse(since).ok())
+            .map(|since| Outage {
+                since,
+                last_error: st.meta.get(META_OUTAGE_ERROR).cloned().unwrap_or_default(),
+            }))
     }
 
     fn set_outage(&mut self, o: Option<&Outage>) -> Result<(), CacheError> {
         let mut st = lock(&self.state);
         if let Some(o) = o {
-            st.meta.insert(META_OUTAGE_SINCE.into(), o.since.clone());
+            st.meta
+                .insert(META_OUTAGE_SINCE.into(), o.since.to_string());
             st.meta
                 .insert(META_OUTAGE_ERROR.into(), o.last_error.clone());
         } else {

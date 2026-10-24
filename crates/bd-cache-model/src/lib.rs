@@ -11,7 +11,7 @@
 //!   scopes ([`ScopeId`]) and store-side state;
 //! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
-//! - reply and report shapes, [`CallKind`] / [`CallOutcome`];
+//! - reply and report shapes, [`CallKind`] / [`CallFailure`];
 //! - [`CacheError`] with every `BD_CACHE.*` code and the backend mapping
 //!   (REQ-BDC-0802, 0803).
 //!
@@ -48,14 +48,17 @@ mod store;
 pub mod testing;
 
 #[doc(inline)]
-pub use call::{CallKind, CallOutcome};
+pub use call::{CallFailure, CallKind};
 #[doc(inline)]
 pub use config::{
-    CacheConfig, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS, DEFAULT_MISS_FILL_TIMEOUT,
-    DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
+    CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
+    DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
+    SchemaPackageRef, TickConfig,
 };
 #[doc(inline)]
-pub use error::{CacheError, PreconditionReason, TYPED_ERROR_EXIT, Unmet};
+pub use error::{
+    BackendCause, CacheError, GuardKey, PreconditionReason, SyncCause, TYPED_ERROR_EXIT, Unmet,
+};
 #[doc(inline)]
 pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
 #[doc(inline)]
@@ -70,7 +73,7 @@ pub use reply::{
     StatusReply, SyncReport, WriteReply,
 };
 #[doc(inline)]
-pub use scope::ScopeId;
+pub use scope::{PhaseName, ScopeId};
 #[doc(inline)]
 pub use sender::{EscalationSender, SendError};
 #[doc(inline)]

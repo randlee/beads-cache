@@ -1,8 +1,11 @@
 //! Repository configuration (`.beads/bd-cache.toml`), [`CacheConfig`] and [`DrainBudget`].
 //!
-//! `bd-cache-store` owns the one loader (`load_repo_config`, a-4), which reads
-//! the file and parses it with [`RepoConfig::from_toml`]. Unknown keys are an
-//! error; a missing file means [`RepoConfig::default`].
+//! The file is described in the approved "Repository configuration" section
+//! of `docs/architecture.md`. `bd-cache-store` owns the one loader
+//! (`load_repo_config`, a-4), which reads the file and parses it with
+//! [`RepoConfig::from_toml`]. Unknown keys are an error; a missing file means
+//! [`RepoConfig::default`]. `toml` is a private parsing dependency
+//! (ADR-MODEL-0004): no toml type appears in this API.
 //!
 //! ```toml
 //! cache_path = ".bd-cache/atm-dev.bd-cache.sqlite3"   # optional
@@ -10,12 +13,16 @@
 //! call_timeout_s = 30                                 # optional
 //! miss_fill_timeout_ms = 2000                         # optional
 //! max_attempts = 5                                    # optional
-//! schema_packages = []                                # opaque in phase a (ADR-BDC-0008)
+//! schema_packages = []                                # opaque in phase a
 //!
 //! [tick]                                              # bd-cache-sync's keys (a-7)
 //! team = "atm-dev"
+//! fallback_lead = "team-lead"
+//! phases_dir = ".atm-bd"
+//! phases = ["bk"]
 //! ```
 
+use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -54,20 +61,62 @@ pub struct RepoConfig {
     /// Write attempts before escalation; default 5.
     #[serde(default)]
     pub max_attempts: Option<u32>,
-    /// Schema packages (ADR-BDC-0008); opaque and ignored in phase a.
+    /// Schema packages to load by path (`docs/architecture.md`, Repository
+    /// configuration); opaque and ignored in phase a.
     #[serde(default)]
-    pub schema_packages: Vec<toml::Value>,
-    /// bd-cache-sync's keys (team, fallback lead, phases dir), read by a-7.
+    pub schema_packages: Vec<SchemaPackageRef>,
+    /// bd-cache-sync's keys, read by a-7.
     #[serde(default)]
-    pub tick: Option<toml::Table>,
+    pub tick: Option<TickConfig>,
 }
+
+/// One `schema_packages` entry, kept opaque in phase a.
+///
+/// The package format is decided in a later phase (`docs/architecture.md`,
+/// Repository configuration); phase a only accepts and keeps the entry.
+#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(transparent)]
+pub struct SchemaPackageRef(toml::Value);
+
+/// The `[tick]` table: the sync task's keys (bd-cache-sync, a-7).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TickConfig {
+    /// The ATM team of the phase leads (REQ-BDC-0701).
+    #[serde(default)]
+    pub team: Option<String>,
+    /// The lead told when no phase lead is known.
+    #[serde(default)]
+    pub fallback_lead: Option<String>,
+    /// Where the `phase-*.toml` phase files live.
+    #[serde(default)]
+    pub phases_dir: Option<PathBuf>,
+    /// Limits the synced phases (REQ-BDC-0702).
+    #[serde(default)]
+    pub phases: Option<Vec<String>>,
+}
+
+/// `.beads/bd-cache.toml` did not parse.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConfigError {
+    /// What was wrong, with the position.
+    pub detail: String,
+}
+
+impl fmt::Display for ConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid .beads/bd-cache.toml: {}", self.detail)
+    }
+}
+
+impl std::error::Error for ConfigError {}
 
 impl RepoConfig {
     /// Parses the text of `.beads/bd-cache.toml`.
     ///
     /// # Errors
     ///
-    /// The TOML error for invalid TOML, an unknown key or a mistyped value.
+    /// [`ConfigError`] for invalid TOML, an unknown key or a mistyped value.
     ///
     /// # Examples
     ///
@@ -75,17 +124,20 @@ impl RepoConfig {
     /// use bd_cache_model::{RepoConfig, ScopeId};
     /// let cfg = RepoConfig::from_toml("scopes = [\"bk\"]\nmax_attempts = 3\n").unwrap();
     /// let cache = cfg.cache_config(sc_beads::ProjectRef::local(None));
-    /// assert_eq!(cache.scopes, vec![ScopeId::phase("bk")]);
+    /// assert_eq!(cache.scopes, vec![ScopeId::phase("bk").unwrap()]);
     /// assert_eq!(cache.max_attempts, 3);
     /// assert!(RepoConfig::from_toml("surprise = 1").is_err());
     /// ```
-    pub fn from_toml(text: &str) -> Result<Self, toml::de::Error> {
-        toml::from_str(text)
+    pub fn from_toml(text: &str) -> Result<Self, ConfigError> {
+        toml::from_str(text).map_err(|e| ConfigError {
+            detail: e.to_string(),
+        })
     }
 
     /// The cache configuration for `project`, with defaults for unset keys.
     ///
-    /// Blank scope names are skipped; duplicates are kept once.
+    /// Blank or invalid scope names are skipped (the loader reports them);
+    /// duplicates are kept once.
     #[must_use]
     pub fn cache_config(&self, project: ProjectRef) -> CacheConfig {
         let mut scopes: Vec<ScopeId> = Vec::new();

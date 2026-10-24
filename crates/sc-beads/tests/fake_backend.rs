@@ -11,7 +11,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use sc_beads::testing::{bead, FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
+use sc_beads::testing::{bead, id, FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
 use sc_beads::{
     Actor, BeadId, BeadsCacheError, CacheBackend, Clock, Deadline, Guards, ProjectRef, Refusal,
 };
@@ -24,7 +24,7 @@ fn setup() -> (Arc<ManualClock>, FakeBackend) {
 }
 
 fn ids(id: &str) -> Vec<BeadId> {
-    vec![BeadId::from(id)]
+    vec![sc_beads::testing::id(id)]
 }
 
 #[test]
@@ -68,7 +68,7 @@ fn injections_are_consumed_in_order_by_the_first_matching_call() {
         |c| matches!(c, FakeCall::ListByIds(v) if v.len() == 2),
         Injection::Unavailable { timed_out: false },
     );
-    let id = BeadId::from("b1");
+    let id = id("b1");
     let g = Guards::default();
     assert!(matches!(
         fake.close_guarded(&p, &id, None, &g, &a, d),
@@ -82,7 +82,7 @@ fn injections_are_consumed_in_order_by_the_first_matching_call() {
         fake.list_by_ids(&p, &ids("b1"), d).is_ok(),
         "one id does not match the injection"
     );
-    let two = [BeadId::from("b1"), BeadId::from("b2")];
+    let two = [sc_beads::testing::id("b1"), sc_beads::testing::id("b2")];
     assert!(fake.list_by_ids(&p, &two, d).unwrap_err().is_unavailable());
     assert_eq!(fake.pending_injections(), 0);
     fake.close_guarded(&p, &id, Some("r"), &g, &a, d).unwrap();
@@ -124,5 +124,5 @@ fn a_schema_change_changes_the_fingerprint() {
     let after = fake.fingerprint(&p, d).unwrap();
     assert_ne!(before.schema_sha256, after.schema_sha256);
     assert_eq!(after.schema_version, "2");
-    assert_eq!(clock.now_utc(), "2026-10-23T10:00:00Z");
+    assert_eq!(clock.now_utc().as_str(), "2026-10-23T10:00:00Z");
 }

@@ -24,12 +24,13 @@
 
 use std::collections::BTreeMap;
 
-use sc_beads::{Bead, BeadId, DepType, Edge, Guards, MetaValue, Patch};
+use sc_beads::{Assignee, Bead, BeadId, DepType, Edge, Guards, MetaValue, Patch};
 use serde_json::{Map, Value};
 
-use crate::error::{CacheError, Unmet};
+use crate::error::{CacheError, GuardKey, Unmet};
 use crate::journal::{JournalEntry, JournalState};
 use crate::pyjson::python_json;
+use crate::scope::{PhaseName, ScopeId};
 
 /// Op names, in BD-CACHE order.
 pub const OPS: [&str; 3] = ["close", "update", "dep_add"];
@@ -159,7 +160,7 @@ fn parse_patch(args: &Map<String, Value>) -> Result<Patch, CacheError> {
         p.status = Some(string_of(v, "status")?);
     }
     if let Some(v) = args.get("assignee") {
-        p.assignee = Some(string_of(v, "assignee")?);
+        p.assignee = Some(Assignee::from_wire(&string_of(v, "assignee")?));
     }
     if let Some(v) = args.get("add_labels") {
         p.add_labels = strings_of(v, "add_labels")?;
@@ -244,18 +245,17 @@ impl Op {
     /// assert_eq!(bad.code(), "BD_CACHE.BAD_ARGS");
     /// ```
     pub fn parse(op: &str, args_json: &str) -> Result<Op, CacheError> {
-        if !OPS.contains(&op) {
-            return Err(CacheError::BadOp {
-                detail: format!("unknown op {op:?}"),
-            });
-        }
-        let args: Value = serde_json::from_str(args_json)
-            .map_err(|e| bad_args(format!("args are not JSON: {e}")))?;
-        let Value::Object(args) = args else {
-            return Err(bad_args("args must be a JSON object"));
+        let args = || -> Result<Map<String, Value>, CacheError> {
+            let args: Value = serde_json::from_str(args_json)
+                .map_err(|e| bad_args(format!("args are not JSON: {e}")))?;
+            match args {
+                Value::Object(m) => Ok(m),
+                _ => Err(bad_args("args must be a JSON object")),
+            }
         };
         match op {
             "close" => {
+                let args = args()?;
                 if let Some(k) = args.keys().find(|k| k.as_str() != "reason") {
                     return Err(bad_args(format!("close takes only reason, got {k:?}")));
                 }
@@ -265,8 +265,9 @@ impl Op {
                     .transpose()?;
                 Ok(Op::Close { reason })
             }
-            "update" => parse_patch(&args).map(Op::Update),
-            _ => {
+            "update" => parse_patch(&args()?).map(Op::Update),
+            "dep_add" => {
+                let args = args()?;
                 let keys: Vec<&str> = args.keys().map(String::as_str).collect();
                 if keys != ["depends_on", "type"] {
                     return Err(bad_args("dep_add takes depends_on and type"));
@@ -274,9 +275,8 @@ impl Op {
                 let depends_on = args
                     .get("depends_on")
                     .map_or(Ok(String::new()), |v| string_of(v, "depends_on"))?;
-                if depends_on.is_empty() {
-                    return Err(bad_args("dep_add depends_on must be a bead id"));
-                }
+                let depends_on = BeadId::new(depends_on)
+                    .map_err(|e| bad_args(format!("dep_add depends_on: {e}")))?;
                 let t = args
                     .get("type")
                     .map_or(Ok(String::new()), |v| string_of(v, "type"))?;
@@ -285,11 +285,11 @@ impl Op {
                         "unknown dependency type {t:?}; use a bd dependency type"
                     ))
                 })?;
-                Ok(Op::DepAdd {
-                    depends_on: BeadId::from(depends_on),
-                    kind,
-                })
+                Ok(Op::DepAdd { depends_on, kind })
             }
+            _ => Err(CacheError::BadOp {
+                detail: format!("unknown op {op:?}; use one of {}", OPS.join(", ")),
+            }),
         }
     }
 
@@ -320,7 +320,7 @@ impl Op {
                     m.insert("status".into(), Value::String(s.clone()));
                 }
                 if let Some(a) = &p.assignee {
-                    m.insert("assignee".into(), Value::String(a.clone()));
+                    m.insert("assignee".into(), Value::String(a.as_wire().to_owned()));
                 }
                 if !p.add_labels.is_empty() {
                     m.insert("add_labels".into(), strings(&p.add_labels));
@@ -376,7 +376,11 @@ impl Op {
                     row.status = Some(s.clone());
                 }
                 if let Some(a) = &p.assignee {
-                    row.assignee = Some(a.clone());
+                    // As bd stores it: an unassigned bead has no assignee key.
+                    row.assignee = match a {
+                        Assignee::Unassigned => None,
+                        Assignee::Named(n) => Some(n.clone()),
+                    };
                 }
                 row.labels.retain(|l| !p.remove_labels.contains(l));
                 for l in &p.add_labels {
@@ -421,8 +425,8 @@ impl Op {
                     .as_ref()
                     .is_none_or(|s| row.status.as_ref() == Some(s))
                     && p.assignee
-                        .as_deref()
-                        .is_none_or(|a| row.assignee.as_deref().unwrap_or("") == a)
+                        .as_ref()
+                        .is_none_or(|a| a.matches(row.assignee.as_deref()))
                     && p.add_labels.iter().all(|l| row.labels.contains(l))
                     && !p.remove_labels.iter().any(|l| row.labels.contains(l))
                     && p.set_metadata
@@ -468,12 +472,10 @@ pub fn normalize(row: &Bead) -> Bead {
     b
 }
 
-/// The first `phase-<x>` label's suffix: the v3 `phase` column.
+/// The first valid `phase-<x>` label's suffix: the v3 `phase` column.
 #[must_use]
-pub fn phase_of(row: &Bead) -> Option<String> {
-    row.labels
-        .iter()
-        .find_map(|l| l.strip_prefix("phase-").map(str::to_owned))
+pub fn phase_of(row: &Bead) -> Option<PhaseName> {
+    ScopeId::from_labels(&row.labels).map(|s| s.phase_name().clone())
 }
 
 /// Parses a write precondition: `{status?, assignee?}`, with the `/v0` aliases
@@ -492,11 +494,12 @@ pub fn parse_precondition(json: &str) -> Result<Guards, CacheError> {
     let Value::Object(m) = v else {
         return Err(bad("precondition must be a JSON object".into()));
     };
-    let mut g = Guards::default();
+    let mut status: Option<String> = None;
+    let mut assignee: Option<String> = None;
     for (k, v) in &m {
         let slot = match k.as_str() {
-            "status" | "expected_status" => &mut g.status,
-            "assignee" | "expected_assignee" => &mut g.assignee,
+            "status" | "expected_status" => &mut status,
+            "assignee" | "expected_assignee" => &mut assignee,
             _ => {
                 return Err(bad(format!(
                     "unknown precondition key {k:?}; use status and assignee"
@@ -512,7 +515,10 @@ pub fn parse_precondition(json: &str) -> Result<Guards, CacheError> {
         }
         *slot = Some(s);
     }
-    Ok(g)
+    Ok(Guards {
+        status,
+        assignee: assignee.as_deref().map(Assignee::from_wire),
+    })
 }
 
 /// The canonical `precondition_json`, byte-identical to Python's `json.dumps(..., sort_keys=True)`.
@@ -520,7 +526,7 @@ pub fn parse_precondition(json: &str) -> Result<Guards, CacheError> {
 pub fn precondition_json(g: &Guards) -> String {
     let mut m = Map::new();
     if let Some(a) = &g.assignee {
-        m.insert("assignee".into(), Value::String(a.clone()));
+        m.insert("assignee".into(), Value::String(a.as_wire().to_owned()));
     }
     if let Some(s) = &g.status {
         m.insert("status".into(), Value::String(s.clone()));
@@ -530,23 +536,27 @@ pub fn precondition_json(g: &Guards) -> String {
 
 /// The precondition keys `row` does not meet, with expected and actual values.
 #[must_use]
-pub fn unmet(row: &Bead, g: &Guards) -> BTreeMap<String, Unmet> {
+pub fn unmet(row: &Bead, g: &Guards) -> BTreeMap<GuardKey, Unmet> {
     let mut out = BTreeMap::new();
-    let mut check = |key: &str, want: Option<&String>, have: Option<&String>| {
+    let mut check = |key: GuardKey, want: Option<&str>, have: Option<&str>| {
         if let Some(want) = want {
-            let actual = have.cloned().unwrap_or_default();
-            if *want != actual {
+            let actual = have.unwrap_or_default();
+            if want != actual {
                 out.insert(
-                    key.to_owned(),
+                    key,
                     Unmet {
-                        expected: want.clone(),
-                        actual,
+                        expected: want.to_owned(),
+                        actual: actual.to_owned(),
                     },
                 );
             }
         }
     };
-    check("status", g.status.as_ref(), row.status.as_ref());
-    check("assignee", g.assignee.as_ref(), row.assignee.as_ref());
+    check(GuardKey::Status, g.status.as_deref(), row.status.as_deref());
+    check(
+        GuardKey::Assignee,
+        g.assignee.as_ref().map(Assignee::as_wire),
+        row.assignee.as_deref(),
+    );
     out
 }

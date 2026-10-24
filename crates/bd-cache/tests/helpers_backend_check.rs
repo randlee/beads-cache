@@ -12,7 +12,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{backend_check, current_view, miss_fill, store, store_mut};
-use bd_cache_model::{CacheStore, CallOutcome, FingerprintOutcome};
+use bd_cache_model::{CacheStore, CallFailure, FingerprintOutcome};
 use common::{SCHEMA_TEXT, World, id, new_entry, x};
 use sc_beads::BD_SCHEMA_SHA256;
 use sc_beads::testing::{FakeOp, Injection};
@@ -28,7 +28,7 @@ fn test_schema_change_rebuilds_rows_and_keeps_the_journal() {
     store_mut(&mut c)
         .insert_entry(
             new_entry("k1", "b2", "close", r#"{"reason": "done"}"#),
-            "2026-10-23T10:00:00Z",
+            &common::ts("2026-10-23T10:00:00Z"),
         )
         .unwrap();
     let hard = w.after(Duration::from_secs(30));
@@ -105,13 +105,13 @@ fn a_failed_or_cut_check_records_nothing_in_meta() {
     w.bd.inject(FakeOp::Fingerprint, Injection::Failed(1));
     let r = backend_check(&mut c, w.after(Duration::from_secs(30)));
     assert!(
-        matches!(r, Err(CallOutcome::Error(ref e)) if e.code() == "BD_CACHE.BD_VERSION_FAILED"),
+        matches!(r, Err(CallFailure::Error(ref e)) if e.code() == "BD_CACHE.BD_VERSION_FAILED"),
         "{r:?}"
     );
     w.bd.set_cost_for(FakeOp::Fingerprint, Duration::from_secs(5));
     assert_eq!(
         backend_check(&mut c, w.after(Duration::from_secs(1))),
-        Err(CallOutcome::Cut)
+        Err(CallFailure::Cut)
     );
     assert!(
         !store(&c)

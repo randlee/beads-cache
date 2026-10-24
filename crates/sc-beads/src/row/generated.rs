@@ -215,7 +215,7 @@ pub(crate) static DEPENDENCY_FIELDS: &[FieldSpec] = &[
     FieldSpec {
         name: "depends_on_id",
         required: true,
-        kind: Kind::Str,
+        kind: Kind::Id,
     },
     FieldSpec {
         name: "id",
@@ -225,7 +225,7 @@ pub(crate) static DEPENDENCY_FIELDS: &[FieldSpec] = &[
     FieldSpec {
         name: "issue_id",
         required: true,
-        kind: Kind::Str,
+        kind: Kind::Id,
     },
     FieldSpec {
         name: "metadata",
@@ -419,7 +419,7 @@ pub(crate) static ISSUE_FIELDS: &[FieldSpec] = &[
     FieldSpec {
         name: "id",
         required: true,
-        kind: Kind::Str,
+        kind: Kind::Id,
     },
     FieldSpec {
         name: "is_blocked",
@@ -629,7 +629,7 @@ pub struct BondedFrom {
 /// (`issue_id`, `depends_on_id`, `type`); `labels` and `dependencies` default
 /// to `[]` and `metadata` to `{}`. `is_blocked` is declared by the schema but
 /// bd never emits it (ADR-BDC-0002).
-#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Bead {
     /// `acceptance_criteria`: string, optional.

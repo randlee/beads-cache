@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use bd_cache_model::{CacheError, CacheStore, CallKind, CallOutcome, DrainLock, normalize};
+use bd_cache_model::{CacheError, CacheStore, CallKind, DrainLock, normalize};
 use sc_beads::{Bead, BeadId, CacheBackend, Deadline};
 
 use crate::Cache;
@@ -23,18 +23,12 @@ pub(crate) fn fill<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let rows = crate::call(cache, CallKind::MissFill, hard, |b, p, d| {
         b.list_by_ids(p, std::slice::from_ref(id), d)
     })
-    .map_err(|outcome| match outcome {
-        CallOutcome::Cut => CacheError::BdUnavailable {
-            detail: format!(
-                "bd list --id {id}: no answer within {}ms",
-                limit.as_millis()
-            ),
-        },
-        CallOutcome::Outage(text) => CacheError::BdUnavailable { detail: text },
-        CallOutcome::Error(e) => e,
-        CallOutcome::Ok => CacheError::BdUnavailable {
-            detail: format!("bd list --id {id}: no rows"),
-        },
+    .map_err(|failure| {
+        // A cut becomes BD_UNAVAILABLE; an outage already is one (recorded by `call`).
+        failure.into_error(format!(
+            "bd list --id {id}: no answer within {}ms",
+            limit.as_millis()
+        ))
     })?;
     let Some(row) = rows.into_iter().find(|r| r.id == *id) else {
         return Ok(None);

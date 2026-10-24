@@ -16,7 +16,9 @@ use bd_cache_model::{CacheConfig, CacheStore, Freshness};
 use common::{World, id, new_entry, x};
 use sc_beads::testing::{FakeOp, Injection};
 
-const AT: &str = "2026-10-23T10:00:00Z";
+fn at() -> sc_beads::Timestamp {
+    common::ts("2026-10-23T10:00:00Z")
+}
 
 #[test]
 fn current_view_replays_pending_entries_and_leaves_the_row_untouched() {
@@ -32,18 +34,22 @@ fn current_view_replays_pending_entries_and_leaves_the_row_untouched() {
     let s = store_mut(&mut c);
     s.insert_entry(
         new_entry("k1", "b1", "update", r#"{"append_notes": "one"}"#),
-        AT,
+        &at(),
     )
     .unwrap();
     let esc = s
         .insert_entry(
             new_entry("k2", "b1", "update", r#"{"assignee": "lead"}"#),
-            AT,
+            &at(),
         )
         .unwrap();
-    s.insert_entry(new_entry("k3", "b1", "close", r#"{"reason": "PASS"}"#), AT)
+    s.insert_entry(
+        new_entry("k3", "b1", "close", r#"{"reason": "PASS"}"#),
+        &at(),
+    )
+    .unwrap();
+    s.escalate(esc, "precondition no longer holds", &at())
         .unwrap();
-    s.escalate(esc, "precondition no longer holds", AT).unwrap();
     let (view, freshness) = current_view(&c, &id("b1")).unwrap().unwrap();
     assert_eq!(view.status.as_deref(), Some("closed"));
     assert_eq!(view.close_reason.as_deref(), Some("PASS"));
@@ -69,10 +75,10 @@ fn current_view_reports_stale_rows() {
     let mut c = w.cache();
     miss_fill(&mut c, &id("b2"), None).unwrap();
     let seq = store_mut(&mut c)
-        .insert_entry(new_entry("k1", "b2", "close", "{}"), AT)
+        .insert_entry(new_entry("k1", "b2", "close", "{}"), &at())
         .unwrap();
     store_mut(&mut c)
-        .apply_with_readback(seq, None, Some("read-back failed"), AT)
+        .apply_with_readback(seq, None, Some("read-back failed"), &at())
         .unwrap();
     assert_eq!(
         current_view(&c, &id("b2")).unwrap().unwrap().1,
@@ -155,9 +161,12 @@ fn miss_fill_on_an_unreachable_backend_is_bd_unavailable_and_an_outage() {
         FakeOp::ListByIds,
         Injection::Unavailable { timed_out: false },
     );
+    let e = miss_fill(&mut c, &id("b1"), None).unwrap_err();
+    assert_eq!(e.code(), "BD_CACHE.BD_UNAVAILABLE");
     assert_eq!(
-        miss_fill(&mut c, &id("b1"), None).unwrap_err().code(),
-        "BD_CACHE.BD_UNAVAILABLE"
+        e.to_string().matches("BD_CACHE.BD_UNAVAILABLE").count(),
+        1,
+        "the code is not repeated in the detail: {e}"
     );
     assert!(store(&c).outage().unwrap().is_some());
     miss_fill(&mut c, &id("b1"), None).unwrap();

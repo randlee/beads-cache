@@ -3,8 +3,12 @@
 //! One variant per baseline code (REQ-BDC-0803), plus the additive
 //! `SCOPE_UNKNOWN`. `NO_TOML` is Python-only and never emitted. Every typed
 //! error exits 3 (REQ-BDC-0802) and renders as
-//! `{ok: false, code, detail, fix, reason?, ...payload}`
+//! `{ok: false, code, detail, fix, reason?, ...payload, source?}`
 //! ([`CacheError::to_json`]).
+//!
+//! An error mapped from a backend failure keeps that failure as its
+//! [`std::error::Error::source`] (a [`BackendCause`]); `to_json` renders it as
+//! a nested `source: {code, detail}` object.
 //!
 //! [`CacheError::from_backend`] maps a backend error to a code by the kind of
 //! call that failed:
@@ -14,13 +18,15 @@
 //! | `Contract`, btit's `InvalidJson` / `UnexpectedShape` / `ParseFailed` | `BD_CONTRACT` |
 //! | `Refused(Precondition / NotClosable / AlreadyClaimed)` | `PRECONDITION` with `reason` |
 //! | `Unavailable`, btit's `Spawn` | `BD_UNAVAILABLE` |
-//! | `Failed`, `Refused(Other)`, any other btit error | by [`CallKind`]: `Write` → `BD_WRITE_FAILED`; `PreRead`, `ReadBack`, `Refresh`, `MissFill`, `Ready` → `BD_LIST_FAILED`; `Sync` → `SYNC_FAILED`; `Check` → `BD_SCHEMA_FAILED` when the stderr names the `schema` subcommand, else `BD_VERSION_FAILED` |
+//! | `CheckFailed { step }` | `BD_VERSION_FAILED` / `BD_SCHEMA_FAILED` by step |
+//! | `Failed`, `Refused(Other)`, any other btit error | by [`CallKind`]: `Write` → `BD_WRITE_FAILED`; `PreRead`, `ReadBack`, `Refresh`, `MissFill`, `Ready` → `BD_LIST_FAILED`; `Sync` → `SYNC_FAILED` (cause `BD_LIST_FAILED`); `Check` → `BD_VERSION_FAILED` |
 
 use std::collections::BTreeMap;
 use std::fmt;
+use std::sync::Arc;
 
-use sc_beads::{BeadId, BeadsCacheError, BeadsError, Refusal};
-use serde::Serialize;
+use sc_beads::{BeadId, BeadsCacheError, BeadsError, CheckStep, Refusal};
+use serde::{Serialize, Serializer};
 use serde_json::{Value, json};
 
 use crate::call::CallKind;
@@ -29,6 +35,38 @@ use crate::scope::ScopeId;
 
 /// Exit code of every typed error (REQ-BDC-0802).
 pub const TYPED_ERROR_EXIT: i32 = 3;
+
+/// A precondition key (REQ-BDC-0302).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum GuardKey {
+    /// `status`.
+    Status,
+    /// `assignee`.
+    Assignee,
+}
+
+impl GuardKey {
+    /// The wire name: `status` or `assignee`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Status => "status",
+            Self::Assignee => "assignee",
+        }
+    }
+}
+
+impl fmt::Display for GuardKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl Serialize for GuardKey {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
 
 /// One unmet precondition key: what the write assumed and what the bead has.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -62,7 +100,86 @@ impl PreconditionReason {
     }
 }
 
+/// The underlying code of a `SYNC_FAILED` (`cause` in the JSON).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SyncCause {
+    /// `BD_CACHE.BD_UNAVAILABLE`.
+    BdUnavailable,
+    /// `BD_CACHE.BD_VERSION_FAILED`.
+    BdVersionFailed,
+    /// `BD_CACHE.BD_SCHEMA_FAILED`.
+    BdSchemaFailed,
+    /// `BD_CACHE.BD_CONTRACT`.
+    BdContract,
+    /// `BD_CACHE.BD_LIST_FAILED`.
+    BdListFailed,
+}
+
+impl SyncCause {
+    /// The underlying code, e.g. `BD_CACHE.BD_CONTRACT`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::BdUnavailable => "BD_CACHE.BD_UNAVAILABLE",
+            Self::BdVersionFailed => "BD_CACHE.BD_VERSION_FAILED",
+            Self::BdSchemaFailed => "BD_CACHE.BD_SCHEMA_FAILED",
+            Self::BdContract => "BD_CACHE.BD_CONTRACT",
+            Self::BdListFailed => "BD_CACHE.BD_LIST_FAILED",
+        }
+    }
+
+    /// The cause a typed error stands for, when it is one of the sync causes.
+    #[must_use]
+    pub fn of(e: &CacheError) -> Option<Self> {
+        match e {
+            CacheError::BdUnavailable { .. } => Some(Self::BdUnavailable),
+            CacheError::BdVersionFailed { .. } => Some(Self::BdVersionFailed),
+            CacheError::BdSchemaFailed { .. } => Some(Self::BdSchemaFailed),
+            CacheError::BdContract { .. } => Some(Self::BdContract),
+            CacheError::BdListFailed { .. } => Some(Self::BdListFailed),
+            _ => None,
+        }
+    }
+}
+
+impl Serialize for SyncCause {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
+/// The backend error a [`CacheError`] was mapped from (its `source`).
+///
+/// Compares equal by code and text, so errors stay comparable in tests.
+#[derive(Debug, Clone)]
+pub struct BackendCause(Arc<BeadsCacheError>);
+
+impl BackendCause {
+    /// Wraps a backend error.
+    #[must_use]
+    pub fn new(e: BeadsCacheError) -> Self {
+        Self(Arc::new(e))
+    }
+
+    /// The backend error.
+    #[must_use]
+    pub fn error(&self) -> &BeadsCacheError {
+        &self.0
+    }
+}
+
+impl PartialEq for BackendCause {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.code() == other.0.code() && self.0.to_string() == other.0.to_string()
+    }
+}
+
+impl Eq for BackendCause {}
+
 /// A typed bd-cache error (`BD_CACHE.*`).
+///
+/// Variants a backend failure can produce carry `source`, the
+/// [`BackendCause`] they were mapped from (`None` when built directly).
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum CacheError {
@@ -70,6 +187,8 @@ pub enum CacheError {
     BdUnavailable {
         /// What happened.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.NO_DATABASE`: no readable `dolt_database` / `project_id` in metadata.json.
     NoDatabase {
@@ -90,11 +209,15 @@ pub enum CacheError {
     BdVersionFailed {
         /// What happened.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.BD_SCHEMA_FAILED`: `bd schema` failed.
     BdSchemaFailed {
         /// What happened.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.BD_CONTRACT`: a row fails the strict model, or bd printed invalid JSON.
     BdContract {
@@ -104,16 +227,22 @@ pub enum CacheError {
         field: String,
         /// What was wrong.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.BD_WRITE_FAILED`: a write exited nonzero (not 13).
     BdWriteFailed {
         /// What happened.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.BD_LIST_FAILED`: a read failed.
     BdListFailed {
         /// What happened.
         detail: String,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.SYNC_FAILED`: a sync failed.
     SyncFailed {
@@ -121,17 +250,21 @@ pub enum CacheError {
         detail: String,
         /// The scope that failed, when known (`phase` in the JSON).
         scope: Option<ScopeId>,
-        /// The underlying code, e.g. `BD_CACHE.BD_CONTRACT`.
-        cause: Option<&'static str>,
+        /// The underlying code.
+        cause: Option<SyncCause>,
+        /// The backend error, when mapped from one.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.PRECONDITION`: a write's precondition is unmet, or bd refused a guard.
     Precondition {
         /// What happened.
         detail: String,
         /// Unmet keys with expected and actual values (empty when bd refused).
-        unmet: BTreeMap<String, Unmet>,
+        unmet: BTreeMap<GuardKey, Unmet>,
         /// The `/v0` reason.
         reason: PreconditionReason,
+        /// The backend refusal, when bd refused.
+        source: Option<BackendCause>,
     },
     /// `BD_CACHE.IDEM_CONFLICT`: the idempotency key already journals another write.
     IdemConflict {
@@ -175,7 +308,7 @@ pub enum CacheError {
         /// What happened.
         detail: String,
         /// The scopes the cache knows.
-        known: Vec<String>,
+        known: Vec<ScopeId>,
     },
 }
 
@@ -264,15 +397,15 @@ impl CacheError {
     #[must_use]
     pub fn detail(&self) -> &str {
         match self {
-            Self::BdUnavailable { detail }
+            Self::BdUnavailable { detail, .. }
             | Self::NoDatabase { detail }
             | Self::WrongDatabase { detail }
             | Self::NotFound { detail }
-            | Self::BdVersionFailed { detail }
-            | Self::BdSchemaFailed { detail }
+            | Self::BdVersionFailed { detail, .. }
+            | Self::BdSchemaFailed { detail, .. }
             | Self::BdContract { detail, .. }
-            | Self::BdWriteFailed { detail }
-            | Self::BdListFailed { detail }
+            | Self::BdWriteFailed { detail, .. }
+            | Self::BdListFailed { detail, .. }
             | Self::SyncFailed { detail, .. }
             | Self::Precondition { detail, .. }
             | Self::IdemConflict { detail, .. }
@@ -286,10 +419,27 @@ impl CacheError {
         }
     }
 
-    /// The JSON reply: `{ok: false, code, detail, fix, reason?, ...payload}`.
+    /// The backend error this one was mapped from.
+    #[must_use]
+    pub fn backend_cause(&self) -> Option<&BackendCause> {
+        match self {
+            Self::BdUnavailable { source, .. }
+            | Self::BdVersionFailed { source, .. }
+            | Self::BdSchemaFailed { source, .. }
+            | Self::BdContract { source, .. }
+            | Self::BdWriteFailed { source, .. }
+            | Self::BdListFailed { source, .. }
+            | Self::SyncFailed { source, .. }
+            | Self::Precondition { source, .. } => source.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// The JSON reply: `{ok: false, code, detail, fix, reason?, ...payload, source?}`.
     ///
     /// Payload keys: `BD_CONTRACT` `bead`, `field`; `PRECONDITION` `unmet`;
-    /// `IDEM_CONFLICT` `seq`; `SYNC_FAILED` `phase`, `cause`; `SCOPE_UNKNOWN` `known`.
+    /// `IDEM_CONFLICT` `seq`; `SYNC_FAILED` `phase`, `cause`; `SCOPE_UNKNOWN`
+    /// `known`. A mapped error adds `source: {code, detail}`, the backend error.
     #[must_use]
     pub fn to_json(&self) -> Value {
         let mut v = json!({
@@ -314,18 +464,27 @@ impl CacheError {
         if let (Value::Object(base), Value::Object(more)) = (&mut v, extra) {
             base.extend(more);
         }
+        if let (Value::Object(base), Some(cause)) = (&mut v, self.backend_cause()) {
+            base.insert(
+                "source".into(),
+                json!({"code": cause.error().code(), "detail": cause.error().to_string()}),
+            );
+        }
         v
     }
 
     /// Maps a backend error by the kind of call that failed (table in the module docs).
     #[must_use]
     pub fn from_backend(e: &BeadsCacheError, kind: CallKind) -> CacheError {
+        let source = || Some(BackendCause::new(clone_backend(e)));
         match e {
             BeadsCacheError::Unavailable { reason, .. } => Self::BdUnavailable {
                 detail: reason.clone(),
+                source: source(),
             },
             BeadsCacheError::Btit(err @ BeadsError::Spawn { .. }) => Self::BdUnavailable {
                 detail: err.to_string(),
+                source: source(),
             },
             BeadsCacheError::Contract {
                 bead,
@@ -335,6 +494,7 @@ impl CacheError {
                 bead: bead.clone(),
                 field: field.clone(),
                 detail: detail.clone(),
+                source: source(),
             },
             BeadsCacheError::Btit(
                 err @ (BeadsError::InvalidJson { .. }
@@ -344,6 +504,7 @@ impl CacheError {
                 bead: None,
                 field: String::new(),
                 detail: err.to_string(),
+                source: source(),
             },
             BeadsCacheError::Refused(
                 r @ (Refusal::Precondition | Refusal::NotClosable | Refusal::AlreadyClaimed),
@@ -357,32 +518,75 @@ impl CacheError {
                     detail: format!("bd refused: {r}"),
                     unmet: BTreeMap::new(),
                     reason,
+                    source: source(),
                 }
             }
-            BeadsCacheError::Failed { stderr, .. } => failed(kind, e.to_string(), stderr),
-            other => failed(kind, other.to_string(), ""),
+            BeadsCacheError::CheckFailed {
+                step: CheckStep::Schema,
+                ..
+            } => Self::BdSchemaFailed {
+                detail: e.to_string(),
+                source: source(),
+            },
+            BeadsCacheError::CheckFailed { .. } => Self::BdVersionFailed {
+                detail: e.to_string(),
+                source: source(),
+            },
+            other => failed(kind, other.to_string(), source()),
         }
     }
 }
 
+/// A copy of a backend error for the source chain. btit's `BeadsError` holds
+/// non-clonable `io::Error`s, so a btit error is kept by its text.
+fn clone_backend(e: &BeadsCacheError) -> BeadsCacheError {
+    match e {
+        BeadsCacheError::Unavailable { reason, timed_out } => BeadsCacheError::Unavailable {
+            reason: reason.clone(),
+            timed_out: *timed_out,
+        },
+        BeadsCacheError::Refused(r) => BeadsCacheError::Refused(r.clone()),
+        BeadsCacheError::Contract {
+            bead,
+            field,
+            detail,
+        } => BeadsCacheError::Contract {
+            bead: bead.clone(),
+            field: field.clone(),
+            detail: detail.clone(),
+        },
+        BeadsCacheError::Failed { code, stderr } => BeadsCacheError::Failed {
+            code: *code,
+            stderr: stderr.clone(),
+        },
+        BeadsCacheError::CheckFailed { step, code, stderr } => BeadsCacheError::CheckFailed {
+            step: *step,
+            code: *code,
+            stderr: stderr.clone(),
+        },
+        other => BeadsCacheError::Failed {
+            code: -1,
+            stderr: format!("{}: {other}", other.code()),
+        },
+    }
+}
+
 /// A reachable backend failing, by call kind.
-fn failed(kind: CallKind, detail: String, stderr: &str) -> CacheError {
+fn failed(kind: CallKind, detail: String, source: Option<BackendCause>) -> CacheError {
     match kind {
-        CallKind::Write => CacheError::BdWriteFailed { detail },
+        CallKind::Write => CacheError::BdWriteFailed { detail, source },
         CallKind::PreRead
         | CallKind::ReadBack
         | CallKind::Refresh
         | CallKind::MissFill
-        | CallKind::Ready => CacheError::BdListFailed { detail },
+        | CallKind::Ready => CacheError::BdListFailed { detail, source },
         CallKind::Sync => CacheError::SyncFailed {
             detail,
             scope: None,
-            cause: Some("BD_CACHE.BD_LIST_FAILED"),
+            cause: Some(SyncCause::BdListFailed),
+            source,
         },
-        CallKind::Check if stderr.trim_start().starts_with("schema") => {
-            CacheError::BdSchemaFailed { detail }
-        }
-        CallKind::Check => CacheError::BdVersionFailed { detail },
+        CallKind::Check => CacheError::BdVersionFailed { detail, source },
     }
 }
 
@@ -392,4 +596,9 @@ impl fmt::Display for CacheError {
     }
 }
 
-impl std::error::Error for CacheError {}
+impl std::error::Error for CacheError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.backend_cause()
+            .map(|c| c.error() as &(dyn std::error::Error + 'static))
+    }
+}

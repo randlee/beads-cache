@@ -2,7 +2,7 @@
 
 use std::fmt;
 
-use sc_beads::{Actor, BeadId, Guards};
+use sc_beads::{Actor, BeadId, Guards, InvalidValue, Timestamp};
 use serde::{Serialize, Serializer};
 
 use crate::op::Op;
@@ -33,16 +33,27 @@ impl fmt::Display for Seq {
     }
 }
 
-/// The caller's idempotency key (REQ-BDC-0004): unique across the journal.
+/// The caller's idempotency key (REQ-BDC-0004): nonempty, unique across the journal.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[serde(transparent)]
 pub struct IdemKey(String);
 
 impl IdemKey {
-    /// Wraps a key.
-    #[must_use]
-    pub fn new(key: impl Into<String>) -> Self {
-        Self(key.into())
+    /// Validates and wraps a key.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty or all-whitespace key.
+    pub fn new(key: impl Into<String>) -> Result<Self, InvalidValue> {
+        let key = key.into();
+        if key.trim().is_empty() {
+            return Err(InvalidValue {
+                kind: "idem_key",
+                value: key,
+                reason: "empty",
+            });
+        }
+        Ok(Self(key))
     }
 
     /// The key.
@@ -55,12 +66,6 @@ impl IdemKey {
 impl fmt::Display for IdemKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
-    }
-}
-
-impl From<&str> for IdemKey {
-    fn from(s: &str) -> Self {
-        Self(s.to_owned())
     }
 }
 
@@ -140,11 +145,11 @@ pub struct JournalEntry {
     /// The latest error, escalation reason or resolve note.
     pub last_error: Option<String>,
     /// When the escalation was announced to the lead.
-    pub announced_at: Option<String>,
-    /// When it was journaled (RFC 3339).
-    pub created_at: String,
+    pub announced_at: Option<Timestamp>,
+    /// When it was journaled.
+    pub created_at: Timestamp,
     /// When it was marked applied, set by `apply_with_readback`.
-    pub applied_at: Option<String>,
+    pub applied_at: Option<Timestamp>,
 }
 
 impl Serialize for JournalEntry {
@@ -162,9 +167,9 @@ impl Serialize for JournalEntry {
             state: JournalState,
             attempts: u32,
             last_error: Option<&'a str>,
-            announced_at: Option<&'a str>,
-            created_at: &'a str,
-            applied_at: Option<&'a str>,
+            announced_at: Option<&'a Timestamp>,
+            created_at: &'a Timestamp,
+            applied_at: Option<&'a Timestamp>,
         }
         Wire {
             seq: self.seq,
@@ -178,9 +183,9 @@ impl Serialize for JournalEntry {
             state: self.state,
             attempts: self.attempts,
             last_error: self.last_error.as_deref(),
-            announced_at: self.announced_at.as_deref(),
+            announced_at: self.announced_at.as_ref(),
             created_at: &self.created_at,
-            applied_at: self.applied_at.as_deref(),
+            applied_at: self.applied_at.as_ref(),
         }
         .serialize(s)
     }

@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use sc_beads::{BeadId, BlockedRow};
+use sc_beads::{BeadId, BlockedRow, Timestamp};
 use serde::Serialize;
 
 use crate::journal::JournalEntry;
@@ -25,9 +25,9 @@ pub struct SyncState {
     #[serde(rename = "phase")]
     pub scope: ScopeId,
     /// Start of the latest sync.
-    pub last_started_at: Option<String>,
+    pub last_started_at: Option<Timestamp>,
     /// Start of the latest successful sync (the cursor basis).
-    pub last_ok_at: Option<String>,
+    pub last_ok_at: Option<Timestamp>,
     /// The latest failure, `CODE: detail`.
     pub last_error: Option<String>,
 }
@@ -49,7 +49,7 @@ impl SyncState {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Outage {
     /// When the outage started; kept across later failures.
-    pub since: String,
+    pub since: Timestamp,
     /// The latest error, `CODE: detail`.
     pub last_error: String,
 }
@@ -85,7 +85,7 @@ pub struct ReadyBase {
     /// `bd ready -l <label> -n 0` ids.
     pub ready: Vec<BeadId>,
     /// The instant taken before the sync's first blocked/ready call.
-    pub fetched_at: String,
+    pub fetched_at: Timestamp,
     /// True when a later refresh failed or was cut.
     pub stale: bool,
 }

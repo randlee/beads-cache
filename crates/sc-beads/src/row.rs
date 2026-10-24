@@ -21,7 +21,7 @@
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::cache::{BeadId, BeadsCacheError, BlockedRow};
+use crate::cache::{BeadId, BeadsCacheError, BlockedRow, Sha256Hex};
 
 mod generated;
 
@@ -42,6 +42,10 @@ pub(crate) struct FieldSpec {
 #[derive(Debug)]
 pub(crate) enum Kind {
     Str,
+    /// A string that is a valid [`BeadId`].
+    Id,
+    /// An array of valid [`BeadId`]s.
+    IdArray,
     DateTime,
     Int,
     Bool,
@@ -56,7 +60,7 @@ static BLOCKED_EXTRA_FIELDS: &[FieldSpec] = &[
     FieldSpec {
         name: "blocked_by",
         required: true,
-        kind: Kind::StrArray,
+        kind: Kind::IdArray,
     },
     FieldSpec {
         name: "blocked_by_count",
@@ -102,19 +106,27 @@ impl Bead {
 ///
 /// ```
 /// assert_eq!(
-///     sc_beads::schema_sha256(""),
+///     sc_beads::schema_sha256("").as_str(),
 ///     "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
 /// );
 /// ```
 #[must_use]
-pub fn schema_sha256(schema_stdout: &str) -> String {
-    Sha256::digest(schema_stdout.as_bytes())
-        .iter()
-        .fold(String::with_capacity(64), |mut s, b| {
+pub fn schema_sha256(schema_stdout: &str) -> Sha256Hex {
+    let hex = Sha256::digest(schema_stdout.as_bytes()).iter().fold(
+        String::with_capacity(64),
+        |mut s, b| {
             use std::fmt::Write as _;
             let _ = write!(s, "{b:02x}");
             s
-        })
+        },
+    );
+    // A sha256 digest always renders as 64 lower-case hex digits.
+    Sha256Hex::new(hex).unwrap_or_else(|e| unreachable_hex(&e))
+}
+
+#[expect(clippy::panic, reason = "a sha256 digest is always 64 hex digits")]
+fn unreachable_hex(e: &crate::cache::InvalidValue) -> Sha256Hex {
+    panic!("sha256 rendering produced {e}")
 }
 
 /// Validates one `bd list --json` row and returns it as a [`Bead`].
@@ -182,14 +194,14 @@ pub fn parse_blocked_rows(stdout: &str) -> Result<Vec<BlockedRow>, BeadsCacheErr
                 .map(|a| {
                     a.iter()
                         .filter_map(Value::as_str)
-                        .map(BeadId::from)
+                        .filter_map(|s| BeadId::new(s).ok())
                         .collect()
                 })
                 .unwrap_or_default();
-            Ok(BlockedRow {
-                id: bead.unwrap_or_default(),
-                blocked_by,
-            })
+            // validate_object checked that `id` is present and valid.
+            let id =
+                bead.ok_or_else(|| BeadsCacheError::contract(None, "id", "missing bead id"))?;
+            Ok(BlockedRow { id, blocked_by })
         })
         .collect()
 }
@@ -217,7 +229,10 @@ fn rows_of(stdout: &str) -> Result<Vec<Value>, BeadsCacheError> {
 }
 
 fn row_id(value: &Value) -> Option<BeadId> {
-    value.get("id").and_then(Value::as_str).map(BeadId::from)
+    value
+        .get("id")
+        .and_then(Value::as_str)
+        .and_then(|s| BeadId::new(s).ok())
 }
 
 fn join(prefix: &str, name: &str) -> String {
@@ -304,6 +319,18 @@ fn check_kind(
                 wrong("a boolean")
             }
         }
+        Kind::Id => match v.as_str() {
+            Some(s) => BeadId::new(s)
+                .map(drop)
+                .map_err(|e| BeadsCacheError::contract(bead, field, e.to_string())),
+            None => wrong("a bead id string"),
+        },
+        Kind::IdArray => match v.as_array() {
+            Some(items) => items.iter().enumerate().try_for_each(|(i, item)| {
+                check_kind(item, &Kind::Id, bead, &format!("{field}[{i}]"))
+            }),
+            None => wrong("an array"),
+        },
         Kind::DateTime => match v.as_str() {
             Some(s) if crate::clock::rfc3339_to_unix(s).is_some() => Ok(()),
             Some(s) => Err(BeadsCacheError::contract(
@@ -487,8 +514,8 @@ mod tests {
         assert_eq!(
             rows,
             vec![BlockedRow {
-                id: "b1".into(),
-                blocked_by: vec!["b0".into()]
+                id: BeadId::new("b1").unwrap(),
+                blocked_by: vec![BeadId::new("b0").unwrap()]
             }]
         );
         v.as_object_mut().unwrap().remove("blocked_by");

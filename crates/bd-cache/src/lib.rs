@@ -17,10 +17,10 @@
 //! - `call(cache, kind, hard, f)`: every backend call. It hands `f` the
 //!   earlier of the caller's hard deadline and the per-call cap
 //!   ([`CacheConfig::call_timeout`]) and classifies the result as a
-//!   [`CallOutcome`]: a timeout after the hard deadline expired is
-//!   [`CallOutcome::Cut`] (no outage, no attempt); an unreachable backend on
-//!   a check or list is an [`CallOutcome::Outage`] and is recorded; on a write
-//!   it is an [`CallOutcome::Error`] that counts an attempt. Only a list that
+//!   `Result<T, CallFailure>`: a timeout after the hard deadline expired is
+//!   [`CallFailure::Cut`] (no outage, no attempt); an unreachable backend on
+//!   a check or list is a [`CallFailure::Outage`] and is recorded; on a write
+//!   it is a [`CallFailure::Error`] that counts an attempt. Only a list that
 //!   answers clears the outage, never the backend check alone (ADR-BDC-0005).
 //! - `outage::note_unavailable` / `outage::note_ok`: record and clear the outage.
 //! - `view::current_view`: the stored row with pending entries replayed.
@@ -44,17 +44,31 @@ use std::time::Duration;
 
 #[doc(no_inline)]
 pub use bd_cache_model::{
-    CacheConfig, CacheError, CacheStore, CallKind, CallOutcome, DrainBudget, DrainLock,
+    CacheConfig, CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock,
     DrainReport, GetReply, IdemKey, JournalEntry, ListReply, OpenWork, PruneReport, ReadyReply,
     RowView, ScopeId, Seq, StatusReply, SyncReport, WriteReply,
 };
 use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
 
+// The shared helpers are called by the a-5 and a-6 modules and by the
+// `testing` hooks; until those sprints land, only the hooks use them.
+#[cfg_attr(
+    not(feature = "testing"),
+    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
+)]
 mod backend_check;
 mod drain;
 mod get;
 mod list;
+#[cfg_attr(
+    not(feature = "testing"),
+    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
+)]
 mod miss;
+#[cfg_attr(
+    not(feature = "testing"),
+    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
+)]
 mod outage;
 mod prune;
 mod ready;
@@ -62,9 +76,20 @@ mod refresh;
 mod resolve;
 mod status;
 mod sync;
+#[cfg_attr(
+    not(feature = "testing"),
+    allow(dead_code, reason = "called by sprints a-5/a-6 and the testing hooks")
+)]
 mod view;
 mod write;
 
+#[cfg_attr(
+    not(feature = "testing"),
+    allow(
+        unused_imports,
+        reason = "called by sprints a-5/a-6 and the testing hooks"
+    )
+)]
 pub(crate) use outage::call;
 
 /// The bd-cache facade.
@@ -313,7 +338,7 @@ pub mod testing {
     use std::time::Duration;
 
     use bd_cache_model::{
-        CacheError, CacheStore, CallKind, CallOutcome, DrainLock, FingerprintOutcome, Freshness,
+        CacheError, CacheStore, CallFailure, CallKind, DrainLock, FingerprintOutcome, Freshness,
     };
     use sc_beads::{Bead, BeadId, BeadsCacheError, CacheBackend, Clock, Deadline, ProjectRef};
 
@@ -323,13 +348,13 @@ pub mod testing {
     ///
     /// # Errors
     ///
-    /// The classified [`CallOutcome`] when `f` fails.
+    /// The classified [`CallFailure`] when `f` fails.
     pub fn call<S: CacheStore, L: DrainLock, B: CacheBackend, T>(
         cache: &mut Cache<S, L, B>,
         kind: CallKind,
         hard: Deadline,
         f: impl FnOnce(&B, &ProjectRef, Deadline) -> Result<T, BeadsCacheError>,
-    ) -> Result<T, CallOutcome> {
+    ) -> Result<T, CallFailure> {
         crate::outage::call(cache, kind, hard, f)
     }
 
@@ -372,11 +397,11 @@ pub mod testing {
     ///
     /// # Errors
     ///
-    /// The classified [`CallOutcome`].
+    /// The classified [`CallFailure`].
     pub fn backend_check<S: CacheStore, L: DrainLock, B: CacheBackend>(
         cache: &mut Cache<S, L, B>,
         hard: Deadline,
-    ) -> Result<(FingerprintOutcome, bool), CallOutcome> {
+    ) -> Result<(FingerprintOutcome, bool), CallFailure> {
         crate::backend_check::run(cache, hard)
     }
 

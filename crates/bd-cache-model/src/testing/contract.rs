@@ -23,7 +23,8 @@
     reason = "contract rules index results they have just asserted the shape of"
 )]
 
-use sc_beads::{Actor, Bead, BeadId, BlockedRow, DepType, Edge, Fingerprint, Guards};
+use sc_beads::testing::{edge, id};
+use sc_beads::{Actor, Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
 
 use super::{FakeDrainLock, FakeStore};
 use crate::error::CacheError;
@@ -77,15 +78,26 @@ const T1: &str = "2026-10-23T10:00:01Z";
 const T2: &str = "2026-10-23T10:00:02Z";
 
 fn x() -> ScopeId {
-    ScopeId::phase("x")
+    scope("x")
 }
 
 fn y() -> ScopeId {
-    ScopeId::phase("y")
+    scope("y")
 }
 
-fn id(s: &str) -> BeadId {
-    BeadId::from(s)
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn scope(name: &str) -> ScopeId {
+    ScopeId::phase(name).unwrap_or_else(|e| panic!("{e}"))
+}
+
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn ts(s: &str) -> Timestamp {
+    Timestamp::parse(s).unwrap_or_else(|e| panic!("{e}"))
+}
+
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn key(s: &str) -> IdemKey {
+    IdemKey::new(s).unwrap_or_else(|e| panic!("{e}"))
 }
 
 /// A valid row: labels as given, `updated_at` as given.
@@ -128,7 +140,7 @@ fn ids_in<S: CacheStore>(s: &S, scope: &ScopeId) -> Vec<String> {
 
 fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
     NewEntry {
-        idem_key: IdemKey::new(key),
+        idem_key: self::key(key),
         scope,
         bead: id(bead),
         op: Op::Close { reason: None },
@@ -137,10 +149,13 @@ fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
     }
 }
 
-fn fingerprint(sha: &str) -> Fingerprint {
+/// A fingerprint whose sha is the digit repeated 64 times.
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn fingerprint(digit: char) -> Fingerprint {
     Fingerprint {
         bd_version: "1.3.1".into(),
-        schema_sha256: sha.into(),
+        schema_sha256: Sha256Hex::new(digit.to_string().repeat(64))
+            .unwrap_or_else(|e| panic!("{e}")),
         schema_version: "1".into(),
     }
 }
@@ -154,8 +169,8 @@ pub fn round_trip_is_normalize(fx: &mut impl StoreFixture) {
     b.comment_count = Some(0);
     b.metadata.insert("n".into(), serde_json::json!(5));
     b.dependencies = vec![
-        Edge::new("b1", "z9", DepType::Related),
-        Edge::new("b1", "a1", DepType::Blocks),
+        edge("b1", "z9", DepType::Related),
+        edge("b1", "a1", DepType::Blocks),
     ];
     ok(
         s.upsert_rows(Some(&x()), std::slice::from_ref(&b), false),
@@ -173,13 +188,13 @@ pub fn upsert_replaces_outgoing_edges(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     let mut b = row("b1", &["phase-x"], T0);
     b.dependencies = vec![
-        Edge::new("b1", "a1", DepType::Blocks),
-        Edge::new("b1", "a2", DepType::Blocks),
+        edge("b1", "a1", DepType::Blocks),
+        edge("b1", "a2", DepType::Blocks),
     ];
     ok(s.upsert_rows(None, &[b.clone()], false), "upsert 1");
     b.dependencies = vec![
-        Edge::new("b1", "a2", DepType::Blocks),
-        Edge::new("b1", "a3", DepType::ParentChild),
+        edge("b1", "a2", DepType::Blocks),
+        edge("b1", "a3", DepType::ParentChild),
     ];
     b.updated_at = T1.into();
     ok(s.upsert_rows(None, &[b.clone()], false), "upsert 2");
@@ -190,7 +205,7 @@ pub fn upsert_replaces_outgoing_edges(fx: &mut impl StoreFixture) {
     assert!(ok(s.dependents_of(&id("a1")), "dependents a1").is_empty());
     assert_eq!(
         ok(s.dependents_of(&id("a3")), "dependents a3"),
-        vec![Edge::new("b1", "a3", DepType::ParentChild)]
+        vec![edge("b1", "a3", DepType::ParentChild)]
     );
 }
 
@@ -204,11 +219,11 @@ pub fn a_store_clears_stale(fx: &mut impl StoreFixture) {
     );
     for force in [false, true] {
         let seq = ok(
-            s.insert_entry(entry(&format!("k{force}"), "b1", Some(x())), T0),
+            s.insert_entry(entry(&format!("k{force}"), "b1", Some(x())), &ts(T0)),
             "insert",
         );
         ok(
-            s.apply_with_readback(seq, None, Some("read-back failed"), T1),
+            s.apply_with_readback(seq, None, Some("read-back failed"), &ts(T1)),
             "apply none",
         );
         assert_eq!(get(&s, "b1").unwrap_or_default_pair().1, Freshness::Stale);
@@ -224,12 +239,18 @@ pub fn a_store_clears_stale(fx: &mut impl StoreFixture) {
         );
         assert!(ok(s.stale_rows(), "stale_rows").is_empty());
     }
-    let seq = ok(s.insert_entry(entry("k3", "b1", Some(x())), T0), "insert");
+    let seq = ok(
+        s.insert_entry(entry("k3", "b1", Some(x())), &ts(T0)),
+        "insert",
+    );
     ok(
-        s.apply_with_readback(seq, None, Some("failed"), T1),
+        s.apply_with_readback(seq, None, Some("failed"), &ts(T1)),
         "apply none",
     );
-    ok(s.apply_with_readback(seq, Some(&b), None, T2), "apply row");
+    ok(
+        s.apply_with_readback(seq, Some(&b), None, &ts(T2)),
+        "apply row",
+    );
     assert_eq!(get(&s, "b1").unwrap_or_default_pair().1, Freshness::Fresh);
 }
 
@@ -336,23 +357,36 @@ pub fn apply_with_readback_marks_applied(fx: &mut impl StoreFixture) {
         s.upsert_rows(Some(&x()), &[row("b1", &["phase-x"], T0)], false),
         "upsert",
     );
-    let a = ok(s.insert_entry(entry("a", "b1", Some(x())), T0), "insert a");
-    let b = ok(s.insert_entry(entry("b", "b1", Some(x())), T0), "insert b");
+    let a = ok(
+        s.insert_entry(entry("a", "b1", Some(x())), &ts(T0)),
+        "insert a",
+    );
+    let b = ok(
+        s.insert_entry(entry("b", "b1", Some(x())), &ts(T0)),
+        "insert b",
+    );
     ok(
-        s.apply_with_readback(a, None, Some("read-back failed"), T1),
+        s.apply_with_readback(a, None, Some("read-back failed"), &ts(T1)),
         "apply a",
     );
     let ea = ok(s.entry_by_seq(a), "entry a").unwrap_or_else(missing);
     assert_eq!(ea.state, JournalState::Applied);
     assert_eq!(ea.last_error.as_deref(), Some("read-back failed"));
-    assert_eq!(ea.applied_at.as_deref(), Some(T1));
+    assert_eq!(ea.applied_at.as_ref().map(Timestamp::as_str), Some(T1));
     assert_eq!(get(&s, "b1").unwrap_or_default_pair().1, Freshness::Stale);
     let mut fresh = row("b1", &["phase-x"], T2);
     fresh.status = Some("closed".into());
-    ok(s.apply_with_readback(b, Some(&fresh), None, T2), "apply b");
+    ok(
+        s.apply_with_readback(b, Some(&fresh), None, &ts(T2)),
+        "apply b",
+    );
     let eb = ok(s.entry_by_seq(b), "entry b").unwrap_or_else(missing);
     assert_eq!(
-        (eb.state, eb.last_error, eb.applied_at.as_deref()),
+        (
+            eb.state,
+            eb.last_error,
+            eb.applied_at.as_ref().map(Timestamp::as_str)
+        ),
         (JournalState::Applied, None, Some(T2))
     );
     assert_eq!(
@@ -369,29 +403,32 @@ pub fn fingerprint_rebuild_rule(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     ok(s.ensure_scope(&x()), "ensure");
     let mut b = row("b1", &["phase-x"], T0);
-    b.dependencies = vec![Edge::new("b1", "a1", DepType::Blocks)];
+    b.dependencies = vec![edge("b1", "a1", DepType::Blocks)];
     ok(s.upsert_rows(Some(&x()), &[b], false), "upsert");
-    let seq = ok(s.insert_entry(entry("k1", "b1", Some(x())), T0), "insert");
+    let seq = ok(
+        s.insert_entry(entry("k1", "b1", Some(x())), &ts(T0)),
+        "insert",
+    );
     ok(
-        s.replace_ready_base(&x(), &[], &[id("b1")], T0),
+        s.replace_ready_base(&x(), &[], &[id("b1")], &ts(T0)),
         "ready base",
     );
     let mut st = SyncState::new(x());
-    st.last_ok_at = Some(T0.into());
+    st.last_ok_at = Some(ts(T0));
     ok(s.record_sync(&st), "record sync");
 
     assert_eq!(
-        ok(s.record_fingerprint(&fingerprint("aaa")), "first"),
+        ok(s.record_fingerprint(&fingerprint('a')), "first"),
         FingerprintOutcome::Recorded
     );
     assert!(get(&s, "b1").is_some(), "the first check drops nothing");
     assert_eq!(
-        ok(s.record_fingerprint(&fingerprint("aaa")), "same"),
+        ok(s.record_fingerprint(&fingerprint('a')), "same"),
         FingerprintOutcome::Unchanged
     );
     assert!(get(&s, "b1").is_some());
     assert_eq!(
-        ok(s.record_fingerprint(&fingerprint("bbb")), "changed"),
+        ok(s.record_fingerprint(&fingerprint('b')), "changed"),
         FingerprintOutcome::Rebuilt
     );
     assert!(get(&s, "b1").is_none(), "beads deleted");
@@ -413,7 +450,7 @@ pub fn fingerprint_rebuild_rule(fx: &mut impl StoreFixture) {
     assert!(ok(s.entry_by_seq(seq), "entry").is_some());
     assert_eq!(ok(s.scopes(), "scopes"), vec![x()], "scope registry kept");
     assert_eq!(
-        ok(s.record_fingerprint(&fingerprint("bbb")), "after"),
+        ok(s.record_fingerprint(&fingerprint('b')), "after"),
         FingerprintOutcome::Unchanged
     );
 }
@@ -442,7 +479,7 @@ pub fn ready_base_rules(fx: &mut impl StoreFixture) {
         blocked_by: vec![id("b1")],
     }];
     ok(
-        s.replace_ready_base(&x(), &blocked, &[id("b1"), id("b3")], T0),
+        s.replace_ready_base(&x(), &blocked, &[id("b1"), id("b3")], &ts(T0)),
         "replace",
     );
     let base = ok(s.ready_base(&x()), "base").unwrap_or_else(missing);
@@ -458,7 +495,7 @@ pub fn ready_base_rules(fx: &mut impl StoreFixture) {
     ok(s.mark_ready_base_stale(&x()), "mark");
     assert!(ok(s.ready_base(&x()), "stale").is_some_and(|b| b.stale));
     ok(
-        s.replace_ready_base(&x(), &[], &[id("b2")], T1),
+        s.replace_ready_base(&x(), &[], &[id("b2")], &ts(T1)),
         "replace again",
     );
     let base = ok(s.ready_base(&x()), "base").unwrap_or_else(missing);
@@ -482,29 +519,29 @@ pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
     let seqs: Vec<Seq> = (0..4)
         .map(|i| {
             ok(
-                s.insert_entry(entry(&format!("k{i}"), "b1", None), T0),
+                s.insert_entry(entry(&format!("k{i}"), "b1", None), &ts(T0)),
                 "insert",
             )
         })
         .collect();
     ok(
-        s.apply_with_readback(seqs[2], None, None, T1),
+        s.apply_with_readback(seqs[2], None, None, &ts(T1)),
         "apply 3rd at T1",
     );
     ok(
-        s.apply_with_readback(seqs[0], None, None, T0),
+        s.apply_with_readback(seqs[0], None, None, &ts(T0)),
         "apply 1st at T0",
     );
     ok(
-        s.apply_with_readback(seqs[1], None, None, T2),
+        s.apply_with_readback(seqs[1], None, None, &ts(T2)),
         "apply 2nd at T2",
     );
-    let got: Vec<Seq> = ok(s.applied_since(T1), "since")
+    let got: Vec<Seq> = ok(s.applied_since(&ts(T1)), "since")
         .into_iter()
         .map(|e| e.seq)
         .collect();
     assert_eq!(got, vec![seqs[1], seqs[2]]);
-    assert_eq!(ok(s.applied_since(T0), "all").len(), 3);
+    assert_eq!(ok(s.applied_since(&ts(T0)), "all").len(), 3);
 }
 
 /// Journal basics: seqs increase, lookups by key and seq in any state, ordered pending reads,
@@ -515,11 +552,11 @@ pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
 )]
 pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let a = ok(s.insert_entry(entry("a", "b2", Some(x())), T0), "a");
-    let b = ok(s.insert_entry(entry("b", "b1", Some(x())), T0), "b");
-    let c = ok(s.insert_entry(entry("c", "b2", None), T1), "c");
+    let a = ok(s.insert_entry(entry("a", "b2", Some(x())), &ts(T0)), "a");
+    let b = ok(s.insert_entry(entry("b", "b1", Some(x())), &ts(T0)), "b");
+    let c = ok(s.insert_entry(entry("c", "b2", None), &ts(T1)), "c");
     assert!(a < b && b < c);
-    let dup = s.insert_entry(entry("a", "b9", None), T1);
+    let dup = s.insert_entry(entry("a", "b9", None), &ts(T1));
     assert!(
         matches!(dup, Err(CacheError::IdemConflict { seq, .. }) if seq == a),
         "{dup:?}"
@@ -534,7 +571,7 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
         .map(|e| e.seq)
         .collect();
     assert_eq!(mine, vec![a, c]);
-    let e = ok(s.entry_by_key(&IdemKey::new("c")), "by key").unwrap_or_else(missing);
+    let e = ok(s.entry_by_key(&key("c")), "by key").unwrap_or_else(missing);
     assert_eq!(
         (e.seq, e.state, e.attempts, e.created_at.as_str()),
         (c, JournalState::Pending, 0, T1)
@@ -542,26 +579,26 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
     assert_eq!(e.op, Op::Close { reason: None });
     assert_eq!(
         ok(
-            s.record_attempt(a, "BD_CACHE.BD_WRITE_FAILED: x", T1),
+            s.record_attempt(a, "BD_CACHE.BD_WRITE_FAILED: x", &ts(T1)),
             "attempt"
         ),
         1
     );
     assert_eq!(
         ok(
-            s.record_attempt(a, "BD_CACHE.BD_WRITE_FAILED: y", T1),
+            s.record_attempt(a, "BD_CACHE.BD_WRITE_FAILED: y", &ts(T1)),
             "attempt"
         ),
         2
     );
-    let r = s.resolve(a, "n/a", &Actor::from("lead"), T1);
+    let r = s.resolve(a, "n/a", &Actor::from("lead"), &ts(T1));
     assert!(matches!(r, Err(CacheError::NotEscalated { .. })), "{r:?}");
     assert!(matches!(
-        s.resolve(Seq::new(999), "n/a", &Actor::from("lead"), T1),
+        s.resolve(Seq::new(999), "n/a", &Actor::from("lead"), &ts(T1)),
         Err(CacheError::NotEscalated { .. })
     ));
     ok(
-        s.escalate(a, "precondition no longer holds", T1),
+        s.escalate(a, "precondition no longer holds", &ts(T1)),
         "escalate",
     );
     let ea = ok(s.entry_by_seq(a), "a").unwrap_or_else(missing);
@@ -577,7 +614,7 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
         .map(|e| e.seq)
         .collect();
     assert_eq!(un, vec![a]);
-    ok(s.mark_announced(a, T2), "announce");
+    ok(s.mark_announced(a, &ts(T2)), "announce");
     assert!(ok(s.unannounced_escalations(), "unannounced").is_empty());
     assert_eq!(ok(s.open_work(), "open").escalated_unannounced, 0);
     assert_eq!(
@@ -586,19 +623,19 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
         "listed until resolved"
     );
     ok(
-        s.resolve(a, "set by hand", &Actor::from("lead"), T2),
+        s.resolve(a, "set by hand", &Actor::from("lead"), &ts(T2)),
         "resolve",
     );
-    let ea = ok(s.entry_by_key(&IdemKey::new("a")), "a").unwrap_or_else(missing);
+    let ea = ok(s.entry_by_key(&key("a")), "a").unwrap_or_else(missing);
     assert_eq!(ea.state, JournalState::Resolved);
     assert_eq!(
         ea.last_error.as_deref(),
         Some("precondition no longer holds | resolved by lead: set by hand")
     );
-    assert_eq!(ea.announced_at.as_deref(), Some(T2));
+    assert_eq!(ea.announced_at.as_ref().map(Timestamp::as_str), Some(T2));
     assert!(ok(s.status(), "status").escalated.is_empty());
     assert!(matches!(
-        s.escalate(Seq::new(999), "x", T2),
+        s.escalate(Seq::new(999), "x", &ts(T2)),
         Err(CacheError::NotFound { .. })
     ));
 }
@@ -606,10 +643,10 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
 /// Resolving an entry with no error keeps the note (`test_resolve_keeps_the_note_when_the_entry_had_no_error`, store half).
 pub fn resolve_note_without_prior_error(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let a = ok(s.insert_entry(entry("a", "b1", None), T0), "a");
-    ok(s.escalate(a, "", T0), "escalate");
+    let a = ok(s.insert_entry(entry("a", "b1", None), &ts(T0)), "a");
+    ok(s.escalate(a, "", &ts(T0)), "escalate");
     ok(
-        s.resolve(a, "set by hand", &Actor::from("lead"), T1),
+        s.resolve(a, "set by hand", &Actor::from("lead"), &ts(T1)),
         "resolve",
     );
     let e = ok(s.entry_by_seq(a), "a").unwrap_or_else(missing);
@@ -625,8 +662,8 @@ pub fn sync_state_alerts_and_outage_round_trip(fx: &mut impl StoreFixture) {
     assert_eq!(ok(s.sync_state(&x()), "empty"), SyncState::new(x()));
     let st = SyncState {
         scope: x(),
-        last_started_at: Some(T1.into()),
-        last_ok_at: Some(T0.into()),
+        last_started_at: Some(ts(T1)),
+        last_ok_at: Some(ts(T0)),
         last_error: Some("BD_CACHE.BD_LIST_FAILED: boom".into()),
     };
     ok(s.record_sync(&st), "record");
@@ -646,7 +683,7 @@ pub fn sync_state_alerts_and_outage_round_trip(fx: &mut impl StoreFixture) {
     assert_eq!(ok(s.sync_alert(&x()), "cleared"), None);
     assert_eq!(ok(s.outage(), "outage"), None);
     let o = Outage {
-        since: T0.into(),
+        since: ts(T0),
         last_error: "BD_CACHE.BD_UNAVAILABLE: refused".into(),
     };
     ok(s.set_outage(Some(&o)), "set outage");
@@ -689,7 +726,7 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
         "loose rows",
     );
     let p = ok(
-        s.insert_entry(entry("p", "only-x", Some(x())), T0),
+        s.insert_entry(entry("p", "only-x", Some(x())), &ts(T0)),
         "pending in x",
     );
     let r = s.prune_scope(&x());
@@ -697,18 +734,21 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
         matches!(r, Err(CacheError::PruneBlocked { .. })),
         "pending blocks: {r:?}"
     );
-    ok(s.escalate(p, "x", T0), "escalate");
+    ok(s.escalate(p, "x", &ts(T0)), "escalate");
     assert!(
         matches!(s.prune_scope(&x()), Err(CacheError::PruneBlocked { .. })),
         "escalated blocks"
     );
-    ok(s.resolve(p, "done", &Actor::from("lead"), T1), "resolve");
     ok(
-        s.insert_entry(entry("lo", "loose-open", None), T0),
+        s.resolve(p, "done", &Actor::from("lead"), &ts(T1)),
+        "resolve",
+    );
+    ok(
+        s.insert_entry(entry("lo", "loose-open", None), &ts(T0)),
         "open entry on a loose row",
     );
     let mut st = SyncState::new(x());
-    st.last_ok_at = Some(T0.into());
+    st.last_ok_at = Some(ts(T0));
     ok(s.record_sync(&st), "sync state");
     let report = ok(s.prune_scope(&x()), "prune");
     assert_eq!(
@@ -752,10 +792,10 @@ pub fn status_counts(fx: &mut impl StoreFixture) {
         ),
         "rows",
     );
-    ok(s.insert_entry(entry("a", "b1", Some(x())), T0), "a");
-    let b = ok(s.insert_entry(entry("b", "b2", Some(x())), T0), "b");
-    ok(s.insert_entry(entry("c", "b9", None), T0), "c");
-    ok(s.escalate(b, "why", T0), "escalate");
+    ok(s.insert_entry(entry("a", "b1", Some(x())), &ts(T0)), "a");
+    let b = ok(s.insert_entry(entry("b", "b2", Some(x())), &ts(T0)), "b");
+    ok(s.insert_entry(entry("c", "b9", None), &ts(T0)), "c");
+    ok(s.escalate(b, "why", &ts(T0)), "escalate");
     let st = ok(s.status(), "status");
     assert_eq!(st.journal.get("x:pending"), Some(&1));
     assert_eq!(st.journal.get("x:escalated"), Some(&1));
@@ -797,7 +837,10 @@ trait OrDefaultPair {
 impl OrDefaultPair for Option<(Bead, Freshness)> {
     fn unwrap_or_default_pair(self) -> (Bead, Freshness) {
         assert!(self.is_some(), "expected a stored row");
-        self.unwrap_or((Bead::default(), Freshness::Fresh))
+        match self {
+            Some(pair) => pair,
+            None => missing(),
+        }
     }
 }
 

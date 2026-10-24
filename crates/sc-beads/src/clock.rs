@@ -3,9 +3,9 @@
 //! Every component that reads time takes an `Arc<dyn Clock>` so tests can drive
 //! it with `testing::ManualClock`. Two readings are kept apart:
 //!
-//! - [`Clock::now_utc`] is wall-clock time as an RFC 3339 UTC string with
-//!   second precision (`2026-10-23T10:00:00Z`), the format of every timestamp
-//!   the cache stores (REQ-BDC-0107).
+//! - [`Clock::now_utc`] is wall-clock time as a [`Timestamp`]: RFC 3339 UTC
+//!   with second precision (`2026-10-23T10:00:00Z`), the format of every
+//!   timestamp the cache stores (REQ-BDC-0107).
 //! - [`Clock::now_mono`] is a monotonic [`Instant`], the basis of
 //!   [`Deadline`]s.
 //!
@@ -14,15 +14,103 @@
 //! ([`Deadline::earliest`]); a backend implementation stops at the deadline it
 //! is handed and applies no cap of its own.
 
+use std::fmt;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+
+use serde::{Deserialize, Serialize};
+
+use crate::cache::InvalidValue;
+
+/// An instant as RFC 3339 UTC with second precision: `YYYY-MM-DDTHH:MM:SSZ`.
+///
+/// The one timestamp type of the clock, the store and the journal. Any
+/// timezone-aware RFC 3339 input is normalized to UTC seconds (fractions are
+/// truncated), so the text orders as the instants do.
+///
+/// # Examples
+///
+/// ```
+/// use std::time::Duration;
+/// use sc_beads::Timestamp;
+/// let t = Timestamp::parse("2026-10-23T12:00:00.9+02:00").unwrap();
+/// assert_eq!(t.as_str(), "2026-10-23T10:00:00Z");
+/// assert_eq!(t.minus(Duration::from_secs(120)).as_str(), "2026-10-23T09:58:00Z");
+/// assert!(Timestamp::parse("yesterday").is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Timestamp(String);
+
+impl Timestamp {
+    /// Parses any timezone-aware RFC 3339 date-time.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for anything else.
+    pub fn parse(s: &str) -> Result<Self, InvalidValue> {
+        rfc3339_to_unix(s)
+            .map(Self::from_unix)
+            .ok_or_else(|| InvalidValue {
+                kind: "timestamp",
+                value: s.to_owned(),
+                reason: "expected an RFC 3339 date-time with a timezone",
+            })
+    }
+
+    /// The instant `secs` after the Unix epoch.
+    #[must_use]
+    pub fn from_unix(secs: i64) -> Self {
+        Self(unix_to_rfc3339(secs))
+    }
+
+    /// Seconds since the Unix epoch.
+    #[must_use]
+    pub fn unix(&self) -> i64 {
+        rfc3339_to_unix(&self.0).unwrap_or_default()
+    }
+
+    /// This instant moved back by `d` (whole seconds).
+    #[must_use]
+    pub fn minus(&self, d: Duration) -> Self {
+        Self::from_unix(
+            self.unix()
+                .saturating_sub(i64::try_from(d.as_secs()).unwrap_or(i64::MAX)),
+        )
+    }
+
+    /// The text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Timestamp {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl TryFrom<String> for Timestamp {
+    type Error = InvalidValue;
+    fn try_from(value: String) -> Result<Self, InvalidValue> {
+        Self::parse(&value)
+    }
+}
+
+impl From<Timestamp> for String {
+    fn from(t: Timestamp) -> String {
+        t.0
+    }
+}
 
 /// A source of wall-clock and monotonic time.
 ///
 /// Implementations must be cheap to call and thread safe. The cache, its store
 /// and its backend share one `Arc<dyn Clock>`.
 pub trait Clock: Send + Sync {
-    /// Current UTC time as RFC 3339 with second precision, e.g. `2026-10-23T10:00:00Z`.
-    fn now_utc(&self) -> String;
+    /// Current UTC time, e.g. `2026-10-23T10:00:00Z`.
+    fn now_utc(&self) -> Timestamp;
     /// Current monotonic instant.
     fn now_mono(&self) -> Instant;
 }
@@ -40,13 +128,13 @@ impl SystemClock {
 }
 
 impl Clock for SystemClock {
-    fn now_utc(&self) -> String {
+    fn now_utc(&self) -> Timestamp {
         // A system clock before 1970 is a host misconfiguration; report the epoch
         // rather than failing every caller.
         let secs = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX));
-        unix_to_rfc3339(secs)
+        Timestamp::from_unix(secs)
     }
 
     fn now_mono(&self) -> Instant {

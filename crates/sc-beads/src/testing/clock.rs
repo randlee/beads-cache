@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use super::lock;
-use crate::clock::{rfc3339_to_unix, unix_to_rfc3339, Clock};
+use crate::clock::{rfc3339_to_unix, Clock, Timestamp};
 
 /// A [`Clock`] that only moves when told to.
 ///
@@ -28,7 +28,7 @@ use crate::clock::{rfc3339_to_unix, unix_to_rfc3339, Clock};
 /// clock.advance(Duration::from_millis(1));
 /// assert!(d.expired(&clock));
 /// clock.advance(Duration::from_secs(60));
-/// assert_eq!(clock.now_utc(), "2026-10-23T10:01:00Z");
+/// assert_eq!(clock.now_utc().as_str(), "2026-10-23T10:01:00Z");
 /// ```
 #[derive(Debug)]
 pub struct ManualClock {
@@ -51,17 +51,16 @@ impl ManualClock {
     ///
     /// When `utc` is not an RFC 3339 date-time (a test bug).
     #[must_use]
+    #[expect(clippy::panic, reason = "an invalid start time is a test bug")]
     pub fn new(utc: &str) -> Self {
-        let utc_anchor = rfc3339_to_unix(utc);
-        assert!(
-            utc_anchor.is_some(),
-            "ManualClock::new: {utc:?} is not RFC 3339"
-        );
+        let Some(utc_anchor) = rfc3339_to_unix(utc) else {
+            panic!("ManualClock::new: {utc:?} is not RFC 3339");
+        };
         Self {
             state: Mutex::new(State {
                 origin: Instant::now(),
                 elapsed: Duration::ZERO,
-                utc_anchor: utc_anchor.unwrap_or_default(),
+                utc_anchor,
                 anchor_elapsed: Duration::ZERO,
             }),
         }
@@ -78,14 +77,13 @@ impl ManualClock {
     /// # Panics
     ///
     /// When `utc` is not an RFC 3339 date-time (a test bug).
+    #[expect(clippy::panic, reason = "an invalid time is a test bug")]
     pub fn set_utc(&self, utc: &str) {
-        let secs = rfc3339_to_unix(utc);
-        assert!(
-            secs.is_some(),
-            "ManualClock::set_utc: {utc:?} is not RFC 3339"
-        );
+        let Some(secs) = rfc3339_to_unix(utc) else {
+            panic!("ManualClock::set_utc: {utc:?} is not RFC 3339");
+        };
         let mut s = lock(&self.state);
-        s.utc_anchor = secs.unwrap_or_default();
+        s.utc_anchor = secs;
         s.anchor_elapsed = s.elapsed;
     }
 
@@ -104,10 +102,10 @@ impl Default for ManualClock {
 }
 
 impl Clock for ManualClock {
-    fn now_utc(&self) -> String {
+    fn now_utc(&self) -> Timestamp {
         let s = lock(&self.state);
         let since_anchor = s.elapsed.saturating_sub(s.anchor_elapsed).as_secs();
-        unix_to_rfc3339(s.utc_anchor + i64::try_from(since_anchor).unwrap_or(i64::MAX / 2))
+        Timestamp::from_unix(s.utc_anchor + i64::try_from(since_anchor).unwrap_or(i64::MAX / 2))
     }
 
     fn now_mono(&self) -> Instant {

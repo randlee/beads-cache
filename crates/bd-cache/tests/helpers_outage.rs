@@ -12,7 +12,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{backend_check, note_ok, store};
-use bd_cache_model::{CacheStore, CallOutcome};
+use bd_cache_model::{CacheStore, CallFailure};
 use common::World;
 use sc_beads::testing::{FakeOp, Injection};
 
@@ -25,7 +25,7 @@ fn test_outage_keeps_its_start_time_and_latest_error() {
         Injection::Unavailable { timed_out: false },
     );
     let first = backend_check(&mut c, w.after(Duration::from_secs(30)));
-    assert!(matches!(first, Err(CallOutcome::Outage(_))), "{first:?}");
+    assert!(matches!(first, Err(CallFailure::Outage(_))), "{first:?}");
     let since = store(&c).outage().unwrap().unwrap().since;
     w.clock.advance(Duration::from_secs(60));
     w.bd.inject(
@@ -39,7 +39,11 @@ fn test_outage_keeps_its_start_time_and_latest_error() {
         o.last_error.contains("timed out"),
         "the latest error is stored: {o:?}"
     );
-    assert_ne!(since, "2026-10-23T10:04:03Z");
+    assert_eq!(
+        since.as_str(),
+        "2026-10-23T10:00:03Z",
+        "stamped at the first failure"
+    );
     note_ok(&mut c).unwrap();
     assert_eq!(store(&c).outage().unwrap(), None);
 }

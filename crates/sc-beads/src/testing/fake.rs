@@ -7,8 +7,8 @@ use std::time::Duration;
 use super::{lock, ManualClock};
 use crate::backend::BeadsBackend;
 use crate::cache::{
-    Actor, BeadId, BeadsCacheError, BlockedRow, CacheBackend, Edge, Fingerprint, Guards, MetaValue,
-    Patch, Refusal, ScopeFilter, SyncCursor,
+    Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep, Edge,
+    Fingerprint, Guards, MetaValue, Patch, Refusal, ScopeFilter, SyncCursor,
 };
 use crate::clock::{rfc3339_to_unix, Clock, Deadline};
 use crate::error::BeadsError;
@@ -157,6 +157,15 @@ pub enum Injection {
     Refused(Refusal),
     /// The command fails: [`BeadsCacheError::Failed`] with this exit code.
     Failed(i32),
+    /// The backend check fails at this step (`fingerprint` only):
+    /// [`BeadsCacheError::CheckFailed`]. `Failed` on a fingerprint fails the
+    /// `version` step.
+    CheckFailed {
+        /// The failing step.
+        step: CheckStep,
+        /// Exit code.
+        code: i32,
+    },
     /// The call takes this long. If that reaches the deadline, the clock moves
     /// to the deadline and the call is `Unavailable { timed_out: true }`;
     /// otherwise the call then runs normally.
@@ -285,13 +294,15 @@ impl FakeBackend {
     /// Removes a row (the bead disappears from bd).
     #[expect(clippy::must_use_candidate, reason = "tests usually drop the result")]
     pub fn remove(&self, id: &str) -> Option<Bead> {
-        lock(&self.state).rows.remove(&BeadId::from(id))
+        let id = BeadId::new(id).ok()?;
+        lock(&self.state).rows.remove(&id)
     }
 
     /// The current row of a bead.
     #[must_use]
     pub fn row(&self, id: &str) -> Option<Bead> {
-        lock(&self.state).rows.get(&BeadId::from(id)).cloned()
+        let id = BeadId::new(id).ok()?;
+        lock(&self.state).rows.get(&id).cloned()
     }
 
     /// Every row, by id.
@@ -304,11 +315,14 @@ impl FakeBackend {
     /// `updated_at` to the clock's UTC time. Returns false for an unknown bead.
     pub fn edit(&self, id: &str, f: impl FnOnce(&mut Bead)) -> bool {
         let now = self.clock.now_utc();
+        let Ok(id) = BeadId::new(id) else {
+            return false;
+        };
         let mut s = lock(&self.state);
-        match s.rows.get_mut(&BeadId::from(id)) {
+        match s.rows.get_mut(&id) {
             Some(row) => {
                 f(row);
-                row.updated_at = now;
+                row.updated_at = now.into();
                 true
             }
             None => false,
@@ -318,8 +332,11 @@ impl FakeBackend {
     /// Adds an edge `id -> on` without bumping anything. Returns false for an unknown bead.
     #[expect(clippy::must_use_candidate, reason = "tests usually drop the result")]
     pub fn add_edge(&self, id: &str, on: &str, kind: DepType) -> bool {
+        let (Ok(id), Ok(on)) = (BeadId::new(id), BeadId::new(on)) else {
+            return false;
+        };
         let mut s = lock(&self.state);
-        match s.rows.get_mut(&BeadId::from(id)) {
+        match s.rows.get_mut(&id) {
             Some(row) => {
                 let edge = Edge::new(id, on, kind);
                 if !row.dependencies.contains(&edge) {
@@ -404,6 +421,7 @@ impl FakeBackend {
 
     /// Records the call, charges its cost and applies any injection.
     fn begin(&self, call: FakeCall, d: Deadline) -> Result<(), BeadsCacheError> {
+        let is_check = call.op() == FakeOp::Fingerprint;
         let (cost, injected) = {
             let mut s = lock(&self.state);
             let op = call.op();
@@ -440,6 +458,16 @@ impl FakeBackend {
                 timed_out,
             }),
             Some(Injection::Refused(r)) => Err(BeadsCacheError::Refused(r)),
+            Some(Injection::Failed(code)) if is_check => Err(BeadsCacheError::CheckFailed {
+                step: CheckStep::Version,
+                code,
+                stderr: "fake failure".into(),
+            }),
+            Some(Injection::CheckFailed { step, code }) => Err(BeadsCacheError::CheckFailed {
+                step,
+                code,
+                stderr: "fake failure".into(),
+            }),
             Some(Injection::Failed(code)) => Err(BeadsCacheError::Failed {
                 code,
                 stderr: "fake failure".into(),
@@ -467,12 +495,12 @@ impl FakeBackend {
             .is_none_or(|want| row.status.as_deref().unwrap_or("") == want);
         let assignee_ok = g
             .assignee
-            .as_deref()
-            .is_none_or(|want| row.assignee.as_deref().unwrap_or("") == want);
+            .as_ref()
+            .is_none_or(|want| want.matches(row.assignee.as_deref()));
         if !(status_ok && assignee_ok) {
             return Err(BeadsCacheError::Refused(Refusal::Precondition));
         }
-        Ok(f(row, &now))
+        Ok(f(row, now.as_str()))
     }
 }
 
@@ -531,7 +559,11 @@ fn apply_patch(row: &mut Bead, patch: &Patch, now: &str) {
         set_status(row, status, now);
     }
     if let Some(assignee) = &patch.assignee {
-        row.assignee = Some(assignee.clone());
+        // bd omits an empty assignee from its rows.
+        row.assignee = match assignee {
+            Assignee::Unassigned => None,
+            Assignee::Named(n) => Some(n.clone()),
+        };
     }
     for l in &patch.add_labels {
         if !row.labels.contains(l) {
@@ -653,7 +685,7 @@ impl CacheBackend for FakeBackend {
             },
             d,
         )?;
-        let now = rfc3339_to_unix(&self.clock.now_utc()).unwrap_or_default();
+        let now = self.clock.now_utc().unix();
         let s = lock(&self.state);
         let blocked = blocked_map(&s.rows);
         Ok(s.rows

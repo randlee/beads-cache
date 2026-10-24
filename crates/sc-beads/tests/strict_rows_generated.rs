@@ -80,6 +80,13 @@ fn enum_values(p: &Value) -> Option<Vec<String>> {
 
 /// The `Kind` expression for one property.
 fn kind(owner: &str, name: &str, p: &Value, out_consts: &mut Vec<(String, Vec<String>)>) -> String {
+    // Bead ids are checked as `BeadId`s (no whitespace, control characters or commas).
+    if matches!(
+        (owner, name),
+        ("issue", "id") | ("dependency", "issue_id" | "depends_on_id")
+    ) {
+        return "Kind::Id".into();
+    }
     if p == &Value::Bool(true) {
         return "Kind::Any".into();
     }
@@ -220,9 +227,11 @@ fn structure(
 ) {
     let req = required(obj);
     writeln!(out, "/// {doc}").unwrap();
+    // `Bead` has no `Default`: an empty `BeadId` is not a valid id.
+    let default = if name == "Bead" { "" } else { "Default, " };
     writeln!(
         out,
-        "#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]\n#[serde(deny_unknown_fields)]\npub struct {name} {{"
+        "#[derive(Debug, Clone, {default}PartialEq, Serialize, Deserialize)]\n#[serde(deny_unknown_fields)]\npub struct {name} {{"
     )
     .unwrap();
     for (field, p) in props(obj) {
@@ -392,9 +401,8 @@ fn generate(schema_text: &str) -> String {
 #[test]
 fn generated_strict_rows_are_current() {
     let schema = std::fs::read_to_string(root().join(FIXTURE)).unwrap();
-    let mut expected = generate(&schema);
     // Keep the committed file rustfmt-clean: format the candidate the same way.
-    expected = rustfmt(&expected);
+    let expected = rustfmt(&generate(&schema));
     let path = root().join(OUTPUT);
     if std::env::var_os("SC_BEADS_REGENERATE").is_some() {
         std::fs::write(&path, &expected).unwrap();
@@ -406,27 +414,59 @@ fn generated_strict_rows_are_current() {
     );
 }
 
+/// How long the rustfmt subprocess may run before the test kills it and fails.
+const RUSTFMT_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(60);
+
+/// Formats `src` with rustfmt (edition 2021, as `cargo fmt` formats this crate).
+///
+/// Fails the test, never silently falls back: a missing rustfmt, a rustfmt
+/// error, or a run longer than [`RUSTFMT_TIMEOUT`] (the child is killed) all
+/// panic with the reason.
 fn rustfmt(src: &str) -> String {
-    use std::io::Write as _;
+    use std::io::{Read as _, Write as _};
     use std::process::{Command, Stdio};
-    let Ok(mut child) = Command::new("rustfmt")
+    use std::time::Instant;
+
+    let mut child = Command::new("rustfmt")
         .args(["--edition", "2021", "--emit", "stdout"])
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-    else {
-        return src.to_string();
-    };
+        .unwrap_or_else(|e| {
+            panic!("rustfmt could not start ({e}); install the rustfmt component listed in rust-toolchain.toml")
+        });
+    let mut stdout = child.stdout.take().unwrap();
+    let mut stderr = child.stderr.take().unwrap();
+    // Drain both pipes on threads so a large output cannot block the child.
+    let out = std::thread::spawn(move || {
+        let mut buf = String::new();
+        stdout.read_to_string(&mut buf).map(|_| buf)
+    });
+    let err = std::thread::spawn(move || {
+        let mut buf = String::new();
+        stderr.read_to_string(&mut buf).map(|_| buf)
+    });
     child
         .stdin
         .take()
         .unwrap()
         .write_all(src.as_bytes())
         .unwrap();
-    let out = child.wait_with_output().unwrap();
-    if out.status.success() {
-        String::from_utf8(out.stdout).unwrap()
-    } else {
-        src.to_string()
-    }
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child.try_wait().unwrap() {
+            break status;
+        }
+        if started.elapsed() > RUSTFMT_TIMEOUT {
+            let _ = child.kill();
+            let _ = child.wait();
+            panic!("rustfmt did not finish within {RUSTFMT_TIMEOUT:?}; killed it");
+        }
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    let formatted = out.join().unwrap().unwrap();
+    let diagnostics = err.join().unwrap().unwrap_or_default();
+    assert!(status.success(), "rustfmt failed ({status}): {diagnostics}");
+    formatted
 }

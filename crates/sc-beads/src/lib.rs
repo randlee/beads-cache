@@ -26,10 +26,10 @@
 //! - **Strict rows** ([`row`]): [`Bead`] and [`BlockedRow`], generated from the
 //!   bd 1.3.1 `bd schema` fixture, with validators that name the bead and
 //!   field of any violation.
-//! - **Time** ([`clock`]): [`Clock`], [`SystemClock`], [`Deadline`] and
-//!   RFC 3339 helpers.
-//! - **Test doubles** (feature `testing`): [`testing::ManualClock`],
-//!   [`testing::FakeBackend`] and the `CacheBackend` contract suite every
+//! - **Time** ([`clock`]): [`Clock`], [`SystemClock`], [`Deadline`],
+//!   [`Timestamp`] and RFC 3339 helpers.
+//! - **Test doubles** (feature `testing`): `testing::ManualClock`,
+//!   `testing::FakeBackend` and the `CacheBackend` contract suite every
 //!   implementation must pass.
 //!
 //! # Example
@@ -87,11 +87,12 @@ mod test_support;
 pub use backend::{BeadsBackend, CliBackend, CloseSuggestions, DoltOperations};
 #[doc(inline)]
 pub use cache::{
-    Actor, BeadId, BeadsCacheError, BlockedRow, CacheBackend, Edge, Fingerprint, Guards, MetaValue,
-    Patch, Refusal, ScopeFilter, SyncCursor,
+    Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep, Edge,
+    Fingerprint, Guards, InvalidValue, MetaValue, Patch, Refusal, ScopeFilter, Sha256Hex,
+    SyncCursor,
 };
 #[doc(inline)]
-pub use clock::{rfc3339_to_unix, unix_to_rfc3339, Clock, Deadline, SystemClock};
+pub use clock::{rfc3339_to_unix, unix_to_rfc3339, Clock, Deadline, SystemClock, Timestamp};
 #[doc(inline)]
 pub use error::{BeadsError, ExpectedShape, ParseTarget};
 #[doc(inline)]

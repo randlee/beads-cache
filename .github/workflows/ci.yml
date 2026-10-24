@@ -46,6 +46,16 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
 
+      # Default features: the libraries must be warning-free without their
+      # `testing` features (helpers are crate-private until a-5/a-6 call them).
+      - name: Clippy (libraries, default features)
+        run: cargo clippy --workspace $EXCLUDE --lib -- -D warnings
+
+      - name: Docs
+        run: cargo doc --workspace $EXCLUDE --no-deps
+        env:
+          RUSTDOCFLAGS: -D warnings
+
       - name: Test
         run: cargo test --workspace $EXCLUDE --all-features
 

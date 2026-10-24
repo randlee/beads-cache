@@ -9,7 +9,7 @@
 )]
 
 use sc_beads::{
-    parse_bd_row, parse_bd_rows, schema_sha256, BeadsCacheError, DepType, Edge, BD_SCHEMA_SHA256,
+    parse_bd_row, parse_bd_rows, schema_sha256, BeadsCacheError, DepType, BD_SCHEMA_SHA256,
     BD_SCHEMA_VERSION,
 };
 
@@ -18,7 +18,7 @@ const LIST_ROWS: &str = include_str!("fixtures/bd-1.3.1/list-rows.json");
 
 #[test]
 fn test_pinned_model_matches_recorded_schema() {
-    assert_eq!(schema_sha256(SCHEMA_TEXT), BD_SCHEMA_SHA256);
+    assert_eq!(schema_sha256(SCHEMA_TEXT).as_str(), BD_SCHEMA_SHA256);
     let schema: serde_json::Value = serde_json::from_str(SCHEMA_TEXT).unwrap();
     assert_eq!(schema["schema_version"].to_string(), BD_SCHEMA_VERSION);
 }
@@ -35,7 +35,7 @@ fn test_recorded_bd_rows_validate() {
     let ct2 = rows.iter().find(|r| r.id.as_str() == "ct-2").unwrap();
     assert_eq!(
         ct2.dependencies,
-        vec![Edge::new("ct-2", "ct-1", DepType::Blocks)]
+        vec![sc_beads::testing::edge("ct-2", "ct-1", DepType::Blocks)]
     );
     assert_eq!(ct2.metadata["n"], serde_json::json!(42));
     let ct3 = rows.iter().find(|r| r.id.as_str() == "ct-3").unwrap();

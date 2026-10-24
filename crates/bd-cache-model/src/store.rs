@@ -1,6 +1,6 @@
 //! The store port ([`CacheStore`]) and the cross-process drain lock ([`DrainLock`]).
 
-use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint};
+use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
 use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
@@ -56,8 +56,8 @@ use crate::state::{
 ///   scope stays registered.
 /// - an unknown `seq` is `NOT_FOUND`.
 ///
-/// Timestamps are RFC 3339 UTC strings supplied by the caller (`at`), so a
-/// store reads no clock.
+/// Timestamps are [`Timestamp`]s supplied by the caller (`at`), so a store
+/// reads no clock.
 ///
 /// # Errors
 ///
@@ -93,7 +93,7 @@ pub trait CacheStore: Send {
         s: &ScopeId,
         blocked: &[BlockedRow],
         ready: &[BeadId],
-        at: &str,
+        at: &Timestamp,
     ) -> Result<(), CacheError>;
     /// The scope's ready base; `None` = never fetched.
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError>;
@@ -105,31 +105,37 @@ pub trait CacheStore: Send {
     /// The entry with a seq, in any state.
     fn entry_by_seq(&self, seq: Seq) -> Result<Option<JournalEntry>, CacheError>;
     /// Journals a write as `Pending`; `at` is its `created_at`.
-    fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError>;
+    fn insert_entry(&mut self, e: NewEntry, at: &Timestamp) -> Result<Seq, CacheError>;
     /// Every pending entry, by seq.
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
     /// A bead's pending entries, by seq.
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
     /// Entries applied at or after `at`, by seq.
-    fn applied_since(&self, at: &str) -> Result<Vec<JournalEntry>, CacheError>;
+    fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError>;
     /// Marks an entry applied, storing the read-back row or marking the bead stale; one transaction.
     fn apply_with_readback(
         &mut self,
         seq: Seq,
         row: Option<&Bead>,
         err: Option<&str>,
-        at: &str,
+        at: &Timestamp,
     ) -> Result<(), CacheError>;
     /// Counts one failed attempt with its error; returns the new count.
-    fn record_attempt(&mut self, seq: Seq, err: &str, at: &str) -> Result<u32, CacheError>;
+    fn record_attempt(&mut self, seq: Seq, err: &str, at: &Timestamp) -> Result<u32, CacheError>;
     /// Escalates an entry with its reason.
-    fn escalate(&mut self, seq: Seq, reason: &str, at: &str) -> Result<(), CacheError>;
+    fn escalate(&mut self, seq: Seq, reason: &str, at: &Timestamp) -> Result<(), CacheError>;
     /// Resolves an escalated entry; `NOT_ESCALATED` otherwise.
-    fn resolve(&mut self, seq: Seq, note: &str, actor: &Actor, at: &str) -> Result<(), CacheError>;
+    fn resolve(
+        &mut self,
+        seq: Seq,
+        note: &str,
+        actor: &Actor,
+        at: &Timestamp,
+    ) -> Result<(), CacheError>;
     /// Escalated entries not yet announced, by seq.
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
     /// Records that an escalation was announced.
-    fn mark_announced(&mut self, seq: Seq, at: &str) -> Result<(), CacheError>;
+    fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
     /// Applies the rebuild rule to a fresh fingerprint (REQ-BDC-0105).
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError>;
     /// A scope's sync state (all `None` before its first sync).

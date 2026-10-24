@@ -11,10 +11,11 @@
 use std::collections::BTreeMap;
 
 use bd_cache_model::{
-    CacheError, CallKind, DrainReport, EscalatedItem, PreconditionReason, ReadyBasis, ScopeId, Seq,
-    Unmet,
+    CacheError, CallKind, DrainReport, EscalatedItem, GuardKey, PhaseName, PreconditionReason,
+    ReadyBasis, ScopeId, Seq, SyncCause, Unmet,
 };
-use sc_beads::{BeadId, BeadsCacheError, BeadsError, CliClient, Refusal};
+use sc_beads::testing::id;
+use sc_beads::{BeadsCacheError, BeadsError, CheckStep, CliClient, Refusal, Timestamp};
 use serde_json::json;
 
 fn every_error() -> Vec<CacheError> {
@@ -22,6 +23,7 @@ fn every_error() -> Vec<CacheError> {
     vec![
         CacheError::BdUnavailable {
             detail: d("bd list: timed out"),
+            source: None,
         },
         CacheError::NoDatabase {
             detail: d("no metadata.json"),
@@ -34,36 +36,43 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::BdVersionFailed {
             detail: d("exit 1"),
+            source: None,
         },
         CacheError::BdSchemaFailed {
             detail: d("exit 1"),
+            source: None,
         },
         CacheError::BdContract {
-            bead: Some(BeadId::from("b2")),
+            bead: Some(id("b2")),
             field: d("status"),
             detail: d("\"nope\" is not one of open"),
+            source: None,
         },
         CacheError::BdWriteFailed {
             detail: d("exit 1"),
+            source: None,
         },
         CacheError::BdListFailed {
             detail: d("exit 1"),
+            source: None,
         },
         CacheError::SyncFailed {
             detail: d("BD_CACHE.BD_CONTRACT: b2: status"),
-            scope: Some(ScopeId::phase("x")),
-            cause: Some("BD_CACHE.BD_CONTRACT"),
+            scope: Some(ScopeId::phase("x").unwrap()),
+            cause: Some(SyncCause::BdContract),
+            source: None,
         },
         CacheError::Precondition {
             detail: d("b1 no longer matches the state the write assumed"),
             unmet: BTreeMap::from([(
-                d("status"),
+                GuardKey::Status,
                 Unmet {
                     expected: d("open"),
                     actual: d("in_progress"),
                 },
             )]),
             reason: PreconditionReason::PreconditionFailed,
+            source: None,
         },
         CacheError::IdemConflict {
             detail: d("idem_key k1 already journals a different write"),
@@ -89,7 +98,7 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::ScopeUnknown {
             detail: d("phase zz is not a known scope"),
-            known: vec![d("x"), d("y")],
+            known: vec![ScopeId::phase("x").unwrap(), ScopeId::phase("y").unwrap()],
         },
     ]
 }
@@ -167,6 +176,7 @@ fn reasons_use_v0_names() {
             detail: String::new(),
             unmet: BTreeMap::new(),
             reason,
+            source: None,
         };
         assert_eq!(e.reason(), Some(name));
         assert_eq!(e.to_json()["reason"], name);
@@ -202,23 +212,34 @@ fn failed_code(kind: CallKind) -> &'static str {
 
 /// The mapping table, for every `CallKind`.
 #[test]
+#[expect(clippy::too_many_lines, reason = "one assertion per row of the mapping table")]
 fn from_backend_matches_the_table_for_every_call_kind() {
     for kind in KINDS {
         let map = |e: &BeadsCacheError| CacheError::from_backend(e, kind);
         let contract = BeadsCacheError::Contract {
-            bead: Some(BeadId::from("b2")),
+            bead: Some(id("b2")),
             field: "status".into(),
             detail: "bad".into(),
         };
-        assert_eq!(
-            map(&contract),
+        match map(&contract) {
             CacheError::BdContract {
-                bead: Some(BeadId::from("b2")),
-                field: "status".into(),
-                detail: "bad".into()
-            },
-            "{kind:?}"
-        );
+                bead,
+                field,
+                detail,
+                source,
+            } => {
+                assert_eq!(
+                    (bead, field.as_str(), detail.as_str()),
+                    (Some(id("b2")), "status", "bad")
+                );
+                assert_eq!(
+                    source.unwrap().error().code(),
+                    "SC_BEADS_CONTRACT",
+                    "{kind:?}"
+                );
+            }
+            other => panic!("{kind:?}: {other:?}"),
+        }
         assert_eq!(
             map(&BeadsCacheError::Refused(Refusal::Precondition)).code(),
             "BD_CACHE.PRECONDITION"
@@ -240,11 +261,10 @@ fn from_backend_matches_the_table_for_every_call_kind() {
                 reason: "slow".into(),
                 timed_out,
             };
+            let e = map(&u);
             assert_eq!(
-                map(&u),
-                CacheError::BdUnavailable {
-                    detail: "slow".into()
-                },
+                (e.code(), e.detail()),
+                ("BD_CACHE.BD_UNAVAILABLE", "slow"),
                 "{kind:?}"
             );
         }
@@ -274,13 +294,27 @@ fn from_backend_matches_the_table_for_every_call_kind() {
         });
         assert_eq!(map(&unsupported).code(), failed_code(kind));
     }
-    let schema = BeadsCacheError::Failed {
+    let step = |step| BeadsCacheError::CheckFailed {
+        step,
+        code: 1,
+        stderr: "boom".into(),
+    };
+    assert_eq!(
+        CacheError::from_backend(&step(CheckStep::Schema), CallKind::Check).code(),
+        "BD_CACHE.BD_SCHEMA_FAILED"
+    );
+    assert_eq!(
+        CacheError::from_backend(&step(CheckStep::Version), CallKind::Check).code(),
+        "BD_CACHE.BD_VERSION_FAILED"
+    );
+    // The step is typed: a Failed whose stderr names `schema` is still BD_VERSION_FAILED.
+    let named = BeadsCacheError::Failed {
         code: 1,
         stderr: "schema: exit 1".into(),
     };
     assert_eq!(
-        CacheError::from_backend(&schema, CallKind::Check).code(),
-        "BD_CACHE.BD_SCHEMA_FAILED"
+        CacheError::from_backend(&named, CallKind::Check).code(),
+        "BD_CACHE.BD_VERSION_FAILED"
     );
     let sync = CacheError::from_backend(
         &BeadsCacheError::Failed {
@@ -313,10 +347,10 @@ fn reply_goldens() {
         applied: vec![Seq::new(1)],
         escalated: vec![EscalatedItem {
             seq: Seq::new(2),
-            bead: BeadId::from("b1"),
+            bead: id("b1"),
             op: "update".into(),
             actor: "san".into(),
-            phase: Some("x".into()),
+            phase: Some(PhaseName::new("x").unwrap()),
             reason: "bd refused: precondition changed (exit 13)".into(),
         }],
         deferred: vec![Seq::new(3)],
@@ -335,7 +369,7 @@ fn reply_goldens() {
     );
     assert_eq!(
         serde_json::to_value(ReadyBasis::Cached {
-            fetched_at: "2026-10-23T10:00:00Z".into(),
+            fetched_at: Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
             stale: true
         })
         .unwrap(),
@@ -352,4 +386,26 @@ fn reply_goldens() {
     };
     let v = serde_json::to_value(&view).unwrap();
     assert!(v["bead"].is_object() && v["blocked"] == json!([]) && v["stale"] == json!(false));
+}
+
+/// A mapped error keeps the backend failure as its source and in its JSON.
+#[test]
+fn mapped_errors_keep_their_source_chain() {
+    use std::error::Error as _;
+    let e = CacheError::from_backend(
+        &BeadsCacheError::Failed {
+            code: 2,
+            stderr: "connection reset".into(),
+        },
+        CallKind::Write,
+    );
+    assert_eq!(e.code(), "BD_CACHE.BD_WRITE_FAILED");
+    let src = e.source().expect("a mapped error has a source");
+    assert_eq!(src.to_string(), "exit 2: connection reset");
+    assert_eq!(
+        e.to_json()["source"],
+        json!({"code": "SC_BEADS_FAILED", "detail": "exit 2: connection reset"})
+    );
+    let direct = CacheError::BadArgs { detail: "x".into() };
+    assert!(direct.source().is_none() && direct.to_json().get("source").is_none());
 }

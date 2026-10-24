@@ -12,7 +12,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{call, note_unavailable, store};
-use bd_cache_model::{CacheConfig, CacheStore, CallKind, CallOutcome};
+use bd_cache_model::{CacheConfig, CacheStore, CallFailure, CallKind};
 use common::{World, id};
 use sc_beads::testing::{FakeBackend, FakeOp, Injection};
 use sc_beads::{BeadsCacheError, CacheBackend, Clock, ProjectRef};
@@ -62,7 +62,7 @@ fn a_timeout_after_the_hard_deadline_is_a_cut_and_records_no_outage() {
     let r = call(&mut c, CallKind::PreRead, hard, |b, p, d| {
         b.list_by_ids(p, &[id("b1")], d)
     });
-    assert_eq!(r.unwrap_err(), CallOutcome::Cut);
+    assert_eq!(r.unwrap_err(), CallFailure::Cut);
     assert!(hard.expired(&*w.clock));
     assert_eq!(outage_of(&c), None, "a cut is not an outage");
     // The same cut on a write is not an attempt either: it is a Cut, not an Error.
@@ -78,7 +78,7 @@ fn a_timeout_after_the_hard_deadline_is_a_cut_and_records_no_outage() {
             d,
         )
     });
-    assert_eq!(r.unwrap_err(), CallOutcome::Cut);
+    assert_eq!(r.unwrap_err(), CallFailure::Cut);
 }
 
 #[test]
@@ -96,10 +96,13 @@ fn a_timeout_before_the_hard_deadline_is_an_outage() {
         |b, p, d| b.list_by_ids(p, &[id("b1")], d),
     );
     assert!(
-        matches!(r, Err(CallOutcome::Outage(ref t)) if t.starts_with("BD_CACHE.BD_UNAVAILABLE")),
+        matches!(r, Err(CallFailure::Outage(ref e)) if e.code() == "BD_CACHE.BD_UNAVAILABLE"),
         "{r:?}"
     );
-    assert_eq!(outage_of(&c).unwrap().since, "2026-10-23T10:00:04Z");
+    assert_eq!(
+        outage_of(&c).unwrap().since.as_str(),
+        "2026-10-23T10:00:04Z"
+    );
 }
 
 fn unreachable(w: &World, op: FakeOp) {
@@ -122,7 +125,7 @@ fn unavailable_on_a_check_or_list_records_the_outage() {
         let r = call(&mut c, kind, w.after(Duration::from_secs(5)), |b, p, d| {
             b.fingerprint(p, d)
         });
-        assert!(matches!(r, Err(CallOutcome::Outage(_))), "{kind:?}: {r:?}");
+        assert!(matches!(r, Err(CallFailure::Outage(_))), "{kind:?}: {r:?}");
         let o = outage_of(&c).unwrap_or_else(|| panic!("{kind:?} records the outage"));
         assert!(o.last_error.starts_with("BD_CACHE.BD_UNAVAILABLE"), "{o:?}");
     }
@@ -145,7 +148,7 @@ fn unavailable_on_a_write_is_an_error_that_counts_an_attempt_not_an_outage() {
             )
         });
         match r {
-            Err(CallOutcome::Error(e)) => {
+            Err(CallFailure::Error(e)) => {
                 assert_eq!(e.code(), "BD_CACHE.BD_UNAVAILABLE", "{kind:?}");
             }
             other => panic!("{kind:?}: {other:?}"),
@@ -166,7 +169,7 @@ fn a_reachable_failure_is_a_typed_error_and_leaves_the_outage_alone() {
         |b, p, d| b.list_by_ids(p, &[id("b1")], d),
     );
     assert!(
-        matches!(r, Err(CallOutcome::Error(ref e)) if e.code() == "BD_CACHE.BD_LIST_FAILED"),
+        matches!(r, Err(CallFailure::Error(ref e)) if e.code() == "BD_CACHE.BD_LIST_FAILED"),
         "{r:?}"
     );
     assert_eq!(outage_of(&c), None);
@@ -236,5 +239,5 @@ fn every_call_reaches_the_backend_with_the_cache_project() {
     )
     .unwrap();
     assert_eq!(p, ProjectRef::local(None));
-    assert_eq!(w.clock.now_utc(), "2026-10-23T10:00:03Z");
+    assert_eq!(w.clock.now_utc().as_str(), "2026-10-23T10:00:03Z");
 }

@@ -8,11 +8,11 @@
 )]
 
 use bd_cache_model::{
-    IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, normalize, parse_precondition,
+    GuardKey, IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, normalize, parse_precondition,
     precondition_json, replay, unmet,
 };
-use sc_beads::testing::bead;
-use sc_beads::{Actor, Bead, BeadId, DepType, Edge, Guards, MetaValue, Patch};
+use sc_beads::testing::{bead, edge, id};
+use sc_beads::{Actor, Bead, DepType, Guards, MetaValue, Patch};
 
 const PY_ARGS: &str = include_str!("fixtures/python-journal-args.json");
 
@@ -225,7 +225,7 @@ fn update_overlay_applies_fields_in_order_and_achieved_checks_each() {
     let r = row();
     let v = op.overlay(&r);
     assert_eq!(v.status.as_deref(), Some("open"));
-    assert_eq!(v.assignee.as_deref(), Some(""));
+    assert_eq!(v.assignee, None, "unassigned, as bd stores it");
     // remove then add: r1 removed, then re-added by add_labels (Python order).
     assert_eq!(v.labels, ["phase-x", "r2", "r1"]);
     assert_eq!(
@@ -280,7 +280,7 @@ fn dep_add_overlay_adds_the_edge_once_and_achieved_sees_it() {
     let r = row();
     assert!(!op.achieved(&r));
     let v = op.overlay(&r);
-    assert_eq!(v.dependencies, [Edge::new("b1", "b0", DepType::Blocks)]);
+    assert_eq!(v.dependencies, [edge("b1", "b0", DepType::Blocks)]);
     assert!(op.achieved(&v));
     assert_eq!(op.overlay(&v).dependencies.len(), 1, "added only if absent");
     let other = Op::parse("dep_add", r#"{"depends_on": "b0", "type": "related"}"#).unwrap();
@@ -290,9 +290,9 @@ fn dep_add_overlay_adds_the_edge_once_and_achieved_sees_it() {
 fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
     JournalEntry {
         seq: Seq::new(seq),
-        idem_key: IdemKey::new(format!("k{seq}")),
-        scope: Some(ScopeId::phase("x")),
-        bead: BeadId::from("b1"),
+        idem_key: IdemKey::new(format!("k{seq}")).unwrap(),
+        scope: Some(ScopeId::phase("x").unwrap()),
+        bead: id("b1"),
         op,
         precondition: Guards::default(),
         actor: Actor::from("san"),
@@ -300,7 +300,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
         attempts: 0,
         last_error: None,
         announced_at: None,
-        created_at: "2026-10-23T10:00:00Z".into(),
+        created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         applied_at: None,
     }
 }
@@ -354,10 +354,10 @@ fn normalize_drops_counts_and_sorts_edges() {
     b.dependent_count = Some(1);
     b.comment_count = Some(3);
     b.dependencies = vec![
-        Edge::new("b1", "z", DepType::Blocks),
-        Edge::new("b1", "a", DepType::Related),
-        Edge::new("b1", "a", DepType::Related),
-        Edge::new("other", "a", DepType::Blocks),
+        edge("b1", "z", DepType::Blocks),
+        edge("b1", "a", DepType::Related),
+        edge("b1", "a", DepType::Related),
+        edge("other", "a", DepType::Blocks),
     ];
     let n = normalize(&b);
     assert_eq!(
@@ -367,8 +367,8 @@ fn normalize_drops_counts_and_sorts_edges() {
     assert_eq!(
         n.dependencies,
         [
-            Edge::new("b1", "a", DepType::Related),
-            Edge::new("b1", "z", DepType::Blocks)
+            edge("b1", "a", DepType::Related),
+            edge("b1", "z", DepType::Blocks)
         ]
     );
 }
@@ -408,9 +408,9 @@ fn preconditions_parse_canonicalize_and_report_unmet() {
         &r,
         &parse_precondition(r#"{"status": "open", "assignee": ""}"#).unwrap(),
     );
-    assert_eq!(miss["status"].expected, "open");
-    assert_eq!(miss["status"].actual, "in_progress");
-    assert_eq!(miss["assignee"].actual, "dev");
+    assert_eq!(miss[&GuardKey::Status].expected, "open");
+    assert_eq!(miss[&GuardKey::Status].actual, "in_progress");
+    assert_eq!(miss[&GuardKey::Assignee].actual, "dev");
     let mut free = row();
     free.assignee = None;
     assert!(
@@ -418,7 +418,7 @@ fn preconditions_parse_canonicalize_and_report_unmet() {
             &free,
             &Guards {
                 status: None,
-                assignee: Some(String::new())
+                assignee: Some(sc_beads::Assignee::Unassigned)
             }
         )
         .is_empty()

@@ -5,11 +5,11 @@
 //! `tests/goldens.rs` pin these Rust shapes so wave-2 sprints agree; they are
 //! not claimed equal to the Python replies.
 
-use sc_beads::{Actor, Bead, BeadId};
+use sc_beads::{Actor, Bead, BeadId, Timestamp};
 use serde::Serialize;
 
 use crate::journal::Seq;
-use crate::scope::ScopeId;
+use crate::scope::{PhaseName, ScopeId};
 use crate::state::{Outage, StoreStatus};
 
 /// A bead as a read returns it: the view, its freshness and its blocked state.
@@ -29,7 +29,7 @@ pub struct GetReply {
     /// The row.
     pub row: RowView,
     /// The bead's scope's `last_ok_at`, when it has one.
-    pub scope_last_ok_at: Option<String>,
+    pub scope_last_ok_at: Option<Timestamp>,
     /// Pending entries replayed into the view.
     pub pending: u32,
     /// The outage, while one holds.
@@ -42,7 +42,7 @@ pub struct ListReply {
     /// The scope listed.
     pub scope: ScopeId,
     /// The scope's `last_ok_at`.
-    pub last_ok_at: Option<String>,
+    pub last_ok_at: Option<Timestamp>,
     /// The rows, by id.
     pub rows: Vec<RowView>,
     /// The outage, while one holds.
@@ -58,7 +58,7 @@ pub enum ReadyBasis {
     /// The stored base.
     Cached {
         /// When the base was fetched.
-        fetched_at: String,
+        fetched_at: Timestamp,
         /// True when a later refresh failed.
         stale: bool,
     },
@@ -104,7 +104,7 @@ pub struct EscalatedItem {
     /// Who wrote it.
     pub actor: Actor,
     /// The entry's phase.
-    pub phase: Option<String>,
+    pub phase: Option<PhaseName>,
     /// Why it escalated.
     pub reason: String,
 }

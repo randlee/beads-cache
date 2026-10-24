@@ -40,18 +40,33 @@ impl CallKind {
     }
 }
 
-/// Outcome of one backend call after the cache's classification.
+/// Why one backend call failed, after the cache's classification.
 ///
-/// `Unavailable { timed_out: true }` when the caller's hard deadline has
-/// expired is a cut, not an outage.
+/// `call` returns `Result<T, CallFailure>`: an answer is `Ok`, every failure
+/// is one of these. `Unavailable { timed_out: true }` when the caller's hard
+/// deadline has expired is a cut, not an outage.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CallOutcome {
-    /// The call answered.
-    Ok,
+pub enum CallFailure {
     /// The caller's hard deadline cut the call: neither an outage nor an attempt.
     Cut,
-    /// The backend is unreachable; holds the recorded error text (`CODE: detail`).
-    Outage(String),
-    /// Any other failure, typed.
+    /// The backend is unreachable; the outage has been recorded with this error
+    /// (always `BD_UNAVAILABLE`).
+    Outage(CacheError),
+    /// Any other failure, typed. On a write this counts an attempt.
     Error(CacheError),
+}
+
+impl CallFailure {
+    /// The typed error for a caller that does not distinguish the cases:
+    /// a cut becomes `BD_UNAVAILABLE` with `detail`.
+    #[must_use]
+    pub fn into_error(self, detail: impl Into<String>) -> CacheError {
+        match self {
+            Self::Cut => CacheError::BdUnavailable {
+                detail: detail.into(),
+                source: None,
+            },
+            Self::Outage(e) | Self::Error(e) => e,
+        }
+    }
 }

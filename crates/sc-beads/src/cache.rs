@@ -76,10 +76,233 @@ macro_rules! string_newtype {
     };
 }
 
-string_newtype!(
-    /// A bead id, e.g. `pr-9b1`.
-    BeadId
-);
+/// Why a string is not a valid [`BeadId`], [`Sha256Hex`] or other checked value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidValue {
+    /// What was being parsed, e.g. `bead id`.
+    pub kind: &'static str,
+    /// The rejected text.
+    pub value: String,
+    /// Why it was rejected.
+    pub reason: &'static str,
+}
+
+impl fmt::Display for InvalidValue {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "invalid {} {:?}: {}", self.kind, self.value, self.reason)
+    }
+}
+
+impl std::error::Error for InvalidValue {}
+
+/// A bead id, e.g. `pr-9b1`.
+///
+/// Nonempty, with no whitespace, control characters or commas (bd's
+/// `--id a,b,...` separator), so every id can be passed to bd unquoted.
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::BeadId;
+/// assert_eq!(BeadId::new("pr-9b1").unwrap().as_str(), "pr-9b1");
+/// assert!(BeadId::new("").is_err());
+/// assert!(BeadId::new("a,b").is_err());
+/// assert!(BeadId::new("a b").is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct BeadId(String);
+
+impl BeadId {
+    /// Validates and wraps a bead id.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty id or one with whitespace, control
+    /// characters or a comma.
+    pub fn new(value: impl Into<String>) -> Result<Self, InvalidValue> {
+        let value = value.into();
+        let reason = if value.is_empty() {
+            Some("empty")
+        } else if value.chars().any(|c| c.is_whitespace() || c.is_control()) {
+            Some("contains whitespace or a control character")
+        } else if value.contains(',') {
+            Some("contains a comma")
+        } else {
+            None
+        };
+        match reason {
+            Some(reason) => Err(InvalidValue {
+                kind: "bead id",
+                value,
+                reason,
+            }),
+            None => Ok(Self(value)),
+        }
+    }
+
+    /// The id.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Unwraps into the owned string.
+    #[must_use]
+    pub fn into_string(self) -> String {
+        self.0
+    }
+}
+
+impl fmt::Display for BeadId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl AsRef<str> for BeadId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for BeadId {
+    type Error = InvalidValue;
+    fn try_from(value: String) -> Result<Self, InvalidValue> {
+        Self::new(value)
+    }
+}
+
+impl TryFrom<&str> for BeadId {
+    type Error = InvalidValue;
+    fn try_from(value: &str) -> Result<Self, InvalidValue> {
+        Self::new(value)
+    }
+}
+
+impl std::str::FromStr for BeadId {
+    type Err = InvalidValue;
+    fn from_str(s: &str) -> Result<Self, InvalidValue> {
+        Self::new(s)
+    }
+}
+
+impl From<BeadId> for String {
+    fn from(id: BeadId) -> String {
+        id.0
+    }
+}
+
+/// A lower-case hex sha256 digest (64 characters).
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct Sha256Hex(String);
+
+impl Sha256Hex {
+    /// Validates a digest.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] unless `value` is 64 lower-case hex digits.
+    pub fn new(value: impl Into<String>) -> Result<Self, InvalidValue> {
+        let value = value.into();
+        if value.len() == 64
+            && value
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            Ok(Self(value))
+        } else {
+            Err(InvalidValue {
+                kind: "sha256",
+                value,
+                reason: "expected 64 lower-case hex digits",
+            })
+        }
+    }
+
+    /// The digest text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for Sha256Hex {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl TryFrom<String> for Sha256Hex {
+    type Error = InvalidValue;
+    fn try_from(value: String) -> Result<Self, InvalidValue> {
+        Self::new(value)
+    }
+}
+
+impl From<Sha256Hex> for String {
+    fn from(h: Sha256Hex) -> String {
+        h.0
+    }
+}
+
+/// An assignee value in a guard or patch: unassigned, or a name.
+///
+/// On the wire (BD-CACHE preconditions, `bd --assignee`) unassigned is `""`.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum Assignee {
+    /// No assignee (`""`).
+    Unassigned,
+    /// This assignee.
+    Named(String),
+}
+
+impl Assignee {
+    /// Reads the wire form: `""` is unassigned.
+    #[must_use]
+    pub fn from_wire(s: &str) -> Self {
+        if s.is_empty() {
+            Self::Unassigned
+        } else {
+            Self::Named(s.to_owned())
+        }
+    }
+
+    /// The wire form: `""` for unassigned.
+    #[must_use]
+    pub fn as_wire(&self) -> &str {
+        match self {
+            Self::Unassigned => "",
+            Self::Named(n) => n,
+        }
+    }
+
+    /// True when a bead's assignee (`None` or `""` = unassigned) equals this one.
+    #[must_use]
+    pub fn matches(&self, current: Option<&str>) -> bool {
+        current.unwrap_or("") == self.as_wire()
+    }
+}
+
+impl fmt::Display for Assignee {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_wire())
+    }
+}
+
+impl Serialize for Assignee {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_wire())
+    }
+}
+
+impl<'de> Deserialize<'de> for Assignee {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        String::deserialize(d).map(|s| Self::from_wire(&s))
+    }
+}
+
 string_newtype!(
     /// The actor a write is made as (`bd ... --actor <actor>`).
     Actor
@@ -115,14 +338,10 @@ pub struct Edge {
 impl Edge {
     /// Creates an edge `issue_id -> depends_on_id` of the given kind.
     #[must_use]
-    pub fn new(
-        issue_id: impl Into<BeadId>,
-        depends_on_id: impl Into<BeadId>,
-        kind: DepType,
-    ) -> Self {
+    pub fn new(issue_id: BeadId, depends_on_id: BeadId, kind: DepType) -> Self {
         Self {
-            issue_id: issue_id.into(),
-            depends_on_id: depends_on_id.into(),
+            issue_id,
+            depends_on_id,
             kind,
         }
     }
@@ -148,7 +367,7 @@ pub struct Fingerprint {
     /// `bd version` (e.g. `1.3.1`).
     pub bd_version: String,
     /// Lower-case hex sha256 of the full `bd schema` output.
-    pub schema_sha256: String,
+    pub schema_sha256: Sha256Hex,
     /// `schema_version` from `bd schema`, as text (e.g. `1`).
     pub schema_version: String,
 }
@@ -173,7 +392,7 @@ impl ScopeFilter {
 
 /// Write guards: the write applies only while the bead still has these values.
 ///
-/// `Some("")` for `assignee` means unassigned (REQ-BDC-0302). `sc-bd-cli`
+/// [`Assignee::Unassigned`] (`""` on the wire) means unassigned (REQ-BDC-0302). `sc-bd-cli`
 /// passes them as `--if-status` / `--if-assignee`; a refused guard is
 /// [`Refusal::Precondition`].
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -181,9 +400,9 @@ pub struct Guards {
     /// Required current status.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
-    /// Required current assignee; `""` = unassigned.
+    /// Required current assignee.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub assignee: Option<String>,
+    pub assignee: Option<Assignee>,
 }
 
 impl Guards {
@@ -259,8 +478,8 @@ impl MetaValue {
 pub struct Patch {
     /// New status.
     pub status: Option<String>,
-    /// New assignee; `""` unassigns.
-    pub assignee: Option<String>,
+    /// New assignee; [`Assignee::Unassigned`] unassigns.
+    pub assignee: Option<Assignee>,
     /// Labels to add.
     pub add_labels: Vec<String>,
     /// Labels to remove.
@@ -315,6 +534,32 @@ impl fmt::Display for Refusal {
     }
 }
 
+/// The steps of the backend check ([`CacheBackend::fingerprint`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum CheckStep {
+    /// `bd version`.
+    Version,
+    /// `bd schema`.
+    Schema,
+}
+
+impl CheckStep {
+    /// The bd subcommand: `version` or `schema`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Version => "version",
+            Self::Schema => "schema",
+        }
+    }
+}
+
+impl fmt::Display for CheckStep {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Error returned by every [`CacheBackend`] call.
 ///
 /// btit's [`BeadsError`] is unchanged; the cache's cases live here, and any
@@ -341,11 +586,17 @@ pub enum BeadsCacheError {
         detail: String,
     },
     /// The backend ran the command and it failed (nonzero exit other than a refusal).
-    ///
-    /// For [`CacheBackend::fingerprint`], `stderr` starts with the failing
-    /// subcommand (`version: ...` or `schema: ...`), so the cache can tell
-    /// `BD_VERSION_FAILED` from `BD_SCHEMA_FAILED`.
     Failed {
+        /// Exit code.
+        code: i32,
+        /// Captured standard error.
+        stderr: String,
+    },
+    /// A step of [`CacheBackend::fingerprint`] failed: which one, so the cache
+    /// can tell `BD_VERSION_FAILED` from `BD_SCHEMA_FAILED`.
+    CheckFailed {
+        /// The failing step.
+        step: CheckStep,
         /// Exit code.
         code: i32,
         /// Captured standard error.
@@ -364,6 +615,7 @@ impl BeadsCacheError {
             Self::Refused(_) => "SC_BEADS_REFUSED",
             Self::Contract { .. } => "SC_BEADS_CONTRACT",
             Self::Failed { .. } => "SC_BEADS_FAILED",
+            Self::CheckFailed { .. } => "SC_BEADS_CHECK_FAILED",
             Self::Btit(e) => e.code(),
         }
     }
@@ -425,6 +677,9 @@ impl fmt::Display for BeadsCacheError {
             } if field.is_empty() => f.write_str(detail),
             Self::Contract { field, detail, .. } => write!(f, "{field}: {detail}"),
             Self::Failed { code, stderr } => write!(f, "exit {code}: {}", stderr.trim()),
+            Self::CheckFailed { step, code, stderr } => {
+                write!(f, "bd {step}: exit {code}: {}", stderr.trim())
+            }
             Self::Btit(e) => fmt::Display::fmt(e, f),
         }
     }
@@ -470,6 +725,8 @@ impl From<BeadsError> for BeadsCacheError {
 )]
 pub trait CacheBackend: BeadsBackend + Send + Sync {
     /// `bd version` plus the sha256 of `bd schema` (never `bd context`, REQ-BDC-0106).
+    ///
+    /// A failing step is [`BeadsCacheError::CheckFailed`] naming it.
     fn fingerprint(&self, p: &ProjectRef, d: Deadline) -> Result<Fingerprint, BeadsCacheError>;
 
     /// Fresh rows for the given ids, all statuses (closed included), in one call.
@@ -592,12 +849,38 @@ mod tests {
             "created_at": "2026-10-23T19:57:24Z", "metadata": "{}"
         }))
         .unwrap();
-        assert_eq!(e, Edge::new("ct-2", "ct-1", DepType::Blocks));
+        let id = |s: &str| BeadId::new(s).unwrap();
+        assert_eq!(e, Edge::new(id("ct-2"), id("ct-1"), DepType::Blocks));
         assert_eq!(
             serde_json::to_value(&e).ok(),
             Some(
                 serde_json::json!({"issue_id": "ct-2", "depends_on_id": "ct-1", "type": "blocks"})
             )
         );
+    }
+
+    #[test]
+    fn sha256_hex_and_assignee_are_checked() {
+        assert!(Sha256Hex::new("a".repeat(64)).is_ok());
+        for bad in ["", "A".repeat(64).as_str(), "g".repeat(64).as_str(), "abc"] {
+            assert!(Sha256Hex::new(bad).is_err(), "{bad}");
+        }
+        assert_eq!(Assignee::from_wire(""), Assignee::Unassigned);
+        assert_eq!(Assignee::from_wire("dev").as_wire(), "dev");
+        assert!(Assignee::Unassigned.matches(None) && Assignee::Unassigned.matches(Some("")));
+        assert!(!Assignee::Unassigned.matches(Some("dev")));
+        let g = Guards {
+            status: None,
+            assignee: Some(Assignee::Unassigned),
+        };
+        assert_eq!(
+            serde_json::to_value(&g).unwrap(),
+            serde_json::json!({"assignee": ""})
+        );
+        assert_eq!(
+            serde_json::from_value::<Guards>(serde_json::json!({"assignee": ""})).unwrap(),
+            g
+        );
+        assert!(serde_json::from_value::<BeadId>(serde_json::json!("a,b")).is_err());
     }
 }

@@ -29,9 +29,9 @@ use std::collections::BTreeSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{bead, FakeBackend, ManualClock};
+use super::{bead, edge, id as bead_id, FakeBackend, ManualClock};
 use crate::cache::{
-    Actor, BeadId, BeadsCacheError, CacheBackend, Edge, Guards, MetaValue, Patch, Refusal,
+    Actor, Assignee, BeadId, BeadsCacheError, CacheBackend, Guards, MetaValue, Patch, Refusal,
     ScopeFilter, SyncCursor,
 };
 use crate::clock::{Clock, Deadline};
@@ -162,6 +162,17 @@ fn recorded_ready(text: &str) -> BTreeSet<String> {
     clippy::panic,
     reason = "a contract rule reports a failure by panicking, as assert! does"
 )]
+fn first(rows: Vec<Bead>) -> Bead {
+    match rows.into_iter().next() {
+        Some(row) => row,
+        None => panic!("expected the read-back row"),
+    }
+}
+
+#[expect(
+    clippy::panic,
+    reason = "a contract rule reports a failure by panicking, as assert! does"
+)]
 fn ok<T>(r: Result<T, BeadsCacheError>, what: &str) -> T {
     match r {
         Ok(v) => v,
@@ -175,7 +186,7 @@ pub fn fingerprint_reports_version_and_schema(fx: &mut impl BackendFixture) {
     let b = fx.backend(&World::default(), Arc::clone(&clock));
     let f = ok(b.fingerprint(&project(), generous(&clock)), "fingerprint");
     assert_eq!(f.bd_version, BD_VERSION);
-    assert_eq!(f.schema_sha256, BD_SCHEMA_SHA256);
+    assert_eq!(f.schema_sha256.as_str(), BD_SCHEMA_SHA256);
     assert_eq!(f.schema_version, BD_SCHEMA_VERSION);
 }
 
@@ -188,11 +199,7 @@ pub fn list_by_ids_returns_every_status(fx: &mut impl BackendFixture) {
     closed.closed_at = Some("2026-10-23T09:30:00Z".into());
     let world = World::new(vec![bead("o1"), closed, bead("other")]);
     let b = fx.backend(&world, Arc::clone(&clock));
-    let want = [
-        BeadId::from("o1"),
-        BeadId::from("c1"),
-        BeadId::from("missing"),
-    ];
+    let want = [bead_id("o1"), bead_id("c1"), bead_id("missing")];
     let rows = ok(
         b.list_by_ids(&project(), &want, generous(&clock)),
         "list_by_ids",
@@ -266,7 +273,7 @@ pub fn blocked_and_ready_match_the_p6_probe(fx: &mut impl BackendFixture) {
         assert_eq!(got, recorded_ready(ready), "bd ready, {state}");
     };
     check(P6_INITIAL_BLOCKED, P6_INITIAL_READY, "initial");
-    let x = BeadId::from(P6_OUTSIDE_BLOCKER);
+    let x = bead_id(P6_OUTSIDE_BLOCKER);
     let actor = Actor::from("contract");
     ok(
         b.close_guarded(
@@ -311,18 +318,18 @@ pub fn blocked_and_ready_match_the_p6_probe(fx: &mut impl BackendFixture) {
 pub fn close_and_reopen_bump_only_the_beads_own_updated_at(fx: &mut impl BackendFixture) {
     let clock = Arc::new(ManualClock::new("2026-10-23T10:00:00Z"));
     let mut dep = labelled("d1", "phase-x");
-    dep.dependencies = vec![Edge::new("d1", "x1", DepType::Blocks)];
+    dep.dependencies = vec![edge("d1", "x1", DepType::Blocks)];
     let b = fx.backend(&World::new(vec![bead("x1"), dep]), Arc::clone(&clock));
     let read = |id: &str| {
         let rows = ok(
-            b.list_by_ids(&project(), &[BeadId::from(id)], generous(&clock)),
+            b.list_by_ids(&project(), &[bead_id(id)], generous(&clock)),
             "read back",
         );
-        rows.into_iter().next().unwrap_or_default()
+        first(rows)
     };
     let before = read("d1").updated_at;
     clock.advance(Duration::from_secs(5));
-    let x = BeadId::from("x1");
+    let x = bead_id("x1");
     let actor = Actor::from("contract");
     ok(
         b.close_guarded(
@@ -383,7 +390,7 @@ pub fn unmet_guards_are_refused(fx: &mut impl BackendFixture) {
         Arc::clone(&clock),
     );
     let actor = Actor::from("contract");
-    let id = BeadId::from("b1");
+    let id = bead_id("b1");
     let wrong_status = Guards {
         status: Some("open".into()),
         assignee: None,
@@ -402,7 +409,7 @@ pub fn unmet_guards_are_refused(fx: &mut impl BackendFixture) {
     );
     let unassigned = Guards {
         status: None,
-        assignee: Some(String::new()),
+        assignee: Some(Assignee::Unassigned),
     };
     let patch = Patch {
         status: Some("open".into()),
@@ -431,7 +438,7 @@ pub fn unmet_guards_are_refused(fx: &mut impl BackendFixture) {
     // `""` matches an unassigned bead.
     let r = b.update_guarded(
         &project(),
-        &BeadId::from("b2"),
+        &bead_id("b2"),
         &patch,
         &unassigned,
         &actor,
@@ -448,10 +455,10 @@ pub fn writes_apply_their_effect(fx: &mut impl BackendFixture) {
     b2.metadata.insert("gone".into(), serde_json::json!(1));
     let b = fx.backend(&World::new(vec![bead("b1"), b2]), Arc::clone(&clock));
     let actor = Actor::from("contract");
-    let id = BeadId::from("b2");
+    let id = bead_id("b2");
     let patch = Patch {
         status: Some("in_progress".into()),
-        assignee: Some("dev".into()),
+        assignee: Some(Assignee::Named("dev".into())),
         add_labels: vec!["new".into()],
         remove_labels: vec!["old".into()],
         set_metadata: [
@@ -479,7 +486,7 @@ pub fn writes_apply_their_effect(fx: &mut impl BackendFixture) {
         b.dep_add_typed(
             &project(),
             &id,
-            &BeadId::from("b1"),
+            &bead_id("b1"),
             DepType::Blocks,
             &actor,
             generous(&clock),
@@ -490,7 +497,7 @@ pub fn writes_apply_their_effect(fx: &mut impl BackendFixture) {
         b.list_by_ids(&project(), &[id], generous(&clock)),
         "read back",
     );
-    let row = rows.into_iter().next().unwrap_or_default();
+    let row = first(rows);
     assert_eq!(row.status.as_deref(), Some("in_progress"));
     assert_eq!(row.assignee.as_deref(), Some("dev"));
     assert_eq!(row.labels, ["new"]);
@@ -499,7 +506,7 @@ pub fn writes_apply_their_effect(fx: &mut impl BackendFixture) {
         serde_json::json!({"n": 5, "ok": true, "sha": "abc123"})
     );
     assert_eq!(row.notes.as_deref(), Some("first\nsecond"));
-    assert_eq!(row.dependencies, [Edge::new("b2", "b1", DepType::Blocks)]);
+    assert_eq!(row.dependencies, [edge("b2", "b1", DepType::Blocks)]);
 }
 
 /// A write to a bead bd does not know fails and is not a refusal.
@@ -508,7 +515,7 @@ pub fn writes_to_unknown_beads_fail(fx: &mut impl BackendFixture) {
     let b = fx.backend(&World::default(), Arc::clone(&clock));
     let r = b.close_guarded(
         &project(),
-        &BeadId::from("nope"),
+        &bead_id("nope"),
         None,
         &Guards::default(),
         &Actor::from("contract"),
@@ -533,7 +540,7 @@ pub fn every_call_stops_at_its_deadline(fx: &mut impl BackendFixture) {
     );
     let d = Deadline::after(&*clock, Duration::ZERO);
     let p = project();
-    let id = BeadId::from("b1");
+    let id = bead_id("b1");
     let a = Actor::from("contract");
     let g = Guards::default();
     let scope = ScopeFilter::Label("phase-x".into());

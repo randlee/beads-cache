@@ -15,21 +15,21 @@
 //! `MissFill`, `Ready`) clears the outage; the backend check alone never does,
 //! because `bd version` can pass while lists time out on a loaded host.
 
-use bd_cache_model::{CacheError, CacheStore, CallKind, CallOutcome, DrainLock, Outage};
+use bd_cache_model::{CacheError, CacheStore, CallFailure, CallKind, DrainLock, Outage};
 use sc_beads::{BeadsCacheError, CacheBackend, Deadline, ProjectRef};
 
 use crate::Cache;
 
 /// Classifies a failed backend call.
-pub(crate) fn classify(kind: CallKind, e: &BeadsCacheError, hard_expired: bool) -> CallOutcome {
+pub(crate) fn classify(kind: CallKind, e: &BeadsCacheError, hard_expired: bool) -> CallFailure {
     if e.is_timeout() && hard_expired {
-        return CallOutcome::Cut;
+        return CallFailure::Cut;
     }
     let mapped = CacheError::from_backend(e, kind);
     if e.is_unavailable() && kind.unavailable_is_outage() {
-        CallOutcome::Outage(mapped.to_string())
+        CallFailure::Outage(mapped)
     } else {
-        CallOutcome::Error(mapped)
+        CallFailure::Error(mapped)
     }
 }
 
@@ -42,20 +42,20 @@ pub(crate) fn call<S: CacheStore, L: DrainLock, B: CacheBackend, T>(
     kind: CallKind,
     hard: Deadline,
     f: impl FnOnce(&B, &ProjectRef, Deadline) -> Result<T, BeadsCacheError>,
-) -> Result<T, CallOutcome> {
+) -> Result<T, CallFailure> {
     let cap = Deadline::after(&*cache.clock, cache.config.call_timeout);
     let d = hard.earliest(cap);
     match f(&cache.backend, &cache.config.project, d) {
         Ok(value) => {
             if kind.is_list() {
-                note_ok(cache).map_err(CallOutcome::Error)?;
+                note_ok(cache).map_err(CallFailure::Error)?;
             }
             Ok(value)
         }
         Err(e) => {
             let outcome = classify(kind, &e, hard.expired(&*cache.clock));
-            if let CallOutcome::Outage(text) = &outcome {
-                note_unavailable(cache, text).map_err(CallOutcome::Error)?;
+            if let CallFailure::Outage(e) = &outcome {
+                note_unavailable(cache, &e.to_string()).map_err(CallFailure::Error)?;
             }
             Err(outcome)
         }
