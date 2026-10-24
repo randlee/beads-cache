@@ -66,7 +66,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 
 | File | Owner | Rule |
 |---|---|---|
-| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
+| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. Lead-approved amendment (bc-lead, 2026-10-24, a-8 fix round 1): `bd-cache-store` and `sc-bd-cli` (path plus version 0.1.0) were added to `[workspace.dependencies]` for `bd-cache-py`, which uses `workspace = true` for them. |
 | `Cargo.lock` | phase close-out (team-lead, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
 | `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |

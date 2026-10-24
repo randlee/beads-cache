@@ -16,8 +16,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 bd-cache.workspace = true
 bd-cache-model.workspace = true
-bd-cache-store = { path = "../bd-cache-store", version = "0.1.0" }
-sc-bd-cli = { path = "../sc-bd-cli", version = "0.1.0" }
+bd-cache-store.workspace = true
+sc-bd-cli.workspace = true
 sc-beads.workspace = true
 serde.workspace = true
 serde_json.workspace = true

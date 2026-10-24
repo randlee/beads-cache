@@ -9,8 +9,9 @@ import json
 import os
 import stat
 import sys
+import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -73,12 +74,21 @@ class FakeBd:
             self.state["beads"][row["id"]] = row
         self.save()
 
-    def edit(self, bead_id, **fields):
-        """Changes a bead as another writer would, stamping a later `updated_at`."""
+    def edit(self, bead_id, *, updated_at=None, **fields):
+        """Changes a bead as another writer would.
+
+        `updated_at` is explicit when given; otherwise it is a counter-driven instant in 2099,
+        later than any sync cursor and later than the bead's previous edit, so an incremental
+        sync always lists the change and the newer-row guard always accepts it (no sleeping).
+        """
         self.load()
         row = self.state["beads"][bead_id]
         row.update(fields)
-        row["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        if updated_at is None:
+            self.state["edits"] = self.state.get("edits", 0) + 1
+            stamp = datetime(2099, 1, 1, tzinfo=timezone.utc) + timedelta(seconds=self.state["edits"])
+            updated_at = stamp.strftime("%Y-%m-%dT%H:%M:%SZ")
+        row["updated_at"] = updated_at
         self.save()
 
     def get(self, bead_id):
@@ -102,13 +112,64 @@ class FakeBd:
         self.state["delay"][command] = seconds
         self.save()
 
-    def calls(self):
-        """The argv of every call so far, in order."""
+    def events(self):
         text = self.calls_path.read_text(encoding="utf-8")
-        return [json.loads(line)["argv"] for line in text.splitlines() if line]
+        return [json.loads(line) for line in text.splitlines() if line]
+
+    def calls(self):
+        """The argv of every call started so far, in order."""
+        return [e["argv"] for e in self.events() if e["event"] == "start"]
 
     def commands(self):
         return [argv[0] for argv in self.calls()]
+
+    def spans(self):
+        """(start, end, argv) of every call, in start order; `end` is None for a killed call."""
+        ends = {e["pid"]: e["at"] for e in self.events() if e["event"] == "end"}
+        return [(e["at"], ends.get(e["pid"]), e["argv"]) for e in self.events() if e["event"] == "start"]
+
+    def block(self, command="*", deadline=20):
+        """Makes `command` wait until the returned release file exists (or `deadline` seconds pass)."""
+        self.load()
+        release = self.state_path.with_name(f"release-{command.strip('*') or 'all'}-{len(self.state.get('block', {}))}")
+        self.state.setdefault("block", {})[command] = str(release)
+        self.state["block_deadline"] = deadline
+        self.save()
+        return Release(release, self)
+
+    def wait_started(self, command, count=1, timeout=30):
+        """Blocks the test until `count` calls of `command` have started (their process is running)."""
+        end = time.monotonic() + timeout
+        while time.monotonic() < end:
+            if self.commands().count(command) >= count:
+                return
+            time.sleep(0.005)
+        raise AssertionError(f"no bd {command} started within {timeout}s: {self.commands()}")
+
+
+class Release:
+    """The release file of a blocked command."""
+
+    def __init__(self, path, fake):
+        self.path = path
+        self.fake = fake
+
+    def set(self):
+        self.path.write_text("go", encoding="utf-8")
+
+    def is_set(self):
+        return self.path.exists()
+
+
+def daemon(target, *args):
+    """A daemon thread: a test that fails must not leave a hung thread blocking exit."""
+    return threading.Thread(target=target, args=args, daemon=True)
+
+
+def join(thread, seconds=30):
+    """Joins with a deadline; a thread that outlives it is a test failure, not a hang."""
+    thread.join(seconds)
+    assert not thread.is_alive(), f"thread {thread.name} still running after {seconds}s"
 
 
 class Repo:

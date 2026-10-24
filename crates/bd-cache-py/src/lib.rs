@@ -31,6 +31,7 @@ mod compose;
 mod convert;
 mod error;
 mod handle;
+mod slot;
 
 use pyo3::prelude::*;
 

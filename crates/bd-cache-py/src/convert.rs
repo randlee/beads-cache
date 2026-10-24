@@ -28,7 +28,12 @@ pub(crate) fn to_py<'py>(py: Python<'py>, v: &Value) -> PyResult<Bound<'py, PyAn
             } else if let Some(u) = n.as_u64() {
                 u.into_pyobject(py)?.into_any()
             } else {
-                n.as_f64().unwrap_or(f64::NAN).into_pyobject(py)?.into_any()
+                // Without serde_json's `arbitrary_precision`, every number is an i64, a
+                // u64 or an f64, so this arm always has an f64; refuse rather than invent one.
+                let f = n.as_f64().ok_or_else(|| {
+                    PyValueError::new_err(format!("bd-cache-py: unrepresentable number {n}"))
+                })?;
+                f.into_pyobject(py)?.into_any()
             }
         }
         Value::String(s) => s.into_pyobject(py)?.into_any(),

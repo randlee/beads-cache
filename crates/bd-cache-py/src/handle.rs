@@ -7,19 +7,20 @@
 //! with the GIL released, so other Python threads keep going. Nothing panics on
 //! a cross-thread use.
 
+use std::fmt;
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, ScopeId, Seq};
-use std::sync::{Mutex, MutexGuard, PoisonError};
-
-use pyo3::exceptions::PyRuntimeError;
+use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
+use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
-use sc_beads::{Actor, BeadId, Deadline, SystemClock};
+use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
 use crate::compose::{self, Composition, OpenError, Overrides};
 use crate::convert::{json_text, reply, seconds};
-use crate::error::{bad_argument, cache_err};
+use crate::error::{ClosedError, bad_argument, cache_err};
+use crate::slot::{Outcome, Slot};
 
 /// The cache of one repository: the SQLite store, the flock drain lock and the `bd` CLI.
 ///
@@ -36,28 +37,39 @@ use crate::error::{bad_argument, cache_err};
 #[pyclass(name = "Cache", module = "bd_cache_rs")]
 #[derive(Debug)]
 pub(crate) struct PyCache {
-    // Why a Mutex: `Cache` is `!Sync` (ADR-CORE-0001), a pyclass must be `Sync`,
-    // and verbs must not interleave on the one store connection. Poisoning is
-    // recovered (see `lock`): a verb that panicked left only whole SQLite
-    // transactions behind, and the next verb starts a new one.
-    inner: Mutex<Option<Inner>>,
+    // A `Slot` (mutex + closed flag): `Cache` is `!Sync` (ADR-CORE-0001), a
+    // pyclass must be `Sync`, and verbs must not interleave on the one store
+    // connection. After a panicking verb the slot drops the connection and
+    // closes (ADR-PY-0003); it never keeps a half-used connection.
+    inner: Slot<Inner>,
     path: PathBuf,
 }
 
-#[derive(Debug)]
 struct Inner {
     cache: Composition,
-    clock: SystemClock,
+    /// The clock the cache and its backend share; every deadline is minted from it.
+    clock: Arc<dyn Clock>,
+}
+
+impl fmt::Debug for Inner {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Inner").finish_non_exhaustive()
+    }
 }
 
 /// The `bd_cache_rs` module's version: the wheel's, which versions the reply shapes.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn scope(phase: &str) -> PyResult<ScopeId> {
-    ScopeId::parse(phase).ok_or_else(|| {
+    compose::parse_phase(phase).map_err(|text| PyValueError::new_err(format!("phase: {text}")))
+}
+
+/// A positive number of attempts.
+fn attempts(n: i64) -> PyResult<u32> {
+    u32::try_from(n).ok().filter(|n| *n >= 1).ok_or_else(|| {
         bad_argument(
-            "phase",
-            format!("{phase:?} is not a phase name (letters, digits, '-', '_', '.', optional phase- prefix)"),
+            "max_attempts",
+            format!("{n} is not a whole number of attempts, at least 1"),
         )
     })
 }
@@ -102,29 +114,39 @@ impl PyCache {
         project_dir: Option<PathBuf>,
         scopes: Option<Vec<String>>,
         cache_path: Option<PathBuf>,
-        call_timeout_s: Option<u64>,
-        miss_fill_timeout_ms: Option<u64>,
-        max_attempts: Option<u32>,
+        call_timeout_s: Option<f64>,
+        miss_fill_timeout_ms: Option<f64>,
+        max_attempts: Option<i64>,
     ) -> PyResult<Self> {
+        let scopes = scopes
+            .map(|names| {
+                names
+                    .iter()
+                    .map(|n| compose::parse_phase(n))
+                    .collect::<Result<Vec<_>, _>>()
+                    .map_err(|text| PyValueError::new_err(format!("scopes: {text}")))
+            })
+            .transpose()?;
         let overrides = Overrides {
             cache_path,
             scopes,
-            call_timeout_s,
-            miss_fill_timeout_ms,
-            max_attempts,
+            call_timeout: call_timeout_s
+                .map(|t| seconds("call_timeout_s", t))
+                .transpose()?,
+            miss_fill_timeout: miss_fill_timeout_ms
+                .map(|ms| seconds("miss_fill_timeout_ms", ms / 1000.0))
+                .transpose()?,
+            max_attempts: max_attempts.map(attempts).transpose()?,
         };
         let opened = py
             .detach(|| compose::open(&repo_root, bd_binary, project_dir.as_deref(), overrides))
-            .map_err(|e| match e {
-                OpenError::Config(text) => bad_argument("configuration", text),
-                OpenError::Cache(e) => cache_err(py, &e),
-            })?;
+            .map_err(|e| open_err(py, e))?;
         Ok(Self {
             path: opened.path,
-            inner: Mutex::new(Some(Inner {
+            inner: Slot::new(Inner {
                 cache: opened.cache,
                 clock: opened.clock,
-            })),
+            }),
         })
     }
 
@@ -134,15 +156,21 @@ impl PyCache {
         self.path.clone()
     }
 
-    /// True once `close()` has run.
+    /// True once `close()` has run (or a panicking verb closed the handle).
+    ///
+    /// True as soon as `close()` begins, even while a verb on another thread is
+    /// still finishing.
     #[getter]
     fn closed(&self) -> bool {
-        lock(&self.inner).is_none()
+        self.inner.is_closed()
     }
 
-    /// Closes the store connection; every later verb raises `RuntimeError`.
-    fn close(&self) {
-        *lock(&self.inner) = None;
+    /// Closes the store connection; every later verb raises `ClosedError`.
+    ///
+    /// The verb in flight on another thread finishes first; the connection is
+    /// dropped here with the GIL released.
+    fn close(&self, py: Python<'_>) {
+        py.detach(|| self.inner.close());
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -150,8 +178,8 @@ impl PyCache {
     }
 
     #[pyo3(signature = (*_args))]
-    fn __exit__(&self, _args: &Bound<'_, pyo3::types::PyTuple>) -> bool {
-        self.close();
+    fn __exit__(&self, py: Python<'_>, _args: &Bound<'_, pyo3::types::PyTuple>) -> bool {
+        self.close(py);
         false
     }
 
@@ -213,6 +241,12 @@ impl PyCache {
         actor: &str,
     ) -> PyResult<Bound<'py, PyAny>> {
         let id = bead_id(bead)?;
+        if !OPS.contains(&op) {
+            return Err(bad_argument(
+                "op",
+                format!("{op:?} is not an op; use one of {}", OPS.join(", ")),
+            ));
+        }
         let key = IdemKey::new(idem_key).map_err(|e| bad_argument("idem_key", e))?;
         let who = parse_actor(actor)?;
         let args_json = json_text(py, args)?;
@@ -274,7 +308,7 @@ impl PyCache {
         let s = scope(phase)?;
         let after = seconds("timeout", timeout)?;
         self.call(py, move |c| {
-            let d = Deadline::after(&c.clock, after);
+            let d = Deadline::after(c.clock.as_ref(), after);
             c.cache.sync(&s, d)
         })
     }
@@ -294,8 +328,8 @@ impl PyCache {
         let hard = seconds("hard_s", hard_s)?;
         self.call(py, move |c| {
             let budget = DrainBudget {
-                start_gate: Deadline::after(&c.clock, gate),
-                hard: Deadline::after(&c.clock, hard),
+                start_gate: Deadline::after(c.clock.as_ref(), gate),
+                hard: Deadline::after(c.clock.as_ref(), hard),
             };
             c.cache.drain(&budget)
         })
@@ -352,9 +386,24 @@ impl PyCache {
     }
 }
 
-/// Locks the handle, recovering a poisoned lock.
-fn lock(m: &Mutex<Option<Inner>>) -> MutexGuard<'_, Option<Inner>> {
-    m.lock().unwrap_or_else(PoisonError::into_inner)
+/// Maps an open failure to its Python exception.
+fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
+    let decorate = |err: PyErr, kind: &str, path: Option<&PathBuf>| {
+        let value = err.value(py);
+        // Best effort: the message already says everything; the attributes are for code.
+        let _ = value.setattr("kind", kind);
+        let _ = value.setattr("path", path.map(|p| p.to_string_lossy().into_owned()));
+        err
+    };
+    match e {
+        OpenError::Config { kind, path, text } => decorate(
+            PyValueError::new_err(format!("configuration: {text}")),
+            kind,
+            path.as_ref(),
+        ),
+        OpenError::Read { path, text } => decorate(PyOSError::new_err(text), "read", Some(&path)),
+        OpenError::Cache(e) => cache_err(py, &e),
+    }
 }
 
 impl PyCache {
@@ -367,10 +416,15 @@ impl PyCache {
         T: Send,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
     {
-        let outcome = py.detach(|| lock(&self.inner).as_mut().map(f));
-        match outcome {
-            None => Err(PyRuntimeError::new_err("the cache is closed")),
-            Some(done) => done.map_err(|e| cache_err(py, &e)),
+        match py.detach(|| self.inner.with(f)) {
+            Outcome::Done(done) => done.map_err(|e| cache_err(py, &e)),
+            Outcome::Closed => Err(ClosedError::new_err(
+                "the cache is closed; open a new bd_cache_rs.Cache to keep using it",
+            )),
+            Outcome::Poisoned => Err(ClosedError::new_err(
+                "an earlier call failed inside the cache and the handle was closed; \
+                 open a new bd_cache_rs.Cache to keep using it",
+            )),
         }
     }
 

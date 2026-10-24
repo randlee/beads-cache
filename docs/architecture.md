@@ -143,7 +143,7 @@ integrating with sc-runtime.
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
-| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3 | a |
+| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3, serde, serde_json | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake

@@ -31,9 +31,10 @@ def test_the_error_is_an_exception_class_of_the_module():
     assert bd_cache_rs.CacheError.__module__ == "bd_cache_rs"
 
 
-def test_an_unknown_op_and_bad_args_are_typed(cache):
-    bad_op = raised(cache.write, "b1", "frobnicate", {}, None, "k1", "dev-1")
-    assert bad_op.code == "BD_CACHE.BAD_OP" and bad_op.fix == "use one of close, update, dep_add"
+def test_an_unknown_op_is_a_value_error_and_bad_args_are_typed(cache):
+    with pytest.raises(ValueError, match="op.*close, update, dep_add"):
+        cache.write("b1", "frobnicate", {}, None, "k1", "dev-1")
+    assert cache.status()["journal"] == {}
     bad_args = raised(cache.write, "b1", "update", {}, None, "k2", "dev-1")
     assert bad_args.code == "BD_CACHE.BAD_ARGS" and bad_args.reason is None and bad_args.payload == {}
     not_json = raised(cache.write, "b1", "close", "{nope", None, "k3", "dev-1")

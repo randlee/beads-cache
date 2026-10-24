@@ -43,4 +43,4 @@ Naming follows the Plan Naming section of
 | [a-5](plans/phase-a/sprint-a-5-core-write.md) | a | bd-cache write path | `sprint/a-5-core-write` | planned |
 | [a-6](plans/phase-a/sprint-a-6-core-read.md) | a | bd-cache read path | `sprint/a-6-core-read` | planned |
 | [a-7](plans/phase-a/sprint-a-7-sync-integration.md) | a | bd-cache-sync and integration | `sprint/a-7-sync-integration` | planned |
-| [a-8](plans/phase-a/sprint-a-8-python-bindings.md) | a | bd-cache-py bindings | `sprint/a-8-python-bindings` | planned |
+| [a-8](plans/phase-a/sprint-a-8-python-bindings.md) | a | bd-cache-py bindings | `sprint/a-8-python-bindings` | in-review |

@@ -6,10 +6,20 @@ real strict row parsing. The script keeps its world in a JSON state file,
 records every argv in a JSON-lines call log, and can be told (through the state
 file) to be down or to answer late.
 
+The call log (`<state>.calls`) gets a `start` line when a call begins and an `end` line
+(with the exit status) when it finishes, so tests can see which calls overlapped. A call
+the caller killed has no `end` line. The state file can make a command
+
+- `delay`: answer after that many seconds;
+- `block`: wait until the named release file exists, or `block_deadline` seconds pass
+  (default 20), so a test decides when the call may finish instead of guessing a delay;
+- `fail`: exit 1 with a message; or the whole fake `down`.
+
 Usage: fake_bd_main.py STATE_JSON ARGV...
 """
 
 import json
+import os
 import sys
 import time
 from datetime import datetime, timezone
@@ -225,12 +235,24 @@ COMMANDS = {
 }
 
 
-def main():
-    path, argv = sys.argv[1], sys.argv[2:]
+def log(path, **event):
+    with open(path + ".calls", "a", encoding="utf-8") as handle:
+        handle.write(json.dumps({"pid": os.getpid(), "at": time.time(), **event}) + "\n")
+
+
+def wait_for(release, seconds):
+    end = time.monotonic() + seconds
+    while not os.path.exists(release) and time.monotonic() < end:
+        time.sleep(0.005)
+
+
+def run(path, argv):
     state = load(path)
-    with open(path + ".calls", "a", encoding="utf-8") as log:
-        log.write(json.dumps({"argv": argv, "at": time.time()}) + "\n")
     name = argv[0] if argv else ""
+    block = state.get("block", {})
+    release = block.get(name, block.get("*"))
+    if release:
+        wait_for(release, state.get("block_deadline", 20))
     delay = state.get("delay", {})
     time.sleep(delay.get(name, delay.get("*", 0)))
     if state.get("down"):
@@ -243,11 +265,27 @@ def main():
     elif name == "schema":
         sys.stdout.write(state["schema"])
     elif name in COMMANDS:
+        # Re-read: a test may have edited the world while this call was blocked.
+        state = load(path)
         COMMANDS[name](state, argv[1:])
         if name in ("close", "update", "dep"):
             save(path, state)
     else:
         usage(f"unknown command {name!r}")
+
+
+def main():
+    path, argv = sys.argv[1], sys.argv[2:]
+    log(path, event="start", argv=argv)
+    status = 0
+    try:
+        run(path, argv)
+    except SystemExit as exit_:
+        status = exit_.code if isinstance(exit_.code, int) else 1
+        raise
+    finally:
+        sys.stdout.flush()
+        log(path, event="end", argv=argv, status=status)
 
 
 if __name__ == "__main__":

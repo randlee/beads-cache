@@ -1,6 +1,6 @@
 # bd-cache-py Architecture
 
-Status: Draft (sprint a-8, awaiting lead ruling). Crate-local decisions (domain code `PY`).
+Status: Approved (lead ruling, bc-lead, 2026-10-24). Crate-local decisions (domain code `PY`).
 Repo-level context: [`../architecture.md`](../architecture.md). Requirements:
 [`requirements.md`](requirements.md). Created by sprint a-8.
 
@@ -12,19 +12,20 @@ concrete composition and converts arguments, replies and errors.
 It depends on `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli` and
 `sc-beads` (the Boundaries table of [`../architecture.md`](../architecture.md))
 and, third party, on `pyo3` (workspace) with `serde` and `serde_json`
-(already in the workspace) to convert replies.
+(already in the workspace) to convert replies; `serde` and `serde_json` are allowed third-party dependencies of this crate (lead ruling R3, bc-lead, 2026-10-24).
 
 | Module | Contents |
 |---|---|
 | `lib` | the `#[pymodule]` `bd_cache_rs`: the `Cache` class, `CacheError`, `UNREACHABLE`, `__version__` |
-| `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, overrides) |
+| `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, validated overrides); the process-wide `ProjectLocks` set |
+| `slot` | pure Rust: the closable, mutex-guarded owner of the `Cache` (close, poison handling) |
 | `handle` | `PyCache`, the Python `Cache`: argument parsing, the sixteen verbs, GIL release |
 | `convert` | `serde_json::Value` to Python objects, JSON text for `write`, seconds to `Duration` |
-| `error` | `CacheError` (the exception) and the `BD_CACHE.*` error to exception mapping |
+| `error` | `CacheError`, `ClosedError` and the `BD_CACHE.*` error to exception mapping |
 
 ## ADR-PY-0001: A thin layer over the concrete composition
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: REQ-BDC-0910 asks for the cache in process from Python. The core is
 generic over its store, lock and backend, and the bindings must pick types.
@@ -42,6 +43,19 @@ same name. The binding adds no rule: a defect in a rule is fixed in
 `bd-cache`, and the pytest suite checks that the verbs reach it with the
 right arguments (the argv `bd` saw) and return what it returned.
 
+Dependencies (lead ruling R2, R3): the crate takes `bd-cache`, `bd-cache-store`,
+`bd-cache-model`, `sc-bd-cli` and `sc-beads` through `[workspace.dependencies]`
+(`bd-cache-store` and `sc-bd-cli` were added there for this crate), and the
+third-party `pyo3`, `serde` and `serde_json`. `serde` is used only for the
+`Serialize` bound of replies.
+
+One `ProjectLocks` set per process (a `OnceLock` in `compose`) is shared by every
+handle: `bd` on embedded Dolt must not run twice at once in a project, and two
+handles on one project (different cache files) would otherwise each lock
+separately. It is the only static; it is correctness state and the libraries
+(`sc-bd-cli`) still take the set as an argument. The deadlines of `sync` and
+`drain` are minted from the `Arc<dyn Clock>` that the `Cache` and `BdCli` share.
+
 Consequences: a different backend (HTTP, later) needs a new composition and a
 new handle type; the Python verbs stay the same. The default cache file is
 `.bd-cache/<dolt_database>.bd-cache.sqlite3`; atm-bd keeps its
@@ -49,7 +63,7 @@ new handle type; the Python verbs stay the same. The default cache file is
 
 ## ADR-PY-0002: Replies are builtin objects; one exception class
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: atm-bd reads `bd_cache.py`'s JSON dicts today. The `bd-cache-model`
 reply types derive `Serialize`.
@@ -73,7 +87,7 @@ Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its
 
 ## ADR-PY-0003: Threading
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: ADR-CORE-0001: a `Cache` is `Send`, `!Sync`, owns one connection,
 and every verb is synchronous. A verb can wait on `bd` for up to its deadline.
@@ -87,9 +101,13 @@ Decision (amends the sprint doc's "unsendable" wording, per lead ruling of
 their own mutex" option ADR-CORE-0001 names. The handle is `Send + Sync` to
 PyO3; any thread may call a verb, `close()` or drop it. Verbs run one at a
 time. Every verb takes the lock and runs inside `Python::detach`, so a thread
-waiting for the lock or for `bd` holds no GIL. A poisoned lock (a verb panicked)
-is recovered: a store transaction is whole or rolled back, so the next verb
-starts clean. Replies are converted after the GIL is taken again. SQLite
+waiting for the lock or for `bd` holds no GIL. `closed` is an atomic flag set as `close()` begins; `close()`, `__exit__` and
+`closed` never hold the GIL while they wait: `close()` waits for the in-flight
+verb inside `Python::detach` and drops the connection there. A verb that
+panics poisons the lock; the slot then drops the connection (it may be
+mid-statement), clears the poison, closes the handle and the call raises
+`ClosedError` telling the caller to open a new `Cache`. Nothing reuses a
+connection after a panic. Replies are converted after the GIL is taken again. SQLite
 allows one connection per process per file (NFR-BDC-0007), so a second open
 of the same file in the process is `STORE_FAILED`; threads that want to run
 verbs in parallel open different files.
@@ -100,7 +118,7 @@ Python code).
 
 ## ADR-PY-0004: Packaging, naming and test strategy
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision:
 
@@ -115,13 +133,19 @@ Decision:
   against a Python and work for this crate too.
 - CI: `ci.yml` (a-1) excludes `bd-cache-py` from the workspace gates because
   it needs a Python to link; `.github/workflows/python.yml` is its gate:
-  clippy and `cargo test` for the crate, a wheel on macOS arm64 and Linux
-  x86_64, and the pytest suite against the installed wheel on Python 3.9, 3.11
-  and 3.13.
+  clippy and `cargo test` for the crate on macOS, Linux and Windows (lead ruling
+  R4), a wheel on macOS arm64 and Linux x86_64, and the pytest suite against
+  the installed wheel on Python 3.9, 3.11 and 3.13. The wheel and pytest stay
+  off Windows because the atm-bd hooks run on POSIX only.
 - Tests: pytest drives every verb against the real composition. The `bd`
   program is `tests/fake_bd_main.py`, a recording fake the Rust `BdCli`
-  spawns like the real one (strict rows, exit 13 guard refusals, down and
-  late answers on request, argv logged). It runs under the interpreter that
+  spawns like the real one (strict rows, exit 13 guard refusals, down, delayed
+  or blocked-until-released answers on request, start and end of every call
+  logged). Tests about time are causal: a call is blocked until a Python thread
+  creates a release file, which that thread does only after seeing something
+  that needs the GIL free; durations are loose sanity bounds only. The mapping
+  test reads `tests/atm_core_05831df_calls.json`, extracted from atm-core with
+  `tests/atm_core_05831df_extract.py`. It runs under the interpreter that
   runs pytest through a shell wrapper, so no `bd` is needed.
 - Publishing: not in phase a. A later release step publishes with the `pypi`
   and `testpypi` environments (`PYPI_TOKEN`, `TEST_PYPI_TOKEN`).
@@ -187,6 +211,7 @@ people to run), the binding that replaces each, and what differs. `cache` is a
 | `error.extra` | cron (`extra.get("cause")`) | `error.payload` (`cause` and `phase` of `SYNC_FAILED`, `unmet`, `seq`, `known`, `source`) |
 | `error.as_json()` | cron | `error.body` |
 | `bd_cache.UNREACHABLE` | cron | `bd_cache_rs.UNREACHABLE`, the same four codes (a frozenset) |
+| `bd_cache.__file__` | sanity hook (`drain_now` spawns `python bd_cache.py drain`) | none: the hook calls `cache.drain(start_gate_s, hard_s)` in process, so there is no script to spawn (see the `drain` row) |
 | `cache.dependents(bead, type)` | none at `05831df` | not exposed (not one of the verbs of REQ-BDC-0910) |
 
 The CLI (`bd_cache.py get|list|write|drain|sync|prune|resolve|status`) is the

@@ -1,8 +1,9 @@
 # Python bindings gate (sprint a-8): the gate for bd-cache-py, which ci.yml leaves out
 # of the workspace gates because a PyO3 crate needs a Python to link against.
 #
-#   rust    clippy and cargo test for the crate, on both platforms
-#   wheel   one abi3 wheel per platform (maturin), kept as an artifact
+#   rust    clippy and cargo test for the crate, on macOS, Linux and Windows
+#   wheel   one abi3 wheel per platform (maturin), kept as an artifact; macOS and
+#           Linux only: the atm-bd hooks run on POSIX only
 #   test    the pytest suite against the installed wheel, Python 3.9, 3.11, 3.13
 #
 # Nothing here publishes: the pypi / testpypi environments belong to a later
@@ -36,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-14, ubuntu-latest]
+        os: [macos-14, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:

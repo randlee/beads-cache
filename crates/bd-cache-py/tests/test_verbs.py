@@ -8,6 +8,8 @@ import time
 
 import pytest
 
+from conftest import daemon, join
+
 import bd_cache_rs
 
 ALL = "open,in_progress,blocked,deferred,closed,pinned,hooked"
@@ -112,8 +114,7 @@ def test_ready_with_a_limit_uses_bds_answer_when_it_comes_in_time(cache, repo):
 
 
 def test_sync_reports_what_it_stored(cache, repo):
-    time.sleep(1.1)  # bd's `updated_at` has second resolution; the cursor is the last sync's start
-    repo.bd.edit("b2", title="renamed")
+    repo.bd.edit("b2", title="renamed")  # an `updated_at` later than the cursor, without sleeping
     report = cache.sync("x", 30)
     assert set(report) == {"scope", "rebuilt", "model_current", "stored", "blocked", "deferred", "outage"}
     assert report["scope"] == "x" and report["rebuilt"] is False and report["model_current"] is True
@@ -150,32 +151,52 @@ def test_drain_with_a_spent_start_gate_defers_without_calling_bd(cache, repo):
     assert cache.entry(1)["state"] == "pending" and cache.entry(1)["attempts"] == 0
 
 
-def test_drain_start_gate_and_hard_deadline_are_separate_bounds(cache, repo):
+def test_drain_with_a_spent_start_gate_and_an_open_hard_deadline_calls_nothing(cache, repo):
     cache.write("b1", "close", {}, None, "k1", "dev-1")
     n = len(repo.bd.calls())
-    # The gate is spent, the hard deadline is not: nothing starts.
     report = cache.drain(0, 20)
     assert report["deferred"] == [1] and report["deferred_in_flight"] == []
     assert len(repo.bd.calls()) == n
-    # The gate is open, a slow bd runs into the hard deadline: the call is cut, not an attempt.
-    repo.bd.delay("*", 3)
-    report = cache.drain(20, 0.5)
-    assert report["applied"] == [] and report["escalated"] == []
-    assert cache.entry(1)["attempts"] == 0
-    # The gate closes while bd is still answering, the hard deadline is far off: the
-    # pre-read still completes (only the hard deadline cuts a call), the entry is deferred.
-    repo.bd.delay("*", 0.6)
-    before = len(repo.bd.calls())
-    report = cache.drain(0.3, 30)
-    assert report["deferred"] == [1] and report["applied"] == []
-    assert "list" in [argv[0] for argv in repo.bd.calls()[before:]], "the hard deadline did not cut the pre-read"
 
 
-def test_sync_stops_at_its_timeout_when_bd_answers_late(cache, repo, stopwatch):
-    repo.bd.delay("*", 5)
+def test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt(cache, repo, stopwatch):
+    cache.write("b1", "close", {}, None, "k1", "dev-1")
+    release = repo.bd.block("*")
     with stopwatch() as watch:
-        report = cache.sync("x", 0.4)
-    assert watch.elapsed < 2.0, f"sync took {watch.elapsed:.2f}s with a 0.4 s timeout"
+        report = cache.drain(30, 0.5)  # the gate is open; the hard deadline is 0.5 s
+    assert not release.is_set(), "it returned while bd was still blocked: the hard deadline cut the call"
+    assert watch.elapsed < 10, "a loose sanity bound; the cause is the block above"
+    assert report["applied"] == [] and report["escalated"] == []
+    assert cache.entry(1)["attempts"] == 0 and cache.entry(1)["state"] == "pending"
+
+
+def test_drain_start_gate_closing_does_not_cut_a_pre_read_the_hard_deadline_allows(cache, repo):
+    cache.write("b1", "close", {}, None, "k1", "dev-1")
+    release = repo.bd.block("list")
+    gate = 0.3
+    started = time.monotonic()
+
+    def release_after_the_gate():
+        repo.bd.wait_started("list")
+        # The release comes strictly after the start gate closed, so the order is fixed.
+        while time.monotonic() < started + gate + 0.3:
+            time.sleep(0.01)
+        release.set()
+
+    helper = daemon(release_after_the_gate)
+    helper.start()
+    report = cache.drain(gate, 30)
+    join(helper)
+    assert report["deferred"] == [1] and report["applied"] == []
+    list_calls = [(s, e) for s, e, argv in repo.bd.spans() if argv[0] == "list"]
+    assert list_calls and list_calls[-1][1] is not None, "the pre-read was not cut: only the hard deadline cuts a call"
+    assert "close" not in repo.bd.commands(), "no write started after the gate"
+
+
+def test_sync_stops_at_its_timeout_when_bd_is_blocked(cache, repo):
+    release = repo.bd.block("*")
+    report = cache.sync("x", 0.4)
+    assert not release.is_set(), "it returned while bd was still blocked"
     assert report["deferred"] or report["outage"], report
 
 

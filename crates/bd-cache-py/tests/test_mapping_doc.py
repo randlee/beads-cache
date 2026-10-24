@@ -1,25 +1,18 @@
 """The Mapping table of `docs/bd-cache-py/architecture.md` covers every call atm-bd makes (REQ-PY-0009).
 
-REQUIRED is the set of `bd_cache.py` names that the atm-bd hooks and
-`bd_cache_cron.py` use at atm-core 05831df: `sanity_task_close_hook.py`,
-`close_fields_backfill.py`, `close-vars.py`, `bd_cache_cron.py`, and the CLI
-commands their messages tell people to run.
+The names come from `atm_core_05831df_calls.json`, extracted from atm-core 05831df with file and
+line (`atm_core_05831df_extract.py`, run with `gh`); nothing here is typed by hand.
 """
 
+import json
 import re
 from pathlib import Path
 
 import bd_cache_rs
 
-DOC = Path(__file__).resolve().parents[3] / "docs" / "bd-cache-py" / "architecture.md"
-
-REQUIRED = {
-    "BdCache", "get", "cached", "bd_rows", "store", "view", "list", "write", "drain", "sync", "prune",
-    "resolve", "status", "path", "unannounced_escalations", "mark_announced", "sync_alert",
-    "set_sync_alert", "clear_sync_alert", "outage", "mark_outage_announced", "record_outage",
-    "clear_outage", "has_open_work", "CacheError", "code", "detail", "fix", "extra", "as_json",
-    "UNREACHABLE",
-}
+HERE = Path(__file__).resolve().parent
+DOC = HERE.parents[2] / "docs" / "bd-cache-py" / "architecture.md"
+EVIDENCE = json.loads((HERE / "atm_core_05831df_calls.json").read_text(encoding="utf-8"))
 
 
 def mapping_rows():
@@ -33,12 +26,20 @@ def mapping_rows():
     return rows
 
 
+def test_the_evidence_is_from_the_pinned_commit_and_has_locations():
+    assert EVIDENCE["ref"] == "05831dfe866d389feed138add3c29cb93cd6c82b"
+    assert EVIDENCE["commands"] and EVIDENCE["uses"]
+    for use in EVIDENCE["uses"]:
+        assert use["file"] in EVIDENCE["clients"] and isinstance(use["line"], int) and use["line"] > 0
+
+
 def test_every_name_the_atm_bd_scripts_use_has_a_row():
     named = set()
     for first, _, _ in mapping_rows():
         named.update(re.findall(r"[A-Za-z_]+", " ".join(re.findall(r"`([^`]+)`", first))))
-    missing = {name for name in REQUIRED if name not in named}
-    assert not missing, f"no Mapping row names: {sorted(missing)}"
+    used = {entry.split(":", 1)[1] for entry in EVIDENCE["names"]}
+    missing = sorted(used - named)
+    assert not missing, f"no Mapping row names: {missing}; used at {EVIDENCE['ref'][:7]}"
 
 
 def test_every_binding_the_table_names_exists():

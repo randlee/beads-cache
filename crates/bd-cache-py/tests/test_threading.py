@@ -1,37 +1,32 @@
-"""Threading per ADR-CORE-0001 and ADR-PY-0003: a mutex-guarded handle that releases the GIL while it waits."""
+"""Threading per ADR-CORE-0001 and ADR-PY-0003: a closable, mutex-guarded handle that releases the GIL.
+
+The GIL, close and lock tests are causal. The fake `bd` blocks until a release file exists, and a
+Python thread creates that file only after observing something that can happen only if the GIL
+was free (a ticker's progress, `closed` turning true). If the GIL were held, the release never
+comes and the verb fails at its own deadline; there is no duration ratio to tune.
+"""
 
 import threading
 import time
 
+import pytest
+
 import bd_cache_rs
+from conftest import daemon, join
 
 
-def test_other_python_threads_run_while_a_verb_waits_on_bd(cache, repo):
-    repo.bd.delay("*", 1.5)
-    ticks = []
-    stop = threading.Event()
+def test_a_python_thread_runs_while_a_verb_waits_on_bd_and_releases_it(cache, repo):
+    release = repo.bd.block("list")
 
-    def ticker():
-        while not stop.is_set():
-            ticks.append(time.monotonic())
-            time.sleep(0.01)
+    def release_once_bd_runs():
+        repo.bd.wait_started("list")  # needs the GIL while the verb is blocked inside bd
+        release.set()
 
-    thread = threading.Thread(target=ticker)
-    thread.start()
-    try:
-        started = time.monotonic()
-        cache.refresh(["b1"], 10)  # one bd call that answers after 1.5 s
-        elapsed = time.monotonic() - started
-    finally:
-        stop.set()
-        thread.join()
-    assert elapsed >= 1.4
-    # A held GIL freezes the ticker for the whole call (a gap of about `elapsed`);
-    # scheduling jitter on a busy runner is a small fraction of that. The signal is the
-    # longest gap between ticks across the call, not a tick count.
-    marks = [started] + [t for t in ticks if started <= t <= started + elapsed] + [started + elapsed]
-    longest = max(b - a for a, b in zip(marks, marks[1:]))
-    assert longest < elapsed / 2, f"the ticker stalled {longest:.2f}s of a {elapsed:.2f}s call: the GIL was held"
+    helper = daemon(release_once_bd_runs)
+    helper.start()
+    rows = cache.refresh(["b1"], 10)  # a held GIL would never let the helper release bd
+    join(helper)
+    assert [r["bead"]["id"] for r in rows] == ["b1"]
 
 
 def test_any_thread_can_use_the_handle_and_none_panics(cache):
@@ -44,9 +39,9 @@ def test_any_thread_can_use_the_handle_and_none_panics(cache):
         except BaseException as error:  # any failure here is a defect, including a panic
             outcome.append(error)
 
-    thread = threading.Thread(target=other_thread)
+    thread = daemon(other_thread)
     thread.start()
-    thread.join()
+    join(thread)
     assert outcome == ["atm-dev", 1]
     assert cache.entry(1)["idem_key"] == "k-thread", "the owning thread sees what the other wrote"
 
@@ -65,13 +60,61 @@ def test_verbs_from_several_threads_run_one_at_a_time_without_error(cache):
         except BaseException as error:
             errors.append(error)
 
-    threads = [threading.Thread(target=worker, args=(n,)) for n in range(4)]
+    threads = [daemon(worker, n) for n in range(4)]
     for t in threads:
         t.start()
     for t in threads:
-        t.join()
+        join(t)
     assert errors == []
     assert sorted(seqs) == list(range(1, 41))
+
+
+def test_close_while_a_verb_is_in_flight(cache, repo):
+    release = repo.bd.block("list")
+    result = {}
+    ticks = [0]
+    stop = threading.Event()
+    seen = {}
+
+    def verb():
+        try:
+            result["rows"] = cache.refresh(["b1"], 10)
+        except BaseException as error:
+            result["error"] = error
+
+    def ticker():
+        while not stop.is_set():
+            ticks[0] += 1
+            time.sleep(0.005)
+
+    def releaser():
+        # `closed` turns true as close() begins, and close() then waits for the verb.
+        while not cache.closed:
+            time.sleep(0.002)
+        base = ticks[0]
+        # The ticker can only advance if close() released the GIL while it waits.
+        while ticks[0] < base + 5:
+            time.sleep(0.002)
+        seen["closed_while_in_flight"] = cache.closed
+        release.set()
+
+    in_flight, tick, rel = daemon(verb), daemon(ticker), daemon(releaser)
+    in_flight.start()
+    repo.bd.wait_started("list")  # the verb holds the lock inside bd
+    tick.start()
+    rel.start()
+    cache.close()  # returns only after the verb finished
+    join(in_flight)
+    join(rel)
+    stop.set()
+    join(tick)
+
+    assert "error" not in result, result
+    assert [r["bead"]["id"] for r in result["rows"]] == ["b1"], "the in-flight verb finished normally"
+    assert seen["closed_while_in_flight"] is True
+    assert release.is_set() and cache.closed is True
+    with pytest.raises(bd_cache_rs.ClosedError, match="open a new bd_cache_rs.Cache"):
+        cache.get("b1")
 
 
 def test_a_handle_can_be_closed_and_dropped_on_another_thread(repo):
@@ -82,9 +125,9 @@ def test_a_handle_can_be_closed_and_dropped_on_another_thread(repo):
         cache.close()
         done.append(cache.closed)
 
-    thread = threading.Thread(target=other_thread)
+    thread = daemon(other_thread)
     thread.start()
-    thread.join()
+    join(thread)
     assert done == [True]
     repo.opened.remove(cache)
     del cache
@@ -98,14 +141,13 @@ def test_a_handle_dropped_on_another_thread_does_not_panic(repo):
     def other_thread():
         holder.clear()  # the last reference dies here
 
-    thread = threading.Thread(target=other_thread)
+    thread = daemon(other_thread)
     thread.start()
-    thread.join()
+    join(thread)
     assert repo.open().closed is False
 
 
 def test_each_thread_can_own_a_cache_over_its_own_file(repo):
-    # One connection per cache file per process: threads use different files (cache_path).
     results = []
 
     def work(n):
@@ -114,9 +156,38 @@ def test_each_thread_can_own_a_cache_over_its_own_file(repo):
         results.append((n, cache.sync("x", 30)["stored"]))
         cache.close()
 
-    threads = [threading.Thread(target=work, args=(n,)) for n in range(3)]
+    threads = [daemon(work, n) for n in range(3)]
     for t in threads:
         t.start()
     for t in threads:
-        t.join()
+        join(t)
     assert sorted(results) == [(0, 3), (1, 3), (2, 3)]
+
+
+def test_handles_on_different_cache_files_never_overlap_their_bd_calls(repo):
+    # Two handles, one project directory: bd on embedded Dolt must not run twice at once, so the
+    # handles share one process-wide lock set. Each fake bd call logs its start and its end.
+    repo.bd.delay("*", 0.2)
+    first = repo.open(cache_path="first.sqlite3")
+    second = repo.open(cache_path="second.sqlite3")
+    barrier = threading.Barrier(2)
+    errors = []
+
+    def work(cache, bead):
+        try:
+            barrier.wait(30)
+            for _ in range(3):
+                cache.refresh([bead], 20)
+        except BaseException as error:
+            errors.append(error)
+
+    threads = [daemon(work, first, "b1"), daemon(work, second, "b2")]
+    for t in threads:
+        t.start()
+    for t in threads:
+        join(t)
+    assert errors == []
+    spans = sorted(repo.bd.spans())
+    assert len(spans) == 6
+    for (_, end, argv), (start, _, _) in zip(spans, spans[1:]):
+        assert end is not None and end <= start, f"bd calls overlapped: {argv} ended {end}, next started {start}"
