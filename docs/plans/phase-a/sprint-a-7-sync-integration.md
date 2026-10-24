@@ -4,7 +4,7 @@ phase: a
 status: in-review
 closure_type: integration
 target_boundary: bd-cache-sync and phase composition
-vertical_rationale: "The bd-cache-sync boundary does not exist yet: this sprint creates it, then composes it with sc-bd-cli, sc-cron, bd-cache-store and bd-cache. Its only contract (EscalationSender) is already frozen in a-1."
+vertical_rationale: "The bd-cache-sync boundary does not exist yet: this sprint creates it, then composes it with sc-bd-cli, sc-cron, bd-cache-store and bd-cache. Its only contract (EscalationSender) was defined in a-1 and is amended by the ADR-MODEL-0003 a-7 amendment."
 track: integration
 wave: 3
 branch: sprint/a-7-sync-integration
@@ -26,6 +26,11 @@ owned_paths:
   - "docs/bd-cache-sync/**"
   - "docs/plans/phase-a/evidence/**"
   - "docs/architecture.md"
+  - "crates/bd-cache-store/src/lib.rs"  # S4/S14: module docs and re-exports (fix-a-7-3)
+  - "crates/bd-cache-store/src/error.rs"  # S14/S18: error text built without ignored write! results (RBP-F029)
+  - "crates/bd-cache-model/src/op.rs"  # S14/S18: CLOSED_STATUS constant (RBP-F017)
+  - "crates/bd-cache-model/src/pyjson.rs"  # S14/S18: shared formatting fix (RBP-F029)
+  - "crates/bd-cache-model/src/testing/store.rs"  # S14/S18: shared contract store (RBP-F029)
   - "crates/bd-cache-store/tests/open.rs"  # S14
   - "crates/bd-cache-store/tests/store.rs"  # S14
   - "crates/bd-cache-model/src/lib.rs"  # S14: re-exports (a-8 also edits it; whoever merges second resolves)
@@ -37,7 +42,7 @@ owned_paths:
   - "docs/project-plan.md"  # S12
   - "docs/plans/phase-a/phase-a-plan.md"  # S6/S7
   - "docs/requirements.md"  # S3/S5 amendments
-  - "Cargo.toml"  # S7: workspace dependencies
+  - "Cargo.toml"  # S7: workspace dependencies; S14/S18 fix-a-7-3 adds a new workspace dependency (libc, for O_NONBLOCK in phases.rs, RSH-024)
   - "crates/bd-cache-store/src/{store,schema,codec}.rs"  # S4 amendment
   - "crates/bd-cache-model/src/testing/contract.rs"
   - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment
@@ -449,3 +454,39 @@ with `set -o pipefail`:
 CI (per the CI-evidence convention in the phase plan): run
 [40102640467](https://github.com/randlee/beads-cache/actions/runs/40102640467) is green on ubuntu, macos and
 windows at `bc1e4ab`, the last code commit; later commits change documents only.
+
+## QA round 3 findings and their fixes
+
+Reviewed at `aec3a12`. Code fixes landed at `a0ba471` (layer `sprint/a-7-fix3`
+base); the store ADR documents are in layer `sprint/a-7-fix3-store`, the sync
+ADR documents in layer `sprint/a-7-fix3-sync`, and this evidence in
+`sprint/a-7-fix3-evidence`. The test names are those in the code at `a0ba471`.
+
+| Finding | Fix | Evidence |
+|---|---|---|
+| ARCH-201, REQ-QA-201, QA3-001 | No index holds an expression: `unixepoch()` is not in any index, so a `bd_cache.py` on SQLite < 3.38 (Ubuntu 22.04: 3.37.2) writes the journal. The epoch is a stored column with plain and partial indexes; an earlier build's expression index is dropped on open; ADR-STORE-0002 / REQ-STORE-0003 amended (S18) | `crates/bd-cache-store/src/schema.rs`; `no_index_holds_a_function_and_journal_writes_work_without_unixepoch`, `the_expression_index_of_an_earlier_build_is_dropped_on_open`, `entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since` (store tests); docs in `sprint/a-7-fix3-store` |
+| QA3-007 | `INDEXED BY` failure (index dropped by another writer) falls back to the unhinted query, correct and slower | `the_entries_since_check_survives_a_dropped_index` |
+| QA3-006 | `Cache::cached` doc states the O(1) cost holds while no write is in flight; with one in flight the scope base is adjusted as `get` does (ADR-CORE-0206) | `crates/bd-cache/src/lib.rs`, `ready.rs` |
+| ARCH-202 | ADR-SYNC-0005 reads roots with `Cache::cached` | `docs/bd-cache-sync/architecture.md` (layer `sprint/a-7-fix3-sync`) |
+| ARCH-203 | `vertical_rationale` reworded: contract defined in a-1, amended by the ADR-MODEL-0003 a-7 amendment; "frozen" dropped | this document's frontmatter |
+| ARCH-204 | Every path fix-a-7-3 touched is in `owned_paths` with S4/S14/S18 comments | this document's frontmatter |
+| ARCH-205 | Testbed record says the incremental-sync time is reported (PASS/OVER), not asserted | `evidence/a-7-testbed.md` |
+| FTQ-012 | Kill tests wait for the fake to start (handshake via pid files with a deadline); the 250 ms test checks the pids it started | `atm_process.rs` (`assert_started_ones_are_gone`, `the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child`) |
+| FTQ-013 | `Reaper` is created before any assertion that can fail, so fakes are not orphaned | `atm_process.rs` (`Reaper`) |
+| FTQ-014 | `run-live.sh` lets the watchdog finish its TERM grace and then KILL, and traps INT/TERM to kill the process group | `crates/bd-cache-sync/tests/run-live.sh` |
+| FTQ-015 | Setup ticks report a deferral as inconclusive instead of a failure | `crates/bd-cache-sync/tests/live.rs` |
+| RBP-F017 | One `CLOSED_STATUS` constant in bd-cache-model, re-exported from `bd_cache` | `crates/bd-cache-model/src/op.rs`, `bd-cache/src/lib.rs`, `ready.rs` |
+| RBP-F025 | Member-rule fix texts say the whole rule | `crates/bd-cache-sync/src/reply.rs`, `phases.rs` |
+| RBP-F027 | Stable `code()` on the remaining error types | `job.rs`, `phases.rs`, `atm.rs` (`code`) |
+| RBP-F028 | `ComposeError::fix()` | `crates/bd-cache-sync/src/compose.rs` (`compose_errors_have_codes_and_sources`) |
+| RBP-F029 | No `let _ = write!` into a `String` in the three files | `bd-cache-store/src/error.rs`, `bd-cache-model/src/pyjson.rs`, `bd-cache-model/src/testing/store.rs` |
+| QA3-002, RSH-021 | `collect` reads the streams against one shared deadline `min(now + grace, until)`, so the send keeps its reserve; doc corrected | `crates/bd-cache-sync/src/atm.rs` |
+| QA3-003 | Test for a failing exit with a descendant holding the pipes | `a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it` |
+| QA3-004 | Windows resolution tries `PATHEXT` extensions first; a bare name only if it already ends in one (npm shim) | `atm.rs` (`resolve`, `DEFAULT_PATHEXT`) |
+| QA3-008 | Unix resolution requires a regular file with an execute bit | `a_file_without_an_execute_bit_does_not_resolve` |
+| QA3-005 | Shutdown delay documented: the drain keeps its own budget and ignores the flag; worst case `T - 2 s`; no phase starts and nothing is sent afterwards | `crates/bd-cache-sync/src/job.rs` docs; `a_stop_that_arrives_mid_drain_is_seen_within_the_drains_hard_deadline` (S20) |
+| RSH-022 | A send whose child already exited is judged by its status before the stop flag is honoured, so a delivered message is not reported Cancelled and sent again | `atm.rs`; `an_atm_that_exits_without_reading_still_counts_as_delivered_by_its_status` |
+| RSH-023 | Detached reader/writer threads are bounded (at most three per send, waited for no longer than the time left) and documented | `atm.rs` module docs |
+| RSH-024 | Phase files open with `O_NONBLOCK` and are checked on the open handle (no metadata-then-open race); a pipe is reported, not read | `crates/bd-cache-sync/src/phases.rs`; `a_phase_file_that_is_a_pipe_does_not_block_the_tick` |
+| (unlisted, found while fixing ARCH-201) | An alert `bd_cache.py` stored (`"<code>: <detail>"`) is read; a generic `BD_CACHE.SYNC_FAILED` covers a failure it announced (S21) | `announce.rs`; `an_alert_in_bd_cache_pys_format_is_read_and_covers_the_failure_it_announced` |
+| (planted-bug script) | `a-7-planted-bugs.py` extended for the round-3 fixes; run in phase 2 | `evidence/a-7-planted-bugs.py` |

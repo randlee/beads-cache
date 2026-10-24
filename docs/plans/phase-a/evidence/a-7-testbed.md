@@ -4,7 +4,7 @@ Sprint a-7 (`docs/plans/phase-a/sprint-a-7-sync-integration.md`, deliverable 5).
 The testbed is the `m5-atmbench` account, run by the lead (bc-lead) (NFR-BDC-0006:
 live tests run only there and in the bd-compat workflow).
 
-## Status: deferred, owner bc-lead, due 2026-10-31
+## Status: pre-final run recorded; final-head re-run by bc-lead before the merge (due 2026-10-31)
 
 The developer session that wrote this sprint has no access to `m5-atmbench`.
 Under deliverable 5, the recording-invoker results (CI, below) close the
@@ -48,8 +48,8 @@ What the two tests do:
   `bd show` says `closed`.
 - `an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`: imports 1000 beads
   with `updated_at` an hour in the past (`bd import`), runs a full tick, changes
-  five beads with `bd update`, then times `Cache::sync` and asserts it stored
-  fewer than 50 rows and took under 1 s.
+  five beads with `bd update`, then times `Cache::sync`, asserts it stored
+  fewer than 50 rows, and reports the time against the 1 s limit (PASS/OVER; the time is reported, not asserted).
 
 ## Recorded runs
 
@@ -74,19 +74,24 @@ Incremental sync of a 1000-bead phase: 508 ms against the 1 s limit
 server; it is a sanity figure, not the recorded NFR evidence, which is the
 testbed's.
 
-### Testbed run (m5-atmbench) - to be filled in by the lead (bc-lead)
+### Testbed run (m5-atmbench), run by the lead (bc-lead): PRE-FINAL
 
-Run both scripts from a checkout of `sprint/a-7-sync-integration` (or of the
-merge), each with a clean `cargo` target, and paste the output here.
-`LIVE_TIMEOUT_S` (default 1800) bounds `crates/bd-cache-sync/tests/run-live.sh`;
-every `bd` call of the live test's own setup is bounded at 60 s, and the tests
-run one at a time, each with its own cache file.
+These runs are at `2f7bd38` and `aec3a12`, not at the final head. bc-lead
+re-runs both scripts at the final head before the merge and replaces this
+section's status.
 
-| Item | Command | Date | Host / bd / dolt versions | Result | Figure |
-|---|---|---|---|---|---|
-| a-2 live probes | `scripts/bd-compat/run-live.sh` | | | | 7 probes |
-| a-7 write lands in a real bd | `crates/bd-cache-sync/tests/run-live.sh` (`a_journaled_write_lands_in_a_real_bd_through_the_tick`) | | | | applied, no read-back error |
-| NFR-BDC-0003 incremental sync of 1000 beads | same run (`an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`) | | | | the `NFR-BDC-0003:` line: incremental ms and `PASS`/`OVER` against 1 s; rows stored < 50 |
+Host `m5-atmbench` (atmbench@rand-m5), bd 1.3.2 (dev), dolt 2.3.1, rust 1.98.1,
+debug build, 2026-10-24.
+
+| Item | Command | Commit / date | Result | Figure |
+|---|---|---|---|---|
+| a-2 live probes | `scripts/bd-compat/run-live.sh` | `2f7bd38`, 13:25Z; `aec3a12`, 14:41Z | 6/7 pass | `fingerprint_reports_what_bd_prints` fails: bd 1.3.2 is not the pinned 1.3.1 (as designed) |
+| a-2 live probes, `SC_BD_PINNED_ANY=1` | same | `2f7bd38`; `aec3a12` | 7/7 pass | 7 probes |
+| a-7 write lands in a real bd | `crates/bd-cache-sync/tests/run-live.sh` (`a_journaled_write_lands_in_a_real_bd_through_the_tick`) | `2f7bd38`; `aec3a12` | pass (2/2 with the timing test) | applied, no read-back error |
+| NFR-BDC-0003 incremental sync of 1000 beads | same run (`an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`) | `2f7bd38`: 371.1 ms (full tick 496.6 ms); `aec3a12`: 382.7 ms (full tick 499.3 ms) | pass, PASS | 6 rows stored (< 50); 382.7 ms against the 1 s limit |
+
+Logs on the testbed: `~/a7-testbed-2f7bd38.log`, `~/a7-testbed-aec3a12.log`,
+`~/a2-pinnedany-aec3a12.log`.
 
 The timing is reported with its limit and is not an assertion (a shared host
 can stall any one call); the test asserts only that the sync was incremental.
