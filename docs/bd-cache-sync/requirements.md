@@ -230,6 +230,29 @@ directory that is not the environment's) and
 (runs in a child process of the test binary whose environment sets
 `BEADS_DIR`).
 
+Amendment (fix-a-7-14, S44, RSH-035, QA9-003, FTQ-031; **Status:** Approved (lead ruling S44, bc-lead, 2026-10-24)):
+`compose_with` normalizes the explicit `$BEADS_DIR` once and gives that one
+value to the store (`SqliteStore::open_with`) and to every `bd` child
+(`BdCli::with_child_var`): an empty value is `None` (unset for both; the
+child no longer gets `""`), and a relative value is made absolute against the
+process's working directory, so the store and the child, which runs in the
+repository, name one directory. For `compose`, which passes the
+environment's value, this changes what a `bd` child sees only for an empty or
+relative `$BEADS_DIR` (S40's "what they always saw" holds for an absolute or
+unset one). Evidence (`tests/compose.rs`, Unix):
+`an_empty_explicit_beads_dir_is_unset_for_the_bd_child` and
+`a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child`
+(a child process of the test binary whose working directory is not the
+repository: the store reads `metadata.json` there and the child sees the
+absolute path); the unit tests `an_empty_or_unset_beads_dir_is_none` and
+`a_relative_beads_dir_is_made_absolute_against_the_working_directory`
+(`src/compose.rs`). The two child-process cases drain the child's output on
+reader threads, bound it by 120 s and print it on failure (FTQ-031). The
+clock rebinding of S40 is pinned by
+`the_composed_backend_measures_deadlines_on_the_composition_clock` (a
+backend on the system clock, composed with a manual clock an hour ahead: a
+deadline passed on the manual clock is refused without a spawn).
+
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -266,7 +289,7 @@ again (at least once, ADR-SYNC-0003). Evidence: `tests/marker_wait.rs`,
 `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
 (`bd-cache-store/tests/store.rs`).
 
-Amendment (fix-a-7-10, S35, RSH-030, RSH-031, ARCH-705, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-10, S35, RSH-030, RSH-031, ARCH-705, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24); restated for QA8-001/RBP-F045 and lead ruling S41 (fix-a-7-12)):
 the alert clears without a message (after a passing sync, at the end of an
 outage) are bounded writes too: they wait at most the time left before `T`,
 like the markers. The bound applies to the bounded writes only, these markers
@@ -290,12 +313,28 @@ clear's wait). The warnings are not asserted: the workspace has no tracing
 subscriber to capture them, and the test names do not claim the logging
 (lead ruling S41, QA8-002).
 
-Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24); corrected by lead ruling S46 (fix-a-7-14, RSH-034)):
 a bounded write (a marker after a send, an alert clear) ends by `T` plus the
 bounded write's own run time (statement, commit, fsync, any automatic
-checkpoint) plus scheduler jitter; the lock wait itself never extends past
-`T`. This replaces the "`T` plus the busy handler's sleep slack (tens of ms)"
-of S35, which bounded only the lock wait.
+checkpoint) plus scheduler jitter. The lock wait is capped at the time left
+before `T` and may overshoot it by the busy handler's sleep slack, which
+counts as scheduler jitter (S46). This replaces the "`T` plus the busy
+handler's sleep slack (tens of ms)" of S35, which bounded only the lock wait.
+
+Amendment (fix-a-7-14, S46, RSH-034; **Status:** Approved (lead ruling S46, bc-lead, 2026-10-24)):
+"the lock wait itself never extends past `T`" (S39) is withdrawn: the busy
+handler sleeps in steps, so a wait capped at the time left can end up to one
+sleep step after `T`. That slack is scheduler jitter; the bound is unchanged.
+
+Amendment (fix-a-7-14, S45, RSH-037; **Status:** Approved (lead ruling S45, bc-lead, 2026-10-24)):
+when an outage is over, the tick clears its alerts one scope at a time and
+stops once the time left before `T` is zero or the stop flag is set; the
+alerts it did not clear stay set and the next tick clears them, silently.
+Evidence:
+`an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it`
+(`tests/marker_wait.rs`) and
+`a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
+(`src/announce.rs`).
 
 **Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,

@@ -20,7 +20,7 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `control` | `StopFlag` and the tick's time budget for messages |
 | `job` | `SyncJob` (the `sc-cron` `Job`), `TickRun`, `schedule_spec`, `TICK_EXPR` |
 | `atm` | `AtmSender`: `atm send` with the body on stdin, bounded, the whole process tree killed on timeout or stop |
-| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
+| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both (empty is unset, relative is absolute against the process's working directory; S44), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
 
@@ -140,7 +140,7 @@ given exactly the time left, on the `ManualClock`),
 `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
 (the busy timeout sampled inside the write).
 
-Amendment (fix-a-7-10, S35, RSH-030, RSH-031, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-10, S35, RSH-030, RSH-031, QA7-002, QA7-003; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24); restated for QA8-001/RBP-F045 and lead ruling S41 (fix-a-7-12)):
 the alert clears without a message (after a passing sync, and at the end of an
 outage) are bounded writes too: they wait at most `Budget::write_wait`, and a
 clear that fails is logged (`tracing::warn`, scope, reason, code) and does not
@@ -168,13 +168,33 @@ and records the marker),
 The warnings themselves are not asserted: the workspace has no tracing
 subscriber, and no test name claims the logging (lead ruling S41, QA8-002).
 
-Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-12, S39, RSH-032; **Status:** Approved (lead ruling S39, bc-lead, 2026-10-24); corrected by lead ruling S46 (fix-a-7-14, RSH-034)):
 the bound of every bounded write (the markers after a send and the alert
 clears) is `T` plus the bounded write's own run time (statement, commit,
-fsync, any automatic checkpoint) plus scheduler jitter; the lock wait itself
-never extends past `T`, since `write_wait` is the time left and the store
-waits `min(BUSY_TIMEOUT, that)`. It replaces S35's "`T` plus the busy
-handler's sleep slack (tens of ms)", which bounded the lock wait only.
+fsync, any automatic checkpoint) plus scheduler jitter. The lock wait is
+capped at the time left before `T` (`write_wait` is the time left and the
+store waits `min(BUSY_TIMEOUT, that)`) and may overshoot it by the busy
+handler's sleep slack, which counts as scheduler jitter (S46). It replaces
+S35's "`T` plus the busy handler's sleep slack (tens of ms)", which bounded
+the lock wait only.
+
+Amendment (fix-a-7-14, S46, RSH-034; **Status:** Approved (lead ruling S46, bc-lead, 2026-10-24)):
+the S39 wording "the lock wait itself never extends past `T`" is withdrawn,
+here, in ADR-SYNC-0007, in REQ-SYNC-0011 and in `control.rs`
+(`SEND_RESERVE`, `Budget::write_wait`): SQLite's busy handler sleeps in
+steps, so a wait capped at the time left can end a step after `T` (22-46 ms
+measured by RSH-034). That slack counts as scheduler jitter; the overall
+bound of S39 is unchanged.
+
+Amendment (fix-a-7-14, S45, RSH-037; **Status:** Approved (lead ruling S45, bc-lead, 2026-10-24)):
+the end-of-outage clears stop once `Budget::write_wait` is zero (`T` has
+passed) or the stop flag is set (the reply then says `stopped`); the alerts
+not yet cleared stay set and the next tick clears them. No clear is started
+with no time left. Evidence:
+`an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it`
+(`tests/marker_wait.rs`: no bounded write is issued after `T`, the next tick
+clears) and `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
+(`src/announce.rs`).
 
 Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
 `"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
@@ -373,8 +393,11 @@ not for the tick's other store writes (ADR-SYNC-0003, S35 amendment). As
 restated by lead ruling S39 (fix-a-7-12, RSH-032; **Status:** Approved (lead
 ruling S39, bc-lead, 2026-10-24)), a contended store bounds such a write by
 `T` plus the bounded write's own run time (statement, commit, fsync, any
-automatic checkpoint) plus scheduler jitter; the lock wait itself never
-extends past `T`. The send reserve is not sized for that run time.
+automatic checkpoint) plus scheduler jitter. As corrected by lead ruling S46
+(fix-a-7-14, RSH-034; **Status:** Approved (lead ruling S46, bc-lead,
+2026-10-24)), the lock wait is capped at the time left before `T` and may
+overshoot it by the busy handler's sleep slack, which counts as scheduler
+jitter. The send reserve is not sized for that run time.
 
 Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
 a child or tree-kill program still running at the kill deadline is killed and
