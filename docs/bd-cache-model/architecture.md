@@ -66,6 +66,26 @@ open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
 
+### ADR-MODEL-0003 amendment (a-1 amendment 2): ready replies say when
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Context: a-6 QA-1 (arch-qa) found two gaps against the repo ADRs.
+ADR-BDC-0005 says every read reply carries the scope's `last_ok_at`, but
+`ReadyReply` had no such field. ADR-BDC-0002 says every `ready` reply states
+its basis, including bd's fetch time, but `ReadyBasis::Fresh` carried none.
+
+Decision:
+- `ReadyReply` gains `last_ok_at: Option<Timestamp>`, the scope's last
+  successful sync, as `GetReply` and `ListReply` have.
+- `ReadyBasis::Fresh` becomes `Fresh { fetched_at: Timestamp }`: the
+  instant taken before the first `list_blocked` / `list_ready` call of that
+  answer, the same instant a refreshed base stores. Every basis except
+  `Unknown` now names when bd's answer was fetched.
+- Serialized: `"last_ok_at"` on the reply, and
+  `{"kind": "fresh", "fetched_at": ...}` for the basis (golden in
+  `tests/goldens.rs`).
+
 ## ADR-MODEL-0004: toml is a private parsing dependency
 
 **Status:** Approved (lead ruling, 2026-10-23; ruling L2 on ARCH-007)

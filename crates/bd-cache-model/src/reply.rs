@@ -49,12 +49,17 @@ pub struct ListReply {
     pub outage: Option<Outage>,
 }
 
-/// What a `ready` answer is based on (ADR-BDC-0002).
+/// What a `ready` answer is based on (ADR-BDC-0002): every basis but
+/// `Unknown` says when bd's answer was fetched.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ReadyBasis {
     /// bd answered within the caller's limit.
-    Fresh,
+    Fresh {
+        /// When bd's answer was fetched: the instant taken before the first
+        /// `list_blocked` / `list_ready` call of this answer (a-1 amendment 2).
+        fetched_at: Timestamp,
+    },
     /// The stored base.
     Cached {
         /// When the base was fetched.
@@ -71,6 +76,9 @@ pub enum ReadyBasis {
 pub struct ReadyReply {
     /// The scope.
     pub scope: ScopeId,
+    /// The scope's last successful sync, as on every read reply
+    /// (ADR-BDC-0005; a-1 amendment 2).
+    pub last_ok_at: Option<Timestamp>,
     /// The basis.
     pub basis: ReadyBasis,
     /// True when journaled writes adjusted the base.

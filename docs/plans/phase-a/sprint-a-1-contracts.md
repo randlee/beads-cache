@@ -312,8 +312,8 @@ impl CallFailure { pub fn into_error(self, cut_detail: impl Into<String>) -> Cac
 pub struct RowView { pub bead: Bead, pub stale: bool, pub blocked: Option<Vec<BeadId>> /* None = unknown, Some([]) = not blocked */ }
 pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<Timestamp>, pub pending: u32, pub outage: Option<Outage> }
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<Timestamp>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
-pub enum ReadyBasis { Fresh, Cached { fetched_at: Timestamp, stale: bool }, Unknown }
-pub struct ReadyReply { pub scope: ScopeId, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
+pub enum ReadyBasis { Fresh { fetched_at: Timestamp /* a-1 amendment 2 */ }, Cached { fetched_at: Timestamp, stale: bool }, Unknown }
+pub struct ReadyReply { pub scope: ScopeId, pub last_ok_at: Option<Timestamp> /* a-1 amendment 2, ADR-BDC-0005 */, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
         pub read_fallback: Option<String> /* why a requested fresh answer fell back */,
     pub missing_rows: Vec<BeadId> /* ready per bd but no cached row yet; omitted from `ready` */ }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
@@ -480,6 +480,15 @@ pub mod testing {
 | CI runs green on the sprint PR, including the boundary `cargo metadata` check | boundary:bd-cache |
 | `cargo publish --dry-run -p sc-beads` passes | ADR-BDC-0007 |
 | Planted bugs: no overlay, no metadata coercion guard, skip validation, no dep-type check, skip rebuild, rebuild on first check each fail a test; so do a FakeBackend bug and a replay bug (evidence below, NFR-BDC-0005) | boundary:bd-cache-model |
+
+## Amendments
+
+Each amendment is merged into `integrate/phase-a` before the wave-2 work that
+needs it (see the amendment rule under Outcome and closure).
+
+| # | Branch | Needed by | Change | Ruling |
+|---|---|---|---|---|
+| 2 | `sprint/a-1-amend-2` | a-6 | `ReadyReply.last_ok_at: Option<Timestamp>` (ADR-BDC-0005: every read reply carries the scope's `last_ok_at`); `ReadyBasis::Fresh { fetched_at: Timestamp }` (ADR-BDC-0002: the basis states bd's fetch time); goldens; ADR-MODEL-0003 amendment (a-1 amendment 2). | lead ruling, bc-lead, 2026-10-24 |
 
 ## Requirement scope notes
 
