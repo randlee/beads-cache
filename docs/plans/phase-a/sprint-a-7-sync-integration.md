@@ -37,6 +37,7 @@ owned_paths:
   - "docs/bd-cache/architecture.md"  # S14
   - "docs/bd-cache-model/architecture.md"  # S14: ADR-MODEL-0003 a-7 amendment
   - "docs/bd-cache-store/requirements.md"  # S14 (fix-a-7-2)
+  - "docs/bd-cache-model/requirements.md"  # QA7-004: bounded marker writes match the unbounded forms (contract rule)
   - "docs/bd-cache-store/architecture.md"  # ADR-STORE-0004
   - "docs/bd-cache/read-path.md"  # ADR-CORE-0206
   - "docs/project-plan.md"  # S12
@@ -45,8 +46,8 @@ owned_paths:
   - "Cargo.toml"  # S7: workspace dependencies; S14/S18 fix-a-7-3 adds a new workspace dependency (libc, for O_NONBLOCK in phases.rs, RSH-024)
   - "crates/bd-cache-store/src/{store,schema,codec}.rs"  # S4 amendment
   - "crates/bd-cache-store/Cargo.toml"  # S32: rusqlite functions dev-feature (ADR-STORE-0005)
-  - "crates/bd-cache-store/src/location.rs"  # S32: ConfigLoadError recovery text (RBP-F040)
-  - "crates/bd-cache-store/tests/location.rs"  # S32/RBP-F040: tests for ConfigLoadError::code/fix
+  - "crates/bd-cache-store/src/location.rs"  # S32: ConfigLoadError recovery text (RBP-F040); S34: store-neutral BD_CACHE.CONFIG_* codes; S36: resolve_with beads_dir seam
+  - "crates/bd-cache-store/tests/location.rs"  # S32/RBP-F040: tests for ConfigLoadError::code/fix; S34: the BD_CACHE.CONFIG_* codes; S36: no ambient BEADS_DIR
   - "crates/bd-cache-model/src/scope.rs"  # S32: PhaseName::RULE
   - "crates/bd-cache-model/src/testing/contract.rs"
   - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment; S33: store.rs gains mark_announced_within / set_sync_alert_within
@@ -608,7 +609,7 @@ Reviewed at `9990a10` (`sprint/a-7-fix4-sync`). Fixes: PR #28 (`sprint/a-7-fix5-
 
 ## Validation
 
-At the merge `9110187` (fix-a-7-8: the docs layer `sprint/a-7-fix8-docs` at `d702f19` merged forward; it brings in documents and `Cargo.toml` comments only, so its code is that of `24456c5`, the last code-changing commit), locally (macOS arm64, Rust 1.98.1, `CARGO_INCREMENTAL=0`), each gate under `bash -c 'set -o pipefail; ...'`. The quality-policy commands (`.claude/project/quality-policy.md`, Validation Policy, with `--exclude bd-cache-py`) and the whole-workspace forms both pass:
+At `2c07131` (fix-a-7-10), the last code-changing commit: the sync layer `sprint/a-7-fix10-sync` on top of its merge of the store layer `sprint/a-7-fix10-store` at `a00a07a` (code commit `752005f`, with the docs layer `7e1828d` merged in). After `2c07131` only this section and the frontmatter change. Locally (macOS arm64, Rust 1.98.1, `CARGO_INCREMENTAL=0`), each gate under `bash -c 'set -o pipefail; ...'`. The quality-policy commands (`.claude/project/quality-policy.md`, Validation Policy, with `--exclude bd-cache-py`) and the whole-workspace forms both pass:
 
 | Gate | Result |
 |---|---|
@@ -616,16 +617,14 @@ At the merge `9110187` (fix-a-7-8: the docs layer `sprint/a-7-fix8-docs` at `d70
 | `cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings` | pass |
 | `cargo clippy --workspace --exclude bd-cache-py --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude bd-cache-py --no-deps` | pass |
-| `cargo test --workspace --exclude bd-cache-py --all-features` | pass (791 passed, 0 failed) |
-| `cargo clippy --workspace --all-targets --all-features -- -D warnings`; `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps`; `cargo test --workspace --all-features` | pass; pass; pass (808 passed, 0 failed) |
-| `cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests` | 92 passed |
-| New and changed tests, 20 runs each | 20 of 20 green (`store::tests`, `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`, `tests/location.rs` config tests, `atm::tests`, `control::tests`, `tests/marker_wait.rs`, `tests/compose.rs`, `tests/atm_process.rs`) |
-| Planted bugs | **deferred** to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25); the committed results stay those of `7702b67` (see Evidence: planted bugs) |
-| Testbed (`m5-atmbench`) | **deferred** to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25); the last recorded run is at `7702b67` (`evidence/a-7-testbed.md`) |
+| `cargo test --workspace --exclude bd-cache-py --all-features` | pass (795 passed, 0 failed) |
+| `cargo clippy --workspace --all-targets --all-features -- -D warnings`; `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features`; `cargo test --workspace --all-features` | pass; pass; pass (812 passed, 0 failed, 16 ignored) |
+| `maturin build --release --manifest-path crates/bd-cache-py/Cargo.toml`, the wheel installed, `python -m pytest crates/bd-cache-py/tests --rootdir=crates/bd-cache-py` | 92 passed |
+| New and changed process tests, 20 runs each, at `2c07131` | 20 of 20 green: `tests/atm_process.rs` (13 cases; FTQ-026/027), `atm::tests` (6, with `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`; FTQ-025), `tests/marker_wait.rs` (6, with the S35 cases), `tests/compose.rs` (2; S34, S36) |
+| Planted bugs | **deferred** to `integrate/phase-a` (owner bc-lead, 2026-10-25); `a-7-planted-bugs.py` has its patterns updated for fix-a-7-10 (each matches once) and adds three S35 and two S34 mutants, not run here; the committed results stay those of `7702b67` (see Evidence: planted bugs) |
+| Testbed (`m5-atmbench`) | **deferred** to `integrate/phase-a` (owner bc-lead, 2026-10-25); the last recorded run is at `7702b67` (`evidence/a-7-testbed.md`) |
 
-CI (per the CI-evidence convention in the phase plan): PR #35 at `9110187` is green: ci run
-[40128788343](https://github.com/randlee/beads-cache/actions/runs/40128788343) (ubuntu, macos, windows) and python run
-[40128788296](https://github.com/randlee/beads-cache/actions/runs/40128788296).
+CI (per the CI-evidence convention in the phase plan): the fix-a-7-10 sync PR (base `sprint/a-7-fix10-store`) carries its own ci and python runs; none is cited here before they finish.
 
 ## QA round 3 findings and their fixes
 
