@@ -30,7 +30,7 @@ Naming follows the Plan Naming section of
 
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
-| `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` backend (seeded from btit), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | not yet written | planning |
+| `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | planning |
 
 ## Sprints
 

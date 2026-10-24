@@ -57,8 +57,8 @@ up when the backend responds (ADR-BDC-0005).
                         \                   |                    /
  core library:            bd-cache: SQLite store, sync scopes, journal, drain
                                           |
- backend port:            sc-beads: bd CLI adapter (phase a)
-                                     bd serve HTTP adapter (later)
+ backend port:            sc-beads traits: sc-bd-cli (phase a)
+                                     sc-bd-http (later)
                                           |
  backend:                 bd  ->  dolt sql-server (local, shared or Hosted Dolt)
                                   or embedded dolt + dolthub:// remote via bd sync
@@ -113,7 +113,9 @@ integrating with sc-runtime.
 | Crate | Responsibility | May depend on | Phase |
 |---|---|---|---|
 | `bd-cache-model` | Cache types on top of `sc-beads` rows: `Edge`, `Op`, `Patch` (`/v0`-aligned), guards, `Refusal`, `CacheError` with every `BD_CACHE.*` code and its fix text, overlay and `achieved` logic | serde | aa |
-| `sc-beads` (shared, seeded from btit) | Beads backend contract and the bd CLI adapter, shared with beads-task-issue-tracker: transport-neutral `BeadsBackend` trait, CLI invoker with a recording test double, probe and version gates, dolt-mode detection, per-project locks. Adds what bd-cache needs: batched `--id` and `--updated-after` lists, guarded update (`--if-status`/`--if-assignee`, exit 13 as a typed refusal), close with reason, a per-call deadline, `/v0`-aligned patch, backend fingerprint, and a strict row mode (ADR-BDC-0007) | serde | a |
+| `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, `BeadsError` and `Refusal`, a `FakeBackend` test double (ADR-BDC-0007) | serde | a |
+| `sc-bd-cli` (shared, published) | The bd CLI implementation of the `sc-beads` traits, ported from btit-cli and btit-bd: invoker with a recording test double, probes and version gates, dolt-mode detection, per-project locks; exit 13 as a typed refusal | `sc-beads` | a |
+| `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
 | `bd-cache-store` | SQLite file: BD-CACHE v3 schema plus the additive ADR-BDC extensions, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index | model, rusqlite (bundled) | aa |
 | `bd-cache` (core library) | `get`, `write`, `drain`, `sync`, `resolve`, `prune`, `status`, `ready`/blocked refresh (ADR-BDC-0002), outage handling (ADR-BDC-0005); takes plain config values and a clock, no runtime | model, `sc-beads`, store | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
@@ -316,7 +318,7 @@ integration. Needs agreement with the sc-runtime team on the crate name and
 its place in sc-runtime, and a note to the atm-core team, since atm-cron
 could later adopt it.
 
-## ADR-BDC-0007: Share the beads backend as `sc-beads`, seeded from btit-bd
+## ADR-BDC-0007: Shared beads backend crates, seeded from btit
 
 **Status:** Draft
 
@@ -327,31 +329,42 @@ parsing logic), `btit-cli` (the `CliInvoker` process runner, a
 `RecordingInvoker` test double, probes, per-project locks, the issue ops) and
 `btit-bd` (`BdCli`, dolt-mode detection), with issue types in `btit-types`
 (https://github.com/randlee/beads-task-issue-tracker/tree/develop/crates/btit-bd/src).
-It covers more of bd than bd-cache does (create, search, labels, delete,
-comments, dep add/remove, sync), which the MCP front end will need. It does
-not yet cover what the cache drain and sync rely on: `ListQuery` has no id,
-label or `updated_after` filters, `update` takes no guards, `close` takes no
-reason, there is no per-call deadline, and rows are parsed tolerantly into
-`BdRawIssue`.
+Its trait already makes the backend swappable, and an HTTP backend is planned
+for when bd releases it. It covers more of bd than bd-cache does (create,
+search, labels, delete, comments, dep add/remove, sync), which the MCP front
+end will need. It does not yet cover what the cache drain and sync rely on:
+`ListQuery` has no id, label or `updated_after` filters, `update` takes no
+guards, `close` takes no reason, there is no per-call deadline, and rows are
+parsed tolerantly into `BdRawIssue`.
 
-Decision: build one shared crate, `sc-beads`, seeded from btit-beads,
-btit-cli and btit-bd, in place of a bd-cache-only backend crate. It keeps the
-transport-neutral trait so a `bd serve` HTTP adapter fits later (ADR-BDC-0004)
-and adds bd-cache's needs: batched `--id` and `--updated-after` listing,
+Decision: three shared crates, built in this repository and published to
+crates.io:
+
+- `sc-beads`: the backend contract only (traits, row types, errors,
+  `FakeBackend`), seeded from btit-beads and btit-types.
+- `sc-bd-cli`: the bd CLI implementation, seeded from btit-cli and btit-bd.
+- `sc-bd-http`: the `bd serve` implementation, once bd ships the filters the
+  cache needs (ADR-BDC-0004).
+
+Every trait and feature btit uses today is kept with its signature, so btit
+switches to the crates.io releases without code changes beyond imports. The
+cache's needs are additions: batched `--id` and `--updated-after` listing,
 guarded update with exit 13 mapped to a typed refusal, close with reason, a
-per-call deadline, the `/v0`-aligned patch (ADR-BDC-0003), and the backend
-fingerprint (`bd version` plus `bd schema` sha). Rows come in two modes: the
-tolerant mode btit's UI uses today, and a strict mode for bd-cache, generated
-from `bd schema` with unknown fields denied and gated on the fingerprint.
-Logging moves from btit's global macros to `tracing`. Like `sc-cron`, it is
-built here first and moves to sc-runtime (or its own repository) once agreed;
-beads-task-issue-tracker then switches to it.
+per-call deadline, the `/v0`-aligned patch (ADR-BDC-0003), the backend
+fingerprint, and a strict row mode (generated from `bd schema`, unknown
+fields denied, gated on the fingerprint) beside btit's tolerant rows.
+Logging moves from btit's global macros to `tracing`.
 
-Consequences: phase a starts by porting the btit crates rather than writing a
-backend from scratch, and btit's parity and API-freeze tests come with them.
-Needs agreement from the beads-task-issue-tracker side on the shared API
-(sync calls, error type, tolerant vs strict rows) and from the sc-runtime team
-on where the crate lives.
+The point is one source of truth for bd's interface. When bd makes an
+incompatible change, the upgrade happens once, in these crates, and every
+consumer (bd-cache, btit, later the MCP server) takes it as a semver-major
+release instead of patching its own copy.
+
+Consequences: phase a ports the btit crates rather than writing a backend
+from scratch, and btit's parity and API-freeze tests come with them.
+bd-incompatible changes become breaking releases of `sc-beads` and
+`sc-bd-cli`. Needs agreement from the btit side on the shared API (sync
+calls, error type, tolerant vs strict rows).
 
 ## Per-Crate Architecture
 
