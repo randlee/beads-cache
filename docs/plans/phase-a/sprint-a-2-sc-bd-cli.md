@@ -262,7 +262,10 @@ impl FakeBd {
 
 Code evidence SHA: `a75b8077dd811a4659a8d82751d6b47a9b57d9b8` (fix-a-2-1, on top of the
 merge of `integrate/phase-a` at `7c689bf`), the last commit that changes
-`crates/sc-bd-cli`. Documentation commits after it do not change code.
+`crates/sc-bd-cli/src`. fix-a-2-2 later changed only `tests/live.rs` (probe setup calls
+are bounded and locked) and the workflow's live-step timeout; the planted bugs mutate
+`src`, so they were not re-run, and the live probes were re-run (7 of 7, bd 1.3.1).
+Documentation commits do not change code.
 
 ### Local gates (macOS arm64, Rust 1.98.1)
 
@@ -351,9 +354,9 @@ plus, for the second run, a forced expected schema sha and one line deleted from
 | [40073178515](https://github.com/randlee/beads-cache/actions/runs/40073178515) | expected schema sha differs, fixture differs | failed as intended; opened issue #8 with the report and the `bd schema` diff |
 | same run, re-run | same failure | commented on issue #8 (one issue per bd version) |
 
-Issue #8 was closed with a note that it came from the proof. A first real
-`workflow_dispatch` run and a `repository_dispatch` run (P-5) are possible once the
-workflow is on `main`; the lead decides whether that gates closure.
+Issue #8 was closed with a note that it came from the proof. The real `workflow_dispatch` / `repository_dispatch` run (P-5)
+needs the file on `main` and is owned by a-7 (lead ruling, bc-lead, 2026-10-24; see
+`docs/plans/phase-a/sprint-a-7-sync-integration.md`).
 
 ### CI
 

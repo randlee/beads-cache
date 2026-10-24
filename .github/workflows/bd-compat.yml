@@ -103,6 +103,9 @@ jobs:
       - name: Live probes
         id: live
         continue-on-error: true
+        # Backstop: each bd call is bounded (60 s) inside the probes; this ends a run
+        # that hangs anywhere else (the scratch server, cargo).
+        timeout-minutes: 15
         run: scripts/bd-compat/run-live.sh
         env:
           SC_BD_PINNED_ANY: "1"

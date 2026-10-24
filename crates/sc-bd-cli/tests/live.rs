@@ -24,11 +24,12 @@ use std::path::Path;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use sc_bd_cli::{BdCli, ProjectLocks};
+use sc_bd_cli::bounded::run_bounded;
+use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::{
     parse_bd_rows, schema_sha256, Actor, Assignee, Bead, BeadId, BeadsCacheError, CacheBackend,
-    CliBackend, Clock, Deadline, Guards, MetaValue, Patch, ProjectRef, Refusal, ScopeFilter,
-    SystemClock, Timestamp, BD_SCHEMA_SHA256, BD_VERSION,
+    Clock, Deadline, Guards, MetaValue, Patch, ProjectRef, Refusal, ScopeFilter, SystemClock,
+    Timestamp, BD_SCHEMA_SHA256, BD_VERSION,
 };
 
 const MARKER: &str = ".beads/sc-bd-live-scratch";
@@ -45,6 +46,9 @@ struct Live {
     /// A label no other probe or run uses, so scopes never overlap.
     label: String,
     seq: std::cell::Cell<u32>,
+    /// The `bd` under test and the scratch workspace, for the raw calls.
+    bin: String,
+    dir: WorkingDir,
 }
 
 impl Live {
@@ -69,8 +73,10 @@ impl Live {
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos());
         Ok(Some(Self {
-            cli: BdCli::new_with_clock(bin, Arc::clone(shared_locks()), clock),
-            project: ProjectRef::local(Some(dir)),
+            cli: BdCli::new_with_clock(bin.clone(), Arc::clone(shared_locks()), clock),
+            dir: WorkingDir::new(&dir),
+            bin,
+            project: ProjectRef::local(Some(dir.clone())),
             label: format!("live-{}-{nanos}", std::process::id()),
             seq: std::cell::Cell::new(0),
         }))
@@ -84,12 +90,13 @@ impl Live {
         Actor::new("sc-bd-live").map_err(|e| e.to_string())
     }
 
-    /// Runs `bd <args>` outside the cache surface (setup and raw observations).
+    /// Runs `bd <args>` outside the cache surface (setup and raw observations), bounded
+    /// by `CALL` and under the shared project lock, so a hung bd fails the probe with a
+    /// message instead of blocking it forever.
     fn raw(&self, args: &[&str]) -> Result<String, String> {
-        let out = self
-            .cli
-            .run_raw(&self.project, args)
-            .map_err(|e| format!("bd {args:?}: {e}"))?;
+        let words: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
+        let out = run_bounded(&self.bin, shared_locks(), &self.dir, &words, CALL)
+            .map_err(|e| format!("bd {args:?} did not complete within {CALL:?}: {e}"))?;
         if out.success {
             Ok(out.stdout)
         } else {
@@ -140,8 +147,11 @@ fn deadline() -> Deadline {
     Deadline::after(&SystemClock, CALL)
 }
 
-/// The one lock table of the process: every probe's `BdCli` shares it, so two probes
-/// on one workspace serialize as the cache's callers do.
+/// The one lock table of the process. Every `bd` this file starts, through the cache
+/// calls of `BdCli` and through `Live::raw`, takes the lock of its working directory
+/// from it, so two `bd` processes never run on one workspace at once (embedded Dolt
+/// crashes when they do). The harness also runs the probes with `--test-threads=1`;
+/// this is the guarantee if that flag is ever dropped.
 fn shared_locks() -> &'static Arc<ProjectLocks> {
     static LOCKS: OnceLock<Arc<ProjectLocks>> = OnceLock::new();
     LOCKS.get_or_init(|| Arc::new(ProjectLocks::new()))
