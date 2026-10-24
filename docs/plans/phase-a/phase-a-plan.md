@@ -1,7 +1,7 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
-Status: planned (scope review round 1 and critical review round 1 applied).
-P-1 is done; P-2, P-3 and P-5 are open, with fallbacks below.
+Status: planned (scope review round 1, critical review rounds 1 and 2
+applied). P-1 is done; P-2, P-3, P-5 and P-6 are open, with fallbacks below.
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
@@ -26,6 +26,8 @@ requirement ids, not the baseline.
 - The `bdc` / `bd-cache` binary (needs sc-command and sc-config).
 - The MCP server, the `sc-bd-http` adapter, DoltHub-specific adapters.
 - Bead creation and comments in the cache journal (out of BD-CACHE v1).
+- An on-demand full blocked-state re-read (ADR-BDC-0002 safety net); the
+  targeted refresh is phase A's mechanism.
 - Moving `sc-cron` to sc-runtime; publishing `sc-beads` / `sc-bd-cli` to
   crates.io. Phase A makes them publish-ready (`cargo publish --dry-run`).
 
@@ -34,10 +36,10 @@ requirement ids, not the baseline.
 | Id | Prerequisite | Blocks | Fallback if open at dispatch |
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
-| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). | a-4 schema freeze | a-4 ships the extensions as schema version 4 with a v3 read-and-migrate path, and records the divergence in its note. |
+| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
 | P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError` as the shared error type, tolerant and strict rows. btit's traits stay unchanged either way; the cache methods are on `CacheBackend: BeadsBackend`. | a-1 error and row freeze | a-1 keeps btit's `BeadsError` and adds the cache variants; recorded in ADR-BDC-0007. |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
-| P-6 | Live probe, run once by the team-lead in a scratch `bd init` workspace: do `bd list --id` and `--updated-after` combine as an intersection? | a-1's `list_changed` implementation note | `list_changed` is `list_by_ids` of the outside blockers filtered on `updated_at` in the backend implementation; the signature is unchanged. |
+| P-6 | Manual live probe, run once by the team-lead in a scratch `bd init` workspace: do `bd list --id` and `--updated-after` combine as an intersection? | a-1's `list_changed` implementation note | `list_changed` is `list_by_ids` of the outside blockers filtered on `updated_at` in the backend implementation; the signature is unchanged. |
 | P-5 | The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
 
 ## Boundary map
@@ -66,8 +68,10 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | `Cargo.lock` | a-7 | a-1 adds `/Cargo.lock` to `.gitignore`; a-7 removes that line and commits the lock. |
 | `.gitignore`, `rust-toolchain.toml` | a-1 | a-7 edits `.gitignore` once (the lock line). |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
-| `docs/<crate>/**` | the sprint that creates the crate | `docs/bd-cache/` is created by a-1; a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`. |
-| `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. |
+| `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. |
+| `.github/workflows/ci.yml` | a-1 | Workspace gates; a-2 adds only `bd-compat.yml`. |
+| `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
+| `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
 | `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
 
@@ -97,12 +101,12 @@ Each requirement has exactly one owner. Sprint docs list `owns` and
 
 | Owner | Requirements |
 |---|---|
-| a-1 | REQ-BDC-0007, 0301, 0304, 0305, 0802, 0803, 0906; NFR-BDC-0005 |
+| a-1 | REQ-BDC-0007, 0105, 0301, 0304, 0305, 0802, 0803, 0906; NFR-BDC-0005 |
 | a-2 | REQ-BDC-0006, 0106, 0201, 0303, 0905; NFR-BDC-0004, 0006 |
 | a-3 | none (governed by ADR-BDC-0006) |
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
-| a-6 | REQ-BDC-0001, 0008, 0105, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904 |
+| a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904 |
 | a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
 | deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
@@ -115,6 +119,9 @@ The one authoritative list. Rust tests keep the Python name.
 | test_pinned_model_matches_recorded_schema | a-1 |
 | test_recorded_bd_rows_validate | a-1 |
 | test_bad_ops_are_typed | a-1 |
+| test_schema_change_rebuilds_rows_and_keeps_the_journal | a-1 |
+| test_model_current_when_live_schema_matches_pin | a-1 |
+| test_first_backend_check_records_schema_without_dropping_cached_rows | a-1 |
 | test_backend_check_does_not_need_bd_context | a-2 |
 | test_metadata_values_round_trip_through_bd_coercion | a-2 |
 | test_cache_file_is_named_for_the_dolt_database | a-4 |
@@ -142,9 +149,7 @@ The one authoritative list. Rust tests keep the Python name.
 | test_drain_is_single_writer | a-5 |
 | test_drain_deadline_defers_unstarted_entries_without_attempts | a-5 |
 | test_contract_violation_is_typed_and_sync_stores_nothing | a-6 |
-| test_schema_change_rebuilds_rows_and_keeps_the_journal | a-6 |
-| test_model_current_when_live_schema_matches_pin | a-6 |
-| test_first_backend_check_records_schema_without_dropping_cached_rows | a-6 |
+
 | test_miss_fetches_once_then_serves_from_cache | a-6 |
 | test_miss_on_unknown_bead_is_typed | a-6 |
 | test_sync_is_incremental_and_never_replaces_a_newer_row | a-6 |
@@ -163,7 +168,7 @@ The one authoritative list. Rust tests keep the Python name.
 | test_custom_phases_limits_sync_and_stop | a-7 |
 | test_malformed_custom_phases_is_refused | a-7 |
 
-Counts: 41 + 9 = 50 (a-1 3, a-2 2, a-4 9, a-5 15, a-6 11, a-7 10).
+Counts: 41 + 9 = 50 (a-1 6, a-2 2, a-4 9, a-5 15, a-6 8, a-7 10).
 
 ## Planted-bug checks
 
@@ -173,11 +178,11 @@ distinct bugs; the missing one is to be raised on #557.
 
 | Planted bug | Owner |
 |---|---|
-| no overlay; no metadata coercion guard; skip validation; no dep-type check | a-1 |
+| no overlay; no metadata coercion guard; skip validation; no dep-type check; skip rebuild; rebuild on first check | a-1 |
 | bools passed as `True` | a-2 |
 | no newer-row guard; skip project-id check; rebuild deletes journal; no `mark_announced`; no set/clear sync alert | a-4 |
-| no write precondition; no drain precondition; no per-bead hold; no achieved check; no retry cap; no stale flag; no drain lock; per-entry pre-read; no not-found escalation; deferred not reported; drain without deadline | a-5 |
-| skip rebuild; rebuild on first check; prune ignores escalated; resolve accepts any state | a-6 |
+| no write precondition; no drain precondition; no per-bead hold; no achieved check; no retry cap; no stale flag; no drain lock; per-entry pre-read; no not-found escalation; deferred not reported; drain without deadline; plus the added check: dedupe after the precondition | a-5 |
+| prune ignores escalated; resolve accepts any state | a-6 |
 | unannounced filter dropped; open-work ignores announcement; refusal dropped; team check dropped; closed roots active; stop ignores open work | a-7 |
 
 ## Items to raise on #557

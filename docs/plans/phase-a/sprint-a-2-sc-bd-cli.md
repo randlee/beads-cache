@@ -53,16 +53,17 @@ a-1.
    `dep_add_typed` (`--type`), all with `--actor`.
 3. Error mapping and deadlines (NFR-BDC-0004): exit 13 to
    `Refusal::Precondition`; timeout, cannot-start and connection errors to
-   `BeadsError::Unavailable`; a call cut short by the caller's `Deadline` to
-   `BeadsError::DeadlineCut`; no call exceeds 30 s.
+   `BeadsError::Unavailable` (`timed_out` set for a timeout); every call
+   stops at the `Deadline` it is handed. The 30 s cap and the cut/outage
+   classification belong to the Cache (a-1's `call` helper).
 4. Patch to argv (REQ-BDC-0303): labels, `--set-metadata` with bools as
    `true`/`false`, `--unset-metadata`, `--append-notes`.
 5. Live probes (NFR-BDC-0006): `#[ignore]` unless `SC_BD_LIVE=1`, run by the
    team-lead on the `m5-atmbench` testbed account in a scratch `bd init`
    workspace, never a shared database. They check that `--id` and
    `--updated-after` combine as an intersection, and that `bd close` and
-   `bd reopen` bump the bead's own `updated_at`. The intersection probe runs once before a-1 freezes (P-6); a-7 records the
-   full run.
+   `bd reopen` bump the bead's own `updated_at`. P-6 is a manual run of the intersection probe before a-1 freezes; this
+   coded probe repeats it. a-7 records the full run.
 6. bd compatibility workflow `.github/workflows/bd-compat.yml`
    (REQ-BDC-0905), triggered by `repository_dispatch` (type `beads-release`,
    payload `{"version": "<bd version>"}`, see P-5) and `workflow_dispatch`.
@@ -78,7 +79,9 @@ a-1.
    `BD_CONTRACT` failures on running caches after a bd upgrade; it is
    permanent while bd is upstream.
 
-7. Per-crate docs `docs/sc-bd-cli/requirements.md` and `architecture.md`
+7. `BdCli` is constructed with the shared `Arc<dyn Clock>`; `list_changed`
+   is chunked like `list_by_ids`.
+8. Per-crate docs `docs/sc-bd-cli/requirements.md` and `architecture.md`
    (ADR-BDCLI-0001: argv mapping and error classification).
 
 ## Acceptance criteria
@@ -89,7 +92,7 @@ a-1.
 | `test_backend_check_does_not_need_bd_context` (REQ-BDC-0106) | boundary:sc-bd-cli |
 | `test_metadata_values_round_trip_through_bd_coercion`: values accepted by a-1's validator reach `bd` unchanged; bools are `true`/`false` (REQ-BDC-0303) | boundary:sc-bd-cli |
 | The recorded argv for every op and read matches the baseline's command forms (REQ-BDC-0201) | boundary:sc-bd-cli |
-| Exit 13 → `Refusal::Precondition`; timeout or refused connection → `Unavailable`; a call cut by the caller's deadline → `DeadlineCut`; no call outlives its deadline (NFR-BDC-0004) | ADR-BDC-0005 |
+| Exit 13 → `Refusal::Precondition`; timeout or refused connection → `Unavailable`; every call stops at the `Deadline` it is handed with `timed_out: true` (NFR-BDC-0004) | ADR-BDC-0005 |
 | btit's parity and API-freeze tests pass in `sc-bd-cli` | ADR-BDC-0007 |
 | `cargo package -p sc-bd-cli --list` succeeds and the crates.io metadata (license, description, repository, readme) is complete; a full `cargo publish --dry-run` waits until `sc-beads` is published | ADR-BDC-0007 |
 | The live probes compile and run under `SC_BD_LIVE=1` and are skipped otherwise (NFR-BDC-0006) | ADR-BDC-0002 |

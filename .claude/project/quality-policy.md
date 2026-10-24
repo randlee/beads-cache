@@ -24,7 +24,7 @@ their own prompts.
   |---|---|---|
   | `sc-beads` | `BEADS` | a-1 |
   | `bd-cache-model` | `MODEL` | a-1 |
-  | `bd-cache` | `CORE` | a-1 (skeleton), a-5, a-6 |
+  | `bd-cache` | `CORE` | a-1 (`requirements.md`, `architecture.md` index); a-5 `write-path.md`, a-6 `read-path.md` |
   | `sc-bd-cli` | `BDCLI` | a-2 |
   | `sc-cron` | `CRON` | a-3 |
   | `bd-cache-store` | `STORE` | a-4 |

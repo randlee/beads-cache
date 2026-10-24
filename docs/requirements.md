@@ -342,7 +342,9 @@ After a write the drain reads the bead back with `bd list --id` and in one trans
 
 **Status:** Draft
 
-The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor, phase, reason`) and `deferred`.
+The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor, phase, reason`) and `deferred`, plus the additive `busy`, `deferred_in_flight` and `outage`.
+
+*Amended in planning: additive fields for REQ-BDC-0402 and ADR-BDC-0005.*
 
 **Source:** BD-CACHE.md Algorithms (drain)
 
@@ -407,7 +409,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 `status` returns the `meta` table, journal counts per `phase:state`, per-phase sync state and bead counts, and every escalated entry until it is resolved.
 
 **Source:** BD-CACHE.md CLI, Failure handling
-**Acceptance evidence:** `test_pending_work_counts_as_open`
+**Acceptance evidence:** a-6 status tests
 
 ## REQ-BDC-0604: Escalation bookkeeping
 
@@ -449,10 +451,12 @@ A tick runs within a 25 s budget: drain with a deadline 5 s before the budget en
 
 **Status:** Draft
 
-A sync failure whose cause differs from `sync_alert:<phase>` is sent to that phase's lead and recorded; a success clears it.
+A sync failure whose cause differs from `sync_alert:<phase>` is sent to that phase's lead and recorded; a success clears it. An outage is announced the same way under the cause key `backend_unavailable`.
+
+*Amended in planning: outage announcement uses the per-scope alert (ADR-BDC-0005).*
 
 **Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_sync_failure_is_announced_once_per_cause`, `test_sync_alert_round_trip`
+**Acceptance evidence:** `test_sync_failure_is_announced_once_per_cause`
 
 ## REQ-BDC-0705: Escalations announced once
 
@@ -501,7 +505,9 @@ Exit 0 is ok, 2 is usage, 3 is a typed error `{ok: false, code, detail, fix, ...
 
 **Status:** Draft
 
-The error codes are exactly those in BD-CACHE.md's table, each with its fix text.
+The error codes are those in BD-CACHE.md's table, each with its fix text, plus the additive `BD_CACHE.SCOPE_UNKNOWN`; `BD_CACHE.NO_TOML` (Python < 3.11 only) is never emitted.
+
+*Amended in planning: SCOPE_UNKNOWN added for REQ-BDC-0902; NO_TOML retired.*
 
 **Source:** BD-CACHE.md CLI
 **Acceptance evidence:** `test_bad_ops_are_typed`
@@ -554,7 +560,9 @@ Sync holds only the beads in the configured scopes, never a whole database. A ro
 
 **Status:** Draft
 
-A slow or unreachable backend does not slow or fail local reads and writes; reads report staleness, writes stay journaled, and drain and sync catch up when the backend responds.
+A slow or unreachable backend does not slow or fail local reads and writes of cached beads; reads report staleness and the outage, writes stay journaled, and drain and sync catch up when the backend responds. A write to an uncached bead during an outage returns `BD_UNAVAILABLE` within the miss-fill timeout.
+
+*Amended in planning: narrowed to cached beads (critical review round 2).*
 
 **Source:** user, 2026-10-23 planning discussion
 
