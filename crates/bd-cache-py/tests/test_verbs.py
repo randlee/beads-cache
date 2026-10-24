@@ -162,6 +162,13 @@ def test_drain_start_gate_and_hard_deadline_are_separate_bounds(cache, repo):
     report = cache.drain(20, 0.5)
     assert report["applied"] == [] and report["escalated"] == []
     assert cache.entry(1)["attempts"] == 0
+    # The gate closes while bd is still answering, the hard deadline is far off: the
+    # pre-read still completes (only the hard deadline cuts a call), the entry is deferred.
+    repo.bd.delay("*", 0.6)
+    before = len(repo.bd.calls())
+    report = cache.drain(0.3, 30)
+    assert report["deferred"] == [1] and report["applied"] == []
+    assert "list" in [argv[0] for argv in repo.bd.calls()[before:]], "the hard deadline did not cut the pre-read"
 
 
 def test_sync_stops_at_its_timeout_when_bd_answers_late(cache, repo, stopwatch):

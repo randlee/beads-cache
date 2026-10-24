@@ -13,8 +13,9 @@
 //! - A typed error raises `bd_cache_rs.CacheError` carrying `code`, `detail`,
 //!   `fix`, `reason` and the payload (`error`); a bad argument raises
 //!   `ValueError`.
-//! - The handle is `unsendable` and releases the GIL while a verb waits on `bd`
-//!   or SQLite (`handle`; ADR-CORE-0001, ADR-PY-0001).
+//! - The handle sits behind a mutex, so any thread may use it, and releases the
+//!   GIL while a verb waits on `bd` or SQLite (`handle`; ADR-CORE-0001,
+//!   ADR-PY-0003).
 //!
 //! Documentation: `docs/bd-cache-py/requirements.md` and `architecture.md`,
 //! including the mapping from each `bd_cache.py` function atm-bd calls today.

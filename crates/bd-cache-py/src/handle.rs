@@ -1,14 +1,17 @@
 //! `bd_cache_rs.Cache`: the Python handle over the concrete composition.
 //!
-//! Threading follows ADR-CORE-0001: the handle is `unsendable` and owns the one
-//! store connection, so it is used only from the thread that created it (any
-//! other thread gets a Python error from `PyO3`). Every verb that can wait on
-//! `bd` or SQLite releases the GIL while it runs, so other Python threads keep
-//! going during a slow `bd` call.
+//! Threading follows ADR-CORE-0001 and ADR-PY-0003: a `Cache` is `Send` but not
+//! `Sync`, so the handle keeps it behind a `Mutex` (the "behind their own
+//! mutex" option of ADR-CORE-0001). Any Python thread may use the handle; verbs
+//! run one at a time, and a thread that waits for the lock or for `bd` does so
+//! with the GIL released, so other Python threads keep going. Nothing panics on
+//! a cross-thread use.
 
 use std::path::PathBuf;
 
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, ScopeId, Seq};
+use std::sync::{Mutex, MutexGuard, PoisonError};
+
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use sc_beads::{Actor, BeadId, Deadline, SystemClock};
@@ -30,10 +33,14 @@ use crate::error::{bad_argument, cache_err};
 /// `bool`, `None`) and raises `CacheError` for a typed cache error or
 /// `ValueError` for an argument that is not valid (a bead id with whitespace, a
 /// negative timeout, a malformed phase name).
-#[pyclass(unsendable, name = "Cache", module = "bd_cache_rs")]
+#[pyclass(name = "Cache", module = "bd_cache_rs")]
 #[derive(Debug)]
 pub(crate) struct PyCache {
-    inner: Option<Inner>,
+    // Why a Mutex: `Cache` is `!Sync` (ADR-CORE-0001), a pyclass must be `Sync`,
+    // and verbs must not interleave on the one store connection. Poisoning is
+    // recovered (see `lock`): a verb that panicked left only whole SQLite
+    // transactions behind, and the next verb starts a new one.
+    inner: Mutex<Option<Inner>>,
     path: PathBuf,
 }
 
@@ -114,10 +121,10 @@ impl PyCache {
             })?;
         Ok(Self {
             path: opened.path,
-            inner: Some(Inner {
+            inner: Mutex::new(Some(Inner {
                 cache: opened.cache,
                 clock: opened.clock,
-            }),
+            })),
         })
     }
 
@@ -130,12 +137,12 @@ impl PyCache {
     /// True once `close()` has run.
     #[getter]
     fn closed(&self) -> bool {
-        self.inner.is_none()
+        lock(&self.inner).is_none()
     }
 
     /// Closes the store connection; every later verb raises `RuntimeError`.
-    fn close(&mut self) {
-        self.inner = None;
+    fn close(&self) {
+        *lock(&self.inner) = None;
     }
 
     fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
@@ -143,7 +150,7 @@ impl PyCache {
     }
 
     #[pyo3(signature = (*_args))]
-    fn __exit__(&mut self, _args: &Bound<'_, pyo3::types::PyTuple>) -> bool {
+    fn __exit__(&self, _args: &Bound<'_, pyo3::types::PyTuple>) -> bool {
         self.close();
         false
     }
@@ -155,7 +162,7 @@ impl PyCache {
     /// scope_last_ok_at, pending, outage}`.
     #[pyo3(signature = (bead, miss_timeout = None))]
     fn get<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         bead: &str,
         miss_timeout: Option<f64>,
@@ -173,7 +180,7 @@ impl PyCache {
     /// a list of `{bead, stale, blocked}` (REQ-BDC-0907).
     #[expect(clippy::needless_pass_by_value, reason = "PyO3 extracts an owned list")]
     fn refresh<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         ids: Vec<String>,
         timeout: f64,
@@ -196,7 +203,7 @@ impl PyCache {
         reason = "the verb's arguments are the BD-CACHE write fields"
     )]
     fn write<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         bead: &str,
         op: &str,
@@ -228,7 +235,7 @@ impl PyCache {
     /// Returns `{scope, last_ok_at, rows, outage}`; `status` and `label` filter the rows.
     #[pyo3(signature = (phase, status = None, label = None))]
     fn list<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         phase: &str,
         status: Option<String>,
@@ -248,7 +255,7 @@ impl PyCache {
     /// locally_adjusted, ready, read_fallback, missing_rows}`.
     #[pyo3(signature = (phase, fresh_within = None))]
     fn ready<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         phase: &str,
         fresh_within: Option<f64>,
@@ -263,12 +270,7 @@ impl PyCache {
     /// Syncs `phase` (registering it on demand) within `timeout` seconds.
     ///
     /// Returns `{scope, rebuilt, model_current, stored, blocked, deferred, outage}`.
-    fn sync<'py>(
-        &mut self,
-        py: Python<'py>,
-        phase: &str,
-        timeout: f64,
-    ) -> PyResult<Bound<'py, PyAny>> {
+    fn sync<'py>(&self, py: Python<'py>, phase: &str, timeout: f64) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
         let after = seconds("timeout", timeout)?;
         self.call(py, move |c| {
@@ -283,7 +285,7 @@ impl PyCache {
     /// `hard_s` seconds from now. Returns `{busy, applied, retrying, escalated,
     /// deferred, deferred_in_flight, outage}`.
     fn drain<'py>(
-        &mut self,
+        &self,
         py: Python<'py>,
         start_gate_s: f64,
         hard_s: f64,
@@ -300,80 +302,80 @@ impl PyCache {
     }
 
     /// One journal entry by `seq`, in any state (REQ-BDC-0908).
-    fn entry<'py>(&mut self, py: Python<'py>, seq: i64) -> PyResult<Bound<'py, PyAny>> {
+    fn entry<'py>(&self, py: Python<'py>, seq: i64) -> PyResult<Bound<'py, PyAny>> {
         self.call(py, move |c| c.cache.entry(Seq::new(seq)))
     }
 
     /// Settles an escalated entry with the lead's `note`; returns `None`.
-    fn resolve(&mut self, py: Python<'_>, seq: i64, note: &str, actor: &str) -> PyResult<()> {
+    fn resolve(&self, py: Python<'_>, seq: i64, note: &str, actor: &str) -> PyResult<()> {
         let who = parse_actor(actor)?;
         let note = note.to_owned();
         self.run(py, move |c| c.cache.resolve(Seq::new(seq), &note, who))
     }
 
     /// Prunes a phase; returns `{scope, beads_deleted, out_of_scope_swept}`.
-    fn prune<'py>(&mut self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
+    fn prune<'py>(&self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
         self.call(py, move |c| c.cache.prune(&s))
     }
 
     /// The store's status: `{meta, journal, phases, escalated, outage, stale}`.
-    fn status<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+    fn status<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         self.call(py, |c| c.cache.status())
     }
 
     /// Escalated entries not yet announced, as journal-entry dicts.
-    fn unannounced_escalations<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+    fn unannounced_escalations<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         self.call(py, |c| c.cache.unannounced_escalations())
     }
 
     /// Records that the escalation `seq` was announced; returns `None`.
-    fn mark_announced(&mut self, py: Python<'_>, seq: i64) -> PyResult<()> {
+    fn mark_announced(&self, py: Python<'_>, seq: i64) -> PyResult<()> {
         self.run(py, move |c| c.cache.mark_announced(Seq::new(seq)))
     }
 
     /// The phase's last announced sync-failure cause, or `None`.
-    fn sync_alert(&mut self, py: Python<'_>, phase: &str) -> PyResult<Option<String>> {
+    fn sync_alert(&self, py: Python<'_>, phase: &str) -> PyResult<Option<String>> {
         let s = scope(phase)?;
         self.run(py, move |c| c.cache.sync_alert(&s))
     }
 
     /// Sets the phase's sync-failure cause; `None` clears it. Returns `None`.
-    fn set_sync_alert(
-        &mut self,
-        py: Python<'_>,
-        phase: &str,
-        cause: Option<String>,
-    ) -> PyResult<()> {
+    fn set_sync_alert(&self, py: Python<'_>, phase: &str, cause: Option<String>) -> PyResult<()> {
         let s = scope(phase)?;
         self.run(py, move |c| c.cache.set_sync_alert(&s, cause.as_deref()))
     }
 
     /// Open work for the stop rule: `{pending, escalated_unannounced}`.
-    fn open_work<'py>(&mut self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+    fn open_work<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         self.call(py, |c| c.cache.open_work())
     }
 }
 
-impl PyCache {
-    fn inner(&mut self) -> PyResult<&mut Inner> {
-        self.inner
-            .as_mut()
-            .ok_or_else(|| PyRuntimeError::new_err("the cache is closed"))
-    }
+/// Locks the handle, recovering a poisoned lock.
+fn lock(m: &Mutex<Option<Inner>>) -> MutexGuard<'_, Option<Inner>> {
+    m.lock().unwrap_or_else(PoisonError::into_inner)
+}
 
+impl PyCache {
     /// Runs `f` with the GIL released and maps a typed error to `CacheError`.
-    fn run<T, F>(&mut self, py: Python<'_>, f: F) -> PyResult<T>
+    ///
+    /// The lock is taken inside the detached section, so a thread waiting for
+    /// another thread's verb does not hold the GIL.
+    fn run<T, F>(&self, py: Python<'_>, f: F) -> PyResult<T>
     where
         T: Send,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
     {
-        let inner = self.inner()?;
-        py.detach(|| f(inner)).map_err(|e| cache_err(py, &e))
+        let outcome = py.detach(|| lock(&self.inner).as_mut().map(f));
+        match outcome {
+            None => Err(PyRuntimeError::new_err("the cache is closed")),
+            Some(done) => done.map_err(|e| cache_err(py, &e)),
+        }
     }
 
     /// As [`run`](Self::run), then converts the reply to Python objects.
-    fn call<'py, T, F>(&mut self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
+    fn call<'py, T, F>(&self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
     where
         T: Send + Serialize,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
