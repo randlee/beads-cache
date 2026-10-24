@@ -126,7 +126,10 @@ class FakeBd:
     def spans(self):
         """(start, end, argv) of every call, in start order; `end` is None for a killed call.
 
-        Times are `time.monotonic_ns()` readings: one system-wide clock that never steps.
+        Times are `clock_gettime_ns(CLOCK_MONOTONIC)` readings written by the fake: one
+        system-wide clock on Linux and macOS that never steps. (`time.monotonic_ns()` is not
+        used: on macOS with Python 3.9 it is a per-process offset, not comparable across
+        processes.)
         """
         ends = {e["pid"]: e["at"] for e in self.events() if e["event"] == "end"}
         return [(e["at"], ends.get(e["pid"]), e["argv"]) for e in self.events() if e["event"] == "start"]

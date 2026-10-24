@@ -235,9 +235,11 @@ COMMANDS = {
 }
 
 
+# `at` is CLOCK_MONOTONIC in ns: system-wide, so calls of different processes compare. Not
+# `time.monotonic_ns()`, which on macOS with Python 3.9 is a per-process offset. POSIX only.
 def log(path, **event):
     with open(path + ".calls", "a", encoding="utf-8") as handle:
-        handle.write(json.dumps({"pid": os.getpid(), "at": time.monotonic_ns(), **event}) + "\n")
+        handle.write(json.dumps({"pid": os.getpid(), "at": time.clock_gettime_ns(time.CLOCK_MONOTONIC), **event}) + "\n")
 
 
 def wait_for(release, seconds):
