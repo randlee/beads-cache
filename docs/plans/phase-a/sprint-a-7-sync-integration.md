@@ -411,7 +411,7 @@ commands, a fill-in table, and the developer-machine smoke run (not testbed evid
 | ARCH-109, REQ-QA-103 | One smoke record at the final code commit; testbed due 2026-10-31, owner bc-lead (S16) | a-7-testbed.md |
 | REQ-QA-102 | Deliverable 4 and its acceptance row amended by ruling S13; gate = row count + large-journal check + plan assertion | sprint doc; `perf.rs`; `the_entries_since_check_uses_indexes_and_ignores_a_long_history` |
 | REQ-QA-104 | The seven atm planted rows carry case names: the process test now reports each failing case (catch_unwind) | a-7-planted-bugs.json |
-| QA2-001 | `has_entries_since`: two EXISTS lookups through `journal_pending` and the partial expression index `journal_applied_at`; get no longer lists the journal | `has_entries_since_rules`, `a_cached_get_reads_the_same_with_thousands_of_old_applied_entries`, plan test |
+| QA2-001 | `has_entries_since`: two EXISTS lookups through `journal_pending` and the `applied_epoch` column with plain partial indexes `journal_applied_epoch` and `journal_applied_unknown` (ADR-STORE-0004); get no longer lists the journal | `has_entries_since_rules`, `a_cached_get_reads_the_same_with_thousands_of_old_applied_entries`, plan test |
 | QA2-003 | Pre-index file migration test committed | `a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace` |
 | QA2-004 | atm spawns the resolved program | `atm.rs` (`resolve` then `Command::new(program)`) |
 | QA2-005, RSH-015 | Failure path waits for output at most 250 ms; success path neither waits nor kills (the reaped pid may be reused) | `atm.rs` docs; `collect` |
