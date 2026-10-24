@@ -850,6 +850,38 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
     );
 }
 
+/// `status().stale` lists a row whose read-back failed, and drops it once
+/// the row is re-read (stored again) (a-1 amendment 1, REQ-BDC-0603).
+pub fn status_lists_stale_rows_until_reread(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let b = row("b1", &["phase-x"], T0);
+    ok(
+        s.upsert_rows(Some(&x()), &[b.clone(), row("b2", &["phase-x"], T0)], false),
+        "rows",
+    );
+    assert!(ok(s.status(), "status").stale.is_empty());
+    let seq = ok(
+        s.insert_entry(entry("k1", "b1", Some(x())), &ts(T0)),
+        "insert",
+    );
+    ok(
+        s.apply_with_readback(seq, None, Some("read-back failed"), &ts(T1)),
+        "failed read-back",
+    );
+    let st = ok(s.status(), "status");
+    assert_eq!(st.stale, vec![id("b1")], "the failed read-back is listed");
+    assert_eq!(
+        st.stale,
+        ok(s.stale_rows(), "stale_rows"),
+        "same set as stale_rows"
+    );
+    ok(s.upsert_rows(Some(&x()), &[b], false), "re-read");
+    assert!(
+        ok(s.status(), "status").stale.is_empty(),
+        "a re-read clears it"
+    );
+}
+
 /// Status: journal counts per `phase:state`, per-scope bead counts.
 pub fn status_counts(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
@@ -944,6 +976,7 @@ macro_rules! store_contract_tests {
             sync_state_alerts_and_outage_round_trip,
             prune_scope_rules,
             status_counts,
+            status_lists_stale_rows_until_reread,
             drain_lock_is_exclusive,
         );
     };
