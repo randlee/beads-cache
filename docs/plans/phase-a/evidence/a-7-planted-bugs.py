@@ -496,21 +496,12 @@ MUTANTS = [('unannounced filter dropped',
 # Mutants that survive the suite, each with the reason (not "equivalent": a gap or a
 # case no portable test can reach). The runner copies the reason into the results.
 SURVIVORS = {
-    'QA5-002: the undatable floor rises onto the first dateable entry':
-        'GAP (off by one, minor): the floor then hides the first dateable entry from the '
-        'undated count, so the dating starts one entry later than the threshold says; '
-        'reached only after a skipped dating (write lock held). No test pins floor == first - 1.',
-    'QA5-003: the dating waits for the write lock (no NoWait)':
-        'GAP (timing only): with the lock held by the same thread the wait ends with BUSY '
-        'and the answer is the same; telling the two apart needs an elapsed-time assertion, '
-        'which FTQ-020 removed as stall-sensitive. The restore of the timeout is killed '
-        '(a_write_after_a_skipped_dating_waits_for_the_lock_again).',
     'S27: the tree kill and the reaping do not share one deadline':
-        'UNREACHABLE: the two deadlines differ only when the child is still alive after '
+        'justified: unreachable without an uninterruptible process. The two deadlines differ only when the child is still alive after '
         'SIGKILL (an uninterruptible state), which no portable test can make. The tree-kill '
         'bound, the KILL_BOUND value and SEND_RESERVE are each killed.',
     'S28: a child not reaped in time is dropped, not handed to the reaper':
-        'UNREACHABLE: the call site runs only for a child that outlives SIGKILL by '
+        'justified: unreachable without an uninterruptible process. The call site runs only for a child that outlives SIGKILL by '
         'KILL_BOUND. adopt() and the reaper are killed (the helper path and the reaper loop).',
 }
 

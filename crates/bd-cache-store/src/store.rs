@@ -1731,4 +1731,147 @@ mod tests {
         drop(reopened);
         std::fs::remove_dir_all(&dir).unwrap();
     }
+
+    /// A store on a fresh file in a temp dir (removed by the caller).
+    fn temp_store(tag: &str) -> (std::path::PathBuf, PathBuf, SqliteStore) {
+        let dir = std::env::temp_dir().join(format!(
+            "bdc-store-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |d| d.as_nanos())
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("t.sqlite3");
+        let identity = DatabaseIdentity {
+            dolt_database: DoltDatabase::new("p").unwrap(),
+            project_id: ProjectId::new("p-p").unwrap(),
+        };
+        let store = SqliteStore::open_at(&path, &identity).unwrap();
+        (dir, path, store)
+    }
+
+    fn undated_count(path: &Path) -> i64 {
+        Connection::open(path)
+            .unwrap()
+            .query_row(
+                "SELECT COUNT(*) FROM journal WHERE state = 'applied' AND applied_epoch IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap()
+    }
+
+    /// The floor stops one below the first dateable entry, not on it
+    /// (QA5-002). After a skipped dating, with a dateable entry at seq F
+    /// above unreadable ones, `undatable_through` is exactly F - 1, so the
+    /// next count includes F: it is dated with the rest once the threshold
+    /// is passed. A floor of F would leave it out of the count and undated.
+    #[test]
+    fn the_floor_stops_one_below_the_first_dateable_entry() {
+        let (dir, path, store) = temp_store("floor-exact");
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+
+        // Seqs 1..=3 unreadable, seq 4 (= F) readable: below the threshold,
+        // so the dating is skipped and the floor rises through the bad ones.
+        seed_applied(&path, "bad", 3, "garbage");
+        seed_applied(&path, "first", 1, "2026-10-24T08:00:00Z");
+        let first_dateable = 4;
+        assert!(store.has_entries_since(&at).unwrap(), "unreadable counts");
+        assert_eq!(
+            store.undatable_through.get(),
+            first_dateable - 1,
+            "the floor is F - 1: F stays in the count"
+        );
+        assert_eq!(undated_count(&path), 4, "nothing dated yet");
+
+        // F plus THRESHOLD more readable ones: counted from F - 1 that is
+        // THRESHOLD + 1, so the dating runs and includes F.
+        seed_applied(
+            &path,
+            "more",
+            usize::try_from(READ_DATING_THRESHOLD).unwrap(),
+            "2026-10-24T08:00:00Z",
+        );
+        assert!(store.has_entries_since(&at).unwrap());
+        assert_eq!(
+            undated_count(&path),
+            3,
+            "F was dated with the rest: only the unreadable remain"
+        );
+        let epoch: Option<i64> = Connection::open(&path)
+            .unwrap()
+            .query_row(
+                "SELECT applied_epoch FROM journal WHERE seq = ?1",
+                [first_dateable],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(epoch.is_some(), "entry F itself is dated");
+        drop(store);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// The dating `UPDATE` runs with a zero busy timeout, and the timeout is
+    /// back afterwards (QA5-003). A timeout of any size would make the read
+    /// wait for a held write lock, but that wait is bounded and ends in the
+    /// same answer, so it cannot be told apart by what the read returns
+    /// without a clock. Instead a temporary trigger samples
+    /// `PRAGMA busy_timeout` from inside the `UPDATE`, once it has the lock:
+    /// causal, no timing.
+    #[test]
+    fn the_dating_update_runs_with_no_busy_timeout_and_restores_it() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicI64, Ordering};
+
+        let (dir, path, store) = temp_store("dating-nowait");
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        let seen = Arc::new(AtomicI64::new(-1));
+        let sink = Arc::clone(&seen);
+        store
+            .conn
+            .create_scalar_function(
+                "probe_busy_timeout",
+                0,
+                rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+                move |ctx| {
+                    // SAFETY: the connection is only read, on the thread
+                    // that is running this statement.
+                    let ms: i64 = unsafe { ctx.get_connection() }?.query_row(
+                        "PRAGMA busy_timeout",
+                        [],
+                        |r| r.get(0),
+                    )?;
+                    sink.store(ms, Ordering::SeqCst);
+                    Ok(0_i64)
+                },
+            )
+            .unwrap();
+        store
+            .conn
+            .execute_batch(
+                "CREATE TEMP TRIGGER probe_dating AFTER UPDATE ON main.journal \
+                 BEGIN SELECT probe_busy_timeout(); END;",
+            )
+            .unwrap();
+        let inside = |c: &Connection| -> i64 {
+            c.query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+                .unwrap()
+        };
+        let normal = i64::try_from(BUSY_TIMEOUT.as_millis()).unwrap();
+        assert_eq!(inside(&store.conn), normal, "control: the usual timeout");
+
+        seed_applied(
+            &path,
+            "old",
+            usize::try_from(READ_DATING_THRESHOLD).unwrap() + 1,
+            "2026-10-24T08:00:00Z",
+        );
+        assert!(!store.has_entries_since(&at).unwrap());
+        assert_eq!(undated_count(&path), 0, "the dating ran");
+        assert_eq!(seen.load(Ordering::SeqCst), 0, "no busy timeout inside it");
+        assert_eq!(inside(&store.conn), normal, "restored afterwards");
+        drop(store);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }
