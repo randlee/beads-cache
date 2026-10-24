@@ -223,6 +223,11 @@ Decision:
   `applied_at`, else, for an entry applied by `bd_cache.py` (which sets only
   `updated_at`), its `updated_at`; an entry whose time cannot be read counts as
   applied since (conservative). `applied_since` follows the same rule (ADR-STORE-0004). Contract rule `has_entries_since_rules`.
+  Port rule (lead rulings S25/S26, bc-lead, 2026-10-24): though both take `&self`, an
+  implementation may write to date entries another writer left without an applied
+  time; it must not wait for the write lock to do so, and must give the same answer
+  whether or not the write runs. `SqliteStore` does it only above a threshold of
+  undated entries (ADR-STORE-0004).
 - `EscalationSender::send_within(lead, team, body, timeout)`: a provided method
   that ignores `timeout` and calls `send`; a sender that can bound its work
   overrides it. The caller checks its own budget after every send, so a sender
