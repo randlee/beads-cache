@@ -1,6 +1,7 @@
 //! [`CliInvoker`], what [`ops`](crate::ops) needs from a CLI, and [`CliRunner`], its
 //! process-spawning implementation for one configured binary.
 
+use std::ffi::OsStr;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
@@ -11,6 +12,7 @@ use sc_beads::{log_info, log_warn};
 use sc_beads::{BackendCapabilities, CliClient, CliOutput, CliProbe, CliVersion, ProjectRef};
 
 use crate::bounded::BoundedError;
+use crate::command::ChildEnv;
 use crate::locks::ProjectLocks;
 
 /// What `ops` needs from a CLI: identity, cached version info and the two invocation forms.
@@ -99,6 +101,22 @@ pub trait CliInvoker: Send + Sync {
             client: CliClient::Unknown,
         }))
     }
+
+    /// Sets `key` to `value` (`Some`) in the environment of every child this invoker
+    /// spawns from now on, or removes it (`None`); a later call for the same `key`
+    /// replaces the earlier one (ADR-BDCLI-0004).
+    ///
+    /// An addition to btit's trait, like [`run_bounded`](Self::run_bounded). The
+    /// provided body does nothing: right for an invoker that spawns no process (the
+    /// test doubles). [`CliRunner`] applies it to `run_json`, `run_raw` and
+    /// `run_bounded`.
+    ///
+    /// The forwarding rule (ADR-BDCLI-0004, RSH-036): an invoker that wraps another
+    /// invoker must override this method and forward the call to the wrapped one,
+    /// as it forwards the spawning methods. The provided no-op would otherwise drop
+    /// the change silently, and the wrapped runner's children would inherit the
+    /// process's value instead of the one the composition resolved.
+    fn set_child_var(&mut self, _key: &OsStr, _value: Option<&OsStr>) {}
 }
 
 /// The cached state of a [`CliRunner`]'s `--version` probe.
@@ -135,6 +153,9 @@ pub struct CliRunner {
     binary: String,
     locks: Arc<ProjectLocks>,
     probe: Mutex<ProbeState>,
+    /// What every project spawn sets or removes ([`CliInvoker::set_child_var`]); the
+    /// `--version` probe runs without it.
+    child_env: ChildEnv,
     /// Runs `<binary> --version` and returns its raw output. Production runners use
     /// [`crate::run::probe_version_output`]; the `test-support` seam
     /// [`with_version_probe`](Self::with_version_probe) replaces it to count calls
@@ -162,6 +183,7 @@ impl CliRunner {
             binary: binary.into(),
             locks,
             probe: Mutex::new(ProbeState::Unprobed),
+            child_env: ChildEnv::default(),
             version_probe: Box::new(crate::run::probe_version_output),
         }
     }
@@ -178,6 +200,7 @@ impl CliRunner {
             binary: binary.into(),
             locks,
             probe: Mutex::new(ProbeState::Ok(probe)),
+            child_env: ChildEnv::default(),
             version_probe: Box::new(crate::run::probe_version_output),
         }
     }
@@ -197,8 +220,17 @@ impl CliRunner {
             binary: binary.into(),
             locks,
             probe: Mutex::new(ProbeState::Unprobed),
+            child_env: ChildEnv::default(),
             version_probe: f,
         }
+    }
+
+    /// This runner with `key` set to `value` (`Some`) or removed (`None`) in every
+    /// project spawn's environment ([`CliInvoker::set_child_var`], ADR-BDCLI-0004).
+    #[must_use]
+    pub fn with_child_var(mut self, key: &OsStr, value: Option<&OsStr>) -> Self {
+        self.child_env.set(key, value);
+        self
     }
 
     fn cached(&self) -> MutexGuard<'_, ProbeState> {
@@ -260,13 +292,13 @@ impl CliInvoker for CliRunner {
         let info = self.client_info(); // one cache read (or one probe) per invocation
         let (client, full_args) = crate::run::json_invocation(info.as_ref(), command, args);
         let wd = crate::run::resolve_working_dir(project, client)?;
-        crate::run::spawn_json(&self.binary, &self.locks, &wd, &full_args)
+        crate::run::spawn_json_in(&self.binary, &self.locks, &wd, &full_args, &self.child_env)
     }
 
     fn run_raw(&self, project: &ProjectRef, args: &[&str]) -> Result<CliOutput, BeadsError> {
         let client = self.client_info().map_or(CliClient::Unknown, |p| p.client);
         let wd = crate::run::resolve_working_dir(project, client)?;
-        crate::run::run_raw(&self.binary, &wd, args)
+        crate::run::run_raw_in(&self.binary, &wd, args, &self.child_env)
     }
 
     fn run_bounded(
@@ -277,7 +309,19 @@ impl CliInvoker for CliRunner {
     ) -> Result<CliOutput, BoundedError> {
         // No probe here: `--version` is an unbounded spawn, and this crate is the bd backend.
         let wd = crate::run::resolve_project_dir(project, CliClient::Bd)?;
-        crate::bounded::run_bounded(&self.binary, &self.locks, &wd, argv, timeout)
+        crate::bounded::run_bounded_in(
+            &self.binary,
+            &self.locks,
+            &wd,
+            argv,
+            timeout,
+            crate::bounded::MAX_OUTPUT_BYTES,
+            &self.child_env,
+        )
+    }
+
+    fn set_child_var(&mut self, key: &OsStr, value: Option<&OsStr>) {
+        self.child_env.set(key, value);
     }
 }
 
@@ -310,6 +354,142 @@ mod tests {
         // `probe()` spawns afresh and never reads the seeded cache.
         assert_eq!(runner.probe(), None);
         assert_eq!(runner.client_info(), Some(probe));
+    }
+
+    /// The child environment reaches every project spawn: a name set, a name set
+    /// then removed, and an inherited name removed (ADR-BDCLI-0004).
+    #[cfg(unix)]
+    #[test]
+    fn the_child_environment_reaches_run_raw_and_run_bounded() {
+        let script =
+            "printf '%s|%s|%s' \"${SC_BD_A-unset}\" \"${SC_BD_B-unset}\" \"${HOME-unset}\"";
+        let runner = CliRunner::new("/bin/sh", Arc::new(ProjectLocks::new()))
+            .with_child_var(OsStr::new("SC_BD_A"), Some(OsStr::new("a")))
+            .with_child_var(OsStr::new("SC_BD_B"), Some(OsStr::new("b")))
+            .with_child_var(OsStr::new("SC_BD_B"), None)
+            .with_child_var(OsStr::new("HOME"), None);
+        let project = temp_project();
+        let raw = runner.run_raw(&project, &["-c", script]).unwrap();
+        assert_eq!(raw.stdout, "a|unset|unset", "{raw:?}");
+        let argv = ["-c".to_owned(), script.to_owned()];
+        let bounded = runner
+            .run_bounded(&project, &argv, Duration::from_secs(30))
+            .unwrap();
+        assert_eq!(bounded.stdout, "a|unset|unset", "{bounded:?}");
+    }
+
+    /// The child environment reaches `run_json` too (QA9-001): `/bin/sh -c <script>
+    /// [--no-daemon] --json`, where the trailing words are only the script's `$0`
+    /// and `$1`.
+    #[cfg(unix)]
+    #[test]
+    fn the_child_environment_reaches_run_json() {
+        let script = "printf '%s|%s' \"${SC_BD_A-unset}\" \"${HOME-unset}\"";
+        let runner = CliRunner::new("/bin/sh", Arc::new(ProjectLocks::new()))
+            .with_child_var(OsStr::new("SC_BD_A"), Some(OsStr::new("a")))
+            .with_child_var(OsStr::new("HOME"), None);
+        let json = runner
+            .run_json(&temp_project(), "-c", &[script.to_owned()])
+            .unwrap();
+        assert_eq!(json, "a|unset");
+    }
+
+    /// Set in the child environment to make [`child_env_helper`] report.
+    const HELPER_MARK: &str = "SC_BD_CHILD_ENV_HELPER";
+
+    /// The variables [`child_env_helper`] reports, in order.
+    const HELPER_NAMES: [&str; 3] = ["SC_BD_A", "SC_BD_B", "SC_BD_C"];
+
+    /// Starts the line [`child_env_helper`] prints.
+    const HELPER_LINE: &str = "SC_BD_CHILD_ENV=";
+
+    /// Not a test of its own: when this unit-test binary is re-executed with
+    /// [`HELPER_MARK`] set, this case prints the values of [`HELPER_NAMES`] it was
+    /// given (`unset` for a missing one), read with `env::var_os` and so with the
+    /// platform's own name lookup. Without the mark it does nothing.
+    #[test]
+    fn child_env_helper() {
+        if std::env::var_os(HELPER_MARK).is_none() {
+            return;
+        }
+        let values: Vec<String> = HELPER_NAMES
+            .iter()
+            .map(|n| {
+                std::env::var_os(n)
+                    .map_or_else(|| "unset".to_owned(), |v| v.to_string_lossy().into_owned())
+            })
+            .collect();
+        println!("{HELPER_LINE}{}", values.join("|"));
+    }
+
+    /// The values [`child_env_helper`] printed in `stdout`: libtest prints the
+    /// case's name first on the same line, so the line is found by its marker.
+    fn helper_report(stdout: &str) -> &str {
+        stdout
+            .split_once(HELPER_LINE)
+            .and_then(|(_, rest)| rest.lines().next())
+            .unwrap_or_else(|| panic!("no helper line in {stdout:?}"))
+    }
+
+    /// The child environment reaches `run_json`, `run_raw` and `run_bounded` on
+    /// every platform, Windows included (QA9-002): the runner re-executes this
+    /// unit-test binary as [`child_env_helper`]. A name removed in another case
+    /// (`sc_bd_c` after `SC_BD_C`) is the same variable on Windows and is unset
+    /// there; on Unix it is another name and `SC_BD_C` stays set.
+    #[test]
+    fn the_child_environment_reaches_every_spawn_on_every_platform() {
+        let exe = std::env::current_exe().unwrap();
+        let runner = CliRunner::new(exe.to_string_lossy(), Arc::new(ProjectLocks::new()))
+            .with_child_var(OsStr::new(HELPER_MARK), Some(OsStr::new("1")))
+            .with_child_var(OsStr::new("SC_BD_A"), Some(OsStr::new("a")))
+            .with_child_var(OsStr::new("SC_BD_B"), Some(OsStr::new("b")))
+            .with_child_var(OsStr::new("SC_BD_B"), None)
+            .with_child_var(OsStr::new("SC_BD_C"), Some(OsStr::new("c")))
+            .with_child_var(OsStr::new("sc_bd_c"), None);
+        let expected = if cfg!(windows) {
+            "a|unset|unset"
+        } else {
+            "a|unset|c"
+        };
+        let project = temp_project();
+        // `--` ends libtest's options: the `--json` (and any `--no-daemon`) that
+        // `run_json` appends become name filters that match nothing.
+        let filter = [
+            "runner::tests::child_env_helper",
+            "--exact",
+            "--nocapture",
+            "--test-threads=1",
+        ];
+
+        let raw = runner.run_raw(&project, &filter).unwrap();
+        assert!(raw.success, "{raw:?}");
+        assert_eq!(helper_report(&raw.stdout), expected, "run_raw");
+
+        let argv: Vec<String> = filter.iter().map(|a| (*a).to_owned()).collect();
+        let bounded = runner
+            .run_bounded(&project, &argv, Duration::from_secs(60))
+            .unwrap();
+        assert!(bounded.success, "{bounded:?}");
+        assert_eq!(helper_report(&bounded.stdout), expected, "run_bounded");
+
+        let mut json_args: Vec<String> = argv[1..].to_vec();
+        json_args.push("--".to_owned());
+        let json = runner.run_json(&project, filter[0], &json_args).unwrap();
+        assert_eq!(helper_report(&json), expected, "run_json");
+    }
+
+    /// Without a child variable the child inherits the environment, as in btit.
+    #[cfg(unix)]
+    #[test]
+    fn without_a_child_variable_the_environment_is_inherited() {
+        let Some(home) = std::env::var_os("HOME") else {
+            return;
+        };
+        let runner = CliRunner::new("/bin/sh", Arc::new(ProjectLocks::new()));
+        let raw = runner
+            .run_raw(&temp_project(), &["-c", "printf %s \"$HOME\""])
+            .unwrap();
+        assert_eq!(std::ffi::OsStr::new(&raw.stdout), home.as_os_str());
     }
 
     #[test]

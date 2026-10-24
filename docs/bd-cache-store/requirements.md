@@ -19,13 +19,21 @@ file, invalid JSON, a missing or non-string key, an empty project id or a
 database name that is not a file name on every supported platform (empty,
 `.`, `..`, a path separator, a control character, any of `: * ? " < > |`, a
 trailing dot or space, a Windows device name including `CONIN$` and
-`CONOUT$`) is `BD_CACHE.NO_DATABASE`.
+`CONOUT$`) is `BD_CACHE.NO_DATABASE`. `CacheLocation::resolve_with` and
+`SqliteStore::open_with` take the `$BEADS_DIR` value as an argument (`None` =
+unset) and read no environment; `resolve` and `SqliteStore::open` pass the
+process's own. Tests use the `_with` forms, so none depends on the ambient
+`BEADS_DIR` (lead ruling S36).
 
 **Refines:** REQ-BDC-0101, 0102
 **Acceptance evidence:** `test_cache_file_is_named_for_the_dolt_database`,
-`test_beads_dir_env_names_the_database`, `test_missing_metadata_is_typed`,
+`test_beads_dir_env_names_the_database` (`resolve_with` with an explicit and an
+empty `$BEADS_DIR`, and `resolve` reading the real environment only in the child
+process `beads_dir_env_child`, S36), `test_missing_metadata_is_typed`
+(`resolve_with(.., None)` and `SqliteStore::open_with(.., None)`, S36),
 `configured_cache_path_is_taken_from_the_repository_root`,
-`identity_values_are_validated` (`location.rs`).
+`identity_values_are_validated` (`tests/location.rs`); the
+`SqliteStore::open_with(root, .., None)` doctests (`src/store.rs`, `src/lib.rs`).
 
 ## REQ-STORE-0002: Open checks settings, version and identity
 
@@ -54,9 +62,14 @@ another path (a symlink) that resolves to it.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
-extensions are the tables `scope`, `scope_member`, `ready_base` and nullable
-columns only (ADR-STORE-0001). Stored rows are normalized and `row_json` is
+extensions are the tables `scope`, `scope_member`, `ready_base` and
+`ready_base_blocked`, nullable columns only (including `ready_base.indexed` and `journal.applied_epoch`) and
+the plain indexes `scope_member_bead` (`scope_member(bead)`), `beads_membership_unknown`,
+`journal_applied_epoch` and `journal_applied_unknown` (the last three partial); no index
+holds a function (ADR-STORE-0001, as amended by ADR-STORE-0004, has the DDL). Stored rows are normalized and `row_json` is
 Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
+
+*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; `bd_cache.py` never reads them, and none uses a function, so a `bd_cache.py` on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*
 
 **Refines:** REQ-BDC-0107, 0108, 0804; ADR-BDC-0001, 0002, 0004
 **Acceptance evidence:** `v3_tables_are_unchanged_and_extensions_are_additive`
@@ -138,9 +151,36 @@ extended file, the store reads consistent rows and memberships
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,
 invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
 not a phase name is a `ConfigLoadError`. Its message names the file and a
-fix; the cause is carried once, as `Error::source`.
+fix; the cause is carried once, as `Error::source`. Each variant has one
+store-owned code, `store_config_unreadable`, `store_config_invalid` or
+`store_config_bad_scope` (not `CacheError` codes and not CLI-contract codes), and
+one fix (`ConfigLoadError::code`, `fix`; ADR-STORE-0003 amendment, lead rulings S34
+and S37). `ConfigLoadError` is exhaustive, so a new variant fails to compile in each
+consumer until it is mapped (lead ruling S38).
 
 **Refines:** REQ-BDC-0101 (`cache_path`); a-1's `RepoConfig` contract
 **Acceptance evidence:** `missing_repo_config_is_the_default`,
-`repo_config_is_parsed_and_unknown_keys_refused`,
-`unreadable_repo_config_is_an_error_not_the_default` (`location.rs`).
+`repo_config_is_parsed_and_unknown_keys_refused` (the `store_config_invalid` and
+`store_config_bad_scope` codes, `Display` ending with `fix()`),
+`unreadable_repo_config_is_an_error_not_the_default` (the `store_config_unreadable`
+code) (`tests/location.rs`, S37); the `ConfigLoadError::code` doctest
+(`src/location.rs`).
+
+## REQ-STORE-0008: Cached reads cost the same at any scope size and journal length
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2)
+
+`base_entry` reads one bead's entry of a scope's ready base from a per-bead
+index, in one read snapshot, and falls back to reading the whole base when it
+was not stored with the index (stored before it existed, or replaced by another
+writer). `has_entries_since` is three index lookups (pending, applied with an epoch, applied without one), whatever the journal's
+history; an entry `bd_cache.py` applied is dated by `updated_at`, and one with an unreadable time counts as touched. Neither changes what a reader sees.
+
+**Refines:** NFR-BDC-0001; ADR-STORE-0004
+**Acceptance evidence:** `base_entry_rules`, `has_entries_since_rules` (the store
+contract suite, both stores); `the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild`,
+`the_entries_since_check_uses_indexes_and_ignores_a_long_history` (query plan),
+`a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement`,
+`a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index`,
+`a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace`
+(`store.rs`); `v3_tables_are_unchanged_and_extensions_are_additive` (`open.rs`).

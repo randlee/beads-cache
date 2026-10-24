@@ -98,7 +98,8 @@ fn test_missing_metadata_is_typed() {
     let tmp = TempDir::new("missing");
     let none = CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), None);
     assert_eq!(none.unwrap_err().code(), "BD_CACHE.NO_DATABASE");
-    let open = SqliteStore::open(tmp.path(), &RepoConfig::default());
+    // `None`: no `$BEADS_DIR`, not the ambient one (lead ruling S36).
+    let open = SqliteStore::open_with(tmp.path(), &RepoConfig::default(), None);
     assert_eq!(open.unwrap_err().code(), "BD_CACHE.NO_DATABASE");
     std::fs::create_dir_all(tmp.path().join(".beads")).unwrap();
     for bad in [
@@ -186,6 +187,9 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
         shown.contains("bd-cache.toml") && shown.contains("fix:") && !shown.contains("surprise"),
         "Display names the file and the fix, not the cause: {shown}"
     );
+    // One fix text per way of failing: the message states the one `fix()` returns (RBP-F040).
+    assert_eq!(err.code(), "store_config_invalid");
+    assert!(shown.ends_with(&format!("fix: {}", err.fix())), "{shown}");
     let cause = std::error::Error::source(&err)
         .map(ToString::to_string)
         .unwrap_or_default();
@@ -204,6 +208,16 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
         matches!(&err, ConfigLoadError::Scope { value, .. } if value == "bad name"),
         "{err:?}"
     );
+    assert_eq!(err.code(), "store_config_bad_scope");
+    assert!(
+        err.fix().contains(bd_cache_model::PhaseName::RULE),
+        "{}",
+        err.fix()
+    );
+    assert!(
+        err.to_string().ends_with(&format!("fix: {}", err.fix())),
+        "{err}"
+    );
 }
 
 #[test]
@@ -213,5 +227,9 @@ fn unreadable_repo_config_is_an_error_not_the_default() {
     std::fs::create_dir_all(tmp.path().join(".beads").join("bd-cache.toml")).unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
     assert!(matches!(err, ConfigLoadError::Read { .. }), "{err:?}");
-    assert!(err.to_string().contains("fix:"), "{err}");
+    assert_eq!(err.code(), "store_config_unreadable");
+    assert!(
+        err.to_string().ends_with(&format!("fix: {}", err.fix())),
+        "{err}"
+    );
 }

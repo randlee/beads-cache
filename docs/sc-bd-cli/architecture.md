@@ -10,7 +10,7 @@ ADR-BDC-0007; the contract it implements is
 | Module | Contents | Origin |
 |---|---|---|
 | `backend`, `dolt` | `BdCli` (`BeadsBackend`, `CliBackend`, `DoltOperations`), `BD_RELEASE_SOURCE`, Dolt detection, `DoltMode` | btit-bd, with the clock field and constructors of ADR-BDCLI-0002 |
-| `runner`, `run`, `probe`, `path`, `command`, `locks`, `ops` | `CliInvoker` / `CliRunner`, argv assembly and spawns, the `--version` probe, the extended `PATH`, `ProjectLocks`, one function per issue operation | btit-cli, with `tracing` and `CliInvoker::run_bounded` |
+| `runner`, `run`, `probe`, `path`, `command`, `locks`, `ops` | `CliInvoker` / `CliRunner`, argv assembly and spawns, the `--version` probe, the extended `PATH`, `ProjectLocks`, the crate-private `ChildEnv` (ADR-BDCLI-0004), one function per issue operation | btit-cli, with `tracing`, `CliInvoker::run_bounded` and `CliInvoker::set_child_var` |
 | `cache` | `CacheBackend for BdCli`: exit-status classification, guards on close, fingerprint parsing | new |
 | `argv` | the argv of every cache call, as pure functions | new |
 | `bounded` | `run_bounded` and `BoundedError`: the deadline-bounded process run | new |
@@ -99,7 +99,7 @@ probes before it fails a running cache.
 
 ## ADR-BDCLI-0002: Deadline-bounded calls beside btit's unbounded ones
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDCLI-0004 (lead ruling S40)
 
 Context: btit's transport blocks until the child exits (`Command::output()`), which
 is the behaviour REQ-BDC-0906 asks to keep for btit's operations. NFR-BDC-0004 needs
@@ -109,7 +109,8 @@ lock, which btit takes with a blocking `lock()`.
 Decision:
 
 - `CliInvoker` gains one provided method,
-  `run_bounded(project, argv, timeout) -> Result<CliOutput, BoundedError>`. Its
+  `run_bounded(project, argv, timeout) -> Result<CliOutput, BoundedError>`
+  (plus `CliInvoker::set_child_var`, added by ADR-BDCLI-0004). Its
   five required methods and every btit signature are unchanged, so an implementor
   written against btit still compiles and the ported API-freeze tests pass; the
   provided body refuses with `Unsupported` rather than falling back to an unbounded
@@ -128,7 +129,8 @@ Decision:
   pipes close, even if a grandchild holds them, and nothing they hold is needed. After a
   normal exit, waiting for them is bounded by the same deadline (`Output` phase).
   Standard input is closed. The environment and working directory are btit's: the
-  extended `PATH`, `BEADS_PATH` = the working directory.
+  extended `PATH`, `BEADS_PATH` = the working directory, plus any child variables set
+  through `CliInvoker::set_child_var` (ADR-BDCLI-0004).
 - The lock key is a `WorkingDir`, built by `run::resolve_project_dir` and normalised
   (trailing separators dropped, a root kept), so `/p` and `/p/` are one lock;
   `ProjectLocks::guard(&str)` keeps btit's signature and normalises too.
@@ -172,3 +174,56 @@ the round trip against a real bd.
 Consequences: a bd release that changes metadata coercion or any message the
 classification reads is caught by the compat workflow's live probes, and
 `FakeBd`'s coercion rule (`coerce_metadata`) is the single place to update.
+
+## ADR-BDCLI-0004: A child environment variable set or removed by the runner
+
+**Status:** Approved (lead ruling S40, bc-lead, 2026-10-24; fix-a-7-12, RSH-033); amends ADR-BDCLI-0002 (lead ruling S47, fix-a-7-14, ARCH-903)
+**Traces to:** REQ-BDCLI-0009
+
+Context: `bd-cache-sync`'s `compose_with` resolves the cache from an explicit
+`$BEADS_DIR` value (`None` = unset; lead ruling S36), not the process
+environment, so a test does not depend on the machine. Every `bd` the backend
+spawns inherited the process's `BEADS_DIR`, so the cache and `bd` could name
+two beads directories.
+
+Decision: one provided method on `CliInvoker`,
+`set_child_var(&mut self, key: &OsStr, value: Option<&OsStr>)`, sets (`Some`)
+or removes (`None`) `key` in the environment of every child the invoker spawns
+from then on; a later call for the same key replaces the earlier one. The
+provided body does nothing, which is right for an invoker that spawns no
+process (`RecordingInvoker`, `FakeBd`). The forwarding rule: an invoker that
+wraps another invoker overrides `set_child_var` and forwards it to the wrapped
+one, as it forwards the spawning methods; the provided no-op would otherwise
+drop the change silently and the wrapped runner's children would inherit the
+process's value (fix-a-7-14, RSH-036; the rule is stated on the trait, and
+`bd-cache-sync`'s test wrapper `Switched` follows it). `CliRunner` keeps the changes in a crate-private `ChildEnv` and
+applies them to `run_json`, `run_raw` and `run_bounded` right after
+`new_command`, so the spawn's own `PATH` and `BEADS_PATH` still win for those
+two names; the `--version` probe, which runs in the temp directory for no
+project, does not get them. `CliRunner::with_child_var` and
+`BdCli::with_child_var` are the builders. One entry per name, with names
+compared as the platform's environment does: exactly on Unix, ASCII
+case-insensitively on Windows (fix-a-7-14, QA9-002). btit's public functions
+(`run::spawn_json`, `run::run_raw`, `bounded::run_bounded`,
+`bounded::run_bounded_capped`) keep their signatures and an inherited
+environment; the runner calls crate-private variants that take the
+`ChildEnv`. The API-freeze tests are unchanged.
+
+Alternatives rejected: checking at composition that the explicit value equals
+the process's (a test passing `None` on a machine with `BEADS_DIR` set would
+fail, which S36 exists to prevent); changing the public spawn functions'
+signatures (breaks btit's API freeze).
+
+Consequences: `compose_with` sets `BEADS_DIR` on the backend's children to the
+value the cache resolved from, or removes it. ADR-BDCLI-0002's "one provided
+method" and its `run_bounded` environment now include this method and these
+variables (S47). Evidence (REQ-BDCLI-0009):
+`the_child_environment_reaches_run_raw_and_run_bounded`,
+`the_child_environment_reaches_run_json` (fix-a-7-14, QA9-001),
+`the_child_environment_reaches_every_spawn_on_every_platform` (fix-a-7-14,
+QA9-002: re-executes the unit-test binary as `child_env_helper`, so the
+windows-latest leg runs it too),
+`without_a_child_variable_the_environment_is_inherited` (`src/runner.rs`),
+`a_later_set_of_a_name_replaces_the_earlier_one`,
+`names_compare_as_the_platform_environment_does` (`src/command.rs`); in
+`bd-cache-sync`, `tests/compose.rs` (S40 and S44 cases).

@@ -16,11 +16,12 @@ authors = ["Rand Lee <rand@randlee.com>"]
 
 [workspace.dependencies]
 # workspace crates
+bd-cache = { path = "crates/bd-cache", version = "0.1.0" }
+bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
+bd-cache-store = { path = "crates/bd-cache-store", version = "0.1.0" }
 sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.1.0" }
 sc-beads = { path = "crates/sc-beads", version = "0.1.0" }
-bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
-bd-cache = { path = "crates/bd-cache", version = "0.1.0" }
-bd-cache-store = { path = "crates/bd-cache-store", version = "0.1.0" }
+sc-cron = { path = "crates/sc-cron", version = "0.1.0" }
 
 # third-party crates used in phase a
 rusqlite = { version = "0.40", features = ["bundled"] }   # NFR-BDC-0007: bundled SQLite
@@ -34,10 +35,11 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", 
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 cron = "0.17"
+libc = "0.2"                                               # O_NONBLOCK for opening phase files (bd-cache-sync, a-7)
 dunce = "1"                                                # canonical paths without the Windows \\?\ prefix, bd-cache-py (a-8, R12)
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
-tempfile = "3.20"                                          # dev-dependency only (sc-cron store tests)
+tempfile = "3.20"                                          # dev-dependency only (sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)
 pyo3 = "0.30"
 
 [workspace.lints.rust]

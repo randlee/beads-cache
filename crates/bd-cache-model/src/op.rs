@@ -32,6 +32,10 @@ use crate::journal::{JournalEntry, JournalState};
 use crate::pyjson::python_json;
 use crate::scope::{PhaseName, ScopeId};
 
+/// The status text of a closed bead (bd's `closed`): the one literal the model, the
+/// cache and its callers compare against.
+pub const CLOSED_STATUS: &str = "closed";
+
 /// Op names, in BD-CACHE order.
 pub const OPS: [&str; 3] = ["close", "update", "dep_add"];
 
@@ -366,7 +370,7 @@ impl Op {
         let mut row = row.clone();
         match self {
             Op::Close { reason } => {
-                row.status = Some("closed".into());
+                row.status = Some(CLOSED_STATUS.into());
                 if let Some(r) = reason {
                     row.close_reason = Some(r.clone());
                 }
@@ -415,7 +419,7 @@ impl Op {
     #[must_use]
     pub fn achieved(&self, row: &Bead) -> bool {
         match self {
-            Op::Close { .. } => row.status.as_deref() == Some("closed"),
+            Op::Close { .. } => row.status.as_deref() == Some(CLOSED_STATUS),
             Op::DepAdd { depends_on, kind } => row
                 .dependencies
                 .iter()

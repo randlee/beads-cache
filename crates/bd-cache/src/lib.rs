@@ -67,6 +67,9 @@ mod write;
 
 pub(crate) use outage::call;
 
+#[doc(no_inline)]
+pub use bd_cache_model::CLOSED_STATUS;
+
 /// The bd-cache facade.
 ///
 /// Not `Sync` (one store connection); see the crate docs, Threading.
@@ -122,6 +125,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         &self.config
     }
 
+    /// The clock the cache and its backend share (ADR-CORE-0001).
+    ///
+    /// Callers that measure time against the cache's deadlines, such as a
+    /// scheduler's tick, must read this clock and no other. It is a shared
+    /// handle, so it can be held while the cache is borrowed mutably.
+    #[must_use]
+    pub fn clock(&self) -> Arc<dyn Clock> {
+        Arc::clone(&self.clock)
+    }
+
     /// The cached row with its pending entries replayed; on a miss one bounded
     /// `bd list --id` (`miss_timeout`, else the configured miss-fill timeout).
     ///
@@ -135,6 +148,19 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         miss_timeout: Option<Duration>,
     ) -> Result<GetReply, CacheError> {
         get::get(self, id, miss_timeout)
+    }
+
+    /// The cached bead as `get` would answer, or `None` when the cache does not
+    /// hold it. Never calls bd and never fills a miss. Its cost does not grow
+    /// with the size of the bead's scope while no write is in flight (nothing
+    /// pending, nothing applied since the scope's base was fetched); with one in
+    /// flight the scope's whole base is adjusted, as `get` does (ADR-CORE-0206).
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn cached(&self, id: &BeadId) -> Result<Option<GetReply>, CacheError> {
+        get::cached(self, id)
     }
 
     /// A fresh read of `ids` (one `bd list --id`, all statuses) under `timeout`,
@@ -251,6 +277,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         status::status(self)
     }
 
+    /// Whether `scope` has synced at least once (its `sync_state.last_ok_at` is set).
+    ///
+    /// Reads the scope's sync state alone through [`CacheStore::sync_state`]:
+    /// no `bd` call and no scan of the journal or the rows, unlike
+    /// [`status`](Self::status) (lead ruling S30, QA5-004). A scope that was
+    /// never registered has never synced.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn scope_synced(&self, scope: &ScopeId) -> Result<bool, CacheError> {
+        Ok(self.store.sync_state(scope)?.last_ok_at.is_some())
+    }
+
     /// Escalated entries not yet announced (for an external scheduler's sender).
     ///
     /// # Errors
@@ -270,6 +310,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         self.store.mark_announced(seq, &at)
     }
 
+    /// [`Cache::mark_announced`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33): the tick passes the time it
+    /// has left, so the marker write cannot carry it past its end.
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::mark_announced`]; a write lock held past `wait` is the
+    /// store's usual failure (`STORE_FAILED` for SQLite), and the entry stays
+    /// unannounced.
+    pub fn mark_announced_within(&mut self, seq: Seq, wait: Duration) -> Result<(), CacheError> {
+        let at = self.clock.now_utc();
+        self.store.mark_announced_within(seq, &at, wait)
+    }
+
     /// The scope's last announced sync-failure cause.
     ///
     /// # Errors
@@ -286,6 +340,22 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// Store errors.
     pub fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
         self.store.set_sync_alert(s, cause)
+    }
+
+    /// [`Cache::set_sync_alert`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33), as
+    /// [`Cache::mark_announced_within`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::mark_announced_within`]; the alert is left as it was.
+    pub fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        self.store.set_sync_alert_within(s, cause, wait)
     }
 
     /// Pending and unannounced-escalated counts (the stop rule).

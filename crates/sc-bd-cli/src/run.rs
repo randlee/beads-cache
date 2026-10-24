@@ -21,7 +21,7 @@ use sc_beads::logging::VERBOSE_LOGGING;
 use sc_beads::{log_debug, log_error, log_info};
 use sc_beads::{CliClient, CliOutput, CliProbe, ProjectRef};
 
-use crate::command::new_command;
+use crate::command::{new_command, ChildEnv};
 use crate::locks::{ProjectLocks, WorkingDir};
 use crate::path::get_extended_path;
 
@@ -107,13 +107,26 @@ pub fn spawn_json(
     working_dir: &str,
     argv: &[String],
 ) -> Result<String, BeadsError> {
+    spawn_json_in(binary, locks, working_dir, argv, &ChildEnv::default())
+}
+
+/// [`spawn_json`] with `env` applied to the child (a [`CliRunner`](crate::CliRunner)'s
+/// child environment, ADR-BDCLI-0004).
+pub(crate) fn spawn_json_in(
+    binary: &str,
+    locks: &ProjectLocks,
+    working_dir: &str,
+    argv: &[String],
+    env: &ChildEnv,
+) -> Result<String, BeadsError> {
     log_info!("[bd] {} {} | cwd: {}", binary, argv.join(" "), working_dir);
 
     // Acquire per-project lock to prevent concurrent Dolt access (causes SIGSEGV).
     let project_lock = locks.guard(working_dir);
     let _guard = project_lock.lock().unwrap_or_else(PoisonError::into_inner);
 
-    let output = new_command(binary)
+    let output = env
+        .command(binary)
         .args(argv)
         .current_dir(working_dir)
         .env("PATH", get_extended_path())
@@ -194,7 +207,17 @@ pub fn run_json(
 ///
 /// [`BeadsError::Spawn`] (`operation` = the first argument) when the process cannot be started.
 pub fn run_raw(binary: &str, working_dir: &str, args: &[&str]) -> Result<CliOutput, BeadsError> {
-    new_command(binary)
+    run_raw_in(binary, working_dir, args, &ChildEnv::default())
+}
+
+/// [`run_raw`] with `env` applied to the child (ADR-BDCLI-0004).
+pub(crate) fn run_raw_in(
+    binary: &str,
+    working_dir: &str,
+    args: &[&str],
+    env: &ChildEnv,
+) -> Result<CliOutput, BeadsError> {
+    env.command(binary)
         .args(args)
         .current_dir(working_dir)
         .env("PATH", get_extended_path())

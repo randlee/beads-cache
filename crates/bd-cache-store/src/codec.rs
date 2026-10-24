@@ -127,9 +127,17 @@ pub(crate) struct JournalRow {
     pub(crate) applied_at: Option<String>,
 }
 
+/// The `journal` columns [`JournalRow`] reads, in order, as a literal (for `concat!`).
+macro_rules! journal_columns {
+    () => {
+        "seq, idem_key, phase, bead, op, args_json, precondition_json, actor, state, \
+         attempts, last_error, announced_at, created_at, applied_at"
+    };
+}
+pub(crate) use journal_columns;
+
 /// The `journal` columns [`JournalRow`] reads, in order.
-pub(crate) const JOURNAL_COLUMNS: &str = "seq, idem_key, phase, bead, op, args_json, \
-    precondition_json, actor, state, attempts, last_error, announced_at, created_at, applied_at";
+pub(crate) const JOURNAL_COLUMNS: &str = journal_columns!();
 
 impl JournalRow {
     /// Reads the [`JOURNAL_COLUMNS`] of a result row.
@@ -212,6 +220,33 @@ pub(crate) fn decode_ready(
     let ready = serde_json::from_str(ready)
         .map_err(|e| corrupt(step, format_args!("ready base ready_json: {e}")))?;
     Ok((blocked, ready))
+}
+
+/// The rows of the per-bead index of a ready base: each blocked bead with its
+/// blockers merged in order without repeats; a bead with no blockers is not
+/// blocked and has no row.
+pub(crate) fn index_blocked(
+    step: Step<'_>,
+    blocked: &[BlockedRow],
+) -> Result<Vec<(BeadId, String)>, CacheError> {
+    let mut merged: std::collections::BTreeMap<&BeadId, Vec<&BeadId>> =
+        std::collections::BTreeMap::new();
+    for row in blocked {
+        let list = merged.entry(&row.id).or_default();
+        for b in &row.blocked_by {
+            if !list.contains(&b) {
+                list.push(b);
+            }
+        }
+    }
+    merged
+        .into_iter()
+        .filter(|(_, list)| !list.is_empty())
+        .map(|(id, list)| {
+            let json = serde_json::to_string(&list).map_err(|e| failed(step, e))?;
+            Ok((id.clone(), json))
+        })
+        .collect()
 }
 
 #[cfg(test)]

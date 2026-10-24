@@ -69,7 +69,7 @@ new handle type; the Python verbs stay the same. The default cache file is
 
 ## ADR-PY-0002: Replies are builtin objects; one exception class
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the config kind is reserved
 
 Context: atm-bd reads `bd_cache.py`'s JSON dicts today. The `bd-cache-model`
 reply types derive `Serialize`.
@@ -91,8 +91,9 @@ code for a caller's malformed id. That includes an `op` outside
 checks them before the core (lead ruling R7, bc-lead, 2026-10-24; the core's
 `BAD_OP` stays for its other callers), so `bd_cache.py`'s `BD_CACHE.BAD_OP`
 becomes `ValueError` here. An invalid configuration is a `ValueError` whose `kind` is
-`parse`, `scope`, `argument` or `config`; `config` is any other configuration
-problem the loader reports, and `path` may be `None`. An unreadable config
+`parse`, `scope`, `argument` or `config`; `config` is reserved; not produced
+while ConfigLoadError has no further variants (S38/S42), and `path` may be
+`None`. An unreadable config
 file is an `OSError` of kind `read`.
 
 Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its

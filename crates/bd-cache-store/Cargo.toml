@@ -16,8 +16,22 @@ rusqlite.workspace = true
 fs4.workspace = true
 serde_json.workspace = true
 
+# Logging is `sc_beads::logging::tracing` (ADR-BDC-0007): no direct `tracing` (ADR-STORE-0005).
+
 [dev-dependencies]
+# Test-only features, recorded in ADR-STORE-0005.
+# `functions`: tests register SQL functions. One registers its own `unixepoch` to stand in
+# for an SQLite without one. The busy-timeout probe tests (store.rs unit tests, QA5-003 and
+# S33) register `probe_busy_timeout`, which a temporary trigger calls from inside the store's
+# write to read `PRAGMA busy_timeout`. That probe's `Context::get_connection` is the crate's
+# only `unsafe`, test-only (SAFETY in store.rs: the ConnectionRef does not outlive the call
+# or leave the thread running the statement).
+rusqlite = { workspace = true, features = ["functions"] }
+# Temp dirs for the unit tests' cache files, removed on drop, also when a test fails (QA6-002).
+tempfile.workspace = true
+# `testing`: the store contract suite and `FakeStore`.
 bd-cache-model = { workspace = true, features = ["testing"] }
+# `testing`: bead, id and actor fixtures.
 sc-beads = { workspace = true, features = ["testing"] }
 
 [lints]

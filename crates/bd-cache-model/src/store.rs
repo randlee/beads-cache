@@ -1,5 +1,7 @@
 //! The store port ([`CacheStore`]) and the cross-process drain lock ([`DrainLock`]).
 
+use std::time::Duration;
+
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
@@ -7,7 +9,7 @@ use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
 use crate::reply::PruneReport;
 use crate::scope::ScopeId;
 use crate::state::{
-    FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
+    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
     UpsertReport,
 };
 
@@ -110,6 +112,30 @@ pub trait CacheStore: Send {
     ) -> Result<(), CacheError>;
     /// The scope's ready base; `None` = never fetched.
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError>;
+    /// One bead's entry in the scope's ready base; `None` = the scope never stored a base.
+    ///
+    /// Equal to [`BaseEntry::of`] applied to [`CacheStore::ready_base`]. The
+    /// provided body loads the whole base; an implementation that can answer
+    /// from an index overrides it (and reads head and entry in one snapshot), so a cached `get` costs the same whatever
+    /// the size of the scope (NFR-BDC-0001).
+    fn base_entry(&self, s: &ScopeId, id: &BeadId) -> Result<Option<BaseEntry>, CacheError> {
+        Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)))
+    }
+    /// Whether any journal entry is pending, or was applied at or after `at`.
+    ///
+    /// Equal to "`pending_entries` or `applied_since(at)` is not empty". The
+    /// provided body loads both lists; an implementation that can ask the
+    /// question of an index overrides it, so a cached `get` does not read the
+    /// journal's history (NFR-BDC-0001).
+    ///
+    /// Though it takes `&self`, an implementation may write to date journal
+    /// entries another writer left without an applied time, so later calls
+    /// stay index lookups. Such a write must not wait for the write lock
+    /// (it is skipped when the lock is held elsewhere), and the answer must
+    /// be the same whether or not it runs (ADR-STORE-0004, lead rulings S25/S26).
+    fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
+        Ok(!self.pending_entries()?.is_empty() || !self.applied_since(at)?.is_empty())
+    }
     /// Marks the scope's ready base stale.
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
 
@@ -124,6 +150,10 @@ pub trait CacheStore: Send {
     /// A bead's pending entries, by seq.
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
     /// Entries applied at or after `at`, by seq.
+    ///
+    /// As [`CacheStore::has_entries_since`], an implementation may write to
+    /// date entries, must not wait for the write lock to do so, and returns
+    /// the same entries either way.
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError>;
     /// Marks an entry applied, storing the read-back row or marking the bead stale; one transaction.
     fn apply_with_readback(
@@ -149,6 +179,27 @@ pub trait CacheStore: Send {
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
     /// Records that an escalation was announced.
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
+    /// [`CacheStore::mark_announced`], waiting at most `wait` for a write lock
+    /// another process holds (lead ruling S33).
+    ///
+    /// The tick's bounded writes, the post-send markers and the alert clears
+    /// that send no message (lead ruling S35), pass the time left before its
+    /// end, so a contended write cannot carry the tick past it: one that cannot
+    /// finish in time returns the store's usual error, the entry stays
+    /// unannounced, and the next tick sends it again (at least once). The
+    /// provided body ignores `wait` (it is unbounded), for a store that never
+    /// waits for a lock held elsewhere (the in-memory `FakeStore`); a store or
+    /// wrapper that can wait overrides both `_within` methods, forwarding the
+    /// wait.
+    fn mark_announced_within(
+        &mut self,
+        seq: Seq,
+        at: &Timestamp,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        let _ = wait;
+        self.mark_announced(seq, at)
+    }
     /// Applies the rebuild rule to a fresh fingerprint (REQ-BDC-0105).
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError>;
     /// A scope's sync state (all `None` before its first sync).
@@ -159,6 +210,21 @@ pub trait CacheStore: Send {
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError>;
     /// Sets (`Some`) or clears (`None`) the scope's sync alert.
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError>;
+    /// [`CacheStore::set_sync_alert`], waiting at most `wait` for a write lock
+    /// another process holds, as [`CacheStore::mark_announced_within`] (lead
+    /// ruling S33): an alert not recorded in time is announced again next tick.
+    /// The tick also clears an alert (`None`) through this method when it
+    /// sends no message (lead ruling S35); a clear not recorded in time is
+    /// retried next tick.
+    fn set_sync_alert_within(
+        &mut self,
+        s: &ScopeId,
+        cause: Option<&str>,
+        wait: Duration,
+    ) -> Result<(), CacheError> {
+        let _ = wait;
+        self.set_sync_alert(s, cause)
+    }
     /// The outage, while one holds.
     fn outage(&self) -> Result<Option<Outage>, CacheError>;
     /// Records (`Some`) or clears (`None`) the outage.

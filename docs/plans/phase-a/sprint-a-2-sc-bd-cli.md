@@ -229,7 +229,7 @@ impl FakeBd {
 - ADR-BEADS-0001..0004 are binding contract decisions this crate implements against:
   the verbatim port and `tracing` logging, `BeadsCacheError`, the strict rows and the
   recorded P-6 probe.
-- Crate ids `REQ-BDCLI-0001..0008` and `ADR-BDCLI-0001..0003` are Approved (lead ruling, bc-lead, 2026-10-24; `docs/sc-bd-cli/`).
+- Crate ids `REQ-BDCLI-0001..0008` and `ADR-BDCLI-0001..0003` are Approved (lead ruling, bc-lead, 2026-10-24; `docs/sc-bd-cli/`). REQ-BDCLI-0009 was added by a-7 (lead rulings S47/S51).
 
 ## Deviations (all 7 accepted, lead ruling bc-lead 2026-10-24)
 

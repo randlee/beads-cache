@@ -1,7 +1,7 @@
 # bd-cache Read Path
 
-Status: approved (REQ-CORE-0201..0207 and ADR-CORE-0201..0205, lead
-ruling, bc-lead, 2026-10-24). Crate-local requirements and decisions (domain
+Status: approved (REQ-CORE-0201..0207 and ADR-CORE-0201..0206, lead
+ruling, bc-lead, 2026-10-24; ADR-CORE-0206 is the a-7 amendment). Crate-local requirements and decisions (domain
 code `CORE`) for the read path of `bd-cache`: `get`, `entry`, `refresh`,
 `list`, `ready`, `sync`, `resolve`, `prune` and `status`. Indexed from
 [`architecture.md`](architecture.md); the shared helpers they call (`call`,
@@ -12,11 +12,11 @@ ADR-CORE-0001..0002 there. Repo-level context:
 
 | File | Contents |
 |---|---|
-| `src/get.rs` | `get`, `entry` |
+| `src/get.rs` | `get`, `cached` (a-7: no bd call, no miss fill), `entry` |
 | `src/list.rs` | `list` |
 | `src/refresh.rs` | `refresh`, `check_requested` |
 | `src/sync.rs` | `sync` |
-| `src/ready.rs` | `ready`, the adjustment engine (`adjusted`), `fetch_base`, `row_view`, `scope_for`, `require_known` |
+| `src/ready.rs` | `ready`, the adjustment engine (`adjusted`), `fetch_base`, `row_view`, `blocked_state` (a-7: the bead's blocked state without adjusting the whole base), `scope_for`, `require_known` |
 | `src/resolve.rs`, `src/prune.rs`, `src/status.rs` | store delegations |
 
 Tests: `tests/read_get.rs`, `tests/read_ready.rs`, `tests/read_journal.rs`,
@@ -312,3 +312,29 @@ Consequences: `status` reports what `StoreStatus` holds, including the
 stale rows (`StoreStatus.stale`, filled by the store from
 `CacheStore::stale_rows`; a-1 amendment 1, lead ruling, bc-lead,
 2026-10-24), tested by `status_reports_stale_rows_until_a_sync_rereads_them`.
+
+## ADR-CORE-0206: `get` reads the bead's own entry of the ready base (a-7 amendment)
+
+**Status:** Approved (lead ruling S4, bc-lead, 2026-10-24: an a-6 amendment made in sprint a-7)
+
+Context: `get` computed a row's `blocked` state by adjusting the scope's whole
+ready base (ADR-CORE-0201) on every call, so its cost grew with the scope:
+1.4 ms at 1000 beads in a release build, against NFR-BDC-0001's 1 ms.
+
+Decision: `get` asks the store for the bead's own entry of the base
+(`CacheStore::base_entry`: the base's fetch instant, stale mark and the bead's
+`blocked_by`). When `CacheStore::has_entries_since(fetched_at)` is false (nothing
+pending and nothing applied at or after the base's fetch instant; two index
+lookups, whatever the journal's history), no rule of ADR-CORE-0201 has anything to apply, so the
+stored entry is the answer. Otherwise (a write is in flight, for the few
+seconds until the next sync; a blocker's close can unblock any bead) the whole
+base is adjusted as before. `list`, `ready` and `refresh` are unchanged. The
+dedupe of the base's ready ids no longer scans a vector per id.
+
+`Cache::cached(id)` is the same read without the miss fill: `None` for a bead the
+cache does not hold, no bd call, which is how the sync task reads a phase's root.
+
+Consequences: a cached `get` costs the same at 10, 100 and 1000 beads, and with
+thousands of old applied entries, when no entry is pending or recent (a deterministic test counts what it reads); the ready rules
+are untouched, every `read_ready` test passes unchanged. `Cache::clock()` is
+added (lead ruling S2): the clock the cache and its backend share.

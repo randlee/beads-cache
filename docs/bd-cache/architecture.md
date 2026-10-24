@@ -22,7 +22,7 @@ crate depends only on `bd-cache-model` and `sc-beads`, never the store or
 
 | File | Owner | Contents |
 |---|---|---|
-| `lib.rs` | a-1 | `Cache`, `new`, the public verbs (each delegates to its module), the store passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert`, `open_work`), the `testing` hooks |
+| `lib.rs` | a-1 | `Cache`, `new`, the public verbs (each delegates to its module), the store passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert`, `open_work`), `clock()` (a-7: the clock the cache and backend share), `scope_synced` (a-7, S30: one `sync_state` row through the port), `mark_announced_within` and `set_sync_alert_within` (a-7, S33: the bounded passthroughs of the two marker writes), `CLOSED_STATUS`, the `testing` hooks |
 | `outage.rs` | a-1 | `call`, `classify`, `note_unavailable`, `note_ok` |
 | `view.rs`, `backend_check.rs`, `miss.rs` | a-1 | `current_view`, `run`, `fill` |
 | `write.rs`, `drain.rs` | a-5 | write path and drain (`docs/bd-cache/write-path.md`) |
@@ -74,6 +74,24 @@ passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`,
 stub files are in a-1's `owned_paths` until ownership hands over to a-5
 (`write.rs`, `drain.rs`) and a-6 (the other eight). `call` returns
 `Result<T, CallFailure>` (ruling L5; ADR-MODEL-0003 amendment).
+
+### ADR-CORE-0002 amendment (a-7): `scope_synced` joins the passthroughs
+
+**Status:** Approved (lead ruling S30/S32/S33, bc-lead, 2026-10-24)
+
+Context: the sync task trusts a cached root only when the phase's own scope has
+synced (ADR-SYNC-0005, S24), and needs that answer without a bead read.
+
+Decision: the passthrough list (`unannounced_escalations`, `mark_announced`,
+`sync_alert`, `set_sync_alert`, `open_work`) gains `Cache::scope_synced`, which
+reads one `sync_state` row through the port. It is a-7's edit to `lib.rs`
+(S30); a-5 and a-6 are unaffected. S33 adds `Cache::mark_announced_within` and
+`Cache::set_sync_alert_within`, the passthroughs of the port's bounded marker writes
+(ADR-MODEL-0003 a-7 amendment), also a-7's edit to `lib.rs`.
+
+Consequences: the list of store passthroughs in the paragraph above is
+`unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert`,
+`open_work`, `scope_synced`, `mark_announced_within` and `set_sync_alert_within`.
 
 ### ADR-CORE-0002 amendment (a-5 QA-1): the temporary helper overrides leave with a-5
 

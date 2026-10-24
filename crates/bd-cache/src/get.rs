@@ -15,7 +15,7 @@ use bd_cache_model::{CacheError, CacheStore, DrainLock, GetReply, JournalEntry, 
 use sc_beads::{BeadId, CacheBackend};
 
 use crate::Cache;
-use crate::ready::{adjusted, row_view, scope_for};
+use crate::ready::{blocked_state, row_view_with, scope_for};
 
 fn not_found(id: &BeadId) -> CacheError {
     CacheError::NotFound {
@@ -29,22 +29,44 @@ pub(crate) fn get<S: CacheStore, L: DrainLock, B: CacheBackend>(
     id: &BeadId,
     miss_timeout: Option<Duration>,
 ) -> Result<GetReply, CacheError> {
-    let (view, freshness) = if let Some(found) = crate::view::current_view(cache, id)? {
-        found
-    } else {
-        if crate::miss::fill(cache, id, miss_timeout)?.is_none() {
-            return Err(not_found(id));
-        }
-        // The fill stored the row; replay any entry already journaled for it.
-        crate::view::current_view(cache, id)?.ok_or_else(|| not_found(id))?
-    };
+    if let Some(found) = crate::view::current_view(cache, id)? {
+        return reply(cache, id, found);
+    }
+    if crate::miss::fill(cache, id, miss_timeout)?.is_none() {
+        return Err(not_found(id));
+    }
+    // The fill stored the row; replay any entry already journaled for it.
+    let found = crate::view::current_view(cache, id)?.ok_or_else(|| not_found(id))?;
+    reply(cache, id, found)
+}
+
+/// `cached(id)`: the reply `get` gives for a cached bead, `None` on a miss; no bd call.
+pub(crate) fn cached<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    id: &BeadId,
+) -> Result<Option<GetReply>, CacheError> {
+    match crate::view::current_view(cache, id)? {
+        Some(found) => reply(cache, id, found).map(Some),
+        None => Ok(None),
+    }
+}
+
+/// The reply for a bead whose view is known.
+fn reply<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    id: &BeadId,
+    (view, freshness): (sc_beads::Bead, bd_cache_model::Freshness),
+) -> Result<GetReply, CacheError> {
     let pending = u32::try_from(cache.store.pending_for(id)?.len()).unwrap_or(u32::MAX);
-    let (scope_last_ok_at, adj) = match scope_for(cache, &view)? {
-        Some(s) => (cache.store.sync_state(&s)?.last_ok_at, adjusted(cache, &s)?),
+    let (scope_last_ok_at, blocked) = match scope_for(cache, &view)? {
+        Some(s) => (
+            cache.store.sync_state(&s)?.last_ok_at,
+            blocked_state(cache, &s, &view)?,
+        ),
         None => (None, None),
     };
     Ok(GetReply {
-        row: row_view(view, freshness, adj.as_ref()),
+        row: row_view_with(view, freshness, blocked),
         scope_last_ok_at,
         pending,
         outage: cache.store.outage()?,

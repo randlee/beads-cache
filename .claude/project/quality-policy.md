@@ -58,10 +58,28 @@ their own prompts.
 
 ## Validation Policy
 
-No repository-wide phase-end artifact command is configured yet. An
-implementation phase must add its authoritative command here before phase-end
-QA can pass. Reviewer assignments may provide narrower commands for earlier
-rounds.
+Phase-end artifact command (phase a; sprint a-7 added it). Run it from the
+repository root on the phase branch, with `set -o pipefail`; every line must
+pass:
+
+```bash
+set -o pipefail
+cargo fmt --all --check
+cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings
+cargo clippy --workspace --exclude bd-cache-py --lib -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude bd-cache-py --no-deps
+cargo test --workspace --exclude bd-cache-py --all-features
+```
+
+This is what `.github/workflows/ci.yml` runs (on ubuntu, macos and windows
+for clippy and test). `bd-cache-py` is a PyO3 extension module that does not
+link under `cargo test`; its gate is `.github/workflows/python.yml` (sprint
+a-8). The bd compatibility workflow (`.github/workflows/bd-compat.yml`,
+`workflow_dispatch` at the pinned version) and the testbed run
+(`crates/bd-cache-sync/tests/run-live.sh`, sprint a-7; recorded in
+`docs/plans/phase-a/evidence/a-7-testbed.md`) are the only places live `bd`
+tests run (NFR-BDC-0006). Reviewer assignments may name narrower commands for
+earlier rounds.
 
 ## Lint and Gates
 

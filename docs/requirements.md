@@ -432,6 +432,8 @@ An escalated entry stays unannounced until it is marked announced; marking recor
 
 The sync task runs as one schedule per repository started from the beads root with a `team` (the ATM team of the phase leads); a missing team is refused.
 
+*Amended (lead ruling, bc-lead, 2026-10-24, a-7): `fallback_lead` is required beside `team`, in the same `[tick]` table, and a missing one is refused the same way. It is the lead told of escalations that belong to no phase, and of backend alerts for a phase whose file names no lead (REQ-BDC-0704, 0706).*
+
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_missing_team_is_refused`
 
@@ -440,6 +442,8 @@ The sync task runs as one schedule per repository started from the beads root wi
 **Status:** Approved
 
 Phases come from `.atm-bd/phase-*.toml` (`root`, `lead`), optionally limited by a configured phase list; a phase is active while its root bead is not closed, with uncached roots read in one `bd list --id`. A malformed phase list is refused.
+
+*Amended (lead ruling, bc-lead, 2026-10-24, a-7): a root that cannot be read (uncached during an outage) makes its phase inactive for that tick, as in the baseline, and is reported; the stop rule never treats an unreadable root as closed (REQ-BDC-0707). A configured phase list must name at least one phase; an empty list is refused. A phase file with no `lead` is kept (the baseline skips it) so that its alerts reach `fallback_lead`.*
 
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_tick_syncs_only_phases_with_an_open_root`, `test_custom_phases_limits_sync_and_stop`, `test_malformed_custom_phases_is_refused`
@@ -461,6 +465,8 @@ A sync failure whose cause differs from `sync_alert:<phase>` is sent to that pha
 
 *Amended in planning: outage announcement uses the per-scope alert (ADR-BDC-0005).*
 
+*Amended (lead ruling, bc-lead, 2026-10-24, a-7): a sync failure or an outage for a phase whose file names no lead is sent to `fallback_lead`. An outage is told to the leads of the active phases and of the phases whose root could not be read, never of a phase known to be closed.*
+
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_sync_failure_is_announced_once_per_cause`
 
@@ -479,6 +485,8 @@ Every escalated entry with no `announced_at` is sent to its phase's lead with th
 
 Any message not delivered, or an entry whose phase has no lead, makes the tick reply `refused` with the list, and is retried next tick; otherwise the reply is `pass-through`.
 
+*Amended (lead ruling, bc-lead, 2026-10-24, a-7): an escalated entry with no scope (a bead outside every scope) is sent to `fallback_lead`; an entry whose phase has a scope but no lead is still `refused`. A message is sent only while the tick has time left before its end; one that cannot be started is left unmarked and sent by the next tick, which is not a refusal.*
+
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_undelivered_escalation_is_retried_and_the_tick_refuses`
 
@@ -487,6 +495,8 @@ Any message not delivered, or an entry whose phase has no lead, makes the tick r
 **Status:** Approved
 
 The schedule stops when no phase is active and no entry is pending or escalated-unannounced.
+
+*Amended (lead ruling, bc-lead, 2026-10-24, a-7): the schedule stops only on positive knowledge. A `[tick]` table the tick would refuse, an unreadable phases directory or phase file, a root that cannot be read, or a failed store read all keep it running; the baseline's "uncached root during an outage counts as inactive" applies to syncing, not to stopping.*
 
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_stop_only_when_no_active_phase_and_no_open_work`
@@ -652,7 +662,7 @@ The beads backend is shared as published crates (`sc-beads` traits, `sc-bd-cli` 
 
 **Status:** Approved
 
-An in-process cached `get` takes under 1 ms.
+An in-process cached `get` takes under 1 ms when at most `READ_DATING_THRESHOLD` (2000) undated journal entries exist and no foreign writer holds the write lock. The one `get` that dates a larger burst, and gets while a foreign writer holds the lock over more than 2000 undated entries, are bounded excursions recorded in ADR-STORE-0004 (lead rulings S26 and S31).
 
 **Source:** BD-CACHE.md Performance
 

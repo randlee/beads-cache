@@ -11,8 +11,9 @@ use std::ffi::OsStr;
 use std::fmt;
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, RepoConfig, ScopeId};
+use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -234,15 +235,15 @@ impl CacheLocation {
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// use bd_cache_model::RepoConfig;
     /// use bd_cache_store::CacheLocation;
-    /// let root = std::env::temp_dir().join(format!("bdc-doc-loc-{}", std::process::id()));
+    /// let dir = tempfile::TempDir::new()?;
+    /// let root = dir.path();
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(
     ///     root.join(".beads").join("metadata.json"),
     ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
     /// )?;
-    /// let loc = CacheLocation::resolve_with(&root, &RepoConfig::default(), None)?;
+    /// let loc = CacheLocation::resolve_with(root, &RepoConfig::default(), None)?;
     /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
-    /// # std::fs::remove_dir_all(&root)?;
     /// # Ok(())
     /// # }
     /// ```
@@ -270,8 +271,11 @@ impl CacheLocation {
 /// `Display` names the file and the fix; the cause (the I/O or parse error)
 /// is carried only as [`Error::source`](std::error::Error::source), so a
 /// reporter that walks the source chain prints it once.
+///
+/// Exhaustive on purpose (lead ruling S38): a consumer matches every variant
+/// with no wildcard arm, so a new variant fails to compile in each consumer
+/// until it maps it.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum ConfigLoadError {
     /// The file exists but could not be read.
     Read {
@@ -296,24 +300,78 @@ pub enum ConfigLoadError {
     },
 }
 
+/// The fix of [`ConfigLoadError::Scope`]: it states the phase-name rule in the
+/// model's one text ([`PhaseName::RULE`], RBP-F037).
+static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
+    format!(
+        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
+         without the phase- prefix",
+        PhaseName::RULE
+    )
+});
+
+impl ConfigLoadError {
+    /// A stable, store-owned code, one per way the file fails to load
+    /// (RBP-F040; ADR-STORE-0003 amendment, lead rulings S34 and S37):
+    /// `store_config_unreadable`, `store_config_invalid` (not a valid
+    /// configuration: bad TOML, an unknown key, a wrong type) and
+    /// `store_config_bad_scope`. These are not [`CacheError`] codes (the
+    /// `BD_CACHE.*` namespace is `CacheError`'s) and not CLI-contract codes.
+    /// A consumer with codes of its own maps the variants at its boundary.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let dir = tempfile::TempDir::new()?;
+    /// let root = dir.path();
+    /// std::fs::create_dir_all(root.join(".beads"))?;
+    /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"b k\"]\n")?;
+    /// let err = bd_cache_store::load_repo_config(root).unwrap_err();
+    /// assert_eq!(err.code(), "store_config_bad_scope");
+    /// assert!(err.to_string().contains(err.fix()));
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Read { .. } => "store_config_unreadable",
+            Self::Parse { .. } => "store_config_invalid",
+            Self::Scope { .. } => "store_config_bad_scope",
+        }
+    }
+
+    /// What to do about it: one text per way the file fails, the one
+    /// [`Display`](fmt::Display) states after `fix:` (RBP-F040).
+    #[must_use]
+    pub fn fix(&self) -> &'static str {
+        match self {
+            Self::Read { .. } => {
+                "make .beads/bd-cache.toml readable by this process, or remove it to use the defaults"
+            }
+            Self::Parse { .. } => {
+                "correct the key or value of .beads/bd-cache.toml the cause names, or remove unknown keys"
+            }
+            Self::Scope { .. } => BAD_SCOPE_FIX.as_str(),
+        }
+    }
+}
+
 impl fmt::Display for ConfigLoadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Read { path, .. } => write!(
-                f,
-                "cannot read {}; fix: make the file readable, or remove it to use the defaults",
-                path.display()
-            ),
-            Self::Parse { path, .. } => write!(
-                f,
-                "invalid {}; fix: correct the key or value the cause names, or remove unknown keys",
-                path.display()
-            ),
+            Self::Read { path, .. } => {
+                write!(f, "cannot read {}; fix: {}", path.display(), self.fix())
+            }
+            Self::Parse { path, .. } => {
+                write!(f, "invalid {}; fix: {}", path.display(), self.fix())
+            }
             Self::Scope { path, value } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: use letters, \
-                 digits, '-', '_' and '.', with or without the phase- prefix",
-                path.display()
+                "invalid {}: scopes entry {value:?} is not a phase name; fix: {}",
+                path.display(),
+                self.fix()
             ),
         }
     }
@@ -344,14 +402,14 @@ impl std::error::Error for ConfigLoadError {
 ///
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
-/// let root = std::env::temp_dir().join(format!("bdc-doc-cfg-{}", std::process::id()));
+/// let dir = tempfile::TempDir::new()?;
+/// let root = dir.path();
 /// std::fs::create_dir_all(root.join(".beads"))?;
-/// assert_eq!(bd_cache_store::load_repo_config(&root)?, Default::default());
+/// assert_eq!(bd_cache_store::load_repo_config(root)?, Default::default());
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"bk\"]\n")?;
-/// assert_eq!(bd_cache_store::load_repo_config(&root)?.scopes, ["bk"]);
+/// assert_eq!(bd_cache_store::load_repo_config(root)?.scopes, ["bk"]);
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "surprise = 1\n")?;
-/// assert!(bd_cache_store::load_repo_config(&root).is_err());
-/// # std::fs::remove_dir_all(&root)?;
+/// assert!(bd_cache_store::load_repo_config(root).is_err());
 /// # Ok(())
 /// # }
 /// ```

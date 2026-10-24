@@ -42,7 +42,16 @@ pub(crate) enum ConfigKind {
     Scope,
     /// An argument is invalid: a path that is not UTF-8, missing or not a directory.
     Argument,
-    /// Any other problem the loader reports.
+    /// Any other problem the loader reports. Reserved: `ConfigLoadError` is
+    /// exhaustive (lead ruling S38), so the match in `From<ConfigLoadError>`
+    /// names every variant and none maps here; the `config` kind text stays.
+    #[cfg_attr(
+        not(test),
+        expect(
+            dead_code,
+            reason = "ConfigLoadError is exhaustive (S38): no loader error maps here; the `config` kind text is kept"
+        )
+    )]
     Other,
 }
 
@@ -125,11 +134,6 @@ impl From<ConfigLoadError> for OpenError {
             ConfigLoadError::Scope { path, .. } => Self::Config {
                 kind: ConfigKind::Scope,
                 path: Some(path),
-                text,
-            },
-            _ => Self::Config {
-                kind: ConfigKind::Other,
-                path: None,
                 text,
             },
         }

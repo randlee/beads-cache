@@ -23,6 +23,8 @@
     reason = "contract rules index results they have just asserted the shape of"
 )]
 
+use std::time::Duration;
+
 use sc_beads::testing::{edge, id};
 use sc_beads::{Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
 
@@ -578,6 +580,89 @@ pub fn ready_base_rules(fx: &mut impl StoreFixture) {
     assert!(ok(s.ready_base(&x()), "pruned").is_none());
 }
 
+/// `base_entry` equals `BaseEntry::of` on the whole base: `None` without a base, blockers
+/// merged without repeats, empty for a bead the base does not block, and it follows replace,
+/// stale marks and prune.
+pub fn base_entry_rules(fx: &mut impl StoreFixture) {
+    use crate::state::BaseEntry;
+    let mut s = fx.open();
+    ok(s.ensure_scope(&x()), "ensure");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "none").is_none());
+    let blocked = [
+        BlockedRow {
+            id: id("b2"),
+            blocked_by: vec![id("b1"), id("b9"), id("b1")],
+        },
+        BlockedRow {
+            id: id("b2"),
+            blocked_by: vec![id("b9"), id("b8")],
+        },
+        BlockedRow {
+            id: id("b4"),
+            blocked_by: vec![],
+        },
+    ];
+    ok(
+        s.replace_ready_base(&x(), &blocked, &[id("b1"), id("b3")], &ts(T0)),
+        "replace",
+    );
+    let base = ok(s.ready_base(&x()), "base").unwrap_or_else(missing);
+    for bead in ["b1", "b2", "b3", "b4", "nobody"] {
+        let got = ok(s.base_entry(&x(), &id(bead)), "entry").unwrap_or_else(missing);
+        assert_eq!(got, BaseEntry::of(&base, &id(bead)), "{bead}");
+    }
+    let b2 = ok(s.base_entry(&x(), &id("b2")), "b2").unwrap_or_else(missing);
+    assert_eq!(b2.blocked_by, vec![id("b1"), id("b9"), id("b8")]);
+    assert_eq!((b2.fetched_at.as_str(), b2.stale), (T0, false));
+    assert!(
+        ok(s.base_entry(&x(), &id("b4")), "b4").is_some_and(|e| e.blocked_by.is_empty()),
+        "an empty blocker list is not blocked"
+    );
+    ok(s.mark_ready_base_stale(&x()), "mark");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "stale").is_some_and(|e| e.stale));
+    ok(
+        s.replace_ready_base(&x(), &[], &[id("b2")], &ts(T1)),
+        "replace again",
+    );
+    let again = ok(s.base_entry(&x(), &id("b2")), "again").unwrap_or_else(missing);
+    assert_eq!(
+        (
+            again.blocked_by.len(),
+            again.fetched_at.as_str(),
+            again.stale
+        ),
+        (0, T1, false),
+        "replace drops the old entries"
+    );
+    assert!(ok(s.base_entry(&y(), &id("b2")), "other scope").is_none());
+    ok(s.prune_scope(&x()), "prune");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "pruned").is_none());
+}
+
+/// `has_entries_since(at)` is "something pending, or applied at or after `at`".
+pub fn has_entries_since_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert!(!ok(s.has_entries_since(&ts(T0)), "empty journal"));
+    let seq = ok(s.insert_entry(entry("k1", "b1", None), &ts(T0)), "insert");
+    assert!(ok(
+        s.has_entries_since(&ts(T2)),
+        "a pending entry counts at any time"
+    ));
+    ok(
+        s.apply_with_readback(seq, None, None, &ts(T1)),
+        "apply at T1",
+    );
+    assert!(ok(s.has_entries_since(&ts(T0)), "applied after T0"));
+    assert!(ok(s.has_entries_since(&ts(T1)), "inclusive at T1"));
+    assert!(!ok(s.has_entries_since(&ts(T2)), "applied before T2"));
+    let esc = ok(s.insert_entry(entry("k2", "b2", None), &ts(T1)), "insert 2");
+    ok(s.escalate(esc, "why", &ts(T1)), "escalate");
+    assert!(!ok(
+        s.has_entries_since(&ts(T2)),
+        "an escalated entry is neither pending nor applied"
+    ),);
+}
+
 /// `applied_since(at)` returns entries applied at or after `at`, in seq order.
 pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
@@ -761,6 +846,74 @@ pub fn sync_state_alerts_and_outage_round_trip(fx: &mut impl StoreFixture) {
     assert_eq!(ok(s.status(), "status").outage, Some(o));
     ok(s.set_outage(None), "clear outage");
     assert_eq!(ok(s.outage(), "cleared"), None);
+}
+
+/// The bounded marker writes leave the post-state of their unbounded forms, with a
+/// non-zero wait and with a zero one, on a free lock (lead ruling S33, QA7-004):
+/// `mark_announced_within` as `mark_announced`, `set_sync_alert_within` as
+/// `set_sync_alert`, clearing with `None` included.
+pub fn bounded_marker_writes_match_the_unbounded_forms(fx: &mut impl StoreFixture) {
+    for wait in [Duration::from_millis(250), Duration::ZERO] {
+        let mut s = fx.open();
+        let bounded = ok(s.insert_entry(entry("a", "b1", Some(x())), &ts(T0)), "a");
+        let unbounded = ok(s.insert_entry(entry("b", "b2", Some(x())), &ts(T0)), "b");
+        let left = ok(s.insert_entry(entry("c", "b3", Some(x())), &ts(T0)), "c");
+        for seq in [bounded, unbounded, left] {
+            ok(s.escalate(seq, "gone", &ts(T1)), "escalate");
+        }
+        ok(s.mark_announced_within(bounded, &ts(T2), wait), "within");
+        ok(s.mark_announced(unbounded, &ts(T2)), "unbounded");
+        let un: Vec<Seq> = ok(s.unannounced_escalations(), "unannounced")
+            .into_iter()
+            .map(|e| e.seq)
+            .collect();
+        assert_eq!(un, vec![left], "{wait:?}: only the unmarked one is left");
+        assert_eq!(ok(s.open_work(), "open").escalated_unannounced, 1);
+        let marked = |s: &_, seq| {
+            let e = ok(CacheStore::entry_by_seq(s, seq), "entry").unwrap_or_else(missing);
+            (e.state, e.announced_at, e.last_error)
+        };
+        assert_eq!(
+            marked(&s, bounded),
+            marked(&s, unbounded),
+            "{wait:?}: the bounded form marks as the unbounded one"
+        );
+        assert_eq!(
+            marked(&s, bounded).1.as_ref().map(Timestamp::as_str),
+            Some(T2)
+        );
+
+        // Alerts: set, replace, clear; the bounded and unbounded forms agree.
+        ok(
+            s.set_sync_alert_within(&x(), Some("BD_CACHE.SYNC_FAILED: boom"), wait),
+            "set within",
+        );
+        ok(
+            s.set_sync_alert(&y(), Some("BD_CACHE.SYNC_FAILED: boom")),
+            "set",
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "alert"),
+            ok(s.sync_alert(&y()), "control")
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "alert").as_deref(),
+            Some("BD_CACHE.SYNC_FAILED: boom"),
+            "{wait:?}"
+        );
+        ok(
+            s.set_sync_alert_within(&x(), Some("BD_CACHE.SYNC_FAILED: other"), wait),
+            "replace within",
+        );
+        assert_eq!(
+            ok(s.sync_alert(&x()), "replaced").as_deref(),
+            Some("BD_CACHE.SYNC_FAILED: other")
+        );
+        ok(s.set_sync_alert_within(&x(), None, wait), "clear within");
+        ok(s.set_sync_alert(&y(), None), "clear");
+        assert_eq!(ok(s.sync_alert(&x()), "cleared"), None, "{wait:?}");
+        assert_eq!(ok(s.sync_alert(&y()), "control cleared"), None);
+    }
 }
 
 /// Prune: refused with open entries; keeps beads another scope holds; sweeps out-of-scope rows
@@ -970,10 +1123,13 @@ macro_rules! store_contract_tests {
             fingerprint_rebuild_rule,
             scopes_persist_across_restarts,
             ready_base_rules,
+            base_entry_rules,
+            has_entries_since_rules,
             applied_since_is_inclusive_and_ordered,
             journal_lifecycle,
             resolve_note_without_prior_error,
             sync_state_alerts_and_outage_round_trip,
+            bounded_marker_writes_match_the_unbounded_forms,
             prune_scope_rules,
             status_counts,
             status_lists_stale_rows_until_reread,

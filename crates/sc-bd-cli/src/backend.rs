@@ -8,6 +8,7 @@
 //! [`Deadline`](sc_beads::Deadline) into the time the child may run. btit's constructors
 //! use the system clock.
 
+use std::ffi::OsStr;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -75,6 +76,16 @@ impl BdCli {
     #[must_use]
     pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
         self.clock = clock;
+        self
+    }
+
+    /// This `BdCli` with `key` set to `value` (`Some`) or removed (`None`) in the
+    /// environment of every `bd` it spawns ([`CliInvoker::set_child_var`],
+    /// ADR-BDCLI-0004): a composition that resolved the beads directory from an explicit
+    /// `BEADS_DIR` gives `bd` the same value. A test double that spawns nothing ignores it.
+    #[must_use]
+    pub fn with_child_var(mut self, key: &OsStr, value: Option<&OsStr>) -> Self {
+        self.inv.set_child_var(key, value);
         self
     }
 
