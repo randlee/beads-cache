@@ -6,6 +6,18 @@
 //! park at the new time (the worker has settled), the job's entry or drop
 //! counters, or the recording store's write log.
 
+#![allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::clone_on_ref_ptr,
+    clippy::unused_self,
+    clippy::duration_suboptimal_units,
+    clippy::unchecked_time_subtraction,
+    reason = "test code: a failed expectation is the test failure"
+)]
+
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};

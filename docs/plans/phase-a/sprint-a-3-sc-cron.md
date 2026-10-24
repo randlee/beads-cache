@@ -171,16 +171,16 @@ The bd-cache sync schedule and its tick budget (a-7).
 
 ## Required validation
 
-The crate is self-contained until a-1's workspace lands, so validation runs
-against its own manifest (`M` = `crates/sc-cron/Cargo.toml`):
+`sc-cron` is a workspace member (a-1's workspace) and inherits edition,
+license and dependencies with `workspace = true`. Validation runs workspace
+wide:
 
 ```sh
-cargo fmt --manifest-path M --all -- --check
-cargo clippy --manifest-path M --all-targets --all-features -- -D warnings
-cargo test --manifest-path M --all-features
-RUSTDOCFLAGS="-D warnings" cargo doc --manifest-path M --all-features --no-deps
-cargo tree --manifest-path M -p sc-cron -e normal
+cargo fmt --all --check
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo clippy --workspace --lib -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps
+cargo test --workspace --all-features
+cargo build --workspace
+cargo tree -p sc-cron -e normal
 ```
-
-`cargo build --workspace` is satisfied by the post-a-1 amendment that
-switches `sc-cron` to workspace inheritance; it is not run in this sprint.

@@ -17,6 +17,14 @@
 //! the previous run is still in flight is skipped and logged. Every store
 //! write names `(id, generation)`; a fenced write makes the worker reload.
 
+// Slot indices come from `while index < self.slots.len()` loops that remove
+// or advance in step, on the single worker task that owns `slots`; no other
+// task can shrink the vector between the bound check and the access.
+#![allow(
+    clippy::indexing_slicing,
+    reason = "slot indices are bounded by the owning loops on the single worker task"
+)]
+
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -220,7 +228,7 @@ where
 
     async fn reload(&mut self) {
         self.reload_wanted = false;
-        match self.store_call(|store| store.list_active()).await {
+        match self.store_call(ScheduleStore::list_active).await {
             Ok(rows) => {
                 self.retry.succeeded();
                 self.merge(rows).await;
@@ -262,21 +270,20 @@ where
     }
 
     async fn new_slot(&mut self, schedule: Schedule) -> Option<Slot> {
-        let next = match schedule.next_run_at {
-            Some(next) => Some(next.as_datetime()),
-            None => {
-                // The port allows an active row without a next run (a store
-                // that never had one); compute it. A corrupt stored value
-                // never reaches here: it fails decoding in the store.
-                let next = schedule
-                    .spec
-                    .expr
-                    .next_run(schedule.jitter, self.clock.now());
-                if let Some(next) = next {
-                    self.persist_next(&schedule, next).await;
-                }
-                next
+        let next = if let Some(next) = schedule.next_run_at {
+            Some(next.as_datetime())
+        } else {
+            // The port allows an active row without a next run (a store
+            // that never had one); compute it. A corrupt stored value
+            // never reaches here: it fails decoding in the store.
+            let next = schedule
+                .spec
+                .expr
+                .next_run(schedule.jitter, self.clock.now());
+            if let Some(next) = next {
+                self.persist_next(&schedule, next).await;
             }
+            next
         };
         if next.is_none() {
             self.end(&schedule, EXHAUSTED).await;
@@ -547,6 +554,17 @@ fn log(schedule: &Schedule, action: &str, detail: &str) {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::clone_on_ref_ptr,
+    clippy::unused_self,
+    clippy::duration_suboptimal_units,
+    clippy::unchecked_time_subtraction,
+    reason = "test code: a failed expectation is the test failure"
+)]
 mod tests {
     use super::*;
 

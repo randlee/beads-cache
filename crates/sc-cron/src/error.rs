@@ -206,6 +206,17 @@ impl Error for StoreError {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::clone_on_ref_ptr,
+    clippy::unused_self,
+    clippy::duration_suboptimal_units,
+    clippy::unchecked_time_subtraction,
+    reason = "test code: a failed expectation is the test failure"
+)]
 mod tests {
     use super::*;
 

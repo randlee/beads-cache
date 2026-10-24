@@ -26,7 +26,7 @@ pub const MAX_EXPR_LEN: usize = 256;
 pub const MAX_PAYLOAD_BYTES: usize = 64 * 1024;
 
 /// Longest run timeout.
-pub const MAX_TIMEOUT: Duration = Duration::from_secs(24 * 60 * 60);
+pub const MAX_TIMEOUT: Duration = Duration::from_hours(24);
 
 /// Encodes `payload` as compact JSON, refusing it above [`MAX_PAYLOAD_BYTES`].
 pub(crate) fn encode_payload(payload: &serde_json::Value) -> Result<String, crate::CronError> {

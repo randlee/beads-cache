@@ -404,7 +404,7 @@ impl Columns {
 
 fn millis(field: &str, value: Duration) -> Result<i64, CronError> {
     i64::try_from(value.as_millis())
-        .map_err(|_| CronError::InvalidSpec(format!("{field} is too large to store")))
+        .map_err(|_overflow| CronError::InvalidSpec(format!("{field} is too large to store")))
 }
 
 /// Classifies a rusqlite error so callers can tell busy from corrupt.
@@ -508,7 +508,7 @@ impl RawRow {
         let duration = |value: i64, name: &str| {
             u64::try_from(value)
                 .map(Duration::from_millis)
-                .map_err(|_| corrupt(format!("{name} is negative")))
+                .map_err(|_negative| corrupt(format!("{name} is negative")))
         };
         let payload = serde_json::from_str(&self.payload)
             .map_err(|error| corrupt(format!("payload is not JSON: {error}")))?;
@@ -521,7 +521,9 @@ impl RawRow {
             .transpose()?;
         let timeout = duration(self.timeout_ms, "timeout_ms")?;
         Ok(Schedule {
-            id: ScheduleId::new(u64::try_from(id).map_err(|_| corrupt("id is negative".into()))?),
+            id: ScheduleId::new(
+                u64::try_from(id).map_err(|_negative| corrupt("id is negative".into()))?,
+            ),
             generation: u32::try_from(self.generation)
                 .ok()
                 .and_then(Generation::new)
@@ -544,6 +546,17 @@ impl RawRow {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::clone_on_ref_ptr,
+    clippy::unused_self,
+    clippy::duration_suboptimal_units,
+    clippy::unchecked_time_subtraction,
+    reason = "test code: a failed expectation is the test failure"
+)]
 mod tests {
     use super::*;
 

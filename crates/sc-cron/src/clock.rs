@@ -170,8 +170,7 @@ mod manual {
         fn advance_monotonic(&self, step: chrono::Duration) {
             let nanos = step
                 .to_std()
-                .map(|step| u64::try_from(step.as_nanos()).unwrap_or(u64::MAX))
-                .unwrap_or(0);
+                .map_or(0, |step| u64::try_from(step.as_nanos()).unwrap_or(u64::MAX));
             self.offset_nanos.fetch_add(nanos, Ordering::SeqCst);
         }
 
@@ -264,6 +263,17 @@ mod manual {
 }
 
 #[cfg(test)]
+#[allow(
+    clippy::expect_used,
+    clippy::unwrap_used,
+    clippy::panic,
+    clippy::indexing_slicing,
+    clippy::clone_on_ref_ptr,
+    clippy::unused_self,
+    clippy::duration_suboptimal_units,
+    clippy::unchecked_time_subtraction,
+    reason = "test code: a failed expectation is the test failure"
+)]
 mod tests {
     use super::*;
 
