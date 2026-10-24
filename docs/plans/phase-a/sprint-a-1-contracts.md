@@ -15,7 +15,7 @@ must_follow: []
 parallel_safe: [a-3]
 requirements:
   owns: [REQ-BDC-0007, REQ-BDC-0105, REQ-BDC-0301, REQ-BDC-0304, REQ-BDC-0305, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0906, NFR-BDC-0005]
-  constrained_by: [REQ-BDC-0004, REQ-BDC-0006, REQ-BDC-0008, REQ-BDC-0101, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0202, REQ-BDC-0302, REQ-BDC-0303, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0006, NFR-BDC-0007]
+  constrained_by: [REQ-BDC-0004, REQ-BDC-0006, REQ-BDC-0008, REQ-BDC-0101, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0202, REQ-BDC-0302, REQ-BDC-0303, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0006, NFR-BDC-0007]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BEADS-0001, ADR-BEADS-0002, ADR-BEADS-0003, ADR-BEADS-0004, ADR-MODEL-0001, ADR-MODEL-0002, ADR-MODEL-0003, ADR-MODEL-0004, ADR-CORE-0001, ADR-CORE-0002]
 owned_paths:
   - "Cargo.toml"
@@ -211,7 +211,8 @@ pub struct UpsertReport { pub stored: Vec<BeadId>, pub skipped_newer: Vec<BeadId
 pub struct ReadyBase { pub blocked: Vec<BlockedRow>, pub ready: Vec<BeadId>, pub fetched_at: Timestamp, pub stale: bool }
 pub struct OpenWork { pub pending: u64, pub escalated_unannounced: u64 }
 pub struct StoreStatus { pub meta: BTreeMap<String, String>, pub journal: BTreeMap<String, u64> /* "<phase>:<state>", None = no phase */,
-    pub scopes: Vec<ScopeStatus>, pub escalated: Vec<JournalEntry>, pub outage: Option<Outage> }
+    pub scopes: Vec<ScopeStatus>, pub escalated: Vec<JournalEntry>, pub outage: Option<Outage>,
+    pub stale: Vec<BeadId> /* a-1 amendment 1: the stale_rows set, REQ-BDC-0603 */ }
 pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 
 /// Store port; a-4 implements it over SQLite. Rules (checked by the contract suite):
@@ -231,6 +232,9 @@ pub struct ScopeStatus { pub sync: SyncState, pub beads: u64 }
 ///   instant taken before the sync's first list_blocked/list_ready call. ready_base is None only when the
 ///   scope never stored one; mark_ready_base_stale on a missing base is a no-op; prune_scope deletes it.
 /// - applied_since(at) returns entries applied at or after `at`, in seq order.
+/// A store reports its own failures (SQLite, I/O, undecodable values) as STORE_FAILED (a-1 amendment 1).
+/// - status().stale lists exactly the rows stale_rows returns; a failed read-back is listed until re-read
+///   (a-1 amendment 1).
 /// Every `at` is `&Timestamp` (fix-a-1-1, RBP-F002); the full rule list, with the clarifications of
 /// ADR-MODEL-0003, is the doc comment in crates/bd-cache-model/src/store.rs.
 pub trait CacheStore: Send {
@@ -330,6 +334,8 @@ pub struct StatusReply { /* StoreStatus plus outage */ }
 /// BD_LIST_FAILED, SYNC_FAILED, PRECONDITION{unmet: key -> {expected, actual}}, IDEM_CONFLICT,
 /// BAD_OP, BAD_ARGS, BAD_PRECONDITION, SCHEMA_VERSION, PRUNE_BLOCKED, NOT_ESCALATED;
 /// plus SCOPE_UNKNOWN{known: Vec<ScopeId>} (additive). NO_TOML is never emitted (Python-only).
+/// a-1 amendment 1: STORE_FAILED{detail, source: Option<StoreCause>} (additive): a store's own failure
+/// (SQLite, file I/O, an undecodable stored value); CacheError::store_failed(detail, source) builds it.
 /// PRECONDITION's unmet is BTreeMap<GuardKey, Unmet>; SYNC_FAILED's cause is Option<SyncCause>.
 /// Variants a backend failure can produce carry `source: Option<BackendCause>` (the BeadsCacheError
 /// they were mapped from), returned by Error::source and rendered as `source: {code, detail}` in to_json.
@@ -337,6 +343,9 @@ pub enum CacheError { /* ... */ }
 pub enum GuardKey { Status, Assignee }
 pub enum SyncCause { BdUnavailable, BdVersionFailed, BdSchemaFailed, BdContract, BdListFailed }
 pub struct BackendCause(/* Arc<BeadsCacheError> */);
+pub struct StoreCause(/* Arc<dyn Error + Send + Sync> */); // a-1 amendment 1; source of STORE_FAILED, to_json source: {detail}
+impl CacheError { pub fn store_failed(detail: impl Into<String>, source: impl Error + Send + Sync + 'static) -> CacheError;
+    pub fn store_cause(&self) -> Option<&StoreCause>; }
 impl CacheError {
     pub fn code(&self) -> &'static str; pub fn fix(&self) -> &'static str; pub fn detail(&self) -> &str;
     pub fn backend_cause(&self) -> Option<&BackendCause>;
@@ -480,6 +489,16 @@ pub mod testing {
 | CI runs green on the sprint PR, including the boundary `cargo metadata` check | boundary:bd-cache |
 | `cargo publish --dry-run -p sc-beads` passes | ADR-BDC-0007 |
 | Planted bugs: no overlay, no metadata coercion guard, skip validation, no dep-type check, skip rebuild, rebuild on first check each fail a test; so do a FakeBackend bug and a replay bug (evidence below, NFR-BDC-0005) | boundary:bd-cache-model |
+
+## Amendments
+
+Each amendment is merged into `integrate/phase-a` before the wave-2 work that
+needs it (see the amendment rule under Outcome and closure).
+
+| # | Branch | Needed by | Change | Ruling |
+|---|---|---|---|---|
+| 1 | `sprint/a-1-amend-1` | a-4 | `CacheError::StoreFailed` (`BD_CACHE.STORE_FAILED`): `detail` (step and file) and an optional `StoreCause` source kept by `Error::source()` and rendered as `source: {detail}` in `to_json`; recovery fix text; golden; `CacheStore` doc note that a store reports its own failures as `STORE_FAILED`; ADR-MODEL-0002 amendment. The baseline has no v3 code for store failures, so none was reused. a-4 switches its store errors from `NO_DATABASE` itself. | lead ruling, bc-lead, 2026-10-24 |
+| 1 | `sprint/a-1-amend-1` | a-6 | `StoreStatus.stale: Vec<BeadId>` (REQ-BDC-0603): the `stale_rows` set, filled by `FakeStore`; `CacheStore` docs say `status()` reports it; store contract rule `status_lists_stale_rows_until_reread` (a failed read-back is listed, a re-read clears it). | lead ruling, bc-lead, 2026-10-24 |
 
 ## Requirement scope notes
 

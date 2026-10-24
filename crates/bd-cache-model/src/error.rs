@@ -1,14 +1,17 @@
 //! [`CacheError`]: every `BD_CACHE.*` code with its payload, fix text and JSON shape.
 //!
 //! One variant per baseline code (REQ-BDC-0803), plus the additive
-//! `SCOPE_UNKNOWN`. `NO_TOML` is Python-only and never emitted. Every typed
+//! `SCOPE_UNKNOWN` and `STORE_FAILED` (a-1 amendment 1). `NO_TOML` is
+//! Python-only and never emitted. Every typed
 //! error exits 3 (REQ-BDC-0802) and renders as
 //! `{ok: false, code, detail, fix, reason?, ...payload, source?}`
 //! ([`CacheError::to_json`]).
 //!
 //! An error mapped from a backend failure keeps that failure as its
 //! [`std::error::Error::source`] (a [`BackendCause`]); `to_json` renders it as
-//! a nested `source: {code, detail}` object.
+//! a nested `source: {code, detail}` object. A store's own failure
+//! (`STORE_FAILED`) keeps the underlying error as a [`StoreCause`], rendered
+//! as `source: {detail}`.
 //!
 //! [`CacheError::from_backend`] maps a backend error to a code by the kind of
 //! call that failed:
@@ -176,6 +179,35 @@ impl PartialEq for BackendCause {
 
 impl Eq for BackendCause {}
 
+/// The store's own failure a `STORE_FAILED` was built from (its `source`):
+/// a SQLite error, an I/O error, a stored value that does not decode.
+///
+/// Compares equal by text, so errors stay comparable in tests.
+#[derive(Debug, Clone)]
+pub struct StoreCause(Arc<dyn std::error::Error + Send + Sync + 'static>);
+
+impl StoreCause {
+    /// Wraps the underlying error.
+    #[must_use]
+    pub fn new(e: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self(Arc::new(e))
+    }
+
+    /// The underlying error.
+    #[must_use]
+    pub fn error(&self) -> &(dyn std::error::Error + Send + Sync + 'static) {
+        &*self.0
+    }
+}
+
+impl PartialEq for StoreCause {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_string() == other.0.to_string()
+    }
+}
+
+impl Eq for StoreCause {}
+
 /// A typed bd-cache error (`BD_CACHE.*`).
 ///
 /// Variants a backend failure can produce carry `source`, the
@@ -310,6 +342,14 @@ pub enum CacheError {
         /// The scopes the cache knows.
         known: Vec<ScopeId>,
     },
+    /// `BD_CACHE.STORE_FAILED` (additive, a-1 amendment 1): the store itself
+    /// failed: SQLite, file I/O, or a stored value that does not decode.
+    StoreFailed {
+        /// The failing step and the file, e.g. `open /repo/.bd-cache/x.sqlite3: ...`.
+        detail: String,
+        /// The underlying error, when there is one.
+        source: Option<StoreCause>,
+    },
 }
 
 impl CacheError {
@@ -336,6 +376,7 @@ impl CacheError {
             Self::PruneBlocked { .. } => "BD_CACHE.PRUNE_BLOCKED",
             Self::NotEscalated { .. } => "BD_CACHE.NOT_ESCALATED",
             Self::ScopeUnknown { .. } => "BD_CACHE.SCOPE_UNKNOWN",
+            Self::StoreFailed { .. } => "BD_CACHE.STORE_FAILED",
         }
     }
 
@@ -375,6 +416,9 @@ impl CacheError {
             }
             Self::NotEscalated { .. } => "resolve only entries listed as escalated in status",
             Self::ScopeUnknown { .. } => "sync the scope first, or use one of the known scopes",
+            Self::StoreFailed { .. } => {
+                "check the cache file named in detail (permissions, free disk space, another process holding it); if it is corrupt, move it aside and the next sync rebuilds it from bd (pending writes in it are lost)"
+            }
         }
     }
 
@@ -415,7 +459,8 @@ impl CacheError {
             | Self::SchemaVersion { detail }
             | Self::PruneBlocked { detail }
             | Self::NotEscalated { detail }
-            | Self::ScopeUnknown { detail, .. } => detail,
+            | Self::ScopeUnknown { detail, .. }
+            | Self::StoreFailed { detail, .. } => detail,
         }
     }
 
@@ -439,7 +484,8 @@ impl CacheError {
     ///
     /// Payload keys: `BD_CONTRACT` `bead`, `field`; `PRECONDITION` `unmet`;
     /// `IDEM_CONFLICT` `seq`; `SYNC_FAILED` `phase`, `cause`; `SCOPE_UNKNOWN`
-    /// `known`. A mapped error adds `source: {code, detail}`, the backend error.
+    /// `known`. A mapped error adds `source: {code, detail}`, the backend error;
+    /// a `STORE_FAILED` with a cause adds `source: {detail}`.
     #[must_use]
     pub fn to_json(&self) -> Value {
         let mut v = json!({
@@ -470,7 +516,34 @@ impl CacheError {
                 json!({"code": cause.error().code(), "detail": cause.error().to_string()}),
             );
         }
+        if let (Value::Object(base), Some(cause)) = (&mut v, self.store_cause()) {
+            base.insert(
+                "source".into(),
+                json!({"detail": cause.error().to_string()}),
+            );
+        }
         v
+    }
+
+    /// The store failure this error was built from (`STORE_FAILED` only).
+    #[must_use]
+    pub fn store_cause(&self) -> Option<&StoreCause> {
+        match self {
+            Self::StoreFailed { source, .. } => source.as_ref(),
+            _ => None,
+        }
+    }
+
+    /// A `STORE_FAILED` for `detail` (the failing step and file), keeping `source`.
+    #[must_use]
+    pub fn store_failed(
+        detail: impl Into<String>,
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> CacheError {
+        CacheError::StoreFailed {
+            detail: detail.into(),
+            source: Some(StoreCause::new(source)),
+        }
     }
 
     /// Maps a backend error by the kind of call that failed (table in the module docs).
@@ -598,6 +671,9 @@ impl fmt::Display for CacheError {
 
 impl std::error::Error for CacheError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        if let Some(c) = self.store_cause() {
+            return Some(c.error() as &(dyn std::error::Error + 'static));
+        }
         self.backend_cause()
             .map(|c| c.error() as &(dyn std::error::Error + 'static))
     }

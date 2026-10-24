@@ -57,7 +57,8 @@ pub use config::{
 };
 #[doc(inline)]
 pub use error::{
-    BackendCause, CacheError, GuardKey, PreconditionReason, SyncCause, TYPED_ERROR_EXIT, Unmet,
+    BackendCause, CacheError, GuardKey, PreconditionReason, StoreCause, SyncCause,
+    TYPED_ERROR_EXIT, Unmet,
 };
 #[doc(inline)]
 pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};

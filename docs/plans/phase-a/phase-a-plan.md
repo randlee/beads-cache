@@ -245,6 +245,8 @@ updated with fenix's replies of 2026-10-24:
   atm-bd-specific, so it defaults to `.bd-cache/` and its path is set by
   `cache_path` in `.beads/bd-cache.toml`. atm-bd can keep its `.atm-bd/` file
   by pointing `cache_path` at it until v3 follows.
+- New additive error code `BD_CACHE.STORE_FAILED` for store-internal
+  failures (ADR-MODEL-0002 amendment, a-1 amendment 1); v3 has no such code.
 
 ## bd release compatibility
 
