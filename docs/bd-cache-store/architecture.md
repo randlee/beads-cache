@@ -23,7 +23,7 @@ rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal_applied_at`)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped)
 
 Context: the file is shared with `bd_cache.py` (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
@@ -46,16 +46,22 @@ CREATE TABLE ready_base (scope TEXT PRIMARY KEY, blocked_json TEXT NOT NULL,
 CREATE TABLE ready_base_blocked (scope TEXT NOT NULL, bead TEXT NOT NULL,
   blocked_by_json TEXT NOT NULL, PRIMARY KEY (scope, bead)) WITHOUT ROWID;   -- ADR-STORE-0004
 ALTER TABLE ready_base ADD COLUMN indexed INTEGER;       -- ADR-STORE-0004
-CREATE INDEX journal_applied_at ON journal(unixepoch(applied_at)) WHERE state = 'applied';  -- ADR-STORE-0004
 ALTER TABLE beads ADD COLUMN membership_known INTEGER;   -- ADR-STORE-0002
 ALTER TABLE beads ADD COLUMN revision TEXT;              -- ADR-BDC-0004
 ALTER TABLE journal ADD COLUMN applied_at TEXT;          -- set by apply_with_readback
+ALTER TABLE journal ADD COLUMN applied_epoch INTEGER;    -- ADR-STORE-0004: Unix seconds of applied_at
 ALTER TABLE sync_state ADD COLUMN backend_kind TEXT;     -- ADR-BDC-0004
 ALTER TABLE sync_state ADD COLUMN endpoint TEXT;
 ALTER TABLE sync_state ADD COLUMN replica_id TEXT;
 ALTER TABLE sync_state ADD COLUMN journal_seq INTEGER;
 CREATE INDEX beads_membership_unknown ON beads(id) WHERE membership_known IS NULL;
+DROP INDEX IF EXISTS journal_applied_at;                 -- ADR-STORE-0004: an earlier build's expression index
+CREATE INDEX journal_applied_epoch ON journal(applied_epoch) WHERE state = 'applied';          -- ADR-STORE-0004
+CREATE INDEX journal_applied_unknown ON journal(seq) WHERE state = 'applied' AND applied_epoch IS NULL;  -- ADR-STORE-0004
 ```
+
+No index holds a function (ADR-STORE-0002, ADR-STORE-0004). Open also runs the `applied_epoch`
+backfill of ADR-STORE-0004.
 
 Scopes are keyed by phase name (`ScopeId::name`), as the v3 `phase` columns
 are. `row_json` is the normalized row (REQ-BDC-0108) with its outgoing edges
@@ -122,11 +128,14 @@ Decision:
   `COM1`-`COM9`, `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, any extension) are
   `NO_DATABASE`. A database `bd_cache.py` accepts with such a name cannot be
   shared until it is renamed.
-- **`applied_since`** is bounded in SQL by `unixepoch(applied_at) >= ?`
-  (an instant, never text), filtered through `journal_pending`'s `state`
-  prefix. No expression index is added: an index on `unixepoch(..)` would
-  make the file's schema unreadable to a `bd_cache.py` linked against
-  SQLite older than 3.38.
+- **`applied_since`** is bounded in SQL by an instant, never text (ADR-STORE-0004):
+  `applied_epoch >= ?`, or, for an applied entry with no epoch, its time
+  `COALESCE(applied_at, updated_at)` read by `unixepoch()` in the query, filtered through
+  `journal_pending`'s `state` prefix. **No expression index.** No index holds a
+  function, `unixepoch()` included: an index on `unixepoch(..)` would make the
+  file's schema unreadable, and every journal write fail, for a `bd_cache.py`
+  linked against SQLite older than 3.38 (Ubuntu 22.04 ships 3.37.2). The epoch
+  is a plain column (ADR-STORE-0004) so that plain partial indexes serve the query.
 
 Consequences: rows and memberships stay consistent across a `bd_cache.py`
 prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
@@ -179,7 +188,7 @@ with `Error::source`.
 
 ## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); amends ADR-STORE-0001 (the extension tables, columns and indexes)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18); amends ADR-STORE-0001 (the extension tables, columns and indexes)
 and ADR-STORE-0002 (what is read as one snapshot, and what a foreign writer may leave)
 
 Context: `CacheStore::base_entry` and `has_entries_since` (ADR-MODEL-0003's a-7
@@ -195,11 +204,43 @@ Decision:
 - `base_entry` runs in one read transaction (`SqliteStore::read`), so the head
   and the bead's row are one snapshot even while another process replaces the
   base. A base with `indexed` NULL is read whole, inside the same transaction.
-- A partial expression index `journal_applied_at ON journal(unixepoch(applied_at))
-  WHERE state = 'applied'`, and `has_entries_since` as two `EXISTS` lookups
-  (`journal_pending`, and `journal_applied_at` named with `INDEXED BY`, because the
-  planner otherwise scans the applied rows through `journal_pending`). The query
-  is `HAS_ENTRIES_SINCE_SQL`; a test asserts its plan.
+- **No function in any index.** `bd_cache.py` may be linked against an SQLite older
+  than 3.38 (Ubuntu 22.04 ships 3.37.2), which has no `unixepoch()`. Such a build
+  cannot evaluate an index whose key uses it: it would fail to use the file's schema
+  and every `journal` write of that writer would fail. The a-7 build that added
+  `journal_applied_at ON journal(unixepoch(applied_at))` is therefore withdrawn: open
+  runs `DROP INDEX IF EXISTS journal_applied_at`, so a file written by that build
+  is made readable again.
+- **`journal.applied_epoch`**, a nullable `INTEGER`: the Unix seconds of the instant
+  `SqliteStore::apply_with_readback` records in `applied_at`, written in the same
+  `UPDATE` that sets `state = 'applied'`. Two plain partial indexes serve the check:
+  `journal_applied_epoch ON journal(applied_epoch) WHERE state = 'applied'`, and
+  `journal_applied_unknown ON journal(seq) WHERE state = 'applied' AND applied_epoch IS NULL`
+  (entries with no epoch).
+- **Backfill on open** (`BACKFILL_APPLIED_EPOCH`, in the open transaction): for each applied
+  row with no epoch, `applied_epoch = unixepoch(COALESCE(applied_at, updated_at))`,
+  where SQLite can read that time. This process's bundled SQLite evaluates
+  `unixepoch()`; no index mentions it. `bd_cache.py` writes `%Y-%m-%dT%H:%M:%SZ`,
+  which SQLite reads. Entries `bd_cache.py` applies while the store is open have no
+  epoch until the next open and are found through `journal_applied_unknown`.
+- **Unreadable times count as touched.** A row whose `COALESCE(applied_at, updated_at)`
+  SQLite cannot read as a time keeps a NULL epoch, stays in `journal_applied_unknown`,
+  and counts as applied since any instant (`COALESCE(... >= ?1, 1)`). Reporting
+  activity that did not happen only costs a fresh read; missing it would serve a
+  stale ready answer. `applied_since` agrees with it.
+- **The pre-existing miss, fixed.** `bd_cache.py`'s `_mark` sets only `state` and
+  `updated_at`, so an entry it applied has `applied_at` NULL. Before this fix
+  `applied_since` and `has_entries_since` compared `applied_at` alone and so missed
+  every Python-applied entry. Its time is now `COALESCE(applied_at, updated_at)`
+  (backfilled, or read in the query), and the miss is closed.
+- `has_entries_since` is three `EXISTS` lookups (`HAS_ENTRIES_SINCE_SQL`): `journal_pending`
+  for pending entries; `journal_applied_epoch` for entries with an epoch; and
+  `journal_applied_unknown` for those without. The last two are named with `INDEXED BY`,
+  because the planner otherwise scans the applied rows through `journal_pending`. A
+  hinted index another writer dropped makes `INDEXED BY` an error (`no such index`):
+  the store then logs a warning and asks `HAS_ENTRIES_SINCE_UNHINTED_SQL`, the same
+  question without hints (correct, slower on a long history); the next open recreates
+  the index. A test asserts the plan of the hinted query.
 - **`bd_cache.py` compatibility** (read at atm-core
   `05831dfe866d389feed138add3c29cb93cd6c82b`, `bd_cache.py`): it never creates,
   reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
@@ -214,7 +255,7 @@ Decision:
   known writer does it. The tests below pin each case.
 - A file written before this ADR (no table, no column) opens unchanged
   (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN` when absent) and its
-  base reads whole until the next replace indexes it. The file stays at
+  base reads whole until the next replace indexes it; its applied entries are dated by the backfill. The file stays at
   `user_version` 3.
 
 Consequences: the contract suite's `base_entry_rules` and `has_entries_since_rules`
