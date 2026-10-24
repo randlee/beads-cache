@@ -190,14 +190,14 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `42f6ef46b8b144d1c9df4e129cbb7c3527d8ea98`, the last commit
+Run on commit `c06ff0aeb4a0df14962d71964cf46ff3597ac55a`, the last commit
 that changes code (later commits change documents only). Each mutation was
 applied to the working tree, the wheel rebuilt, the whole pytest suite and
-`cargo test -p bd-cache-py --lib` run, and the file restored with
+`cargo test -p bd-cache-py -p bd-cache-model --lib` run, and the file restored with
 `git checkout`:
 
 ```text
-cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && cargo test -p bd-cache-py --lib
+cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && cargo test -p bd-cache-py -p bd-cache-model --lib
 ```
 
 | Planted bug | File | First failing test; failures |
@@ -214,23 +214,28 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 | `sync` ignores its timeout | `src/handle.rs` | `test_sync_stops_at_its_timeout_when_bd_is_blocked`; 1 |
 | `reason` not carried | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 1 |
 | `get` ignores `miss_timeout` | `src/handle.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
-| `UNREACHABLE` lacks BD_LIST_FAILED | `src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
-| drain start gate and hard deadline swapped | `src/handle.rs` | `test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt`; 2 |
+| drain start gate and hard deadline swapped | `src/handle.rs` | `test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt`; 1 |
 | `write` swaps idempotency key and actor | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
-| one `ProjectLocks` per handle | `src/compose.rs` | `test_handles_on_different_cache_files_never_overlap_their_bd_calls`; 2 |
+| one `ProjectLocks` per handle | `src/compose.rs` | `test_handles_on_different_cache_files_never_overlap_their_bd_calls`; 3 |
 | `op` not validated in the binding | `src/handle.rs` | `test_an_unknown_op_is_a_value_error_and_bad_args_are_typed`; 1 |
 | `max_attempts` of 0 accepted | `src/handle.rs` | `test_signed_and_float_timeouts_and_attempts_are_validated[max_attempts-0]`; 1 |
+| `fix` treated as an envelope key (left out of the attribute) | `bd-cache-model/src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 7 |
+| `UNREACHABLE` lacks BD_LIST_FAILED | `bd-cache-model/src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
+| model classifies BdListFailed as reachable | `bd-cache-model/src/error.rs` | `unreachable_codes_are_exactly_the_unreachable_variants`; 1 |
 | `closed` set only after the in-flight verb ends | `src/slot.rs` | `test_close_while_a_verb_is_in_flight`; 2 |
-| poisoned slot keeps its connection | `src/slot.rs` | `a_panicking_verb_drops_the_value_clears_the_poison_and_closes`; 1 |
-| `fix` treated as an envelope key (left out of the attribute) | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 7 |
+| a panicking verb keeps its connection | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 1 |
+| a panicking verb does not close the slot | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 1 |
+| poisoned slot keeps its connection | `src/slot.rs` | `a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once`; 1 |
+| project directory not canonicalized | `src/compose.rs` | `test_spellings_of_one_project_directory_share_one_lock`; 3 |
+| `list` status not validated | `src/handle.rs` | `test_a_status_filter_must_be_a_bd_status`; 1 |
 
 Every bug fails at least one test and none by a compile error; the tree was
 clean after the run. Failures count pytest and Rust tests together.
 
 ## Validation
 
-Local, macOS arm64, on `42f6ef4` (documents after it): `cargo test --workspace
---all-features`: 653 passed; pytest: 88 passed.
+Local, macOS arm64, on `c06ff0a` (documents after it): `cargo test --workspace
+--all-features`: 658 passed; pytest: 90 passed.
 
 | Gate (with `set -o pipefail`) | Result |
 |---|---|
@@ -239,13 +244,13 @@ Local, macOS arm64, on `42f6ef4` (documents after it): `cargo test --workspace
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps` | pass |
 | `cargo test --workspace --all-features` | pass |
-| pytest (`maturin develop`, 88 tests) | pass |
+| pytest (`maturin develop`, 90 tests) | pass |
 
-CI on the last code-changing commit `42f6ef4`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40085690694 (rust job on
+CI on the last code-changing commit `c06ff0a`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40096084086 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40085690769 (success).
+https://github.com/randlee/beads-cache/actions/runs/40096084088 (success).
 
 
 ## Fix round 1 (QA-1 at b75b5f3)
@@ -256,6 +261,12 @@ in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
 REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
 atm-core call evidence in `crates/bd-cache-py/tests/atm_core_05831df_calls.json`,
 extracted with `atm_core_05831df_extract.py` (R8).
+
+## Fix round 2 (QA-2 at 1a984b8)
+
+Lead rulings R9 and R10 (bc-lead, 2026-10-24) applied: `bd-cache-model`'s
+`error.rs` gained the code classification only; the CI-evidence convention
+holds (this document cites the last code commit).
 
 ## Hand-off notes for the lead
 
