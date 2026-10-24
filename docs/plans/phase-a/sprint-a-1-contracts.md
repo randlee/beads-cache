@@ -512,8 +512,12 @@ delivers the behaviour (a-4 the store, a-5 and a-6 the verbs):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run for fix-a-1-1 on commit `4997234`. Each mutation was applied to the
-working tree, the whole suite was run, and the file was restored:
+Rerun for fix-a-1-2 on commit `e71310fe25dd40551124d34d9aa7f84edc0484fe`,
+the last commit that changes code (later commits change this document only).
+CI at that commit is green on ubuntu, macos and windows: run
+[40069073741](https://github.com/randlee/beads-cache/actions/runs/40069073741)
+(239 tests on each OS). Each mutation was applied to the working tree, the
+whole suite was run, and the file was restored:
 
 ```text
 cargo test --workspace --exclude bd-cache-py --all-features --no-fail-fast
