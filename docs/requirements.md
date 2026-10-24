@@ -1,6 +1,6 @@
 # beads-cache Requirements
 
-Status: draft. Requirements below are Draft until approved.
+Status: approved. Requirements below were approved by lead ruling on 2026-10-24 with the phase-a plan (merged by the owner in PR #1); amendments are marked inline.
 
 ## Scope
 
@@ -63,7 +63,7 @@ task, 08xx CLI, 09xx planning requirements.
 
 ## REQ-BDC-0001: Reads never wait on the backend
 
-**Status:** Draft
+**Status:** Approved
 
 A read of a cached bead is answered from the local SQLite file and starts no `bd` process.
 
@@ -72,7 +72,7 @@ A read of a cached bead is answered from the local SQLite file and starts no `bd
 
 ## REQ-BDC-0002: Writes are journaled locally
 
-**Status:** Draft
+**Status:** Approved
 
 `write` validates the operation, checks its precondition against the current view and inserts a `pending` journal entry; it calls `bd` only to fill a cache miss.
 
@@ -81,7 +81,7 @@ A read of a cached bead is answered from the local SQLite file and starts no `bd
 
 ## REQ-BDC-0003: Every write ends applied, refused or escalated
 
-**Status:** Draft
+**Status:** Approved
 
 Every write either lands in `bd` (verified by a read-back), is refused at write time with a typed error, is escalated to the phase lead with the fix, or stays pending while the backend is unreachable; no write is dropped or guessed, and a reachable backend never retries one past `MAX_ATTEMPTS`.
 
@@ -92,7 +92,7 @@ Every write either lands in `bd` (verified by a read-back), is refused at write 
 
 ## REQ-BDC-0004: Idempotent writes
 
-**Status:** Draft
+**Status:** Approved
 
 `idem_key` is required. Re-writing the same key with the same `(bead, op, args)` returns the existing entry with `duplicate: true`; the same key with a different write is `BD_CACHE.IDEM_CONFLICT`.
 
@@ -101,7 +101,7 @@ Every write either lands in `bd` (verified by a read-back), is refused at write 
 
 ## REQ-BDC-0005: A landed write is never repeated
 
-**Status:** Draft
+**Status:** Approved
 
 When the backend already holds a write's effect (`achieved`), the drain stores the fresh row and marks the entry applied without running the `bd` command again.
 
@@ -110,7 +110,7 @@ When the backend already holds a write's effect (`achieved`), the drain stores t
 
 ## REQ-BDC-0006: Backend access only through bd
 
-**Status:** Draft
+**Status:** Approved
 
 All backend access goes through `bd` (the CLI; `bd serve` under ADR-BDC-0004), so the cache works with every backend `bd` supports; it never reads dolt tables.
 
@@ -118,7 +118,7 @@ All backend access goes through `bd` (the CLI; `bd serve` under ADR-BDC-0004), s
 
 ## REQ-BDC-0007: Strict row contract
 
-**Status:** Draft
+**Status:** Approved
 
 Every row is validated against types generated from `bd schema` plus the `--json` extras (`comment_count`, `dependency_count`, `dependent_count`, `parent`). An unknown key, missing required key or wrong type is `BD_CACHE.BD_CONTRACT` naming the bead and field.
 
@@ -127,7 +127,7 @@ Every row is validated against types generated from `bd schema` plus the `--json
 
 ## REQ-BDC-0008: A bad row stores nothing
 
-**Status:** Draft
+**Status:** Approved
 
 A sync or fetch whose result contains one row that fails validation stores no row from that result.
 
@@ -136,7 +136,7 @@ A sync or fetch whose result contains one row that fails validation stores no ro
 
 ## REQ-BDC-0101: Cache file location without bd
 
-**Status:** Draft
+**Status:** Approved
 
 The cache file's location is set by `cache_path` in `.beads/bd-cache.toml`, defaulting to `<repo>/.bd-cache/<dolt_database>.bd-cache.sqlite3`; `dolt_database` and `project_id` come from `.beads/metadata.json` (`$BEADS_DIR` when set), so locating the file starts no `bd` process. A consumer such as btit finds the cache by reading that config.
 
@@ -147,7 +147,7 @@ The cache file's location is set by `cache_path` in `.beads/bd-cache.toml`, defa
 
 ## REQ-BDC-0102: Missing metadata is typed
 
-**Status:** Draft
+**Status:** Approved
 
 Missing or invalid metadata is `BD_CACHE.NO_DATABASE`.
 
@@ -156,7 +156,7 @@ Missing or invalid metadata is `BD_CACHE.NO_DATABASE`.
 
 ## REQ-BDC-0103: SQLite settings and schema version
 
-**Status:** Draft
+**Status:** Approved
 
 The file uses WAL mode, a 5 s busy timeout and `PRAGMA user_version` 3. A file with another nonzero version is refused (`BD_CACHE.SCHEMA_VERSION`); version 0 is initialized. The Rust store never changes `user_version` without P-2 agreement; any later version change is an explicit migration command, never done on open.
 
@@ -167,7 +167,7 @@ The file uses WAL mode, a 5 s busy timeout and `PRAGMA user_version` 3. A file w
 
 ## REQ-BDC-0104: Wrong database is refused
 
-**Status:** Draft
+**Status:** Approved
 
 The first open records `dolt_database` and `project_id` in `meta`; a later open whose metadata `project_id` differs is `BD_CACHE.WRONG_DATABASE`.
 
@@ -176,7 +176,7 @@ The first open records `dolt_database` and `project_id` in `meta`; a later open 
 
 ## REQ-BDC-0105: Backend check and rebuild rule
 
-**Status:** Draft
+**Status:** Approved
 
 At the start of every sync and every non-empty drain the cache runs `bd version` and `bd schema` and hashes the schema output. The first check records it without dropping rows. A recorded sha that differs deletes every bead, edge and sync cursor in one transaction, keeps the journal and records the new sha. The check reports `rebuilt` and `model_current`.
 
@@ -185,7 +185,7 @@ At the start of every sync and every non-empty drain the cache runs `bd version`
 
 ## REQ-BDC-0106: No bd context
 
-**Status:** Draft
+**Status:** Approved
 
 Identity comes from `.beads/metadata.json`; `bd context` is never called.
 
@@ -194,7 +194,7 @@ Identity comes from `.beads/metadata.json`; `bd context` is never called.
 
 ## REQ-BDC-0107: Cache schema
 
-**Status:** Draft
+**Status:** Approved
 
 The file holds the `meta`, `beads`, `edges`, `journal` and `sync_state` tables and indexes given in BD-CACHE.md, unchanged; extensions are additional tables and nullable columns only. `phase` is the suffix of the bead's first `phase-<x>` label; timestamps are RFC 3339 UTC, second precision.
 
@@ -204,7 +204,7 @@ The file holds the `meta`, `beads`, `edges`, `journal` and `sync_state` tables a
 
 ## REQ-BDC-0108: Stored row normalization
 
-**Status:** Draft
+**Status:** Approved
 
 Stored rows drop `dependency_count` and `dependent_count` and default `labels` and `dependencies` to `[]` and `metadata` to `{}`.
 
@@ -212,7 +212,7 @@ Stored rows drop `dependency_count` and `dependent_count` and default `labels` a
 
 ## REQ-BDC-0109: Edge index
 
-**Status:** Draft
+**Status:** Approved
 
 Edges are stored as outgoing `{issue_id, depends_on_id, type}` rows indexed by target, so a bead's cached dependents are found without a backend call.
 
@@ -221,7 +221,7 @@ Edges are stored as outgoing `{issue_id, depends_on_id, type}` rows indexed by t
 
 ## REQ-BDC-0201: One backend read shape
 
-**Status:** Draft
+**Status:** Approved
 
 Every backend read is `bd list --id a,b,... --status open,in_progress,blocked,deferred,closed,pinned,hooked -n 0 --json` or its label form; `bd show` is never called.
 
@@ -230,7 +230,7 @@ Every backend read is `bd list --id a,b,... --status open,in_progress,blocked,de
 
 ## REQ-BDC-0202: get
 
-**Status:** Draft
+**Status:** Approved
 
 `get(bead)` returns the cached row, or on a miss makes one `bd list --id` call and stores the row; a bead absent from `bd` too is `BD_CACHE.NOT_FOUND`. Pending entries for that bead are replayed on top in `seq` order; escalated entries are not.
 
@@ -239,7 +239,7 @@ Every backend read is `bd list --id a,b,... --status open,in_progress,blocked,de
 
 ## REQ-BDC-0203: list
 
-**Status:** Draft
+**Status:** Approved
 
 `list --phase X [--status S] [--label L]` returns the cached rows of that phase with the overlay applied.
 
@@ -247,7 +247,7 @@ Every backend read is `bd list --id a,b,... --status open,in_progress,blocked,de
 
 ## REQ-BDC-0301: Journal operations
 
-**Status:** Draft
+**Status:** Approved
 
 The journal supports `close {reason?}`, `update` (a nonempty subset of status, assignee, add_labels, remove_labels, set_metadata, unset_metadata, append_notes, applied in that order) and `dep_add {depends_on, type}`, each with the overlay and `bd` command in BD-CACHE.md's table, passing `--actor`.
 
@@ -256,7 +256,7 @@ The journal supports `close {reason?}`, `update` (a nonempty subset of status, a
 
 ## REQ-BDC-0302: Write-time precondition
 
-**Status:** Draft
+**Status:** Approved
 
 A write may carry a precondition `{status?, assignee?}` (`""` means unassigned or empty). An unmet precondition is `BD_CACHE.PRECONDITION` with `unmet {key: {expected, actual}}` and journals nothing.
 
@@ -265,7 +265,7 @@ A write may carry a precondition `{status?, assignee?}` (`""` means unassigned o
 
 ## REQ-BDC-0303: Metadata values survive bd coercion
 
-**Status:** Draft
+**Status:** Approved
 
 A metadata value is accepted only as an int, a bool, or a string without surrounding whitespace that does not parse as a JSON number, boolean or null; anything else is `BD_CACHE.BAD_ARGS`. Bools are passed to `bd` as `true`/`false`.
 
@@ -274,7 +274,7 @@ A metadata value is accepted only as an int, a bool, or a string without surroun
 
 ## REQ-BDC-0304: Dependency types
 
-**Status:** Draft
+**Status:** Approved
 
 `dep_add`'s type must be one of bd's dependency types, else `BD_CACHE.BAD_ARGS`.
 
@@ -283,7 +283,7 @@ A metadata value is accepted only as an int, a bool, or a string without surroun
 
 ## REQ-BDC-0305: achieved
 
-**Status:** Draft
+**Status:** Approved
 
 `achieved(row, op, args)` holds when: close, status is closed; dep_add, the edge is present; update, every requested field already holds (labels added present, removed absent, metadata keys equal or absent, notes contain the appended text).
 
@@ -291,7 +291,7 @@ A metadata value is accepted only as an int, a bool, or a string without surroun
 
 ## REQ-BDC-0401: Single drain writer
 
-**Status:** Draft
+**Status:** Approved
 
 The drain takes an exclusive non-blocking lock on `<cache file>.drain.lock`, next to the cache file; when it is held the drain returns `{busy: true}`.
 
@@ -302,7 +302,7 @@ The drain takes an exclusive non-blocking lock on `<cache file>.drain.lock`, nex
 
 ## REQ-BDC-0402: Drain deadline
 
-**Status:** Draft
+**Status:** Approved
 
 The drain has two deadlines: a start gate (entries not started by it are reported in `deferred`, stay pending and keep their `attempts`) and a hard deadline that caps every `bd` call. A call cut short by the hard deadline leaves its entry pending with `attempts` unchanged, is reported as `deferred_in_flight`, and is neither an outage nor an attempt; the next drain's achieved check catches a write that landed.
 
@@ -313,7 +313,7 @@ The drain has two deadlines: a start gate (entries not started by it are reporte
 
 ## REQ-BDC-0403: Batched pre-read
 
-**Status:** Draft
+**Status:** Approved
 
 With pending entries, the drain runs the backend check, then one batched `bd list --id` of every bead with a pending entry. If the backend is unreachable at either step, the cache records an outage, counts no attempt and stops the drain.
 
@@ -324,7 +324,7 @@ With pending entries, the drain runs the backend check, then one batched `bd lis
 
 ## REQ-BDC-0404: Per-entry drain steps
 
-**Status:** Draft
+**Status:** Approved
 
 For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass or whose row is stale: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure or timeout of the write itself adds one attempt, keeps the entry pending and holds that bead for the pass, and reaching `MAX_ATTEMPTS` (5) escalates. An unreachable backend at the backend check or the pre-read is an outage: the drain stops there and no attempt is counted. A call cut short by the drain's hard deadline is neither (REQ-BDC-0402).
 
@@ -335,7 +335,7 @@ For each pending entry by `seq`, skipping beads whose earlier entry failed in th
 
 ## REQ-BDC-0405: Read-back
 
-**Status:** Draft
+**Status:** Approved
 
 After a write the drain reads the bead back with `bd list --id` and in one transaction stores the row (forced) and marks the entry applied. A failed read-back marks the entry applied with the error, sets `stale = 1` and holds the bead's later entries until a sync re-reads it.
 
@@ -344,7 +344,7 @@ After a write the drain reads the bead back with `bd list --id` and in one trans
 
 ## REQ-BDC-0406: Drain report
 
-**Status:** Draft
+**Status:** Approved
 
 The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor, phase, reason`) and `deferred`, plus the additive `busy`, `deferred_in_flight` and `outage`.
 
@@ -354,7 +354,7 @@ The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor
 
 ## REQ-BDC-0501: Incremental sync
 
-**Status:** Draft
+**Status:** Approved
 
 `sync(phase)` runs the backend check, then `bd list -l phase-<x> -n 0 --status <all seven> --json`, with `--updated-after (last_ok_at - 2 min)` once a sync has succeeded; every row is validated before any is stored.
 
@@ -363,7 +363,7 @@ The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor
 
 ## REQ-BDC-0502: Newer-row guard
 
-**Status:** Draft
+**Status:** Approved
 
 Sync upserts each row unless the stored `updated_at` is newer; drain read-backs are forced.
 
@@ -372,7 +372,7 @@ Sync upserts each row unless the stored `updated_at` is newer; drain read-backs 
 
 ## REQ-BDC-0503: Stale rows re-read
 
-**Status:** Draft
+**Status:** Approved
 
 After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
@@ -381,7 +381,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 ## REQ-BDC-0504: Sync state
 
-**Status:** Draft
+**Status:** Approved
 
 `last_ok_at` is the sync's start time. A failure is `BD_CACHE.SYNC_FAILED`, recorded in `sync_state.last_error`.
 
@@ -390,7 +390,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 ## REQ-BDC-0601: resolve
 
-**Status:** Draft
+**Status:** Approved
 
 `resolve(seq, note, actor)` turns an escalated entry into `resolved` (never replayed) and appends the note to `last_error`; any other entry is `BD_CACHE.NOT_ESCALATED`.
 
@@ -399,7 +399,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 ## REQ-BDC-0602: prune
 
-**Status:** Draft
+**Status:** Approved
 
 `prune(phase)` is refused (`BD_CACHE.PRUNE_BLOCKED`) while the phase has pending or escalated entries; otherwise it deletes the phase's beads, edges, journal and sync state.
 
@@ -408,7 +408,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 ## REQ-BDC-0603: status
 
-**Status:** Draft
+**Status:** Approved
 
 `status` returns the `meta` table, journal counts per `phase:state`, per-phase sync state and bead counts, and every escalated entry until it is resolved.
 
@@ -417,7 +417,7 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 ## REQ-BDC-0604: Escalation bookkeeping
 
-**Status:** Draft
+**Status:** Approved
 
 An escalated entry stays unannounced until it is marked announced; marking records `announced_at`.
 
@@ -426,7 +426,7 @@ An escalated entry stays unannounced until it is marked announced; marking recor
 
 ## REQ-BDC-0701: One schedule per repository
 
-**Status:** Draft
+**Status:** Approved
 
 The sync task runs as one schedule per repository started from the beads root with a `team` (the ATM team of the phase leads); a missing team is refused.
 
@@ -435,7 +435,7 @@ The sync task runs as one schedule per repository started from the beads root wi
 
 ## REQ-BDC-0702: Active phases
 
-**Status:** Draft
+**Status:** Approved
 
 Phases come from `.atm-bd/phase-*.toml` (`root`, `lead`), optionally limited by a configured phase list; a phase is active while its root bead is not closed, with uncached roots read in one `bd list --id`. A malformed phase list is refused.
 
@@ -444,7 +444,7 @@ Phases come from `.atm-bd/phase-*.toml` (`root`, `lead`), optionally limited by 
 
 ## REQ-BDC-0703: Tick budget
 
-**Status:** Draft
+**Status:** Approved
 
 A tick runs within a 25 s budget: drain with a deadline 5 s before the budget ends, then sync each active phase, deferring any not started 2 s before it.
 
@@ -453,7 +453,7 @@ A tick runs within a 25 s budget: drain with a deadline 5 s before the budget en
 
 ## REQ-BDC-0704: Sync failures announced once per cause
 
-**Status:** Draft
+**Status:** Approved
 
 A sync failure whose cause differs from `sync_alert:<phase>` is sent to that phase's lead and recorded; a success clears it. An outage is announced the same way under the cause key `backend_unavailable`.
 
@@ -464,7 +464,7 @@ A sync failure whose cause differs from `sync_alert:<phase>` is sent to that pha
 
 ## REQ-BDC-0705: Escalations announced once
 
-**Status:** Draft
+**Status:** Approved
 
 Every escalated entry with no `announced_at` is sent to its phase's lead with the `resolve` command, then marked.
 
@@ -473,7 +473,7 @@ Every escalated entry with no `announced_at` is sent to its phase's lead with th
 
 ## REQ-BDC-0706: Undelivered messages retried
 
-**Status:** Draft
+**Status:** Approved
 
 Any message not delivered, or an entry whose phase has no lead, makes the tick reply `refused` with the list, and is retried next tick; otherwise the reply is `pass-through`.
 
@@ -482,7 +482,7 @@ Any message not delivered, or an entry whose phase has no lead, makes the tick r
 
 ## REQ-BDC-0707: Stop rule
 
-**Status:** Draft
+**Status:** Approved
 
 The schedule stops when no phase is active and no entry is pending or escalated-unannounced.
 
@@ -491,7 +491,7 @@ The schedule stops when no phase is active and no entry is pending or escalated-
 
 ## REQ-BDC-0801: CLI commands
 
-**Status:** Draft
+**Status:** Approved
 
 The CLI offers `get`, `list`, `write`, `drain`, `sync`, `prune`, `resolve` and `status` with the arguments in BD-CACHE.md, printing one JSON object on stdout.
 
@@ -499,7 +499,7 @@ The CLI offers `get`, `list`, `write`, `drain`, `sync`, `prune`, `resolve` and `
 
 ## REQ-BDC-0802: Exit codes and typed errors
 
-**Status:** Draft
+**Status:** Approved
 
 Exit 0 is ok, 2 is usage, 3 is a typed error `{ok: false, code, detail, fix, ...}`.
 
@@ -507,7 +507,7 @@ Exit 0 is ok, 2 is usage, 3 is a typed error `{ok: false, code, detail, fix, ...
 
 ## REQ-BDC-0803: Error codes
 
-**Status:** Draft
+**Status:** Approved
 
 The error codes are those in BD-CACHE.md's table, each with its fix text, plus the additive `BD_CACHE.SCOPE_UNKNOWN`; `BD_CACHE.NO_TOML` (Python < 3.11 only) is never emitted.
 
@@ -518,7 +518,7 @@ The error codes are those in BD-CACHE.md's table, each with its fix text, plus t
 
 ## REQ-BDC-0804: Drop-in compatibility
 
-**Status:** Draft
+**Status:** Approved
 
 The SQLite file is shared with the Python implementation: a file written by either is read by the other. The Rust store writes the v3 tables unchanged plus only additive tables and nullable columns.
 
@@ -528,7 +528,7 @@ The SQLite file is shared with the Python implementation: a file written by eith
 
 ## REQ-BDC-0805: Command name
 
-**Status:** Draft
+**Status:** Approved
 
 The primary command is `bd-cache`, with the alias `bdc`.
 
@@ -536,7 +536,7 @@ The primary command is `bd-cache`, with the alias `bdc`.
 
 ## REQ-BDC-0806: CLI and JSON drop-in
 
-**Status:** Draft
+**Status:** Approved
 
 The `bd-cache` CLI, its JSON replies and exit codes are unchanged from the Python implementation, so hooks can switch binaries without edits.
 
@@ -544,7 +544,7 @@ The `bd-cache` CLI, its JSON replies and exit codes are unchanged from the Pytho
 
 ## REQ-BDC-0901: Several phases at once
 
-**Status:** Draft
+**Status:** Approved
 
 One cache file holds several `phase-*` scopes at once.
 
@@ -552,7 +552,7 @@ One cache file holds several `phase-*` scopes at once.
 
 ## REQ-BDC-0902: Filtered cache
 
-**Status:** Draft
+**Status:** Approved
 
 Sync holds only the beads in the configured scopes, never a whole database. A row fetched by `get` or `write` outside every scope is kept with no scope membership, refreshed by the drain's read-back, and swept by `prune` once it has no pending or escalated entry.
 
@@ -562,7 +562,7 @@ Sync holds only the beads in the configured scopes, never a whole database. A ro
 
 ## REQ-BDC-0903: Slow or unreachable backend
 
-**Status:** Draft
+**Status:** Approved
 
 A slow or unreachable backend does not slow or fail local reads and writes of cached beads; reads report staleness and the outage, writes stay journaled, and drain and sync catch up when the backend responds. A write to an uncached bead during an outage returns `BD_UNAVAILABLE` within the miss-fill timeout.
 
@@ -572,7 +572,7 @@ A slow or unreachable backend does not slow or fail local reads and writes of ca
 
 ## REQ-BDC-0904: Blocked state across the cache edge
 
-**Status:** Draft
+**Status:** Approved
 
 Cached blocked state and `ready` stay correct when a blocker inside or outside the cache is closed or reopened, within one sync of the change; a bead whose blocked state is unknown is never reported ready.
 
@@ -618,7 +618,7 @@ A caller can ask `ready` for a fresh answer within a time limit it gives (for ex
 
 ## REQ-BDC-0905: bd release compatibility check
 
-**Status:** Draft
+**Status:** Approved
 
 Each beads release triggers a CI run that checks the new `bd` against the pinned fingerprint, the contract tests and the live probes.
 
@@ -626,7 +626,7 @@ Each beads release triggers a CI run that checks the new `bd` against the pinned
 
 ## REQ-BDC-0906: Shared backend crates
 
-**Status:** Draft
+**Status:** Approved
 
 The beads backend is shared as published crates (`sc-beads` traits, `sc-bd-cli` implementation) that keep every trait and feature beads-task-issue-tracker uses today.
 
@@ -636,7 +636,7 @@ The beads backend is shared as published crates (`sc-beads` traits, `sc-bd-cli` 
 
 ## NFR-BDC-0001: In-process get latency
 
-**Status:** Draft
+**Status:** Approved
 
 An in-process cached `get` takes under 1 ms.
 
@@ -644,7 +644,7 @@ An in-process cached `get` takes under 1 ms.
 
 ## NFR-BDC-0002: CLI get latency
 
-**Status:** Draft
+**Status:** Approved
 
 A new-process CLI `get` takes under 50 ms.
 
@@ -652,7 +652,7 @@ A new-process CLI `get` takes under 50 ms.
 
 ## NFR-BDC-0003: Incremental sync time
 
-**Status:** Draft
+**Status:** Approved
 
 An incremental sync of a 1000-bead phase takes under 1 s.
 
@@ -660,7 +660,7 @@ An incremental sync of a 1000-bead phase takes under 1 s.
 
 ## NFR-BDC-0004: bd calls bounded by the deadline
 
-**Status:** Draft
+**Status:** Approved
 
 Each `bd` call has a 30 s timeout and is capped at the time left before the caller's deadline, so a tick never exceeds its budget.
 
@@ -668,7 +668,7 @@ Each `bd` call has a 30 s timeout and is capped at the time left before the call
 
 ## NFR-BDC-0005: Unit tests without bd
 
-**Status:** Draft
+**Status:** Approved
 
 Unit tests run with no `bd` and no dolt, using a deterministic fake runner; each ported test fails against at least one of the planted bugs listed in BD-CACHE.md.
 
@@ -676,7 +676,7 @@ Unit tests run with no `bd` and no dolt, using a deterministic fake runner; each
 
 ## NFR-BDC-0006: Live tests on the testbed only
 
-**Status:** Draft
+**Status:** Approved
 
 Live integration tests run only on the testbed or in the release-triggered bd compatibility workflow (REQ-BDC-0905), never in unit or pull-request suites.
 
@@ -686,9 +686,11 @@ Live integration tests run only on the testbed or in the release-triggered bd co
 
 ## NFR-BDC-0007: Bundled SQLite
 
-**Status:** Draft
+**Status:** Approved
 
-SQLite is bundled (`rusqlite` with `bundled`); one connection per process.
+SQLite is bundled (`rusqlite` with `bundled`). The cache file has one connection per process. Other stores in the same process (for example `sc-cron`'s schedule store) use their own database file and their own connection, never a second connection to the cache file.
+
+*Amended in planning: scoped to the cache file (a-3 QA-1, REQ-QA-002).*
 
 **Source:** BD-CACHE.md Rust shape
 

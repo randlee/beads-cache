@@ -1,6 +1,6 @@
 # beads-cache Architecture
 
-Status: draft. No architecture has been approved yet.
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase.
 
 ## Overview
 
@@ -141,7 +141,7 @@ integrating with sc-runtime.
 | `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4 | a |
 | `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
-| `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite | a |
+| `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
 | `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3 | a |
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
@@ -182,7 +182,7 @@ code: `BDC`.
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: BD-CACHE v3 syncs per `phase-<x>` label, one `sync_state` row per
 phase, and stores one `phase` column per bead (its first `phase-*` label).
@@ -203,7 +203,7 @@ https://github.com/randlee/atm-bd-orchestration/issues/557.
 
 ## ADR-BDC-0002: Blocked state from bd, one query per scope
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: a filtered cache must answer `ready` and blocked state correctly,
 including when a blocker is outside every scope, and when a blocker is closed
@@ -282,7 +282,7 @@ not affected (it never serves blocked state).
 
 ## ADR-BDC-0003: Align data vocabulary with the bd serve /v0 API
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: the CLI, the MCP tools and a later HTTP backend adapter should share
 one set of types. bd serve's OpenAPI v0 spec and `bd list --json` use the
@@ -303,7 +303,7 @@ needs agreement on #557.
 
 ## ADR-BDC-0004: Backend port with the bd CLI adapter first
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: released bd (1.3.0/1.3.1) has no `id` or `updated_after` filter on
 `bd serve`, and bd serve needs a dolt sql-server. The bd CLI works with every
@@ -327,7 +327,7 @@ and edge changes is tracked for a later commit-hash cursor.
 
 ## ADR-BDC-0005: The backend may be slow or unreachable
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: two deployments are expected: a dolt server on a remote machine over
 an unreliable network, and a local server on a host so loaded that `bd`
@@ -368,7 +368,7 @@ retry-cap behaviour; needs agreement on #557.
 
 ## ADR-BDC-0006: Prototype a SQLite-backed cron crate here for sc-runtime
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24, after a-3 QA-2: covers the decision text as amended in integrate/phase-a 3f87332, including the third-party dependency list cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing)
 
 Context: the sync task needs a scheduler (BD-CACHE's cron drains and syncs
 every 30 s). sc-runtime has no cron or scheduler crate. atm-core's `atm-cron`
@@ -387,6 +387,11 @@ port and a rusqlite store live with it. `sc-cron` depends on no bd-cache or
 ATM crate, so it can move to sc-runtime unchanged once the sc-runtime team
 accepts it; bd-cache then switches its dependency.
 
+Third-party dependencies of `sc-cron`: cron, chrono, tokio, rusqlite
+(bundled), async-trait, serde_json, getrandom, tracing (amended after a-3
+QA-1). Its schedule store uses its own SQLite file and connection
+(NFR-BDC-0007).
+
 Consequences: phase a can deliver the sync task before sc-runtime
 integration. Needs agreement with the sc-runtime team on the crate name and
 its place in sc-runtime, and a note to the atm-core team, since atm-cron
@@ -394,7 +399,7 @@ could later adopt it.
 
 ## ADR-BDC-0007: Shared beads backend crates, seeded from btit
 
-**Status:** Draft
+**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)
 
 Context: beads-task-issue-tracker already has a Rust bd backend:
 `btit-beads` (transport-neutral `BeadsBackend`, `CliBackend` and

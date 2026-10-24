@@ -38,7 +38,7 @@ requirement ids, not the baseline.
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
 | P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). fenix (2026-10-24): fine with all four; proposes the ADR-BDC-0005 outage rule for v3 and would move the Python schema to match once 0001 and 0005 are agreed. Rand decides. | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
-| P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError` as the shared error type, tolerant and strict rows. btit's traits stay unchanged either way; the cache methods are on `CacheBackend: BeadsBackend`. | a-1 error and row freeze | a-1 keeps btit's `BeadsError` and adds the cache variants; recorded in ADR-BDC-0007. |
+| P-3 | Resolved for errors (user, 2026-10-24): btit's `BeadsError` stays unchanged; cache errors are a separate `BeadsCacheError` in `sc-beads` (wraps `BeadsError`). The tolerant/strict row split stands as planned. | — | — |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
 | P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
 | P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
@@ -102,13 +102,16 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 ## Requirement ownership
 
 Each requirement has exactly one owner. Sprint docs list `owns` and
-`constrained_by`.
+`constrained_by`. Crate-level requirements (`REQ-<DOMAIN>-*` in `docs/<crate>/requirements.md`)
+are owned by the sprint that creates the crate and are listed in its `owns`;
+crate ADRs (`ADR-<DOMAIN>-*`) are listed in its `adrs` and approved by the lead
+before the sprint merges.
 
 | Owner | Requirements |
 |---|---|
 | a-1 | REQ-BDC-0007, 0105, 0301, 0304, 0305, 0802, 0803, 0906; NFR-BDC-0005 |
 | a-2 | REQ-BDC-0006, 0106, 0201, 0303, 0905; NFR-BDC-0004, 0006 |
-| a-3 | none (governed by ADR-BDC-0006) |
+| a-3 | crate-level REQ-CRON-0001..0012 (docs/sc-cron/requirements.md); no REQ-BDC ids (governed by ADR-BDC-0006) |
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
 | a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904, 0907, 0908, 0909, 0911, 0912 |
