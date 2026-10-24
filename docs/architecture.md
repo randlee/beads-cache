@@ -1,6 +1,6 @@
 # beads-cache Architecture
 
-Status: draft. No architecture has been approved yet.
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase.
 
 ## Overview
 
