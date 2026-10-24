@@ -15,6 +15,7 @@ mod common;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::time::Duration;
 
 use bd_cache_model::{IdemKey, JournalState, Seq};
 use bd_cache_sync::TICK_BUDGET;
@@ -328,4 +329,44 @@ async fn an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_r
     r.shutdown(worker).await;
     assert!(entry(&r, seq).announced_at.is_some());
     assert_eq!(r.sender.sent_to("lead-x").len(), 1);
+}
+
+/// With every `bd` call taking 6 s of the shared timeline, a scheduled tick
+/// defers what it cannot start and ends within its 25 s budget: the deadline
+/// the scheduler hands the run is on the cache's clock (one origin).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_scheduled_tick_with_a_slow_bd_ends_within_its_budget() {
+    let r = Real::new();
+    r.add("b1", Some("x"), |_| {});
+    r.add("b2", Some("x"), |_| {});
+    let worker = r.start().await;
+    assert_eq!(r.step().await, RunOutcome::Ok);
+    let first = close(&r, "b1", "k1");
+    let second = close(&r, "b2", "k2");
+    r.fake.backend().set_cost(Duration::from_secs(6));
+    let before = r.clock.elapsed();
+
+    // The step itself moves the clock 30 s; the tick's own cost is what bd charged.
+    let outcome = r.step().await;
+    let spent = r
+        .clock
+        .elapsed()
+        .saturating_sub(before)
+        .saturating_sub(Duration::from_secs(30));
+    r.shutdown(worker).await;
+
+    assert_eq!(outcome, RunOutcome::Ok, "a deferral is not a refusal");
+    assert!(
+        spent <= bd_cache_sync::TICK_BUDGET,
+        "the tick spent {spent:?}"
+    );
+    let pending = [first, second]
+        .into_iter()
+        .filter(|s| entry(&r, *s).state == JournalState::Pending)
+        .count();
+    assert!(pending > 0, "the slow tick could not finish both");
+    assert!(
+        [first, second].iter().all(|s| entry(&r, *s).attempts == 0),
+        "a cut costs no attempt"
+    );
 }

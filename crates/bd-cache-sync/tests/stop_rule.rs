@@ -17,7 +17,7 @@ use common::{World, scope};
 use sc_beads::testing::{FakeOp, Injection};
 
 fn stop(w: &World, cache: &mut common::TestCache) -> Option<String> {
-    stop_reason(cache, &w.config(), &*w.clock, w.after(TICK_BUDGET)).unwrap()
+    stop_reason(cache, &w.config(), w.after(TICK_BUDGET)).unwrap()
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn configuration_the_tick_would_refuse_never_ends_the_schedule() {
     ] {
         let mut cfg = w.config();
         mutate(&mut cfg);
-        assert_eq!(stop_reason(&mut cache, &cfg, &*w.clock, end).unwrap(), None);
+        assert_eq!(stop_reason(&mut cache, &cfg, end).unwrap(), None);
     }
     // A broken phase file may be a phase we cannot see.
     std::fs::write(w.dir.path().join("phase-y.toml"), "oops").unwrap();

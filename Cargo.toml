@@ -16,9 +16,12 @@ authors = ["Rand Lee <rand@randlee.com>"]
 
 [workspace.dependencies]
 # workspace crates
-sc-beads = { path = "crates/sc-beads", version = "0.1.0" }
-bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
 bd-cache = { path = "crates/bd-cache", version = "0.1.0" }
+bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
+bd-cache-store = { path = "crates/bd-cache-store", version = "0.1.0" }
+sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.1.0" }
+sc-beads = { path = "crates/sc-beads", version = "0.1.0" }
+sc-cron = { path = "crates/sc-cron", version = "0.1.0" }
 
 # third-party crates used in phase a
 rusqlite = { version = "0.40", features = ["bundled"] }   # NFR-BDC-0007: bundled SQLite

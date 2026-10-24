@@ -7,7 +7,7 @@ use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
 use crate::reply::PruneReport;
 use crate::scope::ScopeId;
 use crate::state::{
-    FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
+    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
     UpsertReport,
 };
 
@@ -110,6 +110,15 @@ pub trait CacheStore: Send {
     ) -> Result<(), CacheError>;
     /// The scope's ready base; `None` = never fetched.
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError>;
+    /// One bead's entry in the scope's ready base; `None` = the scope never stored a base.
+    ///
+    /// Equal to [`BaseEntry::of`] applied to [`CacheStore::ready_base`]. The
+    /// provided body loads the whole base; an implementation that can answer
+    /// from an index overrides it, so a cached `get` costs the same whatever
+    /// the size of the scope (NFR-BDC-0001).
+    fn base_entry(&self, s: &ScopeId, id: &BeadId) -> Result<Option<BaseEntry>, CacheError> {
+        Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)))
+    }
     /// Marks the scope's ready base stale.
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError>;
 

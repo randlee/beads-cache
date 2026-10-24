@@ -22,6 +22,7 @@
 )]
 
 pub mod blocking;
+pub mod counting;
 pub mod real;
 
 use blocking::Controlled;
@@ -124,9 +125,7 @@ impl EscalationSender for RecordingSender {
         };
         self.attempts.lock().unwrap().push(message.clone());
         if self.failing.load(Ordering::SeqCst) {
-            return Err(SendError {
-                detail: "atm is down".into(),
-            });
+            return Err(SendError::new("atm is down"));
         }
         self.sent.lock().unwrap().push(message);
         Ok(())
@@ -249,14 +248,7 @@ impl World {
 
     /// Runs one tick with `config`.
     pub fn tick_with(&self, cache: &mut TestCache, config: &TickConfig) -> TickReply {
-        tick(
-            cache,
-            config,
-            &*self.sender,
-            &*self.clock,
-            self.after(TICK_BUDGET),
-        )
-        .unwrap()
+        tick(cache, config, &*self.sender, self.after(TICK_BUDGET)).unwrap()
     }
 
     /// Moves the clock to the next 30 s tick.
@@ -290,5 +282,54 @@ impl World {
 impl Default for World {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// A sender that spends `cost` of the world's clock on every message, as a slow
+/// `atm` would, and records what it was asked.
+pub struct SlowSender {
+    clock: Arc<ManualClock>,
+    cost: Duration,
+    sent: Mutex<Vec<(String, Duration)>>,
+}
+
+impl SlowSender {
+    /// A sender whose every message takes `cost` on `clock` (or the time it is given, if less).
+    pub fn new(clock: &Arc<ManualClock>, cost: Duration) -> Self {
+        Self {
+            clock: Arc::clone(clock),
+            cost,
+            sent: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Who was sent to, with the time each send was given.
+    pub fn sent(&self) -> Vec<(String, Duration)> {
+        self.sent.lock().unwrap().clone()
+    }
+}
+
+impl EscalationSender for SlowSender {
+    fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError> {
+        self.send_within(lead, team, body, Duration::from_secs(3600))
+    }
+
+    fn send_within(
+        &self,
+        lead: &str,
+        _team: &str,
+        _body: &str,
+        timeout: Duration,
+    ) -> Result<(), SendError> {
+        self.sent.lock().unwrap().push((lead.to_owned(), timeout));
+        if self.cost > timeout {
+            self.clock.advance(timeout);
+            return Err(SendError::with_kind(
+                bd_cache_model::SendErrorKind::TimedOut,
+                "the scripted atm was too slow",
+            ));
+        }
+        self.clock.advance(self.cost);
+        Ok(())
     }
 }

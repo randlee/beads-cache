@@ -6,11 +6,11 @@
 //! under the miss-fill timeout (`Cache::refresh`), so a root that is
 //! labelled outside its own phase is still seen closing. A root that cannot
 //! be read counts as inactive for this tick and is reported
-//! (BD-CACHE.md, Cron module).
+//! (BD-CACHE.md, Cron module); a root bd does not know is no open root.
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, CacheStore, DrainLock, PhaseName};
-use sc_beads::{BeadId, CacheBackend, Clock, Deadline};
+use bd_cache_model::{CacheError, CacheStore, DrainLock};
+use sc_beads::{BeadId, CacheBackend, Deadline};
 
 use crate::phases::Phase;
 
@@ -20,7 +20,7 @@ pub(crate) struct ActiveSet {
     /// Phases with a root that is not closed, in input order.
     pub active: Vec<Phase>,
     /// Phases whose root could not be read.
-    pub unreadable: Vec<PhaseName>,
+    pub unreadable: Vec<Phase>,
 }
 
 /// True when the row's status is `closed`.
@@ -64,9 +64,9 @@ fn cached_root<S: CacheStore, L: DrainLock, B: CacheBackend>(
 pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     phases: &[Phase],
-    clock: &dyn Clock,
     end: Deadline,
 ) -> Result<ActiveSet, CacheError> {
+    let clock = cache.clock();
     let mut set = ActiveSet::default();
     // Phases whose root the cache cannot answer for.
     let mut uncached: Vec<&Phase> = Vec::new();
@@ -78,13 +78,13 @@ pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
             Cached::Unknown => uncached.push(phase),
         }
     }
+    let mut unreadable: Vec<&Phase> = Vec::new();
     if !uncached.is_empty() {
         let ids: Vec<BeadId> = uncached.iter().map(|p| p.root.clone()).collect();
-        let timeout = cache.config().miss_fill_timeout.min(end.remaining(clock));
+        let timeout = cache.config().miss_fill_timeout.min(end.remaining(&*clock));
         match cache.refresh(&ids, timeout) {
             Ok(rows) => {
                 for phase in &uncached {
-                    // A root bd does not know is no open root.
                     if rows
                         .iter()
                         .find(|r| r.bead.id == phase.root)
@@ -101,16 +101,17 @@ pub(crate) fn active_phases<S: CacheStore, L: DrainLock, B: CacheBackend>(
                     detail = e.detail(),
                     "phase roots could not be read; those phases count as inactive this tick"
                 );
-                set.unreadable
-                    .extend(uncached.iter().map(|p| p.name.clone()));
+                unreadable = uncached;
             }
         }
     }
     // Keep the input order.
-    set.active = phases
-        .iter()
-        .filter(|p| open.iter().any(|o| o.name == p.name))
-        .cloned()
-        .collect();
+    for phase in phases {
+        if open.iter().any(|o| o.name == phase.name) {
+            set.active.push(phase.clone());
+        } else if unreadable.iter().any(|o| o.name == phase.name) {
+            set.unreadable.push(phase.clone());
+        }
+    }
     Ok(set)
 }

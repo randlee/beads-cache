@@ -21,6 +21,7 @@ use async_trait::async_trait;
 use bd_cache_model::EscalationSender;
 use bd_cache_store::{FlockDrainLock, SqliteStore};
 use bd_cache_sync::{SyncJob, compose_with, schedule_spec};
+use chrono::{DateTime, Utc};
 use sc_bd_cli::bounded::BoundedError;
 use sc_bd_cli::testing::FakeBd;
 use sc_bd_cli::{BdCli, CliInvoker};
@@ -88,6 +89,57 @@ impl CliInvoker for Switched {
     }
 }
 
+/// `sc-cron`'s clock on the cache's timeline: wall time and parks come from a
+/// manual clock, but monotonic time is the cache clock's. A run's deadline,
+/// which the scheduler computes from `monotonic_now`, is therefore on the same
+/// timeline as every deadline the cache and the fake bd measure, with one
+/// origin (a-7 round 1, FTQ-003, ARCH-011).
+#[derive(Debug)]
+pub struct Bridge {
+    beads: Arc<ManualClock>,
+    wall: sc_cron::ManualClock,
+}
+
+impl Bridge {
+    /// A bridge over `beads`, with wall time starting at [`START`].
+    pub fn new(beads: Arc<ManualClock>) -> Self {
+        let start: DateTime<Utc> = START.parse().unwrap();
+        Self {
+            beads,
+            wall: sc_cron::ManualClock::new(start),
+        }
+    }
+
+    pub fn parks(&self) -> u64 {
+        self.wall.parks()
+    }
+
+    pub async fn wait_parks_above(&self, count: u64) {
+        self.wall.wait_parks_above(count).await;
+    }
+
+    /// Moves both timelines by `step`, then waits for the worker to settle.
+    pub async fn advance_settled(&self, step: chrono::Duration) {
+        self.beads.advance(step.to_std().unwrap());
+        self.wall.advance_settled(step).await;
+    }
+}
+
+#[async_trait]
+impl sc_cron::Clock for Bridge {
+    fn now(&self) -> DateTime<Utc> {
+        sc_cron::Clock::now(&self.wall)
+    }
+
+    fn monotonic_now(&self) -> std::time::Instant {
+        sc_beads::Clock::now_mono(&*self.beads)
+    }
+
+    async fn sleep_until(&self, target: DateTime<Utc>) {
+        sc_cron::Clock::sleep_until(&self.wall, target).await;
+    }
+}
+
 /// A job that tells a test when each run ended.
 pub struct Spy {
     inner: RealJob,
@@ -121,8 +173,8 @@ pub struct Real {
     pub sender: Arc<RecordingSender>,
     /// The job the scheduler runs; `job.with_cache` reaches its cache.
     pub job: RealJob,
-    cron_clock: Arc<sc_cron::ManualClock>,
-    scheduler: Scheduler<SqliteScheduleStore, sc_cron::ManualClock, SeqJitter>,
+    cron_clock: Arc<Bridge>,
+    scheduler: Scheduler<SqliteScheduleStore, Bridge, SeqJitter>,
     outcomes: watch::Sender<Vec<RunOutcome>>,
     _cron_dir: TempDir,
 }
@@ -167,16 +219,16 @@ impl Real {
         let backend = BdCli::with_invoker(Box::new(invoker)).with_clock(Arc::clone(&beads_clock));
         let composed = compose_with(root.path(), backend, Arc::clone(&beads_clock)).unwrap();
         let sender = Arc::new(RecordingSender::default());
-        let spec = schedule_spec(&composed.tick, &composed.name).unwrap();
+        let spec = schedule_spec(&composed.tick, &composed.name, None).unwrap();
         let job = SyncJob::new(
             composed.cache,
-            composed.tick,
+            &composed.tick,
             Arc::clone(&sender) as Arc<dyn EscalationSender>,
-            beads_clock,
-        );
+        )
+        .unwrap();
 
         let cron_dir = tempfile::tempdir().unwrap();
-        let cron_clock = Arc::new(sc_cron::ManualClock::new(START.parse().unwrap()));
+        let cron_clock = Arc::new(Bridge::new(Arc::clone(&clock)));
         let scheduler = Scheduler::new(
             Arc::new(SqliteScheduleStore::open(cron_dir.path().join("cron.db")).unwrap()),
             Arc::clone(&cron_clock),
@@ -226,7 +278,6 @@ impl Real {
     /// and returns its outcome.
     pub async fn step(&self) -> RunOutcome {
         let seen = self.outcomes.borrow().len();
-        self.clock.advance(Duration::from_secs(30));
         self.cron_clock
             .advance_settled(chrono::Duration::seconds(30))
             .await;

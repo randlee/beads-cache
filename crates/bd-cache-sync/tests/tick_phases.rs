@@ -11,7 +11,7 @@
 mod common;
 
 use bd_cache_model::TickConfig;
-use bd_cache_sync::{TickOutcome, schedule_spec, stop_reason};
+use bd_cache_sync::{RefusalCode, TickOutcome, schedule_spec, stop_reason};
 use common::{World, id, scope};
 use sc_beads::testing::{FakeCall, FakeOp};
 
@@ -127,16 +127,13 @@ fn test_custom_phases_limits_sync_and_stop() {
     w.close_in_bd("rz");
     let mut only_z = w.config();
     only_z.phases = Some(vec!["phase-z".into()]);
-    let clock = &*w.clock;
     let end = w.after(bd_cache_sync::TICK_BUDGET);
     assert!(
-        stop_reason(&mut cache, &only_z, clock, end)
-            .unwrap()
-            .is_some(),
+        stop_reason(&mut cache, &only_z, end).unwrap().is_some(),
         "z is closed and the list excludes the open x and y"
     );
     assert_eq!(
-        stop_reason(&mut cache, &w.config(), clock, end).unwrap(),
+        stop_reason(&mut cache, &w.config(), end).unwrap(),
         None,
         "without the list x and y are open"
     );
@@ -154,7 +151,16 @@ fn test_malformed_custom_phases_is_refused() {
         let reply = w.tick_with(&mut cache, &cfg);
 
         assert_eq!(reply.outcome, TickOutcome::Refused, "{bad:?}: {reply:?}");
-        assert!(reply.refused[0].contains("phases entry"), "{reply:?}");
+        assert_eq!(
+            reply.refused[0].code,
+            RefusalCode::MalformedPhases,
+            "{reply:?}"
+        );
+        assert!(
+            reply.refused[0].detail.contains("phases entry"),
+            "{reply:?}"
+        );
+        assert!(!reply.refused[0].fix.is_empty());
         assert!(reply.drain.is_none(), "nothing ran");
         assert!(w.bd.calls().is_empty(), "no bd call for {bad:?}");
         assert!(w.sender.sent().is_empty());
@@ -179,13 +185,13 @@ fn a_configured_phase_without_a_file_and_a_broken_file_are_refused_but_the_rest_
         reply
             .refused
             .iter()
-            .any(|r| r.contains("phase-broken.toml"))
+            .any(|r| r.detail.contains("phase-broken.toml"))
     );
     assert!(
         reply
             .refused
             .iter()
-            .any(|r| r.contains("phase-noroot.toml"))
+            .any(|r| r.detail.contains("phase-noroot.toml"))
     );
     assert_eq!(reply.active.len(), 1, "x still ran");
 
@@ -193,7 +199,7 @@ fn a_configured_phase_without_a_file_and_a_broken_file_are_refused_but_the_rest_
     cfg.phases = Some(vec!["x".into(), "ghost".into()]);
     let reply = w.tick_with(&mut cache, &cfg);
     assert!(
-        reply.refused.iter().any(|r| r.contains("ghost")),
+        reply.refused.iter().any(|r| r.detail.contains("ghost")),
         "{:?}",
         reply.refused
     );
@@ -216,7 +222,12 @@ fn an_unreadable_phases_directory_is_refused_and_the_journal_still_drains() {
     let reply = w.tick_with(&mut cache, &cfg);
 
     assert_eq!(reply.outcome, TickOutcome::Refused);
-    assert!(reply.refused[0].contains("cannot read the phases directory"));
+    assert_eq!(reply.refused[0].code, RefusalCode::PhasesDirUnreadable);
+    assert!(
+        reply.refused[0]
+            .detail
+            .contains("cannot read the phases directory")
+    );
     assert_eq!(
         reply.drain.unwrap().applied,
         [seq],
@@ -224,7 +235,7 @@ fn an_unreadable_phases_directory_is_refused_and_the_journal_still_drains() {
     );
     // And an unreadable directory never ends the schedule.
     let end = w.after(bd_cache_sync::TICK_BUDGET);
-    assert_eq!(stop_reason(&mut cache, &cfg, &*w.clock, end).unwrap(), None);
+    assert_eq!(stop_reason(&mut cache, &cfg, end).unwrap(), None);
 }
 
 #[test]
@@ -237,12 +248,12 @@ fn test_missing_team_is_refused() {
         cfg.team = blank.clone();
         let reply = w.tick_with(&mut cache, &cfg);
         assert_eq!(reply.outcome, TickOutcome::Refused, "{blank:?}");
-        assert!(reply.refused[0].contains("team is missing"), "{reply:?}");
+        assert_eq!(reply.refused[0].code, RefusalCode::MissingTeam, "{reply:?}");
         assert!(reply.drain.is_none() && reply.synced.is_empty());
         assert!(w.bd.calls().is_empty(), "a refused tick makes no bd call");
         assert!(w.sender.attempts().is_empty());
         assert!(
-            schedule_spec(&cfg, "r").is_err(),
+            schedule_spec(&cfg, "r", None).is_err(),
             "no schedule is started either"
         );
     }
@@ -251,8 +262,8 @@ fn test_missing_team_is_refused() {
     cfg.fallback_lead = None;
     let reply = w.tick_with(&mut cache, &cfg);
     assert_eq!(reply.outcome, TickOutcome::Refused);
-    assert!(reply.refused[0].contains("fallback_lead"));
-    assert!(schedule_spec(&cfg, "r").is_err());
+    assert_eq!(reply.refused[0].code, RefusalCode::MissingFallbackLead);
+    assert!(schedule_spec(&cfg, "r", None).is_err());
     // A name that would be read as an option or split in two is refused.
     for bad in ["-x", "a b", "a@b"] {
         let mut cfg = w.config();
@@ -266,5 +277,86 @@ fn test_missing_team_is_refused() {
     assert!(w.bd.calls().is_empty());
     // With the table complete the same world ticks.
     assert_eq!(w.tick(&mut cache).outcome, TickOutcome::PassThrough);
-    assert!(schedule_spec(&TickConfig::default(), "r").is_err());
+    assert!(schedule_spec(&TickConfig::default(), "r", None).is_err());
+}
+
+#[test]
+fn an_empty_phase_list_is_refused_not_a_schedule_that_ends_at_once() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let mut cache = w.cache();
+    let mut cfg = w.config();
+    cfg.phases = Some(Vec::new());
+    let reply = w.tick_with(&mut cache, &cfg);
+    assert_eq!(reply.refused[0].code, RefusalCode::EmptyPhases, "{reply:?}");
+    assert!(w.bd.calls().is_empty());
+    assert!(schedule_spec(&cfg, "r", None).is_err());
+    let end = w.after(bd_cache_sync::TICK_BUDGET);
+    assert_eq!(stop_reason(&mut cache, &cfg, end).unwrap(), None);
+}
+
+#[test]
+fn a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let big = format!("root = \"rbig\"\n# {}\n", "x".repeat(70 * 1024));
+    std::fs::write(w.dir.path().join("phase-big.toml"), big).unwrap();
+    let set = bd_cache_sync::load_phases(w.dir.path(), None).unwrap();
+    assert_eq!(set.phases.len(), 1);
+    assert!(matches!(
+        set.problems.as_slice(),
+        [bd_cache_sync::PhaseFileProblem::TooLarge { bytes, .. }] if *bytes > bd_cache_sync::MAX_PHASE_FILE_BYTES
+    ));
+
+    let many = tempfile::tempdir().unwrap();
+    for i in 0..bd_cache_sync::MAX_PHASE_FILES + 5 {
+        std::fs::write(
+            many.path().join(format!("phase-p{i}.toml")),
+            "root = \"r\"\n",
+        )
+        .unwrap();
+    }
+    let set = bd_cache_sync::load_phases(many.path(), None).unwrap();
+    assert!(set.phases.len() <= bd_cache_sync::MAX_PHASE_FILES);
+    assert!(
+        set.problems
+            .iter()
+            .any(|p| matches!(p, bd_cache_sync::PhaseFileProblem::TooManyFiles { .. }))
+    );
+}
+
+/// The phase files atm-core keeps (`.atm-bd/phase-bd.toml` and `phase-bk.toml`
+/// at `05831df`, see `fixtures/PROVENANCE.md`) load: `root` and `lead` are
+/// read and `plan`, `integration_branch` and `[templates]` are ignored.
+#[test]
+fn the_phase_files_atm_core_keeps_are_read() {
+    let fixtures = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+    let set = bd_cache_sync::load_phases(&fixtures, None).unwrap();
+    assert!(set.problems.is_empty(), "{:?}", set.problems);
+    let got: Vec<(String, String, Option<String>)> = set
+        .phases
+        .iter()
+        .map(|p| {
+            (
+                p.name.to_string(),
+                p.root.to_string(),
+                p.lead.as_ref().map(ToString::to_string),
+            )
+        })
+        .collect();
+    assert_eq!(
+        got,
+        [
+            (
+                "bd".to_owned(),
+                "atm-phase-bd".to_owned(),
+                Some("team-lead".to_owned())
+            ),
+            (
+                "bk".to_owned(),
+                "atm-phase-bk".to_owned(),
+                Some("solar".to_owned())
+            ),
+        ]
+    );
 }

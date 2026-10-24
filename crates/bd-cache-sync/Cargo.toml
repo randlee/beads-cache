@@ -13,11 +13,9 @@ publish = false
 bd-cache.workspace = true
 bd-cache-model.workspace = true
 sc-beads.workspace = true
-# Not in the workspace dependency table (a-1 declared only the crates sprints 2-6
-# consume); path dependencies on sibling crates need no table entry.
-bd-cache-store = { path = "../bd-cache-store" }
-sc-bd-cli = { path = "../sc-bd-cli" }
-sc-cron = { path = "../sc-cron" }
+bd-cache-store.workspace = true
+sc-bd-cli.workspace = true
+sc-cron.workspace = true
 async-trait.workspace = true
 serde.workspace = true
 serde_json.workspace = true
@@ -28,8 +26,8 @@ tracing.workspace = true
 [dev-dependencies]
 bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
-sc-bd-cli = { path = "../sc-bd-cli", features = ["test-support"] }
-sc-cron = { path = "../sc-cron", features = ["test-utils"] }
+sc-bd-cli = { workspace = true, features = ["test-support"] }
+sc-cron = { workspace = true, features = ["test-utils"] }
 chrono.workspace = true
 criterion.workspace = true
 tempfile.workspace = true

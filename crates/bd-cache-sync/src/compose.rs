@@ -2,7 +2,7 @@
 //! `bd` CLI behind one [`Cache`] (ADR-BDC-0004, ADR-SYNC-0001).
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use bd_cache::Cache;
@@ -13,6 +13,8 @@ use bd_cache_store::{
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
 
+use crate::phases::DEFAULT_PHASES_DIR;
+
 /// The cache over the real store, drain lock and `bd`.
 pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 
@@ -21,7 +23,10 @@ pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 pub struct Composed {
     /// The cache of the repository's file.
     pub cache: RealCache,
-    /// The `[tick]` table of `.beads/bd-cache.toml` (empty when the file has none).
+    /// The `[tick]` table of `.beads/bd-cache.toml` (empty when the file has
+    /// none), with `phases_dir` resolved against the repository root: a
+    /// relative directory, or the default `.atm-bd`, names the same place
+    /// whatever the working directory is.
     pub tick: TickConfig,
     /// The cache file's name, for naming the schedule.
     pub name: String,
@@ -37,11 +42,22 @@ pub enum ComposeError {
     Cache(CacheError),
 }
 
+impl ComposeError {
+    /// A stable code: `SYNC_CONFIG_INVALID`, or the `BD_CACHE.*` code of the cache error.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Config(_) => "SYNC_CONFIG_INVALID",
+            Self::Cache(e) => e.code(),
+        }
+    }
+}
+
 impl fmt::Display for ComposeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Config(e) => write!(f, "{e}"),
-            Self::Cache(e) => write!(f, "{}: {}", e.code(), e.detail()),
+            Self::Config(_) => f.write_str("cannot load .beads/bd-cache.toml"),
+            Self::Cache(_) => f.write_str("cannot open the cache of the repository"),
         }
     }
 }
@@ -60,7 +76,7 @@ impl std::error::Error for ComposeError {
 /// file it names, and wires a `BdCli` running `bd_binary` in that repository.
 ///
 /// `clock` is shared by the cache and the backend, so every deadline is
-/// measured on one clock (ADR-CORE-0001).
+/// measured on one clock (ADR-CORE-0001); the job reads it from the cache.
 ///
 /// # Errors
 ///
@@ -102,9 +118,15 @@ pub fn compose_with(
         .cache_path
         .file_name()
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
-    Ok(Composed {
-        cache,
-        tick: repo.tick.unwrap_or_default(),
-        name,
-    })
+    let mut tick = repo.tick.unwrap_or_default();
+    let dir: PathBuf = tick
+        .phases_dir
+        .take()
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_PHASES_DIR));
+    tick.phases_dir = Some(if dir.is_relative() {
+        repo_root.join(dir)
+    } else {
+        dir
+    });
+    Ok(Composed { cache, tick, name })
 }

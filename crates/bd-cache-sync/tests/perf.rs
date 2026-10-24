@@ -1,10 +1,12 @@
-//! Latency of an in-process cached `get` on the real `SqliteStore`
-//! (NFR-BDC-0001): the median of N calls is under 1 ms.
+//! The cost of an in-process cached `get` on the real `SqliteStore`
+//! (NFR-BDC-0001: under 1 ms).
 //!
-//! The criterion bench `benches/get.rs` prints the same figure; this test is
-//! the assertion. A median, not a maximum, because a shared CI runner can
-//! stall one call for longer than the whole budget without the code being
-//! slow.
+//! The gate is deterministic: the number of store calls and items a cached
+//! `get` touches is the same at 10, 100 and 1000 beads, so its cost does not
+//! grow with the scope. The wall-clock median is printed for information
+//! (`--ignored --nocapture`); it does not gate, because a shared CI runner can
+//! stall any one call longer than the whole budget. `benches/get.rs` measures
+//! the same with criterion. Release-profile figures are in the sprint doc.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -16,36 +18,24 @@
 mod common;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use bd_cache::Cache;
 use bd_cache_model::{CacheConfig, ScopeId};
-use bd_cache_store::{DatabaseIdentity, DoltDatabase, ProjectId, SqliteStore};
+use bd_cache_store::{DatabaseIdentity, DoltDatabase, FlockDrainLock, ProjectId, SqliteStore};
+use common::counting::Counting;
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Clock, DepType, ProjectRef};
 
-/// How many calls the median is taken over.
+/// How many calls the informational median is taken over.
 const CALLS: usize = 1000;
-/// NFR-BDC-0001.
-const LIMIT: Duration = Duration::from_millis(1);
-/// Beads in the scope of the asserting test.
-const SCOPE_BEADS: usize = 100;
-/// The size of a large phase (NFR-BDC-0003).
-const LARGE_SCOPE_BEADS: usize = 1000;
 
-fn median(mut samples: Vec<Duration>) -> Duration {
-    samples.sort();
-    samples[samples.len() / 2]
-}
+type PerfCache = Cache<Counting<SqliteStore>, FlockDrainLock, FakeBackend>;
 
 /// A cache over a fresh `SqliteStore` holding `beads` synced beads in scope x;
 /// every tenth bead depends on its neighbour, so the ready base has blocked rows.
-fn synced_cache(
-    beads: usize,
-) -> (
-    tempfile::TempDir,
-    Cache<SqliteStore, bd_cache_store::FlockDrainLock, FakeBackend>,
-) {
+fn synced_cache(beads: usize) -> (tempfile::TempDir, PerfCache, Arc<AtomicU64>) {
     let dir = tempfile::tempdir().unwrap();
     let identity = DatabaseIdentity {
         dolt_database: DoltDatabase::new("perf").unwrap(),
@@ -53,6 +43,7 @@ fn synced_cache(
     };
     let store = SqliteStore::open_at(&dir.path().join("perf.sqlite3"), &identity).unwrap();
     let lock = store.drain_lock();
+    let (store, touched) = Counting::new(store);
     let clock = Arc::new(ManualClock::default());
     let bd = FakeBackend::new(Arc::clone(&clock));
     let x = ScopeId::phase("x").unwrap();
@@ -79,72 +70,89 @@ fn synced_cache(
         )
         .unwrap();
     assert_eq!(usize::try_from(report.stored).unwrap(), beads);
-    (dir, cache)
+    (dir, cache, touched)
 }
 
-/// The median latency of `CALLS` cached `get`s over a scope of `beads` beads.
-fn median_get(beads: usize) -> Duration {
-    let (_dir, mut cache) = synced_cache(beads);
-    let ids: Vec<_> = (0..CALLS)
-        .map(|i| sc_beads::testing::id(&format!("b{}", i % beads)))
-        .collect();
-    // Warm up SQLite's page cache and the statement cache.
-    for id in ids.iter().take(50) {
-        cache.get(id, None).unwrap();
-    }
-    let samples: Vec<Duration> = ids
-        .iter()
-        .map(|id| {
-            let start = Instant::now();
-            let reply = cache.get(id, None).unwrap();
-            let took = start.elapsed();
-            assert_eq!(reply.row.bead.id, *id);
-            took
-        })
-        .collect();
-    median(samples)
+/// What one cached `get` of a blocked bead (`b0` is blocked by `b1`) touches.
+fn touched_by_one_get(beads: usize) -> u64 {
+    let (_dir, mut cache, touched) = synced_cache(beads);
+    let id = sc_beads::testing::id("b0");
+    cache.get(&id, None).unwrap(); // warm: nothing to fill, nothing cached lazily
+    touched.store(0, Ordering::SeqCst);
+    let reply = cache.get(&id, None).unwrap();
+    assert_eq!(
+        reply.row.blocked,
+        Some(vec![sc_beads::testing::id("b1")]),
+        "the blocked state comes from the stored base"
+    );
+    touched.load(Ordering::SeqCst)
 }
 
-/// NFR-BDC-0001 on the real store: the median of `CALLS` cached `get`s is
-/// under 1 ms.
-///
-/// The scope is 100 beads, with a tenth of them blocked, which leaves a
-/// large margin on a slow CI runner in a debug build. The cost of a `get`
-/// grows with the size of its scope (see the ignored test below).
+/// NFR-BDC-0001, deterministic: a cached `get` touches the same number of
+/// store calls and items whatever the size of its scope.
 #[test]
-fn median_in_process_cached_get_on_sqlite_store_is_under_1_ms() {
-    let m = median_get(SCOPE_BEADS);
+fn a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads() {
+    let counts: Vec<u64> = [10, 100, 1000].map(touched_by_one_get).to_vec();
+    assert_eq!(counts[0], counts[1], "{counts:?}");
+    assert_eq!(counts[1], counts[2], "{counts:?}");
     assert!(
-        m < LIMIT,
-        "median cached get took {m:?}, the limit is {LIMIT:?}"
+        counts[0] < 20,
+        "a cached get is a handful of reads: {counts:?}"
     );
 }
 
-/// The same measurement on a 1000-bead scope, the size NFR-BDC-0003 uses.
-///
-/// Ignored because it does not pass: `Cache::get` reads and adjusts the
-/// scope's whole ready base on every call (`bd-cache/src/ready.rs`,
-/// `adjusted`), so its cost grows with the scope. Measured on the a-7 base
-/// (`984978b`), in microseconds (median of 1000 calls): 10 beads 22 / 54, 100 beads 53 / 160,
-/// 300 beads 154 / 648, 1000 beads 1431 / 5267 (release / debug). Reported to
-/// the lead as a finding on a-6 (docs/plans/phase-a/sprint-a-7-sync-integration.md,
-/// Findings); run it with `--ignored` to see the current figure.
+/// With a write in flight the whole base is adjusted (a blocker's close can
+/// unblock any bead), so the cost grows with the scope until the next sync:
+/// the fast path is only for a base no entry can have changed.
 #[test]
-#[ignore = "NFR-BDC-0001 is not met for a 1000-bead scope: get loads the scope's whole ready base (finding on a-6)"]
-fn median_cached_get_on_a_1000_bead_scope_is_under_1_ms() {
-    let m = median_get(LARGE_SCOPE_BEADS);
-    eprintln!("median cached get over {LARGE_SCOPE_BEADS} beads: {m:?}");
-    assert!(
-        m < LIMIT,
-        "median cached get took {m:?}, the limit is {LIMIT:?}"
+fn a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree() {
+    let (_dir, mut cache, touched) = synced_cache(100);
+    let blocker = sc_beads::testing::id("b1");
+    cache
+        .write(
+            &blocker,
+            "close",
+            "{}",
+            sc_beads::Guards::default(),
+            bd_cache_model::IdemKey::new("k").unwrap(),
+            sc_beads::testing::actor("san"),
+        )
+        .unwrap();
+    touched.store(0, Ordering::SeqCst);
+    let reply = cache.get(&sc_beads::testing::id("b0"), None).unwrap();
+    assert_eq!(
+        reply.row.blocked,
+        Some(vec![]),
+        "the pending close of b1 unblocks b0"
     );
+    assert!(touched.load(Ordering::SeqCst) > 100);
 }
 
-/// Prints the median for several scope sizes (run with `--ignored --nocapture`).
+fn median(mut samples: Vec<Duration>) -> Duration {
+    samples.sort();
+    samples[samples.len() / 2]
+}
+
+/// Prints the median wall-clock `get` per scope size; informational, never gates.
 #[test]
-#[ignore = "informational: prints the median cached get per scope size"]
+#[ignore = "informational: prints the median cached get per scope size (use --release)"]
 fn print_median_cached_get_by_scope_size() {
-    for n in [10, 100, 300, 1000] {
-        eprintln!("{n} beads: median cached get {:?}", median_get(n));
+    for beads in [10, 100, 300, 1000] {
+        let (_dir, mut cache, _touched) = synced_cache(beads);
+        let ids: Vec<_> = (0..CALLS)
+            .map(|i| sc_beads::testing::id(&format!("b{}", i % beads)))
+            .collect();
+        for id in ids.iter().take(50) {
+            cache.get(id, None).unwrap();
+        }
+        let samples: Vec<Duration> = ids
+            .iter()
+            .map(|id| {
+                let start = Instant::now();
+                cache.get(id, None).unwrap();
+                start.elapsed()
+            })
+            .collect();
+        eprintln!("{beads} beads: median cached get {:?}", median(samples));
     }
 }

@@ -15,7 +15,7 @@ use bd_cache_model::{CacheError, CacheStore, DrainLock, GetReply, JournalEntry, 
 use sc_beads::{BeadId, CacheBackend};
 
 use crate::Cache;
-use crate::ready::{adjusted, row_view, scope_for};
+use crate::ready::{blocked_state, row_view_with, scope_for};
 
 fn not_found(id: &BeadId) -> CacheError {
     CacheError::NotFound {
@@ -39,12 +39,15 @@ pub(crate) fn get<S: CacheStore, L: DrainLock, B: CacheBackend>(
         crate::view::current_view(cache, id)?.ok_or_else(|| not_found(id))?
     };
     let pending = u32::try_from(cache.store.pending_for(id)?.len()).unwrap_or(u32::MAX);
-    let (scope_last_ok_at, adj) = match scope_for(cache, &view)? {
-        Some(s) => (cache.store.sync_state(&s)?.last_ok_at, adjusted(cache, &s)?),
+    let (scope_last_ok_at, blocked) = match scope_for(cache, &view)? {
+        Some(s) => (
+            cache.store.sync_state(&s)?.last_ok_at,
+            blocked_state(cache, &s, &view)?,
+        ),
         None => (None, None),
     };
     Ok(GetReply {
-        row: row_view(view, freshness, adj.as_ref()),
+        row: row_view_with(view, freshness, blocked),
         scope_last_ok_at,
         pending,
         outage: cache.store.outage()?,

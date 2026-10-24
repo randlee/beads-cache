@@ -35,6 +35,9 @@ CREATE INDEX IF NOT EXISTS scope_member_bead ON scope_member(bead);
 CREATE TABLE IF NOT EXISTS ready_base (
   scope TEXT PRIMARY KEY, blocked_json TEXT NOT NULL, ready_json TEXT NOT NULL,
   fetched_at TEXT NOT NULL, stale INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS ready_base_blocked (
+  scope TEXT NOT NULL, bead TEXT NOT NULL, blocked_by_json TEXT NOT NULL,
+  PRIMARY KEY (scope, bead)) WITHOUT ROWID;
 ";
 
 /// Additive nullable columns: `(table, column, type)` (ADR-BDC-0004, ADR-STORE-0001).
@@ -43,6 +46,9 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
     // authoritative; NULL when another implementation (bd_cache.py) replaced
     // the row, whose membership is then its v3 `phase` column.
     ("beads", "membership_known", "INTEGER"),
+    // 1 when the scope's ready_base_blocked rows were written with the base
+    // (they index its blocked rows by bead); NULL for a base stored before.
+    ("ready_base", "indexed", "INTEGER"),
     ("beads", "revision", "TEXT"),
     ("journal", "applied_at", "TEXT"),
     ("sync_state", "backend_kind", "TEXT"),

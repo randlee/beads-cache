@@ -76,11 +76,11 @@ pub use reply::{
 #[doc(inline)]
 pub use scope::{PhaseName, ScopeId};
 #[doc(inline)]
-pub use sender::{EscalationSender, SendError};
+pub use sender::{EscalationSender, SendError, SendErrorKind};
 #[doc(inline)]
 pub use state::{
-    FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus,
-    SyncState, UpsertReport,
+    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus,
+    StoreStatus, SyncState, UpsertReport,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

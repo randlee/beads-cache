@@ -122,6 +122,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         &self.config
     }
 
+    /// The clock the cache and its backend share (ADR-CORE-0001).
+    ///
+    /// Callers that measure time against the cache's deadlines, such as a
+    /// scheduler's tick, must read this clock and no other. It is a shared
+    /// handle, so it can be held while the cache is borrowed mutably.
+    #[must_use]
+    pub fn clock(&self) -> Arc<dyn Clock> {
+        Arc::clone(&self.clock)
+    }
+
     /// The cached row with its pending entries replayed; on a miss one bounded
     /// `bd list --id` (`miss_timeout`, else the configured miss-fill timeout).
     ///

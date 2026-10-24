@@ -1,0 +1,78 @@
+//! Cooperative shutdown of a running tick (ADR-SYNC-0002).
+//!
+//! `sc-cron` times a run out by dropping its future, which never stops a
+//! blocking thread. A host that is shutting down sets a [`StopFlag`]: the tick
+//! checks it between phases and before every message, and an [`AtmSender`]
+//! built with the same flag kills its child process. Shutdown order:
+//!
+//! 1. [`StopFlag::stop`] (and the scheduler's `shutdown`, which stops starting runs);
+//! 2. wait for the worker (`WorkerHandle::shutdown`), which waits for the run in flight;
+//! 3. drop the job.
+//!
+//! [`AtmSender`]: crate::AtmSender
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+use sc_beads::{Clock, Deadline};
+
+/// A shared "stop what you are doing" signal.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_sync::StopFlag;
+/// let flag = StopFlag::new();
+/// let seen_by_the_tick = flag.clone();
+/// assert!(!seen_by_the_tick.is_stopped());
+/// flag.stop();
+/// assert!(seen_by_the_tick.is_stopped());
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct StopFlag(Arc<AtomicBool>);
+
+impl StopFlag {
+    /// A flag that is not set.
+    #[must_use]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Sets the flag; every clone sees it.
+    pub fn stop(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    /// True once [`stop`](Self::stop) was called on any clone.
+    #[must_use]
+    pub fn is_stopped(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
+
+/// The least time worth starting a message with: below it the send is deferred
+/// to the next tick instead of started and cut.
+///
+/// A local `atm send` takes tens of milliseconds; half a second leaves room for
+/// a loaded host without letting a tick start a send it cannot finish.
+pub(crate) const MIN_SEND_BUDGET: Duration = Duration::from_millis(500);
+
+/// What a tick may still spend: its end `T`, its clock and the stop flag.
+pub(crate) struct Budget<'a> {
+    pub clock: &'a dyn Clock,
+    pub end: Deadline,
+    pub stop: &'a StopFlag,
+}
+
+impl Budget<'_> {
+    /// The time left for one message, or `None` when the tick was asked to
+    /// stop or has less than [`MIN_SEND_BUDGET`] left.
+    pub fn send_budget(&self) -> Option<Duration> {
+        if self.stop.is_stopped() {
+            return None;
+        }
+        let left = self.end.remaining(self.clock);
+        (left >= MIN_SEND_BUDGET).then_some(left)
+    }
+}

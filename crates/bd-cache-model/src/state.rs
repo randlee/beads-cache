@@ -90,6 +90,40 @@ pub struct ReadyBase {
     pub stale: bool,
 }
 
+/// One bead's entry in a scope's stored ready base, read without loading the
+/// whole base ([`CacheStore::base_entry`](crate::CacheStore::base_entry)).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct BaseEntry {
+    /// The base's fetch instant.
+    pub fetched_at: Timestamp,
+    /// The base's stale mark.
+    pub stale: bool,
+    /// The bead's blockers in the base, in bd's order without repeats;
+    /// empty when the base lists it as not blocked.
+    pub blocked_by: Vec<BeadId>,
+}
+
+impl BaseEntry {
+    /// The entry of `id` in a whole base: the blockers of every blocked row of
+    /// that id, in order, without repeats.
+    #[must_use]
+    pub fn of(base: &ReadyBase, id: &BeadId) -> Self {
+        let mut blocked_by: Vec<BeadId> = Vec::new();
+        for row in base.blocked.iter().filter(|r| r.id == *id) {
+            for b in &row.blocked_by {
+                if !blocked_by.contains(b) {
+                    blocked_by.push(b.clone());
+                }
+            }
+        }
+        Self {
+            fetched_at: base.fetched_at.clone(),
+            stale: base.stale,
+            blocked_by,
+        }
+    }
+}
+
 /// Open work for the stop rule (REQ-BDC-0707).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct OpenWork {

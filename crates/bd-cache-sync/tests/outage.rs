@@ -15,7 +15,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache_model::JournalState;
-use bd_cache_sync::{AnnouncementKind, OUTAGE_CAUSE, TickOutcome};
+use bd_cache_sync::{AnnouncementKind, OUTAGE_CAUSE, RefusalCode, TickOutcome};
 use common::{FALLBACK, TEAM, World, scope};
 
 /// Phases x (lead-x) and y (lead-y), each synced once so their roots are cached.
@@ -170,7 +170,12 @@ fn test_undelivered_outage_announcement_is_retried() {
 
     assert_eq!(reply.outcome, TickOutcome::Refused, "{reply:?}");
     assert_eq!(reply.refused.len(), 2, "{:?}", reply.refused);
-    assert!(reply.refused.iter().all(|r| r.contains("outage message")));
+    assert!(
+        reply
+            .refused
+            .iter()
+            .all(|r| r.code == RefusalCode::OutageUndelivered)
+    );
     assert_eq!(
         alert(&cache, "x"),
         None,
@@ -295,4 +300,38 @@ fn the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends() {
     assert_eq!(alert(&cache, "x"), None, "reset although x was not synced");
     assert_eq!(alert(&cache, "y"), None);
     assert!(w.sender.sent().is_empty(), "recovery is silent");
+}
+
+/// Outage targets are the active phases and those whose root could not be read,
+/// never a phase known to be closed (ADR-SYNC-0003).
+#[test]
+fn an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed() {
+    let w = World::new();
+    w.phase("x", Some("lead-x")); // open and cached: active
+    w.phase("y", Some("lead-y")); // closed and cached: inactive
+    w.phase("z", Some("lead-z")); // root never read: unreadable in the outage
+    w.close_in_bd("ry");
+    let mut cache = w.cache();
+    for s in ["x", "y"] {
+        cache
+            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .unwrap();
+    }
+    assert!(
+        cache
+            .list(&scope("y"), None, None)
+            .unwrap()
+            .rows
+            .iter()
+            .any(|r| r.bead.id == common::id("ry") && r.bead.status.as_deref() == Some("closed"))
+    );
+    w.switch.set_down(true);
+
+    let reply = w.tick(&mut cache);
+
+    let mut told: Vec<String> = w.sender.sent().into_iter().map(|s| s.lead).collect();
+    told.sort();
+    assert_eq!(told, ["lead-x", "lead-z"], "{reply:?}");
+    assert_eq!(alert(&cache, "y"), None);
+    assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
 }

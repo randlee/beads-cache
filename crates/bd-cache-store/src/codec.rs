@@ -214,6 +214,33 @@ pub(crate) fn decode_ready(
     Ok((blocked, ready))
 }
 
+/// The rows of the per-bead index of a ready base: each blocked bead with its
+/// blockers merged in order without repeats; a bead with no blockers is not
+/// blocked and has no row.
+pub(crate) fn index_blocked(
+    step: Step<'_>,
+    blocked: &[BlockedRow],
+) -> Result<Vec<(BeadId, String)>, CacheError> {
+    let mut merged: std::collections::BTreeMap<&BeadId, Vec<&BeadId>> =
+        std::collections::BTreeMap::new();
+    for row in blocked {
+        let list = merged.entry(&row.id).or_default();
+        for b in &row.blocked_by {
+            if !list.contains(&b) {
+                list.push(b);
+            }
+        }
+    }
+    merged
+        .into_iter()
+        .filter(|(_, list)| !list.is_empty())
+        .map(|(id, list)| {
+            let json = serde_json::to_string(&list).map_err(|e| failed(step, e))?;
+            Ok((id.clone(), json))
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

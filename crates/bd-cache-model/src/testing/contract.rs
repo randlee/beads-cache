@@ -578,6 +578,65 @@ pub fn ready_base_rules(fx: &mut impl StoreFixture) {
     assert!(ok(s.ready_base(&x()), "pruned").is_none());
 }
 
+/// `base_entry` equals `BaseEntry::of` on the whole base: `None` without a base, blockers
+/// merged without repeats, empty for a bead the base does not block, and it follows replace,
+/// stale marks and prune.
+pub fn base_entry_rules(fx: &mut impl StoreFixture) {
+    use crate::state::BaseEntry;
+    let mut s = fx.open();
+    ok(s.ensure_scope(&x()), "ensure");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "none").is_none());
+    let blocked = [
+        BlockedRow {
+            id: id("b2"),
+            blocked_by: vec![id("b1"), id("b9"), id("b1")],
+        },
+        BlockedRow {
+            id: id("b2"),
+            blocked_by: vec![id("b9"), id("b8")],
+        },
+        BlockedRow {
+            id: id("b4"),
+            blocked_by: vec![],
+        },
+    ];
+    ok(
+        s.replace_ready_base(&x(), &blocked, &[id("b1"), id("b3")], &ts(T0)),
+        "replace",
+    );
+    let base = ok(s.ready_base(&x()), "base").unwrap_or_else(missing);
+    for bead in ["b1", "b2", "b3", "b4", "nobody"] {
+        let got = ok(s.base_entry(&x(), &id(bead)), "entry").unwrap_or_else(missing);
+        assert_eq!(got, BaseEntry::of(&base, &id(bead)), "{bead}");
+    }
+    let b2 = ok(s.base_entry(&x(), &id("b2")), "b2").unwrap_or_else(missing);
+    assert_eq!(b2.blocked_by, vec![id("b1"), id("b9"), id("b8")]);
+    assert_eq!((b2.fetched_at.as_str(), b2.stale), (T0, false));
+    assert!(
+        ok(s.base_entry(&x(), &id("b4")), "b4").is_some_and(|e| e.blocked_by.is_empty()),
+        "an empty blocker list is not blocked"
+    );
+    ok(s.mark_ready_base_stale(&x()), "mark");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "stale").is_some_and(|e| e.stale));
+    ok(
+        s.replace_ready_base(&x(), &[], &[id("b2")], &ts(T1)),
+        "replace again",
+    );
+    let again = ok(s.base_entry(&x(), &id("b2")), "again").unwrap_or_else(missing);
+    assert_eq!(
+        (
+            again.blocked_by.len(),
+            again.fetched_at.as_str(),
+            again.stale
+        ),
+        (0, T1, false),
+        "replace drops the old entries"
+    );
+    assert!(ok(s.base_entry(&y(), &id("b2")), "other scope").is_none());
+    ok(s.prune_scope(&x()), "prune");
+    assert!(ok(s.base_entry(&x(), &id("b2")), "pruned").is_none());
+}
+
 /// `applied_since(at)` returns entries applied at or after `at`, in seq order.
 pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
@@ -970,6 +1029,7 @@ macro_rules! store_contract_tests {
             fingerprint_rebuild_rule,
             scopes_persist_across_restarts,
             ready_base_rules,
+            base_entry_rules,
             applied_since_is_inclusive_and_ordered,
             journal_lifecycle,
             resolve_note_without_prior_error,

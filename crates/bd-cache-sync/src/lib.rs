@@ -43,7 +43,7 @@
 //!     fallback_lead: Some("team-lead".into()),
 //!     ..TickConfig::default()
 //! };
-//! let spec = schedule_spec(&cfg, "atm-dev").unwrap();
+//! let spec = schedule_spec(&cfg, "atm-dev", None).unwrap();
 //! assert_eq!(spec.name.as_str(), "bd-cache:atm-dev");
 //! ```
 
@@ -53,24 +53,29 @@ mod active;
 mod announce;
 mod atm;
 mod compose;
+mod control;
 mod job;
 mod phases;
 mod reply;
 mod tick;
 
 #[doc(inline)]
-pub use announce::OUTAGE_CAUSE;
+pub use announce::{AlertCause, OUTAGE_CAUSE};
 #[doc(inline)]
-pub use atm::{AtmSender, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
+pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
 #[doc(inline)]
 pub use compose::{ComposeError, Composed, RealCache, compose, compose_with};
 #[doc(inline)]
-pub use job::{ScheduleError, SyncJob, TICK_EXPR, TickRun, schedule_spec};
+#[doc(inline)]
+pub use control::StopFlag;
+#[doc(inline)]
+pub use job::{STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun, schedule_spec};
 #[doc(inline)]
 pub use phases::{
-    ConfigRefusal, DEFAULT_PHASES_DIR, Phase, PhaseSet, PhasesError, TickSettings, load_phases,
+    ConfigRefusal, DEFAULT_PHASES_DIR, InvalidMember, MAX_PHASE_FILE_BYTES, MAX_PHASE_FILES,
+    MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError, TickSettings, load_phases,
 };
 #[doc(inline)]
-pub use reply::{Announcement, AnnouncementKind, TickOutcome, TickReply};
+pub use reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickOutcome, TickReply};
 #[doc(inline)]
-pub use tick::{TICK_BUDGET, stop_reason, tick};
+pub use tick::{TICK_BUDGET, stop_reason, stop_reason_with, tick, tick_with};

@@ -2,19 +2,22 @@
 //!
 //! [`tick`] is a library entry point: `sc-cron` drives it through
 //! [`SyncJob`](crate::SyncJob), and an external scheduler (the ATM cron
-//! module, through the later `bdc tick`) can call it directly. Only one
-//! ticker may run per cache file.
+//! module, through the later `bdc tick`) can call it. Only one ticker may run
+//! per cache file. Time is read from the cache's own clock
+//! ([`Cache::clock`]), so the deadlines and the budget margins are on one
+//! timeline with the backend's calls.
 
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, EscalationSender, HARD_MARGIN, TickConfig,
 };
-use sc_beads::{CacheBackend, Clock, Deadline};
+use sc_beads::{CacheBackend, Deadline};
 
 use crate::active::active_phases;
 use crate::announce;
+use crate::control::{Budget, StopFlag};
 use crate::phases::{Phase, TickSettings, load_phases};
-use crate::reply::TickReply;
+use crate::reply::{Refusal, TickReply};
 
 /// The budget of one tick (BD-CACHE.md, Cron module): the schedule's run
 /// timeout, and so the distance from a run's start to its end `T`.
@@ -25,7 +28,8 @@ pub const TICK_BUDGET: std::time::Duration = std::time::Duration::from_secs(25);
 /// In order:
 ///
 /// 1. the `[tick]` table is validated; a missing team or fallback lead, or a
-///    malformed phase list, is refused before any work (REQ-BDC-0701, 0702);
+///    malformed or empty phase list, is refused before any work
+///    (REQ-BDC-0701, 0702);
 /// 2. the journal is drained with `DrainBudget { start_gate: T - 5 s, hard:
 ///    T - 2 s }` (REQ-BDC-0703);
 /// 3. the phase files are read and each phase's root decides whether it is
@@ -35,15 +39,17 @@ pub const TICK_BUDGET: std::time::Duration = std::time::Duration::from_secs(25);
 /// 5. a sync failure whose cause differs from the phase's alert is sent to
 ///    its lead, a success clears the alert (REQ-BDC-0704);
 /// 6. an outage is announced through the per-scope alert
-///    `backend_unavailable`, and the alerts are reset when it ends
-///    (REQ-BDC-0704, ADR-BDC-0005);
+///    `backend_unavailable` to the leads of the active phases and of the
+///    phases whose root could not be read, and the alerts are reset when it
+///    ends (REQ-BDC-0704, ADR-BDC-0005);
 /// 7. every escalated entry not yet announced is sent to its phase's lead
 ///    with the `resolve` command, then marked (REQ-BDC-0705).
 ///
-/// The reply is `refused` when anything was refused or not delivered, and
-/// the next tick retries it (REQ-BDC-0706). `clock` must be the clock the
-/// cache and its backend share, so the deadlines and the budget margins are
-/// measured on one timeline.
+/// Steps 5 to 7 send within the time left before `T`: a message with less
+/// than half a second left is not started and is counted in
+/// [`TickReply::unsent`]; it stays unmarked and the next tick sends it. The
+/// reply is `refused` when anything was refused or not delivered, and the next
+/// tick retries it (REQ-BDC-0706).
 ///
 /// # Errors
 ///
@@ -54,7 +60,6 @@ pub const TICK_BUDGET: std::time::Duration = std::time::Duration::from_secs(25);
 ///
 /// ```
 /// use std::sync::Arc;
-/// use std::time::Duration;
 /// use bd_cache::Cache;
 /// use bd_cache_model::testing::{FakeDrainLock, FakeStore};
 /// use bd_cache_model::{CacheConfig, SendError, TickConfig};
@@ -77,28 +82,51 @@ pub const TICK_BUDGET: std::time::Duration = std::time::Duration::from_secs(25);
 /// }
 /// // Without a team the tick is refused and does nothing.
 /// let end = Deadline::after(&*clock, TICK_BUDGET);
-/// let reply = tick(&mut cache, &TickConfig::default(), &Mute, &*clock, end).unwrap();
+/// let reply = tick(&mut cache, &TickConfig::default(), &Mute, end).unwrap();
 /// assert_eq!(reply.outcome, TickOutcome::Refused);
 /// ```
 pub fn tick<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     config: &TickConfig,
     sender: &dyn EscalationSender,
-    clock: &dyn Clock,
     end: Deadline,
 ) -> Result<TickReply, CacheError> {
-    let settings = match TickSettings::from_config(config) {
-        Ok(settings) => settings,
-        Err(refusal) => return Ok(TickReply::refused_with(refusal.to_string())),
+    match TickSettings::from_config(config) {
+        Ok(settings) => tick_with(cache, &settings, sender, end, &StopFlag::new()),
+        Err(refusal) => Ok(TickReply::refused_with(refusal.into())),
+    }
+}
+
+/// [`tick`] over settings that are already validated, and with a stop flag.
+///
+/// The flag is checked between phases and before every message; a tick that
+/// finds it set ends early with [`TickReply::stopped`] and leaves what it
+/// did not send unmarked.
+///
+/// # Errors
+///
+/// As [`tick`].
+pub fn tick_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &mut Cache<S, L, B>,
+    settings: &TickSettings,
+    sender: &dyn EscalationSender,
+    end: Deadline,
+    stop: &StopFlag,
+) -> Result<TickReply, CacheError> {
+    let clock = cache.clock();
+    let budget = Budget {
+        clock: &*clock,
+        end,
+        stop,
     };
     let mut reply = TickReply::started();
 
     reply.drain = Some(cache.drain(&DrainBudget::before_tick_end(end))?);
 
-    let phases = read_phases(&settings, &mut reply);
-    let active = active_phases(cache, &phases, clock, end)?;
+    let phases = read_phases(settings, &mut reply);
+    let active = active_phases(cache, &phases, end)?;
     reply.active = active.active.iter().map(|p| p.name.clone()).collect();
-    reply.unreadable_roots = active.unreadable;
+    reply.unreadable_roots = active.unreadable.iter().map(|p| p.name.clone()).collect();
 
     let gate = Deadline::at(
         end.instant()
@@ -106,7 +134,11 @@ pub fn tick<S: CacheStore, L: DrainLock, B: CacheBackend>(
             .unwrap_or_else(|| end.instant()),
     );
     for phase in &active.active {
-        if gate.expired(clock) {
+        if stop.is_stopped() {
+            reply.stopped = true;
+            break;
+        }
+        if gate.expired(&*clock) {
             reply.deferred.push(phase.name.clone());
             continue;
         }
@@ -119,19 +151,25 @@ pub fn tick<S: CacheStore, L: DrainLock, B: CacheBackend>(
                 reply.synced.push(report);
             }
             Err(error @ CacheError::SyncFailed { .. }) => {
-                announce::sync_failure(cache, sender, &settings, phase, &error, &mut reply)?;
+                announce::sync_failure(
+                    cache, sender, settings, &budget, phase, &error, &mut reply,
+                )?;
             }
             Err(other) => return Err(other),
         }
     }
 
-    let targets: Vec<&Phase> = if active.active.is_empty() {
-        phases.iter().collect()
-    } else {
-        active.active.iter().collect()
-    };
-    announce::outage(cache, sender, &settings, &targets, &phases, &mut reply)?;
-    announce::escalations(cache, sender, &settings, &phases, &mut reply)?;
+    // The leads of the phases that are active or whose root could not be
+    // read; never a phase known to be closed (ADR-SYNC-0003).
+    let targets: Vec<&Phase> = active
+        .active
+        .iter()
+        .chain(active.unreadable.iter())
+        .collect();
+    announce::outage(
+        cache, sender, settings, &budget, &targets, &phases, &mut reply,
+    )?;
+    announce::escalations(cache, sender, settings, &budget, &phases, &mut reply)?;
     Ok(reply.finish())
 }
 
@@ -140,14 +178,13 @@ pub fn tick<S: CacheStore, L: DrainLock, B: CacheBackend>(
 fn read_phases(settings: &TickSettings, reply: &mut TickReply) -> Vec<Phase> {
     match load_phases(settings.phases_dir(), settings.only()) {
         Ok(set) => {
-            reply.refused.extend(set.problems);
+            reply
+                .refused
+                .extend(set.problems.into_iter().map(Refusal::from));
             set.phases
         }
         Err(e) => {
-            reply.refused.push(format!(
-                "{e}: {}",
-                std::error::Error::source(&e).map_or_else(String::new, ToString::to_string)
-            ));
+            reply.refused.push(e.refusal());
             Vec::new()
         }
     }
@@ -160,7 +197,8 @@ fn read_phases(settings: &TickSettings, reply: &mut TickReply) -> Vec<Phase> {
 /// configuration that would be refused, an unreadable phases directory or
 /// phase file, a root that cannot be read, and a store that cannot be asked
 /// all answer `None` (keep going), so an outage or a typo cannot end the
-/// schedule (ADR-SYNC-0004).
+/// schedule (ADR-SYNC-0004). `end` bounds the one `bd list --id` of uncached
+/// roots.
 ///
 /// # Errors
 ///
@@ -188,24 +226,36 @@ fn read_phases(settings: &TickSettings, reply: &mut TickReply) -> Vec<Phase> {
 /// .unwrap();
 /// // A configuration the tick would refuse never stops the schedule.
 /// let end = Deadline::after(&*clock, TICK_BUDGET);
-/// assert_eq!(stop_reason(&mut cache, &TickConfig::default(), &*clock, end).unwrap(), None);
+/// assert_eq!(stop_reason(&mut cache, &TickConfig::default(), end).unwrap(), None);
 /// ```
 pub fn stop_reason<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     config: &TickConfig,
-    clock: &dyn Clock,
     end: Deadline,
 ) -> Result<Option<String>, CacheError> {
     let Ok(settings) = TickSettings::from_config(config) else {
         return Ok(None);
     };
+    stop_reason_with(cache, &settings, end)
+}
+
+/// [`stop_reason`] over settings that are already validated.
+///
+/// # Errors
+///
+/// As [`stop_reason`].
+pub fn stop_reason_with<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &mut Cache<S, L, B>,
+    settings: &TickSettings,
+    end: Deadline,
+) -> Result<Option<String>, CacheError> {
     let Ok(set) = load_phases(settings.phases_dir(), settings.only()) else {
         return Ok(None);
     };
     if !set.problems.is_empty() {
         return Ok(None);
     }
-    let active = active_phases(cache, &set.phases, clock, end)?;
+    let active = active_phases(cache, &set.phases, end)?;
     if !active.active.is_empty() || !active.unreadable.is_empty() {
         return Ok(None);
     }

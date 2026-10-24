@@ -5,16 +5,16 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bd_cache_model::{
-    CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry, JournalState,
-    NewEntry, OpenWork, Outage, PruneReport, ReadyBase, RepoConfig, ScopeId, ScopeStatus, Seq,
-    StoreStatus, SyncState, UpsertReport, phase_of, precondition_json,
+    BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry,
+    JournalState, NewEntry, OpenWork, Outage, PruneReport, ReadyBase, RepoConfig, ScopeId,
+    ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, phase_of, precondition_json,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::codec::{
     JOURNAL_COLUMNS, JournalRow, bead_id, decode_edge, decode_ready, decode_row, encode_ready,
-    encode_row, is_newer, opt_timestamp, scope, timestamp,
+    encode_row, index_blocked, is_newer, opt_timestamp, scope, timestamp,
 };
 use crate::error::{Step, corrupt, failed};
 use crate::location::{CacheLocation, DatabaseIdentity};
@@ -607,17 +607,72 @@ impl CacheStore for SqliteStore {
         ready: &[BeadId],
         at: &Timestamp,
     ) -> Result<(), CacheError> {
-        let (blocked, ready) = encode_ready(self.at("replace a ready base"), blocked, ready)?;
+        let step = self.at("replace a ready base");
+        let (blocked_json, ready_json) = encode_ready(step, blocked, ready)?;
+        let index = index_blocked(step, blocked)?;
         self.write("replace a ready base", |tx, st| {
             tx.prepare_cached(
                 "INSERT OR REPLACE INTO ready_base(scope, blocked_json, ready_json, fetched_at, \
-                 stale) VALUES (?1, ?2, ?3, ?4, 0)",
+                 stale, indexed) VALUES (?1, ?2, ?3, ?4, 0, 1)",
             )
             .at(st)?
-            .execute([s.name(), &blocked, &ready, at.as_str()])
+            .execute([s.name(), &blocked_json, &ready_json, at.as_str()])
             .at(st)?;
+            tx.prepare_cached("DELETE FROM ready_base_blocked WHERE scope = ?1")
+                .at(st)?
+                .execute([s.name()])
+                .at(st)?;
+            let mut insert = tx
+                .prepare_cached(
+                    "INSERT INTO ready_base_blocked(scope, bead, blocked_by_json) VALUES (?1, ?2, ?3)",
+                )
+                .at(st)?;
+            for (bead, json) in &index {
+                insert.execute([s.name(), bead.as_str(), json.as_str()]).at(st)?;
+            }
             Ok(())
         })
+    }
+
+    fn base_entry(&self, s: &ScopeId, id: &BeadId) -> Result<Option<BaseEntry>, CacheError> {
+        let at = self.at("read a ready base entry");
+        let head: Option<(String, i64, Option<i64>)> = self
+            .conn
+            .prepare_cached("SELECT fetched_at, stale, indexed FROM ready_base WHERE scope = ?1")
+            .at(at)?
+            .query_row([s.name()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .optional()
+            .at(at)?;
+        let Some((fetched_at, stale, indexed)) = head else {
+            return Ok(None);
+        };
+        if indexed != Some(1) {
+            // A base stored before the index existed: read it whole.
+            return Ok(self.ready_base(s)?.map(|b| BaseEntry::of(&b, id)));
+        }
+        let json: Option<String> = self
+            .conn
+            .prepare_cached(
+                "SELECT blocked_by_json FROM ready_base_blocked WHERE scope = ?1 AND bead = ?2",
+            )
+            .at(at)?
+            .query_row([s.name(), id.as_str()], |r| r.get(0))
+            .optional()
+            .at(at)?;
+        let blocked_by = match json {
+            Some(json) => serde_json::from_str(&json).map_err(|e| {
+                corrupt(
+                    at,
+                    format_args!("ready base blocked_by_json of {id} is not a list of ids: {e}"),
+                )
+            })?,
+            None => Vec::new(),
+        };
+        Ok(Some(BaseEntry {
+            fetched_at: timestamp(at, "ready base fetched_at", &fetched_at)?,
+            stale: stale != 0,
+            blocked_by,
+        }))
     }
 
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {
@@ -891,7 +946,8 @@ impl CacheStore for SqliteStore {
             // registry, alerts and the outage stay (REQ-BDC-0105, ADR-MODEL-0003).
             tx.execute_batch(
                 "DELETE FROM edges; DELETE FROM beads; DELETE FROM scope_member; \
-                 DELETE FROM sync_state; DELETE FROM ready_base;",
+                 DELETE FROM sync_state; DELETE FROM ready_base; \
+                 DELETE FROM ready_base_blocked;",
             )
             .at(st)?;
         }
@@ -1073,6 +1129,7 @@ impl CacheStore for SqliteStore {
             "DELETE FROM journal WHERE phase = ?1",
             "DELETE FROM sync_state WHERE phase = ?1",
             "DELETE FROM ready_base WHERE scope = ?1",
+            "DELETE FROM ready_base_blocked WHERE scope = ?1",
         ] {
             tx.execute(sql, [s.name()]).at(at)?;
         }

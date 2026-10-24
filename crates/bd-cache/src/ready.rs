@@ -75,6 +75,47 @@ pub(crate) fn row_view(view: Bead, freshness: Freshness, adjusted: Option<&Adjus
     }
 }
 
+/// A bead as a read returns it, with its blocked state already settled.
+pub(crate) fn row_view_with(
+    view: Bead,
+    freshness: Freshness,
+    blocked: Option<Vec<BeadId>>,
+) -> RowView {
+    RowView {
+        bead: view,
+        stale: freshness == Freshness::Stale,
+        blocked,
+    }
+}
+
+/// `RowView.blocked` of one view in scope `s`, at a cost that does not grow with the scope.
+///
+/// It equals `adjusted(cache, s)` followed by [`Adjusted::blocked_of`], but
+/// reads only the bead's own entry of the stored base
+/// ([`CacheStore::base_entry`]) when no journal entry can have changed the
+/// base: no pending entry and none applied at or after the base's fetch
+/// instant. Otherwise (a write is in flight, for the few seconds until the
+/// next sync) a blocker's close can unblock any bead, so the whole base is
+/// adjusted. Rows outside the scope have no blocked state.
+pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    s: &ScopeId,
+    view: &Bead,
+) -> Result<Option<Vec<BeadId>>, CacheError> {
+    let Some(entry) = cache.store.base_entry(s, &view.id)? else {
+        return Ok(None);
+    };
+    if !s.holds(view) {
+        return Ok(None);
+    }
+    let untouched = cache.store.pending_entries()?.is_empty()
+        && cache.store.applied_since(&entry.fetched_at)?.is_empty();
+    if untouched {
+        return Ok(Some(entry.blocked_by));
+    }
+    Ok(adjusted(cache, s)?.and_then(|a| a.blocked_of(view)))
+}
+
 /// The registered scope a view belongs to: its v3 phase
 /// ([`ScopeId::from_labels`]) when that scope is known, else the first known
 /// scope that holds the view; `None` for a bead outside every scope.
@@ -276,9 +317,10 @@ fn base_blocked(base: &ReadyBase) -> BTreeMap<BeadId, Vec<BeadId>> {
 
 /// The base's ready ids in bd's order, without repeats.
 fn base_ready(base: &ReadyBase) -> Vec<BeadId> {
+    let mut seen = std::collections::BTreeSet::new();
     let mut ready = Vec::with_capacity(base.ready.len());
     for id in &base.ready {
-        if !ready.contains(id) {
+        if seen.insert(id) {
             ready.push(id.clone());
         }
     }
