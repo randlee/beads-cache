@@ -1,7 +1,6 @@
 # sc-bd-cli Architecture
 
-Status: draft (awaiting lead approval; new crate ids need a ruling before merge).
-Crate-local decisions (domain code `BDCLI`). Repo-level context:
+Status: approved (lead ruling, bc-lead, 2026-10-24). Repo-level
 [`../architecture.md`](../architecture.md), ADR-BDC-0004, ADR-BDC-0005 and
 ADR-BDC-0007; the contract it implements is
 [`../sc-beads/architecture.md`](../sc-beads/architecture.md). Created by sprint a-2.
@@ -25,7 +24,7 @@ dev-dependencies too).
 
 ## ADR-BDCLI-0001: Argv mapping and error classification
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: the cache calls of `sc_beads::CacheBackend` must map to `bd` command
 lines that match the BD-CACHE baseline (REQ-BDC-0201), and every way a `bd`
@@ -60,9 +59,9 @@ Decision, behaviour that bd does not provide itself:
 
 - `close_guarded` with guards reads the bead first (`list_by_ids`) and refuses
   with `Refused(Precondition)` when a guard is unmet, because `bd close` has no
-  `--if-*` flags (bd 1.3.0). This is two calls; a writer can change the bead
+  `--if-*` flags (bd 1.3.0). This is two calls and **not atomic**: a writer can change the bead
   between them. The cache's drain already reads the row before it writes, which
-  bounds the window, and `update_guarded` uses bd's atomic `--if-*` flags. A guarded
+  bounds the window (the drain's precondition re-check on the fresh pre-read row is the safety net), and `update_guarded` uses bd's atomic `--if-*` flags. A guarded
   close of a bead bd does not have is `Failed { code: 1 }` (bd's own exit code for an
   unknown bead), not a refusal.
 - `update_guarded` with an empty patch makes no call: `bd update` with no field
@@ -100,7 +99,7 @@ probes before it fails a running cache.
 
 ## ADR-BDCLI-0002: Deadline-bounded calls beside btit's unbounded ones
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: btit's transport blocks until the child exits (`Command::output()`), which
 is the behaviour REQ-BDC-0906 asks to keep for btit's operations. NFR-BDC-0004 needs
@@ -144,7 +143,7 @@ unbounded exactly as in btit; only the cache calls carry NFR-BDC-0004.
 
 ## ADR-BDCLI-0003: Test doubles, features and edition
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision: the feature keeps btit's name, `test-support` (it enables
 `BdCli::with_invoker`, `CliRunner::with_version_probe` and `testing`, as in

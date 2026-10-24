@@ -534,6 +534,7 @@ fn a_metadata_key_bd_cannot_carry_is_refused_before_any_call() {
 /// Metadata values the validator accepts reach `bd` unchanged and come back from bd's
 /// coercion as the same JSON value; bools are `true` / `false`, never `True`.
 ///
+/// Source of truth: `bd_cache_model::op::meta_value`; this restates its accepted set.
 /// The accepted set is `bd_cache_model::op::meta_value`'s (an int, a bool, or a string
 /// that is not padded with whitespace and does not read as a JSON number, boolean or
 /// null; `bd-cache-model` is not a dependency of this crate, see

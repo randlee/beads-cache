@@ -1,12 +1,12 @@
 # sc-bd-cli Requirements
 
-Status: draft (awaiting lead approval; new crate ids need a ruling before merge).
+Status: approved (lead ruling, bc-lead, 2026-10-24). Crate-local decisions (domain code `BDCLI`).
 Crate-local requirements (domain code `BDCLI`) refining the repo-level ids in
 [`../requirements.md`](../requirements.md). Created by sprint a-2.
 
 ## REQ-BDCLI-0001: btit's CLI transport and bd backend are kept
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `sc-bd-cli` holds `btit-cli` (invoker, runner, probe, per-project locks, issue
 operations) and `btit-bd` (`BdCli`, dolt-mode detection) as they are at
@@ -24,7 +24,7 @@ and the unit tests of the ported modules.
 
 ## REQ-BDCLI-0002: The cache's calls use the baseline command forms
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `BdCli` implements `sc_beads::CacheBackend` over the `bd` CLI. Reads are
 `bd version`, `bd schema` (never `bd context`), `bd list --id a,b,... --status
@@ -46,7 +46,7 @@ the `argv` unit tests; a-1's backend contract suite (`tests/backend_contract.rs`
 
 ## REQ-BDCLI-0003: Every cache call stops at its deadline
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A cache call starts no `bd` when its `Deadline` has passed. Otherwise the child
 runs for at most the time the deadline leaves, counting the wait for the
@@ -65,7 +65,7 @@ of its own (the cache owns the 30 s cap).
 
 ## REQ-BDCLI-0004: Failures are typed
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A cache call's failure is one of: `Refused(Precondition)` (bd exit 13),
 `Unavailable` (timeout with `timed_out`, or bd's report that the database
@@ -73,7 +73,7 @@ server is unreachable), `Btit(Spawn)` (bd cannot be started; counted by
 `is_unavailable()`, with the `io::Error` in the `source` chain), `Btit(SchemaMigration)`,
 `CheckFailed { step }` (a failed `version` or `schema`), `Failed { code, stderr }`
 (any other nonzero exit), or `Contract` (output that breaks the strict row
-contract). A guarded close of a bead that does not exist is `Failed`, not a
+contract). A guarded close is a read then a close, not atomic (ADR-BDCLI-0001). A guarded close of a bead that does not exist is `Failed`, not a
 refusal.
 
 **Refines:** NFR-BDC-0004, REQ-BDC-0007, ADR-BDC-0005
@@ -87,7 +87,7 @@ the `cache` unit tests.
 
 ## REQ-BDCLI-0005: Test doubles need no bd
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 With the `test-support` feature the crate offers `RecordingInvoker` (scripted
 replies, recorded argv) and `FakeBd`, an invoker that parses the argv as `bd`
@@ -102,7 +102,7 @@ suite.
 
 ## REQ-BDCLI-0006: Live probes run only on a scratch workspace
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `tests/live.rs` is `#[ignore]`d and returns at once unless `SC_BD_LIVE=1`; with it,
 it refuses a workspace that lacks the marker `scripts/bd-compat/setup-scratch.sh`
@@ -119,7 +119,7 @@ record in the sprint document).
 
 ## REQ-BDCLI-0007: A bd release is checked by workflow
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `.github/workflows/bd-compat.yml`, triggered by `repository_dispatch`
 (`beads-release`, payload `{"version": ...}`) or `workflow_dispatch`, installs the
@@ -135,7 +135,7 @@ the sprint document).
 
 ## REQ-BDCLI-0008: Publish-ready
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `cargo package -p sc-bd-cli --list` succeeds and the crate carries license,
 description, repository and readme. A full `cargo publish --dry-run` waits until

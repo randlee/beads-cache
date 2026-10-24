@@ -200,10 +200,11 @@ impl FakeBd {
 - ADR-BEADS-0001..0004 are binding contract decisions this crate implements against:
   the verbatim port and `tracing` logging, `BeadsCacheError`, the strict rows and the
   recorded P-6 probe.
-- Crate ids `REQ-BDCLI-0001..0008` and `ADR-BDCLI-0001..0003` are Draft, awaiting the
-  lead's ruling (`docs/sc-bd-cli/`).
+- Crate ids `REQ-BDCLI-0001..0008` and `ADR-BDCLI-0001..0003` are Approved (lead ruling, bc-lead, 2026-10-24; `docs/sc-bd-cli/`).
 
-## Deviations and rulings requested
+## Deviations (all 7 accepted, lead ruling bc-lead 2026-10-24)
+
+Item 3: `run_bounded` is a provided method; note it for btit adoption. Item 4: not atomic; the drain's precondition re-check on the fresh pre-read row is the safety net. Item 7 (btit paths unbounded, cache calls bounded) is accepted as ADR-BDCLI-0002 states.
 
 1. **Cannot-start is `Btit(Spawn)`, not `Unavailable`.** Deliverable 3 says
    cannot-start maps to `Unavailable`. `BeadsCacheError::Unavailable` carries only a
@@ -333,3 +334,7 @@ on Windows only: the schema copy used by `FakeBd` was checked out with CRLF and 
 sha differed. The copy moved to `crates/sc-bd-cli/tests/fixtures/`, which
 `.gitattributes` pins to LF. Code evidence above is unchanged by that move apart from
 this path (re-run: all sc-bd-cli tests pass).
+
+### Deferred
+
+The real `workflow_dispatch` (and `repository_dispatch`) run happens after develop to main at phase close-out; a-7 / close-out owns it. The proof-branch runs above are accepted as evidence.
