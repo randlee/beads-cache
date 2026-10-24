@@ -94,14 +94,18 @@ handle raises `RuntimeError`. None of them touches the store.
 
 **Status:** Draft
 
-The handle is `unsendable`: it owns one store connection and is used only from
-the thread that created it (another thread gets PyO3's `PanicException`, which
-names the class as unsendable). Each verb releases the GIL while it runs, so
-other Python threads continue while a verb waits on `bd` or SQLite.
+The handle keeps the `Cache` behind a mutex (ADR-CORE-0001: a `Cache` is
+`!Sync`, so a shared owner guards it). Any Python thread may call a verb,
+close the handle or drop it; verbs run one at a time, and no cross-thread use
+panics. Each verb releases the GIL while it waits for the lock and while it
+runs, so other Python threads continue while a verb waits on `bd` or SQLite.
 
 **Refines:** REQ-BDC-0910, ADR-CORE-0001
 **Acceptance evidence:** `test_other_python_threads_run_while_a_verb_waits_on_bd`,
-`test_the_handle_is_unsendable`, `test_each_thread_can_own_a_cache_over_its_own_file`.
+`test_any_thread_can_use_the_handle_and_none_panics`,
+`test_verbs_from_several_threads_run_one_at_a_time_without_error`,
+`test_a_handle_can_be_closed_and_dropped_on_another_thread`,
+`test_a_handle_dropped_on_another_thread_does_not_panic`.
 
 ## REQ-PY-0007: Ready through the binding
 

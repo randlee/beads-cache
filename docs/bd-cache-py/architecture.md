@@ -77,20 +77,26 @@ Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its
 
 Context: ADR-CORE-0001: a `Cache` is `Send`, `!Sync`, owns one connection,
 and every verb is synchronous. A verb can wait on `bd` for up to its deadline.
+The first draft made the handle `#[pyclass(unsendable)]`; a handle touched or
+dropped on another thread then panicked inside PyO3 (seen on CI: a test thread,
+and a Python object freed by whichever thread held the last reference).
+That cannot be allowed for an object a scheduler may hand between threads.
 
-Decision: `Cache` is `#[pyclass(unsendable)]`. It is created and used on one
-Python thread; PyO3 panics (`pyo3_runtime.PanicException`, a
-`BaseException`) when another thread touches it or drops it. Every verb
-runs its Rust call inside `Python::detach`, so the GIL is free while the
-call waits on `bd` or SQLite; replies are converted after the GIL is taken
-again. A scheduler that wants several threads gives each thread its own
-`Cache` over a different cache file, or keeps one handle on one thread
-(SQLite allows one connection per process per file, NFR-BDC-0007, so a second
-open of the same file in the process is `STORE_FAILED`). Across processes
-the flock drain lock admits one drainer.
+Decision (amends the sprint doc's "unsendable" wording, per lead ruling of
+2026-10-24 on PR #11): the handle owns `Mutex<Option<Inner>>`, the "behind
+their own mutex" option ADR-CORE-0001 names. The handle is `Send + Sync` to
+PyO3; any thread may call a verb, `close()` or drop it. Verbs run one at a
+time. Every verb takes the lock and runs inside `Python::detach`, so a thread
+waiting for the lock or for `bd` holds no GIL. A poisoned lock (a verb panicked)
+is recovered: a store transaction is whole or rolled back, so the next verb
+starts clean. Replies are converted after the GIL is taken again. SQLite
+allows one connection per process per file (NFR-BDC-0007), so a second open
+of the same file in the process is `STORE_FAILED`; threads that want to run
+verbs in parallel open different files.
 
-Consequences: no internal lock and no background thread; a Python thread
-that blocks on a verb does not block the others.
+Consequences: no background thread, no unsafe, no panic path for cross-thread
+use. A long verb blocks other threads' verbs on the same handle (not their
+Python code).
 
 ## ADR-PY-0004: Packaging, naming and test strategy
 
@@ -195,4 +201,4 @@ the same operations through the handle.
 - The two implementations must never drain the same journal at the same time
   (phase plan, atm-bd adoption and cutover): stop the Python cron before the
   bindings' `drain` runs.
-- The handle is not thread-safe by design (ADR-PY-0003).
+- Verbs on one handle run one at a time, whatever the thread (ADR-PY-0003).
