@@ -71,12 +71,3 @@ fn drain_lock_child() {
     let _ = std::io::stdin().read_to_end(&mut sink);
     drop(guard);
 }
-
-#[test]
-fn a_guard_dropped_on_another_thread_releases_the_lock() {
-    let tmp = TempDir::new("lock-thread");
-    let lock = FlockDrainLock::for_cache_file(&tmp.path().join("t.bd-cache.sqlite3"));
-    let guard = lock.try_acquire().unwrap().unwrap();
-    std::thread::spawn(move || drop(guard)).join().unwrap();
-    assert!(lock.try_acquire().unwrap().is_some());
-}

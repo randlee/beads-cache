@@ -9,8 +9,8 @@
 
 mod common;
 
-use bd_cache_model::{CacheStore, IdemKey, NewEntry, Op, ScopeId, normalize};
-use bd_cache_store::SqliteStore;
+use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, ScopeId, normalize};
+use bd_cache_store::{FlockDrainLock, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
 use sc_beads::testing::{actor, edge, id};
@@ -346,4 +346,16 @@ fn undecodable_stored_values_are_errors_not_skipped() {
     assert!(err.detail().contains("b1"), "{}", err.detail());
     let err = store.pending_entries().unwrap_err();
     assert!(err.detail().contains("created_at"), "{}", err.detail());
+}
+
+/// In this binary because it spawns no processes: a child forked by another
+/// test thread holds a copy of every open descriptor until it execs, which
+/// would keep a just-dropped lock held for that instant.
+#[test]
+fn a_guard_dropped_on_another_thread_releases_the_lock() {
+    let tmp = TempDir::new("lock-thread");
+    let lock = FlockDrainLock::for_cache_file(&tmp.path().join("t.bd-cache.sqlite3"));
+    let guard = lock.try_acquire().unwrap().unwrap();
+    std::thread::spawn(move || drop(guard)).join().unwrap();
+    assert!(lock.try_acquire().unwrap().is_some());
 }

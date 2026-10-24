@@ -90,8 +90,9 @@ opens its own handle, so the lock is not reentrant; dropping the guard, or
 the process ending, releases it.
 
 **Refines:** REQ-BDC-0401
-**Acceptance evidence:** `two_processes_contend_for_the_drain_lock`,
-`a_guard_dropped_on_another_thread_releases_the_lock` (`drain_lock.rs`),
+**Acceptance evidence:** `two_processes_contend_for_the_drain_lock`
+(`drain_lock.rs`), `a_guard_dropped_on_another_thread_releases_the_lock`
+(`store.rs`),
 `drain_lock_is_exclusive` (contract suite),
 `the_python_and_rust_drain_locks_exclude_each_other` (`compat.rs`, Unix).
 

@@ -17,7 +17,10 @@ use crate::error::{Step, failed};
 /// [`try_acquire`](DrainLock::try_acquire) opens its own file handle, so two
 /// handles on one path contend even inside one process, and the lock is not
 /// reentrant. The guard holds the open file; dropping it closes the file,
-/// which releases the lock (also when the process dies).
+/// which releases the lock (also when the process dies). As with any `flock`,
+/// a child process forked at that instant by another thread holds a copy of
+/// the descriptor until it execs (Rust opens files close-on-exec), so the
+/// release can lag a spawn on another thread by that long.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FlockDrainLock {
     path: PathBuf,
