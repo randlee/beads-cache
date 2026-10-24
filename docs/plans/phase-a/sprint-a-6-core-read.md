@@ -142,13 +142,12 @@ Crate tests and lints; `cargo build --workspace`.
   in `FakeStore`.
 - REQ-BDC-0603 and deliverable 7 ("`status` reports each scope's
   `last_ok_at`, stale rows and the outage"): `last_ok_at` and the outage are
-  reported; stale rows are not yet, because a-1's `StatusReply` is
-  `{ store: StoreStatus }` and `StoreStatus` has no stale-row field.
-  **Open item** (R2, lead ruling, bc-lead, 2026-10-24): the lead adds
-  `stale: Vec<BeadId>` to `StoreStatus`, filled from
-  `CacheStore::stale_rows`, in a-1 amendment 1 (`sprint/a-1-amend-1`).
-  Once it is merged into `integrate/phase-a`, a-6 merges it and fills and
-  tests the field. Until then this part of deliverable 7 is not closed.
+  reported, and so are stale rows: a-1 amendment 1 (R2, lead ruling,
+  bc-lead, 2026-10-24; merged into `integrate/phase-a` at `f3a4a40` and
+  into this branch) added `StoreStatus.stale: Vec<BeadId>`, which the store
+  fills from `CacheStore::stale_rows`. `status` passes it through
+  (ADR-CORE-0205). Closed by
+  `status_reports_stale_rows_until_a_sync_rereads_them`.
 - Deliverable 6 (announcement passthroughs) was implemented by a-1 in
   `lib.rs` (ADR-CORE-0002); a-6 adds its tests
   (`announcement_state_passes_through_to_the_store`). The passthroughs serve
@@ -198,13 +197,14 @@ Crate tests and lints; `cargo build --workspace`.
 | Entries vs `fetched_at` | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `escalated_entries_do_not_adjust_the_base` |
 | Rules table rows (ADR-CORE-0201) | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_update_to_closed_is_a_close`, `rule_close_or_status_change_of_the_bead_itself_leaves_ready`, `rule_reopen_from_closed_blocks_the_dependers_again`, `rule_reopen_brings_back_the_beads_own_blockers`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing`, `rule_parent_unblock_releases_the_children`, `rule_parent_block_blocks_the_children`, `a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked` |
 | REQ-BDC-0912 | `bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage` |
-| Deliverable 6 (REQ-BDC-0604, 0704, 0705, 0707) | `announcement_state_passes_through_to_the_store`; `status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage` (deliverable 7) |
+| Deliverable 6 (REQ-BDC-0604, 0704, 0705, 0707) | `announcement_state_passes_through_to_the_store` |
+| Deliverable 7 (REQ-BDC-0603) | `status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage`, `status_reports_stale_rows_until_a_sync_rereads_them` |
 | Planted bugs | below |
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `131b8570ccc78021b2d814c51f1c58257c2637ae` (after the R4 change and the
-merge of `integrate/phase-a` at `60e630f`), the last commit that changes code (later commits change documents only). Each mutation was
+Run on commit `8c86f4e5f00ee135c2e3bfd68d7c1bf7b9f7e719` (fix-a-6-1, after merging
+`integrate/phase-a` at `f3a4a40`), the last commit that changes code (later commits change documents only). Each mutation was
 applied to the working tree by a script (one literal replacement, checked to
 match exactly once), the whole `bd-cache` suite was run, and the file was
 restored:
@@ -231,14 +231,15 @@ deliverable.
 | sync: a cut not reported deferred | `crates/bd-cache/src/sync.rs` | 101 | no | `a_cut_sync_reports_deferred_and_changes_no_alert` |
 | sync: a failed base fetch not marked stale | `crates/bd-cache/src/sync.rs` | 101 | no | `a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale` |
 | sync: no on-demand scope registration | `crates/bd-cache/src/sync.rs` | 101 | no | `sync_then_list_of_an_unconfigured_phase_works` |
-| ready: close does not release dependers | `crates/bd-cache/src/ready.rs` | 101 | no | `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `rule_parent_unblock_releases_the_children`, `rule_update_to_closed_is_a_close`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
+| ready: close does not release dependers | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base`, `rule_parent_unblock_releases_the_children`, `rule_update_to_closed_is_a_close`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
 | ready: Update to closed is not a close | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_update_to_closed_is_a_close` |
 | ready: status change keeps the bead ready | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_close_or_status_change_of_the_bead_itself_leaves_ready` |
 | ready: no reopen rule | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_reopen_brings_back_the_beads_own_blockers`, `rule_reopen_from_closed_blocks_the_dependers_again`, `with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once` |
-| ready: no dep_add rule | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_parent_block_blocks_the_children` |
+| ready: no dep_add rule | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_blocking_dep_add_onto_an_open_target_blocks_the_bead`, `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead`, `rule_parent_block_blocks_the_children` |
 | ready: an uncached dep_add target does not block | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead` |
-| ready: no parent block | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_parent_block_blocks_the_children` |
+| ready: no parent block | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child`, `rule_parent_block_blocks_the_children` |
 | ready: no parent unblock | `crates/bd-cache/src/ready.rs` | 101 | no | `rule_parent_unblock_releases_the_children` |
+| ready: pending dep_add edges missing from the incoming edges | `crates/bd-cache/src/ready.rs` | 101 | no | `a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked`, `a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child` |
 | ready: entries applied after the fetch ignored | `crates/bd-cache/src/ready.rs` | 101 | no | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base` |
 | ready: entries applied before the fetch replayed | `crates/bd-cache/src/ready.rs` | 101 | no | `only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base` |
 | ready: a fresh failure is an error, no fallback | `crates/bd-cache/src/ready.rs` | 101 | no | `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`, `bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage`, `no_base_and_no_fresh_answer_is_unknown` |
@@ -246,12 +247,13 @@ deliverable.
 | ready: a fresh answer does not refresh the base | `crates/bd-cache/src/ready.rs` | 101 | no | `bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base` |
 | ready/list: an unknown scope is answered | `crates/bd-cache/src/ready.rs` | 101 | no | `list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes`, `ready_of_an_unknown_scope_is_scope_unknown`, `sync_then_list_of_an_unconfigured_phase_works` |
 | rows outside the scope get a blocked state | `crates/bd-cache/src/ready.rs` | 101 | no | `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows` |
+| status: stale rows dropped | `crates/bd-cache/src/status.rs` | 101 | no | `status_reports_stale_rows_until_a_sync_rereads_them` |
 | refresh: not forced | `crates/bd-cache/src/refresh.rs` | 101 | no | `refresh_reads_fresh_rows_past_a_stale_cache_and_returns_them_with_the_overlay` |
 | refresh: an unrequested bead is stored | `crates/bd-cache/src/refresh.rs` | 101 | no | `a_bad_row_in_a_refresh_or_miss_fill_stores_nothing` |
 | list: no overlay | `crates/bd-cache/src/list.rs` | 101 | no | `list_filters_by_status_and_label_on_the_view`, `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows` |
 | list: status filter dropped | `crates/bd-cache/src/list.rs` | 101 | no | `list_filters_by_status_and_label_on_the_view` |
 
-Every one of the 29 bugs fails at least one test, none by a compile error,
+Every one of the 31 bugs fails at least one test, none by a compile error,
 and every mutated source file was restored after the run (only this
 document's uncommitted edits remained). In a dry run before the evidence
 commit, "rows outside the scope get a blocked state" survived, which showed
@@ -259,7 +261,9 @@ a missing case (a listed row whose view a pending write moves out of the
 scope). The case was added to
 `rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows`.
 A first "status filter dropped" mutant was equivalent to the original code
-and was replaced by the one above.
+and was replaced by the one above. fix-a-6-1 added two: "pending dep_add
+edges missing from the incoming edges" (QA-001) and "status: stale rows
+dropped" (R2).
 
 Contract suites: `tests/sync_contract.rs` runs a-1's `CacheBackend`
 contract suite (`backend_contract_tests!`, 9 rules) against
@@ -268,7 +272,7 @@ store contract suite does not apply, because a-6 implements no `CacheStore`.
 
 ## Validation
 
-At `131b857`, locally (macOS), after merging `integrate/phase-a`:
+At `8c86f4e`, locally (macOS), after merging `integrate/phase-a` at `f3a4a40`:
 
 | Gate | Result |
 |---|---|
@@ -276,7 +280,7 @@ At `131b857`, locally (macOS), after merging `integrate/phase-a`:
 | `cargo clippy --workspace --all-targets --all-features -- -D warnings` | pass |
 | `cargo clippy --workspace --lib -- -D warnings` | pass |
 | `RUSTDOCFLAGS=-D warnings cargo doc --workspace --no-deps` | pass |
-| `cargo test --workspace --all-features` | pass (392 tests; `bd-cache` 82) |
+| `cargo test --workspace --all-features` | pass (397 tests; `bd-cache` 85) |
 | `cargo build --workspace` | pass |
 
 CI: recorded on the PR.

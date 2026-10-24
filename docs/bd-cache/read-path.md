@@ -303,8 +303,7 @@ repeat them, so there is one implementation of each rule. The planted bugs
 "prune ignores escalated" and "resolve accepts any state" are therefore
 planted in `FakeStore` and caught by the core's tests.
 
-Consequences: `status` reports only what `StoreStatus` holds. The stale-row
-list REQ-BDC-0603's sprint text asks for gets a field in a-1 amendment 1
-(`StoreStatus.stale: Vec<BeadId>`, filled from `CacheStore::stale_rows`;
-lead ruling, bc-lead, 2026-10-24); a-6 fills and tests it once that
-amendment is on `integrate/phase-a` (open item in the sprint doc).
+Consequences: `status` reports what `StoreStatus` holds, including the
+stale rows (`StoreStatus.stale`, filled by the store from
+`CacheStore::stale_rows`; a-1 amendment 1, lead ruling, bc-lead,
+2026-10-24), tested by `status_reports_stale_rows_until_a_sync_rereads_them`.
