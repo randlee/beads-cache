@@ -245,7 +245,9 @@ fn drain(pipe: Option<impl std::io::Read + Send + 'static>) -> std::sync::mpsc::
 /// Runs the test `name` of this binary in a child process configured by
 /// `configure`, with [`CHILD_MARK`] set; asserts it ran that one case and
 /// passed. Its stdout and stderr are drained while it runs; it is killed
-/// after [`CHILD_LIMIT`]; either failure prints both (FTQ-031).
+/// after [`CHILD_LIMIT`]; either failure prints both (FTQ-031), or, for a
+/// stream whose reader did not finish within 10 s after the exit, a
+/// placeholder that says so (QA10-003).
 #[cfg(unix)]
 fn run_case_in_child(name: &str, configure: impl FnOnce(&mut std::process::Command)) {
     use std::process::{Command, Stdio};
@@ -276,11 +278,18 @@ fn run_case_in_child(name: &str, configure: impl FnOnce(&mut std::process::Comma
     };
     // After an exit the pipes close at once; after a kill, a grandchild could
     // hold them, so the wait for the readers is bounded too.
+    // A reader that does not finish in time is named in its stream's place,
+    // not shown as empty output (QA10-003).
     let grace = Duration::from_secs(10);
-    let read = |rx: &std::sync::mpsc::Receiver<Vec<u8>>| {
-        String::from_utf8_lossy(&rx.recv_timeout(grace).unwrap_or_default()).into_owned()
+    let read = |rx: &std::sync::mpsc::Receiver<Vec<u8>>, stream: &str| match rx.recv_timeout(grace)
+    {
+        Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+        Err(_) => format!(
+            "<{stream} reader did not finish within {}s>",
+            grace.as_secs()
+        ),
     };
-    let (out, err) = (read(&stdout), read(&stderr));
+    let (out, err) = (read(&stdout, "stdout"), read(&stderr, "stderr"));
     let Some(status) = status else {
         panic!(
             "the child test did not finish within {CHILD_LIMIT:?}\nstdout:\n{out}\nstderr:\n{err}"

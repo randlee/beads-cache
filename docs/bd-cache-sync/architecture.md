@@ -20,7 +20,7 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `control` | `StopFlag` and the tick's time budget for messages |
 | `job` | `SyncJob` (the `sc-cron` `Job`), `TickRun`, `schedule_spec`, `TICK_EXPR` |
 | `atm` | `AtmSender`: `atm send` with the body on stdin, bounded, the whole process tree killed on timeout or stop |
-| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both (empty is unset, relative is absolute against the process's working directory; S44), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
+| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir` (`sync_beads_dir_unresolvable`, the `io::Error` as source) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
 
@@ -386,7 +386,7 @@ write waits for the store's write lock at most the time left before `T`
 (ADR-SYNC-0003, S33 amendment). A marker not written in time is sent again
 next tick.
 
-Amendment (fix-a-7-10, S35, ARCH-705, QA7-002; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24)):
+Amendment (fix-a-7-10, S35, ARCH-705, QA7-002; **Status:** Approved (lead ruling S35, bc-lead, 2026-10-24); restated by lead ruling S39 (fix-a-7-12) and corrected by lead ruling S46 (fix-a-7-14)):
 the same bound holds for the alert clears without a message, and for the
 bounded writes only (the marker writes after a send and the alert clears),
 not for the tick's other store writes (ADR-SYNC-0003, S35 amendment). As

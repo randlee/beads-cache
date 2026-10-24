@@ -22,6 +22,8 @@ const ALL_SEVEN: &str = "open,in_progress,blocked,deferred,closed,pinned,hooked"
 
 /// Delegates to a shared `RecordingInvoker`, so the test can hand `BdCli` a
 /// `Box<dyn CliInvoker>` and keep reading `calls()` on the same instance.
+/// It keeps the provided no-op `set_child_var`: `RecordingInvoker` spawns nothing,
+/// so the forwarding rule exempts this wrapper (ADR-BDCLI-0004, lead ruling S52).
 struct Shared(Arc<RecordingInvoker>);
 
 impl CliInvoker for Shared {

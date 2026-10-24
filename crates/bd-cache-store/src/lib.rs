@@ -56,8 +56,9 @@ mod store;
 pub use bd_cache_model::{CacheStore, DrainLock};
 #[doc(inline)]
 pub use location::{
-    BEADS_DIR_ENV, CacheLocation, ConfigLoadError, DEFAULT_CACHE_DIR, DatabaseIdentity,
-    DoltDatabase, ProjectId, REPO_CONFIG_FILE, beads_dir, load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, ConfigLoadError,
+    DEFAULT_CACHE_DIR, DatabaseIdentity, DoltDatabase, ProjectId, REPO_CONFIG_FILE, beads_dir,
+    load_repo_config,
 };
 #[doc(inline)]
 pub use lock::FlockDrainLock;
