@@ -14,7 +14,7 @@ must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-5, a-6]
 requirements:
   owns: [REQ-BDC-0101, REQ-BDC-0102, REQ-BDC-0103, REQ-BDC-0104, REQ-BDC-0107, REQ-BDC-0108, REQ-BDC-0109, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0901, NFR-BDC-0007, REQ-STORE-0001, REQ-STORE-0002, REQ-STORE-0003, REQ-STORE-0004, REQ-STORE-0005, REQ-STORE-0006, REQ-STORE-0007]
-  constrained_by: [REQ-BDC-0105, REQ-BDC-0401, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0001, NFR-BDC-0005]
+  constrained_by: [REQ-BDC-0105, REQ-BDC-0401, REQ-BDC-0405, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0001, NFR-BDC-0005]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007, ADR-MODEL-0001, ADR-MODEL-0003, ADR-CORE-0001, ADR-STORE-0001, ADR-STORE-0002, ADR-STORE-0003]
 owned_paths:
   - "crates/bd-cache-store/**"
@@ -138,7 +138,7 @@ pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError>
 pub struct SqliteStore { /* private: one connection */ } // Send, !Sync; impl CacheStore
 impl SqliteStore {
     pub fn open(repo_root: &Path, config: &RepoConfig) -> Result<Self, CacheError>;
-    pub fn open_at(path: &Path, identity: &DatabaseIdentity) -> Result<Self, CacheError>; // SCHEMA_VERSION, WRONG_DATABASE, NO_DATABASE
+    pub fn open_at(path: &Path, identity: &DatabaseIdentity) -> Result<Self, CacheError>; // SCHEMA_VERSION, WRONG_DATABASE, STORE_FAILED
     pub fn path(&self) -> &Path;
     pub fn drain_lock(&self) -> FlockDrainLock;
 }
@@ -167,6 +167,7 @@ and whose store side this sprint delivers through the a-1 port rules:
 | REQ-BDC-0504 (sync state) | `sync_state` / `record_sync` | a-6 |
 | REQ-BDC-0601 (resolve) | `resolve` note and `NOT_ESCALATED` | a-6 |
 | REQ-BDC-0602 (prune) | `prune_scope` | a-6 |
+| REQ-BDC-0603 (status) | `status` from one read snapshot, with `stale` (`status_lists_stale_rows_until_reread`) | a-6 |
 | REQ-BDC-0902 (filtered cache) | out-of-scope rows and the sweep | a-6 |
 | REQ-BDC-0903 (slow or unreachable backend) | no store method calls the backend; the outage record (`outage` / `set_outage`) | a-1 helpers, a-5, a-6 |
 | REQ-BDC-0904 (blocked state across the cache edge) | the per-scope ready base (`blocked_by`, ready ids, `fetched_at`, stale mark) and edges by target with their kind | a-6 |
@@ -190,14 +191,13 @@ Rulings needed:
    (sharing with `bd_cache.py`), ADR-STORE-0003 (one connection per process,
    store failures) and REQ-STORE-0001..0007 were Draft. Ruled: Approved
    (lead ruling, bc-lead, 2026-10-24).
-2. **Store failures have no `CacheError` code (a-1 gap).** The trait allows
-   "the implementation's own storage failures", but `CacheError` has no
-   variant for them. Until an a-1 amendment adds one (for example
-   `STORE_FAILED { detail, source }`), SQLite and file errors, and stored
-   values that do not decode, are `BD_CACHE.NO_DATABASE` with the step,
-   file and whole source chain in `detail` (ADR-STORE-0003). The chain is
-   text, not `Error::source`, until then; the change is local to
-   `crates/bd-cache-store/src/error.rs`.
+2. **Store failures.** Ruled (R2) and done with a-1 amendment 1
+   (integrate/phase-a `f3a4a40`, merged here): SQLite and file errors are
+   `BD_CACHE.STORE_FAILED` with the underlying error kept as the source;
+   stored values that do not decode are `STORE_FAILED` without one
+   (ADR-STORE-0003). `NO_DATABASE` means only missing or invalid metadata.
+   `status()` fills `StoreStatus.stale` from the same read snapshot as the
+   rest of the status.
 3. **serde_json dependency.** The store uses the workspace's `serde_json`
    (encoding `row_json` and the ready base, reading `metadata.json`). Ruled
    (R3): the Crate Layout row of `docs/architecture.md` for `bd-cache-store`

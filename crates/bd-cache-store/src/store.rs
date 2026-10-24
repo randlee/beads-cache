@@ -54,7 +54,7 @@ trait At<T> {
 
 impl<T> At<T> for rusqlite::Result<T> {
     fn at(self, step: Step<'_>) -> Result<T, CacheError> {
-        self.map_err(|e| failed(step, &e))
+        self.map_err(|e| failed(step, e))
     }
 }
 
@@ -153,15 +153,15 @@ impl SqliteStore {
     ///
     /// - `BD_CACHE.SCHEMA_VERSION`: the file has another nonzero `user_version` (REQ-BDC-0103).
     /// - `BD_CACHE.WRONG_DATABASE`: the file records another `project_id` (REQ-BDC-0104).
-    /// - `BD_CACHE.NO_DATABASE`: the file cannot be created or opened, is not
+    /// - `BD_CACHE.STORE_FAILED`: the file cannot be created or opened, is not
     ///   SQLite, refuses WAL, or this process already has a connection to it
-    ///   (NFR-BDC-0007; ADR-STORE-0003).
+    ///   (NFR-BDC-0007; ADR-STORE-0003); the underlying error is the source.
     pub fn open_at(path: &Path, identity: &DatabaseIdentity) -> Result<Self, CacheError> {
         let at = |what| step(path, what);
         let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
         if let Some(dir) = dir {
             std::fs::create_dir_all(dir)
-                .map_err(|e| failed(at("create the cache directory"), &e))?;
+                .map_err(|e| failed(at("create the cache directory"), e))?;
         }
         let conn = Connection::open(path).at(at("open"))?;
         // The file exists now: claim its canonical path (symlinks and `.`
@@ -169,7 +169,7 @@ impl SqliteStore {
         // return, before it has read or written anything.
         let canonical = path
             .canonicalize()
-            .map_err(|e| failed(at("resolve the cache file"), &e))?;
+            .map_err(|e| failed(at("resolve the cache file"), e))?;
         let claim = Registration::claim(&canonical).ok_or_else(|| {
             corrupt(
                 at("open"),
@@ -539,45 +539,6 @@ impl CacheStore for SqliteStore {
         Ok(out)
     }
 
-    fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
-        let at = self.at("read a row");
-        let found: Option<(String, i64)> = self
-            .conn
-            .prepare_cached("SELECT row_json, stale FROM beads WHERE id = ?1")
-            .at(at)?
-            .query_row([id.as_str()], |r| Ok((r.get(0)?, r.get(1)?)))
-            .optional()
-            .at(at)?;
-        found
-            .map(|(json, stale)| self.load_row(at, id.as_str(), &json, stale))
-            .transpose()
-    }
-
-    fn rows_in_scope(&self, s: &ScopeId) -> Result<Vec<(Bead, Freshness)>, CacheError> {
-        let at = self.at("read a scope's rows");
-        let mut stmt = self
-            .conn
-            .prepare_cached(&format!(
-                "SELECT b.id, b.row_json, b.stale FROM beads b WHERE {IN_SCOPE} ORDER BY b.id"
-            ))
-            .at(at)?;
-        let rows = stmt
-            .query_map([s.name()], |r| {
-                Ok((
-                    r.get::<_, String>(0)?,
-                    r.get::<_, String>(1)?,
-                    r.get::<_, i64>(2)?,
-                ))
-            })
-            .at(at)?;
-        let mut out = Vec::new();
-        for r in rows {
-            let (id, json, stale) = r.at(at)?;
-            out.push(self.load_row(at, &id, &json, stale)?);
-        }
-        Ok(out)
-    }
-
     fn upsert_rows(
         &mut self,
         s: Option<&ScopeId>,
@@ -834,7 +795,7 @@ impl CacheStore for SqliteStore {
                 .optional()
                 .at(st)?
                 .ok_or_else(|| not_found(seq))?;
-            u32::try_from(attempts).map_err(|e| failed(st, &e))
+            u32::try_from(attempts).map_err(|e| failed(st, e))
         })
     }
 
@@ -1133,7 +1094,75 @@ impl CacheStore for SqliteStore {
         })
     }
 
+    fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
+        self.read("read a row", || self.get_row_now(id))
+    }
+
+    fn rows_in_scope(&self, s: &ScopeId) -> Result<Vec<(Bead, Freshness)>, CacheError> {
+        self.read("read a scope's rows", || self.rows_in_scope_now(s))
+    }
+
     fn status(&self) -> Result<StoreStatus, CacheError> {
+        self.read("read status", || self.status_now())
+    }
+}
+
+/// Reads that span several statements, each run on one snapshot.
+impl SqliteStore {
+    /// Runs `f` in one read transaction, so every statement in it sees one
+    /// snapshot of the file (a concurrent writer commits before or after it).
+    fn read<T>(
+        &self,
+        what: &str,
+        f: impl FnOnce() -> Result<T, CacheError>,
+    ) -> Result<T, CacheError> {
+        let at = self.at(what);
+        let tx = self.conn.unchecked_transaction().at(at)?;
+        let out = f()?;
+        tx.commit().at(at)?;
+        Ok(out)
+    }
+
+    fn get_row_now(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
+        let at = self.at("read a row");
+        let found: Option<(String, i64)> = self
+            .conn
+            .prepare_cached("SELECT row_json, stale FROM beads WHERE id = ?1")
+            .at(at)?
+            .query_row([id.as_str()], |r| Ok((r.get(0)?, r.get(1)?)))
+            .optional()
+            .at(at)?;
+        found
+            .map(|(json, stale)| self.load_row(at, id.as_str(), &json, stale))
+            .transpose()
+    }
+
+    fn rows_in_scope_now(&self, s: &ScopeId) -> Result<Vec<(Bead, Freshness)>, CacheError> {
+        let at = self.at("read a scope's rows");
+        let mut stmt = self
+            .conn
+            .prepare_cached(&format!(
+                "SELECT b.id, b.row_json, b.stale FROM beads b WHERE {IN_SCOPE} ORDER BY b.id"
+            ))
+            .at(at)?;
+        let rows = stmt
+            .query_map([s.name()], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            })
+            .at(at)?;
+        let mut out = Vec::new();
+        for r in rows {
+            let (id, json, stale) = r.at(at)?;
+            out.push(self.load_row(at, &id, &json, stale)?);
+        }
+        Ok(out)
+    }
+
+    fn status_now(&self) -> Result<StoreStatus, CacheError> {
         let at = self.at("read status");
         let mut meta = BTreeMap::new();
         {
@@ -1195,6 +1224,7 @@ impl CacheStore for SqliteStore {
             scopes,
             escalated: self.entries(at, "state = 'escalated'", [])?,
             outage: self.outage()?,
+            stale: self.stale_rows()?,
         })
     }
 }

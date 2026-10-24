@@ -231,3 +231,26 @@ fn one_connection_per_process_through_a_symlink() {
         "released on drop"
     );
 }
+
+#[test]
+fn a_store_failure_is_store_failed_with_its_source() {
+    let tmp = TempDir::new("store-failed");
+    let blocker = tmp.path().join("not-a-dir");
+    std::fs::write(&blocker, "x").unwrap();
+    let err =
+        SqliteStore::open_at(&blocker.join("testdb.bd-cache.sqlite3"), &identity()).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err}");
+    assert!(
+        err.detail().contains("create the cache directory"),
+        "{}",
+        err.detail()
+    );
+    let source = std::error::Error::source(&err).expect("the I/O error is kept as the source");
+    assert!(source.is::<std::io::Error>(), "{source:?}");
+    // A file that is not SQLite fails the same way, not as NO_DATABASE.
+    let junk = tmp.path().join("junk.sqlite3");
+    std::fs::write(&junk, "this is not a database file, just text ".repeat(64)).unwrap();
+    let err = SqliteStore::open_at(&junk, &identity()).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{err}");
+    assert!(std::error::Error::source(&err).is_some());
+}

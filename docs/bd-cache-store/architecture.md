@@ -125,13 +125,13 @@ prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); the failure mapping is a stopgap pending an a-1 amendment
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
-a-1's `CacheError` has a code for every BD-CACHE outcome but none for a
-failure of the store itself (an SQLite error, a file that cannot be
-created, a stored value that does not decode); its trait docs say a method
-may return "the implementation's own storage failures".
+The store can fail on its own (an SQLite error, a file that cannot be
+created, a stored value that does not decode); a-1 amendment 1 gives those
+failures their own code, `BD_CACHE.STORE_FAILED`, carrying the underlying
+error as its source.
 
 Decision:
 - `SqliteStore::open_at` opens the file, then claims its canonical path
@@ -139,15 +139,17 @@ Decision:
   `Mutex<BTreeSet<PathBuf>>`, released when the store drops); a second open
   of the same file in the same process, under any path that resolves to it,
   is refused and its connection closed before it reads or writes.
-- Until a-1 adds a code, the store's own failures are
-  `BD_CACHE.NO_DATABASE` ("the cache file cannot be used"), with the step,
-  the file and the whole source chain rendered in `detail`. A stored row
-  that does not decode, an unknown edge type, an invalid stored id or
-  timestamp are the same code, naming the entry; they are never skipped.
+- The store's own failures are `BD_CACHE.STORE_FAILED`
+  (`CacheError::store_failed`): `detail` names the step and the file, and
+  the underlying error (rusqlite, I/O, serde_json) is kept as the error's
+  `source`. A stored row that does not decode, an unknown edge type, an
+  invalid stored id or timestamp are `STORE_FAILED` with no source, naming
+  the entry; they are never skipped. `NO_DATABASE` means only missing or
+  invalid `metadata.json` (REQ-BDC-0102).
   Journal text that no longer parses keeps `Op::parse`'s own code
   (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
   function (`error::failed` / `error::corrupt`) makes the mapping.
 
-Consequences: the source chain is kept as text, not as `Error::source`,
-until the a-1 amendment (a `STORE_FAILED`-style variant carrying a source)
-is ruled; the change is then local to `error.rs`.
+Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
+workspace without bd metadata (`NO_DATABASE`), and walks the source chain
+with `Error::source`.

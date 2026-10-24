@@ -22,7 +22,7 @@ use crate::error::{Step, corrupt, failed};
 /// `json.dumps(row, sort_keys=True)`, so `bd_cache.py` reads it unchanged.
 pub(crate) fn encode_row(step: Step<'_>, row: &Bead) -> Result<(Bead, String), CacheError> {
     let stored = normalize(row);
-    let value = serde_json::to_value(&stored).map_err(|e| failed(step, &e))?;
+    let value = serde_json::to_value(&stored).map_err(|e| failed(step, e))?;
     Ok((stored, python_json(&value)))
 }
 
@@ -196,8 +196,8 @@ pub(crate) fn encode_ready(
     blocked: &[BlockedRow],
     ready: &[BeadId],
 ) -> Result<(String, String), CacheError> {
-    let blocked = serde_json::to_string(blocked).map_err(|e| failed(step, &e))?;
-    let ready = serde_json::to_string(ready).map_err(|e| failed(step, &e))?;
+    let blocked = serde_json::to_string(blocked).map_err(|e| failed(step, e))?;
+    let ready = serde_json::to_string(ready).map_err(|e| failed(step, e))?;
     Ok((blocked, ready))
 }
 

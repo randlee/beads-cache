@@ -1,11 +1,10 @@
 //! How the store reports its own failures (ADR-STORE-0003).
 //!
-//! a-1's [`CacheError`] has a code for every BD-CACHE outcome but none for a
-//! failure of the store itself (SQLite, file I/O, a stored value that no
-//! longer decodes). Until a-1 adds one, every such failure is reported as
-//! `BD_CACHE.NO_DATABASE` (the cache file cannot be used), with the failing
-//! step, the file and the whole source chain in `detail`. This module is the
-//! one place that mapping is made, so the amendment changes only it.
+//! A failure of the store itself (SQLite, file I/O, a stored value that no
+//! longer decodes) is `BD_CACHE.STORE_FAILED` (a-1 amendment 1): `detail`
+//! names the failing step and the file, and the underlying error is kept as
+//! the error's source ([`CacheError::store_failed`]). `NO_DATABASE` stays for
+//! missing or invalid `metadata.json` only. This module makes the mapping.
 
 use std::error::Error;
 use std::fmt::{self, Write as _};
@@ -37,17 +36,16 @@ pub(crate) fn chain(e: &dyn Error) -> String {
     text
 }
 
-/// A failure of the store's own machinery (SQLite or the file system).
-pub(crate) fn failed(step: Step<'_>, e: &dyn Error) -> CacheError {
-    CacheError::NoDatabase {
-        detail: format!("{step}: {}", chain(e)),
-    }
+/// A failure of the store's own machinery: `STORE_FAILED`, keeping `e` as the source.
+pub(crate) fn failed(step: Step<'_>, e: impl Error + Send + Sync + 'static) -> CacheError {
+    CacheError::store_failed(format!("{step}: {}", chain(&e)), e)
 }
 
-/// A stored value that does not decode (a corrupt or foreign row).
+/// A stored value that does not decode (a corrupt or foreign row): `STORE_FAILED`, no source.
 pub(crate) fn corrupt(step: Step<'_>, detail: impl fmt::Display) -> CacheError {
-    CacheError::NoDatabase {
+    CacheError::StoreFailed {
         detail: format!("{step}: {detail}"),
+        source: None,
     }
 }
 
@@ -77,8 +75,15 @@ mod tests {
             what: "upsert",
             path: &Path::new("cache").join("x.sqlite3"),
         };
-        let err = failed(step, &e);
-        assert_eq!(err.code(), "BD_CACHE.NO_DATABASE");
+        let err = failed(step, e);
+        assert_eq!(err.code(), "BD_CACHE.STORE_FAILED");
+        let source = std::error::Error::source(&err).expect("the source is kept");
+        assert_eq!(source.to_string(), "outer");
+        assert_eq!(
+            source.source().map(ToString::to_string).as_deref(),
+            Some("disk full"),
+            "the whole chain below it too"
+        );
         let file = Path::new("cache").join("x.sqlite3");
         assert_eq!(
             err.detail(),

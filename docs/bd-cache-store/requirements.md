@@ -70,21 +70,24 @@ written from `Bead.dependencies` and the edges index by target, membership
 from labels on scoped upserts only, stale clearing, the rebuild rule keeping
 the journal, ready bases, persisted scopes, `applied_since` on
 `applied_at`, announce marks, sync alerts and the outage record, and
-`prune_scope` keeping beads another scope holds. Every mutating method is
-one `BEGIN IMMEDIATE` transaction. `apply_with_readback` refuses a row that
+`prune_scope` keeping beads another scope holds, and `status` listing the
+stale rows. Every mutating method is one `BEGIN IMMEDIATE` transaction;
+`status`, `get_row` and `rows_in_scope` each read one snapshot. `apply_with_readback` refuses a row that
 is not the entry's bead (`BD_CACHE.BD_CONTRACT`, nothing changed). Every
 value read back is validated, and one that does not decode is an error
-naming the entry.
+naming the entry. The store's own failures are `BD_CACHE.STORE_FAILED`
+keeping the underlying error as the source (ADR-STORE-0003).
 
 **Refines:** REQ-BDC-0105, 0109, 0405, 0502, 0504, 0601, 0602, 0604, 0901,
-0902, 0909 (store side)
-**Acceptance evidence:** the a-1 contract suite (`store_contract.rs`, 18
-rules); `test_dependents_use_the_edge_index`,
+0902, 0909, 0603 (store side)
+**Acceptance evidence:** the a-1 contract suite (`store_contract.rs`, 19
+rules, including `status_lists_stale_rows_until_reread`); `test_dependents_use_the_edge_index`,
 `test_escalations_are_unannounced_until_marked`, `test_sync_alert_round_trip`,
 `test_pending_work_counts_as_open`,
 `pruning_a_scope_deletes_only_beads_no_other_scope_holds`,
 `undecodable_stored_values_are_errors_not_skipped`,
-`a_read_back_row_of_another_bead_is_refused_and_changes_nothing` (`store.rs`).
+`a_read_back_row_of_another_bead_is_refused_and_changes_nothing` (`store.rs`);
+`a_store_failure_is_store_failed_with_its_source` (`open.rs`).
 
 ## REQ-STORE-0005: Cross-process drain lock
 

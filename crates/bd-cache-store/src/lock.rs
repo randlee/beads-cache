@@ -72,11 +72,11 @@ impl DrainLock for FlockDrainLock {
             .create(true)
             .truncate(false)
             .open(&self.path)
-            .map_err(|e| failed(step("open the drain lock file"), &e))?;
+            .map_err(|e| failed(step("open the drain lock file"), e))?;
         match fs4::FileExt::try_lock(&file) {
             Ok(()) => Ok(Some(Box::new(FlockGuard { _file: file }))),
             Err(TryLockError::WouldBlock) => Ok(None),
-            Err(TryLockError::Error(e)) => Err(failed(step("lock the drain lock file"), &e)),
+            Err(TryLockError::Error(e)) => Err(failed(step("lock the drain lock file"), e)),
         }
     }
 }
