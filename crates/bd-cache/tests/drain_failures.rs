@@ -17,8 +17,8 @@ use bd_cache_model::{
     CacheConfig, CacheStore, DrainBudget, Freshness, IdemKey, JournalEntry, JournalState, Seq,
 };
 use common::{TestCache, World, id, x};
+use sc_beads::Guards;
 use sc_beads::testing::{FakeCall, FakeOp, Injection, actor};
-use sc_beads::{CheckStep, Guards};
 
 fn journal(c: &mut TestCache, bead: &str, op: &str, args: &str, key: &str) -> Seq {
     c.write(
@@ -229,55 +229,4 @@ fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync()
     assert_eq!(r.applied, vec![e2]);
     assert_eq!(w.bd_row("b1").status.as_deref(), Some("closed"));
     assert!(store(&c).stale_rows().unwrap().is_empty());
-}
-
-#[test]
-fn test_failed_pre_read_retries_every_entry() {
-    let w = World::new();
-    let mut c = w.cache();
-    let e1 = journal(&mut c, "b1", "close", "{}", "k1");
-    let e2 = journal(&mut c, "b2", "close", "{}", "k2");
-    // bd answers but the list exits nonzero: a reachable failure, not an outage.
-    w.bd.inject(FakeOp::ListByIds, Injection::Failed(1));
-    w.bd.clear_calls();
-
-    let r = c.drain(&roomy(&w)).unwrap();
-    assert_eq!(r.retrying, vec![e1, e2]);
-    assert!(r.applied.is_empty() && r.deferred.is_empty());
-    assert_eq!(r.outage, None);
-    assert!(w.bd.writes().is_empty());
-    for seq in [e1, e2] {
-        let e = entry(&c, seq);
-        assert_eq!(
-            (e.state, e.attempts),
-            (JournalState::Pending, 0),
-            "no attempt"
-        );
-    }
-    let r = c.drain(&roomy(&w)).unwrap();
-    assert_eq!(r.applied, vec![e1, e2]);
-}
-
-#[test]
-fn a_failed_backend_check_on_a_reachable_backend_counts_no_attempt() {
-    let w = World::new();
-    let mut c = w.cache();
-    let seq = journal(&mut c, "b1", "close", "{}", "k1");
-    w.bd.inject(
-        FakeOp::Fingerprint,
-        Injection::CheckFailed {
-            step: CheckStep::Schema,
-            code: 2,
-        },
-    );
-    w.bd.clear_calls();
-    let r = c.drain(&roomy(&w)).unwrap();
-    assert_eq!(r.retrying, vec![seq]);
-    assert_eq!(r.outage, None);
-    assert_eq!(
-        w.bd.calls(),
-        vec![FakeCall::Fingerprint],
-        "no pre-read, no write"
-    );
-    assert_eq!(entry(&c, seq).attempts, 0);
 }

@@ -13,9 +13,12 @@
 //!    backend check and before each entry.
 //! 4. `backend_check::run`, then one batched `bd list --id` of every bead
 //!    with a runnable entry (REQ-BDC-0105, 0403). Either step failing stops
-//!    the pass with no attempt counted (ADR-BDC-0005): a cut or an outage
-//!    (recorded by `call`) defers every runnable entry; a reachable backend
-//!    failing reports them in `retrying`.
+//!    the pass with no attempt counted, by the BD-CACHE v3 rule
+//!    (ADR-BDC-0005, ADR-CORE-0101): `BD_UNAVAILABLE`, `BD_VERSION_FAILED`,
+//!    `BD_SCHEMA_FAILED` and `BD_LIST_FAILED` are an outage, recorded, and a
+//!    cut is no outage; both put every pending entry in `deferred`. Any other
+//!    failure (for example `BD_CONTRACT`) is logged as a `tracing` warning
+//!    and every pending entry retries (`retrying`).
 //! 5. Per entry (REQ-BDC-0404): a bead absent from the batch escalates
 //!    `NOT_FOUND`; an achieved write stores the fresh row and is applied
 //!    with no second write (REQ-BDC-0005); an unmet precondition stores the
@@ -36,11 +39,13 @@
 //! (REQ-BDC-0402). Each pending entry appears in exactly one report list.
 
 use std::collections::{BTreeMap, BTreeSet};
+use std::mem;
 
 use bd_cache_model::{
     CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock, DrainReport,
     EscalatedItem, JournalEntry, Op, PreconditionReason, unmet,
 };
+use sc_beads::logging::tracing;
 use sc_beads::{Bead, BeadId, CacheBackend, Deadline};
 
 use crate::Cache;
@@ -154,19 +159,41 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
     }
 
     /// The backend check or the pre-read failed: no entry starts and no attempt is counted.
+    ///
+    /// The v3 rule (ADR-CORE-0101): an unreachable backend ([`is_unreachable`])
+    /// or a cut defers every pending entry, including those held for a stale
+    /// row; any other failure retries them all.
     fn stop_before_entries(
         &mut self,
         f: CallFailure,
         entries: &[JournalEntry],
     ) -> Result<(), CacheError> {
-        match f {
-            // The outage is already recorded by `call`; a cut is no outage.
-            CallFailure::Cut | CallFailure::Outage(_) => self.defer(entries),
+        let defer_all = match f {
+            // A cut is no outage; an `Outage` is already recorded by `call`.
+            CallFailure::Cut | CallFailure::Outage(_) => true,
             // A store failure inside the helper (no backend cause) is the drain's error.
             CallFailure::Error(e) if e.backend_cause().is_none() => return Err(e),
-            // A reachable backend failing the check or pre-read is not a write
-            // failure, so it counts no attempt (ADR-BDC-0005); every entry retries.
-            CallFailure::Error(_) => self.report.retrying.extend(entries.iter().map(|e| e.seq)),
+            CallFailure::Error(e) if is_unreachable(&e) => {
+                crate::outage::note_unavailable(self.cache, &e.to_string())?;
+                true
+            }
+            CallFailure::Error(e) => {
+                tracing::warn!(
+                    code = e.code(),
+                    detail = e.detail(),
+                    "bd-cache drain: backend check or pre-read failed; every pending entry retries"
+                );
+                false
+            }
+        };
+        // Only stale-held entries are reported yet; every pending entry goes in one list.
+        let mut all = mem::take(&mut self.report.retrying);
+        all.extend(entries.iter().map(|e| e.seq));
+        all.sort();
+        if defer_all {
+            self.report.deferred = all;
+        } else {
+            self.report.retrying = all;
         }
         Ok(())
     }
@@ -320,4 +347,17 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
         });
         Ok(())
     }
+}
+
+/// The codes BD-CACHE v3 counts as an unreachable backend at the backend
+/// check and the pre-read (`UNREACHABLE`; ADR-CORE-0101), matched on the
+/// typed error, never on its text.
+fn is_unreachable(e: &CacheError) -> bool {
+    matches!(
+        e,
+        CacheError::BdUnavailable { .. }
+            | CacheError::BdVersionFailed { .. }
+            | CacheError::BdSchemaFailed { .. }
+            | CacheError::BdListFailed { .. }
+    )
 }

@@ -1,6 +1,7 @@
 # bd-cache write path (`write`, `drain`)
 
-Status: Draft (sprint a-5; awaiting lead ruling). Crate-local requirements
+Status: approved (lead ruling, bc-lead, 2026-10-24, rulings R1-R4 on sprint
+a-5; written by sprint a-5). Crate-local requirements
 and decisions (domain code `CORE`) for the write path, indexed from
 [`architecture.md`](architecture.md). They refine the repo-level ids in
 [`../requirements.md`](../requirements.md) and
@@ -11,7 +12,7 @@ and decisions (domain code `CORE`) for the write path, indexed from
 
 ## REQ-CORE-0101: Write checks in a fixed order
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `write` runs these steps in order, and stops at the first that fails:
 
@@ -38,7 +39,7 @@ the first attempt changed.
 
 ## REQ-CORE-0102: One drain pass and its report
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `drain` takes the drain lock (`busy: true` when it is held elsewhere) and
 holds it until the pass returns. It then checks the start gate, runs the
@@ -52,13 +53,15 @@ A pass with no pending entry, or with only held entries, makes no bd call.
 **Refines:** REQ-BDC-0401, 0403, 0404, 0405, 0406
 **Acceptance evidence:** `tests/drain_apply.rs`
 (`every_pending_entry_is_in_exactly_one_report_list`,
+`an_outage_defers_every_pending_entry_including_stale_held_ones` in
+`tests/drain_outage.rs`,
 `test_drain_writes_in_order_reads_back_and_marks_applied`,
 `test_drain_pre_reads_all_pending_beads_in_one_call`, `test_drain_is_single_writer`),
 `tests/drain_failures.rs`.
 
 ## REQ-CORE-0103: Held beads
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A bead is held, meaning its later entries are skipped for the rest of the
 pass and stay pending with unchanged `attempts`, in two cases. It is held
@@ -66,7 +69,9 @@ from the start of the pass when its row is stale, and stays held across
 passes until a store of the row clears the stale mark (a sync, a-6). It
 is also held for the rest of the pass after one of its writes fails on a
 reachable backend or its read-back fails. Held entries are reported in
-`retrying`.
+`retrying`, except when an outage or a cut stops the pass before any entry
+starts: then every pending entry, held or not, is reported in `deferred`
+(ADR-CORE-0101).
 
 **Refines:** REQ-BDC-0404, 0405
 **Acceptance evidence:**
@@ -75,45 +80,57 @@ reachable backend or its read-back fails. Held entries are reported in
 
 ## ADR-CORE-0101: Drain stop policy
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Context: ADR-BDC-0005 says an unreachable backend stops the drain without
 counting an attempt, and only failures from a reachable backend count
-towards `max_attempts`. The `call` helper (REQ-CORE-0001) already
-classifies each failure as `Cut`, `Outage` (recorded) or `Error`.
+towards `max_attempts`. It also says the Rust and Python implementations
+share the journal and must apply the same rules. The `call` helper
+(REQ-CORE-0001) classifies each failure as `Cut`, `Outage` (recorded) or
+`Error`, and records an outage only for a backend that cannot be reached.
+BD-CACHE v3 (baseline, Algorithms) counts more codes as unreachable at the
+drain's backend check and pre-read (`UNREACHABLE`).
 
-Decision: the drain applies one rule to every `CallFailure`:
+Decision (ruling R1): the drain follows v3 at the backend check and the
+batched pre-read, and the `call` classification everywhere else:
 
-| Where | `Cut` | `Outage` | `Error` from a reachable bd | `Error` without a backend cause |
+| Where | `Cut` | `BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED` | any other error from bd (e.g. `BD_CONTRACT`) | `Error` without a backend cause |
 |---|---|---|---|---|
-| backend check, pre-read | stop; every runnable entry `deferred` | stop; every runnable entry `deferred` | stop; every runnable entry `retrying`, no attempt | returned as the drain's error (a store failure) |
-| write | entry `deferred_in_flight`; stop | entry `deferred`; stop (`call` never returns it for a write) | `PRECONDITION` (bd guard, exit 13): escalate. Anything else: one attempt, hold the bead, escalate at `max_attempts` | returned |
+| backend check, pre-read | stop; every pending entry `deferred`; no outage | stop; outage recorded; every pending entry `deferred` | stop; `tracing` warning; every pending entry `retrying` | returned as the drain's error (a store failure) |
+| write | entry `deferred_in_flight`; stop | `call` returns `BD_UNAVAILABLE` on a write as an `Error`: it counts an attempt, like the rest | `PRECONDITION` (bd guard, exit 13): escalate. Anything else: one attempt, hold the bead, escalate at `max_attempts` | returned |
 | read-back | entry `deferred_in_flight` (still pending); stop | applied with the error, stale, bead held | applied with the error, stale, bead held | returned |
 
-After a stop, every entry not yet started is `deferred`. The drain tells a
-store failure from a backend failure by `CacheError::backend_cause()`,
-because every error mapped from bd carries its `BackendCause`
-(ADR-MODEL-0002). It never inspects error text.
+"Every pending entry" includes entries held for a stale row, so each
+pending entry stays in exactly one report list (REQ-CORE-0102). No attempt
+is counted in any row of the check and pre-read line. After a stop, every
+entry not yet started is `deferred`.
 
-Consequences:
+The codes are matched on the typed `CacheError` variant (`is_unreachable`
+in `drain.rs`), never on error text. An unreachable backend that `call` has
+already recorded (`CallFailure::Outage`) is not recorded again. For the
+other codes the drain records the outage itself through
+`outage::note_unavailable`, which keeps the outage's start and stores the
+latest error. As with any outage, only a list that answers clears it. The
+drain tells a store failure from a backend failure by
+`CacheError::backend_cause()`, because every error mapped from bd carries
+its `BackendCause` (ADR-MODEL-0002).
 
-- A reachable check or pre-read failure (`BD_VERSION_FAILED`,
-  `BD_SCHEMA_FAILED`, `BD_LIST_FAILED`, `BD_CONTRACT`) counts no attempt
-  and records no outage, because `call` records only unreachable backends.
-  BD-CACHE v3 (baseline, Algorithms) records an outage for
-  `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED` there.
-  Phase a follows the a-1 classification and ADR-BDC-0005's definition of
-  unreachable. **Open for the lead's ruling.**
-- `DrainReport` has no field for the error that stopped such a pass, so
-  the error is visible only through the call's effects. **Open for the
-  lead's ruling** (an additive field is an a-1 amendment).
+Consequences (ruling R2):
+
+- `DrainReport` has no error field; no a-1 amendment is made. An outage is
+  visible through the report's `outage` and `status`. Any other check or
+  pre-read failure is emitted as a `tracing` warning with fields `code` and
+  `detail`. It goes through the re-export `sc_beads::logging::tracing`
+  (ADR-BEADS-0001), so bd-cache gains no dependency.
+- A long `BD_LIST_FAILED` or `BD_SCHEMA_FAILED` leaves writes pending
+  rather than escalated, as an outage does in v3.
 - A cut read-back leaves an entry pending whose write landed. The next
   pass's achieved check marks it applied without a second write
   (REQ-BDC-0402, 0005).
 
 ## ADR-CORE-0102: Write identity and dedupe
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision: two writes are the same when they have the same bead and an
 equal `Op`, which includes its args. The precondition and the actor are not
@@ -126,7 +143,7 @@ different one keeps the conflict.
 
 ## ADR-CORE-0103: Escalation reasons and drain-time rows
 
-**Status:** Draft (sprint a-5)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Decision:
 

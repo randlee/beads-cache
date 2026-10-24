@@ -16,7 +16,7 @@ use bd_cache::testing::store;
 use bd_cache_model::{CacheStore, DrainBudget, IdemKey, JournalState, Seq};
 use common::{TestCache, World, id};
 use sc_beads::testing::{FakeOp, Injection, actor};
-use sc_beads::{Clock, Guards};
+use sc_beads::{CheckStep, Clock, Guards};
 
 fn journal(c: &mut TestCache, bead: &str, key: &str) -> Seq {
     c.write(
@@ -126,4 +126,104 @@ fn a_drain_that_calls_no_bd_still_reports_the_standing_outage() {
     assert!(w.bd.calls().is_empty());
     assert_eq!(r.outage, store(&c).outage().unwrap());
     assert!(r.outage.is_some());
+}
+
+#[test]
+fn a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt() {
+    // v3's UNREACHABLE: BD_VERSION_FAILED, BD_SCHEMA_FAILED (check) and
+    // BD_LIST_FAILED (a pre-read exiting nonzero) record the outage too.
+    let cases = [
+        (
+            FakeOp::Fingerprint,
+            Injection::CheckFailed {
+                step: CheckStep::Version,
+                code: 1,
+            },
+            "BD_CACHE.BD_VERSION_FAILED",
+        ),
+        (
+            FakeOp::Fingerprint,
+            Injection::CheckFailed {
+                step: CheckStep::Schema,
+                code: 2,
+            },
+            "BD_CACHE.BD_SCHEMA_FAILED",
+        ),
+        (
+            FakeOp::ListByIds,
+            Injection::Failed(1),
+            "BD_CACHE.BD_LIST_FAILED",
+        ),
+    ];
+    for (op, failure, code) in cases {
+        let w = World::new();
+        let mut c = w.cache();
+        let e1 = journal(&mut c, "b1", "k1");
+        let e2 = journal(&mut c, "b2", "k2");
+        w.bd.inject(op, failure.clone());
+        w.bd.clear_calls();
+        let r = c.drain(&budget(&w, 20, 23)).unwrap();
+        assert_eq!(r.deferred, vec![e1, e2], "{code}");
+        assert!(r.retrying.is_empty() && r.applied.is_empty(), "{code}");
+        assert!(w.bd.writes().is_empty(), "{code}");
+        let outage = r
+            .outage
+            .clone()
+            .unwrap_or_else(|| panic!("{code}: no outage"));
+        assert!(outage.last_error.starts_with(code), "{code}: {outage:?}");
+        assert_eq!(
+            store(&c).outage().unwrap(),
+            Some(outage),
+            "{code}: recorded"
+        );
+        for seq in [e1, e2] {
+            assert_eq!(
+                store(&c).entry_by_seq(seq).unwrap().unwrap().attempts,
+                0,
+                "{code}"
+            );
+        }
+        // The next answering list clears it and the entries apply.
+        let r = c.drain(&budget(&w, 20, 23)).unwrap();
+        assert_eq!(r.applied, vec![e1, e2], "{code}");
+        assert_eq!(r.outage, None, "{code}");
+    }
+}
+
+#[test]
+fn an_outage_defers_every_pending_entry_including_stale_held_ones() {
+    let w = World::new();
+    let mut c = w.cache();
+    let held = journal(&mut c, "b1", "k1");
+    let runnable = journal(&mut c, "b2", "k2");
+    // b1's row is stale (as after a failed read-back of an earlier entry).
+    let at = w.clock.now_utc();
+    let mut seed = w.store.clone();
+    let e = seed
+        .insert_entry(
+            common::new_entry("k0", "b1", "update", r#"{"append_notes": "x"}"#),
+            &at,
+        )
+        .unwrap();
+    seed.apply_with_readback(e, None, Some("read-back failed"), &at)
+        .unwrap();
+    assert_eq!(store(&c).stale_rows().unwrap(), vec![id("b1")]);
+
+    w.bd.inject(
+        FakeOp::ListByIds,
+        Injection::Unavailable { timed_out: false },
+    );
+    let r = c.drain(&budget(&w, 20, 23)).unwrap();
+    assert_eq!(
+        r.deferred,
+        vec![held, runnable],
+        "every pending seq is deferred"
+    );
+    assert!(r.retrying.is_empty(), "and in exactly one list");
+    assert!(r.outage.is_some());
+
+    // Without an outage the stale-held entry is reported in `retrying`.
+    let r = c.drain(&budget(&w, 20, 23)).unwrap();
+    assert_eq!(r.applied, vec![runnable]);
+    assert_eq!(r.retrying, vec![held]);
 }
