@@ -43,7 +43,7 @@ pub(crate) enum ConfigKind {
     /// An argument is invalid: a path that is not UTF-8, missing or not a directory.
     Argument,
     /// Any other problem the loader reports.
-    Config,
+    Other,
 }
 
 /// The `kind` attribute of an open failure: a [`ConfigKind`], or a read failure.
@@ -70,7 +70,7 @@ impl OpenKind {
             Self::Config(ConfigKind::Parse) => "parse",
             Self::Config(ConfigKind::Scope) => "scope",
             Self::Config(ConfigKind::Argument) => "argument",
-            Self::Config(ConfigKind::Config) => "config",
+            Self::Config(ConfigKind::Other) => "config",
             Self::Read => "read",
         }
     }
@@ -128,7 +128,7 @@ impl From<ConfigLoadError> for OpenError {
                 text,
             },
             _ => Self::Config {
-                kind: ConfigKind::Config,
+                kind: ConfigKind::Other,
                 path: None,
                 text,
             },
@@ -275,6 +275,22 @@ pub(crate) fn open(
 )]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_kind_texts_are_exactly_parse_scope_argument_config_and_read() {
+        let kinds = [
+            OpenKind::Config(ConfigKind::Parse),
+            OpenKind::Config(ConfigKind::Scope),
+            OpenKind::Config(ConfigKind::Argument),
+            OpenKind::Config(ConfigKind::Other),
+            OpenKind::Read,
+        ];
+        let texts: std::collections::BTreeSet<&str> =
+            kinds.into_iter().map(OpenKind::as_str).collect();
+        let want: std::collections::BTreeSet<&str> =
+            ["parse", "scope", "argument", "config", "read"].into();
+        assert_eq!(texts, want);
+    }
 
     #[test]
     fn handles_share_one_lock_set() {

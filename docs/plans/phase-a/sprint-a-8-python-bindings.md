@@ -259,6 +259,8 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 Every one of the 39 bugs fails at least one test, none by a compile error, and
 none survives; every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
 
+Round 6 mutants are in the QA round 6 section below.
+
 ## Validation
 
 Local, macOS arm64, on `13d67ab` (documents after it): `cargo test --workspace
@@ -279,6 +281,24 @@ macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
 https://github.com/randlee/beads-cache/actions/runs/40104379997 (success).
 
+## QA round 6 findings and their fixes (QA-6 at 0d743f0)
+
+| Id | Finding | Fix |
+|---|---|---|
+| QA6-002 | `handle.rs` test loop `for outcome in &cases` iterated `NotRun` values | Variable renamed `not_run` |
+| QA6-003 | Double blank line before the QA round 5 heading | One blank line deleted |
+| RBP-F025 | `ValueError` kind `config` undocumented; no test pinned the kind texts | `requirements.md` and `architecture.md` document `config` ("any other configuration problem the loader reports; `path` may be `None`"); new unit test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read` asserts the set of `OpenKind::as_str` outputs is exactly {parse, scope, argument, config, read} |
+| (optional) | `OpenKind::Config(ConfigKind::Config)` reads badly | `ConfigKind::Config` renamed `ConfigKind::Other` (two uses, both in `compose.rs`); the Python-visible text stays `config` |
+
+Planted bugs for the round 6 code, each applied to the working tree and the
+restored with `git checkout` (Rust tests via `cargo test -p bd-cache-py`; pytest
+suite re-run on the last one, 92 passed):
+
+| Planted bug | File | First failing test; failures |
+|---|---|---|
+| `as_str` returns `other` for the `Other` kind (Python text would change) | `src/compose.rs` | `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`; 1 |
+| rename mis-wired: `as_str` returns `parse` for `ConfigKind::Other` | `src/compose.rs` | `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`; 1 |
+| loader fallback arm builds `ConfigKind::Argument` instead of `Other` | `src/compose.rs` | none: survives. `ConfigLoadError` has no variant beyond `Read`, `Parse` and `Scope`, so the `_` arm cannot be reached by a test today; recorded as unreachable, not killed |
 
 ## QA round 5 findings and their fixes (QA-5 at df6b913; fixed in 13d67ab)
 

@@ -520,10 +520,10 @@ mod tests {
             NotRun::Panicked("disk exploded".to_owned()),
             NotRun::Poisoned,
         ];
-        for outcome in &cases {
+        for not_run in &cases {
             assert!(
-                closed_message(outcome).ends_with("open a new bd_cache_rs.Cache to keep using it"),
-                "{outcome:?}"
+                closed_message(not_run).ends_with("open a new bd_cache_rs.Cache to keep using it"),
+                "{not_run:?}"
             );
         }
         assert!(closed_message(&cases[1]).contains("disk exploded"));
