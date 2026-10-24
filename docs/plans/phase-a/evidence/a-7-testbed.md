@@ -4,7 +4,7 @@ Sprint a-7 (`docs/plans/phase-a/sprint-a-7-sync-integration.md`, deliverable 5).
 The testbed is the `m5-atmbench` account, run by the team-lead (NFR-BDC-0006:
 live tests run only there and in the bd-compat workflow).
 
-## Status: deferred, owner team-lead
+## Status: deferred, owner team-lead (to be run after fix-a-7-1 lands)
 
 The developer session that wrote this sprint has no access to `m5-atmbench`.
 Under deliverable 5, the recording-invoker results (CI, below) close the
@@ -73,9 +73,23 @@ Incremental sync of a 1000-bead phase: 544 ms against the 1 s limit (459 ms in a
 server; it is a sanity figure, not the recorded NFR evidence, which is the
 testbed's.
 
-### Testbed run
+### Testbed run (m5-atmbench) - to be filled in by the team-lead
 
-Not yet run. Owner: team-lead.
+Run both scripts from a checkout of `sprint/a-7-sync-integration` (or of the
+merge), each with a clean `cargo` target, and paste the output here.
+`LIVE_TIMEOUT_S` (default 1800) bounds `crates/bd-cache-sync/tests/run-live.sh`;
+every `bd` call of the live test's own setup is bounded at 60 s, and the tests
+run one at a time, each with its own cache file.
+
+| Item | Command | Date | Host / bd / dolt versions | Result | Figure |
+|---|---|---|---|---|---|
+| a-2 live probes | `scripts/bd-compat/run-live.sh` | | | | 7 probes |
+| a-7 write lands in a real bd | `crates/bd-cache-sync/tests/run-live.sh` (`a_journaled_write_lands_in_a_real_bd_through_the_tick`) | | | | applied, no read-back error |
+| NFR-BDC-0003 incremental sync of 1000 beads | same run (`an_incremental_sync_of_a_1000_bead_phase_is_under_1_s`) | | | | the `NFR-BDC-0003:` line: incremental ms and `PASS`/`OVER` against 1 s; rows stored < 50 |
+
+The timing is reported with its limit and is not an assertion (a shared host
+can stall any one call); the test asserts only that the sync was incremental.
+`OVER` on the testbed is a finding to raise, not a silent pass.
 
 ## Recording-invoker results in CI
 

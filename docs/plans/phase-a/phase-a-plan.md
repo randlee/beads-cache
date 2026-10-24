@@ -66,7 +66,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 
 | File | Owner | Rule |
 |---|---|---|
-| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
+| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. Amended (lead ruling S7, bc-lead, 2026-10-24, a-7): the sibling crates `bd-cache-store`, `sc-bd-cli` and `sc-cron` are in the table (a-7), in alphabetical position; a-8 adds identical lines for the first two, so whichever branch merges second resolves a trivial conflict. |
 | `Cargo.lock` | phase close-out (team-lead, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
 | `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
@@ -74,6 +74,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | `.github/workflows/ci.yml` | a-1 | Workspace gates, excluding `bd-cache-py`; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
 | `.beads/bd-cache.toml` schema | a-1 (`RepoConfig`), a-4 (the one loader) | a-7 and a-8 consume the loader. |
 | `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
+| `crates/bd-cache/src/{lib,get,ready}.rs`, `crates/bd-cache-model/src/{store,state,sender}.rs`, `crates/bd-cache-store/src/{store,schema,codec}.rs` | a-1, a-4, a-6 | a-7 amendment by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24): `Cache::clock()`, the per-bead `CacheStore::base_entry` (indexed by the store), `EscalationSender::send_within` and `SendError` kinds. Documented in the crates' own docs. |
 | `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
 | `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
@@ -116,7 +117,7 @@ before the sprint merges.
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
 | a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904, 0907, 0908, 0909, 0911, 0912 |
 | a-8 | REQ-BDC-0910 |
-| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
+| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003; crate-level REQ-SYNC-0001..0013 (docs/bd-cache-sync/requirements.md); the real-run evidence of REQ-BDC-0905 (a-2 owns the workflow; a-7 records its runs, lead ruling bc-lead 2026-10-24). REQ-BDC-0904 stays with a-6: a-7's end-to-end row is rooted in REQ-SYNC-0010 and lists 0904 in `constrained_by`. |
 | deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
 ## Ported Python cases

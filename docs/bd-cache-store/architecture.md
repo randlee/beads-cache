@@ -172,3 +172,23 @@ Decision:
 Consequences: a caller tells a broken cache file (`STORE_FAILED`) from a
 workspace without bd metadata (`NO_DATABASE`), and walks the source chain
 with `Error::source`.
+
+## ADR-STORE-0004: A per-bead index of the ready base (a-7 amendment)
+
+**Status:** Approved (lead ruling S4, bc-lead, 2026-10-24: an a-4 amendment made in sprint a-7)
+
+Context: `CacheStore::base_entry` (ADR-CORE-0206) must answer one bead's
+blockers without decoding the whole base.
+
+Decision: an additive table `ready_base_blocked(scope, bead, blocked_by_json)`
+(`WITHOUT ROWID`, primary key `(scope, bead)`) holds one row per blocked bead,
+written in the same transaction as `ready_base` by `replace_ready_base` and
+deleted with it by a rebuild and by `prune_scope`; and a nullable column
+`ready_base.indexed` (1 when the index belongs to the stored base). A base
+stored before the index existed has `indexed` NULL and is read whole, so no
+migration is needed. The blockers are merged in order without repeats, as the
+core merges them, and a bead without blockers has no row. `bd_cache.py` never
+reads either; the file stays at `user_version` 3.
+
+Consequences: the contract suite's `base_entry_rules` pins `base_entry` to
+`BaseEntry::of(ready_base)` for every store.

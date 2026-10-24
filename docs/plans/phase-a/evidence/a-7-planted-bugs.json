@@ -1,0 +1,558 @@
+[
+ {
+  "bug": "unannounced filter dropped",
+  "file": "crates/bd-cache-model/src/testing/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
+   "test_escalation_is_sent_once_to_the_phase_lead"
+  ]
+ },
+ {
+  "bug": "open-work ignores announcement",
+  "file": "crates/bd-cache-model/src/testing/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
+   "test_stop_only_when_no_active_phase_and_no_open_work"
+  ]
+ },
+ {
+  "bug": "refusal dropped",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
+   "test_undelivered_escalation_is_retried_and_the_tick_refuses"
+  ]
+ },
+ {
+  "bug": "team check dropped",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "configuration_the_tick_would_refuse_never_ends_the_schedule",
+   "test_missing_team_is_refused"
+  ]
+ },
+ {
+  "bug": "closed roots active",
+  "file": "crates/bd-cache-sync/src/active.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
+   "a_root_the_cache_holds_is_read_from_the_cache_and_a_closing_root_ends_the_phase",
+   "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
+   "an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed",
+   "configuration_the_tick_would_refuse_never_ends_the_schedule",
+   "should_stop_returns_continue_when_busy",
+   "test_custom_phases_limits_sync_and_stop",
+   "test_stop_only_when_no_active_phase_and_no_open_work",
+   "test_tick_syncs_only_phases_with_an_open_root",
+   "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
+  ]
+ },
+ {
+  "bug": "stop ignores open work",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_stop_only_when_no_active_phase_and_no_open_work"
+  ]
+ },
+ {
+  "bug": "fallback lead dropped for entries with no scope",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires"
+  ]
+ },
+ {
+  "bug": "escalation not marked announced",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_escalation_is_announced_once_and_the_store_remembers_it",
+   "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
+   "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
+   "test_escalation_is_sent_once_to_the_phase_lead",
+   "test_stop_only_when_no_active_phase_and_no_open_work",
+   "test_undelivered_escalation_is_retried_and_the_tick_refuses"
+  ]
+ },
+ {
+  "bug": "escalation message without the resolve command",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
+   "test_escalation_is_sent_once_to_the_phase_lead"
+  ]
+ },
+ {
+  "bug": "sync failure announced every tick (alert not compared)",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_sync_failure_is_announced_once_per_cause"
+  ]
+ },
+ {
+  "bug": "sync failure alert not recorded",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "announce::tests::a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase",
+   "test_sync_failure_is_announced_once_per_cause"
+  ]
+ },
+ {
+  "bug": "sync success does not clear the alert",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_sync_failure_is_announced_once_per_cause"
+  ]
+ },
+ {
+  "bug": "outage alert not recorded after the send",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once",
+   "an_outage_of_several_ticks_through_the_real_store_and_cli",
+   "during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_drains",
+   "test_backend_outage_is_announced_once_and_sync_failures_are_not",
+   "test_outage_is_not_cleared_while_only_the_backend_check_answers",
+   "test_outage_with_uncached_roots_still_tells_every_configured_lead",
+   "test_undelivered_outage_announcement_is_retried",
+   "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
+  ]
+ },
+ {
+  "bug": "outage alert not reset when it ends",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
+  ]
+ },
+ {
+  "bug": "outage: no lead for a scope without one",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_without_a_lead_hears_about_a_sync_failure_through_the_fallback_lead",
+   "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once",
+   "test_outage_with_uncached_roots_still_tells_every_configured_lead"
+  ]
+ },
+ {
+  "bug": "outage not told to every configured lead when no root is readable",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed",
+   "test_outage_with_uncached_roots_still_tells_every_configured_lead"
+  ]
+ },
+ {
+  "bug": "outage message per phase instead of per lead",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once"
+  ]
+ },
+ {
+  "bug": "undelivered outage message recorded as delivered",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_undelivered_outage_announcement_is_retried"
+  ]
+ },
+ {
+  "bug": "sync failure of an unreachable cause announced per phase",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "announce::tests::a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase"
+  ]
+ },
+ {
+  "bug": "drain without the start gate and hard deadline",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_tick_budget_defers_drain_entries"
+  ]
+ },
+ {
+  "bug": "sync not deferred before T - 2 s",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_tick_budget_defers_drain_entries"
+  ]
+ },
+ {
+  "bug": "sync run with no deadline (a day)",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "no_tick_exceeds_25_s_with_every_bd_call_timing_out"
+  ]
+ },
+ {
+  "bug": "custom phase list ignored",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_custom_phases_limits_sync_and_stop"
+  ]
+ },
+ {
+  "bug": "malformed phase entry skipped instead of refused",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "configuration_the_tick_would_refuse_never_ends_the_schedule",
+   "test_malformed_custom_phases_is_refused"
+  ]
+ },
+ {
+  "bug": "unreadable root stops the schedule",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_whose_root_cannot_be_read_never_ends_the_schedule"
+  ]
+ },
+ {
+  "bug": "configuration the tick refuses can stop the schedule",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "configuration_the_tick_would_refuse_never_ends_the_schedule"
+  ]
+ },
+ {
+  "bug": "broken phase file does not hold the stop rule",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "configuration_the_tick_would_refuse_never_ends_the_schedule"
+  ]
+ },
+ {
+  "bug": "busy: stop check stops under a running task",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
+   "should_stop_returns_continue_when_busy"
+  ]
+ },
+ {
+  "bug": "busy tick not reported (runs as an empty pass-through)",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
+   "a_second_tick_while_a_blocking_sync_is_running_is_skipped_and_reported_busy"
+  ]
+ },
+ {
+  "bug": "poison not cleared (reported on every tick)",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
+   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+  ]
+ },
+ {
+  "bug": "poisoned mutex not reported",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
+   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+  ]
+ },
+ {
+  "bug": "a refused tick reported as ok to the scheduler",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
+   "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
+   "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped"
+  ]
+ },
+ {
+  "bug": "schedule started without a team",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_missing_team_is_refused"
+  ]
+ },
+ {
+  "bug": "atm address not validated",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_missing_team_is_refused",
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "atm message not on stdin",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "compose ignores the [tick] table",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_relative_phases_dir_and_the_default_are_rooted_at_the_repository"
+  ]
+ },
+ {
+  "bug": "announcements ignore the tick budget",
+  "file": "crates/bd-cache-sync/src/control.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "many_escalations_and_a_slow_sender_stay_within_the_tick_budget"
+  ]
+ },
+ {
+  "bug": "announcements ignore the stop flag",
+  "file": "crates/bd-cache-sync/src/control.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick",
+   "announce::tests::a_stopped_tick_sends_nothing_and_counts_the_message_unsent"
+  ]
+ },
+ {
+  "bug": "tick ignores the stop flag between phases",
+  "file": "crates/bd-cache-sync/src/tick.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "the_stop_flag_ends_a_tick_between_phases"
+  ]
+ },
+ {
+  "bug": "atm kills only the direct child",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "atm ignores the time the tick passes",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "atm ignores the stop flag",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "atm invocation without the reference environment",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "atm truncated output not marked",
+  "file": "crates/bd-cache-sync/src/atm.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "atm_process (process test)"
+  ]
+ },
+ {
+  "bug": "poison met by the stop check is lost",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
+   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+  ]
+ },
+ {
+  "bug": "empty phase list accepted",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_empty_phase_list_is_refused_not_a_schedule_that_ends_at_once"
+  ]
+ },
+ {
+  "bug": "phase file size not capped",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded"
+  ]
+ },
+ {
+  "bug": "phase file count not capped",
+  "file": "crates/bd-cache-sync/src/phases.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded"
+  ]
+ },
+ {
+  "bug": "compose does not root the phases directory",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_relative_phases_dir_and_the_default_are_rooted_at_the_repository"
+  ]
+ },
+ {
+  "bug": "embedded error text not clipped",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "announce::tests::embedded_text_is_clipped_on_a_character_boundary"
+  ]
+ },
+ {
+  "bug": "recorded outcome not clipped",
+  "file": "crates/bd-cache-sync/src/job.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped"
+  ]
+ },
+ {
+  "bug": "get ignores a pending entry (fast path always)",
+  "file": "crates/bd-cache/src/ready.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree"
+  ]
+ },
+ {
+  "bug": "get fast path ignores entries applied since the fetch",
+  "file": "crates/bd-cache/src/ready.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base"
+  ]
+ },
+ {
+  "bug": "get loads the whole base again",
+  "file": "crates/bd-cache/src/ready.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads"
+  ]
+ },
+ {
+  "bug": "store index not replaced with the base",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "test_e2e_blocker_close_and_reopen_update_ready"
+  ]
+ },
+ {
+  "bug": "store index survives a prune",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild"
+  ]
+ },
+ {
+  "bug": "store index keeps duplicate blockers",
+  "file": "crates/bd-cache-store/src/codec.rs",
+  "exit": 101,
+  "compile_error": false,
+  "failed": [
+   "base_entry_rules"
+  ]
+ }
+]

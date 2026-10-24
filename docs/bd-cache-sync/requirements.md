@@ -1,6 +1,6 @@
 # bd-cache-sync Requirements
 
-Status: Draft (sprint a-7, awaiting lead ruling). Crate-local requirements (domain code `SYNC`)
+Status: Approved (lead ruling, bc-lead, 2026-10-24), with the corrections of QA round 1 (fix-a-7-1). Crate-local requirements (domain code `SYNC`)
 refining [`../requirements.md`](../requirements.md). Architecture:
 [`architecture.md`](architecture.md). Created by sprint a-7.
 
@@ -9,10 +9,10 @@ Test files are under `crates/bd-cache-sync/tests/`. The ported cases of
 
 ## REQ-SYNC-0001: The tick is a library entry point
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-`tick(&mut Cache, &TickConfig, &dyn EscalationSender, &dyn Clock, Deadline)`
-runs one tick that must finish by the deadline `T`, and returns a `TickReply`:
+`tick(&mut Cache, &TickConfig, &dyn EscalationSender, Deadline)`
+runs one tick that must finish by the deadline `T`, on the cache's own clock, and returns a `TickReply`:
 `pass-through`, or `refused` with the list of what was refused. It is
 independent of the scheduler: `sc-cron` drives it through `SyncJob`, and an
 external scheduler (the ATM cron module through the later `bdc tick`) can
@@ -26,12 +26,12 @@ the doctests of `tick` and `schedule_spec`.
 
 ## REQ-SYNC-0002: Phases come from phase files and the configured list
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A phase is `phase-<x>.toml` in `[tick] phases_dir` (default `.atm-bd/`, relative
-to the working directory, which is the beads root) with a `root` bead and an
+to the working directory; `compose` resolves it against the repository root) with a `root` bead and an
 optional `lead`; other keys are ignored. `[tick] phases` limits the phases
-(names with or without the `phase-` prefix). A malformed entry refuses the
+(names with or without the `phase-` prefix). The schema was confirmed against `bd_cache_cron.py` at atm-core `05831df` and a real `phase-bd.toml` / `phase-bk.toml` is a test fixture (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
 tick before any work; an unusable file, an unreadable directory or a
 configured phase with no file is listed as refused while the phases that are
 usable still run. A phase is active while its root is not closed: a root the
@@ -50,7 +50,7 @@ roots are reported.
 
 ## REQ-SYNC-0003: One schedule per repository, with a team and a fallback lead
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `schedule_spec` builds the repository's one schedule (`bd-cache:<cache file>`,
 every 30 s, 25 s budget). `[tick] team` and `[tick] fallback_lead` are both
@@ -63,7 +63,7 @@ without them `schedule_spec` and `tick` refuse, and a refused tick makes no
 
 ## REQ-SYNC-0004: The tick budget
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A tick drains with `DrainBudget { start_gate: T - 5 s, hard: T - 2 s }`, then
 syncs each active phase with deadline `T`. A phase whose sync has not started
@@ -77,7 +77,7 @@ out, no tick takes longer than 25 s.
 
 ## REQ-SYNC-0005: Threading of the job
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `SyncJob` holds the `Cache` in an `Arc<Mutex<_>>` and runs every tick and
 stop check in `tokio::task::spawn_blocking`, with the run's deadline as `T`.
@@ -96,7 +96,7 @@ recovered, cleared, and reported once in the tick reply.
 
 ## REQ-SYNC-0006: Announcements are sent through the sender port and retried until delivered
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Every message goes through `EscalationSender`. A sync failure whose cause
 differs from the phase's `sync_alert` is sent to the phase's lead (the
@@ -118,7 +118,7 @@ again on the next tick.
 
 ## REQ-SYNC-0007: An outage is announced once per scope through the sync alert
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 While the cache records an outage, each active scope whose alert does not
 read `backend_unavailable` has its lead told once (one message per distinct
@@ -140,7 +140,7 @@ by a list that answers (a-1's `call`), never by the backend check.
 
 ## REQ-SYNC-0008: The stop rule never stops on uncertainty
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `stop_reason` stops the schedule when no phase is active and no journal entry
 is pending or escalated-and-unannounced. It answers "keep going" when the
@@ -154,20 +154,28 @@ read, a root cannot be read, or the store fails.
 
 ## REQ-SYNC-0009: `atm send` is bounded and carries the message on stdin
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-`AtmSender` runs `atm send <lead>@<team> --team tool --as cron --stdin` and
-writes the message to stdin. An address that could be read as an option, or
+`AtmSender` runs `atm send <lead>@<team> --team tool --stdin --json` with
+`ATM_IDENTITY=cron` and `ATM_TEAM=tool` (the reference's invocation,
+ADR-SYNC-0007) and writes the message to stdin. An address that could be read as an option, or
 split in two, is refused before a process starts. A child still running after
 the timeout (10 s) is killed and the send fails; a nonzero exit fails with the
 child's stderr.
 
 **Refines:** REQ-BDC-0704..0706
-**Acceptance evidence:** `tests/atm_process.rs` (its own fake `atm`, 7 cases).
+**Acceptance evidence:** `tests/atm_process.rs` (its own fake `atm`, 12 cases):
+`delivers_the_body_on_stdin_with_the_reference_invocation`,
+`a_large_message_is_not_limited_by_the_argument_list`,
+`a_failing_atm_is_a_send_error_that_says_why`,
+`output_beyond_the_limit_is_dropped_and_the_error_says_so`,
+`an_address_that_could_be_read_as_an_option_is_refused_before_any_process_starts`,
+`a_missing_binary_is_a_send_error_and_does_not_resolve`,
+`a_timeout_that_no_message_could_use_is_refused`.
 
 ## REQ-SYNC-0010: The end-to-end flow runs through the real composition
 
-**Status:** Draft
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 A write journaled through the core lands in `bd` via the drain a scheduler
 runs, verified by read-back, through `SyncJob`, `Cache`, `SqliteStore`,
@@ -183,3 +191,46 @@ readiness in the same tick's sync.
 `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
 `test_e2e_blocker_close_and_reopen_update_ready` (`tests/e2e.rs`); `tests/live.rs`
 (testbed).
+
+## REQ-SYNC-0011: Messages are sent inside the tick's budget
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Before each message the tick checks its stop flag and the time left before
+`T`; the sender is given that time (`send_within`) and never runs longer. With
+less than half a second left the message is not started: it is counted in
+`TickReply::unsent`, stays unmarked and the next tick sends it. A tick whose
+sender takes 9 s per message ends within 25 s.
+
+**Refines:** REQ-BDC-0703, 0706, NFR-BDC-0004 (constraint)
+**Acceptance evidence:** `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`,
+`a_stopped_tick_leaves_escalations_unmarked_for_the_next_tick` (`tests/announce.rs`).
+
+## REQ-SYNC-0012: Cooperative shutdown
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+A `StopFlag` ends a running tick between phases and before every message;
+given to the `AtmSender` it kills the child and its whole process tree. An
+`atm` that outlives its timeout takes its descendants with it.
+
+**Refines:** REQ-BDC-0703
+**Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`
+(`tests/job_threading.rs`); `the_stop_flag_kills_the_child`,
+`the_whole_process_tree_is_killed_not_just_the_child`,
+`an_atm_that_hangs_is_killed_and_gone_at_the_timeout` (`tests/atm_process.rs`).
+
+## REQ-SYNC-0013: A cached `get` costs the same at any scope size
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+
+Owned by a-7 through NFR-BDC-0001, implemented in `bd-cache` and
+`bd-cache-store` by lead ruling S4 (bc-lead, 2026-10-24): a cached `get` reads the
+bead's own entry of the stored ready base (`CacheStore::base_entry`) and
+adjusts the whole base only when a pending or recently applied entry could
+have changed it.
+
+**Refines:** NFR-BDC-0001
+**Acceptance evidence:** `a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads`,
+`a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree` (`tests/perf.rs`);
+`base_entry_rules` (the store contract suite); release-profile medians in the sprint doc.

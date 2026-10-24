@@ -32,15 +32,21 @@ expected sha, not the schema, so the diff against the pinned fixture is empty.
 A diff is produced when the schema really changes, which a-2's proof showed by
 also editing the fixture (run 40073178515, issue #8).
 
-## What remains for close-out
+## What remains for close-out (ruled deferrals)
+
+Lead ruling S9 (bc-lead, 2026-10-24): the close-out runs are **phase close-out
+gates, not a-7 sprint gates**. Owner: **bc-lead**. Due: at the `develop` -> `main`
+merge of phase a. This closes REQ-QA-009 and ARCH-017 as ruled deferrals.
 
 - `repository_dispatch` with a different bd version: after `develop` is merged to
-  `main` (phase-a close-out, team-lead), send
+  `main`, send
   `gh api repos/randlee/beads-cache/dispatches -f event_type=beads-release -f 'client_payload[version]=<v>'`
   and check the run, as P-5 in `docs/plans/phase-a/phase-a-plan.md` describes.
+- `workflow_dispatch` on `main` at the pinned version: after the same merge.
 - A failing run caused by a real bd release is not reproducible today: the
   locally installed bd 1.3.0 has exactly the pinned schema (sha256
   `caf8fe18...`), and the workflow passes a bd version with the pinned schema
   ("the model is current, the pin is just older"). Only a bd release that
-  changes `bd schema` fails it, which is the case the workflow exists for.
-- `workflow_dispatch` on `main` at the pinned version: after the same merge.
+  changes `bd schema` fails it, which is the case the workflow exists for; the
+  `bd schema` diff in an issue is therefore shown only by a-2's proof run
+  (40073178515, issue #8).
