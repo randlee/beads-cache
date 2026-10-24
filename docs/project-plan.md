@@ -30,7 +30,7 @@ Naming follows the Plan Naming section of
 
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
-| `aa` | SQLite cache schema and the `bd` CLI backend adapter | not yet written | planning |
+| `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` backend (seeded from btit), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | not yet written | planning |
 
 ## Sprints
 

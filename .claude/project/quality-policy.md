@@ -72,15 +72,15 @@ One convention for every phase. Everything is lower case.
 
 | Thing | Form | Example |
 |---|---|---|
-| Phase id | next unused letter pair, lower case | `aa` |
-| Sprint id | `<phase>-<n>`, `n` from 1 | `aa-1` |
-| Plan directory | `docs/plans/phase-<phase>/` | `docs/plans/phase-aa/` |
-| Phase plan | `docs/plans/phase-<phase>/phase-<phase>-plan.md` | `phase-aa-plan.md` |
-| Sprint doc | `docs/plans/phase-<phase>/sprint-<phase>-<n>-<slug>.md` | `sprint-aa-1-<slug>.md` |
-| Plan branch | `plan/phase-<phase>`, PR to `develop` | `plan/phase-aa` |
-| Phase branch | `integrate/phase-<phase>`, cut from `develop` | `integrate/phase-aa` |
-| Sprint branch | `sprint/<phase>-<n>-<slug>` | `sprint/aa-1-<slug>` |
-| Fix layer | `fix/<phase>-<n>-qa<k>`; phase-level: `fix/<phase>-<slug>` | `fix/aa-1-qa1` |
+| Phase id | next unused letter (then letter pairs once single letters run out), lower case | `a` |
+| Sprint id | `<phase>-<n>`, `n` from 1 | `a-1` |
+| Plan directory | `docs/plans/phase-<phase>/` | `docs/plans/phase-a/` |
+| Phase plan | `docs/plans/phase-<phase>/phase-<phase>-plan.md` | `phase-a-plan.md` |
+| Sprint doc | `docs/plans/phase-<phase>/sprint-<phase>-<n>-<slug>.md` | `sprint-a-1-<slug>.md` |
+| Plan branch | `plan/phase-<phase>`, PR to `develop` | `plan/phase-a` |
+| Phase branch | `integrate/phase-<phase>`, cut from `develop` | `integrate/phase-a` |
+| Sprint branch | `sprint/<phase>-<n>-<slug>` | `sprint/a-1-<slug>` |
+| Fix layer | `fix/<phase>-<n>-qa<k>`; phase-level: `fix/<phase>-<slug>` | `fix/a-1-qa1` |
 
 - Phase plans never live outside `docs/plans/phase-<phase>/`.
 - Every sprint doc declares its branch explicitly. Tools read the declared
