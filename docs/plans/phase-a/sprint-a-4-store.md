@@ -229,7 +229,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Rerun after R2 (a-1 amendment 1) on commit `28a1c863304965be2b9dc354b513d866ca0691c4`, the last commit
+Rerun for fix-a-4-2 on commit `a71dd3913a8de680f63ac060204af98cad6b87f9`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -242,7 +242,7 @@ git checkout -- <file>
 | Planted bug | File | Exit | Compile error | Failing tests |
 |---|---|---|---|---|
 | no newer-row guard | `src/store.rs` | 101 | no | `newer_row_guard_compares_instants`, `newer_rows_are_kept_unless_forced` |
-| skip project-id check | `src/store.rs` | 101 | no | `test_file_from_another_project_is_refused` |
+| skip project-id check | `src/store.rs` | 101 | no | `a_refused_file_keeps_its_journal_mode_version_and_data`, `test_file_from_another_project_is_refused` |
 | rebuild deletes journal | `src/store.rs` | 101 | no | `fingerprint_rebuild_rule` |
 | no `mark_announced` | `src/store.rs` | 101 | no | `journal_lifecycle`, `test_escalations_are_unannounced_until_marked` |
 | no set sync alert | `src/store.rs` | 101 | no | `sync_state_alerts_and_outage_round_trip`, `test_sync_alert_round_trip` |
@@ -255,6 +255,9 @@ git checkout -- <file>
 | `applied_since` unbounded below | `src/store.rs` | 101 | no | `applied_since_is_inclusive_and_ordered` |
 | store failures mapped to `NO_DATABASE` | `src/error.rs` | 101 | no | `a_store_failure_is_store_failed_with_its_source`, `error::tests::failures_carry_the_step_the_file_and_the_whole_chain` |
 | `status` omits stale rows | `src/store.rs` | 101 | no | `status_lists_stale_rows_until_reread` |
+| outage read in two statements | `src/store.rs` | 101 | no | `the_outage_is_read_whole_while_another_connection_toggles_it` |
+| WAL set before the checks | `src/store.rs` | 101 | no | `a_refused_file_keeps_its_journal_mode_version_and_data` |
+| `CONIN$` accepted | `src/location.rs` | 101 | no | `identity_values_are_validated` |
 
 The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
@@ -273,14 +276,17 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 12. `applied_since`'s SQL bound and instant filter are removed.
 13. `error::failed` builds `NO_DATABASE` (no source) instead of `STORE_FAILED`.
 14. `status` returns an empty `stale` list.
+15. `outage` reads `outage_since` and `outage_error` in two statements.
+16. `open_at` sets WAL before `initialize` runs the version and identity checks.
+17. `DoltDatabase` accepts `CONIN$`.
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 to 14 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003, the fix-a-4-1 changes and the R2 changes.
+list; 7 to 17 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1, R2 and fix-a-4-2 changes.
 
 ## Validation
 
-Local, on `28a1c86` (macOS; `cargo test --workspace --all-features`: 391 passed, store contract suite 19 rules):
+Local, on `a71dd39` (macOS; `cargo test --workspace --all-features`: 433 passed, store contract suite 19 rules):
 
 | Gate | Result |
 |---|---|
