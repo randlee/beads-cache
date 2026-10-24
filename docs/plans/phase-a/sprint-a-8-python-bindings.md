@@ -202,8 +202,10 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `5dab027e6cc1f125aba3eb1a171170fa9b9ef8db`, the last commit
-that changes code (later commits change documents only). Each mutation was
+Run on commit `13d67ab328d5981fb2be4e2a446a68c53ae1b80d`, the last commit
+that changes code (later commits change documents only). 39 mutants: the 29 of
+the earlier rounds, re-run, and 10 for the QA-5 code (the `NotRun` mapping and
+the `ConfigKind`/`OpenKind` derivation). Each mutation was
 applied to the working tree, the wheel rebuilt, the whole pytest suite and
 `cargo test -p bd-cache-py -p bd-cache-model -p bd-cache` run, and the file restored with
 `git checkout`:
@@ -214,13 +216,13 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 
 | Planted bug | File | First failing test; failures |
 |---|---|---|
-| typed error drops its payload (no `unmet`) | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 9 |
+| typed error drops its payload (no `unmet`) | `src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 10 |
 | `ready` ignores `fresh_within` | `src/handle.rs` | `test_the_journal_lands_when_bd_returns_and_fresh_ready_agrees`; 5 |
 | `mark_announced` does nothing | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 2 |
 | GIL held during a verb | `src/handle.rs` | `test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_limit`; 3 |
 | write precondition dropped | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
 | scopes override ignored | `src/compose.rs` | `test_explicit_arguments_override_the_config_file`; 1 |
-| negative timeouts accepted | `src/convert.rs` | `test_arguments_that_are_not_valid_values_raise_value_error`; 5 |
+| negative timeouts accepted | `src/convert.rs` | `test_arguments_that_are_not_valid_values_raise_value_error`; 6 |
 | `close()` does nothing | `src/handle.rs` | `test_max_attempts_from_the_arguments_decides_when_a_failing_write_escalates`; 7 |
 | `__exit__` does not close | `src/handle.rs` | `test_the_handle_is_a_context_manager`; 1 |
 | `sync` ignores its timeout | `src/handle.rs` | `test_sync_stops_at_its_timeout_when_bd_is_blocked`; 1 |
@@ -228,28 +230,38 @@ cd crates/bd-cache-py && maturin develop -q && python -m pytest -q tests && carg
 | `get` ignores `miss_timeout` | `src/handle.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
 | drain start gate and hard deadline swapped | `src/handle.rs` | `test_drain_hard_deadline_cuts_a_blocked_call_and_counts_no_attempt`; 1 |
 | `write` swaps idempotency key and actor | `src/handle.rs` | `test_an_escalated_entry_is_announced_once_then_marked`; 9 |
-| one `ProjectLocks` per handle | `src/compose.rs` | `test_handles_on_different_cache_files_never_overlap_their_bd_calls`; 3 |
+| one `ProjectLocks` per handle | `src/compose.rs` | `test_handles_on_different_cache_files_never_overlap_their_bd_calls`; 4 |
 | `op` not validated in the binding | `src/handle.rs` | `test_an_unknown_op_is_a_value_error_and_bad_args_are_typed`; 1 |
 | `max_attempts` of 0 accepted | `src/handle.rs` | `test_signed_and_float_timeouts_and_attempts_are_validated[max_attempts-0]`; 1 |
-| `fix` treated as an envelope key (left out of the attribute) | `bd-cache-model/src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 7 |
-| `UNREACHABLE` lacks BD_LIST_FAILED | `bd-cache-model/src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 2 |
-| model classifies BdListFailed as reachable | `bd-cache-model/src/error.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 1 |
-| `closed` set only after the in-flight verb ends | `src/slot.rs` | `test_close_while_a_verb_is_in_flight`; 2 |
-| a panicking verb keeps its connection | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
-| a panicking verb does not close the slot | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
-| poisoned slot keeps its connection | `src/slot.rs` | `a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once`; 1 |
-| project directory not canonicalized | `src/compose.rs` | `test_spellings_of_one_project_directory_share_one_lock`; 3 |
+| `fix` treated as an envelope key (left out of the attribute) | `bd-cache-model/src/error.rs` | `test_a_precondition_error_carries_unmet_with_expected_and_actual`; 8 |
+| `UNREACHABLE` lacks BD_LIST_FAILED | `bd-cache-model/src/error.rs` | `test_unreachable_is_the_set_of_codes_that_mean_bd_did_not_answer`; 3 |
+| model classifies BdListFailed as reachable | `bd-cache-model/src/error.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 2 |
+| `closed` set only after the in-flight verb ends | `src/slot.rs` | `test_close_while_a_verb_is_in_flight`; 3 |
+| a panicking verb keeps its connection | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 3 |
+| a panicking verb does not close the slot | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 3 |
+| poisoned slot keeps its connection | `src/slot.rs` | `a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once`; 2 |
+| project directory not canonicalized | `src/compose.rs` | `test_spellings_of_one_project_directory_share_one_lock`; 4 |
 | `list` status not validated | `src/handle.rs` | `test_a_status_filter_must_be_a_bd_status`; 1 |
-| repo_root not validated on its own | `src/compose.rs` | `test_a_repo_root_that_is_missing_is_an_argument_error_with_or_without_project_dir`; 3 |
-| a panicking verb on a real composition keeps the file open | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 2 |
-| drain keeps its own unreachable set (BdListFailed missing) | `bd-cache/src/drain.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 1 |
+| repo_root not validated on its own | `src/compose.rs` | `test_a_repo_root_that_is_missing_is_an_argument_error_with_or_without_project_dir`; 4 |
+| a panicking verb on a real composition keeps the file open | `src/slot.rs` | `a_panicking_verb_closes_the_slot_at_the_panic_and_drops_the_value`; 3 |
+| drain keeps its own unreachable set (BdListFailed missing) | `bd-cache/src/drain.rs` | `a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt`; 2 |
+| `Panicked` message not carried to ClosedError | `src/handle.rs` | `every_closed_message_says_how_to_recover_and_a_panic_message_carries_the_panic`; 2 |
+| a panicking verb is reported as plain Closed | `src/slot.rs` | `a_panic_with_a_formatted_message_is_reported_with_it`; 4 |
+| a poisoned lock is reported as plain Closed | `src/slot.rs` | `a_lock_poisoned_outside_a_verb_is_cleared_under_the_guard_and_reported_once`; 2 |
+| `Poisoned` renders the `Closed` text | `src/handle.rs` | `every_closed_message_says_how_to_recover_and_a_panic_message_carries_the_panic`; 2 |
+| `parse` kind reported as `config` | `src/compose.rs` | `test_an_invalid_config_file_is_a_value_error_with_kind_and_path`; 1 |
+| `scope` kind reported as `argument` | `src/compose.rs` | `test_an_invalid_scope_in_the_config_file_is_a_value_error_of_kind_scope`; 1 |
+| `argument` kind reported as `config` | `src/compose.rs` | `test_a_repo_root_that_is_missing_is_an_argument_error_with_or_without_project_dir`; 3 |
+| `read` kind reported as `config` | `src/compose.rs` | `test_an_unreadable_config_file_is_an_os_error_with_kind_and_path`; 1 |
+| config open error derives the `Read` kind | `src/handle.rs` | `test_an_invalid_config_file_is_a_value_error_with_kind_and_path`; 5 |
+| read open error derives a config kind | `src/handle.rs` | `test_an_unreadable_config_file_is_an_os_error_with_kind_and_path`; 1 |
 
-Every bug fails at least one test and none by a compile error; the tree was
-clean after the run. Failures count pytest and Rust tests together.
+Every one of the 39 bugs fails at least one test, none by a compile error, and
+none survives; every file was restored and `git status` was clean after the run. Failures count pytest and Rust tests together.
 
 ## Validation
 
-Local, macOS arm64, on `5dab027` (documents after it): `cargo test --workspace
+Local, macOS arm64, on `13d67ab` (documents after it): `cargo test --workspace
 --all-features`: 661 passed; pytest: 92 passed.
 
 | Gate (with `set -o pipefail`) | Result |
@@ -261,12 +273,26 @@ Local, macOS arm64, on `5dab027` (documents after it): `cargo test --workspace
 | `cargo test --workspace --all-features` | pass |
 | pytest (`maturin develop`, 92 tests) | pass |
 
-CI on the last code-changing commit `5dab027`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40102111448 (rust job on
+CI on the last code-changing commit `13d67ab`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40104379936 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40102111461 (success).
+https://github.com/randlee/beads-cache/actions/runs/40104379997 (success).
 
+
+## QA round 5 findings and their fixes (QA-5 at df6b913; fixed in 13d67ab)
+
+Verdicts: arch-qa PASS, req-qa PASS (0 findings), flaky-test-qa pass (0
+findings); rust-qa and rust-best-practices reported minor findings only.
+
+| Id | Finding | Fix |
+|---|---|---|
+| RBP-F024 | `closed_message` accepted `Outcome<R>`, including an impossible `Done` arm | `slot::NotRun` (`Closed`, `Panicked(String)`, `Poisoned`) is the `Err` of `Slot::with`; `closed_message` takes `&NotRun` and matches it exhaustively; killed by the `NotRun` mutants above |
+| QA5-001 | Same defect as RBP-F024: `Outcome::Done` mapped to the closed text | Same fix: no `Done` arm exists any more |
+| QA5-002 | `#[allow]` instead of `#[expect]` at five sites | `#[expect(..., reason)]`; the unused lint allowances were dropped (`bd-cache-model` `error.rs` test module no longer allows `unwrap_used`) |
+| (QA-5 note) | `OpenError::Config` could carry `OpenKind::Read` | `ConfigKind` has no `Read`; `OpenKind::Config(ConfigKind)` or `Read`, and `OpenError::Config` holds a `ConfigKind`; killed by the `ConfigKind`/`OpenKind` mutants above |
+| ARCH-014 | Shared-files rows of the phase plan omitted a-8's ruled edits | Amendment notes added to `phase-a-plan.md` (architecture.md Crate Layout row R3; write-path.md R11; bd-cache-model docs R9/R11) |
+| ARCH-015 | Introduction of `docs/bd-cache-py/architecture.md` omitted `dunce` | `dunce` added (R12) |
 
 ## Fix round 1 (QA-1 at b75b5f3)
 
