@@ -12,11 +12,11 @@ sprint, and the testbed items are deferred evidence:
 
 | Item | Owner | Due | State |
 |---|---|---|---|
-| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | deferred |
-| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | deferred |
-| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | deferred |
+| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | pre-final run recorded; re-run at final head |
+| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | pre-final run recorded; re-run at final head |
+| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | pre-final run recorded; re-run at final head |
 
-Date of this record: 2026-10-24; the testbed run is due 2026-10-31. bc-lead replaces the "deferred" state
+Date of this record: 2026-10-24; the final-head testbed run is due 2026-10-31. bc-lead replaces the pre-final state
 with the figures below when the run is done.
 
 ## Commands (on `m5-atmbench`)
