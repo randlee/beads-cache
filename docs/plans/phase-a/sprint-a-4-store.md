@@ -226,7 +226,7 @@ Interpretations (no contract change):
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `1064d24cc78a028e62e865016b80cd47016b2781`, the last commit
+Rerun for fix-a-4-1 on commit `0d2e0a198759d9c022f2726086097f078f8dea8f`, the last commit
 that changes code (later commits change this document only). Each mutation
 was applied to the working tree, the crate's whole suite was run, and the
 file was restored:
@@ -246,6 +246,10 @@ git checkout -- <file>
 | no clear sync alert | `src/store.rs` | 101 | no | `sync_state_alerts_and_outage_round_trip`, `test_sync_alert_round_trip` |
 | `updated_at` compared as text | `src/codec.rs` | 101 | no | `codec::tests::newer_compares_instants_and_never_text`, `newer_row_guard_compares_instants` |
 | no membership take-over of Python rows | `src/schema.rs` | 101 | no | `a_python_written_v3_file_opens_and_reads_back_equal`, `rows_another_implementation_wrote_belong_to_their_phase` |
+| read-back row of another bead accepted | `src/store.rs` | 101 | no | `a_read_back_row_of_another_bead_is_refused_and_changes_nothing` |
+| one-connection claim on the raw path | `src/store.rs` | 101 | no | `one_connection_per_process_through_a_symlink` |
+| Windows device names accepted | `src/location.rs` | 101 | no | `identity_values_are_validated` |
+| `applied_since` unbounded below | `src/store.rs` | 101 | no | `applied_since_is_inclusive_and_ordered` |
 
 The mutations, in the order above (paths under `crates/bd-cache-store/`):
 
@@ -258,14 +262,18 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 7. `is_newer` orders the stored and incoming text.
 8. `RECONCILE_MEMBERSHIP` marks `bd_cache.py` rows known without taking
    their `phase` membership over.
+9. `apply_with_readback` stores a row whose id is not the entry's bead.
+10. `open_at` claims the path as given, not its canonical form.
+11. `DoltDatabase` accepts Windows device names.
+12. `applied_since`'s SQL bound and instant filter are removed.
 
 Every bug fails at least one test, none by a compile error, and the tree
 was clean after the run. Bugs 1 to 6 are the ones the acceptance criteria
-list; 7 and 8 cover the instant rule and ADR-STORE-0002.
+list; 7 to 12 cover the instant rule, ADR-STORE-0002, ADR-STORE-0003 and the fix-a-4-1 changes.
 
 ## Validation
 
-Local, on the commit above (macOS):
+Local, on `0d2e0a1` (macOS; `cargo test --workspace --all-features`: 387 passed):
 
 | Gate | Result |
 |---|---|
