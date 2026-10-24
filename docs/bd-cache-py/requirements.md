@@ -11,7 +11,7 @@ fake `bd` program (`tests/fake_bd_main.py`), which logs every argv.
 
 ## REQ-PY-0001: The module and its handle
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the `config` error kind is reserved (nothing produces it while `ConfigLoadError` has no further variants)
 
 `bd_cache_rs.Cache(repo_root, *, bd_binary="bd", project_dir=None, scopes=None,
 cache_path=None, call_timeout_s=None, miss_fill_timeout_ms=None,
@@ -25,7 +25,7 @@ repository without readable `.beads/metadata.json` is `BD_CACHE.NO_DATABASE`;
 an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`, `config`) and `path` (`config` is reserved; not produced while ConfigLoadError has no further variants (S38/S42); `path` may be `None`); an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
-**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`); Rust `compose::tests`.
+**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`); Rust `compose::tests`; for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
 
 ## REQ-PY-0002: The verbs atm-bd uses
 
