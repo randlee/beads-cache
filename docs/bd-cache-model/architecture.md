@@ -78,6 +78,10 @@ Decision: add the additive code `BD_CACHE.STORE_FAILED`,
 A store reports its own failures as `STORE_FAILED`. `NO_DATABASE` keeps its
 baseline meaning: missing or invalid `.beads/metadata.json`.
 
+Consequences: `bd-cache-store` (a-4) switches its store-internal failures from
+`NO_DATABASE` to `STORE_FAILED` with the source kept. The code is additive to
+the v3 CLI contract (ADR-BDC-0003), so it needs a note on #557.
+
 ## ADR-MODEL-0003: Store rule clarifications
 
 **Status:** Approved (lead ruling, 2026-10-23)
@@ -97,11 +101,38 @@ and alerts as v3 `meta` keys, and its clones share one store.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-Sprint a-6 needs status to report stale rows (REQ-BDC-0603, as amended in
-c4a2f8b). `StoreStatus` gains `stale: Vec<BeadId>`. `status()` reports the
+Context: sprint a-6 needs status to report stale rows (REQ-BDC-0603, as
+amended in c4a2f8b).
+
+Decision: `StoreStatus` gains `stale: Vec<BeadId>`. `status()` reports the
 same set as `stale_rows`, read as one consistent snapshot with the rest of
 the status. The store contract rule `status_lists_stale_rows_until_reread`
 checks that a failed read-back is listed and that a re-read clears it.
+
+Consequences: every `CacheStore` (FakeStore, a-4's SqliteStore) must report
+`stale` in `status()` from the same snapshot, and passes the new rule.
+
+### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
+
+**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`)
+
+`IdemKey::new` rejects an empty key; scopes are
+`ScopeId::Phase(PhaseName)` with a validated name (also in
+`ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
+sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
+is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
+Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
+carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
+and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
+unassigned update overlays as no assignee, as bd stores it.
+fix-a-1-2 (QA-002): the newer-row guard compares `updated_at` as an instant
+(second precision), never as text; the contract rule
+`newer_row_guard_compares_instants` checks it with offset and fractional
+timestamps. fix-a-1-3 (ARCH-201; lead ruling, bc-lead, 2026-10-23): when either `updated_at` does not
+parse, the stored row is not newer and the incoming row is stored; text is
+never ordered (`FakeBackend`'s cursor filter likewise lists such a row).
+`resolve` on an absent seq is `NOT_ESCALATED`; `NOT_FOUND` applies to the
+other seq-taking methods (ARCH-202; lead ruling, bc-lead, 2026-10-23).
 
 ## ADR-MODEL-0004: toml is a private parsing dependency
 
@@ -122,23 +153,3 @@ toml stays a normal dependency, used only inside `config.rs`; the
 
 Consequences: a toml upgrade is not a breaking change for the model's
 users. a-7 adds a tick key by amending `TickConfig` (an a-1 amendment).
-
-### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
-
-Approved with ADR-MODEL-0003 (lead ruling, 2026-10-23; ruling L5 for `CallFailure`). `IdemKey::new` rejects an empty key; scopes are
-`ScopeId::Phase(PhaseName)` with a validated name (also in
-`ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
-sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
-is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
-Error(CacheError) }`: `call` returns `Result<T, CallFailure>`, an outage
-carries its `BD_UNAVAILABLE` error (so a caller never wraps the text again),
-and `CallFailure::into_error` turns a cut into `BD_UNAVAILABLE`. An
-unassigned update overlays as no assignee, as bd stores it.
-fix-a-1-2 (QA-002): the newer-row guard compares `updated_at` as an instant
-(second precision), never as text; the contract rule
-`newer_row_guard_compares_instants` checks it with offset and fractional
-timestamps. fix-a-1-3 (ARCH-201; lead ruling, bc-lead, 2026-10-23): when either `updated_at` does not
-parse, the stored row is not newer and the incoming row is stored; text is
-never ordered (`FakeBackend`'s cursor filter likewise lists such a row).
-`resolve` on an absent seq is `NOT_ESCALATED`; `NOT_FOUND` applies to the
-other seq-taking methods (ARCH-202; lead ruling, bc-lead, 2026-10-23).
