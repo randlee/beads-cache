@@ -14,7 +14,8 @@ use std::path::PathBuf;
 
 use bd_cache_model::RepoConfig;
 use bd_cache_store::{
-    CacheLocation, ConfigLoadError, DoltDatabase, ProjectId, SqliteStore, load_repo_config,
+    BeadsDirOverride, CacheLocation, ConfigLoadError, DoltDatabase, ProjectId, SqliteStore,
+    load_repo_config,
 };
 use common::{CHILD_TIMEOUT, TempDir, run_bounded, this_test_binary, workspace};
 
@@ -54,9 +55,9 @@ fn test_beads_dir_env_names_the_database() {
     let elsewhere = tmp.path().join("elsewhere");
     workspace(&elsewhere, "otherdb", "p-9");
     let beads = elsewhere.join(".beads");
+    let dir = BeadsDirOverride::new(Some(beads.as_os_str())).unwrap();
     let loc =
-        CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), Some(beads.as_os_str()))
-            .unwrap();
+        CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), dir.as_ref()).unwrap();
     assert_eq!(
         loc.cache_path.file_name(),
         Some(OsStr::new("otherdb.bd-cache.sqlite3"))
@@ -64,8 +65,10 @@ fn test_beads_dir_env_names_the_database() {
     assert_eq!(loc.identity.project_id.as_str(), "p-9");
     // An empty BEADS_DIR is unset, as in bd_cache.py.
     workspace(tmp.path(), "testdb", "p-1");
-    let loc = CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), Some(OsStr::new("")))
-        .unwrap();
+    let empty = BeadsDirOverride::new(Some(OsStr::new(""))).unwrap();
+    assert_eq!(empty, None);
+    let loc =
+        CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), empty.as_ref()).unwrap();
     assert_eq!(loc.identity.dolt_database.as_str(), "testdb");
 
     // `resolve` reads the real environment: run it in a child with BEADS_DIR set.

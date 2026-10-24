@@ -111,11 +111,16 @@ pub trait CliInvoker: Send + Sync {
     /// test doubles). [`CliRunner`] applies it to `run_json`, `run_raw` and
     /// `run_bounded`.
     ///
-    /// The forwarding rule (ADR-BDCLI-0004, RSH-036): an invoker that wraps another
-    /// invoker must override this method and forward the call to the wrapped one,
-    /// as it forwards the spawning methods. The provided no-op would otherwise drop
-    /// the change silently, and the wrapped runner's children would inherit the
-    /// process's value instead of the one the composition resolved.
+    /// The forwarding rule (ADR-BDCLI-0004, RSH-036, narrowed by lead ruling S52): an
+    /// invoker that wraps one which spawns processes or acts on child variables (a
+    /// [`CliRunner`], or another wrapper that forwards) must override this method and
+    /// forward the call to the wrapped one, as it forwards the spawning methods. The
+    /// provided no-op would otherwise drop the change silently, and the wrapped
+    /// runner's children would inherit the process's value instead of the one the
+    /// composition resolved. A wrapper over a no-op invoker, one that spawns nothing
+    /// and keeps the provided body (such as the test wrapper
+    /// `Shared(Arc<RecordingInvoker>)`), is exempt: there is no child to give the
+    /// variable to.
     fn set_child_var(&mut self, _key: &OsStr, _value: Option<&OsStr>) {}
 }
 
@@ -403,11 +408,13 @@ mod tests {
     /// Starts the line [`child_env_helper`] prints.
     const HELPER_LINE: &str = "SC_BD_CHILD_ENV=";
 
-    /// Not a test of its own: when this unit-test binary is re-executed with
-    /// [`HELPER_MARK`] set, this case prints the values of [`HELPER_NAMES`] it was
-    /// given (`unset` for a missing one), read with `env::var_os` and so with the
-    /// platform's own name lookup. Without the mark it does nothing.
+    /// Not a test of its own, so ignored (QA10-004): the re-executed unit-test binary
+    /// runs it with `--ignored --exact`. With [`HELPER_MARK`] set it prints the
+    /// values of [`HELPER_NAMES`] it was given (`unset` for a missing one), read with
+    /// `env::var_os` and so with the platform's own name lookup. Without the mark it
+    /// does nothing.
     #[test]
+    #[ignore = "child process of the_child_environment_reaches_every_spawn_on_every_platform"]
     fn child_env_helper() {
         if std::env::var_os(HELPER_MARK).is_none() {
             return;
@@ -431,11 +438,48 @@ mod tests {
             .unwrap_or_else(|| panic!("no helper line in {stdout:?}"))
     }
 
+    /// How long one re-executed leg of
+    /// [`the_child_environment_reaches_every_spawn_on_every_platform`] may run.
+    const LEG_LIMIT: Duration = Duration::from_secs(60);
+
+    /// Runs `leg` on a worker thread and waits at most [`LEG_LIMIT`] for it
+    /// (FTQ-032): a re-executed child that hangs fails the test with a message
+    /// naming the leg instead of blocking it forever. The worker is left behind on
+    /// a timeout; the test process ends with the failure.
+    fn within_leg_limit<T: Send + 'static>(
+        name: &str,
+        leg: impl FnOnce() -> T + Send + 'static,
+    ) -> T {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            // The receiver is gone only after a timeout, which already failed.
+            let _ = tx.send(leg());
+        });
+        match rx.recv_timeout(LEG_LIMIT) {
+            Ok(value) => value,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                panic!("the {name} leg did not finish within {LEG_LIMIT:?}")
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                panic!("the {name} leg panicked on its worker thread")
+            }
+        }
+    }
+
     /// The child environment reaches `run_json`, `run_raw` and `run_bounded` on
     /// every platform, Windows included (QA9-002): the runner re-executes this
-    /// unit-test binary as [`child_env_helper`]. A name removed in another case
-    /// (`sc_bd_c` after `SC_BD_C`) is the same variable on Windows and is unset
-    /// there; on Unix it is another name and `SC_BD_C` stays set.
+    /// unit-test binary as the ignored [`child_env_helper`] (`--ignored --exact`).
+    /// A name removed in another case (`sc_bd_c` after `SC_BD_C`) is the same
+    /// variable on Windows and is unset there; on Unix it is another name and
+    /// `SC_BD_C` stays set.
+    ///
+    /// This test checks the variables' delivery end to end; the dedup of names
+    /// is checked by the unit test `names_compare_as_the_platform_environment_does`
+    /// (`command.rs`). On Windows the delivery would be the same without that
+    /// dedup, since `std::process::Command` itself applies the platform's rule
+    /// and its last change wins (QA10-004). Each leg (`run_raw` with the
+    /// `--version` probe it starts, `run_bounded`, `run_json`) runs on a worker
+    /// thread bounded by [`LEG_LIMIT`] (FTQ-032).
     #[test]
     fn the_child_environment_reaches_every_spawn_on_every_platform() {
         let exe = std::env::current_exe().unwrap();
@@ -451,30 +495,41 @@ mod tests {
         } else {
             "a|unset|c"
         };
-        let project = temp_project();
+        let runner = Arc::new(runner);
         // `--` ends libtest's options: the `--json` (and any `--no-daemon`) that
         // `run_json` appends become name filters that match nothing.
         let filter = [
             "runner::tests::child_env_helper",
+            "--ignored",
             "--exact",
             "--nocapture",
             "--test-threads=1",
         ];
 
-        let raw = runner.run_raw(&project, &filter).unwrap();
+        let leg_runner = Arc::clone(&runner);
+        let raw = within_leg_limit("run_raw", move || {
+            leg_runner.run_raw(&temp_project(), &filter).unwrap()
+        });
         assert!(raw.success, "{raw:?}");
         assert_eq!(helper_report(&raw.stdout), expected, "run_raw");
 
         let argv: Vec<String> = filter.iter().map(|a| (*a).to_owned()).collect();
-        let bounded = runner
-            .run_bounded(&project, &argv, Duration::from_secs(60))
-            .unwrap();
+        let (leg_runner, leg_argv) = (Arc::clone(&runner), argv.clone());
+        let bounded = within_leg_limit("run_bounded", move || {
+            leg_runner
+                .run_bounded(&temp_project(), &leg_argv, LEG_LIMIT)
+                .unwrap()
+        });
         assert!(bounded.success, "{bounded:?}");
         assert_eq!(helper_report(&bounded.stdout), expected, "run_bounded");
 
         let mut json_args: Vec<String> = argv[1..].to_vec();
         json_args.push("--".to_owned());
-        let json = runner.run_json(&project, filter[0], &json_args).unwrap();
+        let json = within_leg_limit("run_json", move || {
+            runner
+                .run_json(&temp_project(), filter[0], &json_args)
+                .unwrap()
+        });
         assert_eq!(helper_report(&json), expected, "run_json");
     }
 

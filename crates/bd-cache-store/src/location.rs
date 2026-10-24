@@ -187,17 +187,174 @@ impl DatabaseIdentity {
     }
 }
 
-/// bd's `.beads` directory for a repository: `beads_dir_env` when it is set
-/// and not empty, else `<repo_root>/.beads`.
+/// A `$BEADS_DIR` value, validated once: never empty and always absolute
+/// (lead ruling S49).
 ///
-/// Pass `std::env::var_os(BEADS_DIR_ENV).as_deref()`; [`CacheLocation::resolve`]
-/// does.
-#[must_use]
-pub fn beads_dir(repo_root: &Path, beads_dir_env: Option<&OsStr>) -> PathBuf {
-    match beads_dir_env {
-        Some(dir) if !dir.is_empty() => PathBuf::from(dir),
-        _ => repo_root.join(".beads"),
+/// The one place the normalization rule lives (lead rulings S44, S48, S49): an
+/// unset or empty value is no override (`None`), and any other value is made
+/// absolute with [`std::path::absolute`] against the process's working
+/// directory. What that resolves differs by platform (lead ruling S50):
+///
+/// - on Unix it joins a relative path with the working directory and resolves
+///   nothing: no `..`, no symbolic link (it only drops `.` components and
+///   repeated separators, as [`Path::components`] does);
+/// - on Windows it calls `GetFullPathNameW`, which also resolves `.` and `..`
+///   textually, without touching the file system.
+///
+/// Built once by a composition and handed, unchanged, to the store
+/// ([`SqliteStore::open_with`](crate::SqliteStore::open_with),
+/// [`CacheLocation::resolve_with`], [`beads_dir`]) and, as
+/// [`as_os_str`](Self::as_os_str), to every `bd` child, so the two cannot
+/// name different directories.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use std::ffi::OsStr;
+/// use bd_cache_store::BeadsDirOverride;
+/// assert_eq!(BeadsDirOverride::new(None)?, None);
+/// assert_eq!(BeadsDirOverride::new(Some(OsStr::new("")))?, None);
+/// let dir = BeadsDirOverride::new(Some(OsStr::new("rel")))?.ok_or("not empty")?;
+/// assert!(dir.as_path().is_absolute() && dir.as_path().ends_with("rel"));
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BeadsDirOverride(PathBuf);
+
+impl BeadsDirOverride {
+    /// Validates an explicit `$BEADS_DIR` value (`None` = unset): `Ok(None)`
+    /// for an unset or empty value, else the value made absolute against the
+    /// process's working directory.
+    ///
+    /// # Errors
+    ///
+    /// [`BeadsDirError`] when the value cannot be made absolute (for a
+    /// relative value, the working directory cannot be read); its source is
+    /// the I/O error.
+    pub fn new(value: Option<&OsStr>) -> Result<Option<Self>, BeadsDirError> {
+        Self::new_with(value, |dir| std::path::absolute(dir))
     }
+
+    /// [`new`](Self::new) over the process's own `$BEADS_DIR`.
+    ///
+    /// # Errors
+    ///
+    /// As [`new`](Self::new).
+    pub fn from_env() -> Result<Option<Self>, BeadsDirError> {
+        Self::new(std::env::var_os(BEADS_DIR_ENV).as_deref())
+    }
+
+    /// [`new`](Self::new) with the step that makes a path absolute injected, so
+    /// a test can make it fail (lead ruling S48).
+    fn new_with(
+        value: Option<&OsStr>,
+        absolute: impl FnOnce(&Path) -> io::Result<PathBuf>,
+    ) -> Result<Option<Self>, BeadsDirError> {
+        let Some(value) = value.filter(|v| !v.is_empty()) else {
+            return Ok(None);
+        };
+        let dir = Path::new(value);
+        match absolute(dir) {
+            Ok(abs) => Ok(Some(Self(abs))),
+            Err(source) => Err(BeadsDirError::new(dir, source)),
+        }
+    }
+
+    /// The absolute directory.
+    #[must_use]
+    pub fn as_path(&self) -> &Path {
+        &self.0
+    }
+
+    /// The absolute directory as the value of a child's `BEADS_DIR`.
+    #[must_use]
+    pub fn as_os_str(&self) -> &OsStr {
+        self.0.as_os_str()
+    }
+}
+
+/// A `$BEADS_DIR` value could not be made absolute (lead ruling S48): the
+/// working directory it is relative to cannot be read.
+///
+/// `Display` names the value; the I/O error is carried only as
+/// [`Error::source`](std::error::Error::source).
+#[derive(Debug)]
+pub struct BeadsDirError {
+    value: PathBuf,
+    source: io::Error,
+}
+
+impl BeadsDirError {
+    /// The error for `value`, which could not be made absolute because of
+    /// `source`. Public so a consumer can build one in a test of its own
+    /// mapping; [`BeadsDirOverride::new`] is what returns it.
+    #[must_use]
+    pub fn new(value: impl Into<PathBuf>, source: io::Error) -> Self {
+        Self {
+            value: value.into(),
+            source,
+        }
+    }
+
+    /// The value as given.
+    #[must_use]
+    pub fn value(&self) -> &Path {
+        &self.value
+    }
+
+    /// The value and the I/O error, for a consumer that maps this into an
+    /// error of its own.
+    #[must_use]
+    pub fn into_parts(self) -> (PathBuf, io::Error) {
+        (self.value, self.source)
+    }
+}
+
+impl fmt::Display for BeadsDirError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "cannot make BEADS_DIR {} absolute against the working directory",
+            self.value.display()
+        )
+    }
+}
+
+impl std::error::Error for BeadsDirError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+/// The process's own `$BEADS_DIR` for the environment-reading paths
+/// ([`CacheLocation::resolve`], [`SqliteStore::open`](crate::SqliteStore::open)):
+/// a value that cannot be made absolute is `BD_CACHE.NO_DATABASE`, its detail
+/// naming the value and the I/O error (lead ruling S49), before any file is
+/// read.
+pub(crate) fn env_beads_dir() -> Result<Option<BeadsDirOverride>, CacheError> {
+    BeadsDirOverride::from_env().map_err(|e| unresolvable(&e))
+}
+
+/// The `BD_CACHE.NO_DATABASE` of an unresolvable `$BEADS_DIR`.
+fn unresolvable(e: &BeadsDirError) -> CacheError {
+    CacheError::NoDatabase {
+        detail: format!("{e}: {}", e.source),
+    }
+}
+
+/// bd's `.beads` directory for a repository: the override when there is one,
+/// else `<repo_root>/.beads`.
+///
+/// Pass [`BeadsDirOverride::from_env`] for the process's own value;
+/// [`CacheLocation::resolve`] does.
+#[must_use]
+pub fn beads_dir(repo_root: &Path, beads_dir: Option<&BeadsDirOverride>) -> PathBuf {
+    beads_dir.map_or_else(
+        || repo_root.join(".beads"),
+        |dir| dir.as_path().to_path_buf(),
+    )
 }
 
 /// The resolved cache file of a repository (REQ-BDC-0101).
@@ -210,20 +367,20 @@ pub struct CacheLocation {
 }
 
 impl CacheLocation {
-    /// Resolves the cache file of `repo_root`, reading `$BEADS_DIR` from the environment.
+    /// Resolves the cache file of `repo_root`, reading `$BEADS_DIR` from the
+    /// environment ([`BeadsDirOverride::from_env`]).
     ///
     /// # Errors
     ///
-    /// `BD_CACHE.NO_DATABASE` as for [`DatabaseIdentity::read`].
+    /// `BD_CACHE.NO_DATABASE` as for [`DatabaseIdentity::read`], and for a
+    /// `$BEADS_DIR` that cannot be made absolute (the detail names the value
+    /// and the I/O error; lead ruling S49).
     pub fn resolve(repo_root: &Path, config: &RepoConfig) -> Result<Self, CacheError> {
-        Self::resolve_with(
-            repo_root,
-            config,
-            std::env::var_os(BEADS_DIR_ENV).as_deref(),
-        )
+        Self::resolve_with(repo_root, config, env_beads_dir()?.as_ref())
     }
 
-    /// Resolves the cache file with an explicit `$BEADS_DIR` value (`None` = unset).
+    /// Resolves the cache file with an explicit `$BEADS_DIR` override (`None` =
+    /// unset); the environment is not read.
     ///
     /// # Errors
     ///
@@ -250,9 +407,9 @@ impl CacheLocation {
     pub fn resolve_with(
         repo_root: &Path,
         config: &RepoConfig,
-        beads_dir_env: Option<&OsStr>,
+        beads_dir_override: Option<&BeadsDirOverride>,
     ) -> Result<Self, CacheError> {
-        let identity = DatabaseIdentity::read(&beads_dir(repo_root, beads_dir_env))?;
+        let identity = DatabaseIdentity::read(&beads_dir(repo_root, beads_dir_override))?;
         let cache_path = match &config.cache_path {
             Some(p) => repo_root.join(p),
             None => repo_root
@@ -431,4 +588,75 @@ pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError>
         });
     }
     Ok(config)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_unset_or_empty_beads_dir_is_no_override() {
+        assert_eq!(BeadsDirOverride::new(None).unwrap(), None);
+        assert_eq!(BeadsDirOverride::new(Some(OsStr::new(""))).unwrap(), None);
+        // Nothing is made absolute for them, so a failing step is never reached.
+        let refuse = |_: &Path| -> io::Result<PathBuf> { Err(io::Error::other("unreached")) };
+        assert_eq!(BeadsDirOverride::new_with(None, refuse).unwrap(), None);
+        assert_eq!(
+            BeadsDirOverride::new_with(Some(OsStr::new("")), refuse).unwrap(),
+            None
+        );
+    }
+
+    #[test]
+    fn a_relative_beads_dir_is_made_absolute_against_the_working_directory() {
+        let cwd = std::env::current_dir().unwrap();
+        let dir = BeadsDirOverride::new(Some(OsStr::new("rel")))
+            .unwrap()
+            .unwrap();
+        assert_eq!(dir.as_path(), cwd.join("rel"));
+        assert_eq!(dir.as_os_str(), cwd.join("rel").as_os_str());
+    }
+
+    #[test]
+    fn an_absolute_beads_dir_is_kept() {
+        let abs = std::env::temp_dir().join("bd-cache-s49");
+        let dir = BeadsDirOverride::new(Some(abs.as_os_str()))
+            .unwrap()
+            .unwrap();
+        assert_eq!(dir.as_path(), abs);
+        assert_eq!(beads_dir(Path::new("/repo"), Some(&dir)), abs);
+        assert_eq!(
+            beads_dir(Path::new("repo"), None),
+            Path::new("repo").join(".beads")
+        );
+    }
+
+    /// The step that makes the value absolute fails (a working directory that
+    /// cannot be read): the value is refused with the I/O error as its source,
+    /// never kept relative (lead ruling S48).
+    #[test]
+    fn a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause() {
+        let err = BeadsDirOverride::new_with(Some(OsStr::new("rel")), |_| {
+            Err(io::Error::new(io::ErrorKind::NotFound, "getcwd failed"))
+        })
+        .unwrap_err();
+        assert_eq!(err.value(), Path::new("rel"));
+        assert!(err.to_string().contains("BEADS_DIR rel"), "{err}");
+        assert!(!err.to_string().contains("getcwd"), "{err}");
+        let source = std::error::Error::source(&err).unwrap();
+        assert_eq!(source.to_string(), "getcwd failed");
+
+        // The environment-reading paths report it as NO_DATABASE, naming both.
+        let cache = unresolvable(&err);
+        assert_eq!(cache.code(), "BD_CACHE.NO_DATABASE");
+        assert!(
+            cache.detail().contains("BEADS_DIR rel") && cache.detail().contains("getcwd failed"),
+            "{}",
+            cache.detail()
+        );
+
+        let (value, source) = err.into_parts();
+        assert_eq!(value, Path::new("rel"));
+        assert_eq!(source.kind(), io::ErrorKind::NotFound);
+    }
 }
