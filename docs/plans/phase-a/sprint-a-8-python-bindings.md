@@ -33,7 +33,7 @@ owned_paths:
   - "crates/sc-cron/clippy.toml"                # R14: `allow-*-in-tests` only
   - "crates/sc-cron/src/**"                     # R14: the src test-module `#[allow]` blocks are removed
   - "crates/sc-cron/tests/**"                   # R14: `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level `#![expect(..., reason)]`
-  - "docs/sc-cron/architecture.md"              # R14/R15: the Build note clippy.toml sentence only
+  - "docs/sc-cron/architecture.md"              # R14/R15: the Build note `clippy.toml` sentence only
 ---
 
 # Sprint a-8 — Python bindings (maturin / PyO3)
@@ -52,7 +52,9 @@ composition and the wheel builds in CI.
 Composes `BdCli` (a-2), `SqliteStore` (a-4) and the write and read paths of
 `Cache` (a-5, a-6). It does not need `bd-cache-sync` or `sc-cron` (a-3, a-7):
 atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
-`sync` through these bindings. It does not depend on sc-cron; under R14 and R15 it edits sc-cron's test lint configuration plus one sentence of `docs/sc-cron/architecture.md`.
+`sync` through these bindings. It does not depend on `sc-cron`; under R14 and
+R15 it edits `sc-cron`'s test lint configuration plus one sentence of
+`docs/sc-cron/architecture.md`.
 
 ## Deliverables
 
@@ -374,7 +376,7 @@ findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
 | ARCH-003 | Shared files table lacked an R14 `sc-cron` row | Amendment note for `crates/sc-cron/**` (owner a-3) in `phase-a-plan.md` |
 | ARCH-004 / QA7-003 / REQ-QA7-002 | Evidence and Validation cited 13d67ab and 661 tests; round 6 code changes and CI runs not cited | Evidence and Validation name `42d0604`, the last code-changing commit (tests layer head): 662 cargo tests and 92 pytest passed locally; CI `python.yml` 40108869209 and `ci.yml` 40108869268 green |
 | ARCH-005 / QA7-002 | QA6-001 missing from the round 6 table | Row added (clippy.toml plus `#![expect]`, `1709e3b`, R14) |
-| ARCH-006 | must_follow rationale said a-8 does not need sc-cron | Clause added: it does not depend on sc-cron; under R14 it edits only test lint configuration |
+| ARCH-006 | must_follow rationale said a-8 does not need `sc-cron` | Clause added: it does not depend on `sc-cron`; under R14 it edits only test lint configuration |
 | ARCH-007 | `docs/sc-cron/architecture.md` Build note omitted `clippy.toml` | One sentence added (R14) |
 | QA7-001 / REQ-QA7-003 | "and the restored" typo; pytest re-run cited on the survivor mutant | "and then restored"; the covering pytest run is the post-rename run at a36b7df, 92 passed |
 | REQ-QA7-004 | "none survives" line not cross-referenced to the round 6 survivor | Cross-reference added |
@@ -384,7 +386,7 @@ findings, flaky-test-qa 2 minor findings; rust-best-practices had none.
 
 | Id | Finding | Fix |
 |---|---|---|
-| ARCH-801 | The `docs/sc-cron/architecture.md` Build-note edit was outside `owned_paths`; no ruling recorded | Lead ruling R15 (bc-lead, 2026-10-24) recorded: `owned_paths` entry for `docs/sc-cron/architecture.md` (R14/R15, the Build note `clippy.toml` sentence only); R14 row in phase-a-plan's Shared files table names it under R15; the must_follow clause and the R14 Interpretations bullet now say a-8 edits sc-cron's test lint configuration plus that one doc sentence |
+| ARCH-801 | The `docs/sc-cron/architecture.md` Build-note edit was outside `owned_paths`; no ruling recorded | Lead ruling R15 (bc-lead, 2026-10-24) recorded: `owned_paths` entry for `docs/sc-cron/architecture.md` (R14/R15, the Build note `clippy.toml` sentence only); R14 row in phase-a-plan's Shared files table names it under R15; the must_follow clause and the R14 Interpretations bullet now say a-8 edits `sc-cron`'s test lint configuration plus that one doc sentence |
 | QA8-001 | The R14 change was described inconsistently across sites | One wording at all five sites (sprint doc owned_paths, Interpretations, QA round 6 row; phase-a-plan R14 row; `docs/sc-cron/architecture.md` Build note): "clippy.toml allow-*-in-tests; the src test-module #[allow] blocks are removed; tests/expr.rs, tests/sqlite_store.rs and tests/worker.rs use crate-level #![expect(..., reason)]"; the sc-cron doc says "integration tests" |
 | QA8-002 | "none survives" line contradicted the round 6 survivor | Reworded: "none of the 39 survives; the round 6 set below has one survivor, the unreachable fallback-arm mutant" |
 | QA8-003 | Module docstring of `crates/bd-cache-py/tests/test_perf.py` was wrapped ragged | Docstring re-wrapped to the file's width; docstring only |
@@ -396,6 +398,16 @@ The `test_perf.py` change is a docstring edit to a test file, not a code change,
 | Id | Finding | Fix |
 |---|---|---|
 | ARCH-901 | The `docs/sc-cron/architecture.md` Build note cited "lead rulings R14 and R15, a-8 fix round 6" but omitted QA-8, where R15 was recorded | Parenthetical now reads "(lead rulings R14 and R15, a-8 fix round 6 and QA-8)" |
-| QA9-001 | The R14 wording left code identifiers as plain text: `clippy.toml`, `allow-*-in-tests`, `#[allow]`, `#![expect(..., reason)]` and the `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` paths | Identifiers put in backticks, matching `docs/sc-cron/architecture.md`, in the sprint doc `owned_paths` comments, Interpretations bullet and QA round 6 row, and the phase-a-plan R14 row; the Interpretations bullet re-wrapped to the width of its neighbours. No wording change beyond backticks and the wrap |
+| QA9-001 | The R14 wording left code identifiers as plain text: `clippy.toml`, `allow-*-in-tests`, `#[allow]`, `#![expect(..., reason)]` and the `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` paths | Backticks added at six sites: the three `owned_paths` comments for `crates/sc-cron/clippy.toml`, `crates/sc-cron/src/**` and `crates/sc-cron/tests/**`, the Interpretations bullet (re-wrapped to the width of its neighbours), the QA6-001 row in the QA round 6 table, and the phase-a-plan R14 row. It did not reach the `docs/sc-cron/architecture.md` `owned_paths` comment or the must_follow rationale (QA10-001, QA10-002). No wording change beyond backticks and the wrap |
+
+This round is docs-only: no code, test or configuration file changed, so `42d0604` remains the last code-changing commit and Validation and Evidence keep citing it.
+
+## QA round 10 findings and their fixes (QA-10 at 88cc514)
+
+| Id | Finding | Fix |
+|---|---|---|
+| QA10-001 | The must_follow rationale line "It does not depend on sc-cron; under R14 and R15 it edits sc-cron's test lint configuration ..." left `sc-cron` unbackticked and ran to 175 columns | `sc-cron` put in backticks (both mentions, matching the line above) and the line re-wrapped to the paragraph width; words unchanged |
+| QA10-002 (same finding as ARCH-1001 and REQ-QA10-001) | The `owned_paths` comment for `docs/sc-cron/architecture.md` ("the Build note clippy.toml sentence only") left `clippy.toml` unbackticked, so QA-9's backtick fix was incomplete | `clippy.toml` put in backticks. The whole document was then swept with a script that skips backticks and code fences, for `clippy.toml`, `allow-*-in-tests`, `#[allow`, `#![expect`, `tests/expr.rs`, `tests/sqlite_store.rs`, `tests/worker.rs` and `sc-cron` used as a crate name; the only other hits were the QA round 7 ARCH-006 row and the QA round 8 ARCH-801 row, now backticked. The phase-a-plan R14 row (line 74) and `docs/sc-cron/architecture.md` lines 328-339 were checked and had no remaining hits. The QA9-001 Fix cell was corrected to state what QA-9 actually changed |
+| REQ-QA10-002 | Informational: the historical ARCH-005 / QA7-002 and QA8-001 rows quote the pre-backtick wording | No change, by lead decision: those rows stay verbatim as a record of what was written at the time. They are excluded from the sweep on purpose |
 
 This round is docs-only: no code, test or configuration file changed, so `42d0604` remains the last code-changing commit and Validation and Evidence keep citing it.
