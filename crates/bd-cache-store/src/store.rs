@@ -11,6 +11,7 @@ use bd_cache_model::{
     ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, phase_of, precondition_json,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use sc_beads::logging::tracing;
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::codec::{
@@ -24,13 +25,26 @@ use crate::registry::Registration;
 use crate::schema::{
     APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, BACKFILL_APPLIED_EPOCH,
     BACKFILL_APPLIED_EPOCH_UNHINTED, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
-    HAS_DATEABLE_SQL, HAS_DATEABLE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
-    HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, RECONCILE_MEMBERSHIP, SCHEMA_VERSION, UNDATED_SEQS,
-    V3_SCHEMA,
+    FIRST_DATEABLE_ABOVE_SQL, FIRST_DATEABLE_ABOVE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
+    HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL,
+    RECONCILE_MEMBERSHIP, SCHEMA_VERSION, UNDATABLE_BETWEEN_SQL, UNDATABLE_BETWEEN_UNHINTED_SQL,
+    UNDATED_ABOVE_SQL, UNDATED_ABOVE_UNHINTED_SQL, UNDATED_SEQS, V3_SCHEMA,
 };
 
 /// SQLite's busy timeout on the shared file (REQ-BDC-0103).
 pub const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
+
+/// How many undated journal entries (applied by `bd_cache.py` while the store
+/// is open, so without an epoch) the journal reads walk before they date them
+/// (ADR-STORE-0004, lead ruling S26).
+///
+/// At or below it, `has_entries_since` and `applied_since` write nothing and
+/// answer by walking the undated entries: about 0.1 us each, so a cached `get`
+/// stays well under NFR-BDC-0001's 1 ms with no WAL commit on its path. Above
+/// it they date the entries first, without waiting for the write lock: a
+/// one-off commit (a few ms per thousand entries) after which the walk is
+/// empty again. The measurements behind the value are in ADR-STORE-0004.
+pub const READ_DATING_THRESHOLD: u32 = 2_000;
 
 const META_PROJECT_ID: &str = "project_id";
 const META_DOLT_DATABASE: &str = "dolt_database";
@@ -88,7 +102,7 @@ fn is_missing_index(e: &rusqlite::Error) -> bool {
     )
 }
 
-/// How many seqs the open's warning about undatable entries names.
+/// How many seqs a warning about undatable entries names.
 const UNDATED_SEQS_LOGGED: usize = 20;
 
 /// The BD-CACHE v3 SQLite store (ADR-STORE-0001), shared with `bd_cache.py`.
@@ -99,9 +113,10 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 /// the `Cache` that owns it (ADR-CORE-0001). Every mutating method runs in one
 /// `BEGIN IMMEDIATE` transaction, so a concurrent writer in another process
 /// (a hook, the Python implementation) waits up to [`BUSY_TIMEOUT`]. The
-/// journal reads `has_entries_since` and `applied_since` may also write: they
-/// date the entries another writer applied without an epoch, never waiting
-/// for the write lock (ADR-STORE-0004).
+/// journal reads `has_entries_since` and `applied_since` may also write: when
+/// more than [`READ_DATING_THRESHOLD`] entries another writer applied wait to
+/// be dated, they date them, never waiting for the write lock, and answer the
+/// same either way (ADR-STORE-0004, lead rulings S25/S26).
 ///
 /// # Examples
 ///
@@ -135,6 +150,15 @@ pub struct SqliteStore {
     /// Set, with one warning, when a hinted journal index is found missing:
     /// from then on the journal reads ask their unhinted form (ADR-STORE-0004).
     hints_missing: Cell<bool>,
+    /// The floor of known unreadable entries: every undated entry at or below
+    /// this seq has an unreadable time (warned about). The read path counts
+    /// only undated entries above it, so the entries no dating can date are
+    /// not walked on every call (QA5-002). It never rises past an entry the
+    /// dating can date, so none is hidden from the count.
+    undatable_through: Cell<i64>,
+    /// Every undated entry with a seq at or below this one has had its time
+    /// examined; only higher seqs are examined (and warned about) again.
+    examined_through: Cell<i64>,
     _claim: Registration,
 }
 
@@ -209,7 +233,7 @@ impl SqliteStore {
         // Version and identity are checked (and the schema created) before
         // WAL is set, so a refused file is left exactly as it was, journal
         // mode included.
-        initialize(&mut conn, path, identity)?;
+        let undatable = initialize(&mut conn, path, identity)?;
         let mode: String = conn
             .pragma_update_and_check(None, "journal_mode", "WAL", |r| r.get(0))
             .at(at("set WAL mode"))?;
@@ -223,6 +247,8 @@ impl SqliteStore {
             conn,
             path: path.to_path_buf(),
             hints_missing: Cell::new(false),
+            undatable_through: Cell::new(undatable),
+            examined_through: Cell::new(undatable),
             _claim: claim,
         })
     }
@@ -270,43 +296,129 @@ impl SqliteStore {
     }
 
     /// Dates the entries applied without an epoch since the last backfill
-    /// (`bd_cache.py`'s, written while this store is open), so the journal
-    /// reads stay index lookups (ADR-STORE-0004). Best effort and never
-    /// waits: the `UPDATE` runs with no busy timeout, and when the write lock
-    /// is held elsewhere, or the file is read-only, nothing is dated now and
-    /// the reads answer the same from the undated entries, only slower.
+    /// (`bd_cache.py`'s, written while this store is open) when there are
+    /// more than [`READ_DATING_THRESHOLD`] of them, so the journal reads stay
+    /// index lookups (ADR-STORE-0004, lead ruling S26). At or below the
+    /// threshold nothing is written: the reads walk them, which is cheaper
+    /// than a commit. Best effort and never waits: the `UPDATE` runs with no
+    /// busy timeout ([`NoWait`]), and when the write lock is held elsewhere,
+    /// or the file is read-only, nothing is dated now and the reads answer
+    /// the same from the undated entries, only slower.
+    ///
+    /// Entries with an unreadable time are warned about once for each new
+    /// highest such seq, and are not counted again (QA5-002).
     fn date_undated(&self) {
-        let dateable = self.hinted(HAS_DATEABLE_SQL, HAS_DATEABLE_UNHINTED_SQL, |sql| {
-            self.conn.prepare_cached(sql)?.query_row([], |r| r.get(0))
-        });
-        match dateable {
-            Ok(true) => {}
-            Ok(false) => return,
+        let floor = self.undatable_through.get();
+        let limit = i64::from(READ_DATING_THRESHOLD) + 1;
+        let waiting: rusqlite::Result<i64> =
+            self.hinted(UNDATED_ABOVE_SQL, UNDATED_ABOVE_UNHINTED_SQL, |sql| {
+                self.conn
+                    .prepare_cached(sql)?
+                    .query_row([floor, limit], |r| r.get(0))
+            });
+        let dated = match waiting {
+            Ok(0) => return,
+            Ok(n) => n >= limit && self.date_now(),
             Err(e) => {
-                tracing::debug!(error = %e, "could not look for undated journal entries");
+                tracing::debug!(error = %e, "could not count undated journal entries");
                 return;
             }
+        };
+        let warned = self.note_undatable().unwrap_or_else(|e| {
+            tracing::debug!(error = %e, "could not look for undatable journal entries");
+            None
+        });
+        if (dated || warned.is_some())
+            && let Err(e) = self.raise_floor()
+        {
+            tracing::debug!(error = %e, "could not skip undatable journal entries");
         }
-        if let Err(e) = self.conn.busy_timeout(Duration::ZERO) {
-            tracing::debug!(error = %e, "could not drop the busy timeout to date entries");
-            return;
-        }
+    }
+
+    /// The non-waiting `UPDATE` of [`SqliteStore::date_undated`]; `true` when
+    /// it ran, so every entry with a readable time is dated.
+    fn date_now(&self) -> bool {
+        let _no_wait = match NoWait::new(&self.conn, &self.path) {
+            Ok(guard) => guard,
+            Err(e) => {
+                tracing::debug!(error = %e, "could not drop the busy timeout to date entries");
+                return false;
+            }
+        };
         let dated = self.hinted(
             BACKFILL_APPLIED_EPOCH,
             BACKFILL_APPLIED_EPOCH_UNHINTED,
             |sql| self.conn.prepare_cached(sql)?.execute([]),
         );
-        if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {
-            tracing::warn!(
-                path = %self.path.display(),
-                error = %e,
-                "could not restore the busy timeout"
-            );
-        }
         match dated {
-            Ok(n) => tracing::debug!(entries = n, "dated journal entries applied elsewhere"),
-            Err(e) => tracing::debug!(error = %e, "could not date journal entries now"),
+            Ok(n) => {
+                tracing::debug!(entries = n, "dated journal entries applied elsewhere");
+                true
+            }
+            Err(e) => {
+                tracing::debug!(error = %e, "could not date journal entries now");
+                false
+            }
         }
+    }
+
+    /// Raises the floor of known unreadable entries through the undated
+    /// entries above it with an unreadable time, up to (not past) the first
+    /// one the dating can date. Asked after a dating or a new warning only.
+    fn raise_floor(&self) -> rusqlite::Result<()> {
+        let floor = self.undatable_through.get();
+        let first: Option<i64> = self.hinted(
+            FIRST_DATEABLE_ABOVE_SQL,
+            FIRST_DATEABLE_ABOVE_UNHINTED_SQL,
+            |sql| {
+                self.conn
+                    .prepare_cached(sql)?
+                    .query_row([floor], |r| r.get(0))
+            },
+        )?;
+        let raised = match first {
+            Some(first) => first.saturating_sub(1),
+            None => self
+                .hinted(LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL, |sql| {
+                    self.conn
+                        .prepare_cached(sql)?
+                        .query_row([], |r| r.get::<_, Option<i64>>(0))
+                })?
+                .unwrap_or(floor),
+        };
+        self.undatable_through.set(floor.max(raised));
+        Ok(())
+    }
+
+    /// Examines the undated entries above the last examined seq, and warns
+    /// when some have an unreadable time; returns the new highest such seq
+    /// when it warned. Each entry is examined once: the work is the entries
+    /// that landed since the last call.
+    fn note_undatable(&self) -> rusqlite::Result<Option<i64>> {
+        let from = self.examined_through.get();
+        let last: Option<i64> =
+            self.hinted(LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL, |sql| {
+                self.conn.prepare_cached(sql)?.query_row([], |r| r.get(0))
+            })?;
+        let Some(to) = last.filter(|&to| to > from) else {
+            return Ok(None);
+        };
+        let seqs: Vec<i64> = self.hinted(
+            UNDATABLE_BETWEEN_SQL,
+            UNDATABLE_BETWEEN_UNHINTED_SQL,
+            |sql| {
+                self.conn
+                    .prepare_cached(sql)?
+                    .query_map([from, to], |r| r.get(0))?
+                    .collect()
+            },
+        )?;
+        self.examined_through.set(to);
+        let Some(&highest) = seqs.last() else {
+            return Ok(None);
+        };
+        warn_undatable(&self.path, &seqs);
+        Ok(Some(highest))
     }
 
     /// Runs `f` in one `BEGIN IMMEDIATE` transaction, committed when `f` succeeds.
@@ -498,18 +610,47 @@ impl SqliteStore {
     }
 }
 
+/// Sets the connection's busy timeout to zero, and back to [`BUSY_TIMEOUT`]
+/// when dropped, also on unwind (QA5-003): the read-path dating never waits
+/// for the write lock, and every later write waits as before.
+struct NoWait<'c> {
+    conn: &'c Connection,
+    path: &'c Path,
+}
+
+impl<'c> NoWait<'c> {
+    fn new(conn: &'c Connection, path: &'c Path) -> rusqlite::Result<Self> {
+        conn.busy_timeout(Duration::ZERO)?;
+        Ok(Self { conn, path })
+    }
+}
+
+impl Drop for NoWait<'_> {
+    fn drop(&mut self) {
+        if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {
+            tracing::warn!(
+                path = %self.path.display(),
+                error = %e,
+                "could not restore the busy timeout"
+            );
+        }
+    }
+}
+
 /// `BEGIN IMMEDIATE`: writers in other processes wait, up to the busy timeout.
 fn begin<'c>(conn: &'c mut Connection, at: Step<'_>) -> Result<Transaction<'c>, CacheError> {
     conn.transaction_with_behavior(TransactionBehavior::Immediate)
         .at(at)
 }
 
-/// Schema, version and identity checks of [`SqliteStore::open_at`], in one transaction.
+/// Schema, version and identity checks of [`SqliteStore::open_at`], in one
+/// transaction. Returns the highest seq of an applied entry the backfill
+/// could not date (warned about), or 0.
 fn initialize(
     conn: &mut Connection,
     path: &Path,
     identity: &DatabaseIdentity,
-) -> Result<(), CacheError> {
+) -> Result<i64, CacheError> {
     let at = |what| step(path, what);
     let tx = begin(conn, at("initialize"))?;
     let version: i32 = tx
@@ -543,7 +684,8 @@ fn initialize(
         .at(at("create the extension indexes"))?;
     tx.execute_batch(BACKFILL_APPLIED_EPOCH)
         .at(at("date the entries bd_cache.py applied"))?;
-    warn_undatable(&tx, path)?;
+    let undatable = undatable_seqs(&tx).at(at("find undatable journal entries"))?;
+    warn_undatable(path, &undatable);
     tx.pragma_update(None, "user_version", SCHEMA_VERSION)
         .at(at("set user_version"))?;
     let recorded: Option<String> = tx
@@ -580,26 +722,28 @@ fn initialize(
     }
     tx.execute_batch(RECONCILE_MEMBERSHIP)
         .at(at("take over membership"))?;
-    tx.commit().at(at("initialize"))
+    tx.commit().at(at("initialize"))?;
+    Ok(undatable.last().copied().unwrap_or_default())
 }
 
-/// Warns about applied entries the backfill could not date: their time is
-/// unreadable, so they count as applied since every instant and keep `get`
-/// of their scope on the adjusted path until an operator resolves or deletes
-/// them (ADR-STORE-0004). They still count: correctness comes first.
-fn warn_undatable(tx: &Transaction<'_>, path: &Path) -> Result<(), CacheError> {
-    let seqs = undatable_seqs(tx).at(step(path, "find undatable journal entries"))?;
-    if !seqs.is_empty() {
+/// Warns about applied entries the store could not date, `seqs` by seq: their
+/// time is unreadable, so they count as applied since every instant and keep
+/// `get` of their scope on the adjusted path until an operator resolves or
+/// deletes them (ADR-STORE-0004). They still count: correctness comes first.
+/// Called by the open for every such entry, and by the read path for the new
+/// ones (QA5-002).
+fn warn_undatable(path: &Path, seqs: &[i64]) {
+    if let Some(&highest) = seqs.last() {
         tracing::warn!(
             path = %path.display(),
             count = seqs.len(),
+            highest,
             seqs = ?seqs.iter().take(UNDATED_SEQS_LOGGED).collect::<Vec<_>>(),
             "applied journal entries have an unreadable time and count as applied since \
              every instant, so ready answers of their scope are always adjusted; resolve \
              or delete them (ADR-STORE-0004)"
         );
     }
-    Ok(())
 }
 
 /// The seqs of applied entries still without an epoch, by seq.
@@ -1464,10 +1608,6 @@ impl SqliteStore {
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::unwrap_used,
-        reason = "test code: a failed unwrap is a test failure"
-    )]
     use super::*;
     use crate::location::{DoltDatabase, ProjectId};
 
@@ -1501,5 +1641,92 @@ mod tests {
             [2],
             "only the unreadable one"
         );
+    }
+
+    fn seed_applied(path: &Path, tag: &str, n: usize, updated_at: &str) {
+        let mut c = Connection::open(path).unwrap();
+        let tx = c.transaction().unwrap();
+        for i in 0..n {
+            tx.execute(
+                "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                 actor, state, attempts, created_at, updated_at) VALUES \
+                 (?1, 'x', 'b', 'close', '{}', '{}', 'a', 'applied', 0, 't', ?2)",
+                [format!("{tag}-{i}"), updated_at.to_owned()],
+            )
+            .unwrap();
+        }
+        tx.commit().unwrap();
+    }
+
+    fn vm_steps(c: &Connection, sql: &str, args: impl rusqlite::Params) -> i32 {
+        let mut stmt = c.prepare(sql).unwrap();
+        let mut rows = stmt.query(args).unwrap();
+        while rows.next().unwrap().is_some() {}
+        drop(rows);
+        stmt.get_status(rusqlite::StatementStatus::VmStep)
+    }
+
+    /// Entries with an unreadable time written while the store is open are
+    /// warned about once for each new highest seq, and the read path stops
+    /// walking them (QA5-002).
+    #[test]
+    fn undatable_entries_written_while_open_are_warned_once_and_not_walked_again() {
+        let dir = std::env::temp_dir().join(format!(
+            "bdc-store-undatable-{}-{:?}",
+            std::process::id(),
+            std::time::SystemTime::now()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("u.sqlite3");
+        let identity = DatabaseIdentity {
+            dolt_database: DoltDatabase::new("p").unwrap(),
+            project_id: ProjectId::new("p-p").unwrap(),
+        };
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        let store = SqliteStore::open_at(&path, &identity).unwrap();
+        assert_eq!(store.undatable_through.get(), 0);
+
+        // Many unreadable ones, past the threshold, then one readable old one.
+        let bad = usize::try_from(READ_DATING_THRESHOLD).unwrap() + 3_000;
+        seed_applied(&path, "bad", bad, "yesterday");
+        seed_applied(&path, "old", 1, "2026-10-24T08:00:00Z");
+        let highest_bad = i64::try_from(bad).unwrap();
+        assert!(store.has_entries_since(&at).unwrap(), "unreadable counts");
+        assert_eq!(
+            store.undatable_through.get(),
+            highest_bad,
+            "found and warned"
+        );
+        // Past the threshold the readable one was dated: only the bad ones remain.
+        assert_eq!(store.examined_through.get(), highest_bad);
+        assert_eq!(store.note_undatable().unwrap(), None, "no second warning");
+
+        // The read path's count starts above them: a probe, not a walk.
+        let c = Connection::open(&path).unwrap();
+        let limit = i64::from(READ_DATING_THRESHOLD) + 1;
+        let above = vm_steps(&c, UNDATED_ABOVE_SQL, [highest_bad, limit]);
+        let all = vm_steps(&c, UNDATED_ABOVE_SQL, [0, limit]);
+        assert!(
+            above < 50,
+            "known unreadable entries are skipped: {above} steps"
+        );
+        assert!(all > 2_000, "control: counting from 0 walks them ({all})");
+
+        // A new one is warned about, once.
+        seed_applied(&path, "worse", 1, "garbage");
+        assert!(store.has_entries_since(&at).unwrap());
+        assert_eq!(store.undatable_through.get(), highest_bad + 2);
+        assert_eq!(store.note_undatable().unwrap(), None);
+        seed_applied(&path, "worst", 1, "never");
+        assert_eq!(store.note_undatable().unwrap(), Some(highest_bad + 3));
+        assert_eq!(store.note_undatable().unwrap(), None);
+        drop((c, store));
+
+        // The open warns about all of them and starts above the highest.
+        let reopened = SqliteStore::open_at(&path, &identity).unwrap();
+        assert_eq!(reopened.undatable_through.get(), highest_bad + 3);
+        assert_eq!(reopened.note_undatable().unwrap(), None);
+        drop(reopened);
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

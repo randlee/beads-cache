@@ -125,6 +125,12 @@ pub trait CacheStore: Send {
     /// provided body loads both lists; an implementation that can ask the
     /// question of an index overrides it, so a cached `get` does not read the
     /// journal's history (NFR-BDC-0001).
+    ///
+    /// Though it takes `&self`, an implementation may write to date journal
+    /// entries another writer left without an applied time, so later calls
+    /// stay index lookups. Such a write must not wait for the write lock
+    /// (it is skipped when the lock is held elsewhere), and the answer must
+    /// be the same whether or not it runs (ADR-STORE-0004, lead rulings S25/S26).
     fn has_entries_since(&self, at: &Timestamp) -> Result<bool, CacheError> {
         Ok(!self.pending_entries()?.is_empty() || !self.applied_since(at)?.is_empty())
     }
@@ -142,6 +148,10 @@ pub trait CacheStore: Send {
     /// A bead's pending entries, by seq.
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
     /// Entries applied at or after `at`, by seq.
+    ///
+    /// As [`CacheStore::has_entries_since`], an implementation may write to
+    /// date entries, must not wait for the write lock to do so, and returns
+    /// the same entries either way.
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError>;
     /// Marks an entry applied, storing the read-back row or marking the bead stale; one transaction.
     fn apply_with_readback(

@@ -84,11 +84,11 @@ CREATE INDEX IF NOT EXISTS journal_applied_unknown ON journal(seq) WHERE state =
 /// evaluated by this process's bundled SQLite and appears in no index.
 ///
 /// Run in the open transaction, and again by the reads that ask the journal
-/// (`has_entries_since`, `applied_since`) whenever [`HAS_DATEABLE_SQL`] finds
-/// an entry `bd_cache.py` applied since (ADR-STORE-0004): the work is one
-/// `journal_applied_unknown` walk over the entries not yet dated, so the
-/// journal check stays three index lookups however many entries that writer
-/// applies while this store is open.
+/// (`has_entries_since`, `applied_since`) when [`UNDATED_ABOVE_SQL`] finds
+/// more than `READ_DATING_THRESHOLD` entries to date (ADR-STORE-0004, lead
+/// ruling S26): the work is one `journal_applied_unknown` walk over the
+/// entries not yet dated, so the journal check stays three index lookups
+/// however many entries that writer applies while this store is open.
 pub(crate) const BACKFILL_APPLIED_EPOCH: &str = "\
 UPDATE journal INDEXED BY journal_applied_unknown \
 SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \
@@ -101,19 +101,57 @@ UPDATE journal SET applied_epoch = unixepoch(COALESCE(applied_at, updated_at)) \
 WHERE state = 'applied' AND applied_epoch IS NULL \
   AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL";
 
-/// Is there an applied entry without an epoch whose time SQLite can read,
-/// that is, one [`BACKFILL_APPLIED_EPOCH`] would date? A walk of
-/// `journal_applied_unknown`, which after a backfill holds only the entries
-/// with an unreadable time (warned about at open), so it is empty in a
-/// healthy file and the check is one index probe.
-pub(crate) const HAS_DATEABLE_SQL: &str = "SELECT EXISTS (SELECT 1 FROM journal \
+/// How many applied entries without an epoch have a seq above `?1`, counted
+/// up to `?2`. `?1` is the store's floor: every undated entry at or below it
+/// has an unreadable time (warned about once), so those are not walked again; `?2` caps
+/// the walk just above the read-path dating threshold (ADR-STORE-0004, S26).
+/// A `journal_applied_unknown` range read that evaluates no function: empty,
+/// one index probe, in a healthy file.
+pub(crate) const UNDATED_ABOVE_SQL: &str = "SELECT COUNT(*) FROM (SELECT 1 FROM journal \
     INDEXED BY journal_applied_unknown WHERE state = 'applied' AND applied_epoch IS NULL \
-    AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL)";
+    AND seq > ?1 LIMIT ?2)";
 
-/// [`HAS_DATEABLE_SQL`] without the index hint.
-pub(crate) const HAS_DATEABLE_UNHINTED_SQL: &str = "SELECT EXISTS (SELECT 1 FROM journal \
+/// [`UNDATED_ABOVE_SQL`] without the index hint.
+pub(crate) const UNDATED_ABOVE_UNHINTED_SQL: &str = "SELECT COUNT(*) FROM (SELECT 1 FROM journal \
+    WHERE state = 'applied' AND applied_epoch IS NULL AND seq > ?1 LIMIT ?2)";
+
+/// The highest seq of an applied entry without an epoch, or NULL: one probe
+/// of the end of `journal_applied_unknown`.
+pub(crate) const LAST_UNDATED_SQL: &str = "SELECT MAX(seq) FROM journal \
+    INDEXED BY journal_applied_unknown WHERE state = 'applied' AND applied_epoch IS NULL";
+
+/// [`LAST_UNDATED_SQL`] without the index hint.
+pub(crate) const LAST_UNDATED_UNHINTED_SQL: &str = "SELECT MAX(seq) FROM journal \
+    WHERE state = 'applied' AND applied_epoch IS NULL";
+
+/// The seqs in `(?1, ?2]` of applied entries without an epoch whose time
+/// SQLite cannot read, by seq: the entries no dating will ever date. Asked
+/// once for each range of seqs the store has not examined yet, so each
+/// undated entry's time is read here at most once while the store is open.
+pub(crate) const UNDATABLE_BETWEEN_SQL: &str = "SELECT seq FROM journal \
+    INDEXED BY journal_applied_unknown WHERE state = 'applied' AND applied_epoch IS NULL \
+    AND seq > ?1 AND seq <= ?2 AND unixepoch(COALESCE(applied_at, updated_at)) IS NULL \
+    ORDER BY seq";
+
+/// The lowest seq above `?1` of an applied entry without an epoch whose
+/// time SQLite can read, or NULL: where the store's floor of known
+/// unreadable entries must stop, so no entry the dating can date is hidden
+/// below it. Walks the unreadable entries above `?1` until the first
+/// readable one; asked only when the floor may rise.
+pub(crate) const FIRST_DATEABLE_ABOVE_SQL: &str = "SELECT MIN(seq) FROM journal \
+    INDEXED BY journal_applied_unknown WHERE state = 'applied' AND applied_epoch IS NULL \
+    AND seq > ?1 AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL";
+
+/// [`FIRST_DATEABLE_ABOVE_SQL`] without the index hint.
+pub(crate) const FIRST_DATEABLE_ABOVE_UNHINTED_SQL: &str = "SELECT MIN(seq) FROM journal \
     WHERE state = 'applied' AND applied_epoch IS NULL \
-    AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL)";
+    AND seq > ?1 AND unixepoch(COALESCE(applied_at, updated_at)) IS NOT NULL";
+
+/// [`UNDATABLE_BETWEEN_SQL`] without the index hint.
+pub(crate) const UNDATABLE_BETWEEN_UNHINTED_SQL: &str = "SELECT seq FROM journal \
+    WHERE state = 'applied' AND applied_epoch IS NULL \
+    AND seq > ?1 AND seq <= ?2 AND unixepoch(COALESCE(applied_at, updated_at)) IS NULL \
+    ORDER BY seq";
 
 /// The seqs of applied entries left without an epoch after a backfill: their
 /// time cannot be read, so they count as "applied since" every instant and
@@ -131,8 +169,9 @@ pub(crate) const UNDATED_SEQS: &str = "SELECT seq FROM journal \
 /// `updated_at`, and which count as applied since when that time is
 /// unreadable. The last lookup walks the undated entries, so its cost grows
 /// with their number: the store dates them (`BACKFILL_APPLIED_EPOCH`) at
-/// open and before each check that finds one dateable, which leaves only
-/// entries with an unreadable time, and the first of those answers `true`.
+/// open, and before a check that would walk more than
+/// `READ_DATING_THRESHOLD` of them (S26), which leaves only entries with an
+/// unreadable time, and the first of those answers `true`.
 /// The planner, without statistics, scans the applied rows through
 /// `journal_pending` unless told otherwise, so the last two name their index;
 /// [`HAS_ENTRIES_SINCE_UNHINTED_SQL`] is the same question for a file another

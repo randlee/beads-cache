@@ -66,4 +66,4 @@ pub use schema::{
     HAS_ENTRIES_SINCE_UNHINTED_SQL, SCHEMA_VERSION,
 };
 #[doc(inline)]
-pub use store::{BUSY_TIMEOUT, SqliteStore};
+pub use store::{BUSY_TIMEOUT, READ_DATING_THRESHOLD, SqliteStore};

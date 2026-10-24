@@ -15,12 +15,16 @@ sc-beads.workspace = true
 rusqlite.workspace = true
 fs4.workspace = true
 serde_json.workspace = true
-tracing.workspace = true
+
+# Logging is `sc_beads::logging::tracing` (ADR-BDC-0007): no direct `tracing` (ADR-STORE-0005).
 
 [dev-dependencies]
+# Test-only features, recorded in ADR-STORE-0005.
 # `functions`: a test registers its own `unixepoch` to stand in for an SQLite without one.
 rusqlite = { workspace = true, features = ["functions"] }
+# `testing`: the store contract suite and `FakeStore`.
 bd-cache-model = { workspace = true, features = ["testing"] }
+# `testing`: bead, id and actor fixtures.
 sc-beads = { workspace = true, features = ["testing"] }
 
 [lints]

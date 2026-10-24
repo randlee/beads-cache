@@ -6,10 +6,11 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 
 `bd-cache-store` implements a-1's `CacheStore` and `DrainLock` ports
 (`bd-cache-model`) over one SQLite file per dolt database, the file
-BD-CACHE v3's `bd_cache.py` uses. It depends on `bd-cache-model`, `sc-beads`,
-rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the
-`row_json` and ready-base text), as the Crate Layout of
-[`../architecture.md`](../architecture.md) lists them.
+BD-CACHE v3's `bd_cache.py` uses. It depends on `bd-cache-model`, `sc-beads`
+(also its logging, `sc_beads::logging::tracing`), rusqlite (bundled,
+NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the `row_json` and
+ready-base text), as the Crate Layout of [`../architecture.md`](../architecture.md)
+lists them; ADR-STORE-0005 records them with the test-only features.
 
 | Module | Contents |
 |---|---|
@@ -84,7 +85,7 @@ migration command, never done on open.
 
 ## ADR-STORE-0002: Sharing the file with bd_cache.py
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24)
 
 Context: `bd_cache.py` writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
@@ -114,7 +115,13 @@ Decision:
   returns depends on it; every other timestamp comes from the caller.
 - **Concurrency.** Every mutating method is one `BEGIN IMMEDIATE`
   transaction under the 5 s busy timeout, as `bd_cache.py`'s writes are,
-  single-statement ones included (`SqliteStore::write`). Every read that
+  single-statement ones included (`SqliteStore::write`). **Exception**
+  (ADR-STORE-0004, lead rulings S25/S26): the journal reads `has_entries_since`
+  and `applied_since` may run one autocommit `UPDATE` that dates entries
+  `bd_cache.py` applied while the store is open, only when more than
+  `READ_DATING_THRESHOLD` (2000) such entries wait, and with the busy timeout
+  set to zero, so they never wait for the write lock; the answer is the same
+  whether or not the `UPDATE` runs. Every read that
   needs more than one value sees one snapshot: `status`, `get_row` and
   `rows_in_scope` run in one read transaction (`SqliteStore::read`);
   `outage` (both meta keys) and `open_work` (both counts) are one statement
@@ -189,8 +196,9 @@ with `Error::source`.
 
 ## ADR-STORE-0004: A per-bead index of the ready base, and an index for the journal check (a-7 amendment)
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18); amends ADR-STORE-0001 (the extension tables, columns and indexes)
-and ADR-STORE-0002 (what is read as one snapshot, and what a foreign writer may leave)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below); amends ADR-STORE-0001 (the extension tables, columns and indexes)
+and ADR-STORE-0002 (what is read as one snapshot, what a foreign writer may leave, and the
+Concurrency bullet: the journal reads may write, as the exception noted there)
 
 Context: `CacheStore::base_entry` and `has_entries_since` (ADR-MODEL-0003's a-7
 amendment, ADR-CORE-0206) must not cost more as the scope or the journal grows.
@@ -222,16 +230,50 @@ Decision:
   for each applied row with no epoch, `applied_epoch = unixepoch(COALESCE(applied_at, updated_at))`,
   where SQLite can read that time. This process's bundled SQLite evaluates
   `unixepoch()`; no index mentions it. `bd_cache.py` writes `%Y-%m-%dT%H:%M:%SZ`,
-  which SQLite reads. It runs in the open transaction, and again (QA4-001) at the start of
-  `has_entries_since` and `applied_since` whenever `journal_applied_unknown` holds an entry
-  whose time SQLite can read: one `bd_cache.py` applied while the store is open. The test
-  for that is one probe of the index, empty in a healthy file, so the journal check's cost
-  does not grow with what that writer applies; without the dating each such entry would
-  cost the check one `unixepoch()` call (20 000 of them made a cached `get` 1.7 ms). The
-  read-path `UPDATE` is best effort: it runs with no busy timeout, so a writer holding the
-  lock, or a read-only file, leaves the entries undated for now, and the check answers the
-  same from them, only slower; the next read tries again. A cached `get` may therefore write
-  the file (these epochs only); it never waits for the write lock to do so.
+  which SQLite reads. Open always runs it, in the open transaction.
+- **Read-path dating (S25, S26).**
+  **Status:** Approved (lead ruling S25/S26, bc-lead, 2026-10-24).
+  S25 had `has_entries_since` and `applied_since` date on every read that found an
+  entry to date; S26 replaces that with a threshold, so a small burst of entries
+  `bd_cache.py` applies while the store is open never puts a WAL commit on the `get`
+  path. Before answering, each of the two reads counts the undated entries above the
+  floor of known unreadable ones (`UNDATED_ABOVE_SQL`, a `journal_applied_unknown`
+  range read that evaluates no function, capped at the threshold + 1; one index probe
+  in a healthy file). At or below `READ_DATING_THRESHOLD` (2000) nothing is written and
+  the read walks the undated entries. Above it the read first runs the backfill as one
+  autocommit `UPDATE` with the busy timeout set to zero (`NoWait`, a drop guard that
+  restores `BUSY_TIMEOUT`, also on unwind), so it never waits for the write lock; a
+  writer holding the lock, or a read-only file, leaves the entries undated for now, the
+  read answers the same from them, and the next read tries again. The answer never
+  depends on whether the `UPDATE` ran.
+  *Measurements* (release build, Apple silicon, 1000-bead synced scope, cached `get` of
+  a bead with a stored base, median of 500 gets; probe in the a-7 fix-5 QA scratchpad):
+  idle `get` 21-23 us; with N undated entries walked, not dated: 500 → 62 us, 1000 → 101 us,
+  1500 → 140 us, 2000 → 175-183 us (about 0.08 us per entry). The dating commit itself
+  costs a first `get` 2.2-3.1 ms at 2001 entries, 3.2-5.4 ms at 3000, 5.2-11 ms at 5000,
+  20-31 ms at 20 000 (QA's earlier run of the S25 build: 2.9 ms at 1000, 9.5-33 ms at 5000,
+  21-25 ms at 20 000), after which `get` is back to 22 us. 2000 keeps the walked `get` under
+  0.2 ms, a fifth of NFR-BDC-0001's 1 ms with room for a machine several times slower,
+  while the commit it avoids costs 2 ms or more, ten times the walk.
+  *Remaining latency against NFR-BDC-0001:* above the threshold, the one `get` that dates
+  is a one-off excursion past 1 ms (2-31 ms as measured, growing with the burst); every
+  later `get` is back under it. While another writer holds the write lock over more than
+  2000 undated entries, each `get` walks them (1.3 ms median at 20 000) until the lock
+  is free. A burst at or below the threshold costs at most the walk, about 0.2 ms, and
+  writes nothing.
+- **Unreadable entries on the read path (QA5-002).** The store keeps a floor of known
+  unreadable entries: every undated entry at or below it has an unreadable time. The
+  count above starts at the floor, so those entries are not walked by the count on
+  every call. The floor rises after a dating or a new warning, through the unreadable
+  entries above it and never past an entry the dating can date
+  (`FIRST_DATEABLE_ABOVE_SQL`), so no dateable entry is hidden from the count. The
+  store also remembers the highest seq it has examined: each read looks at the undated
+  entries above it only (`LAST_UNDATED_SQL`, `UNDATABLE_BETWEEN_SQL`), so each entry's
+  time is read there once, and warns once for each new highest undatable seq (the open
+  warns about all of them and starts both marks there). Known residual: an entry
+  `bd_cache.py` applies with a seq below those marks (an old pending entry it applies
+  late) is not examined or counted by the read path until the next open, which dates
+  it or warns about it; the reads stay correct, only that entry is walked.
 - **Unreadable times count as touched.** A row whose `COALESCE(applied_at, updated_at)`
   SQLite cannot read as a time keeps a NULL epoch, stays in `journal_applied_unknown`,
   and counts as applied since any instant (`COALESCE(... >= ?1, 1)`). Reporting
@@ -239,7 +281,8 @@ Decision:
   stale ready answer. `applied_since` agrees with it. The cost: while such a row exists,
   every cached `get` of a bead with a stored base takes the adjusted path (the whole base
   is recomputed). So open, after the backfill, logs a warning naming the seqs of the
-  applied entries still undated (the first 20, and their count). **Operator fix:** find the
+  applied entries still undated (the first 20, their count and the highest), and the read
+  path warns about new ones, once each (above). **Operator fix:** find the
   entry (`SELECT seq, idem_key, bead, updated_at FROM journal WHERE seq = <seq>`) and either
   resolve it (`UPDATE journal SET state = 'resolved' WHERE seq = <seq>`, which takes it out
   of the applied set) or delete it (`DELETE FROM journal WHERE seq = <seq>`); an applied
@@ -257,16 +300,23 @@ Decision:
   first two cost an index probe each whatever the history; the third walks the entries
   without an epoch, so its cost is the number of those that are older than `at`. The
   backfill above keeps that number at zero (the entries with an unreadable time stop the
-  walk at once: they count as since), so the check stays bounded; it is not bounded
-  for entries the backfill could not yet date (the write lock was busy).
+  walk at once: they count as since), and the read-path dating keeps it at or below
+  `READ_DATING_THRESHOLD` while the store is open (S26), so the check stays bounded; it is
+  not bounded for entries the dating could not yet date (the write lock was busy).
 - `applied_since` is two range reads joined by `UNION ALL` and ordered by seq
   (`APPLIED_SINCE_SQL`): `journal_applied_epoch` for `applied_epoch >= at`, and
   `journal_applied_unknown` for the undated entries. One `WHERE` with an `OR` of the two
   (the earlier form) lets neither partial index serve it, so it read every applied entry.
 - **A missing hinted index.** An index another writer dropped makes `INDEXED BY` an error
-  (`SQLITE_ERROR`, `no such index`; matched on the code and the message). The store then
+  (`SQLITE_ERROR`, `no such index`; matched on the code and the message). SQLite has no
+  more specific code for the case, so the detection relies on the message prefix
+  `no such index` that SQLite's `INDEXED BY` failure carries (REQ-QA-503); the test
+  `the_entries_since_check_survives_a_dropped_index` drops the indexes and so pins that
+  prefix for the bundled SQLite: a release that changed it would fail that test, not
+  production silently. The store then
   logs one warning, remembers it, and from then on asks the unhinted form of each journal
-  read (`HAS_ENTRIES_SINCE_UNHINTED_SQL`, `APPLIED_SINCE_UNHINTED_SQL`, and the backfill's):
+  read (`HAS_ENTRIES_SINCE_UNHINTED_SQL`, `APPLIED_SINCE_UNHINTED_SQL`, the backfill's and the
+  read-path dating's own queries):
   the same question, correct, slower on a long history. The hints are not tried again
   until the next open, which recreates the indexes. Tests assert the plans of the hinted
   queries, their SQL work in VM steps, and that the fallback is not retried.
@@ -295,8 +345,35 @@ pin both methods to their provided bodies for every store; the store tests
 and `the_entries_since_check_uses_indexes_and_ignores_a_long_history` check the
 compatibility claims; `entries_python_applies_while_open_are_dated_by_the_next_check`,
 `the_check_does_not_wait_for_the_write_lock_to_date_entries`,
+`a_small_burst_is_walked_and_not_dated_until_past_the_threshold` (S26: no commit at or below
+the threshold, `PRAGMA data_version`), `a_write_after_a_skipped_dating_waits_for_the_lock_again`
+(QA5-003: the busy timeout is restored), `an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating`,
 `applied_since_reads_both_partial_indexes_and_no_history`,
 `the_entries_since_check_survives_a_dropped_index` (store tests),
-`the_open_finds_the_applied_entries_it_could_not_date` (unit) and
+`the_open_finds_the_applied_entries_it_could_not_date`,
+`undatable_entries_written_while_open_are_warned_once_and_not_walked_again` (unit, QA5-002) and
 `a_cached_get_dates_entries_python_applied_while_open` (bd-cache-sync `perf.rs`) check the
 dating, the plans and SQL work (VM steps), the undatable-entry warning and the hint fallback.
+
+## ADR-STORE-0005: Dependencies and test-only features
+
+**Status:** Approved (lead ruling S26, bc-lead, 2026-10-24)
+
+Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
+crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),
+and the store took `tracing` directly, which the layout does not list (ARCH-401).
+
+Decision:
+- Runtime dependencies: `bd-cache-model`, `sc-beads`, rusqlite (workspace features:
+  `bundled`, NFR-BDC-0007), fs4, `serde_json`. Nothing else.
+- Logging goes through `sc_beads::logging::tracing` (ADR-BDC-0007), as `bd-cache` does;
+  the store has no direct `tracing` dependency.
+- Dev-dependencies, test builds only:
+  - rusqlite with `functions`: a test registers its own `unixepoch` that fails, standing
+    in for a `bd_cache.py` on SQLite older than 3.38
+    (`no_index_holds_a_function_and_journal_writes_work_without_unixepoch`);
+  - `bd-cache-model` with `testing`: the store contract suite (`store_contract.rs`);
+  - `sc-beads` with `testing`: bead, id and actor fixtures (tests and doctests).
+
+Consequences: no feature reaches a non-test build; adding a dependency or feature to
+`crates/bd-cache-store/Cargo.toml` amends this ADR and the Crate Layout row.

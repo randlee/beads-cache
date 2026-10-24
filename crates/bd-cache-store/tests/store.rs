@@ -10,7 +10,7 @@
 mod common;
 
 use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, ScopeId, normalize};
-use bd_cache_store::{FlockDrainLock, SqliteStore};
+use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
 use sc_beads::testing::{actor, edge, id};
@@ -1117,10 +1117,21 @@ fn undated(path: &std::path::Path) -> i64 {
         .unwrap()
 }
 
-/// Entries `bd_cache.py` applies while the store is open have no epoch; the
-/// next journal check dates them, so its SQL work goes back to a few index
-/// probes instead of one `unixepoch` per undated entry (QA4-001). Measured in
-/// SQLite VM steps, never wall-clock.
+/// [`READ_DATING_THRESHOLD`] as a count of rows to seed.
+fn threshold() -> usize {
+    usize::try_from(READ_DATING_THRESHOLD).unwrap()
+}
+
+/// `PRAGMA data_version` of `c`: it changes when another connection commits.
+fn data_version(c: &Connection) -> i64 {
+    c.query_row("PRAGMA data_version", [], |r| r.get(0))
+        .unwrap()
+}
+
+/// Entries `bd_cache.py` applies while the store is open have no epoch; past
+/// [`READ_DATING_THRESHOLD`] the next journal check dates them, so its SQL
+/// work goes back to a few index probes instead of one `unixepoch` per
+/// undated entry (QA4-001, S26). Measured in SQLite VM steps, never wall-clock.
 #[test]
 fn entries_python_applies_while_open_are_dated_by_the_next_check() {
     let (open, store) = fresh("dated-while-open");
@@ -1149,29 +1160,82 @@ fn entries_python_applies_while_open_are_dated_by_the_next_check() {
     let since = vm_steps(&c, bd_cache_store::APPLIED_SINCE_SQL, [at.unix()]);
     assert!(since < 100, "applied_since reads no history: {since} steps");
 
-    // Recent ones are dated too and still count; so does `applied_since`,
-    // which dates what lands between two checks.
+    // A few recent ones, below the threshold, are walked, not dated (S26),
+    // and still count, in both reads.
     seed_python_applied(&open.path, 2, "2026-10-24T09:00:01Z", "new");
     assert!(store.has_entries_since(&at).unwrap());
     seed_python_applied(&open.path, 1, "2026-10-24T09:00:02Z", "newer");
     assert_eq!(store.applied_since(&at).unwrap().len(), 3);
-    assert_eq!(undated(&open.path), 0);
+    assert_eq!(undated(&open.path), 3, "below the threshold: not dated");
 }
 
-/// A writer holding the write lock does not make the check wait: the dating
-/// is skipped (no busy timeout), and the answer is the same, from the
-/// undated entries.
+/// Below [`READ_DATING_THRESHOLD`] the journal reads write nothing (S26): a
+/// small burst `bd_cache.py` applied is walked, so a cached `get` has no WAL
+/// commit on its path; one entry more and the next read dates them all.
+#[test]
+fn a_small_burst_is_walked_and_not_dated_until_past_the_threshold() {
+    let (open, store) = fresh("dating-threshold");
+    let at = ts("2026-10-24T09:00:00Z");
+    seed_python_applied(&open.path, threshold() - 1, "2026-10-24T08:00:00Z", "old");
+    seed_python_applied(&open.path, 1, "2026-10-24T09:00:01Z", "new");
+    let c = Connection::open(&open.path).unwrap();
+    let before = data_version(&c);
+    for _ in 0..3 {
+        assert!(store.has_entries_since(&at).unwrap());
+        assert!(
+            !store
+                .has_entries_since(&ts("2026-10-24T09:00:02Z"))
+                .unwrap()
+        );
+        assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+    }
+    assert_eq!(data_version(&c), before, "the reads committed nothing");
+    assert_eq!(undated(&open.path), i64::from(READ_DATING_THRESHOLD));
+
+    seed_python_applied(&open.path, 1, "2026-10-24T08:00:00Z", "one-more");
+    assert!(store.has_entries_since(&at).unwrap(), "the same answer");
+    assert_eq!(undated(&open.path), 0, "past the threshold: dated");
+    assert!(
+        !store
+            .has_entries_since(&ts("2026-10-24T09:00:02Z"))
+            .unwrap()
+    );
+    assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+}
+
+/// An entry with an unreadable time, applied after readable undated ones, does
+/// not hide them from the count (QA5-002, S26): once more arrive past the
+/// threshold, all the readable ones are dated and only the unreadable stays.
+#[test]
+fn an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating() {
+    let (open, store) = fresh("dating-floor");
+    let at = ts("2026-10-24T09:00:00Z");
+    let half = threshold() / 2;
+    seed_python_applied(&open.path, half, "2026-10-24T08:00:00Z", "early");
+    assert!(!store.has_entries_since(&at).unwrap());
+    seed_python_applied(&open.path, 1, "garbage", "bad");
+    assert!(store.has_entries_since(&at).unwrap(), "unreadable counts");
+    assert_eq!(undated(&open.path), i64::try_from(half).unwrap() + 1);
+    seed_python_applied(&open.path, half + 1, "2026-10-24T08:00:00Z", "late");
+    assert!(store.has_entries_since(&at).unwrap());
+    assert_eq!(undated(&open.path), 1, "every readable one dated");
+    assert_eq!(store.applied_since(&at).unwrap().len(), 1);
+}
+
+/// A writer holding the write lock does not make the check wait: past the
+/// threshold the dating is tried with no busy timeout, skipped, and the
+/// answer is the same, from the undated entries. (Had the reads waited, the
+/// undated count would be 0: the lock is held until the rollback.)
 #[test]
 fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
     let (open, store) = fresh("dating-busy");
     let at = ts("2026-10-24T09:00:00Z");
-    seed_python_applied(&open.path, 3, "2026-10-24T08:00:00Z", "old");
+    seed_python_applied(&open.path, threshold(), "2026-10-24T08:00:00Z", "old");
     seed_python_applied(&open.path, 1, "2026-10-24T09:00:01Z", "new");
     let mut c = Connection::open(&open.path).unwrap();
     let tx = c
         .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
         .unwrap();
-    let started = std::time::Instant::now();
     assert!(store.has_entries_since(&at).unwrap());
     assert!(
         !store
@@ -1179,18 +1243,55 @@ fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
             .unwrap()
     );
     assert_eq!(store.applied_since(&at).unwrap().len(), 1);
-    assert!(
-        started.elapsed() < bd_cache_store::BUSY_TIMEOUT,
-        "the reads did not wait out the busy timeout"
-    );
     assert_eq!(
         undated(&open.path),
-        4,
+        i64::from(READ_DATING_THRESHOLD) + 1,
         "nothing dated while the lock is held"
     );
     tx.rollback().unwrap();
     assert!(store.has_entries_since(&at).unwrap());
     assert_eq!(undated(&open.path), 0, "dated once the lock is free");
+}
+
+/// The non-waiting dating puts the busy timeout back (QA5-003): another
+/// connection holds the write lock and releases it after about 500 ms; a read
+/// tries to date during the hold and gives up at once, and a store write
+/// started during the hold waits for the lock and succeeds.
+#[test]
+fn a_write_after_a_skipped_dating_waits_for_the_lock_again() {
+    let (open, mut store) = fresh("busy-restored");
+    let at = ts("2026-10-24T09:00:00Z");
+    seed_python_applied(&open.path, threshold() + 1, "2026-10-24T08:00:00Z", "old");
+    let (held_tx, held) = std::sync::mpsc::channel();
+    let (go_tx, go) = std::sync::mpsc::channel::<()>();
+    let path = open.path.clone();
+    let holder = std::thread::spawn(move || {
+        let mut c = Connection::open(&path).unwrap();
+        let tx = c
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        held_tx.send(()).unwrap();
+        // The read below runs before the release starts, whatever the timing.
+        go.recv().unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        tx.commit().unwrap();
+    });
+    held.recv().unwrap();
+    assert!(!store.has_entries_since(&at).unwrap());
+    assert_eq!(
+        undated(&open.path),
+        i64::from(READ_DATING_THRESHOLD) + 1,
+        "the dating was skipped under the lock"
+    );
+    go_tx.send(()).unwrap();
+    store
+        .set_sync_alert(&x(), Some("after the hold"))
+        .expect("the write waits out the hold: the busy timeout is back");
+    holder.join().unwrap();
+    assert_eq!(
+        store.sync_alert(&x()).unwrap().as_deref(),
+        Some("after the hold")
+    );
 }
 
 /// `applied_since` reads two partial-index ranges joined by `UNION ALL`;
