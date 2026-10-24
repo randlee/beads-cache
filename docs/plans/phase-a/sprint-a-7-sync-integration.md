@@ -15,7 +15,7 @@ must_follow: [a-2, a-3, a-4, a-5, a-6]
 parallel_safe: [a-8]
 requirements:
   owns: [REQ-BDC-0003, REQ-BDC-0701, REQ-BDC-0702, REQ-BDC-0703, REQ-BDC-0704, REQ-BDC-0705, REQ-BDC-0706, REQ-BDC-0707, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0003]
-  constrained_by: [REQ-BDC-0405, REQ-BDC-0503, REQ-BDC-0904, NFR-BDC-0004, NFR-BDC-0006]
+  constrained_by: [REQ-BDC-0405, REQ-BDC-0503, REQ-BDC-0904, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0004, NFR-BDC-0006]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0005, ADR-BDC-0006]
 owned_paths:
   - "crates/bd-cache-sync/**"
@@ -25,8 +25,6 @@ owned_paths:
 
   - "docs/bd-cache-sync/**"
   - "docs/plans/phase-a/evidence/**"
-  - "Cargo.lock"
-  - ".gitignore"
   - "docs/architecture.md"
 ---
 
@@ -66,7 +64,8 @@ write and read paths (a-5, a-6).
    `tick(&mut Cache, &TickConfig, &dyn EscalationSender, end: Deadline)`, so it
    can be driven by `sc-cron` here or by an external scheduler such as the
    ATM cron module (through the later `bdc tick` or Python bindings); only
-   one ticker may run per cache file.
+   one ticker may run per cache file. The tick reads its keys from
+   `RepoConfig.tick` via a-4's `load_repo_config`.
 3. End-to-end tests (`crates/bd-cache-sync/tests/`): a journaled write applied by a scheduled
    drain through `BdCli` with a recording invoker in CI, and against a
    scratch `bd` workspace on the testbed (REQ-BDC-0003); an outage of
@@ -80,8 +79,7 @@ write and read paths (a-5, a-6).
    `docs/plans/phase-a/evidence/`. If the testbed is unavailable, the
    recording-invoker results close the sprint and the testbed items are
    recorded as deferred evidence with an owner and date.
-6. Repository bookkeeping: remove `/Cargo.lock` from `.gitignore` and commit
-   the lock; update ADR-BDC statuses and Crate Layout in `docs/architecture.md` from
+6. Repository bookkeeping: update ADR-BDC statuses and Crate Layout in `docs/architecture.md` from
    the crate docs; add the phase-end validation command to the Validation
    Policy in `.claude/project/quality-policy.md`; `docs/bd-cache-sync/`
    requirements and architecture.
@@ -108,7 +106,7 @@ write and read paths (a-5, a-6).
 | An outage is announced once per scope with a lead under `backend_unavailable` and reset when it ends; a scope without a lead uses `fallback_lead` | req:REQ-BDC-0704 |
 | `test_e2e_blocker_close_and_reopen_update_ready`: a journaled close of a cached blocker, applied by a scheduled drain on the real store, makes its depender ready in the same tick's sync; reopen makes it blocked again; the same for a blocker outside every scope | req:REQ-BDC-0904 |
 | An escalation on an entry with no scope goes to `fallback_lead`, and the stop rule still fires | req:REQ-BDC-0706 |
-| `Cargo.lock` is committed; `docs/architecture.md` ADRs and Crate Layout match the shipped crates | phase plan |
+| `docs/architecture.md` ADRs and Crate Layout match the shipped crates | phase plan |
 | Planted bugs: unannounced filter dropped, open-work ignores announcement, refusal dropped, team check dropped, closed roots active, stop ignores open work each fail a test | req:REQ-BDC-0705 |
 
 ## Required validation

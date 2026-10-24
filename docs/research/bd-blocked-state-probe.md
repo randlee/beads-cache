@@ -16,7 +16,7 @@ sql-server on 127.0.0.1, no shared database. Run by bc-lead.
 | Do `--id` and `--updated-after` combine as an intersection? | Yes: after closing A, `bd list --id A,B --updated-after T1` returned only A. |
 | Does `bd list --id <closed bead>` return it without `--status`? | No, it returns `[]`; an explicit status list is required (also noted by fenix). |
 | Which edge types block? | `blocks` blocks. A child of an open, unblocked parent is ready; a child of a blocked parent is blocked (inherits through `parent-child`). `related` does not block. Other types (`until`, `validates`, gates) were not probed. |
-| Is there a bd query for the blocked set? | `bd blocked [-l <label>...] --json` returns each blocked bead with `blocked_by` (ids) and `blocked_by_count`, including blockers outside the label filter and inherited parent-child blocking. Row keys: `blocked_by`, `blocked_by_count`, `created_at`, `created_by`, `id`, `issue_type`, `labels`, `owner`, `priority`, `status`, `title`, `updated_at`. `bd ready` takes the same label filters. |
+| Is there a bd query for the blocked set? | `bd blocked [-l <label>...] --json` returns each blocked bead with `blocked_by` (ids) and `blocked_by_count`, including blockers outside the label filter and inherited parent-child blocking. A child of a blocked parent lists the **parent** as its blocker (`pr-9b1` blocked_by `[pr-llw]`, its parent), not the parent's blockers. Row keys: `blocked_by`, `blocked_by_count`, `created_at`, `created_by`, `id`, `issue_type`, `labels`, `owner`, `priority`, `status`, `title`, `updated_at`. `bd ready` takes the same label filters. |
 
 ## Consequence
 

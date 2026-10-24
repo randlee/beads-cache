@@ -60,13 +60,16 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
    `replica_id`, `journal_seq` (ADR-BDC-0004).
 4. Every `CacheStore` method and every rule in a-1's `CacheStore` doc comment
    (edges written from `Bead.dependencies` and rebuilt on read, membership,
-   stale clearing, rebuild scope), including `ensure_scope`, membership from
+      stale clearing, rebuild scope, ready base, persisted scopes,
+   `applied_since` with an additive `applied_at` journal column), including
+   `ensure_scope`, membership from
    labels on scoped upserts, the stale-clearing rule, the outage record,
    out-of-scope rows stored with no membership and swept by `prune_scope`, the newer-row guard and forced
    upsert, row normalization (REQ-BDC-0108), the edges index by target
    (REQ-BDC-0109), `apply_with_readback` in one transaction,
-   `record_fingerprint` with the rebuild rule (deletes beads, edges and
-   cursors in one transaction, keeps the journal), announce marks
+      `record_fingerprint` with the rebuild rule as a-1 states it (deletes
+   beads, edges, memberships, sync_state rows and ready bases in one
+   transaction, keeps the journal), announce marks
    (REQ-BDC-0604), sync alerts, and `prune_scope` keeping beads another scope
    holds.
 5. `DrainLock` with `flock` on `<cache file>.drain.lock`
@@ -75,7 +78,9 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
    `bd_models.py` and a v3 fixture, vendored at atm-core `05831df` under
    `crates/bd-cache-store/tests/compat/`, run with `uv` (installed by a-1's CI) to read a file the Rust store wrote;
    and the Rust store reads a Python-written one.
-7. Per-crate docs `docs/bd-cache-store/requirements.md` and `architecture.md`.
+7. `load_repo_config(repo_root)`: the one loader of `.beads/bd-cache.toml`
+   into a-1's `RepoConfig` (missing file: defaults; unknown key: error).
+8. Per-crate docs `docs/bd-cache-store/requirements.md` and `architecture.md`.
 
 ## Acceptance criteria
 

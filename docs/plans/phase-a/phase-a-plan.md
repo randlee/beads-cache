@@ -67,11 +67,12 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | File | Owner | Rule |
 |---|---|---|
 | `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
-| `Cargo.lock` | a-7 | a-1 adds `/Cargo.lock` to `.gitignore`; a-7 removes that line and commits the lock. |
-| `.gitignore`, `rust-toolchain.toml` | a-1 | a-7 edits `.gitignore` once (the lock line). |
+| `Cargo.lock` | phase close-out (team-lead, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
+| `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
 | `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. |
-| `.github/workflows/ci.yml` | a-1 | Workspace gates; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
+| `.github/workflows/ci.yml` | a-1 | Workspace gates, excluding `bd-cache-py`; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
+| `.beads/bd-cache.toml` schema | a-1 (`RepoConfig`), a-4 (the one loader) | a-7 and a-8 consume the loader. |
 | `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
 | `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
@@ -206,17 +207,23 @@ From fenix's review (2026-10-24):
   the Rust cache through the Python bindings (a-8), in phase A. atm-bd keeps
   its own scheduling: `bd_cache_cron.py` under ATM cron calls `drain` and
   `sync` through the bindings, so `sc-cron` and `bd-cache-sync` are not on
-  atm-bd's path. The verbs it needs are in a-1's contract: `get`
-  with a caller miss timeout, `refresh` (fresh read, stored, overlay),
-  `write`, `list`, `sync`, `entry(seq)`, `drain`, and `tick`.
+  atm-bd's path. The verbs it needs are on `Cache` (a-1) and exposed by a-8:
+  `get` with a caller miss timeout, `refresh`, `write`, `list`, `ready`,
+  `sync`, `entry(seq)`, `drain`, and the announcement state
+  (`unannounced_escalations`, `mark_announced`, `sync_alert`,
+  `set_sync_alert`, `open_work`), so its cron keeps announcing through its
+  own sender against the Rust-written store. The Python dict shapes are
+  versioned with the wheel (`docs/bd-cache-py/`); REQ-BDC-0806 stays
+  deferred.
 - Cutover is one step: stop the ATM cron registration, switch the consumers,
   then let the Rust side drain. The file stays at `user_version` 3 with
   additive tables (REQ-BDC-0103), so the Python hooks can still open it;
   fenix offers to make v3 accept the extended shape. The two implementations
   must never drain the same journal at the same time.
-- One ticker per cache file: either `sc-cron` runs `bd-cache-sync`, or the
-  ATM cron module calls `tick` with atm-bd's lead lookup and `atm send`
-  behind `EscalationSender`.
+- One ticker per cache file: either `sc-cron` runs `bd-cache-sync`, or atm-bd's
+  `bd_cache_cron.py` under ATM cron drives `drain`, `sync` and the
+  announcement verbs through the bindings, with its own lead lookup and
+  `atm send`.
 
 ## Items to raise on #557
 

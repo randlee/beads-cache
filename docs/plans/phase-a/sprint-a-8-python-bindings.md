@@ -15,8 +15,8 @@ must_follow: [a-2, a-4, a-5, a-6]
 parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0002]
-adrs: [ADR-BDC-0003, ADR-BDC-0005, ADR-CORE-0001]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912]
+adrs: [ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0005, ADR-CORE-0001]
 owned_paths:
   - "crates/bd-cache-py/**"
   - ".github/workflows/python.yml"
@@ -45,14 +45,19 @@ atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
 
 1. `bd_cache_rs` Python module (name final at dispatch) over the concrete
    composition `Cache<SqliteStore, FlockDrainLock, BdCli>`, opened from the
-   repository (`.beads/bd-cache.toml` when present, else explicit arguments),
+   repository through a-4's `load_repo_config` (or explicit arguments),
    with the verbs atm-bd uses (REQ-BDC-0910): `get(bead, miss_timeout=None)`,
    `refresh(ids, timeout)`, `write(bead, op, args, precondition, idem_key,
    actor)`, `list(phase, status=None, label=None)`, `ready(phase, fresh_within=None)`,
    `sync(phase, timeout)`, `drain(start_gate_s, hard_s)`, `entry(seq)`,
-   `resolve(seq, note, actor)`, `prune(phase)`, `status()`.
-2. Replies are the Rust reply types converted to Python dicts with the same
-   field names as their JSON (ADR-BDC-0003); `CacheError` becomes one Python
+   `resolve(seq, note, actor)`, `prune(phase)`, `status()`, and the
+   announcement state atm-bd's `bd_cache_cron.py` needs to keep announcing
+   through its own sender: `unannounced_escalations()`, `mark_announced(seq)`,
+   `sync_alert(phase)`, `set_sync_alert(phase, cause)`, `open_work()`.
+2. Replies are the Rust reply types converted to Python dicts. Their shapes
+   are documented in `docs/bd-cache-py/architecture.md` and versioned with
+   the wheel; where they differ from `bd_cache.py`'s JSON, the mapping table
+   records it. This does not close REQ-BDC-0806 (the CLI drop-in); `CacheError` becomes one Python
    exception class carrying `code`, `detail`, `fix`, `reason` and the payload
    (REQ-BDC-0802, 0803).
 3. Threading per ADR-CORE-0001: the handle is a `#[pyclass(unsendable)]`
@@ -75,7 +80,9 @@ atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
 | `refresh` returns fresh rows with the overlay; `entry(seq)` returns an entry in any state; `sync` then `list` of an unconfigured phase works | req:REQ-BDC-0910 |
 | The mapping table in `docs/bd-cache-py/architecture.md` covers every `bd_cache.py` function the atm-bd hooks and `bd_cache_cron.py` call at atm-core 05831df | req:REQ-BDC-0910 |
 | The `task open` path: after a dev close journaled through the binding, `ready` for its sanity bead is true with the backend unreachable (REQ-BDC-0911) | req:REQ-BDC-0910 |
-| An in-process cached `get` through the binding takes under 1 ms median (no process start) | req:REQ-BDC-0910 |
+| An escalated entry is announced once through the binding's announcement verbs (marked, not re-sent) | req:REQ-BDC-0910 |
+| `ready(phase, fresh_within=0.5)` against a recording `bd` that answers late returns the cached adjusted answer with `read_fallback` set, within the limit | req:REQ-BDC-0912 |
+| In-process cached `get` through the binding is recorded (informational; NFR-BDC-0001 is a-7's) | req:REQ-BDC-0910 |
 | The wheel builds and the pytest suite passes in `python.yml` | req:REQ-BDC-0910 |
 
 ## This sprint does not close

@@ -15,7 +15,7 @@ must_follow: []
 parallel_safe: [a-3]
 requirements:
   owns: [REQ-BDC-0007, REQ-BDC-0105, REQ-BDC-0301, REQ-BDC-0304, REQ-BDC-0305, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0906, NFR-BDC-0005]
-  constrained_by: [REQ-BDC-0004, REQ-BDC-0108, REQ-BDC-0202, REQ-BDC-0303, REQ-BDC-0402, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903]
+  constrained_by: [REQ-BDC-0004, REQ-BDC-0108, REQ-BDC-0202, REQ-BDC-0303, REQ-BDC-0402, REQ-BDC-0604, REQ-BDC-0804, REQ-BDC-0806, REQ-BDC-0901, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0007]
 owned_paths:
   - "Cargo.toml"
@@ -137,7 +137,8 @@ pub mod testing {
     pub struct ManualClock; // advance(Duration), set_utc(&str)
         /// Deterministic bd model: validated rows without is_blocked; close/reopen bump only the bead's
     /// own updated_at; list_blocked computes the blocked set as bd does (blocks edges, parent-child
-    /// inheritance, related non-blocking) including blockers outside the label; list_by_ids needs
+    /// inheritance with the child's blocked_by listing its parent, related non-blocking) including
+    /// blockers outside the label; list_ready returns open, unblocked, labelled ids (bd ready -l -n 0); list_by_ids needs
     /// the status list for closed beads; records the command plan; injects Unavailable (timed_out or not), exit 13
     /// and Failed per call; advances the ManualClock by a configured cost per call.
     pub struct FakeBackend;
@@ -157,7 +158,8 @@ pub struct Seq(i64); pub struct IdemKey(String);
 pub enum JournalState { Pending, Applied, Escalated, Resolved }
 pub struct JournalEntry { pub seq: Seq, pub idem_key: IdemKey, pub scope: Option<ScopeId>, pub bead: BeadId,
     pub op: Op, pub precondition: Guards, pub actor: Actor, pub state: JournalState, pub attempts: u32,
-    pub last_error: Option<String>, pub announced_at: Option<String> }
+        pub last_error: Option<String>, pub announced_at: Option<String>,
+    pub created_at: String, pub applied_at: Option<String> }   // applied_at set by apply_with_readback
 pub struct NewEntry { pub idem_key: IdemKey, pub scope: Option<ScopeId>, pub bead: BeadId, pub op: Op, pub precondition: Guards, pub actor: Actor }
 pub enum ScopeId { Phase(String) }
 impl ScopeId {
@@ -181,9 +183,16 @@ pub struct StoreStatus { /* meta, journal counts per scope:state, per-scope sync
 ///   never changes existing membership (a new row stored with None has none: out-of-scope row).
 /// - status_changed lists existing rows whose status text changed, forced or not; new rows excluded.
 /// - apply_with_readback(seq, None, Some(err)) marks the entry applied with err and sets stale on the bead.
-/// - record_fingerprint Rebuilt deletes beads, edges, memberships and sync_state rows; keeps the journal.
+/// - record_fingerprint Rebuilt deletes beads, edges, memberships, sync_state rows and every ready base;
+///   keeps the journal.
+/// - ensure_scope persists; scopes() returns configured and on-demand scopes across restarts.
+/// - replace_ready_base replaces the whole base for the scope and clears its stale mark; its `at` is the
+///   instant taken before the sync's first list_blocked/list_ready call. ready_base is None only when the
+///   scope never stored one; mark_ready_base_stale on a missing base is a no-op; prune_scope deletes it.
+/// - applied_since(at) returns entries applied at or after `at`, in seq order.
 pub trait CacheStore: Send {
-    fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError>;
+        fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError>;
+    fn scopes(&self) -> Result<Vec<ScopeId>, CacheError>;
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError>;
     fn rows_in_scope(&self, s: &ScopeId) -> Result<Vec<(Bead, Freshness)>, CacheError>;
     fn upsert_rows(&mut self, s: Option<&ScopeId>, rows: &[Bead], force: bool) -> Result<UpsertReport, CacheError>;
@@ -197,7 +206,8 @@ pub trait CacheStore: Send {
     fn entry_by_seq(&self, seq: Seq) -> Result<Option<JournalEntry>, CacheError>;
     fn insert_entry(&mut self, e: NewEntry, at: &str) -> Result<Seq, CacheError>;
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
-    fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
+        fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
+    fn applied_since(&self, at: &str) -> Result<Vec<JournalEntry>, CacheError>;
     fn apply_with_readback(&mut self, seq: Seq, row: Option<&Bead>, err: Option<&str>, at: &str) -> Result<(), CacheError>; // one transaction
     fn record_attempt(&mut self, seq: Seq, err: &str, at: &str) -> Result<u32, CacheError>;
     fn escalate(&mut self, seq: Seq, reason: &str, at: &str) -> Result<(), CacheError>;
@@ -225,6 +235,12 @@ pub struct SendError { pub detail: String }
 /// Escalation delivery port; a-7 implements it with `atm send`.
 pub trait EscalationSender: Send + Sync { fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError>; }
 
+/// The `.beads/bd-cache.toml` schema; a-4 owns the one loader (bd_cache_store::load_repo_config).
+pub struct RepoConfig { pub cache_path: Option<PathBuf>, pub scopes: Vec<String>, pub call_timeout_s: Option<u64>,
+    pub miss_fill_timeout_ms: Option<u64>, pub max_attempts: Option<u32>,
+    pub schema_packages: Vec<SchemaPackageRef> /* ADR-BDC-0008, ignored in phase a */,
+    pub tick: Option<toml::Table> /* bd-cache-sync's keys: team, fallback_lead, phases dir */ }
+impl RepoConfig { pub fn cache_config(&self, project: ProjectRef) -> CacheConfig; }
 pub struct CacheConfig {
     pub project: ProjectRef, pub scopes: Vec<ScopeId>, // configured; sync of another phase registers it on demand (REQ-BDC-0909)
     pub call_timeout: Duration,      // single owner of the 30 s per-call cap
@@ -235,7 +251,7 @@ pub struct CacheConfig {
 pub struct DrainBudget { pub start_gate: Deadline, pub hard: Deadline }
 
 /// Which call failed, for mapping backend errors.
-pub enum CallKind { Check, PreRead, Write, ReadBack, Sync, Refresh, MissFill }
+pub enum CallKind { Check, PreRead, Write, ReadBack, Sync, Refresh, MissFill, Ready }
 /// Outcome of one backend call after the Cache's classification:
 /// Unavailable{timed_out: true} when the caller's hard deadline has expired is a cut, not an outage.
 pub enum CallOutcome { Ok, Cut, Outage(String), Error(CacheError) }
@@ -248,7 +264,8 @@ pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<String>, pu
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<String>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
 pub enum ReadyBasis { Fresh, Cached { fetched_at: String, stale: bool }, Unknown }
 pub struct ReadyReply { pub scope: ScopeId, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
-    pub read_fallback: Option<String> /* why a requested fresh answer fell back */ }
+        pub read_fallback: Option<String> /* why a requested fresh answer fell back */,
+    pub missing_rows: Vec<BeadId> /* ready per bd but no cached row yet; omitted from `ready` */ }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
 pub struct DrainReport { pub busy: bool, pub applied: Vec<Seq>, pub retrying: Vec<Seq>, pub escalated: Vec<EscalatedItem>,
     pub deferred: Vec<Seq>, pub deferred_in_flight: Vec<Seq>, pub outage: Option<Outage> }
@@ -290,33 +307,46 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError>;                          // a-6 (incl. blocked set)
     pub fn resolve(&mut self, seq: Seq, note: &str, actor: Actor) -> Result<(), CacheError>;                     // a-6
     pub fn prune(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;                                     // a-6
-    pub fn status(&self) -> Result<StatusReply, CacheError>;                                                     // a-6
+        pub fn status(&self) -> Result<StatusReply, CacheError>;                                                     // a-6
+    // Announcement state, so an external scheduler (atm-bd's bd_cache_cron.py) can announce
+    // through its own sender (a-6; passthrough to the store):
+    pub fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
+    pub fn mark_announced(&mut self, seq: Seq) -> Result<(), CacheError>;
+    pub fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError>;
+    pub fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError>;
+    pub fn open_work(&self) -> Result<OpenWork, CacheError>;
 }
 // Helpers implemented and tested by a-1 (pub(crate)); a-5 and a-6 call them:
 //   call(kind, hard: Deadline, f) -> CallOutcome
 //       hands f `hard.earliest(after(call_timeout))`; classifies the result: Cut iff timed_out and
-//       hard expired; for Check, PreRead, Sync, Refresh and MissFill an Unavailable is an Outage;
+//       hard expired; for Check, PreRead, Sync, Refresh, MissFill and Ready an Unavailable is an Outage;
+//       Ready uses one hard = Deadline::after(fresh_within) for both of its calls, so the caller's
+//       limit expiring is a Cut, never an outage;
 //       for Write an Unavailable is an Error that counts an attempt (v3 rule); note_ok only after a
-//       list call (PreRead, ReadBack, Sync, Refresh, MissFill) answers, never after Check alone.
+//       list call (PreRead, ReadBack, Sync, Refresh, MissFill, Ready) answers, never after Check alone.
 //   outage::{note_unavailable(&mut self, err), note_ok(&mut self)}   // record on Unavailable, clear on next success
 //   view::current_view(&self, id) -> Result<Option<(Bead, Freshness)>, CacheError>   // stored row + replay
 //   backend_check::run(&mut self, hard) -> Result<(FingerprintOutcome, bool /*model_current*/), CallOutcome>
-//   miss::fill(&mut self, id) -> Result<Option<Bead>, CacheError>   // under miss_fill_timeout; stored with None
-// Module files a-5 fills: write.rs, drain.rs. a-6 fills: get.rs, list.rs, sync.rs, ready.rs, resolve.rs, prune.rs, status.rs.
+//   miss::fill(&mut self, id, timeout: Option<Duration>) -> Result<Option<Bead>, CacheError>
+//       // under timeout, else config miss_fill_timeout; stored with None
+// Module files a-5 fills: write.rs, drain.rs. a-6 fills: get.rs (incl. entry), refresh.rs, list.rs, sync.rs, ready.rs, resolve.rs, prune.rs, status.rs.
 ```
 
 ## Deliverables
 
 1. Workspace `Cargo.toml` (`members = ["crates/*"]`) with every phase-A
    third-party dependency in `[workspace.dependencies]` (rusqlite bundled,
-   fs4, serde, serde_json, sha2, tracing, tokio, async-trait, chrono, cron,
-   criterion); `rust-toolchain.toml`; `.gitignore` with `/Cargo.lock`
+      fs4, serde, serde_json, sha2, toml, tracing, tokio, async-trait, chrono, cron,
+   criterion, pyo3); `rust-toolchain.toml`; `.gitignore` with `/Cargo.lock`
    (removed by a-7).
 2. `.github/workflows/ci.yml`: `cargo fmt --all --check`, `cargo clippy
    --all-targets --all-features -- -D warnings`, `cargo test --workspace
    --all-features`, `cargo publish --dry-run -p sc-beads`, uv installed for
-   a-4's compat test, and a `cargo metadata` check that fails on an edge the
-   Boundaries section of `docs/architecture.md` forbids. No live probes.
+      a-4's compat test, and a `cargo metadata` check that fails on an edge the
+   Boundaries section of `docs/architecture.md` forbids. The workspace gates
+   run with `--exclude bd-cache-py` (a PyO3 extension module does not link
+   under `cargo test`); `python.yml` (a-8) is that crate's gate. No live
+   probes.
 3. `sc-beads`: btit's types and traits unchanged with the API snapshot
    fixture, `CacheBackend`, rows, errors, `Clock`/`Deadline`, `testing`
       (REQ-BDC-0906, 0007); bd-1.3.1 fixtures (`bd-schema.json`, `list-rows.json`) with provenance, plus a
@@ -355,7 +385,8 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 | `call` hands `min(call_timeout, hard)`; a timeout after `hard` expired is `Cut` and records no outage; `Unavailable` on a check or list records the outage, on a write counts an attempt; only an answering list clears it | ADR-BDC-0005 |
 | `test_outage_keeps_its_start_time_and_latest_error` | ADR-BDC-0005 |
 | `miss::fill` stops at `miss_fill_timeout` with `BD_UNAVAILABLE`; `view::current_view` replays pending entries | boundary:bd-cache |
-| Both contract suites pass against the fakes, covering every listed store rule (NFR-BDC-0005) | ADR-BDC-0004 |
+| Both contract suites pass against the fakes, covering every listed store rule, including the ready-base, scope and `applied_since` rules (NFR-BDC-0005) | ADR-BDC-0004 |
+| `RepoConfig` parses a sample `.beads/bd-cache.toml` and derives `CacheConfig` with defaults | boundary:bd-cache-model |
 | CI runs green on the sprint PR, including the boundary `cargo metadata` check | boundary:bd-cache |
 | `cargo publish --dry-run -p sc-beads` passes | ADR-BDC-0007 |
 | Planted bugs: no overlay, no metadata coercion guard, skip validation, no dep-type check, skip rebuild, rebuild on first check each fail a test | boundary:bd-cache-model |

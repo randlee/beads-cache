@@ -19,8 +19,8 @@ sc-runtime team as requests rather than local workarounds.
 - Baseline (the contract): `.claude/skills/atm-bd-orchestration/scripts/BD-CACHE.md`
   in atm-core, introduced by https://github.com/randlee/atm-core/pull/2219.
   Reference implementation: `bd_cache.py`, `bd_models.py` and `bd_cache_cron.py`
-  in the same directory. Acceptance suite: `tests/test_bd_cache.py` (41 tests)
-  and `tests/test_bd_cache_cron.py` (9), with fixtures in
+  in the same directory. Acceptance suite: `tests/test_bd_cache.py` (44 tests)
+  and `tests/test_bd_cache_cron.py` (13), with fixtures in
   `tests/fixtures/bd-1.3.1/`. Design tracker:
   https://github.com/randlee/atm-bd-orchestration/issues/557. Where BD-CACHE.md
   and the Python code disagree, report it on that issue.
@@ -139,7 +139,7 @@ integrating with sc-runtime.
 | `sc-bd-cli` (shared, published) | The bd CLI implementation of the `sc-beads` traits, ported from btit-cli and btit-bd: invoker with a recording test double, probes and version gates, dolt-mode detection, per-project locks; exit 13 as a typed refusal | `sc-beads` | a |
 | `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
 | `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads`, rusqlite (bundled), fs4 | a |
-| `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the targeted blocked refresh (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
+| `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: tick (drain then sync), stop rule, announcements through `EscalationSender` (the `atm send` sender is one implementation) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, tokio | a |
@@ -147,7 +147,7 @@ integrating with sc-runtime.
 | MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
-backend: the ported cases from `test_bd_cache.py` (41), the 9 cases from
+backend: the ported cases from `test_bd_cache.py` (44), the 13 cases from
 `test_bd_cache_cron.py` against the sync task with an injected sender, and
 the bd-1.3.1 contract fixtures. `sc-cron` carries its own tests, ported from
 atm-cron where they apply.
@@ -243,15 +243,23 @@ Decision: bd's answer is the base; our journaled writes adjust it locally.
    everything the cache does not model (custom statuses, issue types,
    deferral, wisps). A failed or cut fetch keeps the previous base, marked
    stale.
-2. **Local adjustment for our ops.** Reads apply the pending and applied-but-
-   not-yet-resynced journal entries to the base with these rules:
+2. **Local adjustment for our ops.** Reads apply to the base, in `seq`
+   order, every Pending entry plus every entry applied at or after the base's
+   `fetched_at` (the instant before that sync's first `bd blocked`/`bd ready`
+   call); Escalated and Resolved entries are skipped. The rules (full table in
+   `docs/bd-cache/read-path.md`, owned by a-6):
    - close of X: remove X from every stored `blocked_by`; a bead whose list
      becomes empty, and whose own status is `open`, is ready. Repeat through
      parent-child (a child is listed as blocked by its blocked parent).
-   - reopen of X (status back to `open`): add X back to `blocked_by` of beads
-     with a blocking edge to X (cached edges).
-   - dep_add `blocks` onto a target that is not closed: add the target to the
-     bead's `blocked_by`.
+   - A close is a `Close` op or an `Update` whose status is `closed`. A
+     reopen is an `Update` to status `open` of a bead whose view was
+     `closed`: add X back to `blocked_by` of beads with a blocking edge to X
+     (cached edges, `DepType::is_blocking`).
+   - Parent-child, from stored edges: bd lists a child of a blocked parent as
+     blocked by the parent (probe), so unblocking a parent clears it from its
+     children's `blocked_by`, and blocking a parent adds it.
+   - dep_add `blocks` onto a target that is not closed, or whose status is
+     unknown (no cached row): add the target to the bead's `blocked_by`.
    - close or status change of the bead itself: it leaves `ready`.
 3. **Bounded fresh answer.** A caller may pass a time limit (for example
    500 ms). `ready` then makes the scope's `bd ready -l` and `bd blocked -l`

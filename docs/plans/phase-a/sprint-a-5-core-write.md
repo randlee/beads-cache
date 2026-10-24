@@ -80,7 +80,7 @@ It uses no code from a-4 or a-6.
 
 ## This sprint does not close
 
-Sync re-reading stale rows and the depender refresh (a-6); the scheduled
+Sync re-reading stale rows and the ready base (a-6); the scheduled
 drain with the real store and backend (a-7).
 
 ## Required validation
