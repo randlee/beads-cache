@@ -12,9 +12,9 @@ sprint, and the testbed items are deferred evidence:
 
 | Item | Owner | Due | State |
 |---|---|---|---|
-| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
-| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
-| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run for 24456c5 deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| a-2 live probes (`crates/sc-bd-cli/tests/live.rs`, via `scripts/bd-compat/run-live.sh`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| End-to-end run against a scratch `bd` (`tests/live.rs::a_journaled_write_lands_in_a_real_bd_through_the_tick`) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
+| Sync timing, 1000-bead phase (`tests/live.rs::an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_reported`, NFR-BDC-0003) | bc-lead | 2026-10-31 | run at 7702b67 recorded; run at 24456c5/9110187 (same code) deferred to integrate/phase-a after a-7 lands (bc-lead, 2026-10-25) |
 
 Date of this record: 2026-10-24. The recorded runs used the `atmbench` account, run by the fix-a-7-6/7 developer. The run at `9f3ceb5` was made on the testbed account by the fix-a-7-6 developer (the testbed ran at `9f3ceb5`; the layer fix-a-7-7 changes tests only), and it was repeated at `7702b67`, the merge of `integrate/phase-a` (a-8 landed, `71084a5`) and now the last code-changing commit. bc-lead's run at the merge head is due 2026-10-31; no code changes between
 `7702b67` and the head, only documents and the evidence script.

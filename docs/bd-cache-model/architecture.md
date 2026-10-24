@@ -12,7 +12,7 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 | `op` | `Op`, `replay`, `normalize`, `phase_of`, precondition parse / canonical JSON / `unmet` |
 | `pyjson` | `python_json`: Python `json.dumps(sort_keys=True)` text |
 | `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus` |
-| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text) |
+| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text) |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
 | `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8) |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
@@ -279,6 +279,7 @@ Decision:
   to the struct literal** `SendError { detail }`; no other crate in the workspace
   or on the a-8 branch built one. `SendErrorKind` is `#[non_exhaustive]`.
 - `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
+- `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send marker writes, bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
 
 Consequences: every `CacheStore` passes the two new contract rules (FakeStore
 through the provided bodies, SqliteStore through its indexes); `EscalationSender`

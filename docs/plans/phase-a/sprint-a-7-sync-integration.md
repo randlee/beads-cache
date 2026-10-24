@@ -48,10 +48,10 @@ owned_paths:
   - "crates/bd-cache-store/src/location.rs"  # S32: ConfigLoadError recovery text (RBP-F040)
   - "crates/bd-cache-model/src/scope.rs"  # S32: PhaseName::RULE
   - "crates/bd-cache-model/src/testing/contract.rs"
-  - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment
+  - "crates/bd-cache-model/src/{sender,state,store}.rs"  # S4/S11 amendment; S33: store.rs gains mark_announced_within / set_sync_alert_within
   - "crates/bd-cache/src/ready.rs"
   - "crates/bd-cache/src/get.rs"
-  - "crates/bd-cache/src/lib.rs"  # S2/S4 amendment: Cache::clock, get fast path
+  - "crates/bd-cache/src/lib.rs"  # S2/S4 amendment: Cache::clock, get fast path; S30: scope_synced; S33: mark_announced_within / set_sync_alert_within passthroughs
 ---
 
 # Sprint a-7 — sync task and phase integration
@@ -218,7 +218,7 @@ Lead rulings of bc-lead, 2026-10-24, fix-a-7-8 (QA round 6): **S31** NFR-BDC-000
    `in-review` at hand-off. This doc says `in-review`; the lead sets `complete` at merge.
 5. **Edits outside the sprint's `owned_paths`**, each by a lead ruling named in the frontmatter comments:
    `crates/bd-cache` (S2, S4), `crates/bd-cache-model` and `crates/bd-cache-store` (S4, S11), `Cargo.toml` (S7),
-   `docs/requirements.md` (S3, S5, S31), the phase plan (S6, S7, S26, S30, S32), `docs/project-plan.md` (S12), and, by S32, `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`MEMBER_NAME_RULE` in `sender.rs`, `PhaseName::RULE` in `scope.rs`, `Cache::scope_synced` of S30, ADR-STORE-0005).
+   `docs/requirements.md` (S3, S5, S31), the phase plan (S6, S7, S26, S30, S32), `docs/project-plan.md` (S12), and, by S32, `crates/bd-cache-store/Cargo.toml`, `crates/bd-cache-store/src/location.rs` and `crates/bd-cache-model/src/scope.rs` (`MEMBER_NAME_RULE` in `sender.rs`, `PhaseName::RULE` in `scope.rs`, `Cache::scope_synced` of S30, ADR-STORE-0005), and, by S33, `CacheStore::mark_announced_within` / `set_sync_alert_within` in `crates/bd-cache-model/src/store.rs` with their `Cache` passthroughs in `crates/bd-cache/src/lib.rs`.
 6. **`SendError` gained a `kind` field** (S11), so the struct literal `SendError { detail }` no longer compiles; the
    constructors `SendError::new` and `with_kind` replace it. No other crate in the workspace or on the a-8 branch
    built one.
@@ -441,8 +441,8 @@ bc-lead, due at the `develop` -> `main` merge** (S9), not a-7 sprint gates.
 
 ## Testbed
 
-Run on `m5-atmbench` at the last code-changing commit, the merge `7702b67`: a-7 live 2/2, incremental sync 391 ms against the 1 s
-limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record; this layer changes tests only. `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
+Last recorded run, on `m5-atmbench` at the merge `7702b67`: a-7 live 2/2, incremental sync 391 ms against the 1 s
+limit, a-2 probes 7/7 with `SC_BD_PINNED_ANY=1`. The earlier run at `9f3ceb5` (380 ms, same results) is kept in the testbed record. The last code-changing commit is now `24456c5` (S33, fix-a-7-8; the merge `9110187` has identical code). The testbed and planted-bugs re-runs for that code are deferred to `integrate/phase-a` after a-7 lands (owner bc-lead, 2026-10-25). `docs/plans/phase-a/evidence/a-7-testbed.md` has the commands, the
 figures and the developer-machine smoke run. bc-lead's own run at the merge head, due 2026-10-31 (S8, S16), is still the
 owner's to record.
 
