@@ -202,7 +202,7 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Evidence: planted bugs (NFR-BDC-0005)
 
-Run on commit `34fdc22ac3e0657650655ccb971db612211d160c`, the last commit
+Run on commit `5dab027e6cc1f125aba3eb1a171170fa9b9ef8db`, the last commit
 that changes code (later commits change documents only). Each mutation was
 applied to the working tree, the wheel rebuilt, the whole pytest suite and
 `cargo test -p bd-cache-py -p bd-cache-model -p bd-cache` run, and the file restored with
@@ -249,8 +249,8 @@ clean after the run. Failures count pytest and Rust tests together.
 
 ## Validation
 
-Local, macOS arm64, on `34fdc22` (documents after it): `cargo test --workspace
---all-features`: 660 passed; pytest: 92 passed.
+Local, macOS arm64, on `5dab027` (documents after it): `cargo test --workspace
+--all-features`: 661 passed; pytest: 92 passed.
 
 | Gate (with `set -o pipefail`) | Result |
 |---|---|
@@ -261,11 +261,11 @@ Local, macOS arm64, on `34fdc22` (documents after it): `cargo test --workspace
 | `cargo test --workspace --all-features` | pass |
 | pytest (`maturin develop`, 92 tests) | pass |
 
-CI on the last code-changing commit `34fdc22`: `python.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40099143630 (rust job on
+CI on the last code-changing commit `5dab027`: `python.yml` run
+https://github.com/randlee/beads-cache/actions/runs/40102111448 (rust job on
 macos-14, ubuntu-latest and windows-latest, wheels, pytest on Python 3.9, 3.11
 and 3.13 on macos-14 and ubuntu-latest: all success) and `ci.yml` run
-https://github.com/randlee/beads-cache/actions/runs/40099143636 (success).
+https://github.com/randlee/beads-cache/actions/runs/40102111461 (success).
 
 
 ## Fix round 1 (QA-1 at b75b5f3)
@@ -276,6 +276,13 @@ in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
 REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
 atm-core call evidence in `crates/bd-cache-py/tests/atm_core_05831df_calls.json`,
 extracted with `atm_core_05831df_extract.py` (R8).
+
+## Fix round 4 (QA-4 at 99c25c5)
+
+ADRs and requirement ids completed in the frontmatter; `Cargo.toml` and the
+`docs/architecture.md` row named in `owned_paths` (R2, R3, R12); `OpenKind`,
+the `arms!` macro, `closed_message` and one `Inner::from_opened`; call spans use
+`CLOCK_MONOTONIC` (system-wide), not `time.monotonic_ns()`.
 
 ## Fix round 3 (QA-3 at bdff45f)
 
