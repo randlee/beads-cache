@@ -16,6 +16,10 @@ beads-cache is limited to the SQLite beads cache application. The hooks,
 TUI and other orchestration features of `atm-bd-orchestration` stay in
 atm-core. The application runs a sync task that keeps the cache in step with
 a dolt server, which may be local or remote.
+Its value is as a filtered local cache: it holds only the beads in its
+configured sync scopes (several `phase-*` scopes at once today), because bd
+databases are too large to copy whole. Besides the `bd-cache`/`bdc` CLI, a
+later front end is an HTTPS MCP server that serves the local cache.
 
 beads-cache is built against sc-runtime, which is being specified in
 parallel. Needs that sc-runtime does not yet meet go to the sc-runtime team

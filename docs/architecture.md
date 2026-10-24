@@ -31,7 +31,75 @@ CLI: the primary command is `bd-cache`, with the alias `bdc`.
 Backend research: [bd serve HTTP API](research/bd-serve-http.md) and
 [DoltHub sync without a local server](research/dolthub-sync.md).
 
-To be filled: main components and how data flows between them.
+## Target Design
+
+Status: draft direction, agreed in discussion 2026-10-23; the ADRs below carry
+the decisions.
+
+beads-cache is a **filtered local replica** of a beads database. bd databases
+grow large (sc-obs is already over 1 GB), so the cache never copies a whole
+database: it holds only the beads in its configured sync scopes, kept in step
+with a local or remote dolt server through `bd`. That filtered store is the
+point of the product: fast local reads for local work, and a local data store
+for an HTTPS MCP server.
+
+The backend is allowed to be slow or unreachable. A dolt server on another
+machine behind flaky wifi, or a host at 100% CPU where every `bd` call takes
+seconds, must not slow or fail local work. Reads come from the cache with
+their staleness reported, writes are journaled, and the drain and sync catch
+up when the backend responds (ADR-BDC-0005).
+
+### Layers
+
+```
+ front ends:   bdc / bd-cache CLI      HTTPS MCP server      (later) read-only /v0 facade
+                 (BD-CACHE contract)    (streamable HTTP + auth)
+                        \                   |                    /
+ core library:            bd-cache: SQLite store, sync scopes, journal, drain
+                                          |
+ backend port:            BdBackend: bd CLI adapter (phase aa)
+                                     bd serve HTTP adapter (later)
+                                          |
+ backend:                 bd  ->  dolt sql-server (local, shared or Hosted Dolt)
+                                  or embedded dolt + dolthub:// remote via bd sync
+ runtime:                 sc-runtime (process model, sync task scheduling)
+```
+
+- The core library knows nothing about its front ends. `bdc` keeps the
+  BD-CACHE CLI contract so atm-bd's hooks and cron keep working.
+- The MCP server is a second front end over the same core. No upstream beads
+  project offers MCP over HTTP today (`beads-mcp` is stdio only, and
+  `bd serve` is HTTP but not MCP), so beads-cache provides it.
+- All writes go through `bd` (see the research docs: writes through the
+  DoltHub SQL API bypass bd's guards and events journal).
+
+### Data flow
+
+- **Read:** a front end reads the cached row with that bead's pending journal
+  entries replayed on top. A `get` outside every scope may make one `bd`
+  fetch. A `list` or `ready` outside every scope is refused with an error
+  that names the configured scopes; it is never answered from a partial
+  cache.
+- **Write:** validated, checked against its precondition, and journaled. The
+  reply says the write is journaled (with its `seq`), not that it has
+  landed. The MCP write tools say this explicitly and may offer an optional
+  wait for the drain.
+- **Drain:** applies journaled writes through the backend port in `seq`
+  order, with achieved checks, preconditions and read-back (BD-CACHE.md).
+- **Sync:** the sync task (on sc-runtime) refreshes each active scope from
+  its own cursor, then re-reads only the cached dependers of blockers whose
+  status changed, inside or outside the cache (ADR-BDC-0002).
+
+### Open questions
+
+- Which scope kinds besides `phase-<x>` come first (label set, assignee,
+  status).
+- Whether rows are stored in full or as `--brief` rows with full text fetched
+  on demand. Needs measurement; full rows are the BD-CACHE baseline.
+- MCP auth model (bearer token file like `bd serve`, or OAuth) and which MCP
+  tools ship first. Create and comments are out of BD-CACHE v1 but a
+  general-purpose MCP will need them.
+- Automatic prune of closed scopes (an open item in BD-CACHE.md).
 
 ## Crate Layout
 
@@ -46,12 +114,158 @@ crates.
 ## Architecture Decision Records
 
 Each ADR is its own section, `## ADR-<DOMAIN>-nnnn: Title`, where `<DOMAIN>`
-is the product's domain code (to be chosen), or the crate's domain code in
+is the product's domain code, or the crate's domain code in
 per-crate docs. ADR template: `**Status:**` (Draft, Proposed, Approved,
 Active, Superseded), context, decision, and consequences. An ADR changes only
-through a later ADR that names the one it amends or supersedes.
+through a later ADR that names the one it amends or supersedes. Domain
+code: `BDC`.
 
-None yet.
+## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
+
+**Status:** Draft
+
+Context: BD-CACHE v3 syncs per `phase-<x>` label, one `sync_state` row per
+phase, and stores one `phase` column per bead (its first `phase-*` label).
+bdc must hold several phases at once today, and as a filtered cache for
+local work and MCP it will need other filters later. Whole-database sync is
+not viable at current database sizes.
+
+Decision: a sync scope is a named filter with its own cursor. The first and
+only kind in phase aa is `phase-<x>`, which maps one to one onto today's
+`sync_state` rows. Bead membership is recorded per (bead, scope), so a bead
+can belong to several scopes; the `phase` column is kept for v3
+compatibility. Pruning a scope deletes only beads that no other scope holds.
+
+Consequences: extends the BD-CACHE v3 file additively; a v3 file must stay
+readable, and the Python implementation must accept the extended file or the
+schema version moves. Needs agreement on
+https://github.com/randlee/atm-bd-orchestration/issues/557.
+
+## ADR-BDC-0002: Blocked state for dependencies outside the cache
+
+**Status:** Draft
+
+Context: a filtered cache holds edges whose targets are in no scope. bd
+stores blocked state on each row (`is_blocked` in `bd schema` `types.issue`)
+and settles it inside the transaction of every committing write, including
+the dependers of a closed blocker and parent-child descendants. So `ready`
+does not need the targets' status: it can read `is_blocked` from the cached
+row. But bd settles `is_blocked` **without bumping `updated_at`**
+(`BlockedStateInvariant` in beads `issueops/blockedstate.go`), so
+`bd list --updated-after` never returns a row whose only change is a
+blocked-state flip. When a blocker outside the cache closes, the cached
+depender keeps `is_blocked = true` until something else touches it. After a
+pull or merge, bd recomputes blocked state in a scoped pass that can be
+skipped or fail. This affects the BD-CACHE v3 design and the live Python
+implementation today.
+
+Reopening works the same way: reopening a closed bead re-blocks its dependers
+(for example a downstream sanity bead) without changing their `updated_at`.
+
+Edges: `bd list --json` rows carry only outgoing edges (`dependencies`) plus a
+`dependent_count`; incoming edges are not listed. The cache's own `edges`
+table, indexed by `depends_on_id`, gives the incoming edges from cached
+beads, which are the only dependers the cache needs to refresh.
+
+Decision: re-read only the dependers of blockers whose status changed, never
+every blocked bead.
+
+1. **Blocker in the cache.** Its own close or reopen bumps its `updated_at`,
+   so scope sync (or the drain's read-back) sees the status change. The cache
+   then looks up that bead's cached dependers through the `edges` index and
+   re-reads just those in one batched `bd list --id`. Repeat to a fixpoint for
+   parent-child descendants.
+2. **Blocker outside the cache.** The cache keeps the set of outside blocking
+   targets (edge targets that are not cached rows). Each sync asks for only
+   the ones that changed: `bd list --id <outside targets> --updated-after
+   <cursor>`, chunked to keep the argument list bounded. Each changed target's
+   cached dependers are re-read as in 1.
+3. **Safety net.** A merge or pull can leave blocked state stale until bd's
+   scoped recompute runs. A full re-read of cached open beads with blocking
+   edges runs only on demand (`doctor`, a manual refresh, or after a backend
+   rebuild), not on every sync.
+
+Reads per sync are then bounded by the number of changed blockers' dependers,
+plus one small query for outside targets.
+
+To verify in phase aa: that `--id` and `--updated-after` combine as a filter
+intersection, and that `bd close`/`bd reopen` bump the blocker's own
+`updated_at`.
+
+Consequences: one extra small `bd` call per sync for outside targets; no
+reference rows are stored. Report the `updated_at` gap on
+https://github.com/randlee/atm-bd-orchestration/issues/557.
+
+## ADR-BDC-0003: Align data vocabulary with the bd serve /v0 API
+
+**Status:** Draft
+
+Context: the CLI, the MCP tools and a later HTTP backend adapter should share
+one set of types. bd serve's OpenAPI v0 spec and `bd list --json` use the
+same Go structs for rows.
+
+Decision: align the data vocabulary, not the command structure. Patch shape
+follows `/v0` (`add_labels`, `remove_labels`, `append_notes`, and `metadata:
+{set, unset}` accepted alongside BD-CACHE's `set_metadata`/`unset_metadata`);
+guards accept `expected_status`/`expected_assignee` alongside BD-CACHE's
+precondition keys, with room for `expected_version`; refusals keep the
+`BD_CACHE.*` codes and add a `reason` using `/v0` names
+(`precondition_failed`, `not_closable`, `already_claimed`). The CLI keeps its
+cache verbs (`get`, `list`, `write`, `drain`, `sync`, `resolve`, `prune`,
+`status`), because a journaled write is not an applied write.
+
+Consequences: every change is additive to the BD-CACHE CLI contract and
+needs agreement on #557.
+
+## ADR-BDC-0004: Backend port with the bd CLI adapter first
+
+**Status:** Draft
+
+Context: released bd (1.3.0/1.3.1) has no `id` or `updated_after` filter on
+`bd serve`, and bd serve needs a dolt sql-server. The bd CLI works with every
+backend bd supports, including Hosted Dolt and embedded dolt with a remote.
+
+Decision: all backend access goes through one port (`fingerprint`,
+`list_by_ids`, `list_since(scope, cursor)`, `get`, `close`,
+`update(patch, guards)`, `dep_add`, optional `sync_remote`). Phase aa builds
+only the bd CLI adapter. The sync cursor is opaque (a timestamp today; a dolt
+commit hash or events `seq` later). Nullable `revision`, `backend_kind`,
+`endpoint`, `replica_id` and `journal_seq` columns leave room for the HTTP
+adapter without a schema change.
+
+Consequences: an HTTP adapter can be added when a bd release ships the
+missing filters. The unverified gap that `--updated-after` may miss deletes
+and edge changes is tracked for a later commit-hash cursor.
+
+## ADR-BDC-0005: The backend may be slow or unreachable
+
+**Status:** Draft
+
+Context: two deployments are expected: a dolt server on a remote machine over
+an unreliable network, and a local server on a host so loaded that `bd`
+calls take seconds (the BD-CACHE motivation). BD-CACHE v3 escalates a write
+after `MAX_ATTEMPTS` (5) transient failures, so a backend outage of a few
+cron ticks escalates every pending write to the phase lead.
+
+Decision:
+- Reads never wait on the backend. Every read reply carries the scope's
+  `last_ok_at` (and `stale` per row), so callers and MCP tools can see how
+  fresh the data is.
+- Backend unreachable (`BD_CACHE.BD_UNAVAILABLE`: timeout, connection
+  refused, cannot start) is a backend state, not an entry failure. While it
+  holds, the drain stops at the first such failure, the entry's `attempts`
+  is not increased, and later entries are not tried. Only failures from a
+  reachable backend (`BD_WRITE_FAILED`, guard refusal) count towards
+  `MAX_ATTEMPTS` or escalate.
+- The drain and sync retry with backoff while the backend is unreachable, and
+  `status` reports the outage (since when, last error). A sustained outage is
+  announced once, like a sync failure, not once per entry.
+- Each `bd` call is capped at the time left before the caller's deadline.
+
+Consequences: a long outage leaves writes pending rather than escalated; when
+the backend returns, preconditions are re-checked against fresh rows, so
+conflicting changes made elsewhere still escalate. Changes BD-CACHE's
+retry-cap behaviour; needs agreement on #557.
 
 ## Per-Crate Architecture
 
