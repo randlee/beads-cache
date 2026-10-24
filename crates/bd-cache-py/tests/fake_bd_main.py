@@ -15,10 +15,25 @@ the caller killed has no `end` line. The state file can make a command
   (default 20), so a test decides when the call may finish instead of guessing a delay;
 - `fail`: exit 1 with a message; or the whole fake `down`.
 
+Each `start` line also records the child's `BEADS_DIR` (null when unset) and working
+directory, so a test can check which beads directory `bd` was pointed at.
+
+Two rules follow `sc-bd-cli`'s `FakeBd` (PE-ARCH-007), so the Python and Rust suites test
+against one model of bd:
+
+- `--set-metadata` values are coerced as `coerce_metadata`
+  (`crates/sc-bd-cli/src/testing/fake_bd.rs`) does; the cases are the shared table
+  `fixtures/metadata-coercion.json`;
+- `bd blocked` and `bd ready` follow the P-6 recording (ADR-BEADS-0004,
+  `crates/sc-beads/tests/fixtures/p6-blocked/`), as `sc-beads`' `FakeBackend` does:
+  `blocks`, `conditional-blocks` and `waits-for` on an open bead block; `parent-child`
+  blocks only when the parent is itself blocked; `related` and a closed blocker never do.
+
 Usage: fake_bd_main.py STATE_JSON ARGV...
 """
 
 import json
+import math
 import os
 import sys
 import time
@@ -26,6 +41,12 @@ from datetime import datetime, timezone
 
 ALL_STATUSES = "open,in_progress,blocked,deferred,closed,pinned,hooked"
 EXIT_PRECONDITION = 13
+# The edge types that block like `blocks` (bd's `AffectsReadyWork` set, ADR-BEADS-0004).
+BLOCKING = ("blocks", "conditional-blocks", "waits-for")
+# serde_json's integer range: an i64, or a u64 above it. Outside it a JSON integer is an f64.
+INT_MIN, INT_END = -(2 ** 63), 2 ** 64
+# 2^63: every whole f64 below it in magnitude is an exact i64 (`whole_i64` in fake_bd.rs).
+WHOLE_END = 2.0 ** 63
 
 
 def now():
@@ -73,27 +94,87 @@ def fail(message, code=1):
     sys.exit(code)
 
 
-def coerce(text):
-    """bd's `--set-metadata` coercion: booleans and integers are stored typed."""
-    if text in ("true", "false"):
-        return text == "true"
+def _refuse_constant(name):
+    # serde_json has no NaN or Infinity; Python's json would accept them.
+    raise ValueError(name)
+
+
+def coerce_metadata(text):
+    """What `bd --set-metadata key=TEXT` stores: `coerce_metadata` of sc-bd-cli's FakeBd.
+
+    TEXT is parsed as JSON. A number, `true`/`false` or `null` is stored as that type, a
+    whole number as an integer whatever its spelling (`5`, `5.0`, `1e3`, ` 7`); anything
+    else, including JSON of another kind (`"5"`, `[1]`, `{"x":1}`), `True` and a number
+    out of f64 range, is stored as the text it was given.
+    """
     try:
-        return int(text)
-    except ValueError:
+        value = json.loads(text, parse_constant=_refuse_constant)
+    except (ValueError, RecursionError):
         return text
+    if value is None or isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return value if INT_MIN <= value < INT_END else float(value)
+    if isinstance(value, float):
+        if math.isinf(value):
+            return text
+        if value.is_integer() and abs(value) < WHOLE_END:
+            return int(value)
+        return value
+    return text
 
 
-def blockers(state, bead):
-    """Open targets of the bead's blocking edges (what `bd blocked` lists)."""
-    if bead["status"] == "closed":
-        return []
-    found = []
-    for dep in bead.get("dependencies", []):
-        if dep["type"] in ("blocks", "parent-child"):
-            target = state["beads"].get(dep["depends_on_id"])
-            if target is not None and target["status"] != "closed":
-                found.append(dep["depends_on_id"])
-    return found
+def parse_time(text):
+    """An RFC 3339 instant (`Z` or an offset), else None."""
+    if not isinstance(text, str):
+        return None
+    try:
+        at = datetime.fromisoformat(text[:-1] + "+00:00" if text.endswith("Z") else text)
+    except ValueError:
+        return None
+    return at if at.tzinfo is not None else None
+
+
+def blocked_map(state):
+    """{id: blockers} of every blocked bead: `blocked_map` of sc-beads' FakeBackend.
+
+    An open bead is blocked by each open target of its `BLOCKING` edges, and by its
+    open `parent-child` parent when that parent is itself blocked. A closed bead is never
+    blocked; a cycle stops at the bead already being visited. Blockers are in edge order,
+    each once.
+    """
+    beads = state["beads"]
+    memo, visiting = {}, set()
+
+    def is_open(bead_id):
+        target = beads.get(bead_id)
+        return target is not None and target.get("status") != "closed"
+
+    def blockers(bead_id):
+        if bead_id in memo:
+            return memo[bead_id]
+        row = beads.get(bead_id)
+        if row is None or row.get("status") == "closed" or bead_id in visiting:
+            return []
+        visiting.add(bead_id)
+        found = []
+        for dep in row.get("dependencies", []):
+            other = dep["depends_on_id"]
+            if dep["type"] in BLOCKING:
+                hit = is_open(other)
+            elif dep["type"] == "parent-child":
+                hit = is_open(other) and bool(blockers(other))
+            else:
+                hit = False
+            if hit and other not in found:
+                found.append(other)
+        visiting.discard(bead_id)
+        memo[bead_id] = found
+        return found
+
+    for bead_id in sorted(beads):
+        blockers(bead_id)
+    return {bead_id: found for bead_id, found in memo.items() if found}
 
 
 def render(state, bead):
@@ -128,12 +209,11 @@ def cmd_list(state, argv):
 
 def cmd_blocked(state, argv):
     _, flags = parse(argv, {"-l"}, {"--json"})
+    blocked = blocked_map(state)
     rows = []
     for bead in sorted(state["beads"].values(), key=lambda b: b["id"]):
-        if flags["-l"][0] not in bead.get("labels", []):
-            continue
-        found = blockers(state, bead)
-        if found:
+        found = blocked.get(bead["id"])
+        if found and flags["-l"][0] in bead.get("labels", []):
             row = render(state, bead)
             row["blocked_by_count"] = len(found)
             row["blocked_by"] = found
@@ -141,12 +221,21 @@ def cmd_blocked(state, argv):
     print(json.dumps(rows))
 
 
+def deferred(bead, at):
+    """True while the bead's `defer_until` is in the future (an unparseable one is ignored)."""
+    until = parse_time(bead.get("defer_until"))
+    return until is not None and until > at
+
+
 def cmd_ready(state, argv):
     _, flags = parse(argv, {"-l", "-n"}, {"--json"})
+    blocked = blocked_map(state)
+    at = datetime.now(timezone.utc)
     rows = [
         render(state, bead)
         for bead in sorted(state["beads"].values(), key=lambda b: b["id"])
-        if flags["-l"][0] in bead.get("labels", []) and bead["status"] == "open" and not blockers(state, bead)
+        if flags["-l"][0] in bead.get("labels", []) and bead.get("status") == "open"
+        and bead["id"] not in blocked and not deferred(bead, at)
     ]
     print(json.dumps(rows))
 
@@ -199,7 +288,7 @@ def cmd_update(state, argv):
         bead["labels"] = [x for x in bead.get("labels", []) if x != label]
     for pair in flags.get("--set-metadata", []):
         key, _, value = pair.partition("=")
-        bead.setdefault("metadata", {})[key] = coerce(value)
+        bead.setdefault("metadata", {})[key] = coerce_metadata(value)
     for key in flags.get("--unset-metadata", []):
         bead.get("metadata", {}).pop(key, None)
     if "--append-notes" in flags:
@@ -278,7 +367,7 @@ def run(path, argv):
 
 def main():
     path, argv = sys.argv[1], sys.argv[2:]
-    log(path, event="start", argv=argv)
+    log(path, event="start", argv=argv, beads_dir=os.environ.get("BEADS_DIR"), cwd=os.getcwd())
     status = 0
     try:
         run(path, argv)

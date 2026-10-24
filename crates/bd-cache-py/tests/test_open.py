@@ -2,6 +2,8 @@
 
 import json
 import os
+import subprocess
+import sys
 
 import pytest
 
@@ -84,6 +86,24 @@ def test_signed_and_float_timeouts_and_attempts_are_validated(repo, keyword, val
     with pytest.raises(ValueError, match=keyword):
         repo.open(**{keyword: value})
     assert repo.opened == [], "nothing was opened"
+
+
+@pytest.mark.parametrize("keyword, value", [
+    ("call_timeout_s", 0), ("call_timeout_s", 0.0), ("call_timeout_s", -0.0),
+    ("miss_fill_timeout_ms", 0), ("miss_fill_timeout_ms", 0.0),
+    # 1e-9 ms is 1e-12 s: below a nanosecond, so a zero duration.
+    ("miss_fill_timeout_ms", 1e-9),
+])
+def test_a_zero_timeout_is_refused_as_the_config_file_refuses_it(repo, keyword, value):
+    # PE-RSH-006 (S56): a configured timeout must be positive, from the file or an argument.
+    with pytest.raises(ValueError, match=f"{keyword} must be a positive number of seconds"):
+        repo.open(**{keyword: value})
+    assert repo.opened == [], "nothing was opened"
+
+
+def test_the_smallest_positive_timeouts_are_accepted(repo):
+    cache = repo.open(call_timeout_s=0.001, miss_fill_timeout_ms=1)
+    assert cache.closed is False
 
 
 def test_float_timeouts_are_accepted_and_applied(repo):
@@ -174,3 +194,84 @@ def test_a_repo_root_that_is_a_file_is_an_argument_error_with_or_without_project
         with pytest.raises(ValueError, match="repo_root.*is not a directory") as caught:
             bd_cache_rs.Cache(str(a_file), bd_binary=str(repo.bd.binary), **kwargs)
         assert caught.value.kind == "argument", kwargs
+
+
+def _metadata(directory, database):
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / "metadata.json").write_text(
+        json.dumps({"dolt_database": database, "project_id": "p-1"}), encoding="utf-8")
+
+
+# Run in a child process so the test sets `BEADS_DIR` and the working directory there,
+# never in the pytest process. It prints the cache file and the error it met, as JSON.
+_OPEN_AND_GET = """
+import json, os, sys
+import bd_cache_rs
+repo_root, bd_binary, cwd, remove_cwd = sys.argv[1:5]
+os.chdir(cwd)
+if remove_cwd == "1":
+    os.rmdir(cwd)
+out = {}
+try:
+    cache = bd_cache_rs.Cache(repo_root, bd_binary=bd_binary, project_dir=repo_root, scopes=["x"])
+    out["path"] = str(cache.path)
+    out["status"] = cache.get("b1", miss_timeout=30)["row"]["bead"]["status"]
+    cache.close()
+except bd_cache_rs.CacheError as e:
+    out["code"], out["detail"] = e.code, e.detail
+print(json.dumps(out))
+"""
+
+
+def _open_in_child(repo, cwd, beads_dir, remove_cwd=False):
+    env = dict(os.environ, BEADS_DIR=beads_dir)
+    done = subprocess.run(
+        [sys.executable, "-c", _OPEN_AND_GET, str(repo.root), str(repo.bd.binary), str(cwd),
+         "1" if remove_cwd else "0"],
+        env=env, capture_output=True, text=True, timeout=60, check=False)
+    assert done.returncode == 0, done.stderr
+    return json.loads(done.stdout)
+
+
+def test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd(repo, tmp_path):
+    # PE-ARCH-001: the store resolves BEADS_DIR against the process's working directory;
+    # bd runs in project_dir. Both must use the one absolute directory, so bd is given it.
+    cwd = tmp_path / "elsewhere"
+    _metadata(cwd / "rel", "from-cwd")
+    _metadata(repo.root / "rel", "from-project-dir")  # what a relative value names for bd
+    out = _open_in_child(repo, cwd, "rel")
+    assert "code" not in out, out
+    assert os.path.basename(out["path"]) == "from-cwd.bd-cache.sqlite3", "the store used <cwd>/rel"
+    assert out["status"] == "open"
+    calls = [e for e in repo.bd.events() if e["event"] == "start"]
+    assert calls, "the get reached bd"
+    want = os.path.realpath(cwd / "rel")
+    for call in calls:
+        seen = call["beads_dir"]
+        assert seen is not None and os.path.isabs(seen), call
+        assert os.path.realpath(os.path.join(call["cwd"], seen)) == want, call
+        assert os.path.realpath(call["cwd"]) == os.path.realpath(repo.root), "bd ran in project_dir"
+
+
+def test_an_unset_beads_dir_reaches_no_bd_child(repo):
+    repo.config('scopes = ["x"]\n')
+    repo.open().get("b1", miss_timeout=30)
+    calls = [e for e in repo.bd.events() if e["event"] == "start"]
+    assert calls and all(call["beads_dir"] is None for call in calls), calls
+
+
+def test_a_beads_dir_that_cannot_be_made_absolute_is_no_database(repo, tmp_path):
+    # The working directory is removed, so a relative BEADS_DIR has nothing to resolve against.
+    gone = tmp_path / "removed-cwd"
+    gone.mkdir()
+    out = _open_in_child(repo, gone, "rel", remove_cwd=True)
+    assert out.get("code") == "BD_CACHE.NO_DATABASE", out
+    assert "cannot make BEADS_DIR rel absolute" in out["detail"], out
+    assert not (repo.root / ".bd-cache").exists(), "no cache file was created"
+
+
+def test_the_ambient_beads_dir_does_not_reach_a_test(repo):
+    # PE-FTQ-001: conftest's autouse fixture removes it; run the suite with BEADS_DIR set
+    # to a directory without metadata.json and this repository still opens.
+    assert "BEADS_DIR" not in os.environ
+    assert repo.open().status()["meta"]["dolt_database"] == "atm-dev"

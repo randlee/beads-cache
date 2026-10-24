@@ -5,13 +5,17 @@
 //! `bd_cache_store::load_repo_config`, with explicit arguments overriding the
 //! file's keys.
 
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::{CacheError, RepoConfig, ScopeId};
-use bd_cache_store::{ConfigLoadError, FlockDrainLock, SqliteStore, load_repo_config};
+use bd_cache_store::{
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
+    load_repo_config,
+};
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef, SystemClock};
 
@@ -229,6 +233,48 @@ fn project_dir_text(what: &str, p: &Path) -> Result<String, OpenError> {
 /// Opens the cache of `repo_root`, running `bd_binary` in `project_dir`.
 ///
 /// The store is located from `.beads/metadata.json`; no `bd` process starts here.
+/// `$BEADS_DIR` is read once ([`BeadsDirOverride::from_env`]) and made absolute
+/// against the process's working directory; see [`open_with`].
+///
+/// # Errors
+///
+/// As [`open_with`].
+pub(crate) fn open(
+    repo_root: &Path,
+    bd_binary: &str,
+    project_dir: Option<&Path>,
+    overrides: Overrides,
+) -> Result<Opened, OpenError> {
+    open_with(
+        repo_root,
+        bd_binary,
+        project_dir,
+        overrides,
+        BeadsDirOverride::from_env(),
+    )
+}
+
+/// The `BD_CACHE.NO_DATABASE` of a `$BEADS_DIR` that cannot be made absolute.
+///
+/// The same code and detail as `SqliteStore::open` gives it (lead ruling S49), so
+/// the binding's open error does not depend on which layer read the variable.
+fn unresolvable_beads_dir(e: &BeadsDirError) -> OpenError {
+    let mut detail = e.to_string();
+    if let Some(cause) = std::error::Error::source(e) {
+        detail.push_str(": ");
+        detail.push_str(&cause.to_string());
+    }
+    OpenError::Cache(CacheError::NoDatabase { detail })
+}
+
+/// [`open`] with the validated `$BEADS_DIR` given, so a test does not read or
+/// change the process environment.
+///
+/// The one [`BeadsDirOverride`] locates the store and is set as `BEADS_DIR` in
+/// every `bd` child's environment (removed there when it is `None`). `bd` runs
+/// in `project_dir`, so a relative value would otherwise name one directory for
+/// the store (the process's working directory) and another for `bd`
+/// (PE-ARCH-001).
 ///
 /// # Errors
 ///
@@ -236,16 +282,19 @@ fn project_dir_text(what: &str, p: &Path) -> Result<String, OpenError> {
 /// UTF-8 or not an existing directory (checked first, whether or not `project_dir` is
 /// given), or a `project_dir` that is not UTF-8 or does not resolve to a directory;
 /// [`OpenError::Read`] for an unreadable config file; [`OpenError::Cache`]
-/// for `NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION` or `STORE_FAILED`.
-pub(crate) fn open(
+/// for `NO_DATABASE` (including a `$BEADS_DIR` that cannot be made absolute, checked
+/// before the config file is read), `WRONG_DATABASE`, `SCHEMA_VERSION` or `STORE_FAILED`.
+pub(crate) fn open_with(
     repo_root: &Path,
     bd_binary: &str,
     project_dir: Option<&Path>,
     overrides: Overrides,
+    beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
 ) -> Result<Opened, OpenError> {
     check_repo_root(repo_root)?;
     let (what, dir) = project_dir.map_or(("repo_root", repo_root), |d| ("project_dir", d));
     let project = ProjectRef::local(Some(project_dir_text(what, dir)?));
+    let beads_dir = beads_dir.map_err(|e| unresolvable_beads_dir(&e))?;
     let mut config: RepoConfig = load_repo_config(repo_root)?;
     if let Some(p) = overrides.cache_path {
         config.cache_path = Some(p);
@@ -256,11 +305,15 @@ pub(crate) fn open(
     if overrides.max_attempts.is_some() {
         config.max_attempts = overrides.max_attempts;
     }
-    let store = SqliteStore::open(repo_root, &config)?;
+    let store = SqliteStore::open_with(repo_root, &config, beads_dir.as_ref())?;
     let path = store.path().to_path_buf();
     let lock = store.drain_lock();
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let backend = BdCli::new_with_clock(bd_binary, project_locks(), Arc::clone(&clock));
+    let backend = BdCli::new_with_clock(bd_binary, project_locks(), Arc::clone(&clock))
+        .with_child_var(
+            OsStr::new(BEADS_DIR_ENV),
+            beads_dir.as_ref().map(BeadsDirOverride::as_os_str),
+        );
     let mut cache_config = config.cache_config(project);
     if let Some(d) = overrides.call_timeout {
         cache_config.call_timeout = d;
@@ -275,10 +328,76 @@ pub(crate) fn open(
 #[cfg(test)]
 #[expect(
     clippy::unwrap_used,
+    clippy::panic,
     reason = "test code: a failed unwrap is a test failure"
 )]
 mod tests {
     use super::*;
+
+    /// [`open_with`] with `$BEADS_DIR` unset, whatever the environment of the test run.
+    fn open_unset(root: &Path, project_dir: Option<&Path>) -> Result<Opened, OpenError> {
+        open_with(root, "bd", project_dir, Overrides::default(), Ok(None))
+    }
+
+    /// A repository whose `.beads/metadata.json` names `database`.
+    fn repo_named(database: &str) -> tempfile::TempDir {
+        let tmp = tempfile::TempDir::new().unwrap();
+        let beads = tmp.path().join(".beads");
+        std::fs::create_dir(&beads).unwrap();
+        std::fs::write(
+            beads.join("metadata.json"),
+            format!(r#"{{"dolt_database": "{database}", "project_id": "p-1"}}"#),
+        )
+        .unwrap();
+        tmp
+    }
+
+    /// The override, not `<repo_root>/.beads`, locates the store (PE-ARCH-001): the
+    /// same value is what every `bd` child gets as `BEADS_DIR`.
+    #[test]
+    fn the_beads_dir_override_locates_the_store() {
+        let root = repo_named("from-repo");
+        let other = repo_named("from-override");
+        let dir = BeadsDirOverride::new(Some(other.path().join(".beads").as_os_str())).unwrap();
+        let opened = open_with(root.path(), "bd", None, Overrides::default(), Ok(dir))
+            .unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(
+            opened.path.file_name().and_then(OsStr::to_str),
+            Some("from-override.bd-cache.sqlite3")
+        );
+    }
+
+    /// A `$BEADS_DIR` that cannot be made absolute is `NO_DATABASE`, naming the value
+    /// and the I/O error, before the config file is read (an invalid one is not
+    /// reported) and before any cache file is created.
+    #[test]
+    fn an_unresolvable_beads_dir_is_no_database_before_the_config_is_read() {
+        let root = repo_named("atm-dev");
+        std::fs::write(
+            root.path().join(".beads").join("bd-cache.toml"),
+            "not toml [",
+        )
+        .unwrap();
+        let unresolvable = BeadsDirError::new(
+            "rel",
+            std::io::Error::new(std::io::ErrorKind::NotFound, "getcwd failed"),
+        );
+        let r = open_with(
+            root.path(),
+            "bd",
+            None,
+            Overrides::default(),
+            Err(unresolvable),
+        );
+        match r {
+            Err(OpenError::Cache(CacheError::NoDatabase { detail })) => assert!(
+                detail.contains("BEADS_DIR rel") && detail.ends_with(": getcwd failed"),
+                "{detail}"
+            ),
+            other => panic!("{:?}", other.err()),
+        }
+        assert!(!root.path().join(".bd-cache").exists());
+    }
 
     #[test]
     fn the_kind_texts_are_exactly_parse_scope_argument_config_and_read() {
@@ -340,14 +459,14 @@ mod tests {
         let tmp = tempfile::TempDir::new().unwrap();
         let bad = tmp.path().join(OsStr::from_bytes(b"\xff\xfe"));
         assert!(matches!(
-            open(&bad, "bd", None, Overrides::default()),
+            open_unset(&bad, None),
             Err(OpenError::Config {
                 kind: ConfigKind::Argument,
                 ..
             })
         ));
         assert!(matches!(
-            open(tmp.path(), "bd", Some(&bad), Overrides::default()),
+            open_unset(tmp.path(), Some(&bad)),
             Err(OpenError::Config {
                 kind: ConfigKind::Argument,
                 ..
@@ -363,7 +482,7 @@ mod tests {
         std::fs::write(&file, "x").unwrap();
         for root in [&missing, &file] {
             for project_dir in [None, Some(tmp.path())] {
-                let r = open(root, "bd", project_dir, Overrides::default());
+                let r = open_unset(root, project_dir);
                 assert!(
                     matches!(&r, Err(OpenError::Config { kind: ConfigKind::Argument, text, .. }) if text.starts_with("repo_root")),
                     "{root:?} {project_dir:?}: {:?}",

@@ -216,6 +216,16 @@ class Repo:
         return self.open(**kwargs)
 
 
+@pytest.fixture(autouse=True)
+def no_ambient_beads_dir(monkeypatch):
+    """No test sees the `BEADS_DIR` of the shell that ran pytest (PE-FTQ-001).
+
+    The store and every `bd` child read it, so an ambient value would point the cache at
+    another repository's metadata. A test that needs one sets it in a child process.
+    """
+    monkeypatch.delenv("BEADS_DIR", raising=False)
+
+
 @pytest.fixture
 def repo(tmp_path):
     root = tmp_path / "repo"

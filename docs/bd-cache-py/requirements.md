@@ -18,14 +18,14 @@ cache_path=None, call_timeout_s=None, miss_fill_timeout_ms=None,
 max_attempts=None)` opens the cache of a repository over
 `Cache<SqliteStore, FlockDrainLock, BdCli>`. Settings come from
 `.beads/bd-cache.toml` through `load_repo_config`; each keyword argument that
-is not `None` overrides the file's key (`call_timeout_s` and `miss_fill_timeout_ms` take int or float and `max_attempts` an int; a negative or non-finite timeout, or fewer than 1 attempt, is `ValueError`). Opening starts no `bd` process. A
+is not `None` overrides the file's key (`call_timeout_s` and `miss_fill_timeout_ms` take int or float and `max_attempts` an int; a negative, zero or non-finite timeout, or fewer than 1 attempt, is `ValueError`; zero is refused as the config file loader refuses it, lead ruling S56). Opening starts no `bd` process. `$BEADS_DIR` is read once and made absolute against the process's working directory; that one directory locates the store and is the `BEADS_DIR` of every `bd` child (removed there when unset), so a relative value cannot name one directory for the store and another for `bd`, which runs in `project_dir` (PE-ARCH-001); a value that cannot be made absolute is `BD_CACHE.NO_DATABASE`, before the config file is read. A
 second open of the same cache file in one process is `BD_CACHE.STORE_FAILED`
 until the first handle is closed (`close()`, or leaving a `with` block). A
 repository without readable `.beads/metadata.json` is `BD_CACHE.NO_DATABASE`;
 an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`, `config`) and `path` (`config` is reserved; not produced while ConfigLoadError has no further variants (S38/S42); `path` may be `None`); an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
-**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`); Rust `compose::tests`; for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
+**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`, `test_a_zero_timeout_is_refused_*`, `test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd`, `test_a_beads_dir_that_cannot_be_made_absolute_is_no_database`); Rust `compose::tests` (`the_beads_dir_override_locates_the_store`, `an_unresolvable_beads_dir_is_no_database_before_the_config_is_read`); for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
 
 ## REQ-PY-0002: The verbs atm-bd uses
 
