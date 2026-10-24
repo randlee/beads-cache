@@ -15,7 +15,7 @@ must_follow: [a-2, a-4, a-5, a-6]
 parallel_safe: [a-7]
 requirements:
   owns: [REQ-BDC-0910]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, NFR-BDC-0002]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0002, REQ-BDC-0802, REQ-BDC-0803, REQ-BDC-0903, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912, NFR-BDC-0002]
 adrs: [ADR-BDC-0003, ADR-BDC-0005, ADR-CORE-0001]
 owned_paths:
   - "crates/bd-cache-py/**"
@@ -48,7 +48,7 @@ atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
    repository (`.beads/bd-cache.toml` when present, else explicit arguments),
    with the verbs atm-bd uses (REQ-BDC-0910): `get(bead, miss_timeout=None)`,
    `refresh(ids, timeout)`, `write(bead, op, args, precondition, idem_key,
-   actor)`, `list(phase, status=None, label=None)`, `ready(phase)`,
+   actor)`, `list(phase, status=None, label=None)`, `ready(phase, fresh_within=None)`,
    `sync(phase, timeout)`, `drain(start_gate_s, hard_s)`, `entry(seq)`,
    `resolve(seq, note, actor)`, `prune(phase)`, `status()`.
 2. Replies are the Rust reply types converted to Python dicts with the same

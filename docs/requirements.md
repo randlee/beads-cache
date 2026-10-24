@@ -610,6 +610,12 @@ After a write journaled through the cache that releases or blocks a bead (for ex
 
 **Source:** user, 2026-10-24 (the sanity agent's `atm task open` hook checks ready through the cache one or two turns after assignment and escalates if not ready)
 
+## REQ-BDC-0912: Bounded fresh ready
+
+A caller can ask `ready` for a fresh answer within a time limit it gives (for example 500 ms, inside a hook's 2.5 s budget). If bd answers in time, the reply uses bd's answer and refreshes the stored base; if not, it returns the cached, locally adjusted answer by the limit, naming the fallback error. The call never exceeds the limit.
+
+**Source:** user, 2026-10-24 (atm task hook: 2.5 s budget shared by several bd calls); same pattern as the sanity hook's capped refresh with `read_fallback` in BD-CACHE.md
+
 ## REQ-BDC-0905: bd release compatibility check
 
 **Status:** Draft

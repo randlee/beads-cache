@@ -13,7 +13,7 @@ recommended_model: opus
 must_follow: [a-1]
 parallel_safe: [a-2, a-3, a-4, a-5]
 requirements:
-  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911]
+  owns: [REQ-BDC-0001, REQ-BDC-0008, REQ-BDC-0202, REQ-BDC-0203, REQ-BDC-0501, REQ-BDC-0502, REQ-BDC-0503, REQ-BDC-0504, REQ-BDC-0601, REQ-BDC-0602, REQ-BDC-0603, REQ-BDC-0902, REQ-BDC-0904, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909, REQ-BDC-0911, REQ-BDC-0912]
   constrained_by: [REQ-BDC-0105, REQ-BDC-0901, REQ-BDC-0903, NFR-BDC-0001, NFR-BDC-0004]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005]
 owned_paths:
@@ -61,8 +61,11 @@ code from a-4 or a-5.
 4. Ready base and `ready` (REQ-BDC-0904, 0911, ADR-BDC-0002): each sync of a
    scope ends with `list_blocked` and `list_ready` through `call` and
    `replace_ready_base`; on failure the previous base is kept and marked
-   stale. `ready(scope)` applies the journal rules in ADR-BDC-0002 to the
-   base with no backend call, and reports `unknown` when there is no base.
+   stale. `ready(scope, fresh_within)` applies the journal rules in ADR-BDC-0002 to
+   the base; with no limit it makes no backend call, and with a limit it
+   tries bd's answer under that limit and falls back to the cached answer
+   with `read_fallback` (REQ-BDC-0912). No base and no fresh answer is
+   `unknown`.
 5. `refresh(ids, timeout)` (REQ-BDC-0907): one `list_by_ids` with all
    statuses, stored with force, overlay applied; `entry(seq)` (REQ-BDC-0908);
    `get` takes an optional caller miss timeout. A `sync` of an unconfigured
@@ -91,6 +94,7 @@ code from a-4 or a-5.
 | After a blocker (cached or outside every scope) is closed in the backend, one sync makes its depender ready; after it is reopened, one sync makes the depender blocked again; a child of a blocked parent is not ready (REQ-BDC-0904) | ADR-BDC-0002 |
 | With the backend unreachable, a journaled close of a bead's only blocker makes it ready at once; a journaled reopen blocks it again (REQ-BDC-0911) | ADR-BDC-0002 |
 | A scope with no ready base reports `unknown` | ADR-BDC-0002 |
+| `ready(scope, 500 ms)` returns bd's answer and refreshes the base when `FakeBackend` answers in 100 ms; when it takes 5 s, returns the cached adjusted answer with `read_fallback` set, within 500 ms by the `ManualClock` (REQ-BDC-0912) | ADR-BDC-0005 |
 | Planted bugs: prune ignores escalated, resolve accepts any state each fail a test | boundary:bd-cache |
 
 ## This sprint does not close

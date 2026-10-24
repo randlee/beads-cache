@@ -253,7 +253,13 @@ Decision: bd's answer is the base; our journaled writes adjust it locally.
    - dep_add `blocks` onto a target that is not closed: add the target to the
      bead's `blocked_by`.
    - close or status change of the bead itself: it leaves `ready`.
-3. **No base yet** (cold cache): `ready` reports `unknown`; the caller's own
+3. **Bounded fresh answer.** A caller may pass a time limit (for example
+   500 ms). `ready` then makes the scope's `bd ready -l` and `bd blocked -l`
+   calls under that limit; if they answer, the reply is bd's answer (adjusted
+   for entries still pending) and the base is refreshed; if not, the reply is
+   the cached, adjusted answer at the limit, naming the error as
+   `read_fallback`. Without a limit, `ready` makes no bd call.
+4. **No base yet** (cold cache): `ready` reports `unknown`; the caller's own
    checks (for example the `task open` hook's escalation) cover it.
 
 Readers must go through the cache (bindings, `bdc`, later MCP); raw `bd`

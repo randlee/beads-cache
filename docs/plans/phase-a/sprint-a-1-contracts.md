@@ -246,7 +246,9 @@ pub enum CallOutcome { Ok, Cut, Outage(String), Error(CacheError) }
 pub struct RowView { pub bead: Bead, pub stale: bool, pub blocked: Option<Vec<BeadId>> /* None = unknown, Some([]) = not blocked */ }
 pub struct GetReply { pub row: RowView, pub scope_last_ok_at: Option<String>, pub pending: u32, pub outage: Option<Outage> }
 pub struct ListReply { pub scope: ScopeId, pub last_ok_at: Option<String>, pub rows: Vec<RowView>, pub outage: Option<Outage> }
-pub struct ReadyReply { pub scope: ScopeId, pub base_fetched_at: Option<String>, pub locally_adjusted: bool, pub ready: Vec<RowView>, pub unknown: bool }
+pub enum ReadyBasis { Fresh, Cached { fetched_at: String, stale: bool }, Unknown }
+pub struct ReadyReply { pub scope: ScopeId, pub basis: ReadyBasis, pub locally_adjusted: bool, pub ready: Vec<RowView>,
+    pub read_fallback: Option<String> /* why a requested fresh answer fell back */ }
 pub struct WriteReply { pub seq: Seq, pub duplicate: bool }
 pub struct DrainReport { pub busy: bool, pub applied: Vec<Seq>, pub retrying: Vec<Seq>, pub escalated: Vec<EscalatedItem>,
     pub deferred: Vec<Seq>, pub deferred_in_flight: Vec<Seq>, pub outage: Option<Outage> }
@@ -282,7 +284,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     pub fn refresh(&mut self, ids: &[BeadId], timeout: Duration) -> Result<Vec<RowView>, CacheError>;            // a-6: fresh read, stored with force, overlay applied
     pub fn entry(&self, seq: Seq) -> Result<JournalEntry, CacheError>;                                          // a-6
         pub fn list(&self, s: &ScopeId, status: Option<&str>, label: Option<&str>) -> Result<ListReply, CacheError>;  // a-6
-    pub fn ready(&self, s: &ScopeId) -> Result<ReadyReply, CacheError>;                                          // a-6
+        pub fn ready(&mut self, s: &ScopeId, fresh_within: Option<Duration>) -> Result<ReadyReply, CacheError>;      // a-6; never exceeds fresh_within
     pub fn write(&mut self, id: &BeadId, op_name: &str, args_json: &str, pre: Guards, key: IdemKey, actor: Actor) -> Result<WriteReply, CacheError>; // a-5
     pub fn drain(&mut self, budget: &DrainBudget) -> Result<DrainReport, CacheError>;                            // a-5
         pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError>;                          // a-6 (incl. blocked set)
