@@ -34,6 +34,7 @@ chrono = { version = "0.4", default-features = false, features = ["std", "clock"
 cron = "0.17"
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
+tempfile = "3.20"                                          # dev-dependency only (sc-cron store tests)
 pyo3 = "0.30"
 
 [workspace.lints.rust]
