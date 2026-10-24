@@ -24,7 +24,7 @@ use std::path::Path;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use sc_bd_cli::bounded::run_bounded;
+use sc_bd_cli::bounded::{run_bounded, BoundedError};
 use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::{
     parse_bd_rows, schema_sha256, Actor, Assignee, Bead, BeadId, BeadsCacheError, CacheBackend,
@@ -95,8 +95,15 @@ impl Live {
     /// message instead of blocking it forever.
     fn raw(&self, args: &[&str]) -> Result<String, String> {
         let words: Vec<String> = args.iter().map(|a| (*a).to_owned()).collect();
-        let out = run_bounded(&self.bin, shared_locks(), &self.dir, &words, CALL)
-            .map_err(|e| format!("bd {args:?} did not complete within {CALL:?}: {e}"))?;
+        let out =
+            run_bounded(&self.bin, shared_locks(), &self.dir, &words, CALL).map_err(
+                |e| match e {
+                    BoundedError::TimedOut { phase } => {
+                        format!("bd {args:?} did not complete within {CALL:?} ({phase})")
+                    }
+                    other => format!("bd {args:?}: {other}"),
+                },
+            )?;
         if out.success {
             Ok(out.stdout)
         } else {

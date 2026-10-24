@@ -263,7 +263,7 @@ impl FakeBd {
 Code evidence SHA: `a75b8077dd811a4659a8d82751d6b47a9b57d9b8` (fix-a-2-1, on top of the
 merge of `integrate/phase-a` at `7c689bf`), the last commit that changes
 `crates/sc-bd-cli/src`. fix-a-2-2 later changed only `tests/live.rs` (probe setup calls
-are bounded and locked) and the workflow's live-step timeout; the planted bugs mutate
+are bounded and locked; fix-a-2-3 names the cause in its error text) and the workflow's live-step timeout; the planted bugs mutate
 `src`, so they were not re-run, and the live probes were re-run (7 of 7, bd 1.3.1).
 Documentation commits do not change code.
 
