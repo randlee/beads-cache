@@ -357,14 +357,9 @@ workflow is on `main`; the lead decides whether that gates closure.
 
 ### CI
 
-PR [#9](https://github.com/randlee/beads-cache/pull/9). CI run
-[40075405492](https://github.com/randlee/beads-cache/actions/runs/40075405492) at
-`04453d8` is green on ubuntu, macos and windows. The first run (`b9eb355`) failed
-on Windows only: the schema copy used by `FakeBd` was checked out with CRLF and its
-sha differed. The copy moved to `crates/sc-bd-cli/tests/fixtures/`, which
-`.gitattributes` pins to LF. Code evidence above is unchanged by that move apart from
-this path (re-run: all sc-bd-cli tests pass).
-
-### Deferred
-
-The real `workflow_dispatch` (and `repository_dispatch`) run happens after develop to main at phase close-out; a-7 / close-out owns it. The proof-branch runs above are accepted as evidence.
+PR [#9](https://github.com/randlee/beads-cache/pull/9). After fix-a-2-1, CI run
+[40078692301](https://github.com/randlee/beads-cache/actions/runs/40078692301) at
+`2acc036` (code evidence SHA `a75b807` plus merges of `integrate/phase-a`) is green on
+ubuntu, macos and windows. Earlier history: the first run failed on Windows only
+because the schema copy was checked out CRLF; it now lives in
+`crates/sc-bd-cli/tests/fixtures/`, which `.gitattributes` pins to LF.
