@@ -120,11 +120,11 @@ impl World {
     /// `run(["--repo", <repo>, args...])` with the fake bd as the invoker.
     fn run(&self, args: &[&str]) -> (i32, String) {
         let root = self.root();
-        let mut argv = vec!["--repo".to_owned(), root.to_str().unwrap().to_owned()];
-        argv.extend(args.iter().map(|a| (*a).to_owned()));
+        let mut full = vec!["--repo".to_owned(), root.to_str().unwrap().to_owned()];
+        full.extend(args.iter().map(|a| (*a).to_owned()));
         let clock: Arc<dyn Clock> = Arc::clone(&self.clock) as Arc<dyn Clock>;
         bd_cache_cli::run(
-            &argv,
+            &full,
             &BTreeMap::new(),
             Some(Box::new(FakeBd::over(self.bd.clone()))),
             clock,
@@ -221,8 +221,8 @@ fn replay(path: &Path) -> Vec<String> {
             world.put(obj["id"].as_str().unwrap(), obj, false);
             continue;
         }
-        let (exit, stdout) = match step.get("argv") {
-            Some(argv) => {
+        let (exit, stdout) = if let Some(argv) = step.get("argv") {
+            {
                 let argv: Vec<&str> = argv
                     .as_array()
                     .unwrap()
@@ -231,7 +231,8 @@ fn replay(path: &Path) -> Vec<String> {
                     .collect();
                 world.run(&argv)
             }
-            None => {
+        } else {
+            {
                 let file = world.dir.path().join(format!("request-{i}.json"));
                 std::fs::write(&file, step["request"].to_string()).unwrap();
                 let mut argv: Vec<&str> = step["command"].as_str().unwrap().split(' ').collect();

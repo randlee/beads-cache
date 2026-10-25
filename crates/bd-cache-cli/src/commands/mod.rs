@@ -49,7 +49,7 @@ impl std::fmt::Debug for Context<'_> {
 
 /// A request that has passed its decoder.
 enum Decoded {
-    Api(Request),
+    Api(Box<Request>),
     Tick(tick::TickRequest),
 }
 
@@ -62,7 +62,7 @@ enum Decoded {
 /// `STORE_FAILED`), then the command's own.
 pub(crate) fn run(target: Target, request: &Value, ctx: Context<'_>) -> Result<Value, ApiError> {
     let decoded = match target {
-        Target::Api(command) => Decoded::Api(decode(command, request)?),
+        Target::Api(command) => Decoded::Api(Box::new(decode(command, request)?)),
         Target::Tick => Decoded::Tick(tick::decode(request)?),
     };
     let settings = config::resolve(&ctx.flags, ctx.env)?;

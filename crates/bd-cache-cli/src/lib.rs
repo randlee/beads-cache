@@ -162,7 +162,7 @@ pub fn run_with(
                 .unwrap_or_else(|| "a panic with no message".to_owned());
             let e = ApiError::internal(format!("bdc panicked: {why}"))
                 .with_suggested_action("report this bug, with the command that caused it");
-            finish(Err(e), text)
+            finish(&Err(e), text)
         }
     }
 }
@@ -200,8 +200,8 @@ pub fn run_process() -> ExitCode {
 }
 
 /// The exit code and stdout of a result.
-fn finish(result: Result<Value, ApiError>, text: bool) -> (i32, String) {
-    let exit = match &result {
+fn finish(result: &Result<Value, ApiError>, text: bool) -> (i32, String) {
+    let exit = match result {
         Ok(_) => 0,
         Err(e) => e.exit_code().unwrap_or(EXIT_ERROR),
     };
@@ -210,9 +210,9 @@ fn finish(result: Result<Value, ApiError>, text: bool) -> (i32, String) {
         .as_ref()
         .is_err_and(|e| e.exit_code() == Some(EXIT_USAGE));
     let out = if text && !usage {
-        render::text::render(&result)
+        render::text::render(result)
     } else {
-        render::json::envelope(&result)
+        render::json::envelope(result)
     };
     (exit, out)
 }
@@ -241,24 +241,24 @@ fn dispatch(
             "version": env!("CARGO_PKG_VERSION"),
             "contract_version": CONTRACT_VERSION,
         });
-        return finish(Ok(data), false);
+        return finish(&Ok(data), false);
     }
     if let Some(e) = commands::beads::unserved(&args::words(argv)) {
-        return finish(Err(e), format == Some("text"));
+        return finish(&Err(e), format == Some("text"));
     }
     let relaxed = args::has_flag(argv, "--input");
     let matches = match args::clap_tree(relaxed)
         .try_get_matches_from(std::iter::once(NAME.to_owned()).chain(argv.iter().cloned()))
     {
         Ok(m) => m,
-        Err(e) => return finish(Err(usage_from_clap(&e, argv)), false),
+        Err(e) => return finish(&Err(usage_from_clap(&e, argv)), false),
     };
     let (path, leaf) = leaf(&matches);
     let Some(spec) = args::command(&path) else {
         let valid = args::children(&path);
         let e =
             ApiError::usage("no command given", &valid).with_detail("did_you_mean", Value::Null);
-        return finish(Err(e), false);
+        return finish(&Err(e), false);
     };
     let text = leaf.get_one::<String>("format").map(String::as_str) == Some("text");
     let request = match leaf.get_one::<String>("input") {
@@ -268,14 +268,14 @@ fn dispatch(
                 &["--input"],
             )
             .with_detail("did_you_mean", Value::Null);
-            return finish(Err(e), false);
+            return finish(&Err(e), false);
         }
         Some(source) => request::from_input(source),
         None => request::from_matches(spec, leaf),
     };
     let request = match request {
         Ok(r) => r,
-        Err(e) => return finish(Err(e), text),
+        Err(e) => return finish(&Err(e), text),
     };
     let flags = config::Flags {
         repo: leaf.get_one::<String>("repo").cloned(),
@@ -304,19 +304,14 @@ fn dispatch(
         test_panic(env);
         commands::run(spec.target, &request, ctx)
     });
-    finish(result, text)
+    finish(&result, text)
 }
 
 /// The test hook of [`PANIC_ENV`].
 #[cfg(feature = "fake-bd")]
-#[expect(
-    clippy::panic,
-    reason = "the hook exists to prove that a caught panic is BD_CACHE.INTERNAL"
-)]
+/// It exists to prove that a caught panic is `BD_CACHE.INTERNAL`.
 fn test_panic(env: &BTreeMap<String, String>) {
-    if env.contains_key(PANIC_ENV) {
-        panic!("{PANIC_ENV} is set");
-    }
+    assert!(!env.contains_key(PANIC_ENV), "{PANIC_ENV} is set");
 }
 
 #[cfg(not(feature = "fake-bd"))]
@@ -368,11 +363,11 @@ fn help(argv: &[String], format: Option<&str>, stdout: Stdout) -> (i32, String) 
             Err(e) => usage_from_clap(&e, &without),
             Ok(_) => ApiError::usage("unknown command", &args::children(&path)),
         };
-        return finish(Err(e), false);
+        return finish(&Err(e), false);
     }
     let Some(h) = help::of(&path) else {
         let e = ApiError::usage("unknown command", &args::children(""));
-        return finish(Err(e), false);
+        return finish(&Err(e), false);
     };
     let as_text = match format {
         Some("text") => true,
@@ -382,7 +377,7 @@ fn help(argv: &[String], format: Option<&str>, stdout: Stdout) -> (i32, String) 
     if as_text {
         (0, h.text())
     } else {
-        finish(Ok(h.data()), false)
+        finish(&Ok(h.data()), false)
     }
 }
 

@@ -1,18 +1,25 @@
 # bd-cache-cli Architecture
 
-Status: Draft (sprint b-3a). Crate-local decisions (domain code `CLI`).
+Status: Draft (sprints b-3a, b-3). Crate-local decisions (domain code `CLI`).
 Repo-level context: [`../architecture.md`](../architecture.md) (ADR-BDC-0009
 puts the crate in the Boundaries table). Requirements:
 [`requirements.md`](requirements.md). Contract: [`contract.md`](contract.md).
 Created by sprint b-3a.
 
 `bd-cache-cli` holds the binaries `bd-cache` and `bdc` and the `fake-bd` test
-harness. In sprint b-3a it is a skeleton: `--version` and the `USAGE` error.
-Sprint b-3 adds the commands over `bd-cache-api`.
+harness. Sprint b-3a shipped the skeleton; sprint b-3 adds the commands over
+`bd-cache-api`.
 
 | Module / target | Contents |
 |---|---|
-| `lib` | `run(argv, env, invoker, clock) -> (i32, String)`, `run_process()`, `NAME`, `CONTRACT_VERSION`; the clap grammar (`--version`, `--repo`, `--cache-path`, `--bd`) |
+| `lib` | `run(argv, env, invoker, clock) -> (i32, String)`, `run_with(…, Stdout)`, `run_process()`, `NAME`, `CONTRACT_VERSION`, `EXIT_USAGE`, `EXIT_ERROR`; dispatch: `--help`, `--version`, unserved operations, clap, request, command, render; the caught panic |
+| `args` | The one table of commands (`CommandSpec`, `ArgSpec`, `GLOBALS`), the clap tree built from it, the word pre-scan |
+| `request` | argv matches to the JSON request at each argument's member path; `--input FILE\|-` |
+| `config` | flag > env > TOML > default, the `bd` and legacy-file rules, `metadata.json` from `$BEADS_DIR` |
+| `commands` | decode, open (`compose_with_config`), `execute`; `beads` and `manage` hold their surface's rows (and `beads` the unserved operations); `tick` decodes and runs `cache tick` |
+| `render` | `json`: the sc-command envelope; `text`: `--format text` |
+| `help` | `--help` as `{command, synopsis, arguments}` or text |
+| `log` | the stderr `tracing` subscriber and the level rule |
 | `scenario` (feature `fake-bd`) | `Scenario`, `Faults`, `RefuseWrite`, `serve`: the scenario file and one `fake-bd` invocation |
 | `bin/bd-cache`, `bin/bdc` | `fn main() -> ExitCode { run_process() }`, identical |
 | `bin/fake-bd` (feature `fake-bd`) | reads `$FAKE_BD_SCENARIO`, calls `serve`, prints, exits |
@@ -89,6 +96,69 @@ Consequences: `fake-bd` answers only the command forms `FakeBd` serves (the
 cache's calls, `version`, `schema`; `--version` as `version`). A bd command it
 does not serve is exit 2, as a usage error.
 
+## ADR-CLI-0003: One command table; argv becomes the request the decoder reads
+
+**Status:** Draft (sprint b-3)
+
+Context: contract §1 rule 6 puts validation in `bd-cache-api`'s decoder, so
+every front end returns the same code for the same input; contract §3 keeps
+`USAGE` for the shape of argv.
+
+Decision:
+
+- Each command is one row (`CommandSpec`): path, target, and arguments, each
+  naming the `/v0` request member it fills (`patch.status`,
+  `edges.0.issue_id`). The clap tree, the request builder and the help come
+  from the rows.
+- The CLI checks only the shape of argv: clap's required arguments, unknown
+  or abbreviated flags (`infer_long_args` off), a member filled twice, and
+  `--input` with request flags are `USAGE`. Values go to the decoder as
+  given: an integer flag that does not parse is passed as text, so the
+  decoder answers `BAD_ARGS` naming the member.
+- With `--input`, clap's `required` is lifted and the file is the request.
+- The words of argv are pre-scanned for `--help`, `--version` and the `/v0`
+  operations the cache does not serve, which are `UNSUPPORTED` before clap
+  sees them (`bdc ready count`, `bdc issues create`).
+- The request is decoded before the cache is opened.
+
+Consequences: a request member the decoder learns is a flag with one row;
+`--help` cannot drift from the grammar.
+
+## ADR-CLI-0004: Configuration is merged here and opened by bd-cache-sync
+
+**Status:** Draft (sprint b-3)
+
+Context: contract §2 needs `BD_CACHE__*` env overrides and flags over
+`.beads/bd-cache.toml`, never reads `bd` from the file, and refuses the
+legacy file. b-1 added `bd_cache_sync::compose_with_config` for a merged
+configuration.
+
+Decision:
+
+- `config` reads `<repo>/.beads/bd-cache.toml` by the store loader's rules
+  (missing is the defaults, unknown keys and bad scopes refused with the
+  store's `store_config_*` codes), except that a top-level `bd` key is
+  dropped with a warning: a checked-in file cannot choose an executable.
+- Env overrides use sc-config's naming rule; a value that does not parse is
+  `CONFIG_INVALID` with `details.source: "bdc_env_invalid"`; the legacy file
+  is `CONFIG_INVALID` with `details.source: "bdc_legacy_cache_file"`. The
+  merged configuration is validated (`RepoConfig::validate`, scopes) and
+  opened through `compose_with_config` with `$BEADS_DIR` from the given
+  environment. `ComposeError` maps through `ApiError::config_invalid` (or the
+  cache error's own code).
+- An injected `invoker` (`run`'s test seam, feature `fake-bd`) is opened with
+  `compose_with`, which takes a backend but loads the TOML itself; a
+  configuration changed by env or flags is refused there (`INTERNAL`), never
+  silently not applied. `compose_with_config` takes no backend, so this is
+  the one path that does not use it.
+- `--help` reads whether stdout is a terminal from `run_with`'s `Stdout`;
+  `run` answers as for a pipe, so in-process tests do not depend on the
+  terminal they run in.
+
+Consequences: a bd-cache-sync function that takes both a merged
+configuration and a backend would let the in-process seam apply overrides
+too.
+
 ### The scenario file
 
 One JSON object. Every key is optional.
@@ -102,6 +172,7 @@ One JSON object. Every key is optional.
 | `blocked` | object: id → array of ids | Each bead is blocked by the beads listed: applied as `blocks` edges on top of `rows`. The blocked set that `bd blocked` reports follows bd's rule, so a closed blocker stops blocking. An id that is not a row is a harness error. |
 | `faults.unavailable` | bool | Every call that reaches the database fails as bd does with its Dolt server down: exit 1, "Dolt server unreachable ... connection refused". `bd version` and `bd schema` still answer. |
 | `faults.slow_ms` | integer | Every call sleeps this long before it answers. The delay is real, so the caller's own timeout ends it. |
+| `faults.fail_labels` | array of labels | Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one of these labels fails with exit 1, a failure that is not an outage; other labels answer. Used for a partial `cache refresh scopes`. |
 | `faults.refuse_write` | `{exit_code}` | Every write (`close`, `update`, `dep add`) fails with this exit code and changes nothing. `13` is bd's refused guard (precondition); another code is a plain failure with that code. |
 
 Any other key is rejected. A scenario that cannot be read, parsed or applied

@@ -137,6 +137,8 @@ fn reply_json(reply: &TickReply) -> Result<Value, ApiError> {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::indexing_slicing, reason = "test code: JSON indexing")]
+
     use super::*;
     use bd_cache_sync::{Refusal, RefusalCode};
     use serde_json::json;

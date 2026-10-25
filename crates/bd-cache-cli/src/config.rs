@@ -76,7 +76,12 @@ pub(crate) struct Settings {
     pub(crate) repo: PathBuf,
     /// The merged configuration.
     pub(crate) config: RepoConfig,
-    /// `.beads/bd-cache.toml` as read, before env and flag overrides.
+    /// `.beads/bd-cache.toml` as read, before env and flag overrides (an
+    /// injected invoker, feature `fake-bd`, compares it with `config`).
+    #[cfg_attr(
+        not(feature = "fake-bd"),
+        expect(dead_code, reason = "read only by the fake-bd invoker seam")
+    )]
     pub(crate) file_config: RepoConfig,
     /// The bd binary.
     pub(crate) bd: String,
@@ -248,7 +253,7 @@ fn env_number<T: std::str::FromStr>(
         .map(|v| {
             v.trim()
                 .parse::<T>()
-                .map_err(|_| env_invalid(key, v, "a positive integer"))
+                .map_err(|_unparsed| env_invalid(key, v, "a positive integer"))
         })
         .transpose()
 }

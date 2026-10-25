@@ -35,13 +35,17 @@ toml.workspace = true
 bd-cache-cli = { path = ".", features = ["fake-bd"] }
 tempfile.workspace = true
 
+# `doc = false`: the binaries' docs would collide with the `bd-cache` crate's
+# `bd_cache` docs, and the library documents them.
 [[bin]]
 name = "bd-cache"
 path = "src/bin/bd-cache.rs"
+doc = false
 
 [[bin]]
 name = "bdc"
 path = "src/bin/bdc.rs"
+doc = false
 
 [[bin]]
 name = "fake-bd"
