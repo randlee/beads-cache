@@ -69,6 +69,7 @@ Excluded from (not judged; the cell passes as `excluded`):
 - `b-2`: b-2 defines the bd-cache-api request vocabulary; sync scheduling is not in it.
 - `b-3a`: b-3a builds the CLI skeleton and fake-bd harness; it does not schedule, run or configure the bd sync.
 - `b-6`: sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7.
+- `b-8`: b-8 adds only a refresh deadline flag and a health read; the cron-table schedule that runs the sync is b-7's.
 
 Beads: anchor `bdc-g4s`, plan questions `bdc-g4s.1`, dev questions `bdc-g4s.2`
 
@@ -147,6 +148,7 @@ Deterministic check to pair with the development gate: cargo tree -p sc-cron sho
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-7`: b-7 uses sc-cron through its public Job and Python-runner interfaces; crates/sc-cron is b-6's, not in b-7's owned_paths.
+- `b-8`: b-8 edits nothing under crates/sc-cron; its lint hits there are b-6's.
 
 Beads: anchor `bdc-3ku`, plan questions `bdc-3ku.1`, dev questions `bdc-3ku.2`
 
@@ -167,6 +169,9 @@ Summary: sc-cron rows have an enabled flag
 Scope: any bead that edits crates/sc-cron's schedule table or scheduler API
 
 Deterministic check to pair with the development gate: a test toggles enabled and asserts the row's generation, expression and payload are unchanged
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-8`: b-8 edits nothing in sc-cron's schedule table or scheduler API.
 
 Beads: anchor `bdc-mvv`, plan questions `bdc-mvv.1`, dev questions `bdc-mvv.2`
 
@@ -190,6 +195,7 @@ Deterministic check to pair with the development gate: tests cover each of conti
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-7`: b-7 uses sc-cron's stop hook through its interface; the stop hook itself is built in b-6, and crates/sc-cron is not in b-7's owned_paths.
+- `b-8`: b-8 edits nothing in sc-cron's hooks, Job trait or run loop.
 
 Beads: anchor `bdc-7of`, plan questions `bdc-7of.1`, dev questions `bdc-7of.2`
 
@@ -213,6 +219,7 @@ Deterministic check to pair with the development gate: a test shows a second bui
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-1`: b-1 creates and manages no sync schedule rows.
+- `b-8`: b-8 creates and manages no sync schedule rows.
 
 Beads: anchor `bdc-i61`, plan questions `bdc-i61.1`, dev questions `bdc-i61.2`
 
@@ -233,6 +240,9 @@ Summary: Sync scopes are bd filters, not phases
 Scope: any bead that defines, parses or syncs scopes
 
 Deterministic check to pair with the development gate: tests sync a label-filter scope and an --all scope; grep finds no phase-file reading in crates/
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-8`: b-8 adds only a refresh deadline flag; how scopes are defined is b-7's.
 
 Beads: anchor `bdc-6e7`, plan questions `bdc-6e7.1`, dev questions `bdc-6e7.2`
 
@@ -410,6 +420,7 @@ Deterministic check to pair with the development gate: test_contract_violation_i
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path.
+- `b-8`: b-8 adds or changes no path that stores bead rows.
 
 Beads: anchor `bdc-w37`, plan questions `bdc-w37.1`, dev questions `bdc-w37.2`
 
@@ -457,6 +468,7 @@ Deterministic check to pair with the development gate: test_tick_budget_defers_d
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7.
+- `b-8`: b-8 does not change the sync job, its schedule timeout, a post-sync hook or a Python sync run.
 
 Beads: anchor `bdc-4jy`, plan questions `bdc-4jy.1`, dev questions `bdc-4jy.2`
 

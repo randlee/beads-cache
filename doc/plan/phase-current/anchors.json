@@ -158,6 +158,13 @@
           "item": "b-6",
           "reason": "sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 adds only a refresh deadline flag and a health read; the cron-table schedule that runs the sync is b-7's.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -176,6 +183,10 @@
         {
           "item": "b-6",
           "reason": "sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 adds only a refresh deadline flag and a health read; the cron-table schedule that runs the sync is b-7's."
         }
       ]
     },
@@ -519,12 +530,23 @@
           "item": "b-7",
           "reason": "b-7 uses sc-cron through its public Job and Python-runner interfaces; crates/sc-cron is b-6's, not in b-7's owned_paths.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 edits nothing under crates/sc-cron; its lint hits there are b-6's.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-7",
           "reason": "b-7 uses sc-cron through its public Job and Python-runner interfaces; crates/sc-cron is b-6's, not in b-7's owned_paths."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 edits nothing under crates/sc-cron; its lint hits there are b-6's."
         }
       ]
     },
@@ -593,6 +615,19 @@
           "fields": [
             "fixtures"
           ]
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 edits nothing in sc-cron's schedule table or scheduler API.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-8",
+          "reason": "b-8 edits nothing in sc-cron's schedule table or scheduler API."
         }
       ]
     },
@@ -668,12 +703,23 @@
           "item": "b-7",
           "reason": "b-7 uses sc-cron's stop hook through its interface; the stop hook itself is built in b-6, and crates/sc-cron is not in b-7's owned_paths.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 edits nothing in sc-cron's hooks, Job trait or run loop.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-7",
           "reason": "b-7 uses sc-cron's stop hook through its interface; the stop hook itself is built in b-6, and crates/sc-cron is not in b-7's owned_paths."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 edits nothing in sc-cron's hooks, Job trait or run loop."
         }
       ]
     },
@@ -756,12 +802,34 @@
           "item": "b-1",
           "reason": "b-1 creates and manages no sync schedule rows.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 creates and manages no sync schedule rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:23:29+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-1",
           "reason": "b-1 creates and manages no sync schedule rows."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 creates and manages no sync schedule rows."
+        },
+        {
+          "item": "b-6",
+          "reason": "b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7."
         }
       ]
     },
@@ -830,6 +898,19 @@
           "fields": [
             "fixtures"
           ]
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 adds only a refresh deadline flag; how scopes are defined is b-7's.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-8",
+          "reason": "b-8 adds only a refresh deadline flag; how scopes are defined is b-7's."
         }
       ]
     },
@@ -899,6 +980,19 @@
           "fields": [
             "fixtures"
           ]
+        },
+        {
+          "at": "2026-10-25T22:26:34+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-6",
+          "reason": "b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md."
         }
       ]
     },
@@ -1062,6 +1156,18 @@
           "item": "b-8",
           "reason": "b-8 asserts the v3 format through a golden test but edits no schema.rs, store table, column or index.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:34:08+00:00",
+          "event": "exclusion_removed",
+          "item": "b-8"
+        },
+        {
+          "at": "2026-10-25T22:34:08+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 changes no table, column, index or file-format rule; schema.rs gains only read-query constants for last_applied_at, and the v3 format golden test is the evidence.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -1071,7 +1177,7 @@
         },
         {
           "item": "b-8",
-          "reason": "b-8 asserts the v3 format through a golden test but edits no schema.rs, store table, column or index."
+          "reason": "b-8 changes no table, column, index or file-format rule; schema.rs gains only read-query constants for last_applied_at, and the v3 format golden test is the evidence."
         }
       ]
     },
@@ -1416,12 +1522,23 @@
           "item": "b-6",
           "reason": "sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 adds or changes no path that stores bead rows.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 adds or changes no path that stores bead rows."
         }
       ]
     },
@@ -1561,12 +1678,23 @@
           "item": "b-6",
           "reason": "sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:16:35+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 does not change the sync job, its schedule timeout, a post-sync hook or a Python sync run.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 does not change the sync job, its schedule timeout, a post-sync hook or a Python sync run."
         }
       ]
     },
@@ -1688,6 +1816,19 @@
             "plan_questions": "bdc-vkg.1",
             "dev_questions": "bdc-vkg.2"
           }
+        },
+        {
+          "at": "2026-10-25T22:26:34+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-6",
+          "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it."
         }
       ]
     },
@@ -1742,6 +1883,19 @@
             "plan_questions": "bdc-vof.1",
             "dev_questions": "bdc-vof.2"
           }
+        },
+        {
+          "at": "2026-10-25T22:28:55+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8).",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-6",
+          "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8)."
         }
       ]
     },
