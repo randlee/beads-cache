@@ -21,12 +21,13 @@
 //! ```
 
 use std::collections::BTreeMap;
+use std::ffi::OsString;
 use std::fmt;
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use sc_bd_cli::CliInvoker;
 use sc_bd_cli::testing::FakeBd;
@@ -52,6 +53,17 @@ const OWN_DEADLINE: Duration = Duration::from_secs(3600);
 
 /// The default fixed time of a scenario (the default of `ManualClock`).
 const DEFAULT_NOW: &str = "2026-10-23T10:00:00Z";
+
+/// How long a gated call waits for its release file at most.
+///
+/// A test releases the gate only after the caller returned, so a caller that
+/// waits for bd would otherwise hang forever. At this ceiling the call passes
+/// the gate anyway and writes its `passed` marker, which fails the test's
+/// "returned while bd was still blocked" check instead of hanging the run.
+const GATE_CEILING: Duration = Duration::from_secs(60);
+
+/// How often a gated call looks for its release file.
+const GATE_POLL: Duration = Duration::from_millis(5);
 
 /// The state of one fake bd, as the scenario file holds it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -95,6 +107,15 @@ pub struct Faults {
     /// real, so the caller's own timeout is what ends it.
     #[serde(default)]
     pub slow_ms: u64,
+    /// Every call blocks at this gate before it answers: it creates the
+    /// [`gate_started`] marker, waits until this file exists, then creates
+    /// the [`gate_passed`] marker. A test that creates the file only after its
+    /// caller returned can so assert causally, without a wall-clock bound,
+    /// that the caller returned while bd was still blocked: the `passed`
+    /// marker is absent. A call waits at most a minute (a caller that waits
+    /// for bd then sees it pass, and the test fails rather than hangs).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gate_file: Option<PathBuf>,
     /// Every write is refused with this exit code; the rows do not change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refuse_write: Option<RefuseWrite>,
@@ -261,6 +282,35 @@ impl Scenario {
     }
 }
 
+/// The marker a gated call creates when it reaches the gate ([`Faults::gate_file`]).
+#[must_use]
+pub fn gate_started(gate: &Path) -> PathBuf {
+    with_suffix(gate, ".started")
+}
+
+/// The marker a gated call creates when it passes the gate ([`Faults::gate_file`]).
+#[must_use]
+pub fn gate_passed(gate: &Path) -> PathBuf {
+    with_suffix(gate, ".passed")
+}
+
+fn with_suffix(path: &Path, suffix: &str) -> PathBuf {
+    let mut name = OsString::from(path.as_os_str());
+    name.push(suffix);
+    PathBuf::from(name)
+}
+
+/// Blocks at the gate: the `started` marker, the wait for the release file
+/// (at most [`GATE_CEILING`]), then the `passed` marker.
+fn wait_at_gate(gate: &Path) -> Result<(), ScenarioError> {
+    fs::write(gate_started(gate), b"").map_err(ScenarioError::Io)?;
+    let since = Instant::now();
+    while !gate.exists() && since.elapsed() < GATE_CEILING {
+        std::thread::sleep(GATE_POLL);
+    }
+    fs::write(gate_passed(gate), b"").map_err(ScenarioError::Io)
+}
+
 /// What one `fake-bd` process prints and exits with.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Served {
@@ -273,7 +323,7 @@ pub struct Served {
 }
 
 /// Serves one `bd` invocation (`argv` without the program name) from the scenario
-/// file at `path`: sleeps for the slow fault, runs the call on the fake bd and
+/// file at `path`: blocks at the gate, sleeps for the slow fault, runs the call on the fake bd and
 /// writes the scenario back when the call changed a row.
 ///
 /// `--version` is answered as `version`. A scenario that cannot be read or applied
@@ -305,6 +355,9 @@ fn serve_checked(argv: &[String], path: &Path) -> Result<Served, ScenarioError> 
     }
     // Taken after `read_status`, so a read never writes its view back.
     let before = fake.backend().rows();
+    if let Some(gate) = &scenario.faults.gate_file {
+        wait_at_gate(gate)?;
+    }
     if scenario.faults.slow_ms > 0 {
         std::thread::sleep(Duration::from_millis(scenario.faults.slow_ms));
     }

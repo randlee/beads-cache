@@ -6,6 +6,8 @@
 //! | an outage during a write | [`an_outage_during_a_write`] |
 //! | an escalation at flush (a guard miss; a refused close, `PRECONDITION` over the bd CLI, S69) | [`a_guard_miss_escalates_at_flush`], [`bd_refuses_a_guard_that_misses_at_flush`], [`a_refused_close_escalates_at_flush`] |
 //! | a partial `refresh scopes` | [`a_partial_refresh_scopes`] |
+//! | a hung bd under `refresh scopes` (QA RCR-001) | [`a_hung_bd_fails_refresh_scopes`] |
+//! | `health --probe` with bd unreachable (QA ARCH-001) | [`a_probe_that_cannot_reach_bd_is_down`] |
 //! | `fresh_within` running out | [`fresh_within_runs_out`] |
 //! | a schema change (rebuild) | [`a_schema_change_rebuilds`] |
 //! | `WRONG_DATABASE` | [`a_cache_file_of_another_project_is_wrong_database`] |
@@ -21,11 +23,9 @@
 
 mod support;
 
-use std::time::{Duration, Instant};
-
-use bd_cache_cli::scenario::{Faults, RefuseWrite};
+use bd_cache_cli::scenario::{Faults, RefuseWrite, gate_passed};
 use serde_json::{Value, json};
-use support::{DATABASE, TestRepo, labelled, metadata, two_beads};
+use support::{DATABASE, TestRepo, envelope_json, labelled, metadata, path_str, two_beads};
 
 /// A repository whose scope `phase-x` has been synced once.
 fn synced() -> TestRepo {
@@ -344,28 +344,133 @@ fn a_partial_refresh_scopes() {
     }
 }
 
-/// Acceptance 8: bd is slow by 2 s; `ready --fresh-within-ms 200` returns
-/// within 400 ms with `read_fallback: "timed_out"` and `basis.kind: "cached"`.
+/// Acceptance 8: bd does not answer; `ready --fresh-within-ms 200` returns
+/// with `read_fallback: "timed_out"` and `basis.kind: "cached"`.
+///
+/// QA FTQ-001: no wall-clock bound on the whole process. bd blocks at a gate
+/// the test opens only after `bdc` returned, so `bdc` returning at all, with
+/// bd's `passed` marker absent, shows it gave up on bd within its budget
+/// rather than waited for bd. (`read_fallback: "timed_out"` is the evidence
+/// that bd was called; whether bd's process had started within the 200 ms is
+/// not asserted, since that is the host's timing.)
 #[test]
 fn fresh_within_runs_out() {
     let repo = synced();
-    // Warm the binaries, so the first execution of a fresh file is not timed.
+    // Warm the binaries, so the first execution of a fresh file does not use
+    // up the budget.
     ok(&repo, &["ready", "--scope", "x"]);
-    repo.edit(|s| s.faults.slow_ms = 2_000);
+    let gate = repo.gate_file();
+    repo.edit(|s| s.faults.gate_file = Some(gate.clone()));
 
-    let started = Instant::now();
     let (exit, v) = repo.json(&["ready", "--scope", "x", "--fresh-within-ms", "200"]);
-    let elapsed = started.elapsed();
+    assert!(
+        !gate_passed(&gate).exists(),
+        "bdc returned only after bd passed its gate: {v}"
+    );
+    repo.release_gate();
     assert_eq!(exit, 0, "{v}");
     let x = &v["data"]["x_cache"];
     assert_eq!(x["read_fallback"], "timed_out", "{v}");
     assert_eq!(x["basis"]["kind"], "cached", "{v}");
     assert_eq!(v["data"]["items"].as_array().map(Vec::len), Some(2));
-    // Killing a process tree on Windows (`taskkill /T`) can itself take a few
-    // hundred milliseconds, so the bound is asserted where the kill is a signal.
-    if cfg!(unix) {
-        assert!(elapsed < Duration::from_millis(400), "{elapsed:?}");
-    }
+}
+
+/// Gives the repository a one-second per-call cap (`call_timeout_s`).
+fn one_second_call_timeout(repo: &TestRepo) {
+    std::fs::write(
+        repo.root().join(".beads").join("bd-cache.toml"),
+        "scopes = [\"x\"]\ncall_timeout_s = 1\n",
+    )
+    .unwrap();
+}
+
+/// Far past the one-second cap: the parent kills fake-bd long before.
+const HUNG_MS: u64 = 60_000;
+
+/// QA RCR-001: a bd that hangs (it times out, not one that fails to start)
+/// makes `cache refresh scopes` a failed result: exit 0, `failed: 1`,
+/// `BD_UNAVAILABLE` with `details.timed_out`, and the never-synced scope is
+/// still not served.
+#[test]
+fn a_hung_bd_fails_refresh_scopes() {
+    let repo = TestRepo::new(&two_beads());
+    one_second_call_timeout(&repo);
+    repo.edit(|s| s.faults.slow_ms = HUNG_MS);
+    let (exit, v) = repo.json(&["cache", "refresh", "scopes", "x"]);
+    assert_eq!(exit, 0, "{v}");
+    assert_eq!(v["data"]["failed"], 1, "a hung bd refreshed nothing: {v}");
+    let result = &v["data"]["results"][0];
+    let e = &result["error"];
+    assert_eq!(e["code"], "BD_CACHE.BD_UNAVAILABLE", "{v}");
+    assert_eq!(e["kind"], "unavailable", "{v}");
+    assert_eq!(e["retryable"], true, "{v}");
+    assert_eq!(e["details"]["timed_out"], true, "{v}");
+    assert_eq!(result["report"]["deferred"], true, "{v}");
+    let (exit, v) = repo.json(&["issues", "list", "--scope", "x"]);
+    assert_eq!(exit, 3, "{v}");
+    assert_eq!(v["error"]["code"], "BD_CACHE.SCOPE_UNKNOWN", "{v}");
+
+    // The control: the same repository with bd answering refreshes and serves.
+    repo.edit(|s| s.faults.slow_ms = 0);
+    let data = ok(&repo, &["cache", "refresh", "scopes", "x"]);
+    assert_eq!(data["failed"], 0, "{data}");
+    let listed = ok(&repo, &["issues", "list", "--scope", "x"]);
+    assert_eq!(
+        listed["items"].as_array().map(Vec::len),
+        Some(2),
+        "{listed}"
+    );
+}
+
+/// QA ARCH-001: `cache health --probe` with bd unreachable on its
+/// fingerprint call (`bd version` hangs, or bd cannot start) is exit 0 with
+/// `state: "down"`, the outage and `probe: null` (contract §3, §6).
+#[test]
+fn a_probe_that_cannot_reach_bd_is_down() {
+    let repo = synced();
+    one_second_call_timeout(&repo);
+    // The control: bd answers, so the probe runs and the cache is ok.
+    let health = ok(&repo, &["cache", "health", "--probe"]);
+    assert_eq!(health["state"], "ok", "{health}");
+    assert!(health["probe"].is_object(), "{health}");
+
+    repo.edit(|s| s.faults.slow_ms = HUNG_MS);
+    let health = ok(&repo, &["cache", "health", "--probe"]);
+    assert_eq!(health["state"], "down", "{health}");
+    assert_eq!(health["probe"], Value::Null, "{health}");
+    assert_eq!(
+        health["outage"]["last_error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+        "{health}"
+    );
+    // The probe recorded the outage: a plain `cache health` (no bd call) sees it.
+    let plain = ok(&repo, &["cache", "health"]);
+    assert_eq!(plain["state"], "down", "{plain}");
+
+    // A bd that cannot start at all is down the same way.
+    let fresh = TestRepo::new(&two_beads());
+    let root = fresh.root();
+    let missing = root.join("no-such-bd");
+    let ran = fresh.bdc_raw(
+        &root,
+        &[
+            "--repo",
+            path_str(&root),
+            "--bd",
+            path_str(&missing),
+            "cache",
+            "health",
+            "--probe",
+        ],
+        &[],
+    );
+    let (exit, v) = envelope_json(&ran);
+    assert_eq!(exit, 0, "{v}");
+    assert_eq!(v["data"]["state"], "down", "{v}");
+    assert_eq!(v["data"]["probe"], Value::Null, "{v}");
+    assert_eq!(
+        v["data"]["outage"]["last_error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+        "{v}"
+    );
 }
 
 /// Acceptance 9: a changed bd schema fingerprint makes `cache health --probe`
