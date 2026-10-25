@@ -188,8 +188,11 @@ fn deliver(
 
 /// Announces a failed sync of `phase` once per cause (REQ-BDC-0704).
 ///
-/// A cause that is unreachability is the outage's to announce, not the
-/// phase's.
+/// A failure that is an outage ([`CacheError::is_outage`]: `bd` could not be
+/// reached) is the outage's to announce, not the phase's. One `bd` answered with
+/// an error is a sync failure whatever its code: `BD_LIST_FAILED` is in the 0.1
+/// `UNREACHABLE` set, but a `bd` that ran and failed is told to the lead, not
+/// held back as an outage.
 pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     sender: &dyn EscalationSender,
@@ -200,7 +203,7 @@ pub(crate) fn sync_failure<S: CacheStore, L: DrainLock, B: CacheBackend>(
     reply: &mut TickReply,
 ) -> Result<(), CacheError> {
     let cause = AlertCause::of(error);
-    if cause == AlertCause::Sync(SyncCause::BdUnavailable) {
+    if error.is_outage() || cause == AlertCause::Sync(SyncCause::BdUnavailable) {
         return Ok(());
     }
     let scope = phase.scope();
@@ -452,13 +455,35 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(())
 }
 
+/// The command an escalation message tells the lead to run to clear entry `seq`.
+///
+/// It is `bdc`'s real command (`cache journal resolve`, contract §6), with the
+/// two placeholders a lead fills in. A test in `bd-cache-cli` parses this line
+/// with the real `bdc` parser, so the text cannot name a command that does not
+/// exist.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_model::Seq;
+/// assert_eq!(
+///     bd_cache_sync::resolve_command_line(Seq::new(7)),
+///     "bdc cache journal resolve 7 --note \"<what you did>\" --actor <you>"
+/// );
+/// ```
+#[must_use]
+pub fn resolve_command_line(seq: Seq) -> String {
+    format!("bdc cache journal resolve {seq} --note \"<what you did>\" --actor <you>")
+}
+
 /// The text of an escalation message: the entry, the error and the recovery.
 fn escalation_body(e: &JournalEntry) -> String {
     format!(
         "bd-cache: write #{seq} to {bead} ({op}, by {actor}) was not applied and needs you.\n\
          Error: {error}\n\
          Check the bead in bd and set the intended state, then run:\n  \
-         bd-cache resolve {seq} --note \"<what you did>\" --actor <you>",
+         {command}",
+        command = resolve_command_line(e.seq),
         seq = e.seq,
         bead = e.bead,
         op = e.op.name(),
@@ -546,9 +571,9 @@ mod tests {
     use std::time::Duration;
 
     use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-    use bd_cache_model::{CacheConfig, TickConfig};
+    use bd_cache_model::{BackendCause, CacheConfig, TickConfig};
     use sc_beads::testing::{FakeBackend, ManualClock};
-    use sc_beads::{Clock, Deadline, ProjectRef};
+    use sc_beads::{BeadsCacheError, Clock, Deadline, ProjectRef};
 
     use super::*;
     use crate::control::StopFlag;
@@ -601,6 +626,78 @@ mod tests {
             cause,
             source: None,
         }
+    }
+
+    fn sync_failed_by(cause: SyncCause, source: BackendCause) -> CacheError {
+        CacheError::SyncFailed {
+            detail: "phase x: scripted".into(),
+            scope: Some(ScopeId::phase("x").unwrap()),
+            cause: Some(cause),
+            source: Some(source),
+        }
+    }
+
+    /// `BD_LIST_FAILED` is in the 0.1 `UNREACHABLE` set, but only a `bd` that
+    /// could not be reached is an outage: one that ran and failed is a sync
+    /// failure that reaches the lead (I2).
+    #[test]
+    fn a_list_failure_from_a_bd_that_answered_reaches_the_lead_and_one_from_a_bd_not_reached_does_not()
+     {
+        let clock = Arc::new(ManualClock::default());
+        let stop = StopFlag::new();
+        let budget = Budget {
+            clock: &*clock,
+            end: Deadline::after(&*clock, Duration::from_secs(25)),
+            stop: &stop,
+        };
+        let sender = Recorder::default();
+        let mut cache = cache(&clock);
+        let mut reply = TickReply::started();
+
+        let not_reached = BackendCause::new(BeadsCacheError::Unavailable {
+            reason: "connection refused".into(),
+            timed_out: false,
+        });
+        sync_failure(
+            &mut cache,
+            &sender,
+            &settings(),
+            &budget,
+            &phase(),
+            &sync_failed_by(SyncCause::BdListFailed, not_reached),
+            &mut reply,
+        )
+        .unwrap();
+        assert!(
+            sender.0.lock().unwrap().is_empty(),
+            "an unreachable bd is the outage's to announce"
+        );
+        assert_eq!(cache.sync_alert(&phase().scope()).unwrap(), None);
+
+        let answered = BackendCause::new(BeadsCacheError::Failed {
+            code: 1,
+            stderr: "Error: list failed".into(),
+        });
+        sync_failure(
+            &mut cache,
+            &sender,
+            &settings(),
+            &budget,
+            &phase(),
+            &sync_failed_by(SyncCause::BdListFailed, answered),
+            &mut reply,
+        )
+        .unwrap();
+        assert_eq!(*sender.0.lock().unwrap(), ["lead-x"]);
+        assert_eq!(
+            cache.sync_alert(&phase().scope()).unwrap().as_deref(),
+            Some("BD_CACHE.BD_LIST_FAILED")
+        );
+        assert!(matches!(
+            &reply.sent[0].kind,
+            AnnouncementKind::SyncFailure { cause, .. }
+                if *cause == AlertCause::Sync(SyncCause::BdListFailed)
+        ));
     }
 
     /// An unreachable backend is the outage's to announce, never a phase's:

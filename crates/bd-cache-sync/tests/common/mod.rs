@@ -175,6 +175,7 @@ impl World {
             fallback_lead: Some(FALLBACK.into()),
             phases_dir: Some(self.dir.path().to_path_buf()),
             phases: None,
+            identity: None,
         }
     }
 

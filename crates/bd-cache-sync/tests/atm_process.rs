@@ -5,7 +5,8 @@
 //! mode of `atm`, so the sender spawns and talks to a real process on every
 //! platform without a shell script. The invocation checked is the reference's
 //! (`bd_cache_cron.py` at atm-core `05831df`): `send <lead>@<team> --team tool
-//! --stdin --json` with `ATM_IDENTITY=cron` and `ATM_TEAM=tool`.
+//! --stdin --json` with `ATM_IDENTITY=atm-bd` (not `cron`, which atm refuses:
+//! atm-bd 0.19.2) and `ATM_TEAM=tool`.
 //!
 //! Two tests need a process of their own, a **host** (`--host-<mode>`): one
 //! that can start no program when its send is stopped (RSH-002), and one whose
@@ -24,7 +25,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use bd_cache_model::{EscalationSender, SendErrorKind};
-use bd_cache_sync::{AtmSender, StopFlag, TICK_BUDGET};
+use bd_cache_sync::{AtmSender, SENDER_IDENTITY, SenderIdentity, StopFlag, TICK_BUDGET};
 
 const FLAG: &str = "--fake-atm=";
 /// Runs this binary as a host that sends once while it can start no program.
@@ -287,9 +288,43 @@ fn delivers_the_body_on_stdin_with_the_reference_invocation() {
         ]
     );
     let env = std::fs::read_to_string(format!("{}.env", out.display())).unwrap();
-    assert_eq!(env, "cron\ntool", "ATM_IDENTITY and ATM_TEAM");
+    assert_eq!(env, "atm-bd\ntool", "ATM_IDENTITY and ATM_TEAM");
     let stdin = std::fs::read_to_string(format!("{}.stdin", out.display())).unwrap();
     assert_eq!(stdin, body, "the message is on stdin, not in the arguments");
+}
+
+/// atm refuses `cron@tool` (its scheduler principal): the identity the child
+/// sees is the configured one, and never `cron` by default.
+fn the_identity_atm_sees_is_the_configured_one() {
+    let dir = tempfile::tempdir().unwrap();
+    let seen = |sender: AtmSender, name: &str| {
+        let out = dir.path().join(name);
+        let out = out.display().to_string();
+        let sender = sender.with_leading_args([format!("{FLAG}record"), out.clone()]);
+        sender.send("lead-x", "atm-dev", "hi").unwrap();
+        let env = std::fs::read_to_string(format!("{out}.env")).unwrap();
+        env.lines().next().unwrap().to_owned()
+    };
+    let exe = std::env::current_exe().unwrap();
+    assert_eq!(
+        seen(AtmSender::with_binary(&exe), "default"),
+        "atm-bd",
+        "the default identity"
+    );
+    let custom = SenderIdentity::new("bd-cache.ci_1").unwrap();
+    assert_eq!(
+        seen(AtmSender::with_binary(&exe).with_identity(custom), "custom"),
+        "bd-cache.ci_1",
+        "a configured identity"
+    );
+}
+
+/// An identity that is empty, an option, or has odd characters never reaches a child.
+fn an_unusable_identity_is_refused() {
+    for bad in ["", "-x", "a b", "a\nb", "a/b", "é", ".x", &"x".repeat(65)] {
+        assert!(SenderIdentity::new(bad).is_err(), "{bad:?}");
+    }
+    assert_eq!(SENDER_IDENTITY, "atm-bd");
 }
 
 fn a_large_message_is_not_limited_by_the_argument_list() {
@@ -743,7 +778,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         std::process::exit(code);
     }
-    let tests: [(&str, fn()); 16] = [
+    let tests: [(&str, fn()); 18] = [
         (
             "the_tree_kill_needs_no_kill_program",
             the_tree_kill_needs_no_kill_program,
@@ -755,6 +790,14 @@ fn main() {
         (
             "delivers_the_body_on_stdin_with_the_reference_invocation",
             delivers_the_body_on_stdin_with_the_reference_invocation,
+        ),
+        (
+            "the_identity_atm_sees_is_the_configured_one",
+            the_identity_atm_sees_is_the_configured_one,
+        ),
+        (
+            "an_unusable_identity_is_refused",
+            an_unusable_identity_is_refused,
         ),
         (
             "a_large_message_is_not_limited_by_the_argument_list",

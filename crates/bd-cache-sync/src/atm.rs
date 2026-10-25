@@ -3,9 +3,16 @@
 //! [`AtmSender`] delivers a message the way BD-CACHE's cron module does
 //! (`bd_cache_cron.py` at atm-core `05831df`, `send`): it runs
 //! `atm send <lead>@<team> --team tool --stdin --json` with
-//! `ATM_IDENTITY=cron` and `ATM_TEAM=tool` in the environment and writes the
-//! message to the child's standard input, so its length and content cannot be
-//! read as options.
+//! `ATM_IDENTITY=<identity>` and `ATM_TEAM=tool` in the environment and writes
+//! the message to the child's standard input, so its length and content cannot
+//! be read as options.
+//!
+//! # Identity
+//!
+//! The identity is `atm-bd` unless configured ([`SenderIdentity`]). It is not
+//! `cron`: `cron@tool` is atm's daemon-owned scheduler principal and refuses an
+//! ordinary send, so a tick that sent as `cron` would have every message
+//! refused (atm-bd 0.19.2 moved to `atm-bd@tool` for this reason).
 //!
 //! # Bounds
 //!
@@ -73,8 +80,95 @@ use crate::tick::TICK_BUDGET;
 
 /// The team `atm send` runs under: the cron module's `--team tool`.
 pub const SENDER_TEAM: &str = "tool";
-/// The identity `atm send` runs as (`ATM_IDENTITY`).
-pub const SENDER_IDENTITY: &str = "cron";
+/// The identity `atm send` runs as (`ATM_IDENTITY`) unless one is configured.
+///
+/// `atm-bd@tool` is the installer's notification member; `cron@tool` is atm's
+/// own scheduler principal and refuses ordinary sends.
+pub const SENDER_IDENTITY: &str = "atm-bd";
+/// The longest identity accepted: far above any member name, and a bound on
+/// what ends up in a child's environment.
+const MAX_IDENTITY_LEN: usize = 64;
+/// The identity rule, in words.
+pub const IDENTITY_RULE: &str =
+    "1 to 64 characters from A-Z, a-z, 0-9, '.', '_' and '-', starting with a letter or digit";
+
+/// An identity `atm send` can run as: the value of `ATM_IDENTITY`.
+///
+/// 1 to 64 characters from `A-Z a-z 0-9 . _ -`, starting with a letter or a
+/// digit. That keeps it out of option position, free of whitespace and control
+/// characters, and a plain member name.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_sync::SenderIdentity;
+/// assert_eq!(SenderIdentity::default().as_str(), "atm-bd");
+/// assert_eq!(SenderIdentity::new("bd-cache.1").unwrap().as_str(), "bd-cache.1");
+/// assert!(SenderIdentity::new("").is_err());
+/// assert!(SenderIdentity::new("-x").is_err());
+/// assert!(SenderIdentity::new("a b").is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct SenderIdentity(String);
+
+/// An identity [`SenderIdentity`] refuses.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidIdentity {
+    /// The value as written.
+    pub value: String,
+}
+
+impl fmt::Display for InvalidIdentity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "the sender identity {:?} is not usable; it must be {IDENTITY_RULE}",
+            self.value
+        )
+    }
+}
+
+impl std::error::Error for InvalidIdentity {}
+
+impl SenderIdentity {
+    /// Validates `identity` as given (callers trim).
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidIdentity`] for a value that breaks [`IDENTITY_RULE`].
+    pub fn new(identity: impl Into<String>) -> Result<Self, InvalidIdentity> {
+        let identity = identity.into();
+        let ok = !identity.is_empty()
+            && identity.len() <= MAX_IDENTITY_LEN
+            && identity.starts_with(|c: char| c.is_ascii_alphanumeric())
+            && identity
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'));
+        if ok {
+            Ok(Self(identity))
+        } else {
+            Err(InvalidIdentity { value: identity })
+        }
+    }
+
+    /// The identity.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Default for SenderIdentity {
+    fn default() -> Self {
+        Self(SENDER_IDENTITY.to_owned())
+    }
+}
+
+impl fmt::Display for SenderIdentity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
 /// How long one `atm send` may take (the reference's `timeout=10`).
 ///
 /// A tick has 25 s and may send several messages, each of which a lead is
@@ -159,7 +253,7 @@ pub struct AtmSender {
     binary: OsString,
     leading_args: Vec<OsString>,
     sender_team: String,
-    identity: String,
+    identity: SenderIdentity,
     timeout: Duration,
     stop: StopFlag,
 }
@@ -170,7 +264,7 @@ impl Default for AtmSender {
             binary: OsString::from("atm"),
             leading_args: Vec::new(),
             sender_team: SENDER_TEAM.to_owned(),
-            identity: SENDER_IDENTITY.to_owned(),
+            identity: SenderIdentity::default(),
             timeout: SEND_TIMEOUT,
             stop: StopFlag::new(),
         }
@@ -210,6 +304,19 @@ impl AtmSender {
         }
         self.timeout = timeout;
         Ok(self)
+    }
+
+    /// This sender running `atm send` as `identity` (`ATM_IDENTITY`).
+    #[must_use]
+    pub fn with_identity(mut self, identity: SenderIdentity) -> Self {
+        self.identity = identity;
+        self
+    }
+
+    /// The identity `atm send` runs as.
+    #[must_use]
+    pub fn identity(&self) -> &SenderIdentity {
+        &self.identity
     }
 
     /// This sender stopping its child when `stop` is set (the host's shutdown).
@@ -726,7 +833,7 @@ impl AtmSender {
         command
             .args(&self.leading_args)
             .args(self.args(&lead, &team))
-            .env("ATM_IDENTITY", &self.identity)
+            .env("ATM_IDENTITY", self.identity.as_str())
             .env("ATM_TEAM", &self.sender_team)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

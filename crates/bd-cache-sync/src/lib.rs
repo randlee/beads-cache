@@ -95,9 +95,12 @@ mod test_script {
 }
 
 #[doc(inline)]
-pub use announce::{AlertCause, OUTAGE_CAUSE};
+pub use announce::{AlertCause, OUTAGE_CAUSE, resolve_command_line};
 #[doc(inline)]
-pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
+pub use atm::{
+    AtmSender, IDENTITY_RULE, InvalidIdentity, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY,
+    SENDER_TEAM, SenderIdentity,
+};
 #[doc(inline)]
 pub use compose::{
     ComposeError, Composed, RealCache, compose, compose_with, compose_with_config,

@@ -13,7 +13,7 @@
 mod common;
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -348,11 +348,18 @@ fn a_recompose_that_fails_is_tried_again_by_the_next_tick() {
     assert_eq!(built.load(Ordering::SeqCst), 1);
 }
 
-/// The shutdown wait (PE-RSH-004): `join_idle` waits for a tick that holds
-/// the cache, no longer than its deadline, and returns once the tick ends.
+/// The shutdown wait (PE-RSH-004): `join_idle` does not return `true` while a
+/// tick holds the cache, answers `false` at a deadline that has passed, and
+/// returns `true` once the tick ends.
+///
+/// Causal, with no sleep and no elapsed-time assertion: the waiter announces
+/// that it is about to wait, the test thread then opens the gate, and the
+/// waiter's `true` must come after the open (`opened` is set just before it).
 #[test]
 fn join_idle_waits_for_the_tick_in_flight_up_to_its_deadline() {
-    const SHORT: Duration = Duration::from_millis(150);
+    /// A bound so a broken `join_idle` fails the test instead of hanging; the
+    /// waiter returns when the gate opens, long before it.
+    const SAFETY: Duration = Duration::from_secs(60);
     let w = World::new();
     w.phase("x", Some("lead-x"));
     let job = job(&w);
@@ -366,23 +373,31 @@ fn join_idle_waits_for_the_tick_in_flight_up_to_its_deadline() {
     };
     w.switch.gate.wait_entered(1);
 
-    let started = Instant::now();
-    assert!(!job.join_idle(started + SHORT), "the tick holds the cache");
-    assert!(started.elapsed() >= SHORT, "it waited until the deadline");
+    // A deadline that has passed is answered at once: the tick still holds the cache.
+    assert!(!job.join_idle(Instant::now()), "the tick holds the cache");
     assert!(!running.is_finished());
 
-    let opener = {
-        let gate = Arc::clone(&w.switch.gate);
+    let opened = Arc::new(AtomicBool::new(false));
+    let (waiting_tx, waiting_rx) = mpsc::channel::<()>();
+    let waiter = {
+        let job = job.clone();
+        let opened = Arc::clone(&opened);
         thread::spawn(move || {
-            thread::sleep(Duration::from_millis(100));
-            gate.open();
+            waiting_tx.send(()).unwrap();
+            let idle = job.join_idle(Instant::now() + SAFETY);
+            (idle, opened.load(Ordering::SeqCst))
         })
     };
+    waiting_rx.recv().unwrap();
+    opened.store(true, Ordering::SeqCst);
+    w.switch.gate.open();
+
+    let (idle, opened_first) = waiter.join().unwrap();
+    assert!(idle, "the tick ended before the deadline");
     assert!(
-        job.join_idle(Instant::now() + Duration::from_secs(10)),
-        "the tick ended before the deadline"
+        opened_first,
+        "join_idle said idle while the tick still held the cache"
     );
-    opener.join().unwrap();
     let reply = done(running.join().unwrap());
     assert_eq!(reply.outcome, TickOutcome::PassThrough, "{reply:?}");
 }

@@ -10,8 +10,8 @@
 
 mod common;
 
-use bd_cache_model::TickConfig;
-use bd_cache_sync::{RefusalCode, TickOutcome, schedule_spec, stop_reason};
+use bd_cache_model::{RepoConfig, TickConfig};
+use bd_cache_sync::{RefusalCode, TickOutcome, TickSettings, schedule_spec, stop_reason};
 use common::{World, id, scope};
 use sc_beads::testing::{FakeCall, FakeOp};
 
@@ -306,6 +306,41 @@ fn test_missing_team_is_refused() {
     // With the table complete the same world ticks.
     assert_eq!(w.tick(&mut cache).outcome, TickOutcome::PassThrough);
     assert!(schedule_spec(&TickConfig::default(), "r", None).is_err());
+}
+
+/// `[tick] identity` is the identity atm sees: `atm-bd` unless set, and an
+/// unusable value is refused before any work (REQ-BDC-0701).
+#[test]
+fn the_tick_identity_defaults_to_atm_bd_and_a_bad_one_is_refused() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let mut cache = w.cache();
+    let settings = TickSettings::from_config(&w.config()).unwrap();
+    assert_eq!(settings.identity().as_str(), "atm-bd");
+
+    let mut cfg = w.config();
+    cfg.identity = Some(" bd-cache ".into());
+    assert_eq!(
+        TickSettings::from_config(&cfg).unwrap().identity().as_str(),
+        "bd-cache",
+        "trimmed, then kept"
+    );
+    let parsed = RepoConfig::from_toml("[tick]\nidentity = \"from-toml\"\n").unwrap();
+    assert_eq!(
+        parsed.tick.and_then(|t| t.identity).as_deref(),
+        Some("from-toml")
+    );
+
+    for bad in ["", "  ", "-x", "a b", "a@b", "cron/x"] {
+        let mut cfg = w.config();
+        cfg.identity = Some(bad.into());
+        let reply = w.tick_with(&mut cache, &cfg);
+        assert_eq!(reply.outcome, TickOutcome::Refused, "{bad:?}");
+        assert_eq!(reply.refused[0].code, RefusalCode::BadMember, "{bad:?}");
+        assert!(reply.refused[0].detail.contains("identity"), "{reply:?}");
+        assert!(w.bd.calls().is_empty(), "a refused tick makes no bd call");
+        assert!(schedule_spec(&cfg, "r", None).is_err(), "{bad:?}");
+    }
 }
 
 #[test]

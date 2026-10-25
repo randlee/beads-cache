@@ -54,10 +54,14 @@ fn test_escalation_is_sent_once_to_the_phase_lead() {
         body.contains("NOT_FOUND") || body.contains("not found"),
         "{body}"
     );
-    assert!(
-        body.contains(&format!("resolve {seq} --note")) && body.contains("--actor"),
+    // The last line is exactly the command `bdc` parses (`bd-cache-cli` parses
+    // `resolve_command_line` with its own parser); the old `bd-cache resolve` does not exist.
+    assert_eq!(
+        body.lines().last().map(str::trim),
+        Some(bd_cache_sync::resolve_command_line(seq).as_str()),
         "{body}"
     );
+    assert!(!body.contains("bd-cache resolve"), "{body}");
     assert_eq!(
         reply.sent[0].kind,
         AnnouncementKind::Escalation { seq },

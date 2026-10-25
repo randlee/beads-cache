@@ -94,6 +94,10 @@ pub struct TickConfig {
     /// Limits the synced phases (REQ-BDC-0702).
     #[serde(default)]
     pub phases: Option<Vec<String>>,
+    /// The identity `atm send` runs as (`ATM_IDENTITY`); default `atm-bd`. Not
+    /// `cron`: atm refuses ordinary sends from its scheduler principal.
+    #[serde(default)]
+    pub identity: Option<String>,
 }
 
 /// `.beads/bd-cache.toml` did not parse.

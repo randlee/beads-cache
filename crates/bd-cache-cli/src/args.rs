@@ -482,6 +482,70 @@ mod tests {
         panic!("{path} is not in the tree")
     }
 
+    /// Splits a command line the way the escalation text writes it: words by
+    /// spaces, a `"..."` span is one word.
+    fn split_quoted(line: &str) -> Vec<String> {
+        let mut words = Vec::new();
+        let mut word = String::new();
+        let mut quoted = false;
+        for c in line.chars() {
+            match c {
+                '"' => quoted = !quoted,
+                ' ' if !quoted => {
+                    if !word.is_empty() {
+                        words.push(std::mem::take(&mut word));
+                    }
+                }
+                _ => word.push(c),
+            }
+        }
+        if !word.is_empty() {
+            words.push(word);
+        }
+        words
+    }
+
+    /// The command an escalation message tells a lead to run is a command `bdc`
+    /// parses and its decoder accepts, with the entry's number: the text cannot
+    /// name a command that does not exist (the baseline's `bd-cache resolve`).
+    #[test]
+    fn the_escalation_message_names_a_command_bdc_parses() {
+        let line = bd_cache_sync::resolve_command_line(bd_cache_model::Seq::new(7));
+        let words = split_quoted(&line);
+        assert_eq!(words.first().map(String::as_str), Some("bdc"), "{line}");
+        // The placeholders are the lead's to fill: fill them like a lead.
+        let argv: Vec<String> = std::iter::once(NAME.to_owned())
+            .chain(words.iter().skip(1).map(|w| match w.as_str() {
+                "<what you did>" => "closed it by hand".to_owned(),
+                "<you>" => "team-lead".to_owned(),
+                other => other.to_owned(),
+            }))
+            .collect();
+        assert!(
+            argv.iter().all(|w| !w.contains('<')),
+            "every placeholder is one the test fills: {line}"
+        );
+        let matches = clap_tree(false)
+            .try_get_matches_from(&argv)
+            .unwrap_or_else(|e| panic!("bdc does not parse {line:?}: {e}"));
+        let mut path = Vec::new();
+        let mut node = &matches;
+        while let Some((name, sub)) = node.subcommand() {
+            path.push(name);
+            node = sub;
+        }
+        let spec = command(&path.join(" "))
+            .unwrap_or_else(|| panic!("{line:?} stops at {path:?}, which is not a command"));
+        assert_eq!(spec.path, "cache journal resolve", "{line}");
+        let request = crate::request::from_matches(spec, node).expect("the request");
+        let Target::Api(api) = spec.target else {
+            panic!("{line:?} is not an api command");
+        };
+        bd_cache_api::decode(api, &request)
+            .unwrap_or_else(|e| panic!("bdc's decoder refuses {line:?}: {e}"));
+        assert_eq!(request["seq"], 7, "{request}");
+    }
+
     #[test]
     fn children_are_listed_once_in_table_order() {
         assert_eq!(

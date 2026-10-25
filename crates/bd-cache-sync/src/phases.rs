@@ -22,6 +22,7 @@ use bd_cache_model::{PhaseName, ScopeId, TickConfig};
 use sc_beads::BeadId;
 use serde::Deserialize;
 
+use crate::atm::{IDENTITY_RULE, SenderIdentity};
 use crate::reply::{Refusal, RefusalCode};
 
 /// Where the phase files live when `[tick] phases_dir` is not set.
@@ -144,6 +145,11 @@ pub enum ConfigRefusal {
         /// The value as written.
         value: String,
     },
+    /// `identity` is not a usable `atm send` identity.
+    BadIdentity {
+        /// The value as written.
+        value: String,
+    },
     /// A `phases` entry is not a phase name (REQ-BDC-0702).
     MalformedPhases {
         /// The entry as written.
@@ -160,7 +166,7 @@ impl ConfigRefusal {
         match self {
             Self::MissingTeam => RefusalCode::MissingTeam,
             Self::MissingFallbackLead => RefusalCode::MissingFallbackLead,
-            Self::BadMember { .. } => RefusalCode::BadMember,
+            Self::BadMember { .. } | Self::BadIdentity { .. } => RefusalCode::BadMember,
             Self::MalformedPhases { .. } => RefusalCode::MalformedPhases,
             Self::EmptyPhases => RefusalCode::EmptyPhases,
         }
@@ -176,6 +182,12 @@ impl fmt::Display for ConfigRefusal {
                 write!(
                     f,
                     "[tick] {key} {value:?} cannot be addressed: a name must be {MEMBER_RULE}"
+                )
+            }
+            Self::BadIdentity { value } => {
+                write!(
+                    f,
+                    "[tick] identity {value:?} is not usable: it must be {IDENTITY_RULE}"
                 )
             }
             Self::MalformedPhases { entry } => {
@@ -218,6 +230,7 @@ pub struct TickSettings {
     fallback_lead: MemberName,
     phases_dir: PathBuf,
     only: Option<Vec<PhaseName>>,
+    identity: SenderIdentity,
 }
 
 impl TickSettings {
@@ -235,6 +248,11 @@ impl TickSettings {
             "fallback_lead",
             ConfigRefusal::MissingFallbackLead,
         )?;
+        let identity = match config.identity.as_deref().map(str::trim) {
+            None => SenderIdentity::default(),
+            Some(value) => SenderIdentity::new(value)
+                .map_err(|e| ConfigRefusal::BadIdentity { value: e.value })?,
+        };
         let only = match &config.phases {
             None => None,
             Some(list) if list.is_empty() => return Err(ConfigRefusal::EmptyPhases),
@@ -261,6 +279,7 @@ impl TickSettings {
                 .clone()
                 .unwrap_or_else(|| PathBuf::from(DEFAULT_PHASES_DIR)),
             only,
+            identity,
         })
     }
 
@@ -280,6 +299,12 @@ impl TickSettings {
     #[must_use]
     pub fn phases_dir(&self) -> &Path {
         &self.phases_dir
+    }
+
+    /// The identity `atm send` runs as: `[tick] identity`, default `atm-bd`.
+    #[must_use]
+    pub fn identity(&self) -> &SenderIdentity {
+        &self.identity
     }
 
     /// The configured phase list, when it limits the phases.

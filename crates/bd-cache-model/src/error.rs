@@ -43,10 +43,14 @@ use crate::scope::ScopeId;
 /// Exit code of every typed error (REQ-BDC-0802).
 pub const TYPED_ERROR_EXIT: i32 = 3;
 
-/// The codes that mean `bd` could not answer at all: a backend outage, never a
-/// write attempt (the set `bd_cache.py` calls `UNREACHABLE`).
+/// The codes `bd_cache.py` calls `UNREACHABLE`: the 0.1 Python binding exports
+/// this set as `UNREACHABLE`, and atm-bd branches on it, so it does not change.
 ///
-/// [`CacheError::is_unreachable`] is the same set by variant; a test keeps the two equal.
+/// It is the set by **code**. `BD_LIST_FAILED` (and the two check codes) are in it
+/// even when `bd` ran and answered with an error, so a code in this set does not
+/// prove an outage: [`CacheError::is_outage`] does, and is what a new caller
+/// branches on. [`CacheError::is_unreachable`] is this set by variant; a test
+/// keeps the two equal.
 pub const UNREACHABLE_CODES: [&str; 4] = [
     "BD_CACHE.BD_UNAVAILABLE",
     "BD_CACHE.BD_VERSION_FAILED",
@@ -483,6 +487,57 @@ impl CacheError {
             | Self::BdContract { .. }
             | Self::BdWriteFailed { .. }
             | Self::SyncFailed { .. }
+            | Self::Precondition { .. }
+            | Self::IdemConflict { .. }
+            | Self::BadOp { .. }
+            | Self::BadArgs { .. }
+            | Self::BadPrecondition { .. }
+            | Self::SchemaVersion { .. }
+            | Self::PruneBlocked { .. }
+            | Self::NotEscalated { .. }
+            | Self::ScopeUnknown { .. }
+            | Self::StoreFailed { .. }
+            | Self::StoreInUse { .. } => false,
+        }
+    }
+
+    /// True when `bd` could not be reached: the call timed out, `bd` could not be
+    /// started, or its server refused the connection.
+    ///
+    /// This is the flag to branch on, where [`is_unreachable`](Self::is_unreachable)
+    /// (the code set of [`UNREACHABLE_CODES`], which the 0.1 binding exports) is
+    /// not enough: `BD_LIST_FAILED`, `BD_VERSION_FAILED` and `BD_SCHEMA_FAILED` are
+    /// in that set even when `bd` ran and answered with an error, which is a
+    /// failure to tell the lead about, not an outage. Here a coded failure is an
+    /// outage only when the backend error it was mapped from is
+    /// [`BeadsCacheError::is_unavailable`] (a timeout, a refused connection, a
+    /// spawn failure); `BD_UNAVAILABLE` always is, and a `SYNC_FAILED` is when its
+    /// source is, or when it names `BD_UNAVAILABLE` as its cause and has none.
+    /// Output `bd` produced but that could not be read whole (`Transport`) is not
+    /// an outage: `bd` answered, and the core records no outage for it.
+    ///
+    /// A subset of [`is_unreachable`](Self::is_unreachable) plus `SYNC_FAILED`;
+    /// a test keeps the two apart where they differ.
+    #[must_use]
+    pub fn is_outage(&self) -> bool {
+        let reached_nobody = || {
+            self.backend_cause()
+                .is_some_and(|c| c.error().is_unavailable())
+        };
+        match self {
+            Self::BdUnavailable { .. } => true,
+            Self::BdVersionFailed { .. }
+            | Self::BdSchemaFailed { .. }
+            | Self::BdListFailed { .. } => reached_nobody(),
+            Self::SyncFailed { cause, source, .. } => match source {
+                Some(_) => reached_nobody(),
+                None => *cause == Some(SyncCause::BdUnavailable),
+            },
+            Self::NoDatabase { .. }
+            | Self::WrongDatabase { .. }
+            | Self::NotFound { .. }
+            | Self::BdContract { .. }
+            | Self::BdWriteFailed { .. }
             | Self::Precondition { .. }
             | Self::IdemConflict { .. }
             | Self::BadOp { .. }
@@ -1035,6 +1090,130 @@ mod classification_tests {
             }
         }
         assert_eq!(found, listed);
+    }
+
+    /// A backend error `bd` answered with (it ran, and failed).
+    fn answered() -> BackendCause {
+        BackendCause::new(BeadsCacheError::Failed {
+            code: 1,
+            stderr: "boom".to_owned(),
+        })
+    }
+
+    /// Backend errors for a `bd` that could not be reached.
+    fn unreached() -> Vec<BackendCause> {
+        vec![
+            BackendCause::new(BeadsCacheError::Unavailable {
+                reason: "did not finish before its deadline".to_owned(),
+                timed_out: true,
+            }),
+            BackendCause::new(BeadsCacheError::Unavailable {
+                reason: "connection refused".to_owned(),
+                timed_out: false,
+            }),
+            BackendCause::new(BeadsCacheError::Btit(BeadsError::Spawn {
+                binary: "bd".to_owned(),
+                operation: None,
+                source: std::io::Error::other("no such file"),
+            })),
+        ]
+    }
+
+    /// `BD_LIST_FAILED` is in the 0.1 `UNREACHABLE` set whether `bd` was reached or
+    /// not; `is_outage` tells the two apart, so a real failure reaches the lead.
+    #[test]
+    fn a_failure_bd_answered_is_not_an_outage_though_its_code_is_in_the_unreachable_set() {
+        let list = |source| CacheError::BdListFailed {
+            detail: d(),
+            source,
+        };
+        let sync = |source| CacheError::SyncFailed {
+            detail: d(),
+            scope: None,
+            cause: Some(SyncCause::BdListFailed),
+            source,
+        };
+        let version = |source| CacheError::BdVersionFailed {
+            detail: d(),
+            source,
+        };
+        let schema = |source| CacheError::BdSchemaFailed {
+            detail: d(),
+            source,
+        };
+        // bd ran and answered with an error: the code is in the set, it is no outage.
+        for e in [
+            list(Some(answered())),
+            sync(Some(answered())),
+            version(Some(answered())),
+            schema(Some(answered())),
+            list(None),
+        ] {
+            assert!(!e.is_outage(), "{}: bd answered", e.code());
+        }
+        assert!(list(Some(answered())).is_unreachable());
+        assert!(UNREACHABLE_CODES.contains(&list(Some(answered())).code()));
+        // Output bd produced but that could not be read whole: bd answered.
+        let transport = BeadsCacheError::Transport {
+            what: "bd list".to_owned(),
+            source: std::io::Error::other("over the cap"),
+        };
+        let mapped = CacheError::from_backend(&transport, CallKind::PreRead);
+        assert_eq!(mapped.code(), "BD_CACHE.BD_LIST_FAILED");
+        assert!(!mapped.is_outage());
+        // bd could not be reached: an outage, whatever the code carrying it.
+        for cause in unreached() {
+            for e in [
+                list(Some(cause.clone())),
+                sync(Some(cause.clone())),
+                version(Some(cause.clone())),
+                schema(Some(cause.clone())),
+            ] {
+                assert!(e.is_outage(), "{}: {}", e.code(), cause.error());
+            }
+            let mapped = CacheError::from_backend(cause.error(), CallKind::PreRead);
+            assert!(mapped.is_outage(), "{}", cause.error());
+        }
+        let failed = BeadsCacheError::Failed {
+            code: 1,
+            stderr: "boom".to_owned(),
+        };
+        for kind in [CallKind::PreRead, CallKind::Sync, CallKind::Check] {
+            assert!(
+                !CacheError::from_backend(&failed, kind).is_outage(),
+                "{kind:?}"
+            );
+        }
+        assert!(
+            CacheError::BdUnavailable {
+                detail: d(),
+                source: None
+            }
+            .is_outage()
+        );
+        assert!(
+            !sync(None).is_outage(),
+            "a sync cause of BD_LIST_FAILED alone proves nothing"
+        );
+    }
+
+    /// An outage is always one of the codes the 0.1 binding calls unreachable
+    /// (or a sync failure caused by one): `is_outage` never reports a code outside that set.
+    #[test]
+    fn an_outage_is_always_an_unreachable_code_or_a_sync_failure() {
+        for e in samples() {
+            if e.is_outage() {
+                assert!(
+                    e.is_unreachable() || matches!(e, CacheError::SyncFailed { .. }),
+                    "{}",
+                    e.code()
+                );
+            }
+        }
+        for cause in unreached() {
+            let e = CacheError::from_backend(cause.error(), CallKind::Sync);
+            assert!(e.is_outage(), "{}", cause.error());
+        }
     }
 
     #[test]
