@@ -1,6 +1,6 @@
 # beads-cache Architecture
 
-Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25).
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25). ADR-BDC-0010 is Approved (lead ruling S82, 2026-10-25); its lint gate lands in sprint b-6 (`docs/plans/phase-b/phase-b-boundary.md`).
 
 ## Overview
 
@@ -207,6 +207,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0004) |
 | ADR-BDC-0008 | Draft | not in phase a |
 | ADR-BDC-0009 | Approved | `bd-cache-api` (sprint b-2: the request vocabulary, decoder, operations and error table; ADR-API-0001..0003 in `docs/bd-cache-api/architecture.md`); `bd-cache-cli` (sprint b-3: both command groups of `docs/bd-cache-cli/contract.md` §1–§8, the exit codes, configuration and help; ADR-CLI-0001..0004 in `docs/bd-cache-cli/architecture.md`) |
+| ADR-BDC-0010 | Approved | `scripts/lint_no_atm.py` and its tests (with the phase-b plan, run per sprint with `--paths`); the removal of the existing code is sprint b-6, and its CI lint gate lands there too (`docs/plans/phase-b/phase-b-boundary.md`) |
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
@@ -602,6 +603,99 @@ Consequences: REQ-BDC-0801, 0802 and 0803 are amended as in the contract's
 Appendix A, applied in `docs/requirements.md` (S60); new crates `bd-cache-api` and `bd-cache-cli`
 in the Crate Layout and Boundaries tables; the Python binding gains the two
 surfaces additively (wheel 0.2.0) and keeps its 0.1 verbs.
+
+## ADR-BDC-0010: No ATM or atm-bd concerns in beads-cache
+
+**Status:** Approved (lead ruling S82, 2026-10-25)
+
+Context: phases a and b ported atm-bd's bd-cache cron into `bd-cache-sync`: the tick
+sends ATM messages as `cron@tool` (`atm send <lead>@<team> --team tool` with
+`ATM_IDENTITY=cron`, `src/atm.rs`), reads ATM team and lead configuration
+(`[tick] team`, `fallback_lead`), discovers atm-bd phase files
+(`.atm-bd/phase-*.toml`, with `root` and `lead`), implements the ATM-cron stop
+rule and tick protocol (`refused` / `pass-through` replies), syncs
+`phase-<x>`-only scopes, and carries compat tests that vendor atm-bd's
+`bd_cache.py` (`crates/bd-cache-store/tests/compat/`) and its call log
+(`crates/bd-cache-py/tests/atm_core_05831df_*`). Rand ruled this out of scope
+(2026-10-25): "this is a strict boundary. there should be no atm concerns or
+patterns that exactly match atm." and "beads-cache is a cache w/ cli for
+configuration. it also exposes python api through py03 for you to use." He
+also ruled (2026-10-25): "the beads-cache cron must support running a
+registered python script that is part of the atm-bd package. atm-bd would
+include beads-cache as a dependency for the plug-in and it would be consumed
+both by phthon hooks and by direct reads from tui."
+
+Decision:
+- beads-cache is a cache (store, journal, drain, sync and refresh of
+  configured scopes, idempotent writes), a CLI for configuration and
+  management, and a PyO3 API. Nothing else.
+- It sends no messages, reads no ATM or atm-bd configuration, files or paths,
+  implements no ATM-shaped protocol, and names no ATM or atm-bd concept in
+  source, tests, scripts, workflows or docs. Scopes are configured in
+  beads-cache's own configuration, never discovered from a consumer's files.
+- Notification state is neutral data the caller reads and marks (for example
+  an escalated entry not yet notified, an outage or alert per scope); the
+  cache does not decide who is told or how.
+- Scheduling is `sc-cron`, which stays general purpose. A schedule row has a
+  cron string, a timeout, a JSON payload, an `enabled` flag and a hook target:
+  `Rust` (an in-process `Job`) or `Python` (an interpreter and a module, run
+  as a subprocess with one JSON object on stdin, for the `cron.tick` and
+  `cron.stop` events). The bd sync is one row. Its target switches between
+  the built-in sync and a consumer's Python replacement, which feeds the cache
+  through `ingest_scope`. The built-in sync calls an optional post-sync Python
+  hook with the sync results, errors and unnotified escalations. The hook marks
+  what it handled through the cache API. The cache sends nothing and knows
+  nothing about what the hook does (plan:
+  `docs/plans/phase-b/phase-b-boundary.md`).
+- Consumers use the PyO3 API from their hooks and for direct reads (a TUI).
+- Enforcement: `scripts/lint_no_atm.py`, a CI gate in the `ci` lint job
+  from sprint b-6, with no inline suppression and no allowlist file. Until
+  then each sprint runs it on its own files with `--paths <prefix>...`. It
+  scans the product: the tracked files under `crates/`, `docs/` and
+  `scripts/`, plus `Cargo.toml`, `README.md`, `rust-toolchain.toml` and the
+  repo's own workflows `ci.yml`, `python.yml` and `bd-compat.yml`. It matches
+  each in-scope file's contents line by line, and its tracked path as well
+  (a path hit is reported at line 0). Within that scope its only exemptions
+  are the lint and its tests, `docs/team-protocol.md` (the protocol of the
+  agent team working on this repo), `docs/plans/**`, and this section of
+  this file. Out of scope by construction, as dev tooling and not product:
+  the agent tooling (`.claude/**`, `.cursor/**`, `.codex/**`, `.agents/**`,
+  `CLAUDE.md`, `AGENTS.md`), which the repo's own agents use to coordinate
+  over ATM; the sc-publish kit, frozen upstream (`.github/scripts/**`,
+  `.github/actions/**`, the `*-publish.yml`, `release*.yml` and
+  `prerelease-archive.yml` workflows, `release/**`, `install.py`,
+  `README.sc-publish.md`, and the kit docs `docs/getting-started.md`,
+  `docs/npm-channel-compatibility.md`, `docs/consumer-preflight-and-docli.md`
+  and `docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md`);
+  `CHANGELOG.md`; and the generated `Cargo.lock`. Besides the ATM words,
+  principals (`@tool`, `cron@tool`, `cron_tool`, `cron-tool`), roles and
+  atm-bd file names, it flags hard-coded scope prefixes (a `"phase-"`
+  literal or a `phase-{` format string). If a legitimate neutral term hits,
+  the rule is narrowed and a test added; no exemption is added. The scope
+  and the exemptions change only through a later ADR.
+- Strings built at runtime (for example joined from parts or read from
+  input) cannot be caught by the lint; review guards against them.
+
+Consequences:
+- Consumers (atm-bd) own messaging, scheduling policy, migration of their own
+  files and their own compat tests against the published wheel. atm-bd ships
+  its script and depends on the beads-cache wheel.
+- To be superseded by the removal sprint b-6 (not edited here):
+  REQ-BDC-0701 (the `team` and `fallback_lead` of the `[tick]` table),
+  REQ-BDC-0702 (phases from `.atm-bd/phase-*.toml` with `root` and `lead`),
+  REQ-BDC-0703 (only its per-phase sync wording; the budget itself is
+  neutral), REQ-BDC-0704 (failures and outages sent to a phase lead or
+  `fallback_lead`), REQ-BDC-0705 (escalations sent to the phase lead),
+  REQ-BDC-0706 (the `refused` / `pass-through` tick replies and message
+  retry) and REQ-BDC-0707 (the stop rule keyed on active phases), together
+  with their refinements in `docs/bd-cache-sync/requirements.md`; and
+  ADR-SYNC-0007 in `docs/bd-cache-sync/architecture.md` (the phase-file
+  schema and the `atm send` contract, with its fix-a-7-3 and fix-a-7-5
+  amendments).
+- ADR-BDC-0006's note to "the atm-core team" about `atm-cron` must not cite
+  atm-core; `sc-cron`'s provenance is stated without naming ATM.
+- Until the removal sprints land, the lint fails on the current tree; its
+  output is the removal worklist.
 
 ## Per-Crate Architecture
 
