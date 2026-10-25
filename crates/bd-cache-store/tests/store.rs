@@ -9,7 +9,7 @@
 
 mod common;
 
-use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, ScopeId, normalize};
+use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, ScopeId, normalize};
 use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
@@ -391,21 +391,214 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     );
 }
 
-/// The outage is read in one snapshot: a writer setting and clearing it (one
-/// transaction each, as both implementations do) never makes the read see
-/// one key without the other.
+/// The store reads the outage in one snapshot, stepped deterministically: a
+/// fixed number of handshakes, each a committed set and clear by a second
+/// (raw) connection followed by a reader snapshot, so the work does not depend
+/// on machine speed.
 ///
-/// The reader starts once the writer has completed a full set/clear cycle,
-/// then reads until the writer has toggled [`TOGGLES`] times; every stage has
-/// a hard deadline that fails naming it. The writer reports its own errors.
+/// Strict alternation alone could never interleave, so each handshake also
+/// holds the writer inside an open `BEGIN IMMEDIATE` while the reader reads:
+/// the reader sees the old record whole, then after the commit the new record
+/// whole, never a mix. The free-running variant is
+/// `the_outage_is_read_whole_under_a_free_running_soak` (`--ignored`).
 #[test]
 fn the_outage_is_read_whole_while_another_connection_toggles_it() {
+    use std::time::Duration;
+
+    const HANDSHAKES: u32 = 200;
+    const SINCE: &str = "2026-10-23T10:00:00Z";
+    const SET: &str = "INSERT OR REPLACE INTO meta VALUES \
+                       ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x');";
+    const CLEAR: &str = "DELETE FROM meta WHERE key IN ('outage_since', 'outage_error');";
+
+    let (open, store) = fresh("outage-stepped");
+    let outage = Outage {
+        since: ts(SINCE),
+        last_error: "x".to_owned(),
+    };
+    let raw = Connection::open(&open.path).unwrap();
+    raw.busy_timeout(Duration::from_secs(5)).unwrap();
+    // Durability does not matter to this race; this removes disk-speed dependence.
+    raw.pragma_update(None, "synchronous", "OFF").unwrap();
+
+    for step in 0..HANDSHAKES {
+        // Toggle commit, then a reader snapshot.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {SET} COMMIT;"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), Some(outage.clone()), "step {step}");
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {CLEAR} COMMIT;"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}");
+
+        // Set held open: the reader still sees the old (absent) record whole.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {SET}"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}: set open");
+        raw.execute_batch("COMMIT;").unwrap();
+        assert_eq!(store.outage().unwrap(), Some(outage.clone()), "step {step}");
+
+        // Clear held open: the reader still sees the old record whole.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {CLEAR}"))
+            .unwrap();
+        assert_eq!(
+            store.outage().unwrap(),
+            Some(outage.clone()),
+            "step {step}: clear open"
+        );
+        raw.execute_batch("COMMIT;").unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}");
+    }
+}
+
+/// The store writes the outage whole, stepped: the store's own `set_outage`
+/// runs on a writer thread, one command per handshake, while a raw reader
+/// reads continuously until that command finishes. A set or clear split over
+/// two transactions would be caught between them. The work is a fixed
+/// 200 set/clear pairs; the only wait is the per-command deadline.
+#[test]
+fn the_store_writes_the_outage_in_one_transaction_per_change() {
+    use std::sync::mpsc::{TryRecvError, channel};
+    use std::time::{Duration, Instant};
+
+    const HANDSHAKES: u32 = 200;
+    const STAGE_TIMEOUT: Duration = Duration::from_secs(60);
+
+    let (open, mut store) = fresh("outage-writes");
+    let outage = Outage {
+        since: ts("2026-10-23T10:00:00Z"),
+        last_error: "x".to_owned(),
+    };
+    let reader = Connection::open(&open.path).unwrap();
+    reader.busy_timeout(Duration::from_secs(5)).unwrap();
+    let (cmd_tx, cmd_rx) = channel::<Option<Outage>>();
+    let (done_tx, done_rx) = channel::<Result<(), String>>();
+    let writer = std::thread::spawn(move || {
+        while let Ok(cmd) = cmd_rx.recv() {
+            let r = store.set_outage(cmd.as_ref()).map_err(|e| e.to_string());
+            if done_tx.send(r).is_err() {
+                break;
+            }
+        }
+    });
+
+    // One snapshot of both keys, as the store's own read takes it.
+    let snapshot = |step: u32| -> bool {
+        let (since, error): (Option<String>, Option<String>) = reader
+            .query_row(
+                "SELECT (SELECT value FROM meta WHERE key = 'outage_since'), \
+                 (SELECT value FROM meta WHERE key = 'outage_error')",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            since.is_some(),
+            error.is_some(),
+            "step {step}: half-written outage: since={since:?} error={error:?}"
+        );
+        since.is_some()
+    };
+    let run = |cmd: Option<Outage>, step: u32| {
+        let expect = cmd.is_some();
+        cmd_tx.send(cmd).unwrap();
+        let deadline = Instant::now() + STAGE_TIMEOUT;
+        loop {
+            snapshot(step);
+            match done_rx.try_recv() {
+                Ok(r) => {
+                    r.unwrap_or_else(|e| panic!("step {step}: the writer failed: {e}"));
+                    assert_eq!(snapshot(step), expect, "step {step}: after the command");
+                    return;
+                }
+                Err(TryRecvError::Empty) => assert!(
+                    Instant::now() < deadline,
+                    "step {step}: the writer did not finish within {STAGE_TIMEOUT:?}"
+                ),
+                Err(TryRecvError::Disconnected) => panic!("step {step}: the writer thread died"),
+            }
+        }
+    };
+
+    for step in 0..HANDSHAKES {
+        run(Some(outage.clone()), step);
+        run(None, step);
+    }
+    drop(cmd_tx);
+    writer.join().expect("the writer thread panicked");
+}
+
+/// The store's own `outage()` is read whole while a raw writer on another
+/// thread free-runs set/clear toggles. The exit is count-based, not
+/// wall-clock: the reader runs until it has made `READS` reads and the writer
+/// has completed `MIN_TOGGLES` toggles. The hang guard only fails a true hang.
+/// Every read must be `Ok` (a split read surfaces as a corrupt-store error).
+#[test]
+fn the_store_reads_the_outage_whole_while_a_raw_writer_free_runs() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::time::{Duration, Instant};
+
+    const READS: u32 = 2_000;
+    const MIN_TOGGLES: u32 = 200;
+    const HANG_GUARD: Duration = Duration::from_secs(120);
+
+    let (open, store) = fresh("outage-reader");
+    let path = open.path.clone();
+    let stop = Arc::new(AtomicBool::new(false));
+    let toggles = Arc::new(AtomicU32::new(0));
+    let writer = {
+        let (stop, toggles) = (Arc::clone(&stop), Arc::clone(&toggles));
+        std::thread::spawn(move || -> rusqlite::Result<()> {
+            let c = Connection::open(&path)?;
+            c.busy_timeout(Duration::from_secs(5))?;
+            c.pragma_update(None, "synchronous", "OFF")?;
+            while !stop.load(Ordering::Relaxed) {
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
+                     ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x'); COMMIT;",
+                )?;
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; DELETE FROM meta WHERE key IN ('outage_since', 'outage_error'); COMMIT;",
+                )?;
+                toggles.fetch_add(1, Ordering::Relaxed);
+            }
+            Ok(())
+        })
+    };
+
+    let started = Instant::now();
+    let mut reads = 0_u32;
+    let mut failure = None;
+    while reads < READS || toggles.load(Ordering::Relaxed) < MIN_TOGGLES {
+        if started.elapsed() > HANG_GUARD {
+            failure = Some(format!("hang guard after {reads} reads"));
+            break;
+        }
+        if let Err(e) = store.outage() {
+            failure = Some(format!("read {reads}: {e}"));
+            break;
+        }
+        reads += 1;
+    }
+    stop.store(true, Ordering::Relaxed);
+    let done = toggles.load(Ordering::Relaxed);
+    let written = writer.join().expect("the writer thread panicked");
+    assert!(written.is_ok(), "the writer failed: {written:?}");
+    assert!(failure.is_none(), "{failure:?} ({done} toggles)");
+}
+
+/// Opt-in stress (`cargo test -- --ignored`): the outage is read whole while a
+/// second connection free-runs [`TOGGLES`] set/clear toggles. Speed dependent,
+/// so it has its own generous deadline and is not in the default suite.
+#[test]
+#[ignore = "free-running 2,000-toggle stress; opt in with --ignored"]
+fn the_outage_is_read_whole_under_a_free_running_soak() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::time::{Duration, Instant};
 
     const TOGGLES: u32 = 2_000;
-    const STAGE_TIMEOUT: Duration = Duration::from_secs(60);
+    const STAGE_TIMEOUT: Duration = Duration::from_secs(600);
 
     let (open, store) = fresh("outage-race");
     let path = open.path.clone();
@@ -417,6 +610,7 @@ fn the_outage_is_read_whole_while_another_connection_toggles_it() {
         std::thread::spawn(move || -> rusqlite::Result<()> {
             let c = Connection::open(&path)?;
             c.busy_timeout(Duration::from_secs(5))?;
+            c.pragma_update(None, "synchronous", "OFF")?;
             while !stop.load(Ordering::Relaxed) {
                 c.execute_batch(
                     "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
