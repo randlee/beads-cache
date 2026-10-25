@@ -1,0 +1,47 @@
+[package]
+name = "bd-cache-cli"
+description = "The bd-cache / bdc command line: sc-command envelopes over the bd-cache core, and the fake-bd harness."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# sc-command is a git dependency (ADR-CLI-0001), which crates.io refuses.
+publish = false
+
+[features]
+# The fake-bd executable and its test doubles (sc-bd-cli's FakeBd over
+# sc-beads' FakeBackend). Never part of a release build: the binary has
+# `required-features`, and only the self dev-dependency below turns it on.
+fake-bd = ["sc-bd-cli/test-support", "sc-beads/testing"]
+
+[dependencies]
+clap.workspace = true
+sc-bd-cli.workspace = true
+sc-beads.workspace = true
+sc-command.workspace = true
+sc-observability-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+# Lets the integration tests use CARGO_BIN_EXE_fake-bd and the test doubles.
+bd-cache-cli = { path = ".", features = ["fake-bd"] }
+tempfile.workspace = true
+
+[[bin]]
+name = "bd-cache"
+path = "src/bin/bd-cache.rs"
+
+[[bin]]
+name = "bdc"
+path = "src/bin/bdc.rs"
+
+[[bin]]
+name = "fake-bd"
+path = "src/bin/fake-bd.rs"
+required-features = ["fake-bd"]
+
+[lints]
+workspace = true
