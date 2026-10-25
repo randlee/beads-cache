@@ -21,8 +21,8 @@ no file. The `bd` CLI implementation is
   cache needs: `fingerprint`, `list_by_ids`, `list_scope`, `list_blocked`,
   `list_ready`, `close_guarded`, `update_guarded` and `dep_add_typed`. Each
   one takes a `Deadline` and returns `BeadsCacheError` (`Unavailable`,
-  `Refused(Refusal)`, `Contract`, `Failed`, `CheckFailed`, or
-  `Btit(BeadsError)`). Its value types are `BeadId`, `Actor`, `Assignee`,
+  `Refused(Refusal)`, `Contract`, `Transport`, `NotFound`, `Failed`,
+  `CheckFailed`, or `Btit(BeadsError)`). Its value types are `BeadId`, `Actor`, `Assignee`,
   `Edge`, `Patch`, `Guards`, `MetaValue`, `ScopeFilter`, `SyncCursor` and
   `Fingerprint`. Constructors validate, so an invalid value is never built.
 - **Strict rows.** `Bead` and `BlockedRow` are generated from the `bd schema`

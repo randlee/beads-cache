@@ -174,14 +174,13 @@ pip install bd-cache-rs        # import bd_cache_rs
 
 ### GitHub
 
-The crates as git dependencies. Phase a has not merged to `develop` yet; until
-it does, use the `integrate/phase-a` branch:
+The crates as git dependencies, from `develop`:
 
 ```toml
 [dependencies]
-sc-beads = { git = "https://github.com/randlee/beads-cache", branch = "integrate/phase-a" }
-sc-bd-cli = { git = "https://github.com/randlee/beads-cache", branch = "integrate/phase-a" }
-sc-cron = { git = "https://github.com/randlee/beads-cache", branch = "integrate/phase-a" }
+sc-beads = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
+sc-bd-cli = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
+sc-cron = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
 ```
 
 The Python module, built from source. This needs a Rust toolchain: rustup
@@ -189,7 +188,7 @@ installs the pinned 1.98.1 from `rust-toolchain.toml`, and pip fetches
 maturin as the build backend.
 
 ```sh
-pip install "git+https://github.com/randlee/beads-cache@integrate/phase-a#subdirectory=crates/bd-cache-py"
+pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=crates/bd-cache-py"
 ```
 
 No GitHub Release has been cut yet, so there are no prebuilt wheels to

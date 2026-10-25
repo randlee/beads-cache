@@ -130,7 +130,7 @@ the same way: the value is dropped, the poison is cleared while the guard is
 held, and the first call reports it.
 Nothing reuses a connection after a panic. Replies are converted after the GIL is taken again. SQLite
 allows one connection per process per file (NFR-BDC-0007), so a second open
-of the same file in the process is `STORE_FAILED`; threads that want to run
+of the same file in the process is `STORE_IN_USE`; threads that want to run
 verbs in parallel open different files.
 
 Consequences: no background thread, no unsafe, no panic path for cross-thread
@@ -250,7 +250,7 @@ the same operations through the handle.
 
 - One process holds one connection per cache file (NFR-BDC-0007): a hook that
   opens a handle while the cron's handle is open in the same process gets
-  `STORE_FAILED`; separate processes are fine.
+  `STORE_IN_USE`; separate processes are fine.
 - The two implementations must never drain the same journal at the same time
   (phase plan, atm-bd adoption and cutover): stop the Python cron before the
   bindings' `drain` runs.

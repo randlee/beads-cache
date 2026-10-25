@@ -22,7 +22,9 @@ backend traits. It runs the beads `bd` binary as a child process.
   stderr naming an unreachable server, is `Unavailable`. A `bd` that cannot
   start is `Btit(Spawn)`, which `BeadsCacheError::is_unavailable()` also
   reports as an outage. Any other nonzero exit is `Failed { code, stderr }`.
-  Output that breaks the strict row contract is `Contract`.
+  Output that breaks the strict row contract is `Contract`; output that
+  cannot be read, or is over the size cap, is `Transport`. A guarded write to
+  a bead `bd` does not have is `NotFound`.
 - **The process layer.** `CliInvoker` / `CliRunner` (one configured binary,
   with its `--version` probe cached), the extended `PATH`, `ProjectLocks`
   (one lock per normalised working directory), Dolt detection
