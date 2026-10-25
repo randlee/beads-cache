@@ -205,7 +205,12 @@ mod process_tests {
             std::fs::set_permissions(&bd, std::fs::Permissions::from_mode(0o755)).unwrap();
         }
         let mut bdc = Command::new(bdc())
-            .args(["--repo", repo.to_str().unwrap(), "--bd", bd.to_str().unwrap()])
+            .args([
+                "--repo",
+                repo.to_str().unwrap(),
+                "--bd",
+                bd.to_str().unwrap(),
+            ])
             .args(["cache", "refresh", "scopes", "x"])
             .env_clear()
             .env("PATH", "/usr/bin:/bin")

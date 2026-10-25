@@ -161,7 +161,9 @@ fn fallback_dirs(home: Option<&str>, gopath: Option<&str>) -> Vec<String> {
 #[cfg(test)]
 fn join_extended(inherited: &str, fallback: Vec<String>, sep: char) -> String {
     let segments = inherited.split(sep).map(OsString::from);
-    join_segments(segments, fallback, sep).to_string_lossy().into_owned()
+    join_segments(segments, fallback, sep)
+        .to_string_lossy()
+        .into_owned()
 }
 
 /// [`join_extended`] over an `OsStr` `PATH`, split with the platform's own

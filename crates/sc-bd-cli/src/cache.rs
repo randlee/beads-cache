@@ -169,10 +169,12 @@ impl BdCli {
             }
             // A shutdown before bd started (RSH-001): nothing ran, so it is an
             // outage that a later call may retry, not a timeout.
-            Err(e @ BoundedError::Interrupted {
-                phase: TimeoutPhase::Lock,
-                ..
-            }) => {
+            Err(
+                e @ BoundedError::Interrupted {
+                    phase: TimeoutPhase::Lock,
+                    ..
+                },
+            ) => {
                 log_error!("[bd] {what}: {e}");
                 return Err(BeadsCacheError::Unavailable {
                     reason: format!("{what}: {e}"),

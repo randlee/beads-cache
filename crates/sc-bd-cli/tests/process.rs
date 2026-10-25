@@ -523,7 +523,12 @@ fn host_shutdown(exe: &str, wd: &str) -> Vec<String> {
 
 /// Runs this binary as a host in `mode` on the working directory `wd` and returns its
 /// output lines.
-fn run_host(env: &Env, mode: &str, wd: &str, extra: &[(&str, &str)]) -> Result<Vec<String>, String> {
+fn run_host(
+    env: &Env,
+    mode: &str,
+    wd: &str,
+    extra: &[(&str, &str)],
+) -> Result<Vec<String>, String> {
     let mut command = std::process::Command::new(&env.exe);
     command.env(HOST_ENV, mode).env(HOST_WD_ENV, wd);
     for (k, v) in extra {
@@ -1324,10 +1329,7 @@ fn an_empty_list_is_no_rows(env: &Env) -> TestResult {
     require(rows.is_empty(), "expected no rows")
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the test table: one entry per test"
-)]
+#[expect(clippy::too_many_lines, reason = "the test table: one entry per test")]
 fn run_tests() -> ExitCode {
     let tests: &[(&str, Test)] = &[
         (

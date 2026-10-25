@@ -226,7 +226,8 @@ pub(crate) struct FileGuard {
 impl ProjectFileLock {
     /// The lock of the project whose canonical key is `key`.
     pub(crate) fn for_key(key: &str) -> Self {
-        let in_project = (!key.is_empty()).then(|| Path::new(key).join(".beads").join(LOCK_FILE_NAME));
+        let in_project =
+            (!key.is_empty()).then(|| Path::new(key).join(".beads").join(LOCK_FILE_NAME));
         let in_temp = std::env::temp_dir().join(format!("sc-bd-cli-{:016x}.lock", fnv1a(key)));
         Self {
             in_project,
@@ -275,7 +276,10 @@ fn open_lock_file(path: &Path) -> io::Result<File> {
     }
     match options.open(path) {
         Ok(file) => Ok(file),
-        Err(e) if e.kind() == io::ErrorKind::PermissionDenied || e.kind() == io::ErrorKind::ReadOnlyFilesystem => {
+        Err(e)
+            if e.kind() == io::ErrorKind::PermissionDenied
+                || e.kind() == io::ErrorKind::ReadOnlyFilesystem =>
+        {
             let mut read_only = OpenOptions::new();
             read_only.read(true);
             #[cfg(unix)]
@@ -294,8 +298,9 @@ fn open_lock_file(path: &Path) -> io::Result<File> {
 fn fnv1a(text: &str) -> u64 {
     const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
     const PRIME: u64 = 0x0000_0100_0000_01b3;
-    text.bytes()
-        .fold(OFFSET, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(PRIME))
+    text.bytes().fold(OFFSET, |hash, byte| {
+        (hash ^ u64::from(byte)).wrapping_mul(PRIME)
+    })
 }
 
 /// The lock key of `dir`: its canonical path, or its lexical form when it cannot be
@@ -430,10 +435,16 @@ mod tests {
         assert_eq!(without.path(), without.in_temp, "no .beads/ yet");
         std::fs::create_dir_all(project.join(".beads")).unwrap();
         let lock = ProjectFileLock::for_key(&key);
-        assert_eq!(lock.path(), Path::new(&key).join(".beads").join(LOCK_FILE_NAME));
+        assert_eq!(
+            lock.path(),
+            Path::new(&key).join(".beads").join(LOCK_FILE_NAME)
+        );
         let held = lock.try_acquire().unwrap();
         assert!(held.is_some());
-        assert!(lock.try_acquire().unwrap().is_none(), "a second handle must wait");
+        assert!(
+            lock.try_acquire().unwrap().is_none(),
+            "a second handle must wait"
+        );
         drop(held);
         assert!(lock.try_acquire().unwrap().is_some(), "released on drop");
         let _ = std::fs::remove_dir_all(&root);

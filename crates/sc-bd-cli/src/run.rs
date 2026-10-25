@@ -6,7 +6,7 @@
 //! pure, so [`CliRunner`](crate::CliRunner) spawns, and the test-support
 //! `RecordingInvoker` records, exactly the same vector.
 //!
-//! Every spawn sets `PATH` to [`get_extended_path`]; project invocations run in the
+//! Every spawn sets `PATH` to [`get_extended_path`](crate::path::get_extended_path) (as an `OsString`); project invocations run in the
 //! project's working directory with `BEADS_PATH` set to it. The project spawns
 //! ([`spawn_json`], [`run_raw`]) block until the child exits (`Command::output()`, no
 //! timeout), as in btit; see [`ProjectLocks`] on why they must not share a lock set

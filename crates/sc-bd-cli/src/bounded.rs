@@ -202,7 +202,10 @@ impl std::fmt::Display for BoundedError {
         match self {
             Self::TimedOut { phase } => write!(f, "timed out {phase}"),
             Self::Interrupted { phase, signal } => {
-                write!(f, "stopped {phase}: the host is shutting down (signal {signal})")
+                write!(
+                    f,
+                    "stopped {phase}: the host is shutting down (signal {signal})"
+                )
             }
             Self::Failed(e) => std::fmt::Display::fmt(e, f),
             Self::Wait(e) => write!(f, "waiting for the child failed: {e}"),
@@ -217,9 +220,7 @@ impl std::fmt::Display for BoundedError {
 impl std::error::Error for BoundedError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TimedOut { .. } | Self::Interrupted { .. } | Self::OutputTooLarge { .. } => {
-                None
-            }
+            Self::TimedOut { .. } | Self::Interrupted { .. } | Self::OutputTooLarge { .. } => None,
             Self::Failed(e) => Some(e),
             Self::Wait(e) | Self::Output(e) => Some(e),
         }

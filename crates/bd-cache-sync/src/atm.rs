@@ -572,10 +572,7 @@ enum TreeKiller {
 /// platform with neither.
 #[cfg_attr(
     any(unix, windows),
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "None on a platform with neither"
-    )
+    expect(clippy::unnecessary_wraps, reason = "None on a platform with neither")
 )]
 fn tree_killer(pid: u32) -> Option<TreeKiller> {
     #[cfg(unix)]

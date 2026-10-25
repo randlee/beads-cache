@@ -28,6 +28,7 @@ use bd_cache_sync::{AtmSender, StopFlag, TICK_BUDGET};
 
 const FLAG: &str = "--fake-atm=";
 /// Runs this binary as a host that sends once while it can start no program.
+#[cfg(unix)]
 const HOST_NO_HELPERS: &str = "--host-no-helpers=";
 /// Runs this binary as a host that sends once with the default `atm`.
 const HOST_RESOLVE: &str = "--host-resolve";
