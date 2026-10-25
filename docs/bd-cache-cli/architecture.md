@@ -198,8 +198,7 @@ Decision:
   of scope.
 
 Consequences: the exit codes of contract §3 gain the shell's signal
-convention, `128 + N`, for a bdc stopped by a signal; the contract text is
-not part of this change (follow-up). Test:
+convention, `128 + N`, for a bdc stopped by a signal (listed there). Test:
 `commands::signal::process_tests::sigterm_kills_the_bd_group_and_exits_143`
 (a `bdc` whose fake `bd` hangs with a TERM-ignoring grandchild, causal on pid
 files), which runs the `bdc` binary `cargo test` builds next to the test.

@@ -445,10 +445,14 @@ fn run_bounded_until(
         }
     };
     // Dropped (closing the file releases it) on every return below, after the
-    // child's tree was killed and reaped: a timeout, a shutdown, a failure.
+    // child's tree was killed and reaped: a timeout, a shutdown, a failure. A Dolt
+    // server-mode project takes none (`ProjectFileLock::for_project`).
     let _file_guard = loop {
+        let Some(file_lock) = &file_lock else {
+            break None;
+        };
         match file_lock.try_acquire() {
-            Ok(Some(guard)) => break guard,
+            Ok(Some(guard)) => break Some(guard),
             Ok(None) => wait_or_time_out(limit, TimeoutPhase::Lock)?,
             Err(source) => {
                 log_error!(

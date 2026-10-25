@@ -345,8 +345,9 @@ group running, since the group does not get the host's signals (RSH-001).
 Decision:
 
 - **Cross-process lock (S81).** Every bounded call (`run_bounded*`,
-  `CliRunner::run_bounded`) takes, after the in-process mutex and for as long
-  as it, an exclusive advisory lock on a per-project file:
+  `CliRunner::run_bounded`) on an embedded-Dolt project takes, after the
+  in-process mutex and for as long as it, an exclusive advisory lock on a
+  per-project file:
   `<canonical project dir>/.beads/sc-bd-cli.lock`, or, when that cannot be
   opened (no `.beads/`, not writable and no existing file to open read-only),
   `<OS temp dir>/sc-bd-cli-<FNV-1a 64 of the canonical dir>.lock`. `.beads/`
@@ -361,6 +362,19 @@ Decision:
   deleted. btit's unbounded calls keep the mutex only. A lock file that can
   be neither opened nor locked fails the call as a spawn failure (nothing
   started).
+- **Server mode takes no file lock** (fenix's input on S81, atm-bd owner): when
+  the project's `.beads/metadata.json` resolves to `DoltMode::Server` by bd's
+  own rule (`dolt_mode: "server"`, or a non-local `dolt_server_host` with no
+  mode), many `bd` processes are concurrent by bd's design, and the lock would
+  only make every miss fill wait behind a long sync; atm-bd runs bd that way.
+  A missing or unreadable `metadata.json`, `embedded`, `proxied-server` and any
+  other value take the lock. The in-process mutex is unchanged in every mode.
+  The protection is partial in embedded mode: agents and bd's git hooks call
+  `bd` directly without this lock, so it orders bdc's own calls only.
+- **Release lag.** A child forked by another thread while a guard is held
+  inherits the locked file until it execs (files are close-on-exec), so a
+  dropped guard can release the lock a moment late; callers poll for it, as
+  the bounded calls do against their deadline (RCR-001).
 - **Kill with `kill(2)`.** On Unix the group kill and the "group is gone"
   probe are `kill(-pgid, SIGKILL)` and `kill(-pgid, 0)` (`process_group::kill`,
   `process_group::exists`, safe wrappers that refuse the pgids 0 and 1). No
@@ -380,14 +394,16 @@ Decision:
   S76/S77 rule for another crate's own `PATH` search (the `atm` lookup,
   RSH-003).
 
-Consequences: a `bd` call waits for another process's call on the same
-project, bounded by its deadline. A `.beads/sc-bd-cli.lock` file appears in
-the project (untracked; it belongs in `.beads/.gitignore`). Two processes that
+Consequences: on an embedded-Dolt project a `bd` call waits for another
+process's call on the same project, bounded by its deadline. A `.beads/sc-bd-cli.lock` file appears in
+an embedded-Dolt project and is never removed: add `sc-bd-cli.lock` to the
+project's `.beads/.gitignore` (contract §3, "Concurrent `bd` calls"). Two processes that
 disagree on whether `.beads/` is usable would use different files; an existing
 file is opened read-only to narrow that case.
 
 Tests (`tests/process.rs`, each a separate process where the case needs one):
-`two_processes_never_run_bd_on_one_project_at_once`,
+`two_processes_never_run_bd_on_one_project_at_once` (an explicit embedded
+project), `a_server_mode_project_takes_no_cross_process_lock`,
 `the_cross_process_lock_is_released_when_a_call_is_cut`,
 `the_group_kill_needs_no_kill_program` (a host with an empty `PATH` and
 `RLIMIT_NPROC` 0), `a_shutdown_request_stops_the_calls`,

@@ -146,9 +146,23 @@ default.
 | 0 | `true` | Success. Degraded results (an outage, a cached fallback, a partial refresh) are reported in `data`; `cache refresh scopes` reports `data.failed`, and `cache health --probe` with bd unreachable reports `state: "down"` (§6). |
 | 2 | `false` | `BD_CACHE.USAGE`, for the shape of argv only: an unknown command or flag, a missing or conflicting argument, an abbreviated option, or `--input` mixed with flags. |
 | 3 | `false` | Any other typed error. Retryable and permanent errors share this exit, so callers branch on `error.kind`, or on `retryable` in the error table (§4). |
+| 128 + N | either | Unix: bdc was stopped by signal N (`SIGTERM` 143, `SIGINT` 130, `SIGHUP` 129; RSH-001, ADR-CLI-0005). The running `bd` call's process group was killed and reaped and its locks released; the command's own envelope is still written when stdout is open, and it says what was done before the stop (a journaled write stays journaled). Treat it as interrupted and retry; the envelope's `ok` does not override this exit. |
 
 A caught panic is `BD_CACHE.INTERNAL` (exit 3). Invalid JSON in `--input`,
 `--patch` or `--set-metadata` is `BAD_ARGS`.
+
+### Concurrent `bd` calls
+
+Every `bd` call bdc makes on a project holds an in-process mutex and, for an
+embedded-Dolt project, a cross-process advisory lock on
+`<repo>/.beads/sc-bd-cli.lock` (lead ruling S81, ADR-BDCLI-0006), so two bdc
+processes (a cron `cache tick` and an agent's `get`) never run two `bd` on one
+embedded database at once. A project whose `.beads/metadata.json` says Dolt
+server mode (`dolt_mode: "server"`) takes no file lock: concurrent `bd` is
+normal there. The protection is partial in embedded mode: agents and bd's git
+hooks that call `bd` directly do not take the lock. Add
+`sc-bd-cli.lock` to `.beads/.gitignore`; the file is created on the first
+locked call and never removed.
 
 ## 4. Envelope and errors
 

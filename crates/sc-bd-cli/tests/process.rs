@@ -93,7 +93,7 @@ fn child(mode: &str) -> ExitCode {
     if mode == "spawner" || mode == "leaver" || mode == "orphan" {
         return process_group_child(mode, first);
     }
-    if mode == "exclusive" || mode == "pathdump" {
+    if mode.starts_with("exclusive") || mode == "pathdump" {
         return lock_child(mode);
     }
     let mut out = std::io::stdout();
@@ -917,7 +917,9 @@ fn a_shutdown_request_stops_the_calls(env: &Env) -> TestResult {
 /// first process's bd runs (and says so); a second process's call on the same project
 /// then waits for the cross-process lock and times out there, without starting its
 /// bd; once the first bd is released the first call succeeds, no overlap was ever
-/// recorded, and the lock file is the project's `.beads/sc-bd-cli.lock`.
+/// recorded, and the lock file is the project's `.beads/sc-bd-cli.lock`. The project
+/// is embedded Dolt (`dolt_mode: "embedded"`); a server-mode one takes no lock
+/// ([`a_server_mode_project_takes_no_cross_process_lock`]).
 ///
 /// Each process has its own `ProjectLocks`, so only the lock file can exclude them.
 /// Causal: the second call starts only after the first bd has started, and its
@@ -930,6 +932,12 @@ fn two_processes_never_run_bd_on_one_project_at_once(env: &Env) -> TestResult {
         let _ = fs::remove_file(dir.join(name));
     }
     fs::create_dir_all(dir.join(".beads")).map_err(|e| format!("create .beads: {e}"))?;
+    // An embedded-Dolt project, explicitly: it takes the cross-process lock.
+    fs::write(
+        dir.join(".beads").join("metadata.json"),
+        r#"{"backend":"dolt","dolt_mode":"embedded"}"#,
+    )
+    .map_err(|e| format!("metadata.json: {e}"))?;
     let first = std::process::Command::new(&env.exe)
         .env(HOST_ENV, "call")
         .env(HOST_WD_ENV, &wd)
@@ -962,6 +970,59 @@ fn two_processes_never_run_bd_on_one_project_at_once(env: &Env) -> TestResult {
     require(
         dir.join(".beads").join("sc-bd-cli.lock").is_file(),
         "the lock file is not the project's .beads/sc-bd-cli.lock",
+    )
+}
+
+/// RSH-004 with fenix's input on S81: a Dolt server-mode project
+/// (`.beads/metadata.json` `dolt_mode: "server"`) takes no cross-process lock, as
+/// concurrent bd processes are bd's design there. The same two processes as in
+/// [`two_processes_never_run_bd_on_one_project_at_once`] now overlap: the second
+/// gets past the lock and runs its bd (which waits for `release`, so it times out in
+/// the child phase), and the overlap is recorded. Causal as that test is.
+fn a_server_mode_project_takes_no_cross_process_lock(env: &Env) -> TestResult {
+    let wd = env.dir("exclusive-server")?;
+    let dir = Path::new(&wd).to_path_buf();
+    for name in ["running", "overlap", "started", "release"] {
+        let _ = fs::remove_file(dir.join(name));
+    }
+    fs::create_dir_all(dir.join(".beads")).map_err(|e| format!("create .beads: {e}"))?;
+    fs::write(
+        dir.join(".beads").join("metadata.json"),
+        r#"{"backend":"dolt","dolt_mode":"server"}"#,
+    )
+    .map_err(|e| format!("metadata.json: {e}"))?;
+    let first = std::process::Command::new(&env.exe)
+        .env(HOST_ENV, "call")
+        .env(HOST_WD_ENV, &wd)
+        .env(HOST_TIMEOUT_ENV, FAIL_SAFE.as_millis().to_string())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("cannot start the first host: {e}"))?;
+    let started = pid_in(&dir.join("started"));
+    let second = started
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|_| run_host(env, "call", &wd, &[(HOST_TIMEOUT_ENV, "1000")]));
+    let _ = fs::write(dir.join("release"), "");
+    let first = first
+        .wait_with_output()
+        .map_err(|e| format!("the first host: {e}"))?;
+    let first = String::from_utf8_lossy(&first.stdout).trim().to_owned();
+    started?;
+    let second = second?;
+    require(first == "ok:", format!("the first call: {first:?}"))?;
+    require(
+        second == ["timedout:child"],
+        format!("the second process did not run its bd: {second:?}"),
+    )?;
+    require(
+        dir.join("overlap").exists(),
+        "a server-mode project still serialized the two bd processes",
+    )?;
+    require(
+        !dir.join(".beads").join("sc-bd-cli.lock").exists(),
+        "a server-mode project created the lock file",
     )
 }
 
@@ -1365,6 +1426,10 @@ fn run_tests() -> ExitCode {
         (
             "two_processes_never_run_bd_on_one_project_at_once",
             two_processes_never_run_bd_on_one_project_at_once,
+        ),
+        (
+            "a_server_mode_project_takes_no_cross_process_lock",
+            a_server_mode_project_takes_no_cross_process_lock,
         ),
         (
             "the_cross_process_lock_is_released_when_a_call_is_cut",

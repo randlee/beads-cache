@@ -13,6 +13,15 @@
 //! the mutex (S81; ADR-BDCLI-0006). btit's unbounded calls ([`run`](crate::run)) take
 //! the mutex only, as btit did.
 //!
+//! The file lock is taken only for an embedded-Dolt project: when the project's
+//! `.beads/metadata.json` says bd runs against a Dolt server
+//! ([`DoltMode::Server`](crate::DoltMode::Server), by bd's own rule:
+//! `dolt_mode: "server"`, or a non-local `dolt_server_host`), many `bd` processes are
+//! concurrent by design and the lock would only queue every call behind a long
+//! sync (atm-bd runs bd that way). A missing or unreadable `metadata.json`, and every
+//! other mode, count as embedded: the lock is taken. The protection is partial in
+//! embedded mode too: agents and bd's git hooks run `bd` directly, without this lock.
+//!
 //! The key of a lock is the directory's canonical path, resolved when the lock is
 //! taken (PE-RBP-F010): `/p/link` and `/p/sub/..` share the lock of the directory they
 //! name. A directory that does not exist keys on its lexical [`WorkingDir`] form.
@@ -31,6 +40,12 @@
 //! disagree on whether `.beads/` is usable (one may create the file there, the other
 //! may not even read it) would use different files; an existing file is opened
 //! read-only for that reason, which `flock` allows.
+//!
+//! A child that another thread of the process forks while a guard is held inherits
+//! the open file (and so the lock) until it execs; Rust opens files close-on-exec,
+//! so the lock is released then. Dropping a guard can therefore release the lock a
+//! moment late, and callers poll for it (the bounded calls do, against their
+//! deadline) rather than expecting it free at once.
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
@@ -190,9 +205,9 @@ impl ProjectLocks {
     pub(crate) fn try_guard_and_file(
         &self,
         working_dir: &WorkingDir,
-    ) -> Result<(Arc<Mutex<()>>, ProjectFileLock), NonUtf8WorkingDir> {
+    ) -> Result<(Arc<Mutex<()>>, Option<ProjectFileLock>), NonUtf8WorkingDir> {
         let key = lock_key(working_dir)?;
-        let file = ProjectFileLock::for_key(&key);
+        let file = ProjectFileLock::for_project(&key);
         Ok((self.entry(key), file))
     }
 
@@ -224,6 +239,15 @@ pub(crate) struct FileGuard {
 }
 
 impl ProjectFileLock {
+    /// The cross-process lock the project whose canonical key is `key` needs: `None`
+    /// for a Dolt server-mode project (module docs), the lock otherwise.
+    pub(crate) fn for_project(key: &str) -> Option<Self> {
+        let server = !key.is_empty()
+            && crate::dolt::project_dolt_mode(&Path::new(key).join(".beads"))
+                == Some(crate::DoltMode::Server);
+        (!server).then(|| Self::for_key(key))
+    }
+
     /// The lock of the project whose canonical key is `key`.
     pub(crate) fn for_key(key: &str) -> Self {
         let in_project =
@@ -446,7 +470,50 @@ mod tests {
             "a second handle must wait"
         );
         drop(held);
-        assert!(lock.try_acquire().unwrap().is_some(), "released on drop");
+        // Released on drop, but a sibling test's fork may hold the file until its
+        // child execs (module docs), so the release is polled for (RCR-001).
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if lock.try_acquire().unwrap().is_some() {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < until,
+                "not released on drop within 2 s"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(5));
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// Only a Dolt server-mode project goes without the file lock; an embedded one,
+    /// one with another or no mode, and one without `metadata.json` take it.
+    #[test]
+    fn a_server_mode_project_takes_no_file_lock() {
+        let root = scratch("server-mode");
+        let project = root.join("project");
+        std::fs::create_dir_all(project.join(".beads")).unwrap();
+        let key = lock_key(&WorkingDir::new(&utf8(&project))).unwrap();
+        assert!(
+            ProjectFileLock::for_project(&key).is_some(),
+            "no metadata.json"
+        );
+        let meta = project.join(".beads").join("metadata.json");
+        for (text, locked) in [
+            (r#"{"dolt_mode":"server"}"#, false),
+            (r#"{"dolt_mode":"Server"}"#, false),
+            (r#"{"dolt_mode":"embedded"}"#, true),
+            (r#"{"dolt_mode":"proxied-server"}"#, true),
+            ("{}", true),
+            ("not json", true),
+        ] {
+            std::fs::write(&meta, text).unwrap();
+            assert_eq!(
+                ProjectFileLock::for_project(&key).is_some(),
+                locked,
+                "{text}"
+            );
+        }
         let _ = std::fs::remove_dir_all(&root);
     }
 

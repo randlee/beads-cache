@@ -94,6 +94,11 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   `bdc get`, never run two `bd` on one embedded Dolt database. The wait is
   bounded by the call's deadline (`TimeoutPhase::Lock`) and the lock is
   released on every return and when the process dies (ADR-BDCLI-0006).
+  Only an embedded-Dolt project takes it: one whose `.beads/metadata.json`
+  says Dolt server mode (`dolt_mode: "server"`) runs concurrent `bd` by design
+  and takes none (a missing or unreadable file counts as embedded). The
+  protection is partial: agents and bd hooks that run `bd` directly do not
+  take the lock. Add `sc-bd-cli.lock` to `.beads/.gitignore`.
 - `sc-bd-cli`, `bd-cache-sync` (RSH-002): the timeout kill of a `bd` or `atm`
   process group is `kill(-pgid, SIGKILL)` itself (`sc_bd_cli::process_group`),
   not the `kill` program, so a dolt grandchild dies with the group in an
@@ -101,7 +106,8 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
 - `bdc` (RSH-001): SIGTERM, SIGINT and SIGHUP no longer leave the `bd` / dolt
   group running. The running `bd` call's group is killed and reaped, the
   locks are released, `cache tick` and its `atm` child stop, the envelope is
-  written, and bdc exits `128 + signal` (143 for SIGTERM; ADR-CLI-0005). On
+  written, and bdc exits `128 + signal` (143 for SIGTERM; contract §3,
+  ADR-CLI-0005). On
   Linux a `bd` child also gets `PR_SET_PDEATHSIG`. New:
   `sc_bd_cli::shutdown`, `BoundedError::Interrupted`.
 - `bd-cache-sync` (RSH-003): `AtmSender::resolve` searches the absolute
