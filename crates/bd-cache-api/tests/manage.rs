@@ -165,13 +165,18 @@ fn health_reports_down_during_an_outage_and_probes_on_request() {
     );
     let refreshed = ok(&mut cache, "cache refresh scopes", &json!({}));
     assert_eq!(refreshed["results"][0]["scope"], "phase-x");
-    let failed = refreshed["failed"].as_u64().unwrap();
-    let report = &refreshed["results"][0]["report"];
-    // An unreachable backend is an outage: reported, not a failed scope.
-    assert!(
-        failed == 1 || report["outage"] != Value::Null,
-        "{refreshed}"
+    // Lead ruling S75: a sync that could not reach bd is a failed result,
+    // BD_UNAVAILABLE (unavailable, retryable), though the core returned Ok
+    // with an outage in its report.
+    assert_eq!(refreshed["failed"], 1, "{refreshed}");
+    let result = &refreshed["results"][0];
+    assert_eq!(
+        result["error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+        "{result}"
     );
+    assert_eq!(result["error"]["kind"], "unavailable", "{result}");
+    assert_eq!(result["error"]["retryable"], true, "{result}");
+    assert_ne!(result["report"]["outage"], Value::Null, "{result}");
     let h = ok(&mut cache, "cache health", &json!({}));
     assert_eq!(h["state"], "down");
     assert_eq!(h["outage"]["last_error"]["code"], "BD_CACHE.BD_UNAVAILABLE");
@@ -192,6 +197,8 @@ fn refresh_scopes_names_each_scope_and_counts_failures() {
     assert_eq!(results[1]["scope"], "phase-y");
     assert_eq!(results[0]["report"], Value::Null);
     assert_eq!(results[0]["error"]["code"], "BD_CACHE.SYNC_FAILED");
+    assert_eq!(results[0]["error"]["kind"], "unavailable");
+    assert_eq!(results[0]["error"]["retryable"], true);
     assert_eq!(results[1]["error"], Value::Null);
     assert_eq!(r["failed"], 1);
     let scopes = ok(&mut cache, "cache scopes", &json!({}));
@@ -307,4 +314,22 @@ fn a_configured_scope_never_synced_is_not_served() {
             "bdc cache refresh scopes --scope phase-x"
         );
     }
+}
+
+/// Lead ruling S75 for `cache refresh issues`: ids that could not reach bd
+/// fail the command with BD_UNAVAILABLE, unavailable and retryable (there is
+/// no per-id result).
+#[test]
+fn refresh_issues_with_bd_unreachable_is_bd_unavailable() {
+    let (w, mut cache) = world();
+    w.bd.inject(
+        FakeOp::ListByIds,
+        Injection::Unavailable { timed_out: false },
+    );
+    let e = err(&mut cache, "cache refresh issues", &json!({"ids": ["b1"]}));
+    assert_eq!(e["code"], "BD_CACHE.BD_UNAVAILABLE", "{e}");
+    assert_eq!(e["kind"], "unavailable", "{e}");
+    // The envelope's error has no `retryable`; the error table holds it (§4).
+    let spec = bd_cache_api::spec(e["code"].as_str().unwrap()).unwrap();
+    assert!(spec.retryable, "{e}");
 }

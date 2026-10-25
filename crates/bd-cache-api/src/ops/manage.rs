@@ -15,8 +15,8 @@ use crate::data::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
     CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthState,
     JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpError, OpenWorkData, ProbeData, ProjectData, RefreshScopeResult, RowsXCache, ScopeData,
-    StateCountsData, SyncReportData, opt_time, outage, rows,
+    OpError, OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, RowsXCache,
+    ScopeData, StateCountsData, SyncReportData, opt_time, outage, rows,
 };
 use crate::error::{ApiError, CODE_PREFIX};
 use crate::ops::beads::{META_BD_VERSION, META_SCHEMA_VERSION, META_SHA};
@@ -186,7 +186,8 @@ pub(crate) fn cache_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 }
 
 /// `cache refresh scopes [S…]`: one sync per scope, each under the per-call
-/// cap; a failed scope is reported in its result and counted in `failed`.
+/// cap; a failed scope is reported in its result and counted in `failed`. A
+/// sync that returned an outage is failed too, with `BD_UNAVAILABLE` (S75).
 ///
 /// # Errors
 ///
@@ -206,6 +207,14 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
         let result = match cache.sync(&s, d) {
             Ok(r) => RefreshScopeResult {
                 scope: s.label(),
+                // A sync that could not reach bd serves stale rows (ADR-BDC-0005),
+                // but it did not refresh: a failed result (lead ruling S75).
+                error: r.outage.as_ref().map(|o| {
+                    RefreshError::of(OpError {
+                        code: format!("{CODE_PREFIX}BD_UNAVAILABLE"),
+                        message: OpError::from_stored(&o.last_error).message,
+                    })
+                }),
                 report: Some(SyncReportData {
                     rebuilt: r.rebuilt,
                     model_current: r.model_current,
@@ -214,12 +223,11 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
                     deferred: r.deferred,
                     outage: outage(r.outage.as_ref()),
                 }),
-                error: None,
             },
             Err(e) => RefreshScopeResult {
                 scope: s.label(),
                 report: None,
-                error: Some(OpError::of(&e)),
+                error: Some(RefreshError::of(OpError::of(&e))),
             },
         };
         results.push(result);

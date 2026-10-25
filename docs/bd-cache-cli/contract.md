@@ -392,6 +392,15 @@ reason ready parity is stated against the released CLI.
 | `cache journal announce <seq>` | `mark_announced` | (cron) | store |
 | `cache tick [--budget-ms N] [--atm PATH]` | bd-cache-sync `tick` | (`bd_cache_cron.py`) | bd, store, atm |
 
+**Refresh that cannot reach bd (lead ruling S75).** A `cache refresh scopes`
+result for a scope whose sync could not reach bd is a failed result: `error`
+is `BD_UNAVAILABLE` (kind `unavailable`, retryable) with the outage's message,
+and it counts in `data.failed`, even though the core returned its report with
+an `outage` (kept in `report`). ADR-BDC-0005 keeps serving stale rows; that is
+a read-path rule, not a refresh success. `cache refresh issues` already fails
+as a whole with `BD_UNAVAILABLE`. The core is unchanged; the mapping is
+bd-cache-api's refresh op.
+
 Three cases have fixed answers:
 
 - A bare `cache refresh` is `USAGE`, with `details.valid: [scopes, issues]`.
@@ -405,8 +414,8 @@ Three cases have fixed answers:
 | `cache status` | `{cache_path, contract_version, store_schema_version: int, project: {database, project_id}, backend: {bd_version, bd_schema_sha256, bd_schema_version}, journal: {pending, applied, escalated, resolved, by_scope: {<scope>: {<state>: int}}, unscoped: {<state>: int}}, scopes: [Scope], escalated: [Entry], outage, stale: [id]}` | scopes by id; entries by seq, ascending |
 | `cache health` | `{state: "ok"\|"degraded"\|"down", outage, open_work: {pending, escalated_unannounced}, stale_rows: int, probe: {bd_version, model_current, rebuilt}\|null}` | — |
 | `cache scopes` | `{scopes: [Scope]}`. A Scope is `{scope: "phase-bk", configured: bool, on_demand: bool, last_started_at, last_ok_at, last_error: OpError\|null, alert, beads: int}`, where `alert` is `"backend_unavailable"`, `"sync_failed"`, a `BD_CACHE` code, or `null`. | by scope id |
-| `cache refresh scopes` | `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: OpError\|null}]}` | request order (by scope id when no scope is named) |
-| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms`. | request order |
+| `cache refresh scopes` | `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4. A scope that could not reach bd is a failed result (S75, above). | request order (by scope id when no scope is named) |
+| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms`. Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
 | `cache flush [--start-gate-ms N] [--deadline-ms M]` | `{busy, applied: [seq], retrying: [seq], escalated: [{seq, bead, op, actor, scope, reason: OpError}], deferred: [seq], deferred_in_flight: [seq], outage}`. N and M default to 25,000 and 28,000 ms, and M must be greater than N. | seq, ascending |
 | `cache evict` | `{scope, beads_deleted: int, out_of_scope_swept: int}` | — |
 | `journal get` | `{entry: Entry}` | — |

@@ -17,12 +17,12 @@
 mod support;
 
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 use serde_json::Value;
 use support::{
-    BD_CACHE, BDC, FAKE_BD, Ran, TestRepo, envelope_json, metadata, parse_envelope, path_str,
-    two_beads,
+    BD_CACHE, BDC, FAKE_BD, Ran, TestRepo, envelope_json, hermetic, metadata, parse_envelope,
+    path_str, two_beads,
 };
 
 /// A repository whose scope `phase-x` has been synced once.
@@ -178,6 +178,25 @@ fn exit_2_is_usage_for_the_shape_of_argv_only() {
     );
 }
 
+/// `--limit +5` is refused exactly as `--input {"limit": "+5"}` is: the CLI
+/// hands the decoder the same value (QA minor on 254317c).
+#[test]
+fn a_signed_integer_flag_is_refused_as_through_input() {
+    let repo = synced();
+    let dir = tempfile::TempDir::new().unwrap();
+    let file = dir.path().join("req.json");
+    std::fs::write(&file, r#"{"scope": "x", "limit": "+5"}"#).unwrap();
+    let (flag_exit, flag) = repo.json(&["issues", "list", "--scope", "x", "--limit", "+5"]);
+    let (input_exit, input) = repo.json(&["issues", "list", "--input", path_str(&file)]);
+    assert_eq!((flag_exit, code(&flag)), (3, "BD_CACHE.BAD_ARGS"), "{flag}");
+    assert_eq!(
+        (input_exit, code(&input)),
+        (flag_exit, code(&flag)),
+        "{input}"
+    );
+    assert_eq!(flag["error"]["details"], input["error"]["details"]);
+}
+
 /// `USAGE` is JSON even with `--format text` (contract §8).
 #[test]
 fn usage_is_json_even_with_format_text() {
@@ -215,7 +234,7 @@ fn input_gives_the_whole_request_from_a_file_or_stdin() {
     assert_eq!(v["data"]["id"], "b-2");
 
     let root = repo.root();
-    let mut child = Command::new(BDC)
+    let mut child = hermetic(BDC)
         .args([
             "--repo",
             path_str(&root),
@@ -362,7 +381,7 @@ fn both_binaries_give_identical_output_for_a_command() {
         "b-1",
     ];
     let run = |bin: &str| -> Ran {
-        Command::new(bin)
+        hermetic(bin)
             .args(args)
             .env(bd_cache_cli::scenario::SCENARIO_ENV, repo.scenario_path())
             .output()
@@ -447,7 +466,7 @@ fn text_help_where_the_envelope_is_due_fails_the_parse() {
 #[cfg(unix)]
 fn under_pty(argv: &[&str]) -> Ran {
     let quoted: Vec<String> = argv.iter().map(|a| format!("'{a}'")).collect();
-    let mut cmd = Command::new("script");
+    let mut cmd = hermetic("script");
     if cfg!(target_os = "macos") {
         cmd.arg("-q").arg("/dev/null").args(argv);
     } else {
@@ -533,7 +552,41 @@ fn flag_beats_env_beats_toml_beats_default() {
     assert_eq!((exit, code(&v)), (3, "BD_CACHE.CONFIG_INVALID"), "{v}");
 }
 
+/// A `bd` installed in one of the directories sc-bd-cli puts ahead of every
+/// child's `PATH` (`crates/sc-bd-cli/src/path.rs`), as they are in a
+/// [`hermetic`] child (no `HOME`, `GOPATH`, `USERPROFILE` or `LOCALAPPDATA`).
+/// A bare default `bd` finds it whatever `PATH` the test sets.
+fn host_bd() -> Option<std::path::PathBuf> {
+    let dirs: &[&str] = if cfg!(windows) {
+        &[]
+    } else {
+        &[
+            "/opt/homebrew/bin",
+            "/usr/local/bin",
+            "/home/linuxbrew/.linuxbrew/bin",
+            "/usr/bin",
+            "/bin",
+            "/.local/bin",
+            "/go/bin",
+            "/.cargo/bin",
+        ]
+    };
+    dirs.iter()
+        .map(|d| Path::new(d).join("bd"))
+        .find(|p| p.exists())
+}
+
 /// `bd = "…"` in TOML is ignored: a planted bd named there never runs.
+///
+/// The planted bd is a copy of fake-bd over this scenario, so had it run the
+/// refresh would store the scenario's two rows, as the control below shows.
+/// With no `--bd`, no `BD_CACHE__BD` and an empty `PATH`, the default bare
+/// `bd` is not found (CI), unless a bd is installed in a directory sc-bd-cli
+/// always searches ([`host_bd`]; a developer's Mac with Homebrew bd), which
+/// answers without a database. Either way the planted bd does not run and
+/// the scope is a failed result (lead ruling S75); which error it carries is
+/// asserted for each case, so the outcome never depends on the host
+/// silently.
 #[test]
 fn bd_is_never_read_from_toml() {
     let repo = TestRepo::new(&two_beads());
@@ -552,13 +605,34 @@ fn bd_is_never_read_from_toml() {
     write_toml(&repo, &toml);
     let root = repo.root();
     let args = ["--repo", path_str(&root), "cache", "refresh", "scopes", "x"];
-    // No --bd, no BD_CACHE__BD, and no bd on PATH: the refresh cannot reach a bd.
+    // No --bd, no BD_CACHE__BD, and no bd on PATH.
     let (exit, v) =
         envelope_json(&repo.bdc_raw(&root, &args, &[("PATH", path_str(empty_path.path()))]));
     assert_eq!(exit, 0, "the bd key does not make the file invalid: {v}");
-    assert_eq!(v["data"]["failed"], 1, "the planted bd from TOML ran: {v}");
-    assert!(!v["data"]["results"][0]["error"].is_null(), "{v}");
-    // The control: the same binary named by BD_CACHE__BD runs and syncs.
+    let result = &v["data"]["results"][0];
+    // The security property: the planted bd never ran, so nothing was stored.
+    assert_eq!(
+        result["report"]["stored"].as_u64().unwrap_or(0),
+        0,
+        "the planted bd from TOML ran: {v}"
+    );
+    assert_eq!(
+        v["data"]["failed"], 1,
+        "the refresh reached no usable bd: {v}"
+    );
+    let want = if host_bd().is_some() {
+        "BD_CACHE.SYNC_FAILED"
+    } else {
+        "BD_CACHE.BD_UNAVAILABLE"
+    };
+    assert_eq!(
+        result["error"]["code"],
+        want,
+        "host bd {:?}: {v}",
+        host_bd()
+    );
+    assert_eq!(result["error"]["retryable"], true, "{v}");
+    // The control: the same binary named by BD_CACHE__BD runs and syncs both rows.
     let (exit, v) = envelope_json(&repo.bdc_raw(
         &root,
         &args,
@@ -568,6 +642,67 @@ fn bd_is_never_read_from_toml() {
         ],
     ));
     assert_eq!((exit, &v["data"]["failed"]), (0, &Value::from(0)), "{v}");
+    assert_eq!(v["data"]["results"][0]["report"]["stored"], 2, "{v}");
+}
+
+/// Lead ruling S76 (QA RCR-002): an empty `PATH` segment never resolves a
+/// bare bd name against the repository root, where every bd child runs.
+/// An executable committed in the repository writes a marker if it runs; the
+/// name is one no host installs, so sc-bd-cli's fixed install directories
+/// cannot answer first and hide the empty segment.
+#[cfg(unix)]
+#[test]
+fn an_empty_path_segment_never_runs_a_bd_committed_in_the_repo() {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    let repo = TestRepo::new(&two_beads());
+    let root = repo.root();
+    let marks = tempfile::TempDir::new().unwrap();
+    let marker = marks.path().join("ran");
+    let name = "bdc-s76-committed-bd";
+    let committed = root.join(name);
+    std::fs::write(
+        &committed,
+        format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(&committed, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let args = [
+        "--repo",
+        path_str(&root),
+        "--bd",
+        name,
+        "cache",
+        "refresh",
+        "scopes",
+        "x",
+    ];
+    for path in [
+        None,
+        Some("/usr/bin::/bin"),
+        Some(":/usr/bin"),
+        Some("/usr/bin:"),
+    ] {
+        let mut cmd = hermetic(BDC);
+        cmd.args(args)
+            .current_dir(&root)
+            .env(bd_cache_cli::scenario::SCENARIO_ENV, repo.scenario_path());
+        match path {
+            None => cmd.env_remove("PATH"),
+            Some(p) => cmd.env("PATH", p),
+        };
+        let (exit, v) = envelope_json(&cmd.output().unwrap().into());
+        assert!(
+            !marker.exists(),
+            "PATH {path:?}: the {name} committed in the repository ran: {v}"
+        );
+        assert_eq!(exit, 0, "PATH {path:?}: {v}");
+        assert_eq!(v["data"]["failed"], 1, "PATH {path:?}: {v}");
+        assert_eq!(
+            v["data"]["results"][0]["error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+            "PATH {path:?}: {v}"
+        );
+    }
 }
 
 /// No upward search: from a subdirectory, the parent's `.beads` is not found.

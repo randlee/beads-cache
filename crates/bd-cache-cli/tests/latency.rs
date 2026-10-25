@@ -21,11 +21,10 @@
 mod support;
 
 use std::path::Path;
-use std::process::Command;
 use std::time::{Duration, Instant};
 
 use bd_cache_cli::scenario::{SCENARIO_ENV, Scenario};
-use support::{BDC, FAKE_BD, TestRepo, labelled, path_str};
+use support::{BDC, FAKE_BD, TestRepo, hermetic, labelled, path_str};
 
 /// The number of timed runs per case.
 const RUNS: usize = 50;
@@ -45,7 +44,7 @@ fn measure(repo: &TestRepo) -> (Duration, Duration) {
     let root = repo.root();
     let run = || {
         let started = Instant::now();
-        let out = Command::new(BDC)
+        let out = hermetic(BDC)
             .args([
                 "--repo",
                 path_str(&root),

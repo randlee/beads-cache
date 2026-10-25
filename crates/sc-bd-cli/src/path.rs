@@ -31,8 +31,7 @@ pub fn get_extended_path() -> String {
             format!(r"{}\go\bin", userprofile),
             format!(r"{}\.cargo\bin", userprofile),
         ];
-        extra_paths.extend(current_path.split(';').map(String::from));
-        extra_paths.join(";")
+        join_extended(extra_paths, &current_path, ';')
     }
     #[cfg(not(target_os = "windows"))]
     {
@@ -50,9 +49,26 @@ pub fn get_extended_path() -> String {
             format!("{}/bin", gopath),
             format!("{}/.cargo/bin", home),
         ];
-        extra_paths.extend(current_path.split(':').map(String::from));
-        extra_paths.join(":")
+        join_extended(extra_paths, &current_path, ':')
     }
+}
+
+/// `extra` followed by the non-empty segments of the inherited `PATH`, joined
+/// with `sep`.
+///
+/// An empty segment (an unset or empty `PATH`, or a leading, trailing or
+/// doubled separator) means the working directory to `execvp` and to Windows'
+/// search, and every `bd` child runs in the repository root: kept, it would
+/// run a committed `<repo>/bd` for a bare `bd` (lead ruling S76, QA RCR-002).
+/// So empty segments are dropped, and an unset `PATH` appends nothing.
+fn join_extended(mut extra: Vec<String>, inherited: &str, sep: char) -> String {
+    extra.extend(
+        inherited
+            .split(sep)
+            .filter(|segment| !segment.is_empty())
+            .map(String::from),
+    );
+    extra.join(&sep.to_string())
 }
 
 /// Directories the CLI probe searches, in order, without duplicates.
@@ -70,6 +86,37 @@ pub fn extended_path_entries() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Lead ruling S76 (QA RCR-002): no inherited `PATH` adds an empty
+    /// segment, which would resolve a bare `bd` in the repository root.
+    /// Both separators, whatever the host platform.
+    #[test]
+    fn the_inherited_path_never_adds_an_empty_segment() {
+        let extra = || vec!["/opt/homebrew/bin".to_owned(), "/usr/bin".to_owned()];
+        for sep in [':', ';'] {
+            let s = sep.to_string();
+            let cases = [
+                (String::new(), vec![]),
+                (s.clone(), vec![]),
+                (format!("{s}{s}"), vec![]),
+                (format!("/usr/bin{s}{s}/bin"), vec!["/usr/bin", "/bin"]),
+                (format!("{s}/usr/bin"), vec!["/usr/bin"]),
+                (format!("/usr/bin{s}"), vec!["/usr/bin"]),
+                (format!("{s}/a{s}{s}/b{s}"), vec!["/a", "/b"]),
+            ];
+            for (inherited, tail) in cases {
+                let joined = join_extended(extra(), &inherited, sep);
+                let segments: Vec<&str> = joined.split(sep).collect();
+                assert!(
+                    segments.iter().all(|seg| !seg.is_empty()),
+                    "{inherited:?} with {sep:?}: {joined:?}"
+                );
+                let mut want = vec!["/opt/homebrew/bin", "/usr/bin"];
+                want.extend(tail);
+                assert_eq!(segments, want, "{inherited:?} with {sep:?}");
+            }
+        }
+    }
 
     #[test]
     fn extended_path_entries_are_nonempty_and_deduplicated() {
@@ -113,6 +160,7 @@ mod tests {
                 "extended PATH missing go bin dir: {path}"
             );
             let ambient = env::var("PATH").unwrap_or_default();
+            let ambient = join_extended(Vec::new(), &ambient, ':');
             assert!(ambient.is_empty() || path.ends_with(&ambient));
         }
         #[cfg(target_os = "windows")]

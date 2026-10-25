@@ -8,6 +8,14 @@ All crates in the workspace share one version.
 
 ## [Unreleased]
 
+### Security
+
+- `sc-bd-cli`: the `PATH` given to every `bd` child no longer carries an empty
+  segment from the inherited `PATH` (unset, empty, or a leading, trailing or
+  doubled `:` / `;`). Such a segment meant the working directory, which is the
+  repository root, so a bare `bd` could run a committed `<repo>/bd`
+  (QA RCR-002, lead ruling S76).
+
 ### Changed
 
 Phase-end fixes, after the 0.1.0 code described below.

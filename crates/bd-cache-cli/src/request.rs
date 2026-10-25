@@ -63,6 +63,9 @@ pub(crate) fn from_input(source: &str) -> Result<Value, ApiError> {
 fn scalar(a: &ArgSpec, text: &str) -> Result<Value, ApiError> {
     Ok(match a.ty {
         Ty::Str => Value::String(text.to_owned()),
+        // Only JSON's integer form is a number, so `+5` or `05` reaches the
+        // decoder as text and is refused as it is through `--input` (QA minor).
+        Ty::Int if !json_integer(text) => Value::String(text.to_owned()),
         Ty::Int => text
             .parse::<i64>()
             .map(Value::from)
@@ -72,6 +75,15 @@ fn scalar(a: &ArgSpec, text: &str) -> Result<Value, ApiError> {
             ApiError::bad_member(a.member, format!("{}: invalid JSON: {e}", a.spelled()))
         })?,
     })
+}
+
+/// `text` is an integer as JSON writes one: an optional `-`, then `0` or
+/// digits with no leading zero.
+fn json_integer(text: &str) -> bool {
+    let digits = text.strip_prefix('-').unwrap_or(text);
+    !digits.is_empty()
+        && digits.bytes().all(|b| b.is_ascii_digit())
+        && (digits == "0" || !digits.starts_with('0'))
 }
 
 fn value_of(a: &ArgSpec, m: &ArgMatches) -> Result<Option<Value>, ApiError> {
@@ -209,6 +221,26 @@ mod tests {
                 "patch": {"assignee": "x", "status": "open",
                     "metadata": {"set": {"k": 1}, "unset": ["old"]}}}))
         );
+    }
+
+    /// An integer flag takes JSON's integer form only, so the CLI and
+    /// `--input` hand the decoder the same value (QA minor on 254317c).
+    #[test]
+    fn an_integer_flag_is_a_number_only_in_json_form() {
+        for (text, want) in [
+            ("5", json!(5)),
+            ("0", json!(0)),
+            ("+5", json!("+5")),
+            ("05", json!("05")),
+            ("5x", json!("5x")),
+        ] {
+            let r = request(&["issues", "list", "--scope", "x", "--limit", text]).unwrap();
+            assert_eq!(r["limit"], want, "--limit {text}");
+        }
+        // clap reads a leading `-` as a flag; the rule itself still holds.
+        assert!(json_integer("-3"));
+        assert!(!json_integer("-"));
+        assert!(!json_integer("-05"));
     }
 
     #[test]

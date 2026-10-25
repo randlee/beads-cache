@@ -4,7 +4,7 @@
 //! | Scenario | Test |
 //! |---|---|
 //! | an outage during a write | [`an_outage_during_a_write`] |
-//! | an escalation at flush (`not_closable`, a guard miss) | [`an_escalation_at_flush`] |
+//! | an escalation at flush (a guard miss; a refused close, `PRECONDITION` over the bd CLI, S69) | [`a_guard_miss_escalates_at_flush`], [`a_refused_close_escalates_at_flush`] |
 //! | a partial `refresh scopes` | [`a_partial_refresh_scopes`] |
 //! | `fresh_within` running out | [`fresh_within_runs_out`] |
 //! | a schema change (rebuild) | [`a_schema_change_rebuilds`] |
@@ -107,16 +107,23 @@ fn an_outage_during_a_write() {
     );
 }
 
-/// Acceptance 6: a close bd refuses and a guard that no longer holds each
-/// escalate at flush; `cache flush` lists both in `escalated[]`, and
-/// `journal get` shows `last_error.code` with no note.
-///
-/// Over the bd CLI a refused close is exit 13, which sc-bd-cli maps to
-/// `precondition_failed`, so it escalates as `BD_CACHE.PRECONDITION`; only an
-/// HTTP backend can report `not_closable` itself (lead ruling S69, contract
-/// §5.4).
+/// The entry `seq` escalated with `code` and no note, as `cache journal get`
+/// reads it.
+fn escalated_with(repo: &TestRepo, seq: i64, code: &str) {
+    let entry = ok(repo, &["cache", "journal", "get", &seq.to_string()])["entry"].clone();
+    assert_eq!(entry["state"], "escalated", "{entry}");
+    assert_eq!(entry["last_error"]["code"], code, "{entry}");
+    assert!(entry["note"].is_null(), "no note before a resolve: {entry}");
+}
+
+/// Acceptance 6, the guard miss (QA RCR-001): an update guarded on
+/// `--expected-status open` is flushed after bd moved the bead on. No write
+/// fault is injected: the fake bd's own `--if-status` check refuses it, so
+/// the escalation proves the guard reached bd at flush. `cache flush` lists it
+/// in `escalated[]` with `PRECONDITION`, and `journal get` shows
+/// `last_error.code` with no note.
 #[test]
-fn an_escalation_at_flush() {
+fn a_guard_miss_escalates_at_flush() {
     let repo = synced();
     let guarded = ok(
         &repo,
@@ -134,6 +141,37 @@ fn an_escalation_at_flush() {
             "open",
         ],
     );
+    let g = guarded["x_cache"]["seq"].as_i64().unwrap();
+    // bd moves on: someone else starts b-1.
+    repo.edit(|s| {
+        let b1 = s.rows.iter_mut().find(|b| b.id.as_str() == "b-1").unwrap();
+        b1.status = Some("in_progress".to_owned());
+    });
+
+    let flush = ok(&repo, &["cache", "flush"]);
+    let escalated = flush["escalated"].as_array().unwrap();
+    assert_eq!(escalated.len(), 1, "{flush}");
+    let e = &escalated[0];
+    assert_eq!(e["seq"], g, "{flush}");
+    assert_eq!(e["op"], "update");
+    assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
+    assert_eq!(e["actor"], "dev");
+    assert_eq!(e["scope"], "phase-x");
+    assert_eq!(flush["applied"], json!([]));
+    escalated_with(&repo, g, "BD_CACHE.PRECONDITION");
+    let b1 = repo.scenario();
+    let b1 = b1.rows.iter().find(|b| b.id.as_str() == "b-1").unwrap();
+    assert_ne!(b1.assignee.as_deref(), Some("dev"), "nothing written");
+}
+
+/// Acceptance 6, the refused close: bd refuses the close (`faults.refuse_close`,
+/// bd exit 13), while an unguarded update in the same flush applies. Over
+/// the bd CLI exit 13 is `precondition_failed`, so the close escalates as
+/// `BD_CACHE.PRECONDITION`; only an HTTP backend can report `not_closable`
+/// itself (lead ruling S69, contract §5.4).
+#[test]
+fn a_refused_close_escalates_at_flush() {
+    let repo = synced();
     let closing = ok(
         &repo,
         &[
@@ -148,45 +186,48 @@ fn an_escalation_at_flush() {
             "done",
         ],
     );
-    let (g, c) = (
-        guarded["x_cache"]["seq"].as_i64().unwrap(),
-        closing["x_cache"]["seq"].as_i64().unwrap(),
+    let updating = ok(
+        &repo,
+        &[
+            "issues",
+            "update",
+            "b-1",
+            "--actor",
+            "dev",
+            "--idempotency-key",
+            "update-1",
+            "--assignee",
+            "dev",
+        ],
     );
-    // bd moves on: b-1 is started by someone else, and bd refuses every write.
-    repo.edit(|s| {
-        let b1 = s.rows.iter_mut().find(|b| b.id.as_str() == "b-1").unwrap();
-        b1.status = Some("in_progress".to_owned());
-        s.faults.refuse_write = Some(RefuseWrite { exit_code: 13 });
-    });
+    let (c, u) = (
+        closing["x_cache"]["seq"].as_i64().unwrap(),
+        updating["x_cache"]["seq"].as_i64().unwrap(),
+    );
+    repo.edit(|s| s.faults.refuse_close = Some(RefuseWrite { exit_code: 13 }));
 
     let flush = ok(&repo, &["cache", "flush"]);
     let escalated = flush["escalated"].as_array().unwrap();
-    let seqs: Vec<i64> = escalated
-        .iter()
-        .map(|e| e["seq"].as_i64().unwrap())
-        .collect();
-    assert_eq!(seqs, [g, c], "{flush}");
-    for e in escalated {
-        assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
-        assert_eq!(e["actor"], "dev");
-        assert_eq!(e["scope"], "phase-x");
-    }
-    assert_eq!(escalated[1]["op"], "close");
-    assert_eq!(flush["applied"], json!([]));
-
-    for seq in [g, c] {
-        let entry = ok(&repo, &["cache", "journal", "get", &seq.to_string()])["entry"].clone();
-        assert_eq!(entry["state"], "escalated", "{entry}");
-        assert_eq!(
-            entry["last_error"]["code"], "BD_CACHE.PRECONDITION",
-            "{entry}"
-        );
-        assert!(entry["note"].is_null(), "no note before a resolve: {entry}");
-    }
+    assert_eq!(escalated.len(), 1, "{flush}");
+    let e = &escalated[0];
+    assert_eq!(
+        (e["seq"].as_i64(), &e["op"]),
+        (Some(c), &json!("close")),
+        "{flush}"
+    );
+    assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
+    assert_eq!(e["actor"], "dev");
+    assert_eq!(e["scope"], "phase-x");
+    assert_eq!(
+        flush["applied"],
+        json!([u]),
+        "only the close is refused: {flush}"
+    );
+    escalated_with(&repo, c, "BD_CACHE.PRECONDITION");
     let listed = ok(&repo, &["cache", "journal", "list"]);
     assert_eq!(
         listed["entries"].as_array().map(Vec::len),
-        Some(2),
+        Some(1),
         "{listed}"
     );
     assert_eq!(

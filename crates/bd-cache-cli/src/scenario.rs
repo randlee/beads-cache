@@ -98,6 +98,10 @@ pub struct Faults {
     /// Every write is refused with this exit code; the rows do not change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refuse_write: Option<RefuseWrite>,
+    /// Every `bd close` is refused with this exit code; other writes run
+    /// (and check their own guards). The bead does not change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refuse_close: Option<RefuseWrite>,
     /// Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one
     /// of these labels fails with exit 1 (a failure that is not an outage);
     /// the other labels answer. One scope of a `cache refresh scopes` can so
@@ -112,6 +116,15 @@ pub struct Faults {
 pub struct RefuseWrite {
     /// The exit code of the refused write; `13` is bd's refused guard.
     pub exit_code: i32,
+}
+
+/// A refused write as the fake's injection: `13` is bd's refused guard.
+fn refusal(refuse: RefuseWrite) -> Injection {
+    if refuse.exit_code == EXIT_REFUSED {
+        Injection::Refused(Refusal::Precondition)
+    } else {
+        Injection::Failed(refuse.exit_code)
+    }
 }
 
 fn default_now() -> String {
@@ -214,12 +227,10 @@ impl Scenario {
             );
         }
         if let Some(refuse) = self.faults.refuse_write {
-            let outcome = if refuse.exit_code == EXIT_REFUSED {
-                Injection::Refused(Refusal::Precondition)
-            } else {
-                Injection::Failed(refuse.exit_code)
-            };
-            backend.inject_where(|call| call.op().is_write(), outcome);
+            backend.inject_where(|call| call.op().is_write(), refusal(refuse));
+        }
+        if let Some(refuse) = self.faults.refuse_close {
+            backend.inject_where(|call| call.op() == FakeOp::Close, refusal(refuse));
         }
         if !self.faults.fail_labels.is_empty() {
             let labels = self.faults.fail_labels.clone();

@@ -3,7 +3,8 @@
 //! [`TestRepo`] is a temporary repository with a `.beads/metadata.json`
 //! (database [`DATABASE`], project [`PROJECT`]), a `.beads/bd-cache.toml`
 //! naming the scope [`LABEL`], and a scenario file. It runs
-//! `bdc --repo <repo> --bd <fake-bd>` as a real process, hands `BdCli` the
+//! `bdc --repo <repo> --bd <fake-bd>` as a real process in a [`hermetic`]
+//! environment, hands `BdCli` the
 //! same `fake-bd` binary, and parses what comes back.
 #![allow(
     dead_code,
@@ -70,9 +71,43 @@ impl From<Output> for Ran {
     }
 }
 
+/// The `PATH` every test process gets unless the test sets its own: system
+/// directories only, never the host's, so no installed `bd` and no
+/// developer's `PATH` order can change what a test sees.
+pub fn system_path() -> String {
+    if cfg!(windows) {
+        let root = std::env::var("SYSTEMROOT").unwrap_or_else(|_| r"C:\Windows".to_owned());
+        format!(r"{root}\System32;{root}")
+    } else {
+        "/usr/bin:/bin".to_owned()
+    }
+}
+
+/// A [`Command`] for `program` with a hermetic environment (QA RCR-002 item 3):
+/// the host environment is cleared, so no `BEADS_DIR`, `BEADS_ACTOR`,
+/// `BD_CACHE__*` or `PATH` of the machine running the tests reaches the
+/// child. Only `PATH` ([`system_path`]) and what a process needs to start
+/// are set (`SYSTEMROOT`, `SYSTEMDRIVE`, `WINDIR`, `TEMP` and `TMP` on
+/// Windows, `TMPDIR` elsewhere); a test adds the rest explicitly.
+pub fn hermetic(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut cmd = Command::new(program);
+    cmd.env_clear().env("PATH", system_path());
+    let keep: &[&str] = if cfg!(windows) {
+        &["SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "TEMP", "TMP"]
+    } else {
+        &["TMPDIR"]
+    };
+    for key in keep {
+        if let Some(v) = std::env::var_os(key) {
+            cmd.env(key, v);
+        }
+    }
+    cmd
+}
+
 /// Runs `binary` with `args` and no scenario.
 pub fn run_binary(binary: &str, args: &[&str]) -> Ran {
-    Command::new(binary)
+    hermetic(binary)
         .args(args)
         .output()
         .expect("the binary starts")
@@ -156,7 +191,7 @@ impl TestRepo {
         let root = self.root();
         let mut full = vec!["--repo", path_str(&root), "--bd", FAKE_BD];
         full.extend_from_slice(args);
-        Command::new(BDC)
+        hermetic(BDC)
             .args(&full)
             .env(SCENARIO_ENV, self.scenario_path())
             .output()
@@ -172,10 +207,11 @@ impl TestRepo {
         envelope_json(&ran)
     }
 
-    /// Runs `bdc <args>` in `cwd` with `envs` added (and `FAKE_BD_SCENARIO`), and
-    /// nothing else: no `--repo` and no `--bd` unless `args` gives them.
+    /// Runs `bdc <args>` in `cwd` in a [`hermetic`] environment with `envs`
+    /// added (and `FAKE_BD_SCENARIO`), and nothing else: no `--repo` and no
+    /// `--bd` unless `args` gives them.
     pub fn bdc_raw(&self, cwd: &Path, args: &[&str], envs: &[(&str, &str)]) -> Ran {
-        let mut cmd = Command::new(BDC);
+        let mut cmd = hermetic(BDC);
         cmd.args(args)
             .current_dir(cwd)
             .env(SCENARIO_ENV, self.scenario_path());
@@ -194,7 +230,7 @@ impl TestRepo {
 
     /// Runs `fake-bd <args>` itself, as `bd` would be run.
     pub fn fake_bd(&self, args: &[&str]) -> Ran {
-        Command::new(FAKE_BD)
+        hermetic(FAKE_BD)
             .args(args)
             .env(SCENARIO_ENV, self.scenario_path())
             .output()
