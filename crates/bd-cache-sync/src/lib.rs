@@ -69,6 +69,31 @@ mod reply;
 mod text;
 mod tick;
 
+#[cfg(all(test, unix))]
+mod test_script {
+    use std::path::Path;
+
+    /// Writes an executable test script through a `sh` child, so this
+    /// multi-threaded test process never holds a write fd on it that a fork in a
+    /// concurrent test could inherit and turn the exec into ETXTBSY (os error 26);
+    /// a rename would not help, because it keeps the same inode.
+    #[expect(
+        clippy::unwrap_used,
+        reason = "test-only helper; a failure fails the test"
+    )]
+    pub(crate) fn write(path: &Path, contents: &str) {
+        let status = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg("printf '%s' \"$1\" > \"$2\" && chmod 755 \"$2\"")
+            .arg("sh")
+            .arg(contents)
+            .arg(path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "cannot write {}", path.display());
+    }
+}
+
 #[doc(inline)]
 pub use announce::{AlertCause, OUTAGE_CAUSE};
 #[doc(inline)]

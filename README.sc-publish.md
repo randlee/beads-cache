@@ -20,8 +20,8 @@ Installation is three commands, run from the consumer repository root:
 # 1. Provision the exact pinned sc-compose 1.5.0 renderer wheel into a virtualenv.
 python plugins/sc-publish/.github/scripts/bootstrap_sc_compose.py --venv <venv>
 
-# 2. Install: copy every kit file byte-for-byte and render the two release
-#    manifests from your complete, caller-owned consumer input JSON.
+# 2. Install: copy every kit file byte-for-byte and render the release
+#    manifests plus publish-preflight.toml from your consumer input JSON.
 <venv>/bin/python plugins/sc-publish/install.py --input <consumer-input.json> <repo>
 
 # 3. Verify: a repeat dry-run must report no drift (exit 0).
@@ -31,11 +31,20 @@ python plugins/sc-publish/.github/scripts/bootstrap_sc_compose.py --venv <venv>
 The consumer input JSON is the single reviewable declaration of everything
 repository-specific: project identity, release targets, crates, release
 binaries, Python distributions, and the post-release channels the repository
-actually uses. Only two files are rendered from it —
-`release/publish-artifacts.toml` and `release/publish-channel-contracts.toml`;
-everything else is a shared verbatim copy. Re-running the installer after a
-kit upgrade re-synchronizes the copies; `--dry-run` exits 1 and prints a diff
-whenever a consumer file differs from the kit.
+actually uses. Three files are rendered from it —
+`release/publish-artifacts.toml`, `release/publish-channel-contracts.toml`, and
+`release/publish-preflight.toml` (repository-specific release checks); everything
+else is a shared verbatim copy. Re-running the installer after a kit upgrade
+re-synchronizes the copies; `--dry-run` exits 1 and prints a diff whenever a
+consumer file differs from the kit.
+
+**Customer-facing CLI documentation:** the kit does not require
+[sc-docli](https://crates.io/crates/sc-docli), but every consumer that ships a
+user-facing CLI **should** opt in via the optional `"docli"` object in consumer
+input JSON so Release Preflight regenerates CLI HTML and fails on drift — not
+on every sprint PR CI. See
+`docs/consumer-preflight-and-docli.md` for `preflight_checks`, the docli
+shape, and the recommended workflow.
 
 ## Pinning, bootstrap, and qualification
 
@@ -93,14 +102,26 @@ Consumers may opt in by declaring `[prerelease]` in
 `release/publish-artifacts.toml`. The installed `prerelease` skill is
 registered under both `.claude/skills/` and `.codex/skills/`, with `--list`,
 `--install`, and `--publish` modes (`--create` remains a compatibility alias).
-Publishing creates only GitHub prerelease archive pairs: it tags an explicitly
+Publishing creates only a GitHub prerelease carrying the same
+manifest-declared assets a real release builds: binary archives (when
+`release_binaries` is non-empty), every declared Python wheel for every
+platform, each declared sdist, and `checksums.txt`. It tags an explicitly
 authorized, clean non-protected branch,
 waits for `prerelease-archive.yml`, verifies every Release asset and checksum,
 and prints the Release URL. It never publishes to the normal package or
 channel registries. Install resolves a selected or latest matching
-prerelease, checksum-verifies the host archive, stages it under the manifest
-install root, updates the platform selector, and invokes the declared
-post-install and verification commands. Dry runs do not make network calls.
+prerelease, checksum-verifies the host archive and one deterministically
+selected host wheel per distribution, stages them atomically under the
+manifest install root, updates the platform selector, and invokes the declared
+post-install and verification commands (placeholders `{version}`,
+`{stage_dir}`, `{python}`, `{selector_dir}`, `{wheels}`). Install also works on
+a headless host without `gh` for a public repository whose `[project].homepage`
+is its GitHub URL. Dry runs do not make network calls.
+
+`[prerelease].binaries` may be empty or omitted for a consumer with no release
+binaries; such a consumer must declare `python_distributions`, and its
+prerelease contains only the wheels, sdists, and `checksums.txt`. Every name
+in a non-empty `binaries` list must be a declared release binary.
 
 ## The channel model
 

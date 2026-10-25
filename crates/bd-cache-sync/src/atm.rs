@@ -1032,21 +1032,18 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_helper_thread_that_cannot_start_fails_the_send_and_kills_the_child() {
-        use std::os::unix::fs::PermissionsExt as _;
-
         for refused in ["atm-send-stdout", "atm-send-stderr", "atm-send-stdin"] {
             let dir = tempfile::tempdir().unwrap();
             let pid_file = dir.path().join("pid");
             let atm = dir.path().join("atm");
-            std::fs::write(
+            // Written by a child so no inherited write fd can make the exec ETXTBSY.
+            crate::test_script::write(
                 &atm,
-                format!(
+                &format!(
                     "#!/bin/sh\necho $$ > '{}'\nexec sleep 30\n",
                     pid_file.display()
                 ),
-            )
-            .unwrap();
-            std::fs::set_permissions(&atm, std::fs::Permissions::from_mode(0o755)).unwrap();
+            );
             REFUSED.set(refused);
             PID_FILE.set(pid_file);
             CHILD_PID.set(0);

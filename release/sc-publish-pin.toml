@@ -8,4 +8,4 @@
 [sc-publish]
 repository = "https://github.com/randlee/sc-publish"
 # The org-blessed, consumer-qualified kit revision (full 40-character SHA).
-revision = "cbb9ce0858d168397421fa1d603a0ebfd5e19ac9"
+revision = "16457e06ade6c0b003ff75addb7d694e9da41fe2"

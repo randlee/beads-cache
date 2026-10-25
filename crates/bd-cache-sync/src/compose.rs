@@ -422,24 +422,21 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn two_compositions_of_one_project_never_run_bd_at_once() {
-        use std::os::unix::fs::PermissionsExt as _;
-
         let root = repo();
         let work = tempfile::tempdir().unwrap();
         let held = work.path().join("held");
         let overlap = work.path().join("overlap");
         let bd = work.path().join("bd");
-        std::fs::write(
+        // Written by a child so no inherited write fd can make the exec ETXTBSY.
+        crate::test_script::write(
             &bd,
-            format!(
+            &format!(
                 "#!/bin/sh\nif mkdir '{held}' 2>/dev/null; then sleep 0.2; rmdir '{held}'; \
                  else touch '{overlap}'; fi\necho 'bd version 1.3.0'\n",
                 held = held.display(),
                 overlap = overlap.display(),
             ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&bd, std::fs::Permissions::from_mode(0o755)).unwrap();
+        );
         let bd = bd.to_str().unwrap().to_owned();
         let project = ProjectRef::local(Some(root.path().to_str().unwrap().to_owned()));
 

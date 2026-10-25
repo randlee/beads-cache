@@ -28,6 +28,7 @@ TEMPLATES = {
         "release/publish-channel-contracts.toml"
     ),
     Path("release/publish-artifacts.toml.j2"): Path("release/publish-artifacts.toml"),
+    Path("release/publish-preflight.toml.j2"): Path("release/publish-preflight.toml"),
 }
 
 CHANNEL_NAMES = ("pypi", "npm", "homebrew", "scoop", "winget")
@@ -215,7 +216,13 @@ def load_install_values(path: Path) -> dict[str, object]:
         prerelease = _require_mapping(values["prerelease"], "prerelease")
         for field in ("tag_prefix", "tag_script", "install_root", "post_install", "verify"):
             _require_string(prerelease.get(field), f"prerelease.{field}")
-        _require_string_array(prerelease.get("binaries"), "prerelease.binaries")
+        # Optional: a wheels-only consumer declares [] or omits binaries.
+        prerelease_binaries = _require_string_array(prerelease.get("binaries", []), "prerelease.binaries")
+        undeclared = sorted(set(prerelease_binaries) - {binary["name"] for binary in release_binaries})
+        if undeclared:
+            raise argparse.ArgumentTypeError(
+                "prerelease.binaries references undeclared release binary(s): " + ", ".join(undeclared)
+            )
         _require_string_array(
             prerelease.get("protected_branches"), "prerelease.protected_branches"
         )
@@ -256,6 +263,13 @@ def load_install_values(path: Path) -> dict[str, object]:
                 raise argparse.ArgumentTypeError(
                     f"python_distributions[{position}].build_system must be setuptools"
                 )
+
+    if "prerelease" in values and not values["prerelease"].get("binaries") and not any(
+        distribution.get("wheels") for distribution in distributions
+    ):
+        raise argparse.ArgumentTypeError(
+            "prerelease installs nothing: declare prerelease.binaries or python_distributions wheels"
+        )
 
     npm_packages = _require_entries(values.get("npm_packages", []), "npm_packages", ("name", "source"))
     names = [entry["name"] for entry in npm_packages]
@@ -339,6 +353,51 @@ def load_install_values(path: Path) -> dict[str, object]:
 
     if "homebrew" in channels or "scoop" in channels:
         _require_string(project.get("renderer_archive_path"), "project.renderer_archive_path")
+
+    preflight_checks: list[dict[str, str]] = []
+    if "preflight_checks" in values:
+        for position, entry in enumerate(
+            _require_array(values["preflight_checks"], "preflight_checks"), start=1
+        ):
+            mapping = _require_mapping(entry, f"preflight_checks[{position}]")
+            preflight_checks.append(
+                {
+                    "id": _require_string(mapping.get("id"), f"preflight_checks[{position}].id"),
+                    "description": _require_string(
+                        mapping.get("description"), f"preflight_checks[{position}].description"
+                    ),
+                    "run": _require_string(mapping.get("run"), f"preflight_checks[{position}].run"),
+                }
+            )
+    values["preflight_checks"] = preflight_checks
+
+    docli_value = values.get("docli")
+    if docli_value is None:
+        values["docli"] = None
+    else:
+        docli = _require_mapping(docli_value, "docli")
+        enabled = docli.get("enabled", True)
+        if type(enabled) is not bool:
+            raise argparse.ArgumentTypeError("docli.enabled must be a boolean")
+        if not enabled:
+            values["docli"] = None
+        else:
+            drift_paths = _require_string_array(docli.get("drift_paths"), "docli.drift_paths")
+            if not drift_paths:
+                raise argparse.ArgumentTypeError("docli.drift_paths must not be empty when docli is enabled")
+            description = docli.get("description")
+            values["docli"] = {
+                "generate_script": _require_string(docli.get("generate_script"), "docli.generate_script"),
+                "drift_paths": drift_paths,
+                "description": (
+                    _require_string(description, "docli.description")
+                    if description is not None
+                    else "sc-docli CLI HTML docs are committed and drift-free"
+                ),
+            }
+            if "sc_docli_version" in docli:
+                _require_string(docli["sc_docli_version"], "docli.sc_docli_version")
+
     return values
 
 
@@ -431,12 +490,28 @@ def template_values(values: dict[str, object]) -> dict[str, object]:
     prerelease = values.get("prerelease")
     template_prerelease = (
         _toml_scalars(
-            _require_mapping(prerelease, "prerelease"),
+            {"binaries": [], **_require_mapping(prerelease, "prerelease")},
             ("binaries", "protected_branches", "selector_dir"),
         )
         if prerelease
         else {"tag_prefix": "", "tag_script": "", "install_root": "", "binaries": "[]", "protected_branches": "[]", "selector_dir": "{}", "post_install": "", "verify": ""}
     )
+
+    docli_raw = values.get("docli")
+    has_docli = docli_raw is not None
+    template_docli = (
+        _toml_scalars(_require_mapping(docli_raw, "docli"), ("drift_paths",))
+        if has_docli
+        else {
+            "generate_script": '""',
+            "drift_paths": "[]",
+            "description": '""',
+        }
+    )
+    preflight_checks = [
+        _toml_scalars(_require_mapping(check, "preflight_checks entry"))
+        for check in _require_array(values.get("preflight_checks", []), "preflight_checks")
+    ]
 
     return {
         "schema_version": _toml_literal(values["schema_version"]),
@@ -464,6 +539,9 @@ def template_values(values: dict[str, object]) -> dict[str, object]:
         "has_rust_toolchain": "rust_toolchain" in project,
         "has_sc_lint_source_revision": "sc_lint_source_revision" in project,
         "has_prerelease": "prerelease" in values,
+        "has_docli": has_docli,
+        "docli": template_docli,
+        "preflight_checks": preflight_checks,
         **{f"has_channel_{name}": name in channels for name in CHANNEL_NAMES},
     }
 
@@ -526,9 +604,9 @@ def main() -> int:
   3. Install: --input install.json REPOSITORY
   4. Verify a repeat install without changing files: --dry-run --input install.json REPOSITORY
 
-All installed package assets are shared verbatim. Only the two release manifests
-are rendered from the caller-owned complete JSON input. Exit 0 means clean/success; a
-dry-run returns 1 when consumer files would change.""",
+All installed package assets are shared verbatim. Only the release manifests and
+release/publish-preflight.toml are rendered from the caller-owned complete JSON input.
+Exit 0 means clean/success; a dry-run returns 1 when consumer files would change.""",
     )
     parser.add_argument(
         "--dry-run",

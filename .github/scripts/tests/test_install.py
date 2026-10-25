@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import importlib.util
 import json
 import re
@@ -164,7 +165,8 @@ class InstallValuesTests(unittest.TestCase):
             values = self.valid_values()
             path.write_text(json.dumps(values), encoding="utf-8")
             loaded = INSTALL.load_install_values(path)
-        self.assertEqual(loaded, values)
+        expected = {**values, "preflight_checks": [], "docli": None}
+        self.assertEqual(loaded, expected)
         self.assertEqual(set(loaded["channels"]), set(INSTALL.CHANNEL_NAMES) - {"npm"})
         self.assertEqual(loaded["python_distributions"][1]["build_system"], "setuptools")
 
@@ -329,6 +331,66 @@ class InstallValuesTests(unittest.TestCase):
         self.assertTrue(template["has_prerelease"])
         self.assertEqual(manifest["prerelease"], values["prerelease"])
 
+    @staticmethod
+    def wheels_only_prerelease(values: dict[str, object]) -> dict[str, object]:
+        """The beads-cache shape: no release binaries, Python wheels and an sdist only."""
+        values["release_binaries"] = []
+        values["channels"] = {"pypi": values["channels"]["pypi"]}  # type: ignore[index]
+        values["prerelease"] = {
+            "tag_prefix": "prerelease/v",
+            "tag_script": "scripts/prerelease_tag.py",
+            "install_root": "~/.example-builds",
+            "binaries": [],
+            "protected_branches": ["develop", "main"],
+            "selector_dir": {
+                "darwin": "~/.example-builds/selectors/darwin",
+                "linux": "~/.example-builds/selectors/linux",
+                "windows": r"%LOCALAPPDATA%\Example\prerelease-selectors",
+            },
+            "post_install": "{python} -m pip install --force-reinstall {wheels}",
+            "verify": "{python} -m pip show example",
+        }
+        return values
+
+    def test_render_round_trips_a_wheels_only_prerelease_manifest(self) -> None:
+        try:
+            import sc_compose  # noqa: F401
+        except ModuleNotFoundError:
+            self.skipTest("sc-compose bindings are not provisioned in this environment")
+        for omit_binaries in (False, True):
+            with self.subTest(omit_binaries=omit_binaries):
+                values = self.wheels_only_prerelease(self.valid_values())
+                if omit_binaries:
+                    del values["prerelease"]["binaries"]  # type: ignore[index]
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "input.json"
+                    path.write_text(json.dumps(values), encoding="utf-8")
+                    loaded = INSTALL.load_install_values(path)
+                    output = Path(directory) / "publish-artifacts.toml"
+                    INSTALL.render_template(Path("release/publish-artifacts.toml.j2"), loaded, output)
+                    manifest = tomllib.loads(output.read_text(encoding="utf-8"))
+                self.assertEqual(manifest["prerelease"]["binaries"], [])
+                self.assertEqual(
+                    {key: value for key, value in manifest["prerelease"].items() if key != "binaries"},
+                    {key: value for key, value in values["prerelease"].items() if key != "binaries"},  # type: ignore[union-attr]
+                )
+                self.assertNotIn("release_binaries", manifest)
+
+    def test_load_install_values_rejects_inconsistent_prerelease_binaries(self) -> None:
+        values = self.wheels_only_prerelease(self.valid_values())
+        values["python_distributions"] = [
+            {**entry, "wheels": []} for entry in values["python_distributions"]  # type: ignore[union-attr]
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(argparse.ArgumentTypeError, "prerelease installs nothing"):
+                INSTALL.load_install_values(path)
+            values["prerelease"]["binaries"] = ["ghost"]  # type: ignore[index]
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(argparse.ArgumentTypeError, "undeclared release binary\\(s\\): ghost"):
+                INSTALL.load_install_values(path)
+
     def test_load_install_values_rejects_ambiguous_python_distribution(self) -> None:
         values = self.valid_values()
         values["python_distributions"][0]["build_system"] = "setuptools"
@@ -337,6 +399,76 @@ class InstallValuesTests(unittest.TestCase):
             path.write_text(json.dumps(values), encoding="utf-8")
             with self.assertRaisesRegex(Exception, "must not set both"):
                 INSTALL.load_install_values(path)
+
+    def test_load_install_values_accepts_preflight_checks_and_docli(self) -> None:
+        values = self.valid_values()
+        values["preflight_checks"] = [
+            {
+                "id": "example-gate",
+                "description": "Example repository check",
+                "run": "bash scripts/example-preflight.sh",
+            }
+        ]
+        values["docli"] = {
+            "enabled": True,
+            "generate_script": "scripts/generate-cli-docs.sh",
+            "drift_paths": ["fixtures/cli/model.json", "site/cli/"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            loaded = INSTALL.load_install_values(path)
+        self.assertEqual(len(loaded["preflight_checks"]), 1)
+        self.assertEqual(loaded["docli"]["generate_script"], "scripts/generate-cli-docs.sh")
+        template = INSTALL.template_values(loaded)
+        self.assertTrue(template["has_docli"])
+        self.assertEqual(len(template["preflight_checks"]), 1)
+
+    def test_load_install_values_rejects_empty_docli_drift_paths(self) -> None:
+        values = self.valid_values()
+        values["docli"] = {
+            "enabled": True,
+            "generate_script": "scripts/generate-cli-docs.sh",
+            "drift_paths": [],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            with self.assertRaisesRegex(Exception, "must not be empty"):
+                INSTALL.load_install_values(path)
+
+    def test_render_publish_preflight_includes_docli_and_custom_checks(self) -> None:
+        try:
+            import sc_compose  # noqa: F401
+        except ModuleNotFoundError:
+            self.skipTest("sc-compose bindings are not provisioned in this environment")
+        values = self.valid_values()
+        for name in ("homebrew", "winget", "scoop"):
+            del values["channels"][name]
+        del values["project"]["renderer_archive_path"]
+        values["preflight_checks"] = [
+            {
+                "id": "example-gate",
+                "description": "Example repository check",
+                "run": "bash scripts/example-preflight.sh",
+            }
+        ]
+        values["docli"] = {
+            "enabled": True,
+            "generate_script": "scripts/generate-cli-docs.sh",
+            "drift_paths": ["fixtures/cli/model.json"],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "input.json"
+            path.write_text(json.dumps(values), encoding="utf-8")
+            loaded = INSTALL.load_install_values(path)
+            output = Path(directory) / "publish-preflight.toml"
+            INSTALL.render_template(Path("release/publish-preflight.toml.j2"), loaded, output)
+            manifest = tomllib.loads(output.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schema_version"], 1)
+        self.assertEqual(manifest["docli"]["generate_script"], "scripts/generate-cli-docs.sh")
+        check_ids = [check["id"] for check in manifest["checks"]]
+        self.assertEqual(check_ids, ["docli-cli-html", "example-gate"])
 
     def test_install_places_executable_release_helpers_at_every_workflow_path(self) -> None:
         """The byte-exact overlay keeps helpers under .github/scripts/.
