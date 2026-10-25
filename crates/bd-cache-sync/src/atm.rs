@@ -13,8 +13,9 @@
 //! timeout ([`SEND_TIMEOUT`], 10 s as in the reference) or the time the tick
 //! passes to [`EscalationSender::send_within`], whichever is less. When the
 //! timeout runs out, or the [`StopFlag`] the sender was built with is set, the
-//! whole process tree is killed (a process group on Unix, `taskkill /T` on
-//! Windows) and reaped, so a launcher such as `uv run atm` cannot leave a
+//! whole process tree is killed (a process group on Unix, with `kill(2)` itself
+//! through [`sc_bd_cli::process_group::kill`], never a `kill` program, RSH-002;
+//! `taskkill /T` on Windows) and reaped, so a launcher such as `uv run atm` cannot leave a
 //! grandchild delivering a message the tick will send again. And the child's
 //! output is read by threads that are waited for no longer than the time left
 //! in the same budget (clamped to the send deadline, with a floor of
@@ -28,8 +29,16 @@
 //! last look at the child is one try). Const assertions keep every such
 //! overrun, and `READ_GRACE` plus `KILL_BOUND`, inside the tick's send
 //! reserve (`SEND_RESERVE`, 1.5 s), so the send ends before the tick's end `T`.
-//! The one step not bounded is starting the tree-kill program itself, a local
-//! `fork` and `exec`.
+//! On Windows the one step not bounded is starting the tree-kill program
+//! itself, a local process start; on Unix the tree kill is one system call.
+//!
+//! # Finding `atm`
+//!
+//! A bare program name is looked up in the absolute directories of `PATH`
+//! only ([`sc_bd_cli::path::absolute_path_entries`], lead rulings S76 and S77,
+//! RSH-003): an empty or relative segment (`:/usr/bin`, `.:/usr/bin`) would
+//! resolve against the working directory, the repository root, and run an
+//! `atm` committed there.
 //!
 //! A child or tree-kill program that is still running at the kill deadline is
 //! killed and handed to one detached reaper thread, which waits for it, so it
@@ -216,12 +225,14 @@ impl AtmSender {
         &self.binary
     }
 
-    /// The program as a path, found the way the shell would find it.
+    /// The program as a path, found the way the shell would find it, but in the
+    /// absolute directories of `PATH` only (RSH-003): an empty or relative
+    /// segment is skipped, so an `atm` in the working directory never runs.
     ///
     /// # Errors
     ///
-    /// [`SendErrorKind::NotStartable`] when the program is not on the `PATH`
-    /// (or, for a path, not a file).
+    /// [`SendErrorKind::NotStartable`] when the program is not in an absolute
+    /// directory of the `PATH` (or, for a path, not a file).
     pub fn resolve(&self) -> Result<PathBuf, SendError> {
         let not_found = || {
             SendError::with_kind(
@@ -243,7 +254,8 @@ impl AtmSender {
         let path = std::env::var_os("PATH").ok_or_else(not_found)?;
         let pathext = std::env::var("PATHEXT").unwrap_or_else(|_| DEFAULT_PATHEXT.to_owned());
         let file_names = candidate_names(&self.binary, &pathext, cfg!(windows));
-        std::env::split_paths(&path)
+        sc_bd_cli::path::absolute_path_entries(&path)
+            .into_iter()
             .flat_map(|dir| file_names.iter().map(move |n| dir.join(n)))
             .find(|candidate| is_executable(candidate))
             .ok_or_else(not_found)
@@ -496,15 +508,17 @@ enum TreeKill {
     /// It could not be started, failed or could not be waited for.
     Failed,
     /// It was still running at the kill deadline: it was killed and handed to
-    /// the reaper.
+    /// the reaper (a tree-kill program: Windows `taskkill`).
+    #[cfg(any(windows, test))]
     GaveUp {
         /// The program's pid.
         pid: u32,
     },
 }
 
-/// Runs the platform's tree-kill program until `until` at most; a failure or
-/// an overrun is logged, never waited out.
+/// Runs a tree-kill program (Windows `taskkill`) until `until` at most; a
+/// failure or an overrun is logged, never waited out.
+#[cfg(any(windows, test))]
 fn run_tree_kill(mut command: Command, pid: u32, until: Instant) -> TreeKill {
     let mut helper = match command.stdout(Stdio::null()).stderr(Stdio::null()).spawn() {
         Ok(helper) => helper,
@@ -540,37 +554,40 @@ fn run_tree_kill(mut command: Command, pid: u32, until: Instant) -> TreeKill {
     }
 }
 
-/// The platform's program that kills the process tree led by `pid`.
-///
-/// The tree is killed with the platform's own program (`kill` with a negative
-/// pid, `taskkill /T`): the crate has no `unsafe` and calls no libc function
-/// (ADR-SYNC-0006). `None` on a platform with neither.
+/// How the process tree led by a child is killed.
+#[derive(Debug)]
+enum TreeKiller {
+    /// `kill(-pgid, SIGKILL)`: the child leads its own process group
+    /// (`process_group(0)`), so its pid names the group. One system call, made
+    /// by sc-bd-cli's safe wrapper (RSH-002): no `kill` program, no `PATH`, and
+    /// no `unsafe` in this crate (ADR-SYNC-0006).
+    #[cfg(unix)]
+    Group,
+    /// A program that kills the tree: `taskkill /T /F`.
+    #[cfg(windows)]
+    Program(Command),
+}
+
+/// The platform's way to kill the process tree led by `pid`; `None` on a
+/// platform with neither.
 #[cfg_attr(
     any(unix, windows),
     expect(
         clippy::unnecessary_wraps,
-        reason = "None on a platform with neither program"
+        reason = "None on a platform with neither"
     )
 )]
-fn tree_kill_command(pid: u32) -> Option<Command> {
+fn tree_killer(pid: u32) -> Option<TreeKiller> {
     #[cfg(unix)]
     {
-        // The child leads its own process group (`process_group(0)`), so the
-        // negative pid names the group.
-        let program = if Path::new("/bin/kill").is_file() {
-            "/bin/kill"
-        } else {
-            "kill"
-        };
-        let mut kill = Command::new(program);
-        kill.args(["-KILL", "--", &format!("-{pid}")]);
-        Some(kill)
+        let _ = pid;
+        Some(TreeKiller::Group)
     }
     #[cfg(windows)]
     {
         let mut kill = Command::new("taskkill");
         kill.args(["/T", "/F", "/PID", &pid.to_string()]);
-        Some(kill)
+        Some(TreeKiller::Program(kill))
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -584,19 +601,38 @@ fn tree_kill_command(pid: u32) -> Option<Command> {
 /// Only called while the child has not been reaped, so its process-group id
 /// (its pid) cannot belong to anything else.
 fn kill_tree(child: Child) {
-    let tree_kill = tree_kill_command(child.id());
-    kill_tree_with(child, tree_kill, Instant::now() + KILL_BOUND);
+    let killer = tree_killer(child.id());
+    kill_tree_with(child, killer, Instant::now() + KILL_BOUND);
 }
 
-/// [`kill_tree`] with the tree-kill program and the kill deadline given.
+/// [`kill_tree`] with the tree killer and the kill deadline given.
 ///
 /// The tree kill and the reaping share one deadline, `until` ([`KILL_BOUND`]
 /// from the start, lead ruling S27). A failing or overrunning tree kill is
 /// logged and the child itself is killed regardless; a child or tree kill not
 /// done by the deadline is handed to the reaper (lead ruling S28).
-fn kill_tree_with(mut child: Child, tree_kill: Option<Command>, until: Instant) -> TreeKill {
+#[cfg_attr(
+    not(windows),
+    expect(
+        clippy::needless_pass_by_value,
+        reason = "only the Windows killer owns a program to run"
+    )
+)]
+fn kill_tree_with(mut child: Child, killer: Option<TreeKiller>, until: Instant) -> TreeKill {
     let pid = child.id();
-    let outcome = tree_kill.map_or(TreeKill::Failed, |kill| run_tree_kill(kill, pid, until));
+    let outcome = match killer {
+        #[cfg(unix)]
+        Some(TreeKiller::Group) => match sc_bd_cli::process_group::kill(pid) {
+            Ok(()) => TreeKill::Done,
+            Err(e) => {
+                tracing::warn!(error = %e, pid, "killing the atm process group failed; killing the child only");
+                TreeKill::Failed
+            }
+        },
+        #[cfg(windows)]
+        Some(TreeKiller::Program(kill)) => run_tree_kill(kill, pid, until),
+        None => TreeKill::Failed,
+    };
     // The tree kill is absent on other platforms or may have failed: kill the
     // child itself too, and reap it so it is no zombie.
     let _ = child.kill();
@@ -951,7 +987,7 @@ mod tests {
         assert_reaped(pid, "the stuck tree kill");
     }
 
-    /// The real tree kill (`tree_kill_command`) of a child that ignores TERM,
+    /// The real tree kill (`tree_killer`) of a child that ignores TERM,
     /// with a descendant that ignores it too: the group kill finishes, the
     /// child is reaped and the descendant is dead (S27, S28).
     ///
@@ -979,9 +1015,9 @@ mod tests {
         // Ready: both processes have started and ignore TERM.
         let (pid, grandchild) = (pid_in(&child_pid), pid_in(&grandchild_pid));
         assert_eq!(pid, child.id());
-        let tree_kill = tree_kill_command(pid);
-        assert!(tree_kill.is_some(), "unix has a tree-kill program");
-        let outcome = kill_tree_with(child, tree_kill, Instant::now() + GENEROUS);
+        let killer = tree_killer(pid);
+        assert!(killer.is_some(), "unix has a tree kill");
+        let outcome = kill_tree_with(child, killer, Instant::now() + GENEROUS);
         assert_eq!(outcome, TreeKill::Done, "the group kill finished");
         assert_reaped(pid, "the child");
         assert_gone(grandchild, "the grandchild");

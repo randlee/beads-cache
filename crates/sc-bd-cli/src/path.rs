@@ -7,20 +7,72 @@
 //! directories are kept, each once (lead rulings S76 and S77). Reads `PATH`,
 //! `HOME`, `GOPATH`, `USERPROFILE` and `LOCALAPPDATA` from the environment on
 //! every call.
+//!
+//! The inherited `PATH` is read as an `OsString` and split with
+//! [`std::env::split_paths`], so a `PATH` with one segment that is not UTF-8
+//! keeps its other segments (it was dropped whole before). The spawns of this
+//! crate pass the child the `OsString` form, which keeps such a segment too;
+//! [`get_extended_path`], whose type is `String`, leaves it out.
+//! [`absolute_path_entries`] is the S76/S77 rule on its own, for another
+//! crate's own `PATH` search (`bd-cache-sync`'s `atm` lookup, RSH-003).
 
 use std::collections::HashSet;
 use std::env;
-use std::path::Path;
+use std::ffi::{OsStr, OsString};
+use std::path::{Path, PathBuf};
 
 /// The platform `PATH` separator.
 const SEP: char = if cfg!(windows) { ';' } else { ':' };
 
 /// The absolute segments of the inherited `PATH`, then the platform install
 /// directories that are not already in it.
+///
+/// A segment that is not UTF-8 is left out of this `String`; the crate's own
+/// spawns use the `OsString` form, which keeps it.
 #[must_use]
 pub fn get_extended_path() -> String {
-    let inherited = env::var("PATH").unwrap_or_default();
-    join_extended(&inherited, fallback_dirs_from_env(), SEP)
+    let joined = extended_path_os();
+    match joined.into_string() {
+        Ok(text) => text,
+        Err(lossy) => {
+            let kept: Vec<String> = env::split_paths(&lossy)
+                .filter_map(|p| p.into_os_string().into_string().ok())
+                .collect();
+            kept.join(&SEP.to_string())
+        }
+    }
+}
+
+/// [`get_extended_path`] as an `OsString`, keeping a segment that is not
+/// UTF-8: the `PATH` every spawn of this crate gives its child.
+pub(crate) fn extended_path_os() -> OsString {
+    let inherited = env::var_os("PATH").unwrap_or_default();
+    join_extended_os(&inherited, fallback_dirs_from_env(), SEP)
+}
+
+/// The absolute directories of a `PATH` value, in order: an empty or relative
+/// segment is dropped (lead rulings S76 and S77).
+///
+/// An empty segment, `.` or `bin` would be resolved against the working
+/// directory, where a program committed to a repository could be picked up
+/// instead of the installed one. Use this for any search of `PATH` for a
+/// program to run.
+///
+/// # Examples
+///
+/// ```
+/// use std::ffi::OsStr;
+/// use sc_bd_cli::path::absolute_path_entries;
+/// # #[cfg(unix)] {
+/// let dirs = absolute_path_entries(OsStr::new(":.:/usr/bin:bin:/bin"));
+/// assert_eq!(dirs, ["/usr/bin", "/bin"].map(std::path::PathBuf::from));
+/// # }
+/// ```
+#[must_use]
+pub fn absolute_path_entries(path: &OsStr) -> Vec<PathBuf> {
+    env::split_paths(path)
+        .filter(|dir| !dir.as_os_str().is_empty() && dir.is_absolute())
+        .collect()
 }
 
 /// The fallback directories for this process's environment.
@@ -106,16 +158,44 @@ fn fallback_dirs(home: Option<&str>, gopath: Option<&str>) -> Vec<String> {
 /// S77, QA RCR-002). So only absolute segments are kept (`Path::is_absolute`:
 /// a drive or UNC root on Windows). The inherited `PATH` comes first, so the
 /// user's `PATH` wins over the fallback (S77, contract §2).
+#[cfg(test)]
 fn join_extended(inherited: &str, fallback: Vec<String>, sep: char) -> String {
+    let segments = inherited.split(sep).map(OsString::from);
+    join_segments(segments, fallback, sep).to_string_lossy().into_owned()
+}
+
+/// [`join_extended`] over an `OsStr` `PATH`, split with the platform's own
+/// rule ([`env::split_paths`]), so a segment that is not UTF-8 is kept.
+fn join_extended_os(inherited: &OsStr, fallback: Vec<String>, sep: char) -> OsString {
+    let segments = env::split_paths(inherited).map(PathBuf::into_os_string);
+    join_segments(segments, fallback, sep)
+}
+
+/// The absolute `segments`, then the absolute `fallback` directories, each
+/// once, joined with `sep`. A segment that holds `sep` itself (a fallback
+/// built from a `HOME` with a `:` in it) cannot be one entry of the result
+/// and is dropped too.
+fn join_segments(
+    segments: impl Iterator<Item = OsString>,
+    fallback: Vec<String>,
+    sep: char,
+) -> OsString {
     let mut seen = HashSet::new();
-    let kept: Vec<String> = inherited
-        .split(sep)
-        .map(str::to_owned)
-        .chain(fallback)
-        .filter(|segment| !segment.is_empty() && Path::new(segment).is_absolute())
-        .filter(|segment| seen.insert(segment.clone()))
-        .collect();
-    kept.join(&sep.to_string())
+    let mut joined = OsString::new();
+    let sep_text = sep.to_string();
+    let candidates = segments.chain(fallback.into_iter().map(OsString::from));
+    for segment in candidates {
+        let usable = !segment.is_empty()
+            && Path::new(&segment).is_absolute()
+            && !segment.to_string_lossy().contains(sep);
+        if usable && seen.insert(segment.clone()) {
+            if !joined.is_empty() {
+                joined.push(&sep_text);
+            }
+            joined.push(&segment);
+        }
+    }
+    joined
 }
 
 /// Directories the CLI probe searches, in order, without duplicates.
@@ -262,6 +342,30 @@ mod tests {
                 r"C:\Users\u\.cargo\bin",
             ]
         );
+    }
+
+    /// A `PATH` segment that is not UTF-8 keeps the others, and is kept itself
+    /// in the child's `PATH` (it used to empty the whole inherited `PATH`).
+    #[cfg(unix)]
+    #[test]
+    fn a_non_utf8_segment_keeps_the_rest_of_the_path() {
+        use std::os::unix::ffi::{OsStrExt as _, OsStringExt as _};
+        let inherited = OsStr::from_bytes(b"/a:/caf\xe9:.:/b:");
+        let joined = join_extended_os(inherited, vec!["/c".to_owned()], ':');
+        assert_eq!(joined.into_vec(), b"/a:/caf\xe9:/b:/c".to_vec());
+    }
+
+    /// The S76/S77 rule on its own: only absolute segments, in order.
+    #[test]
+    fn absolute_path_entries_drop_empty_and_relative_segments() {
+        let (a, b) = (abs("a"), abs("b"));
+        let path = env::join_paths(["", ".", a.as_str(), "bin", "./x", b.as_str(), ""])
+            .unwrap_or_default();
+        assert_eq!(
+            absolute_path_entries(&path),
+            [PathBuf::from(&a), PathBuf::from(&b)]
+        );
+        assert!(absolute_path_entries(OsStr::new("")).is_empty());
     }
 
     #[test]

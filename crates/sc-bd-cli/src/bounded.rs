@@ -6,7 +6,10 @@
 //! bounded counterpart used by [`CliInvoker::run_bounded`](crate::CliInvoker::run_bounded):
 //!
 //! - the project lock is acquired by polling, never by blocking, so a wait behind a
-//!   slow call ends at the deadline too ([`TimeoutPhase::Lock`]);
+//!   slow call ends at the deadline too ([`TimeoutPhase::Lock`]); it is the
+//!   in-process mutex of [`ProjectLocks`] and then the project's cross-process lock
+//!   file, so two processes never run `bd` on one project at once either (lead ruling
+//!   S81, RSH-004, ADR-BDCLI-0006);
 //! - the child is started as the leader of its own process group (Unix) or inside a
 //!   job object of its own (Windows) and polled for its exit; when the time is up the
 //!   whole group or job is killed, so a `dolt` that `bd` started dies with it
@@ -24,7 +27,14 @@
 //!   ([`TimeoutPhase::Output`], after which the group or job the child left behind is
 //!   killed too, before the child is reaped), and each stream is capped at [`MAX_OUTPUT_BYTES`]
 //!   (the excess is drained and dropped, and the call fails with
-//!   [`BoundedError::OutputTooLarge`]).
+//!   [`BoundedError::OutputTooLarge`]);
+//! - on Unix the group is killed with `kill(2)` itself ([`process_group`]), never by
+//!   running a `kill` program that a minimal image may not have (RSH-002); on Linux the
+//!   child also gets `PR_SET_PDEATHSIG` (`SIGKILL`), so it does not outlive a host
+//!   that is killed outright;
+//! - a shutdown the host asked for ([`shutdown::request`], from its signal handler)
+//!   stops every call as a timeout would, with [`BoundedError::Interrupted`]
+//!   (RSH-001).
 //!
 //! The time limit is a [`Duration`] measured on the real clock from the moment the
 //! function is entered. The caller turns its [`Deadline`](sc_beads::Deadline) into
@@ -34,6 +44,7 @@
 
 use std::io::{self, Read};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
 use std::sync::{OnceLock, TryLockError};
 use std::thread;
@@ -45,7 +56,10 @@ use sc_beads::{CliClient, CliOutput};
 
 use crate::command::{lead_process_group, ChildEnv};
 use crate::locks::{ProjectLocks, WorkingDir};
-use crate::path::get_extended_path;
+use crate::path::extended_path_os;
+#[cfg(unix)]
+use crate::process_group;
+use crate::shutdown;
 
 /// How often a waiting call re-checks the project lock and the child's status.
 ///
@@ -81,10 +95,11 @@ const REAP_POLL: Duration = Duration::from_millis(200);
 /// real call reaches it (the same bound as `Deadline::after`).
 const FAR_FUTURE: Duration = Duration::from_hours(100 * 365 * 24);
 
-/// Where a bounded call was when its time ran out.
+/// Where a bounded call was when its time ran out (or a shutdown stopped it).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TimeoutPhase {
-    /// Waiting for the per-project lock; no child was started.
+    /// Waiting for the per-project lock (the in-process mutex or the cross-process
+    /// lock file); no child was started.
     Lock,
     /// Waiting for the child to exit; it was killed.
     Child,
@@ -141,7 +156,8 @@ impl std::fmt::Display for OutputStream {
 ///
 /// The enum is `#[non_exhaustive]`: [`Wait`](Self::Wait) and
 /// [`OutputTooLarge`](Self::OutputTooLarge) were added after the first release
-/// (PE-RBP-F012), and a match outside this crate needs a wildcard arm.
+/// (PE-RBP-F012), [`Interrupted`](Self::Interrupted) with RSH-001, and a match outside
+/// this crate needs a wildcard arm.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum BoundedError {
@@ -149,6 +165,15 @@ pub enum BoundedError {
     TimedOut {
         /// What the call was waiting for.
         phase: TimeoutPhase,
+    },
+    /// The host asked the process to stop ([`shutdown::request`], RSH-001) while the
+    /// call was in this phase. A running child was killed with its process group (job)
+    /// and reaped, as on a timeout; in [`TimeoutPhase::Lock`] no child was started.
+    Interrupted {
+        /// What the call was doing.
+        phase: TimeoutPhase,
+        /// The signal the host recorded with the request.
+        signal: i32,
     },
     /// The call could not be made: the process could not be started, or the project
     /// reference is not supported. The cause is kept as the [`BeadsError`] (for a
@@ -176,6 +201,9 @@ impl std::fmt::Display for BoundedError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TimedOut { phase } => write!(f, "timed out {phase}"),
+            Self::Interrupted { phase, signal } => {
+                write!(f, "stopped {phase}: the host is shutting down (signal {signal})")
+            }
             Self::Failed(e) => std::fmt::Display::fmt(e, f),
             Self::Wait(e) => write!(f, "waiting for the child failed: {e}"),
             Self::Output(e) => write!(f, "reading the child's output failed: {e}"),
@@ -189,7 +217,9 @@ impl std::fmt::Display for BoundedError {
 impl std::error::Error for BoundedError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TimedOut { .. } | Self::OutputTooLarge { .. } => None,
+            Self::TimedOut { .. } | Self::Interrupted { .. } | Self::OutputTooLarge { .. } => {
+                None
+            }
             Self::Failed(e) => Some(e),
             Self::Wait(e) | Self::Output(e) => Some(e),
         }
@@ -237,6 +267,10 @@ pub fn run_bounded(
 ///   reaped; its process group (job) is killed first.
 /// - [`BoundedError::Output`] when a reader thread cannot be started or a read fails.
 /// - [`BoundedError::OutputTooLarge`] when a stream exceeds `max_output`.
+/// - [`BoundedError::Interrupted`] when the host asked the process to stop
+///   ([`shutdown::request`]); a running child is killed as on a timeout.
+/// - [`BoundedError::Failed`] with [`BeadsError::Spawn`] when the project's
+///   cross-process lock file can be neither opened nor locked (nothing was started).
 pub fn run_bounded_capped(
     binary: &str,
     locks: &ProjectLocks,
@@ -256,6 +290,104 @@ pub fn run_bounded_capped(
     )
 }
 
+/// [`run_bounded`] that also counts as timed out once `expire` is set: a test's
+/// injected deadline, so a timeout can be ordered after what the test waits for
+/// (FTQ-002) instead of racing a fixed duration.
+///
+/// `timeout` stays the fail-safe: the call ends at whichever comes first. Only built
+/// with the `test-support` feature.
+///
+/// # Errors
+///
+/// As [`run_bounded_capped`]; a set `expire` is [`BoundedError::TimedOut`] in the phase
+/// the call is in.
+#[cfg(feature = "test-support")]
+pub fn run_bounded_expiring(
+    binary: &str,
+    locks: &ProjectLocks,
+    working_dir: &WorkingDir,
+    argv: &[String],
+    timeout: Duration,
+    expire: &AtomicBool,
+) -> Result<CliOutput, BoundedError> {
+    let mut limit = Limit::after(timeout);
+    limit.expire = Some(expire);
+    run_bounded_until(
+        binary,
+        locks,
+        working_dir,
+        argv,
+        limit,
+        MAX_OUTPUT_BYTES,
+        &ChildEnv::default(),
+    )
+}
+
+/// When a bounded call must stop: its time limit, a shutdown request
+/// ([`shutdown::requested`]) or, in a test, an injected expiry.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Limit<'a> {
+    /// The instant the call's time is up.
+    at: Instant,
+    /// Counts as `at` having passed once set (a test's injected deadline).
+    expire: Option<&'a AtomicBool>,
+}
+
+/// Why a bounded call was cut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Cut {
+    /// Its time ran out.
+    Deadline,
+    /// The host is shutting down, on this signal.
+    Shutdown(i32),
+}
+
+impl Cut {
+    /// The error of a call cut in `phase`.
+    fn error(self, phase: TimeoutPhase) -> BoundedError {
+        match self {
+            Self::Deadline => BoundedError::TimedOut { phase },
+            Self::Shutdown(signal) => BoundedError::Interrupted { phase, signal },
+        }
+    }
+}
+
+impl Limit<'static> {
+    /// The limit at the instant `at`.
+    pub(crate) fn at(at: Instant) -> Self {
+        Self { at, expire: None }
+    }
+
+    /// The limit `timeout` from now, saturated far in the future.
+    pub(crate) fn after(timeout: Duration) -> Self {
+        let start = Instant::now();
+        let at = start
+            .checked_add(timeout)
+            .or_else(|| start.checked_add(FAR_FUTURE))
+            .unwrap_or(start);
+        Self::at(at)
+    }
+}
+
+impl Limit<'_> {
+    /// Why the call must stop now, if it must: a shutdown first, then the deadline.
+    fn cut(&self) -> Option<Cut> {
+        if let Some(signal) = shutdown::requested() {
+            return Some(Cut::Shutdown(signal));
+        }
+        let expired = self.expire.is_some_and(|e| e.load(Ordering::SeqCst));
+        (expired || Instant::now() >= self.at).then_some(Cut::Deadline)
+    }
+
+    /// The time left before `at` (zero once an injected expiry is set).
+    fn left(&self) -> Duration {
+        if self.expire.is_some_and(|e| e.load(Ordering::SeqCst)) {
+            return Duration::ZERO;
+        }
+        self.at.saturating_duration_since(Instant::now())
+    }
+}
+
 /// [`run_bounded_capped`] with `env` applied to the child (a
 /// [`CliRunner`](crate::CliRunner)'s child environment, ADR-BDCLI-0004).
 pub(crate) fn run_bounded_in(
@@ -267,16 +399,37 @@ pub(crate) fn run_bounded_in(
     max_output: usize,
     env: &ChildEnv,
 ) -> Result<CliOutput, BoundedError> {
-    let start = Instant::now();
-    let limit = start
-        .checked_add(timeout)
-        .or_else(|| start.checked_add(FAR_FUTURE))
-        .unwrap_or(start);
+    run_bounded_until(
+        binary,
+        locks,
+        working_dir,
+        argv,
+        Limit::after(timeout),
+        max_output,
+        env,
+    )
+}
 
-    // The lock serializes bd processes on one project (embedded Dolt crashes when
-    // two run at once). It is taken by polling so the wait is bounded; a poisoned
-    // lock is recovered because the guarded unit holds no state.
-    let project_lock = locks.try_guard_dir(working_dir).map_err(|e| {
+/// [`run_bounded_in`] stopped at `limit`.
+fn run_bounded_until(
+    binary: &str,
+    locks: &ProjectLocks,
+    working_dir: &WorkingDir,
+    argv: &[String],
+    limit: Limit<'_>,
+    max_output: usize,
+    env: &ChildEnv,
+) -> Result<CliOutput, BoundedError> {
+    // A process that is shutting down starts no new `bd` (RSH-001).
+    if let Some(signal) = shutdown::requested() {
+        return Err(Cut::Shutdown(signal).error(TimeoutPhase::Lock));
+    }
+    // Two locks serialize bd processes on one project (embedded Dolt crashes when two
+    // run at once): the in-process mutex, which orders this process's threads, and
+    // then the project's lock file, which orders processes (lead ruling S81, RSH-004).
+    // Both are taken by polling so the wait is bounded; a poisoned mutex is recovered
+    // because the guarded unit holds no state.
+    let (project_lock, file_lock) = locks.try_guard_and_file(working_dir).map_err(|e| {
         log_error!("[bd] refusing to lock {}: {}", working_dir, e);
         BoundedError::Failed(BeadsError::Unsupported {
             operation: "a project directory whose canonical path is not UTF-8",
@@ -290,21 +443,45 @@ pub(crate) fn run_bounded_in(
             Err(TryLockError::WouldBlock) => wait_or_time_out(limit, TimeoutPhase::Lock)?,
         }
     };
+    // Dropped (closing the file releases it) on every return below, after the
+    // child's tree was killed and reaped: a timeout, a shutdown, a failure.
+    let _file_guard = loop {
+        match file_lock.try_acquire() {
+            Ok(Some(guard)) => break guard,
+            Ok(None) => wait_or_time_out(limit, TimeoutPhase::Lock)?,
+            Err(source) => {
+                log_error!(
+                    "[bd] cannot take the cross-process lock of {}: {}",
+                    working_dir,
+                    source
+                );
+                return Err(BoundedError::Failed(BeadsError::Spawn {
+                    binary: binary.to_owned(),
+                    operation: argv.first().cloned(),
+                    source: io::Error::new(
+                        source.kind(),
+                        format!("the cross-process project lock is not usable: {source}"),
+                    ),
+                }));
+            }
+        }
+    };
 
     let mut command = env.command(binary);
     command
         .args(argv)
         .current_dir(working_dir.as_str())
-        .env("PATH", get_extended_path())
+        .env("PATH", extended_path_os())
         .env("BEADS_PATH", working_dir.as_str());
-    // `_guard` outlives this call: every kill `run_child` makes on a timeout has
+    // The guards outlive this call: every kill `run_child` makes on a timeout has
     // finished, or reached `KILL_BOUND`, before the next call on the project starts.
-    run_child(
+    run_child_until(
         command,
         binary,
         argv.first().map(String::as_str),
         limit,
         max_output,
+        has_exited,
     )
 }
 
@@ -330,10 +507,30 @@ pub(crate) fn run_child(
 /// [`run_child`] with the exit check `exited` in place of [`has_exited`]: the seam
 /// a test uses to make the wait fail, which no real child can be made to do.
 fn run_child_with(
-    mut command: Command,
+    command: Command,
     binary: &str,
     operation: Option<&str>,
     limit: Instant,
+    max_output: usize,
+    exited: fn(&mut Child) -> io::Result<bool>,
+) -> Result<CliOutput, BoundedError> {
+    run_child_until(
+        command,
+        binary,
+        operation,
+        Limit::at(limit),
+        max_output,
+        exited,
+    )
+}
+
+/// [`run_child_with`] stopped at `limit`, which a shutdown or a test's expiry can
+/// bring forward.
+fn run_child_until(
+    mut command: Command,
+    binary: &str,
+    operation: Option<&str>,
+    limit: Limit<'_>,
     max_output: usize,
     exited: fn(&mut Child) -> io::Result<bool>,
 ) -> Result<CliOutput, BoundedError> {
@@ -345,6 +542,8 @@ fn run_child_with(
         })
     };
     lead_process_group(&mut command);
+    #[cfg(target_os = "linux")]
+    die_with_parent(&mut command);
     #[cfg(windows)]
     job::start_suspended(&mut command);
     let child = command
@@ -376,11 +575,16 @@ fn run_child_with(
         match exited(&mut spawned.child) {
             Ok(true) => break,
             Ok(false) => {
-                if let Err(timed_out) = wait_or_time_out(limit, TimeoutPhase::Child) {
+                if let Err(cut) = wait_or_time_out(limit, TimeoutPhase::Child) {
+                    // A child that exited by the cut is not killed as a running one:
+                    // its output is read, and the cut is then seen there (Output).
+                    if matches!(exited(&mut spawned.child), Ok(true)) {
+                        break;
+                    }
                     // The readers are abandoned: they end when the pipes close, which
                     // the group kill makes happen.
                     terminate(spawned);
-                    return Err(timed_out);
+                    return Err(cut);
                 }
             }
             // The child is running or gone, not unstarted: a wait failure, never a
@@ -392,7 +596,9 @@ fn run_child_with(
     // The child has exited but is not reaped yet (on Unix), so the group it led
     // keeps its id until `terminate` or `finish` reaps it.
     let output = collect(&stdout, limit).and_then(|out| Ok((out, collect(&stderr, limit)?)));
-    if let Err(timed_out @ BoundedError::TimedOut { .. }) = output {
+    if let Err(timed_out @ (BoundedError::TimedOut { .. } | BoundedError::Interrupted { .. })) =
+        output
+    {
         // A reader still open at the limit is held by a process the child left in
         // its group (job): kill that too, so it does not outlive the project lock.
         return Err(abort(spawned, timed_out));
@@ -553,29 +759,71 @@ fn has_exited(child: &mut Child) -> io::Result<bool> {
     child.try_wait().map(|status| status.is_some())
 }
 
-/// The output one reader thread sent, waited for until `limit`.
-fn collect(rx: &Receiver<Drained>, limit: Instant) -> Result<String, BoundedError> {
-    match rx.recv_timeout(limit.saturating_duration_since(Instant::now())) {
-        Ok(Ok(bytes)) => Ok(String::from_utf8_lossy(&bytes).into_owned()),
-        Ok(Err(e)) => Err(e),
-        Err(RecvTimeoutError::Timeout) => Err(BoundedError::TimedOut {
-            phase: TimeoutPhase::Output,
-        }),
-        Err(RecvTimeoutError::Disconnected) => Err(BoundedError::Output(io::Error::other(
-            "the reader thread ended without a result",
-        ))),
+/// The output one reader thread sent, waited for until `limit`, one poll interval
+/// at a time so a shutdown is seen while waiting.
+fn collect(rx: &Receiver<Drained>, limit: Limit<'_>) -> Result<String, BoundedError> {
+    loop {
+        match rx.recv_timeout(limit.left().min(POLL_INTERVAL)) {
+            Ok(Ok(bytes)) => return Ok(String::from_utf8_lossy(&bytes).into_owned()),
+            Ok(Err(e)) => return Err(e),
+            Err(RecvTimeoutError::Timeout) => {
+                if let Some(cut) = limit.cut() {
+                    return Err(cut.error(TimeoutPhase::Output));
+                }
+            }
+            Err(RecvTimeoutError::Disconnected) => {
+                return Err(BoundedError::Output(io::Error::other(
+                    "the reader thread ended without a result",
+                )))
+            }
+        }
     }
 }
 
 /// Sleeps one poll interval, or fails with [`BoundedError::TimedOut`] in `phase` when
-/// `limit` has been reached.
-fn wait_or_time_out(limit: Instant, phase: TimeoutPhase) -> Result<(), BoundedError> {
-    let left = limit.saturating_duration_since(Instant::now());
-    if left.is_zero() {
-        return Err(BoundedError::TimedOut { phase });
+/// `limit` has been reached ([`BoundedError::Interrupted`] on a shutdown).
+fn wait_or_time_out(limit: Limit<'_>, phase: TimeoutPhase) -> Result<(), BoundedError> {
+    if let Some(cut) = limit.cut() {
+        return Err(cut.error(phase));
     }
-    thread::sleep(left.min(POLL_INTERVAL));
+    thread::sleep(limit.left().min(POLL_INTERVAL));
     Ok(())
+}
+
+/// Linux: the child gets `SIGKILL` when the thread that spawned it dies
+/// (`PR_SET_PDEATHSIG`), so a host killed outright (no handler can run on `SIGKILL`)
+/// does not leave its `bd` running (RSH-001).
+///
+/// The "parent" of `PR_SET_PDEATHSIG` is the spawning thread, not the process; that is
+/// safe here because the thread that spawns a bounded child polls it until it has
+/// exited or been killed ([`run_child_until`]), so it never ends first. A grandchild
+/// (`dolt`) is not covered: it is reached by the group kill. A host that died between
+/// the fork and the `prctl` is caught by comparing the parent pid, and the spawn
+/// fails instead of leaving an orphan.
+#[cfg(target_os = "linux")]
+fn die_with_parent(command: &mut Command) {
+    use std::os::unix::process::CommandExt as _;
+    // SAFETY: `getpid` has no preconditions and touches no memory.
+    let parent = unsafe { libc::getpid() };
+    let hook = move || {
+        // SAFETY: `prctl(PR_SET_PDEATHSIG, sig)` takes integers only and is
+        // async-signal-safe, as a `pre_exec` hook must be (it runs between `fork` and
+        // `exec`); `PR_SET_PDEATHSIG` reads no further arguments.
+        if unsafe { libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGKILL) } != 0 {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: `getppid` has no preconditions and is async-signal-safe.
+        if unsafe { libc::getppid() } != parent {
+            // The host died before the `prctl`: no death signal will come.
+            return Err(io::Error::from_raw_os_error(libc::ESRCH));
+        }
+        Ok(())
+    };
+    // SAFETY: the hook allocates nothing, takes no lock and only makes the two
+    // async-signal-safe calls above, so it is sound in the forked child before `exec`.
+    unsafe {
+        command.pre_exec(hook);
+    }
 }
 
 /// What a reader thread sends: the stream's bytes, or why there are none
@@ -766,18 +1014,23 @@ fn reap(rx: &Receiver<Child>) {
     }
 }
 
-/// How a helper program (the group kill, or the check that a group is empty) ended.
+/// How the kill of a child's tree ended.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Helper {
-    /// It ran and succeeded.
+    /// It was sent (Unix: `kill(2)` succeeded; Windows: the job was terminated or
+    /// `taskkill` succeeded).
     Done,
-    /// It could not be started, failed, or could not be waited for.
+    /// It failed, or the platform has no tree kill.
     Failed,
-    /// It was still running at the bound: it was killed and handed to the reaper.
+    /// Windows `taskkill` was still running at the bound: it was killed and handed to
+    /// the reaper.
+    #[cfg(windows)]
     GaveUp,
 }
 
-/// Runs a helper program until `until` at most, with no input or output.
+/// Runs a helper program (Windows `taskkill`) until `until` at most, with no input
+/// or output.
+#[cfg(windows)]
 fn run_helper(mut command: Command, until: Instant) -> Helper {
     let Ok(mut helper) = command
         .stdin(Stdio::null())
@@ -806,6 +1059,10 @@ fn run_helper(mut command: Command, until: Instant) -> Helper {
 /// Kills the process group led by the child (Unix), or its job (Windows; without one
 /// the process tree rooted at it), within `until`. A failure is logged; the caller
 /// kills the child itself regardless.
+///
+/// On Unix this is `kill(-pid, SIGKILL)` through [`process_group::kill`]: no program is
+/// started, so a host without `/bin/kill` on its `PATH`, or one that cannot start a
+/// process at that moment, still kills the whole group (RSH-002).
 fn kill_group(tree: &Tree, until: Instant) -> Helper {
     let pid = tree.pid;
     #[cfg(windows)]
@@ -820,7 +1077,28 @@ fn kill_group(tree: &Tree, until: Instant) -> Helper {
             }
         };
     }
-    let outcome = group_kill_command(pid).map_or(Helper::Failed, |kill| run_helper(kill, until));
+    #[cfg(unix)]
+    let outcome = {
+        let _ = until;
+        match process_group::kill(pid) {
+            Ok(()) => Helper::Done,
+            Err(e) => {
+                log_warn!("[bd] kill(-{}, SIGKILL) failed: {}", pid, e);
+                Helper::Failed
+            }
+        }
+    };
+    #[cfg(windows)]
+    let outcome = {
+        let mut kill = crate::command::new_command("taskkill");
+        kill.args(["/T", "/F", "/PID", &pid.to_string()]);
+        run_helper(kill, until)
+    };
+    #[cfg(not(any(unix, windows)))]
+    let outcome = {
+        let _ = until;
+        Helper::Failed
+    };
     if outcome != Helper::Done {
         log_warn!(
             "[bd] killing the process group of {} did not succeed: {:?}",
@@ -831,59 +1109,16 @@ fn kill_group(tree: &Tree, until: Instant) -> Helper {
     outcome
 }
 
-/// The platform's program that kills the group led by `pid`: `kill -KILL -- -<pid>`
-/// on Unix (the negative pid names the group), `taskkill /T /F` on Windows (only
-/// when the child has no job object).
-///
-/// A program, not a libc call, as before RCR-001: the crate's one libc call is the
-/// non-reaping exit check ([`has_exited`]). `None` on a platform with neither.
-#[cfg_attr(
-    any(unix, target_os = "windows"),
-    expect(
-        clippy::unnecessary_wraps,
-        reason = "None on a platform with neither program"
-    )
-)]
-fn group_kill_command(pid: u32) -> Option<Command> {
-    #[cfg(unix)]
-    {
-        let mut kill = Command::new(unix_kill());
-        kill.args(["-KILL", "--", &format!("-{pid}")]);
-        Some(kill)
-    }
-    #[cfg(target_os = "windows")]
-    {
-        let mut kill = crate::command::new_command("taskkill");
-        kill.args(["/T", "/F", "/PID", &pid.to_string()]);
-        Some(kill)
-    }
-    #[cfg(not(any(unix, target_os = "windows")))]
-    {
-        let _ = pid;
-        None
-    }
-}
-
-/// `/bin/kill` when it exists, else `kill` from `PATH`.
-#[cfg(unix)]
-fn unix_kill() -> &'static str {
-    if std::path::Path::new("/bin/kill").is_file() {
-        "/bin/kill"
-    } else {
-        "kill"
-    }
-}
-
 /// Waits until the group led by the child (Windows: its job) has no member left, or
 /// `until` has passed.
 ///
-/// On Unix `kill -0 -- -<pid>` succeeds while the group has a member, so a
-/// descendant the group kill signalled is known to be gone when it fails. It runs
-/// after the reap (a zombie leader would count as a member); signal 0 is delivered
-/// to no one, so in the residual case of a group that emptied and whose id was
-/// reused meanwhile it at worst waits to `until`. On Windows the job's count of
-/// active processes is polled; with no job `taskkill /F` has already terminated the
-/// tree, so there is nothing to wait for.
+/// On Unix `kill(-pid, 0)` ([`process_group::exists`]) succeeds while the group has a
+/// member, so a descendant the group kill signalled is known to be gone when it fails
+/// with `ESRCH`. It runs after the reap (a zombie leader would count as a member);
+/// signal 0 is delivered to no one, so in the residual case of a group that emptied
+/// and whose id was reused meanwhile it at worst waits to `until`. On Windows the
+/// job's count of active processes is polled; with no job `taskkill /F` has already
+/// terminated the tree, so there is nothing to wait for.
 fn wait_until_group_is_gone(tree: &Tree, until: Instant) {
     let pid = tree.pid;
     #[cfg(windows)]
@@ -911,10 +1146,13 @@ fn wait_until_group_is_gone(tree: &Tree, until: Instant) {
     }
     #[cfg(unix)]
     loop {
-        let mut probe = Command::new(unix_kill());
-        probe.args(["-0", "--", &format!("-{pid}")]);
-        if run_helper(probe, until) != Helper::Done {
-            return;
+        match process_group::exists(pid) {
+            Ok(true) => {}
+            Ok(false) => return,
+            Err(e) => {
+                log_warn!("[bd] cannot probe the process group of {}: {}", pid, e);
+                return;
+            }
         }
         let left = until.saturating_duration_since(Instant::now());
         if left.is_zero() {
@@ -1162,7 +1400,7 @@ mod tests {
         );
 
         // Now let it exit: the reaper, not this test, reaps it.
-        let killed = Command::new(unix_kill())
+        let killed = Command::new("kill")
             .args(["-KILL", &pid.to_string()])
             .status()
             .unwrap();

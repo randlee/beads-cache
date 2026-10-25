@@ -349,6 +349,18 @@ No `libc` function is called, so the crate still has no `unsafe`. The
 Crate Layout row of `docs/architecture.md` lists it (ARCH-303). This closes
 ARCH-301.
 
+Amendment (phase-end fixes RSH-002, RSH-003; **Status:** Approved (bc-lead,
+2026-10-25)): on Unix the `atm` process group is killed with
+`sc_bd_cli::process_group::kill` (`kill(-pgid, SIGKILL)` in sc-bd-cli's safe
+wrapper) instead of the `kill` program, which a minimal image may lack or be
+unable to start; Windows keeps `taskkill /T`. The `unsafe` stays in sc-bd-cli,
+so this crate still has none. `AtmSender::resolve` searches the absolute
+directories of `PATH` only (`sc_bd_cli::path::absolute_path_entries`, lead
+rulings S76 and S77): an empty or relative segment would find an `atm`
+committed in the working directory. Tests (`tests/atm_process.rs`):
+`the_tree_kill_needs_no_kill_program`,
+`a_relative_path_segment_never_runs_an_atm_in_the_cwd`.
+
 Consequences: a new dependency is a change to this ADR.
 
 ## ADR-SYNC-0007: The phase-file schema and the `atm send` contract

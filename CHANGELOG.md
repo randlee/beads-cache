@@ -87,6 +87,28 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   equivalents) follow it as a fallback, where they used to come first. A `bd`
   named by the user's `PATH` now wins over one in a fixed directory, and each
   directory appears once (lead ruling S77, contract §2).
+- `sc-bd-cli` (RSH-004, lead ruling S81): every deadline-bounded `bd` call
+  also holds a cross-process advisory lock, `<project>/.beads/sc-bd-cli.lock`
+  (or a file in the OS temp directory keyed by the canonical project
+  directory), so two processes, such as a cron `cache tick` and an agent's
+  `bdc get`, never run two `bd` on one embedded Dolt database. The wait is
+  bounded by the call's deadline (`TimeoutPhase::Lock`) and the lock is
+  released on every return and when the process dies (ADR-BDCLI-0006).
+- `sc-bd-cli`, `bd-cache-sync` (RSH-002): the timeout kill of a `bd` or `atm`
+  process group is `kill(-pgid, SIGKILL)` itself (`sc_bd_cli::process_group`),
+  not the `kill` program, so a dolt grandchild dies with the group in an
+  image without `/bin/kill` or with no process slot left.
+- `bdc` (RSH-001): SIGTERM, SIGINT and SIGHUP no longer leave the `bd` / dolt
+  group running. The running `bd` call's group is killed and reaped, the
+  locks are released, `cache tick` and its `atm` child stop, the envelope is
+  written, and bdc exits `128 + signal` (143 for SIGTERM; ADR-CLI-0005). On
+  Linux a `bd` child also gets `PR_SET_PDEATHSIG`. New:
+  `sc_bd_cli::shutdown`, `BoundedError::Interrupted`.
+- `bd-cache-sync` (RSH-003): `AtmSender::resolve` searches the absolute
+  directories of `PATH` only, so an `atm` committed in the working directory
+  never runs for `:/usr/bin` or `.:/usr/bin` (S76/S77 applied to `atm`).
+- `sc-bd-cli`: a `PATH` with a segment that is not UTF-8 no longer empties the
+  inherited `PATH`; the child gets every segment.
 
 ### Phase-end fixes
 

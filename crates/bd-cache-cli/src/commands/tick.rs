@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use bd_cache_api::ApiError;
 use bd_cache_api::data::OpError;
-use bd_cache_sync::{AtmSender, Composed, TICK_BUDGET, TickReply};
+use bd_cache_sync::{AtmSender, Composed, StopFlag, TICK_BUDGET, TickReply, TickSettings};
 use sc_beads::{Clock, Deadline};
 use serde_json::{Map, Value};
 
@@ -95,6 +95,9 @@ pub(crate) fn decode(request: &Value) -> Result<TickRequest, ApiError> {
 /// Runs one tick on the composed cache and returns its `data`: the
 /// `TickReply`, with each `refused[]` item an `OpError` (`ApiError::tick_refusal`).
 ///
+/// `stop` is set by a signal (RSH-001): the tick then ends early
+/// (`TickReply::stopped`) and the sender kills a running `atm` with its group.
+///
 /// # Errors
 ///
 /// The cache's errors, as [`ApiError`].
@@ -102,13 +105,21 @@ pub(crate) fn run(
     composed: &mut Composed,
     request: &TickRequest,
     clock: &dyn Clock,
+    stop: &StopFlag,
 ) -> Result<Value, ApiError> {
     let sender = request
         .atm
         .as_ref()
-        .map_or_else(AtmSender::default, AtmSender::with_binary);
+        .map_or_else(AtmSender::default, AtmSender::with_binary)
+        .with_stop(stop.clone());
     let end = Deadline::after(clock, request.budget);
-    let reply = bd_cache_sync::tick(&mut composed.cache, &composed.tick, &sender, end)?;
+    // `tick` itself with a stop flag: the same validation, then `tick_with`.
+    let reply = match TickSettings::from_config(&composed.tick) {
+        Ok(settings) => {
+            bd_cache_sync::tick_with(&mut composed.cache, &settings, &sender, end, stop)?
+        }
+        Err(refusal) => TickReply::refused_with(refusal.into()),
+    };
     reply_json(&reply)
 }
 

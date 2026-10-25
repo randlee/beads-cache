@@ -1,16 +1,41 @@
-//! [`ProjectLocks`]: one mutex per project working directory.
+//! [`ProjectLocks`]: one mutex per project working directory, and the cross-process
+//! lock file beside it (lead ruling S81, RSH-004).
 //!
 //! bd 0.55 uses embedded Dolt, which crashes (SIGSEGV) when two bd processes access
 //! the same database simultaneously, so every `--json` invocation holds the lock of
 //! its working directory for the lifetime of the child process. Entries are never
 //! removed: the map grows by one entry per distinct working directory.
 //!
+//! A mutex only excludes the threads of one process, while two processes (a cron
+//! `cache tick` and an agent's `bdc get`) may call `bd` on one project at once. So a
+//! deadline-bounded call ([`bounded`](crate::bounded)) also holds an advisory lock on
+//! a file of the project, `ProjectFileLock` (crate-private), for as long as it holds
+//! the mutex (S81; ADR-BDCLI-0006). btit's unbounded calls ([`run`](crate::run)) take
+//! the mutex only, as btit did.
+//!
 //! The key of a lock is the directory's canonical path, resolved when the lock is
 //! taken (PE-RBP-F010): `/p/link` and `/p/sub/..` share the lock of the directory they
 //! name. A directory that does not exist keys on its lexical [`WorkingDir`] form.
+//!
+//! # The lock file
+//!
+//! `<project>/.beads/sc-bd-cli.lock`, where `<project>` is the canonical key above,
+//! when that file can be opened (created read-write, or an existing one read-only);
+//! otherwise `<temp>/sc-bd-cli-<hash>.lock` in the OS temp directory, `<hash>` a
+//! stable 64-bit FNV-1a of the key, so every process that cannot use `.beads/` meets
+//! in the same file. The lock is `flock` (Unix) or `LockFileEx` (Windows) on an open
+//! handle, taken without blocking ([`std::fs::File::try_lock`]) and polled against the
+//! call's deadline; closing the handle releases it, on every return and when the
+//! process dies, so a crashed host never leaves it held. The file is never deleted
+//! (deleting a lock file races a process that just opened it). Two processes that
+//! disagree on whether `.beads/` is usable (one may create the file there, the other
+//! may not even read it) would use different files; an existing file is opened
+//! read-only for that reason, which `flock` allows.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::fs::{File, OpenOptions};
+use std::io;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// A project working directory, normalised so that spellings of one directory share a
@@ -156,11 +181,121 @@ impl ProjectLocks {
         lock_key(working_dir).map(|key| self.entry(key))
     }
 
+    /// The mutex of `working_dir` and its cross-process lock file, both keyed by its
+    /// canonical path (resolved once).
+    ///
+    /// # Errors
+    ///
+    /// As [`try_guard_dir`](Self::try_guard_dir).
+    pub(crate) fn try_guard_and_file(
+        &self,
+        working_dir: &WorkingDir,
+    ) -> Result<(Arc<Mutex<()>>, ProjectFileLock), NonUtf8WorkingDir> {
+        let key = lock_key(working_dir)?;
+        let file = ProjectFileLock::for_key(&key);
+        Ok((self.entry(key), file))
+    }
+
     /// The mutex stored under `key`, created on first use.
     fn entry(&self, key: String) -> Arc<Mutex<()>> {
         let mut locks = self.locks.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(locks.entry(key).or_insert_with(|| Arc::new(Mutex::new(()))))
     }
+}
+
+/// The name of the lock file in a project's `.beads/` directory.
+pub(crate) const LOCK_FILE_NAME: &str = "sc-bd-cli.lock";
+
+/// The cross-process lock of one project (lead ruling S81, RSH-004): see the module
+/// docs, "The lock file".
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ProjectFileLock {
+    /// `<project>/.beads/sc-bd-cli.lock`, tried first.
+    in_project: Option<PathBuf>,
+    /// The OS temp directory's file for the same key.
+    in_temp: PathBuf,
+}
+
+/// Holds a project's cross-process lock until dropped: the open handle is the lock.
+#[derive(Debug)]
+pub(crate) struct FileGuard {
+    // Never read: closing the handle releases the lock.
+    _file: File,
+}
+
+impl ProjectFileLock {
+    /// The lock of the project whose canonical key is `key`.
+    pub(crate) fn for_key(key: &str) -> Self {
+        let in_project = (!key.is_empty()).then(|| Path::new(key).join(".beads").join(LOCK_FILE_NAME));
+        let in_temp = std::env::temp_dir().join(format!("sc-bd-cli-{:016x}.lock", fnv1a(key)));
+        Self {
+            in_project,
+            in_temp,
+        }
+    }
+
+    /// Takes the lock without blocking: `Ok(None)` while another handle holds it.
+    ///
+    /// # Errors
+    ///
+    /// The error of opening the temp-directory file when neither file can be opened,
+    /// or of the lock call itself.
+    pub(crate) fn try_acquire(&self) -> io::Result<Option<FileGuard>> {
+        let file = match self.in_project.as_deref().map(open_lock_file) {
+            Some(Ok(file)) => file,
+            _ => open_lock_file(&self.in_temp)?,
+        };
+        match file.try_lock() {
+            Ok(()) => Ok(Some(FileGuard { _file: file })),
+            Err(std::fs::TryLockError::WouldBlock) => Ok(None),
+            Err(std::fs::TryLockError::Error(e)) => Err(e),
+        }
+    }
+
+    /// The file the lock lives in now: the project's when it can be opened.
+    #[cfg(test)]
+    pub(crate) fn path(&self) -> PathBuf {
+        match &self.in_project {
+            Some(p) if open_lock_file(p).is_ok() => p.clone(),
+            _ => self.in_temp.clone(),
+        }
+    }
+}
+
+/// Opens (creating it if need be) the lock file at `path` read-write, or an existing
+/// one read-only, which `flock` and `LockFileEx` accept too. On Unix a symlink at the
+/// path is not followed (`O_NOFOLLOW`): the temp directory is shared.
+fn open_lock_file(path: &Path) -> io::Result<File> {
+    let mut options = OpenOptions::new();
+    options.read(true).write(true).create(true).truncate(false);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt as _;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    match options.open(path) {
+        Ok(file) => Ok(file),
+        Err(e) if e.kind() == io::ErrorKind::PermissionDenied || e.kind() == io::ErrorKind::ReadOnlyFilesystem => {
+            let mut read_only = OpenOptions::new();
+            read_only.read(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt as _;
+                read_only.custom_flags(libc::O_NOFOLLOW);
+            }
+            read_only.open(path)
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// The 64-bit FNV-1a hash of `text`: stable across processes, builds and Rust
+/// versions (unlike `DefaultHasher`), so every process names one temp file per key.
+fn fnv1a(text: &str) -> u64 {
+    const OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const PRIME: u64 = 0x0000_0100_0000_01b3;
+    text.bytes()
+        .fold(OFFSET, |hash, byte| (hash ^ u64::from(byte)).wrapping_mul(PRIME))
 }
 
 /// The lock key of `dir`: its canonical path, or its lexical form when it cannot be
@@ -281,6 +416,38 @@ mod tests {
             ));
         }
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The lock file is the project's `.beads/sc-bd-cli.lock` when `.beads/` exists,
+    /// else the temp directory's file for the key; two handles on it exclude each
+    /// other (also inside one process), and dropping the guard releases it.
+    #[test]
+    fn the_file_lock_lives_in_beads_or_the_temp_dir_and_excludes() {
+        let root = scratch("file-lock");
+        let project = root.join("project");
+        let key = lock_key(&WorkingDir::new(&utf8(&project))).unwrap();
+        let without = ProjectFileLock::for_key(&key);
+        assert_eq!(without.path(), without.in_temp, "no .beads/ yet");
+        std::fs::create_dir_all(project.join(".beads")).unwrap();
+        let lock = ProjectFileLock::for_key(&key);
+        assert_eq!(lock.path(), Path::new(&key).join(".beads").join(LOCK_FILE_NAME));
+        let held = lock.try_acquire().unwrap();
+        assert!(held.is_some());
+        assert!(lock.try_acquire().unwrap().is_none(), "a second handle must wait");
+        drop(held);
+        assert!(lock.try_acquire().unwrap().is_some(), "released on drop");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// The temp-directory name is a stable hash of the key.
+    #[test]
+    fn the_temp_name_is_a_stable_hash_of_the_key() {
+        assert_eq!(fnv1a(""), 0xcbf2_9ce4_8422_2325);
+        assert_eq!(fnv1a("a"), 0xaf63_dc4c_8601_ec8c);
+        let lock = ProjectFileLock::for_key("/p");
+        assert!(lock
+            .in_temp
+            .ends_with(format!("sc-bd-cli-{:016x}.lock", fnv1a("/p"))));
     }
 
     /// A directory that does not exist keys on its lexical form.

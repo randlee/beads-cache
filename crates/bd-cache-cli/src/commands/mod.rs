@@ -11,6 +11,7 @@
 
 pub(crate) mod beads;
 pub(crate) mod manage;
+pub(crate) mod signal;
 pub(crate) mod tick;
 
 use std::collections::BTreeMap;
@@ -18,7 +19,7 @@ use std::sync::Arc;
 
 use bd_cache_api::{ApiError, CacheFacts, Request, decode, execute};
 use bd_cache_store::SCHEMA_VERSION;
-use bd_cache_sync::{ComposeError, Composed, compose_with_config};
+use bd_cache_sync::{ComposeError, Composed, StopFlag, compose_with_config};
 use sc_bd_cli::CliInvoker;
 use sc_beads::Clock;
 use serde_json::{Map, Value};
@@ -36,6 +37,8 @@ pub(crate) struct Context<'a> {
     pub(crate) invoker: Option<Box<dyn CliInvoker>>,
     /// The command's clock.
     pub(crate) clock: Arc<dyn Clock>,
+    /// Set by a signal (RSH-001): `cache tick` and its `atm` sender stop on it.
+    pub(crate) stop: &'a StopFlag,
 }
 
 impl std::fmt::Debug for Context<'_> {
@@ -69,7 +72,7 @@ pub(crate) fn run(target: Target, request: &Value, ctx: Context<'_>) -> Result<V
     let mut composed = open(&settings, ctx.invoker, Arc::clone(&ctx.clock))?;
     match decoded {
         Decoded::Api(req) => execute(&mut composed.cache, &req, &facts(&settings))?.to_json(),
-        Decoded::Tick(req) => tick::run(&mut composed, &req, &*ctx.clock),
+        Decoded::Tick(req) => tick::run(&mut composed, &req, &*ctx.clock, ctx.stop),
     }
 }
 
