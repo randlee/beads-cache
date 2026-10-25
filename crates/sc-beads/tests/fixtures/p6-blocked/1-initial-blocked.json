@@ -1,0 +1,74 @@
+[
+  {
+    "id": "pr-cwo",
+    "title": "c child of blocked p",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-24T04:41:24Z",
+    "created_by": "bc-lead",
+    "updated_at": "2026-10-24T04:41:24Z",
+    "labels": [
+      "phase-p6"
+    ],
+    "blocked_by_count": 1,
+    "blocked_by": [
+      "pr-zbr"
+    ]
+  },
+  {
+    "id": "pr-bnv",
+    "title": "a blocked by outside x",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-24T04:41:24Z",
+    "created_by": "bc-lead",
+    "updated_at": "2026-10-24T04:41:24Z",
+    "labels": [
+      "phase-p6"
+    ],
+    "blocked_by_count": 1,
+    "blocked_by": [
+      "pr-tqm"
+    ]
+  },
+  {
+    "id": "pr-wqb",
+    "title": "b blocked by a",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-24T04:41:24Z",
+    "created_by": "bc-lead",
+    "updated_at": "2026-10-24T04:41:24Z",
+    "labels": [
+      "phase-p6"
+    ],
+    "blocked_by_count": 1,
+    "blocked_by": [
+      "pr-bnv"
+    ]
+  },
+  {
+    "id": "pr-zbr",
+    "title": "p parent blocked by a",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-24T04:41:24Z",
+    "created_by": "bc-lead",
+    "updated_at": "2026-10-24T04:41:24Z",
+    "labels": [
+      "phase-p6"
+    ],
+    "blocked_by_count": 1,
+    "blocked_by": [
+      "pr-bnv"
+    ]
+  }
+]

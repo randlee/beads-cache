@@ -12,9 +12,24 @@ their own prompts.
 - Architecture index: `docs/architecture.md`
 - Project plan: `docs/project-plan.md`
 - Team protocol: `docs/team-protocol.md`
-- Per-crate docs: none declared. When this section declares them, each crate
-  in scope carries `docs/<crate>/requirements.md` and
-  `docs/<crate>/architecture.md`, indexed from the baseline docs above.
+- Per-crate docs: every crate carries `docs/<crate>/requirements.md` and
+  `docs/<crate>/architecture.md`, created by the sprint that creates the
+  crate and indexed from the baseline docs above. Repo-level requirements
+  (`REQ-BDC-*`) and ADRs (`ADR-BDC-*`) stay in the root docs; crate-local
+  requirements and ADRs use the crate's domain code
+  (`REQ-<DOMAIN>-nnnn`, `ADR-<DOMAIN>-nnnn`) and trace to the repo-level
+  ids they refine.
+
+  | Crate | Domain code | Created by |
+  |---|---|---|
+  | `sc-beads` | `BEADS` | a-1 |
+  | `bd-cache-model` | `MODEL` | a-1 |
+  | `bd-cache` | `CORE` | a-1 (`requirements.md`, `architecture.md` index); a-5 `write-path.md`, a-6 `read-path.md` |
+  | `sc-bd-cli` | `BDCLI` | a-2 |
+  | `sc-cron` | `CRON` | a-3 |
+  | `bd-cache-store` | `STORE` | a-4 |
+  | `bd-cache-sync` | `SYNC` | a-7 |
+  | `bd-cache-py` | `PY` | a-8 |
 
 ## Reviewer Policy
 
@@ -43,10 +58,28 @@ their own prompts.
 
 ## Validation Policy
 
-No repository-wide phase-end artifact command is configured yet. An
-implementation phase must add its authoritative command here before phase-end
-QA can pass. Reviewer assignments may provide narrower commands for earlier
-rounds.
+Phase-end artifact command (phase a; sprint a-7 added it). Run it from the
+repository root on the phase branch, with `set -o pipefail`; every line must
+pass:
+
+```bash
+set -o pipefail
+cargo fmt --all --check
+cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings
+cargo clippy --workspace --exclude bd-cache-py --lib -- -D warnings
+RUSTDOCFLAGS="-D warnings" cargo doc --workspace --exclude bd-cache-py --no-deps
+cargo test --workspace --exclude bd-cache-py --all-features
+```
+
+This is what `.github/workflows/ci.yml` runs (on ubuntu, macos and windows
+for clippy and test). `bd-cache-py` is a PyO3 extension module that does not
+link under `cargo test`; its gate is `.github/workflows/python.yml` (sprint
+a-8). The bd compatibility workflow (`.github/workflows/bd-compat.yml`,
+`workflow_dispatch` at the pinned version) and the testbed run
+(`crates/bd-cache-sync/tests/run-live.sh`, sprint a-7; recorded in
+`docs/plans/phase-a/evidence/a-7-testbed.md`) are the only places live `bd`
+tests run (NFR-BDC-0006). Reviewer assignments may name narrower commands for
+earlier rounds.
 
 ## Lint and Gates
 
@@ -72,15 +105,15 @@ One convention for every phase. Everything is lower case.
 
 | Thing | Form | Example |
 |---|---|---|
-| Phase id | next unused letter pair, lower case | `aa` |
-| Sprint id | `<phase>-<n>`, `n` from 1 | `aa-1` |
-| Plan directory | `docs/plans/phase-<phase>/` | `docs/plans/phase-aa/` |
-| Phase plan | `docs/plans/phase-<phase>/phase-<phase>-plan.md` | `phase-aa-plan.md` |
-| Sprint doc | `docs/plans/phase-<phase>/sprint-<phase>-<n>-<slug>.md` | `sprint-aa-1-<slug>.md` |
-| Plan branch | `plan/phase-<phase>`, PR to `develop` | `plan/phase-aa` |
-| Phase branch | `integrate/phase-<phase>`, cut from `develop` | `integrate/phase-aa` |
-| Sprint branch | `sprint/<phase>-<n>-<slug>` | `sprint/aa-1-<slug>` |
-| Fix layer | `fix/<phase>-<n>-qa<k>`; phase-level: `fix/<phase>-<slug>` | `fix/aa-1-qa1` |
+| Phase id | next unused letter (then letter pairs once single letters run out), lower case | `a` |
+| Sprint id | `<phase>-<n>`, `n` from 1 | `a-1` |
+| Plan directory | `docs/plans/phase-<phase>/` | `docs/plans/phase-a/` |
+| Phase plan | `docs/plans/phase-<phase>/phase-<phase>-plan.md` | `phase-a-plan.md` |
+| Sprint doc | `docs/plans/phase-<phase>/sprint-<phase>-<n>-<slug>.md` | `sprint-a-1-<slug>.md` |
+| Plan branch | `plan/phase-<phase>`, PR to `develop` | `plan/phase-a` |
+| Phase branch | `integrate/phase-<phase>`, cut from `develop` | `integrate/phase-a` |
+| Sprint branch | `sprint/<phase>-<n>-<slug>` | `sprint/a-1-<slug>` |
+| Fix layer | `fix/<phase>-<n>-qa<k>`; phase-level: `fix/<phase>-<slug>` | `fix/a-1-qa1` |
 
 - Phase plans never live outside `docs/plans/phase-<phase>/`.
 - Every sprint doc declares its branch explicitly. Tools read the declared

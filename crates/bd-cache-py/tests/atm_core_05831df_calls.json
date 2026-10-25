@@ -1,0 +1,508 @@
+{
+ "repo": "randlee/atm-core",
+ "ref": "05831dfe866d389feed138add3c29cb93cd6c82b",
+ "scripts_dir": ".claude/skills/atm-bd-orchestration/scripts",
+ "clients": [
+  "sanity_task_close_hook.py",
+  "close_fields_backfill.py",
+  "close-vars.py",
+  "bd_cache_cron.py"
+ ],
+ "commands": [
+  "gh api repos/randlee/atm-core/git/trees/05831dfe866d389feed138add3c29cb93cd6c82b?recursive=1 --jq '.tree[].path'",
+  "gh api repos/randlee/atm-core/contents/.claude/skills/atm-bd-orchestration/scripts/bd_cache.py?ref=05831dfe866d389feed138add3c29cb93cd6c82b ... (bd_cache.py and each client below)",
+  "python3 atm_core_05831df_extract.py > atm_core_05831df_calls.json"
+ ],
+ "uses": [
+  {
+   "kind": "cli",
+   "name": "drain",
+   "file": "sanity_task_close_hook.py",
+   "line": 383
+  },
+  {
+   "kind": "cli",
+   "name": "resolve",
+   "file": "bd_cache_cron.py",
+   "line": 78
+  },
+  {
+   "kind": "cli",
+   "name": "status",
+   "file": "sanity_task_close_hook.py",
+   "line": 221
+  },
+  {
+   "kind": "error",
+   "name": "as_json",
+   "file": "bd_cache_cron.py",
+   "line": 108
+  },
+  {
+   "kind": "error",
+   "name": "as_json",
+   "file": "bd_cache_cron.py",
+   "line": 168
+  },
+  {
+   "kind": "error",
+   "name": "as_json",
+   "file": "close-vars.py",
+   "line": 151
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "bd_cache_cron.py",
+   "line": 58
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "bd_cache_cron.py",
+   "line": 109
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "bd_cache_cron.py",
+   "line": 111
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 144
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 155
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 166
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 211
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 222
+  },
+  {
+   "kind": "error",
+   "name": "code",
+   "file": "sanity_task_close_hook.py",
+   "line": 370
+  },
+  {
+   "kind": "error",
+   "name": "detail",
+   "file": "bd_cache_cron.py",
+   "line": 111
+  },
+  {
+   "kind": "error",
+   "name": "detail",
+   "file": "sanity_task_close_hook.py",
+   "line": 144
+  },
+  {
+   "kind": "error",
+   "name": "detail",
+   "file": "sanity_task_close_hook.py",
+   "line": 155
+  },
+  {
+   "kind": "error",
+   "name": "detail",
+   "file": "sanity_task_close_hook.py",
+   "line": 166
+  },
+  {
+   "kind": "error",
+   "name": "detail",
+   "file": "sanity_task_close_hook.py",
+   "line": 370
+  },
+  {
+   "kind": "error",
+   "name": "extra",
+   "file": "bd_cache_cron.py",
+   "line": 109
+  },
+  {
+   "kind": "error",
+   "name": "fix",
+   "file": "bd_cache_cron.py",
+   "line": 114
+  },
+  {
+   "kind": "error",
+   "name": "fix",
+   "file": "sanity_task_close_hook.py",
+   "line": 144
+  },
+  {
+   "kind": "error",
+   "name": "fix",
+   "file": "sanity_task_close_hook.py",
+   "line": 155
+  },
+  {
+   "kind": "error",
+   "name": "fix",
+   "file": "sanity_task_close_hook.py",
+   "line": 370
+  },
+  {
+   "kind": "method",
+   "name": "bd_rows",
+   "file": "bd_cache_cron.py",
+   "line": 56
+  },
+  {
+   "kind": "method",
+   "name": "bd_rows",
+   "file": "close-vars.py",
+   "line": 50
+  },
+  {
+   "kind": "method",
+   "name": "bd_rows",
+   "file": "sanity_task_close_hook.py",
+   "line": 163
+  },
+  {
+   "kind": "method",
+   "name": "cached",
+   "file": "bd_cache_cron.py",
+   "line": 53
+  },
+  {
+   "kind": "method",
+   "name": "cached",
+   "file": "bd_cache_cron.py",
+   "line": 65
+  },
+  {
+   "kind": "method",
+   "name": "clear_sync_alert",
+   "file": "bd_cache_cron.py",
+   "line": 106
+  },
+  {
+   "kind": "method",
+   "name": "drain",
+   "file": "bd_cache_cron.py",
+   "line": 98
+  },
+  {
+   "kind": "method",
+   "name": "get",
+   "file": "close-vars.py",
+   "line": 54
+  },
+  {
+   "kind": "method",
+   "name": "get",
+   "file": "close_fields_backfill.py",
+   "line": 131
+  },
+  {
+   "kind": "method",
+   "name": "get",
+   "file": "sanity_task_close_hook.py",
+   "line": 153
+  },
+  {
+   "kind": "method",
+   "name": "has_open_work",
+   "file": "bd_cache_cron.py",
+   "line": 149
+  },
+  {
+   "kind": "method",
+   "name": "list",
+   "file": "close_fields_backfill.py",
+   "line": 134
+  },
+  {
+   "kind": "method",
+   "name": "mark_announced",
+   "file": "bd_cache_cron.py",
+   "line": 137
+  },
+  {
+   "kind": "method",
+   "name": "mark_outage_announced",
+   "file": "bd_cache_cron.py",
+   "line": 126
+  },
+  {
+   "kind": "method",
+   "name": "outage",
+   "file": "bd_cache_cron.py",
+   "line": 120
+  },
+  {
+   "kind": "method",
+   "name": "path",
+   "file": "sanity_task_close_hook.py",
+   "line": 385
+  },
+  {
+   "kind": "method",
+   "name": "record_outage",
+   "file": "bd_cache_cron.py",
+   "line": 60
+  },
+  {
+   "kind": "method",
+   "name": "set_sync_alert",
+   "file": "bd_cache_cron.py",
+   "line": 117
+  },
+  {
+   "kind": "method",
+   "name": "status",
+   "file": "bd_cache_cron.py",
+   "line": 163
+  },
+  {
+   "kind": "method",
+   "name": "store",
+   "file": "bd_cache_cron.py",
+   "line": 63
+  },
+  {
+   "kind": "method",
+   "name": "store",
+   "file": "close-vars.py",
+   "line": 61
+  },
+  {
+   "kind": "method",
+   "name": "store",
+   "file": "sanity_task_close_hook.py",
+   "line": 164
+  },
+  {
+   "kind": "method",
+   "name": "sync",
+   "file": "bd_cache_cron.py",
+   "line": 105
+  },
+  {
+   "kind": "method",
+   "name": "sync",
+   "file": "close_fields_backfill.py",
+   "line": 130
+  },
+  {
+   "kind": "method",
+   "name": "sync_alert",
+   "file": "bd_cache_cron.py",
+   "line": 112
+  },
+  {
+   "kind": "method",
+   "name": "unannounced_escalations",
+   "file": "bd_cache_cron.py",
+   "line": 130
+  },
+  {
+   "kind": "method",
+   "name": "view",
+   "file": "close-vars.py",
+   "line": 62
+  },
+  {
+   "kind": "method",
+   "name": "write",
+   "file": "close_fields_backfill.py",
+   "line": 149
+  },
+  {
+   "kind": "method",
+   "name": "write",
+   "file": "sanity_task_close_hook.py",
+   "line": 367
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "bd_cache_cron.py",
+   "line": 96
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "bd_cache_cron.py",
+   "line": 146
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "bd_cache_cron.py",
+   "line": 163
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "close-vars.py",
+   "line": 39
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "close_fields_backfill.py",
+   "line": 129
+  },
+  {
+   "kind": "module",
+   "name": "BdCache",
+   "file": "sanity_task_close_hook.py",
+   "line": 142
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "bd_cache_cron.py",
+   "line": 42
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "bd_cache_cron.py",
+   "line": 57
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "bd_cache_cron.py",
+   "line": 107
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "bd_cache_cron.py",
+   "line": 167
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "close-vars.py",
+   "line": 46
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "close-vars.py",
+   "line": 51
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "close-vars.py",
+   "line": 55
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "close_fields_backfill.py",
+   "line": 136
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "sanity_task_close_hook.py",
+   "line": 143
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "sanity_task_close_hook.py",
+   "line": 154
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "sanity_task_close_hook.py",
+   "line": 162
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "sanity_task_close_hook.py",
+   "line": 165
+  },
+  {
+   "kind": "module",
+   "name": "CacheError",
+   "file": "sanity_task_close_hook.py",
+   "line": 369
+  },
+  {
+   "kind": "module",
+   "name": "UNREACHABLE",
+   "file": "bd_cache_cron.py",
+   "line": 58
+  },
+  {
+   "kind": "module",
+   "name": "UNREACHABLE",
+   "file": "bd_cache_cron.py",
+   "line": 109
+  },
+  {
+   "kind": "module",
+   "name": "__file__",
+   "file": "sanity_task_close_hook.py",
+   "line": 383
+  }
+ ],
+ "names": [
+  "cli:drain",
+  "cli:resolve",
+  "cli:status",
+  "error:as_json",
+  "error:code",
+  "error:detail",
+  "error:extra",
+  "error:fix",
+  "method:bd_rows",
+  "method:cached",
+  "method:clear_sync_alert",
+  "method:drain",
+  "method:get",
+  "method:has_open_work",
+  "method:list",
+  "method:mark_announced",
+  "method:mark_outage_announced",
+  "method:outage",
+  "method:path",
+  "method:record_outage",
+  "method:set_sync_alert",
+  "method:status",
+  "method:store",
+  "method:sync",
+  "method:sync_alert",
+  "method:unannounced_escalations",
+  "method:view",
+  "method:write",
+  "module:BdCache",
+  "module:CacheError",
+  "module:UNREACHABLE",
+  "module:__file__"
+ ]
+}

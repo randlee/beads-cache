@@ -1,0 +1,70 @@
+schema_version = 1
+
+[project]
+name = "beads-cache"
+archive_prefix = "beads-cache"
+description = "Rust cache of a beads repository: sc-beads backend contract, sc-bd-cli bd backend, sc-cron scheduler and the bd-cache-rs Python bindings"
+homepage = "https://github.com/randlee/beads-cache"
+license = "MIT"
+workspace_toml = "Cargo.toml"
+rust_toolchain = "1.98.1"
+
+[prerelease]
+tag_prefix = "prerelease/v"
+tag_script = "scripts/prerelease_tag.py"
+install_root = "~/.beads-cache-builds"
+binaries = []
+protected_branches = ["develop", "main"]
+selector_dir = { darwin = "~/.beads-cache-builds/selectors/darwin", linux = "~/.beads-cache-builds/selectors/linux", windows = "%LOCALAPPDATA%\\beads-cache\\prerelease-selectors" }
+post_install = "{python} -m pip install --force-reinstall {wheels}"
+verify = "{python} -m pip show bd-cache-rs"
+
+[[release_targets]]
+target = "x86_64-unknown-linux-gnu"
+os = "ubuntu-latest"
+archive = "tar.gz"
+
+[[crates]]
+artifact = "sc-beads"
+package = "sc-beads"
+cargo_toml = "crates/sc-beads/Cargo.toml"
+publish = true
+publish_order = 1
+wait_after_publish_seconds = 30
+[[crates]]
+artifact = "sc-cron"
+package = "sc-cron"
+cargo_toml = "crates/sc-cron/Cargo.toml"
+publish = true
+publish_order = 2
+wait_after_publish_seconds = 30
+[[crates]]
+artifact = "sc-bd-cli"
+package = "sc-bd-cli"
+cargo_toml = "crates/sc-bd-cli/Cargo.toml"
+publish = true
+publish_order = 3
+wait_after_publish_seconds = 0
+
+
+[[python_packages]]
+artifact = "bd-cache-rs-wheel"
+package = "bd-cache-rs"
+manifest = "crates/bd-cache-py/pyproject.toml"
+module = "bd_cache_rs"
+publish = "pypi"
+
+[[python_distributions]]
+name = "bd-cache-rs"
+source = "crates/bd-cache-py"
+cargo_manifest = "crates/bd-cache-py/Cargo.toml"
+module_path = "crates/bd-cache-py"
+sdist = true
+wheels = ["macos-14", "ubuntu-latest"]
+
+[channels.pypi]
+workflow = "pypi-publish.yml"
+dispatch_inputs = { target = "production" }
+credential_rehearsal_inputs = { target = "testpypi" }
+test_repository = "testpypi"
+production_repository = "pypi"

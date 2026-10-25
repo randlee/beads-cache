@@ -1,0 +1,6 @@
+# Pinned Rust toolchain for every workspace crate and for CI.
+# Keep in sync with `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]

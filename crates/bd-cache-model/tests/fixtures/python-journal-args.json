@@ -1,0 +1,42 @@
+[
+  {
+    "op": "close",
+    "args_json": "{}"
+  },
+  {
+    "op": "close",
+    "args_json": "{\"reason\": \"PASS at abc123\"}"
+  },
+  {
+    "op": "close",
+    "args_json": "{\"reason\": \"na\\u00efve \\u201cquotes\\u201d \\\\ and\\nnewline \\ud83d\\ude00\"}"
+  },
+  {
+    "op": "update",
+    "args_json": "{\"assignee\": \"\", \"status\": \"open\"}"
+  },
+  {
+    "op": "update",
+    "args_json": "{\"add_labels\": [\"r2\"], \"append_notes\": \"reopened\"}"
+  },
+  {
+    "op": "update",
+    "args_json": "{\"set_metadata\": {\"flag\": true, \"n\": 5, \"neg\": -3, \"raw\": \"[1]\", \"sha\": \"abc123\"}}"
+  },
+  {
+    "op": "update",
+    "args_json": "{\"remove_labels\": [\"stage:dev\", \"r1\"], \"status\": \"closed\", \"unset_metadata\": [\"old\", \"gone\"]}"
+  },
+  {
+    "op": "update",
+    "args_json": "{\"set_metadata\": {\"obj\": \"{\\\"x\\\":1}\", \"q\": \"\\\"5\\\"\", \"s\": \"True\"}}"
+  },
+  {
+    "op": "dep_add",
+    "args_json": "{\"depends_on\": \"b1\", \"type\": \"blocks\"}"
+  },
+  {
+    "op": "dep_add",
+    "args_json": "{\"depends_on\": \"pr-zbr\", \"type\": \"parent-child\"}"
+  }
+]

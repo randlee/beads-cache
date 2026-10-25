@@ -1,0 +1,6 @@
+# Byte-exact files: the bd schema fixture is pinned by its sha256, recorded bd
+# output and Python-written journal text are compared byte for byte, and the
+# strict model is compared with its generator's output. Keep them LF on every
+# platform.
+crates/*/tests/fixtures/** text eol=lf
+crates/sc-beads/src/row/generated.rs text eol=lf linguist-generated=true

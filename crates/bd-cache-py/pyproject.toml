@@ -1,0 +1,34 @@
+[build-system]
+requires = ["maturin>=1.7,<2"]
+build-backend = "maturin"
+
+[project]
+name = "bd-cache-rs"
+description = "bd-cache in process: the Rust cache of a beads repository, for atm-bd (maturin / PyO3)."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Rand Lee", email = "rand@randlee.com" }]
+# abi3-py39 in Cargo.toml: one wheel per platform serves every CPython from 3.9.
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "License :: OSI Approved :: MIT License",
+]
+version = "0.1.0"
+keywords = ["beads", "bd", "cache", "sqlite"]
+
+[project.urls]
+Repository = "https://github.com/randlee/beads-cache"
+Changelog = "https://github.com/randlee/beads-cache/blob/develop/CHANGELOG.md"
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.maturin]
+module-name = "bd_cache_rs"
+# The module is the cdylib of this crate; no Python sources ship with it.
+strip = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

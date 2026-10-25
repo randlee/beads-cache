@@ -1,0 +1,31 @@
+[package]
+name = "bd-cache-py"
+description = "Python bindings (maturin / PyO3) for bd-cache over the real SQLite store, flock drain lock and bd CLI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[lib]
+name = "bd_cache_rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+bd-cache.workspace = true
+bd-cache-model.workspace = true
+bd-cache-store.workspace = true
+sc-bd-cli.workspace = true
+sc-beads.workspace = true
+dunce.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+pyo3 = { workspace = true, features = ["abi3-py39"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

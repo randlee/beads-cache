@@ -26,3 +26,15 @@ rustc-ice-*.txt
 # Local tool output (sc-compose logs, session state)
 .sc/
 .sc-compose/
+
+
+# bd-cache files and drain locks created by local runs
+.bd-cache/
+
+# Python bytecode (S43)
+__pycache__/
+*.pyc
+
+# sc-publish kit clone and renderer venv (release/sc-publish-pin.toml)
+.sc-publish-kit/
+.sc-publish-venv/

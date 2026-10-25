@@ -1,0 +1,11 @@
+# sc-publish pin manifest (see release/sc-publish-pin.toml.example and
+# README.sc-publish.md "Pinning, bootstrap, and qualification").
+#
+# The org-blessed kit revision, matching atm-core's pin. The consumer tree is
+# unchanged canonical-installer output of this exact revision, rendered from
+# release/sc-publish-consumer-input.json. No shared kit file is hand-edited.
+
+[sc-publish]
+repository = "https://github.com/randlee/sc-publish"
+# The org-blessed, consumer-qualified kit revision (full 40-character SHA).
+revision = "16457e06ade6c0b003ff75addb7d694e9da41fe2"
