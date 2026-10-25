@@ -6,8 +6,14 @@
 //! so a run that outlives its schedule never writes over a restarted one.
 //! Calls are synchronous; the scheduler's worker runs them on tokio's
 //! blocking pool.
+//!
+//! A schedule also has an `enabled` flag (REQ-CRON-0014): [`ScheduleStore::set_enabled`]
+//! flips it by name and touches no other column, and [`ScheduleStore::disable`]
+//! is the same flip made by a stop check, fenced by `(id, generation)`.
 
-use crate::{CronError, Generation, NewSchedule, RunOutcome, Schedule, ScheduleId, Timestamp};
+use crate::{
+    CronError, Generation, NewSchedule, RunOutcome, Schedule, ScheduleId, ScheduleName, Timestamp,
+};
 
 /// Durable storage for schedules and their run state.
 pub trait ScheduleStore: Send + Sync {
@@ -56,7 +62,12 @@ pub trait ScheduleStore: Send + Sync {
         outcome: &RunOutcome,
     ) -> Result<bool, CronError>;
 
-    /// Stores the next run time; `Ok(false)` when fenced.
+    /// Stores the next run time; `Ok(false)` when fenced or when the
+    /// schedule is disabled.
+    ///
+    /// Refusing a disabled schedule is what stops a worker that has not
+    /// reloaded, for instance one in another process, from firing it: the
+    /// refused write makes the worker reload before it launches (REQ-CRON-0014).
     ///
     /// # Errors
     ///
@@ -74,6 +85,32 @@ pub trait ScheduleStore: Send + Sync {
     ///
     /// [`CronError::Store`] if storage fails.
     fn stop(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        reason: &str,
+    ) -> Result<bool, CronError>;
+
+    /// Enables or disables the active schedule named `name`, changing only
+    /// its `enabled` flag; `Ok(false)` when no active schedule has that name.
+    ///
+    /// The generation, expression, payload, jitter and run state are left as
+    /// they are, so enabling again resumes the same schedule (REQ-CRON-0014).
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::Store`] if storage fails.
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError>;
+
+    /// Disables schedule `(id, generation)` because its stop check said so,
+    /// recording `reason` as the last outcome ([`RunOutcome::Refused`]) at
+    /// `at`; `Ok(false)` when fenced.
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::Store`] if storage fails.
+    fn disable(
         &self,
         id: ScheduleId,
         generation: Generation,

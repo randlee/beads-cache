@@ -1,7 +1,7 @@
 //! `SqliteScheduleStore`: the store contract with fixed timestamps,
 //! generation fencing, the table CHECKs, the schema version and reopen
-//! durability. Ported from atm-core's
-//! `atm-storage-rusqlite/tests/cron_schedule_store.rs`.
+//! durability, and the `enabled` column with the version 1 upgrade
+//! (REQ-CRON-0009, REQ-CRON-0014).
 
 #![expect(
     clippy::expect_used,
@@ -16,7 +16,7 @@ use std::time::Duration;
 use rusqlite::Connection;
 use sc_cron::{
     CronError, Generation, MAX_PAYLOAD_BYTES, NewSchedule, RunOutcome, SCHEMA_VERSION, ScheduleId,
-    ScheduleSpec, ScheduleStore, SqliteScheduleStore, StoreErrorKind, Timestamp,
+    ScheduleName, ScheduleSpec, ScheduleStore, SqliteScheduleStore, StoreErrorKind, Timestamp,
 };
 use tempfile::TempDir;
 
@@ -384,13 +384,226 @@ fn table_checks_refuse_contradictory_and_over_size_rows() {
     );
 }
 
+fn schedule_name(name: &str) -> ScheduleName {
+    ScheduleName::new(name).expect("name")
+}
+
+#[test]
+fn set_enabled_changes_only_the_flag_of_the_named_active_schedule() {
+    let h = Harness::new();
+    let nightly = h.create("nightly", 3);
+    let other = h.create("other", 3);
+    assert!(nightly.enabled && other.enabled);
+
+    assert!(
+        h.store
+            .set_enabled(&schedule_name("nightly"), false)
+            .expect("disable")
+    );
+    assert_eq!(
+        h.store.get(nightly.id).expect("get"),
+        Some(sc_cron::Schedule {
+            enabled: false,
+            ..nightly.clone()
+        })
+    );
+    assert_eq!(h.store.get(other.id).expect("get"), Some(other.clone()));
+    // Idempotent, and it lists with the flag.
+    assert!(
+        h.store
+            .set_enabled(&schedule_name("nightly"), false)
+            .expect("again")
+    );
+    let listed = h.store.list_active().expect("list");
+    assert_eq!(
+        listed.iter().map(|s| s.enabled).collect::<Vec<_>>(),
+        [false, true]
+    );
+
+    // A name with no active schedule: nothing changes.
+    assert!(
+        !h.store
+            .set_enabled(&schedule_name("missing"), true)
+            .expect("missing")
+    );
+    assert!(
+        h.store
+            .stop(nightly.id, nightly.generation, stamp(5), "end")
+            .expect("stop")
+    );
+    assert!(
+        !h.store
+            .set_enabled(&schedule_name("nightly"), true)
+            .expect("ended")
+    );
+    assert!(!h.store.get(nightly.id).expect("get").expect("row").enabled);
+}
+
+#[test]
+fn restarting_an_ended_name_enables_it_again() {
+    let h = Harness::new();
+    let first = h.create("nightly", 3);
+    assert!(
+        h.store
+            .set_enabled(&schedule_name("nightly"), false)
+            .expect("disable")
+    );
+    assert!(
+        h.store
+            .stop(first.id, first.generation, stamp(4), "end")
+            .expect("stop")
+    );
+    assert!(h.create("nightly", 6).enabled);
+}
+
+#[test]
+fn set_next_refuses_a_disabled_schedule_and_the_other_writes_still_apply() {
+    let h = Harness::new();
+    let row = h.create("nightly", 3);
+    assert!(
+        h.store
+            .set_enabled(&schedule_name("nightly"), false)
+            .expect("disable")
+    );
+    assert!(
+        !h.store
+            .set_next(row.id, row.generation, stamp(9))
+            .expect("set_next on a disabled row"),
+        "a disabled schedule is not given a next run"
+    );
+    assert_eq!(
+        h.store.get(row.id).expect("get").expect("row").next_run_at,
+        row.next_run_at
+    );
+    // A run in flight when the flag was cleared can still record, and the
+    // schedule can still be ended.
+    assert!(
+        h.store
+            .record_run(row.id, row.generation, stamp(7), &RunOutcome::Ok)
+            .expect("record")
+    );
+    assert!(
+        h.store
+            .stop(row.id, row.generation, stamp(8), "end")
+            .expect("stop")
+    );
+}
+
+#[test]
+fn disable_is_fenced_and_records_the_reason_as_a_refused_outcome() {
+    let h = Harness::new();
+    let first = h.create("nightly", 3);
+    assert!(
+        h.store
+            .stop(first.id, first.generation, stamp(4), "end")
+            .expect("stop")
+    );
+    let restarted = h.create("nightly", 6);
+    // A stop check from the old generation cannot disable the restarted schedule.
+    assert!(
+        !h.store
+            .disable(first.id, first.generation, stamp(7), "stale")
+            .expect("stale disable")
+    );
+    assert_eq!(h.store.get(first.id).expect("get"), Some(restarted.clone()));
+
+    assert!(
+        h.store
+            .disable(first.id, restarted.generation, stamp(8), "quiet")
+            .expect("disable")
+    );
+    let row = h.store.get(first.id).expect("get").expect("row");
+    assert!(row.is_active() && !row.enabled);
+    assert_eq!(row.last_outcome, Some(RunOutcome::Refused("quiet".into())));
+    assert_eq!(row.last_run_at, Some(stamp(8)));
+    assert_eq!(row.spec, restarted.spec);
+    assert_eq!(row.next_run_at, restarted.next_run_at);
+}
+
+#[test]
+fn the_enabled_column_accepts_only_zero_or_one() {
+    let h = Harness::new();
+    h.create("nightly", 3);
+    assert_check_violation(
+        h.sql()
+            .execute("UPDATE sc_cron_schedule SET enabled = 2", []),
+        "enabled = 2",
+    );
+}
+
+/// The version 1 table, before the `enabled` column.
+const SCHEMA_V1: &str = "CREATE TABLE sc_cron_schedule (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    generation   INTEGER NOT NULL CHECK (generation BETWEEN 1 AND 4294967295),
+    name         TEXT    NOT NULL UNIQUE CHECK (length(CAST(name AS BLOB)) BETWEEN 1 AND 128),
+    expr         TEXT    NOT NULL CHECK (length(CAST(expr AS BLOB)) <= 256),
+    timeout_ms   INTEGER NOT NULL CHECK (timeout_ms > 0),
+    jitter_ms    INTEGER NOT NULL CHECK (jitter_ms >= 0),
+    payload      TEXT    NOT NULL CHECK (length(CAST(payload AS BLOB)) <= 65536),
+    created_at   TEXT    NOT NULL,
+    next_run_at  TEXT,
+    last_run_at  TEXT,
+    last_outcome TEXT,
+    ended_at     TEXT,
+    stop_reason  TEXT,
+    CHECK ((ended_at IS NULL) = (next_run_at IS NOT NULL)),
+    CHECK ((ended_at IS NULL) = (stop_reason IS NULL))
+);";
+
+#[test]
+fn a_version_1_file_gains_the_enabled_column_with_every_schedule_enabled() {
+    let root = tempfile::tempdir().expect("tempdir");
+    let path = root.path().join("cron.db");
+    {
+        let old = Connection::open(&path).expect("connection");
+        old.execute_batch(SCHEMA_V1).expect("v1 schema");
+        old.execute_batch(
+            "INSERT INTO sc_cron_schedule
+                (generation, name, expr, timeout_ms, jitter_ms, payload, created_at, next_run_at)
+             VALUES (3, 'kept', '*/5 * * * * *', 30000, 1799, '{\"a\":1}',
+                     '2026-10-03T12:00:00.000000Z', '2026-10-20T12:00:00.000000Z');
+             INSERT INTO sc_cron_schedule
+                (generation, name, expr, timeout_ms, jitter_ms, payload, created_at, ended_at,
+                 stop_reason)
+             VALUES (1, 'ended', '@hourly', 1000, 0, '{}', '2026-10-01T12:00:00.000000Z',
+                     '2026-10-02T12:00:00.000000Z', 'done');",
+        )
+        .expect("v1 rows");
+        old.pragma_update(None, "user_version", 1).expect("v1");
+    }
+
+    let store = SqliteScheduleStore::open(&path).expect("upgrade");
+    let kept = store.list_active().expect("list");
+    assert_eq!(kept.len(), 1);
+    assert_eq!(kept[0].spec.name.as_str(), "kept");
+    assert_eq!(kept[0].generation, generation(3));
+    assert_eq!(kept[0].spec.payload, serde_json::json!({"a": 1}));
+    assert!(kept[0].enabled, "an existing schedule stays enabled");
+    let ended = store.get(ScheduleId::new(2)).expect("get").expect("ended");
+    assert!(!ended.is_active() && ended.enabled);
+    drop(store);
+
+    let version: i64 = Connection::open(&path)
+        .expect("connection")
+        .query_row("PRAGMA user_version", [], |row| row.get(0))
+        .expect("version");
+    assert_eq!(version, SCHEMA_VERSION);
+    // Opening again is a plain open, and the column now works.
+    let store = SqliteScheduleStore::open(&path).expect("reopen");
+    assert!(
+        store
+            .set_enabled(&schedule_name("kept"), false)
+            .expect("disable")
+    );
+}
+
 #[test]
 fn a_corrupt_row_is_a_corrupt_store_error_naming_the_row() {
     for (column, value) in [
         ("payload", "'not json'"),
         ("last_outcome", "'exit'"),
         ("next_run_at", "'soon'"),
-        ("expr", "'* * * * *'"),
+        ("expr", "'* * * *'"),
     ] {
         let fresh = Harness::new();
         let row = fresh.create("nightly", 3);
@@ -422,7 +635,7 @@ fn a_corrupt_active_row_is_skipped_and_the_good_schedule_still_lists() {
         ("payload", "'not json'"),
         ("last_outcome", "'exit'"),
         ("next_run_at", "'soon'"),
-        ("expr", "'* * * * *'"),
+        ("expr", "'* * * *'"),
         ("payload", "x'00ff'"),
     ] {
         let h = Harness::new();

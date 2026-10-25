@@ -290,6 +290,18 @@
           "item": "b-8",
           "reason": "The consumer-registered Python sync that replaces the built-in bd sync is planned in b-7; b-8 only cleans the boundary and adds the lint gate.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1's compose_with_config takes an already-merged RepoConfig and passes its [tick] section through as compose does; b-1 does not touch the sync job, its scheduling or the ingest of synced rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:10+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
@@ -905,12 +917,35 @@
           "item": "b-8",
           "reason": "b-8 adds only a refresh deadline flag; how scopes are defined is b-7's.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "sc-cron has no bd scopes or filters; the sync scopes are planned in b-7.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 reports a bead's scope in GetReply.scope through the existing scope lookup and counts the journal by scope; it does not define, parse or sync scopes (b-7 makes scopes bd filters).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:10+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
         {
           "item": "b-8",
           "reason": "b-8 adds only a refresh deadline flag; how scopes are defined is b-7's."
+        },
+        {
+          "item": "b-6",
+          "reason": "sc-cron has no bd scopes or filters; the sync scopes are planned in b-7."
         }
       ]
     },
@@ -1068,12 +1103,35 @@
           "item": "b-5",
           "reason": "b-5 changes release packaging and channels only; it adds or renames no bdc command or bd-cache-api request.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 adds the core facade methods, model fields and store columns that bd-cache-api builds its replies from; it adds, renames or changes no bdc command and no bd-cache-api request (b-2 and b-3 do).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:10+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
         {
           "item": "b-5",
           "reason": "b-5 changes release packaging and channels only; it adds or renames no bdc command or bd-cache-api request."
+        },
+        {
+          "item": "b-6",
+          "reason": "b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7."
         }
       ]
     },
@@ -1156,6 +1214,25 @@
           "item": "b-8",
           "reason": "b-8 asserts the v3 format through a golden test but edits no schema.rs, store table, column or index.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:34:08+00:00",
+          "event": "exclusion_removed",
+          "item": "b-8"
+        },
+        {
+          "at": "2026-10-25T22:34:08+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 changes no table, column, index or file-format rule; schema.rs gains only read-query constants for last_applied_at, and the v3 format golden test is the evidence.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -1165,7 +1242,11 @@
         },
         {
           "item": "b-8",
-          "reason": "b-8 asserts the v3 format through a golden test but edits no schema.rs, store table, column or index."
+          "reason": "b-8 changes no table, column, index or file-format rule; schema.rs gains only read-query constants for last_applied_at, and the v3 format golden test is the evidence."
+        },
+        {
+          "item": "b-6",
+          "reason": "b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule."
         }
       ]
     },
@@ -1382,6 +1463,19 @@
             "plan_questions": "bdc-8d2.1",
             "dev_questions": "bdc-8d2.2"
           }
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-6",
+          "reason": "sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all."
         }
       ]
     },
@@ -1443,12 +1537,35 @@
           "item": "b-8",
           "reason": "b-8 adds or changes no path that stores bead rows.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 changes the journal and its columns only; it adds or changes no path that stores bead rows (sync, fetch and ingest are untouched).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
         {
           "item": "b-8",
           "reason": "b-8 adds or changes no path that stores bead rows."
+        },
+        {
+          "item": "b-6",
+          "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows."
         }
       ]
     },
@@ -1517,6 +1634,18 @@
           "item": "b-8",
           "reason": "b-8 adds or changes no path that stores bead rows.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 changes the journal and its columns only; it adds or changes no path that stores bead rows (sync, fetch and ingest are untouched).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
@@ -1595,6 +1724,18 @@
           "item": "b-6",
           "reason": "sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 changes the journal and its columns only; it adds or changes no path that upserts bead rows (sync and ingest are untouched).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
@@ -1673,6 +1814,18 @@
           "item": "b-8",
           "reason": "b-8 does not change the sync job, its schedule timeout, a post-sync hook or a Python sync run.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 extends the journal, the store columns and compose_with_config; it does not add or change the sync job, its schedule timeout, a post-sync hook or a Python sync run.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
@@ -1744,12 +1897,23 @@
           "item": "b-6",
           "reason": "b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:33:53+00:00",
+          "event": "excluded",
+          "item": "b-5",
+          "reason": "b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method."
+        },
+        {
+          "item": "b-5",
+          "reason": "b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding."
         }
       ]
     },
@@ -1811,6 +1975,18 @@
           "item": "b-6",
           "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 adds journal, facade and store work that never calls bd (write_returning, entry_by_key and journal_counts are store reads and writes); it adds or changes no bd call, Python sync method run or post-sync hook run.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
         }
       ],
       "exclude": [
@@ -1871,6 +2047,31 @@
             "plan_questions": "bdc-vof.1",
             "dev_questions": "bdc-vof.2"
           }
+        },
+        {
+          "at": "2026-10-25T22:28:55+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1's tests cover the store, the core facade, compose_with_config and the 0.1 Python key sets on fakes; it adds or changes no test of the sync job, hooks, ingest or the CLI.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-6",
+          "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8)."
         }
       ]
     },
@@ -1932,12 +2133,23 @@
           "item": "b-8",
           "reason": "b-8 adds only a refresh deadline flag and a health read; sync failure and outage handling are b-7's.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does).",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-8",
           "reason": "b-8 adds only a refresh deadline flag and a health read; sync failure and outage handling are b-7's."
+        },
+        {
+          "item": "b-6",
+          "reason": "b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does)."
         }
       ]
     }

@@ -1,6 +1,5 @@
 //! Worker behaviour under a manual clock: ticking, missed-tick policy, stop
-//! checks, timeouts, generation fencing, jitter and shutdown. Ported from
-//! atm-cron's `tests/worker.rs` where the cases apply without ATM types.
+//! checks, timeouts, generation fencing, jitter and shutdown.
 //!
 //! No test polls. A test waits on one of three signals: the manual clock's
 //! park at the new time (the worker has settled), the job's entry or drop
@@ -25,8 +24,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sc_cron::{
     Clock, CronError, Generation, Job, ManualClock, MissedTickPolicy, NewSchedule, RunOutcome,
-    RunTimeout, Schedule, ScheduleId, ScheduleSpec, ScheduleStore, Scheduler, SeqJitter,
-    SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
+    RunTimeout, Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, Scheduler,
+    SeqJitter, SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
 };
 use serde_json::{Value, json};
 use tokio::sync::watch;
@@ -312,6 +311,20 @@ impl ScheduleStore for RecordingStore {
             changed,
         });
         Ok(changed)
+    }
+
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError> {
+        self.inner.set_enabled(name, enabled)
+    }
+
+    fn disable(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        reason: &str,
+    ) -> Result<bool, CronError> {
+        self.inner.disable(id, generation, at, reason)
     }
 }
 
