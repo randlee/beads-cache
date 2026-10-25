@@ -60,18 +60,68 @@ def test_the_corpus_records_the_error_fields_and_the_unreachable_codes():
     assert any(c.get("raises", {}).get("type") == "ValueError" for c in corpus["calls"]), "an unknown op"
 
 
+# Spans in the section 10 table that name neither a 0.1 verb nor a 0.2 method: `None` (what the 0.1
+# `resolve` returns) and the `CacheError` row, which lists the error class and the members it gains.
+# Listed here so any other unknown span fails.
+TABLE_LITERALS = {"None", "CacheError", "kind", "message", "details", "suggested_action", "retryable"}
+NAMESPACES = ("beads", "manage")
+# Every name the table must be seen to check: the rows a reader could think the test skips.
+MUST_BE_CHECKED = {
+    "dependencies_list", "context", "issues_close", "dependencies_add", "journal_list",
+    "journal_announce", "health", "scopes", "sync_alert", "set_sync_alert", "issues_update",
+    "journal_get", "journal_resolve", "refresh_scopes", "flush", "evict",
+}
+SPAN = re.compile(r"^(\w+(?:\.\w+)*)\s*(?:\(.*\))?$")
+
+
+def contract_table_rows(section):
+    """The cells of each body row of the section 10 verb table (header and rule excluded)."""
+    lines = section.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("| 0.1 verb"))
+    rows = []
+    for line in lines[start + 2:]:  # past the header and the `|---|` rule
+        if not line.startswith("|"):
+            break
+        rows.append([c.strip() for c in re.split(r"(?<!\\)\|", line.strip()[1:-1])])
+    return rows
+
+
 def test_the_contract_table_names_real_0_1_verbs_and_real_0_2_methods(cache):
-    """Contract section 10: each 0.1 verb is on `Cache`, each 0.2 method is on its namespace."""
+    """Contract section 10: every backtick span of the table is a 0.1 verb, a 0.2 method or a listed literal.
+
+    Both cells of every row are read, the em-dash rows too. A 0.2 name is `cache.<ns>.<method>`,
+    `<ns>.<method>`, or a bare method of the namespace named earlier in the cell.
+    """
     section = CONTRACT.read_text(encoding="utf-8").split("## 10.", 1)[1].split("\n## ", 1)[0]
     handle = {name for name in dir(bd_cache_rs.Cache) if not name.startswith("_")}
-    named = 0
-    for line in section.splitlines():
-        cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
-        if len(cells) < 2 or not cells[0].startswith("`"):
-            continue
-        for verb in re.findall(r"`(\w+)\(", cells[0]):
-            assert verb in handle, f"{verb}: not a Cache member"
-            named += 1
-        for namespace, method in re.findall(r"`cache\.(beads|manage)\.(\w+)", cells[1]):
+    rows = contract_table_rows(section)
+    assert len(rows) >= 13, f"the table was not read: {len(rows)} rows"
+    checked = set()
+    for cells in rows:
+        assert len(cells) == 3, f"not a three-cell row: {cells}"
+        for span in re.findall(r"`([^`]*)`", cells[0]):
+            shape = SPAN.match(span)
+            assert shape, f"{span!r}: not a name or call in the 0.1 cell"
+            name = shape.group(1)
+            assert name in handle or name in TABLE_LITERALS, f"{name}: not a Cache member"
+            checked.add(name)
+        namespace = None
+        for span in re.findall(r"`([^`]*)`", cells[1]):
+            shape = SPAN.match(span)
+            assert shape, f"{span!r}: not a name or call in the 0.2 cell"
+            parts = shape.group(1).split(".")
+            if parts[0] == "cache" and len(parts) == 3:
+                parts = parts[1:]
+            assert len(parts) <= 2, f"{span}: more than namespace.method"
+            if len(parts) == 2:
+                namespace, method = parts
+                assert namespace in NAMESPACES, f"{span}: {namespace} is not a namespace"
+            elif namespace is not None:
+                method = parts[0]
+            else:
+                assert parts[0] in TABLE_LITERALS, f"{span}: neither a 0.2 method nor a listed literal"
+                checked.add(parts[0])
+                continue
             assert hasattr(getattr(cache, namespace), method), f"cache.{namespace}.{method} does not exist"
-    assert named >= 10
+            checked.add(method)
+    assert MUST_BE_CHECKED <= checked, f"never read: {sorted(MUST_BE_CHECKED - checked)}"
