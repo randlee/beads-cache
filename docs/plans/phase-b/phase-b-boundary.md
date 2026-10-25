@@ -44,7 +44,7 @@ This revision (r2) follows those goals and the critical plan review of r1
 
 | Ruling | Decision |
 |---|---|
-| S82 | ADR-BDC-0010 (fenix's draft on `lint/no-atm-boundary` @ 33a2b07) is approved, with the lint adjustments L1–L5 below. The lint script and its tests land with this plan, with no CI step, so every sprint can gate on it (`--paths`). The CI step lands in b-10, once the tree is clean. It is never merged red. |
+| S82 | ADR-BDC-0010 (fenix's draft on `lint/no-atm-boundary` @ 33a2b07) is approved, with the lint adjustments L2–L5 below. The lint script and its tests land with this plan, with no CI step, so every sprint can gate on it (`--paths`). The CI step lands in b-10, once the tree is clean. It is never merged red. |
 | S83 | beads-cache owns the bd sync. The schedule is a job in the `sc-cron` sqlite cron table (`SqliteScheduleStore`), stored in the cache file and set with `bdc cache schedule set`. A due job runs one tick in this order: drain, then sync each managed scope, then the post-sync hook. The cache itself sends nothing, and there is no consumer-specific stop rule. atm-bd is the first consumer, not the only one. |
 | S84 | The store format is frozen as v3 plus the additive extensions listed in b-6's format golden. Extensions are added only by ruling, through the existing extension-column mechanism (checked with `PRAGMA table_info` under `BEGIN IMMEDIATE`; `user_version` stays 3). Table and column names stay as they are (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`); the API and docs name them neutrally. This revision adds `sync_state.failing_since`, `sync_state.notified_since` and a `registration` table. Cross-implementation compatibility is the consumer's own test, run against a CI-built wheel artifact before Rand's 0.2.0 go. |
 | S85 | PR #86 (health, `refresh scopes --timeout-ms`) is kept, and becomes b-8's branch. Its cutover runbook and the consumer-specific contract text are removed. |
@@ -61,8 +61,8 @@ file (`EXEMPT_SECTIONS`). Its 20 tests use deterministic temporary repos.
 
 Adjustments, made on this plan branch:
 
-- **L1.** Move `docs/team-protocol.md` to `.claude/team-protocol.md` and drop its
-  exemption. It is agent tooling, not product.
+- **L1.** (Withdrawn by Rand.) `docs/team-protocol.md` stays where it is, and
+  stays exempt: it is the protocol for the team working on this repo.
 - **L2.** Add a narrow rule for hard-coded scope prefixes: a `"phase-"` literal or a
   `phase-{` format string. Test a hit, and test a non-hit for the frozen column
   name `phase`, `DEFAULT 'phase'` and `phase-b` in prose.
@@ -415,7 +415,7 @@ This answers the critical plan review of r1.
 | I10 dropped findings | ACs named in the consumer-findings table. |
 | I11 S87 not recorded | b-8 AC-4 records S64–S89. |
 | I12 compat CI references | b-7 removes them from its workflows. `ci.yml` is b-10's. |
-| Lint coverage | L4 (paths), L5 (`cron` variants, `--paths`), runtime-string limits in the ADR, and the frozen names tested as non-hits (L2). Linting runs per sprint through AC-0. |
+| Lint coverage | L1 withdrawn (team-protocol stays exempt). L4 (paths), L5 (`cron` variants, `--paths`), runtime-string limits in the ADR, and the frozen names tested as non-hits (L2). Linting runs per sprint through AC-0. |
 | M1–M4 | Scopes are any bd label, and `kind 'phase'` is frozen (S84). `revision` is opaque. The critical path is stated. The shared `gate_file` helper is named. |
 
 ## QA
