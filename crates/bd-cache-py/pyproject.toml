@@ -15,7 +15,7 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "License :: OSI Approved :: MIT License",
 ]
-version = "0.1.0"
+version = "0.2.0"
 keywords = ["beads", "bd", "cache", "sqlite"]
 
 [project.urls]

@@ -48,11 +48,27 @@ The verbs are `get`, `refresh`, `write`, `list`, `ready`, `sync`, `drain`,
 and `open_work`. Replies are builtin `dict` / `list` values whose shapes are
 versioned with the wheel (`bd_cache_rs.__version__`).
 
+Since 0.2 the handle has two namespaces over the same commands as the `bdc` CLI,
+`cache.beads` (`issues_get`, `issues_list`, `ready`, `dependencies_list`,
+`issues_update`, `issues_close`, `dependencies_add`, `context`) and `cache.manage`
+(`status`, `health`, `scopes`, `refresh_scopes`, `refresh_issues`, `flush`, `evict`,
+`journal_get`, `journal_list`, `journal_resolve`, `journal_announce`). A method takes
+the request as keyword arguments and returns the command's `data`; times are
+milliseconds. `bd_cache_rs.CONTRACT_VERSION` is the contract version they implement.
+Every 0.1 verb is unchanged.
+
+```python
+cache.beads.issues_get(id="bk-12", miss_timeout_ms=0)   # NOT_CACHED if absent
+cache.beads.issues_list(scope="bk")                      # or scope="phase-bk"
+cache.manage.journal_list(unannounced=True)
+```
+
 Errors:
 
 - `bd_cache_rs.CacheError` carries every `BD_CACHE.*` code, with the
   attributes `code`, `detail`, `fix`, `reason`, `payload`, `body` and
-  `exit_code`.
+  `exit_code`, and since 0.2 `kind`, `message`, `details`, `suggested_action` and
+  `retryable`.
 - A bad argument (an invalid bead id, phase, timeout or op) is `ValueError`.
 - A verb on a closed handle is `bd_cache_rs.ClosedError`, a `RuntimeError`.
 - `bd_cache_rs.UNREACHABLE` is the frozenset of codes that mean the backend

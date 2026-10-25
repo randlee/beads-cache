@@ -11,10 +11,11 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use bd_cache::Cache;
+use bd_cache_api::CacheFacts;
 use bd_cache_model::{CacheError, RepoConfig, ScopeId};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
-    load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, DatabaseIdentity,
+    FlockDrainLock, SCHEMA_VERSION, SqliteStore, beads_dir as beads_dir_of, load_repo_config,
 };
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef, SystemClock};
@@ -149,6 +150,8 @@ pub(crate) struct Opened {
     pub(crate) cache: Composition,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) path: PathBuf,
+    /// What `context` and `cache status` report of the file and `metadata.json`.
+    pub(crate) facts: CacheFacts,
 }
 
 /// The one message for a phase name that does not parse.
@@ -303,6 +306,16 @@ pub(crate) fn open_with(
     }
     let store = SqliteStore::open_with(repo_root, &config, beads_dir.as_ref())?;
     let path = store.path().to_path_buf();
+    let beads = beads_dir_of(repo_root, beads_dir.as_ref());
+    let identity = DatabaseIdentity::read(&beads)?;
+    let facts = CacheFacts {
+        cache_path: path.to_string_lossy().into_owned(),
+        store_schema_version: i64::from(SCHEMA_VERSION),
+        database: identity.dolt_database.as_str().to_owned(),
+        project_id: identity.project_id.as_str().to_owned(),
+        beads_dir: Some(beads.to_string_lossy().into_owned()),
+        repo_root: Some(repo_root.to_string_lossy().into_owned()),
+    };
     let lock = store.drain_lock();
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
     let backend = BdCli::new_with_clock(bd_binary, project_locks(), Arc::clone(&clock))
@@ -318,7 +331,12 @@ pub(crate) fn open_with(
         cache_config.miss_fill_timeout = d;
     }
     let cache = Cache::new(cache_config, store, lock, backend, Arc::clone(&clock))?;
-    Ok(Opened { cache, clock, path })
+    Ok(Opened {
+        cache,
+        clock,
+        path,
+        facts,
+    })
 }
 
 #[cfg(test)]

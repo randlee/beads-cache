@@ -13,6 +13,10 @@
 //! - A typed error raises `bd_cache_rs.CacheError` carrying `code`, `detail`,
 //!   `fix`, `reason` and the payload (`error`); a bad argument raises
 //!   `ValueError`.
+//! - Since 0.2 `cache.beads.*` and `cache.manage.*` run the contract's commands over
+//!   `bd-cache-api` (`api`): the request is the keyword arguments, goes through
+//!   `bd_cache_api::decode` and `execute`, and the reply is the command's `data`.
+//!   `bd_cache_rs.CONTRACT_VERSION` is the contract version they implement.
 //! - The handle sits behind a mutex, so any thread may use it, and releases the
 //!   GIL while a verb waits on `bd` or SQLite (`handle`; ADR-CORE-0001,
 //!   ADR-PY-0003).
@@ -27,6 +31,7 @@
 
 #![deny(missing_docs)]
 
+mod api;
 mod compose;
 mod convert;
 mod error;
@@ -40,6 +45,7 @@ use pyo3::prelude::*;
 fn bd_cache_rs(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<handle::PyCache>()?;
     error::register(m)?;
+    api::register(m)?;
     m.add("__version__", handle::VERSION)?;
     m.add("UNREACHABLE", error::unreachable(m.py())?)?;
     Ok(())

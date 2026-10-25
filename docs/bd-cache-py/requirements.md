@@ -179,3 +179,84 @@ macOS and Linux because the atm-bd hooks run on POSIX only). Nothing in phase a 
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** the `python.yml` run cited in the sprint doc.
+
+## REQ-PY-0011: The `cache.beads` and `cache.manage` namespaces
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4
+
+Since wheel 0.2 the handle has two namespaces, `cache.beads` (surface (a),
+contract section 5) and `cache.manage` (surface (b), section 6), one method per
+command of `bd-cache-api`'s `Command` except `cache tick`. A method's name is the
+command path joined with `_`, without the `cache_` prefix of surface (b):
+`issues_get`, `issues_list`, `ready`, `dependencies_list`, `issues_update`,
+`issues_close`, `dependencies_add`, `context` on `cache.beads`; `status`, `health`,
+`scopes`, `refresh_scopes`, `refresh_issues`, `flush`, `evict`, `journal_get`,
+`journal_list`, `journal_resolve`, `journal_announce` on `cache.manage`. A method takes
+the command's request as keyword arguments only, builds it through
+`bd_cache_api::decode` and nothing else, runs `bd_cache_api::execute` with the GIL
+released and returns exactly the CLI's `data` as builtin Python objects. The binding
+validates nothing: an unknown member, a missing `idempotency_key`, a `/v0` name the
+cache does not serve and every other refusal has the decoder's code. Timeouts are
+milliseconds (`miss_timeout_ms`, `timeout_ms`, `start_gate_ms`, `deadline_ms`). Every
+method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope id. The
+namespaces are resolved by `Cache.__getattr__`, so `dir(Cache)` keeps exactly the 0.1
+names. A Python-level type mistake (a positional argument, a value with no JSON form)
+is `TypeError`; a non-finite float or an integer beyond 64 bits is `ValueError`.
+
+**Refines:** REQ-BDC-0807, REQ-BDC-0808, REQ-BDC-0809
+**Acceptance evidence:** `test_api_fixtures.py` (each shared fixture of
+`crates/bd-cache-api/tests/fixtures`, replayed through the namespaces: same `data` or
+same `CacheError.code`); `test_additive.py` (`test_miss_timeout_ms_is_milliseconds`,
+`test_both_scope_spellings_and_the_0_1_list_return_the_same_rows`,
+`test_a_python_type_mistake_is_a_type_error_not_a_cache_error`,
+`test_cache_tick_is_not_exposed`); Rust `api::tests` (method names follow the command
+paths and cover every command).
+
+## REQ-PY-0012: `CacheError` carries the contract's error fields
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4
+
+Every `CacheError`, from a 0.1 verb or a 0.2 method, has the attributes `kind`
+(`invalid_input`, `not_found`, `unavailable`, `conflict` or `internal`), `message`,
+`details` (a dict), `suggested_action` (`str` or `None`) and `retryable` (`bool`), taken
+from `ApiError` and the error table of contract section 4. The 0.1 attributes (`code`,
+`detail`, `fix`, `reason`, `payload`, `body`, `exit_code`) are unchanged for a 0.1
+error; for a 0.2 error `detail` is the message, `fix` the suggested action (`""` when
+there is none), `reason` is `None`, `payload` is `{}` and `body` is the error object.
+
+**Refines:** REQ-BDC-0803, REQ-BDC-0812
+**Acceptance evidence:** `test_additive.py`
+(`test_cache_error_carries_the_contract_fields_from_the_error_table`,
+`test_a_0_1_error_gains_the_new_fields_and_keeps_the_old_ones`,
+`test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_behaviour`).
+
+## REQ-PY-0013: 0.2 is additive; `CONTRACT_VERSION`
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4
+
+Every 0.1 verb, its arguments, its units (seconds) and its dict key sets are unchanged,
+and 0.2 issues no `DeprecationWarning` (the suite runs under `-W
+error::DeprecationWarning`). `bd_cache_rs.CONTRACT_VERSION` is `bd_cache_api::CONTRACT_VERSION`,
+the contract version `context` and `cache status` report; wheel 0.2.x implements
+contract 1.0.x.
+
+**Refines:** REQ-BDC-0811, REQ-BDC-0812
+**Acceptance evidence:** the unedited 0.1 test files (`test_verbs.py`, `test_key_sets.py`,
+`test_mapping_doc.py`, ...); `test_additive.py`
+(`test_0_1_dicts_keep_their_key_sets_next_to_the_0_2_calls`,
+`test_no_verb_old_or_new_issues_a_deprecation_warning`,
+`test_contract_version_is_the_one_context_reports`).
+
+## REQ-PY-0014: One version for the workspace and the wheel
+
+**Status:** Approved (lead ruling S61, bc-lead, 2026-10-25); created by sprint b-4
+
+`[workspace.package].version`, every inter-crate path-dependency `version` in the root
+`Cargo.toml`, `Cargo.lock` and `crates/bd-cache-py/pyproject.toml` `[project].version`
+are 0.2.0 and change together; the kit's `verify-version-lockstep` fails if the
+`pyproject.toml` version differs from the workspace's.
+
+**Refines:** REQ-BDC-0812, REQ-PY-0010
+**Acceptance evidence:** `release_artifacts.py verify-version` and
+`verify-version-lockstep` (sprint b-4 record); `test_additive.py` asserts
+`__version__ == "0.2.0"`.
