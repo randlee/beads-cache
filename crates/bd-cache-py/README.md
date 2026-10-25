@@ -74,13 +74,13 @@ toolchain (rustup installs the pinned 1.98.1 from `rust-toolchain.toml`);
 maturin is fetched by pip as the build backend:
 
 ```sh
-pip install "git+https://github.com/randlee/beads-cache@integrate/phase-a#subdirectory=crates/bd-cache-py"
+pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=crates/bd-cache-py"
 ```
 
 ## Known limits
 
 - One process holds one connection per cache file. A second handle on the
-  same file in the same process is `BD_CACHE.STORE_FAILED` until the first is
+  same file in the same process is `BD_CACHE.STORE_IN_USE` until the first is
   closed; separate processes are fine.
 - Never let two implementations drain the same journal at the same time. Stop
   the Python `bd_cache.py` cron before this module's `drain` runs.

@@ -10,11 +10,39 @@ All crates in the workspace share one version.
 
 ### Changed
 
-- `bd_cache_sync::compose_with` gains an `Arc<ProjectLocks>` parameter
-  (`sc_bd_cli::ProjectLocks`, the per-project `bd` lock map). This lands with
-  the phase-end fixes, after the 0.1.0 code this file describes below.
-  `bd-cache-sync` is an internal crate (not published), but any caller of
-  `compose_with` must pass the new argument.
+Phase-end fixes, after the 0.1.0 code described below.
+
+- `bd_cache_sync::compose_with(repo_root, backend, locks, clock, beads_dir_env)`:
+  the backend is now built from the lock set
+  (`backend: impl FnOnce(Arc<ProjectLocks>) -> BdCli`, `locks: Arc<ProjectLocks>`),
+  and `compose()` shares one process-wide lock set. A non-UTF-8 repository root
+  is refused. `bd-cache-sync` is internal (not published).
+- `SyncJob`: after a panic the cache is dropped, not reused. `with_recompose`
+  rebuilds it on the next tick, and a job without one reports `sync_cache_lost`.
+  `with_cache` returns `Result<T, CacheLost>` and `try_with_cache` returns
+  `Result<Option<T>, CacheLost>`. The new `join_idle(deadline)` waits for an
+  in-flight tick at shutdown.
+- Error codes, recorded in ADR-MODEL-0002 (status Proposed):
+  - A second open of a cache file in one process is the new
+    `BD_CACHE.STORE_IN_USE` (it was `STORE_FAILED`).
+  - Unreadable or oversized `bd` output is the new
+    `BeadsCacheError::Transport`, mapped to `BD_LIST_FAILED`, `BD_WRITE_FAILED`
+    or `SYNC_FAILED` (it was `BD_CONTRACT`).
+  - A guarded write to a bead `bd` no longer has is
+    `BeadsCacheError::NotFound` and escalates as `NOT_FOUND`.
+- Validation:
+  - `bd-cache.toml` refuses zero timeouts and `max_attempts = 0`.
+  - A new write refuses an empty or `=` metadata key, and args over 256 KiB, an
+    idempotency key over 1 KiB or a note over 16 KiB, all as `BAD_ARGS` before
+    anything is journaled. Stored entries are not re-checked.
+- `sc-bd-cli`:
+  - A timed-out `bd` takes its whole process tree with it before the project
+    lock is released: the process group on Unix, a job object on Windows.
+  - Reaping is bounded.
+  - The `--version` probe has a 10 s bound.
+  - Project locks key on the canonical directory.
+- `sc-cron`: an undecodable schedule row is skipped with a warning instead of
+  stopping every schedule.
 
 ## [0.1.0] - unreleased
 
