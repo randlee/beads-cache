@@ -116,20 +116,34 @@ Decision:
   provided body refuses with `Unsupported` rather than falling back to an unbounded
   spawn. `CliRunner` implements it with `bounded::run_bounded`; `RecordingInvoker`
   and `FakeBd` implement it for tests.
-- `run_bounded` polls: the project lock with `try_lock`, the child with `try_wait`
-  every 5 ms (shortened to the time left), so no wait outlasts the timeout. A timeout
+- `run_bounded` polls: the project lock with `try_lock`, the child's exit every 5 ms
+  (shortened to the time left), so no wait outlasts the timeout. A timeout
   names its phase (`TimeoutPhase`: `Lock`, `Child`, `Output`) and the phase is in the
   `Unavailable` reason. The child is spawned as the leader of its own process group
-  (`process_group(0)` on Unix, `CREATE_NEW_PROCESS_GROUP` on Windows). At the
-  timeout the whole group is killed (`kill -KILL -- -<pid>` on Unix, `taskkill /T /F`
-  on Windows, programs rather than libc calls), then the child, and the child is
-  reaped by polling `try_wait`; on Unix the call then waits until the group has no
-  member left. All of it shares one `KILL_BOUND` (1 s); a kill program or child still
-  running at the bound is handed to a detached reaper thread instead of being waited
-  for (PE-RSH-001, PE-RSH-002). The project lock is held throughout, so the next call
-  on the project starts only after the group is gone or the bound has passed. On an
-  `Output` timeout (the child exited, a process it left in its group holds a pipe)
-  that group is killed the same way. The public `kill_and_reap(&mut Child)` is
+  (`process_group(0)` on Unix, `CREATE_NEW_PROCESS_GROUP` on Windows). On Windows it
+  is also created suspended, put in a job object of its own
+  (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` while the call runs) and then resumed, so
+  everything it starts is in the job (RCR-001). At the timeout the whole group is
+  killed (`kill -KILL -- -<pid>` on Unix, a program; `TerminateJobObject` on
+  Windows, through the job's handle, with `taskkill /T /F` only when no job could
+  be set up), then the child, and the child is reaped by polling `try_wait`; the
+  call then waits until the group has no member left (Unix: `kill -0`; Windows: the
+  job's active-process count). All of it shares one `KILL_BOUND` (1 s); a kill
+  program or child still running at the bound is handed to a detached reaper thread
+  instead of being waited for (PE-RSH-001, PE-RSH-002). The project lock is held
+  throughout, so the next call on the project starts only after the group is gone
+  or the bound has passed. On an `Output` timeout (the child exited, a process it
+  left in its group holds a pipe) that group is killed the same way, before the
+  child is reaped (RCR-001): on Unix the exit is noticed with `waitid(P_PID, pid,
+  WEXITED | WNOHANG | WNOWAIT)`, which leaves the child a zombie, and POSIX reuses
+  neither a pid nor a process group id equal to it while that process exists (XBD
+  4.14), so the group kill can only reach the group the child led; on Windows the
+  job reaches the helper although its parent has exited, and no pid is named. These
+  are the crate's only `unsafe` blocks (libc `waitid`; the Win32 job and
+  thread-resume calls in `bounded::job`), each with a `SAFETY` comment. After a
+  normal exit the child is reaped and, on Windows, the job's kill-on-close is
+  cleared, so a process the child left running that holds none of its pipes
+  outlives the call on both platforms. The public `kill_and_reap(&mut Child)` is
   bounded by `KILL_BOUND` as well; it cannot move a borrowed child to the reaper, so a
   child still there at the bound stays with its owner. Two reader threads drain stdout and stderr and send
   `io::Result<Vec<u8>>`, so a read error is `BoundedError::Output` with the real

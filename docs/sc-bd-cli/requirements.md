@@ -50,8 +50,8 @@ the `argv` unit tests; a-1's backend contract suite (`tests/backend_contract.rs`
 
 A cache call starts no `bd` when its `Deadline` has passed. Otherwise the child
 runs for at most the time the deadline leaves, counting the wait for the
-per-project lock; at the deadline the child's whole process group is killed and
-the child reaped, both within `KILL_BOUND` and under the project lock (a child not
+per-project lock; at the deadline the child's whole process group (on Windows, its
+job object) is killed and, after that, the child reaped, both within `KILL_BOUND` and under the project lock (a child not
 reaped by then goes to a reaper thread), so no process it started outlives the lock,
 and the call returns `Unavailable { timed_out: true }` whose reason names the phase (lock, child,
 output). Standard output and error are drained while the child runs, so large output
@@ -65,9 +65,11 @@ of its own (the cache owns the 30 s cap).
 `output_larger_than_a_pipe_is_drained`, `output_over_the_cap_is_an_error`,
 `kill_and_reap_ends_a_running_child`, `standard_input_is_closed`,
 `a_timed_out_child_takes_its_process_group_with_it`,
+`an_output_timeout_takes_the_left_behind_helper_with_it` (RCR-001),
 `two_spellings_of_a_project_share_its_lock`
 (`tests/process.rs`, real processes); the unit tests
-`a_child_still_running_at_the_bound_is_handed_to_the_reaper`, `exited_by_is_bounded`
+`a_child_still_running_at_the_bound_is_handed_to_the_reaper`, `exited_by_is_bounded`,
+`the_exit_check_leaves_the_child_unreaped` (RCR-001)
 (`bounded.rs`), `spellings_of_one_existing_directory_share_a_lock`,
 `a_missing_directory_keys_on_its_lexical_form`, `a_non_utf8_canonical_path_is_refused`
 (`locks.rs`); the contract rule

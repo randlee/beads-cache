@@ -7,17 +7,22 @@
 //!
 //! - the project lock is acquired by polling, never by blocking, so a wait behind a
 //!   slow call ends at the deadline too ([`TimeoutPhase::Lock`]);
-//! - the child is started as the leader of its own process group and polled with
-//!   `try_wait`; when the time is up the whole group is killed, so a `dolt` that `bd`
-//!   started dies with it ([`TimeoutPhase::Child`], PE-RSH-001), and the project lock
-//!   is held until that kill has finished or [`KILL_BOUND`] has passed;
+//! - the child is started as the leader of its own process group (Unix) or inside a
+//!   job object of its own (Windows) and polled for its exit; when the time is up the
+//!   whole group or job is killed, so a `dolt` that `bd` started dies with it
+//!   ([`TimeoutPhase::Child`], PE-RSH-001), and the project lock is held until that
+//!   kill has finished or [`KILL_BOUND`] has passed;
+//! - the kill never names a process that may already be gone (RCR-001): on Unix the
+//!   exit is noticed with `waitid(WNOWAIT)`, which leaves the child unreaped, so its
+//!   pid, the group's id, cannot be reused until the kill is done; on Windows the job
+//!   is killed through its handle, not through a pid;
 //! - a killed child is reaped by polling for at most [`KILL_BOUND`]; one that is still
 //!   there is handed to a detached reaper thread instead of being waited for
 //!   (PE-RSH-002);
 //! - its output is drained by two reader threads, so a chatty child cannot fill a
 //!   pipe and stall, the wait for those threads is bounded by the same deadline
-//!   ([`TimeoutPhase::Output`], after which the group the child left behind is
-//!   killed too), and each stream is capped at [`MAX_OUTPUT_BYTES`]
+//!   ([`TimeoutPhase::Output`], after which the group or job the child left behind is
+//!   killed too, before the child is reaped), and each stream is capped at [`MAX_OUTPUT_BYTES`]
 //!   (the excess is drained and dropped, and the call fails with
 //!   [`BoundedError::Output`]).
 //!
@@ -254,12 +259,14 @@ pub(crate) fn run_bounded_in(
     )
 }
 
-/// Spawns `command` as the leader of its own process group, with standard input
-/// closed and both outputs drained, and stops it at `limit`.
+/// Spawns `command` as the leader of its own process group (inside a job object of
+/// its own on Windows), with standard input closed and both outputs drained, and
+/// stops it at `limit`.
 ///
-/// On a timeout of the child the whole group is killed and the child reaped (within
-/// [`KILL_BOUND`]) before this returns; on a timeout of the output (the child exited,
-/// a process it left behind holds a pipe open) the group it left behind is killed.
+/// On a timeout of the child the whole group (job) is killed and the child reaped
+/// (within [`KILL_BOUND`]) before this returns; on a timeout of the output (the child
+/// exited, a process it left behind holds a pipe open) the group (job) it left behind
+/// is killed the same way, and only then is the child reaped (RCR-001).
 /// `binary` and `operation` name the spawn in a [`BeadsError::Spawn`].
 pub(crate) fn run_child(
     mut command: Command,
@@ -276,44 +283,49 @@ pub(crate) fn run_child(
         })
     };
     lead_process_group(&mut command);
-    let mut child = command
+    #[cfg(windows)]
+    job::start_suspended(&mut command);
+    let child = command
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(spawn_error)?;
+    let mut spawned = Spawned::start(child).map_err(spawn_error)?;
 
-    let stdout = match drain(child.stdout.take(), max_output) {
+    let stdout = match drain(spawned.child.stdout.take(), max_output) {
         Ok(rx) => rx,
-        Err(e) => return Err(abort(child, BoundedError::Output(e))),
+        Err(e) => return Err(abort(spawned, BoundedError::Output(e))),
     };
-    let stderr = match drain(child.stderr.take(), max_output) {
+    let stderr = match drain(spawned.child.stderr.take(), max_output) {
         Ok(rx) => rx,
-        Err(e) => return Err(abort(child, BoundedError::Output(e))),
+        Err(e) => return Err(abort(spawned, BoundedError::Output(e))),
     };
 
-    let status = loop {
-        match child.try_wait() {
-            Ok(Some(status)) => break status,
-            Ok(None) => {
+    loop {
+        match has_exited(&mut spawned.child) {
+            Ok(true) => break,
+            Ok(false) => {
                 if let Err(timed_out) = wait_or_time_out(limit, TimeoutPhase::Child) {
                     // The readers are abandoned: they end when the pipes close, which
                     // the group kill makes happen.
-                    terminate(child);
+                    terminate(spawned);
                     return Err(timed_out);
                 }
             }
-            Err(e) => return Err(abort(child, spawn_error(e))),
+            Err(e) => return Err(abort(spawned, spawn_error(e))),
         }
-    };
-
-    let pid = child.id();
-    let output = collect(&stdout, limit).and_then(|out| Ok((out, collect(&stderr, limit)?)));
-    if let Err(BoundedError::TimedOut { .. }) = &output {
-        // A reader still open at the limit is held by a process the child left in
-        // its group: kill that group too, so it does not outlive the project lock.
-        kill_left_behind(pid);
     }
+
+    // The child has exited but is not reaped yet (on Unix), so the group it led
+    // keeps its id until `terminate` or `finish` reaps it.
+    let output = collect(&stdout, limit).and_then(|out| Ok((out, collect(&stderr, limit)?)));
+    if let Err(timed_out @ BoundedError::TimedOut { .. }) = output {
+        // A reader still open at the limit is held by a process the child left in
+        // its group (job): kill that too, so it does not outlive the project lock.
+        return Err(abort(spawned, timed_out));
+    }
+    let status = spawned.finish().map_err(spawn_error)?;
     let (stdout, stderr) = output?;
     Ok(CliOutput {
         status: status.code(),
@@ -321,6 +333,152 @@ pub(crate) fn run_child(
         stdout,
         stderr,
     })
+}
+
+/// A started child with what a kill of its process tree is aimed at.
+struct Spawned {
+    child: Child,
+    tree: Tree,
+}
+
+/// What a kill of a child's process tree is aimed at.
+struct Tree {
+    /// The child's pid: on Unix also the id of the process group it leads.
+    pid: u32,
+    /// The job object holding the child and every process it starts (Windows), when
+    /// one could be set up; without one the tree is killed with `taskkill /T`.
+    #[cfg(windows)]
+    job: Option<job::Job>,
+}
+
+impl Spawned {
+    /// Takes a child that was just spawned. On Windows it was started suspended: it is
+    /// put in a new job object, then resumed, so nothing it starts escapes the job.
+    ///
+    /// # Errors
+    ///
+    /// On Windows, when the suspended child cannot be resumed; it is then killed and
+    /// reaped (or handed to the reaper) first.
+    #[cfg_attr(
+        not(windows),
+        expect(clippy::unnecessary_wraps, reason = "only the Windows resume can fail")
+    )]
+    fn start(child: Child) -> io::Result<Self> {
+        let pid = child.id();
+        #[cfg(windows)]
+        {
+            let job = match job::Job::new().and_then(|job| job.assign(&child).map(|()| job)) {
+                Ok(job) => Some(job),
+                Err(e) => {
+                    log_warn!(
+                        "[bd] no job object for the child {}: {}; a timeout kills its tree with taskkill",
+                        pid,
+                        e
+                    );
+                    None
+                }
+            };
+            if let Err(e) = job::resume(&child) {
+                let mut child = child;
+                let _ = child.kill();
+                reap_or_hand_off(child, Instant::now() + KILL_BOUND);
+                return Err(e);
+            }
+            Ok(Self {
+                child,
+                tree: Tree { pid, job },
+            })
+        }
+        #[cfg(not(windows))]
+        Ok(Self {
+            child,
+            tree: Tree { pid },
+        })
+    }
+
+    /// Reaps the child, which has exited, and returns its status. On Windows the job
+    /// stops killing what is left in it when it is closed, so a process the child left
+    /// running (that holds none of its pipes) outlives the call, as it does on Unix.
+    fn finish(self) -> io::Result<std::process::ExitStatus> {
+        let Self { mut child, tree } = self;
+        match child.try_wait() {
+            Ok(Some(status)) => {
+                tree.release();
+                Ok(status)
+            }
+            Ok(None) => {
+                terminate(Self { child, tree });
+                Err(io::Error::other(
+                    "the child was seen to exit but could not be reaped",
+                ))
+            }
+            Err(e) => Err(e),
+        }
+    }
+}
+
+impl Tree {
+    /// Lets the processes in the tree outlive it (Windows: clears the job's
+    /// kill-on-close); nothing to do elsewhere.
+    fn release(&self) {
+        #[cfg(windows)]
+        if let Some(job) = &self.job {
+            if let Err(e) = job.kill_on_close(false) {
+                log_warn!(
+                    "[bd] the job of {} still kills what is left in it: {}",
+                    self.pid,
+                    e
+                );
+            }
+        }
+        #[cfg(not(windows))]
+        let _ = self;
+    }
+}
+
+/// Whether `child` has exited, without reaping it on Unix (RCR-001).
+///
+/// On Unix this is `waitid(P_PID, pid, WEXITED | WNOHANG | WNOWAIT)`: the child
+/// stays a zombie until [`Child::try_wait`] reaps it, and POSIX does not reuse a
+/// process id, nor a process group id equal to it, while that process exists (XBD
+/// 4.14, "Process ID Reuse"). So a group kill sent before the reap names the group
+/// the child led, never another one. Elsewhere `try_wait` is used: on Windows the
+/// [`Child`] keeps its process handle open after `try_wait`, which keeps the pid
+/// from being reused, and the tree is killed through the job anyway.
+#[cfg(unix)]
+fn has_exited(child: &mut Child) -> io::Result<bool> {
+    let pid = libc::id_t::from(child.id());
+    loop {
+        // SAFETY: `siginfo_t` is a C struct of integers and raw pointers, for which
+        // all zero bytes is a valid value.
+        let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
+        // SAFETY: `info` is a valid, writable `siginfo_t` that outlives the call, and
+        // `waitid` keeps no pointer to it. `WNOWAIT` leaves the child waitable, so the
+        // later `try_wait` still reaps it and std's view of the child stays right.
+        let rc = unsafe {
+            libc::waitid(
+                libc::P_PID,
+                pid,
+                &raw mut info,
+                libc::WEXITED | libc::WNOHANG | libc::WNOWAIT,
+            )
+        };
+        if rc == 0 {
+            // With `WNOHANG` and no exited child the structure is left as it was
+            // (zeroed here); one that has exited fills in `si_signo` (`SIGCHLD`).
+            return Ok(info.si_signo != 0);
+        }
+        let e = io::Error::last_os_error();
+        if e.kind() != io::ErrorKind::Interrupted {
+            return Err(e);
+        }
+    }
+}
+
+/// Whether `child` has exited (see the Unix variant on why this may reap here).
+#[cfg(not(unix))]
+fn has_exited(child: &mut Child) -> io::Result<bool> {
+    child.try_wait().map(|status| status.is_some())
 }
 
 /// The output one reader thread sent, waited for until `limit`.
@@ -408,40 +566,31 @@ pub fn kill_and_reap(child: &mut Child) {
     }
 }
 
-/// Cleans up a child after an internal failure and passes the error through.
-fn abort(child: Child, error: BoundedError) -> BoundedError {
-    terminate(child);
+/// Cleans up a child after a timeout of its output or an internal failure, and
+/// passes the error through.
+fn abort(spawned: Spawned, error: BoundedError) -> BoundedError {
+    terminate(spawned);
     error
 }
 
-/// Kills the process group `child` leads, then the child itself, and reaps it, all
-/// within one [`KILL_BOUND`] from now (PE-RSH-001).
+/// Kills the process group (Windows: the job) the child leads, then the child itself,
+/// and reaps it, all within one [`KILL_BOUND`] from now (PE-RSH-001).
 ///
-/// Only called while the child has not been reaped, so its pid, the group's id, cannot
-/// name another process. After a group kill that ran, it also waits (within the same
-/// bound) until the group has no member left, so a descendant is gone, not only
-/// signalled, when the caller releases the project lock.
-fn terminate(mut child: Child) {
+/// Only called while the child has not been reaped, whether it is still running or
+/// has exited ([`has_exited`] does not reap on Unix), so its pid, the group's id,
+/// cannot name another process or group (RCR-001). After a group kill that ran, it
+/// also waits (within the same bound) until the group or job has no member left, so
+/// a descendant is gone, not only signalled, when the caller releases the project
+/// lock.
+fn terminate(spawned: Spawned) {
+    let Spawned { mut child, tree } = spawned;
     let until = Instant::now() + KILL_BOUND;
-    let pid = child.id();
-    let group = kill_group(pid, until);
+    let group = kill_group(&tree, until);
     // The group kill may have failed or be absent on this platform: kill the child
     // itself too.
     let _ = child.kill();
     if reap_or_hand_off(child, until) == Reaped::Exited && group == Helper::Done {
-        wait_until_group_is_gone(pid, until);
-    }
-}
-
-/// Kills the process group a reaped child left behind, within [`KILL_BOUND`].
-///
-/// The child led the group, so its pid is the group's id; a group that still has a
-/// member keeps that id from being reused (POSIX), and one that has none makes the
-/// kill fail harmlessly.
-fn kill_left_behind(pid: u32) {
-    let until = Instant::now() + KILL_BOUND;
-    if kill_group(pid, until) == Helper::Done {
-        wait_until_group_is_gone(pid, until);
+        wait_until_group_is_gone(&tree, until);
     }
 }
 
@@ -575,10 +724,23 @@ fn run_helper(mut command: Command, until: Instant) -> Helper {
     }
 }
 
-/// Kills the process group led by `pid` (Unix), or the process tree rooted at it
-/// (Windows), within `until`. A failure is logged; the caller kills the child itself
-/// regardless.
-fn kill_group(pid: u32, until: Instant) -> Helper {
+/// Kills the process group led by the child (Unix), or its job (Windows; without one
+/// the process tree rooted at it), within `until`. A failure is logged; the caller
+/// kills the child itself regardless.
+fn kill_group(tree: &Tree, until: Instant) -> Helper {
+    let pid = tree.pid;
+    #[cfg(windows)]
+    if let Some(job) = &tree.job {
+        // Through the job's handle, not a pid: it reaches every process the child
+        // started, whether or not the child still runs.
+        return match job.terminate() {
+            Ok(()) => Helper::Done,
+            Err(e) => {
+                log_warn!("[bd] terminating the job of {} failed: {}", pid, e);
+                Helper::Failed
+            }
+        };
+    }
     let outcome = group_kill_command(pid).map_or(Helper::Failed, |kill| run_helper(kill, until));
     if outcome != Helper::Done {
         log_warn!(
@@ -591,10 +753,11 @@ fn kill_group(pid: u32, until: Instant) -> Helper {
 }
 
 /// The platform's program that kills the group led by `pid`: `kill -KILL -- -<pid>`
-/// on Unix (the negative pid names the group), `taskkill /T /F` on Windows.
+/// on Unix (the negative pid names the group), `taskkill /T /F` on Windows (only
+/// when the child has no job object).
 ///
-/// A program, not a libc call: the crate has no `unsafe` and no libc dependency.
-/// `None` on a platform with neither.
+/// A program, not a libc call, as before RCR-001: the crate's one libc call is the
+/// non-reaping exit check ([`has_exited`]). `None` on a platform with neither.
 #[cfg_attr(
     any(unix, target_os = "windows"),
     expect(
@@ -632,12 +795,41 @@ fn unix_kill() -> &'static str {
     }
 }
 
-/// Waits until the group led by `pid` has no member left, or `until` has passed.
+/// Waits until the group led by the child (Windows: its job) has no member left, or
+/// `until` has passed.
 ///
-/// `kill -0 -- -<pid>` succeeds while the group has a member, so a descendant the
-/// group kill signalled is known to be gone when it fails. On Windows `taskkill /F`
-/// has already terminated the tree, so there is nothing to wait for.
-fn wait_until_group_is_gone(pid: u32, until: Instant) {
+/// On Unix `kill -0 -- -<pid>` succeeds while the group has a member, so a
+/// descendant the group kill signalled is known to be gone when it fails. It runs
+/// after the reap (a zombie leader would count as a member); signal 0 is delivered
+/// to no one, so in the residual case of a group that emptied and whose id was
+/// reused meanwhile it at worst waits to `until`. On Windows the job's count of
+/// active processes is polled; with no job `taskkill /F` has already terminated the
+/// tree, so there is nothing to wait for.
+fn wait_until_group_is_gone(tree: &Tree, until: Instant) {
+    let pid = tree.pid;
+    #[cfg(windows)]
+    if let Some(job) = &tree.job {
+        loop {
+            match job.active_processes() {
+                Ok(0) => return,
+                Ok(_) => {}
+                Err(e) => {
+                    log_warn!(
+                        "[bd] cannot count the processes in the job of {}: {}",
+                        pid,
+                        e
+                    );
+                    return;
+                }
+            }
+            let left = until.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                log_warn!("[bd] the job of {} outlived {:?}", pid, KILL_BOUND);
+                return;
+            }
+            thread::sleep(left.min(POLL_INTERVAL));
+        }
+    }
     #[cfg(unix)]
     loop {
         let mut probe = Command::new(unix_kill());
@@ -662,8 +854,185 @@ fn wait_until_group_is_gone(pid: u32, until: Instant) {
     }
 }
 
+/// The Windows job object a bounded child runs in (RCR-001): the smallest wrapper
+/// around the Win32 calls, each `unsafe` block with its own safety argument.
+///
+/// The child is created suspended, put in a new job, then resumed, so every process it
+/// starts is in the job from its first instruction. `TerminateJobObject` then kills
+/// the whole tree through the job's handle, whether or not the child still runs, and
+/// names no pid, so no unrelated process can be hit. The job kills what is in it when
+/// its last handle closes (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`) while the call runs;
+/// [`Tree::release`] clears that on a normal exit, so a process the child left
+/// running outlives the call, as on Unix.
+#[cfg(windows)]
+mod job {
+    use std::io;
+    use std::os::windows::io::{AsRawHandle as _, FromRawHandle as _, OwnedHandle};
+    use std::os::windows::process::CommandExt as _;
+    use std::process::{Child, Command};
+    use std::ptr;
+
+    use windows_sys::core::BOOL;
+    use windows_sys::Win32::Foundation::{HANDLE, INVALID_HANDLE_VALUE};
+    use windows_sys::Win32::System::Diagnostics::ToolHelp::{
+        CreateToolhelp32Snapshot, Thread32First, Thread32Next, TH32CS_SNAPTHREAD, THREADENTRY32,
+    };
+    use windows_sys::Win32::System::JobObjects::{
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectBasicAccountingInformation,
+        JobObjectExtendedLimitInformation, QueryInformationJobObject, SetInformationJobObject,
+        TerminateJobObject, JOBOBJECT_BASIC_ACCOUNTING_INFORMATION,
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+    };
+    use windows_sys::Win32::System::Threading::{
+        OpenThread, ResumeThread, CREATE_NEW_PROCESS_GROUP, CREATE_NO_WINDOW, CREATE_SUSPENDED,
+        THREAD_SUSPEND_RESUME,
+    };
+
+    /// Adds `CREATE_SUSPENDED` to the flags [`lead_process_group`](crate::command::lead_process_group)
+    /// set (`creation_flags` replaces, so they are repeated here).
+    pub(super) fn start_suspended(command: &mut Command) {
+        command.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP | CREATE_SUSPENDED);
+    }
+
+    /// An unnamed job object, closed on drop.
+    pub(super) struct Job(OwnedHandle);
+
+    impl Job {
+        /// A new job that kills its processes when it is closed.
+        pub(super) fn new() -> io::Result<Self> {
+            // SAFETY: both arguments may be null (default security, no name); the call
+            // reads nothing else.
+            let raw = unsafe { CreateJobObjectW(ptr::null(), ptr::null()) };
+            if raw.is_null() {
+                return Err(io::Error::last_os_error());
+            }
+            // SAFETY: `raw` is a valid handle that nothing else owns: it was just created.
+            let job = Self(unsafe { OwnedHandle::from_raw_handle(raw) });
+            job.kill_on_close(true)?;
+            Ok(job)
+        }
+
+        /// Sets or clears `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` (the job's only limit).
+        pub(super) fn kill_on_close(&self, on: bool) -> io::Result<()> {
+            let mut info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION::default();
+            if on {
+                info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            }
+            let len = size_u32::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>()?;
+            // SAFETY: the job handle is live (owned by `self`); `info` is a
+            // JOBOBJECT_EXTENDED_LIMIT_INFORMATION of `len` bytes, only read during the call.
+            check(unsafe {
+                SetInformationJobObject(
+                    self.raw(),
+                    JobObjectExtendedLimitInformation,
+                    (&raw const info).cast(),
+                    len,
+                )
+            })
+        }
+
+        /// Puts `child` in the job.
+        pub(super) fn assign(&self, child: &Child) -> io::Result<()> {
+            // SAFETY: both handles are live for the call: the job's is owned by `self`,
+            // the process's by `child` (with the full access `CreateProcess` grants).
+            check(unsafe { AssignProcessToJobObject(self.raw(), child.as_raw_handle()) })
+        }
+
+        /// Terminates every process in the job.
+        pub(super) fn terminate(&self) -> io::Result<()> {
+            // SAFETY: the job handle is live (owned by `self`); no pointers are passed.
+            check(unsafe { TerminateJobObject(self.raw(), 1) })
+        }
+
+        /// How many processes in the job have not exited.
+        pub(super) fn active_processes(&self) -> io::Result<u32> {
+            let mut info = JOBOBJECT_BASIC_ACCOUNTING_INFORMATION::default();
+            let len = size_u32::<JOBOBJECT_BASIC_ACCOUNTING_INFORMATION>()?;
+            // SAFETY: the job handle is live; `info` is a writable
+            // JOBOBJECT_BASIC_ACCOUNTING_INFORMATION of `len` bytes that outlives the
+            // call; the returned-length pointer may be null.
+            check(unsafe {
+                QueryInformationJobObject(
+                    self.raw(),
+                    JobObjectBasicAccountingInformation,
+                    (&raw mut info).cast(),
+                    len,
+                    ptr::null_mut(),
+                )
+            })?;
+            Ok(info.ActiveProcesses)
+        }
+
+        fn raw(&self) -> HANDLE {
+            self.0.as_raw_handle()
+        }
+    }
+
+    /// Resumes the threads of `child`, which was created suspended (it has exactly
+    /// one). The `Child` holds the process handle, so its pid cannot be reused while
+    /// the threads are looked up.
+    pub(super) fn resume(child: &Child) -> io::Result<()> {
+        let pid = child.id();
+        // SAFETY: no pointers are passed; the result is checked below.
+        let raw = unsafe { CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0) };
+        if raw == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error());
+        }
+        // SAFETY: `raw` is a valid snapshot handle that nothing else owns.
+        let snapshot = unsafe { OwnedHandle::from_raw_handle(raw) };
+        let mut entry = THREADENTRY32 {
+            dwSize: size_u32::<THREADENTRY32>()?,
+            ..THREADENTRY32::default()
+        };
+        let mut resumed = false;
+        // SAFETY: the snapshot handle is live; `entry` is a writable THREADENTRY32
+        // with `dwSize` set, as the call requires.
+        let mut more = unsafe { Thread32First(snapshot.as_raw_handle(), &raw mut entry) } != 0;
+        while more {
+            if entry.th32OwnerProcessID == pid {
+                // SAFETY: no pointers are passed; the result is checked below.
+                let thread = unsafe { OpenThread(THREAD_SUSPEND_RESUME, 0, entry.th32ThreadID) };
+                if thread.is_null() {
+                    return Err(io::Error::last_os_error());
+                }
+                // SAFETY: `thread` is a valid handle that nothing else owns.
+                let thread = unsafe { OwnedHandle::from_raw_handle(thread) };
+                // SAFETY: the thread handle is live and has THREAD_SUSPEND_RESUME access.
+                if unsafe { ResumeThread(thread.as_raw_handle()) } == u32::MAX {
+                    return Err(io::Error::last_os_error());
+                }
+                resumed = true;
+            }
+            // SAFETY: as for `Thread32First`.
+            more = unsafe { Thread32Next(snapshot.as_raw_handle(), &raw mut entry) } != 0;
+        }
+        if resumed {
+            Ok(())
+        } else {
+            Err(io::Error::other(format!(
+                "no thread of the suspended child {pid} was found"
+            )))
+        }
+    }
+
+    /// A Win32 `BOOL` result as an `io::Result`.
+    fn check(ok: BOOL) -> io::Result<()> {
+        if ok == 0 {
+            Err(io::Error::last_os_error())
+        } else {
+            Ok(())
+        }
+    }
+
+    /// The size of `T` as the `u32` a Win32 length argument takes.
+    fn size_u32<T>() -> io::Result<u32> {
+        u32::try_from(size_of::<T>()).map_err(io::Error::other)
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     use super::*;
 
     /// Whether `pid` names a process that exists and is not a zombie.
@@ -725,6 +1094,26 @@ mod tests {
             assert!(Instant::now() < until, "the reaper did not reap {pid}");
             thread::sleep(Duration::from_millis(20));
         }
+    }
+
+    /// The exit check does not reap (RCR-001): a child seen to have exited is still
+    /// there, a zombie, so its pid and the group it led cannot be reused before the
+    /// group kill; `try_wait` reaps it afterwards.
+    #[cfg(unix)]
+    #[test]
+    fn the_exit_check_leaves_the_child_unreaped() {
+        let mut child = Command::new("true").spawn().unwrap();
+        let pid = child.id();
+        let until = Instant::now() + Duration::from_secs(10);
+        while !has_exited(&mut child).unwrap() {
+            assert!(Instant::now() < until, "the child {pid} never exited");
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert!(exists(pid), "the exit check reaped the child {pid}");
+        assert!(!running(pid), "the child {pid} should be a zombie");
+        assert!(has_exited(&mut child).unwrap(), "seen to exit only once");
+        assert!(child.try_wait().unwrap().is_some());
+        assert!(!exists(pid), "try_wait did not reap the child {pid}");
     }
 
     /// `exited_by` gives up at its bound on a child that is running, and reports

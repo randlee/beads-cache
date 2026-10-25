@@ -14,8 +14,11 @@
 //! `flood` (writes far more than a pipe holds), `stdin` (reads standard input to the
 //! end), `echo` (prints its argv), `spawner` (starts a grandchild that ignores TERM,
 //! writes its pid to `grandchild`, prints `ready`, then runs 30 s; with the argument
-//! `probe` it only prints whether that grandchild still runs) and `orphan` (the
-//! Windows grandchild: writes its pid to `$SC_BD_PID_FILE`, then runs 30 s).
+//! `probe` it only prints whether that grandchild still runs), `leaver` (starts the
+//! same grandchild with the child's standard output, then exits at once: the
+//! grandchild holds the pipe, so the call times out reading the output; `probe` as
+//! for `spawner`) and `orphan` (the Windows grandchild: writes its pid to
+//! `$SC_BD_PID_FILE`, then runs 30 s).
 
 use std::fs;
 use std::io::{Read, Write};
@@ -64,7 +67,7 @@ fn child_mode() -> Option<String> {
 fn child(mode: &str) -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let first = args.first().map(String::as_str);
-    if mode == "spawner" || mode == "orphan" {
+    if mode == "spawner" || mode == "leaver" || mode == "orphan" {
         return process_group_child(mode, first);
     }
     let mut out = std::io::stdout();
@@ -144,12 +147,12 @@ fn child(mode: &str) -> ExitCode {
     }
 }
 
-/// The modes `spawner` and `orphan`, of the process-group test.
+/// The modes `spawner`, `leaver` and `orphan`, of the process-group tests.
 fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
     match (mode, first) {
-        ("spawner", Some("probe")) => {
+        ("spawner" | "leaver", Some("probe")) => {
             let state = std::env::var_os("BEADS_PATH")
                 .and_then(|dir| fs::read_to_string(Path::new(&dir).join("grandchild")).ok())
                 .map_or("no grandchild", |pid| {
@@ -167,7 +170,7 @@ fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
                 return ExitCode::from(98);
             };
             let dir = PathBuf::from(dir);
-            if spawn_grandchild(&dir.join("grandchild")).is_err() {
+            if spawn_grandchild(&dir.join("grandchild"), false).is_err() {
                 let _ = writeln!(err, "cannot start the grandchild");
                 return ExitCode::from(97);
             }
@@ -175,6 +178,18 @@ fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
             let _ = writeln!(out, "ready");
             let _ = out.flush();
             std::thread::sleep(Duration::from_secs(SLOW_CHILD_SECS));
+            ExitCode::SUCCESS
+        }
+        ("leaver", _) => {
+            let Some(dir) = std::env::var_os("BEADS_PATH") else {
+                return ExitCode::from(98);
+            };
+            let _ = writeln!(out, "ready");
+            let _ = out.flush();
+            if spawn_grandchild(&PathBuf::from(dir).join("grandchild"), true).is_err() {
+                let _ = writeln!(err, "cannot start the grandchild");
+                return ExitCode::from(97);
+            }
             ExitCode::SUCCESS
         }
         ("orphan", _) => {
@@ -188,14 +203,15 @@ fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
     }
 }
 
-/// Starts the `spawner`'s grandchild, which writes its pid to `pid_file` and runs
-/// 30 s, with no standard streams (it holds none of the child's pipes). It stays in
-/// the child's process group, as a `dolt` that `bd` starts does.
+/// Starts the grandchild of `spawner` or `leaver`, which writes its pid to `pid_file`
+/// and runs 30 s. With `keep_stdout` it inherits the child's standard output (so it
+/// holds that pipe open after the child exits), else it has no standard streams. It
+/// stays in the child's process group, as a `dolt` that `bd` starts does.
 ///
 /// On Unix it is a shell that ignores TERM and then becomes `sleep` (an ignored
 /// signal stays ignored across `exec`), so only a KILL of the group ends it. On
 /// Windows it is this binary in mode `orphan`.
-fn spawn_grandchild(pid_file: &Path) -> std::io::Result<()> {
+fn spawn_grandchild(pid_file: &Path, keep_stdout: bool) -> std::io::Result<()> {
     let mut command = if cfg!(windows) {
         let mut c = std::process::Command::new(std::env::current_exe()?);
         let parent = pid_file
@@ -217,7 +233,11 @@ fn spawn_grandchild(pid_file: &Path) -> std::io::Result<()> {
     };
     command
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
+        .stdout(if keep_stdout {
+            std::process::Stdio::inherit()
+        } else {
+            std::process::Stdio::null()
+        })
         .stderr(std::process::Stdio::null())
         .spawn()
         .map(drop)
@@ -457,6 +477,67 @@ fn a_timed_out_child_takes_its_process_group_with_it(env: &Env) -> TestResult {
     require(
         !still_runs,
         format!("the grandchild {grandchild} outlived the timed-out call"),
+    )
+}
+
+/// A bd that exits at once, leaving a TERM-ignoring helper that holds its standard
+/// output, times out reading the output, and the helper dies before the project lock
+/// is released (RCR-001): it is gone when the call returns, and the next call on the
+/// project, queued behind the lock, runs only once it is gone. The kill must reach
+/// the helper although the bd it descends from has exited (Windows: a `taskkill /T`
+/// from the exited bd finds nothing) and must not be sent to a reaped pid.
+fn an_output_timeout_takes_the_left_behind_helper_with_it(env: &Env) -> TestResult {
+    let wd = env.dir("leaver")?;
+    let helper_file = Path::new(&wd).join("grandchild");
+    let _ = fs::remove_file(&helper_file);
+    let locks = Arc::new(ProjectLocks::new());
+
+    let (exe, first_locks, first_wd) = (env.exe.clone(), Arc::clone(&locks), wd.clone());
+    let first = std::thread::spawn(move || {
+        run_bounded(
+            &exe,
+            &first_locks,
+            &WorkingDir::new(&first_wd),
+            &words(&["list"]),
+            Duration::from_secs(3),
+        )
+    });
+    // The helper runs, so the first call holds the project lock.
+    let helper = pid_in(&helper_file)?;
+    let next = run_bounded(
+        &env.exe,
+        &locks,
+        &WorkingDir::new(&wd),
+        &words(&["probe"]),
+        Duration::from_secs(60),
+    );
+    let first = first
+        .join()
+        .map_err(|_panic| "the first call panicked".to_owned())?;
+    let still_runs = process_runs(&helper);
+    if still_runs {
+        kill_leftover(&helper);
+    }
+    require(
+        matches!(
+            first,
+            Err(BoundedError::TimedOut {
+                phase: TimeoutPhase::Output
+            })
+        ),
+        format!("expected a timeout in the output phase, got {first:?}"),
+    )?;
+    let next = next.map_err(|e| format!("the next call failed: {e}"))?;
+    require(
+        next.stdout.trim() == "gone",
+        format!(
+            "the next call ran while the helper {helper} was {:?}",
+            next.stdout.trim()
+        ),
+    )?;
+    require(
+        !still_runs,
+        format!("the helper {helper} outlived the output timeout"),
     )
 }
 
@@ -721,6 +802,10 @@ fn run_tests() -> ExitCode {
         (
             "a_timed_out_child_takes_its_process_group_with_it",
             a_timed_out_child_takes_its_process_group_with_it,
+        ),
+        (
+            "an_output_timeout_takes_the_left_behind_helper_with_it",
+            an_output_timeout_takes_the_left_behind_helper_with_it,
         ),
         #[cfg(unix)]
         (
