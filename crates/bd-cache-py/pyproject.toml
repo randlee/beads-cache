@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "bd-cache-rs"
-description = "bd-cache in process: the Rust cache of a beads repository, for atm-bd (maturin / PyO3)."
+description = "bd-cache in process: the Rust cache of a beads repository (maturin / PyO3)."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Rand Lee", email = "rand@randlee.com" }]

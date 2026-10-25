@@ -27,7 +27,7 @@ an invalid config file or scope is `ValueError` with attributes `kind` (`parse`,
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
 **Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`, `test_a_zero_timeout_is_refused_*`, `test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd`, `test_a_beads_dir_that_cannot_be_made_absolute_is_no_database`); Rust `compose::tests` (`the_beads_dir_override_locates_the_store`, `an_unresolvable_beads_dir_is_no_database_before_the_config_is_read`); for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
 
-## REQ-PY-0002: The verbs atm-bd uses
+## REQ-PY-0002: The verbs
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
@@ -54,9 +54,8 @@ checked, the argv `bd` saw), `test_reads.py`.
 Every reply is the `bd-cache-model` reply type serialized and converted to
 `dict`, `list`, `str`, `int`, `float`, `bool` and `None` (timestamps are
 RFC 3339 `str`). The shapes are the tables in `architecture.md`, Reply shapes;
-they change only with a new wheel version (`bd_cache_rs.__version__`). Where
-they differ from `bd_cache.py`'s JSON, the Mapping table records it. This does
-not close REQ-BDC-0806 (the CLI drop-in).
+they change only with a new wheel version (`bd_cache_rs.__version__`). The
+`bdc` binary is REQ-BDC-0806's successor (the contract).
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** the field-set assertions of `test_verbs.py`.
@@ -133,7 +132,7 @@ threads continue while a verb waits on `bd` or SQLite.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 After a dev close journaled through `write`, `ready` for its sanity bead is
-true with the backend unreachable and no `bd` call (the `atm task open` path).
+true with the backend unreachable and no `bd` call (a hook that checks readiness).
 `ready(phase, fresh_within=s)` against a `bd` that answers late returns the
 cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
@@ -145,24 +144,22 @@ cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert` and
-`open_work` let atm-bd's own cron announce through its own sender: an escalated
+`open_work` let a caller announce through its own sender: an escalated
 entry is announced once (marked, not re-sent), an undelivered one stays
 unannounced, and a sync-failure cause is announced once per cause.
 
 **Refines:** REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705
 **Acceptance evidence:** `test_announce.py`.
 
-## REQ-PY-0009: The mapping covers every call atm-bd makes
+## REQ-PY-0009: The API description covers every verb
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-`architecture.md`, Mapping, lists every `bd_cache.py` name that the atm-bd
-hooks and `bd_cache_cron.py` call at atm-core `05831df`, with the binding that
-replaces it or the reason none is needed. Every binding named in the table
-exists on the handle.
+`architecture.md`, Verbs and construction, describes every public member of
+the handle, and every `cache.<name>(` it names exists on the handle.
 
 **Refines:** REQ-BDC-0910
-**Acceptance evidence:** `test_mapping_doc.py`.
+**Acceptance evidence:** `test_api_doc.py`.
 
 ## REQ-PY-0010: Packaging
 
@@ -174,7 +171,7 @@ builds it on macOS arm64 and Linux x86_64, runs the pytest suite against the
 installed wheel on Python 3.9, 3.11 and 3.13, and runs the crate's clippy and
 tests on macOS, Linux and Windows (lead ruling R4: the Rust crate must compile
 and pass its tests on Windows like every other crate; the wheel and pytest stay
-macOS and Linux because the atm-bd hooks run on POSIX only). Nothing in phase a publishes the wheel; the release step uses the
+macOS and Linux because the consumer hooks run on POSIX only). Nothing in phase a publishes the wheel; the release step uses the
 `pypi` and `testpypi` environments later.
 
 **Refines:** REQ-BDC-0910

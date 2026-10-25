@@ -5,7 +5,7 @@ Repo-level context: [`../architecture.md`](../architecture.md). Requirements:
 [`requirements.md`](requirements.md). Created by sprint a-8.
 
 `bd-cache-py` is the Python module `bd_cache_rs` (maturin / PyO3). It exposes
-the cache in process, so atm-bd can call it from its own scheduler (ATM cron)
+the cache in process, so a consumer can call it from its own scheduler
 without `sc-runtime`. It is a thin layer: it holds no cache rule, it opens the
 concrete composition and converts arguments, replies and errors.
 
@@ -65,22 +65,21 @@ separately. It is the only static; it is correctness state and the libraries
 
 Consequences: a different backend (HTTP, later) needs a new composition and a
 new handle type; the Python verbs stay the same. The default cache file is
-`.bd-cache/<dolt_database>.bd-cache.sqlite3`; atm-bd keeps its
-`.atm-bd/` file by setting `cache_path`.
+`.bd-cache/<dolt_database>.bd-cache.sqlite3`; a file at another
+location is reached by setting `cache_path`.
 
 ## ADR-PY-0002: Replies are builtin objects; one exception class
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the config kind is reserved
 
-Context: atm-bd reads `bd_cache.py`'s JSON dicts today. The `bd-cache-model`
-reply types derive `Serialize`.
+Context: callers read JSON-shaped dicts. The `bd-cache-model` reply types
+derive `Serialize`.
 
 Decision: a reply is `serde_json::to_value` of the Rust reply, converted
 recursively to `dict` / `list` / `str` / `int` / `float` / `bool` / `None`.
 No Python class mirrors a reply, so the shapes below are the whole contract
 and change only with the wheel's version. The shapes are the Rust ones
-(`bd-cache-model`), not `bd_cache.py`'s; the Mapping table records each
-difference. A typed `CacheError` raises `bd_cache_rs.CacheError`, one class
+(`bd-cache-model`). A typed `CacheError` raises `bd_cache_rs.CacheError`, one class
 made with `create_exception!` (an abi3 wheel built for Python 3.9 cannot
 subclass `Exception` from a Rust class before Python 3.12). Each raised
 instance carries `code`, `detail`, `fix`, `reason`, `payload`, `body` and
@@ -90,15 +89,15 @@ not a valid argument is `ValueError`, never a `CacheError`: the cache has no
 code for a caller's malformed id. That includes an `op` outside
 `bd_cache_model::OPS` and a `list` status outside bd's seven: the binding
 checks them before the core (lead ruling R7, bc-lead, 2026-10-24; the core's
-`BAD_OP` stays for its other callers), so `bd_cache.py`'s `BD_CACHE.BAD_OP`
-becomes `ValueError` here. An invalid configuration is a `ValueError` whose `kind` is
+`BAD_OP` stays for its other callers), so a bad op is a
+`ValueError` here. An invalid configuration is a `ValueError` whose `kind` is
 `parse`, `scope`, `argument` or `config`; `config` is reserved; not produced
 while ConfigLoadError has no further variants (S38/S42), and `path` may be
 `None`. An unreadable config
 file is an `OSError` of kind `read`.
 
-Consequences: `error.extra` of `bd_cache.py` is `error.payload`; its
-`as_json()` is `error.body`.
+Consequences: `error.payload` carries the code's extra fields and
+`error.body` is the whole object.
 
 ## ADR-PY-0003: Threading
 
@@ -145,11 +144,10 @@ Python code).
 Decision:
 
 - Names: crate `bd-cache-py`, library and Python module `bd_cache_rs`,
-  distribution `bd-cache-rs` (`bd_cache` stays `bd_cache.py`'s name, so both
-  import in one interpreter during the cutover). The version is the
+  distribution `bd-cache-rs` . The version is the
   workspace's; `bd_cache_rs.__version__` versions the reply shapes.
 - Wheels: abi3 (`abi3-py39`), one wheel per platform serves CPython 3.9 and
-  later (atm-bd's cron needs 3.11 for `tomllib`; hooks may run older).
+  later (a consumer's scheduler may need a newer Python; hooks may run older).
   `pyo3` has no `extension-module` feature here: maturin sets
   `PYO3_BUILD_EXTENSION_MODULE`, so `cargo clippy` and `cargo test` link
   against a Python and work for this crate too.
@@ -158,7 +156,7 @@ Decision:
   clippy and `cargo test` for the crate on macOS, Linux and Windows (lead ruling
   R4), a wheel on macOS arm64 and Linux x86_64, and the pytest suite against
   the installed wheel on Python 3.9, 3.11 and 3.13. The wheel and pytest stay
-  off Windows because the atm-bd hooks run on POSIX only.
+  off Windows because the consumer hooks run on POSIX only.
 - Tests: pytest drives every verb against the real composition. The `bd`
   program is `tests/fake_bd_main.py`, a recording fake the Rust `BdCli`
   spawns like the real one (strict rows, exit 13 guard refusals, down, delayed
@@ -172,10 +170,12 @@ Decision:
   fixture removes any ambient `BEADS_DIR` (PE-FTQ-001); a test that needs one
   sets it, with its working directory, in a child process. Tests about time are causal: a call is blocked until a Python thread
   creates a release file, which that thread does only after seeing something
-  that needs the GIL free; durations are loose sanity bounds only. The mapping
-  test reads `tests/atm_core_05831df_calls.json`, extracted from atm-core with
-  `tests/atm_core_05831df_extract.py`. It runs under the interpreter that
-  runs pytest through a shell wrapper, so no `bd` is needed.
+  that needs the GIL free; durations are loose sanity bounds only. The 0.1
+  call corpus (`tests/call_corpus_0_1.json`) is generated against that fake
+  bd by `tests/call_corpus.py` and rebuilt and compared on every run; the same
+  test file checks that the verbs named in `docs/bd-cache-cli/contract.md`
+  section 10 exist. The fake runs under the interpreter that runs pytest
+  through a shell wrapper, so no `bd` is needed.
 - Publishing: not in phase a. A later release step publishes with the `pypi`
   and `testpypi` environments (`PYPI_TOKEN`, `TEST_PYPI_TOKEN`).
 
@@ -263,57 +263,43 @@ model); `view` is `{bead, stale, blocked}`; `outage` is `None` or
 | `sync_alert` | `str` or `None` |
 | `open_work` | `{pending: int, escalated_unannounced: int}` |
 
-## Mapping from `bd_cache.py`
+## Verbs and construction
 
-The names the atm-bd hooks and `bd_cache_cron.py` use at atm-core `05831df`
-(`sanity_task_close_hook.py`, `close_fields_backfill.py`, `close-vars.py`,
-`bd_cache_cron.py`, and the `bd_cache.py` command lines their messages tell
-people to run), the binding that replaces each, and what differs. `cache` is a
-`bd_cache_rs.Cache`. Timeouts that `bd_cache.py` defaulted to `BD_TIMEOUT`
-(30 s) are explicit arguments here.
+The handle is a `bd_cache_rs.Cache`. Each row says how a verb is called and what
+its reply or error is; the reply shapes are in the section above. Timeouts that
+have a default in `.beads/bd-cache.toml` are explicit arguments to the verbs
+that take one.
 
-| `bd_cache.py` | Called by | Binding and differences |
+| Member | Call | Notes |
 |---|---|---|
-| `BdCache(root, runner=, clock=, db_path=)` | all hooks, cron | `bd_cache_rs.Cache(root, bd_binary=, cache_path=)`; `runner` (a `subprocess.run` stand-in) becomes `bd_binary`, a program path (tests pass a recording program); `clock` has no equivalent; `db_path` is `cache_path`; the default file is `.bd-cache/<db>.bd-cache.sqlite3`, not `.atm-bd/`, so set `cache_path` to keep the Python file; raises `CacheError` (`NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`) as before for a repository that exists; a `repo_root` that is missing or not a directory is a `ValueError` (`kind` `argument`), with or without `project_dir` |
-| `cache.get(bead, miss_timeout=)` | sanity hook, backfill, close-vars | `cache.get(bead, miss_timeout=)`; the reply is `{row, ...}`, the row dict of Python is `reply["row"]["bead"]`; `reply["row"]["blocked"]` is new |
-| `cache.cached(bead)` | cron (`active_phases`) | `cache.get(bead, miss_timeout=0)`: a hit returns, a miss raises `BD_UNAVAILABLE` without a `bd` call (where Python returned `None`) |
-| `cache.bd_rows(ids, timeout)` then `cache.store(row, force=True)` | sanity hook (`refresh`), cron, close-vars | one call, `cache.refresh(ids, timeout)`: returns a list of views (not a dict by id) already stored with force and with pending writes replayed, so Python's `view(row)` is not needed |
-| `cache.store(row)` | cron, close-vars | covered by `cache.refresh(ids, timeout)`; the sync stores rows by itself |
-| `cache.view(row)` | close-vars | covered by `cache.refresh(ids, timeout)` and `cache.get(bead)`, which replay pending writes |
-| `cache.list(phase, status, label)` | backfill | `cache.list(phase, status=, label=)`; the reply is `{scope, last_ok_at, rows, outage}` with views, not a list of rows; an unknown phase is `SCOPE_UNKNOWN` (sync it first) |
-| `cache.write(bead, op, args, idem_key=, actor=, precondition=)` | sanity hook, backfill | `cache.write(bead, op, args, precondition, idem_key, actor)` (keywords work); `args` and `precondition` may be dicts or JSON text; the reply is `{seq, duplicate}` (Python adds `ok` and `state`; read `cache.entry(seq)["state"]`); a duplicate with another op is `IDEM_CONFLICT` with `payload["seq"]`; an unknown `op` is a `ValueError` here where `bd_cache.py` raised `BD_CACHE.BAD_OP` (ADR-PY-0002) |
-| `cache.drain(deadline=, monotonic=)` and the detached `bd_cache.py drain` command (`drain_now`) | cron, sanity hook | `cache.drain(start_gate_s, hard_s)`: two seconds-from-now bounds (start gate and hard deadline, REQ-BDC-0402) instead of one monotonic deadline; the cron passes `budget - 5` and `budget - 2`. The hook drains in process (`cache.drain(...)` on a thread of its own or left to the cron) instead of spawning a process; the report has no `ok` or `backend`, and carries `deferred_in_flight` and `outage` |
-| `cache.sync(phase, timeout=)` | cron, backfill | `cache.sync(phase, timeout)`; the report is `{scope, rebuilt, model_current, stored, blocked, deferred, outage}`; an unreachable backend returns the report with `outage` set instead of raising `SYNC_FAILED` (ADR-BDC-0005) |
-| `cache.prune(phase)` | `bd_cache.py prune` | `cache.prune(phase)`; `{scope, beads_deleted, out_of_scope_swept}` |
-| `cache.resolve(seq, note, actor)` | `bd_cache.py resolve` (named in the escalation text) | `cache.resolve(seq, note, actor)`; returns `None` (read `cache.entry(seq)` for the state) |
-| `cache.status()` and `status['db']` | cron `doctor` | `cache.status()` and `cache.path` (a `pathlib.Path`; `status['db']`); the reply has `meta`, `journal`, `phases`, `escalated` (full entries), `outage` and `stale`; no `ok`, `cache_schema_version` or `model_bd_version` |
-| `cache.path` | sanity hook (`.with_suffix(".drain.log")`) | `cache.path`, a `pathlib.Path` |
-| `cache.unannounced_escalations()` | cron | `cache.unannounced_escalations()`; entries use the `entry` shape (`phase`, `args` as a dict, `state`) |
-| `cache.mark_announced(seq)` | cron | `cache.mark_announced(seq)`; an unknown seq is `NOT_FOUND` |
-| `cache.sync_alert(phase)` | cron | `cache.sync_alert(phase)` |
-| `cache.set_sync_alert(phase, cause)` | cron | `cache.set_sync_alert(phase, cause)` |
-| `cache.clear_sync_alert(phase)` | cron | `cache.set_sync_alert(phase, None)` |
-| `cache.outage()` | cron | `cache.status()["outage"]`: `{since, last_error}`, or `None`; there is no `announced_at` (below) |
-| `cache.mark_outage_announced()` | cron | `cache.set_sync_alert(phase, "backend_unavailable")` for each active phase whose lead was told; `cache.sync_alert(phase)` says whether it was; the end of the outage resets it (`cache.set_sync_alert(phase, None)`) without a message (ADR-BDC-0005) |
-| `cache.record_outage(error)`, `cache.clear_outage()` | cron | none: the cache records and clears the outage itself on every backend call that is unreachable or answers (ADR-BDC-0005) |
-| `cache.has_open_work()` | cron (`should_stop`) | `cache.open_work()`: `{pending, escalated_unannounced}`; open work is `any(...)` of the values |
-| `CacheError`, `error.code`, `error.detail`, `error.fix` | all | `bd_cache_rs.CacheError`, same attributes |
-| `error.extra` | cron (`extra.get("cause")`) | `error.payload` (`cause` and `phase` of `SYNC_FAILED`, `unmet`, `seq`, `known`, `source`) |
-| `error.as_json()` | cron | `error.body` |
-| `bd_cache.UNREACHABLE` | cron | `bd_cache_rs.UNREACHABLE`, the same four codes (a frozenset) |
-| `bd_cache.__file__` | sanity hook (`drain_now` spawns `python bd_cache.py drain`) | none: the hook calls `cache.drain(start_gate_s, hard_s)` in process, so there is no script to spawn (see the `drain` row) |
-| `cache.dependents(bead, type)` | none at `05831df` | not exposed (not one of the verbs of REQ-BDC-0910) |
+| open | `bd_cache_rs.Cache(root, bd_binary=, cache_path=)` | `bd_binary` is a program path (tests pass a recording program). The default file is `.bd-cache/<db>.bd-cache.sqlite3`; `cache_path` points at a file at another location. A repository that exists but has no usable beads metadata raises `CacheError` (`NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`); a `repo_root` that is missing or not a directory is a `ValueError` (`kind` `argument`), with or without `project_dir`. |
+| `cache.get(bead, miss_timeout=)` | one bead | The reply is `{row, ...}`; the bead dict is `reply["row"]["bead"]`, and `reply["row"]["blocked"]` lists its blockers. `miss_timeout=0` serves a hit and raises `BD_UNAVAILABLE` on a miss without a `bd` call. |
+| `cache.refresh(ids, timeout)` | fresh rows | One `bd` call for all ids; returns a list of views, stored with force and with pending writes replayed. |
+| `cache.list(phase, status=, label=)` | rows of a scope | The reply is `{scope, last_ok_at, rows, outage}` with views. An unknown scope is `SCOPE_UNKNOWN` (sync it first). |
+| `cache.ready(phase, fresh_within=)` | ready beads | Without a limit no `bd` call is made; with one, bd's answer is used if it comes in time. |
+| `cache.write(bead, op, args, precondition, idem_key, actor)` | journal a write | Keywords work; `args` and `precondition` may be dicts or JSON text. The reply is `{seq, duplicate}`; read `cache.entry(seq)["state"]` for the state. A duplicate with another op is `IDEM_CONFLICT` with `payload["seq"]`. An unknown `op` is a `ValueError` (ADR-PY-0002). |
+| `cache.drain(start_gate_s, hard_s)` | apply pending writes | Two seconds-from-now bounds, the start gate and the hard deadline (REQ-BDC-0402). The report carries `deferred_in_flight` and `outage`. |
+| `cache.sync(phase, timeout)` | refresh a scope | The report is `{scope, rebuilt, model_current, stored, blocked, deferred, outage}`. An unreachable backend returns the report with `outage` set instead of raising (ADR-BDC-0005). |
+| `cache.prune(phase)` | delete a scope | `{scope, beads_deleted, out_of_scope_swept}`. |
+| `cache.resolve(seq, note, actor)` | close an escalated entry | Returns `None`; read `cache.entry(seq)` for the state. |
+| `cache.entry(seq)` | one journal entry | The `entry` shape; an unknown seq is `NOT_FOUND`. |
+| `cache.status()` | file and journal state | `meta`, `journal`, `phases`, `escalated` (full entries), `outage` and `stale`. `cache.path` is a `pathlib.Path`. |
+| `cache.unannounced_escalations()`, `cache.mark_announced(seq)` | escalation state | Entries use the `entry` shape; an unknown seq is `NOT_FOUND`. A caller sends its own notification and then marks the entry. |
+| `cache.sync_alert(phase)`, `cache.set_sync_alert(phase, cause)` | per-scope alert | `set_sync_alert(phase, None)` clears it. |
+| `cache.open_work()` | counts | `{pending, escalated_unannounced}`; open work is `any(...)` of the values. |
+| `CacheError` | one exception class | Attributes `code`, `detail`, `fix`, `reason`, `payload` (the code's extra fields, for example `cause` and `phase` of `SYNC_FAILED`, `unmet`, `seq`, `known`, `source`) and `body` (the whole object). |
+| `bd_cache_rs.UNREACHABLE` | frozenset of codes | The four codes that mean bd could not be reached. |
 
-The CLI (`bd_cache.py get|list|write|drain|sync|prune|resolve|status`) is the
-drop-in of REQ-BDC-0806, deferred to the `bdc` binary; the table above covers
-the same operations through the handle.
+The cache records and clears the outage itself on every backend call that is
+unreachable or answers (ADR-BDC-0005); no verb sets it. A `dependents` verb is
+not exposed (it is not one of the verbs of REQ-BDC-0910). The `bdc` binary
+offers the same operations as commands (`docs/bd-cache-cli/contract.md`).
 
 ## Known limits
 
 - One process holds one connection per cache file (NFR-BDC-0007): a hook that
   opens a handle while the cron's handle is open in the same process gets
   `STORE_IN_USE`; separate processes are fine.
-- The two implementations must never drain the same journal at the same time
-  (phase plan, atm-bd adoption and cutover): stop the Python cron before the
-  bindings' `drain` runs.
+- Two writers must never drain the same journal at the same time: stop any
+  other drainer of the file before the bindings' `drain` runs.
 - Verbs on one handle run one at a time, whatever the thread (ADR-PY-0003).

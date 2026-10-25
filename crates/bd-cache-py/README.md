@@ -98,15 +98,15 @@ pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=cra
 - One process holds one connection per cache file. A second handle on the
   same file in the same process is `BD_CACHE.STORE_IN_USE` until the first is
   closed; separate processes are fine.
-- Never let two implementations drain the same journal at the same time. Stop
-  the Python `bd_cache.py` cron before this module's `drain` runs.
+- Never let two writers drain the same journal at the same time. Stop any
+  other drainer of the file before this module's `drain` runs.
 - Wheels are built and tested on macOS arm64 and Linux x86_64 only. The Rust
   crate's own tests also run on Windows.
 
 ## Links
 
 - Requirements: [`docs/bd-cache-py/requirements.md`](https://github.com/randlee/beads-cache/blob/develop/docs/bd-cache-py/requirements.md)
-- Architecture, reply shapes and the mapping from each `bd_cache.py` call:
+- Architecture, reply shapes and the description of each verb:
   [`docs/bd-cache-py/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/bd-cache-py/architecture.md)
 
 License: MIT.
