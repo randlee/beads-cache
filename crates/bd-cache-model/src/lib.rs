@@ -9,8 +9,9 @@
 //!   (REQ-BDC-0301, 0304, 0305);
 //! - the journal types ([`JournalEntry`], [`NewEntry`], [`Seq`], [`IdemKey`]),
 //!   the size limits on what is journaled ([`MAX_WRITE_ARGS_BYTES`],
-//!   [`check_write_size`]), scopes ([`ScopeId`]) and store-side state;
-//! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
+//!   [`check_write_size`]), scopes ([`Scope`], [`ScopeId`]: a name and a bd
+//!   filter) and store-side state;
+//! - the port [`CacheStore`] with [`DrainLock`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
 //! - reply and report shapes, [`CallKind`] / [`CallFailure`];
 //! - [`CacheError`] with every `BD_CACHE.*` code and the backend mapping
@@ -42,7 +43,6 @@ mod op;
 mod pyjson;
 mod reply;
 mod scope;
-mod sender;
 mod state;
 mod store;
 
@@ -55,7 +55,7 @@ pub use call::{CallFailure, CallKind};
 pub use config::{
     CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
-    SchemaPackageRef, TickConfig,
+    InvalidScope, SchemaPackageRef, ScopeEntry, ScopeTable,
 };
 #[doc(inline)]
 pub use error::{
@@ -73,8 +73,8 @@ pub use limits::{
 };
 #[doc(inline)]
 pub use op::{
-    CLOSED_STATUS, OPS, Op, meta_value, normalize, parse_precondition, phase_of, precondition_json,
-    replay, unmet,
+    CLOSED_STATUS, OPS, Op, meta_value, normalize, parse_precondition, precondition_json, replay,
+    unmet,
 };
 #[doc(inline)]
 pub use pyjson::python_json;
@@ -84,9 +84,7 @@ pub use reply::{
     ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome, WriteReply,
 };
 #[doc(inline)]
-pub use scope::{PhaseName, ScopeId};
-#[doc(inline)]
-pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
+pub use scope::{Scope, ScopeId};
 #[doc(inline)]
 pub use state::{
     BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus,

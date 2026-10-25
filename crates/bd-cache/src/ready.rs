@@ -29,7 +29,7 @@ use std::time::Duration;
 
 use bd_cache_model::{
     CacheError, CacheStore, CallFailure, CallKind, DrainLock, Freshness, JournalEntry,
-    JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, ScopeId, replay,
+    JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, Scope, ScopeId, replay,
 };
 use sc_beads::{
     Bead, BeadId, BlockedRow, CacheBackend, Deadline, DepType, Edge, Timestamp, rfc3339_to_unix,
@@ -43,7 +43,7 @@ const OPEN: &str = "open";
 /// A scope's ready base with our journal applied (ADR-BDC-0002).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Adjusted {
-    scope: ScopeId,
+    scope: Scope,
     /// The base's fetch instant.
     pub(crate) fetched_at: Timestamp,
     /// The base's stale mark.
@@ -99,13 +99,13 @@ pub(crate) fn row_view_with(
 /// adjusted. Rows outside the scope have no blocked state.
 pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     view: &Bead,
 ) -> Result<Option<Vec<BeadId>>, CacheError> {
     if !s.holds(view) {
         return Ok(None);
     }
-    let Some(entry) = cache.store.base_entry(s, &view.id)? else {
+    let Some(entry) = cache.store.base_entry(s.id(), &view.id)? else {
         return Ok(None);
     };
     let untouched = !cache.store.has_entries_since(&entry.fetched_at)?;
@@ -115,17 +115,28 @@ pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(adjusted(cache, s)?.and_then(|a| a.blocked_of(view)))
 }
 
-/// The registered scope a view belongs to: its v3 phase
-/// ([`ScopeId::from_labels`]) when that scope is known, else the first known
-/// scope that holds the view; `None` for a bead outside every scope.
+/// The registered scope a view belongs to: the first configured scope that
+/// holds it, else the first other registered scope that holds it, each
+/// resolved to its filter ([`Cache::scope`]); `None` for a bead outside
+/// every scope (REQ-BDC-0702).
 pub(crate) fn scope_for<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     view: &Bead,
-) -> Result<Option<ScopeId>, CacheError> {
+) -> Result<Option<Scope>, CacheError> {
     let known = cache.store.scopes()?;
-    Ok(ScopeId::from_labels(&view.labels)
-        .filter(|s| known.contains(s))
-        .or_else(|| known.into_iter().find(|s| s.holds(view))))
+    let configured = cache
+        .config
+        .scopes
+        .iter()
+        .filter(|s| known.contains(s.id()))
+        .find(|s| s.holds(view))
+        .cloned();
+    Ok(configured.or_else(|| {
+        known
+            .iter()
+            .map(|id| cache.scope(id))
+            .find(|s| s.holds(view))
+    }))
 }
 
 /// `SCOPE_UNKNOWN`, naming the known scopes, unless `s` was configured or
@@ -139,7 +150,7 @@ pub(crate) fn require_known<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Ok(())
     } else {
         Err(CacheError::ScopeUnknown {
-            detail: format!("phase {s} was never configured or synced"),
+            detail: format!("scope {s} was never configured or synced"),
             known,
         })
     }
@@ -149,9 +160,9 @@ pub(crate) fn require_known<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// has no base yet. Starts no bd call.
 pub(crate) fn adjusted<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
 ) -> Result<Option<Adjusted>, CacheError> {
-    let Some(base) = cache.store.ready_base(s)? else {
+    let Some(base) = cache.store.ready_base(s.id())? else {
         return Ok(None);
     };
     let pending = cache.store.pending_entries()?;
@@ -196,11 +207,11 @@ impl FreshBase {
 /// the first call.
 pub(crate) fn fetch_base<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     hard: Deadline,
 ) -> Result<FreshBase, CallFailure> {
     let at = cache.clock.now_utc();
-    let filter = s.filter();
+    let filter = s.filter().clone();
     let blocked = crate::call(cache, CallKind::Ready, hard, |b, p, d| {
         b.list_blocked(p, &filter, d)
     })?;
@@ -224,10 +235,12 @@ pub(crate) fn store_base<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// `ready(scope, fresh_within)`: the module docs, REQ-BDC-0911 and 0912.
 pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    s: &ScopeId,
+    id: &ScopeId,
     fresh_within: Option<Duration>,
 ) -> Result<ReadyReply, CacheError> {
-    require_known(cache, s)?;
+    require_known(cache, id)?;
+    let scope = cache.scope(id);
+    let s = &scope;
     // The fetch instant of bd's answer, when one came in time.
     let mut fresh: Option<Timestamp> = None;
     let mut read_fallback = None;
@@ -237,16 +250,16 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
         let hard = Deadline::after(&*cache.clock, limit);
         match fetch_base(cache, s, hard) {
             Ok(base) => {
-                store_base(cache, s, &base)?;
+                store_base(cache, s.id(), &base)?;
                 fresh = Some(base.at);
             }
             Err(failure) => read_fallback = Some(fallback_reason(failure, limit)),
         }
     }
-    let last_ok_at = cache.store.sync_state(s)?.last_ok_at;
+    let last_ok_at = cache.store.sync_state(id)?.last_ok_at;
     let Some(adj) = adjusted(cache, s)? else {
         return Ok(ReadyReply {
-            scope: s.clone(),
+            scope: id.clone(),
             last_ok_at,
             basis: ReadyBasis::Unknown,
             locally_adjusted: false,
@@ -257,10 +270,13 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     };
     let mut ready = Vec::with_capacity(adj.ready.len());
     let mut missing_rows = Vec::new();
-    for id in &adj.ready {
-        match crate::view::current_view(cache, id)? {
+    for bead in &adj.ready {
+        match crate::view::current_view(cache, bead)? {
+            // bd's ready set of a filter is wider than the scope when the
+            // filter has a status bd ready does not take: only members count.
+            Some((view, _)) if !s.holds(&view) => {}
             Some((view, freshness)) => ready.push(row_view(view, freshness, Some(&adj))),
-            None => missing_rows.push(id.clone()),
+            None => missing_rows.push(bead.clone()),
         }
     }
     let basis = match fresh {
@@ -271,7 +287,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
         },
     };
     Ok(ReadyReply {
-        scope: s.clone(),
+        scope: id.clone(),
         last_ok_at,
         basis,
         locally_adjusted: adj.changed,
@@ -361,7 +377,7 @@ impl Facts {
 /// Applies journal entries to one scope's base.
 struct Engine<'a, S: CacheStore> {
     store: &'a S,
-    scope: &'a ScopeId,
+    scope: &'a Scope,
     base: &'a ReadyBase,
     pending: &'a [JournalEntry],
     now_unix: i64,
@@ -375,7 +391,7 @@ struct Engine<'a, S: CacheStore> {
 impl<'a, S: CacheStore> Engine<'a, S> {
     fn new(
         store: &'a S,
-        scope: &'a ScopeId,
+        scope: &'a Scope,
         base: &'a ReadyBase,
         pending: &'a [JournalEntry],
         now_unix: i64,

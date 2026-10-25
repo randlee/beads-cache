@@ -191,7 +191,10 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             "backend_kind",
             "endpoint",
             "replica_id",
-            "journal_seq"
+            "journal_seq",
+            // The two nullable failure columns of sprint b-7 (REQ-BDC-0704).
+            "failing_since",
+            "notified_since"
         ]
     );
     assert_eq!(names("meta"), ["key", "value"]);

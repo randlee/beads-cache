@@ -14,8 +14,8 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, JournalState, ScopeId};
-use common::{TestCache, World, id, new_entry, x};
+use bd_cache_model::{CacheError, CacheStore, JournalState, Scope, ScopeId};
+use common::{TestCache, World, id, new_entry, sx, x};
 use sc_beads::testing::{FakeCall, FakeOp, Injection};
 use sc_beads::{BeadId, Clock};
 
@@ -164,9 +164,7 @@ fn list_filters_by_status_and_label_on_the_view() {
 fn list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes() {
     let w = World::new();
     let c = w.cache();
-    let e = c
-        .list(&ScopeId::phase("z").unwrap(), None, None)
-        .unwrap_err();
+    let e = c.list(&ScopeId::new("z").unwrap(), None, None).unwrap_err();
     assert_eq!(e.code(), "BD_CACHE.SCOPE_UNKNOWN");
     let CacheError::ScopeUnknown { known, .. } = e else {
         panic!("{e:?}");
@@ -338,21 +336,21 @@ fn entry_returns_an_entry_in_any_state() {
 #[test]
 fn get_reply_scope_is_the_beads_scope_and_none_outside_every_scope() {
     let w = World::new();
-    let a = ScopeId::phase("a").unwrap();
+    let a = ScopeId::new("a").unwrap();
     let mut config = w.config.clone();
-    config.scopes = vec![a.clone(), x()];
+    config.scopes = vec![Scope::label(a.clone()), sx()];
     let mut c = w.cache_with(config);
     c.sync(&x(), w.after(T30)).unwrap();
     w.add("o1", |b| b.labels.clear());
-    w.add("a1", |b| b.labels = vec!["phase-a".into()]);
+    w.add("a1", |b| b.labels = vec!["a".into()]);
 
     let scoped = c.get(&id("b1"), None).unwrap();
-    assert_eq!(scoped.scope, Some(x()), "b1 is in phase-x");
+    assert_eq!(scoped.scope, Some(x()), "b1 is in x");
     assert!(scoped.scope_last_ok_at.is_some());
     let other = c.get(&id("a1"), None).unwrap();
-    assert_eq!(other.scope, Some(a), "a1 is in phase-a");
+    assert_eq!(other.scope, Some(a), "a1 is in a");
     let outside = c.get(&id("o1"), None).unwrap();
-    assert_eq!(outside.scope, None, "o1 has no phase label");
+    assert_eq!(outside.scope, None, "o1 is in no scope");
     assert_eq!(outside.row.blocked, None);
     assert_eq!(
         c.cached(&id("o1")).unwrap().unwrap().scope,

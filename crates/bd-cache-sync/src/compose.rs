@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, RepoConfig, TickConfig};
+use bd_cache_model::{CacheError, RepoConfig};
 use bd_cache_store::{
     BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
     load_repo_config,
@@ -15,22 +15,21 @@ use bd_cache_store::{
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
 
-use crate::phases::rooted_phases_dir;
 
 /// The cache over the real store, drain lock and `bd`.
 pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 
-/// A repository's cache with its `[tick]` table.
+/// A repository's cache, with where its file and cron table are.
 #[derive(Debug)]
 pub struct Composed {
     /// The cache of the repository's file.
     pub cache: RealCache,
-    /// The `[tick]` table of `.beads/bd-cache.toml` (empty when the file has
-    /// none), with `phases_dir` resolved against the repository root: a
-    /// relative directory, or the default `.atm-bd`, names the same place
-    /// whatever the working directory is.
-    pub tick: TickConfig,
-    /// The cache file's name, for naming the schedule.
+    /// The cache file; its cron table is [`cron_db_path`](crate::cron_db_path)
+    /// of it (REQ-BDC-0701).
+    pub cache_path: PathBuf,
+    /// The repository root, as given; a post-sync hook is told it.
+    pub repo_root: PathBuf,
+    /// The cache file's name.
     pub name: String,
 }
 
@@ -212,8 +211,7 @@ pub fn compose(
 /// overrides, and passes the result. `.beads/bd-cache.toml` is not read
 /// again; everything else is as [`compose`]: the cache file `config` names
 /// (with `.beads/metadata.json` and `beads_dir_env`, validated as
-/// [`compose_with`] validates it), the process-wide lock set, one clock, and
-/// `[tick]` from `config` with `phases_dir` resolved against `repo_root`.
+/// [`compose_with`] validates it), the process-wide lock set and one clock.
 ///
 /// `config` is used as given: a caller that merged overrides into it
 /// validates the result first ([`RepoConfig::validate`]).
@@ -370,6 +368,7 @@ fn compose_with_override(
     };
     let store = SqliteStore::open_with(repo_root, &repo, beads_dir.as_ref())
         .map_err(ComposeError::Cache)?;
+    let cache_path = store.path().to_path_buf();
     let name = store
         .path()
         .file_name()
@@ -384,9 +383,12 @@ fn compose_with_override(
         );
     let cache = Cache::new(repo.cache_config(project), store, lock, backend, clock)
         .map_err(ComposeError::Cache)?;
-    let mut tick = repo.tick.unwrap_or_default();
-    tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));
-    Ok(Composed { cache, tick, name })
+    Ok(Composed {
+        cache,
+        cache_path,
+        repo_root: repo_root.to_path_buf(),
+        name,
+    })
 }
 
 #[cfg(test)]
@@ -408,7 +410,7 @@ mod tests {
         std::fs::create_dir_all(&beads).unwrap();
         std::fs::write(
             beads.join("metadata.json"),
-            r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+            r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
         )
         .unwrap();
         root
@@ -495,8 +497,7 @@ mod tests {
 
     /// `compose_with_config` uses the configuration it is given and never
     /// reads `.beads/bd-cache.toml`: here a file that does not parse, and
-    /// names another cache file and scope, is ignored; `[tick]` comes from
-    /// the given configuration, rooted at the repository.
+    /// names another cache file and scope, is ignored.
     #[test]
     fn compose_with_config_uses_the_given_configuration_not_the_file() {
         let root = repo();
@@ -514,11 +515,7 @@ mod tests {
         );
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
-            tick: Some(TickConfig {
-                phases_dir: Some("phases".into()),
-                ..TickConfig::default()
-            }),
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let composed =
@@ -528,12 +525,12 @@ mod tests {
         assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
         assert_eq!(
             composed.cache.config().scopes,
-            [bd_cache_model::ScopeId::phase("bk").unwrap()]
+            [bd_cache_model::Scope::label(
+                bd_cache_model::ScopeId::new("bk").unwrap()
+            )]
         );
-        assert_eq!(
-            composed.tick.phases_dir.as_deref(),
-            Some(root.path().join("phases").as_path())
-        );
+        assert_eq!(composed.repo_root, root.path());
+        assert!(composed.cache_path.ends_with("merged.sqlite3"));
     }
 
     /// `compose_with_config_and_backend` uses the configuration it is given,
@@ -549,7 +546,7 @@ mod tests {
         .unwrap();
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let locks = Arc::new(ProjectLocks::new());
@@ -574,7 +571,9 @@ mod tests {
         assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
         assert_eq!(
             composed.cache.config().scopes,
-            [bd_cache_model::ScopeId::phase("bk").unwrap()]
+            [bd_cache_model::Scope::label(
+                bd_cache_model::ScopeId::new("bk").unwrap()
+            )]
         );
     }
 

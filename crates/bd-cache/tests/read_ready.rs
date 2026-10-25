@@ -87,7 +87,7 @@ fn ready_replies_carry_the_scopes_last_ok_at() {
 fn ready_of_an_unknown_scope_is_scope_unknown() {
     let w = World::new();
     let mut c = w.cache();
-    let e = c.ready(&ScopeId::phase("nope").unwrap(), None).unwrap_err();
+    let e = c.ready(&ScopeId::new("nope").unwrap(), None).unwrap_err();
     assert!(
         matches!(&e, CacheError::ScopeUnknown { known, .. } if *known == vec![x()]),
         "{e:?}"
@@ -472,7 +472,7 @@ fn rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_onl
         "k1",
         "b2",
         "update",
-        r#"{"remove_labels": ["phase-x"]}"#,
+        r#"{"remove_labels": ["x"]}"#,
     );
     let l = c.list(&x(), None, None).unwrap();
     let b2 = l.rows.iter().find(|r| r.bead.id == id("b2")).unwrap();

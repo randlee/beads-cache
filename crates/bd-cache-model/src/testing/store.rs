@@ -13,7 +13,7 @@ use crate::journal::{
 };
 use crate::op::normalize;
 use crate::reply::{JournalCounts, PruneReport};
-use crate::scope::ScopeId;
+use crate::scope::{Scope, ScopeId};
 use crate::state::{
     FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus,
     SyncState, UpsertReport,
@@ -58,9 +58,47 @@ struct State {
     last_seq: i64,
     meta: BTreeMap<String, String>,
     sync: BTreeMap<ScopeId, SyncState>,
+    /// `beads.revision`: the source revision an ingest stored a row at.
+    revisions: BTreeMap<BeadId, String>,
 }
 
 impl State {
+    /// `upsert_rows`, under the caller's lock (see the `CacheStore` rules).
+    fn upsert(&mut self, s: Option<&Scope>, rows: &[Bead], force: bool) -> UpsertReport {
+        let mut report = UpsertReport::default();
+        for row in rows {
+            let existing = self
+                .rows
+                .get(&row.id)
+                .map(|(b, _)| (b.updated_at.clone(), b.status.clone()));
+            if let Some((updated_at, _)) = &existing
+                && !force
+                && newer(updated_at, &row.updated_at)
+            {
+                report.skipped_newer.push(row.id.clone());
+                continue;
+            }
+            if let Some((_, status)) = &existing
+                && *status != row.status
+            {
+                report.status_changed.push(row.id.clone());
+            }
+            self.store(row);
+            // A row stored again replaces the whole v3 row, its revision too.
+            self.revisions.remove(&row.id);
+            if let Some(s) = s {
+                let m = self.members.entry(row.id.clone()).or_default();
+                if s.holds(row) {
+                    m.insert(s.id().clone());
+                } else {
+                    m.remove(s.id());
+                }
+            }
+            report.stored.push(row.id.clone());
+        }
+        report
+    }
+
     fn row(&self, id: &BeadId) -> Option<(Bead, Freshness)> {
         self.rows.get(id).map(|(b, stale)| {
             let mut b = b.clone();
@@ -140,7 +178,7 @@ impl State {
 /// Clones share one store: hand a clone to a second `Cache` to model two
 /// processes on one file, or keep a clone to inspect state a test drove.
 /// It stores the outage and sync alerts as `meta` keys (`outage_since`,
-/// `outage_error`, `sync_alert:<phase>`) as BD-CACHE v3 does.
+/// `outage_error`, `sync_alert:<scope>`) as the v3 format does.
 ///
 /// # Examples
 ///
@@ -150,10 +188,10 @@ impl State {
 ///
 /// let mut store = FakeStore::new();
 /// let mut b = sc_beads::testing::bead("b1");
-/// b.labels = vec!["phase-x".into()];
-/// let x = ScopeId::phase("x").unwrap();
+/// b.labels = vec!["x".into()];
+/// let x = bd_cache_model::Scope::label(ScopeId::new("x").unwrap());
 /// store.upsert_rows(Some(&x), &[b], false).unwrap();
-/// assert_eq!(store.rows_in_scope(&x).unwrap().len(), 1);
+/// assert_eq!(store.rows_in_scope(x.id()).unwrap().len(), 1);
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct FakeStore {
@@ -177,6 +215,12 @@ impl FakeStore {
     #[must_use]
     pub fn row_ids(&self) -> Vec<BeadId> {
         lock(&self.state).rows.keys().cloned().collect()
+    }
+
+    /// The revision an ingest stored a row at (`beads.revision`; for assertions).
+    #[must_use]
+    pub fn revision(&self, id: &BeadId) -> Option<String> {
+        lock(&self.state).revisions.get(id).cloned()
     }
 
     /// The scopes holding a bead (for assertions).
@@ -216,40 +260,44 @@ impl CacheStore for FakeStore {
 
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {
+        Ok(lock(&self.state).upsert(s, rows, force))
+    }
+
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        rows: &[Bead],
+        blocked: &[BlockedRow],
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        // One lock: no reader sees a part of the ingest.
         let mut st = lock(&self.state);
-        let mut report = UpsertReport::default();
-        for row in rows {
-            let existing = st
-                .rows
-                .get(&row.id)
-                .map(|(b, _)| (b.updated_at.clone(), b.status.clone()));
-            if let Some((updated_at, _)) = &existing
-                && !force
-                && newer(updated_at, &row.updated_at)
-            {
-                report.skipped_newer.push(row.id.clone());
-                continue;
+        st.scopes.insert(s.id().clone());
+        let report = st.upsert(Some(s), rows, false);
+        if let Some(r) = revision {
+            for id in &report.stored {
+                st.revisions.insert(id.clone(), r.to_owned());
             }
-            if let Some((_, status)) = &existing
-                && *status != row.status
-            {
-                report.status_changed.push(row.id.clone());
-            }
-            st.store(row);
-            if let Some(s) = s {
-                let m = st.members.entry(row.id.clone()).or_default();
-                if s.holds(row) {
-                    m.insert(s.clone());
-                } else {
-                    m.remove(s);
-                }
-            }
-            report.stored.push(row.id.clone());
         }
+        st.ready.insert(
+            s.id().clone(),
+            ReadyBase {
+                blocked: blocked.to_vec(),
+                ready: ready.to_vec(),
+                fetched_at: at.clone(),
+                stale: false,
+            },
+        );
+        let mut state = SyncState::new(s.id().clone());
+        state.last_started_at = Some(at.clone());
+        state.last_ok_at = Some(at.clone());
+        st.sync.insert(s.id().clone(), state);
         Ok(report)
     }
 
@@ -444,6 +492,7 @@ impl CacheStore for FakeStore {
         };
         if outcome == FingerprintOutcome::Rebuilt {
             st.rows.clear();
+            st.revisions.clear();
             st.edges.clear();
             st.members.clear();
             st.sync.clear();
@@ -467,6 +516,17 @@ impl CacheStore for FakeStore {
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
         lock(&self.state).sync.insert(st.scope.clone(), st.clone());
         Ok(())
+    }
+
+    fn announce_scope(&mut self, s: &ScopeId, since: &Timestamp) -> Result<bool, CacheError> {
+        let mut st = lock(&self.state);
+        match st.sync.get_mut(s) {
+            Some(state) if state.failing_since.as_ref() == Some(since) => {
+                state.notified_since = Some(since.clone());
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
@@ -510,7 +570,7 @@ impl CacheStore for FakeStore {
             .count();
         if open > 0 {
             return Err(CacheError::PruneBlocked {
-                detail: format!("phase {} has {open} pending or escalated writes", s.name()),
+                detail: format!("scope {} has {open} pending or escalated writes", s.name()),
             });
         }
         let mut report = PruneReport {
@@ -577,8 +637,8 @@ impl CacheStore for FakeStore {
         let st = lock(&self.state);
         let mut journal = BTreeMap::new();
         for e in st.journal.values() {
-            let phase = e.scope.as_ref().map_or("None", ScopeId::name);
-            *journal.entry(format!("{phase}:{}", e.state)).or_insert(0) += 1;
+            let scope = e.scope.as_ref().map_or("None", ScopeId::name);
+            *journal.entry(format!("{scope}:{}", e.state)).or_insert(0) += 1;
         }
         let names: BTreeSet<ScopeId> = st.scopes.iter().chain(st.sync.keys()).cloned().collect();
         let scopes = names

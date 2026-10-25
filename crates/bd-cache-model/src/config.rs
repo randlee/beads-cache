@@ -8,28 +8,30 @@
 //! (ADR-MODEL-0004): no toml type appears in this API.
 //!
 //! ```toml
-//! cache_path = ".bd-cache/atm-dev.bd-cache.sqlite3"   # optional
-//! scopes = ["bk", "phase-bj"]                         # phase names, `phase-` optional
+//! cache_path = ".bd-cache/dev.bd-cache.sqlite3"       # optional
 //! call_timeout_s = 30                                 # optional
 //! miss_fill_timeout_ms = 2000                         # optional
 //! max_attempts = 5                                    # optional
 //! schema_packages = []                                # opaque in phase a
 //!
-//! [tick]                                              # bd-cache-sync's keys (a-7)
-//! team = "atm-dev"
-//! fallback_lead = "team-lead"
-//! phases_dir = ".atm-bd"
-//! phases = ["bk"]
+//! # Scopes (REQ-BDC-0702): a name and a bd filter each. A plain string is the
+//! # scope of the beads carrying that label, named after it.
+//! scopes = [
+//!   "release",
+//!   { name = "open-bugs", status = ["open", "in_progress"], type = "bug" },
+//!   { name = "core", labels = ["area"], labels_any = ["p0", "p1"], assignee = "dev-1" },
+//!   { name = "everything", all = true },
+//! ]
 //! ```
 
 use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use sc_beads::{Deadline, ProjectRef};
+use sc_beads::{Deadline, FilterCriteria, InvalidValue, ProjectRef, ScopeFilter};
 use serde::Deserialize;
 
-use crate::scope::ScopeId;
+use crate::scope::{Scope, ScopeId};
 
 /// The per-call cap on every `bd` call (BD-CACHE.md, Drain bounds; NFR-BDC-0004).
 pub const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(30);
@@ -37,9 +39,9 @@ pub const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 pub const DEFAULT_MISS_FILL_TIMEOUT: Duration = Duration::from_secs(2);
 /// Write attempts on a reachable backend before escalation (BD-CACHE `MAX_ATTEMPTS`).
 pub const DEFAULT_MAX_ATTEMPTS: u32 = 5;
-/// The drain's start gate sits this far before the tick end (REQ-BDC-0402, 0703).
+/// The drain's start gate sits this far before the sync run's end (REQ-BDC-0402, 0703).
 pub const START_GATE_MARGIN: Duration = Duration::from_secs(5);
-/// The drain's hard deadline sits this far before the tick end (REQ-BDC-0402).
+/// The drain's hard deadline sits this far before the sync run's end (REQ-BDC-0402).
 pub const HARD_MARGIN: Duration = Duration::from_secs(2);
 
 /// The `.beads/bd-cache.toml` schema.
@@ -49,9 +51,9 @@ pub struct RepoConfig {
     /// Cache file; default `.bd-cache/<dolt_database>.bd-cache.sqlite3` (REQ-BDC-0101).
     #[serde(default)]
     pub cache_path: Option<PathBuf>,
-    /// Configured scopes: phase names, with or without the `phase-` prefix.
+    /// Configured scopes (REQ-BDC-0702), in sync order.
     #[serde(default)]
-    pub scopes: Vec<String>,
+    pub scopes: Vec<ScopeEntry>,
     /// Per-call cap in seconds; default 30.
     #[serde(default)]
     pub call_timeout_s: Option<u64>,
@@ -65,9 +67,6 @@ pub struct RepoConfig {
     /// configuration); opaque and ignored in phase a.
     #[serde(default)]
     pub schema_packages: Vec<SchemaPackageRef>,
-    /// bd-cache-sync's keys, read by a-7.
-    #[serde(default)]
-    pub tick: Option<TickConfig>,
 }
 
 /// One `schema_packages` entry, kept opaque in phase a.
@@ -78,22 +77,119 @@ pub struct RepoConfig {
 #[serde(transparent)]
 pub struct SchemaPackageRef(toml::Value);
 
-/// The `[tick]` table: the sync task's keys (bd-cache-sync, a-7).
+/// One `scopes` entry: a label, or a named filter table (REQ-BDC-0702).
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(untagged)]
+pub enum ScopeEntry {
+    /// The beads carrying this label, in a scope named after it.
+    Label(String),
+    /// A named filter.
+    Filter(ScopeTable),
+}
+
+impl From<&str> for ScopeEntry {
+    fn from(label: &str) -> Self {
+        Self::Label(label.to_owned())
+    }
+}
+
+/// A `scopes` table entry: a name and the bd filter of the scope.
+///
+/// `all = true` selects every bead (`bd list --all`) and sets no other key;
+/// otherwise at least one criterion is set, and a bead must meet every one.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct TickConfig {
-    /// The ATM team of the phase leads (REQ-BDC-0701).
+pub struct ScopeTable {
+    /// The scope's name ([`ScopeId`]).
+    pub name: String,
+    /// Every bead (`--all`).
     #[serde(default)]
-    pub team: Option<String>,
-    /// The lead told when no phase lead is known.
+    pub all: bool,
+    /// Labels a bead carries every one of.
     #[serde(default)]
-    pub fallback_lead: Option<String>,
-    /// Where the `phase-*.toml` phase files live.
+    pub labels: Vec<String>,
+    /// Labels a bead carries at least one of.
     #[serde(default)]
-    pub phases_dir: Option<PathBuf>,
-    /// Limits the synced phases (REQ-BDC-0702).
+    pub labels_any: Vec<String>,
+    /// Statuses a member has one of.
     #[serde(default)]
-    pub phases: Option<Vec<String>>,
+    pub status: Vec<String>,
+    /// The issue type of a member.
+    #[serde(default, rename = "type")]
+    pub issue_type: Option<String>,
+    /// The assignee of a member.
+    #[serde(default)]
+    pub assignee: Option<String>,
+}
+
+/// A `scopes` entry that is not a scope.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InvalidScope {
+    /// The entry's name, or its label for a plain string entry.
+    pub entry: String,
+    /// What was wrong.
+    pub reason: String,
+}
+
+impl fmt::Display for InvalidScope {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "scopes entry {:?} {}", self.entry, self.reason)
+    }
+}
+
+impl std::error::Error for InvalidScope {}
+
+impl ScopeEntry {
+    /// The entry's name as written.
+    #[must_use]
+    pub fn name(&self) -> &str {
+        match self {
+            Self::Label(l) => l,
+            Self::Filter(t) => &t.name,
+        }
+    }
+
+    /// The scope this entry configures.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidScope`] for a name that is not a [`ScopeId`], a filter value
+    /// bd would misread, `all` with another key, or a table with no criterion.
+    pub fn scope(&self) -> Result<Scope, InvalidScope> {
+        let invalid = |e: InvalidValue| InvalidScope {
+            entry: self.name().to_owned(),
+            reason: format!("is not a scope: {} {:?} {}", e.kind, e.value, e.reason),
+        };
+        let id = ScopeId::new(self.name()).map_err(invalid)?;
+        let filter = match self {
+            Self::Label(_) => return Ok(Scope::label(id)),
+            Self::Filter(t) if t.all => {
+                let criteria = FilterCriteria {
+                    labels: t.labels.clone(),
+                    labels_any: t.labels_any.clone(),
+                    status: t.status.clone(),
+                    issue_type: t.issue_type.clone(),
+                    assignee: t.assignee.clone(),
+                };
+                if criteria != FilterCriteria::default() {
+                    return Err(InvalidScope {
+                        entry: t.name.clone(),
+                        reason: "sets all = true with another key; all selects every bead"
+                            .to_owned(),
+                    });
+                }
+                ScopeFilter::All
+            }
+            Self::Filter(t) => ScopeFilter::Match(FilterCriteria {
+                labels: t.labels.clone(),
+                labels_any: t.labels_any.clone(),
+                status: t.status.clone(),
+                issue_type: t.issue_type.clone(),
+                assignee: t.assignee.clone(),
+            }),
+        };
+        Scope::new(id, filter).map_err(invalid)
+    }
 }
 
 /// `.beads/bd-cache.toml` did not parse.
@@ -116,22 +212,42 @@ impl RepoConfig {
     ///
     /// # Errors
     ///
-    /// [`ConfigError`] for invalid TOML, an unknown key, a mistyped value, or
-    /// a zero `call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts`
-    /// ([`RepoConfig::validate`]).
+    /// [`ConfigError`] for invalid TOML, an unknown key, a mistyped value, a
+    /// zero `call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts`
+    /// ([`RepoConfig::validate`]), or a `scopes` entry that is not a scope
+    /// ([`RepoConfig::scope_list`]).
     ///
     /// # Examples
     ///
     /// ```
-    /// use bd_cache_model::{RepoConfig, ScopeId};
-    /// let cfg = RepoConfig::from_toml("scopes = [\"bk\"]\nmax_attempts = 3\n").unwrap();
+    /// use bd_cache_model::{RepoConfig, Scope, ScopeId};
+    /// let text = "scopes = [\"bk\", { name = \"all\", all = true }]\nmax_attempts = 3\n";
+    /// let cfg = RepoConfig::from_toml(text).unwrap();
     /// let cache = cfg.cache_config(sc_beads::ProjectRef::local(None));
-    /// assert_eq!(cache.scopes, vec![ScopeId::phase("bk").unwrap()]);
+    /// assert_eq!(cache.scopes[0], Scope::label(ScopeId::new("bk").unwrap()));
+    /// assert_eq!(cache.scopes[1].filter(), &sc_beads::ScopeFilter::All);
     /// assert_eq!(cache.max_attempts, 3);
     /// assert!(RepoConfig::from_toml("surprise = 1").is_err());
     /// assert!(RepoConfig::from_toml("max_attempts = 0").is_err());
+    /// // A scope is a filter, never a phase; the old tick table is gone.
+    /// assert!(RepoConfig::from_toml("[tick]\nphases = [\"x\"]\n").is_err());
+    /// assert!(RepoConfig::from_toml("scopes = [{ name = \"x\" }]").is_err());
     /// ```
     pub fn from_toml(text: &str) -> Result<Self, ConfigError> {
+        let config = Self::parse(text)?;
+        config.scope_list().map_err(|e| ConfigError {
+            detail: e.to_string(),
+        })?;
+        Ok(config)
+    }
+
+    /// [`RepoConfig::from_toml`] without the `scopes` check, for a loader
+    /// that reports a bad scope on its own ([`RepoConfig::scope_list`]).
+    ///
+    /// # Errors
+    ///
+    /// As [`RepoConfig::from_toml`], a bad scope entry aside.
+    pub fn parse(text: &str) -> Result<Self, ConfigError> {
         let config: Self = toml::from_str(text).map_err(|e| ConfigError {
             detail: e.to_string(),
         })?;
@@ -177,15 +293,36 @@ impl RepoConfig {
         Ok(())
     }
 
+    /// The configured scopes, in order.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidScope`] for the first entry that is not a scope, or a name
+    /// used twice.
+    pub fn scope_list(&self) -> Result<Vec<Scope>, InvalidScope> {
+        let mut scopes: Vec<Scope> = Vec::with_capacity(self.scopes.len());
+        for entry in &self.scopes {
+            let scope = entry.scope()?;
+            if scopes.iter().any(|s| s.id() == scope.id()) {
+                return Err(InvalidScope {
+                    entry: entry.name().to_owned(),
+                    reason: "is configured twice".to_owned(),
+                });
+            }
+            scopes.push(scope);
+        }
+        Ok(scopes)
+    }
+
     /// The cache configuration for `project`, with defaults for unset keys.
     ///
-    /// Blank or invalid scope names are skipped (the loader reports them);
-    /// duplicates are kept once.
+    /// Entries that are not scopes are skipped (the loader and
+    /// [`RepoConfig::validate`] refuse them); a name is kept once.
     #[must_use]
     pub fn cache_config(&self, project: ProjectRef) -> CacheConfig {
-        let mut scopes: Vec<ScopeId> = Vec::new();
-        for s in self.scopes.iter().filter_map(|s| ScopeId::parse(s)) {
-            if !scopes.contains(&s) {
+        let mut scopes: Vec<Scope> = Vec::new();
+        for s in self.scopes.iter().filter_map(|e| e.scope().ok()) {
+            if !scopes.iter().any(|k| k.id() == s.id()) {
                 scopes.push(s);
             }
         }
@@ -208,8 +345,9 @@ impl RepoConfig {
 pub struct CacheConfig {
     /// The beads project.
     pub project: ProjectRef,
-    /// Configured scopes; syncing another phase registers it on demand (REQ-BDC-0909).
-    pub scopes: Vec<ScopeId>,
+    /// Configured scopes, in sync order; syncing another scope id registers
+    /// it on demand as its label scope (REQ-BDC-0909).
+    pub scopes: Vec<Scope>,
     /// The single owner of the 30 s per-call cap.
     pub call_timeout: Duration,
     /// Cache-miss fetch limit, default 2 s (ADR-BDC-0005).
@@ -221,7 +359,7 @@ pub struct CacheConfig {
 impl CacheConfig {
     /// Defaults for `project` with the given scopes.
     #[must_use]
-    pub fn new(project: ProjectRef, scopes: Vec<ScopeId>) -> Self {
+    pub fn new(project: ProjectRef, scopes: Vec<Scope>) -> Self {
         Self {
             project,
             scopes,
@@ -245,7 +383,7 @@ pub struct DrainBudget {
 }
 
 impl DrainBudget {
-    /// The budget for a tick ending at `end`: start gate 5 s and hard deadline 2 s before it.
+    /// The budget for a sync run ending at `end`: start gate 5 s and hard deadline 2 s before it.
     #[must_use]
     pub fn before_tick_end(end: Deadline) -> Self {
         let at = |margin: Duration| {

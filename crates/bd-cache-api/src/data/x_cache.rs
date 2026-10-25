@@ -177,7 +177,7 @@ impl ReadXCache {
         views: &[RowView],
     ) -> Self {
         Self {
-            scope: scope.map(ScopeId::label),
+            scope: scope.map(|s| s.name().to_owned()),
             last_ok_at: opt_time(last_ok_at),
             outage: outage(outage_now),
             rows: rows(views),

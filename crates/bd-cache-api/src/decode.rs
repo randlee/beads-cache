@@ -24,15 +24,15 @@
 //! will parse it ([`Op::parse_new`]), so a front end learns of a bad
 //! metadata value at decode time, with the same code.
 
-use bd_cache_model::{IdemKey, Op, ScopeId, Seq};
-use sc_beads::{Actor, BeadId, DepType, Edge};
+use bd_cache_model::{CacheError, IdemKey, Op, ScopeId, Seq};
+use sc_beads::{Actor, Bead, BeadId, BeadsCacheError, BlockedRow, DepType, Edge, Timestamp};
 use serde_json::{Map, Value};
 
 use crate::error::{ApiError, Unsupported};
 use crate::page::{Cursor, ListSort};
 use crate::request::{
     CacheEvict, CacheFlush, CacheHealth, CacheRefreshIssues, CacheRefreshScopes, CacheScopes,
-    CacheStatus, Command, Context, DependenciesAdd, DependenciesList, IssuePatch, IssuesClose,
+    CacheScopesAnnounce, CacheScopesIngest, CacheStatus, Command, Context, DependenciesAdd, DependenciesList, IssuePatch, IssuesClose,
     IssuesGet, IssuesList, IssuesUpdate, JournalAnnounce, JournalGet, JournalKey, JournalList,
     JournalListState, JournalResolve, MetadataPatch, Ready, Request,
 };
@@ -101,6 +101,17 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
             Request::CacheRefreshIssues(CacheRefreshIssues {
                 ids,
                 timeout_ms: m.uint("timeout_ms")?,
+            })
+        }
+        Command::CacheScopesIngest => Request::CacheScopesIngest(cache_scopes_ingest(obj)?),
+        Command::CacheScopesAnnounce => {
+            let m = Members::check(obj, "", &["scope", "since"], &[], Unsupported::Member)?;
+            let since = m.required_str("since")?;
+            Request::CacheScopesAnnounce(CacheScopesAnnounce {
+                scope: scope_of("scope", &m.required_str("scope")?)?,
+                since: Timestamp::parse(&since).map_err(|e| {
+                    ApiError::bad_member("since", format!("since {since:?} is not a timestamp: {e}"))
+                })?,
             })
         }
         Command::CacheFlush => Request::CacheFlush(cache_flush(obj)?),
@@ -272,12 +283,12 @@ impl<'a> Members<'a> {
     }
 }
 
-/// A scope id: `phase-<x>` or a bare `<x>`.
+/// A scope id: the scope's name (REQ-BDC-0702).
 fn scope_of(member: &str, s: &str) -> Result<ScopeId, ApiError> {
     ScopeId::parse(s).ok_or_else(|| {
         ApiError::bad_member(
             member,
-            format!("{member} {s:?} is not a scope: use phase-<x> or <x>"),
+            format!("{member} {s:?} is not a scope name: {}", ScopeId::RULE),
         )
     })
 }
@@ -610,6 +621,104 @@ fn dependencies_add(obj: &Map<String, Value>) -> Result<DependenciesAdd, ApiErro
         actor,
         idempotency_key,
         edge: Edge::new(em.id("issue_id")?, em.id("depends_on_id")?, kind),
+    })
+}
+
+/// `BD_CONTRACT` naming the bead and field of a row the strict row decoder
+/// refused (REQ-BDC-0007), the row's place in the request in `details.member`.
+fn contract(member: String, e: BeadsCacheError) -> ApiError {
+    let error = match e {
+        BeadsCacheError::Contract {
+            bead,
+            field,
+            detail,
+        } => CacheError::BdContract {
+            bead,
+            field,
+            detail,
+            source: None,
+        },
+        other => CacheError::BdContract {
+            bead: None,
+            field: String::new(),
+            detail: other.to_string(),
+            source: None,
+        },
+    };
+    ApiError::from(&error).with_detail("member", member)
+}
+
+/// `cache scopes ingest`: every row through the strict row decoder, so one
+/// bad row refuses the whole ingest before anything is stored (REQ-BDC-0007,
+/// 0008). A blocked row is `{id, blocked_by}`, or a whole `bd blocked --json`
+/// row, which the strict blocked-row decoder checks.
+fn cache_scopes_ingest(obj: &Map<String, Value>) -> Result<CacheScopesIngest, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &["scope", "rows", "blocked", "revision"],
+        &[],
+        Unsupported::Member,
+    )?;
+    let scope = scope_of("scope", &m.required_str("scope")?)?;
+    let rows = m
+        .get("rows")
+        .ok_or_else(|| m.missing("rows"))?
+        .as_array()
+        .ok_or_else(|| m.wrong("rows", "an array of bd rows"))?
+        .iter()
+        .enumerate()
+        .map(|(i, v)| sc_beads::parse_bd_row(v).map_err(|e| contract(format!("rows[{i}]"), e)))
+        .collect::<Result<Vec<Bead>, ApiError>>()?;
+    let blocked = match m.get("blocked").filter(|v| !v.is_null()) {
+        None => Vec::new(),
+        Some(v) => v
+            .as_array()
+            .ok_or_else(|| m.wrong("blocked", "an array of blocked rows"))?
+            .iter()
+            .enumerate()
+            .map(|(i, v)| blocked_row(v).map_err(|e| contract(format!("blocked[{i}]"), e)))
+            .collect::<Result<Vec<BlockedRow>, ApiError>>()?,
+    };
+    Ok(CacheScopesIngest {
+        scope,
+        rows,
+        blocked,
+        revision: m.str("revision")?,
+    })
+}
+
+/// One blocked row: the short form `{id, blocked_by}`, else a whole
+/// `bd blocked --json` row through the strict decoder.
+fn blocked_row(v: &Value) -> Result<BlockedRow, BeadsCacheError> {
+    let short = v
+        .as_object()
+        .is_some_and(|o| o.len() == 2 && o.contains_key("id") && o.contains_key("blocked_by"));
+    if short {
+        let id = v.get("id").and_then(Value::as_str).unwrap_or_default();
+        let blocked_by = v.get("blocked_by").and_then(Value::as_array);
+        let bad = |field: &str, detail: &str| BeadsCacheError::Contract {
+            bead: BeadId::new(id).ok(),
+            field: field.to_owned(),
+            detail: detail.to_owned(),
+        };
+        let id = BeadId::new(id).map_err(|e| bad("id", &e.to_string()))?;
+        let blocked_by = blocked_by
+            .ok_or_else(|| bad("blocked_by", "expected an array of bead ids"))?
+            .iter()
+            .map(|b| {
+                b.as_str()
+                    .and_then(|s| BeadId::new(s).ok())
+                    .ok_or_else(|| bad("blocked_by", "expected an array of bead ids"))
+            })
+            .collect::<Result<Vec<BeadId>, _>>()?;
+        return Ok(BlockedRow { id, blocked_by });
+    }
+    let mut one = sc_beads::parse_blocked_rows(&Value::Array(vec![v.clone()]).to_string())?;
+    one.pop().ok_or_else(|| BeadsCacheError::Contract {
+        bead: None,
+        field: String::new(),
+        detail: "the blocked row decoded to nothing".into(),
     })
 }
 

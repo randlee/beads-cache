@@ -304,7 +304,7 @@ pub enum CacheError {
     SyncFailed {
         /// What happened.
         detail: String,
-        /// The scope that failed, when known (`phase` in the JSON).
+        /// The scope that failed, when known (`phase` in the v3 JSON).
         scope: Option<ScopeId>,
         /// The underlying code.
         cause: Option<SyncCause>,
@@ -571,6 +571,58 @@ impl CacheError {
             | Self::ScopeUnknown { detail, .. }
             | Self::StoreFailed { detail, .. }
             | Self::StoreInUse { detail } => detail,
+        }
+    }
+
+    /// Whether bd could not be reached, for an error that can come from bd
+    /// (ADR-BDC-0005): `Some(true)` only when bd could not be reached (it
+    /// could not start, timed out, waited out its lock, or its server
+    /// refused the connection), `Some(false)` when bd answered (a
+    /// `BD_LIST_FAILED` from a bd that ran and failed included), and `None`
+    /// for an error that does not come from bd.
+    ///
+    /// This is narrower than [`is_unreachable`](Self::is_unreachable), the
+    /// v3 code set: `BD_LIST_FAILED` is in that set whether or not bd
+    /// answered. An exhaustive match: a new variant must be classified here.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::CacheError;
+    /// let cut = CacheError::BdUnavailable { detail: "no answer".into(), source: None };
+    /// assert_eq!(cut.outage(), Some(true));
+    /// let answered = CacheError::BdListFailed { detail: "exit 1".into(), source: None };
+    /// assert_eq!(answered.outage(), Some(false));
+    /// assert_eq!(CacheError::NotFound { detail: "b1".into() }.outage(), None);
+    /// ```
+    #[must_use]
+    pub fn outage(&self) -> Option<bool> {
+        let unreached = || {
+            self.backend_cause()
+                .is_some_and(|c| c.error().is_unavailable())
+        };
+        match self {
+            Self::BdUnavailable { .. } => Some(true),
+            Self::BdVersionFailed { .. }
+            | Self::BdSchemaFailed { .. }
+            | Self::BdContract { .. }
+            | Self::BdWriteFailed { .. }
+            | Self::BdListFailed { .. }
+            | Self::SyncFailed { .. }
+            | Self::Precondition { .. } => Some(unreached()),
+            Self::NoDatabase { .. }
+            | Self::WrongDatabase { .. }
+            | Self::NotFound { .. }
+            | Self::IdemConflict { .. }
+            | Self::BadOp { .. }
+            | Self::BadArgs { .. }
+            | Self::BadPrecondition { .. }
+            | Self::SchemaVersion { .. }
+            | Self::PruneBlocked { .. }
+            | Self::NotEscalated { .. }
+            | Self::ScopeUnknown { .. }
+            | Self::StoreFailed { .. }
+            | Self::StoreInUse { .. } => None,
         }
     }
 
@@ -889,7 +941,7 @@ mod classification_tests {
     /// Samples of every variant, with and without a kept source.
     #[expect(clippy::too_many_lines, reason = "a table of one sample per case")]
     fn samples() -> Vec<CacheError> {
-        let x = ScopeId::phase("x").unwrap();
+        let x = ScopeId::new("x").unwrap();
         let unmet = BTreeMap::from([(
             GuardKey::Status,
             Unmet {

@@ -46,14 +46,15 @@ use std::time::Duration;
 pub use bd_cache_model::{
     CacheConfig, CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock,
     DrainReport, GetReply, IdemKey, JournalCounts, JournalEntry, ListReply, OpenWork, PruneReport,
-    ReadyReply, RowView, ScopeId, Seq, StateCounts, StatusReply, SyncReport, WriteOutcome,
-    WriteReply,
+    ReadyReply, RowView, Scope, ScopeId, Seq, StateCounts, StatusReply, SyncReport, SyncState,
+    UpsertReport, WriteOutcome, WriteReply,
 };
-use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
+use sc_beads::{Actor, Bead, BeadId, BlockedRow, CacheBackend, Clock, Deadline, Guards, Timestamp};
 
 mod backend_check;
 mod drain;
 mod get;
+mod ingest;
 mod list;
 mod miss;
 mod outage;
@@ -108,7 +109,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         clock: Arc<dyn Clock>,
     ) -> Result<Self, CacheError> {
         for s in &config.scopes {
-            store.ensure_scope(s)?;
+            store.ensure_scope(s.id())?;
         }
         Ok(Self {
             config,
@@ -124,6 +125,42 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     #[must_use]
     pub fn config(&self) -> &CacheConfig {
         &self.config
+    }
+
+    /// The scope a scope id names: the configured scope of that name, else
+    /// the beads that carry the label of the same name (REQ-BDC-0702, 0909).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::sync::Arc;
+    /// use bd_cache::{Cache, CacheConfig, Scope, ScopeId};
+    /// use bd_cache_model::testing::{FakeDrainLock, FakeStore};
+    /// use sc_beads::testing::{FakeBackend, ManualClock};
+    /// use sc_beads::{Clock, ProjectRef, ScopeFilter};
+    ///
+    /// let all = Scope::new(ScopeId::new("all").unwrap(), ScopeFilter::All).unwrap();
+    /// let clock = Arc::new(ManualClock::default());
+    /// let cache = Cache::new(
+    ///     CacheConfig::new(ProjectRef::local(None), vec![all.clone()]),
+    ///     FakeStore::new(),
+    ///     FakeDrainLock::new(),
+    ///     FakeBackend::new(Arc::clone(&clock)),
+    ///     clock as Arc<dyn Clock>,
+    /// )
+    /// .unwrap();
+    /// assert_eq!(cache.scope(all.id()), all);
+    /// let other = ScopeId::new("area").unwrap();
+    /// assert_eq!(cache.scope(&other).filter(), &ScopeFilter::Label("area".into()));
+    /// ```
+    #[must_use]
+    pub fn scope(&self, id: &ScopeId) -> Scope {
+        self.config
+            .scopes
+            .iter()
+            .find(|s| s.id() == id)
+            .cloned()
+            .unwrap_or_else(|| Scope::label(id.clone()))
     }
 
     /// The clock the cache and its backend share (ADR-CORE-0001).
@@ -291,13 +328,48 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         drain::drain(self, budget)
     }
 
-    /// Syncs one scope (registering it on demand) and refreshes its ready base.
+    /// Syncs the scope `s` names ([`Cache::scope`]), registering it on demand,
+    /// and refreshes its ready base.
     ///
     /// # Errors
     ///
     /// `SYNC_FAILED` and the other typed errors of a failed sync; store errors.
     pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError> {
-        sync::sync(self, s, d)
+        let scope = self.scope(s);
+        sync::sync(self, &scope, d)
+    }
+
+    /// Feeds the cache from a consumer's own sync of the scope `s` names
+    /// (REQ-BDC-0007, 0008, 0502; ANC-003): the same rules as a sync of bd.
+    ///
+    /// Every row must be one the scope's filter selects (labels, type,
+    /// assignee), else `BD_CONTRACT` names the bead and the field and nothing
+    /// is stored. The rows are stored unforced, so an older row never
+    /// replaces a newer stored one; membership is the filter's (a row whose
+    /// status the filter does not name is stored outside the scope). The
+    /// ready base is `blocked` and the scope's members that are `open`, not
+    /// in `blocked` and not deferred into the future, as `bd ready` answers.
+    /// Rows, base and sync state are stored in one transaction, with
+    /// `revision` as each stored row's `revision` (ADR-BDC-0004). Starts no
+    /// bd call.
+    ///
+    /// The rows are already strict [`Bead`]s: a front end that reads JSON
+    /// decodes each with the strict row decoder first
+    /// ([`sc_beads::parse_bd_row`]).
+    ///
+    /// # Errors
+    ///
+    /// `BD_CONTRACT` for a row outside the scope's filter or a row id given
+    /// twice; store errors.
+    pub fn ingest_scope(
+        &mut self,
+        s: &ScopeId,
+        rows: &[Bead],
+        blocked: &[BlockedRow],
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        let scope = self.scope(s);
+        ingest::ingest(self, &scope, rows, blocked, revision)
     }
 
     /// Resolves an escalated entry with the lead's note.
@@ -342,21 +414,36 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         status::journal_counts(self)
     }
 
-    /// Whether `scope` has synced at least once (its `sync_state.last_ok_at` is set).
+    /// A scope's sync state, its failure state included (REQ-BDC-0704).
     ///
-    /// Reads the scope's sync state alone through [`CacheStore::sync_state`]:
-    /// no `bd` call and no scan of the journal or the rows, unlike
-    /// [`status`](Self::status) (lead ruling S30, QA5-004). A scope that was
-    /// never registered has never synced.
+    /// Reads the scope's one `sync_state` row: no `bd` call and no scan of
+    /// the journal or the rows. A scope that was never registered has never
+    /// synced.
     ///
     /// # Errors
     ///
     /// Store errors.
-    pub fn scope_synced(&self, scope: &ScopeId) -> Result<bool, CacheError> {
-        Ok(self.store.sync_state(scope)?.last_ok_at.is_some())
+    pub fn sync_state(&self, scope: &ScopeId) -> Result<SyncState, CacheError> {
+        self.store.sync_state(scope)
     }
 
-    /// Escalated entries not yet announced (for an external scheduler's sender).
+    /// Marks the scope's current run of failures handled, when it began at
+    /// `since` (compare-and-set; `scopes announce --since`, REQ-BDC-0705,
+    /// 0706). `false` when the scope is not failing or began failing at
+    /// another time; then nothing changes.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn announce_scope(
+        &mut self,
+        scope: &ScopeId,
+        since: &Timestamp,
+    ) -> Result<bool, CacheError> {
+        self.store.announce_scope(scope, since)
+    }
+
+    /// Escalated entries not yet announced (offered to the post-sync hook).
     ///
     /// # Errors
     ///
@@ -375,20 +462,6 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         self.store.mark_announced(seq, &at)
     }
 
-    /// [`Cache::mark_announced`], waiting at most `wait` for a write lock
-    /// another process holds (lead ruling S33): the tick passes the time it
-    /// has left, so the marker write cannot carry it past its end.
-    ///
-    /// # Errors
-    ///
-    /// As [`Cache::mark_announced`]; a write lock held past `wait` is the
-    /// store's usual failure (`STORE_FAILED` for SQLite), and the entry stays
-    /// unannounced.
-    pub fn mark_announced_within(&mut self, seq: Seq, wait: Duration) -> Result<(), CacheError> {
-        let at = self.clock.now_utc();
-        self.store.mark_announced_within(seq, &at, wait)
-    }
-
     /// The scope's last announced sync-failure cause.
     ///
     /// # Errors
@@ -405,22 +478,6 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// Store errors.
     pub fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
         self.store.set_sync_alert(s, cause)
-    }
-
-    /// [`Cache::set_sync_alert`], waiting at most `wait` for a write lock
-    /// another process holds (lead ruling S33), as
-    /// [`Cache::mark_announced_within`].
-    ///
-    /// # Errors
-    ///
-    /// As [`Cache::mark_announced_within`]; the alert is left as it was.
-    pub fn set_sync_alert_within(
-        &mut self,
-        s: &ScopeId,
-        cause: Option<&str>,
-        wait: Duration,
-    ) -> Result<(), CacheError> {
-        self.store.set_sync_alert_within(s, cause, wait)
     }
 
     /// Every pending journal entry, by seq (`cache journal list --state
@@ -456,7 +513,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
             .map_err(|f| f.into_error("bd version / bd schema: no answer before the deadline"))
     }
 
-    /// Pending and unannounced-escalated counts (the stop rule).
+    /// The outage, while one holds (ADR-BDC-0005): a store read, no bd call.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn outage(&self) -> Result<Option<bd_cache_model::Outage>, CacheError> {
+        self.store.outage()
+    }
+
+    /// Pending and unannounced-escalated counts (`cache health`, the post-sync hook).
     ///
     /// # Errors
     ///

@@ -10,45 +10,64 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use bd_cache_model::{CacheConfig, DrainBudget, RepoConfig, ScopeId};
-use sc_beads::{Clock, Deadline, ProjectRef};
+use bd_cache_model::{CacheConfig, DrainBudget, RepoConfig, Scope, ScopeId};
+use sc_beads::{Clock, Deadline, FilterCriteria, ProjectRef, ScopeFilter};
 
 const SAMPLE: &str = r#"
-cache_path = ".atm-bd/atm-dev.bd-cache.sqlite3"
-scopes = ["bk", "phase-bj", "bk", "  "]
+cache_path = ".bd-cache/dev.bd-cache.sqlite3"
+scopes = [
+  "release",
+  { name = "open-bugs", status = ["open", "in_progress"], type = "bug" },
+  { name = "core", labels = ["area", "team"], labels_any = ["p0", "p1"], assignee = "dev-1" },
+  { name = "everything", all = true },
+]
 miss_fill_timeout_ms = 500
 
 [[schema_packages]]
-path = ".claude/skills/atm-beads/schemas"
+path = "schemas"
 enforcement = "warn"
-
-[tick]
-team = "atm-dev"
-fallback_lead = "team-lead"
-phases_dir = ".atm-bd"
 "#;
 
+fn id(name: &str) -> ScopeId {
+    ScopeId::new(name).unwrap()
+}
+
+/// Scopes are bd filters (REQ-BDC-0702, ANC-009): a label string, criteria
+/// tables, and an all-beads table, in the configured order.
 #[test]
 fn sample_config_parses_and_derives_defaults() {
     let cfg = RepoConfig::from_toml(SAMPLE).unwrap();
     assert_eq!(
         cfg.cache_path,
-        Some(PathBuf::from(".atm-bd/atm-dev.bd-cache.sqlite3"))
+        Some(PathBuf::from(".bd-cache/dev.bd-cache.sqlite3"))
     );
     assert_eq!(
         cfg.schema_packages.len(),
         1,
         "schema packages are kept opaque"
     );
-    let tick = cfg.tick.as_ref().unwrap();
-    assert_eq!(tick.team.as_deref(), Some("atm-dev"));
-    assert_eq!(tick.fallback_lead.as_deref(), Some("team-lead"));
-    assert_eq!(tick.phases_dir, Some(PathBuf::from(".atm-bd")));
     let cache = cfg.cache_config(ProjectRef::local(Some("/repo".into())));
+    let names: Vec<&str> = cache.scopes.iter().map(|s| s.id().name()).collect();
+    assert_eq!(names, ["release", "open-bugs", "core", "everything"]);
+    assert_eq!(cache.scopes[0], Scope::label(id("release")));
     assert_eq!(
-        cache.scopes,
-        vec![ScopeId::phase("bk").unwrap(), ScopeId::phase("bj").unwrap()]
+        cache.scopes[1].filter(),
+        &ScopeFilter::Match(FilterCriteria {
+            status: vec!["open".into(), "in_progress".into()],
+            issue_type: Some("bug".into()),
+            ..FilterCriteria::default()
+        })
     );
+    assert_eq!(
+        cache.scopes[2].filter(),
+        &ScopeFilter::Match(FilterCriteria {
+            labels: vec!["area".into(), "team".into()],
+            labels_any: vec!["p0".into(), "p1".into()],
+            assignee: Some("dev-1".into()),
+            ..FilterCriteria::default()
+        })
+    );
+    assert_eq!(cache.scopes[3].filter(), &ScopeFilter::All);
     assert_eq!(cache.call_timeout, Duration::from_secs(30));
     assert_eq!(cache.miss_fill_timeout, Duration::from_millis(500));
     assert_eq!(cache.max_attempts, 5);
@@ -64,15 +83,46 @@ fn empty_config_is_all_defaults_and_unknown_keys_are_errors() {
     assert_eq!(cache.miss_fill_timeout, Duration::from_secs(2));
     assert!(RepoConfig::from_toml("surprise = true").is_err());
     assert!(RepoConfig::from_toml("scopes = \"bk\"").is_err());
-    let e = RepoConfig::from_toml("[tick]\nteams = \"x\"").unwrap_err();
+    let e = RepoConfig::from_toml("scopes = [{ name = \"x\", all = true, surprise = 1 }]")
+        .unwrap_err();
     assert!(
         e.to_string().starts_with("invalid .beads/bd-cache.toml: "),
         "{e}"
     );
 }
 
+/// The removed keys of a scheduler table are refused, not ignored
+/// (ADR-BDC-0010): the schedule is a row of the cron table, never a key.
 #[test]
-fn drain_budget_sits_before_the_tick_end() {
+fn the_removed_tick_table_is_refused() {
+    for text in [
+        "[tick]\n",
+        "[tick]\nphases = [\"x\"]\n",
+        "[tick]\nphases_dir = \"d\"\n",
+    ] {
+        assert!(RepoConfig::from_toml(text).is_err(), "{text:?}");
+    }
+}
+
+/// A scope entry that bd would misread, or one named twice, is refused
+/// with the entry's name (REQ-BDC-0702).
+#[test]
+fn bad_scope_entries_are_refused_naming_the_entry() {
+    for (text, name) in [
+        ("scopes = [\"b k\"]", "b k"),
+        ("scopes = [\"bk\", \"bk\"]", "bk"),
+        ("scopes = [{ name = \"x\" }]", "x"),
+        ("scopes = [{ name = \"x\", all = true, labels = [\"a\"] }]", "x"),
+        ("scopes = [{ name = \"x\", labels = [\"a,b\"] }]", "x"),
+        ("scopes = [{ name = \"x\", assignee = \"-a\" }]", "x"),
+    ] {
+        let e = RepoConfig::from_toml(text).unwrap_err();
+        assert!(e.detail.contains(&format!("{name:?}")), "{text}: {e}");
+    }
+}
+
+#[test]
+fn drain_budget_sits_before_the_run_end() {
     let clock = sc_beads::testing::ManualClock::default();
     let end = Deadline::after(&clock, Duration::from_secs(25));
     let b = DrainBudget::before_tick_end(end);

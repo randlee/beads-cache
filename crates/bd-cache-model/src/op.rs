@@ -31,7 +31,6 @@ use serde_json::{Map, Value};
 use crate::error::{CacheError, GuardKey, Unmet};
 use crate::journal::{JournalEntry, JournalState};
 use crate::pyjson::python_json;
-use crate::scope::{PhaseName, ScopeId};
 
 /// The status text of a closed bead (bd's `closed`): the one literal the model, the
 /// cache and its callers compare against.
@@ -548,12 +547,6 @@ pub fn normalize(row: &Bead) -> Bead {
     b.dependencies.sort();
     b.dependencies.dedup();
     b
-}
-
-/// The first valid `phase-<x>` label's suffix: the v3 `phase` column.
-#[must_use]
-pub fn phase_of(row: &Bead) -> Option<PhaseName> {
-    ScopeId::from_labels(&row.labels).map(|s| s.phase_name().clone())
 }
 
 /// Parses a write precondition: `{status?, assignee?}`, with the `/v0` aliases

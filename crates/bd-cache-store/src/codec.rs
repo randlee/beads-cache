@@ -89,9 +89,9 @@ pub(crate) fn opt_timestamp(
     s.map(|s| timestamp(step, what, s)).transpose()
 }
 
-/// A stored phase name as a scope.
+/// A stored scope name (the v3 `phase` column) as a scope id.
 pub(crate) fn scope(step: Step<'_>, name: &str) -> Result<ScopeId, CacheError> {
-    ScopeId::phase(name).map_err(|e| corrupt(step, format_args!("stored phase: {e}")))
+    ScopeId::new(name).map_err(|e| corrupt(step, format_args!("stored scope name: {e}")))
 }
 
 /// True when `stored` is a later instant than `incoming` (second precision).

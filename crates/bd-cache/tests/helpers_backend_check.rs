@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use bd_cache::testing::{backend_check, current_view, miss_fill, store, store_mut};
 use bd_cache_model::{CacheStore, CallFailure, FingerprintOutcome};
-use common::{SCHEMA_TEXT, World, id, new_entry, x};
+use common::{SCHEMA_TEXT, World, id, new_entry, sx, x};
 use sc_beads::BD_SCHEMA_SHA256;
 use sc_beads::testing::{FakeOp, Injection};
 
@@ -23,7 +23,7 @@ fn test_schema_change_rebuilds_rows_and_keeps_the_journal() {
     let mut c = w.cache();
     let rows = w.bd.rows();
     store_mut(&mut c)
-        .upsert_rows(Some(&x()), &rows, false)
+        .upsert_rows(Some(&sx()), &rows, false)
         .unwrap();
     store_mut(&mut c)
         .insert_entry(

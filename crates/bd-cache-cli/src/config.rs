@@ -9,12 +9,8 @@
 //! - `metadata.json` is read from `$BEADS_DIR` when that is set (in the
 //!   environment given to [`crate::run`]), else from `<repo>/.beads/`.
 //! - The TOML keys can be overridden from the env under the same name
-//!   (`BD_CACHE__CALL_TIMEOUT_S`; `BD_CACHE__SCOPES` comma-separated; the
-//!   `[tick]` keys as `BD_CACHE__TICK__TEAM` …), and `--cache-path` wins over
-//!   both.
-//! - The legacy file: with no `cache_path` configured, no default file and a
-//!   `<repo>/.atm-bd/<db>.bd-cache.sqlite3`, the command is refused with
-//!   `CONFIG_INVALID` naming `cache_path` and the legacy path.
+//!   (`BD_CACHE__CALL_TIMEOUT_S`; `BD_CACHE__SCOPES` comma-separated label
+//!   scopes, REQ-BDC-0702), and `--cache-path` wins over both.
 //!
 //! The merged [`RepoConfig`] is opened through
 //! `bd_cache_sync::compose_with_config`.
@@ -24,7 +20,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use bd_cache_api::ApiError;
-use bd_cache_model::{ConfigError, RepoConfig, ScopeId, TickConfig};
+use bd_cache_model::{ConfigError, RepoConfig, ScopeEntry};
 use bd_cache_store::{
     BEADS_DIR_ENV, BeadsDirOverride, CacheLocation, ConfigLoadError, DEFAULT_CACHE_DIR,
     REPO_CONFIG_FILE, beads_dir,
@@ -33,14 +29,6 @@ use serde_json::{Map, Value, json};
 
 /// The prefix of every environment override (sc-config's naming rule).
 pub(crate) const ENV_PREFIX: &str = "BD_CACHE__";
-
-/// The directory of the legacy cache file, written by the 0.1 tooling.
-const LEGACY_DIR: &str = ".atm-bd";
-
-/// The `details.source` of a refusal this crate decides itself: an env value
-/// that does not parse, or the legacy cache file.
-const SOURCE_ENV: &str = "bdc_env_invalid";
-const SOURCE_LEGACY: &str = "bdc_legacy_cache_file";
 
 /// The env keys (after [`ENV_PREFIX`]) bdc reads.
 const KNOWN_ENV: &[&str] = &[
@@ -52,10 +40,6 @@ const KNOWN_ENV: &[&str] = &[
     "CALL_TIMEOUT_S",
     "MISS_FILL_TIMEOUT_MS",
     "MAX_ATTEMPTS",
-    "TICK__TEAM",
-    "TICK__FALLBACK_LEAD",
-    "TICK__PHASES_DIR",
-    "TICK__PHASES",
 ];
 
 /// The flags that take part in configuration.
@@ -92,7 +76,7 @@ pub(crate) struct Settings {
 ///
 /// `CONFIG_INVALID` (with `details.source`) for a TOML file that cannot be
 /// read or parsed, an env value that does not parse, a merged value that
-/// cannot work, an unresolvable `$BEADS_DIR`, or the legacy file;
+/// cannot work or a scope entry that is not a scope, or an unresolvable `$BEADS_DIR`;
 /// `NO_DATABASE` when `metadata.json` cannot be read.
 pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<Settings, ApiError> {
     let repo = repo_root(flags, env)?;
@@ -121,7 +105,6 @@ pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<S
     let location =
         CacheLocation::resolve_with(&repo, &config, over.as_ref()).map_err(ApiError::from)?;
     let beads_dir = beads_dir(&repo, over.as_ref());
-    check_legacy(&repo, &config, &location)?;
     Ok(Settings {
         repo,
         config,
@@ -214,10 +197,11 @@ fn read_toml(repo: &Path) -> Result<RepoConfig, ApiError> {
         .try_into()
         .map_err(|e: toml::de::Error| parse(e.to_string()))?;
     config.validate().map_err(|e| parse(e.detail))?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.scope_list() {
         return Err(load_error(&ConfigLoadError::Scope {
             path,
-            value: bad.clone(),
+            value: bad.entry,
+            reason: bad.reason,
         }));
     }
     Ok(config)
@@ -264,7 +248,7 @@ fn apply_env(config: &mut RepoConfig, env: &BTreeMap<String, String>) -> Result<
         config.cache_path = Some(PathBuf::from(v));
     }
     if let Some(v) = env_value(env, "SCOPES") {
-        config.scopes = comma_list(v);
+        config.scopes = comma_list(v).into_iter().map(ScopeEntry::Label).collect();
     }
     if let Some(n) = env_number(env, "CALL_TIMEOUT_S")? {
         config.call_timeout_s = Some(n);
@@ -275,25 +259,6 @@ fn apply_env(config: &mut RepoConfig, env: &BTreeMap<String, String>) -> Result<
     if let Some(n) = env_number(env, "MAX_ATTEMPTS")? {
         config.max_attempts = Some(n);
     }
-    let tick_keys = ["TEAM", "FALLBACK_LEAD", "PHASES_DIR", "PHASES"];
-    if tick_keys
-        .iter()
-        .any(|k| env_value(env, &format!("TICK__{k}")).is_some())
-    {
-        let tick = config.tick.get_or_insert_with(TickConfig::default);
-        if let Some(v) = env_value(env, "TICK__TEAM") {
-            tick.team = Some(v.to_owned());
-        }
-        if let Some(v) = env_value(env, "TICK__FALLBACK_LEAD") {
-            tick.fallback_lead = Some(v.to_owned());
-        }
-        if let Some(v) = env_value(env, "TICK__PHASES_DIR") {
-            tick.phases_dir = Some(PathBuf::from(v));
-        }
-        if let Some(v) = env_value(env, "TICK__PHASES") {
-            tick.phases = Some(comma_list(v));
-        }
-    }
     Ok(())
 }
 
@@ -303,46 +268,14 @@ fn validate(config: &RepoConfig) -> Result<(), ApiError> {
         ApiError::config_invalid(SOURCE_ENV, e.to_string(), Map::new())
             .with_suggested_action("give each timeout and max_attempts a value of at least 1")
     })?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.scope_list() {
         return Err(ApiError::config_invalid(
             SOURCE_ENV,
-            format!("scope {bad:?} is not a phase name"),
+            bad.to_string(),
             details(&[("key", json!("scopes"))]),
         ));
     }
     Ok(())
-}
-
-/// The legacy-file rule of contract §2.
-fn check_legacy(
-    repo: &Path,
-    config: &RepoConfig,
-    location: &CacheLocation,
-) -> Result<(), ApiError> {
-    if config.cache_path.is_some() || location.cache_path.exists() {
-        return Ok(());
-    }
-    let file = format!("{}.bd-cache.sqlite3", location.identity.dolt_database);
-    let legacy = repo.join(LEGACY_DIR).join(&file);
-    if !legacy.exists() {
-        return Ok(());
-    }
-    let suggested = format!("{LEGACY_DIR}/{file}");
-    Err(ApiError::config_invalid(
-        SOURCE_LEGACY,
-        format!(
-            "no cache_path is configured and {} does not exist, but the legacy cache file {} does",
-            Path::new(DEFAULT_CACHE_DIR).join(&file).display(),
-            legacy.display()
-        ),
-        details(&[
-            ("key", json!("cache_path")),
-            ("legacy_path", json!(legacy.display().to_string())),
-        ]),
-    )
-    .with_suggested_action(format!(
-        "set cache_path = \"{suggested}\" in .beads/bd-cache.toml to keep using it"
-    )))
 }
 
 #[cfg(test)]
@@ -366,21 +299,16 @@ mod tests {
         let applied = apply_env(
             &mut c,
             &env(&[
-                ("BD_CACHE__SCOPES", "x, phase-y,"),
-                ("BD_CACHE__TICK__PHASES", "x"),
-                ("BD_CACHE__TICK__TEAM", "t"),
+                ("BD_CACHE__SCOPES", "x, y-2,"),
             ]),
         );
         assert!(applied.is_ok(), "{applied:?}");
-        assert_eq!(c.scopes, ["x", "phase-y"]);
+        assert_eq!(c.scopes, ["x".into(), "y-2".into()]);
         assert_eq!(
             c.call_timeout_s,
             Some(9),
             "an unset key keeps the TOML value"
         );
-        let tick = c.tick.unwrap_or_default();
-        assert_eq!(tick.team.as_deref(), Some("t"));
-        assert_eq!(tick.phases, Some(vec!["x".to_owned()]));
     }
 
     #[test]

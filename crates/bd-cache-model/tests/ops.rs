@@ -216,7 +216,7 @@ fn row() -> Bead {
     let mut b = bead("b1");
     b.status = Some("in_progress".into());
     b.assignee = Some("dev".into());
-    b.labels = vec!["phase-x".into(), "r1".into()];
+    b.labels = vec!["x".into(), "r1".into()];
     b.notes = Some("first".into());
     b.metadata.insert("old".into(), serde_json::json!(1));
     b
@@ -253,7 +253,7 @@ fn update_overlay_applies_fields_in_order_and_achieved_checks_each() {
     assert_eq!(v.status.as_deref(), Some("open"));
     assert_eq!(v.assignee, None, "unassigned, as bd stores it");
     // remove then add: r1 removed, then re-added by add_labels (Python order).
-    assert_eq!(v.labels, ["phase-x", "r2", "r1"]);
+    assert_eq!(v.labels, ["x", "r2", "r1"]);
     assert_eq!(
         serde_json::Value::Object(v.metadata.clone()),
         serde_json::json!({"n": 5, "ok": true})
@@ -317,7 +317,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
     JournalEntry {
         seq: Seq::new(seq),
         idem_key: IdemKey::new(format!("k{seq}")).unwrap(),
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
         bead: id("b1"),
         op,
         precondition: Guards::default(),

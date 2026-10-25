@@ -375,7 +375,7 @@ fn stop_outcome(result: Result<HookOutput, CronError>) -> Step {
     match parse_reply(&output) {
         Ok(StopDecision::Continue) => Step::Run,
         Ok(StopDecision::Disable(reason)) => Step::Disable(reason),
-        Ok(StopDecision::Delete(reason) | StopDecision::Stop(reason)) => Step::Delete(reason),
+        Ok(StopDecision::Delete(reason)) => Step::Delete(reason),
         Err(why) => Step::Skip(RunOutcome::Failed(format!("stop check: {why}"))),
     }
 }

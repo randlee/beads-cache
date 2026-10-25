@@ -318,7 +318,7 @@ fn entry_by_key_answers_every_state_and_not_found_for_an_unknown_key() {
 fn journal_counts_equal_a_hand_count_with_unscoped_entries() {
     let w = World::new();
     let mut c = synced(&w);
-    let y = bd_cache_model::ScopeId::phase("y").unwrap();
+    let y = bd_cache_model::ScopeId::new("y").unwrap();
     let at = w.clock.now_utc();
     let mut n = 0;
     let mut journal = |c: &mut TestCache, scope: Option<bd_cache_model::ScopeId>| {

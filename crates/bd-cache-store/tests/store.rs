@@ -9,7 +9,9 @@
 
 mod common;
 
-use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, ScopeId, normalize};
+use bd_cache_model::{
+    CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, Scope, ScopeId, normalize,
+};
 use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
@@ -17,11 +19,21 @@ use sc_beads::testing::{actor, edge, id};
 use sc_beads::{Bead, DepType, Guards, Timestamp};
 
 fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap()
+    ScopeId::new("x").unwrap()
 }
 
 fn y() -> ScopeId {
-    ScopeId::phase("y").unwrap()
+    ScopeId::new("y").unwrap()
+}
+
+/// The label scope `x`: the beads labelled `x`.
+fn sx() -> Scope {
+    Scope::label(x())
+}
+
+/// The label scope `y`.
+fn sy() -> Scope {
+    Scope::label(y())
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -61,12 +73,12 @@ fn fresh(tag: &str) -> (Open, SqliteStore) {
 #[test]
 fn test_dependents_use_the_edge_index() {
     let (open, mut store) = fresh("edges");
-    let mut s1 = row("s1", &["phase-x"]);
+    let mut s1 = row("s1", &["x"]);
     s1.dependencies = vec![edge("s1", "b1", DepType::Blocks)];
-    let mut s2 = row("s2", &["phase-x"]);
+    let mut s2 = row("s2", &["x"]);
     s2.dependencies = vec![edge("s2", "b1", DepType::Related)];
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"]), s1, s2], false)
+        .upsert_rows(Some(&sx()), &[row("b1", &["x"]), s1, s2], false)
         .unwrap();
     assert_eq!(
         store.dependents_of(&id("b1")).unwrap(),
@@ -170,13 +182,13 @@ fn test_pending_work_counts_as_open() {
 #[test]
 fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
     let (_open, mut store) = fresh("prune");
-    let both = row("both", &["phase-x", "phase-y"]);
-    let mut only = row("only-x", &["phase-x"]);
+    let both = row("both", &["x", "y"]);
+    let mut only = row("only-x", &["x"]);
     only.dependencies = vec![edge("only-x", "both", DepType::Blocks)];
     store
-        .upsert_rows(Some(&x()), &[only, both.clone()], false)
+        .upsert_rows(Some(&sx()), &[only, both.clone()], false)
         .unwrap();
-    store.upsert_rows(Some(&y()), &[both], false).unwrap();
+    store.upsert_rows(Some(&sy()), &[both], false).unwrap();
     let report = store.prune_scope(&x()).unwrap();
     assert_eq!((report.beads_deleted, report.out_of_scope_swept), (1, 0));
     assert!(store.get_row(&id("only-x")).unwrap().is_none());
@@ -197,7 +209,7 @@ fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
 #[test]
 fn stored_rows_are_normalized_and_written_for_python() {
     let (open, mut store) = fresh("normalize");
-    let mut b = row("b1", &["phase-x", "other"]);
+    let mut b = row("b1", &["x", "other"]);
     b.dependency_count = Some(3);
     b.dependent_count = Some(1);
     b.comment_count = Some(2);
@@ -206,7 +218,7 @@ fn stored_rows_are_normalized_and_written_for_python() {
         edge("b1", "a", DepType::Blocks),
     ];
     store
-        .upsert_rows(Some(&x()), std::slice::from_ref(&b), false)
+        .upsert_rows(Some(&sx()), std::slice::from_ref(&b), false)
         .unwrap();
     drop(store);
     let (phase, status, row_json): (Option<String>, Option<String>, String) =
@@ -244,13 +256,13 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     store.ensure_scope(&x()).unwrap();
     store
         .upsert_rows(
-            Some(&x()),
-            &[row("kept", &["phase-x"]), row("gone", &["phase-x"])],
+            Some(&sx()),
+            &[row("kept", &["x"]), row("gone", &["x"])],
             false,
         )
         .unwrap();
     store
-        .upsert_rows(Some(&y()), &[row("moved", &["phase-y"])], false)
+        .upsert_rows(Some(&sy()), &[row("moved", &["y"])], false)
         .unwrap();
     drop(store);
     {
@@ -282,7 +294,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     assert!(ids(&store, &y()).is_empty());
     // A bead deleted elsewhere and stored again unscoped is a new, out-of-scope row.
     store
-        .upsert_rows(None, &[row("gone", &["phase-x"])], false)
+        .upsert_rows(None, &[row("gone", &["x"])], false)
         .unwrap();
     assert_eq!(ids(&store, &x()), ["kept", "moved"]);
     let x_status = store
@@ -299,7 +311,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
 fn a_python_row_written_while_open_is_read_by_its_phase() {
     let (open, mut store) = fresh("live");
     store
-        .upsert_rows(Some(&y()), &[row("b1", &["phase-y"])], false)
+        .upsert_rows(Some(&sy()), &[row("b1", &["y"])], false)
         .unwrap();
     let json: String = Connection::open(&open.path)
         .unwrap()
@@ -320,7 +332,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
     // An unscoped store keeps that membership.
     store
-        .upsert_rows(None, &[row("b1", &["phase-y"])], true)
+        .upsert_rows(None, &[row("b1", &["y"])], true)
         .unwrap();
     assert_eq!(store.rows_in_scope(&x()).unwrap().len(), 1);
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
@@ -330,7 +342,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
 fn undecodable_stored_values_are_errors_not_skipped() {
     let (open, mut store) = fresh("corrupt");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&sx()), &[row("b1", &["x"])], false)
         .unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -365,7 +377,7 @@ fn a_guard_dropped_on_another_thread_releases_the_lock() {
 fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let (_open, mut store) = fresh("readback-id");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&sx()), &[row("b1", &["x"])], false)
         .unwrap();
     let seq = store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -373,7 +385,7 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let err = store
         .apply_with_readback(
             seq,
-            Some(&row("b2", &["phase-x"])),
+            Some(&row("b2", &["x"])),
             None,
             &ts("2026-10-23T10:00:01Z"),
         )
@@ -1446,53 +1458,6 @@ fn the_check_does_not_wait_for_the_write_lock_to_date_entries() {
     tx.rollback().unwrap();
     assert!(store.has_entries_since(&at).unwrap());
     assert_eq!(undated(&open.path), 0, "dated once the lock is free");
-}
-
-/// A bounded marker write gives up on a write lock another connection holds
-/// and writes nothing (lead ruling S33): the escalation stays unannounced and
-/// the alert unset, so the next tick sends the message again. Causal: the
-/// holder keeps the lock until both writes have returned, so their failure is
-/// the held lock's (`database is locked`), not a race with its release. No
-/// clock check (FTQ-029): that each write waits at most its wait, and that the
-/// busy timeout is back after it, is the unit test's causal probe
-/// (`a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`);
-/// the 500 ms hold this replaces is gone (FTQ-022).
-#[test]
-fn a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait() {
-    let (open, mut store) = fresh("bounded-marker");
-    let at = ts("2026-10-24T09:00:00Z");
-    let seq = store.insert_entry(entry("k1", "b1", None), &at).unwrap();
-    store.escalate(seq, "gone", &at).unwrap();
-    let mut c = Connection::open(&open.path).unwrap();
-    let tx = c
-        .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
-        .unwrap();
-
-    let wait = std::time::Duration::from_millis(50);
-    let marked = store.mark_announced_within(seq, &at, wait);
-    let alerted = store.set_sync_alert_within(&x(), Some("cause"), wait);
-    // Released only now, after both writes returned.
-    tx.rollback().unwrap();
-
-    for (what, result) in [("mark", marked), ("alert", alerted)] {
-        let err = result.expect_err(what);
-        assert_eq!(err.code(), "BD_CACHE.STORE_FAILED", "{what}: {err:?}");
-        assert!(err.detail().contains("locked"), "{what}: {}", err.detail());
-    }
-    assert_eq!(
-        store.unannounced_escalations().unwrap().len(),
-        1,
-        "not marked: sent again next tick"
-    );
-    assert_eq!(store.sync_alert(&x()).unwrap(), None);
-
-    // With the lock free, the same bounded writes succeed (the next tick).
-    store.mark_announced_within(seq, &at, wait).unwrap();
-    store
-        .set_sync_alert_within(&x(), Some("cause"), wait)
-        .unwrap();
-    assert!(store.unannounced_escalations().unwrap().is_empty());
-    assert_eq!(store.sync_alert(&x()).unwrap().as_deref(), Some("cause"));
 }
 
 /// `applied_since` reads two partial-index ranges joined by `UNION ALL`;

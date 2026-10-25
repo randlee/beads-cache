@@ -15,8 +15,8 @@ pub use beads::{
 #[doc(inline)]
 pub use manage::{
     CacheEvict, CacheFlush, CacheHealth, CacheRefreshIssues, CacheRefreshScopes, CacheScopes,
-    CacheStatus, JournalAnnounce, JournalGet, JournalKey, JournalList, JournalListState,
-    JournalResolve,
+    CacheScopesAnnounce, CacheScopesIngest, CacheStatus, JournalAnnounce, JournalGet, JournalKey,
+    JournalList, JournalListState, JournalResolve,
 };
 
 /// A command of the contract, by its path (`issues get`, `cache journal list`, …).
@@ -44,6 +44,10 @@ pub enum Command {
     CacheHealth,
     /// `cache scopes`.
     CacheScopes,
+    /// `cache scopes ingest`.
+    CacheScopesIngest,
+    /// `cache scopes announce`.
+    CacheScopesAnnounce,
     /// `cache refresh scopes`.
     CacheRefreshScopes,
     /// `cache refresh issues`.
@@ -64,7 +68,7 @@ pub enum Command {
 
 impl Command {
     /// Every command, surface (a) first, in contract order.
-    pub const ALL: [Command; 19] = [
+    pub const ALL: [Command; 21] = [
         Self::IssuesGet,
         Self::IssuesList,
         Self::Ready,
@@ -76,6 +80,8 @@ impl Command {
         Self::CacheStatus,
         Self::CacheHealth,
         Self::CacheScopes,
+        Self::CacheScopesIngest,
+        Self::CacheScopesAnnounce,
         Self::CacheRefreshScopes,
         Self::CacheRefreshIssues,
         Self::CacheFlush,
@@ -101,6 +107,8 @@ impl Command {
             Self::CacheStatus => "cache status",
             Self::CacheHealth => "cache health",
             Self::CacheScopes => "cache scopes",
+            Self::CacheScopesIngest => "cache scopes ingest",
+            Self::CacheScopesAnnounce => "cache scopes announce",
             Self::CacheRefreshScopes => "cache refresh scopes",
             Self::CacheRefreshIssues => "cache refresh issues",
             Self::CacheFlush => "cache flush",
@@ -161,6 +169,10 @@ pub enum Request {
     CacheHealth(CacheHealth),
     /// `cache scopes`.
     CacheScopes(CacheScopes),
+    /// `cache scopes ingest`.
+    CacheScopesIngest(CacheScopesIngest),
+    /// `cache scopes announce`.
+    CacheScopesAnnounce(CacheScopesAnnounce),
     /// `cache refresh scopes`.
     CacheRefreshScopes(CacheRefreshScopes),
     /// `cache refresh issues`.
@@ -195,6 +207,8 @@ impl Request {
             Self::CacheStatus(_) => Command::CacheStatus,
             Self::CacheHealth(_) => Command::CacheHealth,
             Self::CacheScopes(_) => Command::CacheScopes,
+            Self::CacheScopesIngest(_) => Command::CacheScopesIngest,
+            Self::CacheScopesAnnounce(_) => Command::CacheScopesAnnounce,
             Self::CacheRefreshScopes(_) => Command::CacheRefreshScopes,
             Self::CacheRefreshIssues(_) => Command::CacheRefreshIssues,
             Self::CacheFlush(_) => Command::CacheFlush,

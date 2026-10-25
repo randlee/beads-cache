@@ -555,7 +555,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
     fixture.job.stop_with(StopDecision::Continue);
     fixture
         .job
-        .stop_with(StopDecision::Stop("phase closed".into()));
+        .stop_with(StopDecision::Delete("phase closed".into()));
     let worker = fixture.worker().await;
     for expected in 1..=2 {
         fixture.step(60).await;

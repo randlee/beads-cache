@@ -88,8 +88,8 @@ pub use backend::{BeadsBackend, CliBackend, CloseSuggestions, DoltOperations};
 #[doc(inline)]
 pub use cache::{
     Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep, Edge,
-    Fingerprint, Guards, InvalidValue, MetaValue, Patch, Refusal, ScopeFilter, Sha256Hex,
-    SyncCursor,
+    FilterCriteria, Fingerprint, Guards, InvalidValue, MetaValue, Patch, Refusal, ScopeFilter,
+    Sha256Hex, SyncCursor,
 };
 #[doc(inline)]
 pub use clock::{rfc3339_to_unix, unix_to_rfc3339, Clock, Deadline, SystemClock, Timestamp};

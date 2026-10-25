@@ -23,7 +23,8 @@ use sc_beads::error::BeadsError;
 use sc_beads::testing::{FakeBackend, ManualClock};
 use sc_beads::{
     Actor, Assignee, Bead, BeadId, BeadsCacheError, CacheBackend, CliClient, CliOutput, CliProbe,
-    Deadline, DepType, Guards, Patch, ProjectRef, Refusal, ScopeFilter, SyncCursor, BD_VERSION,
+    Deadline, DepType, FilterCriteria, Guards, Patch, ProjectRef, Refusal, ScopeFilter, SyncCursor,
+    BD_VERSION,
 };
 use serde_json::{json, Value};
 
@@ -155,6 +156,35 @@ impl Args {
             .map(|(_, v)| v.clone())
             .collect()
     }
+
+    /// The scope filter the selection flags give (`--all`, `-l`, `--label-any`,
+    /// `-t`, `-a`), or `None` when there are none. One `-l` alone is the
+    /// label filter; `--all` is honoured only where `all_flag` (bd list).
+    fn filter(&self, all_flag: bool) -> Option<ScopeFilter> {
+        if all_flag && self.flags.iter().any(|(n, _)| n == "--all") {
+            return Some(ScopeFilter::All);
+        }
+        let criteria = FilterCriteria {
+            labels: self.all("-l"),
+            labels_any: self.all("--label-any"),
+            status: Vec::new(),
+            issue_type: self.one("-t").map(str::to_owned),
+            assignee: self.one("-a").map(str::to_owned),
+        };
+        if criteria == FilterCriteria::default() {
+            return None;
+        }
+        Some(match criteria.labels.as_slice() {
+            [label]
+                if criteria.labels_any.is_empty()
+                    && criteria.issue_type.is_none()
+                    && criteria.assignee.is_none() =>
+            {
+                ScopeFilter::Label(label.clone())
+            }
+            _ => ScopeFilter::Match(criteria),
+        })
+    }
 }
 
 fn success(stdout: impl Into<String>) -> CliOutput {
@@ -234,8 +264,17 @@ impl FakeBd {
     fn list(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
         let args = match Args::parse(
             rest,
-            &["--id", "-l", "--status", "-n", "--updated-after"],
-            &["--json"],
+            &[
+                "--id",
+                "-l",
+                "--label-any",
+                "-t",
+                "-a",
+                "--status",
+                "-n",
+                "--updated-after",
+            ],
+            &["--json", "--all"],
         ) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
@@ -250,16 +289,14 @@ impl FakeBd {
                 return Ok(failure(1, "Error: invalid --id list"));
             };
             self.backend.list_by_ids(&p, &ids, d)
-        } else if let Some(label) = args.one("-l") {
-            let cursor = args.one("--updated-after").map(SyncCursor::new);
-            self.backend.list_scope(
-                &p,
-                &ScopeFilter::Label(label.to_owned()),
-                cursor.as_ref(),
-                d,
-            )
         } else {
-            return Ok(usage("list needs --id or -l in this fake"));
+            let Some(filter) = args.filter(true) else {
+                return Ok(usage(
+                    "list needs --id, --all or a filter flag in this fake",
+                ));
+            };
+            let cursor = args.one("--updated-after").map(SyncCursor::new);
+            self.backend.list_scope(&p, &filter, cursor.as_ref(), d)
         };
         let rows = match rows {
             Ok(rows) => rows,
@@ -273,18 +310,16 @@ impl FakeBd {
     }
 
     fn blocked(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l"], &["--json"]) {
+        let args = match Args::parse(rest, &["-l", "--label-any"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("blocked needs -l in this fake"));
-        };
-        let blocked = match self.backend.list_blocked(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        // No filter flag: bd's whole blocked set.
+        let filter = args.filter(false).unwrap_or(ScopeFilter::All);
+        let blocked = match self
+            .backend
+            .list_blocked(&ProjectRef::local(None), &filter, d)
+        {
             Ok(rows) => rows,
             Err(e) => return failed(e),
         };
@@ -302,18 +337,16 @@ impl FakeBd {
     }
 
     fn ready(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l", "-n"], &["--json"]) {
+        let args = match Args::parse(rest, &["-l", "--label-any", "-t", "-a", "-n"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("ready needs -l in this fake"));
-        };
-        let ids = match self.backend.list_ready(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        // No filter flag: every ready bead.
+        let filter = args.filter(false).unwrap_or(ScopeFilter::All);
+        let ids = match self
+            .backend
+            .list_ready(&ProjectRef::local(None), &filter, d)
+        {
             Ok(ids) => ids,
             Err(e) => return failed(e),
         };

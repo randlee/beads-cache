@@ -85,8 +85,7 @@ pub struct Schedule { pub id: ScheduleId, pub generation: Generation, pub spec: 
     pub ended_at: Option<Timestamp>, pub stop_reason: Option<String>,
     pub enabled: bool }                             // is_active()
 pub enum RunOutcome { Ok, Refused(String), Failed(String), TimedOut }
-pub enum StopDecision { Continue, Disable(String), Delete(String),
-    Stop(String) /* alias of Delete, ADR-CRON-0007 */ }
+pub enum StopDecision { Continue, Disable(String), Delete(String) }
 
 // Store port: stores read no clock
 pub trait ScheduleStore: Send + Sync {
@@ -447,10 +446,10 @@ lost its reason is refused, not acted on. A stop check that cannot answer
 reply) is no decision: the run is skipped and the schedule left active and
 enabled, with `Failed` or `TimedOut` recorded.
 
-`StopDecision::Stop(reason)` is kept as an alias of `Delete(reason)`. Its one
-caller outside this crate, `bd-cache-sync`'s stop rule, is owned by sprint b-7,
-which removes that rule; keeping the alias lets the workspace build between b-6
-and b-7. It is to be deleted when no caller is left.
+`StopDecision::Stop(reason)` was kept by sprint b-6 as an alias of
+`Delete(reason)` for its one caller outside this crate, `bd-cache-sync`'s stop
+rule. Sprint b-7 removed that rule (REQ-BDC-0707 retired) and, with no caller
+left, the alias: `StopDecision` has exactly the three variants above.
 
 Consequences: a disabled schedule is not asked its stop check again until it is
 enabled. A job that wants a time limit still checks it in the payload

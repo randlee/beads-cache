@@ -371,11 +371,15 @@ fn a_write_to_a_bead_unknown_to_bd_is_not_found() {
     assert_eq!(w.bd.calls(), vec![FakeCall::ListByIds(vec![id("nope")])]);
 }
 
+/// The entry's scope is the known scope whose filter holds the view (REQ-BDC-0702):
+/// a label that no known scope names gives none, and a scope registered on
+/// demand by a sync is known from then on.
 #[test]
-fn the_entry_scope_is_the_views_first_phase_label() {
+fn the_entry_scope_is_the_known_scope_that_holds_the_view() {
     let w = World::new();
     w.add("o1", |b| b.labels = vec!["misc".into()]);
-    w.add("y1", |b| b.labels = vec!["misc".into(), "phase-y".into()]);
+    w.add("y1", |b| b.labels = vec!["misc".into(), "y".into()]);
+    w.add("y2", |b| b.labels = vec!["y".into()]);
     let mut c = w.cache();
     let scope = |c: &mut TestCache, bead: &str, key: &str| {
         let r = write(c, bead, "close", "{}", Guards::default(), key).unwrap();
@@ -383,10 +387,10 @@ fn the_entry_scope_is_the_views_first_phase_label() {
     };
     assert_eq!(scope(&mut c, "b1", "k1"), Some(x()));
     assert_eq!(scope(&mut c, "o1", "k2"), None, "an out-of-scope bead");
-    assert_eq!(
-        scope(&mut c, "y1", "k3"),
-        Some(ScopeId::phase("y").unwrap())
-    );
+    assert_eq!(scope(&mut c, "y1", "k3"), None, "no known scope holds it yet");
+    let y = ScopeId::new("y").unwrap();
+    c.sync(&y, w.after(Duration::from_secs(30))).unwrap();
+    assert_eq!(scope(&mut c, "y2", "k4"), Some(y), "registered on demand");
 }
 
 #[test]

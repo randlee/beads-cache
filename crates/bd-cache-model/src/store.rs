@@ -1,14 +1,12 @@
 //! The store port ([`CacheStore`]) and the cross-process drain lock ([`DrainLock`]).
 
-use std::time::Duration;
-
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
 use crate::journal::JournalState;
 use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
 use crate::reply::{JournalCounts, PruneReport};
-use crate::scope::ScopeId;
+use crate::scope::{Scope, ScopeId};
 use crate::state::{
     BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
     UpsertReport,
@@ -23,10 +21,22 @@ use crate::state::{
 /// - upsert writes the bead's outgoing edges from `Bead.dependencies`,
 ///   replacing the old ones.
 /// - any successful store of a bead clears `stale`.
-/// - `upsert_rows(Some(s), ..)` sets membership of `s` from the row's labels
-///   (added when the row carries `s`'s label, removed when it does not);
+/// - `upsert_rows(Some(s), ..)` sets membership of `s` from the scope's
+///   filter (added when [`Scope::holds`] the row, removed when it does not)
+///   and records `s`'s name as the row's v3 `phase` while `s` holds it;
 ///   `upsert_rows(None, ..)` never changes existing membership (a new row
 ///   stored with `None` has none: an out-of-scope row).
+/// - `ingest_scope(s, rows, blocked, ready, at, revision)` does in one
+///   transaction what a passing sync of `s` stores: the rows as
+///   `upsert_rows(Some(s), rows, false)` (each stored row's `revision` set to
+///   `revision`), the ready base as `replace_ready_base(s, blocked, ready,
+///   at)`, and `s`'s sync state with `last_started_at = last_ok_at = at`
+///   and no error or failure. When any step fails nothing is stored.
+/// - `record_sync` stores every field of the state, `failing_since` and
+///   `notified_since` included, and `sync_state` reads them back.
+/// - `announce_scope(s, since)` sets `notified_since = since` and answers
+///   `true` only while `failing_since` equals `since` (compare-and-set);
+///   otherwise it changes nothing and answers `false`.
 /// - unforced upserts skip a row whose stored `updated_at` is a later
 ///   instant (`skipped_newer`); `updated_at` is compared as an RFC 3339
 ///   instant at second precision, never as text (`12:00:00+02:00` equals
@@ -104,9 +114,20 @@ pub trait CacheStore: Send {
     /// Stores validated rows (see the rules above).
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
+    ) -> Result<UpsertReport, CacheError>;
+    /// Stores a consumer sync's result for `s` in one transaction (see the
+    /// rules above; REQ-BDC-0008, 0502).
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        rows: &[Bead],
+        blocked: &[BlockedRow],
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
     ) -> Result<UpsertReport, CacheError>;
     /// Ids of stale rows.
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError>;
@@ -187,61 +208,28 @@ pub trait CacheStore: Send {
     ) -> Result<(), CacheError>;
     /// Escalated entries not yet announced, by seq.
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
-    /// Records that an escalation was announced.
+    /// Records that an escalation was announced (handled by a post-sync hook).
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
-    /// [`CacheStore::mark_announced`], waiting at most `wait` for a write lock
-    /// another process holds (lead ruling S33).
-    ///
-    /// The tick's bounded writes, the post-send markers and the alert clears
-    /// that send no message (lead ruling S35), pass the time left before its
-    /// end, so a contended write cannot carry the tick past it: one that cannot
-    /// finish in time returns the store's usual error, the entry stays
-    /// unannounced, and the next tick sends it again (at least once). The
-    /// provided body ignores `wait` (it is unbounded), for a store that never
-    /// waits for a lock held elsewhere (the in-memory `FakeStore`); a store or
-    /// wrapper that can wait overrides both `_within` methods, forwarding the
-    /// wait.
-    fn mark_announced_within(
-        &mut self,
-        seq: Seq,
-        at: &Timestamp,
-        wait: Duration,
-    ) -> Result<(), CacheError> {
-        let _ = wait;
-        self.mark_announced(seq, at)
-    }
     /// Applies the rebuild rule to a fresh fingerprint (REQ-BDC-0105).
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError>;
     /// A scope's sync state (all `None` before its first sync).
     fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError>;
     /// Stores a scope's sync state.
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError>;
+    /// Marks the scope's current run of failures handled when it began at
+    /// `since` (compare-and-set; see the rules above).
+    fn announce_scope(&mut self, s: &ScopeId, since: &Timestamp) -> Result<bool, CacheError>;
     /// The scope's last announced sync-failure cause (stable cause key).
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError>;
     /// Sets (`Some`) or clears (`None`) the scope's sync alert.
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError>;
-    /// [`CacheStore::set_sync_alert`], waiting at most `wait` for a write lock
-    /// another process holds, as [`CacheStore::mark_announced_within`] (lead
-    /// ruling S33): an alert not recorded in time is announced again next tick.
-    /// The tick also clears an alert (`None`) through this method when it
-    /// sends no message (lead ruling S35); a clear not recorded in time is
-    /// retried next tick.
-    fn set_sync_alert_within(
-        &mut self,
-        s: &ScopeId,
-        cause: Option<&str>,
-        wait: Duration,
-    ) -> Result<(), CacheError> {
-        let _ = wait;
-        self.set_sync_alert(s, cause)
-    }
     /// The outage, while one holds.
     fn outage(&self) -> Result<Option<Outage>, CacheError>;
     /// Records (`Some`) or clears (`None`) the outage.
     fn set_outage(&mut self, o: Option<&Outage>) -> Result<(), CacheError>;
     /// Prunes a scope (see the rules above).
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;
-    /// Open work for the stop rule.
+    /// The journal's open work: pending, and escalated but not announced.
     fn open_work(&self) -> Result<OpenWork, CacheError>;
     /// Status: meta, journal counts, scopes, escalations, outage, and the
     /// stale rows (`stale`, the same set as [`CacheStore::stale_rows`]).
@@ -254,29 +242,29 @@ pub trait CacheStore: Send {
     ///
     /// One consistent snapshot, and for SQLite one grouped query, never a
     /// scan of the journal in Rust. The provided body derives the counts from
-    /// [`CacheStore::status`]'s `phase:state` keys, where a missing phase is
+    /// [`CacheStore::status`]'s `scope:state` keys, where a missing scope is
     /// `None`, so it counts the entries of a scope named `None` as unscoped;
     /// every store of this workspace overrides it.
     ///
     /// Known limitation of the provided body (QA on #75): `None` is a valid
-    /// phase name, and v3's `status` keys cannot tell `None:pending` (no
-    /// phase) from the scope `None`, so that scope's entries land in
+    /// scope name, and v3's `status` keys cannot tell `None:pending` (no
+    /// scope) from the scope `None`, so that scope's entries land in
     /// `unscoped` and it gets no `by_scope` bucket; `total` is still right.
-    /// The overrides in `FakeStore` and `SqliteStore` read the phase itself
+    /// The overrides in `FakeStore` and `SqliteStore` read the scope column itself
     /// and count such a scope in its own bucket.
     fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
         let mut counts = JournalCounts::default();
         for (key, n) in self.status()?.journal {
-            let Some((phase, state)) = key.rsplit_once(':') else {
+            let Some((name, state)) = key.rsplit_once(':') else {
                 continue;
             };
             let Some(state) = JournalState::parse(state) else {
                 continue;
             };
-            let scope = if phase == "None" {
+            let scope = if name == "None" {
                 None
             } else {
-                ScopeId::phase(phase).ok()
+                ScopeId::new(name).ok()
             };
             counts.add(scope.as_ref(), state, n);
         }

@@ -29,7 +29,7 @@ fn served_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<Vec<ScopeId>, ApiError> {
     let mut served = Vec::new();
     for s in known_scopes(cache)? {
-        if cache.scope_synced(&s)? {
+        if cache.sync_state(&s)?.last_ok_at.is_some() {
             served.push(s);
         }
     }
@@ -48,10 +48,10 @@ fn required_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
     scope: Option<&ScopeId>,
     labels: &[String],
 ) -> Result<ScopeId, ApiError> {
-    let Some(s) = select_scope(scope, labels) else {
+    let Some(s) = select_scope(scope, labels, &known_scopes(cache)?) else {
         return Err(ApiError::scope_required(&served_scopes(cache)?));
     };
-    if cache.scope_synced(&s)? {
+    if cache.sync_state(&s)?.last_ok_at.is_some() {
         Ok(s)
     } else {
         Err(ApiError::scope_not_served(&s, &served_scopes(cache)?))

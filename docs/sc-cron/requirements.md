@@ -96,8 +96,8 @@ Python target the `cron.stop` hook (REQ-CRON-0013). It answers
 not enabled (REQ-CRON-0014) and records the reason as the last outcome,
 `Refused(reason)`. `Delete` ends the schedule with that reason, as `Stop`
 did; its row is kept as the ended record and the name can be started again.
-`StopDecision::Stop(reason)` remains as an alias of `Delete(reason)` for
-callers written against the earlier contract. A stop check that cannot answer
+The earlier `StopDecision::Stop(reason)` alias of `Delete(reason)` is removed
+(sprint b-7, ADR-CRON-0007): the three variants are the whole contract. A stop check that cannot answer
 skips that run and leaves the schedule active and enabled: a panic is recorded
 `Failed`, a run past the timeout `TimedOut`, and for a Python hook a failure
 to start, a non-zero exit or a reply that is not one of the three actions is

@@ -172,15 +172,16 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     let file = tmp.path().join(".beads").join("bd-cache.toml");
     std::fs::write(
         &file,
-        "cache_path = \".atm-bd/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n\
-         [tick]\nteam = \"atm-dev\"\n",
+        "cache_path = \".bd-cache/x.sqlite3\"\nscopes = [\"bk\", { name = \"all\", all = true }]\n\
+         max_attempts = 3\n",
     )
     .unwrap();
     let cfg = load_repo_config(tmp.path()).unwrap();
-    assert_eq!(cfg.scopes, ["bk", "phase-bj"]);
+    assert_eq!(cfg.scopes.len(), 2);
+    assert_eq!(cfg.scopes[0], "bk".into());
+    assert_eq!(cfg.scopes[1].name(), "all");
     assert_eq!(cfg.max_attempts, Some(3));
-    assert_eq!(cfg.cache_path, Some(PathBuf::from(".atm-bd/x.sqlite3")));
-    assert_eq!(cfg.tick.and_then(|t| t.team).as_deref(), Some("atm-dev"));
+    assert_eq!(cfg.cache_path, Some(PathBuf::from(".bd-cache/x.sqlite3")));
 
     std::fs::write(&file, "surprise = 1\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
@@ -213,7 +214,7 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     );
     assert_eq!(err.code(), "store_config_bad_scope");
     assert!(
-        err.fix().contains(bd_cache_model::PhaseName::RULE),
+        err.fix().contains(bd_cache_model::ScopeId::RULE),
         "{}",
         err.fix()
     );

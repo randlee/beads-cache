@@ -9,7 +9,7 @@ use std::time::Duration;
 use bd_cache_model::{
     BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalCounts,
     JournalEntry, JournalState, NewEntry, OpenWork, Outage, PruneReport, ReadyBase, RepoConfig,
-    ScopeId, ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, error_code_prefix, phase_of,
+    Scope, ScopeId, ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, error_code_prefix,
     precondition_json, resolve_note,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
@@ -118,9 +118,7 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 /// journal reads `has_entries_since` and `applied_since` may also write: when
 /// more than [`READ_DATING_THRESHOLD`] entries another writer applied wait to
 /// be dated, they date them, never waiting for the write lock, and answer the
-/// same either way (ADR-STORE-0004, lead rulings S25/S26). The bounded marker
-/// writes (`mark_announced_within`, `set_sync_alert_within`) wait at most the
-/// time they are given, never more than [`BUSY_TIMEOUT`] (lead ruling S33).
+/// same either way (ADR-STORE-0004, lead rulings S25/S26).
 ///
 /// # Examples
 ///
@@ -138,11 +136,11 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 /// )?;
 /// // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
 /// let mut store = SqliteStore::open_with(root, &RepoConfig::default(), None)?;
-/// let x = ScopeId::phase("x")?;
+/// let x = bd_cache_model::Scope::label(ScopeId::new("x")?);
 /// let mut b = sc_beads::testing::bead("b1");
-/// b.labels = vec!["phase-x".into()];
+/// b.labels = vec!["x".into()];
 /// store.upsert_rows(Some(&x), &[b], false)?;
-/// assert_eq!(store.rows_in_scope(&x)?.len(), 1);
+/// assert_eq!(store.rows_in_scope(x.id())?.len(), 1);
 /// # drop(store);
 /// # Ok(())
 /// # }
@@ -471,30 +469,38 @@ impl SqliteStore {
         write_on(&mut self.conn, step(&self.path, what), f)
     }
 
-    /// [`SqliteStore::write`] waiting at most `wait` for a write lock held
-    /// elsewhere, never more than [`BUSY_TIMEOUT`] (lead ruling S33): the busy
-    /// timeout is `min(BUSY_TIMEOUT, wait)` for this one transaction
-    /// ([`BusyWait`]) and back to [`BUSY_TIMEOUT`] after it. A lock held past
-    /// `wait` is the usual `STORE_FAILED` (SQLite's `database is locked`).
-    fn write_within<T>(
-        &mut self,
-        wait: Duration,
-        what: &str,
-        f: impl FnOnce(&Transaction<'_>, Step<'_>) -> Result<T, CacheError>,
-    ) -> Result<T, CacheError> {
-        let at = step(&self.path, what);
-        let mut conn = BusyWait::new(&mut self.conn, &self.path, wait.min(BUSY_TIMEOUT))
-            .at(step(&self.path, "set the busy timeout"))?;
-        write_on(&mut conn, at, f)
+    /// Stores `rows` inside `tx` (see the `CacheStore` rules), each with `revision`.
+    fn store_rows(
+        tx: &Transaction<'_>,
+        at: Step<'_>,
+        s: Option<&Scope>,
+        rows: &[Bead],
+        force: bool,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        let mut report = UpsertReport::default();
+        for row in rows {
+            match Self::store_row(tx, at, s, row, force, revision)? {
+                Stored::SkippedNewer => report.skipped_newer.push(row.id.clone()),
+                Stored::Yes { status_changed } => {
+                    if status_changed {
+                        report.status_changed.push(row.id.clone());
+                    }
+                    report.stored.push(row.id.clone());
+                }
+            }
+        }
+        Ok(report)
     }
 
     /// Stores one row inside `tx` (see the `CacheStore` rules).
     fn store_row(
         tx: &Transaction<'_>,
         at: Step<'_>,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         row: &Bead,
         force: bool,
+        revision: Option<&str>,
     ) -> Result<Stored, CacheError> {
         let id = row.id.as_str();
         let existing: Option<Existing> = tx
@@ -540,18 +546,41 @@ impl SqliteStore {
             Some(_) => {}
         }
         let (stored, row_json) = encode_row(at, row)?;
-        let phase = phase_of(&stored);
+        // The v3 `phase` column holds the name of the scope the row was stored
+        // under (REQ-BDC-0107; the column keeps its v3 name, ADR-STORE-0001):
+        // the scope recorded before while it still holds the row, else the
+        // first scope that holds it after this upsert, else none.
+        let mut members: BTreeSet<String> = tx
+            .prepare_cached("SELECT scope FROM scope_member WHERE bead = ?1")
+            .at(at)?
+            .query_map([id], |r| r.get::<_, String>(0))
+            .at(at)?
+            .collect::<Result<_, _>>()
+            .at(at)?;
+        if let Some(s) = s {
+            if s.holds(row) {
+                members.insert(s.id().name().to_owned());
+            } else {
+                members.remove(s.id().name());
+            }
+        }
+        let before = existing.as_ref().and_then(|(.., phase)| phase.clone());
+        let phase: Option<String> = match before {
+            Some(before) if members.contains(&before) => Some(before),
+            _ => members.into_iter().next(),
+        };
         tx.prepare_cached(&format!(
             "INSERT OR REPLACE INTO beads(id, phase, status, updated_at, row_json, synced_at, \
-             stale, membership_known) VALUES (?1, ?2, ?3, ?4, ?5, {SYNCED_AT}, 0, 1)"
+             stale, membership_known, revision) VALUES (?1, ?2, ?3, ?4, ?5, {SYNCED_AT}, 0, 1, ?6)"
         ))
         .at(at)?
         .execute(params![
             id,
-            phase.as_ref().map(bd_cache_model::PhaseName::as_str),
+            phase,
             stored.status,
             stored.updated_at,
-            row_json
+            row_json,
+            revision
         ])
         .at(at)?;
         tx.prepare_cached("DELETE FROM edges WHERE issue_id = ?1")
@@ -576,7 +605,7 @@ impl SqliteStore {
             };
             tx.prepare_cached(sql)
                 .at(at)?
-                .execute([s.name(), id])
+                .execute([s.id().name(), id])
                 .at(at)?;
         }
         Ok(Stored::Yes { status_changed })
@@ -714,6 +743,62 @@ impl<C: Deref<Target = Connection>> Drop for BusyWait<'_, C> {
 fn begin<'c>(conn: &'c mut Connection, at: Step<'_>) -> Result<Transaction<'c>, CacheError> {
     conn.transaction_with_behavior(TransactionBehavior::Immediate)
         .at(at)
+}
+
+/// Writes a scope's whole ready base inside `tx`: the base row and its
+/// per-bead index (`replace_ready_base`, `ingest_scope`).
+fn write_base(
+    tx: &Transaction<'_>,
+    st: Step<'_>,
+    s: &ScopeId,
+    blocked_json: &str,
+    ready_json: &str,
+    index: &[(BeadId, String)],
+    at: &Timestamp,
+) -> Result<(), CacheError> {
+    tx.prepare_cached(
+        "INSERT OR REPLACE INTO ready_base(scope, blocked_json, ready_json, fetched_at, \
+         stale, indexed) VALUES (?1, ?2, ?3, ?4, 0, 1)",
+    )
+    .at(st)?
+    .execute([s.name(), blocked_json, ready_json, at.as_str()])
+    .at(st)?;
+    tx.prepare_cached("DELETE FROM ready_base_blocked WHERE scope = ?1")
+        .at(st)?
+        .execute([s.name()])
+        .at(st)?;
+    let mut insert = tx
+        .prepare_cached(
+            "INSERT INTO ready_base_blocked(scope, bead, blocked_by_json) VALUES (?1, ?2, ?3)",
+        )
+        .at(st)?;
+    for (bead, json) in index {
+        insert.execute([s.name(), bead.as_str(), json.as_str()]).at(st)?;
+    }
+    Ok(())
+}
+
+/// Writes every field of a scope's sync state inside `tx`, the failure
+/// columns included (REQ-BDC-0704).
+fn write_sync_state(tx: &Transaction<'_>, at: Step<'_>, st: &SyncState) -> Result<(), CacheError> {
+    tx.prepare_cached(
+        "INSERT INTO sync_state(phase, last_started_at, last_ok_at, last_error, failing_since, \
+         notified_since) VALUES (?1, ?2, ?3, ?4, ?5, ?6) ON CONFLICT(phase) DO UPDATE SET \
+         last_started_at = excluded.last_started_at, last_ok_at = excluded.last_ok_at, \
+         last_error = excluded.last_error, failing_since = excluded.failing_since, \
+         notified_since = excluded.notified_since",
+    )
+    .at(at)?
+    .execute(params![
+        st.scope.name(),
+        st.last_started_at.as_ref().map(Timestamp::as_str),
+        st.last_ok_at.as_ref().map(Timestamp::as_str),
+        st.last_error,
+        st.failing_since.as_ref().map(Timestamp::as_str),
+        st.notified_since.as_ref().map(Timestamp::as_str),
+    ])
+    .at(at)?;
+    Ok(())
 }
 
 /// Runs `f` in one [`begin`] transaction on `conn`, committed when `f` succeeds.
@@ -890,25 +975,43 @@ impl CacheStore for SqliteStore {
 
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {
         let at = step(&self.path, "upsert rows");
         let tx = begin(&mut self.conn, at)?;
-        let mut report = UpsertReport::default();
-        for row in rows {
-            match Self::store_row(&tx, at, s, row, force)? {
-                Stored::SkippedNewer => report.skipped_newer.push(row.id.clone()),
-                Stored::Yes { status_changed } => {
-                    if status_changed {
-                        report.status_changed.push(row.id.clone());
-                    }
-                    report.stored.push(row.id.clone());
-                }
-            }
-        }
+        let report = Self::store_rows(&tx, at, s, rows, force, None)?;
         tx.commit().at(at)?;
+        Ok(report)
+    }
+
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        rows: &[Bead],
+        blocked: &[BlockedRow],
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        let st = step(&self.path, "ingest a scope");
+        let (blocked_json, ready_json) = encode_ready(st, blocked, ready)?;
+        let index = index_blocked(st, blocked)?;
+        // One transaction: the rows, the base and the sync state, or nothing
+        // (REQ-BDC-0008).
+        let tx = begin(&mut self.conn, st)?;
+        tx.prepare_cached("INSERT OR IGNORE INTO scope(name, kind) VALUES (?1, 'phase')")
+            .at(st)?
+            .execute([s.id().name()])
+            .at(st)?;
+        let report = Self::store_rows(&tx, st, Some(s), rows, false, revision)?;
+        write_base(&tx, st, s.id(), &blocked_json, &ready_json, &index, at)?;
+        let mut state = SyncState::new(s.id().clone());
+        state.last_started_at = Some(at.clone());
+        state.last_ok_at = Some(at.clone());
+        write_sync_state(&tx, st, &state)?;
+        tx.commit().at(st)?;
         Ok(report)
     }
 
@@ -964,26 +1067,7 @@ impl CacheStore for SqliteStore {
         let (blocked_json, ready_json) = encode_ready(step, blocked, ready)?;
         let index = index_blocked(step, blocked)?;
         self.write("replace a ready base", |tx, st| {
-            tx.prepare_cached(
-                "INSERT OR REPLACE INTO ready_base(scope, blocked_json, ready_json, fetched_at, \
-                 stale, indexed) VALUES (?1, ?2, ?3, ?4, 0, 1)",
-            )
-            .at(st)?
-            .execute([s.name(), &blocked_json, &ready_json, at.as_str()])
-            .at(st)?;
-            tx.prepare_cached("DELETE FROM ready_base_blocked WHERE scope = ?1")
-                .at(st)?
-                .execute([s.name()])
-                .at(st)?;
-            let mut insert = tx
-                .prepare_cached(
-                    "INSERT INTO ready_base_blocked(scope, bead, blocked_by_json) VALUES (?1, ?2, ?3)",
-                )
-                .at(st)?;
-            for (bead, json) in &index {
-                insert.execute([s.name(), bead.as_str(), json.as_str()]).at(st)?;
-            }
-            Ok(())
+            write_base(tx, st, s, &blocked_json, &ready_json, &index, at)
         })
     }
 
@@ -1204,7 +1288,7 @@ impl CacheStore for SqliteStore {
                 });
             }
             Some(row) => {
-                Self::store_row(&tx, st, None, row, true)?;
+                Self::store_row(&tx, st, None, row, true, None)?;
             }
             None => {
                 tx.prepare_cached("UPDATE beads SET stale = 1 WHERE id = ?1")
@@ -1315,16 +1399,7 @@ impl CacheStore for SqliteStore {
     }
 
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
-        self.mark_announced_within(seq, at, BUSY_TIMEOUT)
-    }
-
-    fn mark_announced_within(
-        &mut self,
-        seq: Seq,
-        at: &Timestamp,
-        wait: Duration,
-    ) -> Result<(), CacheError> {
-        self.write_within(wait, "mark announced", |tx, st| {
+        self.write("mark announced", |tx, st| {
             let n = tx
                 .prepare_cached("UPDATE journal SET announced_at = ?2 WHERE seq = ?1")
                 .at(st)?
@@ -1381,16 +1456,26 @@ impl CacheStore for SqliteStore {
 
     fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError> {
         let at = self.at("read sync state");
-        let found: Option<(Option<String>, Option<String>, Option<String>)> = self
+        type Found = (
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+        );
+        let found: Option<Found> = self
             .conn
             .prepare_cached(
-                "SELECT last_started_at, last_ok_at, last_error FROM sync_state WHERE phase = ?1",
+                "SELECT last_started_at, last_ok_at, last_error, failing_since, notified_since \
+                 FROM sync_state WHERE phase = ?1",
             )
             .at(at)?
-            .query_row([s.name()], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+            .query_row([s.name()], |r| {
+                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+            })
             .optional()
             .at(at)?;
-        let Some((started, ok, last_error)) = found else {
+        let Some((started, ok, last_error, failing, notified)) = found else {
             return Ok(SyncState::new(s.clone()));
         };
         Ok(SyncState {
@@ -1398,26 +1483,28 @@ impl CacheStore for SqliteStore {
             last_started_at: opt_timestamp(at, "last_started_at", started.as_deref())?,
             last_ok_at: opt_timestamp(at, "last_ok_at", ok.as_deref())?,
             last_error,
+            failing_since: opt_timestamp(at, "failing_since", failing.as_deref())?,
+            notified_since: opt_timestamp(at, "notified_since", notified.as_deref())?,
         })
     }
 
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
-        self.write("record sync state", |tx, at| {
-            tx.prepare_cached(
-                "INSERT INTO sync_state(phase, last_started_at, last_ok_at, last_error) \
-                 VALUES (?1, ?2, ?3, ?4) ON CONFLICT(phase) DO UPDATE SET \
-                 last_started_at = excluded.last_started_at, last_ok_at = excluded.last_ok_at, \
-                 last_error = excluded.last_error",
-            )
-            .at(at)?
-            .execute(params![
-                st.scope.name(),
-                st.last_started_at.as_ref().map(Timestamp::as_str),
-                st.last_ok_at.as_ref().map(Timestamp::as_str),
-                st.last_error,
-            ])
-            .at(at)?;
-            Ok(())
+        self.write("record sync state", |tx, at| write_sync_state(tx, at, st))
+    }
+
+    fn announce_scope(&mut self, s: &ScopeId, since: &Timestamp) -> Result<bool, CacheError> {
+        // Compare-and-set in one statement: only the run of failures that
+        // began at `since` is marked (REQ-BDC-0705, 0706).
+        self.write("mark a scope's failure handled", |tx, at| {
+            let n = tx
+                .prepare_cached(
+                    "UPDATE sync_state SET notified_since = ?2 \
+                     WHERE phase = ?1 AND failing_since = ?2",
+                )
+                .at(at)?
+                .execute([s.name(), since.as_str()])
+                .at(at)?;
+            Ok(n == 1)
         })
     }
 
@@ -1426,17 +1513,8 @@ impl CacheStore for SqliteStore {
     }
 
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
-        self.set_sync_alert_within(s, cause, BUSY_TIMEOUT)
-    }
-
-    fn set_sync_alert_within(
-        &mut self,
-        s: &ScopeId,
-        cause: Option<&str>,
-        wait: Duration,
-    ) -> Result<(), CacheError> {
         let key = alert_key(s);
-        self.write_within(wait, "set a sync alert", |tx, at| {
+        self.write("set a sync alert", |tx, at| {
             match cause {
                 Some(c) => tx
                     .prepare_cached("INSERT OR REPLACE INTO meta VALUES (?1, ?2)")
@@ -2034,76 +2112,6 @@ mod tests {
         assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
     }
 
-    /// A bounded marker write runs with `min(BUSY_TIMEOUT, wait)` as its busy
-    /// timeout, and the timeout is back afterwards (lead ruling S33). Sampled
-    /// from inside each write by a temporary trigger, as the dating's is:
-    /// causal, no timing. The contended case is `tests/store.rs`
-    /// (`a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`).
-    #[test]
-    fn a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout() {
-        let TempStore {
-            mut store, _dir, ..
-        } = temp_store();
-        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
-        let x = ScopeId::phase("x").unwrap();
-        let normal = ms(BUSY_TIMEOUT);
-
-        let alert = probe_busy_timeout(&store.conn, "probe_alert", "AFTER INSERT ON main.meta");
-        let quarter = Duration::from_millis(250);
-        store.set_sync_alert_within(&x, Some("c"), quarter).unwrap();
-        assert_eq!(alert.load(Ordering::SeqCst), ms(quarter), "the time left");
-        assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
-        store
-            .set_sync_alert_within(&x, Some("d"), Duration::ZERO)
-            .unwrap();
-        assert_eq!(alert.load(Ordering::SeqCst), 0, "no time left: no wait");
-        // The unbounded form is the usual timeout.
-        store.set_sync_alert(&x, Some("e")).unwrap();
-        assert_eq!(alert.load(Ordering::SeqCst), normal);
-
-        let seq = store
-            .insert_entry(
-                bd_cache_model::NewEntry {
-                    idem_key: IdemKey::new("k").unwrap(),
-                    scope: None,
-                    bead: sc_beads::testing::id("b"),
-                    op: bd_cache_model::Op::Close { reason: None },
-                    precondition: sc_beads::Guards::default(),
-                    actor: sc_beads::testing::actor("san"),
-                    changed: Some(true),
-                },
-                &at,
-            )
-            .unwrap();
-        store.escalate(seq, "gone", &at).unwrap();
-        let mark = probe_busy_timeout(
-            &store.conn,
-            "probe_mark",
-            "AFTER UPDATE OF announced_at ON main.journal",
-        );
-        // Less time left than the store's own timeout: the time left, as the
-        // alert's (the planted bug S33 gave the mark the full timeout).
-        store.mark_announced_within(seq, &at, quarter).unwrap();
-        assert_eq!(mark.load(Ordering::SeqCst), ms(quarter), "the time left");
-        assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
-        store
-            .mark_announced_within(seq, &at, Duration::ZERO)
-            .unwrap();
-        assert_eq!(mark.load(Ordering::SeqCst), 0, "no time left: no wait");
-        assert_eq!(busy_timeout_ms(&store.conn), normal);
-        // More time left than the store's own timeout: capped at it.
-        store
-            .mark_announced_within(seq, &at, Duration::from_secs(60))
-            .unwrap();
-        assert_eq!(
-            mark.load(Ordering::SeqCst),
-            normal,
-            "capped at BUSY_TIMEOUT"
-        );
-        assert_eq!(busy_timeout_ms(&store.conn), normal);
-        assert!(store.unannounced_escalations().unwrap().is_empty());
-    }
-
     /// QA6-001, the chosen behaviour (ADR-STORE-0004): an entry still pending
     /// when the floor rose above its seq, then applied by `bd_cache.py`
     /// without an epoch, is below the floor. It is answered as every undated
@@ -2205,7 +2213,7 @@ mod tests {
     fn new_entry(key: &str, scope: Option<&str>, changed: Option<bool>) -> NewEntry {
         NewEntry {
             idem_key: IdemKey::new(key).unwrap(),
-            scope: scope.map(|s| ScopeId::phase(s).unwrap()),
+            scope: scope.map(|s| ScopeId::new(s).unwrap()),
             bead: sc_beads::testing::id("b1"),
             op: bd_cache_model::Op::Close { reason: None },
             precondition: sc_beads::Guards::default(),
@@ -2379,8 +2387,8 @@ mod tests {
             escalated,
             resolved,
         };
-        let x = ScopeId::phase("x").unwrap();
-        let y = ScopeId::phase("y").unwrap();
+        let x = ScopeId::new("x").unwrap();
+        let y = ScopeId::new("y").unwrap();
         assert_eq!(counts.by_scope.get(&x), Some(&sc(3, 2, 1, 0)));
         assert_eq!(counts.by_scope.get(&y), Some(&sc(1, 0, 0, 1)));
         assert_eq!(counts.by_scope.len(), 2);

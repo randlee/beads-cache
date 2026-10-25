@@ -1,7 +1,7 @@
 //! Surface (b) `data`: the `cache` commands (contract §6).
 //!
 //! Every member is always present, and `null` means unknown (contract §1
-//! rule 3). Scopes appear in label form (`phase-<x>`).
+//! rule 3). Scopes appear by name.
 
 use std::collections::BTreeMap;
 
@@ -61,7 +61,7 @@ pub struct JournalCountsData {
 /// A Scope (`cache scopes`, `cache status`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScopeData {
-    /// The scope, e.g. `phase-bk`.
+    /// The scope's name, e.g. `open-bugs`.
     pub scope: String,
     /// Listed in the configuration.
     pub configured: bool,
@@ -75,6 +75,12 @@ pub struct ScopeData {
     pub last_error: Option<OpError>,
     /// `backend_unavailable`, `sync_failed`, a `BD_CACHE` code, or `null`.
     pub alert: Option<String>,
+    /// When the scope's current run of failures and outages began; `null`
+    /// while it syncs (REQ-BDC-0704).
+    pub failing_since: Option<String>,
+    /// True when a post-sync hook marked this run of failures handled
+    /// (`cache scopes announce --since`, REQ-BDC-0705).
+    pub notified: bool,
     /// Beads the scope holds.
     pub beads: u64,
 }

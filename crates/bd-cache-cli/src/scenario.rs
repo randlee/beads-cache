@@ -123,8 +123,8 @@ pub struct Faults {
     /// (and check their own guards). The bead does not change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refuse_close: Option<RefuseWrite>,
-    /// Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one
-    /// of these labels fails with exit 1 (a failure that is not an outage);
+    /// Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of a
+    /// filter that names one of these labels fails with exit 1 (a failure that is not an outage);
     /// the other labels answer. One scope of a `cache refresh scopes` can so
     /// fail while another passes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -263,9 +263,11 @@ impl Scenario {
             let labels = self.faults.fail_labels.clone();
             backend.inject_where(
                 move |call| match call {
-                    FakeCall::ListScope { label, .. }
-                    | FakeCall::ListBlocked { label }
-                    | FakeCall::ListReady { label } => labels.contains(label),
+                    FakeCall::ListScope { filter, .. }
+                    | FakeCall::ListBlocked { filter }
+                    | FakeCall::ListReady { filter } => {
+                        filter.labels().iter().any(|l| labels.contains(l))
+                    }
                     _ => false,
                 },
                 Injection::Failed(1),

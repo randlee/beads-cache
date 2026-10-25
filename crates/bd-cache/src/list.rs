@@ -19,7 +19,7 @@ pub(crate) fn list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     label: Option<&str>,
 ) -> Result<ListReply, CacheError> {
     require_known(cache, s)?;
-    let adj = adjusted(cache, s)?;
+    let adj = adjusted(cache, &cache.scope(s))?;
     let mut rows = Vec::new();
     for (row, freshness) in cache.store.rows_in_scope(s)? {
         let view = replay(&row, &cache.store.pending_for(&row.id)?);

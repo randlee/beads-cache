@@ -3,6 +3,7 @@
 mod beads;
 mod entry;
 mod manage;
+mod scopes;
 mod x_cache;
 
 use serde::Serialize;
@@ -22,6 +23,8 @@ pub use manage::{
     OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, ScopeData,
     StateCountsData, SyncReportData,
 };
+#[doc(inline)]
+pub use scopes::{CacheScopesAnnounceData, CacheScopesIngestData};
 #[doc(inline)]
 pub use x_cache::{
     Basis, ContextXCache, DepsXCache, GetXCache, OpError, OutageData, ReadFallback, ReadXCache,
@@ -56,6 +59,10 @@ pub enum Data {
     CacheHealth(CacheHealthData),
     /// `cache scopes`.
     CacheScopes(CacheScopesData),
+    /// `cache scopes ingest`.
+    CacheScopesIngest(CacheScopesIngestData),
+    /// `cache scopes announce`.
+    CacheScopesAnnounce(CacheScopesAnnounceData),
     /// `cache refresh scopes`.
     CacheRefreshScopes(CacheRefreshScopesData),
     /// `cache refresh issues`.

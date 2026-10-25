@@ -56,11 +56,58 @@ pub fn list_by_ids(ids: &[&BeadId]) -> Vec<String> {
     argv
 }
 
-/// `bd list -l <label> --status <all seven> -n 0 [--updated-after <cursor>] --json`.
+/// The bd commands that take a scope filter, and so the flags each accepts.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FilterCommand {
+    /// `bd list`: `--all`, `-l`, `--label-any`, `-t`, `-a`.
+    List,
+    /// `bd blocked`: `-l` and `--label-any` only.
+    Blocked,
+    /// `bd ready`: `-l`, `--label-any`, `-t`, `-a`.
+    Ready,
+}
+
+/// The selection flags of a scope filter (REQ-BDC-0702) that `command`
+/// accepts: `--all` for an all-beads filter on `bd list` (the other two list
+/// every bead without a filter), else each label as `-l`, each any-label as
+/// `--label-any`, then `-t` and `-a`. Every value is its own argv word.
+fn push_filter(argv: &mut Vec<String>, filter: &ScopeFilter, command: FilterCommand) {
+    if filter.is_all() {
+        if command == FilterCommand::List {
+            argv.push("--all".to_owned());
+        }
+        return;
+    }
+    for label in filter.labels() {
+        argv.push("-l".to_owned());
+        argv.push(label.clone());
+    }
+    for label in filter.labels_any() {
+        argv.push("--label-any".to_owned());
+        argv.push(label.clone());
+    }
+    if command == FilterCommand::Blocked {
+        return;
+    }
+    if let Some(t) = filter.issue_type() {
+        argv.push("-t".to_owned());
+        argv.push(t.to_owned());
+    }
+    if let Some(a) = filter.assignee() {
+        argv.push("-a".to_owned());
+        argv.push(a.to_owned());
+    }
+}
+
+/// `bd list <filter> --status <all seven> -n 0 [--updated-after <cursor>] --json`.
+///
+/// The filter's selection flags (`--all`, or `-l`, `--label-any`, `-t`, `-a`);
+/// every status is listed, so a bead whose status changed is returned and the
+/// caller applies the filter's status criterion to the rows.
 #[must_use]
 pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<String> {
-    let mut argv = words(&["list", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["list"]);
+    push_filter(&mut argv, filter, FilterCommand::List);
     argv.extend(words(&["--status", ALL_STATUSES, "-n", "0"]));
     if let Some(cursor) = since {
         argv.push("--updated-after".to_owned());
@@ -70,20 +117,23 @@ pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<Strin
     argv
 }
 
-/// `bd blocked -l <label> --json`.
+/// `bd blocked [-l <label>]... [--label-any <label>]... --json`.
+///
+/// `bd blocked` takes only label filters: a filter's type and assignee are
+/// not passed, so the answer is a superset of the scope's blocked rows.
 #[must_use]
 pub fn blocked(filter: &ScopeFilter) -> Vec<String> {
-    let mut argv = words(&["blocked", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["blocked"]);
+    push_filter(&mut argv, filter, FilterCommand::Blocked);
     argv.push("--json".to_owned());
     argv
 }
 
-/// `bd ready -l <label> -n 0 --json`.
+/// `bd ready <filter> -n 0 --json` (`-l`, `--label-any`, `-t`, `-a`).
 #[must_use]
 pub fn ready(filter: &ScopeFilter) -> Vec<String> {
-    let mut argv = words(&["ready", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["ready"]);
+    push_filter(&mut argv, filter, FilterCommand::Ready);
     argv.extend(words(&["-n", "0", "--json"]));
     argv
 }
@@ -248,6 +298,89 @@ mod tests {
         assert_eq!(
             ready(&scope),
             strings(&["ready", "-l", "phase-x", "-n", "0", "--json"])
+        );
+    }
+
+    /// A scope is a bd filter (REQ-BDC-0702, ANC-009): an all-beads scope
+    /// lists with `--all`, and a criteria scope passes each criterion as its
+    /// own flag; `bd blocked` gets only the label flags it accepts.
+    #[test]
+    fn filter_scopes_pass_each_criterion_to_the_command_that_takes_it() {
+        const ALL: &str = "open,in_progress,blocked,deferred,closed,pinned,hooked";
+        assert_eq!(
+            list_scope(&ScopeFilter::All, None),
+            strings(&["list", "--all", "--status", ALL, "-n", "0", "--json"])
+        );
+        assert_eq!(blocked(&ScopeFilter::All), strings(&["blocked", "--json"]));
+        assert_eq!(
+            ready(&ScopeFilter::All),
+            strings(&["ready", "-n", "0", "--json"])
+        );
+        let criteria = ScopeFilter::Match(sc_beads::FilterCriteria {
+            labels: vec!["area:core".into(), "team".into()],
+            labels_any: vec!["p0".into(), "p1".into()],
+            status: vec!["open".into()],
+            issue_type: Some("bug".into()),
+            assignee: Some("dev-1".into()),
+        });
+        assert_eq!(
+            list_scope(&criteria, None),
+            strings(&[
+                "list",
+                "-l",
+                "area:core",
+                "-l",
+                "team",
+                "--label-any",
+                "p0",
+                "--label-any",
+                "p1",
+                "-t",
+                "bug",
+                "-a",
+                "dev-1",
+                "--status",
+                ALL,
+                "-n",
+                "0",
+                "--json"
+            ])
+        );
+        assert_eq!(
+            blocked(&criteria),
+            strings(&[
+                "blocked",
+                "-l",
+                "area:core",
+                "-l",
+                "team",
+                "--label-any",
+                "p0",
+                "--label-any",
+                "p1",
+                "--json"
+            ])
+        );
+        assert_eq!(
+            ready(&criteria),
+            strings(&[
+                "ready",
+                "-l",
+                "area:core",
+                "-l",
+                "team",
+                "--label-any",
+                "p0",
+                "--label-any",
+                "p1",
+                "-t",
+                "bug",
+                "-a",
+                "dev-1",
+                "-n",
+                "0",
+                "--json"
+            ])
         );
     }
 

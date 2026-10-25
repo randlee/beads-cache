@@ -121,11 +121,21 @@ fn driver(args: &[&OsStr]) -> Value {
 }
 
 fn ct() -> ScopeId {
-    ScopeId::phase("ct").unwrap()
+    ScopeId::new("ct").unwrap()
 }
 
 fn zz() -> ScopeId {
-    ScopeId::phase("zz").unwrap()
+    ScopeId::new("zz").unwrap()
+}
+
+/// The scope `ct` as the v3 writer derives it: the beads labelled `phase-ct`.
+fn sct() -> bd_cache_model::Scope {
+    bd_cache_model::Scope::new(ct(), sc_beads::ScopeFilter::Label("phase-ct".into())).unwrap()
+}
+
+/// The scope `zz`, likewise.
+fn szz() -> bd_cache_model::Scope {
+    bd_cache_model::Scope::new(zz(), sc_beads::ScopeFilter::Label("phase-zz".into())).unwrap()
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -299,7 +309,7 @@ fn the_python_get_and_status_read_a_file_the_rust_store_wrote() {
     let mut store = f.open();
     store.ensure_scope(&ct()).unwrap();
     store
-        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .upsert_rows(Some(&sct()), &fixture_rows(), false)
         .unwrap();
     let pending = store
         .insert_entry(
@@ -411,10 +421,10 @@ fn after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows() {
             })
             .unwrap();
         store
-            .upsert_rows(Some(&ct()), &[row("a", &["phase-ct"]), both.clone()], false)
+            .upsert_rows(Some(&sct()), &[row("a", &["phase-ct"]), both.clone()], false)
             .unwrap();
         store
-            .upsert_rows(Some(&zz()), &[both.clone(), row("z", &["phase-zz"])], false)
+            .upsert_rows(Some(&szz()), &[both.clone(), row("z", &["phase-zz"])], false)
             .unwrap();
         store
             .insert_entry(
@@ -619,7 +629,7 @@ fn seed_rust_entries(f: &Shared) -> [bd_cache_model::Seq; 4] {
     let mut store = f.open();
     store.ensure_scope(&ct()).unwrap();
     store
-        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .upsert_rows(Some(&sct()), &fixture_rows(), false)
         .unwrap();
     let close = || Op::Close { reason: None };
     let journal = |store: &mut SqliteStore, key: &str, bead: &str, changed| {

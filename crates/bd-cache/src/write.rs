@@ -24,8 +24,8 @@
 //!    `unmet {key: {expected, actual}}`, nothing journaled.
 //! 5. `changed` against that view ([`Op::changes`]: for a close
 //!    `!already_closed`, else "the overlay changes the view").
-//! 6. [`CacheStore::insert_entry`] with the scope from the view's labels
-//!    ([`ScopeId::from_labels`]) and `changed`: one store transaction, so no
+//! 6. [`CacheStore::insert_entry`] with the scope that holds the view (the
+//!    first configured scope whose filter matches it) and `changed`: one store transaction, so no
 //!    reader sees the entry without its `changed`. If another process took
 //!    the key after step 2, the store answers `IDEM_CONFLICT` and the key is
 //!    deduped again against the entry that won.
@@ -42,13 +42,14 @@ use std::collections::BTreeMap;
 
 use bd_cache_model::{
     CacheError, CacheStore, DrainLock, Freshness, GuardKey, IdemKey, JournalEntry, JournalState,
-    NewEntry, Op, PreconditionReason, RowView, ScopeId, Seq, Unmet, WriteOutcome, WriteReply,
+    NewEntry, Op, PreconditionReason, RowView, Seq, Unmet, WriteOutcome, WriteReply,
     check_write_size, replay, unmet,
 };
 use sc_beads::{Actor, Bead, BeadId, CacheBackend, Guards};
 
 use crate::Cache;
 use crate::get::row_in_scope;
+use crate::ready::scope_for;
 
 /// Whether a journaling reads the bead's views for a reply.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -153,7 +154,7 @@ fn journal<S: CacheStore, L: DrainLock, B: CacheBackend>(
         });
     }
     let changed = op.changes(&view);
-    let scope = ScopeId::from_labels(&view.labels);
+    let scope = scope_for(cache, &view)?.map(|s| s.id().clone());
     let before = match views {
         Views::Read => Some(row_in_scope(cache, view, freshness)?.0),
         Views::Skip => None,

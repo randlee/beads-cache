@@ -2,7 +2,7 @@
 //!
 //! [`World`] mirrors the Python suite's `world` fixture: a `FakeBackend`
 //! holding `b1` (in progress, assigned to `dev`), `b2` and `s1` (which
-//! `blocks` on `b1`), all labelled `phase-x`, plus a `FakeStore`, a
+//! `blocks` on `b1`), all labelled `x`, plus a `FakeStore`, a
 //! `FakeDrainLock` and a `ManualClock` starting at `2026-10-23T10:00:00Z`.
 //! Every part is a shared handle: keep it to drive or inspect the cache.
 //!
@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, ScopeId};
+use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
 
@@ -33,10 +33,16 @@ pub const SCHEMA_TEXT: &str =
 /// Where the [`World`] clock starts.
 pub const START: &str = "2026-10-23T10:00:00Z";
 
-/// The `phase-x` scope.
+/// The scope id `x`.
 #[must_use]
 pub fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap_or_else(|e| panic!("{e}"))
+    ScopeId::new("x").unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// The scope `x`: the beads labelled `x` (a label scope, REQ-BDC-0702).
+#[must_use]
+pub fn sx() -> Scope {
+    Scope::label(x())
 }
 
 /// A bead id.
@@ -79,7 +85,7 @@ impl World {
             clock,
             store: FakeStore::new(),
             lock: FakeDrainLock::new(),
-            config: CacheConfig::new(ProjectRef::local(None), vec![x()]),
+            config: CacheConfig::new(ProjectRef::local(None), vec![sx()]),
         }
     }
 
@@ -97,10 +103,10 @@ impl World {
         w
     }
 
-    /// Adds a `phase-x` bead to bd, stamped with the clock's time, then moves the clock 1 s.
+    /// Adds an `x`-labelled bead to bd, stamped with the clock's time, then moves the clock 1 s.
     pub fn add(&self, name: &str, f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
-        b.labels = vec!["phase-x".into()];
+        b.labels = vec!["x".into()];
         b.updated_at = self.clock.now_utc().into();
         f(&mut b);
         self.bd.insert(b.clone());

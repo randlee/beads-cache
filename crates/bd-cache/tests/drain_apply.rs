@@ -17,8 +17,8 @@ use std::time::Duration;
 
 use bd_cache::testing::store;
 use bd_cache_model::{
-    CacheStore, DrainBudget, DrainLock, DrainReport, IdemKey, JournalEntry, JournalState,
-    PhaseName, Seq, normalize,
+    CacheStore, DrainBudget, DrainLock, DrainReport, IdemKey, JournalEntry, JournalState, ScopeId,
+    Seq, normalize,
 };
 use common::{TestCache, World, id};
 use sc_beads::testing::{FakeCall, FakeOp, Injection, actor};
@@ -270,7 +270,7 @@ fn test_drain_on_absent_bead_escalates_not_found() {
     assert_eq!(item.bead, id("b2"));
     assert_eq!(item.op, "update");
     assert_eq!(item.actor, actor("san"));
-    assert_eq!(item.phase, Some(PhaseName::new("x").unwrap()));
+    assert_eq!(item.scope, Some(ScopeId::new("x").unwrap()));
     assert!(
         item.reason.starts_with("BD_CACHE.NOT_FOUND"),
         "{}",

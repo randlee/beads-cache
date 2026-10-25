@@ -330,10 +330,6 @@ pub enum StopDecision {
     /// End the schedule with this reason (ADR-CRON-0007). Its row is kept as
     /// the ended record, and the name can be started again.
     Delete(String),
-    /// The same as [`StopDecision::Delete`]. Kept so a job written against the
-    /// earlier contract, which had this one stopping variant, still builds
-    /// (ADR-CRON-0007); new code returns `Delete`.
-    Stop(String),
 }
 
 #[cfg(test)]

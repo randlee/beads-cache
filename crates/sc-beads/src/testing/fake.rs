@@ -66,22 +66,22 @@ pub enum FakeCall {
     Fingerprint,
     /// `bd list --id <ids> --status <all seven>`.
     ListByIds(Vec<BeadId>),
-    /// `bd list -l <label> [--updated-after <since>]`.
+    /// `bd list <filter> [--updated-after <since>]`.
     ListScope {
-        /// The label.
-        label: String,
+        /// The scope filter.
+        filter: ScopeFilter,
         /// The cursor, when given.
         since: Option<String>,
     },
-    /// `bd blocked -l <label>`.
+    /// `bd blocked <filter>`.
     ListBlocked {
-        /// The label.
-        label: String,
+        /// The scope filter.
+        filter: ScopeFilter,
     },
-    /// `bd ready -l <label> -n 0`.
+    /// `bd ready <filter> -n 0`.
     ListReady {
-        /// The label.
-        label: String,
+        /// The scope filter.
+        filter: ScopeFilter,
     },
     /// `bd close`.
     Close {
@@ -194,15 +194,17 @@ struct State {
 /// - `list_by_ids` returns closed beads too, as an implementation passing
 ///   bd's full status list does (bd omits them without it); absent ids are
 ///   missing from the result.
-/// - `list_scope` filters by label and, with a cursor, `updated_at > since`
-///   compared as instants (a value that does not parse is listed).
+/// - `list_scope` returns the beads the filter selects
+///   ([`ScopeFilter::selects`]: labels, type, assignee) in every status and,
+///   with a cursor, `updated_at > since` compared as instants (a value that
+///   does not parse is listed).
 /// - `list_blocked` computes the blocked set as bd does: a non-closed bead is
 ///   blocked by each non-closed target of a `blocks`, `conditional-blocks` or
 ///   `waits-for` edge, and a child (`parent-child` edge) of a blocked parent
 ///   is blocked by the parent; `related` and the other types do not block.
-///   Blockers outside the label are included; only labelled beads are rows.
-/// - `list_ready` returns labelled beads that are `open`, not blocked and
-///   not deferred into the future (`bd ready -l <label> -n 0`).
+///   Blockers outside the filter are included; only selected beads are rows.
+/// - `list_ready` returns selected beads that are `open`, not blocked and
+///   not deferred into the future (`bd ready <filter> -n 0`).
 /// - Writes check the guards (`""` = unassigned) and refuse with
 ///   [`Refusal::Precondition`] (bd exit 13); an unknown bead is
 ///   `Failed(1)`. Close and reopen bump only the bead's own `updated_at`
@@ -635,10 +637,9 @@ impl CacheBackend for FakeBackend {
         since: Option<&SyncCursor>,
         d: Deadline,
     ) -> Result<Vec<Bead>, BeadsCacheError> {
-        let label = f.label().to_owned();
         self.begin(
             FakeCall::ListScope {
-                label: label.clone(),
+                filter: f.clone(),
                 since: since.map(|c| c.as_str().to_owned()),
             },
             d,
@@ -646,7 +647,7 @@ impl CacheBackend for FakeBackend {
         let s = lock(&self.state);
         Ok(s.rows
             .values()
-            .filter(|r| r.has_label(&label))
+            .filter(|r| f.selects(r))
             .filter(|r| {
                 since.is_none_or(|c| {
                     match (rfc3339_to_unix(&r.updated_at), rfc3339_to_unix(c.as_str())) {
@@ -667,17 +668,11 @@ impl CacheBackend for FakeBackend {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BlockedRow>, BeadsCacheError> {
-        let label = f.label().to_owned();
-        self.begin(
-            FakeCall::ListBlocked {
-                label: label.clone(),
-            },
-            d,
-        )?;
+        self.begin(FakeCall::ListBlocked { filter: f.clone() }, d)?;
         let s = lock(&self.state);
         Ok(blocked_map(&s.rows)
             .into_iter()
-            .filter(|(id, _)| s.rows.get(id).is_some_and(|r| r.has_label(&label)))
+            .filter(|(id, _)| s.rows.get(id).is_some_and(|r| f.selects(r)))
             .map(|(id, blocked_by)| BlockedRow { id, blocked_by })
             .collect())
     }
@@ -688,19 +683,13 @@ impl CacheBackend for FakeBackend {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BeadId>, BeadsCacheError> {
-        let label = f.label().to_owned();
-        self.begin(
-            FakeCall::ListReady {
-                label: label.clone(),
-            },
-            d,
-        )?;
+        self.begin(FakeCall::ListReady { filter: f.clone() }, d)?;
         let now = self.clock.now_utc().unix();
         let s = lock(&self.state);
         let blocked = blocked_map(&s.rows);
         Ok(s.rows
             .values()
-            .filter(|r| r.has_label(&label) && r.status.as_deref() == Some("open"))
+            .filter(|r| f.selects(r) && r.status.as_deref() == Some("open"))
             .filter(|r| !blocked.contains_key(&r.id))
             .filter(|r| {
                 r.defer_until

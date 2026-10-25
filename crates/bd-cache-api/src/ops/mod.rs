@@ -14,6 +14,7 @@
 
 mod beads;
 mod manage;
+mod scopes;
 
 use bd_cache::Cache;
 use bd_cache_model::{CacheStore, DrainLock, ScopeId};
@@ -72,6 +73,12 @@ pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Request::CacheStatus(_) => Data::CacheStatus(cache_status(cache, facts)?),
         Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, *r)?),
         Request::CacheScopes(_) => Data::CacheScopes(cache_scopes(cache)?),
+        Request::CacheScopesIngest(r) => {
+            Data::CacheScopesIngest(scopes::cache_scopes_ingest(cache, r)?)
+        }
+        Request::CacheScopesAnnounce(r) => {
+            Data::CacheScopesAnnounce(scopes::cache_scopes_announce(cache, r)?)
+        }
         Request::CacheRefreshScopes(r) => Data::CacheRefreshScopes(cache_refresh_scopes(cache, r)?),
         Request::CacheRefreshIssues(r) => Data::CacheRefreshIssues(cache_refresh_issues(cache, r)?),
         Request::CacheFlush(r) => Data::CacheFlush(cache_flush(cache, r)?),

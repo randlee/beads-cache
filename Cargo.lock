@@ -151,7 +151,6 @@ dependencies = [
  "bd-cache-store",
  "chrono",
  "criterion",
- "libc",
  "rusqlite",
  "sc-bd-cli",
  "sc-beads",
@@ -160,7 +159,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "toml",
  "tracing",
 ]
 

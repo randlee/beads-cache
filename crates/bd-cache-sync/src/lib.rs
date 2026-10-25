@@ -1,73 +1,66 @@
-//! The bd-cache sync task: tick, stop rule and announcements, scheduled on `sc-cron`.
+//! The bd-cache sync job: the built-in bd sync on `sc-cron`, consumer Python
+//! sync rows and the post-sync hook (REQ-BDC-0701..0706 amended; ADR-BDC-0010).
 //!
-//! This crate composes the pieces phase A builds: the `bd-cache` core, the
-//! SQLite store (`bd-cache-store`), the `bd` CLI backend (`sc-bd-cli`) and the
-//! scheduler (`sc-cron`). It holds the BD-CACHE cron module
-//! (`bd_cache_cron.py`) in Rust:
+//! beads-cache syncs bd itself, at the times set in the cron table of its
+//! cache file (ANC-002), and sends no messages (ADR-BDC-0010). This crate
+//! composes the `bd-cache` core, the SQLite store (`bd-cache-store`), the `bd`
+//! CLI backend (`sc-bd-cli`) and the scheduler (`sc-cron`):
 //!
-//! - [`tick`]: within a 25 s budget ending at `T`, drain with
-//!   `DrainBudget { start_gate: T - 5 s, hard: T - 2 s }`, then sync each
-//!   active phase with deadline `T`, deferring any not started by `T - 2 s`
-//!   (REQ-BDC-0703); phases come from `.atm-bd/phase-*.toml` and the
-//!   configured list, and a phase is active while its root bead is not closed
-//!   (REQ-BDC-0702);
-//! - announcements through the [`EscalationSender`](bd_cache_model::EscalationSender)
-//!   port (REQ-BDC-0704..0706): sync failures once per cause, an outage once
-//!   per active scope under the cause `backend_unavailable`, escalations once
-//!   with the `resolve` command; a message not delivered makes the reply
-//!   `refused` and is retried next tick. [`AtmSender`] is the implementation
-//!   that runs `atm send`;
-//! - [`stop_reason`]: stop when no phase is active and no journal entry is
-//!   pending or escalated and unannounced (REQ-BDC-0707);
-//! - [`SyncJob`]: the `sc-cron` [`Job`](sc_cron::Job) that runs both under
-//!   `spawn_blocking` with the `Cache` in an `Arc<Mutex<_>>` (ADR-CORE-0001),
-//!   and [`schedule_spec`], the one schedule per repository (REQ-BDC-0701);
+//! - [`run_sync`]: one run of the built-in sync within its budget `T` (the
+//!   row's timeout): a drain with `DrainBudget { start_gate: T - 5 s, hard:
+//!   T - 2 s }`, then each configured scope, a bd filter (REQ-BDC-0702),
+//!   synced with deadline `T`, deferring any not started by `T - 2 s`
+//!   (REQ-BDC-0703); the [`SyncRun`] carries each scope's result and error;
+//! - [`schedule`](crate::register_builtin): the rows of the cron table. At
+//!   most one built-in sync row per repository ([`register_builtin`] refuses a
+//!   second, ANC-008); other rows are allowed (ANC-005). A consumer disables
+//!   the built-in row ([`set_builtin_enabled`], ANC-006) and starts its own
+//!   Python row ([`python_spec`]) that feeds the cache through
+//!   `ingest_scope` (ANC-003);
+//! - [`SyncJob`]: the `sc-cron` [`Job`](sc_cron::Job) that runs both kinds of
+//!   row, the sync under `spawn_blocking` with the `Cache` in an
+//!   `Arc<Mutex<_>>` (ADR-CORE-0001), then the optional post-sync hook with
+//!   the run's results and errors (ANC-004, [`post_sync_request`]);
 //! - [`compose`]: the real `SqliteStore` + `FlockDrainLock` + `BdCli`
 //!   cache of a repository, read from `.beads/bd-cache.toml`, over one
 //!   process-wide `bd` lock set.
 //!
+//! Every bd call, Python sync run and hook run is killed at its timeout
+//! capped by the time left before the run's deadline (NFR-BDC-0004).
+//!
 //! # Codes
 //!
 //! Every error this crate reports has a stable lower-case code
-//! (`RefusalCode::as_str`, `ScheduleError::code`, `ComposeError::code`,
-//! `CacheLost::code`), with
-//! the `BD_CACHE.*` codes of the core passed through where the cause is a
+//! (`ScheduleError::code`, `ComposeError::code`, `CacheLost::code`), with the
+//! `BD_CACHE.*` codes of the core passed through where the cause is a
 //! `CacheError`. The code, not the message, is what a program matches on.
 //!
-//! # One ticker per cache file
+//! # One runner per cache file
 //!
-//! Either `sc-cron` runs this crate, or an external scheduler (the ATM cron
-//! module through the later `bdc tick`, or `bd_cache_cron.py` through the
-//! Python bindings) drives `drain`, `sync` and the announcement verbs. Never
-//! both on one cache file.
+//! Either `sc-cron` runs this crate's job over the cache file, or the
+//! built-in row is run on demand (`bdc cache tick`). Never two runners on
+//! one cache file at once.
 //!
 //! # Example
 //!
 //! ```
-//! use bd_cache_model::TickConfig;
-//! use bd_cache_sync::schedule_spec;
+//! use bd_cache_sync::{BUILTIN_NAME, builtin_spec};
 //!
-//! let cfg = TickConfig {
-//!     team: Some("atm-dev".into()),
-//!     fallback_lead: Some("team-lead".into()),
-//!     ..TickConfig::default()
-//! };
-//! let spec = schedule_spec(&cfg, "atm-dev", None).unwrap();
-//! assert_eq!(spec.name.as_str(), "bd-cache:atm-dev");
+//! let spec = builtin_spec(Some("*/30 * * * * *"), None, None).unwrap();
+//! assert_eq!(spec.name.as_str(), BUILTIN_NAME);
 //! ```
 
 #![deny(missing_docs)]
 
-mod active;
-mod announce;
-mod atm;
 mod compose;
 mod control;
+mod hook;
 mod job;
-mod phases;
-mod reply;
+mod report;
+mod run;
+mod schedule;
+mod table;
 mod text;
-mod tick;
 
 #[cfg(all(test, unix))]
 mod test_script {
@@ -95,10 +88,6 @@ mod test_script {
 }
 
 #[doc(inline)]
-pub use announce::{AlertCause, OUTAGE_CAUSE};
-#[doc(inline)]
-pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
-#[doc(inline)]
 pub use compose::{
     ComposeError, Composed, RealCache, compose, compose_with, compose_with_config,
     compose_with_config_and_backend,
@@ -106,17 +95,18 @@ pub use compose::{
 #[doc(inline)]
 pub use control::StopFlag;
 #[doc(inline)]
-pub use job::{
-    CacheLost, JobCacheError, STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun,
-    schedule_spec,
+pub use hook::{HookRun, MAX_HOOK_ESCALATIONS, POST_SYNC_KIND, post_sync_request, run_hook};
+#[doc(inline)]
+pub use job::{BuiltInRun, CacheLost, JobCacheError, JobRun, SyncJob, builtin_outcome};
+#[doc(inline)]
+pub use report::{ScopeError, ScopeResult, SyncRun};
+#[doc(inline)]
+pub use run::{DEFAULT_BUDGET, run_sync};
+#[doc(inline)]
+pub use schedule::{
+    BUILTIN_KIND, BUILTIN_NAME, DEFAULT_EXPR, DEFAULT_HOOK_TIMEOUT, HookSpec, PYTHON_KIND,
+    RowPayload, ScheduleError, builtin_spec, clear_builtin, cron_db_path, find_builtin,
+    python_spec, register_builtin, set_builtin, set_builtin_enabled,
 };
 #[doc(inline)]
-pub use phases::{
-    ConfigRefusal, DEFAULT_PHASES_DIR, InvalidMember, MAX_PHASE_FILE_BYTES, MAX_PHASE_FILES,
-    MAX_PHASES_DIR_ENTRIES, MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError,
-    TickSettings, load_phases, rooted_phases_dir,
-};
-#[doc(inline)]
-pub use reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickOutcome, TickReply};
-#[doc(inline)]
-pub use tick::{TICK_BUDGET, stop_reason, stop_reason_with, tick, tick_with};
+pub use table::{BuiltInRow, CronTable, TickError, TickReport, tick_once};

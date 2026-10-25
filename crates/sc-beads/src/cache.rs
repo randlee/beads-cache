@@ -427,21 +427,136 @@ pub struct Fingerprint {
     pub schema_version: String,
 }
 
-/// Which beads a scope list selects.
+/// Which beads a scope list selects: a bd filter (ADR-BDC-0001, REQ-BDC-0702).
+///
+/// A scope is a named filter. The backend asks bd for every bead the filter
+/// *selects* (its labels, type and assignee) in every status, so a bead that
+/// changes status is seen; the status criterion is applied by the caller on
+/// the rows that come back ([`ScopeFilter::matches`]).
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::{FilterCriteria, ScopeFilter};
+/// let mut row = sc_beads::testing::bead("b1");
+/// row.labels = vec!["area:core".into()];
+/// assert!(ScopeFilter::Label("area:core".into()).matches(&row));
+/// assert!(ScopeFilter::All.matches(&row));
+/// let open_bugs = ScopeFilter::Match(FilterCriteria {
+///     status: vec!["open".into()],
+///     issue_type: Some("bug".into()),
+///     ..FilterCriteria::default()
+/// });
+/// assert!(!open_bugs.matches(&row)); // a task, not a bug
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ScopeFilter {
     /// Beads carrying this label (`bd list -l <label>`).
     Label(String),
+    /// Every bead (`bd list --all`).
+    All,
+    /// Beads that meet every criterion that is set.
+    Match(FilterCriteria),
+}
+
+/// The criteria of a [`ScopeFilter::Match`]; an empty list or `None` sets none.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+pub struct FilterCriteria {
+    /// Labels a bead must all carry (`bd list -l a -l b`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    /// Labels of which a bead must carry at least one (`bd list --label-any`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels_any: Vec<String>,
+    /// Statuses a bead must have one of; applied to the rows bd returns.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub status: Vec<String>,
+    /// The issue type a bead must have (`bd list -t`).
+    #[serde(default, skip_serializing_if = "Option::is_none", rename = "type")]
+    pub issue_type: Option<String>,
+    /// The assignee a bead must have (`bd list -a`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assignee: Option<String>,
 }
 
 impl ScopeFilter {
-    /// The label of a [`ScopeFilter::Label`].
+    /// The labels a selected bead carries every one of.
     #[must_use]
-    pub fn label(&self) -> &str {
+    pub fn labels(&self) -> &[String] {
         match self {
-            Self::Label(l) => l,
+            Self::Label(l) => std::slice::from_ref(l),
+            Self::All => &[],
+            Self::Match(c) => &c.labels,
         }
+    }
+
+    /// The labels a selected bead carries at least one of (none: no criterion).
+    #[must_use]
+    pub fn labels_any(&self) -> &[String] {
+        match self {
+            Self::Match(c) => &c.labels_any,
+            Self::Label(_) | Self::All => &[],
+        }
+    }
+
+    /// The statuses a member has one of (none: any status).
+    #[must_use]
+    pub fn statuses(&self) -> &[String] {
+        match self {
+            Self::Match(c) => &c.status,
+            Self::Label(_) | Self::All => &[],
+        }
+    }
+
+    /// The issue type a selected bead has, when the filter names one.
+    #[must_use]
+    pub fn issue_type(&self) -> Option<&str> {
+        match self {
+            Self::Match(c) => c.issue_type.as_deref(),
+            Self::Label(_) | Self::All => None,
+        }
+    }
+
+    /// The assignee a selected bead has, when the filter names one.
+    #[must_use]
+    pub fn assignee(&self) -> Option<&str> {
+        match self {
+            Self::Match(c) => c.assignee.as_deref(),
+            Self::Label(_) | Self::All => None,
+        }
+    }
+
+    /// True for [`ScopeFilter::All`]: `bd list --all`.
+    #[must_use]
+    pub fn is_all(&self) -> bool {
+        matches!(self, Self::All)
+    }
+
+    /// True when bd's list of this filter, in every status, returns `row`:
+    /// the label, type and assignee criteria.
+    #[must_use]
+    pub fn selects(&self, row: &Bead) -> bool {
+        self.labels().iter().all(|l| row.has_label(l))
+            && (self.labels_any().is_empty() || self.labels_any().iter().any(|l| row.has_label(l)))
+            && self
+                .issue_type()
+                .is_none_or(|t| row.issue_type.as_deref() == Some(t))
+            && self
+                .assignee()
+                .is_none_or(|a| row.assignee.as_deref() == Some(a))
+    }
+
+    /// True when `row` is a member: it is [selected](Self::selects) and its
+    /// status is one the filter names (any status when it names none).
+    #[must_use]
+    pub fn matches(&self, row: &Bead) -> bool {
+        self.selects(row)
+            && (self.statuses().is_empty()
+                || row
+                    .status
+                    .as_deref()
+                    .is_some_and(|s| self.statuses().iter().any(|w| w == s)))
     }
 }
 

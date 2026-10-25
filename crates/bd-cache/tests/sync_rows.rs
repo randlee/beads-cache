@@ -281,9 +281,9 @@ fn a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable(
 #[test]
 fn sync_then_list_of_an_unconfigured_phase_works() {
     let w = World::new();
-    let y = ScopeId::phase("y").unwrap();
+    let y = ScopeId::new("y").unwrap();
     let mut b = sc_beads::testing::bead("y1");
-    b.labels = vec!["phase-y".into()];
+    b.labels = vec!["y".into()];
     w.bd.insert(b);
     let mut c = w.cache();
     let e = c.list(&y, None, None).unwrap_err();

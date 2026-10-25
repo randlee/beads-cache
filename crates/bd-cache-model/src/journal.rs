@@ -80,7 +80,7 @@ pub enum JournalState {
     Pending,
     /// Landed in bd (verified, or marked with a read-back error).
     Applied,
-    /// Sent to the phase lead; never replayed.
+    /// Waiting for a person to resolve it; never replayed.
     Escalated,
     /// Settled by hand after an escalation; never replayed.
     Resolved,
@@ -136,7 +136,8 @@ pub struct JournalEntry {
     pub seq: Seq,
     /// Idempotency key.
     pub idem_key: IdemKey,
-    /// The scope (phase) the bead was in when the write was journaled.
+    /// The scope the bead was in when the write was journaled (the v3
+    /// `phase` column, ADR-STORE-0001).
     pub scope: Option<ScopeId>,
     /// The bead written.
     pub bead: BeadId,

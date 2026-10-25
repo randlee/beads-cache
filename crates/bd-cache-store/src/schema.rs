@@ -70,6 +70,10 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
     ("sync_state", "endpoint", "TEXT"),
     ("sync_state", "replica_id", "TEXT"),
     ("sync_state", "journal_seq", "INTEGER"),
+    // When the scope began failing, NULL once a sync passes, and the
+    // `failing_since` a post-sync hook marked handled (REQ-BDC-0704..0706).
+    ("sync_state", "failing_since", "TEXT"),
+    ("sync_state", "notified_since", "TEXT"),
 ];
 
 /// Created after the extension columns exist.

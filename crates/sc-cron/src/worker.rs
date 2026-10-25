@@ -536,9 +536,7 @@ where
                     match job.should_stop(&payload).await {
                         StopDecision::Continue => Report::Ran(job.run(&payload, deadline).await),
                         StopDecision::Disable(reason) => Report::Disable(reason),
-                        StopDecision::Delete(reason) | StopDecision::Stop(reason) => {
-                            Report::Delete(reason)
-                        }
+                        StopDecision::Delete(reason) => Report::Delete(reason),
                     }
                 })
             }

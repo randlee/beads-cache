@@ -58,7 +58,7 @@ pub struct IssuesList {
     /// The `next_cursor` of the previous page, decoded.
     #[schemars(with = "Option<String>")]
     pub(crate) cursor: Option<Cursor>,
-    /// The scope (`phase-<x>` or `<x>`).
+    /// The scope's name.
     #[schemars(with = "Option<String>")]
     pub(crate) scope: Option<ScopeId>,
 }
@@ -119,7 +119,7 @@ impl IssuesList {
         self.cursor.as_ref()
     }
 
-    /// The scope (`phase-<x>` or `<x>`).
+    /// The scope's name.
     #[must_use]
     pub fn scope(&self) -> Option<&ScopeId> {
         self.scope.as_ref()
@@ -129,7 +129,7 @@ impl IssuesList {
 /// `ready [--fresh-within-ms N]` (`/v0` listReadyWork; membership follows the bd CLI).
 #[derive(Debug, Clone, PartialEq, Eq, JsonSchema)]
 pub struct Ready {
-    /// Labels a row must all carry; the first `phase-<x>` one selects the scope.
+    /// Labels a row must all carry; the first that is a known scope's name selects the scope.
     pub(crate) label: Vec<String>,
     /// Labels a row must carry at least one of.
     pub(crate) label_any: Vec<String>,
@@ -143,7 +143,7 @@ pub struct Ready {
     pub(crate) priority: Option<i64>,
     /// At most this many rows; absent or 0 is no limit inside a scope.
     pub(crate) limit: Option<u64>,
-    /// The scope (`phase-<x>` or `<x>`).
+    /// The scope's name.
     #[schemars(with = "Option<String>")]
     pub(crate) scope: Option<ScopeId>,
     /// Ask bd for a fresh answer within this many milliseconds.
@@ -151,7 +151,7 @@ pub struct Ready {
 }
 
 impl Ready {
-    /// Labels a row must all carry; the first `phase-<x>` one selects the scope.
+    /// Labels a row must all carry; the first that is a known scope's name selects the scope.
     #[must_use]
     pub fn label(&self) -> &[String] {
         &self.label
@@ -193,7 +193,7 @@ impl Ready {
         self.limit
     }
 
-    /// The scope (`phase-<x>` or `<x>`).
+    /// The scope's name.
     #[must_use]
     pub fn scope(&self) -> Option<&ScopeId> {
         self.scope.as_ref()

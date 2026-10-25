@@ -11,7 +11,7 @@ use sc_beads::{Actor, Bead, BeadId, Timestamp};
 use serde::Serialize;
 
 use crate::journal::{JournalEntry, JournalState, Seq};
-use crate::scope::{PhaseName, ScopeId};
+use crate::scope::ScopeId;
 use crate::state::{Outage, StoreStatus};
 
 /// A bead as a read returns it: the view, its freshness and its blocked state.
@@ -36,8 +36,8 @@ pub struct GetReply {
     pub pending: u32,
     /// The outage, while one holds.
     pub outage: Option<Outage>,
-    /// The bead's scope: its phase when that scope is known, else the first
-    /// known scope that holds it; `None` for a row outside every scope.
+    /// The bead's scope: the first known scope that holds it; `None` for a
+    /// row outside every scope.
     ///
     /// Not serialized: the 0.1 Python `get` dict keeps its key set (REQ-BDC-0910).
     #[serde(skip)]
@@ -142,7 +142,7 @@ pub struct StateCounts {
     pub pending: u64,
     /// Entries landed in bd.
     pub applied: u64,
-    /// Entries sent to the phase lead.
+    /// Entries escalated for a person to resolve.
     pub escalated: u64,
     /// Entries settled by hand.
     pub resolved: u64,
@@ -191,7 +191,7 @@ impl StateCounts {
 ///
 /// ```
 /// use bd_cache_model::{JournalCounts, JournalState, ScopeId};
-/// let x = ScopeId::phase("x").unwrap();
+/// let x = ScopeId::new("x").unwrap();
 /// let mut c = JournalCounts::default();
 /// c.add(Some(&x), JournalState::Pending, 2);
 /// c.add(None, JournalState::Escalated, 1);
@@ -204,7 +204,7 @@ impl StateCounts {
 pub struct JournalCounts {
     /// Every entry.
     pub total: StateCounts,
-    /// The entries of each scope (the entry's phase at write time).
+    /// The entries of each scope (the entry's scope at write time).
     pub by_scope: BTreeMap<ScopeId, StateCounts>,
     /// The entries journaled with no scope.
     pub unscoped: StateCounts,
@@ -232,8 +232,9 @@ pub struct EscalatedItem {
     pub op: String,
     /// Who wrote it.
     pub actor: Actor,
-    /// The entry's phase.
-    pub phase: Option<PhaseName>,
+    /// The entry's scope; `phase` on the wire, the v3 name (ADR-STORE-0001).
+    #[serde(rename = "phase")]
+    pub scope: Option<ScopeId>,
     /// Why it escalated.
     pub reason: String,
 }

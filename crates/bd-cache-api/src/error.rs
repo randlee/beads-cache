@@ -15,13 +15,13 @@
 //! | `fix` | `suggested_action` |
 //! | `reason` | `details.v0_code` (else the table's `v0_code`) |
 //! | `unmet` | `details.unmet: {status?: {expected, actual}, assignee?: …}` |
-//! | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*`, same names (`known` in label form) |
-//! | `phase` | `details.scope`, in label form (`phase-<x>`) |
+//! | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*`, same names (`known` as scope names) |
+//! | (an error that can come from bd) | `details.outage: bool`, true only when bd could not be reached (ADR-BDC-0005) |
+//! | `phase` (the v3 name) | `details.scope`, the scope's name |
 //!
 //! The api crate depends on neither the store nor the sync crate, so their
 //! configuration errors reach it as text: a front end maps them with
-//! [`ApiError::config_invalid`], and the tick's refusals with
-//! [`ApiError::tick_refusal`].
+//! [`ApiError::config_invalid`].
 
 use std::fmt;
 
@@ -108,9 +108,6 @@ const USAGE_EXIT: Option<i32> = Some(2);
 const TYPED_EXIT: Option<i32> = Some(3);
 
 /// The error table of contract §4: code, kind, exit, retryable and `v0_code`.
-///
-/// The `TICK_<REFUSAL>` family is not a row here: its kind depends on the
-/// refusal, see [`ApiError::tick_refusal`].
 pub const ERROR_TABLE: &[ErrorSpec] = &[
     row("USAGE", InvalidInput, USAGE_EXIT, false, None),
     row(
@@ -315,7 +312,7 @@ impl ApiError {
     }
 
     /// The process exit from the table: 2 for `USAGE`, 3 otherwise; `None`
-    /// for a code that never ends a command (`BD_WRITE_FAILED`, `TICK_*`).
+    /// for a code that never ends a command (`BD_WRITE_FAILED`).
     #[must_use]
     pub fn exit_code(&self) -> Option<i32> {
         self.exit
@@ -418,10 +415,10 @@ impl ApiError {
     pub fn scope_required(known: &[ScopeId]) -> Self {
         Self::table(
             "SCOPE_UNKNOWN",
-            "a list-like read must name a known scope, with scope or a phase-<x> label",
+            "a list-like read must name a known scope, with scope or a label that is a known scope's name",
         )
-        .with_detail("known", labels(known))
-        .with_suggested_action("pass scope, or a phase-<x> label of one of the known scopes")
+        .with_detail("known", names(known))
+        .with_suggested_action("pass scope, or a label named after one of the known scopes")
     }
 
     /// `SCOPE_UNKNOWN` for a scope with no completed sync since it was last
@@ -429,17 +426,17 @@ impl ApiError {
     /// never answers it with an empty list.
     #[must_use]
     pub fn scope_not_served(scope: &ScopeId, known: &[ScopeId]) -> Self {
-        let label = scope.label();
+        let name = scope.name();
         Self::table(
             "SCOPE_UNKNOWN",
             format!(
-                "scope {label} has no completed sync (never synced, or evicted since): the \
+                "scope {name} has no completed sync (never synced, or evicted since): the \
                  cache does not serve it"
             ),
         )
-        .with_detail("scope", label.as_str())
-        .with_detail("known", labels(known))
-        .with_suggested_action(format!("bdc cache refresh scopes --scope {label}"))
+        .with_detail("scope", name)
+        .with_detail("known", names(known))
+        .with_suggested_action(format!("bdc cache refresh scopes --scope {name}"))
     }
 
     /// `CONFIG_INVALID`, keeping the store's or sync's code in `details.source`.
@@ -468,35 +465,6 @@ impl ApiError {
         e.with_detail("source", source)
     }
 
-    /// The `TICK_<REFUSAL>` error of one tick refusal (contract §4).
-    ///
-    /// `refusal` is bd-cache-sync's `RefusalCode::as_str()` (e.g. `busy`).
-    /// Config and phase-file refusals are `invalid_input`; an undelivered
-    /// message or a missing lead is `unavailable` (retryable); `busy` is
-    /// `conflict`. A refusal this crate does not know is `internal`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bd_cache_api::{ApiError, ErrorKind};
-    /// let e = ApiError::tick_refusal("busy", "an earlier tick holds the cache");
-    /// assert_eq!((e.code(), e.kind()), ("BD_CACHE.TICK_BUSY", ErrorKind::Conflict));
-    /// assert_eq!(e.exit_code(), None);
-    /// ```
-    #[must_use]
-    pub fn tick_refusal(refusal: &str, message: impl Into<String>) -> Self {
-        let kind = tick_refusal_kind(refusal);
-        Self {
-            kind,
-            code: format!("{CODE_PREFIX}TICK_{}", refusal.to_ascii_uppercase()),
-            message: message.into(),
-            details: Map::new(),
-            suggested_action: None,
-            exit: None,
-            retryable: kind == ErrorKind::Unavailable,
-        }
-    }
-
     /// `INTERNAL`: a bug, such as a caught panic.
     #[must_use]
     pub fn internal(message: impl Into<String>) -> Self {
@@ -513,37 +481,9 @@ impl ApiError {
     }
 }
 
-/// The kind of a tick refusal, by its `RefusalCode` name.
-fn tick_refusal_kind(refusal: &str) -> ErrorKind {
-    match refusal {
-        // Configuration and phase-file refusals.
-        "missing_team"
-        | "missing_fallback_lead"
-        | "bad_member"
-        | "malformed_phases"
-        | "empty_phases"
-        | "phases_dir_unreadable"
-        | "phase_not_named"
-        | "phase_file_unreadable"
-        | "phase_file_too_large"
-        | "phase_file_not_regular"
-        | "phase_file_invalid"
-        | "phase_root_not_returned"
-        | "phase_file_missing"
-        | "phase_files_too_many" => InvalidInput,
-        // An undelivered message, or a lead that is missing.
-        "sync_failure_undelivered"
-        | "outage_undelivered"
-        | "escalation_undelivered"
-        | "escalation_no_lead" => Unavailable,
-        "busy" => Conflict,
-        _ => Internal,
-    }
-}
-
-/// Scope ids in label form (`phase-<x>`), as every scope appears in the api.
-fn labels(scopes: &[ScopeId]) -> Vec<String> {
-    scopes.iter().map(ScopeId::label).collect()
+/// Scope names, as every scope appears in the api.
+fn names(scopes: &[ScopeId]) -> Vec<String> {
+    scopes.iter().map(|s| s.name().to_owned()).collect()
 }
 
 impl fmt::Display for ApiError {
@@ -582,11 +522,11 @@ impl From<&CacheError> for ApiError {
             }
             CacheError::SyncFailed { scope, cause, .. } => {
                 out = out
-                    .with_detail("scope", json!(scope.as_ref().map(ScopeId::label)))
+                    .with_detail("scope", json!(scope.as_ref().map(ScopeId::name)))
                     .with_detail("cause", json!(cause));
             }
             CacheError::ScopeUnknown { known, .. } => {
-                out = out.with_detail("known", labels(known));
+                out = out.with_detail("known", names(known));
             }
             CacheError::BdUnavailable { source, .. } => {
                 // No source: the caller's own timeout cut the call (a miss
@@ -595,6 +535,12 @@ impl From<&CacheError> for ApiError {
                 out = out.with_detail("timed_out", timed_out);
             }
             _ => {}
+        }
+        // Whether bd could not be reached, for every error that can come
+        // from bd (ADR-BDC-0005): a BD_LIST_FAILED from a bd that answered
+        // is `false`.
+        if let Some(outage) = e.outage() {
+            out = out.with_detail("outage", outage);
         }
         if let Some(cause) = e.backend_cause() {
             out = out.with_detail(

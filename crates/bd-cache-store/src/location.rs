@@ -13,7 +13,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId, StoreCause};
+use bd_cache_model::{CacheError, ConfigError, RepoConfig, ScopeId, StoreCause};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -493,22 +493,24 @@ pub enum ConfigLoadError {
         /// Why.
         source: ConfigError,
     },
-    /// A `scopes` entry is not a phase name.
+    /// A `scopes` entry is not a scope (REQ-BDC-0702).
     Scope {
         /// The file.
         path: PathBuf,
-        /// The entry as written.
+        /// The entry's name, or its label for a plain string entry.
         value: String,
+        /// What is wrong with it.
+        reason: String,
     },
 }
 
-/// The fix of [`ConfigLoadError::Scope`]: it states the phase-name rule in the
-/// model's one text ([`PhaseName::RULE`], RBP-F037).
+/// The fix of [`ConfigLoadError::Scope`]: it states the scope-name rule in the
+/// model's one text ([`ScopeId::RULE`], RBP-F037).
 static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
     format!(
-        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
-         without the phase- prefix",
-        PhaseName::RULE
+        "write each scopes entry of .beads/bd-cache.toml as a label, or as a table with a \
+         name ({}) and a bd filter: labels, labels_any, status, type, assignee, or all = true",
+        ScopeId::RULE
     )
 });
 
@@ -569,9 +571,13 @@ impl fmt::Display for ConfigLoadError {
             Self::Parse { path, .. } => {
                 write!(f, "invalid {}; fix: {}", path.display(), self.fix())
             }
-            Self::Scope { path, value } => write!(
+            Self::Scope {
+                path,
+                value,
+                reason,
+            } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: {}",
+                "invalid {}: scopes entry {value:?} {reason}; fix: {}",
                 path.display(),
                 self.fix()
             ),
@@ -592,7 +598,7 @@ impl std::error::Error for ConfigLoadError {
 /// Loads `<repo_root>/.beads/bd-cache.toml` into a [`RepoConfig`]: the one loader.
 ///
 /// A missing file is [`RepoConfig::default`]. Every `scopes` entry must be a
-/// phase name (with or without `phase-`); [`RepoConfig::cache_config`] would
+/// scope ([`RepoConfig::scope_list`]); [`RepoConfig::cache_config`] would
 /// otherwise skip it silently.
 ///
 /// # Errors
@@ -609,7 +615,7 @@ impl std::error::Error for ConfigLoadError {
 /// std::fs::create_dir_all(root.join(".beads"))?;
 /// assert_eq!(bd_cache_store::load_repo_config(root)?, Default::default());
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "scopes = [\"bk\"]\n")?;
-/// assert_eq!(bd_cache_store::load_repo_config(root)?.scopes, ["bk"]);
+/// assert_eq!(bd_cache_store::load_repo_config(root)?.scopes, ["bk".into()]);
 /// std::fs::write(root.join(".beads").join("bd-cache.toml"), "surprise = 1\n")?;
 /// assert!(bd_cache_store::load_repo_config(root).is_err());
 /// # Ok(())
@@ -622,14 +628,15 @@ pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError>
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(RepoConfig::default()),
         Err(source) => return Err(ConfigLoadError::Read { path, source }),
     };
-    let config = RepoConfig::from_toml(&text).map_err(|source| ConfigLoadError::Parse {
+    let config = RepoConfig::parse(&text).map_err(|source| ConfigLoadError::Parse {
         path: path.clone(),
         source,
     })?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.scope_list() {
         return Err(ConfigLoadError::Scope {
             path,
-            value: bad.clone(),
+            value: bad.entry,
+            reason: bad.reason,
         });
     }
     Ok(config)

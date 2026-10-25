@@ -30,6 +30,17 @@ pub struct SyncState {
     pub last_ok_at: Option<Timestamp>,
     /// The latest failure, `CODE: detail`.
     pub last_error: Option<String>,
+    /// When the scope began failing: the start of the first sync of the
+    /// current run of failures and outages, `None` once a sync passes
+    /// (REQ-BDC-0704). Not serialized: the v3 `phases` rows keep their keys
+    /// (REQ-BDC-0812); front ends report it on their own.
+    #[serde(skip)]
+    pub failing_since: Option<Timestamp>,
+    /// The `failing_since` a post-sync hook marked as handled
+    /// (`scopes announce --since`, REQ-BDC-0705, 0706); the failure is
+    /// notified while the two are equal. Not serialized, as `failing_since`.
+    #[serde(skip)]
+    pub notified_since: Option<Timestamp>,
 }
 
 impl SyncState {
@@ -41,7 +52,16 @@ impl SyncState {
             last_started_at: None,
             last_ok_at: None,
             last_error: None,
+            failing_since: None,
+            notified_since: None,
         }
+    }
+
+    /// True when the scope is failing and a hook marked this run of
+    /// failures as handled (`notified_since == failing_since`).
+    #[must_use]
+    pub fn notified(&self) -> bool {
+        self.failing_since.is_some() && self.notified_since == self.failing_since
     }
 }
 
@@ -124,7 +144,7 @@ impl BaseEntry {
     }
 }
 
-/// Open work for the stop rule (REQ-BDC-0707).
+/// The journal's open work (`cache health`, the post-sync hook's request).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct OpenWork {
     /// Pending entries.
@@ -156,7 +176,7 @@ pub struct ScopeStatus {
 pub struct StoreStatus {
     /// The `meta` table.
     pub meta: BTreeMap<String, String>,
-    /// Journal counts keyed `<phase>:<state>`; entries with no phase use `None`,
+    /// Journal counts keyed `<scope>:<state>`; entries with no scope use `None`,
     /// as the Python implementation prints it.
     pub journal: BTreeMap<String, u64>,
     /// Per-scope sync state and bead counts, by scope.

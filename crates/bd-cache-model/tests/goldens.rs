@@ -11,7 +11,7 @@
 use std::collections::BTreeMap;
 
 use bd_cache_model::{
-    CacheError, CallKind, DrainReport, EscalatedItem, GuardKey, PhaseName, PreconditionReason,
+    CacheError, CallKind, DrainReport, EscalatedItem, GuardKey, PreconditionReason,
     ReadyBasis, ScopeId, Seq, SyncCause, Unmet,
 };
 use sc_beads::testing::id;
@@ -59,7 +59,7 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::SyncFailed {
             detail: d("BD_CACHE.BD_CONTRACT: b2: status"),
-            scope: Some(ScopeId::phase("x").unwrap()),
+            scope: Some(ScopeId::new("x").unwrap()),
             cause: Some(SyncCause::BdContract),
             source: None,
         },
@@ -92,14 +92,14 @@ fn every_error() -> Vec<CacheError> {
             detail: d("cache schema 99, this code is 3"),
         },
         CacheError::PruneBlocked {
-            detail: d("phase x has 1 pending or escalated writes"),
+            detail: d("scope x has 1 pending or escalated writes"),
         },
         CacheError::NotEscalated {
             detail: d("journal entry 1 is pending"),
         },
         CacheError::ScopeUnknown {
-            detail: d("phase zz is not a known scope"),
-            known: vec![ScopeId::phase("x").unwrap(), ScopeId::phase("y").unwrap()],
+            detail: d("scope zz is not a known scope"),
+            known: vec![ScopeId::new("x").unwrap(), ScopeId::new("y").unwrap()],
         },
         CacheError::StoreFailed {
             detail: d("open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked"),
@@ -150,11 +150,11 @@ fn golden_json_for_every_code() {
                "fix": "precondition keys must be status and assignee"}),
         json!({"ok": false, "code": "BD_CACHE.SCHEMA_VERSION", "detail": "cache schema 99, this code is 3",
                "fix": "upgrade bd-cache, or move the file aside to rebuild it from bd"}),
-        json!({"ok": false, "code": "BD_CACHE.PRUNE_BLOCKED", "detail": "phase x has 1 pending or escalated writes",
+        json!({"ok": false, "code": "BD_CACHE.PRUNE_BLOCKED", "detail": "scope x has 1 pending or escalated writes",
                "fix": "drain, or resolve the escalated entries with the lead, then prune"}),
         json!({"ok": false, "code": "BD_CACHE.NOT_ESCALATED", "detail": "journal entry 1 is pending",
                "fix": "resolve only entries listed as escalated in status"}),
-        json!({"ok": false, "code": "BD_CACHE.SCOPE_UNKNOWN", "detail": "phase zz is not a known scope",
+        json!({"ok": false, "code": "BD_CACHE.SCOPE_UNKNOWN", "detail": "scope zz is not a known scope",
                "fix": "sync the scope first, or use one of the known scopes", "known": ["x", "y"]}),
         json!({"ok": false, "code": "BD_CACHE.STORE_FAILED",
                "detail": "open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked",
@@ -405,7 +405,7 @@ fn reply_goldens() {
             bead: id("b1"),
             op: "update".into(),
             actor: sc_beads::testing::actor("san"),
-            phase: Some(PhaseName::new("x").unwrap()),
+            scope: Some(ScopeId::new("x").unwrap()),
             reason: "bd refused: precondition changed (exit 13)".into(),
         }],
         deferred: vec![Seq::new(3)],
@@ -427,7 +427,7 @@ fn reply_goldens() {
     );
     // a-1 amendment 2: ready replies carry the scope's last_ok_at and the basis' fetch time.
     let reply = bd_cache_model::ReadyReply {
-        scope: ScopeId::phase("x").unwrap(),
+        scope: ScopeId::new("x").unwrap(),
         last_ok_at: Some(Timestamp::parse("2026-10-23T10:00:00Z").unwrap()),
         basis: ReadyBasis::Fresh {
             fetched_at: Timestamp::parse("2026-10-23T10:00:05Z").unwrap(),
@@ -563,7 +563,7 @@ fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
         scope_last_ok_at: None,
         pending: 0,
         outage: None,
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
     };
     let v = serde_json::to_value(&reply).unwrap();
     let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
@@ -572,7 +572,7 @@ fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
     let entry = bd_cache_model::JournalEntry {
         seq: Seq::new(7),
         idem_key: bd_cache_model::IdemKey::new("k1").unwrap(),
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
         bead: id("b1"),
         op: bd_cache_model::Op::Close { reason: None },
         precondition: sc_beads::Guards::default(),

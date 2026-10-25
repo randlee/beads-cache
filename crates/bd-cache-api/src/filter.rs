@@ -4,8 +4,9 @@
 //! The core lists a scope and filters nothing else (`Cache::list(scope)`);
 //! every filter here runs on the overlaid view, so a list agrees with `get`.
 //!
-//! - **Scope.** `scope` when given, else the first `phase-<x>` label. Every
-//!   label is still applied as an AND filter.
+//! - **Scope.** `scope` when given, else the first label that is the name of
+//!   a known scope (REQ-BDC-0702). Every label is still applied as an AND
+//!   filter.
 //! - **Default exclusions** of `issues list`: closed rows, templates and
 //!   `gate` rows, unless `status` or `all` is set. Infra types are unknown to
 //!   the cache, so they are not excluded.
@@ -18,9 +19,19 @@ use crate::request::{IssuesList, Ready};
 /// The issue type bd gives gate rows.
 const GATE_TYPE: &str = "gate";
 
-/// The scope a list-like read names: `scope`, else the first `phase-<x>` label.
-pub(crate) fn select_scope(scope: Option<&ScopeId>, labels: &[String]) -> Option<ScopeId> {
-    scope.cloned().or_else(|| ScopeId::from_labels(labels))
+/// The scope a list-like read names: `scope`, else the first label that is
+/// the name of one of the `known` scopes.
+pub(crate) fn select_scope(
+    scope: Option<&ScopeId>,
+    labels: &[String],
+    known: &[ScopeId],
+) -> Option<ScopeId> {
+    scope.cloned().or_else(|| {
+        labels
+            .iter()
+            .filter_map(|l| ScopeId::parse(l))
+            .find(|s| known.contains(s))
+    })
 }
 
 /// True for a row `issues list` leaves out unless `status` or `all` is set.
@@ -85,13 +96,24 @@ mod tests {
         }
     }
 
+    /// No label prefix names a scope (ANC-009): the first label that is a
+    /// known scope's name does, unless `scope` is given.
     #[test]
-    fn the_first_phase_label_selects_the_scope_unless_scope_is_given() {
-        let labels = vec!["x".to_owned(), "phase-a".to_owned(), "phase-b".to_owned()];
-        assert_eq!(select_scope(None, &labels), ScopeId::phase("a").ok());
-        let b = ScopeId::phase("b").unwrap();
-        assert_eq!(select_scope(Some(&b), &labels), Some(b));
-        assert_eq!(select_scope(None, &["x".to_owned()]), None);
+    fn the_first_label_naming_a_known_scope_selects_it_unless_scope_is_given() {
+        let id = |s: &str| ScopeId::new(s).unwrap();
+        let known = [id("a"), id("b")];
+        let labels = vec!["x".to_owned(), "a".to_owned(), "b".to_owned()];
+        assert_eq!(select_scope(None, &labels, &known), Some(id("a")));
+        assert_eq!(
+            select_scope(Some(&id("b")), &labels, &known),
+            Some(id("b"))
+        );
+        assert_eq!(select_scope(None, &["x".to_owned()], &known), None);
+        assert_eq!(
+            select_scope(None, &["x-a".to_owned()], &known),
+            None,
+            "no prefix is stripped"
+        );
     }
 
     #[test]

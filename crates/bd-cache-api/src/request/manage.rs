@@ -1,7 +1,7 @@
 //! Surface (b) requests: the `cache` management commands (contract §6).
 
 use bd_cache_model::{IdemKey, ScopeId, Seq};
-use sc_beads::{Actor, BeadId};
+use sc_beads::{Actor, Bead, BeadId, BlockedRow, Timestamp};
 use schemars::JsonSchema;
 
 /// `cache status`: no members.
@@ -28,6 +28,77 @@ impl CacheHealth {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 #[non_exhaustive]
 pub struct CacheScopes;
+
+/// `cache scopes ingest --scope S --rows JSON [--blocked JSON] [--revision R]`:
+/// a consumer's own sync feeds the cache (ANC-003; REQ-BDC-0007, 0008, 0502).
+///
+/// Every row has passed the strict row decoder (`sc_beads::parse_bd_row`).
+#[derive(Debug, Clone, PartialEq, JsonSchema)]
+pub struct CacheScopesIngest {
+    /// The scope fed.
+    #[schemars(with = "String")]
+    pub(crate) scope: ScopeId,
+    /// Its rows, as `bd list --json` prints them.
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub(crate) rows: Vec<Bead>,
+    /// Its blocked rows: `{id, blocked_by}`, or `bd blocked --json` rows.
+    #[schemars(with = "Vec<serde_json::Value>")]
+    pub(crate) blocked: Vec<BlockedRow>,
+    /// The source revision the rows were read at, stored with each.
+    pub(crate) revision: Option<String>,
+}
+
+impl CacheScopesIngest {
+    /// The scope fed.
+    #[must_use]
+    pub fn scope(&self) -> &ScopeId {
+        &self.scope
+    }
+
+    /// Its rows.
+    #[must_use]
+    pub fn rows(&self) -> &[Bead] {
+        &self.rows
+    }
+
+    /// Its blocked rows.
+    #[must_use]
+    pub fn blocked(&self) -> &[BlockedRow] {
+        &self.blocked
+    }
+
+    /// The source revision, when given.
+    #[must_use]
+    pub fn revision(&self) -> Option<&str> {
+        self.revision.as_deref()
+    }
+}
+
+/// `cache scopes announce <scope> --since TS`: the compare-and-set mark of a
+/// scope's failure as handled (REQ-BDC-0705, 0706).
+#[derive(Debug, Clone, PartialEq, Eq, JsonSchema)]
+pub struct CacheScopesAnnounce {
+    /// The scope.
+    #[schemars(with = "String")]
+    pub(crate) scope: ScopeId,
+    /// The `failing_since` the caller was told; marked only while it is current.
+    #[schemars(with = "String")]
+    pub(crate) since: Timestamp,
+}
+
+impl CacheScopesAnnounce {
+    /// The scope.
+    #[must_use]
+    pub fn scope(&self) -> &ScopeId {
+        &self.scope
+    }
+
+    /// The `failing_since` the caller was told.
+    #[must_use]
+    pub fn since(&self) -> &Timestamp {
+        &self.since
+    }
+}
 
 /// `cache refresh scopes [S…]`.
 #[derive(Debug, Clone, PartialEq, Eq, JsonSchema)]
@@ -145,7 +216,7 @@ impl JournalGet {
 pub enum JournalListState {
     /// Waiting for the drain.
     Pending,
-    /// Sent to the phase lead (the default).
+    /// Escalated, for a person to resolve (the default).
     #[default]
     Escalated,
 }
