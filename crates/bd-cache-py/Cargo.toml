@@ -15,6 +15,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bd-cache.workspace = true
+bd-cache-api.workspace = true
 bd-cache-model.workspace = true
 bd-cache-store.workspace = true
 sc-bd-cli.workspace = true

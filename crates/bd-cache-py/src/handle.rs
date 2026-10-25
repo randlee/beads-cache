@@ -13,6 +13,7 @@ use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use bd_cache_api::{CacheFacts, Command, decode, execute};
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
 use pyo3::exceptions::{PyBaseException, PyOSError, PyValueError};
 use pyo3::prelude::*;
@@ -21,8 +22,9 @@ use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
 use crate::compose::{self, Composition, OpenError, OpenKind, Opened, Overrides};
+use crate::convert::to_py;
 use crate::convert::{json_text, positive_seconds, reply, seconds};
-use crate::error::{ClosedError, bad_argument, cache_err};
+use crate::error::{ClosedError, api_err, bad_argument, cache_err};
 use crate::slot::{NotRun, Slot};
 
 /// The cache of one repository: the SQLite store, the flock drain lock and the `bd` CLI.
@@ -52,6 +54,8 @@ struct Inner {
     cache: Composition,
     /// The clock the cache and its backend share; every deadline is minted from it.
     clock: Arc<dyn Clock>,
+    /// The cache file and `metadata.json` facts the api reports.
+    facts: CacheFacts,
 }
 
 impl Inner {
@@ -61,6 +65,7 @@ impl Inner {
             Self {
                 cache: opened.cache,
                 clock: opened.clock,
+                facts: opened.facts,
             },
             opened.path,
         )
@@ -407,6 +412,15 @@ impl PyCache {
     fn open_work<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         self.call(py, |c| c.cache.open_work())
     }
+
+    /// The 0.2 namespaces: `cache.beads` and `cache.manage` (`api.rs`).
+    ///
+    /// Resolved here, not as class attributes, so the 0.1 handle's public names stay
+    /// exactly the 0.1 set (`dir(Cache)`); `cache.beads` and `cache.manage` work as
+    /// ordinary attributes all the same.
+    fn __getattr__(slf: &Bound<'_, Self>, name: &str) -> PyResult<Py<PyAny>> {
+        crate::api::namespace(slf, name)
+    }
 }
 
 /// Maps an open failure to its Python exception.
@@ -457,6 +471,29 @@ fn closed_message(not_run: &NotRun) -> String {
 }
 
 impl PyCache {
+    /// One 0.2 command: decode the keyword request, execute it with the GIL
+    /// released, return `data` as Python objects (`api.rs`).
+    ///
+    /// The request goes through `bd_cache_api::decode` and nothing else, so the
+    /// validation, the codes and the data are the CLI's (REQ-BDC-0807).
+    pub(crate) fn api_call<'py>(
+        &self,
+        py: Python<'py>,
+        command: Command,
+        request: &serde_json::Value,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        let request = decode(command, request).map_err(|e| api_err(py, &e))?;
+        let outcome = py.detach(|| {
+            self.inner
+                .with(|i| execute(&mut i.cache, &request, &i.facts).and_then(|d| d.to_json()))
+        });
+        match outcome {
+            Ok(Ok(data)) => to_py(py, &data),
+            Ok(Err(e)) => Err(api_err(py, &e)),
+            Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
+        }
+    }
+
     /// Runs `f` with the GIL released and maps a typed error to `CacheError`.
     ///
     /// The lock is taken inside the detached section, so a thread waiting for
