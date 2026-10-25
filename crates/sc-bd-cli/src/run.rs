@@ -332,6 +332,23 @@ mod tests {
     use super::*;
     use sc_beads::CliVersion;
 
+    /// Writes an executable test script through a `sh` child, so this
+    /// multi-threaded test process never holds a write fd on it that a fork in a
+    /// concurrent test could inherit and turn the exec into ETXTBSY (os error 26);
+    /// a rename would not help, because it keeps the same inode.
+    #[cfg(unix)]
+    fn write_script(path: &std::path::Path, contents: &str) {
+        let status = std::process::Command::new("/bin/sh")
+            .arg("-c")
+            .arg("printf '%s' \"$1\" > \"$2\" && chmod 755 \"$2\"")
+            .arg("sh")
+            .arg(contents)
+            .arg(path)
+            .status()
+            .unwrap();
+        assert!(status.success(), "cannot write {}", path.display());
+    }
+
     fn probe(client: CliClient, version: (u32, u32, u32)) -> CliProbe {
         CliProbe {
             client,
@@ -433,21 +450,19 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_hanging_version_probe_is_stopped_at_its_bound() {
-        use std::os::unix::fs::PermissionsExt as _;
         let dir = env::temp_dir().join(format!("sc-bd-cli-probe-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let pid_file = dir.join("grandchild");
         let script = dir.join("hanging-bd");
-        std::fs::write(
+        // Written by a child so no inherited write fd can make the exec ETXTBSY.
+        write_script(
             &script,
-            format!(
+            &format!(
                 "#!/bin/sh\nsleep 30 &\necho $! > '{}'\nwait\n",
                 pid_file.display()
             ),
-        )
-        .unwrap();
-        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+        );
 
         let started = Instant::now();
         let err = probe_version_output_within(script.to_str().unwrap(), Duration::from_secs(2))
