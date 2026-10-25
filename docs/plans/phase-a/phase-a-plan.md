@@ -1,7 +1,12 @@
 # Phase A — cache core, shared beads backend and cron prototype
 
-Status: planned (scope review round 1, critical review rounds 1 and 2
-applied). P-1 and P-6 are done; P-2, P-3 and P-5 are open, with fallbacks below.
+Status: complete (2026-10-25). Every sprint, a-1 to a-8, plus the phase-end
+fixes landed on `integrate/phase-a` after QA and CI were green, then on
+`develop` (#54 at `e98701d`; the close-out PRs follow, through #68 at
+`61c7ee7` and #67 at `39c8e25`). The final planted-bug run caught 119 of 121
+mutants; the two survivors, S27 and S28, are the justified pair.
+Prerequisites: P-1, P-3, P-5 and P-6 are done. P-2 still waits on Rand's
+decision on the v3 extensions (fenix agreed to all four).
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
@@ -41,7 +46,7 @@ requirement ids, not the baseline.
 | P-3 | Resolved for errors (user, 2026-10-24): btit's `BeadsError` stays unchanged; cache errors are a separate `BeadsCacheError` in `sc-beads` (wraps `BeadsError`). The tolerant/strict row split stands as planned. | — | — |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
 | P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
-| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
+| P-5 | Owner: grecon@hermes, who monitors gastownhall/beads for releases (Rand, 2026-10-24; notified through ATM). Until there is a permanent trigger, a beads release is checked with the `checking-beads-compatibility` skill. The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
 
 ## Boundary map
 

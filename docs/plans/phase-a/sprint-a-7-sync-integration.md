@@ -1,7 +1,7 @@
 ---
 id: a-7
 phase: a
-status: in-review
+status: complete
 closure_type: integration
 target_boundary: bd-cache-sync and phase composition
 vertical_rationale: "The bd-cache-sync boundary does not exist yet: this sprint creates it, then composes it with sc-bd-cli, sc-cron, bd-cache-store and bd-cache. Its only contract (EscalationSender) was defined in a-1 and is amended by the ADR-MODEL-0003 a-7 amendment."

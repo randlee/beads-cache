@@ -1,7 +1,7 @@
 ---
 id: a-2
 phase: a
-status: in-review
+status: complete
 closure_type: boundary
 target_boundary: sc-bd-cli
 track: backend

@@ -1,7 +1,7 @@
 ---
 id: a-8
 phase: a
-status: in-review
+status: complete
 closure_type: integration
 target_boundary: bd-cache-py and its composition
 vertical_rationale: "The bd-cache-py boundary does not exist yet: this sprint creates it and composes the real store, sc-bd-cli and core behind it, so atm-bd can call the cache in process without sc-runtime."
