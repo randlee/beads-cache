@@ -4,20 +4,13 @@ Status: phase a in progress (see the Phases and Sprints tables).
 
 ## Context
 
-beads-cache extracts the beads SQLite cache in use today in atm-core's
-`atm-bd-orchestration` skill into its own project, baselined on that
-implementation and delivered first as an MVP. It is built against
+beads-cache is the beads SQLite cache: a cache, a CLI for configuration and
+management, and a PyO3 API (ADR-BDC-0010), delivered first as an MVP. It is built against
 sc-runtime, which is being specified in parallel, so phases here may wait
 on sc-runtime milestones; record each such dependency in the phase row.
 
-- Baseline (the contract): `.claude/skills/atm-bd-orchestration/scripts/BD-CACHE.md`
-  in atm-core, introduced by https://github.com/randlee/atm-core/pull/2219.
-  Reference implementation: `bd_cache.py`, `bd_models.py` and `bd_cache_cron.py`
-  in the same directory. Acceptance suite: `tests/test_bd_cache.py` (44 tests)
-  and `tests/test_bd_cache_cron.py` (13), with fixtures in
-  `tests/fixtures/bd-1.3.1/`. Design tracker:
-  https://github.com/randlee/atm-bd-orchestration/issues/557. Where BD-CACHE.md
-  and the Python code disagree, report it on that issue.
+- Store format: BD-CACHE v3 (`PRAGMA user_version` 3), pinned by the DDL golden
+  in `crates/bd-cache-store/tests/compat_format/` (ADR-STORE-0001).
 - Upstream dependency: sc-runtime (https://github.com/randlee/sc-runtime).
 
 ## Conventions

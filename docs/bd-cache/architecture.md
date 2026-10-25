@@ -41,8 +41,8 @@ Decision: a `Cache` is `Send` and deliberately `!Sync` (a
 `PhantomData<Cell<()>>` marker, whatever the store type is). Every verb runs
 synchronously on the caller's thread; reads take `&self`, verbs that store
 or call bd take `&mut self`. There is no internal locking and no background
-thread: a scheduler (`bd-cache-sync` on sc-cron, or atm-bd's
-`bd_cache_cron.py` through the bindings) owns one `Cache` per cache file and
+thread: a scheduler (`bd-cache-sync` on sc-cron, or a consumer's
+script through the bindings) owns one `Cache` per cache file and
 calls `drain` and `sync` from its tick. Async front ends move the `Cache`
 into a blocking task, or keep it behind their own mutex. Across processes,
 the drain lock (`DrainLock`) admits one drainer, and the store's

@@ -70,7 +70,7 @@ Context: `CacheStore` methods may fail for the store's own reasons (SQLite
 errors, file I/O, a stored value that does not decode), but `CacheError` had
 no code for them. `bd-cache-store` reported them as `NO_DATABASE`, with the
 source chain flattened into the detail text. The baseline
-(`docs/baseline/BD-CACHE.md`, CLI table) has no v3 code for store or SQLite
+(the 0.1 CLI table) has no v3 code for store or SQLite
 failures, so none could be reused.
 
 Decision: add the additive code `BD_CACHE.STORE_FAILED`,
@@ -117,7 +117,7 @@ Decision (additive; no change to the wire format):
    runs on every push.
 3. **The unreachable set.** `UNREACHABLE_CODES` is `BD_UNAVAILABLE`,
    `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED`: the set of
-   ADR-CORE-0101 (the drain's stop policy) and `bd_cache.py`'s `UNREACHABLE`.
+   ADR-CORE-0101 (the drain's stop policy) and another v3 writer's `UNREACHABLE`.
    `is_unreachable` is that set by variant, a test keeps the constant and the
    method equal, and the drain (`bd-cache/src/drain.rs`) now calls the method
    instead of its own copy (R11).
@@ -214,7 +214,7 @@ Decision:
 - The 0.1 wire is unchanged: `GetReply.scope` is `#[serde(skip)]`, and
   `JournalEntry` serializes the same fourteen keys, with `last_error` as
   `legacy_last_error()` (the error, `" | "`, the note), byte-identical to
-  what `bd_cache.py` stores. `WriteOutcome` is not serialized: `bd-cache-api`
+  what another v3 writer stores. `WriteOutcome` is not serialized: `bd-cache-api`
   has its own data model.
 
 Consequences: the 0.1 Python dicts keep their key sets
@@ -333,7 +333,7 @@ Decision:
 - `CacheStore::has_entries_since(at) -> bool`: "something is pending, or was
   applied at or after `at`". The provided body loads both lists; an
   implementation answers from indexes. An entry's applied time is its
-  `applied_at`, else, for an entry applied by `bd_cache.py` (which sets only
+  `applied_at`, else, for an entry applied by another v3 writer (which sets only
   `updated_at`), its `updated_at`; an entry whose time cannot be read counts as
   applied since (conservative). `applied_since` follows the same rule (ADR-STORE-0004). Contract rule `has_entries_since_rules`.
   Port rule (lead rulings S25/S26, bc-lead, 2026-10-24): though both take `&self`, an
@@ -376,7 +376,7 @@ model's public contract.
 Decision: no toml type appears in the API. `schema_packages` is
 `Vec<SchemaPackageRef>`, an opaque entry the later schema-package phase will
 open up (`docs/architecture.md`, Repository configuration). `tick` is a
-typed `TickConfig` (`team`, `fallback_lead`, `phases_dir`, `phases`;
+typed `TickConfig` (the keys of the `[tick]` table, removed by sprint b-7;
 unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
 toml stays a normal dependency, used only inside `config.rs`; the
 `bd-cache-model -> toml` edge is listed in the Crate Layout of

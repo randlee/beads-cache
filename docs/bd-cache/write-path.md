@@ -62,7 +62,7 @@ stored entry and its stored `changed`, never a recomputed one (the original
 overlay is already in the view, so a recomputation is `false`); `before` and
 `after` are both the current view. `WriteOutcome.changed` is an
 `Option<bool>` (lead ruling S68, bc-lead, 2026-10-25): `Some(stored)` when the
-entry stores it; for an entry journaled without it (by `bd_cache.py`, or
+entry stores it; for an entry journaled without it (by another v3 writer, or
 before the column existed), `Some(predicted)` only while the entry is
 `Pending`, predicted against the stored row with only the pending entries
 before it replayed; and `None` (unknown) in any other state. An applied,

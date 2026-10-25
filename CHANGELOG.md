@@ -32,9 +32,15 @@ Fixes from fenix's review of phase B (fix/fen-api, fix/fen-tick, fix/fen-py).
   (`crates/bd-cache-store/tests/compat_format.rs`), and a 0.1 call corpus
   generated against `fake-bd` (`crates/bd-cache-py/tests/call_corpus_0_1.json`).
 - `docs/baseline/BD-CACHE.md` and the cutover runbook (ADR-BDC-0010).
+- The `bd_cache.py` mapping table of `docs/bd-cache-py/architecture.md`; its
+  replacement, "Verbs and construction", describes the binding on its own and
+  is checked by `tests/test_api_doc.py`.
 
 ### Changed
 
+- Contract section 6.1 documents what sprint b-7 adds: `bdc cache schedule`,
+  the on-demand `bdc cache tick`, `bdc cache scopes ingest` / `ingest_scope`,
+  the post-sync hook request and `details.outage`.
 - CI runs `scripts/lint_no_atm.py` as "Strict consumer boundary
   (ADR-BDC-0010)".
 - Contract §5.3 and §10: `changed` and `already_closed` are optional (omitted
