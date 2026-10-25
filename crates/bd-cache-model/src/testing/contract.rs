@@ -148,6 +148,7 @@ fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
         op: Op::Close { reason: None },
         precondition: Guards::default(),
         actor: sc_beads::testing::actor("san"),
+        changed: Some(true),
     }
 }
 
@@ -783,9 +784,12 @@ pub fn journal_lifecycle(fx: &mut impl StoreFixture) {
     );
     let ea = ok(s.entry_by_key(&key("a")), "a").unwrap_or_else(missing);
     assert_eq!(ea.state, JournalState::Resolved);
+    assert_eq!(ea.note.as_deref(), Some("resolved by lead: set by hand"));
+    let legacy = "precondition no longer holds | resolved by lead: set by hand";
     assert_eq!(
-        ea.last_error.as_deref(),
-        Some("precondition no longer holds | resolved by lead: set by hand")
+        ea.legacy_last_error().as_deref(),
+        Some(legacy),
+        "last_error kept"
     );
     assert_eq!(ea.announced_at.as_ref().map(Timestamp::as_str), Some(T2));
     assert!(ok(s.status(), "status").escalated.is_empty());
@@ -806,9 +810,114 @@ pub fn resolve_note_without_prior_error(fx: &mut impl StoreFixture) {
     );
     let e = ok(s.entry_by_seq(a), "a").unwrap_or_else(missing);
     assert_eq!(
-        e.last_error.as_deref(),
+        (e.last_error.as_deref(), e.note.as_deref()),
+        (Some(""), Some("resolved by lead: set by hand"))
+    );
+    assert_eq!(
+        e.legacy_last_error().as_deref(),
         Some(" | resolved by lead: set by hand")
     );
+}
+
+/// `insert_entry` stores `changed` with the entry; `None` stores no value.
+pub fn insert_entry_stores_changed(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let mut no_change = entry("a", "b1", None);
+    no_change.changed = Some(false);
+    let mut unknown = entry("b", "b1", None);
+    unknown.changed = None;
+    let a = ok(s.insert_entry(no_change, &ts(T0)), "a");
+    let b = ok(s.insert_entry(unknown, &ts(T0)), "b");
+    let c = ok(s.insert_entry(entry("c", "b1", None), &ts(T0)), "c");
+    let changed = |seq| ok(s.entry_by_seq(seq), "read").map(|e| e.changed);
+    assert_eq!(changed(a), Some(Some(false)));
+    assert_eq!(changed(b), Some(None));
+    assert_eq!(changed(c), Some(Some(true)));
+    let fresh = ok(s.entry_by_key(&key("c")), "by key").unwrap_or_else(missing);
+    assert_eq!(
+        (fresh.last_error_code, fresh.note),
+        (None, None),
+        "a new entry has no error and no note"
+    );
+}
+
+fn code<S: CacheStore>(s: &S, seq: Seq) -> Option<String> {
+    ok(s.entry_by_seq(seq), "read")
+        .unwrap_or_else(missing)
+        .last_error_code
+}
+
+/// The writes of an error store its code; text without a code stores none.
+pub fn error_writes_store_the_code(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let a = ok(s.insert_entry(entry("a", "b1", None), &ts(T0)), "a");
+    ok(
+        s.record_attempt(a, "BD_CACHE.BD_WRITE_FAILED: x", &ts(T1)),
+        "attempt",
+    );
+    assert_eq!(code(&s, a).as_deref(), Some("BD_CACHE.BD_WRITE_FAILED"));
+    ok(
+        s.escalate(
+            a,
+            "retries exhausted after 1 attempts; last error x",
+            &ts(T1),
+        ),
+        "escalate",
+    );
+    assert_eq!(code(&s, a), None, "no CODE: prefix, no code");
+    let b = ok(s.insert_entry(entry("b", "b1", None), &ts(T0)), "b");
+    ok(
+        s.apply_with_readback(b, None, Some("BD_CACHE.BD_LIST_FAILED: gone"), &ts(T1)),
+        "apply",
+    );
+    assert_eq!(code(&s, b).as_deref(), Some("BD_CACHE.BD_LIST_FAILED"));
+}
+
+/// `journal_counts`: every entry once in `total` and once in its bucket.
+#[expect(clippy::many_single_char_names, reason = "a, b, c name the entries")]
+pub fn journal_counts_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert_eq!(
+        ok(s.journal_counts(), "empty"),
+        crate::JournalCounts::default()
+    );
+    let a = ok(s.insert_entry(entry("a", "b1", Some(x())), &ts(T0)), "a");
+    let b = ok(s.insert_entry(entry("b", "b2", Some(x())), &ts(T0)), "b");
+    let c = ok(s.insert_entry(entry("c", "b3", Some(y())), &ts(T0)), "c");
+    ok(s.insert_entry(entry("d", "b4", None), &ts(T0)), "d");
+    let e = ok(s.insert_entry(entry("e", "b5", None), &ts(T0)), "e");
+    ok(s.apply_with_readback(a, None, None, &ts(T1)), "apply");
+    ok(s.escalate(b, "why", &ts(T1)), "escalate");
+    ok(s.escalate(c, "why", &ts(T1)), "escalate");
+    ok(
+        s.resolve(c, "by hand", &sc_beads::testing::actor("lead"), &ts(T1)),
+        "resolve",
+    );
+    ok(s.escalate(e, "why", &ts(T1)), "escalate");
+    let counts = ok(s.journal_counts(), "counts");
+    let sc = |pending, applied, escalated, resolved| crate::StateCounts {
+        pending,
+        applied,
+        escalated,
+        resolved,
+    };
+    assert_eq!(counts.by_scope.get(&x()), Some(&sc(0, 1, 1, 0)));
+    assert_eq!(counts.by_scope.get(&y()), Some(&sc(0, 0, 0, 1)));
+    assert_eq!(counts.by_scope.len(), 2, "only scopes with entries");
+    assert_eq!(counts.unscoped, sc(1, 0, 1, 0));
+    assert_eq!(counts.total, sc(1, 1, 2, 1));
+    let mut summed = counts.unscoped;
+    for bucket in counts.by_scope.values() {
+        for state in [
+            JournalState::Pending,
+            JournalState::Applied,
+            JournalState::Escalated,
+            JournalState::Resolved,
+        ] {
+            summed.add(state, bucket.get(state));
+        }
+    }
+    assert_eq!(summed, counts.total, "total is the sum of the buckets");
 }
 
 /// Sync state, sync alerts and the outage round-trip.
@@ -1128,6 +1237,9 @@ macro_rules! store_contract_tests {
             applied_since_is_inclusive_and_ordered,
             journal_lifecycle,
             resolve_note_without_prior_error,
+            insert_entry_stores_changed,
+            error_writes_store_the_code,
+            journal_counts_rules,
             sync_state_alerts_and_outage_round_trip,
             bounded_marker_writes_match_the_unbounded_forms,
             prune_scope_rules,

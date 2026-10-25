@@ -99,7 +99,7 @@ pub use announce::{AlertCause, OUTAGE_CAUSE};
 #[doc(inline)]
 pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
 #[doc(inline)]
-pub use compose::{ComposeError, Composed, RealCache, compose, compose_with};
+pub use compose::{ComposeError, Composed, RealCache, compose, compose_with, compose_with_config};
 #[doc(inline)]
 pub use control::StopFlag;
 #[doc(inline)]

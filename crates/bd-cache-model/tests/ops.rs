@@ -325,6 +325,9 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
         state,
         attempts: 0,
         last_error: None,
+        last_error_code: None,
+        note: None,
+        changed: None,
         announced_at: None,
         created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         applied_at: None,
@@ -458,4 +461,59 @@ fn patch_args_value_omits_empty_fields() {
         ..Patch::default()
     });
     assert_eq!(op.to_args_json(), r#"{"status": "open"}"#);
+}
+
+/// The resolve-note split and the error-code prefix (ADR-STORE-0001, sprint b-1).
+#[test]
+fn resolve_notes_split_and_error_codes_parse() {
+    use bd_cache_model::{error_code_prefix, resolve_note, split_resolve_note};
+    let lead = sc_beads::testing::actor("lead");
+    let note = resolve_note(&lead, "set by hand");
+    assert_eq!(note, "resolved by lead: set by hand");
+    // bd_cache.py's text, with and without an earlier error: the round trip.
+    for error in ["BD_CACHE.PRECONDITION: status is open", ""] {
+        let text = format!("{error} | {note}");
+        let (got_error, got_note) = split_resolve_note(&text).unwrap();
+        assert_eq!(got_note, note);
+        assert_eq!(got_error, (!error.is_empty()).then_some(error));
+    }
+    assert_eq!(split_resolve_note("BD_CACHE.X: no"), None, "no note");
+    assert_eq!(
+        split_resolve_note("x | resolved by : n"),
+        None,
+        "a note names its actor"
+    );
+    assert_eq!(
+        split_resolve_note("x | resolved by lead"),
+        None,
+        "and is `<actor>: <note>`"
+    );
+    assert_eq!(
+        error_code_prefix("BD_CACHE.BD_WRITE_FAILED: exit 1"),
+        Some("BD_CACHE.BD_WRITE_FAILED")
+    );
+    assert_eq!(error_code_prefix("bd failed: exit 1"), None, "not a code");
+    assert_eq!(error_code_prefix("BD_CACHE.X"), None, "no detail");
+    assert_eq!(error_code_prefix(": x"), None);
+}
+
+/// `Op::changes`: a close changes a view that is not closed and not a closed one; an
+/// update or `dep_add` changes the view when its overlay does.
+#[test]
+fn changes_is_not_already_closed_or_the_overlay() {
+    let live = row();
+    let close = Op::Close { reason: None };
+    assert!(close.changes(&live));
+    let closed = close.overlay(&live);
+    assert!(!close.changes(&closed));
+    let reasoned = Op::Close {
+        reason: Some("other".into()),
+    };
+    assert!(
+        !reasoned.changes(&closed),
+        "a close of a closed bead is not a change, whatever its reason"
+    );
+    let label = Op::parse("update", r#"{"add_labels": ["new"]}"#).unwrap();
+    assert!(label.changes(&live));
+    assert!(!label.changes(&label.overlay(&live)));
 }

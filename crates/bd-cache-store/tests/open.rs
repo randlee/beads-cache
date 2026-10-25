@@ -121,6 +121,10 @@ fn one_connection_per_process() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one column list per table, in DDL order, read in one place"
+)]
 fn v3_tables_are_unchanged_and_extensions_are_additive() {
     let tmp = TempDir::new("ddl");
     let path = file(&tmp);
@@ -171,7 +175,10 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             "updated_at",
             "announced_at",
             "applied_at",
-            "applied_epoch"
+            "applied_epoch",
+            "last_error_code",
+            "note",
+            "changed"
         ]
     );
     assert_eq!(

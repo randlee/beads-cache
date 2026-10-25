@@ -25,8 +25,8 @@ crate depends only on `bd-cache-model` and `sc-beads`, never the store or
 | `lib.rs` | a-1 | `Cache`, `new`, the public verbs (each delegates to its module), the store passthroughs (`unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert`, `open_work`), `clock()` (a-7: the clock the cache and backend share), `scope_synced` (a-7, S30: one `sync_state` row through the port), `mark_announced_within` and `set_sync_alert_within` (a-7, S33: the bounded passthroughs of the two marker writes), `CLOSED_STATUS`, the `testing` hooks |
 | `outage.rs` | a-1 | `call`, `classify`, `note_unavailable`, `note_ok` |
 | `view.rs`, `backend_check.rs`, `miss.rs` | a-1 | `current_view`, `run`, `fill` |
-| `write.rs`, `drain.rs` | a-5 | write path and drain (`docs/bd-cache/write-path.md`) |
-| `get.rs`, `refresh.rs`, `list.rs`, `sync.rs`, `ready.rs`, `resolve.rs`, `prune.rs`, `status.rs` | a-6 | read path (`docs/bd-cache/read-path.md`) |
+| `write.rs`, `drain.rs` | a-5 | write path and drain (`docs/bd-cache/write-path.md`); b-1: `write_returning`, with `write` over the same journaling |
+| `get.rs`, `refresh.rs`, `list.rs`, `sync.rs`, `ready.rs`, `resolve.rs`, `prune.rs`, `status.rs` | a-6 | read path (`docs/bd-cache/read-path.md`); b-1: `GetReply.scope` and `entry_by_key` (`get.rs`), `journal_counts` (`status.rs`) |
 | `tests/common/` | a-1 | `World` (the Python suite's world) and fixtures |
 | `tests/helpers_*.rs` | a-1 | helper tests |
 

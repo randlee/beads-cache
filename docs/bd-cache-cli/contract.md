@@ -485,6 +485,20 @@ Core changes this contract needs:
   `changed`. `changed` holds the value a duplicate returns; a close stores
   `!already_closed` (lead ruling S62, bc-lead, 2026-10-25).
 
+Lead rulings on the core work (bc-lead, 2026-10-25, recorded with sprint b-1):
+
+- **S64.** `write_returning`'s atomicity (REQ-BDC-0809) covers the journal
+  entry and its `changed`, stored in one transaction. `before` and `after`
+  are snapshots read on either side of it, so `after` may already reflect a
+  concurrent drain.
+- **S65.** `Entry.note` is `resolved by <actor>: <note>`: the journal keeps
+  the resolver in the note, and the 0.1 `last_error` is the error, `" | "`,
+  then the note, as `bd_cache.py` writes it.
+- **S68.** `WriteOutcome.changed` is `Option<bool>`: `Some(stored)` when the
+  entry stores it; for an entry stored without it (by `bd_cache.py`, or
+  before the column existed), `Some(predicted)` only while the entry is
+  pending; `None` (unknown) in any other state. It is never guessed.
+
 `blocked(scope)` is deferred (§5.5). The CI boundary check reads the
 Boundaries table in `docs/architecture.md`, so adding the rows there (done with
 ADR-BDC-0009) is the whole CI change.

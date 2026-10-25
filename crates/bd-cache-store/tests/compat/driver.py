@@ -10,6 +10,8 @@ Commands (each prints one JSON object on success, exits nonzero on failure):
                                  writes, set a sync alert and an outage (a Python-written v3 file)
     rebuild  <root> <db>         run the backend check against a changed `bd schema` (forced rebuild)
     hold     <root> <db>         take bd_cache.py's drain lock, print {"held": ...}, wait for stdin EOF
+    escalate <root> <db> <seq> <reason>
+                                 escalate a journal entry as bd_cache.py's drain does (`_mark`)
     cli      <root> <db> args..  run bd_cache.py's own CLI (`get`, `status`, `prune`, ...)
 
 No bd process runs: the backend calls go to the deterministic runner below.
@@ -85,11 +87,21 @@ def hold(root, db):
     return None
 
 
+def escalate(root, db, seq, reason):
+    c = cache(root, db, pinned_schema())
+    with c.transaction():
+        c._mark(int(seq), "escalated", reason, 1)
+    return {"ok": True, "seq": int(seq)}
+
+
 def main(argv):
     command, root, db, rest = argv[0], argv[1], argv[2], argv[3:]
     if command == "cli":
         return bd_cache.main(["--root", root, "--db", db, *rest])
-    out = {"write": write, "rebuild": rebuild, "hold": hold}[command](root, db)
+    if command == "escalate":
+        out = escalate(root, db, *rest)
+    else:
+        out = {"write": write, "rebuild": rebuild, "hold": hold}[command](root, db)
     if out is not None:
         print(json.dumps(out, sort_keys=True))
     return 0
