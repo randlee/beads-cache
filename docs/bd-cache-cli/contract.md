@@ -26,17 +26,31 @@ requirement amendments in Appendix A. Both wait for Rand's approval.
 | (a) Beads | `bdc issues get\|list\|update\|close`, `bdc ready`, `bdc dependencies list\|add`, `bdc context` | bd serve `/v0` at the **pinned release, beads v1.3.2** @ [`9b65b9e`][rel] |
 | (b) Cache management | `bdc cache status\|health\|scopes\|refresh scopes\|refresh issues\|flush\|evict\|journal get\|journal list\|journal resolve\|journal announce\|tick` | conventional cache terms |
 
-Surface (a) is **shaped like `/v0`, but does not conform to it**. The
-conformance statement is the divergence list in §5.4. beads `origin/main` @
-[`73f64fd`][main] is tracked only as the proposed interface (§5.5). An
-operation that exists only on main is not offered until a beads release
-contains it.
+Surface (a) **matches `/v0` in vocabulary only, not in behaviour.** It uses
+the same operation, parameter and member names, and its rows have the same
+shape. It does not behave the same:
+
+- some `/v0`-required fields are left out (`revision`, `open_children`,
+  `Dependency.created_at`);
+- errors come in the sc-command envelope, not a Problem document;
+- default limits differ;
+- `ready` follows the bd CLI.
+
+**No client can switch between the cache and bd serve without code
+changes.** Matching `/v0` buys a shared vocabulary for agents, the CLI, the
+bindings and a later MCP server, and nothing more. §5.4 lists every
+divergence.
+
+beads `origin/main` @ [`73f64fd`][main] is tracked only as the proposed
+interface (§5.5). An operation that exists only on main is offered once a
+beads release contains it.
 
 Rules:
 
-1. **One envelope on stdout** for every command, including `--help` and
-   `--version`, and for every failure (sc-command `Envelope`, §4). Stdout
-   carries no prose unless `--format text` is given. Logs go to stderr.
+1. **One envelope on stdout** for every command, for `--version`, and for
+   every failure, usage errors included (sc-command `Envelope`, §4). The one
+   exception is `--help`, which prints text on a TTY (§8). Stdout carries no
+   other prose unless `--format text` is given. Logs go to stderr.
 2. **`/v0` bodies as is, plus `x_cache`.** On surface (a), `data` is the
    `/v0` response body with one added top-level member, `x_cache`. Rows are
    bd's list rows with the journal overlay applied. Cache facts about a row
@@ -51,10 +65,10 @@ Rules:
 5. **Nothing is faked.** A `/v0` operation, parameter or member the cache
    does not serve is `BD_CACHE.UNSUPPORTED`. An unknown member is
    `BD_CACHE.BAD_ARGS`. Neither is ever silently ignored.
-6. **One decoder.** The CLI turns argv into a JSON request, and the MCP
-   handler passes its raw arguments. Both go to the same `bd-cache-api`
-   decoder, so validation lives there and every front end returns the same
-   code for the same input (§8).
+6. **One decoder.** The CLI turns argv into a JSON request and passes it
+   to the `bd-cache-api` decoder. The bindings, and later the MCP server,
+   use the same decoder, so validation lives there and every front end
+   returns the same code for the same input (§8).
 7. **Every list has a stated order** (§5.3, §6). A parameter that carries
    the served default (for example `sort=priority` on `ready`) is accepted.
 
@@ -68,7 +82,7 @@ be spelled out in full; abbreviations are refused.
 | `--repo DIR` | `REPO` | n/a | cwd | The repository root. |
 | `--cache-path PATH` | `CACHE_PATH` | `cache_path` | `.bd-cache/<dolt_database>.bd-cache.sqlite3` | The cache file. A relative path is resolved against `--repo`. |
 | `--bd PATH` | `BD` | **never** | `bd` on `PATH` | The bd binary. It is never read from TOML, so a checked-in file cannot choose an executable. |
-| `--format json\|text` | **never** | **never** | `json` | Read from the flag only. `text` renders the same `data` for a person. |
+| `--format json\|text` | **never** | **never** | `json` | Read from the flag only. `text` renders the same `data` for a person. The one TTY-dependent behaviour is `--help` (§8). |
 | `--input FILE\|-` | n/a | n/a | none | The whole request as JSON. Combining it with request flags is `USAGE`. |
 | `-v` / `-q` | `LOG` | n/a | `warn` | The verbosity of the stderr log. The flag wins over the env, and stdout never changes. |
 
@@ -117,12 +131,12 @@ default.
 |---|---|---|
 | 0 | `true` | Success. Degraded results (an outage, a cached fallback, a partial refresh) are reported in `data`; `cache refresh scopes` reports `data.failed`. |
 | 2 | `false` | `BD_CACHE.USAGE`, for the shape of argv only: an unknown command or flag, a missing or conflicting argument, an abbreviated option, or `--input` mixed with flags. |
-| 3 | `false` | Any other typed error. Retryable and permanent errors share this exit, so callers branch on `error.kind`, or on `retryable` in the registry (§4). |
+| 3 | `false` | Any other typed error. Retryable and permanent errors share this exit, so callers branch on `error.kind`, or on `retryable` in the error table (§4). |
 
 A caught panic is `BD_CACHE.INTERNAL` (exit 3). Invalid JSON in `--input`,
 `--patch` or `--set-metadata` is `BAD_ARGS`.
 
-## 4. Envelope, errors, registry
+## 4. Envelope and errors
 
 The envelope is sc-command 0.1.0's, exactly: `{version: "1", ok, data,
 error: {kind, code, message, details, suggested_action}}`. Its decoder
@@ -137,7 +151,8 @@ rejects extra keys. Each field of today's `CacheError` maps as follows:
 | `unmet` | one shape only: `details.unmet: {status?: {expected, actual}, assignee?: {expected, actual}}` |
 | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*` under the same names. `phase` becomes `details.scope`, in label form. |
 
-The `details.*` keys this contract defines are covered by semver:
+This contract defines the following `details.*` keys. They are informative
+in 1.0, not covered by semver (§11):
 
 | Key | Meaning |
 |---|---|
@@ -151,15 +166,15 @@ The `details.*` keys this contract defines are covered by semver:
 
 The key `justification` is never used, because sc-command reserves it.
 
-### Registry
+### Error table
 
-`bdc schema` publishes this table, together with a JSON Schema for each
-code's `details`. Every code carries the `BD_CACHE.` prefix, which the table
-leaves out. † marks a new code.
+This table ships in 1.0. Its code, kind, exit and retryable columns are
+covered by semver (§11). Every code carries the `BD_CACHE.` prefix, which
+the table leaves out. † marks a new code.
 
 | Code | Kind | Exit | Retryable | `v0_code` | Notes |
 |---|---|---|---|---|---|
-| `USAGE` † | invalid_input | 2 | no | — | `suggested_action`: "run `bdc schema <cmd>`" |
+| `USAGE` † | invalid_input | 2 | no | — | Always JSON, even on a TTY. `suggested_action`: "run `bdc <cmd> --help`". |
 | `BAD_ARGS` | invalid_input | 3 | no | `invalid_argument` | Also an unknown member (`details.member`), and a bad cursor (`v0_code: invalid_cursor`). |
 | `BAD_PRECONDITION` | invalid_input | 3 | no | `invalid_argument` | An invalid guard. |
 | `UNSUPPORTED` † | invalid_input | 3 | no | `invalid_argument` (`v0_reason: unknown_parameter` for a parameter or member) | `details.unsupported` names the kind. The suggested action is to call bd or bd serve directly. |
@@ -225,19 +240,18 @@ request is well formed, the state refuses it, and nothing was written.
 
 Spec lines cited are at [`9b65b9e`][rel].
 
-| Command / tool | `/v0` operationId · capability | Spec | Core verb | Annotations |
-|---|---|---|---|---|
-| `issues get` / `issues_get` | getIssue · `issues.get` | [L2042-2124][r-get] | `get` (or `cached` when the miss timeout is 0) | readOnly; openWorld (miss fill) |
-| `issues list` / `issues_list` | listIssues · `issues.list` | [L995-1579][r-list]; page [L7808-7824][r-ipage] | `list(scope)` + api filters | readOnly |
-| `ready` / `ready` | listReadyWork · `ready.list` | [L349-571][r-ready]; page [L7749-7763][r-rpage] | `ready(scope, fresh_within)` | readOnly; openWorld (fresh) |
-| `dependencies list` / `dependencies_list` | listDependencies · `dependencies.list` | [L4667-4775][r-deps]; [L8287-8322][r-dedges] | the view's `dependencies` | readOnly |
-| `issues update` / `issues_update` | updateIssue · `issues.update` | [L2125-2347][r-patch]; request [L10219-10512][r-upd]; reply [L10513-10548][r-updr] | **new** `write_returning(op=update)` | destructive false; idempotent |
-| `issues close` / `issues_close` | closeIssue · `issues.close` | [L2938-3074][r-close]; [L9921-10047][r-closeb] | **new** `write_returning(op=close)` | destructive false; idempotent |
-| `dependencies add` / `dependencies_add` | addDependencies · `dependencies.add` | [L5051-5174][r-dadd]; [L9411-9505][r-daddb] | **new** `write_returning(op=dep_add)` | destructive false; idempotent |
-| `context` / `context` | getContext (no capability token) | [L325-348][r-ctx]; [L7181-7299][r-ctxb] | `status` + `metadata.json` | readOnly |
+| Command | `/v0` operationId · capability | Spec | Core verb |
+|---|---|---|---|
+| `issues get` | getIssue · `issues.get` | [L2042-2124][r-get] | `get` (or `cached` when the miss timeout is 0) |
+| `issues list` | listIssues · `issues.list` | [L995-1579][r-list]; page [L7808-7824][r-ipage] | `list(scope)` + api filters |
+| `ready` | listReadyWork · `ready.list` | [L349-571][r-ready]; page [L7749-7763][r-rpage] | `ready(scope, fresh_within)` |
+| `dependencies list` | listDependencies · `dependencies.list` | [L4667-4775][r-deps]; [L8287-8322][r-dedges] | the view's `dependencies` |
+| `issues update` | updateIssue · `issues.update` | [L2125-2347][r-patch]; request [L10219-10512][r-upd]; reply [L10513-10548][r-updr] | **new** `write_returning(op=update)` |
+| `issues close` | closeIssue · `issues.close` | [L2938-3074][r-close]; [L9921-10047][r-closeb] | **new** `write_returning(op=close)` |
+| `dependencies add` | addDependencies · `dependencies.add` | [L5051-5174][r-dadd]; [L9411-9505][r-daddb] | **new** `write_returning(op=dep_add)` |
+| `context` | getContext (no capability token) | [L325-348][r-ctx]; [L7181-7299][r-ctxb] | `status` + `metadata.json` |
 
-Each tool's schema carries `x_v0_operation: {operation_id, capability,
-spec}`. `context.capabilities` lists the `/v0` capability tokens the cache
+`context.capabilities` lists the `/v0` capability tokens the cache
 serves: `issues.get`, `issues.list`, `ready.list`, `dependencies.list`,
 `issues.update`, `issues.close` and `dependencies.add`. The spec's
 capabilities member uses tokens, not operationIds ([L7181-7299][r-ctxb]).
@@ -251,8 +265,8 @@ Every command can also return the errors of opening the cache:
 | Command | Request (the mapped `/v0` names; the rest are in the spec) | `data` | Order | Errors |
 |---|---|---|---|---|
 | `issues get <id> [--miss-timeout-ms N]` | `id`, `miss_timeout_ms` | the row, + `x_cache: {scope, last_ok_at, outage, rows: {<id>: …}, pending: int}` | n/a | `NOT_FOUND`, `NOT_CACHED`, `BD_UNAVAILABLE` (`timed_out`), `UNSUPPORTED` (`include_comments`, `include_dependents`, `brief_deps`) |
-| `issues list` | `status[]`, `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `all`, `sort`, `limit` (default 50; 0 = unlimited), `cursor`, `scope` | `{items, has_more, next_cursor?, x_cache}` | `sort=created`: `(created_at desc, id asc)`; `sort=priority`: `(priority asc, created_at desc, id asc)`. Both are total orders, so the cursor is a keyset. | `SCOPE_UNKNOWN`, `BAD_ARGS` (`invalid_cursor`), `UNSUPPORTED` |
-| `ready [--fresh-within-ms N]` | `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `unassigned`, `priority`, `limit` (default **100**), `sort` (`priority` only), `scope`, `fresh_within_ms` | `{items, has_more, x_cache: {scope, last_ok_at, outage, rows, basis, locally_adjusted: bool, read_fallback, read_fallback_error: OpError\|null, missing_rows: [id]}}` | `(priority asc, created_at desc, id asc)`. The tie-break is the cache's own; the spec does not state bd's. | `SCOPE_UNKNOWN`, `UNSUPPORTED` (`hybrid`, `oldest`, `type`, `parent`, …) |
+| `issues list` | `status[]`, `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `all`, `sort`, `limit` (default: **no limit** inside a scope; an explicit value pages; 0 = unlimited), `cursor`, `scope` | `{items, has_more, next_cursor?, x_cache}` | `sort=created`: `(created_at desc, id asc)`; `sort=priority`: `(priority asc, created_at desc, id asc)`. Both are total orders, so the cursor is a keyset. | `SCOPE_UNKNOWN`, `BAD_ARGS` (`invalid_cursor`), `UNSUPPORTED` |
+| `ready [--fresh-within-ms N]` | `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `unassigned`, `priority`, `limit` (default: **no limit** inside a scope; an explicit value caps the list), `sort` (`priority` only), `scope`, `fresh_within_ms` | `{items, has_more, x_cache: {scope, last_ok_at, outage, rows, basis, locally_adjusted: bool, read_fallback, read_fallback_error: OpError\|null, missing_rows: [id]}}` | `(priority asc, created_at desc, id asc)`. The tie-break is the cache's own; the spec does not state bd's. | `SCOPE_UNKNOWN`, `UNSUPPORTED` (`hybrid`, `oldest`, `type`, `parent`, …) |
 | `dependencies list --issue-id ID… [--type T…]` | `issue_id[]`, `type[]` | `{items: [{issue_id, depends_on_id, type}], missing: [id], x_cache: {outage, not_cached: [id]}}` | request order of `issue_id`, then `depends_on_id` | `BAD_ARGS` |
 | `issues update <id>` | `id`, `actor`, `idempotency_key`, `patch: {status?, assignee?, add_labels?, remove_labels?, append_notes?, metadata?: {set?, unset?}}`, `expected_status?`, `expected_assignee?` | `{issue, changed: bool, x_cache}` | n/a | `BAD_ARGS` (empty patch; `status: "closed"`; unknown member), `BAD_PRECONDITION`, `UNSUPPORTED` (`claim`, `expected_version`, `force_*`, other patch members), `PRECONDITION`, `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE` |
 | `issues close <id>` | `id`, `actor`, `idempotency_key`, `reason?`, and the cache-extension guards `expected_status?`, `expected_assignee?` | `{issue, already_closed: bool, x_cache}` | n/a | as update; `UNSUPPORTED` (`session`, `force`, `expected_version`) |
@@ -267,8 +281,35 @@ Notes by command:
   - The default exclusions are `closed` rows, templates and `gate` rows,
     unless `status` or `all` is set. The workspace's configured infra types
     are unknown to the cache, so they are **not** excluded.
-  - The cursor is `v1.` followed by base64url of `[sort, key…]`, and its
-    format is covered by semver.
+  - Default limit: inside a known scope there is **no limit**, because a
+    scope is already bounded; atm-bd's phase views and agents expect the
+    whole phase. An explicit `limit` pages, with `has_more` and
+    `next_cursor`. If a call without a scope is ever allowed, it will take
+    `/v0`'s defaults.
+  - The cursor is opaque. It is currently `v1.` followed by base64url of
+    `[sort, key…]`, but clients must not parse it, and its encoding is not
+    covered by semver.
+- **Blocked beads, until a beads release ships `/blocked`.** The supported
+  replacement for `bd blocked -l phase-<x>` is the `blocked_by` that
+  `issues list` reports for each row of the scope:
+
+  ```sh
+  bdc issues list --scope phase-<x> --all --sort priority \
+    | jq '.data as $d | [$d.items[]
+          | select(($d.x_cache.rows[.id].blocked_by // []) | length > 0)
+          | . + {blocked_by: $d.x_cache.rows[.id].blocked_by}]'
+  ```
+
+  - Membership is the same as the cache's blocked set: bd's
+    `bd blocked -l phase-<x>` at the last sync, adjusted for our journaled
+    writes (ADR-BDC-0002).
+  - The order, `(priority asc, created_at desc, id asc)`, is `/v0` blocked's.
+  - `blocked_by: null` means the blocked state is unknown. The query leaves
+    those rows out; select `blocked_by == null` to list them, and report
+    them as unknown, never as unblocked.
+  - Template and `gate` rows are not listed.
+  - The deferral of `blocked` is therefore never a reason to bypass the
+    cache.
 - **`ready`.**
   - `basis` is `{kind: "fresh", fetched_at}`,
     `{kind: "cached", fetched_at, stale}` or `{kind: "unknown"}`.
@@ -291,14 +332,18 @@ Notes by command:
     through `cache journal get`.
 - **Writes in general.** `issue` is the view after the write.
 
-### 5.4 Conformance statement: what differs from v1.3.2
+### 5.4 Divergences from v1.3.2
+
+Surface (a) shares `/v0`'s names, not its behaviour. A client written for bd
+serve needs code changes to use the cache, and the reverse is also true. The
+differences are:
 
 | `/v0` operation | Divergence |
 |---|---|
 | all | Errors use the sc-command envelope, not a Problem document (spec [L10819-11138][r-problem]); `details.v0_code` carries the Problem `code`. Every list-like read needs a scope (REQ-BDC-0902). |
 | getIssue | Returns the list row, not IssueDetails. Absent: `revision` (required), `dependents`, dependency objects with metadata, and `epic_*`. |
-| listIssues | Infra types are not excluded. Parameters other than the mapped ones are `UNSUPPORTED`. |
-| listReadyWork | `sort=priority` only. Membership comes from the bd CLI plus the local adjustment. Parameters that are not mapped are `UNSUPPORTED`. |
+| listIssues | The default `limit` is no limit inside a scope, where `/v0`'s is 50. Infra types are not excluded. Parameters other than the mapped ones are `UNSUPPORTED`. |
+| listReadyWork | The default `limit` is no limit inside a scope, where `/v0`'s is 100. Only `sort=priority` is accepted. Membership comes from the bd CLI plus the local adjustment. Parameters that are not mapped are `UNSUPPORTED`. |
 | updateIssue | Journaled. `revision` (required) is absent. `changed` is a prediction. `status: closed` is refused. |
 | closeIssue | Journaled. `open_children` and `revision` (both required) are absent. Extra guards are accepted. `not_closable` appears only at flush. |
 | addDependencies | Exactly one edge per request, journaled. |
@@ -306,8 +351,7 @@ Notes by command:
 | getContext | `api_version`, `schema_version`, `backend` and `dolt_mode` (all required) are absent. `bd_version` (required) is absent until the first fingerprint. |
 | not served (`UNSUPPORTED`, `unsupported: operation`) | createIssue, batchCreate, delete, sweep, claim, release, claimNext, reopen, casMetadata, batchApply, batchClose, dependencies:remove, issues:query, issues:count, ready:count, stats, the dependency tree/cycles/count/blocking, related, comments, config, memories, events, healthz. |
 
-The output schemas in `bdc schema` are the cache's own required sets, and
-they do not `$ref` `/v0`.
+The cache's output shapes are its own. They do not reference `/v0`.
 
 ### 5.5 Proposed: beads `origin/main` @ `73f64fd` (not offered in 1.0)
 
@@ -329,20 +373,20 @@ reason ready parity is stated against the released CLI.
 
 ## 6. Surface (b): Cache management
 
-| Command / tool | Core verb | Old verb | Mutates | Annotations |
-|---|---|---|---|---|
-| `cache status` / `cache_status` | `status` + **new** `journal_counts()` | `status` | no | readOnly |
-| `cache health [--probe]` / `cache_health` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no | readOnly; openWorld (probe) |
-| `cache scopes` / `cache_scopes` | `status().phases` + config + `sync_alert` per scope (N store reads, no bd) | (in `status`) | no | readOnly |
-| `cache refresh scopes [S…]` / `cache_refresh_scopes` | `sync` per scope; with no S, every known scope | `sync` | store | destructive false; openWorld |
-| `cache refresh issues ID…` / `cache_refresh_issues` | `refresh(ids)` (REQ-BDC-0907) | — | store | destructive false; openWorld |
-| `cache flush` / `cache_flush` | `drain(budget)` | `drain` | bd | destructive false; openWorld |
-| `cache evict --scope S` / `cache_evict` | `prune` | `prune` | store | **destructive** |
-| `cache journal get <seq> \| --idempotency-key K` / `cache_journal_get` | `entry`; **new** facade `entry_by_key` (the store already has it) | — | no | readOnly |
-| `cache journal list [--state pending\|escalated] [--unannounced]` / `cache_journal_list` | `pending_entries`, `status().escalated`, `unannounced_escalations` | (in `status`) | no | readOnly |
-| `cache journal resolve <seq> --note T --actor A` / `cache_journal_resolve` | `resolve` | `resolve` | store | destructive false; idempotent |
-| `cache journal announce <seq>` / `cache_journal_announce` | `mark_announced` | (cron) | store | destructive false; idempotent |
-| `cache tick [--budget-ms N] [--atm PATH]` / not an MCP tool (`mcp: false`) | bd-cache-sync `tick` | (`bd_cache_cron.py`) | bd, store, atm | — |
+| Command | Core verb | Old verb | Mutates |
+|---|---|---|---|
+| `cache status` | `status` + **new** `journal_counts()` | `status` | no |
+| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no |
+| `cache scopes` | `status().phases` + config + `sync_alert` per scope (N store reads, no bd) | (in `status`) | no |
+| `cache refresh scopes [S…]` | `sync` per scope; with no S, every known scope | `sync` | store |
+| `cache refresh issues ID…` | `refresh(ids)` (REQ-BDC-0907) | — | store |
+| `cache flush` | `drain(budget)` | `drain` | bd |
+| `cache evict --scope S` | `prune` | `prune` | store |
+| `cache journal get <seq> \| --idempotency-key K` | `entry`; **new** facade `entry_by_key` (the store already has it) | — | no |
+| `cache journal list [--state pending\|escalated] [--unannounced]` | `pending_entries`, `status().escalated`, `unannounced_escalations` | (in `status`) | no |
+| `cache journal resolve <seq> --note T --actor A` | `resolve` | `resolve` | store |
+| `cache journal announce <seq>` | `mark_announced` | (cron) | store |
+| `cache tick [--budget-ms N] [--atm PATH]` | bd-cache-sync `tick` | (`bd_cache_cron.py`) | bd, store, atm |
 
 Three cases have fixed answers:
 
@@ -392,40 +436,31 @@ str|null, announced_at, created_at, applied_at}`.
 | `journal resolve` / `journal announce` | `cache journal get <seq>`; `cache journal list --unannounced` |
 | `cache tick` | `cache status`, `cache scopes`, `cache journal list --unannounced` |
 
-## 8. MCP seam and `bdc schema`
+## 8. Help, the MCP constraint, testing
 
-- **One path through `bd-cache-api`.** clap argv becomes a JSON request, and
-  the MCP handler passes its raw arguments. Both go through the decoder, the
-  operation and the data model, and come out as `Result<T, OpError>`.
-  - The CLI wraps that result in `Envelope`.
-  - The MCP server returns `IntoMcp::into_mcp(result)`: the envelope as
-    `structuredContent`, with `isError` set on failure. The output schema
-    allows `data: null`.
-  - Nothing is reshaped.
-- **The request model is canonical.** Flags are a convenience: `bdc schema`
-  publishes each member's flag as `x-cli-flag`, so no naming rule is implied.
-- **`bdc schema [<cmd>]`.** The document is stamped with `contract_version`
-  and `envelope_version`. It is
-  `{tools: [{name, cli, mcp: bool, x_v0_operation, description, input_schema,
-  output_schema, annotations, errors: [code]}], errors: [{code, kind, exit,
-  retryable, details_schema}]}`.
-- **`--help` and `--version`.**
-  - `bdc <cmd> --help` returns the envelope, with that command's `tools[]`
-    entry as `data`. It prints text only with `--format text`.
-  - `--version` returns `{name, version, contract_version}` and also follows
-    `--format`.
-- **Tool names** are bdc's own: the command path joined with `_`.
-  `x_v0_operation` links each tool to `/v0`.
-- **Annotations** are set explicitly on every tool, with the values in the
-  §5.2 and §6 tables. A hint a table does not set is false: `readOnlyHint`,
-  `destructiveHint`, `idempotentHint` and `openWorldHint` all default to
-  false. Journaled writes are idempotent because the key is required.
+- **`--help`.**
+  - On a TTY, without `--format`, it prints text.
+  - Otherwise, or with `--format json`, it prints the envelope, with
+    `data: {command, synopsis, arguments: [{name, flag, required,
+    description}]}`.
+  - Exit 0.
+  - `USAGE` is always JSON. Its `details` carry `did_you_mean` and `valid`.
+- **`--version`** returns `{name, version, contract_version}` and follows
+  `--format`.
+- **MCP design constraint (not a 1.0 deliverable).**
+  - There is one request model per command, and every front end calls the
+    same `bd-cache-api` operation, which returns `Result<T, ApiError>`.
+  - The later MCP server returns the same envelope as `structuredContent`
+    (sc-command `IntoMcp`), and the CLI wraps the same value in `Envelope`.
+  - Neither front end reshapes the result.
+  - Tool names will be the command path joined with `_`. Everything else
+    for MCP is in §12a.
 
 ### Testing (simulator across the process boundary)
 
 | Layer | What it is |
 |---|---|
-| In process | `bd_cache_cli::run(argv, env, invoker, clock) -> (exit, stdout)`. Each shared fixture (request JSON → expected envelope) runs through `run` and through the MCP handler, and the two envelopes must be identical. |
+| In process | `bd_cache_cli::run(argv, env, invoker, clock) -> (exit, stdout)`. Shared fixtures (a request JSON and the envelope it must produce) run through `run`. The MCP-handler parity run is added with the MCP server. |
 | Real process | A `fake-bd` executable over sc-bd-cli's stateful `FakeBd`, with state seeded from a scenario file and a fixed clock. The binary tests and the NFR-BDC-0002 latency check use it. |
 | Named negative scenarios | an outage during a write; an escalation at flush (`not_closable`, and a guard miss); a partial `refresh scopes`; `fresh_within` running out; a schema change (rebuild); `WRONG_DATABASE`; a retry after a lost reply with the same key (a duplicate, then `journal get --idempotency-key`) |
 | Live bd | The testbed and the bd-compat workflow only. |
@@ -434,7 +469,7 @@ str|null, announced_at, created_at, applied_at}`.
 
 | Crate | Holds | May depend on |
 |---|---|---|
-| `bd-cache-api` (new) | Request and data models; the decoder (validation, `UNSUPPORTED` / `BAD_ARGS`); the operation layer (filters, paging, order, `/v0` mapping); the error registry; schemars schemas | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars. **No** sc-command and no clap: errors are its own `ApiError {kind, code, message, details, suggested_action}`. |
+| `bd-cache-api` (new) | Request and data models; the decoder (validation, `UNSUPPORTED` / `BAD_ARGS`); the operation layer (filters, paging, order, `/v0` mapping); the error table; schemars schemas (published with the MCP server, §12a) | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars. **No** sc-command and no clap: errors are its own `ApiError {kind, code, message, details, suggested_action}`. |
 | `bd-cache-cli` (new; binaries `bd-cache`, `bdc`) | clap argv → request, the envelope, `--format text`, `run()` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync` (tick, compose), `bd-cache-model`, `sc-beads`, sc-command, clap |
 | MCP server (later) | rmcp tools over `bd-cache-api` | `bd-cache-api`, `bd-cache-sync` (compose), sc-command (server) |
 | `bd-cache-py` | maps `ApiError` to `CacheError` attributes | as today, plus `bd-cache-api`; no sc-command, no clap |
@@ -459,10 +494,10 @@ Fenix designs against the wheel 0.1.0 dicts, so every change here is
 
 - nothing that exists changes;
 - 0.2.x issues no `DeprecationWarning`;
-- the new methods live in two namespaces that mirror the tools. A method's
-  name is the tool name (without the `cache_` prefix for surface (b)), it
-  takes the tool's request as keyword arguments, and it returns the tool's
-  `data`.
+- the new methods live in two namespaces, `cache.beads` and `cache.manage`,
+  that mirror the commands. A method's name is the command path joined with
+  `_`, without the `cache_` prefix for surface (b). It takes the command's
+  request as keyword arguments and returns the command's `data`.
 
 | 0.1 verb (unchanged) | New in 0.2 | How the 0.1 shape differs |
 |---|---|---|
@@ -489,13 +524,14 @@ Python-level type mistake still raises `TypeError`.
 
 | Item | Rule |
 |---|---|
-| `envelope.version` | sc-command's envelope format (`"1"`), not this contract's version. |
-| `contract_version` | Semver. Reported by `context`, `cache status`, `--version` and `bdc schema`. |
-| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. Each contract minor bumps the wheel minor. A contract major is a wheel release marked breaking and needs fenix's agreement. |
-| Covered | commands and flags; tool names and schemas; `data` members; error codes, kinds, exits and `retryable`; the `details.*` keys in §4; the `v1.` cursor format; the `bdc schema` document; defaults (path, limits, exclusions); orders |
-| Breaking (major) | removing or renaming any covered item; changing a type or a meaning; making a member required; changing a code's kind or exit; changing a default or an order |
-| Additive (minor) | a new tool or command; a new optional request member; a new `data` member; a new code (clients must handle codes they do not know); a `/v0` operation newly offered after a beads release ships it |
-| Pin | The contract follows beads v1.3.2. Moving the pin to a later release is minor when the change is additive, and major otherwise. |
+| `envelope.version` | The sc-command envelope format (`"1"`), not this contract's version. |
+| `contract_version` | Semver, reported by `context`, `cache status` and `--version`. |
+| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs fenix's agreement. |
+| **Covered in 1.0** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
+| **Not covered in 1.0** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
+| Breaking (major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
+| Additive (minor) | A new command or flag; an optional request member; a new `data` member; a new code (clients must handle codes they do not know); a `/v0` operation newly offered after a beads release. |
+| Pin | Follows beads v1.3.2. Moving the pin is minor if the change is additive, and major otherwise. |
 
 ## 12. Deferred
 
@@ -507,17 +543,30 @@ Python-level type mistake still raises `TypeError`.
 - Schema packages (ADR-BDC-0008).
 - MCP transport and auth.
 
+## 12a. Deferred with the MCP server
+
+None of these items is in 1.0. They ship, and become covered by semver, with
+the MCP server:
+
+| Item | Design (kept for then) |
+|---|---|
+| `bdc schema [<cmd>]` | `{contract_version, envelope_version, tools: [{name, cli, mcp: bool, x_v0_operation: {operation_id, capability, spec}, description, input_schema, output_schema, annotations, errors: [code]}], errors: [{code, kind, exit, retryable, details_schema}]}`. The output schemas are the cache's own required sets and allow `data: null`. |
+| `x-cli-flag` | The flag of each request member. There is no flag-to-member naming rule. |
+| `details_schema` | A JSON Schema for each code's `details`. |
+| Tool annotations | Every hint is set explicitly, and each defaults to false. `readOnlyHint` is set on the reads; `openWorldHint` on the calls that can reach bd (get, ready with fresh, refresh, flush, health `--probe`); `idempotentHint` on journaled writes, resolve and announce; `destructiveHint` on `cache evict` only. `cache tick` is not a tool (`mcp: false`). |
+| MCP parity tests | The shared fixtures also run through the MCP handler, and the envelopes must be identical. |
+
 ## 13. Open questions
 
 | # | Question | Position |
 |---|---|---|
-| Q1 | Which beads reference? | **Recommended, pending Rand's approval:** pin v1.3.2 @ 9b65b9e. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. |
-| Q2 | Required `/v0` fields the cache cannot fill | **Recommended, pending Rand's approval:** they stay absent. Surface (a) is shaped like `/v0` but does not conform to it; §5.4 is the conformance statement; output schemas are the cache's own. |
-| Q3 | Idempotency key | **Recommended, pending Rand's approval:** required on every front end, never derived (REQ-BDC-0004). |
-| Q4 | Partial success | **Recommended, pending Rand's approval:** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
-| Q5 | Name of the extra member | **Recommended, pending Rand's approval:** `x_cache`. |
-| Q6 | Default cache path | **Recommended, pending Rand's approval:** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
-| Q7 | Request to sc-runtime | **Recommended, pending Rand's approval:** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
+| Q1 | Which beads reference? | **Agreed by fenix (2026-10-25); pending Rand's approval:** pin v1.3.2 @ 9b65b9e for vocabulary. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. The pin fixes names, not behaviour. |
+| Q2 | Required `/v0` fields the cache cannot fill | **Agreed by fenix (2026-10-25); pending Rand's approval:** they stay absent. Surface (a) shares `/v0`'s vocabulary, not its behaviour, so no client can switch between the cache and bd serve without code changes. §5.4 lists the divergences, and the output shapes are the cache's own. |
+| Q3 | Idempotency key | **Agreed by fenix (2026-10-25); pending Rand's approval:** required on every front end, never derived (REQ-BDC-0004). |
+| Q4 | Partial success | **Agreed by fenix (2026-10-25); pending Rand's approval:** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
+| Q5 | Name of the extra member | **Agreed by fenix (2026-10-25); pending Rand's approval:** `x_cache`. |
+| Q6 | Default cache path | **Agreed by fenix (2026-10-25); pending Rand's approval:** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
+| Q7 | Request to sc-runtime | **Agreed by fenix (2026-10-25); pending Rand's approval:** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
 | Q8 | Approve ADR-BDC-0009 and the Appendix A amendments? | open |
 
 ## Appendix A. Requirement amendments (pending Rand's approval)
@@ -526,7 +575,7 @@ Python-level type mistake still raises `TypeError`.
 |---|---|
 | REQ-BDC-0801 | The CLI offers the commands of `docs/bd-cache-cli/contract.md`: a beads surface shaped like `/v0`, and a `cache` management surface. Each command prints one sc-command envelope on stdout. The BD-CACHE verbs map to these commands as the contract's §5 and §6 list (ADR-BDC-0009). |
 | REQ-BDC-0802 | Exit 0 is `ok: true`. Exit 2 is a usage error (`BD_CACHE.USAGE`), reported in the envelope. Exit 3 is any other typed error, with `{kind, code, message, details, suggested_action}` in `error`. |
-| REQ-BDC-0803 | The error codes are those of BD-CACHE.md, plus the additive `SCOPE_UNKNOWN`, `STORE_FAILED`, `STORE_IN_USE`, `USAGE`, `UNSUPPORTED`, `CONFIG_INVALID`, `NOT_CACHED`, `INTERNAL` and `TICK_*`. Each code has one fixed kind, given in the contract's registry. `NO_TOML` is never emitted. |
+| REQ-BDC-0803 | The error codes are those of BD-CACHE.md, plus the additive `SCOPE_UNKNOWN`, `STORE_FAILED`, `STORE_IN_USE`, `USAGE`, `UNSUPPORTED`, `CONFIG_INVALID`, `NOT_CACHED`, `INTERNAL` and `TICK_*`. Each code has one fixed kind, given in the contract's error table. `NO_TOML` is never emitted. |
 | REQ-BDC-0806 | **Superseded** (lead ruling S59): parity with `bd_cache.py` is behavioural, and the CLI follows sc-command and the contract. |
 
 [main]: https://github.com/gastownhall/beads/blob/73f64fdfce978a39608f9a3c7340d28354f5c05e/internal/httpapi/spec/openapi.v0.yaml
