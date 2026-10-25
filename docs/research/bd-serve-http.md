@@ -41,8 +41,8 @@ Nothing was run against a real database.
   compatibility domain", enforced by a bijection test (spec L265-275;
   `bd schema --help`).
 - `/v0` only adds optional fields, so a deny-unknown-fields validator breaks
-  on additive releases. Gate it on the backend fingerprint, as BD-CACHE.md
-  does today.
+  on additive releases. Gate it on the backend fingerprint, as the cache does
+  today.
 - `IssueDetails` is a superset of the list row (`revision`, dependency
   objects, dependents). It needs its own serde type or a projection.
 - The OpenAPI 3.0.3 YAML is hand-written and is the source of truth (Go types

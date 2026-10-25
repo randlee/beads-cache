@@ -2,7 +2,7 @@
 
 The core gained `GetReply.scope` and the journal fields `last_error_code`, `note` and
 `changed`; none of them reaches a 0.1 dict. A resolved entry's `last_error` is still the
-text bd_cache.py writes: the error, then ` | resolved by <actor>: <note>`.
+text of the 0.1 rendering: the error, then ` | resolved by <actor>: <note>`.
 """
 
 GET_KEYS = {"row", "scope_last_ok_at", "pending", "outage"}

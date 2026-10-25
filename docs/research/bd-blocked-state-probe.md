@@ -12,7 +12,7 @@ sql-server on 127.0.0.1, no shared database. Run by bc-lead.
 | Does `bd show --json` emit `is_blocked`? | **No.** |
 | Does `bd schema` declare it? | Yes, as an optional property of `types.issue`; the bd-1.3.1 `list-rows.json` fixture has no row with it either. |
 | Does closing or reopening a blocker bump the blocker's own `updated_at`? | Yes (close and reopen each bumped it). |
-| Does it bump the depender's `updated_at`? | No (BlockedStateInvariant; also confirmed by fenix on the live atm-dev cache: 18 of 1279 `blocks` edges). |
+| Does it bump the depender's `updated_at`? | No (BlockedStateInvariant; also confirmed on a live cache: 18 of 1279 `blocks` edges). |
 | Do `--id` and `--updated-after` combine as an intersection? | Yes: after closing A, `bd list --id A,B --updated-after T1` returned only A. |
 | Does `bd list --id <closed bead>` return it without `--status`? | No, it returns `[]`; an explicit status list is required (also noted by fenix). |
 | Which edge types block? | `blocks` blocks. A child of an open, unblocked parent is ready; a child of a blocked parent is blocked (inherits through `parent-child`). `related` does not block. Other types (`until`, `validates`, gates) were not probed. |

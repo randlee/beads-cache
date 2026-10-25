@@ -4,7 +4,7 @@
 # Usage: run-live.sh [cargo test arguments...]
 #
 # Needs `bd` and `dolt` on PATH (or SC_BD_BIN and DOLT_BIN_DIR), and a Rust toolchain.
-# Used by the team-lead on the m5-atmbench testbed and by .github/workflows/bd-compat.yml.
+# Used by hand on a testbed and by .github/workflows/bd-compat.yml.
 # Everything it creates is removed on exit; no shared database is read or written.
 set -euo pipefail
 # shellcheck source=lib.sh

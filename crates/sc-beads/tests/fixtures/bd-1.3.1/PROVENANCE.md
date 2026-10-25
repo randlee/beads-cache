@@ -1,9 +1,7 @@
 # bd 1.3.1 contract fixtures
 
-Copied byte for byte from randlee/atm-core at
-`05831dfe866d389feed138add3c29cb93cd6c82b`,
-`.claude/skills/atm-bd-orchestration/scripts/tests/fixtures/bd-1.3.1/`
-(the BD-CACHE v3 acceptance fixtures, PR randlee/atm-core#2219).
+Recorded output of bd 1.3.1, the acceptance fixtures of the v3 file format
+(REQ-BDC-0804, ADR-STORE-0001).
 
 | File | What | Check |
 |---|---|---|

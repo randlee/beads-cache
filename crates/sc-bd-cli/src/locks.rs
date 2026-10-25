@@ -18,7 +18,7 @@
 //! ([`DoltMode::Server`](crate::DoltMode::Server), by bd's own rule:
 //! `dolt_mode: "server"`, or a non-local `dolt_server_host`), many `bd` processes are
 //! concurrent by design and the lock would only queue every call behind a long
-//! sync (atm-bd runs bd that way). A missing or unreadable `metadata.json`, and every
+//! sync (a shared server runs bd that way). A missing or unreadable `metadata.json`, and every
 //! other mode, count as embedded: the lock is taken. The protection is partial in
 //! embedded mode too: agents and bd's git hooks run `bd` directly, without this lock.
 //!

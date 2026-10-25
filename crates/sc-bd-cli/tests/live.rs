@@ -2,7 +2,7 @@
 //!
 //! Every test here is `#[ignore]`d and also returns at once unless `SC_BD_LIVE=1`, so
 //! neither `cargo test` nor `cargo test -- --ignored` touches a database by accident.
-//! They are run by the team-lead on the `m5-atmbench` testbed account and by the
+//! They are run by hand on a testbed account and by the
 //! bd-compatibility workflow (`.github/workflows/bd-compat.yml`), always through
 //! `scripts/bd-compat/run-live.sh`, which starts a scratch Dolt server, runs
 //! `bd init` in a scratch directory and removes both afterwards.

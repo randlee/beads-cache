@@ -1,29 +1,22 @@
 # beads-cache Architecture
 
-Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25). ADR-BDC-0010 is Approved (lead ruling S82, 2026-10-25); its lint gate lands in sprint b-6 (`docs/plans/phase-b/phase-b-boundary.md`).
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25). ADR-BDC-0010 is Approved (lead ruling S82, 2026-10-25); its lint gate lands in sprint b-8 (`docs/plans/phase-b/phase-b-boundary.md`).
 
 ## Overview
 
-beads-cache extracts the beads SQLite cache from atm-core, where it runs
-today as part of the `atm-bd-orchestration` skill alongside an integrated TUI
-and other orchestration features. The design is baselined on that in-use
-implementation, limited to the cache functionality and delivered first as an
-MVP; where beads-cache departs from the atm-core baseline, an ADR here
-records why.
+beads-cache is the beads SQLite cache: a cache, a CLI for configuration and
+management, and a PyO3 API (ADR-BDC-0010). It is delivered first as an MVP.
+Its store file is the BD-CACHE v3 format; where beads-cache departs from that
+format, an ADR here records why.
 
 beads-cache is built against sc-runtime, which is being specified in
 parallel. sc-runtime is an upstream dependency: its interfaces and
 consumer contract constrain this architecture, and gaps go back to the
 sc-runtime team as requests rather than local workarounds.
 
-- Baseline (the contract): `.claude/skills/atm-bd-orchestration/scripts/BD-CACHE.md`
-  in atm-core, introduced by https://github.com/randlee/atm-core/pull/2219.
-  Reference implementation: `bd_cache.py`, `bd_models.py` and `bd_cache_cron.py`
-  in the same directory. Acceptance suite: `tests/test_bd_cache.py` (44 tests)
-  and `tests/test_bd_cache_cron.py` (13), with fixtures in
-  `tests/fixtures/bd-1.3.1/`. Design tracker:
-  https://github.com/randlee/atm-bd-orchestration/issues/557. Where BD-CACHE.md
-  and the Python code disagree, report it on that issue.
+- Store format: BD-CACHE v3 (`PRAGMA user_version` 3), pinned by the DDL golden
+  in `crates/bd-cache-store/tests/compat_format/` (ADR-STORE-0001), with the
+  bd-1.3.1 contract fixtures in `crates/sc-beads/tests/fixtures/bd-1.3.1/`.
 - Upstream dependency: sc-runtime (https://github.com/randlee/sc-runtime).
 
 CLI: the primary command is `bd-cache`, with the alias `bdc`.
@@ -66,15 +59,15 @@ up when the backend responds (ADR-BDC-0005).
 ```
 
 - The core library knows nothing about its front ends. `bdc` keeps the
-  BD-CACHE CLI contract so atm-bd's hooks and cron keep working.
+  CLI contract in `docs/bd-cache-cli/contract.md` (ADR-BDC-0009).
 - The MCP server is a second front end over the same core. No upstream beads
   project offers MCP over HTTP today (`beads-mcp` is stdio only, and
   `bd serve` is HTTP but not MCP), so beads-cache provides it.
 - Python bindings (maturin / PyO3) are a third front end, built in phase a
   (sprint a-8): a `bd-cache-py` crate wrapping the concrete composition
-  (`SqliteStore`, its drain lock, `BdCli`) with the verbs atm-bd uses, so
-  atm-bd replaces `bd_cache.py` in process. They need nothing from
-  sc-runtime; atm-bd keeps its own scheduling through ATM cron.
+  (`SqliteStore`, its drain lock, `BdCli`) with the 0.1 verbs, so a consumer
+  uses the cache in process. They need nothing from sc-runtime; scheduling is
+  sc-cron's (ADR-BDC-0010).
 - All writes go through `bd` (see the research docs: writes through the
   DoltHub SQL API bypass bd's guards and events journal).
 
@@ -88,15 +81,13 @@ in one line; that makes separate caches with unrelated schema packages
 possible (different teams, different skills), though it is not a feature to
 encourage. It also names the sync scopes, the timeouts
 in `CacheConfig`, and the schema packages to load by path, for example
-`.claude/skills/atm-beads/schemas`, each with an optional enforcement
+a skill's own `schemas` directory, each with an optional enforcement
 override (ADR-BDC-0008). Loading it goes through sc-config after sc-runtime
 integration; phase a's core takes the resulting `CacheConfig` as plain
 values. Phase a loads it with `bd-cache-store`'s `load_repo_config`
-(`RepoConfig`, including the `[tick]` table the sync task reads). Its relation
-to BD-CACHE's `.atm-bd/phase-*.toml` phase files is settled in ADR-SYNC-0007
-(`bd-cache-sync/architecture.md`): the phase files stay atm-bd's, and the sync
-task reads their `root` and `lead`. Moving the loader to sc-config is the
-later step.
+(`RepoConfig`). Scopes are set in this file and never discovered from a
+consumer's files (ADR-BDC-0010). Moving the loader to sc-config is the later
+step.
 
 ### Data flow
 
@@ -110,7 +101,7 @@ later step.
   landed. The MCP write tools say this explicitly and may offer an optional
   wait for the drain.
 - **Drain:** applies journaled writes through the backend port in `seq`
-  order, with achieved checks, preconditions and read-back (BD-CACHE.md).
+  order, with achieved checks, preconditions and read-back.
 - **Sync:** the sync task (`bd-cache-sync` on `sc-cron` in phase a, on sc-runtime later) refreshes each active scope from
   its own cursor, then refreshes the scope's ready/blocked base from
   `bd blocked -l` and `bd ready -l`; reads adjust that base for our journaled
@@ -121,11 +112,11 @@ later step.
 - Which scope kinds besides `phase-<x>` come first (label set, assignee,
   status).
 - Whether rows are stored in full or as `--brief` rows with full text fetched
-  on demand. Needs measurement; full rows are the BD-CACHE baseline.
+  on demand. Needs measurement; full rows are what the v3 format stores.
 - MCP auth model (bearer token file like `bd serve`, or OAuth) and which MCP
   tools ship first. Create and comments are out of BD-CACHE v1 but a
   general-purpose MCP will need them.
-- Automatic prune of closed scopes (an open item in BD-CACHE.md).
+- Automatic prune of closed scopes.
 
 ## Crate Layout
 
@@ -146,16 +137,14 @@ integrating with sc-runtime.
 | `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
 | `bd-cache-api` (ADR-BDC-0009; `docs/bd-cache-api/`) | Request and data models, the shared request decoder, the operation layer (filters, paging, order, `/v0` mapping), the error table (`ERROR_TABLE`, `ApiError`), schemars request schemas, the shared fixtures; no sc-command, no clap (CI-checked) | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars | b |
 | `bd-cache-cli` (binaries `bd-cache`, `bdc`; ADR-BDC-0009; `docs/bd-cache-cli/`) | JSON-first CLI per `docs/bd-cache-cli/contract.md` (sprint b-3): clap argv to the JSON request, `bd_cache_api::decode` then `execute`, `cache tick` over `bd_cache_sync::tick`, one sc-command envelope on stdout, `--format text`, `--help` (text on a terminal), the stderr log. Config: `.beads/bd-cache.toml` read by the store's rules (a `bd` key ignored) plus `BD_CACHE__*` env overrides and flags, opened through `bd_cache_sync::compose_with_config`; no sc-config dependency until it offers a missing-allowed file source. The `fake-bd` harness behind feature `fake-bd` (ADR-CLI-0001, 0002) | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads`, sc-command, sc-observability-types, clap, serde, serde_json, toml | b |
-| `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
-| `bd-cache-sync` | The sync task on `sc-cron`: `tick` (drain with `T - 5 s` / `T - 2 s`, then sync each active phase, deferring any not started by `T - 2 s`), `stop_reason`, announcements through `EscalationSender` (sync failures once per cause, outage once per scope as the alert `backend_unavailable`, escalations once with the `resolve` command; `AtmSender`, which runs `atm send`, is one implementation), `SyncJob` (the `sc-cron` job: `Cache` in `Arc<Mutex<_>>` under `spawn_blocking`), `schedule_spec`, and `compose` (the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, toml (phase files), tracing, libc (Unix only: O_NONBLOCK) (the list is ADR-SYNC-0006) | a |
-| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3, serde, serde_json, dunce | a |
+| `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no consumer or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
+| `bd-cache-sync` | The sync task on `sc-cron`: `tick` (drain with `T - 5 s` / `T - 2 s`, then sync each scope, deferring any not started by `T - 2 s`), the failure and escalation state a registered post-sync hook reads and marks (sync failures per scope, an outage per scope as the alert `backend_unavailable`, escalations until marked; beads-cache sends nothing, ADR-BDC-0010), `SyncJob` (the `sc-cron` job: `Cache` in `Arc<Mutex<_>>` under `spawn_blocking`), `schedule_spec`, and `compose` (the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, tracing, libc (Unix only: O_NONBLOCK) (the list is ADR-SYNC-0006) | a |
+| `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with the 0.1 verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3, serde, serde_json, dunce | a |
 | MCP server | HTTPS MCP front end over `bd-cache-api` (ADR-BDC-0009) | `bd-cache-api`, `bd-cache-sync`, sc-command (server), sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
-backend: the ported cases from `test_bd_cache.py` (44), the 13 cases from
-`test_bd_cache_cron.py` against the sync task with an injected sender, and
-the bd-1.3.1 contract fixtures. `sc-cron` carries its own tests, ported from
-atm-cron where they apply. Sprint a-7 adds the end-to-end flow through the
+backend: the core's own cases, the sync task against a recording hook, and
+the bd-1.3.1 contract fixtures. `sc-cron` carries its own tests. Sprint a-7 adds the end-to-end flow through the
 real composition (`SqliteStore`, `FlockDrainLock`, `BdCli` over a recording
 fake `bd`, `SyncJob` on a scheduler) in CI, and the same flow against a
 scratch `bd` workspace on the testbed
@@ -207,7 +196,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0004) |
 | ADR-BDC-0008 | Draft | not in phase a |
 | ADR-BDC-0009 | Approved | `bd-cache-api` (sprint b-2: the request vocabulary, decoder, operations and error table; ADR-API-0001..0003 in `docs/bd-cache-api/architecture.md`); `bd-cache-cli` (sprint b-3: both command groups of `docs/bd-cache-cli/contract.md` §1–§8, the exit codes, configuration and help; ADR-CLI-0001..0004 in `docs/bd-cache-cli/architecture.md`) |
-| ADR-BDC-0010 | Approved | `scripts/lint_no_atm.py` and its tests (with the phase-b plan, run per sprint with `--paths`); the removal of the existing code is sprint b-6, and its CI lint gate lands there too (`docs/plans/phase-b/phase-b-boundary.md`) |
+| ADR-BDC-0010 | Approved | `scripts/lint_no_atm.py` and its tests (with the phase-b plan, run per sprint with `--paths`); the removal of the existing code is sprints b-6 and b-7, and the CI lint gate "Strict consumer boundary (ADR-BDC-0010)" lands in sprint b-8 (`docs/plans/phase-b/phase-b-boundary.md`) |
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
@@ -226,9 +215,8 @@ can belong to several scopes; the `phase` column is kept for v3
 compatibility. Pruning a scope deletes only beads that no other scope holds.
 
 Consequences: extends the BD-CACHE v3 file additively at `user_version` 3;
-the Python implementation reads the extended file, and the Rust store
-tolerates rows Python leaves in the extension tables. No version bump. Needs agreement on
-https://github.com/randlee/atm-bd-orchestration/issues/557.
+any v3 reader reads the extended file, and the Rust store tolerates rows
+another v3 writer leaves in the extension tables. No version bump.
 
 ## ADR-BDC-0002: Blocked state from bd, one query per scope
 
@@ -256,9 +244,8 @@ The live Python cache (BD-CACHE v3) is not affected: it never stores or
 serves blocked state, and readiness there comes from live `bd ready`.
 
 Readiness changes in the workflows this cache serves come from our own
-writes: a dev close releases its sanity bead, which is then assigned
-(`atm assign task`); the sanity agent's `atm task open` hook checks
-`ready` through the cache (Python bindings) one or two turns later and
+writes: a dev close releases its sanity bead, which is then assigned; a hook
+checks `ready` through the cache (Python bindings) one or two turns later and
 escalates if the bead is not ready. Under host load bd cannot be asked in
 time (calls time out even at 30 s), so `ready` must reflect our writes
 without a bd call, and a stale "not ready" after our own close would raise a
@@ -307,7 +294,7 @@ reads see the backend only after the drain lands. Every `ready` reply says
 its basis (bd fetch time, locally adjusted).
 
 Consequences: two small `bd` calls per scope per sync (`bd blocked` measured
-0.07-0.08 s on a loaded atm-dev host); a ready transition caused by our own
+0.07-0.08 s on a loaded host); a ready transition caused by our own
 write is visible immediately even with bd unreachable; changes made outside
 the cache arrive only when a sync gets through. The live Python cache is
 not affected (it never serves blocked state).
@@ -383,14 +370,14 @@ Decision:
   attempt, as in v3, since it may have reached the backend. While it holds, the drain
   stops without counting an attempt, and a sync that meets it records the
   outage instead of an announced `SYNC_FAILED`. These are the rules v3 adopted
-  at atm-core 05831df (Rand approved); the two implementations must apply the
-  same rules because they share a journal, and only one may drain it.
+  (Rand approved); every writer of a shared file must apply the same rules
+  because they share a journal, and only one may drain it.
   Only failures from a reachable backend (`BD_WRITE_FAILED`, guard refusal)
   count towards `MAX_ATTEMPTS` or escalate.
 - No extra backoff: the cron tick (30 s) is the retry interval. `status`
-  reports the outage. An outage is announced through each active scope's
-  sync alert under the stable cause key `backend_unavailable`, so each lead
-  hears it once; its end resets the alert without a message.
+  reports the outage. An outage is recorded through each scope's
+  sync alert under the stable cause key `backend_unavailable`, once per scope;
+  its end resets the alert.
 - The drain has a start gate and a hard deadline (REQ-BDC-0402): each `bd`
   call is capped at the time left before the hard deadline; a call cut short
   by it is neither an outage nor an attempt.
@@ -404,21 +391,17 @@ retry-cap behaviour; needs agreement on #557.
 
 **Status:** Approved (lead ruling 2026-10-24, after a-3 QA-2: covers the decision text as amended in integrate/phase-a 3f87332, including the third-party dependency list cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing; extended by lead ruling 2026-10-23 to cover the integrate/phase-a 4dbc1ad amendment adding the dev-dependency tempfile)
 
-Context: the sync task needs a scheduler (BD-CACHE's cron drains and syncs
-every 30 s). sc-runtime has no cron or scheduler crate. atm-core's `atm-cron`
-(ADR-069 there, phase bk) is a SQLite-backed cron already in use, but it is
-bound to ATM: it implements `atm-core`'s sealed `CronScheduler` boundary,
-uses `AtmError`, `TeamName`, `PhaseId` and `HookRequest`, keeps its store
-port in `atm-storage` and its rusqlite store in `atm-storage-rusqlite`, and
-is composed by the ATM daemon.
+Context: the sync task needs a scheduler (the cron drains and syncs every
+30 s). sc-runtime has no cron or scheduler crate. A scheduler bound to one
+host application's error and identity types cannot serve here.
 
-Decision: build `sc-cron` in this workspace by extracting atm-cron's
-scheduler behaviour (expression parse before write, next-run computation,
+Decision: build `sc-cron` in this workspace with the scheduler behaviour
+(expression parse before write, next-run computation,
 jitter, missed-tick replay, stop check before every run, `(id, generation)`
 fencing so a stale run never writes over a restarted schedule, stores that
 read no clock) with a generic job payload and its own error type. The store
 port and a rusqlite store live with it. `sc-cron` depends on no bd-cache or
-ATM crate, so it can move to sc-runtime unchanged once the sc-runtime team
+consumer crate, so it can move to sc-runtime unchanged once the sc-runtime team
 accepts it; bd-cache then switches its dependency.
 
 Third-party dependencies of `sc-cron`: cron, chrono, tokio, rusqlite
@@ -429,8 +412,7 @@ QA-1); dev-dependency tempfile for its store tests (lead amendment,
 
 Consequences: phase a can deliver the sync task before sc-runtime
 integration. Needs agreement with the sc-runtime team on the crate name and
-its place in sc-runtime, and a note to the atm-core team, since atm-cron
-could later adopt it.
+its place in sc-runtime.
 
 ## ADR-BDC-0007: Shared beads backend crates, seeded from btit
 
@@ -502,19 +484,18 @@ recorded in ADR-BEADS-0002, accepted by lead ruling (bc-lead, 2026-10-23).
 **Status:** Draft (later phase; not in phase a)
 
 Context: teams extend beads with their own fields in bd's free-form
-`metadata`, and may require some of them. atm-beads already does this: its
-Pydantic models (`bead_schema.py`) are exported as JSON Schemas in
-randlee/atm-core `.claude/skills/atm-beads/schemas/` (dev, fix, sanity, qa,
-finding, gate, root, sprint and stack beads), with role-based fields
-stamped at pour and required at close (`close_fields.py`), and structured
-values such as the QA bead's list of required review agents. bd accepts any
+`metadata`, and may require some of them. A skill can already do this: its
+models are exported as JSON Schemas (for dev, fix, sanity, qa, finding, gate,
+root, sprint and stack beads), with role-based fields stamped at pour and
+required at close, and structured values such as the QA bead's list of
+required review agents. bd accepts any
 metadata and enforces none of it. The schemas belong to the skill that
 defines them and change when that skill is upgraded, so they cannot be
 compiled into, or released with, the shared crates.
 
 Decision (proposed):
 - **Schema packages ship with their consumer.** A package is a directory the
-  skill owns (for atm-beads, its `schemas/`), plus a small manifest: package
+  skill owns (for example its `schemas/`), plus a small manifest: package
   name, version, and for each schema the beads it selects (`issue_type`, a
   label, or a `metadata.role` value) and its lifecycle rules (required at
   pour, required at close). The skill's own models stay the source and
@@ -528,7 +509,7 @@ Decision (proposed):
   per package. `off` loads nothing; `warn` reports violations; `enforce`
   also refuses violating writes.
 - **Versions.** A pour stamps the package and version into the bead's
-  metadata (for example `schema: "atm-beads/qa-bead@3"`), so a bead always
+  metadata (for example `schema: "skill/qa-bead@3"`), so a bead always
   says which schema it was made under. The first implementation loads one
   version per package and reports beads stamped with another version
   instead of validating them. Loading several versions at once is the
@@ -557,8 +538,8 @@ Open:
   `--set-metadata k=<json text>`, which bd stores as a string that readers
   decode; the journal already accepts such strings when they round-trip.
   The one structured rewrite after pour is the stack bead's `layers` list,
-  a read-modify-write through `bd update --metadata @file`, which atm-bd
-  treats as replacing the whole object (not yet probed). The cache needs a
+  a read-modify-write through `bd update --metadata @file`, which the
+  consumer treats as replacing the whole object (not yet probed). The cache needs a
   whole-metadata replace op guarded by a precondition on the previous value
   for that case.
 - The manifest format and the version-stamp key.
@@ -649,7 +630,7 @@ Decision:
   `docs/plans/phase-b/phase-b-boundary.md`).
 - Consumers use the PyO3 API from their hooks and for direct reads (a TUI).
 - Enforcement: `scripts/lint_no_atm.py`, a CI gate in the `ci` lint job
-  from sprint b-6, with no inline suppression and no allowlist file. Until
+  from sprint b-8, with no inline suppression and no allowlist file. Until
   then each sprint runs it on its own files with `--paths <prefix>...`. It
   scans the product: the tracked files under `crates/`, `docs/` and
   `scripts/`, plus `Cargo.toml`, `README.md`, `rust-toolchain.toml` and the
@@ -680,22 +661,17 @@ Consequences:
 - Consumers (atm-bd) own messaging, scheduling policy, migration of their own
   files and their own compat tests against the published wheel. atm-bd ships
   its script and depends on the beads-cache wheel.
-- To be superseded by the removal sprint b-6 (not edited here):
-  REQ-BDC-0701 (the `team` and `fallback_lead` of the `[tick]` table),
-  REQ-BDC-0702 (phases from `.atm-bd/phase-*.toml` with `root` and `lead`),
-  REQ-BDC-0703 (only its per-phase sync wording; the budget itself is
-  neutral), REQ-BDC-0704 (failures and outages sent to a phase lead or
-  `fallback_lead`), REQ-BDC-0705 (escalations sent to the phase lead),
-  REQ-BDC-0706 (the `refused` / `pass-through` tick replies and message
-  retry) and REQ-BDC-0707 (the stop rule keyed on active phases), together
-  with their refinements in `docs/bd-cache-sync/requirements.md`; and
-  ADR-SYNC-0007 in `docs/bd-cache-sync/architecture.md` (the phase-file
-  schema and the `atm send` contract, with its fix-a-7-3 and fix-a-7-5
-  amendments).
-- ADR-BDC-0006's note to "the atm-core team" about `atm-cron` must not cite
-  atm-core; `sc-cron`'s provenance is stated without naming ATM.
-- Until the removal sprints land, the lint fails on the current tree; its
-  output is the removal worklist.
+- Sprint b-8 applied the requirement amendments in `docs/requirements.md`
+  (REQ-BDC-0701..0706 and 0804 amended, REQ-BDC-0707 retired, REQ-BDC-0708
+  added). The refinements in `docs/bd-cache-sync/requirements.md` and
+  ADR-SYNC-0007 in `docs/bd-cache-sync/architecture.md` (the phase-file schema
+  and the `atm send` contract, with its fix-a-7-3 and fix-a-7-5 amendments)
+  are removed by sprint b-7.
+- ADR-BDC-0006 and the other ADRs state the provenance of `sc-cron` and the
+  store format without naming a consumer.
+- The CI step "Strict consumer boundary (ADR-BDC-0010)" fails on the whole
+  tree until sprints b-6 and b-7 land; its output is their removal worklist.
+  Sprint b-8 merges last.
 
 ## Per-Crate Architecture
 

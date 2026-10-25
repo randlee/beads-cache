@@ -14,7 +14,7 @@
 //! crate pass the child the `OsString` form, which keeps such a segment too;
 //! [`get_extended_path`], whose type is `String`, leaves it out.
 //! [`absolute_path_entries`] is the S76/S77 rule on its own, for another
-//! crate's own `PATH` search (`bd-cache-sync`'s `atm` lookup, RSH-003).
+//! crate's own `PATH` search (RSH-003).
 
 use std::collections::HashSet;
 use std::env;
