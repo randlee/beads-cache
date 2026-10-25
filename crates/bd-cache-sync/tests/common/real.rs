@@ -24,7 +24,7 @@ use bd_cache_sync::{SyncJob, compose_with, schedule_spec};
 use chrono::{DateTime, Utc};
 use sc_bd_cli::bounded::BoundedError;
 use sc_bd_cli::testing::FakeBd;
-use sc_bd_cli::{BdCli, CliInvoker};
+use sc_bd_cli::{BdCli, CliInvoker, ProjectLocks};
 use sc_beads::error::BeadsError;
 use sc_beads::testing::{ManualClock, bead};
 use sc_beads::{Bead, CliOutput, CliProbe, Clock, ProjectRef};
@@ -222,9 +222,17 @@ impl Real {
             down: Arc::clone(&down),
         };
         let beads_clock: Arc<dyn Clock> = Arc::clone(&clock) as Arc<dyn Clock>;
-        let backend = BdCli::with_invoker(Box::new(invoker)).with_clock(Arc::clone(&beads_clock));
+        // The fake runs no `bd`, so it takes no lock set.
+        let backend = |_locks| BdCli::with_invoker(Box::new(invoker));
         // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
-        let composed = compose_with(root.path(), backend, Arc::clone(&beads_clock), None).unwrap();
+        let composed = compose_with(
+            root.path(),
+            backend,
+            Arc::new(ProjectLocks::new()),
+            Arc::clone(&beads_clock),
+            None,
+        )
+        .unwrap();
         let sender = Arc::new(RecordingSender::default());
         let spec = schedule_spec(&composed.tick, &composed.name, None).unwrap();
         let job = SyncJob::new(

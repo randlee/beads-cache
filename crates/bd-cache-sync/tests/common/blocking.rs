@@ -3,6 +3,8 @@
 //! - `down`: every call is unreachable (an outage), until switched off;
 //! - `lists_down`: the backend check answers but every list is unreachable
 //!   (`bd version` passes while lists time out);
+//! - `panicking`: every call panics, as a backend with a bug would, so a
+//!   tick can be made to die inside the cache;
 //! - `gate`: `list_scope` blocks on a real condition variable until the test
 //!   releases it, so a tick can be caught in the middle of a blocking sync.
 //!
@@ -93,6 +95,7 @@ pub struct Controlled {
     pub inner: FakeBackend,
     down: Arc<AtomicBool>,
     lists_down: Arc<AtomicBool>,
+    panicking: Arc<AtomicBool>,
     /// Blocks `list_scope` while armed.
     pub gate: Arc<Gate>,
     on_fingerprint: Hook,
@@ -106,6 +109,7 @@ impl Controlled {
             inner,
             down: Arc::new(AtomicBool::new(false)),
             lists_down: Arc::new(AtomicBool::new(false)),
+            panicking: Arc::new(AtomicBool::new(false)),
             gate: Arc::new(Gate::default()),
             on_fingerprint: Arc::new(Mutex::new(None)),
         }
@@ -126,7 +130,16 @@ impl Controlled {
         self.lists_down.store(down, Ordering::SeqCst);
     }
 
+    /// Every call panics while `panicking`.
+    pub fn set_panicking(&self, panicking: bool) {
+        self.panicking.store(panicking, Ordering::SeqCst);
+    }
+
     fn check(&self, list: bool) -> Result<(), BeadsCacheError> {
+        assert!(
+            !self.panicking.load(Ordering::SeqCst),
+            "the scripted backend panics"
+        );
         if self.down.load(Ordering::SeqCst) || (list && self.lists_down.load(Ordering::SeqCst)) {
             return Err(BeadsCacheError::Unavailable {
                 reason: "connection refused (scripted)".into(),

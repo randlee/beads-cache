@@ -9,16 +9,26 @@
 //!   from a timed-out tick (the scheduler drops the future, never the
 //!   thread), is skipped and reported busy; `should_stop` then answers
 //!   `Continue`;
-//! - a poisoned mutex (an earlier tick panicked) is recovered and cleared; the
-//!   next tick, whichever of the stop check and the run recovered it, reports
-//!   it once in its reply, also when that tick fails.
+//! - a poisoned mutex (an earlier tick panicked) is never trusted: the cache
+//!   the panic left behind is dropped, the poison cleared, and the next tick
+//!   builds a new cache from the same composition inputs (the recompose
+//!   function of [`SyncJob::with_recompose`]) and reports it once in its
+//!   reply, also when that tick fails (S55, PE-RBP-F007). A job built
+//!   without one reports the cache lost ([`TickRun::Lost`]).
 //!
 //! # Shutdown
 //!
 //! Build the job with a [`StopFlag`] ([`SyncJob::with_stop`]) and give the
-//! same flag to the [`AtmSender`]. To stop: set the flag (the running tick ends
-//! between phases and before its next message, and `atm` is killed), then
-//! `WorkerHandle::shutdown` and await it, then drop the job.
+//! same flag to the [`AtmSender`]. To stop, in this order:
+//!
+//! 1. set the flag: the running tick ends between phases and before its next
+//!    message, and `atm` is killed;
+//! 2. `WorkerHandle::shutdown` and await it: no new run starts;
+//! 3. [`SyncJob::join_idle`] with a deadline, from a thread that may block
+//!    (`spawn_blocking`): the scheduler drops a run's future but never its
+//!    blocking thread, so a tick may still be inside the cache; this waits
+//!    for it, up to the deadline, and says whether it ended (PE-RSH-004);
+//! 4. drop the job.
 //!
 //! # Clocks
 //!
@@ -29,8 +39,9 @@
 //!
 //! [`AtmSender`]: crate::AtmSender
 
+use std::fmt;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, TryLockError};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError, TryLockError};
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
@@ -42,6 +53,7 @@ use sc_beads::{CacheBackend, Deadline};
 use sc_cron::{Job, RunOutcome, ScheduleSpec, StopDecision};
 
 use crate::atm::AtmSender;
+use crate::compose::ComposeError;
 use crate::control::StopFlag;
 use crate::phases::{ConfigRefusal, TickSettings};
 use crate::reply::{Refusal, RefusalCode, TickOutcome, TickReply};
@@ -65,6 +77,9 @@ pub const STOP_CHECK_BUDGET: Duration = Duration::from_secs(3);
 /// (it is stored on every run).
 const MAX_OUTCOME_BYTES: usize = 1024;
 
+/// How often [`SyncJob::join_idle`] looks at the cache mutex again.
+const IDLE_POLL: Duration = Duration::from_millis(5);
+
 /// What one run of the job did.
 #[derive(Debug)]
 #[non_exhaustive]
@@ -75,36 +90,148 @@ pub enum TickRun {
     Failed {
         /// The error.
         error: CacheError,
-        /// The cache mutex had been poisoned and was recovered for this tick.
+        /// An earlier panic poisoned the cache mutex; the cache it left was
+        /// dropped and this tick ran on a recomposed one.
+        poisoned: bool,
+    },
+    /// There is no cache to tick: an earlier panic dropped it and it could not
+    /// be recomposed (S55).
+    Lost {
+        /// Why there is no cache.
+        error: CacheLost,
+        /// The panic is reported by this run (once, as for the other variants).
         poisoned: bool,
     },
 }
 
+/// A panic dropped the job's cache and no new one could be built (S55).
+#[derive(Debug)]
+pub struct CacheLost {
+    /// The composition's error; `None` when the job has no recompose function.
+    cause: Option<ComposeError>,
+}
+
+/// The stable code of [`CacheLost`].
+const CACHE_LOST_CODE: &str = "sync_cache_lost";
+
+impl CacheLost {
+    /// The stable code, `sync_cache_lost`.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        CACHE_LOST_CODE
+    }
+
+    /// What to do about it.
+    #[must_use]
+    pub fn fix(&self) -> &'static str {
+        match &self.cause {
+            Some(e) => e.fix(),
+            None => {
+                "build the job with SyncJob::with_recompose, or restart the host; look for the panic in the log"
+            }
+        }
+    }
+
+    /// The composition's error, when recomposing was tried and failed.
+    #[must_use]
+    pub fn cause(&self) -> Option<&ComposeError> {
+        self.cause.as_ref()
+    }
+}
+
+impl fmt::Display for CacheLost {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.cause {
+            Some(_) => f.write_str("a panic dropped the cache and it could not be recomposed"),
+            None => f.write_str("a panic dropped the cache and the job has no recompose function"),
+        }
+    }
+}
+
+impl std::error::Error for CacheLost {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        self.cause
+            .as_ref()
+            .map(|e| e as &(dyn std::error::Error + 'static))
+    }
+}
+
+/// A host read through the job failed: the cache is lost, or the read failed.
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum JobCacheError {
+    /// There is no cache ([`CacheLost`]).
+    Lost(CacheLost),
+    /// The cache answered with an error.
+    Cache(CacheError),
+}
+
+impl JobCacheError {
+    /// A stable code: [`CacheLost::code`] or the cache error's `BD_CACHE.*` code.
+    #[must_use]
+    pub fn code(&self) -> &'static str {
+        match self {
+            Self::Lost(e) => e.code(),
+            Self::Cache(e) => e.code(),
+        }
+    }
+}
+
+impl fmt::Display for JobCacheError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Lost(e) => fmt::Display::fmt(e, f),
+            Self::Cache(_) => f.write_str("the cache read failed"),
+        }
+    }
+}
+
+impl std::error::Error for JobCacheError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Lost(e) => std::error::Error::source(e),
+            Self::Cache(e) => Some(e),
+        }
+    }
+}
+
+/// Builds a new cache from the inputs of the first composition (S55).
+type Recompose<S, L, B> =
+    Box<dyn Fn() -> Result<Cache<S, L, B>, ComposeError> + Send + Sync + 'static>;
+
+/// The job's cache: `None` once a panic dropped it, until it is recomposed.
+type Slot<S, L, B> = Option<Cache<S, L, B>>;
+
 /// What the job needs from its owner, shared with the blocking tasks.
 struct Shared<S: CacheStore, L: DrainLock, B: CacheBackend> {
-    cache: Mutex<Cache<S, L, B>>,
+    cache: Mutex<Slot<S, L, B>>,
+    recompose: Option<Recompose<S, L, B>>,
     settings: TickSettings,
     sender: Arc<dyn EscalationSender>,
     stop: StopFlag,
-    /// A recovered poison nobody has reported yet.
+    /// A panic that dropped the cache and nobody has reported yet.
     poison_unreported: AtomicBool,
 }
 
 impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
-    /// Recovers a poisoned mutex: the cache keeps its state in the store's
-    /// transactions, so it is usable; the poison is cleared and remembered
-    /// until a tick reports it.
+    /// Recovers a poisoned mutex without trusting what it holds: a panic may
+    /// have left the cache between two steps of a verb (S55), so it is
+    /// dropped. The poison is cleared and remembered until a tick reports it;
+    /// the next [`cache_in`](Self::cache_in) recomposes.
     fn recover<'a>(
         &self,
-        e: std::sync::PoisonError<MutexGuard<'a, Cache<S, L, B>>>,
-    ) -> MutexGuard<'a, Cache<S, L, B>> {
+        e: PoisonError<MutexGuard<'a, Slot<S, L, B>>>,
+    ) -> MutexGuard<'a, Slot<S, L, B>> {
+        let mut guard = e.into_inner();
+        let panicked = guard.take();
         self.cache.clear_poison();
         self.poison_unreported.store(true, Ordering::SeqCst);
-        e.into_inner()
+        drop(panicked);
+        guard
     }
 
-    /// Takes the cache without waiting; `None` when it is in use.
-    fn try_hold(&self) -> Option<MutexGuard<'_, Cache<S, L, B>>> {
+    /// Takes the cache mutex without waiting; `None` when it is in use.
+    fn try_hold(&self) -> Option<MutexGuard<'_, Slot<S, L, B>>> {
         match self.cache.try_lock() {
             Ok(guard) => Some(guard),
             Err(TryLockError::Poisoned(e)) => Some(self.recover(e)),
@@ -112,9 +239,25 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
         }
     }
 
-    /// Takes the cache, waiting for whoever holds it.
-    fn hold(&self) -> MutexGuard<'_, Cache<S, L, B>> {
+    /// Takes the cache mutex, waiting for whoever holds it.
+    fn hold(&self) -> MutexGuard<'_, Slot<S, L, B>> {
         self.cache.lock().unwrap_or_else(|e| self.recover(e))
+    }
+
+    /// The cache in `slot`, recomposed first when a panic dropped it.
+    fn cache_in<'g>(
+        &self,
+        slot: &'g mut Slot<S, L, B>,
+    ) -> Result<&'g mut Cache<S, L, B>, CacheLost> {
+        if slot.is_none() {
+            let Some(recompose) = &self.recompose else {
+                return Err(CacheLost { cause: None });
+            };
+            let cache = recompose().map_err(|e| CacheLost { cause: Some(e) })?;
+            tracing::info!("the cache dropped after a panic was recomposed");
+            *slot = Some(cache);
+        }
+        slot.as_mut().ok_or(CacheLost { cause: None })
     }
 
     fn run_tick(&self, end: Deadline) -> TickRun {
@@ -122,13 +265,17 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
             return TickRun::Done(Box::new(TickReply::busy()));
         };
         let poisoned = self.poison_unreported.swap(false, Ordering::SeqCst);
-        match tick_with(&mut guard, &self.settings, &*self.sender, end, &self.stop) {
+        let cache = match self.cache_in(&mut guard) {
+            Ok(cache) => cache,
+            Err(error) => return TickRun::Lost { error, poisoned },
+        };
+        match tick_with(cache, &self.settings, &*self.sender, end, &self.stop) {
             Ok(mut reply) => {
                 if poisoned {
                     reply.poisoned = true;
                     reply.refused.push(Refusal::new(
                         RefusalCode::MutexPoisoned,
-                        "the cache mutex was poisoned by an earlier panic and was recovered",
+                        "an earlier panic poisoned the cache mutex; that cache was dropped and this tick ran on a recomposed one",
                     ));
                     reply.outcome = TickOutcome::Refused;
                 }
@@ -143,8 +290,12 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
             // Busy: a blocking task is still working; never stop under it.
             return StopDecision::Continue;
         };
-        let end = Deadline::after(&*guard.clock(), STOP_CHECK_BUDGET);
-        match stop_reason_with(&mut guard, &self.settings, end) {
+        // A cache a panic dropped is rebuilt by the next tick, not here.
+        let Some(cache) = guard.as_mut() else {
+            return StopDecision::Continue;
+        };
+        let end = Deadline::after(&*cache.clock(), STOP_CHECK_BUDGET);
+        match stop_reason_with(cache, &self.settings, end) {
             Ok(Some(reason)) => StopDecision::Stop(reason),
             Ok(None) => StopDecision::Continue,
             Err(e) => {
@@ -157,6 +308,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
             }
         }
     }
+
+    /// Waits until no one holds the cache, or `deadline` passes.
+    fn join_idle(&self, deadline: Instant) -> bool {
+        loop {
+            if self.try_hold().is_some() {
+                return true;
+            }
+            let now = Instant::now();
+            if now >= deadline {
+                return false;
+            }
+            std::thread::sleep(IDLE_POLL.min(deadline - now));
+        }
+    }
 }
 
 /// The job `sc-cron` runs for the repository's one schedule.
@@ -165,28 +330,44 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Shared<S, L, B> {
 ///
 /// ```no_run
 /// use std::sync::Arc;
+/// use std::time::{Duration, Instant};
 /// use bd_cache_sync::{AtmSender, StopFlag, SyncJob, compose, schedule_spec};
 /// use sc_beads::{Clock, SystemClock};
 /// use sc_cron::{Scheduler, SqliteScheduleStore, SystemClock as CronClock, SystemJitter};
 ///
 /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
 /// let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-/// let root = std::path::Path::new(".");
-/// let composed = compose(root, "bd", clock)?;
+/// let root = std::path::PathBuf::from(".");
+/// let composed = compose(&root, "bd", Arc::clone(&clock))?;
 /// let stop = StopFlag::new();
 /// let atm = AtmSender::default().with_stop(stop.clone());
 /// let spec = schedule_spec(&composed.tick, &composed.name, Some(&atm))?;
-/// let job = SyncJob::with_stop(composed.cache, &composed.tick, Arc::new(atm), stop.clone())?;
+/// // After a panic the job drops its cache and composes a new one from the
+/// // same inputs (`compose` shares one lock set across the process).
+/// let job = SyncJob::with_recompose(
+///     composed.cache,
+///     &composed.tick,
+///     Arc::new(atm),
+///     stop.clone(),
+///     move || compose(&root, "bd", Arc::clone(&clock)).map(|c| c.cache),
+/// )?;
 /// let scheduler = Scheduler::new(
 ///     Arc::new(SqliteScheduleStore::open(".bd-cache/cron.db")?),
 ///     Arc::new(CronClock),
 ///     Arc::new(SystemJitter),
 /// );
 /// scheduler.start_async(spec).await?;
-/// let worker = scheduler.spawn_worker(Arc::new(job));
-/// // ... later: set the flag, then wait for the worker
+/// let worker = scheduler.spawn_worker(Arc::new(job.clone()));
+/// // ... later: set the flag, wait for the worker, then for the tick in flight
 /// stop.stop();
-/// worker.shutdown(tokio::time::Instant::now() + std::time::Duration::from_secs(30)).await;
+/// worker.shutdown(tokio::time::Instant::now() + Duration::from_secs(30)).await;
+/// let idle = tokio::task::spawn_blocking(move || {
+///     job.join_idle(Instant::now() + Duration::from_secs(30))
+/// })
+/// .await?;
+/// if !idle {
+///     eprintln!("a tick was still running at the shutdown deadline");
+/// }
 /// # Ok(())
 /// # }
 /// ```
@@ -198,6 +379,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> std::fmt::Debug for SyncJob<S
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SyncJob")
             .field("settings", &self.shared.settings)
+            .field("recomposes", &self.shared.recompose.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -215,6 +397,10 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
     ///
     /// Only one ticker may run per cache file: do not build a second job, or
     /// call `drain` and `sync` from another scheduler, on the same file.
+    ///
+    /// The job cannot rebuild `cache`: after a panic in a tick it reports the
+    /// cache lost ([`TickRun::Lost`]). A host uses
+    /// [`with_recompose`](Self::with_recompose).
     ///
     /// # Errors
     ///
@@ -240,10 +426,45 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
         sender: Arc<dyn EscalationSender>,
         stop: StopFlag,
     ) -> Result<Self, ConfigRefusal> {
+        Self::build(cache, None, config, sender, stop)
+    }
+
+    /// As [`with_stop`](Self::with_stop), with the function that builds a new
+    /// cache from the same composition inputs as `cache` (S55, PE-RBP-F007).
+    ///
+    /// A panic in a tick or a host call may leave the cache between two steps,
+    /// so the job never reuses it: it drops it, and the next tick (or host
+    /// call) calls `recompose` and runs on its cache. A failing `recompose` is
+    /// [`TickRun::Lost`] and is tried again by the next tick. For the real
+    /// cache, `recompose` calls [`compose`](crate::compose) (or
+    /// [`compose_with`](crate::compose_with) with the same lock set) with the
+    /// arguments that built `cache`.
+    ///
+    /// # Errors
+    ///
+    /// As [`new`](Self::new).
+    pub fn with_recompose(
+        cache: Cache<S, L, B>,
+        config: &TickConfig,
+        sender: Arc<dyn EscalationSender>,
+        stop: StopFlag,
+        recompose: impl Fn() -> Result<Cache<S, L, B>, ComposeError> + Send + Sync + 'static,
+    ) -> Result<Self, ConfigRefusal> {
+        Self::build(cache, Some(Box::new(recompose)), config, sender, stop)
+    }
+
+    fn build(
+        cache: Cache<S, L, B>,
+        recompose: Option<Recompose<S, L, B>>,
+        config: &TickConfig,
+        sender: Arc<dyn EscalationSender>,
+        stop: StopFlag,
+    ) -> Result<Self, ConfigRefusal> {
         let settings = TickSettings::from_config(config)?;
         Ok(Self {
             shared: Arc::new(Shared {
-                cache: Mutex::new(cache),
+                cache: Mutex::new(Some(cache)),
+                recompose,
                 settings,
                 sender,
                 stop,
@@ -274,25 +495,61 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
         self.shared.run_stop()
     }
 
+    /// Waits until no tick, stop check or host call holds the cache, for at
+    /// most until `deadline`; `true` when the cache is free (PE-RSH-004).
+    ///
+    /// The shutdown step after `WorkerHandle::shutdown`: the scheduler drops
+    /// a timed-out run's future, never its `spawn_blocking` thread, so a tick
+    /// may still be running after the worker has stopped. `false` means one
+    /// still held the cache at `deadline` (it is bounded by its own `T`; the
+    /// host may wait again or exit). It takes the mutex and lets it go, so a
+    /// new tick could start afterwards: stop the worker first.
+    ///
+    /// # Blocking
+    ///
+    /// This blocks the calling thread up to `deadline`: from async code, call
+    /// it in `tokio::task::spawn_blocking`.
+    #[must_use]
+    pub fn join_idle(&self, deadline: Instant) -> bool {
+        self.shared.join_idle(deadline)
+    }
+
     /// Runs `f` on the cache, waiting for any tick in flight to finish.
     ///
     /// For the reads and writes of the host process that share this cache
-    /// (the same `Cache` the ticks use). A poisoned mutex is recovered.
+    /// (the same `Cache` the ticks use). A cache a panic dropped is
+    /// recomposed first (S55).
     ///
     /// # Blocking
     ///
     /// This waits for the mutex, for as long as a tick runs (up to its 25 s
     /// budget plus a leftover blocking task). Do not call it from an async
     /// task: use `tokio::task::spawn_blocking`, or [`try_with_cache`](Self::try_with_cache).
-    pub fn with_cache<T>(&self, f: impl FnOnce(&mut Cache<S, L, B>) -> T) -> T {
-        f(&mut self.shared.hold())
+    ///
+    /// # Errors
+    ///
+    /// [`CacheLost`] when a panic dropped the cache and it cannot be recomposed.
+    pub fn with_cache<T>(&self, f: impl FnOnce(&mut Cache<S, L, B>) -> T) -> Result<T, CacheLost> {
+        let mut guard = self.shared.hold();
+        self.shared.cache_in(&mut guard).map(f)
     }
 
     /// Runs `f` on the cache if no tick holds it; `None` when it is busy.
     ///
-    /// Never waits, so it is safe in async code.
-    pub fn try_with_cache<T>(&self, f: impl FnOnce(&mut Cache<S, L, B>) -> T) -> Option<T> {
-        self.shared.try_hold().map(|mut guard| f(&mut guard))
+    /// Never waits for the mutex, so it is safe in async code; a cache a
+    /// panic dropped is recomposed first, as [`with_cache`](Self::with_cache) does.
+    ///
+    /// # Errors
+    ///
+    /// [`CacheLost`] when a panic dropped the cache and it cannot be recomposed.
+    pub fn try_with_cache<T>(
+        &self,
+        f: impl FnOnce(&mut Cache<S, L, B>) -> T,
+    ) -> Result<Option<T>, CacheLost> {
+        match self.shared.try_hold() {
+            Some(mut guard) => self.shared.cache_in(&mut guard).map(|c| Some(f(c))),
+            None => Ok(None),
+        }
     }
 
     /// The escalated entries not yet announced, for a host that wants to show them.
@@ -303,9 +560,12 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> SyncJob<S, L, B> {
     ///
     /// # Errors
     ///
-    /// Store errors.
-    pub fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError> {
+    /// [`JobCacheError::Cache`] for a store error, [`JobCacheError::Lost`] as
+    /// [`with_cache`](Self::with_cache).
+    pub fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, JobCacheError> {
         self.with_cache(|c| c.unannounced_escalations())
+            .map_err(JobCacheError::Lost)?
+            .map_err(JobCacheError::Cache)
     }
 }
 
@@ -321,12 +581,27 @@ fn outcome_of(run: TickRun) -> RunOutcome {
         },
         TickRun::Failed { error, poisoned } => {
             let note = if poisoned {
-                " (the cache mutex had been poisoned and was recovered)"
+                " (an earlier panic poisoned the cache mutex; the tick ran on a recomposed cache)"
             } else {
                 ""
             };
             RunOutcome::Failed(clip(
                 &format!("{}: {}{note}", error.code(), error.detail()),
+                MAX_OUTCOME_BYTES,
+            ))
+        }
+        TickRun::Lost { error, poisoned } => {
+            let cause = error
+                .cause()
+                .map(|e| format!(" ({}: {e})", e.code()))
+                .unwrap_or_default();
+            let note = if poisoned {
+                " (the cache mutex had been poisoned)"
+            } else {
+                ""
+            };
+            RunOutcome::Failed(clip(
+                &format!("{}: {error}{cause}{note}", error.code()),
                 MAX_OUTCOME_BYTES,
             ))
         }
@@ -369,7 +644,8 @@ where
 pub enum ScheduleError {
     /// The `[tick]` table is refused (REQ-BDC-0701).
     Config(ConfigRefusal),
-    /// The phases directory does not exist.
+    /// The phases directory does not exist; its code is the tick's
+    /// `phases_dir_unreadable` (PE-QA-003).
     PhasesDir(std::path::PathBuf),
     /// `atm` cannot be found.
     Sender(bd_cache_model::SendError),
@@ -383,7 +659,8 @@ impl ScheduleError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::Config(c) => c.code().as_str(),
-            Self::PhasesDir(_) => "phases_dir_missing",
+            // The tick's code for the same directory (PE-QA-003): one code on both surfaces.
+            Self::PhasesDir(_) => RefusalCode::PhasesDirUnreadable.as_str(),
             Self::Sender(_) => "atm_not_found",
             Self::Cron(_) => "cron_refused",
         }
@@ -505,6 +782,14 @@ mod tests {
         assert!(
             matches!(&failed, RunOutcome::Failed(m) if m.contains("poisoned") && m.contains("NOT_FOUND")),
             "{failed:?}"
+        );
+        let lost = outcome_of(TickRun::Lost {
+            error: CacheLost { cause: None },
+            poisoned: true,
+        });
+        assert!(
+            matches!(&lost, RunOutcome::Failed(m) if m.starts_with("sync_cache_lost: ") && m.contains("poisoned")),
+            "{lost:?}"
         );
         let long = TickReply::refused_with(Refusal::new(
             RefusalCode::PhaseFileInvalid,

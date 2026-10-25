@@ -353,6 +353,95 @@ fn a_phase_file_over_the_size_cap_and_a_directory_over_the_file_cap_are_bounded(
     );
 }
 
+/// With `[tick] phases` set, every configured phase is read by name, however
+/// many phase files the directory holds: the file cap cannot hide one
+/// (PE-RSH-010).
+#[test]
+fn every_configured_phase_is_read_from_a_directory_over_the_file_cap() {
+    let dir = tempfile::tempdir().unwrap();
+    let count = bd_cache_sync::MAX_PHASE_FILES + 44;
+    let mut names = Vec::new();
+    for i in 0..count {
+        std::fs::write(
+            dir.path().join(format!("phase-p{i}.toml")),
+            format!("root = \"r{i}\"\n"),
+        )
+        .unwrap();
+        names.push(bd_cache_model::PhaseName::new(format!("p{i}")).unwrap());
+    }
+    // One configured phase has no file.
+    names.push(bd_cache_model::PhaseName::new("absent").unwrap());
+
+    let set = bd_cache_sync::load_phases(dir.path(), Some(&names)).unwrap();
+
+    assert_eq!(set.phases.len(), count, "every configured file was read");
+    assert!(
+        matches!(
+            set.problems.as_slice(),
+            [bd_cache_sync::PhaseFileProblem::NoFile { phase, .. }] if phase.as_str() == "absent"
+        ),
+        "{:?}",
+        set.problems
+    );
+    let last = format!("p{}", count - 1);
+    assert!(
+        set.phases
+            .iter()
+            .any(|p| p.name.as_str() == last && p.root == id(&format!("r{}", count - 1)))
+    );
+}
+
+/// Without `[tick] phases`, the scan visits at most `MAX_PHASES_DIR_ENTRIES`
+/// entries of any kind, so a directory full of other files bounds the tick
+/// (PE-RSH-010).
+#[test]
+fn the_scan_of_the_phases_directory_visits_a_bounded_number_of_entries() {
+    let dir = tempfile::tempdir().unwrap();
+    for i in 0..bd_cache_sync::MAX_PHASES_DIR_ENTRIES + 10 {
+        std::fs::write(dir.path().join(format!("note-{i}.txt")), "").unwrap();
+    }
+
+    let set = bd_cache_sync::load_phases(dir.path(), None).unwrap();
+
+    assert!(set.phases.is_empty());
+    assert!(
+        matches!(
+            set.problems.as_slice(),
+            [bd_cache_sync::PhaseFileProblem::TooManyEntries { .. }]
+        ),
+        "{:?}",
+        set.problems
+    );
+    assert_eq!(set.problems[0].code(), RefusalCode::PhaseFilesTooMany);
+}
+
+/// A missing phases directory has one code on both surfaces: the schedule's
+/// check and the tick's refusal (PE-QA-003).
+#[test]
+fn a_missing_phases_directory_has_one_code_for_the_schedule_and_the_tick() {
+    let w = World::new();
+    let mut cfg = w.config();
+    cfg.phases_dir = Some(w.dir.path().join("missing"));
+    let atm = bd_cache_sync::AtmSender::default();
+
+    let err = schedule_spec(&cfg, "r", Some(&atm)).unwrap_err();
+    let mut cache = w.cache();
+    let reply = w.tick_with(&mut cache, &cfg);
+
+    assert!(
+        matches!(err, bd_cache_sync::ScheduleError::PhasesDir(_)),
+        "{err:?}"
+    );
+    let refusal = reply
+        .refused
+        .iter()
+        .find(|r| r.code == RefusalCode::PhasesDirUnreadable)
+        .unwrap_or_else(|| panic!("the tick refuses the directory: {reply:?}"));
+    assert_eq!(err.code(), refusal.code.as_str());
+    assert_eq!(err.code(), "phases_dir_unreadable");
+    assert_eq!(err.fix(), refusal.code.fix());
+}
+
 /// The phase files atm-core keeps (`.atm-bd/phase-bd.toml` and `phase-bk.toml`
 /// at `05831df`, see `fixtures/PROVENANCE.md`) load: `root` and `lead` are
 /// read and `plan`, `integration_branch` and `[templates]` are ignored.

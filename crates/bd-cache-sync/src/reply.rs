@@ -68,7 +68,8 @@ pub enum RefusalCode {
     EscalationNoLead,
     /// An earlier tick still holds the cache (REQ-BDC-0703).
     Busy,
-    /// The cache mutex was poisoned by an earlier panic and recovered.
+    /// The cache mutex was poisoned by an earlier panic: that cache was dropped
+    /// and the tick ran on a recomposed one (S55).
     MutexPoisoned,
 }
 
@@ -142,7 +143,7 @@ impl RefusalCode {
             }
             Self::Busy => "none; an earlier tick is still running and this one was skipped",
             Self::MutexPoisoned => {
-                "none; the cache was recovered, look for the earlier panic in the log"
+                "none; the cache was dropped and recomposed, look for the earlier panic in the log"
             }
         }
     }
@@ -300,8 +301,8 @@ pub struct TickReply {
     /// The cache was in use by an earlier tick's blocking task; this tick did
     /// nothing (REQ-BDC-0703).
     pub busy: bool,
-    /// The cache's mutex had been poisoned by a panic; it was recovered for
-    /// this tick (ADR-SYNC-0002).
+    /// The cache's mutex had been poisoned by a panic; the cache it held was
+    /// dropped and this tick ran on a recomposed one (ADR-SYNC-0002, S55).
     pub poisoned: bool,
 }
 

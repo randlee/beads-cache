@@ -18,9 +18,9 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `announce` | sync-failure, outage and escalation messages, `AlertCause` (the `backend_unavailable` alert and the sync causes) |
 | `reply` | `TickReply`, `TickOutcome`, `Announcement`, `Refusal` and `RefusalCode` (a stable code, the detail and the fix) |
 | `control` | `StopFlag` and the tick's time budget for messages |
-| `job` | `SyncJob` (the `sc-cron` `Job`), `TickRun`, `schedule_spec`, `TICK_EXPR` |
+| `job` | `SyncJob` (the `sc-cron` `Job`; `with_recompose`, `join_idle`), `TickRun`, `CacheLost`, `JobCacheError`, `schedule_spec`, `TICK_EXPR` |
 | `atm` | `AtmSender`: `atm send` with the body on stdin, bounded, the whole process tree killed on timeout or stop |
-| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir` (`sync_beads_dir_unresolvable`, the `io::Error` as source) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
+| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose` builds every `BdCli` over one process-wide `ProjectLocks` (a `OnceLock` static, as `bd-cache-py` keeps its own; S54, PE-RSH-003) and `compose_with` takes the lock set as an `Arc<ProjectLocks>` and the backend as a function of it, so a host shares its own set; a repository root that is not UTF-8 is `ComposeError::RepoRootNotUtf8` (`sync_repo_root_not_utf8`), never a lossy `ProjectRef`; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir(BeadsDirError)` (`sync_beads_dir_unresolvable`; the store's error whole, its `Display` and `source`, the `io::Error`, delegated: RBP-F050) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
 
@@ -75,6 +75,39 @@ so a job that could never run is not built.
 Consequences: a tick never waits for a mutex, so ticks cannot queue up
 behind a stuck task; the host's own reads and writes use `with_cache` (which
 waits, so not from async code) or `try_with_cache` (which does not).
+
+Amendment (phase-end fix, S55, PE-RBP-F007): a poisoned mutex is no longer
+trusted. A panic may leave the `Cache` between two steps of a verb, so
+whoever meets the poison (the stop check, a run, or a host call) drops the
+cache, clears the poison and sets the unreported flag; the mutex holds
+`Option<Cache>`. The next tick, or host call, rebuilds it with the recompose
+function given to `SyncJob::with_recompose` (the host passes `compose` over
+the same inputs, so the same lock set and `$BEADS_DIR`) and its reply carries
+`poisoned` once, as before. The stop check never recomposes: it answers
+`Continue`. A job built with `new` / `with_stop` has no recompose function:
+it reports `TickRun::Lost` (`sync_cache_lost`) and `with_cache` /
+`try_with_cache` return `CacheLost`; a recompose that fails is
+`TickRun::Lost` with the `ComposeError` as its cause, and is tried again by the
+next tick. Evidence: `a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes`,
+`a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes`
+(a panicking backend under `spawn_blocking`; the panicked cache is shown
+dropped by the backend's handle count),
+`a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick`,
+`a_job_without_a_recompose_function_reports_the_cache_lost_after_a_panic`,
+`a_recompose_that_fails_is_tried_again_by_the_next_tick`
+(`tests/job_threading.rs`).
+
+Amendment (phase-end fix, PE-RSH-004): the shutdown order waits for the tick
+in flight. `sc-cron` drops a timed-out run's future but never its
+`spawn_blocking` thread, so after `WorkerHandle::shutdown` a tick may still
+hold the cache. The order is now: (1) set the stop flag; (2) await
+`WorkerHandle::shutdown`; (3) `SyncJob::join_idle(deadline)` from a blocking
+thread, which takes the cache mutex with a timeout (a `try_lock` poll every
+5 ms up to the deadline) and returns `true` once no tick holds it, `false` at
+the deadline; (4) drop the job. `job.rs` documents the same steps. Evidence:
+`join_idle_waits_for_the_tick_in_flight_up_to_its_deadline`
+(`tests/job_threading.rs`: a tick held in its `bd list` keeps `join_idle`
+waiting until its deadline, and a released tick ends it early).
 
 Note (fix-a-7-3, lead ruling S20, QA3-005): the drain keeps its own budget and
 does not look at the stop flag; a stop that arrives while it runs is seen when
@@ -339,7 +372,11 @@ Decision (confirmed against that commit with `gh api`; ported fixtures
   without `lead` (its alerts go to `fallback_lead`, lead ruling S3), reports an
   unusable file as a typed `PhaseFileProblem`, treats an unreadable
   directory as "do not stop" and refuses an empty phase list. A phase file is
-  read up to 64 KiB, and at most 256 are read.
+  read up to 64 KiB, and at most 256 are read. With `[tick] phases` set the
+  directory is not scanned: each configured `phase-<x>.toml` is looked up by
+  name, so no cap can hide one; without it the scan visits at most
+  `MAX_PHASES_DIR_ENTRIES` (1024) entries of any kind (`TooManyEntries`,
+  `phase_files_too_many`; PE-RSH-010).
 - **`atm send`.** `atm send <lead>@<team> --team tool --stdin --json` with
   `ATM_IDENTITY=cron` and `ATM_TEAM=tool` in the environment and the message on
   stdin, as the reference runs it; the reference's time limit is 10 s and so is
@@ -352,7 +389,11 @@ Decision (confirmed against that commit with `gh api`; ported fixtures
 Amendment (fix-a-7-3, RSH-023; **Status:** Approved (lead ruling S22, bc-lead, 2026-10-24)):
 the output of `atm` is read by threads
 bounded as `atm.rs` documents. Each send starts at most three threads (the
-message writer and one reader per output stream). A reader keeps at most
+message writer and one reader per output stream), named and started with
+`thread::Builder` (PE-RSH-011): a thread that cannot be started is a
+`SendError` (`other`) and the child's tree is killed and reaped, never left
+running (`a_helper_thread_that_cannot_start_fails_the_send_and_kills_the_child`,
+`src/atm.rs`). A reader keeps at most
 `CAPTURE_LIMIT` (4096 bytes) and drops the rest, and the error says so; the
 threads are waited for no longer than the time left in the tick's budget. They
 end when the pipes close, so a descendant of `atm` that outlives a failed send

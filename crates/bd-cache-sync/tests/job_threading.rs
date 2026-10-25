@@ -1,6 +1,7 @@
 //! `SyncJob`'s threading (ADR-CORE-0001; REQ-BDC-0703): the cache in an
 //! `Arc<Mutex<_>>` under `spawn_blocking`, a busy tick skipped, a poisoned
-//! mutex recovered and reported.
+//! mutex's cache dropped and recomposed (S55), and the shutdown wait for the
+//! tick in flight (PE-RSH-004).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -12,11 +13,12 @@
 mod common;
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::mpsc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
-use bd_cache_sync::{SyncJob, TICK_BUDGET, TickOutcome, TickRun};
+use bd_cache_sync::{ComposeError, StopFlag, SyncJob, TICK_BUDGET, TickOutcome, TickRun};
 use common::World;
 use sc_cron::{Job, RunOutcome, StopDecision};
 
@@ -33,6 +35,24 @@ fn job(w: &World) -> TestJob {
         Arc::clone(&w.sender) as Arc<dyn bd_cache_model::EscalationSender>,
     )
     .unwrap()
+}
+
+/// A job that recomposes its cache over the world's parts, counting each build in `built`.
+fn recomposing(w: &World, built: &Arc<AtomicUsize>) -> TestJob {
+    SyncJob::with_recompose(
+        w.cache(),
+        &w.config(),
+        Arc::clone(&w.sender) as Arc<dyn bd_cache_model::EscalationSender>,
+        StopFlag::new(),
+        w.recompose(built),
+    )
+    .unwrap()
+}
+
+/// How many caches over the world's backend are alive besides the world's
+/// own handle and the one the recompose function keeps: the job's cache.
+fn caches_alive(w: &World) -> usize {
+    Arc::strong_count(&w.switch.gate) - 2
 }
 
 fn done(run: TickRun) -> bd_cache_sync::TickReply {
@@ -106,7 +126,7 @@ async fn a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_bus
 
     w.switch.gate.open();
     // The left-over task ends; ticks run again. (Wait for it via the mutex.)
-    job.with_cache(|_| ());
+    job.with_cache(|_| ()).unwrap();
     assert_eq!(job.run(&payload, deadline).await, RunOutcome::Ok);
 }
 
@@ -127,7 +147,8 @@ fn should_stop_returns_continue_when_busy() {
             job.with_cache(|_| {
                 held_tx.send(()).unwrap();
                 release_rx.recv().unwrap();
-            });
+            })
+            .unwrap();
         })
     };
     held_rx.recv().unwrap();
@@ -137,19 +158,28 @@ fn should_stop_returns_continue_when_busy() {
     assert!(matches!(job.should_stop_blocking(), StopDecision::Stop(_)));
 }
 
-/// A poisoned mutex is recovered, reported once in the tick reply, and cleared.
+/// A host call that panics leaves a poisoned mutex: its cache is not reused
+/// but dropped, the next tick runs on a recomposed one and reports it once
+/// (S55, PE-RBP-F007).
 #[test]
-fn a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply() {
+fn a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes() {
     let w = World::new();
     w.phase("x", Some("lead-x"));
-    let job = job(&w);
+    let built = Arc::new(AtomicUsize::new(0));
+    let job = recomposing(&w, &built);
     let poisoner = {
         let job = job.clone();
         thread::spawn(move || job.with_cache(|_| panic!("a tick died")))
     };
     assert!(poisoner.join().is_err());
+    assert_eq!(
+        built.load(Ordering::SeqCst),
+        0,
+        "nothing is rebuilt eagerly"
+    );
 
     let first = done(job.run_blocking(w.after(TICK_BUDGET)));
+    assert_eq!(built.load(Ordering::SeqCst), 1, "the tick recomposed");
     assert!(first.poisoned, "{first:?}");
     assert_eq!(first.outcome, TickOutcome::Refused);
     assert!(
@@ -164,6 +194,46 @@ fn a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply() {
     let second = done(job.run_blocking(w.after(TICK_BUDGET)));
     assert!(!second.poisoned, "reported once: {second:?}");
     assert_eq!(second.outcome, TickOutcome::PassThrough);
+    assert_eq!(built.load(Ordering::SeqCst), 1, "recomposed once");
+}
+
+/// A tick whose backend panics, under the scheduler's `spawn_blocking`:
+/// the stop check that comes next drops the panicked cache without building
+/// one, and the next run recomposes from the same inputs (S55, PE-RBP-F007).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let built = Arc::new(AtomicUsize::new(0));
+    let job = recomposing(&w, &built);
+    let payload = serde_json::json!({});
+    let deadline = Instant::now() + TICK_BUDGET;
+    assert_eq!(caches_alive(&w), 1);
+
+    w.switch.set_panicking(true);
+    let died = job.run(&payload, deadline).await;
+    assert!(
+        matches!(&died, RunOutcome::Failed(m) if m.starts_with("tick_task_failed")),
+        "{died:?}"
+    );
+    w.switch.set_panicking(false);
+
+    // sc-cron asks should_stop before every run: it meets the poison first.
+    assert_eq!(job.should_stop(&payload).await, StopDecision::Continue);
+    assert_eq!(caches_alive(&w), 0, "the panicked cache was dropped");
+    assert_eq!(built.load(Ordering::SeqCst), 0);
+
+    let next = job.run(&payload, deadline).await;
+    assert!(
+        matches!(&next, RunOutcome::Refused(m) if m.contains("mutex_poisoned")),
+        "the poison is reported: {next:?}"
+    );
+    assert_eq!(built.load(Ordering::SeqCst), 1, "one recomposed cache");
+    assert_eq!(caches_alive(&w), 1);
+
+    w.next_tick();
+    assert_eq!(job.run(&payload, deadline).await, RunOutcome::Ok);
+    assert_eq!(built.load(Ordering::SeqCst), 1);
 }
 
 /// The scheduler asks `should_stop` before every run, so the stop check is
@@ -172,7 +242,8 @@ fn a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply() {
 fn a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick() {
     let w = World::new();
     w.phase("x", Some("lead-x"));
-    let job = job(&w);
+    let built = Arc::new(AtomicUsize::new(0));
+    let job = recomposing(&w, &built);
     let poisoner = {
         let job = job.clone();
         thread::spawn(move || job.with_cache(|_| panic!("a tick died")))
@@ -190,6 +261,129 @@ fn a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick() {
     // Reported once.
     w.next_tick();
     assert!(!done(job.run_blocking(w.after(TICK_BUDGET))).poisoned);
+    assert_eq!(built.load(Ordering::SeqCst), 1);
+}
+
+/// A job with no recompose function never reuses a panicked cache either: it
+/// reports the cache lost, to the tick and to the host (S55).
+#[test]
+fn a_job_without_a_recompose_function_reports_the_cache_lost_after_a_panic() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let job = job(&w);
+    let poisoner = {
+        let job = job.clone();
+        thread::spawn(move || job.with_cache(|_| panic!("a tick died")))
+    };
+    assert!(poisoner.join().is_err());
+
+    match job.run_blocking(w.after(TICK_BUDGET)) {
+        TickRun::Lost { error, poisoned } => {
+            assert!(poisoned);
+            assert_eq!(error.code(), "sync_cache_lost");
+            assert!(error.cause().is_none());
+        }
+        other => panic!("expected a lost cache, got {other:?}"),
+    }
+    let err = job.with_cache(|_| ()).unwrap_err();
+    assert_eq!(err.code(), "sync_cache_lost");
+    assert!(matches!(job.try_with_cache(|_| ()), Err(e) if e.code() == "sync_cache_lost"));
+    assert!(matches!(
+        job.run_blocking(w.after(TICK_BUDGET)),
+        TickRun::Lost {
+            poisoned: false,
+            ..
+        }
+    ));
+}
+
+/// A recompose that fails is a lost cache with its cause; the next tick tries
+/// again (S55).
+#[test]
+fn a_recompose_that_fails_is_tried_again_by_the_next_tick() {
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let built = Arc::new(AtomicUsize::new(0));
+    let recompose = w.recompose(&built);
+    let tries = Arc::clone(&attempts);
+    let job: TestJob = SyncJob::with_recompose(
+        w.cache(),
+        &w.config(),
+        Arc::clone(&w.sender) as Arc<dyn bd_cache_model::EscalationSender>,
+        StopFlag::new(),
+        move || {
+            if tries.fetch_add(1, Ordering::SeqCst) == 0 {
+                Err(ComposeError::Cache(
+                    bd_cache_model::CacheError::NoDatabase {
+                        detail: "metadata.json is gone".into(),
+                    },
+                ))
+            } else {
+                recompose()
+            }
+        },
+    )
+    .unwrap();
+    let poisoner = {
+        let job = job.clone();
+        thread::spawn(move || job.with_cache(|_| panic!("a tick died")))
+    };
+    assert!(poisoner.join().is_err());
+
+    match job.run_blocking(w.after(TICK_BUDGET)) {
+        TickRun::Lost { error, poisoned } => {
+            assert!(poisoned);
+            assert_eq!(
+                error.cause().map(ComposeError::code),
+                Some("BD_CACHE.NO_DATABASE")
+            );
+        }
+        other => panic!("expected a lost cache, got {other:?}"),
+    }
+    let run = done(job.run_blocking(w.after(TICK_BUDGET)));
+    assert_eq!(run.synced.len(), 1, "{run:?}");
+    assert_eq!(attempts.load(Ordering::SeqCst), 2);
+    assert_eq!(built.load(Ordering::SeqCst), 1);
+}
+
+/// The shutdown wait (PE-RSH-004): `join_idle` waits for a tick that holds
+/// the cache, no longer than its deadline, and returns once the tick ends.
+#[test]
+fn join_idle_waits_for_the_tick_in_flight_up_to_its_deadline() {
+    const SHORT: Duration = Duration::from_millis(150);
+    let w = World::new();
+    w.phase("x", Some("lead-x"));
+    let job = job(&w);
+    assert!(job.join_idle(Instant::now()), "an idle job is idle at once");
+
+    w.switch.gate.arm();
+    let running = {
+        let job = job.clone();
+        let end = w.after(TICK_BUDGET);
+        thread::spawn(move || job.run_blocking(end))
+    };
+    w.switch.gate.wait_entered(1);
+
+    let started = Instant::now();
+    assert!(!job.join_idle(started + SHORT), "the tick holds the cache");
+    assert!(started.elapsed() >= SHORT, "it waited until the deadline");
+    assert!(!running.is_finished());
+
+    let opener = {
+        let gate = Arc::clone(&w.switch.gate);
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(100));
+            gate.open();
+        })
+    };
+    assert!(
+        job.join_idle(Instant::now() + Duration::from_secs(10)),
+        "the tick ended before the deadline"
+    );
+    opener.join().unwrap();
+    let reply = done(running.join().unwrap());
+    assert_eq!(reply.outcome, TickOutcome::PassThrough, "{reply:?}");
 }
 
 /// `try_with_cache` never waits: a held cache is `None`.
@@ -197,7 +391,7 @@ fn a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick() {
 fn try_with_cache_does_not_wait_for_a_running_tick() {
     let w = World::new();
     let job = job(&w);
-    assert_eq!(job.try_with_cache(|_| 7), Some(7));
+    assert_eq!(job.try_with_cache(|_| 7).unwrap(), Some(7));
     let (held_tx, held_rx) = mpsc::channel();
     let (release_tx, release_rx) = mpsc::channel::<()>();
     let holder = {
@@ -206,11 +400,12 @@ fn try_with_cache_does_not_wait_for_a_running_tick() {
             job.with_cache(|_| {
                 held_tx.send(()).unwrap();
                 release_rx.recv().unwrap();
-            });
+            })
+            .unwrap();
         })
     };
     held_rx.recv().unwrap();
-    assert_eq!(job.try_with_cache(|_| 7), None);
+    assert_eq!(job.try_with_cache(|_| 7).unwrap(), None);
     release_tx.send(()).unwrap();
     holder.join().unwrap();
 }

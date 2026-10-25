@@ -23,12 +23,14 @@
 //!   `spawn_blocking` with the `Cache` in an `Arc<Mutex<_>>` (ADR-CORE-0001),
 //!   and [`schedule_spec`], the one schedule per repository (REQ-BDC-0701);
 //! - [`compose`]: the real `SqliteStore` + `FlockDrainLock` + `BdCli`
-//!   cache of a repository, read from `.beads/bd-cache.toml`.
+//!   cache of a repository, read from `.beads/bd-cache.toml`, over one
+//!   process-wide `bd` lock set.
 //!
 //! # Codes
 //!
 //! Every error this crate reports has a stable lower-case code
-//! (`RefusalCode::as_str`, `ScheduleError::code`, `ComposeError::code`), with
+//! (`RefusalCode::as_str`, `ScheduleError::code`, `ComposeError::code`,
+//! `CacheLost::code`), with
 //! the `BD_CACHE.*` codes of the core passed through where the cause is a
 //! `CacheError`. The code, not the message, is what a program matches on.
 //!
@@ -76,12 +78,15 @@ pub use compose::{ComposeError, Composed, RealCache, compose, compose_with};
 #[doc(inline)]
 pub use control::StopFlag;
 #[doc(inline)]
-pub use job::{STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun, schedule_spec};
+pub use job::{
+    CacheLost, JobCacheError, STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun,
+    schedule_spec,
+};
 #[doc(inline)]
 pub use phases::{
     ConfigRefusal, DEFAULT_PHASES_DIR, InvalidMember, MAX_PHASE_FILE_BYTES, MAX_PHASE_FILES,
-    MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError, TickSettings, load_phases,
-    rooted_phases_dir,
+    MAX_PHASES_DIR_ENTRIES, MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError,
+    TickSettings, load_phases, rooted_phases_dir,
 };
 #[doc(inline)]
 pub use reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickOutcome, TickReply};

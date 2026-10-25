@@ -14,7 +14,6 @@
 //! `.beads/bd-cache.toml` once, so the tick and the stop rule never see an
 //! unchecked value.
 
-use std::collections::BTreeSet;
 use std::fmt;
 use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
@@ -35,6 +34,12 @@ pub const DEFAULT_PHASES_DIR: &str = ".atm-bd";
 pub const MAX_PHASE_FILE_BYTES: u64 = 64 * 1024;
 /// The most phase files read from the directory (atm-core has five).
 pub const MAX_PHASE_FILES: usize = 256;
+/// The most directory entries of any kind a scan of the phases directory
+/// visits (PE-RSH-010): the tick holds the cache while it scans, so a
+/// directory full of other files must not make it unbounded. Four times
+/// [`MAX_PHASE_FILES`] leaves room for editor backups and notes beside them.
+/// With `[tick] phases` set the directory is not scanned at all.
+pub const MAX_PHASES_DIR_ENTRIES: usize = 4 * MAX_PHASE_FILES;
 
 /// The member-name rule, in words (the model's, so every message states the same).
 pub(crate) use bd_cache_model::MEMBER_NAME_RULE as MEMBER_RULE;
@@ -393,6 +398,12 @@ pub enum PhaseFileProblem {
         /// The directory.
         dir: PathBuf,
     },
+    /// The directory holds more than [`MAX_PHASES_DIR_ENTRIES`] entries; the
+    /// scan stopped there (PE-RSH-010).
+    TooManyEntries {
+        /// The directory.
+        dir: PathBuf,
+    },
 }
 
 impl fmt::Display for PhaseFileProblem {
@@ -437,6 +448,12 @@ impl fmt::Display for PhaseFileProblem {
                 "{} holds more than {MAX_PHASE_FILES} phase files; the rest were not read",
                 dir.display()
             ),
+            Self::TooManyEntries { dir } => write!(
+                f,
+                "{} holds more than {MAX_PHASES_DIR_ENTRIES} entries; the rest were not looked at \
+                 (list the phases in [tick] phases to read them by name)",
+                dir.display()
+            ),
         }
     }
 }
@@ -454,7 +471,9 @@ impl PhaseFileProblem {
                 RefusalCode::PhaseFileInvalid
             }
             Self::NoFile { .. } => RefusalCode::PhaseFileMissing,
-            Self::TooManyFiles { .. } => RefusalCode::PhaseFilesTooMany,
+            Self::TooManyFiles { .. } | Self::TooManyEntries { .. } => {
+                RefusalCode::PhaseFilesTooMany
+            }
         }
     }
 
@@ -537,8 +556,13 @@ struct PhaseFile {
 ///
 /// An unusable file (not TOML, no `root`, a bad name, too large) is listed in
 /// [`PhaseSet::problems`] and skipped, so one broken file does not hide the
-/// others. A name in `only` with no file is a problem too. At most
-/// [`MAX_PHASE_FILES`] files are read.
+/// others. A name in `only` with no file is a problem too.
+///
+/// With `only`, the directory is not scanned: each configured
+/// `phase-<name>.toml` is looked up by name, so no cap can hide one
+/// (PE-RSH-010). Without it, the scan visits at most
+/// [`MAX_PHASES_DIR_ENTRIES`] entries and reads at most [`MAX_PHASE_FILES`]
+/// phase files.
 ///
 /// # Errors
 ///
@@ -548,10 +572,53 @@ pub fn load_phases(dir: &Path, only: Option<&[PhaseName]>) -> Result<PhaseSet, P
         dir: dir.to_path_buf(),
         source,
     };
+    // Opened in both cases, so a missing or unreadable directory is the same
+    // error whether or not the phases are listed.
+    let entries = std::fs::read_dir(dir).map_err(fail)?;
+    match only {
+        Some(only) => Ok(load_named(dir, only)),
+        None => scan(dir, entries).map_err(fail),
+    }
+}
+
+/// The configured phases, each looked up by its file name.
+fn load_named(dir: &Path, only: &[PhaseName]) -> PhaseSet {
+    let mut set = PhaseSet::default();
+    let mut names: Vec<&PhaseName> = only.iter().collect();
+    names.sort();
+    names.dedup();
+    for name in names {
+        let path = dir.join(format!("{FILE_PREFIX}{name}.{FILE_EXTENSION}"));
+        match std::fs::symlink_metadata(&path) {
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                set.problems.push(PhaseFileProblem::NoFile {
+                    phase: name.clone(),
+                    dir: dir.to_path_buf(),
+                });
+            }
+            // Anything else (a link, a pipe, a permission error) is read as a
+            // scanned file would be, and reported by `read_phase`.
+            _ => match read_phase(&path, name.clone()) {
+                Ok(phase) => set.phases.push(phase),
+                Err(problem) => set.problems.push(problem),
+            },
+        }
+    }
+    set
+}
+
+/// Every `phase-*.toml` file of a directory, within the two caps.
+fn scan(dir: &Path, entries: std::fs::ReadDir) -> io::Result<PhaseSet> {
     let mut set = PhaseSet::default();
     let mut files: Vec<(PhaseName, PathBuf)> = Vec::new();
-    for entry in std::fs::read_dir(dir).map_err(fail)? {
-        let path = entry.map_err(fail)?.path();
+    for (visited, entry) in entries.enumerate() {
+        if visited >= MAX_PHASES_DIR_ENTRIES {
+            set.problems.push(PhaseFileProblem::TooManyEntries {
+                dir: dir.to_path_buf(),
+            });
+            break;
+        }
+        let path = entry?.path();
         let Some(stem) = path
             .file_stem()
             .and_then(|s| s.to_str())
@@ -577,23 +644,10 @@ pub fn load_phases(dir: &Path, only: Option<&[PhaseName]>) -> Result<PhaseSet, P
         }
     }
     files.sort();
-    let mut seen: BTreeSet<PhaseName> = BTreeSet::new();
     for (name, path) in files {
-        if only.is_some_and(|only| !only.contains(&name)) {
-            continue;
-        }
-        seen.insert(name.clone());
         match read_phase(&path, name) {
             Ok(phase) => set.phases.push(phase),
             Err(problem) => set.problems.push(problem),
-        }
-    }
-    for name in only.unwrap_or_default() {
-        if !seen.contains(name) {
-            set.problems.push(PhaseFileProblem::NoFile {
-                phase: name.clone(),
-                dir: dir.to_path_buf(),
-            });
         }
     }
     Ok(set)
