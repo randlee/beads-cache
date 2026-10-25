@@ -86,7 +86,7 @@ only its own crate.
 | File | Owner | Rule |
 |---|---|---|
 | `Cargo.toml` `[workspace].members` and `[workspace.dependencies]` | b-2 (`bd-cache-api`, schemars), b-3a (`bd-cache-cli`, sc-command git dep at tag `prerelease/v0.1.0`, clap) | Members stay listed literally (the kit rejects globs), in alphabetical order. The second of the two to merge resolves the trivial conflict. |
-| `Cargo.toml` `[workspace.package].version` | b-4 | `0.2.0`, in lockstep with the wheel's static version. |
+| `Cargo.toml` `[workspace.package].version` | b-4 | `0.2.0`, in lockstep with the wheel's static version. The shared crates take 0.2.0 too (S61). |
 | `Cargo.lock` | every sprint that changes dependencies | Committed. Resolve a merge conflict by taking the target branch's lock and re-running `cargo metadata`, never `cargo update`. |
 | `docs/architecture.md` | b-2 (`bd-cache-api` rows), b-3 (`bd-cache-cli` rows, ADR-BDC-0009 implementation status) | Nobody else edits it. |
 | `docs/bd-cache-cli/contract.md` | PR #69 / the lead | Read-only for sprints. Changes are contract revisions. |
@@ -111,6 +111,25 @@ added to `docs/requirements.md` by this plan.
 | b-4 | REQ-BDC-0812; crate-level REQ-PY-0011.. |
 | b-5 | REQ-BDC-0813 |
 | superseded | REQ-BDC-0806 (S59, S60) |
+
+## Lead rulings
+
+All are bc-lead, 2026-10-25, recording Rand's answers.
+
+| Ruling | Decision | Where |
+|---|---|---|
+| S60 | The contract, ADR-BDC-0009 and the REQ-BDC-0801/0802/0803/0806 amendments are approved. | P-1, P-2 |
+| S61 | One workspace version for everything. Wheel 0.2.0 means `[workspace.package].version` is 0.2.0, so sc-beads, sc-cron and sc-bd-cli also publish as 0.2.0. The crates are not decoupled and the kit is not changed. The bump goes in b-4, because the wheel build and `verify-version-lockstep` need the pyproject and workspace versions to match in the commit that ships the wheel. | b-4 deliverable 5 |
+| S62 | A third additive nullable store column, `changed`, is accepted. It is named in contract §9 (amended on this branch). | b-1 deliverable 5 |
+| S63 | Channel names: WinGet id `randlee.bd-cache`; Homebrew formula `bd-cache` in randlee/homebrew-tap; Scoop `bucket/bd-cache.json` in randlee/scoop-bucket. | b-5 |
+
+## Open items
+
+- P-4: the sc-publish `release/` staging issue. b-5 files it, and the stable
+  release waits for the fix.
+- P-6: the external setup that Rand does: immutable releases, the three
+  channel secrets, the winget-pkgs fork, and the first `randlee.bd-cache`
+  submission made by hand.
 
 ## Deferred
 

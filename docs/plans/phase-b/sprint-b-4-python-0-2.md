@@ -49,9 +49,16 @@ so this sprint is additive only.
    b-2's error table for `retryable`. A Python type mistake still raises
    `TypeError`. File: `src/error.rs`.
 4. `bd_cache_rs.CONTRACT_VERSION` (REQ-BDC-0811).
-5. Version 0.2.0. The `pyproject.toml` static version and
-   `[workspace.package].version` change together in one commit, because
-   Release Preflight checks that they match.
+5. Version 0.2.0 (lead ruling S61, bc-lead, 2026-10-25). There is one
+   workspace version for everything, so `[workspace.package].version`
+   becomes 0.2.0, and sc-beads, sc-cron and sc-bd-cli also publish as
+   0.2.0. The crates are not decoupled and the kit is not changed.
+   - The bump is in b-4, not b-5. The wheel build's `sync-python-version` and
+     the kit's `verify-version-lockstep` both need the static
+     `pyproject.toml` version to equal the workspace version, so the two
+     change together in the commit that ships wheel 0.2.
+   - b-5 then cuts its prerelease from 0.2.0; the tag script patch-bumps
+     as needed.
 6. Tests:
    - `tests/test_api_fixtures.py` replays b-2's shared fixtures through the
      namespaces.

@@ -90,8 +90,9 @@ reply, and becomes a thin wrapper over `write_returning`.
      `crates/bd-cache/src/status.rs`.
 4. `GetReply.scope`: the bead's scope, `None` when it has none.
    - Files: `crates/bd-cache/src/get.rs`, `crates/bd-cache-model/src/reply.rs`.
-5. The store columns `last_error_code`, `note` and `changed`: additive and
-   nullable, with `user_version` still 3 (REQ-BDC-0804). `resolve` writes
+5. The store columns `last_error_code`, `note` and `changed` (the third one
+   accepted by lead ruling S62, bc-lead, 2026-10-25, and named in contract
+   §9): additive and nullable, with `user_version` still 3 (REQ-BDC-0804). `resolve` writes
    `note` and stops appending to `last_error`.
    - Reading a Python-written entry with `note` null splits a trailing
      `" | resolved by <actor>: <note>"` out of `last_error` into `note`.

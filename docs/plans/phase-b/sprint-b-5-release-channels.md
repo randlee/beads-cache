@@ -36,6 +36,12 @@ crates.io and PyPI legs are unchanged.
 
 ## Deliverables
 
+Channel names are fixed by lead ruling S63 (bc-lead, 2026-10-25):
+
+- WinGet id `randlee.bd-cache`;
+- Homebrew formula `bd-cache` in randlee/homebrew-tap;
+- Scoop manifest `bucket/bd-cache.json` in randlee/scoop-bucket.
+
 1. `release/sc-publish-consumer-input.json`:
    - **`release_binaries`**: `[{"name": "bd-cache"}, {"name": "bdc"}]`. These
      are Cargo `[[bin]]` names in the `publish = false` crate `bd-cache-cli`.
