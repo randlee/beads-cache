@@ -38,14 +38,14 @@ requirement ids, not the baseline.
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
 | P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). fenix (2026-10-24): fine with all four; proposes the ADR-BDC-0005 outage rule for v3 and would move the Python schema to match once 0001 and 0005 are agreed. Rand decides. | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
-| P-3 | beads-task-issue-tracker agreement on the shared API: sync calls, `BeadsError` as the shared error type, tolerant and strict rows. btit's traits stay unchanged either way; the cache methods are on `CacheBackend: BeadsBackend`. | a-1 error and row freeze | a-1 keeps btit's `BeadsError` and adds the cache variants; recorded in ADR-BDC-0007. |
+| P-3 | Resolved for errors (user, 2026-10-24): btit's `BeadsError` stays unchanged; cache errors are a separate `BeadsCacheError` in `sc-beads` (wraps `BeadsError`). The tolerant/strict row split stands as planned. | — | — |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
 | P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
-| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proves the workflow with `workflow_dispatch`. |
+| P-5 | Owner to confirm (not fenix; Rand or the hermes fork-maintenance owner). The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
 
 ## Boundary map
 
-No crate exists yet. Each crate is one boundary; no boundary manifests are
+Each crate is one boundary; no boundary manifests are
 declared, so boundaries are reviewed against `docs/architecture.md`.
 
 | Boundary | Produced by | Contract | Consumed by |
@@ -66,17 +66,21 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 
 | File | Owner | Rule |
 |---|---|---|
-| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. |
+| `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. Amended (lead ruling S7, bc-lead, 2026-10-24, a-7): the sibling crates `bd-cache-store`, `sc-bd-cli` and `sc-cron` are in the table (a-7), in alphabetical position; a-8 adds identical lines for the first two, so whichever branch merges second resolves a trivial conflict. Lead-approved amendment (bc-lead, 2026-10-24, a-8 fix round 1): `bd-cache-store` and `sc-bd-cli` (path plus version 0.1.0) were added to `[workspace.dependencies]` for `bd-cache-py`, which uses `workspace = true` for them. Further lead-approved amendment (bc-lead, 2026-10-24, R12, a-8 fix round 3): `dunce = "1"` for the same crate's canonical project directory. |
 | `Cargo.lock` | phase close-out (team-lead, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
-| `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). |
-| `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. |
-| `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. |
+| `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). a-7 amendment by lead ruling S43 (bc-lead, 2026-10-24): `__pycache__/` and `*.pyc` lines, and the committed `.pyc` under `docs/plans/phase-a/evidence/` removed. |
+| `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. Lead-approved amendment (bc-lead, 2026-10-24, R3/R12, a-8): the `bd-cache-py` row of the Crate Layout table only (third-party list: pyo3, serde, serde_json, dunce). |
+| `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. Lead-approved amendments (bc-lead, 2026-10-24, a-8): R11, one sentence of `docs/bd-cache/write-path.md` (the drain's unreachable set is `CacheError::is_unreachable`); R9/R11, `docs/bd-cache-model/architecture.md`: the ADR-MODEL-0002 a-8 amendment section and the `error.rs` module-table row only. |
+| `crates/sc-cron/**` | a-3 | Lead-approved amendment (bc-lead, 2026-10-24, R14, a-8 fix round 6): a-8 may edit `crates/sc-cron` for test lint configuration only: `clippy.toml` `allow-*-in-tests`; the src test-module `#[allow]` blocks are removed; `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level `#![expect(..., reason)]` (commit `1709e3b`, PR #23). Under R15 (bc-lead, 2026-10-24) a-8 also edits the one Build-note sentence in `docs/sc-cron/architecture.md` that describes the `clippy.toml` test allowances. No API, dependency or schema change. |
+| `crates/sc-bd-cli/**`, `docs/sc-bd-cli/**` | a-2 | a-7 amendment by lead ruling S40 (bc-lead, 2026-10-24): the `with_child_var` hook on `BdCli` and `CliRunner` and a provided no-op `CliInvoker::set_child_var`, so the `bd` child sees the `BEADS_DIR` value the cache resolved from (ADR-BDCLI-0004). The public btit functions keep their signatures. Also, by S47, REQ-BDCLI-0009 in `docs/sc-bd-cli/requirements.md` (owner a-7, S51). |
+| `crates/bd-cache-py/**`, `docs/bd-cache-py/**` | a-8 | a-7 amendment by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): `crates/bd-cache-py/src/compose.rs` (exhaustive `From<ConfigLoadError>` match; `ConfigKind::Other`, Python kind `config`, kept as reserved) and the ADR-PY-0002 / REQ-PY-0001 notes in `docs/bd-cache-py/architecture.md` and `requirements.md`. |
 | `.github/workflows/ci.yml` | a-1 | Workspace gates, excluding `bd-cache-py`; a-2 adds only `bd-compat.yml`, a-8 only `python.yml`. |
 | `.beads/bd-cache.toml` schema | a-1 (`RepoConfig`), a-4 (the one loader) | a-7 and a-8 consume the loader. |
 | `.claude/project/quality-policy.md` | a-7 | Adds the phase-end validation command. |
+| `crates/bd-cache/src/{lib,get,ready}.rs`, `crates/bd-cache-model/src/{store,state,sender}.rs`, `crates/bd-cache-store/src/{store,schema,codec}.rs` | a-1, a-4, a-6 | a-7 amendment by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24): `Cache::clock()`, the per-bead `CacheStore::base_entry` (indexed by the store), `EscalationSender::send_within` and `SendError` kinds. Documented in the crates' own docs. Later rulings: S26 (read-path dating threshold, ADR-STORE-0004), S30 (`Cache::scope_synced`, ADR-CORE-0002 amendment), S32 (ADR-STORE-0005; `crates/bd-cache-store/Cargo.toml`, `src/location.rs`, `crates/bd-cache-model/src/scope.rs`: `PhaseName::RULE`, and `MEMBER_NAME_RULE` in `sender.rs`), S33 (`CacheStore::mark_announced_within` / `set_sync_alert_within` and their `Cache` passthroughs in `lib.rs`), S34 (`ConfigLoadError::code`/`fix` as store API in `crates/bd-cache-store/src/location.rs`, ADR-STORE-0003 amendment; its codes are the store-owned `store_config_unreadable` / `store_config_invalid` / `store_config_bad_scope` of S37, and S38 makes `ConfigLoadError` exhaustive), S35 (no-message alert clears bounded by `Budget::write_wait`; failed marker writes logged) and S36 (`beads_dir` seams in `compose` and `SqliteStore::open`). |
 | `crates/bd-cache/Cargo.toml`, `src/lib.rs`, `src/view.rs`, `src/backend_check.rs`, `src/miss.rs`, `src/outage.rs`, `tests/common/**` | a-1 | a-5 and a-6 own only their module files and test files. A defect found in an a-1 helper is an amendment to a-1, merged first. |
 | `docs/plans/phase-a/evidence/**` | a-7 | Testbed evidence; an unavailable testbed is recorded as deferred evidence with an owner and date. |
-| `docs/requirements.md` | plan branch only | Sprints do not edit requirements. |
+| `docs/requirements.md` | plan branch only | Sprints do not edit requirements. a-7 amendments by lead rulings S3, S5, S31 (bc-lead, 2026-10-24). |
 
 ## Sprints and waves
 
@@ -102,18 +106,21 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 ## Requirement ownership
 
 Each requirement has exactly one owner. Sprint docs list `owns` and
-`constrained_by`.
+`constrained_by`. Crate-level requirements (`REQ-<DOMAIN>-*` in `docs/<crate>/requirements.md`)
+are owned by the sprint that creates the crate and are listed in its `owns`;
+crate ADRs (`ADR-<DOMAIN>-*`) are listed in its `adrs` and approved by the lead
+before the sprint merges.
 
 | Owner | Requirements |
 |---|---|
 | a-1 | REQ-BDC-0007, 0105, 0301, 0304, 0305, 0802, 0803, 0906; NFR-BDC-0005 |
 | a-2 | REQ-BDC-0006, 0106, 0201, 0303, 0905; NFR-BDC-0004, 0006 |
-| a-3 | none (governed by ADR-BDC-0006) |
+| a-3 | crate-level REQ-CRON-0001..0012 (docs/sc-cron/requirements.md); no REQ-BDC ids (governed by ADR-BDC-0006) |
 | a-4 | REQ-BDC-0101, 0102, 0103, 0104, 0107, 0108, 0109, 0604, 0804, 0901; NFR-BDC-0007 |
 | a-5 | REQ-BDC-0002, 0004, 0005, 0302, 0401, 0402, 0403, 0404, 0405, 0406 |
 | a-6 | REQ-BDC-0001, 0008, 0202, 0203, 0501, 0502, 0503, 0504, 0601, 0602, 0603, 0902, 0904, 0907, 0908, 0909, 0911, 0912 |
 | a-8 | REQ-BDC-0910 |
-| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003 |
+| a-7 | REQ-BDC-0003, 0701, 0702, 0703, 0704, 0705, 0706, 0707, 0903; NFR-BDC-0001, 0003; crate-level REQ-SYNC-0001..0013 (docs/bd-cache-sync/requirements.md); REQ-BDCLI-0009 (docs/sc-bd-cli/requirements.md, added by a-7: lead rulings S47/S51; acceptance row in the a-7 sprint doc); the real-run evidence of REQ-BDC-0905 (a-2 owns the workflow; a-7 records its runs, lead ruling bc-lead 2026-10-24). REQ-BDC-0904 stays with a-6: a-7's end-to-end row is rooted in REQ-SYNC-0010 and lists 0904 in `constrained_by`. |
 | deferred | REQ-BDC-0801, 0805, 0806; NFR-BDC-0002 (the `bdc` binary, after sc-runtime) |
 
 ## Ported Python cases
@@ -242,6 +249,8 @@ updated with fenix's replies of 2026-10-24:
   atm-bd-specific, so it defaults to `.bd-cache/` and its path is set by
   `cache_path` in `.beads/bd-cache.toml`. atm-bd can keep its `.atm-bd/` file
   by pointing `cache_path` at it until v3 follows.
+- New additive error code `BD_CACHE.STORE_FAILED` for store-internal
+  failures (ADR-MODEL-0002 amendment, a-1 amendment 1); v3 has no such code.
 
 ## bd release compatibility
 
@@ -259,3 +268,10 @@ Each sprint doc lists `requirements.owns`, `requirements.constrained_by`,
 criteria with roots (`boundary:<crate>` or `ADR-BDC-nnnn` in boundary
 sprints; `req:<id>` in a-7), and `owned_paths`. Reviewers per
 `.claude/project/quality-policy.md`.
+
+CI evidence in a sprint doc (lead ruling, bc-lead, 2026-10-24): the sprint
+doc cites the green CI run on its last code-changing commit. CI at the PR
+head is verified by the quality manager from the PR's GitHub checks and
+recorded in the QA report, not in the sprint doc. A doc-only commit after
+the cited run does not make the citation stale, so no sprint has to chase
+its own head.

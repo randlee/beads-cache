@@ -1,0 +1,54 @@
+[package]
+name = "bd-cache-sync"
+description = "The bd-cache sync task: the tick (drain, then sync each active phase), the stop rule and the announcements, scheduled on sc-cron."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+bd-cache.workspace = true
+bd-cache-model.workspace = true
+sc-beads.workspace = true
+bd-cache-store.workspace = true
+sc-bd-cli.workspace = true
+sc-cron.workspace = true
+async-trait.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+toml.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+# Only the O_NONBLOCK constant (no unsafe code): a phase file that is a pipe must not block the tick.
+libc.workspace = true
+
+[dev-dependencies]
+# `bd_cache::testing::backend`: the S40 test reaches the composed backend.
+bd-cache = { workspace = true, features = ["testing"] }
+bd-cache-model = { workspace = true, features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+sc-bd-cli = { workspace = true, features = ["test-support"] }
+sc-cron = { workspace = true, features = ["test-utils"] }
+chrono.workspace = true
+criterion.workspace = true
+rusqlite.workspace = true
+tempfile.workspace = true
+tokio = { workspace = true, features = ["test-util"] }
+
+# The process test is its own fake `atm` (see the file's header), so it has no libtest harness.
+[[test]]
+name = "atm_process"
+harness = false
+
+# Informational latency numbers for NFR-BDC-0001; the asserting test is tests/perf.rs.
+[[bench]]
+name = "get"
+harness = false
+
+[lints]
+workspace = true

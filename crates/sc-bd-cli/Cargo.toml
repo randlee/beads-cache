@@ -1,0 +1,65 @@
+[package]
+name = "sc-bd-cli"
+description = "The bd CLI implementation of the sc-beads backend traits: process runner, probes, version gates, dolt-mode detection and the deadline-bounded cache calls."
+version.workspace = true
+# btit-cli and btit-bd are edition 2021; kept so the ported code stays verbatim
+# (the same reason as sc-beads, ADR-BEADS-0001).
+edition = "2021"
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+readme = "README.md"
+documentation = "https://docs.rs/sc-bd-cli"
+keywords = ["beads", "bd", "issue-tracker", "cli"]
+categories = ["api-bindings", "development-tools"]
+
+[features]
+# RecordingInvoker, the fake bd (FakeBd), BdCli::with_invoker and
+# CliRunner::with_version_probe, for this crate's and consumers' tests.
+test-support = ["sc-beads/testing"]
+
+[dependencies]
+sc-beads.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+# The non-reaping exit check of a bounded child (`waitid` with `WNOWAIT`, RCR-001).
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+# The job object a bounded child's process tree runs in (RCR-001).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
+
+[dev-dependencies]
+sc-bd-cli = { path = ".", features = ["test-support"] }
+
+[[test]]
+name = "ops_argv"
+required-features = ["test-support"]
+
+[[test]]
+name = "ops_behaviour"
+required-features = ["test-support"]
+
+[[test]]
+name = "parity"
+required-features = ["test-support"]
+
+# The test binary is its own fake bd (see the file's header), so it has no libtest harness.
+[[test]]
+name = "process"
+harness = false
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true

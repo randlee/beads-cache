@@ -1,0 +1,82 @@
+# bd-cache-model Requirements
+
+Status: approved (lead ruling, 2026-10-23). Crate-local requirements (domain code `MODEL`) refining
+[`../requirements.md`](../requirements.md). Created by sprint a-1.
+
+## REQ-MODEL-0001: Journal ops are validated, canonical and pure
+
+**Status:** Approved (lead ruling, 2026-10-23)
+
+`Op::parse` accepts `close {reason?}`, `update` (a nonempty subset of
+status, assignee, add/remove labels, set/unset metadata, append notes; the
+`/v0` `metadata: {set, unset}` form too) and `dep_add {depends_on, type}`;
+an unknown op is `BAD_OP`; unknown or mistyped keys, an empty update, a
+metadata key that is empty or holds `=` (PE-RBP-F004), a metadata value bd
+would coerce and an unknown dependency type are `BAD_ARGS`. `check_write_size`
+and `check_note_size` refuse args over `MAX_WRITE_ARGS_BYTES` (256 KiB), an
+idempotency key over `MAX_IDEM_KEY_BYTES` (1 KiB) and a resolve note over
+`MAX_NOTE_BYTES` (16 KiB) as `BAD_ARGS` (PE-RSH-009). `Op::to_args_json` is byte-identical to Python's
+`json.dumps(args, sort_keys=True)`; equal ops compare equal.
+
+**Refines:** REQ-BDC-0301, 0303, 0304
+**Acceptance evidence:** `test_bad_ops_are_typed`, `metadata_coercion_guard`,
+`args_shape_errors_are_bad_args`, `python_written_args_round_trip_byte_for_byte`,
+`equal_ops_compare_equal_regardless_of_key_order`,
+`empty_or_equals_metadata_keys_are_bad_args_at_parse_time` (`tests/ops.rs`);
+`each_limit_admits_its_size_and_refuses_one_byte_more` (`src/limits.rs`).
+
+## REQ-MODEL-0002: Overlay, achieved and replay follow the op table
+
+**Status:** Approved (lead ruling, 2026-10-23)
+
+`Op::overlay` applies the op table's overlay; `Op::achieved` holds when the
+row already shows the effect; `replay` overlays a bead's `Pending` entries
+in seq order and skips escalated, resolved and applied ones.
+
+**Refines:** REQ-BDC-0305, 0202 (constraint)
+**Acceptance evidence:** `close_overlay_and_achieved`,
+`update_overlay_applies_fields_in_order_and_achieved_checks_each`,
+`dep_add_overlay_adds_the_edge_once_and_achieved_sees_it`,
+`replay_applies_pending_entries_in_seq_order_and_skips_the_rest`.
+
+## REQ-MODEL-0003: Typed errors
+
+**Status:** Approved (lead ruling, 2026-10-23)
+
+`CacheError` has one variant per `BD_CACHE.*` code with its payload, plus
+`SCOPE_UNKNOWN`, `STORE_FAILED` (a-1 amendment 1) and `STORE_IN_USE` (PE-RBP-F008);
+`exit_code()` is 3; `to_json()` is
+`{ok: false, code, detail, fix, reason?, ...payload, source?}`, where
+`source` is `{code, detail}` for an error mapped from a backend error and
+`{detail}` for a `STORE_FAILED` or `NO_DATABASE` with a cause; `from_backend` maps
+backend errors by `CallKind` per the table in `src/error.rs`.
+
+**Refines:** REQ-BDC-0802, 0803
+**Acceptance evidence:** `golden_json_for_every_code`, `reasons_use_v0_names`,
+`from_backend_matches_the_table_for_every_call_kind`,
+`no_database_keeps_its_cause_and_a_denied_read_is_not_bd_init_advice` (`tests/goldens.rs`).
+
+## REQ-MODEL-0004: Store and lock ports with a contract suite
+
+**Status:** Approved (lead ruling, 2026-10-23)
+
+`CacheStore` and `DrainLock` are the store ports; every rule in the
+`CacheStore` doc comment has a function in `testing::contract`, which
+`FakeStore` + `FakeDrainLock` pass and every implementation must pass.
+
+**Refines:** NFR-BDC-0005, ADR-BDC-0004
+**Acceptance evidence:** `tests/store_contract.rs`: the 22 rules of `store_contract_tests!` (`round_trip_is_normalize`, `upsert_replaces_outgoing_edges`, `a_store_clears_stale`, `membership_follows_labels_on_scoped_upserts_only`, `newer_rows_are_kept_unless_forced`, `newer_row_guard_compares_instants`, `status_changes_are_reported`, `apply_with_readback_marks_applied`, `fingerprint_rebuild_rule`, `scopes_persist_across_restarts`, `ready_base_rules`, `base_entry_rules` (a-7), `has_entries_since_rules` (a-7), `applied_since_is_inclusive_and_ordered`, `journal_lifecycle`, `resolve_note_without_prior_error`, `sync_state_alerts_and_outage_round_trip`, `bounded_marker_writes_match_the_unbounded_forms` (a-7, S33, QA7-004), `prune_scope_rules`, `status_counts`, `status_lists_stale_rows_until_reread`, `drain_lock_is_exclusive`), including `status_lists_stale_rows_until_reread` (a-1 amendment 1).
+
+## REQ-MODEL-0005: Repository configuration
+
+**Status:** Approved (lead ruling, 2026-10-23)
+
+`RepoConfig` is the `.beads/bd-cache.toml` schema (unknown keys refused; a zero
+`call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts` refused by
+`RepoConfig::validate`, each with its own message, PE-RSH-006);
+`cache_config` derives `CacheConfig` with defaults (30 s call cap, 2 s miss
+fill, 5 attempts); `DrainBudget::before_tick_end` places the start gate 5 s
+and the hard deadline 2 s before a tick end.
+
+**Refines:** REQ-BDC-0101 (constraint), 0402 (constraint), 0909 (constraint)
+**Acceptance evidence:** `tests/config.rs`.

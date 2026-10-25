@@ -26,3 +26,14 @@ rustc-ice-*.txt
 # Local tool output (sc-compose logs, session state)
 .sc/
 .sc-compose/
+
+# Cargo.lock is not committed during phase a; the phase close-out removes this
+# line and commits the lock (docs/plans/phase-a/phase-a-plan.md, Shared files).
+/Cargo.lock
+
+# bd-cache files and drain locks created by local runs
+.bd-cache/
+
+# Python bytecode (S43)
+__pycache__/
+*.pyc
