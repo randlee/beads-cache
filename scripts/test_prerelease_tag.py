@@ -82,6 +82,8 @@ def fixture_repo(root: Path) -> Path:
     shutil.copytree(REPO / ".github/scripts", repo / ".github/scripts", ignore=shutil.ignore_patterns("tests", "__pycache__"))
     (repo / "release").mkdir()
     shutil.copy2(REPO / prerelease_tag.MANIFEST, repo / prerelease_tag.MANIFEST)
+    # The repo ignores bytecode; without this the kit scripts' __pycache__ makes the fixture dirty.
+    shutil.copy2(REPO / ".gitignore", repo / ".gitignore")
     (repo / "Cargo.toml").write_text('[workspace]\nmembers = []\n\n[workspace.package]\nversion = "0.1.0"\n')
     (repo / "Cargo.lock").write_text("# lock\n")
     manifest = tomllib.loads((REPO / prerelease_tag.MANIFEST).read_text(encoding="utf-8"))
