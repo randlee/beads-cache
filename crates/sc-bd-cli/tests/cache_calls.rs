@@ -7,6 +7,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use sc_bd_cli::bounded::{OutputStream, MAX_OUTPUT_BYTES};
 use sc_bd_cli::testing::{FakeBd, RecordingInvoker};
 use sc_bd_cli::{BdCli, BoundedError, CliInvoker, TimeoutPhase};
 use sc_beads::error::BeadsError;
@@ -701,10 +702,11 @@ fn a_timeout_is_unavailable_with_timed_out_set() {
 }
 
 #[test]
-fn unreadable_or_oversized_output_is_a_transport_error_not_a_contract_or_spawn_failure() {
+fn unreadable_output_is_a_transport_error_not_a_contract_or_spawn_failure() {
     let rig = Rig::new(
-        RecordingInvoker::new(None)
-            .reply_bounded(Err(BoundedError::Output(std::io::Error::other("cap")))),
+        RecordingInvoker::new(None).reply_bounded(Err(BoundedError::Output(
+            std::io::Error::other("broken pipe"),
+        ))),
     );
     let e = rig
         .cli
@@ -715,8 +717,67 @@ fn unreadable_or_oversized_output_is_a_transport_error_not_a_contract_or_spawn_f
         "{e:?}"
     );
     let io = std::error::Error::source(&e).expect("the read error is the source");
-    assert_eq!(io.to_string(), "cap");
+    assert_eq!(io.to_string(), "broken pipe");
     assert!(!e.is_unavailable());
+}
+
+/// PE-RBP-F012: output over the cap is `Transport` whose source names the stream and
+/// the cap, with its own error kind, not a generic read error.
+#[test]
+fn oversized_output_is_transport_naming_the_stream_and_the_cap() {
+    let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(Err(
+        BoundedError::OutputTooLarge {
+            stream: OutputStream::Stdout,
+            limit: MAX_OUTPUT_BYTES,
+        },
+    )));
+    let e = rig
+        .cli
+        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .unwrap_err();
+    let BeadsCacheError::Transport { what, source } = &e else {
+        panic!("expected Transport, got {e:?}");
+    };
+    assert_eq!(what, "bd ready");
+    assert_eq!(
+        source.kind(),
+        std::io::ErrorKind::FileTooLarge,
+        "{source:?}"
+    );
+    let text = source.to_string();
+    assert!(text.contains("stdout"), "{text}");
+    assert!(text.contains(&MAX_OUTPUT_BYTES.to_string()), "{text}");
+    assert!(!e.is_unavailable());
+}
+
+/// PE-RBP-F012: a started bd that could not be waited on is `Transport` keeping the
+/// OS error: neither a spawn failure nor an outage, since bd may have run.
+#[test]
+fn a_wait_failure_is_transport_not_a_spawn_failure() {
+    let rig = Rig::new(
+        RecordingInvoker::new(None).reply_bounded(Err(BoundedError::Wait(
+            std::io::Error::from_raw_os_error(10), // ECHILD on Unix
+        ))),
+    );
+    let e = rig
+        .cli
+        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .unwrap_err();
+    assert!(
+        matches!(&e, BeadsCacheError::Transport { what, .. } if what == "bd ready"),
+        "{e:?}"
+    );
+    assert!(
+        !matches!(&e, BeadsCacheError::Btit(BeadsError::Spawn { .. })),
+        "{e:?}"
+    );
+    assert!(!e.is_unavailable(), "{e:?}");
+    let io = std::error::Error::source(&e).expect("the OS error is the source");
+    assert_eq!(
+        io.downcast_ref::<std::io::Error>()
+            .and_then(std::io::Error::raw_os_error),
+        Some(10)
+    );
 }
 
 #[test]

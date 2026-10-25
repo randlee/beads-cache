@@ -303,7 +303,17 @@ pub(crate) fn probe_version_output_within(
             io::ErrorKind::TimedOut,
             format!("timed out {phase} after {timeout:?}"),
         ))),
+        // btit's `BeadsError` has no wait or transport variant, so the probe keeps
+        // reporting these as a failed `--version` run; the message says which it was.
         Err(BoundedError::Output(e)) => Err(spawn(e)),
+        Err(BoundedError::Wait(e)) => Err(spawn(io::Error::new(
+            e.kind(),
+            format!("waiting for the child failed: {e}"),
+        ))),
+        Err(e @ BoundedError::OutputTooLarge { .. }) => Err(spawn(io::Error::new(
+            io::ErrorKind::FileTooLarge,
+            e.to_string(),
+        ))),
     }
 }
 
