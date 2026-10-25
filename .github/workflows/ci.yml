@@ -134,6 +134,11 @@ jobs:
       - name: Release scripts tests (scripts/prerelease_tag.py)
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
 
+      # ADR-BDC-0010: beads-cache names no consumer concern in its source,
+      # tests, scripts, workflows or docs. No suppression and no allowlist.
+      - name: Strict consumer boundary (ADR-BDC-0010)
+        run: python3 scripts/lint_no_atm.py
+
   # Clippy and tests on every supported OS (QA-004).
   test:
     name: clippy and test (${{ matrix.os }})
@@ -150,10 +155,6 @@ jobs:
         run: rustup show active-toolchain || rustup toolchain install
 
       - uses: Swatinem/rust-cache@v2
-
-      # bd-cache-store's compatibility test (sprint a-4) runs the reference
-      # Python implementation with uv.
-      - uses: astral-sh/setup-uv@v6
 
       - name: Clippy
         run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
