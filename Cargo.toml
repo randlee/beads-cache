@@ -5,6 +5,7 @@
 [workspace]
 members = [
     "crates/bd-cache",
+    "crates/bd-cache-api",
     "crates/bd-cache-model",
     "crates/bd-cache-py",
     "crates/bd-cache-store",
@@ -26,6 +27,7 @@ authors = ["Rand Lee <rand@randlee.com>"]
 [workspace.dependencies]
 # workspace crates
 bd-cache = { path = "crates/bd-cache", version = "0.1.0" }
+bd-cache-api = { path = "crates/bd-cache-api", version = "0.1.0" }
 bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
 bd-cache-store = { path = "crates/bd-cache-store", version = "0.1.0" }
 sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.1.0" }
@@ -37,6 +39,7 @@ rusqlite = { version = "0.40", features = ["bundled"] }   # NFR-BDC-0007: bundle
 fs4 = "1.1"                                                # drain lock (flock), a-4
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+schemars = "1"                                             # request schemas, bd-cache-api (b-2; published with the MCP server)
 sha2 = "0.11"                                              # bd schema fingerprint
 toml = "1.1"                                               # .beads/bd-cache.toml
 tracing = "0.1"

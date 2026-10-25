@@ -1,0 +1,97 @@
+{
+  "description": "REQ-BDC-0809, contract §5.1, §5.3: a write returns the view after it, changed / already_closed and its journal entry; a retry with the same key (another actor, another guard) is a duplicate that returns the stored changed; an unmet guard is PRECONDITION with details.unmet; journal get by key reads the entry back with /v0 args.",
+  "world": {
+    "beads": [{"id": "b1", "status": "in_progress", "assignee": "dev"}, {"id": "b2"}, {"id": "s1"}],
+    "edges": [["s1", "b1", "blocks"]],
+    "sync": ["x"]
+  },
+  "steps": [
+    {
+      "name": "update",
+      "command": "issues update",
+      "request": {"id": "b2", "actor": "san", "idempotency_key": "k-upd", "patch": {"status": "in_progress", "assignee": "san"}, "expected_status": "open"},
+      "expect": {"ok": true, "data": {"issue": {"id": "b2", "status": "in_progress", "assignee": "san"}, "changed": true,
+        "x_cache": {"seq": 1, "state": "pending", "duplicate": false, "idempotency_key": "k-upd"}}}
+    },
+    {
+      "name": "the retry is a duplicate with the stored changed",
+      "command": "issues update",
+      "request": {"id": "b2", "actor": "someone-else", "idempotency_key": "k-upd", "patch": {"status": "in_progress", "assignee": "san"}, "expected_status": "in_progress"},
+      "expect": {"ok": true, "data": {"issue": {"id": "b2", "status": "in_progress"}, "changed": true,
+        "x_cache": {"seq": 1, "state": "pending", "duplicate": true, "idempotency_key": "k-upd"}}}
+    },
+    {
+      "name": "a second write that changes nothing",
+      "command": "issues update",
+      "request": {"id": "b2", "actor": "san", "idempotency_key": "k-same", "patch": {"status": "in_progress"}},
+      "expect": {"ok": true, "data": {"changed": false, "x_cache": {"seq": 2, "duplicate": false}}}
+    },
+    {
+      "name": "close",
+      "command": "issues close",
+      "request": {"id": "s1", "actor": "san", "idempotency_key": "k-close", "reason": "done"},
+      "expect": {"ok": true, "data": {"issue": {"id": "s1", "status": "closed", "close_reason": "done"}, "already_closed": false,
+        "x_cache": {"seq": 3, "state": "pending", "duplicate": false}}}
+    },
+    {
+      "name": "the close retry keeps already_closed false",
+      "command": "issues close",
+      "request": {"id": "s1", "actor": "san", "idempotency_key": "k-close", "reason": "done", "expected_status": "closed"},
+      "expect": {"ok": true, "data": {"already_closed": false, "x_cache": {"seq": 3, "duplicate": true}}}
+    },
+    {
+      "name": "the same key on another write",
+      "command": "issues close",
+      "request": {"id": "b2", "actor": "san", "idempotency_key": "k-close"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.IDEM_CONFLICT", "kind": "conflict", "details": {"seq": 3}}}
+    },
+    {
+      "name": "an unmet guard",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k-guard", "patch": {"assignee": ""}, "expected_status": "open", "expected_assignee": "dev"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.PRECONDITION", "kind": "conflict",
+        "details": {"v0_code": "precondition_failed", "unmet": {"status": {"expected": "open", "actual": "in_progress"}, "assignee": "$absent"}}}}
+    },
+    {
+      "name": "dependencies add",
+      "command": "dependencies add",
+      "request": {"actor": "san", "idempotency_key": "k-dep", "edges": [{"issue_id": "b2", "depends_on_id": "b1", "type": "blocks"}]},
+      "expect": {"ok": true, "data": {"added": [{"issue_id": "b2", "depends_on_id": "b1", "type": "blocks"}], "x_cache": {"seq": 4, "duplicate": false}}}
+    },
+    {
+      "name": "journal get by key, after a lost reply",
+      "command": "cache journal get",
+      "request": {"idempotency_key": "k-upd"},
+      "expect": {"ok": true, "data": {"entry": {"seq": 1, "idempotency_key": "k-upd", "scope": "phase-x", "bead": "b2", "op": "update",
+        "args": {"status": "in_progress", "assignee": "san"}, "expected_status": "open", "expected_assignee": null, "actor": "san",
+        "state": "pending", "attempts": 0, "last_error": null, "note": null, "announced_at": null,
+        "created_at": "2026-10-23T10:00:00.000Z", "applied_at": null}}}
+    },
+    {
+      "name": "the dep add entry in /v0 names",
+      "command": "cache journal get",
+      "request": {"seq": 4},
+      "expect": {"ok": true, "data": {"entry": {"op": "dep_add", "args": {"edges": [{"issue_id": "b2", "depends_on_id": "b1", "type": "blocks"}]}}}}
+    },
+    {
+      "name": "an unknown key",
+      "command": "cache journal get",
+      "request": {"idempotency_key": "nope"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.NOT_FOUND", "kind": "not_found"}}
+    },
+    {
+      "name": "the pending entries",
+      "command": "cache journal list",
+      "request": {"state": "pending"},
+      "expect": {"ok": true, "data": {"entries": [{"seq": 1}, {"seq": 2}, {"seq": 3}, {"seq": 4}]}}
+    },
+    {
+      "name": "the journal counts",
+      "command": "cache status",
+      "request": {},
+      "expect": {"ok": true, "data": {"contract_version": "1.0.0", "journal": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0,
+        "by_scope": {"phase-x": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0}},
+        "unscoped": {"pending": 0, "applied": 0, "escalated": 0, "resolved": 0}}}}
+    }
+  ]
+}

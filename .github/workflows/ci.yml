@@ -63,6 +63,10 @@ jobs:
           the table fails too, so a new crate must be added to the table first.
           A crate's dev-dependency on itself (to enable its own test features)
           is not an edge.
+
+          The table covers workspace edges only, so a second check rejects a
+          direct dependency (any kind) of bd-cache-api or bd-cache-py on
+          sc-command or clap (contract section 9, sprint b-2).
           """
           import json, re, sys
 
@@ -89,6 +93,16 @@ jobs:
                   if target in members and target != name and target not in allowed[name]:
                       kind = dep.get("kind") or "normal"
                       errors.append(f"{name} -> {target} ({kind}): not allowed")
+          no_cli = {"bd-cache-api", "bd-cache-py"}
+          cli_only = {"sc-command", "clap"}
+          for pkg in meta["packages"]:
+              if pkg["name"] not in no_cli:
+                  continue
+              for dep in pkg["dependencies"]:
+                  names = {dep["name"], dep.get("rename") or dep["name"]}
+                  if names & cli_only:
+                      kind = dep.get("kind") or "normal"
+                      errors.append(f"{pkg['name']} -> {dep['name']} ({kind}): no sc-command or clap (contract section 9)")
           for e in errors:
               print(f"::error::{e}")
           if errors:
