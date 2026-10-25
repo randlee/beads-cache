@@ -10,11 +10,19 @@ All crates in the workspace share one version.
 
 ### Security
 
-- `sc-bd-cli`: the `PATH` given to every `bd` child no longer carries an empty
-  segment from the inherited `PATH` (unset, empty, or a leading, trailing or
-  doubled `:` / `;`). Such a segment meant the working directory, which is the
-  repository root, so a bare `bd` could run a committed `<repo>/bd`
-  (QA RCR-002, lead ruling S76).
+- `sc-bd-cli`: the `PATH` given to every `bd` child keeps only absolute
+  directories. Empty segments (an unset or empty `PATH`, or a leading,
+  trailing or doubled `:` / `;`), relative ones (`.`, `bin`, `./x`) and
+  fallback directories under a relative or empty `HOME` / `GOPATH` (on
+  Windows `USERPROFILE` / `LOCALAPPDATA`) are dropped. Each of them meant the
+  working directory, which is the repository root, so a bare `bd` could run a
+  committed `<repo>/bd` (QA RCR-002, lead rulings S76 and S77).
+- `sc-bd-cli` **behaviour change**: the inherited `PATH` now comes first and
+  the fixed install directories (Homebrew, Linuxbrew, `/usr/bin`, `/bin`,
+  `~/.local/bin`, `~/bin`, `$GOPATH/bin`, `~/.cargo/bin`, and the Windows
+  equivalents) follow it as a fallback, where they used to come first. A `bd`
+  named by the user's `PATH` now wins over one in a fixed directory, and each
+  directory appears once (lead ruling S77, contract §2).
 
 ### Changed
 

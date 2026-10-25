@@ -81,7 +81,7 @@ be spelled out in full; abbreviations are refused.
 |---|---|---|---|---|
 | `--repo DIR` | `REPO` | n/a | cwd | The repository root. |
 | `--cache-path PATH` | `CACHE_PATH` | `cache_path` | `.bd-cache/<dolt_database>.bd-cache.sqlite3` | The cache file. A relative path is resolved against `--repo`. |
-| `--bd PATH` | `BD` | **never** | `bd` on `PATH` | The bd binary. It is never read from TOML, so a checked-in file cannot choose an executable. |
+| `--bd PATH` | `BD` | **never** | `bd` on `PATH` | The bd binary. It is never read from TOML, so a checked-in file cannot choose an executable. The default bd is resolved from absolute `PATH` entries first, then the fixed install directories (S77). |
 | `--format json\|text` | **never** | **never** | `json` | Read from the flag only. `text` renders the same `data` for a person. The one TTY-dependent behaviour is `--help` (§8). |
 | `--input FILE\|-` | n/a | n/a | none | The whole request as JSON. Combining it with request flags is `USAGE`. |
 | `-v` / `-q` | `LOG` | n/a | `warn` | The verbosity of the stderr log. The flag wins over the env, and stdout never changes. |
@@ -102,6 +102,14 @@ default.
   `load_repo_config`'s rules, with the same `store_config_*` codes, except
   that a `bd` key is dropped with a warning on stderr instead of refused as
   unknown. `bd` is therefore never taken from the TOML (lead ruling S70).
+- **Resolving the default `bd` (lead ruling S77).** The default bd is
+  resolved from absolute `PATH` entries first, then the fixed install
+  directories (Homebrew, Linuxbrew, `/usr/bin`, `/bin`, `~/.local/bin`,
+  `~/bin`, `$GOPATH/bin`, `~/.cargo/bin`; on Windows those under
+  `USERPROFILE` and `LOCALAPPDATA`) as a fallback. Empty and relative `PATH`
+  entries are dropped, and so is any fallback directory under a relative or
+  empty `HOME` or `GOPATH`, because every bd child runs in the repository
+  root and such an entry would find a `bd` committed there (S76).
 - **No upward search.** bd searches parent directories for `.beads`; bdc
   deliberately does not. Hooks run with an explicit cwd and the bindings do
   not search either, so the same command always opens the same file.

@@ -552,41 +552,35 @@ fn flag_beats_env_beats_toml_beats_default() {
     assert_eq!((exit, code(&v)), (3, "BD_CACHE.CONFIG_INVALID"), "{v}");
 }
 
-/// A `bd` installed in one of the directories sc-bd-cli puts ahead of every
-/// child's `PATH` (`crates/sc-bd-cli/src/path.rs`), as they are in a
-/// [`hermetic`] child (no `HOME`, `GOPATH`, `USERPROFILE` or `LOCALAPPDATA`).
-/// A bare default `bd` finds it whatever `PATH` the test sets.
-fn host_bd() -> Option<std::path::PathBuf> {
-    let dirs: &[&str] = if cfg!(windows) {
-        &[]
-    } else {
-        &[
-            "/opt/homebrew/bin",
-            "/usr/local/bin",
-            "/home/linuxbrew/.linuxbrew/bin",
-            "/usr/bin",
-            "/bin",
-            "/.local/bin",
-            "/go/bin",
-            "/.cargo/bin",
-        ]
-    };
-    dirs.iter()
-        .map(|d| Path::new(d).join("bd"))
-        .find(|p| p.exists())
+/// Writes an executable shell script at `path` that records its run in
+/// `marker` and exits 1.
+#[cfg(unix)]
+fn marker_script(path: &Path, marker: &Path) {
+    use std::os::unix::fs::PermissionsExt as _;
+
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).unwrap();
+    }
+    std::fs::write(
+        path,
+        format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display()),
+    )
+    .unwrap();
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
 }
 
 /// `bd = "…"` in TOML is ignored: a planted bd named there never runs.
 ///
 /// The planted bd is a copy of fake-bd over this scenario, so had it run the
 /// refresh would store the scenario's two rows, as the control below shows.
-/// With no `--bd`, no `BD_CACHE__BD` and an empty `PATH`, the default bare
-/// `bd` is not found (CI), unless a bd is installed in a directory sc-bd-cli
-/// always searches ([`host_bd`]; a developer's Mac with Homebrew bd), which
-/// answers without a database. Either way the planted bd does not run and
-/// the scope is a failed result (lead ruling S75); which error it carries is
-/// asserted for each case, so the outcome never depends on the host
-/// silently.
+/// There is no `--bd` and no `BD_CACHE__BD`, so the default bare `bd` is
+/// resolved from `PATH` first (lead ruling S77). On Unix the test puts a stub
+/// `bd` first on `PATH` that records its run and exits 1: it runs, whatever
+/// bd the host has installed in a fallback directory, and the scope fails
+/// with the same error on every host. On Windows `PATH` is an empty directory
+/// and the [`hermetic`] child has no `USERPROFILE` or `LOCALAPPDATA`, so there
+/// is no fallback directory either and no bd is found. The scope is a failed
+/// result (lead ruling S75).
 #[test]
 fn bd_is_never_read_from_toml() {
     let repo = TestRepo::new(&two_beads());
@@ -597,7 +591,10 @@ fn bd_is_never_read_from_toml() {
         "planted-bd"
     });
     std::fs::copy(FAKE_BD, &planted).unwrap();
-    let empty_path = tempfile::TempDir::new().unwrap();
+    let on_path = tempfile::TempDir::new().unwrap();
+    let marker = tools.path().join("path-bd-ran");
+    #[cfg(unix)]
+    marker_script(&on_path.path().join("bd"), &marker);
     let toml = format!(
         "scopes = [\"x\"]\nbd = {}\n",
         Value::from(path_str(&planted))
@@ -605,9 +602,12 @@ fn bd_is_never_read_from_toml() {
     write_toml(&repo, &toml);
     let root = repo.root();
     let args = ["--repo", path_str(&root), "cache", "refresh", "scopes", "x"];
-    // No --bd, no BD_CACHE__BD, and no bd on PATH.
-    let (exit, v) =
-        envelope_json(&repo.bdc_raw(&root, &args, &[("PATH", path_str(empty_path.path()))]));
+    let path = if cfg!(windows) {
+        path_str(on_path.path()).to_owned()
+    } else {
+        format!("{}:/usr/bin:/bin", path_str(on_path.path()))
+    };
+    let (exit, v) = envelope_json(&repo.bdc_raw(&root, &args, &[("PATH", &path)]));
     assert_eq!(exit, 0, "the bd key does not make the file invalid: {v}");
     let result = &v["data"]["results"][0];
     // The security property: the planted bd never ran, so nothing was stored.
@@ -620,53 +620,46 @@ fn bd_is_never_read_from_toml() {
         v["data"]["failed"], 1,
         "the refresh reached no usable bd: {v}"
     );
-    let want = if host_bd().is_some() {
-        "BD_CACHE.SYNC_FAILED"
-    } else {
+    let want = if cfg!(windows) {
         "BD_CACHE.BD_UNAVAILABLE"
+    } else {
+        "BD_CACHE.SYNC_FAILED"
     };
-    assert_eq!(
-        result["error"]["code"],
-        want,
-        "host bd {:?}: {v}",
-        host_bd()
-    );
+    assert_eq!(result["error"]["code"], want, "{v}");
     assert_eq!(result["error"]["retryable"], true, "{v}");
+    assert_eq!(
+        marker.exists(),
+        cfg!(unix),
+        "the default bd is the one on PATH: {v}"
+    );
     // The control: the same binary named by BD_CACHE__BD runs and syncs both rows.
     let (exit, v) = envelope_json(&repo.bdc_raw(
         &root,
         &args,
-        &[
-            ("PATH", path_str(empty_path.path())),
-            ("BD_CACHE__BD", path_str(&planted)),
-        ],
+        &[("PATH", &path), ("BD_CACHE__BD", path_str(&planted))],
     ));
     assert_eq!((exit, &v["data"]["failed"]), (0, &Value::from(0)), "{v}");
     assert_eq!(v["data"]["results"][0]["report"]["stored"], 2, "{v}");
 }
 
-/// Lead ruling S76 (QA RCR-002): an empty `PATH` segment never resolves a
-/// bare bd name against the repository root, where every bd child runs.
-/// An executable committed in the repository writes a marker if it runs; the
-/// name is one no host installs, so sc-bd-cli's fixed install directories
-/// cannot answer first and hide the empty segment.
+/// Lead rulings S76 and S77 (QA RCR-002): an empty or relative `PATH`
+/// segment, or a fallback directory under a relative `HOME`, never resolves
+/// a bare bd name against the repository root, where every bd child runs.
+/// An executable committed in the repository (at its root, and under the
+/// directories a `HOME` of `.` would name) writes a marker if it runs. The
+/// name is one no host installs, so no real directory can answer first and
+/// hide the bug.
 #[cfg(unix)]
 #[test]
-fn an_empty_path_segment_never_runs_a_bd_committed_in_the_repo() {
-    use std::os::unix::fs::PermissionsExt as _;
-
+fn an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo() {
     let repo = TestRepo::new(&two_beads());
     let root = repo.root();
     let marks = tempfile::TempDir::new().unwrap();
     let marker = marks.path().join("ran");
     let name = "bdc-s76-committed-bd";
-    let committed = root.join(name);
-    std::fs::write(
-        &committed,
-        format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display()),
-    )
-    .unwrap();
-    std::fs::set_permissions(&committed, std::fs::Permissions::from_mode(0o755)).unwrap();
+    for dir in ["", ".local/bin", "bin", "go/bin", ".cargo/bin"] {
+        marker_script(&root.join(dir).join(name), &marker);
+    }
     let args = [
         "--repo",
         path_str(&root),
@@ -677,12 +670,16 @@ fn an_empty_path_segment_never_runs_a_bd_committed_in_the_repo() {
         "scopes",
         "x",
     ];
-    for path in [
-        None,
-        Some("/usr/bin::/bin"),
-        Some(":/usr/bin"),
-        Some("/usr/bin:"),
-    ] {
+    let cases: [(Option<&str>, Option<&str>); 7] = [
+        (None, None),
+        (Some("/usr/bin::/bin"), None),
+        (Some(":/usr/bin"), None),
+        (Some("/usr/bin:"), None),
+        (Some(".:/usr/bin"), None),
+        (Some("bin:./go/bin:/usr/bin"), None),
+        (Some("/usr/bin:/bin"), Some(".")),
+    ];
+    for (path, home) in cases {
         let mut cmd = hermetic(BDC);
         cmd.args(args)
             .current_dir(&root)
@@ -691,18 +688,47 @@ fn an_empty_path_segment_never_runs_a_bd_committed_in_the_repo() {
             None => cmd.env_remove("PATH"),
             Some(p) => cmd.env("PATH", p),
         };
+        if let Some(h) = home {
+            cmd.env("HOME", h);
+        }
         let (exit, v) = envelope_json(&cmd.output().unwrap().into());
         assert!(
             !marker.exists(),
-            "PATH {path:?}: the {name} committed in the repository ran: {v}"
+            "PATH {path:?}, HOME {home:?}: the {name} committed in the repository ran: {v}"
         );
-        assert_eq!(exit, 0, "PATH {path:?}: {v}");
-        assert_eq!(v["data"]["failed"], 1, "PATH {path:?}: {v}");
+        assert_eq!(exit, 0, "PATH {path:?}, HOME {home:?}: {v}");
+        assert_eq!(v["data"]["failed"], 1, "PATH {path:?}, HOME {home:?}: {v}");
         assert_eq!(
             v["data"]["results"][0]["error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
-            "PATH {path:?}: {v}"
+            "PATH {path:?}, HOME {home:?}: {v}"
         );
     }
+}
+
+/// Lead ruling S77: the user's `PATH` wins over sc-bd-cli's fallback
+/// directories. A bd under `$HOME/.local/bin` (a fallback directory) writes a
+/// marker if it runs; fake-bd, copied as `bd` into a directory named first on
+/// `PATH`, is the one that runs and syncs the scope.
+#[cfg(unix)]
+#[test]
+fn the_users_path_beats_a_fallback_directory() {
+    let repo = TestRepo::new(&two_beads());
+    let root = repo.root();
+    let home = tempfile::TempDir::new().unwrap();
+    let marker = home.path().join("fallback-ran");
+    marker_script(&home.path().join(".local/bin/bd"), &marker);
+    let user = tempfile::TempDir::new().unwrap();
+    std::fs::copy(FAKE_BD, user.path().join("bd")).unwrap();
+    let path = format!("{}:/usr/bin:/bin", path_str(user.path()));
+    let args = ["--repo", path_str(&root), "cache", "refresh", "scopes", "x"];
+    let (exit, v) = envelope_json(&repo.bdc_raw(
+        &root,
+        &args,
+        &[("PATH", &path), ("HOME", path_str(home.path()))],
+    ));
+    assert!(!marker.exists(), "the fallback bd ran: {v}");
+    assert_eq!((exit, &v["data"]["failed"]), (0, &Value::from(0)), "{v}");
+    assert_eq!(v["data"]["results"][0]["report"]["stored"], 2, "{v}");
 }
 
 /// No upward search: from a subdirectory, the parent's `.beads` is not found.
