@@ -1,7 +1,9 @@
 # bd-cache / bdc CLI contract
 
 Status: **Approved** (lead ruling S60, bc-lead, 2026-10-25, at `8115a0a`).
-Nothing in it is implemented yet. Contract version: `1.0.0`.
+Implemented in phase B (sprints b-1 to b-5; phase B closed 2026-10-25) by
+`bd-cache-api`, the `bd-cache`/`bdc` binary (`bd-cache-cli`) and
+`bd_cache_rs` 0.2; the MCP server comes later. Contract version: `1.0.0`.
 
 Scope: the `bd-cache` binary (alias `bdc`, REQ-BDC-0805), the MCP server that
 comes later, and the Python binding `bd_cache_rs`. All three share one
@@ -141,7 +143,7 @@ default.
 
 | Exit | `ok` | Meaning |
 |---|---|---|
-| 0 | `true` | Success. Degraded results (an outage, a cached fallback, a partial refresh) are reported in `data`; `cache refresh scopes` reports `data.failed`. |
+| 0 | `true` | Success. Degraded results (an outage, a cached fallback, a partial refresh) are reported in `data`; `cache refresh scopes` reports `data.failed`, and `cache health --probe` with bd unreachable reports `state: "down"` (§6). |
 | 2 | `false` | `BD_CACHE.USAGE`, for the shape of argv only: an unknown command or flag, a missing or conflicting argument, an abbreviated option, or `--input` mixed with flags. |
 | 3 | `false` | Any other typed error. Retryable and permanent errors share this exit, so callers branch on `error.kind`, or on `retryable` in the error table (§4). |
 
@@ -409,6 +411,23 @@ a read-path rule, not a refresh success. `cache refresh issues` already fails
 as a whole with `BD_UNAVAILABLE`. The core is unchanged; the mapping is
 bd-cache-api's refresh op.
 
+A sync the deadline cut is a failed result the same way (QA RCR-001). Each
+sync's deadline is the per-call cap, so a bd that hangs times out exactly at
+it; the core then returns its report with `deferred: true` and no outage (a
+cut records none). `error` is `BD_UNAVAILABLE` with `details.timed_out:
+true`, it counts in `data.failed`, and a scope that was never synced stays
+unserved (`SCOPE_UNKNOWN`).
+
+**Probe that cannot reach bd (QA ARCH-001).** `cache health --probe` whose
+backend check fails with an unreachable code (`BD_UNAVAILABLE`,
+`BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED`; a deadline cut is
+`BD_UNAVAILABLE`) is a result, exit 0: `state: "down"`, `probe: null`, and
+`outage` populated. The probe's deadline lies past the per-call cap, so a bd
+that hangs is ended by the cap and recorded as the outage; `outage` is the
+recorded one, or, when the probe recorded none (bd answered `bd version`
+with a failure), `{since: <now>, last_error: <the probe's error>}`. Only a
+store error is a typed error (exit 3).
+
 Three cases have fixed answers:
 
 - A bare `cache refresh` is `USAGE`, with `details.valid: [scopes, issues]`.
@@ -420,9 +439,9 @@ Three cases have fixed answers:
 | Command | `data` | Order |
 |---|---|---|
 | `cache status` | `{cache_path, contract_version, store_schema_version: int, project: {database, project_id}, backend: {bd_version, bd_schema_sha256, bd_schema_version}, journal: {pending, applied, escalated, resolved, by_scope: {<scope>: {<state>: int}}, unscoped: {<state>: int}}, scopes: [Scope], escalated: [Entry], outage, stale: [id]}` | scopes by id; entries by seq, ascending |
-| `cache health` | `{state: "ok"\|"degraded"\|"down", outage, open_work: {pending, escalated_unannounced}, stale_rows: int, probe: {bd_version, model_current, rebuilt}\|null}` | — |
+| `cache health` | `{state: "ok"\|"degraded"\|"down", outage, open_work: {pending, escalated_unannounced}, stale_rows: int, probe: {bd_version, model_current, rebuilt}\|null}`. With `--probe` and bd unreachable: `state: "down"`, `outage` set, `probe: null` (ARCH-001, above). | — |
 | `cache scopes` | `{scopes: [Scope]}`. A Scope is `{scope: "phase-bk", configured: bool, on_demand: bool, last_started_at, last_ok_at, last_error: OpError\|null, alert, beads: int}`, where `alert` is `"backend_unavailable"`, `"sync_failed"`, a `BD_CACHE` code, or `null`. | by scope id |
-| `cache refresh scopes` | `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4. A scope that could not reach bd is a failed result (S75, above). | request order (by scope id when no scope is named) |
+| `cache refresh scopes` | `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable, details}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4 and the `details` its envelope error would carry (`{}` for none; `timed_out` for `BD_UNAVAILABLE`). A scope that could not reach bd, or whose sync the deadline cut, is a failed result (S75, RCR-001, above). | request order (by scope id when no scope is named) |
 | `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms`. Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
 | `cache flush [--start-gate-ms N] [--deadline-ms M]` | `{busy, applied: [seq], retrying: [seq], escalated: [{seq, bead, op, actor, scope, reason: OpError}], deferred: [seq], deferred_in_flight: [seq], outage}`. N and M default to 25,000 and 28,000 ms, and M must be greater than N. | seq, ascending |
 | `cache evict` | `{scope, beads_deleted: int, out_of_scope_swept: int}` | — |
