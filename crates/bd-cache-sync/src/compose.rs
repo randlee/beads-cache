@@ -309,10 +309,13 @@ fn compose_with_override(
 mod tests {
     use std::error::Error as _;
     use std::io;
+    #[cfg(unix)]
     use std::time::Duration;
 
     use super::*;
-    use sc_beads::{CacheBackend as _, Deadline, SystemClock};
+    use sc_beads::SystemClock;
+    #[cfg(unix)]
+    use sc_beads::{CacheBackend as _, Deadline};
 
     /// A repository root with a valid `metadata.json` and no configuration.
     fn repo() -> tempfile::TempDir {
