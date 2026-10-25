@@ -329,6 +329,20 @@ fn stopped_once_ready(
     ready: &[&str],
     reaper: &Reaper,
 ) -> (bd_cache_model::SendError, Vec<u32>) {
+    let (err, pids, ()) = stopped_once_inspected(mode, out, ready, reaper, |_| ());
+    (err, pids)
+}
+
+/// [`stopped_once_ready`], with `inspect` run on the pids once all are ready
+/// and before the stop, while every fake is still running; its result is
+/// returned with the error and the pids.
+fn stopped_once_inspected<T: Send + 'static>(
+    mode: &str,
+    out: &Path,
+    ready: &[&str],
+    reaper: &Reaper,
+    inspect: impl FnOnce(&[u32]) -> T + Send + 'static,
+) -> (bd_cache_model::SendError, Vec<u32>, T) {
     let stop = StopFlag::new();
     let watcher = {
         let flag = stop.clone();
@@ -349,8 +363,11 @@ fn stopped_once_ready(
                     pid
                 })
                 .collect();
+            // Stopped even if `inspect` panics, so the send never runs to its timeout.
+            let inspected =
+                std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| inspect(&pids)));
             flag.stop();
-            pids
+            (pids, inspected)
         })
     };
     let result = sender(mode, out)
@@ -358,8 +375,9 @@ fn stopped_once_ready(
         .unwrap()
         .with_stop(stop)
         .send("l", "t", "hi");
-    let pids = watcher.join().unwrap();
-    (result.unwrap_err(), pids)
+    let (pids, inspected) = watcher.join().unwrap();
+    let inspected = inspected.unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+    (result.unwrap_err(), pids, inspected)
 }
 
 /// A hung `atm` is killed and reaped (stop-flag form, FTQ-026: the kill comes
@@ -394,6 +412,61 @@ fn the_stop_flag_kills_the_child_and_its_descendants() {
     assert_reaped(pids[0], "the child");
     assert_eq!(pids.len(), 2, "the grandchild was started and is tracked");
 }
+
+/// The process group of `pid` (`ps -o pgid=`); `None` once it is gone.
+#[cfg(unix)]
+fn pgid(pid: u32) -> Option<u32> {
+    let out = std::process::Command::new("ps")
+        .args(["-o", "pgid=", "-p", &pid.to_string()])
+        .stderr(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&out.stdout).trim().parse().ok()
+}
+
+/// The `atm` child leads its own process group and its descendants are in
+/// it, so the tree kill (`kill -KILL -- -<child pid>`) reaches them. Without
+/// `process_group(0)` the child is in the test's group: the group kill finds
+/// no group of that id and only the child dies, leaving the descendant
+/// running (the planted bug "atm kills only the direct child").
+///
+/// Causal, no clock (FTQ-030): the groups are read while both fakes are
+/// running, before the stop, so a stalled host cannot change the answer.
+/// That the group kill takes a descendant is the unit test
+/// `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`.
+#[cfg(unix)]
+fn the_atm_child_leads_a_process_group_that_holds_its_descendants() {
+    let reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let (err, pids, groups) = stopped_once_inspected(
+        "tree",
+        &dir.path().join("group"),
+        &[".pid", ".grandchild.pid"],
+        &reaper,
+        |pids| (pgid(pids[0]), pgid(pids[1]), pgid(std::process::id())),
+    );
+    assert_kind(&err, SendErrorKind::Cancelled);
+    let (child, grandchild) = (pids[0], pids[1]);
+    let (child_group, grandchild_group, own_group) = groups;
+    assert_eq!(
+        child_group,
+        Some(child),
+        "the child (pid {child}) leads its own process group, not the sender's ({own_group:?})"
+    );
+    assert_eq!(
+        grandchild_group,
+        Some(child),
+        "the grandchild (pid {grandchild}) is in the child's group, which the tree kill reaches"
+    );
+    assert_ne!(
+        own_group,
+        Some(child),
+        "the sender is not in the child's group"
+    );
+    assert_reaped(child, "the child");
+}
+#[cfg(not(unix))]
+fn the_atm_child_leads_a_process_group_that_holds_its_descendants() {}
 
 /// The one timer-driven kill (FTQ-026): the time a tick passes bounds the
 /// send, shown by the kind and the detail (the tick's 250 ms, not the
@@ -519,7 +592,7 @@ fn main() {
         std::io::stdout().flush().unwrap();
         std::process::exit(code);
     }
-    let tests: [(&str, fn()); 13] = [
+    let tests: [(&str, fn()); 14] = [
         (
             "delivers_the_body_on_stdin_with_the_reference_invocation",
             delivers_the_body_on_stdin_with_the_reference_invocation,
@@ -547,6 +620,10 @@ fn main() {
         (
             "the_stop_flag_kills_the_child_and_its_descendants",
             the_stop_flag_kills_the_child_and_its_descendants,
+        ),
+        (
+            "the_atm_child_leads_a_process_group_that_holds_its_descendants",
+            the_atm_child_leads_a_process_group_that_holds_its_descendants,
         ),
         (
             "a_failing_atm_with_a_descendant_holding_its_pipes_does_not_wait_for_it",
