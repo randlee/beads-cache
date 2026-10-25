@@ -5,12 +5,9 @@
 //!
 //! Time is a manual clock; the Python hook is a stub interpreter.
 
-#![cfg_attr(
-    unix,
-    expect(
-        clippy::expect_used,
-        reason = "test code: a failed expectation is the test failure"
-    )
+#![expect(
+    clippy::expect_used,
+    reason = "test code: a failed expectation is the test failure"
 )]
 #![expect(
     clippy::clone_on_ref_ptr,
