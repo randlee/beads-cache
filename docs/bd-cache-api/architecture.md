@@ -1,6 +1,7 @@
 # bd-cache-api Architecture
 
-Status: proposed (sprint b-2). Crate-local decisions (domain code `API`) under
+Status: Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed,
+2026-10-25; written in sprint b-2). Crate-local decisions (domain code `API`) under
 ADR-BDC-0009 and [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md).
 
 ## Modules
@@ -19,7 +20,7 @@ ADR-BDC-0009 and [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md).
 
 ## ADR-API-0001: Decode by hand, not with serde
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 **Context.** Contract §1 rule 5 needs three outcomes per member (served,
 `/v0` but not served, unknown) with distinct codes and `details`; serde's
@@ -39,7 +40,7 @@ unserved operation names was removed: its names did not match contract
 
 ## ADR-API-0002: The cursor carries a checksum
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 **Context.** A keyset cursor that decodes to a valid but altered key would page
 from the wrong place without an error; the contract requires a tampered cursor

@@ -1030,7 +1030,7 @@ dependencies = [
 [[package]]
 name = "sc-command"
 version = "0.1.0"
-source = "git+https://github.com/randlee/sc-runtime?tag=prerelease%2Fv0.1.0#ba971c1d61c4989e9b699c100bd12683d02401aa"
+source = "git+https://github.com/randlee/sc-runtime?tag=v0.1.0#ae3e10b21b9000ee8567ee7e8f3ff125440abd83"
 dependencies = [
  "sc-observability-types",
  "serde",

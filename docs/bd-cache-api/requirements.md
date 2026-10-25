@@ -1,12 +1,13 @@
 # bd-cache-api Requirements
 
-Status: proposed (sprint b-2). Crate-local requirements (domain code `API`)
+Status: Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed,
+2026-10-25; written in sprint b-2). Crate-local requirements (domain code `API`)
 refining [`../requirements.md`](../requirements.md) and
 [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md) (contract 1.0.0).
 
 ## REQ-API-0001: One decoder, nothing ignored
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `decode(command, json)` is the only path from a JSON request to a typed
 request. An unknown member is `BAD_ARGS` with `details.member`; a `/v0`
@@ -28,7 +29,7 @@ end, which builds it with `ApiError::unsupported(Unsupported::Operation, name)`.
 
 ## REQ-API-0002: The idempotency key is required, never derived
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `issues update`, `issues close` and `dependencies add` decode only with a
 nonblank `idempotency_key`; a write without one is `BAD_ARGS`
@@ -39,7 +40,7 @@ nonblank `idempotency_key`; a write without one is `BAD_ARGS`
 
 ## REQ-API-0003: Total orders and an opaque keyset cursor
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `issues list` orders `(created_at desc, id asc)` (default) or
 `(priority asc, created_at desc, id asc)`; `ready` uses the second. Inside a
@@ -56,7 +57,7 @@ sort, is `BAD_ARGS` with `v0_code: invalid_cursor`.
 
 ## REQ-API-0004: Filters run in the api over one scope
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 A list-like read names a scope with `scope` or its first `phase-<x>` label
 (else `SCOPE_UNKNOWN` with `details.known` in label form); every label is
@@ -72,7 +73,7 @@ was last evicted, or ever, is not served: `issues list` and `ready` return
 
 ## REQ-API-0005: The error table and the CacheError mapping
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `ERROR_TABLE` equals the contract §4 table (code, kind, exit, retryable,
 `v0_code`); every `CacheError` code is in it. `From<CacheError>` maps
@@ -89,7 +90,7 @@ sync's and the tick's codes without depending on those crates.
 
 ## REQ-API-0006: Entry args in /v0 names
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `Entry.args` is the `/v0` form of the stored op (`set_metadata` →
 `metadata.set`, `unset_metadata` → `metadata.unset`, a dep add as
@@ -101,7 +102,7 @@ journaled reads back identically.
 
 ## REQ-API-0007: Write replies come from write_returning
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 A write reply carries the view after the write, `changed` (a close:
 `already_closed = !changed`) and `x_cache {seq, state, duplicate,
@@ -116,12 +117,14 @@ it is absent too.
 
 ## REQ-API-0008: Contract version and no front-end dependency
 
-**Status:** Proposed (sprint b-2)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `CONTRACT_VERSION` is `"1.0.0"` and is reported by `context` and
 `cache status`. The crate depends on `bd-cache`, `bd-cache-model`,
 `sc-beads`, serde, serde_json and schemars only: no sc-command, no clap, in
-any dependency kind (CI "Crate boundaries").
+any dependency kind, and none of its normal or build dependencies pulls
+sc-command or clap in transitively (CI "Crate boundaries" and "Crate
+boundaries, transitive").
 
 **Refines:** REQ-BDC-0811, contract §9
-**Acceptance evidence:** fixtures `reads`, `writes` (`contract_version`); the CI boundary step.
+**Acceptance evidence:** fixtures `reads`, `writes` (`contract_version`); the two CI boundary steps.

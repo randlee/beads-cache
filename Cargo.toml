@@ -59,7 +59,7 @@ pyo3 = "0.30"
 # phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:
 # it is not published to crates.io, so bd-cache-cli stays `publish = false`
 # (ADR-CLI-0001, docs/bd-cache-cli/architecture.md).
-sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "prerelease/v0.1.0" }
+sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "v0.1.0" }
 sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
 clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
 

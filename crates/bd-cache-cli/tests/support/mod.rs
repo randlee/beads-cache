@@ -228,6 +228,19 @@ impl TestRepo {
         self.set_scenario(&scenario);
     }
 
+    /// The release file of a gated scenario ([`Faults::gate_file`]): absent
+    /// until [`TestRepo::release_gate`] creates it.
+    ///
+    /// [`Faults::gate_file`]: bd_cache_cli::scenario::Faults::gate_file
+    pub fn gate_file(&self) -> PathBuf {
+        self.dir.path().join("bd-gate")
+    }
+
+    /// Opens the gate, so a fake-bd still blocked at it answers and exits.
+    pub fn release_gate(&self) {
+        std::fs::write(self.gate_file(), b"").expect("the gate file");
+    }
+
     /// Runs `fake-bd <args>` itself, as `bd` would be run.
     pub fn fake_bd(&self, args: &[&str]) -> Ran {
         hermetic(FAKE_BD)
@@ -274,4 +287,51 @@ pub fn envelope_json(ran: &Ran) -> (i32, Value) {
 /// A path as UTF-8 text (every temporary path of the tests is).
 pub fn path_str(path: &Path) -> &str {
     path.to_str().expect("a UTF-8 temporary path")
+}
+
+/// Writes an executable script at `path` with `contents`, through a
+/// `/bin/sh` child (`printf … > f && chmod 755 f`).
+///
+/// This test binary runs its tests on several threads. A file it wrote
+/// itself (`fs::write`, `fs::copy`) can still have its write fd open in
+/// a child forked by a concurrent test, and exec'ing it then fails with
+/// ETXTBSY (os error 26); a rename would not help, as it keeps the inode.
+/// A child writes it instead, so this process never holds that fd
+/// (sc-bd-cli's `run.rs` tests use the same remedy).
+#[cfg(unix)]
+pub fn write_script(path: &Path, contents: &str) {
+    let status = Command::new("/bin/sh")
+        .arg("-c")
+        .arg("printf '%s' \"$1\" > \"$2\" && chmod 755 \"$2\"")
+        .arg("sh")
+        .arg(contents)
+        .arg(path)
+        .status()
+        .expect("/bin/sh starts");
+    assert!(status.success(), "cannot write {}", path.display());
+}
+
+/// Copies the executable `from` to `to`, to be exec'd from there.
+///
+/// On Unix through a `cp` child, for the reason [`write_script`] gives; on
+/// Windows, which has no ETXTBSY, with `fs::copy`.
+pub fn copy_executable(from: &Path, to: &Path) {
+    #[cfg(unix)]
+    {
+        let status = Command::new("cp")
+            .arg(from)
+            .arg(to)
+            .status()
+            .expect("cp starts");
+        assert!(
+            status.success(),
+            "cannot copy {} to {}",
+            from.display(),
+            to.display()
+        );
+    }
+    #[cfg(not(unix))]
+    {
+        std::fs::copy(from, to).expect("the copy");
+    }
 }
