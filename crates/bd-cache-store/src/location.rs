@@ -368,15 +368,24 @@ pub(crate) fn env_beads_dir() -> Result<Option<BeadsDirOverride>, CacheError> {
 const UNRESOLVABLE_REMEDY: &str =
     "set an absolute BEADS_DIR or run from a readable working directory";
 
-/// The `BD_CACHE.NO_DATABASE` of an unresolvable `$BEADS_DIR`: the detail names
-/// the value, the I/O error and the remedy.
-///
-/// The I/O error is kept as text only: as a source, a permission-denied
-/// working directory would select the fix for an unreadable `metadata.json`.
 fn unresolvable(e: &BeadsDirError) -> CacheError {
-    CacheError::NoDatabase {
-        detail: format!("{e}: {}; {UNRESOLVABLE_REMEDY}", e.source),
-        source: None,
+    e.to_cache_error()
+}
+
+impl BeadsDirError {
+    /// The `BD_CACHE.NO_DATABASE` of this unresolvable `$BEADS_DIR`, as
+    /// [`SqliteStore::open`](crate::SqliteStore::open) reports it: the detail
+    /// names the value, the I/O error and the remedy. Hosts that read the
+    /// variable themselves use this so their error matches the store's.
+    ///
+    /// The I/O error is kept as text only: as a source, a permission-denied
+    /// working directory would select the fix for an unreadable `metadata.json`.
+    #[must_use]
+    pub fn to_cache_error(&self) -> CacheError {
+        CacheError::NoDatabase {
+            detail: format!("{self}: {}; {UNRESOLVABLE_REMEDY}", self.source),
+            source: None,
+        }
     }
 }
 

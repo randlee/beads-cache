@@ -317,6 +317,7 @@ fn a_recompose_that_fails_is_tried_again_by_the_next_tick() {
                 Err(ComposeError::Cache(
                     bd_cache_model::CacheError::NoDatabase {
                         detail: "metadata.json is gone".into(),
+                        source: None,
                     },
                 ))
             } else {

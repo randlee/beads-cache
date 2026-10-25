@@ -31,7 +31,7 @@ use crate::slot::{NotRun, Slot};
 /// settings; the keyword arguments override the file's keys. Opening starts no
 /// `bd` process. One process holds one connection per cache file, so a second
 /// open of the same file in the same process raises `CacheError`
-/// (`BD_CACHE.STORE_FAILED`) until the first is closed.
+/// (`BD_CACHE.STORE_IN_USE`) until the first is closed.
 ///
 /// Every verb returns plain Python objects (`dict`, `list`, `str`, `int`,
 /// `bool`, `None`) and raises `CacheError` for a typed cache error or
@@ -539,7 +539,7 @@ mod tests {
         // The file is held while the handle lives.
         assert!(matches!(
             open_unset(dir.path()),
-            Err(OpenError::Cache(ModelError::StoreFailed { .. }))
+            Err(OpenError::Cache(ModelError::StoreInUse { .. }))
         ));
         let outcome = slot.with(|v| -> u32 {
             let _ = &v.cache;
