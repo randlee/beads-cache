@@ -111,15 +111,13 @@ fn child(mode: &str) -> ExitCode {
             ExitCode::SUCCESS
         }
         ("huge", _) => {
+            // The cap in whole chunks, then the one byte over it.
             let chunk = vec![b'x'; 1024 * 1024];
-            let mut left = MAX_OUTPUT_BYTES + 1;
-            while left > 0 {
-                let n = left.min(chunk.len());
-                if out.write_all(&chunk[..n]).is_err() {
-                    break;
-                }
-                left -= n;
+            let mut sent = 0;
+            while sent < MAX_OUTPUT_BYTES && out.write_all(&chunk).is_ok() {
+                sent += chunk.len();
             }
+            let _ = out.write_all(b"x");
             let _ = out.flush();
             ExitCode::SUCCESS
         }
