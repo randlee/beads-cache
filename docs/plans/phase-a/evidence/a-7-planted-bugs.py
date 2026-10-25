@@ -150,8 +150,8 @@ MUTANTS = [('unannounced filter dropped',
   'cache.sync(&phase.scope(), Deadline::after(&*clock, std::time::Duration::from_secs(86_400)))'),
  ('custom phase list ignored',
   'crates/bd-cache-sync/src/phases.rs',
-  '        if only.is_some_and(|only| !only.contains(&name)) {\n            continue;\n        }\n',
-  ''),
+  '        Some(only) => Ok(load_named(dir, only)),',
+  '        Some(_) => scan(dir, entries).map_err(fail),'),
  ('malformed phase entry skipped instead of refused',
   'crates/bd-cache-sync/src/phases.rs',
   '                    let name = ScopeId::parse(entry)\n'
@@ -573,11 +573,13 @@ MUTANTS = [('unannounced filter dropped',
   '        ConfigLoadError::Scope { .. } => "sync_config_invalid_toml",'),
  ('S40: compose_with does not give the bd child the resolved BEADS_DIR',
   'crates/bd-cache-sync/src/compose.rs',
-  '    let backend = backend.with_clock(Arc::clone(&clock)).with_child_var(\n'
-  '        OsStr::new(BEADS_DIR_ENV),\n'
-  '        beads_dir.as_ref().map(BeadsDirOverride::as_os_str),\n'
-  '    );',
-  '    let backend = backend.with_clock(Arc::clone(&clock));'),
+  '    let backend = backend(locks)\n'
+  '        .with_clock(Arc::clone(&clock))\n'
+  '        .with_child_var(\n'
+  '            OsStr::new(BEADS_DIR_ENV),\n'
+  '            beads_dir.as_ref().map(BeadsDirOverride::as_os_str),\n'
+  '        );',
+  '    let backend = backend(locks).with_clock(Arc::clone(&clock));'),
  ('S40: the runner does not apply its child environment to run_raw',
   'crates/sc-bd-cli/src/runner.rs',
   'crate::run::run_raw_in(&self.binary, &wd, args, &self.child_env)',
@@ -614,8 +616,8 @@ MUTANTS = [('unannounced filter dropped',
   '    let beads_dir = beads_dir.unwrap_or(None);'),
  ('S48: an unresolvable BEADS_DIR is reported with the cache code',
   'crates/bd-cache-sync/src/compose.rs',
-  '            Self::BeadsDir { .. } => BEADS_DIR_CODE,',
-  '            Self::BeadsDir { .. } => "BD_CACHE.NO_DATABASE",'),
+  '            Self::BeadsDir(_) => BEADS_DIR_CODE,',
+  '            Self::BeadsDir(_) => "BD_CACHE.NO_DATABASE",'),
  ('S49: beads_dir ignores the override',
   'crates/bd-cache-store/src/location.rs',
   '        |dir| dir.as_path().to_path_buf(),',

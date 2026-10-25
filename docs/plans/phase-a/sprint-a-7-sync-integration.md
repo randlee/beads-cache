@@ -456,7 +456,7 @@ mutants, before the plan change (not recorded evidence), had each one fail its t
 `store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`,
 `store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating`).
 
-### Full re-run at `6d93750` (`integrate/phase-a` after a-7 landed)
+### Full re-run at `6d93750` (`integrate/phase-a` after a-7 landed) (historical: superseded by "Full re-run at `7b7f689`" below)
 
 The runner `a-7-planted-bugs.py` as of `6d93750` (116 mutants) was run in full on `6d93750`, whose code is that of
 `fb47eed` (macOS arm64, Rust 1.98.1, `CARGO_INCREMENTAL=0`, 2026-10-24). This is not the final code: the fix-a-7-15
@@ -478,6 +478,30 @@ An external watchdog killed that binary after 782 s. The mutant is killed by the
 (`journal_lifecycle`, `announcement_state_passes_through_to_the_store`,
 `an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires` and others), as at `7702b67`.
 No other binary was killed. Afterwards `git status` showed only the results file changed.
+
+### Full re-run at `7b7f689` (final phase-A code)
+
+The runner `a-7-planted-bugs.py` (121 mutants) was run in full on `7b7f689` (macOS arm64, Rust 1.98.1,
+`CARGO_INCREMENTAL=0`, its own `CARGO_TARGET_DIR`, 2026-10-25), with an external watchdog that kills only a test binary
+running over 780 s. Results: `docs/plans/phase-a/evidence/a-7-planted-bugs.json` (121 entries). The `6d93750` results
+above are historical.
+
+**119 of 121 killed** (117 by a failing test, 2 by a compile-time assertion), **2 survive**, both the justified pair:
+S27 (the tree kill and the reaping do not share one deadline) and S28 (a child not reaped in time is dropped, not handed
+to the reaper), both in `crates/bd-cache-sync/src/atm.rs`, `justified: unreachable without an uninterruptible process`.
+The two unexpected survivors of `6d93750` (`atm kills only the direct child`, `S33: mark_announced_within is the
+unbounded write`) are killed. There are no other survivors.
+
+Three mutants did not match the source in the full run (code had moved since the script was written), and their anchors
+were fixed in the script only (no code changed): `custom phase list ignored` (now replaces the
+`Some(only) => Ok(load_named(dir, only))` arm of `load_phases` with a directory scan), `S40: compose_with does not give
+the bd child the resolved BEADS_DIR` (the `backend(locks)` chain) and `S48: an unresolvable BEADS_DIR is reported with
+the cache code` (`Self::BeadsDir(_)`). They were then run alone on the same commit and all three are killed; their entries
+replace the three pattern errors in the results file.
+
+Interventions: none. The watchdog killed no binary this time (the `e2e` hang of the `6d93750` run did not recur).
+Afterwards `git status` showed only the results file and the script (the three anchors) changed; every planted mutation
+was reverted.
 
 ## bd-compat workflow, real run
 
@@ -723,7 +747,7 @@ Locally (macOS arm64, Rust 1.98.1, `CARGO_INCREMENTAL=0`, own target directory) 
 | `maturin build --release --manifest-path crates/bd-cache-py/Cargo.toml`, the wheel installed, `python -m pytest crates/bd-cache-py/tests --rootdir=crates/bd-cache-py` | 92 passed (`bd-cache-py` itself is unchanged: it opens through `SqliteStore::open`, whose signature is unchanged) |
 | New and changed tests, 20 runs each (`--exact`) | 20 of 20 green each: in `bd-cache-store`, `location::tests::an_unset_or_empty_beads_dir_is_no_override`, `a_relative_beads_dir_is_made_absolute_against_the_working_directory`, `an_absolute_beads_dir_is_kept`, `a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause`, and `test_beads_dir_env_names_the_database` (`tests/location.rs`); in `bd-cache-sync`, `compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens` and the two child-process cases of `tests/compose.rs` (`a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child`, `the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one`), which use the changed `run_case_in_child`; in `sc-bd-cli`, `command::tests::a_non_ascii_name_is_refused_in_debug_builds` and `runner::tests::the_child_environment_reaches_every_spawn_on_every_platform` |
 | Planted-bug patterns | `a-7-planted-bugs.py` (121 mutants): the S40 compose pattern and both S44 patterns follow the code (the S44 rule moved to `bd-cache-store`'s `BeadsDirOverride::new_with`), and five are added: S48 (the relative fallback restored in the store; `compose_with` ignoring the error; the error reported with the cache code) and S49 (`beads_dir` ignoring the override; `CacheLocation::resolve` not building it from the environment). Each of the 121 patterns matches exactly once at `217b605`. The runner was run for the eight S40-compose, S44, S48 and S49 mutants (results outside the repo, the committed results file untouched): each is killed (failing tests include `location::tests::a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause`, `compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens`, `test_beads_dir_env_names_the_database` and the `tests/compose.rs` child cases) |
-| Planted bugs, full run | run at `6d93750` (the code of `fb47eed`; the 116-mutant script of that commit), 2026-10-24: 112 of 116 killed (2 by compile-time assertion), S27 and S28 survive (justified), and 2 unexpected survivors are referred to the lead (`atm kills only the direct child`, `S33: mark_announced_within is the unbounded write`). See Evidence: planted bugs, "Full re-run at `6d93750`". A full run at the final code `217b605` (121 mutants) is still owed (bc-lead) |
+| Planted bugs, full run | run at `7b7f689` (final phase-A code; 121 mutants), 2026-10-25: 119 of 121 killed (2 by compile-time assertion); only S27 and S28 survive (justified). The `6d93750` run (112 of 116) is historical. See Evidence: planted bugs, "Full re-run at `7b7f689`" |
 | Testbed (`m5-atmbench`) | recorded at `6d93750` on `integrate/phase-a`, 2026-10-24, which has the code of `fb47eed` (before the fix-a-7-15 code `217b605`; a run at the final code is still owed, bc-lead): a-2 probes 6/7 pinned (fingerprint, bd 1.3.2 vs pinned 1.3.1, as designed) and 7/7 with `SC_BD_PINNED_ANY=1`; a-7 live 2/2; NFR-BDC-0003 incremental sync 376.8 ms against 1 s, PASS (`evidence/a-7-testbed.md`) |
 | Windows (fastpc4) at `e366b53`: `cargo clippy --workspace --exclude bd-cache-py --all-targets --all-features -- -D warnings`; `cargo test --workspace --exclude bd-cache-py --all-features --no-fail-fast` | clippy clean; tests pass (793 passed, 0 failed, 17 ignored over 74 test binaries and doctest runs), the new store, compose and sc-bd-cli tests among them; the pinned toolchain was uninstalled from fastpc4 afterwards |
 | CI (workflow_dispatch on `sprint/a-7-fix15-code` at `e366b53`, the branch head then, whose code is `217b605`'s) | all checks pass: runs [40142460218](https://github.com/randlee/beads-cache/actions/runs/40142460218) (ci: fmt, doc, publish dry-run, boundaries; clippy and test on ubuntu, macos, windows) and [40142461791](https://github.com/randlee/beads-cache/actions/runs/40142461791) (python: wheels on macos-14 and ubuntu; pytest on python 3.9, 3.11, 3.13 on macos-14 and ubuntu; clippy and test on macos-14, ubuntu, windows) |
