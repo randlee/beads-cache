@@ -71,9 +71,16 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
             Request::CacheStatus(CacheStatus)
         }
         Command::CacheHealth => {
-            let m = Members::check(obj, "", &["probe"], &[], Unsupported::Member)?;
+            let m = Members::check(
+                obj,
+                "",
+                &["probe", "max_pending_age_s"],
+                &[],
+                Unsupported::Member,
+            )?;
             Request::CacheHealth(CacheHealth {
                 probe: m.flag("probe")?,
+                max_pending_age_s: m.uint("max_pending_age_s")?,
             })
         }
         Command::CacheScopes => {
@@ -81,13 +88,16 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
             Request::CacheScopes(CacheScopes)
         }
         Command::CacheRefreshScopes => {
-            let m = Members::check(obj, "", &["scopes"], &[], Unsupported::Member)?;
+            let m = Members::check(obj, "", &["scopes", "timeout_ms"], &[], Unsupported::Member)?;
             let scopes = m
                 .strings("scopes")?
                 .iter()
                 .map(|s| scope_of("scopes", s))
                 .collect::<Result<_, _>>()?;
-            Request::CacheRefreshScopes(CacheRefreshScopes { scopes })
+            Request::CacheRefreshScopes(CacheRefreshScopes {
+                scopes,
+                timeout_ms: m.uint("timeout_ms")?,
+            })
         }
         Command::CacheRefreshIssues => {
             let m = Members::check(obj, "", &["ids", "timeout_ms"], &[], Unsupported::Member)?;

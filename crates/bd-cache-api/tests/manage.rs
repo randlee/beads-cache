@@ -438,3 +438,173 @@ fn health_probe_with_bd_unreachable_on_the_fingerprint_is_down() {
         );
     }
 }
+
+/// Journals an update on `id` (a pending entry) at the world clock's time.
+fn journal_update(cache: &mut common::TestCache, id: &str, key: &str) {
+    ok(
+        cache,
+        "issues update",
+        &json!({"id": id, "actor": "san", "idempotency_key": key, "patch": {"status": "in_progress"}}),
+    );
+}
+
+/// I7: a pending entry that nothing drains is `degraded` once it is older
+/// than the limit (default 300 s, `max_pending_age_s` overrides it), judged
+/// on the oldest entry and on the injected clock; the drain clears it.
+#[test]
+fn health_degrades_when_the_oldest_pending_entry_is_too_old() {
+    let (w, mut cache) = world();
+    journal_update(&mut cache, "b2", "k1");
+    w.clock.advance(std::time::Duration::from_secs(200));
+    // A younger entry must not hide the older one.
+    journal_update(&mut cache, "b1", "k2");
+    w.clock.advance(std::time::Duration::from_secs(100));
+
+    // Exactly at the limit: still ok (the limit is "older than").
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["oldest_pending_age_s"], 300, "{h}");
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["reasons"], json!([]), "{h}");
+    assert_eq!(h["last_drain_at"], Value::Null, "nothing drained yet: {h}");
+    assert_eq!(h["unresolved_escalations"], 0, "{h}");
+
+    w.clock.advance(std::time::Duration::from_secs(1));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["oldest_pending_age_s"], 301, "{h}");
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(h["reasons"][0]["code"], "pending_too_old", "{h}");
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("301 s"),
+        "{h}"
+    );
+
+    // The limit is configurable.
+    let h = ok(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": 301}),
+    );
+    assert_eq!(h["state"], "ok", "{h}");
+    let h = ok(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": 60}),
+    );
+    assert_eq!(h["state"], "degraded", "{h}");
+    let bad = err(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": -1}),
+    );
+    assert_eq!(bad["code"], "BD_CACHE.BAD_ARGS", "{bad}");
+
+    // The drain applies both entries: nothing pending, and the drain is dated.
+    let flush = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(flush["applied"], json!([1, 2]), "{flush}");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["oldest_pending_age_s"], Value::Null, "{h}");
+    assert_eq!(h["last_drain_at"], "2026-10-23T10:05:01.000Z", "{h}");
+}
+
+/// I7: an escalation nobody resolved keeps health `degraded` after it was
+/// announced, until `journal resolve` settles it.
+#[test]
+fn health_degrades_on_an_unresolved_escalation_until_it_is_resolved() {
+    let (w, mut cache) = world();
+    ok(
+        &mut cache,
+        "issues close",
+        &json!({"id": "b1", "actor": "san", "idempotency_key": "k1"}),
+    );
+    w.bd.inject(FakeOp::Close, Injection::Refused(Refusal::NotClosable));
+    let flush = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(flush["escalated"][0]["seq"], 1, "{flush}");
+
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(h["unresolved_escalations"], 1, "{h}");
+    assert_eq!(h["reasons"][0]["code"], "unresolved_escalations", "{h}");
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("journal resolve <seq>"),
+        "{h}"
+    );
+
+    // Announced, but nobody resolved it: still degraded.
+    ok(&mut cache, "cache journal announce", &json!({"seq": 1}));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["open_work"]["escalated_unannounced"], 0, "{h}");
+    assert_eq!(
+        h["state"], "degraded",
+        "an announced escalation is open: {h}"
+    );
+    assert_eq!(h["unresolved_escalations"], 1, "{h}");
+
+    ok(
+        &mut cache,
+        "cache journal resolve",
+        &json!({"seq": 1, "note": "closed by hand", "actor": "lead"}),
+    );
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["unresolved_escalations"], 0, "{h}");
+    assert_eq!(h["reasons"], json!([]), "{h}");
+}
+
+/// I10: `cache refresh scopes` takes `timeout_ms`, the sync's deadline. A bd
+/// that answers in 10 s of (injected) time is cut by a 5 s deadline and
+/// refreshes by the default one; the failed result names the deadline.
+#[test]
+fn refresh_scopes_timeout_ms_is_the_sync_deadline() {
+    let delay = std::time::Duration::from_secs(10);
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    w.bd.inject(FakeOp::Fingerprint, Injection::Delay(delay));
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"], "timeout_ms": 5000}),
+    );
+    assert_eq!(r["failed"], 1, "{r}");
+    let result = &r["results"][0];
+    assert_eq!(result["report"]["deferred"], true, "{result}");
+    assert_eq!(
+        result["error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+        "{result}"
+    );
+    assert_eq!(result["error"]["details"]["timed_out"], true, "{result}");
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("5000 ms"),
+        "{result}"
+    );
+    let gone = err(&mut cache, "issues list", &json!({"scope": "x"}));
+    assert_eq!(gone["code"], "BD_CACHE.SCOPE_UNKNOWN", "{gone}");
+
+    // The control: the same delay under the default deadline (30 s) refreshes.
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    w.bd.inject(FakeOp::Fingerprint, Injection::Delay(delay));
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    assert_eq!(r["failed"], 0, "{r}");
+    let bad = err(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"timeout_ms": "soon"}),
+    );
+    assert_eq!(bad["code"], "BD_CACHE.BAD_ARGS", "{bad}");
+}

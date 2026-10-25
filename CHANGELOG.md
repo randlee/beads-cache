@@ -8,6 +8,36 @@ All crates in the workspace share one version.
 
 ## [Unreleased]
 
+Fixes from fenix's review of phase B (fix/fen-api, fix/fen-tick, fix/fen-py).
+
+### Added
+
+- **`cache health` sees a dead drainer and an ignored escalation.** The data
+  gains `oldest_pending_age_s`, `last_drain_at`, `unresolved_escalations` and
+  `reasons[]`. Health is `degraded`, with a reason, when the oldest pending
+  entry is older than `--max-pending-age-s` (request member
+  `max_pending_age_s`; default 300 s) and when any escalated entry is not yet
+  resolved (announced or not). `last_drain_at` is derived from the existing
+  `applied_at` column; there is no schema change.
+- **`cache refresh scopes --timeout-ms N`** (`timeout_ms`): each scope's sync
+  deadline, which a hook that needs a bounded sync can set.
+- `docs/bd-cache-cli/cutover-runbook.md`: atm-bd's move from `bd_cache.py` to
+  bd-cache 0.2, with rollback and owners.
+- fix/fen-tick: _(placeholder: its lines are added by the lead.)_
+- fix/fen-py: _(placeholder: its lines are added by the lead.)_
+
+### Changed
+
+- Contract §5.3 and §10: `changed` and `already_closed` are optional (omitted
+  when unknown, S68); 0.2 `issues_list` excludes closed, template and gate
+  rows by default, unlike 0.1 `list`, and `all` includes them; a migration
+  table for a `bd_cache.py` caller (I1, I3, I4, I6, I10, M1, M2, M4); the
+  `[tick] identity`, `--identity`, `details.outage` and
+  `python -m bd_cache_rs.cron` names, which land in fix/fen-tick.
+- The phase B plan's rulings table runs to S81.
+- A cut `refresh scopes` sync's message names the sync deadline in force, not
+  always the per-call cap.
+
 ## [0.2.0] - unreleased
 
 The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
