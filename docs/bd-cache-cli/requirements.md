@@ -191,7 +191,11 @@ of another project, a retry after a lost reply.
 In a release build, the median and the p95 of 50 new-process `bdc issues get`
 cache hits with nothing pending on the scope are under 50 ms, with `fake-bd`
 delayed by 60 ms per call (so no bd call fits). The same with 10 pending
-entries in a 1,000-row scope is reported, not gated.
+entries in a 1,000-row scope is reported, not gated. On Windows the p95 is
+reported, not gated (lead ruling S78, bc-lead, 2026-10-25): hosted runners'
+process creation and on-access scanning spike the tail (p95 about 190 ms with
+a median about 27 ms), which measures the runner rather than bdc. The median is
+gated on every platform.
 
 **Refines:** NFR-BDC-0002
 **Acceptance evidence:** `a_new_process_get_is_under_50_ms` (`tests/latency.rs`,

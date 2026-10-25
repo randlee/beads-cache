@@ -133,5 +133,12 @@ fn a_new_process_get_is_under_50_ms() {
     );
 
     assert!(median < BOUND, "median {median:?} is not under {BOUND:?}");
-    assert!(p95 < BOUND, "p95 {p95:?} is not under {BOUND:?}");
+    // Lead ruling S78: p95 is gated on Unix only. On hosted Windows runners
+    // process creation and on-access scanning spike the tail (p95 ~190 ms with
+    // a ~27 ms median), which measures the runner, not bdc; there it is reported.
+    if cfg!(windows) {
+        println!("NFR-BDC-0002: p95 is reported, not gated, on Windows (S78)");
+    } else {
+        assert!(p95 < BOUND, "p95 {p95:?} is not under {BOUND:?}");
+    }
 }
