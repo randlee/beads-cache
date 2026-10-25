@@ -5,6 +5,7 @@
 [workspace]
 members = [
     "crates/bd-cache",
+    "crates/bd-cache-cli",
     "crates/bd-cache-model",
     "crates/bd-cache-py",
     "crates/bd-cache-store",
@@ -50,6 +51,13 @@ getrandom = "0.4"                                          # sc-cron jitter (a-3
 criterion = "0.8"
 tempfile = "3.20"                                          # dev-dependency only (sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)
 pyo3 = "0.30"
+
+# phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:
+# it is not published to crates.io, so bd-cache-cli stays `publish = false`
+# (ADR-CLI-0001, docs/bd-cache-cli/architecture.md).
+sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "prerelease/v0.1.0" }
+sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
+clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
 
 [workspace.lints.rust]
 ambiguous_negative_literals = "warn"
