@@ -481,7 +481,9 @@ Core changes this contract needs:
 - `GetReply.scope`.
 - `entry_by_key`.
 - `journal_counts()`.
-- The store columns `last_error_code` and `note`.
+- The additive nullable store columns `last_error_code`, `note` and
+  `changed`. `changed` holds the value a duplicate returns; a close stores
+  `!already_closed` (lead ruling S62, bc-lead, 2026-10-25).
 
 `blocked(scope)` is deferred (§5.5). The CI boundary check reads the
 Boundaries table in `docs/architecture.md`, so adding the rows there (done with
