@@ -6,7 +6,10 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again",
+   "an_escalation_is_marked_with_the_time_left_before_t",
    "announcement_state_passes_through_to_the_store",
+   "bounded_marker_writes_match_the_unbounded_forms",
    "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_escalation_is_sent_once_to_the_phase_lead"
@@ -21,6 +24,7 @@
   "failed": [
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
    "announcement_state_passes_through_to_the_store",
+   "bounded_marker_writes_match_the_unbounded_forms",
    "journal_lifecycle",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
    "test_stop_only_when_no_active_phase_and_no_open_work"
@@ -56,6 +60,7 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_bd_does_not_return_never_ends_the_schedule",
    "a_root_the_cache_holds_is_read_from_the_cache_and_a_closing_root_ends_the_phase",
@@ -97,8 +102,10 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again",
    "a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran",
    "an_escalation_is_announced_once_and_the_store_remembers_it",
+   "an_escalation_is_marked_with_the_time_left_before_t",
    "an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires",
    "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
    "many_escalations_and_a_slow_sender_stay_within_the_tick_budget",
@@ -137,7 +144,11 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
+   "a_failed_sync_failure_alert_write_fails_the_tick_and_the_next_tick_sends_again",
    "a_python_format_sync_alert_for_a_different_cause_is_announced",
+   "a_sync_failure_alert_is_recorded_with_the_time_left_before_t",
+   "an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t",
    "announce::tests::a_sync_failure_caused_by_an_unreachable_backend_is_not_announced_per_phase",
    "test_sync_failure_is_announced_once_per_cause"
   ]
@@ -149,6 +160,8 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
+   "an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t",
    "test_sync_failure_is_announced_once_per_cause"
   ]
  },
@@ -159,9 +172,13 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again",
+   "a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
    "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once",
    "an_outage_alert_in_bd_cache_pys_form_is_not_announced_again",
+   "an_outage_alert_is_recorded_with_the_time_left_before_t",
    "an_outage_of_several_ticks_through_the_real_store_and_cli",
+   "an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it",
    "during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_drains",
    "test_backend_outage_is_announced_once_and_sync_failures_are_not",
    "test_outage_is_not_cleared_while_only_the_backend_check_answers",
@@ -177,6 +194,8 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
+   "announce::tests::a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does",
    "the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends"
   ]
  },
@@ -210,6 +229,7 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again",
    "a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once"
   ]
  },
@@ -454,14 +474,10 @@
  {
   "bug": "atm kills only the direct child",
   "file": "crates/bd-cache-sync/src/atm.rs",
-  "exit": 101,
+  "exit": 0,
   "compile_error": false,
   "const_assert": false,
-  "failed": [
-   "the_stop_flag_kills_the_child_and_its_descendants",
-   "the_whole_process_tree_is_killed_at_the_timeout_not_just_the_child",
-   "atm_process (process test)"
-  ]
+  "failed": []
  },
  {
   "bug": "atm ignores the time the tick passes",
@@ -481,6 +497,7 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "an_atm_that_hangs_is_killed_and_reaped",
    "the_stop_flag_kills_the_child_and_its_descendants",
    "atm_process (process test)"
   ]
@@ -746,7 +763,6 @@
    "a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree",
    "a_scheduled_tick_with_a_slow_bd_ends_within_its_budget",
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold",
-   "a_write_after_a_skipped_dating_waits_for_the_lock_again",
    "a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain",
    "an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base",
    "an_escalation_is_announced_once_and_the_store_remembers_it",
@@ -756,6 +772,7 @@
    "entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
    "has_entries_since_rules",
+   "store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating",
    "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it",
    "store::tests::the_floor_stops_one_below_the_first_dateable_entry",
    "store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again",
@@ -796,6 +813,7 @@
    "applied_since_reads_both_partial_indexes_and_no_history",
    "entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
+   "store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating",
    "test_e2e_blocker_close_and_reopen_update_ready",
    "test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync",
    "the_check_does_not_wait_for_the_write_lock_to_date_entries",
@@ -923,6 +941,7 @@
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold",
    "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
+   "store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating",
    "store::tests::the_floor_stops_one_below_the_first_dateable_entry"
   ]
  },
@@ -937,6 +956,7 @@
    "a_small_burst_is_walked_and_not_dated_until_past_the_threshold",
    "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
    "entries_python_applies_while_open_are_dated_by_the_next_check",
+   "store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating",
    "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it",
    "store::tests::the_floor_stops_one_below_the_first_dateable_entry",
    "store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again",
@@ -981,12 +1001,12 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
-   "a_write_after_a_skipped_dating_waits_for_the_lock_again",
+   "store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout",
    "store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it"
   ]
  },
  {
-  "bug": "QA5-003: the dating waits for the write lock (no NoWait)",
+  "bug": "QA5-003: the dating waits for the write lock (BusyWait not at zero)",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,
@@ -1019,7 +1039,6 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
-   "atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill",
    "atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped"
   ]
  },
@@ -1039,7 +1058,6 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
-   "atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill",
    "atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper",
    "atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped"
   ]
@@ -1051,7 +1069,6 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
-   "atm::tests::a_child_that_ignores_term_is_killed_within_the_reserve_despite_a_stuck_tree_kill",
    "atm::tests::a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper",
    "atm::tests::a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped"
   ]
@@ -1093,6 +1110,238 @@
   "failed": [
    "a_phase_whose_root_cannot_be_read_never_ends_the_schedule",
    "a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs"
+  ]
+ },
+ {
+  "bug": "S33: the escalation marker waits the full busy timeout, not the time left",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_escalation_is_marked_with_the_time_left_before_t"
+  ]
+ },
+ {
+  "bug": "S33: the sync-failure alert waits the full busy timeout, not the time left",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_sync_failure_alert_is_recorded_with_the_time_left_before_t"
+  ]
+ },
+ {
+  "bug": "S33: the outage alert waits the full busy timeout, not the time left",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_outage_alert_is_recorded_with_the_time_left_before_t"
+  ]
+ },
+ {
+  "bug": "S33: write_wait is not the time left before T",
+  "file": "crates/bd-cache-sync/src/control.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_sync_failure_alert_is_recorded_with_the_time_left_before_t",
+   "an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t",
+   "an_escalation_is_marked_with_the_time_left_before_t",
+   "an_outage_alert_is_recorded_with_the_time_left_before_t",
+   "an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it",
+   "control::tests::a_marker_write_may_wait_the_time_left_before_t"
+  ]
+ },
+ {
+  "bug": "S33: the store ignores the wait (full busy timeout)",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout"
+  ]
+ },
+ {
+  "bug": "S33: the store does not cap the wait at BUSY_TIMEOUT",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout"
+  ]
+ },
+ {
+  "bug": "S33: mark_announced_within is the unbounded write",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 0,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": []
+ },
+ {
+  "bug": "S33: set_sync_alert_within is the unbounded write",
+  "file": "crates/bd-cache-store/src/store.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout"
+  ]
+ },
+ {
+  "bug": "S35: an alert clear waits the full busy timeout, not the time left",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_alert_clear_after_a_passing_sync_waits_the_time_left_before_t"
+  ]
+ },
+ {
+  "bug": "S35: a failed alert clear fails the tick",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_failed_alert_clear_does_not_fail_the_tick_and_the_next_tick_clears_it",
+   "a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it"
+  ]
+ },
+ {
+  "bug": "S35: a failed marker write after a delivered send is swallowed",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_failed_marker_write_fails_the_tick_and_the_next_tick_sends_again"
+  ]
+ },
+ {
+  "bug": "S34: ComposeError passes the store code through instead of mapping the variant",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "compose_errors_have_codes_and_sources"
+  ]
+ },
+ {
+  "bug": "S34: an unreadable configuration is mapped to the invalid-TOML code",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "compose_errors_have_codes_and_sources"
+  ]
+ },
+ {
+  "bug": "S38: the exhaustive config mapping swaps the bad-scope and invalid-TOML codes",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "compose_errors_have_codes_and_sources"
+  ]
+ },
+ {
+  "bug": "S40: compose_with does not give the bd child the resolved BEADS_DIR",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child",
+   "the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one",
+   "the_bd_child_sees_the_explicit_beads_dir_not_the_environments"
+  ]
+ },
+ {
+  "bug": "S40: the runner does not apply its child environment to run_raw",
+  "file": "crates/sc-bd-cli/src/runner.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child",
+   "the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one",
+   "the_bd_child_sees_the_explicit_beads_dir_not_the_environments"
+  ]
+ },
+ {
+  "bug": "QA8-001: the outage-over clear visits a scope twice in one tick",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it"
+  ]
+ },
+ {
+  "bug": "S44: an empty BEADS_DIR reaches the bd child as an empty value",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_empty_explicit_beads_dir_is_unset_for_the_bd_child",
+   "compose::tests::an_empty_or_unset_beads_dir_is_none"
+  ]
+ },
+ {
+  "bug": "S44: a relative BEADS_DIR is not made absolute against the working directory",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child",
+   "compose::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory"
+  ]
+ },
+ {
+  "bug": "S45: the outage-over clears go on after T",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it"
+  ]
+ },
+ {
+  "bug": "S45: the outage-over clears go on after a stop",
+  "file": "crates/bd-cache-sync/src/announce.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "announce::tests::a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does"
+  ]
+ },
+ {
+  "bug": "QA6-001: the dating skips entries below the undatable floor",
+  "file": "crates/bd-cache-store/src/schema.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating",
+   "store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating",
+   "store::tests::the_open_finds_the_applied_entries_it_could_not_date"
   ]
  }
 ]
