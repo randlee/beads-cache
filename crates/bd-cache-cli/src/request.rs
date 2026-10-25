@@ -234,8 +234,9 @@ mod tests {
             ("05", json!("05")),
             ("5x", json!("5x")),
         ] {
-            let r = request(&["issues", "list", "--scope", "x", "--limit", text]).unwrap();
-            assert_eq!(r["limit"], want, "--limit {text}");
+            let r = request(&["issues", "list", "--scope", "x", "--limit", text]).ok();
+            let limit = r.as_ref().and_then(|r| r.get("limit"));
+            assert_eq!(limit, Some(&want), "--limit {text}");
         }
         // clap reads a leading `-` as a flag; the rule itself still holds.
         assert!(json_integer("-3"));

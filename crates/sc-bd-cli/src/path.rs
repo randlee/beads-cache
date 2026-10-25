@@ -23,7 +23,7 @@ pub fn get_extended_path() -> String {
     {
         let userprofile = env::var("USERPROFILE").unwrap_or_default();
         let localappdata = env::var("LOCALAPPDATA").unwrap_or_default();
-        let mut extra_paths = vec![
+        let extra_paths = vec![
             format!(r"{}\AppData\Local\bin", userprofile),
             format!(r"{}\.local\bin", userprofile),
             format!(r"{}\Programs", localappdata),
@@ -37,7 +37,7 @@ pub fn get_extended_path() -> String {
     {
         let home = env::var("HOME").unwrap_or_default();
         let gopath = env::var("GOPATH").unwrap_or_else(|_| format!("{}/go", home));
-        let mut extra_paths = vec![
+        let extra_paths = vec![
             "/opt/homebrew/bin".to_string(),
             "/usr/local/bin".to_string(),
             "/home/linuxbrew/.linuxbrew/bin".to_string(),

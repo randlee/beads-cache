@@ -317,7 +317,7 @@ fn a_configured_scope_never_synced_is_not_served() {
 }
 
 /// Lead ruling S75 for `cache refresh issues`: ids that could not reach bd
-/// fail the command with BD_UNAVAILABLE, unavailable and retryable (there is
+/// fail the command with `BD_UNAVAILABLE`, unavailable and retryable (there is
 /// no per-id result).
 #[test]
 fn refresh_issues_with_bd_unreachable_is_bd_unavailable() {
