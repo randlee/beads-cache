@@ -11,14 +11,19 @@ Status: approved (lead ruling, 2026-10-23). Crate-local requirements (domain cod
 status, assignee, add/remove labels, set/unset metadata, append notes; the
 `/v0` `metadata: {set, unset}` form too) and `dep_add {depends_on, type}`;
 an unknown op is `BAD_OP`; unknown or mistyped keys, an empty update, a
-metadata value bd would coerce and an unknown dependency type are
-`BAD_ARGS`. `Op::to_args_json` is byte-identical to Python's
+metadata key that is empty or holds `=` (PE-RBP-F004), a metadata value bd
+would coerce and an unknown dependency type are `BAD_ARGS`. `check_write_size`
+and `check_note_size` refuse args over `MAX_WRITE_ARGS_BYTES` (256 KiB), an
+idempotency key over `MAX_IDEM_KEY_BYTES` (1 KiB) and a resolve note over
+`MAX_NOTE_BYTES` (16 KiB) as `BAD_ARGS` (PE-RSH-009). `Op::to_args_json` is byte-identical to Python's
 `json.dumps(args, sort_keys=True)`; equal ops compare equal.
 
 **Refines:** REQ-BDC-0301, 0303, 0304
 **Acceptance evidence:** `test_bad_ops_are_typed`, `metadata_coercion_guard`,
 `args_shape_errors_are_bad_args`, `python_written_args_round_trip_byte_for_byte`,
-`equal_ops_compare_equal_regardless_of_key_order` (`tests/ops.rs`).
+`equal_ops_compare_equal_regardless_of_key_order`,
+`empty_or_equals_metadata_keys_are_bad_args_at_parse_time` (`tests/ops.rs`);
+`each_limit_admits_its_size_and_refuses_one_byte_more` (`src/limits.rs`).
 
 ## REQ-MODEL-0002: Overlay, achieved and replay follow the op table
 
@@ -39,15 +44,17 @@ in seq order and skips escalated, resolved and applied ones.
 **Status:** Approved (lead ruling, 2026-10-23)
 
 `CacheError` has one variant per `BD_CACHE.*` code with its payload, plus
-`SCOPE_UNKNOWN` and `STORE_FAILED` (a-1 amendment 1); `exit_code()` is 3; `to_json()` is
+`SCOPE_UNKNOWN`, `STORE_FAILED` (a-1 amendment 1) and `STORE_IN_USE` (PE-RBP-F008);
+`exit_code()` is 3; `to_json()` is
 `{ok: false, code, detail, fix, reason?, ...payload, source?}`, where
 `source` is `{code, detail}` for an error mapped from a backend error and
-`{detail}` for a `STORE_FAILED` with a cause; `from_backend` maps
+`{detail}` for a `STORE_FAILED` or `NO_DATABASE` with a cause; `from_backend` maps
 backend errors by `CallKind` per the table in `src/error.rs`.
 
 **Refines:** REQ-BDC-0802, 0803
 **Acceptance evidence:** `golden_json_for_every_code`, `reasons_use_v0_names`,
-`from_backend_matches_the_table_for_every_call_kind` (`tests/goldens.rs`).
+`from_backend_matches_the_table_for_every_call_kind`,
+`no_database_keeps_its_cause_and_a_denied_read_is_not_bd_init_advice` (`tests/goldens.rs`).
 
 ## REQ-MODEL-0004: Store and lock ports with a contract suite
 
@@ -64,7 +71,9 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 
 **Status:** Approved (lead ruling, 2026-10-23)
 
-`RepoConfig` is the `.beads/bd-cache.toml` schema (unknown keys refused);
+`RepoConfig` is the `.beads/bd-cache.toml` schema (unknown keys refused; a zero
+`call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts` refused by
+`RepoConfig::validate`, each with its own message, PE-RSH-006);
 `cache_config` derives `CacheConfig` with defaults (30 s call cap, 2 s miss
 fill, 5 attempts); `DrainBudget::before_tick_end` places the start gate 5 s
 and the hard deadline 2 s before a tick end.

@@ -218,8 +218,11 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// `BAD_OP`, `BAD_ARGS`, `BAD_PRECONDITION`, `IDEM_CONFLICT`,
-    /// `PRECONDITION`, a miss-fill error, or store errors.
+    /// `BAD_OP`, `BAD_ARGS` (also for args or a key over
+    /// [`MAX_WRITE_ARGS_BYTES`](bd_cache_model::MAX_WRITE_ARGS_BYTES) /
+    /// [`MAX_IDEM_KEY_BYTES`](bd_cache_model::MAX_IDEM_KEY_BYTES)),
+    /// `BAD_PRECONDITION`, `IDEM_CONFLICT`, `PRECONDITION`, a miss-fill error,
+    /// or store errors.
     pub fn write(
         &mut self,
         id: &BeadId,
@@ -254,7 +257,9 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// `NOT_ESCALATED`; store errors.
+    /// `BAD_ARGS` for a note over
+    /// [`MAX_NOTE_BYTES`](bd_cache_model::MAX_NOTE_BYTES); `NOT_ESCALATED`;
+    /// store errors.
     pub fn resolve(&mut self, seq: Seq, note: &str, actor: Actor) -> Result<(), CacheError> {
         resolve::resolve(self, seq, note, actor)
     }

@@ -236,3 +236,98 @@ fn unreadable_repo_config_is_an_error_not_the_default() {
         "{err}"
     );
 }
+
+/// PE-RSH-006: a zero `call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts`
+/// is refused at load as a parse error with its own message, and 1 is accepted.
+#[test]
+fn zero_timeouts_and_attempts_are_refused_at_load_each_with_its_own_message() {
+    let tmp = TempDir::new("cfg-zero");
+    std::fs::create_dir_all(tmp.path().join(".beads")).unwrap();
+    let file = tmp.path().join(".beads").join("bd-cache.toml");
+    let mut causes = Vec::new();
+    for key in ["call_timeout_s", "miss_fill_timeout_ms", "max_attempts"] {
+        std::fs::write(&file, format!("{key} = 0\n")).unwrap();
+        let err = load_repo_config(tmp.path()).unwrap_err();
+        assert!(
+            matches!(err, ConfigLoadError::Parse { .. }),
+            "{key}: {err:?}"
+        );
+        assert_eq!(err.code(), "store_config_invalid", "{key}");
+        let cause = std::error::Error::source(&err)
+            .map(ToString::to_string)
+            .unwrap_or_default();
+        assert!(
+            cause.contains(&format!("{key} = 0 is out of range: it must be at least 1")),
+            "{key}: {cause}"
+        );
+        causes.push(cause);
+
+        std::fs::write(&file, format!("{key} = 1\n")).unwrap();
+        assert!(load_repo_config(tmp.path()).is_ok(), "{key} = 1 is valid");
+    }
+    causes.dedup();
+    assert_eq!(causes.len(), 3, "one message per key: {causes:?}");
+}
+
+/// PE-RBP-F014: a `metadata.json` that is not JSON is `NO_DATABASE` with the parse
+/// error kept as the source and its text in the detail.
+#[test]
+fn metadata_json_that_does_not_parse_keeps_its_cause() {
+    let tmp = TempDir::new("meta-junk");
+    std::fs::create_dir_all(tmp.path().join(".beads")).unwrap();
+    std::fs::write(tmp.path().join(".beads").join("metadata.json"), "{not json").unwrap();
+    let err = CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), None).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.NO_DATABASE");
+    let source = std::error::Error::source(&err).expect("the parse error is kept");
+    assert!(source.is::<serde_json::Error>(), "{source:?}");
+    assert!(
+        err.detail().contains("not JSON") && err.detail().contains(&source.to_string()),
+        "{}",
+        err.detail()
+    );
+    assert!(
+        err.fix().contains("bd init"),
+        "a bad file keeps the init advice"
+    );
+}
+
+/// PE-RBP-F014: a `metadata.json` this process may not read says so, in the detail
+/// and in the fix, instead of the `bd init` advice; a missing one keeps that advice.
+#[cfg(unix)]
+#[test]
+fn metadata_json_that_cannot_be_read_says_permission_denied_not_bd_init() {
+    use std::os::unix::fs::PermissionsExt;
+    let tmp = TempDir::new("meta-denied");
+    workspace(tmp.path(), "testdb", "p-1");
+    let meta = tmp.path().join(".beads").join("metadata.json");
+    std::fs::set_permissions(&meta, std::fs::Permissions::from_mode(0o000)).unwrap();
+    let readable = std::fs::read(&meta).is_ok();
+    let result = CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), None);
+    std::fs::set_permissions(&meta, std::fs::Permissions::from_mode(0o644)).unwrap();
+    assert!(
+        !readable,
+        "this test needs an unprivileged user: mode 000 did not stop the read"
+    );
+    let err = result.unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.NO_DATABASE");
+    assert!(
+        err.detail().starts_with("permission denied reading"),
+        "{}",
+        err.detail()
+    );
+    let source = std::error::Error::source(&err).expect("the I/O error is kept");
+    assert_eq!(
+        source
+            .downcast_ref::<std::io::Error>()
+            .map(std::io::Error::kind),
+        Some(std::io::ErrorKind::PermissionDenied)
+    );
+    assert!(!err.fix().contains("bd init"), "{}", err.fix());
+    assert!(err.fix().contains("permissions"), "{}", err.fix());
+
+    std::fs::remove_file(&meta).unwrap();
+    let missing =
+        CacheLocation::resolve_with(tmp.path(), &RepoConfig::default(), None).unwrap_err();
+    assert_eq!(missing.code(), "BD_CACHE.NO_DATABASE");
+    assert!(missing.fix().contains("bd init"), "{}", missing.fix());
+}

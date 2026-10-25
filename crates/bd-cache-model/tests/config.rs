@@ -80,3 +80,36 @@ fn drain_budget_sits_before_the_tick_end() {
     assert_eq!(b.hard.remaining(&clock), Duration::from_secs(23));
     assert!(clock.now_mono() < b.start_gate.instant());
 }
+
+/// PE-RSH-006: each zero value is refused with a message of its own; 1 is the floor.
+#[test]
+fn zero_call_timeout_miss_fill_timeout_and_max_attempts_are_refused() {
+    for (key, unit) in [
+        ("call_timeout_s", "1 second"),
+        ("miss_fill_timeout_ms", "1 millisecond"),
+        ("max_attempts", "1 attempt"),
+    ] {
+        let e = RepoConfig::from_toml(&format!("{key} = 0\n")).unwrap_err();
+        assert!(
+            e.detail.starts_with(&format!(
+                "{key} = 0 is out of range: it must be at least {unit} ("
+            )),
+            "{key}: {}",
+            e.detail
+        );
+        let ok = RepoConfig::from_toml(&format!("{key} = 1\n")).unwrap();
+        assert!(ok.validate().is_ok(), "{key} = 1");
+    }
+    let cache =
+        RepoConfig::from_toml("call_timeout_s = 1\nmiss_fill_timeout_ms = 1\nmax_attempts = 1\n")
+            .unwrap()
+            .cache_config(ProjectRef::local(None));
+    assert_eq!(
+        (
+            cache.call_timeout,
+            cache.miss_fill_timeout,
+            cache.max_attempts
+        ),
+        (Duration::from_secs(1), Duration::from_millis(1), 1)
+    );
+}

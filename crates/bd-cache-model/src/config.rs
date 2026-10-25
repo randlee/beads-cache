@@ -116,7 +116,9 @@ impl RepoConfig {
     ///
     /// # Errors
     ///
-    /// [`ConfigError`] for invalid TOML, an unknown key or a mistyped value.
+    /// [`ConfigError`] for invalid TOML, an unknown key, a mistyped value, or
+    /// a zero `call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts`
+    /// ([`RepoConfig::validate`]).
     ///
     /// # Examples
     ///
@@ -127,11 +129,52 @@ impl RepoConfig {
     /// assert_eq!(cache.scopes, vec![ScopeId::phase("bk").unwrap()]);
     /// assert_eq!(cache.max_attempts, 3);
     /// assert!(RepoConfig::from_toml("surprise = 1").is_err());
+    /// assert!(RepoConfig::from_toml("max_attempts = 0").is_err());
     /// ```
     pub fn from_toml(text: &str) -> Result<Self, ConfigError> {
-        toml::from_str(text).map_err(|e| ConfigError {
+        let config: Self = toml::from_str(text).map_err(|e| ConfigError {
             detail: e.to_string(),
-        })
+        })?;
+        config.validate()?;
+        Ok(config)
+    }
+
+    /// Refuses values that parse but cannot work (PE-RSH-006).
+    ///
+    /// A zero `call_timeout_s` or `miss_fill_timeout_ms` would give every `bd`
+    /// call (or every cache-miss fill) a deadline that has already passed, so
+    /// bd would never be asked; a zero `max_attempts` would escalate a write
+    /// before its first attempt. Each is refused with its own message.
+    ///
+    /// # Errors
+    ///
+    /// [`ConfigError`] naming the key and the smallest value it takes.
+    pub fn validate(&self) -> Result<(), ConfigError> {
+        let zero = |key: &str, least: &str, why: &str| ConfigError {
+            detail: format!("{key} = 0 is out of range: it must be at least {least} ({why})"),
+        };
+        if self.call_timeout_s == Some(0) {
+            return Err(zero(
+                "call_timeout_s",
+                "1 second",
+                "a zero cap stops every bd call before it starts",
+            ));
+        }
+        if self.miss_fill_timeout_ms == Some(0) {
+            return Err(zero(
+                "miss_fill_timeout_ms",
+                "1 millisecond",
+                "a zero timeout fails every cache miss without asking bd",
+            ));
+        }
+        if self.max_attempts == Some(0) {
+            return Err(zero(
+                "max_attempts",
+                "1 attempt",
+                "zero escalates every write before it is tried",
+            ));
+        }
+        Ok(())
     }
 
     /// The cache configuration for `project`, with defaults for unset keys.

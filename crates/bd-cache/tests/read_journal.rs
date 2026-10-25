@@ -228,3 +228,28 @@ fn announcement_state_passes_through_to_the_store() {
     c.set_sync_alert(&x(), None).unwrap();
     assert_eq!(c.sync_alert(&x()).unwrap(), None);
 }
+
+/// PE-RSH-009: a note over `MAX_NOTE_BYTES` is `BAD_ARGS` and leaves the entry
+/// escalated; a note at the limit resolves it.
+#[test]
+fn a_resolve_note_over_the_limit_is_refused_before_the_store_is_touched() {
+    use bd_cache_model::MAX_NOTE_BYTES;
+    let w = World::new();
+    let mut c = synced(&w);
+    let seq = journal(&mut c, &w, "k1", "b1");
+    escalate(&mut c, &w, seq, "precondition no longer holds");
+    let e = c
+        .resolve(seq, &"n".repeat(MAX_NOTE_BYTES + 1), actor("lead"))
+        .unwrap_err();
+    assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{e}");
+    assert!(e.detail().starts_with("note is 16385 bytes"), "{e}");
+    let entry = c.entry(seq).unwrap();
+    assert_eq!(entry.state, JournalState::Escalated, "nothing changed");
+    assert_eq!(
+        entry.last_error.as_deref(),
+        Some("precondition no longer holds")
+    );
+    c.resolve(seq, &"n".repeat(MAX_NOTE_BYTES), actor("lead"))
+        .unwrap();
+    assert_eq!(c.entry(seq).unwrap().state, JournalState::Resolved);
+}

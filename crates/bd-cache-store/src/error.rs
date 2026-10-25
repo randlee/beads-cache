@@ -5,8 +5,9 @@
 //! and `serde_json` failures keep the underlying error as the source
 //! ([`failed`], [`CacheError::store_failed`]). A failure with no underlying
 //! error has no source ([`corrupt`]): a stored value that does not decode or
-//! is inconsistent, a refused one-connection claim, or a journal mode SQLite
-//! will not set to WAL. A type-conversion error rusqlite raises while
+//! is inconsistent, or a journal mode SQLite will not set to WAL. A refused
+//! one-connection claim is not a store failure: it is `STORE_IN_USE`
+//! (PE-RBP-F008), since the file is fine and another handle holds it. A type-conversion error rusqlite raises while
 //! reading a column keeps that rusqlite error as its source ([`failed`]); a
 //! value the store's own validation refuses after reading has no source
 //! ([`corrupt`]). `NO_DATABASE` stays for missing or invalid
@@ -49,7 +50,7 @@ pub(crate) fn failed(step: Step<'_>, e: impl Error + Send + Sync + 'static) -> C
 }
 
 /// A store failure with no underlying error (a stored value that does not
-/// decode or is inconsistent, a refused one-connection claim, WAL refused):
+/// decode or is inconsistent, WAL refused):
 /// `STORE_FAILED`, no source.
 pub(crate) fn corrupt(step: Step<'_>, detail: impl fmt::Display) -> CacheError {
     CacheError::StoreFailed {

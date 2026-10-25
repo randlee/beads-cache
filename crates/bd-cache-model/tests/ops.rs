@@ -20,6 +20,29 @@ fn code(op: &str, args: &str) -> &'static str {
     Op::parse(op, args).map_or_else(|e| e.code(), |_| "ok")
 }
 
+/// PE-RBP-F004: a metadata key bd's `--set-metadata key=value` cannot carry is
+/// refused at parse time, in both spellings of a metadata set; ordinary keys,
+/// including ones with dots, dashes and colons, are kept.
+#[test]
+fn empty_or_equals_metadata_keys_are_bad_args_at_parse_time() {
+    for args in [
+        r#"{"set_metadata": {"": "x"}}"#,
+        r#"{"set_metadata": {"a=b": "x"}}"#,
+        r#"{"set_metadata": {"=": 1}}"#,
+        r#"{"set_metadata": {"ok": "x", "k=": true}}"#,
+        r#"{"metadata": {"set": {"": "x"}}}"#,
+        r#"{"metadata": {"set": {"x=y": "z"}}}"#,
+    ] {
+        let e = Op::parse("update", args).unwrap_err();
+        assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{args}");
+        assert!(e.detail().starts_with("set_metadata key"), "{args}: {e}");
+    }
+    for key in ["k", "a.b", "team-lead", "ns:key", "with space"] {
+        let args = serde_json::json!({"set_metadata": {key: "x"}}).to_string();
+        assert_eq!(code("update", &args), "ok", "{key:?}");
+    }
+}
+
 #[test]
 fn test_bad_ops_are_typed() {
     // The Python suite's cases.

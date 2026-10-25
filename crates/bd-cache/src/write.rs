@@ -2,8 +2,11 @@
 //!
 //! The steps run in this order (`docs/bd-cache/write-path.md`, REQ-CORE-0101):
 //!
-//! 1. [`Op::parse`]: `BAD_OP` / `BAD_ARGS` before anything else, so an
-//!    invalid write never starts a bd call.
+//! 1. [`check_write_size`], then [`Op::parse`]: `BAD_ARGS` for args or a key
+//!    over its size limit ([`MAX_WRITE_ARGS_BYTES`](bd_cache_model::MAX_WRITE_ARGS_BYTES),
+//!    [`MAX_IDEM_KEY_BYTES`](bd_cache_model::MAX_IDEM_KEY_BYTES)), then
+//!    `BAD_OP` / `BAD_ARGS`, before anything else, so an invalid write never
+//!    starts a bd call and is never journaled.
 //! 2. Dedupe on the idempotency key ([`CacheStore::entry_by_key`], any
 //!    state): the same `(bead, op)` returns the existing entry with
 //!    `duplicate: true`; anything else under that key is `IDEM_CONFLICT`.
@@ -26,7 +29,7 @@ use std::collections::BTreeMap;
 
 use bd_cache_model::{
     CacheError, CacheStore, DrainLock, GuardKey, IdemKey, JournalEntry, NewEntry, Op,
-    PreconditionReason, ScopeId, Unmet, WriteReply, replay, unmet,
+    PreconditionReason, ScopeId, Unmet, WriteReply, check_write_size, replay, unmet,
 };
 use sc_beads::{Actor, Bead, BeadId, CacheBackend, Guards};
 
@@ -42,6 +45,7 @@ pub(crate) fn write<S: CacheStore, L: DrainLock, B: CacheBackend>(
     key: IdemKey,
     actor: Actor,
 ) -> Result<WriteReply, CacheError> {
+    check_write_size(args_json, &key)?;
     let op = Op::parse(op_name, args_json)?;
     if let Some(held) = cache.store.entry_by_key(&key)? {
         return dedupe(&held, id, &op);

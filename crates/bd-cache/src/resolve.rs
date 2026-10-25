@@ -4,9 +4,11 @@
 //! `resolved` (never replayed, no longer blocking `prune`) and the note is
 //! appended to its `last_error` as `" | resolved by <actor>: <note>"`. The
 //! state rule is the store's (`CacheStore::resolve`): any entry that is not
-//! escalated, or an absent seq, is `NOT_ESCALATED`.
+//! escalated, or an absent seq, is `NOT_ESCALATED`. A note over
+//! [`MAX_NOTE_BYTES`](bd_cache_model::MAX_NOTE_BYTES) is `BAD_ARGS` before the
+//! store is touched (PE-RSH-009).
 
-use bd_cache_model::{CacheError, CacheStore, DrainLock, Seq};
+use bd_cache_model::{CacheError, CacheStore, DrainLock, Seq, check_note_size};
 use sc_beads::{Actor, CacheBackend};
 
 use crate::Cache;
@@ -22,6 +24,7 @@ pub(crate) fn resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
     note: &str,
     actor: Actor,
 ) -> Result<(), CacheError> {
+    check_note_size(note)?;
     let at = cache.clock.now_utc();
     cache.store.resolve(seq, note, &actor, &at)
 }

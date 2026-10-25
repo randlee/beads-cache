@@ -659,6 +659,23 @@ pub enum BeadsCacheError {
     },
     /// Any btit error from shared transport code.
     Btit(BeadsError),
+    /// The command ran, but its output could not be read whole: a read
+    /// failure, or output over the transport's cap (PE-RBP-F001).
+    ///
+    /// Not a contract break: nothing was parsed. The read error is the
+    /// [`source`](std::error::Error::source).
+    Transport {
+        /// The call, e.g. `bd list`.
+        what: String,
+        /// The read error (for output over the cap, one naming the cap).
+        source: std::io::Error,
+    },
+    /// The bead the call needed is not in the backend (PE-RBP-F013): for
+    /// example a guarded close whose guard check finds no row.
+    NotFound {
+        /// The missing bead.
+        bead: BeadId,
+    },
 }
 
 impl BeadsCacheError {
@@ -672,6 +689,8 @@ impl BeadsCacheError {
             Self::Failed { .. } => "SC_BEADS_FAILED",
             Self::CheckFailed { .. } => "SC_BEADS_CHECK_FAILED",
             Self::Btit(e) => e.code(),
+            Self::Transport { .. } => "SC_BEADS_TRANSPORT",
+            Self::NotFound { .. } => "SC_BEADS_NOT_FOUND",
         }
     }
 
@@ -736,6 +755,10 @@ impl fmt::Display for BeadsCacheError {
                 write!(f, "bd {step}: exit {code}: {}", stderr.trim())
             }
             Self::Btit(e) => fmt::Display::fmt(e, f),
+            Self::Transport { what, .. } => {
+                write!(f, "{what}: the output could not be read whole")
+            }
+            Self::NotFound { bead } => write!(f, "no bead {bead} in the backend"),
         }
     }
 }
@@ -744,6 +767,7 @@ impl std::error::Error for BeadsCacheError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::Btit(e) => Some(e),
+            Self::Transport { source, .. } => Some(source),
             _ => None,
         }
     }
@@ -772,8 +796,10 @@ impl From<BeadsError> for BeadsCacheError {
 ///
 /// Every method returns a [`BeadsCacheError`]: `Unavailable` when the backend
 /// could not answer (including a reached deadline), `Refused` for a refused
-/// guard, `Contract` for output that breaks the row contract, `Failed` for
-/// any other failed command, `Btit` for errors of the shared transport.
+/// guard, `Contract` for output that breaks the row contract, `Transport`
+/// for output that could not be read whole, `NotFound` for a bead the call
+/// needed and the backend does not have, `Failed` for any other failed
+/// command, `Btit` for errors of the shared transport.
 #[expect(
     clippy::missing_errors_doc,
     reason = "failure modes are documented once on the trait and on BeadsCacheError"
@@ -869,6 +895,26 @@ mod tests {
         assert_eq!(e.code(), "BTIT_BEADS_SCHEMA_MIGRATION");
         assert!(e.to_string().starts_with("SCHEMA_MIGRATION_ERROR"));
         assert!(std::error::Error::source(&e).is_some());
+    }
+
+    #[test]
+    fn transport_errors_keep_their_io_source_and_are_not_outages() {
+        let e = BeadsCacheError::Transport {
+            what: "bd list".into(),
+            source: std::io::Error::other("stdout exceeded 64 MiB"),
+        };
+        assert_eq!(e.code(), "SC_BEADS_TRANSPORT");
+        assert_eq!(e.to_string(), "bd list: the output could not be read whole");
+        let io = std::error::Error::source(&e).expect("the read error is the source");
+        assert_eq!(io.to_string(), "stdout exceeded 64 MiB");
+        assert!(!e.is_unavailable() && !e.is_timeout());
+
+        let missing = BeadsCacheError::NotFound {
+            bead: BeadId::new("b-1").unwrap(),
+        };
+        assert_eq!(missing.code(), "SC_BEADS_NOT_FOUND");
+        assert_eq!(missing.to_string(), "no bead b-1 in the backend");
+        assert!(!missing.is_unavailable());
     }
 
     #[test]

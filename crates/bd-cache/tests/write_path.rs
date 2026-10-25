@@ -420,3 +420,51 @@ fn a_write_after_a_rebuild_checks_the_filled_row_with_pending_entries_replayed()
     .unwrap();
     assert_eq!(w.store.journal().len(), 2);
 }
+
+/// PE-RSH-009: args or an idempotency key over its limit is `BAD_ARGS` before
+/// anything is parsed, asked of bd or journaled; at the limit the write is taken.
+#[test]
+fn oversized_args_or_keys_are_bad_args_and_nothing_is_journaled() {
+    use bd_cache_model::{MAX_IDEM_KEY_BYTES, MAX_WRITE_ARGS_BYTES};
+    let w = World::new();
+    let mut c = w.cache();
+    w.bd.clear_calls();
+    // `{"append_notes": "<n>"}` is 20 bytes of JSON around the note.
+    let note = |len: usize| format!(r#"{{"append_notes": "{}"}}"#, "a".repeat(len - 20));
+    let over = note(MAX_WRITE_ARGS_BYTES + 1);
+    assert_eq!(over.len(), MAX_WRITE_ARGS_BYTES + 1);
+    let e = write(&mut c, "b1", "update", &over, Guards::default(), "k1").unwrap_err();
+    assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{e}");
+    assert!(e.detail().starts_with("args is 262145 bytes"), "{e}");
+    let long_key = "k".repeat(MAX_IDEM_KEY_BYTES + 1);
+    let e = write(&mut c, "b1", "close", "{}", Guards::default(), &long_key).unwrap_err();
+    assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{e}");
+    assert!(e.detail().starts_with("idem_key is 1025 bytes"), "{e}");
+    assert!(w.store.journal().is_empty(), "nothing journaled");
+    assert!(w.bd.calls().is_empty(), "no bd call: {:?}", w.bd.calls());
+
+    let at_limit = note(MAX_WRITE_ARGS_BYTES);
+    assert_eq!(at_limit.len(), MAX_WRITE_ARGS_BYTES);
+    let key = "k".repeat(MAX_IDEM_KEY_BYTES);
+    let r = write(&mut c, "b1", "update", &at_limit, Guards::default(), &key).unwrap();
+    assert!(!r.duplicate);
+    assert_eq!(w.store.journal().len(), 1);
+}
+
+/// PE-RBP-F004: a metadata key bd cannot carry is `BAD_ARGS` at write time, so it
+/// is never journaled and never retried by the drain.
+#[test]
+fn a_bad_metadata_key_is_refused_at_write_time_not_retried_by_the_drain() {
+    let w = World::new();
+    let mut c = w.cache();
+    for args in [
+        r#"{"set_metadata": {"": "x"}}"#,
+        r#"{"set_metadata": {"a=b": "x"}}"#,
+    ] {
+        let e = write(&mut c, "b1", "update", args, Guards::default(), "k1").unwrap_err();
+        assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{args}: {e}");
+    }
+    assert!(w.store.journal().is_empty(), "nothing journaled");
+    let r = c.drain(&roomy(&w)).unwrap();
+    assert!(r.retrying.is_empty() && r.escalated.is_empty() && r.applied.is_empty());
+}

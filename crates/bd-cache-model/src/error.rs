@@ -1,7 +1,8 @@
 //! [`CacheError`]: every `BD_CACHE.*` code with its payload, fix text and JSON shape.
 //!
 //! One variant per baseline code (REQ-BDC-0803), plus the additive
-//! `SCOPE_UNKNOWN` and `STORE_FAILED` (a-1 amendment 1). `NO_TOML` is
+//! `SCOPE_UNKNOWN`, `STORE_FAILED` (a-1 amendment 1) and `STORE_IN_USE`
+//! (PE-RBP-F008). `NO_TOML` is
 //! Python-only and never emitted. Every typed
 //! error exits 3 (REQ-BDC-0802) and renders as
 //! `{ok: false, code, detail, fix, reason?, ...payload, source?}`
@@ -10,8 +11,9 @@
 //! An error mapped from a backend failure keeps that failure as its
 //! [`std::error::Error::source`] (a [`BackendCause`]); `to_json` renders it as
 //! a nested `source: {code, detail}` object. A store's own failure
-//! (`STORE_FAILED`) keeps the underlying error as a [`StoreCause`], rendered
-//! as `source: {detail}`.
+//! (`STORE_FAILED`), and a `NO_DATABASE` from a `metadata.json` that cannot be
+//! read or parsed, keep the underlying error as a [`StoreCause`], rendered as
+//! `source: {detail}`.
 //!
 //! [`CacheError::from_backend`] maps a backend error to a code by the kind of
 //! call that failed:
@@ -19,6 +21,8 @@
 //! | Backend error | Code |
 //! |---|---|
 //! | `Contract`, btit's `InvalidJson` / `UnexpectedShape` / `ParseFailed` | `BD_CONTRACT` |
+//! | `Transport` (output unreadable or over the cap) | by [`CallKind`]: `Write` → `BD_WRITE_FAILED`; `Sync` → `SYNC_FAILED` (cause `BD_LIST_FAILED`); every other kind → `BD_LIST_FAILED` |
+//! | `NotFound` | `NOT_FOUND` |
 //! | `Refused(Precondition / NotClosable / AlreadyClaimed)` | `PRECONDITION` with `reason` |
 //! | `Unavailable`, btit's `Spawn` | `BD_UNAVAILABLE` |
 //! | `CheckFailed { step }` | `BD_VERSION_FAILED` / `BD_SCHEMA_FAILED` by step |
@@ -195,8 +199,9 @@ impl PartialEq for BackendCause {
 
 impl Eq for BackendCause {}
 
-/// The store's own failure a `STORE_FAILED` was built from (its `source`):
-/// a SQLite error, an I/O error, a stored value that does not decode.
+/// The local failure a `STORE_FAILED` or `NO_DATABASE` was built from (its
+/// `source`): a SQLite error, an I/O error, a stored value or a
+/// `metadata.json` that does not decode.
 ///
 /// Compares equal by text, so errors stay comparable in tests.
 #[derive(Debug, Clone)]
@@ -240,8 +245,11 @@ pub enum CacheError {
     },
     /// `BD_CACHE.NO_DATABASE`: no readable `dolt_database` / `project_id` in metadata.json.
     NoDatabase {
-        /// What happened.
+        /// What happened, with the cause's text.
         detail: String,
+        /// The I/O or parse error reading `metadata.json`, when there is one
+        /// (PE-RBP-F014). A permission-denied I/O error changes the fix.
+        source: Option<StoreCause>,
     },
     /// `BD_CACHE.WRONG_DATABASE`: the file's recorded project id differs.
     WrongDatabase {
@@ -366,7 +374,19 @@ pub enum CacheError {
         /// The underlying error, when there is one.
         source: Option<StoreCause>,
     },
+    /// `BD_CACHE.STORE_IN_USE` (additive, PE-RBP-F008): this process already
+    /// has the cache file open through another handle (one connection per file
+    /// per process, NFR-BDC-0007). Nothing is wrong with the file.
+    StoreInUse {
+        /// The file, e.g. `cache store /repo/.bd-cache/x.sqlite3: open: ...`.
+        detail: String,
+    },
 }
+
+/// The fix of a `NO_DATABASE` whose `metadata.json` exists but this process
+/// may not read (PE-RBP-F014): `bd init` would not help.
+const NO_DATABASE_DENIED_FIX: &str = "metadata.json exists but this process may not read it: \
+     fix its permissions (or those of its directory), or run as a user who can read it";
 
 impl CacheError {
     /// The `BD_CACHE.*` code.
@@ -393,6 +413,7 @@ impl CacheError {
             Self::NotEscalated { .. } => "BD_CACHE.NOT_ESCALATED",
             Self::ScopeUnknown { .. } => "BD_CACHE.SCOPE_UNKNOWN",
             Self::StoreFailed { .. } => "BD_CACHE.STORE_FAILED",
+            Self::StoreInUse { .. } => "BD_CACHE.STORE_IN_USE",
         }
     }
 
@@ -402,6 +423,11 @@ impl CacheError {
         match self {
             Self::BdUnavailable { .. } => {
                 "transient backend outage: the drain retries without counting an attempt; a timed-out write retries"
+            }
+            Self::NoDatabase { source, .. }
+                if source.as_ref().is_some_and(is_permission_denied) =>
+            {
+                NO_DATABASE_DENIED_FIX
             }
             Self::NoDatabase { .. } => {
                 "run from the beads repository root (or set BEADS_DIR) after bd init"
@@ -435,6 +461,9 @@ impl CacheError {
             Self::StoreFailed { .. } => {
                 "check the cache file named in detail (permissions, free disk space, another process holding it); if it is corrupt, move it aside and the next sync rebuilds it from bd (pending writes in it are lost)"
             }
+            Self::StoreInUse { .. } => {
+                "another handle in this process already has this cache file open: close that handle, or reuse it instead of opening a second one; the file itself is fine"
+            }
         }
     }
 
@@ -463,7 +492,8 @@ impl CacheError {
             | Self::PruneBlocked { .. }
             | Self::NotEscalated { .. }
             | Self::ScopeUnknown { .. }
-            | Self::StoreFailed { .. } => false,
+            | Self::StoreFailed { .. }
+            | Self::StoreInUse { .. } => false,
         }
     }
 
@@ -496,7 +526,8 @@ impl CacheError {
             | Self::SchemaVersion { .. }
             | Self::PruneBlocked { .. }
             | Self::NotEscalated { .. }
-            | Self::StoreFailed { .. } => &[],
+            | Self::StoreFailed { .. }
+            | Self::StoreInUse { .. } => &[],
         }
     }
 
@@ -520,7 +551,7 @@ impl CacheError {
     pub fn detail(&self) -> &str {
         match self {
             Self::BdUnavailable { detail, .. }
-            | Self::NoDatabase { detail }
+            | Self::NoDatabase { detail, .. }
             | Self::WrongDatabase { detail }
             | Self::NotFound { detail }
             | Self::BdVersionFailed { detail, .. }
@@ -538,7 +569,8 @@ impl CacheError {
             | Self::PruneBlocked { detail }
             | Self::NotEscalated { detail }
             | Self::ScopeUnknown { detail, .. }
-            | Self::StoreFailed { detail, .. } => detail,
+            | Self::StoreFailed { detail, .. }
+            | Self::StoreInUse { detail } => detail,
         }
     }
 
@@ -563,7 +595,7 @@ impl CacheError {
     /// Payload keys: `BD_CONTRACT` `bead`, `field`; `PRECONDITION` `unmet`;
     /// `IDEM_CONFLICT` `seq`; `SYNC_FAILED` `phase`, `cause`; `SCOPE_UNKNOWN`
     /// `known`. A mapped error adds `source: {code, detail}`, the backend error;
-    /// a `STORE_FAILED` with a cause adds `source: {detail}`.
+    /// a `STORE_FAILED` or `NO_DATABASE` with a cause adds `source: {detail}`.
     #[must_use]
     pub fn to_json(&self) -> Value {
         let mut v = json!({
@@ -603,11 +635,11 @@ impl CacheError {
         v
     }
 
-    /// The store failure this error was built from (`STORE_FAILED` only).
+    /// The local failure this error was built from (`STORE_FAILED`, `NO_DATABASE`).
     #[must_use]
     pub fn store_cause(&self) -> Option<&StoreCause> {
         match self {
-            Self::StoreFailed { source, .. } => source.as_ref(),
+            Self::StoreFailed { source, .. } | Self::NoDatabase { source, .. } => source.as_ref(),
             _ => None,
         }
     }
@@ -683,6 +715,12 @@ impl CacheError {
                 detail: e.to_string(),
                 source: source(),
             },
+            BeadsCacheError::Transport { source: io, .. } => {
+                transport_failed(kind, format!("{e}: {io}"), source())
+            }
+            BeadsCacheError::NotFound { bead } => Self::NotFound {
+                detail: format!("bead {bead} is not in bd; nothing was written"),
+            },
             other => failed(kind, other.to_string(), source()),
         }
     }
@@ -715,6 +753,12 @@ fn clone_backend(e: &BeadsCacheError) -> BeadsCacheError {
             code: *code,
             stderr: stderr.clone(),
         },
+        // `io::Error` is not `Clone`: the copy keeps its kind and text.
+        BeadsCacheError::Transport { what, source } => BeadsCacheError::Transport {
+            what: what.clone(),
+            source: std::io::Error::new(source.kind(), source.to_string()),
+        },
+        BeadsCacheError::NotFound { bead } => BeadsCacheError::NotFound { bead: bead.clone() },
         other => BeadsCacheError::Failed {
             code: -1,
             stderr: format!("{}: {other}", other.code()),
@@ -739,6 +783,35 @@ fn failed(kind: CallKind, detail: String, source: Option<BackendCause>) -> Cache
         },
         CallKind::Check => CacheError::BdVersionFailed { detail, source },
     }
+}
+
+/// Output that could not be read whole (PE-RBP-F001), by call kind: the
+/// transient codes, never `BD_CONTRACT` (nothing was parsed) and never
+/// `BD_VERSION_FAILED` (bd is installed: it ran).
+fn transport_failed(kind: CallKind, detail: String, source: Option<BackendCause>) -> CacheError {
+    match kind {
+        CallKind::Write => CacheError::BdWriteFailed { detail, source },
+        CallKind::Sync => CacheError::SyncFailed {
+            detail,
+            scope: None,
+            cause: Some(SyncCause::BdListFailed),
+            source,
+        },
+        CallKind::Check
+        | CallKind::PreRead
+        | CallKind::ReadBack
+        | CallKind::Refresh
+        | CallKind::MissFill
+        | CallKind::Ready => CacheError::BdListFailed { detail, source },
+    }
+}
+
+/// True when the cause is an I/O error of kind `PermissionDenied`.
+fn is_permission_denied(cause: &StoreCause) -> bool {
+    cause
+        .error()
+        .downcast_ref::<std::io::Error>()
+        .is_some_and(|e| e.kind() == std::io::ErrorKind::PermissionDenied)
 }
 
 impl fmt::Display for CacheError {
@@ -810,6 +883,7 @@ mod classification_tests {
         NotEscalated,
         ScopeUnknown,
         StoreFailed,
+        StoreInUse,
     );
 
     /// Samples of every variant, with and without a kept source.
@@ -833,7 +907,14 @@ mod classification_tests {
                 detail: d(),
                 source: Some(backend()),
             },
-            CacheError::NoDatabase { detail: d() },
+            CacheError::NoDatabase {
+                detail: d(),
+                source: None,
+            },
+            CacheError::NoDatabase {
+                detail: d(),
+                source: store(),
+            },
             CacheError::WrongDatabase { detail: d() },
             CacheError::NotFound { detail: d() },
             CacheError::BdVersionFailed {
@@ -926,6 +1007,7 @@ mod classification_tests {
                 detail: d(),
                 source: store(),
             },
+            CacheError::StoreInUse { detail: d() },
         ]
     }
 

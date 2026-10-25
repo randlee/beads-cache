@@ -8,7 +8,8 @@
 //!   with [`normalize`], [`parse_precondition`] and [`unmet`]
 //!   (REQ-BDC-0301, 0304, 0305);
 //! - the journal types ([`JournalEntry`], [`NewEntry`], [`Seq`], [`IdemKey`]),
-//!   scopes ([`ScopeId`]) and store-side state;
+//!   the size limits on what is journaled ([`MAX_WRITE_ARGS_BYTES`],
+//!   [`check_write_size`]), scopes ([`ScopeId`]) and store-side state;
 //! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
 //! - reply and report shapes, [`CallKind`] / [`CallFailure`];
@@ -36,6 +37,7 @@ mod call;
 mod config;
 mod error;
 mod journal;
+mod limits;
 mod op;
 mod pyjson;
 mod reply;
@@ -62,6 +64,10 @@ pub use error::{
 };
 #[doc(inline)]
 pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
+#[doc(inline)]
+pub use limits::{
+    MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_WRITE_ARGS_BYTES, check_note_size, check_write_size,
+};
 #[doc(inline)]
 pub use op::{
     CLOSED_STATUS, OPS, Op, meta_value, normalize, parse_precondition, phase_of, precondition_json,

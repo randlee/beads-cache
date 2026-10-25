@@ -27,6 +27,7 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::NoDatabase {
             detail: d("no metadata.json"),
+            source: None,
         },
         CacheError::WrongDatabase {
             detail: d("project p-2, file p-1"),
@@ -104,6 +105,11 @@ fn every_error() -> Vec<CacheError> {
             detail: d("open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked"),
             source: None,
         },
+        CacheError::StoreInUse {
+            detail: d(
+                "cache store /repo/.bd-cache/testdb.bd-cache.sqlite3: open: this process already has a connection to the cache file (NFR-BDC-0007)",
+            ),
+        },
     ]
 }
 
@@ -153,6 +159,10 @@ fn golden_json_for_every_code() {
         json!({"ok": false, "code": "BD_CACHE.STORE_FAILED",
                "detail": "open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked",
                "fix": "check the cache file named in detail (permissions, free disk space, another process holding it); if it is corrupt, move it aside and the next sync rebuilds it from bd (pending writes in it are lost)"}),
+        // Additive (PE-RBP-F008, ADR-MODEL-0002 amendment): a second open in one process.
+        json!({"ok": false, "code": "BD_CACHE.STORE_IN_USE",
+               "detail": "cache store /repo/.bd-cache/testdb.bd-cache.sqlite3: open: this process already has a connection to the cache file (NFR-BDC-0007)",
+               "fix": "another handle in this process already has this cache file open: close that handle, or reuse it instead of opening a second one; the file itself is fine"}),
     ];
     let errors = every_error();
     assert_eq!(errors.len(), goldens.len());
@@ -162,7 +172,7 @@ fn golden_json_for_every_code() {
         assert_eq!(e.to_string(), format!("{}: {}", e.code(), e.detail()));
     }
     let codes: std::collections::BTreeSet<_> = errors.iter().map(CacheError::code).collect();
-    assert_eq!(codes.len(), 20, "one variant per code");
+    assert_eq!(codes.len(), 21, "one variant per code");
     assert!(
         !codes.contains("BD_CACHE.NO_TOML"),
         "NO_TOML is never emitted"
@@ -213,6 +223,15 @@ fn failed_code(kind: CallKind) -> &'static str {
         CallKind::Write => "BD_CACHE.BD_WRITE_FAILED",
         CallKind::Sync => "BD_CACHE.SYNC_FAILED",
         CallKind::Check => "BD_CACHE.BD_VERSION_FAILED",
+        _ => "BD_CACHE.BD_LIST_FAILED",
+    }
+}
+
+/// A transport failure's code: the transient codes, `BD_LIST_FAILED` for a check too.
+fn transport_code(kind: CallKind) -> &'static str {
+    match kind {
+        CallKind::Write => "BD_CACHE.BD_WRITE_FAILED",
+        CallKind::Sync => "BD_CACHE.SYNC_FAILED",
         _ => "BD_CACHE.BD_LIST_FAILED",
     }
 }
@@ -303,6 +322,32 @@ fn from_backend_matches_the_table_for_every_call_kind() {
             client: CliClient::Br,
         });
         assert_eq!(map(&unsupported).code(), failed_code(kind));
+        // PE-RBP-F001: output that could not be read whole is a transient failure
+        // by call kind, never BD_CONTRACT, and keeps the read error's text.
+        let transport = BeadsCacheError::Transport {
+            what: "bd list".into(),
+            source: std::io::Error::other("stdout exceeded 67108864 bytes"),
+        };
+        let mapped = map(&transport);
+        assert_eq!(mapped.code(), transport_code(kind), "{kind:?}");
+        assert_ne!(mapped.code(), "BD_CACHE.BD_CONTRACT", "{kind:?}");
+        assert!(
+            mapped.detail().contains("stdout exceeded 67108864 bytes"),
+            "{kind:?}: {}",
+            mapped.detail()
+        );
+        let cause = mapped.backend_cause().expect("the transport error is kept");
+        assert_eq!(cause.error().code(), "SC_BEADS_TRANSPORT");
+        assert_eq!(
+            std::error::Error::source(cause.error()).map(ToString::to_string),
+            Some("stdout exceeded 67108864 bytes".to_owned()),
+            "the kept copy still has the io source"
+        );
+        // PE-RBP-F013: a typed not-found is NOT_FOUND, never a transient code.
+        let missing = map(&BeadsCacheError::NotFound { bead: id("gone") });
+        assert_eq!(missing.code(), "BD_CACHE.NOT_FOUND", "{kind:?}");
+        assert!(!missing.is_unreachable());
+        assert!(missing.detail().contains("gone"), "{}", missing.detail());
     }
     let step = |step| BeadsCacheError::CheckFailed {
         step,
@@ -439,6 +484,38 @@ fn mapped_errors_keep_their_source_chain() {
     );
     let direct = CacheError::BadArgs { detail: "x".into() };
     assert!(direct.source().is_none() && direct.to_json().get("source").is_none());
+}
+
+/// PE-RBP-F014: a `NO_DATABASE` keeps its cause; a permission-denied cause changes the fix.
+#[test]
+fn no_database_keeps_its_cause_and_a_denied_read_is_not_bd_init_advice() {
+    use std::error::Error as _;
+    let denied = std::io::Error::new(std::io::ErrorKind::PermissionDenied, "permission denied");
+    let e = CacheError::NoDatabase {
+        detail: "permission denied reading /repo/.beads/metadata.json".into(),
+        source: Some(bd_cache_model::StoreCause::new(denied)),
+    };
+    assert_eq!(e.code(), "BD_CACHE.NO_DATABASE");
+    assert_eq!(
+        e.source().map(ToString::to_string).as_deref(),
+        Some("permission denied")
+    );
+    assert!(e.fix().contains("may not read it"), "{}", e.fix());
+    assert!(!e.fix().contains("bd init"), "{}", e.fix());
+    assert_eq!(
+        e.to_json()["source"],
+        json!({"detail": "permission denied"})
+    );
+
+    let missing = CacheError::NoDatabase {
+        detail: "cannot read /repo/.beads/metadata.json".into(),
+        source: Some(bd_cache_model::StoreCause::new(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "No such file or directory",
+        ))),
+    };
+    assert!(missing.fix().contains("bd init"), "{}", missing.fix());
+    assert!(missing.source().is_some());
 }
 
 /// A store failure keeps the underlying error as its source and in its JSON (a-1 amendment 1).

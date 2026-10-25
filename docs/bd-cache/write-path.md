@@ -16,7 +16,9 @@ and decisions (domain code `CORE`) for the write path, indexed from
 
 `write` runs these steps in order, and stops at the first that fails:
 
-1. `Op::parse` (`BAD_OP`, `BAD_ARGS`).
+1. `check_write_size` (`BAD_ARGS` for args over `MAX_WRITE_ARGS_BYTES` or a key
+   over `MAX_IDEM_KEY_BYTES`, PE-RSH-009), then `Op::parse` (`BAD_OP`, `BAD_ARGS`,
+   including a metadata key that is empty or holds `=`, PE-RBP-F004).
 2. Dedupe on the idempotency key, in any journal state.
 3. `view::current_view`, or on a miss one `miss::fill` under
    `miss_fill_timeout` (`NOT_FOUND`, `BD_UNAVAILABLE`).
@@ -35,7 +37,9 @@ the first attempt changed.
 `test_duplicate_idem_key_is_one_entry_and_a_conflicting_reuse_is_refused`,
 `test_retry_of_a_journaled_precondition_write_is_a_duplicate_not_a_precondition_error`,
 `test_write_during_an_outage_journals_cached_beads_and_refuses_uncached_ones_in_time`,
-`invalid_writes_are_refused_before_any_bd_call`.
+`invalid_writes_are_refused_before_any_bd_call`,
+`oversized_args_or_keys_are_bad_args_and_nothing_is_journaled`,
+`a_bad_metadata_key_is_refused_at_write_time_not_retried_by_the_drain`.
 
 ## REQ-CORE-0102: One drain pass and its report
 
@@ -103,7 +107,7 @@ batched pre-read, and the `call` classification everywhere else:
 | Where | `Cut` | `BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED` | any other error from bd (e.g. `BD_CONTRACT`) | `Error` without a backend cause |
 |---|---|---|---|---|
 | backend check, pre-read | stop; every pending entry `deferred`; no outage | stop; outage recorded; every pending entry `deferred` | stop; `tracing` warning; every pending entry `retrying` | returned as the drain's error (a store failure) |
-| write | entry `deferred_in_flight`; stop | `call` returns `BD_UNAVAILABLE` on a write as an `Error`: it counts an attempt, like the rest | `PRECONDITION` (bd guard, exit 13): escalate. Anything else: one attempt, hold the bead, escalate at `max_attempts` | returned |
+| write | entry `deferred_in_flight`; stop | `call` returns `BD_UNAVAILABLE` on a write as an `Error`: it counts an attempt, like the rest | `PRECONDITION` (bd guard, exit 13): escalate. `NOT_FOUND` (the bead is gone, e.g. a guarded close's check found no row; PE-RBP-F013): escalate, no attempt. Anything else: one attempt, hold the bead, escalate at `max_attempts` | returned (except `NOT_FOUND`, which has no backend cause and escalates) |
 | read-back | entry `deferred_in_flight` (still pending); stop | applied with the error, stale, bead held | applied with the error, stale, bead held | returned |
 
 In the read-back row, an unreachable bd does not stop the pass: the write

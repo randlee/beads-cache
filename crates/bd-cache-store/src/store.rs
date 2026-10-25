@@ -243,9 +243,10 @@ impl SqliteStore {
     /// - `BD_CACHE.SCHEMA_VERSION`: the file has another nonzero `user_version` (REQ-BDC-0103).
     /// - `BD_CACHE.WRONG_DATABASE`: the file records another `project_id` (REQ-BDC-0104).
     /// - `BD_CACHE.STORE_FAILED`: the file cannot be created or opened, is not
-    ///   SQLite, refuses WAL, or this process already has a connection to it
-    ///   (NFR-BDC-0007; ADR-STORE-0003); the underlying error, when there is
-    ///   one, is the source.
+    ///   SQLite, or refuses WAL (ADR-STORE-0003); the underlying error, when
+    ///   there is one, is the source.
+    /// - `BD_CACHE.STORE_IN_USE`: this process already has a connection to it
+    ///   (NFR-BDC-0007; PE-RBP-F008), through a handle it must close or reuse.
     pub fn open_at(path: &Path, identity: &DatabaseIdentity) -> Result<Self, CacheError> {
         let at = |what| step(path, what);
         let dir = path.parent().filter(|d| !d.as_os_str().is_empty());
@@ -260,11 +261,11 @@ impl SqliteStore {
         let canonical = path
             .canonicalize()
             .map_err(|e| failed(at("resolve the cache file"), e))?;
-        let claim = Registration::claim(&canonical).ok_or_else(|| {
-            corrupt(
-                at("open"),
-                "this process already has a connection to the cache file (NFR-BDC-0007)",
-            )
+        let claim = Registration::claim(&canonical).ok_or_else(|| CacheError::StoreInUse {
+            detail: format!(
+                "{}: this process already has a connection to the cache file (NFR-BDC-0007)",
+                at("open")
+            ),
         })?;
         let mut conn = conn;
         conn.busy_timeout(BUSY_TIMEOUT)

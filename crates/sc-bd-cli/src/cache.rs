@@ -7,7 +7,8 @@
 //! | Outcome | Result |
 //! |---|---|
 //! | the deadline has already passed, or runs out during the call | `Unavailable { timed_out: true }`, the reason naming the phase (lock, child, output) |
-//! | the child's output cannot be read, or exceeds `MAX_OUTPUT_BYTES` | `Contract` (field `output`) |
+//! | the child's output cannot be read, or exceeds `MAX_OUTPUT_BYTES` | `Transport`, the read error as its `source` (PE-RBP-F001) |
+//! | a guarded close whose guard check finds no row for the bead | `NotFound` (PE-RBP-F013) |
 //! | `bd` cannot be started (or the project is not local) | `Btit(Spawn)` / `Btit(Unsupported)`: [`BeadsCacheError::is_unavailable`] is true for a spawn failure, and the `io::Error` stays in the `source` chain |
 //! | exit 13 | `Refused(Refusal::Precondition)` |
 //! | any other nonzero exit whose stderr says the server is unreachable (see [`UNREACHABLE_MARKERS`]) | `Unavailable { timed_out: false }` |
@@ -40,10 +41,6 @@ const EXIT_PRECONDITION: i32 = 13;
 
 /// The exit code reported when a failed `bd` was ended by a signal and has none.
 const EXIT_SIGNALLED: i32 = -1;
-
-/// The exit code of bd's own "no such bead" failure, reported when a guarded close
-/// finds the bead missing before it runs `bd close`.
-const EXIT_NO_SUCH_BEAD: i32 = 1;
 
 /// Fragments of bd's stderr (lower-case) that mean the database server could not be
 /// reached.
@@ -137,18 +134,19 @@ impl BdCli {
                 return Err(timed_out(&what, phase.as_str()));
             }
             Err(BoundedError::Failed(e)) => return Err(BeadsCacheError::Btit(e)),
-            // `Unavailable` and `Btit` have no `io::Error` source; the read error is in
-            // the detail and in the log. Output that cannot be read whole, or is over
-            // the cap, is output that cannot meet the row contract.
-            Err(BoundedError::Output(e)) => {
-                log_error!("[bd] {what}: reading the output failed: {e}");
-                return Err(BeadsCacheError::contract(None, "output", e.to_string()));
+            // Output that cannot be read whole, or is over the cap, is a transport
+            // failure, not a row-contract break: nothing was parsed. The read error
+            // stays the source.
+            Err(BoundedError::Output(source)) => {
+                log_error!("[bd] {what}: reading the output failed: {source}");
+                return Err(BeadsCacheError::Transport { what, source });
             }
         };
         check_exit(&self.inv.binary(), out)
     }
 
-    /// Reads the bead's row and refuses unless it still holds the guards.
+    /// Reads the bead's row and refuses unless it still holds the guards; a
+    /// bead bd does not return is [`BeadsCacheError::NotFound`].
     ///
     /// `bd close` has no `--if-*` flags (bd 1.3.0), so a guarded close checks the
     /// guards against a fresh row first. Unlike `bd update --if-status` this is two
@@ -163,10 +161,7 @@ impl BdCli {
     ) -> Result<(), BeadsCacheError> {
         let rows = self.list_by_ids(p, std::slice::from_ref(id), d)?;
         let Some(row) = rows.iter().find(|r| &r.id == id) else {
-            return Err(BeadsCacheError::Failed {
-                code: EXIT_NO_SUCH_BEAD,
-                stderr: format!("no issue found matching \"{id}\""),
-            });
+            return Err(BeadsCacheError::NotFound { bead: id.clone() });
         };
         let status_ok = g
             .status
@@ -365,6 +360,110 @@ mod tests {
             success: status == Some(0),
             stdout: "out".into(),
             stderr: stderr.into(),
+        }
+    }
+
+    fn scripted(reply: Result<CliOutput, BoundedError>) -> BdCli {
+        BdCli::with_invoker(Box::new(
+            crate::testing::RecordingInvoker::new(None).reply_bounded(reply),
+        ))
+    }
+
+    fn deadline() -> Deadline {
+        Deadline::after(&sc_beads::SystemClock, Duration::from_secs(30))
+    }
+
+    fn bead_id(s: &str) -> BeadId {
+        BeadId::new(s).unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    /// PE-RBP-F001: unreadable or oversized output is a transport failure that keeps
+    /// the read error, never a row-contract break.
+    #[test]
+    fn unreadable_output_is_transport_with_the_read_error_as_source() {
+        let cli = scripted(Err(BoundedError::Output(std::io::Error::other(
+            "stdout exceeded the cap",
+        ))));
+        let e = cli
+            .list_by_ids(&ProjectRef::local(None), &[bead_id("b-1")], deadline())
+            .unwrap_err();
+        assert!(
+            matches!(&e, BeadsCacheError::Transport { what, .. } if what == "bd list"),
+            "{e:?}"
+        );
+        let io = std::error::Error::source(&e).expect("the read error is kept");
+        assert_eq!(io.to_string(), "stdout exceeded the cap");
+        assert!(!e.is_unavailable());
+    }
+
+    /// PE-RBP-F013: a guarded close whose guard check finds no row is a typed
+    /// not-found, and `bd close` never runs.
+    #[test]
+    fn a_guarded_close_of_a_missing_bead_is_not_found() {
+        let rec = std::sync::Arc::new(crate::testing::RecordingInvoker::new(None).reply_bounded(
+            Ok(CliOutput {
+                status: Some(0),
+                success: true,
+                stdout: "[]".into(),
+                stderr: String::new(),
+            }),
+        ));
+        let cli = BdCli::with_invoker(Box::new(SharedInvoker(std::sync::Arc::clone(&rec))));
+        let guards = Guards {
+            status: Some("open".into()),
+            assignee: None,
+        };
+        let actor = Actor::new("san").unwrap_or_else(|e| panic!("{e}"));
+        let e = cli
+            .close_guarded(
+                &ProjectRef::local(None),
+                &bead_id("gone-1"),
+                None,
+                &guards,
+                &actor,
+                deadline(),
+            )
+            .unwrap_err();
+        assert!(
+            matches!(&e, BeadsCacheError::NotFound { bead } if bead.as_str() == "gone-1"),
+            "{e:?}"
+        );
+        let calls = rec.calls();
+        assert_eq!(calls.len(), 1, "only the guard check ran: {calls:?}");
+        assert_eq!(calls[0].first().map(String::as_str), Some("list"));
+    }
+
+    /// Lets a test keep reading the calls of the invoker it hands to `BdCli`.
+    struct SharedInvoker(std::sync::Arc<crate::testing::RecordingInvoker>);
+
+    impl crate::CliInvoker for SharedInvoker {
+        fn binary(&self) -> String {
+            self.0.binary()
+        }
+        fn client_info(&self) -> Option<sc_beads::CliProbe> {
+            self.0.client_info()
+        }
+        fn probe(&self) -> Option<sc_beads::CliProbe> {
+            self.0.probe()
+        }
+        fn run_json(
+            &self,
+            project: &ProjectRef,
+            command: &str,
+            args: &[String],
+        ) -> Result<String, BeadsError> {
+            self.0.run_json(project, command, args)
+        }
+        fn run_raw(&self, project: &ProjectRef, args: &[&str]) -> Result<CliOutput, BeadsError> {
+            self.0.run_raw(project, args)
+        }
+        fn run_bounded(
+            &self,
+            project: &ProjectRef,
+            argv: &[String],
+            timeout: Duration,
+        ) -> Result<CliOutput, BoundedError> {
+            self.0.run_bounded(project, argv, timeout)
         }
     }
 

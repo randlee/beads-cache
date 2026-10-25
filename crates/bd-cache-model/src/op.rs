@@ -16,7 +16,8 @@
 //! (REQ-BDC-0303): an int, a bool, or a string with no surrounding whitespace
 //! that does not parse as a JSON number, boolean or null (`NaN` and
 //! `Infinity` included, as Python's `json.loads` reads them). Floats, nulls,
-//! arrays, objects and integers outside `i64` are `BAD_ARGS`. A dependency
+//! arrays, objects and integers outside `i64` are `BAD_ARGS`, and so is a
+//! metadata key that is empty or contains `=` (bd's `key=value` separator). A dependency
 //! type must be one of bd's ([`DepType`], REQ-BDC-0304).
 //!
 //! Empty collections in `update` args mean "not requested"; an update that
@@ -152,6 +153,23 @@ pub fn meta_value(key: &str, v: &Value) -> Result<MetaValue, CacheError> {
     }
 }
 
+/// Refuses a `set_metadata` key `bd --set-metadata key=value` cannot carry: an
+/// empty key, or one holding the `=` that separates key from value
+/// (PE-RBP-F004). Refused here, at write time, it is one `BAD_ARGS`; journaled,
+/// the drain would retry it `max_attempts` times before escalating.
+fn check_metadata_key(key: &str) -> Result<(), CacheError> {
+    if key.is_empty() {
+        return Err(bad_args("set_metadata key is empty; bd needs key=value"));
+    }
+    if key.contains('=') {
+        return Err(bad_args(format!(
+            "set_metadata key {key:?} contains '=', which bd --set-metadata key=value reads as \
+             the end of the key"
+        )));
+    }
+    Ok(())
+}
+
 fn parse_patch(args: &Map<String, Value>) -> Result<Patch, CacheError> {
     if let Some(k) = args.keys().find(|k| !UPDATE_KEYS.contains(&k.as_str())) {
         return Err(bad_args(format!(
@@ -204,6 +222,7 @@ fn parse_patch(args: &Map<String, Value>) -> Result<Patch, CacheError> {
     }
     for map in set_maps {
         for (k, v) in map {
+            check_metadata_key(k)?;
             let value = meta_value(k, v)?;
             if p.set_metadata.insert(k.clone(), value).is_some() {
                 return Err(bad_args(format!("metadata key {k:?} is set twice")));
@@ -236,7 +255,8 @@ impl Op {
     ///
     /// `BAD_OP` for an unknown op name; `BAD_ARGS` for args that are not a
     /// JSON object, unknown or mistyped keys, an empty update, a metadata
-    /// value bd would coerce, or an unknown dependency type.
+    /// key that is empty or contains `=`, a metadata value bd would coerce,
+    /// or an unknown dependency type.
     ///
     /// # Examples
     ///
