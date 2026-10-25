@@ -30,6 +30,8 @@ their own prompts.
   | `bd-cache-store` | `STORE` | a-4 |
   | `bd-cache-sync` | `SYNC` | a-7 |
   | `bd-cache-py` | `PY` | a-8 |
+  | `bd-cache-api` | `API` | b-2 |
+  | `bd-cache-cli` | `CLI` | b-3a (created), b-3 |
 
 ## Reviewer Policy
 
