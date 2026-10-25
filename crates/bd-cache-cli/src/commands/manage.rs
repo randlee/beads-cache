@@ -25,11 +25,22 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
         path: "cache health",
         about: "ok, degraded or down; with --probe, the backend check (may rebuild).",
         target: Target::Api(Command::CacheHealth),
-        args: &[ArgSpec::switch(
-            "probe",
-            "probe",
-            "Run the backend check: record bd's fingerprint; a changed schema rebuilds the cache.",
-        )],
+        args: &[
+            ArgSpec::switch(
+                "probe",
+                "probe",
+                "Run the backend check: record bd's fingerprint; a changed schema rebuilds the cache.",
+            ),
+            ArgSpec::flag(
+                "max-pending-age-s",
+                "N",
+                One,
+                Int,
+                false,
+                "max_pending_age_s",
+                "Degraded when the oldest pending entry is older than N seconds (default 300).",
+            ),
+        ],
         one_of: None,
     },
     CommandSpec {
@@ -60,6 +71,15 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
                 false,
                 "scopes",
                 "A scope to sync (the same as a positional scope).",
+            ),
+            ArgSpec::flag(
+                "timeout-ms",
+                "N",
+                One,
+                Int,
+                false,
+                "timeout_ms",
+                "Each scope's sync deadline (default: the per-call cap).",
             ),
         ],
         one_of: None,

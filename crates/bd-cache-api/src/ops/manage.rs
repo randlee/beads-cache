@@ -6,17 +6,18 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
-    ScopeId, ScopeStatus, StateCounts, SyncReport,
+    ScopeId, ScopeStatus, Seq, StateCounts, SyncReport,
 };
-use sc_beads::{BeadId, CacheBackend, Deadline};
+use sc_beads::{BeadId, CacheBackend, Deadline, Timestamp};
 
 use crate::CONTRACT_VERSION;
 use crate::data::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
-    CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthState,
-    JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpError, OpenWorkData, OutageData, ProbeData, ProjectData, RefreshError, RefreshScopeResult,
-    RowsXCache, ScopeData, StateCountsData, SyncReportData, opt_time, outage, rows,
+    CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthReason,
+    HealthState, JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData,
+    JournalResolveData, OpError, OpenWorkData, OutageData, ProbeData, ProjectData, RefreshError,
+    RefreshScopeResult, RowsXCache, ScopeData, StateCountsData, SyncReportData, opt_time, outage,
+    rows,
 };
 use crate::error::{ApiError, CODE_PREFIX};
 use crate::ops::beads::{META_BD_VERSION, META_SCHEMA_VERSION, META_SHA};
@@ -171,33 +172,72 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let st = cache.status()?.store;
     let work = cache.open_work()?;
     let stale_rows = u64::try_from(st.stale.len()).unwrap_or(u64::MAX);
+    let unresolved_escalations = u64::try_from(st.escalated.len()).unwrap_or(u64::MAX);
+    let now = cache.clock().now_utc();
+    let oldest_pending_age_s = oldest_pending_age_s(cache, &now)?;
+    let last_drain_at = last_drain_at(cache)?;
+    let max_age = req.max_pending_age_s();
+    let mut reasons = Vec::new();
+    if stale_rows > 0 {
+        reasons.push(HealthReason {
+            code: "stale_rows",
+            message: format!(
+                "{stale_rows} row(s) failed their read-back and are stale; \
+                 `bdc cache refresh issues <id>...` re-reads them"
+            ),
+        });
+    }
+    if unresolved_escalations > 0 {
+        reasons.push(HealthReason {
+            code: "unresolved_escalations",
+            message: format!(
+                "{unresolved_escalations} escalated journal entries are unresolved \
+                 ({} not yet announced); see `bdc cache journal list` and settle each with \
+                 `bdc cache journal resolve <seq> --note T --actor A`",
+                work.escalated_unannounced
+            ),
+        });
+    }
+    if let Some(age) = oldest_pending_age_s.filter(|a| *a > max_age) {
+        reasons.push(HealthReason {
+            code: "pending_too_old",
+            message: format!(
+                "the oldest pending journal entry is {age} s old (limit {max_age} s): \
+                 the drainer is not running or cannot apply it; run `bdc cache flush`"
+            ),
+        });
+    }
     let unreachable = match &probe {
         Some(Err(e)) => Some(e),
         _ => None,
     };
     let state = if st.outage.is_some() || unreachable.is_some() {
         HealthState::Down
-    } else if stale_rows > 0 || work.escalated_unannounced > 0 {
-        HealthState::Degraded
-    } else {
+    } else if reasons.is_empty() {
         HealthState::Ok
+    } else {
+        HealthState::Degraded
     };
     let outage = outage(st.outage.as_ref()).or_else(|| {
         unreachable.map(|e| {
             OutageData::of(&Outage {
-                since: cache.clock().now_utc(),
+                since: now.clone(),
                 last_error: e.to_string(),
             })
         })
     });
     Ok(CacheHealthData {
         state,
+        reasons,
         outage,
         open_work: OpenWorkData {
             pending: work.pending,
             escalated_unannounced: work.escalated_unannounced,
         },
         stale_rows,
+        oldest_pending_age_s,
+        last_drain_at: opt_time(last_drain_at.as_ref()),
+        unresolved_escalations,
         probe: match probe {
             Some(Ok((outcome, model_current))) => Some(ProbeData {
                 bd_version: st.meta.get(META_BD_VERSION).cloned(),
@@ -207,6 +247,50 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
             Some(Err(_)) | None => None,
         },
     })
+}
+
+/// How many of the newest journal entries [`last_drain_at`] looks at.
+///
+/// The store has no "newest applied entry" query and `bd-cache-model`'s
+/// `CacheStore` is not extended for it, so health reads the newest entries by
+/// seq (an index lookup each). A journal whose last 256 entries include no
+/// applied one reports `null`: the drainer has not applied anything lately.
+const DRAIN_LOOKBACK: u64 = 256;
+
+/// Whole seconds from the oldest pending entry's `created_at` to `now`
+/// (never negative under clock skew); `None` with nothing pending.
+fn oldest_pending_age_s<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    now: &Timestamp,
+) -> Result<Option<u64>, ApiError> {
+    Ok(cache
+        .pending_entries()?
+        .iter()
+        .map(|e| &e.created_at)
+        .min()
+        .map(|oldest| u64::try_from(now.unix().saturating_sub(oldest.unix())).unwrap_or(0)))
+}
+
+/// When the journal last applied an entry: the newest `applied_at` among the
+/// [`DRAIN_LOOKBACK`] most recent entries (seqs run 1 to the journal's
+/// entry count); `None` when none of them was applied. Derived from existing
+/// columns, no schema change.
+fn last_drain_at<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+) -> Result<Option<Timestamp>, ApiError> {
+    let t = cache.journal_counts()?.total;
+    let newest = t.pending + t.applied + t.escalated + t.resolved;
+    let oldest = newest.saturating_sub(DRAIN_LOOKBACK - 1).max(1);
+    let mut latest: Option<Timestamp> = None;
+    for n in (oldest..=newest).rev() {
+        let Ok(seq) = i64::try_from(n) else { continue };
+        match cache.entry(Seq::new(seq)) {
+            Ok(e) => latest = latest.max(e.applied_at),
+            Err(CacheError::NotFound { .. }) => {}
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Ok(latest)
 }
 
 /// `cache scopes`: every scope, by id (store reads only, no bd).
@@ -241,13 +325,14 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
         req.scopes.clone()
     };
     let call_timeout = cache.config().call_timeout;
+    let deadline_after = req.timeout_ms.map_or(call_timeout, Duration::from_millis);
     let mut results = Vec::with_capacity(scopes.len());
     for s in scopes {
-        let d = Deadline::after(&*cache.clock(), call_timeout);
+        let d = Deadline::after(&*cache.clock(), deadline_after);
         let result = match cache.sync(&s, d) {
             Ok(r) => RefreshScopeResult {
                 scope: s.label(),
-                error: sync_report_error(&s, &r, call_timeout),
+                error: sync_report_error(&s, &r, deadline_after),
                 report: Some(SyncReportData {
                     rebuilt: r.rebuilt,
                     model_current: r.model_current,
@@ -279,7 +364,7 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
 /// cut (`deferred`) did not complete either: bd did not answer within the
 /// per-call cap, which is also the sync's whole deadline, so the core
 /// classified the timeout as a cut and recorded no outage (QA RCR-001).
-fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Option<RefreshError> {
+fn sync_report_error(s: &ScopeId, r: &SyncReport, deadline: Duration) -> Option<RefreshError> {
     let unavailable = |message: String| {
         RefreshError::of(OpError {
             code: format!("{CODE_PREFIX}BD_UNAVAILABLE"),
@@ -291,10 +376,10 @@ fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Opt
     }
     r.deferred.then(|| {
         unavailable(format!(
-            "the sync of {} was cut: bd did not answer within the per-call cap ({} ms); \
+            "the sync of {} was cut: bd did not answer within the sync deadline ({} ms); \
              nothing was refreshed",
             s.label(),
-            call_timeout.as_millis()
+            deadline.as_millis()
         ))
         .with_detail("timed_out", true)
     })

@@ -127,6 +127,22 @@ All are bc-lead, 2026-10-25, recording Rand's answers.
 | S61 | One workspace version for everything. Wheel 0.2.0 means `[workspace.package].version` is 0.2.0, so sc-beads, sc-cron and sc-bd-cli also publish as 0.2.0. The crates are not decoupled and the kit is not changed. The bump goes in b-4, because the wheel build and `verify-version-lockstep` need the pyproject and workspace versions to match in the commit that ships the wheel. | b-4 deliverable 5 |
 | S62 | A third additive nullable store column, `changed`, is accepted. It is named in contract §9 (amended on this branch). | b-1 deliverable 5 |
 | S63 | Channel names: WinGet id `randlee.bd-cache`; Homebrew formula `bd-cache` in randlee/homebrew-tap; Scoop `bucket/bd-cache.json` in randlee/scoop-bucket. | b-5 |
+| S64 | The journal entry and `changed` are written atomically, in one store transaction. | b-1 |
+| S65 | The resolve note format is `resolved by <actor>: <note>`. | b-1 |
+| S66 | `pending_entries` and the `backend_check` facade are added to the core. | b-1 |
+| S67 | A scope that has never synced gives `SCOPE_UNKNOWN`. | b-2, b-3 |
+| S68 | `changed` is `Option<bool>`, omitted from the reply when unknown (as is `already_closed`). | b-1, b-2 |
+| S69 | A refused close gives `PRECONDITION`. | b-3 |
+| S70 | `bd` is never read from the TOML (a `bd` key is dropped with a warning). | b-3 |
+| S71 | The sources of `CONFIG_INVALID`. | b-3 |
+| S72 | `compose_with_config_and_backend`. | b-3 |
+| S73 | Test hooks (the `testing` features). | b-1 to b-3 |
+| S74 | `bd-cache-sync` is added to the workspace dependencies. | b-3 |
+| S75 | A refresh that cannot reach bd counts as failed (`BD_UNAVAILABLE` in `data.failed`). | b-3 |
+| S76, S77 | The default `bd` is resolved from absolute `PATH` entries only (empty and relative entries dropped); the user's `PATH` first, then the fixed install directories. | b-3 |
+| S78, S79 | Windows CI latency is report-only. | b-3, b-5 |
+| S80 | The latency gate is on the median only, and only on Unix; p95 is reported. | b-3 |
+| S81 | A cross-process per-project bd lock (`.beads/sc-bd-cli.lock`), skipped in dolt server mode (`metadata.json` `dolt_mode: "server"`). In embedded mode it is partial protection: agents and bd hooks that call `bd` directly never take it, so bdc does not make embedded mode safe. | b-3 |
 
 ## Open items
 

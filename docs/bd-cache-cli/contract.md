@@ -3,7 +3,9 @@
 Status: **Approved** (lead ruling S60, bc-lead, 2026-10-25, at `8115a0a`).
 Implemented in phase B (sprints b-1 to b-5; phase B closed 2026-10-25) by
 `bd-cache-api`, the `bd-cache`/`bdc` binary (`bd-cache-cli`) and
-`bd_cache_rs` 0.2; the MCP server comes later. Contract version: `1.0.0`.
+`bd_cache_rs` 0.2; the MCP server comes later. Contract version: `1.0.0`
+(0.2.0 is unreleased, so the additions made after the first review of phase B
+stay within it).
 
 Scope: the `bd-cache` binary (alias `bdc`, REQ-BDC-0805), the MCP server that
 comes later, and the Python binding `bd_cache_rs`. All three share one
@@ -95,6 +97,12 @@ the env under the same name, for example `BD_CACHE__CALL_TIMEOUT_S`.
 `BD_CACHE__TICK__TEAM`, `…__TICK__FALLBACK_LEAD`, `…__TICK__PHASES_DIR` and
 `…__TICK__PHASES` (comma-separated). Precedence is flag > env > TOML >
 default.
+
+**`[tick] identity` (new; lands in the fix/fen-tick layer).** The sender
+identity of the messages a tick delivers through `atm send`. It defaults to
+`atm-bd` (ATM refuses a message from `cron@tool`, which the first 0.2 build
+used). It is set by `[tick] identity = "…"`, `BD_CACHE__TICK__IDENTITY` or
+`bdc cache tick --identity ID`, with the usual precedence.
 
 - **Where files are read from.** `.beads/bd-cache.toml` is always read from
   `<repo>/.beads/`. `metadata.json` is read from `$BEADS_DIR` when that is
@@ -190,6 +198,7 @@ in 1.0, not covered by semver (§11):
 | `member` | The unknown member, on `BAD_ARGS`. |
 | `retry_after_ms` | On `BD_UNAVAILABLE` during an outage. Advisory: `miss_fill_timeout_ms`, at least 1000. |
 | `timed_out` | A bool, set when a miss fill or a `refresh issues` was cut off by its timeout. |
+| `outage` | A bool on the failures that a caller may mistake for an outage (`BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED`; new, lands in the fix/fen-tick layer). `true`: bd was unreachable (it did not start, did not answer, or was cut). `false`: bd answered and the call failed (for example `BD_LIST_FAILED` from a `bd list` that exited non-zero). A caller that branches on "bd is unreachable" must read this flag, not the code: `BD_LIST_FAILED` is in the set of codes that can mean unreachable, but it is also a real failure that belongs to the lead. |
 | `did_you_mean`, `valid` | On `USAGE`. |
 
 The key `justification` is never used, because sc-command reserves it.
@@ -296,8 +305,8 @@ Every command can also return the errors of opening the cache:
 | `issues list` | `status[]`, `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `all`, `sort`, `limit` (default: **no limit** inside a scope; an explicit value pages; 0 = unlimited), `cursor`, `scope` | `{items, has_more, next_cursor?, x_cache}` | `sort=created`: `(created_at desc, id asc)`; `sort=priority`: `(priority asc, created_at desc, id asc)`. Both are total orders, so the cursor is a keyset. | `SCOPE_UNKNOWN`, `BAD_ARGS` (`invalid_cursor`), `UNSUPPORTED` |
 | `ready [--fresh-within-ms N]` | `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `unassigned`, `priority`, `limit` (default: **no limit** inside a scope; an explicit value caps the list), `sort` (`priority` only), `scope`, `fresh_within_ms` | `{items, has_more, x_cache: {scope, last_ok_at, outage, rows, basis, locally_adjusted: bool, read_fallback, read_fallback_error: OpError\|null, missing_rows: [id]}}` | `(priority asc, created_at desc, id asc)`. The tie-break is the cache's own; the spec does not state bd's. | `SCOPE_UNKNOWN`, `UNSUPPORTED` (`hybrid`, `oldest`, `type`, `parent`, …) |
 | `dependencies list --issue-id ID… [--type T…]` | `issue_id[]`, `type[]` | `{items: [{issue_id, depends_on_id, type}], missing: [id], x_cache: {outage, not_cached: [id]}}` | request order of `issue_id`, then `depends_on_id` | `BAD_ARGS` |
-| `issues update <id>` | `id`, `actor`, `idempotency_key`, `patch: {status?, assignee?, add_labels?, remove_labels?, append_notes?, metadata?: {set?, unset?}}`, `expected_status?`, `expected_assignee?` | `{issue, changed: bool, x_cache}` | n/a | `BAD_ARGS` (empty patch; `status: "closed"`; unknown member), `BAD_PRECONDITION`, `UNSUPPORTED` (`claim`, `expected_version`, `force_*`, other patch members), `PRECONDITION`, `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE` |
-| `issues close <id>` | `id`, `actor`, `idempotency_key`, `reason?`, and the cache-extension guards `expected_status?`, `expected_assignee?` | `{issue, already_closed: bool, x_cache}` | n/a | as update; `UNSUPPORTED` (`session`, `force`, `expected_version`) |
+| `issues update <id>` | `id`, `actor`, `idempotency_key`, `patch: {status?, assignee?, add_labels?, remove_labels?, append_notes?, metadata?: {set?, unset?}}`, `expected_status?`, `expected_assignee?` | `{issue, changed?: bool, x_cache}`. `changed` is **optional**: it is omitted when it is unknown (an entry written without it, by `bd_cache.py` or before the column existed; S68). | n/a | `BAD_ARGS` (empty patch; `status: "closed"`; unknown member), `BAD_PRECONDITION`, `UNSUPPORTED` (`claim`, `expected_version`, `force_*`, other patch members), `PRECONDITION`, `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE` |
+| `issues close <id>` | `id`, `actor`, `idempotency_key`, `reason?`, and the cache-extension guards `expected_status?`, `expected_assignee?` | `{issue, already_closed?: bool, x_cache}`. `already_closed` is **optional**: it is omitted when it is unknown, as `changed` is (S68). | n/a | as update; `UNSUPPORTED` (`session`, `force`, `expected_version`) |
 | `dependencies add <issue_id> <depends_on_id> --type T` | `actor`, `idempotency_key`, `edges: [{issue_id, depends_on_id, type}]` (exactly one edge) | `{added: [edge], x_cache}` | n/a | as update; `UNSUPPORTED` (more than one edge) |
 | `context` | none | `{bd_version?, database, project_id, beads_dir?, repo_root?, capabilities: [token], x_cache: {cache_path, contract_version, store_schema_version, bd_schema_sha256, bd_schema_version, model_current}}` | n/a | the open-time errors only |
 
@@ -309,6 +318,13 @@ Notes by command:
   - The default exclusions are `closed` rows, templates and `gate` rows,
     unless `status` or `all` is set. The workspace's configured infra types
     are unknown to the cache, so they are **not** excluded.
+  - **This differs from the 0.1 `list(phase, ...)` verb, which returns every
+    row of the phase.** A caller that needs closed, template and gate rows,
+    such as `close_fields_backfill.py` and `phase_beads.py`, passes `all`
+    (`bdc issues list --scope phase-<x> --all`, `issues_list(scope=, all=True)`
+    in the binding), or names the statuses it wants
+    (`--status closed`). Moving such a caller to `issues_list` without `all`
+    silently drops those rows. Staying on `list` keeps the 0.1 behaviour.
   - Default limit: inside a known scope there is **no limit**, because a
     scope is already bounded; atm-bd's phase views and agents expect the
     whole phase. An explicit `limit` pages, with `has_more` and
@@ -404,9 +420,9 @@ reason ready parity is stated against the released CLI.
 | Command | Core verb | Old verb | Mutates |
 |---|---|---|---|
 | `cache status` | `status` + **new** `journal_counts()` | `status` | no |
-| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no; **yes with `--probe`** (store): it records bd's fingerprint, a changed schema rebuilds the cache (cached rows dropped, journal kept), and an unreachable bd is recorded as an outage |
+| `cache health [--probe] [--max-pending-age-s N]` | `open_work`, outage, stale rows, the oldest pending entry's age, the last drain, unresolved escalations; with `--probe`, also the backend check | (`doctor`) | no; **yes with `--probe`** (store): it records bd's fingerprint, a changed schema rebuilds the cache (cached rows dropped, journal kept), and an unreachable bd is recorded as an outage |
 | `cache scopes` | `status().phases` + config + `sync_alert` per scope (N store reads, no bd) | (in `status`) | no |
-| `cache refresh scopes [S…]` | `sync` per scope; with no S, every known scope | `sync` | store |
+| `cache refresh scopes [S…] [--timeout-ms N]` | `sync` per scope; with no S, every known scope | `sync` | store |
 | `cache refresh issues ID…` | `refresh(ids)` (REQ-BDC-0907) | — | store |
 | `cache flush` | `drain(budget)` | `drain` | bd |
 | `cache evict --scope S` | `prune` | `prune` | store |
@@ -414,7 +430,7 @@ reason ready parity is stated against the released CLI.
 | `cache journal list [--state pending\|escalated] [--unannounced]` | `pending_entries`, `status().escalated`, `unannounced_escalations` | (in `status`) | no |
 | `cache journal resolve <seq> --note T --actor A` | `resolve` | `resolve` | store |
 | `cache journal announce <seq>` | `mark_announced` | (cron) | store |
-| `cache tick [--budget-ms N] [--atm PATH]` | bd-cache-sync `tick` | (`bd_cache_cron.py`) | bd, store, atm |
+| `cache tick [--budget-ms N] [--atm PATH] [--identity ID]` | bd-cache-sync `tick` (`--identity` lands in the fix/fen-tick layer) | (`bd_cache_cron.py`) | bd, store, atm |
 
 **Refresh that cannot reach bd (lead ruling S75).** A `cache refresh scopes`
 result for a scope whose sync could not reach bd is a failed result: `error`
@@ -426,11 +442,35 @@ as a whole with `BD_UNAVAILABLE`. The core is unchanged; the mapping is
 bd-cache-api's refresh op.
 
 A sync the deadline cut is a failed result the same way (QA RCR-001). Each
-sync's deadline is the per-call cap, so a bd that hangs times out exactly at
-it; the core then returns its report with `deferred: true` and no outage (a
+sync's deadline is `timeout_ms` when the request gives one (`--timeout-ms N`,
+milliseconds, per scope), and the per-call cap otherwise, so a bd that hangs
+times out exactly at it. A single bd call is still capped by the per-call
+cap, so a `timeout_ms` above it does not lengthen a call, only the sync as a
+whole. A hook that needs a bounded sync passes `timeout_ms`; the 0.1
+`sync(phase, timeout)` verb is unchanged; the core then returns its report with `deferred: true` and no outage (a
 cut records none). `error` is `BD_UNAVAILABLE` with `details.timed_out:
 true`, it counts in `data.failed`, and a scope that was never synced stays
 unserved (`SCOPE_UNKNOWN`).
+
+**Health states (I7).** `down` while an outage holds or a probe could not
+reach bd. Otherwise `degraded`, with a `reasons[]` item for each cause, when:
+
+| `reasons[].code` | Cause |
+|---|---|
+| `stale_rows` | a row failed its read-back and is stale |
+| `unresolved_escalations` | any escalated entry is not yet resolved, announced or not (`unresolved_escalations` counts them; `open_work.escalated_unannounced` is the subset not yet announced). Settle each with `bdc cache journal resolve <seq> --note T --actor A`. |
+| `pending_too_old` | `oldest_pending_age_s` is greater than the limit |
+
+and `ok` otherwise. `oldest_pending_age_s` is whole seconds from the oldest
+pending entry's `created_at` to now (`null` with nothing pending; never
+negative). The limit is `--max-pending-age-s N` (request member
+`max_pending_age_s`), **300 s by default**: the cron drains every minute, so
+an entry that old means the drainer is not running or cannot apply it. An age
+equal to the limit is `ok`. `last_drain_at` is when the journal last applied
+an entry. It is derived from the existing `applied_at` column, with no schema
+change: the newest `applied_at` among the 256 most recent entries, so it is
+`null` when none of them was applied (a drainer that has applied nothing
+lately). Health reads the store and starts no bd call without `--probe`.
 
 **Probe that cannot reach bd (QA ARCH-001).** `cache health --probe` whose
 backend check fails with an unreachable code (`BD_UNAVAILABLE`,
@@ -453,9 +493,9 @@ Three cases have fixed answers:
 | Command | `data` | Order |
 |---|---|---|
 | `cache status` | `{cache_path, contract_version, store_schema_version: int, project: {database, project_id}, backend: {bd_version, bd_schema_sha256, bd_schema_version}, journal: {pending, applied, escalated, resolved, by_scope: {<scope>: {<state>: int}}, unscoped: {<state>: int}}, scopes: [Scope], escalated: [Entry], outage, stale: [id]}` | scopes by id; entries by seq, ascending |
-| `cache health` | `{state: "ok"\|"degraded"\|"down", outage, open_work: {pending, escalated_unannounced}, stale_rows: int, probe: {bd_version, model_current, rebuilt}\|null}`. With `--probe` and bd unreachable: `state: "down"`, `outage` set, `probe: null` (ARCH-001, above). | — |
+| `cache health` | `{state: "ok"\|"degraded"\|"down", reasons: [{code, message}], outage, open_work: {pending, escalated_unannounced}, stale_rows: int, oldest_pending_age_s: int\|null, last_drain_at: ts\|null, unresolved_escalations: int, probe: {bd_version, model_current, rebuilt}\|null}`. With `--probe` and bd unreachable: `state: "down"`, `outage` set, `probe: null` (ARCH-001, above). The `state` rules are below. | — |
 | `cache scopes` | `{scopes: [Scope]}`. A Scope is `{scope: "phase-bk", configured: bool, on_demand: bool, last_started_at, last_ok_at, last_error: OpError\|null, alert, beads: int}`, where `alert` is `"backend_unavailable"`, `"sync_failed"`, a `BD_CACHE` code, or `null`. | by scope id |
-| `cache refresh scopes` | `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable, details}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4 and the `details` its envelope error would carry (`{}` for none; `timed_out` for `BD_UNAVAILABLE`). A scope that could not reach bd, or whose sync the deadline cut, is a failed result (S75, RCR-001, above). | request order (by scope id when no scope is named) |
+| `cache refresh scopes` | takes `scopes`, `timeout_ms`. `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable, details}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4 and the `details` its envelope error would carry (`{}` for none; `timed_out` for `BD_UNAVAILABLE`). A scope that could not reach bd, or whose sync the deadline cut, is a failed result (S75, RCR-001, above). | request order (by scope id when no scope is named) |
 | `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms`. Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
 | `cache flush [--start-gate-ms N] [--deadline-ms M]` | `{busy, applied: [seq], retrying: [seq], escalated: [{seq, bead, op, actor, scope, reason: OpError}], deferred: [seq], deferred_in_flight: [seq], outage}`. N and M default to 25,000 and 28,000 ms, and M must be greater than N. | seq, ascending |
 | `cache evict` | `{scope, beads_deleted: int, out_of_scope_swept: int}` | — |
@@ -597,6 +637,35 @@ Fenix designs against the wheel 0.1.0 dicts, so every change here is
 Every method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope
 id. The new methods raise `CacheError` for every contract error. A
 Python-level type mistake still raises `TypeError`.
+
+### Migration notes for a `bd_cache.py` consumer
+
+These are the differences a caller moving from atm-bd's `bd_cache.py` (or the
+0.1 wheel) meets. The step-by-step cutover is
+[`cutover-runbook.md`](cutover-runbook.md).
+
+| Ref | What differs | What to do |
+|---|---|---|
+| I1 | A sync that cannot reach bd **returns Ok with `outage` set** (`SyncReport.outage`, and `report.outage` in `refresh scopes`); `bd_cache.py` raises `SYNC_FAILED` with a cause. `refresh scopes` reports it as a failed result (S75), but the 0.1-shaped `sync(phase, timeout)` returns its report. | Check `outage` (and `deferred`) on the report where the old code caught `SYNC_FAILED`. A caller that clears its sync alert on "no exception" would clear it during an outage. |
+| I3 | There is **no `runner=`**. The binding takes `bd_binary` only, so a caller's environment, retries and attempt log cannot be injected as a callable. | Point `bd_binary` (or `--bd`) at a wrapper executable that sets the environment, retries and logs, then runs the real bd. Tests that used `FakeBd` use `fake-bd` or a wrapper script. |
+| I4 | The tick **announces an outage per scope** and ignores `bd_cache.py`'s `outage_announced_at`; `outage()`, `record_outage` and `mark_outage_announced`, and `error.extra` / `as_json()`, have no 0.2 equivalent (0.2 has `payload`, `body`, `detail`). | Expect **one re-announcement of a current outage at cutover**, because the dedupe state is not carried over; later ticks dedupe per scope. Read `error.kind`, `message` and `details` instead of `extra`. |
+| I6 | The hook's detached drain, `bd_cache.py drain` with stdout to `DEVNULL`, has no binding verb. Its replacement is a detached `bdc cache flush`. | Run `bdc cache flush` detached, but **log its stdout** to a file: the envelope is where an error such as a legacy-path `CONFIG_INVALID` is reported, and `DEVNULL` would drop it silently. |
+| I10 | 0.2 `issues_list` **excludes closed, template and gate rows by default**, unlike the 0.1 `list`, which returns every row of the phase (§5.3). `refresh_scopes` takes `timeout_ms` (this layer), so a bounded sync no longer needs the 0.1 `sync(phase, timeout)`. | Pass `all` (or `status`) to `issues_list` where every row is needed (`close_fields_backfill.py`, `phase_beads.py`), or stay on `list`. |
+| M1 | **One handle per process.** The store refuses a second handle to the same file in one process (`STORE_IN_USE`). `close-vars.py` opens one per `read()` and only worked because CPython freed the old handle first. | Hold one `Cache` per process and reuse it. |
+| M4 | `append_notes` counts as achieved when the notes **contain** the text, and a close counts as achieved when the status is already `closed`, so the **reason of a close is lost** if someone else closed the bead first. Both are inherited from `bd_cache.py`. | No action; do not rely on `reason` being recorded for an already-closed bead (`already_closed` says so, when known). |
+| M2 | A resolve note is not in `last_error` (it is `note`), so `bd_cache.py`'s `entry()` shows an entry resolved by Rust without it while both run on one file. | Read `note` through bdc, or finish the cutover. |
+
+**The ATM cron shim (I5; lands in the fix/fen-tick layer).**
+`python -m bd_cache_rs.cron` is an ATM cron module. It speaks ATM's
+`cron.tick`, `cron.stop` and `doctor` stdin protocol, reads `custom.team`
+from the request, runs the same tick as `bdc cache tick`, and reports a stop
+reason, so atm-bd registers it where it registered `bd_cache_cron.py`. The
+shim ships in the wheel; beads-cache owns it. atm-bd owns the scripts that
+call the binding or `bdc` (see the runbook).
+
+`cache health` also now says `degraded` for an old pending entry and for an
+unresolved escalation (§6), which `bd_cache.py` had no way to see.
+
 
 ## 11. Versioning
 

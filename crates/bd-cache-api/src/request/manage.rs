@@ -14,9 +14,27 @@ pub struct CacheStatus;
 pub struct CacheHealth {
     /// Also run the backend check (fingerprint and the rebuild rule).
     pub(crate) probe: bool,
+    /// The age, in seconds, past which the oldest pending entry makes health
+    /// `degraded`; absent takes [`CacheHealth::DEFAULT_MAX_PENDING_AGE_S`].
+    pub(crate) max_pending_age_s: Option<u64>,
 }
 
 impl CacheHealth {
+    /// The default age limit of the oldest pending entry: 300 s (contract §6).
+    ///
+    /// The cron drains every minute, so a pending entry older than five
+    /// ticks means the drainer is not running or cannot apply it.
+    pub const DEFAULT_MAX_PENDING_AGE_S: u64 = 300;
+
+    /// The age, in seconds, past which the oldest pending entry makes health
+    /// `degraded` (`--max-pending-age-s`; default
+    /// [`CacheHealth::DEFAULT_MAX_PENDING_AGE_S`]).
+    #[must_use]
+    pub fn max_pending_age_s(&self) -> u64 {
+        self.max_pending_age_s
+            .unwrap_or(Self::DEFAULT_MAX_PENDING_AGE_S)
+    }
+
     /// Also run the backend check (fingerprint and the rebuild rule).
     #[must_use]
     pub fn probe(&self) -> bool {
@@ -35,6 +53,9 @@ pub struct CacheRefreshScopes {
     /// The scopes to sync, in request order; empty syncs every known scope.
     #[schemars(with = "Vec<String>")]
     pub(crate) scopes: Vec<ScopeId>,
+    /// Each scope's sync deadline; absent takes the per-call cap. A bd call
+    /// is still capped by the per-call cap, so a larger value does not lengthen it.
+    pub(crate) timeout_ms: Option<u64>,
 }
 
 impl CacheRefreshScopes {
@@ -42,6 +63,12 @@ impl CacheRefreshScopes {
     #[must_use]
     pub fn scopes(&self) -> &[ScopeId] {
         &self.scopes
+    }
+
+    /// Each scope's sync deadline; absent takes the per-call cap.
+    #[must_use]
+    pub fn timeout_ms(&self) -> Option<u64> {
+        self.timeout_ms
     }
 }
 

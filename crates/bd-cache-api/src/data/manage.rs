@@ -136,17 +136,35 @@ pub enum HealthState {
     Down,
 }
 
+/// One reason `cache health` is not `ok`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HealthReason {
+    /// A stable key: `stale_rows`, `unresolved_escalations` or `pending_too_old`.
+    pub code: &'static str,
+    /// What is wrong and what to do.
+    pub message: String,
+}
+
 /// `cache health`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CacheHealthData {
     /// The summary.
     pub state: HealthState,
+    /// Why the state is not `ok`, besides an outage (which is `outage`); empty when none.
+    pub reasons: Vec<HealthReason>,
     /// The outage, while one holds.
     pub outage: Option<OutageData>,
     /// Open work.
     pub open_work: OpenWorkData,
     /// How many rows are stale.
     pub stale_rows: u64,
+    /// Seconds since the oldest pending entry was journaled; `null` with none pending.
+    pub oldest_pending_age_s: Option<u64>,
+    /// When the journal last applied an entry (the newest `applied_at` of the
+    /// 256 most recent entries); `null` when none there was applied.
+    pub last_drain_at: Option<String>,
+    /// Escalated entries nobody has resolved, announced or not.
+    pub unresolved_escalations: u64,
     /// The backend check, with `probe`; `null` without.
     pub probe: Option<ProbeData>,
 }
