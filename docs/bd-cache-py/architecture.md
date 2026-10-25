@@ -9,7 +9,7 @@ the cache in process, so atm-bd can call it from its own scheduler (ATM cron)
 without `sc-runtime`. It is a thin layer: it holds no cache rule, it opens the
 concrete composition and converts arguments, replies and errors.
 
-It depends on `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli` and
+It depends on `bd-cache`, `bd-cache-api` (0.2), `bd-cache-store`, `bd-cache-model`, `sc-bd-cli` and
 `sc-beads` (the Boundaries table of [`../architecture.md`](../architecture.md))
 and, third party, on `pyo3`, `serde` and `serde_json` (to convert replies) and
 `dunce` (canonical paths), all through `[workspace.dependencies]`; `serde` and
@@ -22,6 +22,7 @@ and `dunce` was added for it (lead ruling R12), bc-lead, 2026-10-24.
 | `compose` | pure Rust: `open` builds `Cache<SqliteStore, FlockDrainLock, BdCli>` from the repository (`load_repo_config`, validated overrides, the canonical project directory); the process-wide `ProjectLocks` set |
 | `slot` | pure Rust: the closable, mutex-guarded owner of the `Cache` (close, panic handling; poisoning is defensive) |
 | `handle` | `PyCache`, the Python `Cache`: argument parsing, the sixteen verbs, GIL release |
+| `api` | the 0.2 namespaces `Beads` / `Manage` over `bd-cache-api` (ADR-PY-0005), `CONTRACT_VERSION` |
 | `convert` | `serde_json::Value` to Python objects, JSON text for `write`, seconds to `Duration` |
 | `error` | `CacheError`, `ClosedError` and the `BD_CACHE.*` error to exception mapping |
 
@@ -177,6 +178,67 @@ Decision:
   runs pytest through a shell wrapper, so no `bd` is needed.
 - Publishing: not in phase a. A later release step publishes with the `pypi`
   and `testpypi` environments (`PYPI_TOKEN`, `TEST_PYPI_TOKEN`).
+
+## ADR-PY-0005: The namespaces, the error mapping and the 0.1 to 0.2 table
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4
+
+Context: contract section 10 adds the commands of `bd-cache-api` to the wheel
+without touching a 0.1 verb, because fenix builds against the 0.1 dicts.
+
+Decision:
+
+- **Namespaces.** `api.rs` defines the classes `Beads` and `Manage`; each holds the
+  `Cache` handle and has one `(**kwargs)` method per command. The method turns the
+  keyword arguments into a JSON object (`None`, `bool`, `int`, finite `float`, `str`,
+  `list`/`tuple`, `dict` with `str` keys; anything else is `TypeError`), calls
+  `bd_cache_api::decode`, then `execute` on the handle's `Cache` under the same
+  mutex and GIL release as a 0.1 verb, then `Data::to_json` and the usual
+  `to_py`. `Request` cannot be built any other way (the operations are
+  crate-private), so the binding cannot skip a check. `CacheFacts` (cache file,
+  schema version, `dolt_database`, `project_id`, beads directory, repository root)
+  is read once when the handle opens (`compose.rs`).
+- **Resolved by `__getattr__`.** `cache.beads` and `cache.manage` are not class
+  attributes, so `dir(Cache)` is exactly the 0.1 set and the 0.1 test that pins
+  it passes unedited.
+- **Errors.** `error::cache_err` (a core `CacheError`) and `error::api_err` (an
+  `ApiError`) both set `kind`, `message`, `details`, `suggested_action` and
+  `retryable`; a core error goes through `ApiError::from`, so the table row
+  decides `retryable` for both generations. The 0.1 attributes keep their meaning
+  (REQ-PY-0012 lists what an `ApiError` puts in them). Only a Python type mistake
+  is not a `CacheError`.
+- **No tick.** `cache tick` belongs to `bd-cache-sync`, which this crate does not
+  depend on.
+- **Boundaries.** `bd-cache-py` gains `bd-cache-api`; it takes no `sc-command` and
+  no `clap` (the CI "Crate boundaries" step rejects both).
+- **Version.** One workspace version (lead ruling S61): 0.2.0 for the wheel and
+  every crate, set with `pyproject.toml` in one commit, because the kit's
+  `verify-version-lockstep` needs them equal.
+
+Consequences: a new command in `bd-cache-api` needs one line in `api.rs` (a Rust
+test checks the method names against `Command::ALL`); a 0.1 verb never changes
+for it.
+
+### The 0.1 to 0.2 table (contract section 10)
+
+| 0.1 verb (unchanged) | New in 0.2 | How the 0.1 shape differs |
+|---|---|---|
+| `get(bead, miss_timeout)` | `cache.beads.issues_get(id=, miss_timeout_ms=)` | `{row: {bead, stale, blocked}, scope_last_ok_at, pending, outage}`. **Unit change:** 0.1 takes seconds (float), 0.2 milliseconds (int). `miss_timeout_ms=0` is `NOT_CACHED` (retryable); 0.1 `miss_timeout=0` is `BD_UNAVAILABLE` |
+| `list(phase, status, label)` | `cache.beads.issues_list(...)` | `{scope: "bk", last_ok_at, rows}`; no paging |
+| `ready(phase, fresh_within)` | `cache.beads.ready(...)` | the beads are in `ready`; the basis is top-level; seconds |
+| `write(...)` | `cache.beads.issues_update`, `issues_close`, `dependencies_add` | `{seq, duplicate}`; an unknown op raises `ValueError`; BD-CACHE spellings |
+| none | `cache.beads.dependencies_list`, `cache.beads.context` | new |
+| `refresh(ids, timeout)` | `cache.manage.refresh_issues(...)` | a bare list; seconds |
+| `sync(phase, timeout)` | `cache.manage.refresh_scopes(...)` | one report, not `results[]` |
+| `drain(start_gate_s, hard_s)` | `cache.manage.flush(...)` | seconds; `phase`; `reason` is a string |
+| `prune(phase)` | `cache.manage.evict(...)` | same fields |
+| `entry(seq)`, `unannounced_escalations()` | `cache.manage.journal_get(...)`, `journal_list(unannounced=True)` | `idem_key`, `phase`, `precondition`, BD-CACHE args; `last_error` is a string |
+| `resolve(...)` returns `None`; `mark_announced(seq)` | `cache.manage.journal_resolve`, `journal_announce` | no read-back |
+| `status()`, `open_work()` | `cache.manage.status()`, `health()`, `scopes()` | raw `meta`; `<phase>:<state>` keys |
+| `sync_alert`, `set_sync_alert` | unchanged; the setter stays binding-only | none |
+| `CacheError` | adds `kind`, `message`, `details`, `suggested_action`, `retryable` | additive |
+
+Every method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope id.
 
 ## Reply shapes
 
