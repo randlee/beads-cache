@@ -21,8 +21,6 @@ sc-beads.workspace = true
 bd-cache = { path = ".", features = ["testing"] }
 bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
-# `test-support`: `BdCli` over `FakeBd`, for drain tests through the real CLI mapping.
-sc-bd-cli = { workspace = true, features = ["test-support"] }
 serde_json.workspace = true
 
 [lints]

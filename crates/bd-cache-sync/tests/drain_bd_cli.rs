@@ -1,5 +1,8 @@
 //! The drain over the real `BdCli` mapping (`sc-bd-cli` over its `FakeBd`): a
 //! write the CLI layer finds no bead for escalates `NOT_FOUND` (PE-RBP-F013).
+//!
+//! It lives here, not in `bd-cache`, because `bd-cache-sync` is the crate the
+//! boundary rules allow to see both the core and `sc-bd-cli`.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
