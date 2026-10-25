@@ -7,13 +7,29 @@
     "homepage": "https://github.com/randlee/beads-cache",
     "license": "MIT",
     "workspace_toml": "Cargo.toml",
-    "rust_toolchain": "1.98.1"
+    "rust_toolchain": "1.98.1",
+    "renderer_archive_path": "bin/bd-cache"
   },
   "release_targets": [
     {
       "target": "x86_64-unknown-linux-gnu",
       "os": "ubuntu-latest",
       "archive": "tar.gz"
+    },
+    {
+      "target": "aarch64-apple-darwin",
+      "os": "macos-latest",
+      "archive": "tar.gz"
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "os": "macos-latest",
+      "archive": "tar.gz"
+    },
+    {
+      "target": "x86_64-pc-windows-msvc",
+      "os": "windows-latest",
+      "archive": "zip"
     }
   ],
   "crates": [
@@ -42,7 +58,14 @@
       "wait_after_publish_seconds": 0
     }
   ],
-  "release_binaries": [],
+  "release_binaries": [
+    {
+      "name": "bd-cache"
+    },
+    {
+      "name": "bdc"
+    }
+  ],
   "python_packages": [
     {
       "artifact": "bd-cache-rs-wheel",
@@ -59,7 +82,10 @@
       "cargo_manifest": "crates/bd-cache-py/Cargo.toml",
       "module_path": "crates/bd-cache-py",
       "sdist": true,
-      "wheels": ["macos-14", "ubuntu-latest"]
+      "wheels": [
+        "macos-14",
+        "ubuntu-latest"
+      ]
     }
   ],
   "channels": {
@@ -73,20 +99,77 @@
       },
       "test_repository": "testpypi",
       "production_repository": "pypi"
+    },
+    "homebrew": {
+      "workflow": "homebrew-publish.yml",
+      "dispatch_inputs": {},
+      "tap_repository": "randlee/homebrew-tap",
+      "renderer_target": "x86_64-unknown-linux-gnu",
+      "formulas": [
+        {
+          "path": "Formula/bd-cache.rb",
+          "template": "release/homebrew/formula.rb.j2",
+          "class": "BdCache",
+          "binaries": [
+            "bd-cache",
+            "bdc"
+          ],
+          "test_binary": "bdc",
+          "test_command": "--version",
+          "test_output": "bd-cache",
+          "release_track": "stable"
+        }
+      ],
+      "assets": [
+        {
+          "key": "macos_arm",
+          "target": "aarch64-apple-darwin"
+        },
+        {
+          "key": "macos_intel",
+          "target": "x86_64-apple-darwin"
+        },
+        {
+          "key": "linux",
+          "target": "x86_64-unknown-linux-gnu"
+        }
+      ]
+    },
+    "scoop": {
+      "workflow": "scoop-publish.yml",
+      "dispatch_inputs": {},
+      "bucket_repository": "randlee/scoop-bucket",
+      "manifest_path": "bucket/bd-cache.json",
+      "manifest_template": "release/scoop/bd-cache.json.j2",
+      "installer_target": "x86_64-pc-windows-msvc",
+      "binary": "bin/bd-cache.exe",
+      "renderer_target": "x86_64-unknown-linux-gnu"
+    },
+    "winget": {
+      "workflow": "winget-publish.yml",
+      "dispatch_inputs": {},
+      "identifier": "randlee.bd-cache",
+      "installer_target": "x86_64-pc-windows-msvc"
     }
   },
   "prerelease": {
     "tag_prefix": "prerelease/v",
     "tag_script": "scripts/prerelease_tag.py",
     "install_root": "~/.beads-cache-builds",
-    "binaries": [],
-    "protected_branches": ["develop", "main"],
+    "binaries": [
+      "bd-cache",
+      "bdc"
+    ],
+    "protected_branches": [
+      "develop",
+      "main"
+    ],
     "selector_dir": {
       "darwin": "~/.beads-cache-builds/selectors/darwin",
       "linux": "~/.beads-cache-builds/selectors/linux",
       "windows": "%LOCALAPPDATA%\\beads-cache\\prerelease-selectors"
     },
-    "post_install": "{python} -m pip install --force-reinstall {wheels}",
-    "verify": "{python} -m pip show bd-cache-rs"
+    "post_install": "{python} -m pip install --force-reinstall {wheels} && {selector_dir}/bdc --version",
+    "verify": "{selector_dir}/bdc --version"
   }
 }
