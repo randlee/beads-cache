@@ -1,8 +1,11 @@
 //! The real-process harness of contract §8 "Testing", shared by the integration tests.
 //!
-//! [`TestRepo`] is a temporary repository with a `.beads/metadata.json` and a
-//! scenario file. It runs `bdc --repo <repo> --bd <fake-bd>` as a real process,
-//! hands `BdCli` the same `fake-bd` binary, and parses what comes back.
+//! [`TestRepo`] is a temporary repository with a `.beads/metadata.json`
+//! (database [`DATABASE`], project [`PROJECT`]), a `.beads/bd-cache.toml`
+//! naming the scope [`LABEL`], and a scenario file. It runs
+//! `bdc --repo <repo> --bd <fake-bd>` as a real process in a [`hermetic`]
+//! environment, hands `BdCli` the
+//! same `fake-bd` binary, and parses what comes back.
 #![allow(
     dead_code,
     reason = "each integration test file uses a different part of the harness"
@@ -36,6 +39,17 @@ pub const FAKE_BD: &str = env!("CARGO_BIN_EXE_fake-bd");
 /// A bead label the scenarios use for their scope.
 pub const LABEL: &str = "phase-x";
 
+/// The `dolt_database` of every test repository's `metadata.json`.
+pub const DATABASE: &str = "beads";
+
+/// The `project_id` of every test repository's `metadata.json`.
+pub const PROJECT: &str = "proj-1";
+
+/// The `metadata.json` of a test repository.
+pub fn metadata(database: &str, project: &str) -> String {
+    format!(r#"{{"dolt_database": "{database}", "project_id": "{project}"}}"#)
+}
+
 /// What a process printed and how it ended.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Ran {
@@ -57,9 +71,43 @@ impl From<Output> for Ran {
     }
 }
 
+/// The `PATH` every test process gets unless the test sets its own: system
+/// directories only, never the host's, so no installed `bd` and no
+/// developer's `PATH` order can change what a test sees.
+pub fn system_path() -> String {
+    if cfg!(windows) {
+        let root = std::env::var("SYSTEMROOT").unwrap_or_else(|_| r"C:\Windows".to_owned());
+        format!(r"{root}\System32;{root}")
+    } else {
+        "/usr/bin:/bin".to_owned()
+    }
+}
+
+/// A [`Command`] for `program` with a hermetic environment (QA RCR-002 item 3):
+/// the host environment is cleared, so no `BEADS_DIR`, `BEADS_ACTOR`,
+/// `BD_CACHE__*` or `PATH` of the machine running the tests reaches the
+/// child. Only `PATH` ([`system_path`]) and what a process needs to start
+/// are set (`SYSTEMROOT`, `SYSTEMDRIVE`, `WINDIR`, `TEMP` and `TMP` on
+/// Windows, `TMPDIR` elsewhere); a test adds the rest explicitly.
+pub fn hermetic(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut cmd = Command::new(program);
+    cmd.env_clear().env("PATH", system_path());
+    let keep: &[&str] = if cfg!(windows) {
+        &["SYSTEMROOT", "SYSTEMDRIVE", "WINDIR", "TEMP", "TMP"]
+    } else {
+        &["TMPDIR"]
+    };
+    for key in keep {
+        if let Some(v) = std::env::var_os(key) {
+            cmd.env(key, v);
+        }
+    }
+    cmd
+}
+
 /// Runs `binary` with `args` and no scenario.
 pub fn run_binary(binary: &str, args: &[&str]) -> Ran {
-    Command::new(binary)
+    hermetic(binary)
         .args(args)
         .output()
         .expect("the binary starts")
@@ -108,8 +156,9 @@ impl TestRepo {
         let dir = TempDir::new().expect("a temporary directory");
         let beads = dir.path().join("repo").join(".beads");
         std::fs::create_dir_all(&beads).expect("the .beads directory");
-        std::fs::write(beads.join("metadata.json"), r#"{"backend":"dolt"}"#)
+        std::fs::write(beads.join("metadata.json"), metadata(DATABASE, PROJECT))
             .expect("metadata.json");
+        std::fs::write(beads.join("bd-cache.toml"), "scopes = [\"x\"]\n").expect("bd-cache.toml");
         let repo = Self { dir };
         repo.set_scenario(scenario);
         repo
@@ -142,7 +191,7 @@ impl TestRepo {
         let root = self.root();
         let mut full = vec!["--repo", path_str(&root), "--bd", FAKE_BD];
         full.extend_from_slice(args);
-        Command::new(BDC)
+        hermetic(BDC)
             .args(&full)
             .env(SCENARIO_ENV, self.scenario_path())
             .output()
@@ -150,9 +199,38 @@ impl TestRepo {
             .into()
     }
 
+    /// Runs `bdc --repo <repo> --bd <fake-bd> <args>` and parses its one envelope.
+    ///
+    /// Returns the exit code and the envelope as JSON (`{version, ok, data, error}`).
+    pub fn json(&self, args: &[&str]) -> (i32, Value) {
+        let ran = self.bdc(args);
+        envelope_json(&ran)
+    }
+
+    /// Runs `bdc <args>` in `cwd` in a [`hermetic`] environment with `envs`
+    /// added (and `FAKE_BD_SCENARIO`), and nothing else: no `--repo` and no
+    /// `--bd` unless `args` gives them.
+    pub fn bdc_raw(&self, cwd: &Path, args: &[&str], envs: &[(&str, &str)]) -> Ran {
+        let mut cmd = hermetic(BDC);
+        cmd.args(args)
+            .current_dir(cwd)
+            .env(SCENARIO_ENV, self.scenario_path());
+        for (k, v) in envs {
+            cmd.env(k, v);
+        }
+        cmd.output().expect("bdc starts").into()
+    }
+
+    /// Edits the scenario file in place.
+    pub fn edit(&self, f: impl FnOnce(&mut Scenario)) {
+        let mut scenario = self.scenario();
+        f(&mut scenario);
+        self.set_scenario(&scenario);
+    }
+
     /// Runs `fake-bd <args>` itself, as `bd` would be run.
     pub fn fake_bd(&self, args: &[&str]) -> Ran {
-        Command::new(FAKE_BD)
+        hermetic(FAKE_BD)
             .args(args)
             .env(SCENARIO_ENV, self.scenario_path())
             .output()
@@ -185,6 +263,15 @@ pub fn in_process_backend(scenario: &Scenario) -> BdCli {
     BdCli::with_invoker(Box::new(scenario.fake_bd().expect("a valid scenario")))
 }
 
-fn path_str(path: &Path) -> &str {
+/// The exit code and the one envelope of a run, as JSON; panics (fails the test)
+/// when stdout is not exactly one envelope.
+pub fn envelope_json(ran: &Ran) -> (i32, Value) {
+    parse_envelope(&ran.stdout).unwrap_or_else(|e| panic!("{e}; stderr: {}", ran.stderr));
+    let value: Value = serde_json::from_str(ran.stdout.trim_end()).expect("JSON");
+    (ran.exit, value)
+}
+
+/// A path as UTF-8 text (every temporary path of the tests is).
+pub fn path_str(path: &Path) -> &str {
     path.to_str().expect("a UTF-8 temporary path")
 }

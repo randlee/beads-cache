@@ -144,3 +144,9 @@ jobs:
 
       - name: Test
         run: cargo test --workspace $EXCLUDE --all-features
+
+      # NFR-BDC-0002 (sprint b-3): a new-process `bdc issues get` cache hit is
+      # under 50 ms (median and p95 of 50), measured in a release build; the
+      # log also reports the ungated pending-write case.
+      - name: Latency (NFR-BDC-0002, release profile)
+        run: cargo test --release -p bd-cache-cli --test latency -- --ignored --nocapture

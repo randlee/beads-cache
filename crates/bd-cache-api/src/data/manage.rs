@@ -10,6 +10,7 @@ use serde::Serialize;
 
 use crate::data::entry::Entry;
 use crate::data::x_cache::{OpError, OutageData, RowsXCache};
+use crate::error::{ErrorKind, spec};
 
 /// `cache status` `project`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -180,8 +181,36 @@ pub struct RefreshScopeResult {
     pub scope: String,
     /// The report, when the sync ran.
     pub report: Option<SyncReportData>,
-    /// The failure, when it did not.
-    pub error: Option<OpError>,
+    /// The failure: the sync did not run, or it could not reach bd (lead
+    /// ruling S75: a report with an outage is a failed result too).
+    pub error: Option<RefreshError>,
+}
+
+/// A failed result's error in `cache refresh scopes`: the [`OpError`] with
+/// its code's `kind` and `retryable` from the error table (lead ruling S75).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct RefreshError {
+    /// The code and message.
+    #[serde(flatten)]
+    pub error: OpError,
+    /// The code's kind (contract §4).
+    pub kind: ErrorKind,
+    /// Whether a retry may succeed (contract §4).
+    pub retryable: bool,
+}
+
+impl RefreshError {
+    /// `error` with the error table's `kind` and `retryable` for its code; a
+    /// code the table does not hold is `internal`, not retryable.
+    #[must_use]
+    pub fn of(error: OpError) -> Self {
+        let spec = spec(&error.code);
+        Self {
+            kind: spec.map_or(ErrorKind::Internal, |s| s.kind),
+            retryable: spec.is_some_and(|s| s.retryable),
+            error,
+        }
+    }
 }
 
 /// `cache refresh scopes`: `{failed, results}`.

@@ -163,7 +163,7 @@ Decision:
   pipes close, even if a grandchild holds them, and nothing they hold is needed. After a
   normal exit, waiting for them is bounded by the same deadline (`Output` phase).
   Standard input is closed. The environment and working directory are btit's: the
-  extended `PATH`, `BEADS_PATH` = the working directory, plus any child variables set
+  extended `PATH` (ADR-BDCLI-0005), `BEADS_PATH` = the working directory, plus any child variables set
   through `CliInvoker::set_child_var` (ADR-BDCLI-0004).
 - The lock is named by a `WorkingDir`, built by `run::resolve_project_dir` and
   normalised lexically (trailing separators dropped, a root kept). The map key is
@@ -290,3 +290,40 @@ Windows `Command` would deliver the same environment without it (QA10-004),
 `names_compare_as_the_platform_environment_does`,
 `a_non_ascii_name_is_refused_in_debug_builds` (S50) (`src/command.rs`); in
 `bd-cache-sync`, `tests/compose.rs` (S40 and S44 cases).
+
+## ADR-BDCLI-0005: The extended `PATH`: absolute entries, the user's first
+
+**Status:** Accepted (lead rulings S76 and S77, QA RCR-002)
+
+Context: every `bd` child gets `PATH` = `path::get_extended_path()` and runs
+in the repository root. btit's version put fixed install directories
+(Homebrew, Linuxbrew, `/usr/bin`, `/bin`, `~/.local/bin`, `~/bin`,
+`$GOPATH/bin`, `~/.cargo/bin`; on Windows those under `USERPROFILE` and
+`LOCALAPPDATA`) ahead of the inherited `PATH`, and kept the inherited
+segments as they were. An empty or relative segment, or a directory built
+from a relative `HOME` or `GOPATH`, resolves against the working directory,
+so a bare `bd` could run a `bd` committed in the repository. And a `bd`
+installed in a fixed directory beat the user's own `PATH` (contract §2 says
+`bd` on `PATH`).
+
+Decision:
+
+- Only absolute segments are kept (`Path::is_absolute`; on Windows a drive or
+  UNC root), from the inherited `PATH` and from the fallback alike. An unset
+  `PATH` adds nothing.
+- The inherited `PATH` comes first; the fixed install directories follow as
+  a fallback, for GUI launches with a minimal `PATH`.
+- A fallback directory under an unset, empty or relative `HOME`, `GOPATH`,
+  `USERPROFILE` or `LOCALAPPDATA` is not built.
+- Each directory appears once, at its first occurrence.
+
+Consequences: a behaviour change for hosts whose `PATH` names a different
+`bd` than a fixed directory does: the `PATH` one now runs. A relative entry a
+user put on `PATH` on purpose is no longer searched for `bd`.
+
+Tests: `src/path.rs` (`the_inherited_path_keeps_only_absolute_segments`,
+`the_inherited_path_comes_first_and_duplicates_are_removed`,
+`a_relative_or_empty_home_or_gopath_adds_no_fallback_directory` and its
+Windows twin); in `bd-cache-cli`, `tests/process.rs`
+(`an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo`,
+`the_users_path_beats_a_fallback_directory`).

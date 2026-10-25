@@ -19,8 +19,8 @@ pub use manage::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
     CacheRefreshScopesData, CacheScopesData, CacheStatusData, EscalatedData, HealthState,
     JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpenWorkData, ProbeData, ProjectData, RefreshScopeResult, ScopeData, StateCountsData,
-    SyncReportData,
+    OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, ScopeData,
+    StateCountsData, SyncReportData,
 };
 #[doc(inline)]
 pub use x_cache::{

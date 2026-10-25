@@ -30,7 +30,7 @@ use std::time::Duration;
 
 use sc_bd_cli::CliInvoker;
 use sc_bd_cli::testing::FakeBd;
-use sc_beads::testing::{FakeBackend, FakeOp, Injection, ManualClock};
+use sc_beads::testing::{FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
 use sc_beads::{Bead, DepType, ProjectRef, Refusal};
 use serde::{Deserialize, Serialize};
 
@@ -98,6 +98,22 @@ pub struct Faults {
     /// Every write is refused with this exit code; the rows do not change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refuse_write: Option<RefuseWrite>,
+    /// Every `bd close` is refused with this exit code; other writes run
+    /// (and check their own guards). The bead does not change.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refuse_close: Option<RefuseWrite>,
+    /// Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one
+    /// of these labels fails with exit 1 (a failure that is not an outage);
+    /// the other labels answer. One scope of a `cache refresh scopes` can so
+    /// fail while another passes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fail_labels: Vec<String>,
+    /// Reads (`bd list`, `bd show`, `bd ready`, `bd blocked`) report these
+    /// beads with this status, while writes check their `--if-*` guards
+    /// against the true rows. A guard can so hold on the cache's fresh read at
+    /// flush and miss in bd itself, which tests that the guard reaches bd.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub read_status: BTreeMap<String, String>,
 }
 
 /// A refused write.
@@ -106,6 +122,15 @@ pub struct Faults {
 pub struct RefuseWrite {
     /// The exit code of the refused write; `13` is bd's refused guard.
     pub exit_code: i32,
+}
+
+/// A refused write as the fake's injection: `13` is bd's refused guard.
+fn refusal(refuse: RefuseWrite) -> Injection {
+    if refuse.exit_code == EXIT_REFUSED {
+        Injection::Refused(Refusal::Precondition)
+    } else {
+        Injection::Failed(refuse.exit_code)
+    }
 }
 
 fn default_now() -> String {
@@ -208,12 +233,22 @@ impl Scenario {
             );
         }
         if let Some(refuse) = self.faults.refuse_write {
-            let outcome = if refuse.exit_code == EXIT_REFUSED {
-                Injection::Refused(Refusal::Precondition)
-            } else {
-                Injection::Failed(refuse.exit_code)
-            };
-            backend.inject_where(|call| call.op().is_write(), outcome);
+            backend.inject_where(|call| call.op().is_write(), refusal(refuse));
+        }
+        if let Some(refuse) = self.faults.refuse_close {
+            backend.inject_where(|call| call.op() == FakeOp::Close, refusal(refuse));
+        }
+        if !self.faults.fail_labels.is_empty() {
+            let labels = self.faults.fail_labels.clone();
+            backend.inject_where(
+                move |call| match call {
+                    FakeCall::ListScope { label, .. }
+                    | FakeCall::ListBlocked { label }
+                    | FakeCall::ListReady { label } => labels.contains(label),
+                    _ => false,
+                },
+                Injection::Failed(1),
+            );
         }
         let fake = FakeBd::over(backend);
         if let Some(version) = &self.version {
@@ -258,6 +293,17 @@ pub fn serve(argv: &[String], path: &Path) -> Served {
 fn serve_checked(argv: &[String], path: &Path) -> Result<Served, ScenarioError> {
     let mut scenario = Scenario::load(path)?;
     let fake = scenario.fake_bd()?;
+    let read = argv
+        .first()
+        .is_some_and(|w| matches!(w.as_str(), "list" | "show" | "ready" | "blocked"));
+    if read {
+        for (id, status) in &scenario.faults.read_status {
+            if !fake.backend().edit(id, |b| b.status = Some(status.clone())) {
+                return Err(ScenarioError::UnknownBead(id.clone()));
+            }
+        }
+    }
+    // Taken after `read_status`, so a read never writes its view back.
     let before = fake.backend().rows();
     if scenario.faults.slow_ms > 0 {
         std::thread::sleep(Duration::from_millis(scenario.faults.slow_ms));

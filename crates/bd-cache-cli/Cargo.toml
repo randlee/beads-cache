@@ -17,6 +17,10 @@ publish = false
 fake-bd = ["sc-bd-cli/test-support", "sc-beads/testing"]
 
 [dependencies]
+bd-cache-api.workspace = true
+bd-cache-model.workspace = true
+bd-cache-store.workspace = true
+bd-cache-sync.workspace = true
 clap.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true
@@ -24,19 +28,24 @@ sc-command.workspace = true
 sc-observability-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 # Lets the integration tests use CARGO_BIN_EXE_fake-bd and the test doubles.
 bd-cache-cli = { path = ".", features = ["fake-bd"] }
 tempfile.workspace = true
 
+# `doc = false`: the binaries' docs would collide with the `bd-cache` crate's
+# `bd_cache` docs, and the library documents them.
 [[bin]]
 name = "bd-cache"
 path = "src/bin/bd-cache.rs"
+doc = false
 
 [[bin]]
 name = "bdc"
 path = "src/bin/bdc.rs"
+doc = false
 
 [[bin]]
 name = "fake-bd"

@@ -31,6 +31,7 @@ bd-cache = { path = "crates/bd-cache", version = "0.2.0" }
 bd-cache-api = { path = "crates/bd-cache-api", version = "0.2.0" }
 bd-cache-model = { path = "crates/bd-cache-model", version = "0.2.0" }
 bd-cache-store = { path = "crates/bd-cache-store", version = "0.2.0" }
+bd-cache-sync = { path = "crates/bd-cache-sync", version = "0.2.0" }
 sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.2.0" }
 sc-beads = { path = "crates/sc-beads", version = "0.2.0" }
 sc-cron = { path = "crates/sc-cron", version = "0.2.0" }
