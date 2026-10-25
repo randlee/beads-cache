@@ -16,8 +16,8 @@ Governing inputs:
 
 - REQ-BDC-0004, 0801..0805, 0901..0912 and NFR-BDC-0002.
 - ADR-BDC-0002, 0003, 0005 and 0008 (Draft).
-- Lead ruling S59: REQ-BDC-0806 is superseded; parity with `bd_cache.py` is
-  behavioural; the CLI follows sc-command and `/v0`.
+- Lead ruling S59: REQ-BDC-0806 is superseded; the CLI follows sc-command and
+  `/v0`.
 
 This contract replaces the command-structure clause of ADR-BDC-0003 through
 **ADR-BDC-0009** (Approved, S60, in `docs/architecture.md`). The requirement
@@ -90,19 +90,14 @@ be spelled out in full; abbreviations are refused.
 | `--input FILE\|-` | n/a | n/a | none | The whole request as JSON. Combining it with request flags is `USAGE`. |
 | `-v` / `-q` | `LOG` | n/a | `warn` | The verbosity of the stderr log. The flag wins over the env, and stdout never changes. |
 
-The TOML keys `scopes`, `call_timeout_s`, `miss_fill_timeout_ms`,
-`max_attempts` and `[tick]` are unchanged. Each one can be overridden from
-the env under the same name, for example `BD_CACHE__CALL_TIMEOUT_S`.
-`BD_CACHE__SCOPES` is comma-separated. Nested keys use `__`:
-`BD_CACHE__TICK__TEAM`, `…__TICK__FALLBACK_LEAD`, `…__TICK__PHASES_DIR` and
-`…__TICK__PHASES` (comma-separated). Precedence is flag > env > TOML >
-default.
+The TOML keys `scopes`, `call_timeout_s`, `miss_fill_timeout_ms` and
+`max_attempts` are unchanged. Each one can be overridden from the env under
+the same name, for example `BD_CACHE__CALL_TIMEOUT_S`. `BD_CACHE__SCOPES` is
+comma-separated. Precedence is flag > env > TOML > default.
 
-**`[tick] identity` (new; lands in the fix/fen-tick layer).** The sender
-identity of the messages a tick delivers through `atm send`. It defaults to
-`atm-bd` (ATM refuses a message from `cron@tool`, which the first 0.2 build
-used). It is set by `[tick] identity = "…"`, `BD_CACHE__TICK__IDENTITY` or
-`bdc cache tick --identity ID`, with the usual precedence.
+beads-cache sends no messages and reads no configuration that names a message
+recipient (ADR-BDC-0010). The schedule of the built-in sync is a row in
+sc-cron's table, not a TOML table (sprint b-7).
 
 - **Where files are read from.** `.beads/bd-cache.toml` is always read from
   `<repo>/.beads/`. `metadata.json` is read from `$BEADS_DIR` when that is
@@ -123,15 +118,10 @@ used). It is set by `[tick] identity = "…"`, `BD_CACHE__TICK__IDENTITY` or
 - **No upward search.** bd searches parent directories for `.beads`; bdc
   deliberately does not. Hooks run with an explicit cwd and the bindings do
   not search either, so the same command always opens the same file.
-- **Legacy file.** bdc refuses with `CONFIG_INVALID` (`details: {key:
-  "cache_path", legacy_path}`) when all three of these hold:
-  - no `cache_path` is configured;
-  - the default file does not exist;
-  - `<repo>/.atm-bd/<db>.bd-cache.sqlite3` does exist.
-
-  The suggested action is to set
-  `cache_path = ".atm-bd/<db>.bd-cache.sqlite3"`. This check is bdc's only;
-  how the binding opens a file in 0.1 is unchanged.
+- **Any other path.** bdc opens the file at the resolved `cache_path` and
+  looks nowhere else. A store file kept at another location is reached by
+  setting `cache_path` (REQ-BDC-0804 amended: the file stays readable and
+  writable by any v3 reader).
 - **sc-config.** Phase a keeps bd-cache-store's `load_repo_config`, so a
   missing TOML is still valid. bdc applies env overrides itself, using
   sc-config's naming rule (`BD_CACHE__`), and does not call
@@ -215,7 +205,7 @@ the table leaves out. † marks a new code.
 | `BAD_ARGS` | invalid_input | 3 | no | `invalid_argument` | Also an unknown member (`details.member`), and a bad cursor (`v0_code: invalid_cursor`). |
 | `BAD_PRECONDITION` | invalid_input | 3 | no | `invalid_argument` | An invalid guard. |
 | `UNSUPPORTED` † | invalid_input | 3 | no | `invalid_argument` (`v0_reason: unknown_parameter` for a parameter or member) | `details.unsupported` names the kind. The suggested action is to call bd or bd serve directly. |
-| `CONFIG_INVALID` † | invalid_input | 3 | no | — | `details.source` keeps the underlying code: `store_config_*`, `sync_config_*`, `sync_beads_dir_unresolvable` or `sync_repo_root_not_utf8`. bdc's own cases (S71): `bdc_env_invalid` for a `BD_CACHE__*` value that does not parse, and `bdc_legacy_cache_file` for the legacy file (§2). |
+| `CONFIG_INVALID` † | invalid_input | 3 | no | — | `details.source` keeps the underlying code: `store_config_*`, `sync_config_*`, `sync_beads_dir_unresolvable` or `sync_repo_root_not_utf8`. bdc's own case (S71): `bdc_env_invalid` for a `BD_CACHE__*` value that does not parse. |
 | `BAD_OP` | invalid_input | 3 | no | `invalid_argument` | Only the binding's old `write` verb returns it; the CLI never does. |
 | `NOT_FOUND` | not_found | 3 | no | `not_found` | Neither the cache nor bd has the bead, or no such entry exists. |
 | `NO_DATABASE` | not_found | 3 | no | — | |
@@ -305,7 +295,7 @@ Every command can also return the errors of opening the cache:
 | `issues list` | `status[]`, `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `all`, `sort`, `limit` (default: **no limit** inside a scope; an explicit value pages; 0 = unlimited), `cursor`, `scope` | `{items, has_more, next_cursor?, x_cache}` | `sort=created`: `(created_at desc, id asc)`; `sort=priority`: `(priority asc, created_at desc, id asc)`. Both are total orders, so the cursor is a keyset. | `SCOPE_UNKNOWN`, `BAD_ARGS` (`invalid_cursor`), `UNSUPPORTED` |
 | `ready [--fresh-within-ms N]` | `label[]`, `label_any[]`, `exclude_label[]`, `assignee`, `unassigned`, `priority`, `limit` (default: **no limit** inside a scope; an explicit value caps the list), `sort` (`priority` only), `scope`, `fresh_within_ms` | `{items, has_more, x_cache: {scope, last_ok_at, outage, rows, basis, locally_adjusted: bool, read_fallback, read_fallback_error: OpError\|null, missing_rows: [id]}}` | `(priority asc, created_at desc, id asc)`. The tie-break is the cache's own; the spec does not state bd's. | `SCOPE_UNKNOWN`, `UNSUPPORTED` (`hybrid`, `oldest`, `type`, `parent`, …) |
 | `dependencies list --issue-id ID… [--type T…]` | `issue_id[]`, `type[]` | `{items: [{issue_id, depends_on_id, type}], missing: [id], x_cache: {outage, not_cached: [id]}}` | request order of `issue_id`, then `depends_on_id` | `BAD_ARGS` |
-| `issues update <id>` | `id`, `actor`, `idempotency_key`, `patch: {status?, assignee?, add_labels?, remove_labels?, append_notes?, metadata?: {set?, unset?}}`, `expected_status?`, `expected_assignee?` | `{issue, changed?: bool, x_cache}`. `changed` is **optional**: it is omitted when it is unknown (an entry written without it, by `bd_cache.py` or before the column existed; S68). | n/a | `BAD_ARGS` (empty patch; `status: "closed"`; unknown member), `BAD_PRECONDITION`, `UNSUPPORTED` (`claim`, `expected_version`, `force_*`, other patch members), `PRECONDITION`, `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE` |
+| `issues update <id>` | `id`, `actor`, `idempotency_key`, `patch: {status?, assignee?, add_labels?, remove_labels?, append_notes?, metadata?: {set?, unset?}}`, `expected_status?`, `expected_assignee?` | `{issue, changed?: bool, x_cache}`. `changed` is **optional**: it is omitted when it is unknown (an entry written without it, by an earlier writer of the file or before the column existed; S68). | n/a | `BAD_ARGS` (empty patch; `status: "closed"`; unknown member), `BAD_PRECONDITION`, `UNSUPPORTED` (`claim`, `expected_version`, `force_*`, other patch members), `PRECONDITION`, `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE` |
 | `issues close <id>` | `id`, `actor`, `idempotency_key`, `reason?`, and the cache-extension guards `expected_status?`, `expected_assignee?` | `{issue, already_closed?: bool, x_cache}`. `already_closed` is **optional**: it is omitted when it is unknown, as `changed` is (S68). | n/a | as update; `UNSUPPORTED` (`session`, `force`, `expected_version`) |
 | `dependencies add <issue_id> <depends_on_id> --type T` | `actor`, `idempotency_key`, `edges: [{issue_id, depends_on_id, type}]` (exactly one edge) | `{added: [edge], x_cache}` | n/a | as update; `UNSUPPORTED` (more than one edge) |
 | `context` | none | `{bd_version?, database, project_id, beads_dir?, repo_root?, capabilities: [token], x_cache: {cache_path, contract_version, store_schema_version, bd_schema_sha256, bd_schema_version, model_current}}` | n/a | the open-time errors only |
@@ -319,14 +309,14 @@ Notes by command:
     unless `status` or `all` is set. The workspace's configured infra types
     are unknown to the cache, so they are **not** excluded.
   - **This differs from the 0.1 `list(phase, ...)` verb, which returns every
-    row of the phase.** A caller that needs closed, template and gate rows,
-    such as `close_fields_backfill.py` and `phase_beads.py`, passes `all`
+    row of the phase.** A caller that needs closed, template and gate rows
+    passes `all`
     (`bdc issues list --scope phase-<x> --all`, `issues_list(scope=, all=True)`
     in the binding), or names the statuses it wants
     (`--status closed`). Moving such a caller to `issues_list` without `all`
     silently drops those rows. Staying on `list` keeps the 0.1 behaviour.
   - Default limit: inside a known scope there is **no limit**, because a
-    scope is already bounded; atm-bd's phase views and agents expect the
+    scope is already bounded; a caller reading a phase expects the
     whole phase. An explicit `limit` pages, with `has_more` and
     `next_cursor`. If a call without a scope is ever allowed, it will take
     `/v0`'s defaults.
@@ -430,7 +420,7 @@ reason ready parity is stated against the released CLI.
 | `cache journal list [--state pending\|escalated] [--unannounced]` | `pending_entries`, `status().escalated`, `unannounced_escalations` | (in `status`) | no |
 | `cache journal resolve <seq> --note T --actor A` | `resolve` | `resolve` | store |
 | `cache journal announce <seq>` | `mark_announced` | (cron) | store |
-| `cache tick [--budget-ms N] [--atm PATH] [--identity ID]` | bd-cache-sync `tick` (`--identity` lands in the fix/fen-tick layer) | (`bd_cache_cron.py`) | bd, store, atm |
+| `cache tick [--budget-ms N]` | bd-cache-sync `tick`: runs the built-in sync once, on demand (sprint b-7) | — | bd, store |
 
 **Refresh that cannot reach bd (lead ruling S75).** A `cache refresh scopes`
 result for a scope whose sync could not reach bd is a failed result: `error`
@@ -595,20 +585,20 @@ Lead rulings on the core work (bc-lead, 2026-10-25, recorded with sprint b-1):
   concurrent drain.
 - **S65.** `Entry.note` is `resolved by <actor>: <note>`: the journal keeps
   the resolver in the note, and the 0.1 `last_error` is the error, `" | "`,
-  then the note, as `bd_cache.py` writes it.
+  then the note, which is the 0.1 rendering.
 - **S68.** `WriteOutcome.changed` is `Option<bool>`: `Some(stored)` when the
-  entry stores it; for an entry stored without it (by `bd_cache.py`, or
-  before the column existed), `Some(predicted)` only while the entry is
+  entry stores it; for an entry stored without it (by an earlier writer
+  of the file, or before the column existed), `Some(predicted)` only while the entry is
   pending; `None` (unknown) in any other state. It is never guessed.
 
 `blocked(scope)` is deferred (§5.5). The CI boundary check reads the
 Boundaries table in `docs/architecture.md`, so adding the rows there (done with
 ADR-BDC-0009) is the whole CI change.
 
-## 10. Python binding
+## 10. 0.1 → 0.2 API differences
 
-Fenix designs against the wheel 0.1.0 dicts, so every change here is
-**additive**:
+A caller built against the wheel 0.1.0 dicts keeps working, so every change
+here is **additive**:
 
 - nothing that exists changes;
 - 0.2.x issues no `DeprecationWarning`;
@@ -622,13 +612,13 @@ Fenix designs against the wheel 0.1.0 dicts, so every change here is
 | `get(bead, miss_timeout)` | `cache.beads.issues_get(id=, miss_timeout_ms=)` | `{row: {bead, stale, blocked}, scope_last_ok_at, pending, outage}`. **Unit change:** 0.1 takes seconds (float), 0.2 takes milliseconds (int). |
 | `list(phase, status, label)` | `cache.beads.issues_list(...)` | `{scope: "bk", last_ok_at, rows}`; no paging |
 | `ready(phase, fresh_within)` | `cache.beads.ready(...)` | the beads are in `ready`; the basis is top-level; seconds |
-| `write(...)` | `cache.beads.issues_update`, `issues_close`, `dependencies_add` | `{seq, duplicate}`; an unknown op raises `ValueError`; BD-CACHE spellings |
+| `write(...)` | `cache.beads.issues_update`, `issues_close`, `dependencies_add` | `{seq, duplicate}`; an unknown op raises `ValueError`; the stored op spellings |
 | — | `cache.beads.dependencies_list`, `cache.beads.context` | new |
 | `refresh(ids, timeout)` | `cache.manage.refresh_issues(...)` | a bare list; seconds |
 | `sync(phase, timeout)` | `cache.manage.refresh_scopes(...)` | one report, not `results[]` |
 | `drain(start_gate_s, hard_s)` | `cache.manage.flush(...)` | seconds; `phase`; `reason` is a string |
 | `prune(phase)` | `cache.manage.evict(...)` | same fields |
-| `entry(seq)`, `unannounced_escalations()` | `cache.manage.journal_get(...)`, `journal_list(unannounced=True)` | `idem_key`, `phase`, `precondition`, BD-CACHE args; `last_error` is a string |
+| `entry(seq)`, `unannounced_escalations()` | `cache.manage.journal_get(...)`, `journal_list(unannounced=True)` | `idem_key`, `phase`, `precondition`, the stored args; `last_error` is a string |
 | `resolve(...)` → `None`; `mark_announced(seq)` | `cache.manage.journal_resolve`, `journal_announce` | no read-back |
 | `status()`, `open_work()` | `cache.manage.status()`, `health()`, `scopes()` | raw `meta`; `<phase>:<state>` keys |
 | `sync_alert`, `set_sync_alert` | unchanged; the setter stays binding-only | — |
@@ -638,34 +628,15 @@ Every method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope
 id. The new methods raise `CacheError` for every contract error. A
 Python-level type mistake still raises `TypeError`.
 
-### Migration notes for a `bd_cache.py` consumer
-
-These are the differences a caller moving from atm-bd's `bd_cache.py` (or the
-0.1 wheel) meets. The step-by-step cutover is
-[`cutover-runbook.md`](cutover-runbook.md).
+### Behaviour that differs between a 0.1 call and its 0.2 counterpart
 
 | Ref | What differs | What to do |
 |---|---|---|
-| I1 | A sync that cannot reach bd **returns Ok with `outage` set** (`SyncReport.outage`, and `report.outage` in `refresh scopes`); `bd_cache.py` raises `SYNC_FAILED` with a cause. `refresh scopes` reports it as a failed result (S75), but the 0.1-shaped `sync(phase, timeout)` returns its report. | Check `outage` (and `deferred`) on the report where the old code caught `SYNC_FAILED`. A caller that clears its sync alert on "no exception" would clear it during an outage. |
-| I3 | There is **no `runner=`**. The binding takes `bd_binary` only, so a caller's environment, retries and attempt log cannot be injected as a callable. | Point `bd_binary` (or `--bd`) at a wrapper executable that sets the environment, retries and logs, then runs the real bd. Tests that used `FakeBd` use `fake-bd` or a wrapper script. |
-| I4 | The tick **announces an outage per scope** and ignores `bd_cache.py`'s `outage_announced_at`; `outage()`, `record_outage` and `mark_outage_announced`, and `error.extra` / `as_json()`, have no 0.2 equivalent (0.2 has `payload`, `body`, `detail`). | Expect **one re-announcement of a current outage at cutover**, because the dedupe state is not carried over; later ticks dedupe per scope. Read `error.kind`, `message` and `details` instead of `extra`. |
-| I6 | The hook's detached drain, `bd_cache.py drain` with stdout to `DEVNULL`, has no binding verb. Its replacement is a detached `bdc cache flush`. | Run `bdc cache flush` detached, but **log its stdout** to a file: the envelope is where an error such as a legacy-path `CONFIG_INVALID` is reported, and `DEVNULL` would drop it silently. |
-| I10 | 0.2 `issues_list` **excludes closed, template and gate rows by default**, unlike the 0.1 `list`, which returns every row of the phase (§5.3). `refresh_scopes` takes `timeout_ms` (this layer), so a bounded sync no longer needs the 0.1 `sync(phase, timeout)`. | Pass `all` (or `status`) to `issues_list` where every row is needed (`close_fields_backfill.py`, `phase_beads.py`), or stay on `list`. |
-| M1 | **One handle per process.** The store refuses a second handle to the same file in one process (`STORE_IN_USE`). `close-vars.py` opens one per `read()` and only worked because CPython freed the old handle first. | Hold one `Cache` per process and reuse it. |
-| M4 | `append_notes` counts as achieved when the notes **contain** the text, and a close counts as achieved when the status is already `closed`, so the **reason of a close is lost** if someone else closed the bead first. Both are inherited from `bd_cache.py`. | No action; do not rely on `reason` being recorded for an already-closed bead (`already_closed` says so, when known). |
-| M2 | A resolve note is not in `last_error` (it is `note`), so `bd_cache.py`'s `entry()` shows an entry resolved by Rust without it while both run on one file. | Read `note` through bdc, or finish the cutover. |
-
-**The ATM cron shim (I5; lands in the fix/fen-tick layer).**
-`python -m bd_cache_rs.cron` is an ATM cron module. It speaks ATM's
-`cron.tick`, `cron.stop` and `doctor` stdin protocol, reads `custom.team`
-from the request, runs the same tick as `bdc cache tick`, and reports a stop
-reason, so atm-bd registers it where it registered `bd_cache_cron.py`. The
-shim ships in the wheel; beads-cache owns it. atm-bd owns the scripts that
-call the binding or `bdc` (see the runbook).
-
-`cache health` also now says `degraded` for an old pending entry and for an
-unresolved escalation (§6), which `bd_cache.py` had no way to see.
-
+| D1 | `refresh_scopes` reports a sync that cannot reach bd as a **failed result** (`BD_UNAVAILABLE`, counted in `data.failed`; S75). The 0.1-shaped `sync(phase, timeout)` returns its report with `outage` set instead. | Check `outage` (and `deferred`) on the 0.1 report. A caller that clears its sync alert on "no exception" would clear it during an outage. |
+| D2 | 0.2 `issues_list` **excludes closed, template and gate rows by default**, unlike the 0.1 `list`, which returns every row of the phase (§5.3). `refresh_scopes` takes `timeout_ms`, so a bounded sync no longer needs the 0.1 `sync(phase, timeout)`. | Pass `all` (or `status`) to `issues_list` where every row is needed, or stay on `list`. |
+| D3 | A resolve note is stored in `note`, not in `last_error`. The 0.1 `entry()` rebuilds the old rendering, the error then ` \| resolved by <actor>: <note>`; the 0.2 `journal_get` returns `note` on its own. | Read `note` through 0.2. |
+| D4 | A close counts as achieved when the status is already `closed`, and `append_notes` when the notes **contain** the text, so the **reason of a close is lost** if another writer closed the bead first. Both calls behave this way in 0.1 and 0.2. | Do not rely on `reason` being recorded for an already-closed bead (`already_closed` says so, when known). |
+| D5 | `cache health` is new in 0.2. It says `degraded` for an old pending entry and for an unresolved escalation (§6). | Read `cache.manage.health()` where 0.1 `status()` and `open_work()` were combined by hand. |
 
 ## 11. Versioning
 
@@ -673,7 +644,7 @@ unresolved escalation (§6), which `bd_cache.py` had no way to see.
 |---|---|
 | `envelope.version` | The sc-command envelope format (`"1"`), not this contract's version. |
 | `contract_version` | Semver, reported by `context`, `cache status` and `--version`. |
-| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs fenix's agreement. |
+| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs its consumers' agreement. |
 | **Covered in 1.0** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
 | **Not covered in 1.0** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
 | Breaking (major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
@@ -712,7 +683,7 @@ the MCP server:
 | Q3 | Idempotency key | **Approved (S60; agreed with fenix):** required on every front end, never derived (REQ-BDC-0004). |
 | Q4 | Partial success | **Approved (S60; agreed with fenix):** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
 | Q5 | Name of the extra member | **Approved (S60; agreed with fenix):** `x_cache`. |
-| Q6 | Default cache path | **Approved (S60; agreed with fenix):** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
+| Q6 | Default cache path | **Approved (S60; agreed with fenix):** `.bd-cache/`. The refusal for a file at another location was removed with ADR-BDC-0010 (sprint b-8); `cache_path` reaches such a file. |
 | Q7 | Request to sc-runtime | **Approved (S60; agreed with fenix):** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
 | Q8 | Approve ADR-BDC-0009 and the Appendix A amendments? | **Approved (S60).** |
 

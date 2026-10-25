@@ -184,8 +184,7 @@ Decision:
   timeout, a waiting call starts nothing, and both project locks (the mutex
   and the cross-process file, ADR-BDCLI-0006) are released by the call's
   normal return. It also sets the command's `StopFlag`: `cache tick` runs
-  `tick_with` and an `AtmSender::with_stop` on it, so the tick ends early and
-  an `atm` child is killed with its group.
+  `tick_with` on it, so the tick ends early.
 - The command then unwinds normally and writes its envelope (whatever it
   reports: a write already journaled is not hidden); the exit code is
   `128 + signal` (143 for SIGTERM), whatever the envelope says, with one line

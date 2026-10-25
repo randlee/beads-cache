@@ -21,19 +21,27 @@ Fixes from fenix's review of phase B (fix/fen-api, fix/fen-tick, fix/fen-py).
   `applied_at` column; there is no schema change.
 - **`cache refresh scopes --timeout-ms N`** (`timeout_ms`): each scope's sync
   deadline, which a hook that needs a bounded sync can set.
-- `docs/bd-cache-cli/cutover-runbook.md`: atm-bd's move from `bd_cache.py` to
-  bd-cache 0.2, with rollback and owners.
 - fix/fen-tick: _(placeholder: its lines are added by the lead.)_
 - fix/fen-py: _(placeholder: its lines are added by the lead.)_
 
+### Removed
+
+- The vendored compatibility suite of `bd-cache-store` and the call-log
+  fixtures of `bd-cache-py` (REQ-BDC-0804 amended). Their replacements are
+  neutral: a format golden of the exact v3 DDL plus the extensions
+  (`crates/bd-cache-store/tests/compat_format.rs`), and a 0.1 call corpus
+  generated against `fake-bd` (`crates/bd-cache-py/tests/call_corpus_0_1.json`).
+- `docs/baseline/BD-CACHE.md` and the cutover runbook (ADR-BDC-0010).
+
 ### Changed
 
+- CI runs `scripts/lint_no_atm.py` as "Strict consumer boundary
+  (ADR-BDC-0010)".
 - Contract §5.3 and §10: `changed` and `already_closed` are optional (omitted
   when unknown, S68); 0.2 `issues_list` excludes closed, template and gate
-  rows by default, unlike 0.1 `list`, and `all` includes them; a migration
-  table for a `bd_cache.py` caller (I1, I3, I4, I6, I10, M1, M2, M4); the
-  `[tick] identity`, `--identity`, `details.outage` and
-  `python -m bd_cache_rs.cron` names, which land in fix/fen-tick.
+  rows by default, unlike 0.1 `list`, and `all` includes them. Contract §10 is
+  now "0.1 → 0.2 API differences" (D1..D5) and names no consumer; the cutover
+  runbook is deleted (sprint b-8, ADR-BDC-0010).
 - The phase B plan's rulings table runs to S81.
 - A cut `refresh scopes` sync's message names the sync deadline in force, not
   always the per-call cap.

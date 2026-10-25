@@ -142,10 +142,7 @@ given; `USAGE` is JSON even then. A caught panic is `BD_CACHE.INTERNAL`.
 flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` > default. `--bd` is never
 read from TOML (a `bd` key there is ignored with a warning); `--format` comes
 from the flag only. `.beads/bd-cache.toml` is read from `<repo>/.beads/`,
-`metadata.json` from `$BEADS_DIR` when set. There is no upward search. The
-legacy `.atm-bd/<db>.bd-cache.sqlite3` with no `cache_path` and no default
-file is `CONFIG_INVALID` with `details.key: "cache_path"` and
-`details.legacy_path`. The merged configuration is opened through
+`metadata.json` from `$BEADS_DIR` when set. There is no upward search. The merged configuration is opened through
 `bd_cache_sync::compose_with_config`.
 
 **Refines:** REQ-BDC-0810, contract §2
