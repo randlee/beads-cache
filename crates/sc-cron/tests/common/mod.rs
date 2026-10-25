@@ -363,8 +363,8 @@ impl Fixture {
 
     /// A fixture whose worker reloads every `interval` while a disabled
     /// schedule exists.
-    pub fn with_disabled_poll(interval: Duration) -> Self {
-        Self::build(|scheduler| scheduler.with_disabled_poll(interval))
+    pub fn with_reload_poll(interval: Duration) -> Self {
+        Self::build(|scheduler| scheduler.with_reload_poll(interval))
     }
 
     fn build(configure: impl FnOnce(TestScheduler) -> TestScheduler) -> Self {

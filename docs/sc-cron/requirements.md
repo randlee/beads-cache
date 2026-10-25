@@ -275,19 +275,23 @@ next run is left as it was. A run in flight when the schedule is disabled is
 cancelled and records nothing. Enabling resumes the same schedule; a run that
 came due meanwhile counts as missed and is handled per the `MissedTickPolicy`
 (REQ-CRON-0004). The change reaches this scheduler's worker at once. A worker
-in another process, or on another scheduler, gets no signal, and notices as
-follows. A disable: its next tick, because `set_next` refuses a disabled
-schedule and a refused write makes the worker reload before it launches
-(REQ-CRON-0007). An enable: the worker keeps no slot for a disabled row, so
-nothing would wake it; instead, while its last reload saw an active disabled
-row (whether disabled by `set_enabled` or by a stop check), it reloads again
-every disabled-poll interval on the injected clock
-(`Scheduler::with_disabled_poll`, default `DEFAULT_DISABLED_POLL`, 30 s;
-values under 1 s are raised to 1 s). A re-enable made elsewhere is therefore
-noticed at most one interval after it is stored, and the reload rebuilds the
-slot (a run that came due meanwhile is handled per the `MissedTickPolicy`).
-With no disabled active row there is no poll. A new or restarted schedule is
-enabled, and a stop check can disable a schedule (REQ-CRON-0005).
+in another process, or on another scheduler, gets no signal, and a schedule it
+holds no slot for (new, disabled, ended) wakes nothing. So the worker reloads
+the active schedules at least once per reload-poll interval on the injected
+clock, whatever the rows are (`Scheduler::with_reload_poll`, default
+`DEFAULT_RELOAD_POLL`, 30 s; values under 1 s are raised to 1 s). A schedule
+started, restarted, enabled, disabled or stopped elsewhere is therefore
+noticed at most one interval after the change is stored: a started or
+restarted or re-enabled schedule gets its slot (a run that came due
+meanwhile is handled per the `MissedTickPolicy`), and a disabled, stopped or
+restarted-over schedule loses its slot and its run in flight is cancelled. A
+disable or stop is also noticed earlier if its next tick comes first, because
+`set_next` refuses a disabled or ended schedule and a refused write makes the
+worker reload before it launches (REQ-CRON-0007). The bound holds while the
+store can be read; a failed reload is retried with a backoff of 1 s doubling to
+60 s (REQ-CRON-0007). A reload is one `list_active` query that keeps every
+unchanged slot, so the poll costs one query per interval. A new or restarted
+schedule is enabled, and a stop check can disable a schedule (REQ-CRON-0005).
 
 **Constrained by:** REQ-CRON-0008 (the store reads no clock), REQ-CRON-0009
 (`SCHEMA_VERSION` 2)

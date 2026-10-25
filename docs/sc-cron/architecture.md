@@ -192,7 +192,7 @@ flight with its monotonic deadline. Each pass, checking for shutdown
 between slots:
 
 1. Reload from `list_active` if signalled (by `start`, `stop`,
-   `set_enabled` or a fenced write), a retry is due, or the disabled-row poll
+   `set_enabled` or a fenced write), a retry is due, or the reload poll
    is due. A disabled row gets no
    slot, so it never fires and a run in flight for it is cancelled. A slot
    whose `(id, generation)` is unchanged and still enabled is kept with its
@@ -205,14 +205,17 @@ between slots:
    `stop` or `disable` write a stop check asked for returns an error (not
    `false`), the slot is already dropped but the row is still active and
    enabled, so the worker schedules a reload and the row's slot comes back.
-   The disabled-row poll: a reload that finds an active, disabled row sets the
-   next reload due one interval later (`Scheduler::with_disabled_poll`, default
-   30 s, minimum 1 s, on the injected clock), as does a successful stop-check
-   `disable`; a reload that finds none clears it. Another process's
-   `set_enabled(true)` sends no signal and a disabled row has no slot, so
-   this poll is the only way the worker notices it, at most one interval after
-   the write. The poll adds the cost of one `list_active` per interval, and
-   only while a disabled row exists.
+   The reload poll: every successful reload sets the next reload due one
+   interval after the moment it began (`Scheduler::with_reload_poll`, default
+   30 s, minimum 1 s, on the injected clock), so the worker reloads at least
+   once per interval whatever the rows are, with no signal. A schedule
+   started, restarted, enabled, disabled or stopped by another process sends
+   no signal, and the worker holds no slot for a new, disabled or ended row,
+   so this poll is the only way it notices a start, restart or enable (and
+   the next tick's refused `set_next` is only a faster path for a disable or
+   stop). The change is noticed at most one interval after it is stored, while
+   the store can be read. The poll costs one `list_active` query per interval;
+   unchanged slots are kept with their runs in flight.
 2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,
    and record `TimedOut`.
 3. For each due slot: compute and store the next run (a fenced `set_next`
@@ -220,7 +223,7 @@ between slots:
    flight, skip it if missed under `Skip`, or launch it.
 4. Sleep on `Clock::sleep_until` until the earliest next run, run
    deadline (converted from monotonic to wall time), reload retry or
-   disabled-row poll, unless a reload signal, a finished run or shutdown comes
+   reload poll, unless a reload signal, a finished run or shutdown comes
    first.
 
 A launched run is its own task: the stop check, then `run` with the

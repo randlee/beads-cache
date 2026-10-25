@@ -139,4 +139,4 @@ pub use types::{
     ScheduleSpec, StopDecision,
 };
 #[doc(inline)]
-pub use worker::DEFAULT_DISABLED_POLL;
+pub use worker::DEFAULT_RELOAD_POLL;

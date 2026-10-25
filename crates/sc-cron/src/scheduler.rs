@@ -20,7 +20,7 @@ use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::limits::encode_payload;
-use crate::worker::{DEFAULT_DISABLED_POLL, MIN_DISABLED_POLL, Worker};
+use crate::worker::{DEFAULT_RELOAD_POLL, MIN_RELOAD_POLL, Worker};
 use crate::{
     Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
     ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
@@ -126,7 +126,7 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
 pub struct Scheduler<S: ScheduleStore, C: Clock, J: JitterSource> {
     core: Arc<Core<S, C, J>>,
     policy: MissedTickPolicy,
-    disabled_poll: Duration,
+    reload_poll: Duration,
     worker_live: Arc<AtomicBool>,
 }
 
@@ -149,7 +149,7 @@ where
                 reload: watch::channel(0).0,
             }),
             policy: MissedTickPolicy::default(),
-            disabled_poll: DEFAULT_DISABLED_POLL,
+            reload_poll: DEFAULT_RELOAD_POLL,
             worker_live: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -161,19 +161,22 @@ where
         self
     }
 
-    /// Sets how often a worker spawned after this call reloads while a
-    /// disabled schedule exists (REQ-CRON-0014).
+    /// Sets the longest a worker spawned after this call goes between
+    /// reloads of the active schedules (REQ-CRON-0014).
     ///
-    /// A schedule enabled by another process or scheduler sends this
-    /// scheduler's worker no signal, so the worker reloads on this interval
-    /// on the scheduler's clock for as long as the last reload saw a disabled
-    /// active schedule. A re-enable made elsewhere is therefore noticed at
-    /// most `interval` after it is stored. The default is
-    /// [`DEFAULT_DISABLED_POLL`] (30 s); an interval under one second is
-    /// raised to one second.
+    /// A schedule started, restarted, enabled, disabled or stopped by another
+    /// process or scheduler sends this scheduler's worker no signal, so the
+    /// worker reloads at least once per `interval` on the scheduler's clock,
+    /// whatever the rows are. Such a change is therefore noticed at most
+    /// `interval` after it is stored (a reload that fails is retried with a
+    /// backoff, so the bound holds while the store can be read). A disable or
+    /// stop is also noticed earlier, at the schedule's next tick. Each reload
+    /// is one `list_active` query, so the poll costs one query per interval.
+    /// The default is [`DEFAULT_RELOAD_POLL`] (30 s); an interval under one
+    /// second is raised to one second.
     #[must_use]
-    pub fn with_disabled_poll(mut self, interval: Duration) -> Self {
-        self.disabled_poll = interval.max(MIN_DISABLED_POLL);
+    pub fn with_reload_poll(mut self, interval: Duration) -> Self {
+        self.reload_poll = interval.max(MIN_RELOAD_POLL);
         self
     }
 
@@ -256,11 +259,10 @@ where
     /// handled per the [`MissedTickPolicy`]. A run in flight when it is
     /// disabled is cancelled and records nothing, as with
     /// [`Scheduler::stop`]. This scheduler's worker is told at once. A worker
-    /// in another process or on another scheduler is not told: it notices a
-    /// disable when its next tick finds the schedule disabled, and an enable
-    /// at its next reload, which happens at most
-    /// [`Scheduler::with_disabled_poll`] (default 30 s) after the write while
-    /// a disabled schedule exists. This calls the store synchronously; from
+    /// in another process or on another scheduler is not told: it notices the
+    /// change at its next reload, at most [`Scheduler::with_reload_poll`]
+    /// (default 30 s) after the write, or for a disable when its next tick
+    /// finds the schedule disabled, if that is sooner. This calls the store synchronously; from
     /// async code use [`Scheduler::set_enabled_async`].
     ///
     /// # Errors
@@ -303,10 +305,10 @@ where
     ///
     /// The worker loads the active schedules from the store, then sleeps on
     /// the clock until the next run, run deadline or reload signal. A failed
-    /// load is retried with a backoff of 1 s doubling to 60 s. While a
-    /// disabled schedule exists it also reloads every
-    /// [`Scheduler::with_disabled_poll`], so an enable made by another process
-    /// is noticed.
+    /// load is retried with a backoff of 1 s doubling to 60 s. It also
+    /// reloads at least once per [`Scheduler::with_reload_poll`] (default
+    /// 30 s), so a schedule started, restarted, enabled or stopped by another
+    /// process is noticed within that interval.
     ///
     /// Stop the worker with [`WorkerHandle::shutdown`] and await it: that is
     /// the only way to know in-flight outcomes were recorded before the
@@ -341,7 +343,7 @@ where
             Arc::clone(&self.core.clock),
             target,
             self.policy,
-            self.disabled_poll,
+            self.reload_poll,
             shutdown_rx,
         );
         let task = tokio::spawn(async move {

@@ -13,7 +13,7 @@ use std::time::Duration;
 
 use common::{Fixture, ScriptedJob, StopScript, name, shutdown, ts};
 use sc_cron::{
-    CronError, DEFAULT_DISABLED_POLL, HookTarget, RunOutcome, Schedule, ScheduleStore, StopDecision,
+    CronError, DEFAULT_RELOAD_POLL, HookTarget, RunOutcome, Schedule, ScheduleStore, StopDecision,
 };
 
 fn rust(job: &Arc<ScriptedJob>) -> HookTarget {
@@ -172,9 +172,10 @@ async fn disabling_while_the_worker_runs_stops_the_next_tick() {
 #[tokio::test]
 async fn a_disable_made_elsewhere_stops_the_next_tick() {
     // Another scheduler or process writes the flag straight to the store, so
-    // this worker gets no reload signal. The tick finds the schedule disabled
-    // when it stores the next run, and does not launch.
-    let fixture = Fixture::new();
+    // this worker gets no reload signal. The poll is set too long to matter, so
+    // the tick finds the schedule disabled when it stores the next run, and
+    // does not launch.
+    let fixture = Fixture::with_reload_poll(Duration::from_secs(3600));
     let job = Arc::new(ScriptedJob::new());
     let schedule = fixture.start(fixture.spec("elsewhere"));
     let worker = fixture.worker(rust(&job)).await;
@@ -237,10 +238,8 @@ async fn enable_made_elsewhere_resumes(fixture: &Fixture, bound: Duration) {
             .set_enabled(&schedule.spec.name, false)
             .expect("disable")
     );
-    // The next tick finds the row disabled and the worker drops its slot.
-    fixture.step(60).await;
-    fixture.store.wait_next_refused(&schedule).await;
-    fixture.step(180).await;
+    // The poll finds the row disabled and the worker drops its slot.
+    fixture.step(240).await;
     assert_eq!(job.runs(), 1, "a disabled row does not fire");
 
     assert!(
@@ -262,13 +261,13 @@ async fn enable_made_elsewhere_resumes(fixture: &Fixture, bound: Duration) {
 
 #[tokio::test]
 async fn an_enable_made_elsewhere_is_noticed_within_the_default_poll() {
-    enable_made_elsewhere_resumes(&Fixture::new(), DEFAULT_DISABLED_POLL).await;
+    enable_made_elsewhere_resumes(&Fixture::new(), DEFAULT_RELOAD_POLL).await;
 }
 
 #[tokio::test]
 async fn an_enable_made_elsewhere_is_noticed_within_a_configured_poll() {
     let bound = Duration::from_secs(10);
-    enable_made_elsewhere_resumes(&Fixture::with_disabled_poll(bound), bound).await;
+    enable_made_elsewhere_resumes(&Fixture::with_reload_poll(bound), bound).await;
 }
 
 #[tokio::test]
@@ -290,7 +289,7 @@ async fn an_enable_made_elsewhere_resumes_a_row_the_stop_check_disabled() {
     );
     // The poll finds the row enabled; its next run is the following minute.
     fixture
-        .step(i64::try_from(DEFAULT_DISABLED_POLL.as_secs()).expect("bound"))
+        .step(i64::try_from(DEFAULT_RELOAD_POLL.as_secs()).expect("bound"))
         .await;
     fixture.step(60).await;
     job.wait_runs(1).await;
