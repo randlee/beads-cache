@@ -156,6 +156,14 @@ fn a_guard_miss_escalates_at_flush() {
     assert_eq!(e["seq"], g, "{flush}");
     assert_eq!(e["op"], "update");
     assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
+    // The drain's own check refused it, not bd's --if-status (QA RCR-003).
+    assert!(
+        e["reason"]["message"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("at drain time"),
+        "the drain's guard check, not bd, refused it: {e}"
+    );
     assert_eq!(e["actor"], "dev");
     assert_eq!(e["scope"], "phase-x");
     assert_eq!(flush["applied"], json!([]));
