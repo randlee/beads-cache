@@ -1,6 +1,7 @@
 # Phase B — bdc CLI, bd-cache-api, Python 0.2, release channels
 
-Status: complete (2026-10-25). All six sprints merged into
+Status: b-1..b-5 complete (2026-10-25); b-6..b-8 planned (boundary amendment, Rand's rulings of
+2026-10-25, see below). The original six sprints merged into
 `integrate/phase-b` after QA and CI were green: b-1 #75, b-2 #76, b-3a #74,
 b-3 #78, b-4 #77, b-5 #80. The stable 0.2.0 release and its channel
 dispatches wait for randlee/sc-publish#135 and P-6.
@@ -71,9 +72,15 @@ the workspace-edge check cannot see.
 | [b-3](sprint-b-3-cli.md) | integration | `bd-cache-cli` | 2 | cli | b-1, b-2, b-3a |
 | [b-4](sprint-b-4-python-0-2.md) | integration | `bd-cache-py` 0.2 | 2 | python | b-1, b-2 |
 | [b-5](sprint-b-5-release-channels.md) | integration | release manifest and channels | 3 | release | b-3, b-4 |
+| [b-6](sprint-b-6-sc-cron.md) | boundary | `sc-cron` | 4 | core | — |
+| [b-7](sprint-b-7-sync-job.md) | integration | `bd-cache-sync` sync job, scopes, hooks | 5 | core | b-6 |
+| [b-8](sprint-b-8-boundary.md) | integration | repository boundary and lint gate | 4 (merges last) | docs | — |
 
 - Width: 3 in wave 1 (b-1, b-2, b-3a), 2 in wave 2 (b-3, b-4), 1 in wave 3.
 - Critical path: b-1 → b-3 → b-5.
+- Boundary amendment (2026-10-25): b-6 and b-8 run in parallel, b-7 follows b-6, and b-8 merges
+  last. Each sprint is gated by the plan anchors in `doc/plan/phase-current/anchors.json` on
+  develop. Finished sprints b-1..b-5 are excluded from anchors whose work moved to b-6..b-8.
 - b-2 codes against b-1's Public contract from day one. It merges to
   `integrate/phase-b` after b-1, and its write, journal and status
   operations are wired once b-1 has merged.
