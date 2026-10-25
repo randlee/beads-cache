@@ -76,13 +76,6 @@ pub(crate) struct Settings {
     pub(crate) repo: PathBuf,
     /// The merged configuration.
     pub(crate) config: RepoConfig,
-    /// `.beads/bd-cache.toml` as read, before env and flag overrides (an
-    /// injected invoker, feature `fake-bd`, compares it with `config`).
-    #[cfg_attr(
-        not(feature = "fake-bd"),
-        expect(dead_code, reason = "read only by the fake-bd invoker seam")
-    )]
-    pub(crate) file_config: RepoConfig,
     /// The bd binary.
     pub(crate) bd: String,
     /// `$BEADS_DIR` from the given environment.
@@ -103,8 +96,7 @@ pub(crate) struct Settings {
 /// `NO_DATABASE` when `metadata.json` cannot be read.
 pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<Settings, ApiError> {
     let repo = repo_root(flags, env)?;
-    let file_config = read_toml(&repo)?;
-    let mut config = file_config.clone();
+    let mut config = read_toml(&repo)?;
     apply_env(&mut config, env)?;
     if let Some(p) = &flags.cache_path {
         config.cache_path = Some(PathBuf::from(p));
@@ -133,7 +125,6 @@ pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<S
     Ok(Settings {
         repo,
         config,
-        file_config,
         bd,
         beads_dir_env,
         location,

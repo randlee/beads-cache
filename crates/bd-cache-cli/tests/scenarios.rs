@@ -107,10 +107,14 @@ fn an_outage_during_a_write() {
     );
 }
 
-/// Acceptance 6: a close bd refuses (`not_closable`; over the bd CLI a refused
-/// close is exit 13) and a guard that no longer holds each escalate at flush;
-/// `cache flush` lists both in `escalated[]`, and `journal get` shows
-/// `last_error.code` with no note.
+/// Acceptance 6: a close bd refuses and a guard that no longer holds each
+/// escalate at flush; `cache flush` lists both in `escalated[]`, and
+/// `journal get` shows `last_error.code` with no note.
+///
+/// Over the bd CLI a refused close is exit 13, which sc-bd-cli maps to
+/// `precondition_failed`, so it escalates as `BD_CACHE.PRECONDITION`; only an
+/// HTTP backend can report `not_closable` itself (lead ruling S69, contract
+/// §5.4).
 #[test]
 fn an_escalation_at_flush() {
     let repo = synced();

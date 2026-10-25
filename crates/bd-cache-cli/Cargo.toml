@@ -20,7 +20,7 @@ fake-bd = ["sc-bd-cli/test-support", "sc-beads/testing"]
 bd-cache-api.workspace = true
 bd-cache-model.workspace = true
 bd-cache-store.workspace = true
-bd-cache-sync = { path = "../bd-cache-sync" }
+bd-cache-sync.workspace = true
 clap.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true

@@ -131,6 +131,24 @@ impl World {
         )
     }
 
+    /// As [`World::run`], with `env` as the environment.
+    fn run_env(&self, args: &[&str], env: &[(&str, &str)]) -> (i32, String) {
+        let root = self.root();
+        let mut full = vec!["--repo".to_owned(), root.to_str().unwrap().to_owned()];
+        full.extend(args.iter().map(|a| (*a).to_owned()));
+        let env: BTreeMap<String, String> = env
+            .iter()
+            .map(|(k, v)| ((*k).to_owned(), (*v).to_owned()))
+            .collect();
+        let clock: Arc<dyn Clock> = Arc::clone(&self.clock) as Arc<dyn Clock>;
+        bd_cache_cli::run(
+            &full,
+            &env,
+            Some(Box::new(FakeBd::over(self.bd.clone()))),
+            clock,
+        )
+    }
+
     /// `/repo` in an expected string is this world's repository root.
     fn localize(&self, want: &Value) -> Value {
         match want {
@@ -364,4 +382,48 @@ fn every_contract_command_has_an_argv_step() {
             assert_eq!(words.join(" "), command, "{s}");
         }
     }
+}
+
+/// Lead ruling S72: with an injected invoker, env and flag overrides apply
+/// exactly as with the configured bd. An env `CACHE_PATH` and then a
+/// `--cache-path` flag each put the cache file where they name, and the file
+/// `.beads/bd-cache.toml` would give is never created.
+#[test]
+fn overrides_apply_through_an_injected_invoker() {
+    let w = World::new(&json!({"world": {"beads": [{"id": "bd-1"}]}}));
+    let refresh = ["cache", "refresh", "scopes", "x"];
+
+    let (exit, out) = w.run_env(
+        &refresh,
+        &[("BD_CACHE__CACHE_PATH", ".bd-cache/from-env.sqlite3")],
+    );
+    assert_eq!(exit, 0, "{out}");
+    assert!(
+        w.root().join(".bd-cache/from-env.sqlite3").exists(),
+        "{out}"
+    );
+
+    let mut args = vec!["--cache-path", ".bd-cache/from-flag.sqlite3"];
+    args.extend(refresh);
+    let (exit, out) = w.run_env(
+        &args,
+        &[("BD_CACHE__CACHE_PATH", ".bd-cache/from-env.sqlite3")],
+    );
+    assert_eq!(exit, 0, "{out}");
+    assert!(
+        w.root().join(".bd-cache/from-flag.sqlite3").exists(),
+        "{out}"
+    );
+
+    let mut entries: Vec<String> = std::fs::read_dir(w.root().join(".bd-cache"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|n| n.ends_with(".sqlite3"))
+        .collect();
+    entries.sort();
+    assert_eq!(
+        entries,
+        ["from-env.sqlite3", "from-flag.sqlite3"],
+        "only the overridden cache files exist"
+    );
 }

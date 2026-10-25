@@ -243,7 +243,8 @@ pub fn compose_with_config(
 enum Config {
     /// `.beads/bd-cache.toml`, loaded after `$BEADS_DIR` is validated.
     Load,
-    /// Merged by the caller ([`compose_with_config`]).
+    /// Merged by the caller ([`compose_with_config`],
+    /// [`compose_with_config_and_backend`]).
     Given(Box<RepoConfig>),
 }
 
@@ -307,6 +308,38 @@ pub fn compose_with(
     compose_with_override(
         repo_root,
         Config::Load,
+        backend,
+        locks,
+        clock,
+        BeadsDirOverride::new(beads_dir_env),
+    )
+}
+
+/// As [`compose_with`], with a configuration the caller has already merged,
+/// as [`compose_with_config`] takes one (lead ruling S72).
+///
+/// For a front end with its own overrides that also brings its own `BdCli`
+/// (bdc's in-process tests over a fake `bd`): `.beads/bd-cache.toml` is not
+/// read, and `config` is used as given, so a caller that merged overrides
+/// into it validates the result first ([`RepoConfig::validate`]). Everything
+/// else is as [`compose_with`]: the caller's lock set, the backend rebound to
+/// `clock`, and `$BEADS_DIR` validated once for the store and every child.
+///
+/// # Errors
+///
+/// As [`compose_with`], except that [`ComposeError::Config`] is never
+/// returned: the configuration is not loaded here.
+pub fn compose_with_config_and_backend(
+    repo_root: &Path,
+    config: RepoConfig,
+    backend: impl FnOnce(Arc<ProjectLocks>) -> BdCli,
+    locks: Arc<ProjectLocks>,
+    clock: Arc<dyn Clock>,
+    beads_dir_env: Option<&OsStr>,
+) -> Result<Composed, ComposeError> {
+    compose_with_override(
+        repo_root,
+        Config::Given(Box::new(config)),
         backend,
         locks,
         clock,
@@ -500,6 +533,48 @@ mod tests {
         assert_eq!(
             composed.tick.phases_dir.as_deref(),
             Some(root.path().join("phases").as_path())
+        );
+    }
+
+    /// `compose_with_config_and_backend` uses the configuration it is given,
+    /// never `.beads/bd-cache.toml` (here a file that does not parse), and
+    /// builds the backend from the caller's lock set (lead ruling S72).
+    #[test]
+    fn compose_with_config_and_backend_uses_the_given_configuration_and_backend() {
+        let root = repo();
+        std::fs::write(
+            root.path().join(".beads/bd-cache.toml"),
+            "cache_path = \".bd-cache/from-file.sqlite3\"\nnot toml [\n",
+        )
+        .unwrap();
+        let config = RepoConfig {
+            cache_path: Some(".bd-cache/merged.sqlite3".into()),
+            scopes: vec!["phase-bk".into()],
+            ..RepoConfig::default()
+        };
+        let locks = Arc::new(ProjectLocks::new());
+        let mut given = None;
+        let composed = compose_with_config_and_backend(
+            root.path(),
+            config,
+            |l| {
+                given = Some(Arc::clone(&l));
+                BdCli::new("bd", l)
+            },
+            Arc::clone(&locks),
+            Arc::new(SystemClock),
+            None,
+        )
+        .unwrap();
+        assert!(
+            Arc::ptr_eq(&given.unwrap(), &locks),
+            "the caller's lock set"
+        );
+        assert_eq!(composed.name, "merged.sqlite3");
+        assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
+        assert_eq!(
+            composed.cache.config().scopes,
+            [bd_cache_model::ScopeId::phase("bk").unwrap()]
         );
     }
 

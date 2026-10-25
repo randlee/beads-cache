@@ -98,6 +98,10 @@ default.
   `<repo>/.beads/`. `metadata.json` is read from `$BEADS_DIR` when that is
   set, and from `<repo>/.beads/` otherwise. This is how `load_repo_config`
   and the store behave today.
+- **A `bd` key in the TOML.** `.beads/bd-cache.toml` is read by
+  `load_repo_config`'s rules, with the same `store_config_*` codes, except
+  that a `bd` key is dropped with a warning on stderr instead of refused as
+  unknown. `bd` is therefore never taken from the TOML (lead ruling S70).
 - **No upward search.** bd searches parent directories for `.beads`; bdc
   deliberately does not. Hooks run with an explicit cwd and the bindings do
   not search either, so the same command always opens the same file.
@@ -178,7 +182,7 @@ the table leaves out. † marks a new code.
 | `BAD_ARGS` | invalid_input | 3 | no | `invalid_argument` | Also an unknown member (`details.member`), and a bad cursor (`v0_code: invalid_cursor`). |
 | `BAD_PRECONDITION` | invalid_input | 3 | no | `invalid_argument` | An invalid guard. |
 | `UNSUPPORTED` † | invalid_input | 3 | no | `invalid_argument` (`v0_reason: unknown_parameter` for a parameter or member) | `details.unsupported` names the kind. The suggested action is to call bd or bd serve directly. |
-| `CONFIG_INVALID` † | invalid_input | 3 | no | — | `details.source` keeps the underlying code: `store_config_*`, `sync_config_*`, `sync_beads_dir_unresolvable` or `sync_repo_root_not_utf8`. |
+| `CONFIG_INVALID` † | invalid_input | 3 | no | — | `details.source` keeps the underlying code: `store_config_*`, `sync_config_*`, `sync_beads_dir_unresolvable` or `sync_repo_root_not_utf8`. bdc's own cases (S71): `bdc_env_invalid` for a `BD_CACHE__*` value that does not parse, and `bdc_legacy_cache_file` for the legacy file (§2). |
 | `BAD_OP` | invalid_input | 3 | no | `invalid_argument` | Only the binding's old `write` verb returns it; the CLI never does. |
 | `NOT_FOUND` | not_found | 3 | no | `not_found` | Neither the cache nor bd has the bead, or no such entry exists. |
 | `NO_DATABASE` | not_found | 3 | no | — | |
@@ -345,7 +349,7 @@ differences are:
 | listIssues | The default `limit` is no limit inside a scope, where `/v0`'s is 50. Infra types are not excluded. Parameters other than the mapped ones are `UNSUPPORTED`. |
 | listReadyWork | The default `limit` is no limit inside a scope, where `/v0`'s is 100. Only `sort=priority` is accepted. Membership comes from the bd CLI plus the local adjustment. Parameters that are not mapped are `UNSUPPORTED`. |
 | updateIssue | Journaled. `revision` (required) is absent. `changed` is a prediction. `status: closed` is refused. |
-| closeIssue | Journaled. `open_children` and `revision` (both required) are absent. Extra guards are accepted. `not_closable` appears only at flush. |
+| closeIssue | Journaled. `open_children` and `revision` (both required) are absent. Extra guards are accepted. `not_closable` appears only at flush, and only from an HTTP backend: over the bd CLI a refused close is exit 13 (`precondition_failed`), so it escalates as `BD_CACHE.PRECONDITION` (lead ruling S69). |
 | addDependencies | Exactly one edge per request, journaled. |
 | listDependencies | `Dependency.created_at` is absent (it is required; [L6855-6876][r-dep]), because the cached edge does not carry it. |
 | getContext | `api_version`, `schema_version`, `backend` and `dolt_mode` (all required) are absent. `bd_version` (required) is absent until the first fingerprint. |
@@ -470,7 +474,7 @@ is configured. `details.known` lists the served scopes.
 |---|---|
 | In process | `bd_cache_cli::run(argv, env, invoker, clock) -> (exit, stdout)`. Shared fixtures (a request JSON and the envelope it must produce) run through `run`. The MCP-handler parity run is added with the MCP server. |
 | Real process | A `fake-bd` executable over sc-bd-cli's stateful `FakeBd`, with state seeded from a scenario file and a fixed clock. The binary tests and the NFR-BDC-0002 latency check use it. |
-| Named negative scenarios | an outage during a write; an escalation at flush (`not_closable`, and a guard miss); a partial `refresh scopes`; `fresh_within` running out; a schema change (rebuild); `WRONG_DATABASE`; a retry after a lost reply with the same key (a duplicate, then `journal get --idempotency-key`) |
+| Named negative scenarios | an outage during a write; an escalation at flush (a refused close, which over the bd CLI is `PRECONDITION` (S69, §5.4), and a guard miss); a partial `refresh scopes`; `fresh_within` running out; a schema change (rebuild); `WRONG_DATABASE`; a retry after a lost reply with the same key (a duplicate, then `journal get --idempotency-key`) |
 | Live bd | The testbed and the bd-compat workflow only. |
 
 ## 9. Ownership: the `bd-cache-api` crate

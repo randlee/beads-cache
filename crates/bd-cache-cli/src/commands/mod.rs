@@ -104,9 +104,8 @@ fn compose_error(e: &ComposeError) -> ApiError {
 /// `compose_with_config`, with the configured `bd`.
 ///
 /// An injected `invoker` (an in-process test's fake bd) is composed with
-/// `compose_with`, which reads `.beads/bd-cache.toml` itself; a configuration
-/// that env or flag overrides changed is refused there rather than silently
-/// not applied.
+/// `compose_with_config_and_backend` over the same merged configuration, so
+/// env and flag overrides apply on both paths (lead ruling S72).
 fn open(
     settings: &Settings,
     invoker: Option<Box<dyn CliInvoker>>,
@@ -132,14 +131,9 @@ fn open_with_invoker(
     invoker: Box<dyn CliInvoker>,
     clock: Arc<dyn Clock>,
 ) -> Result<Composed, ApiError> {
-    if settings.config != settings.file_config {
-        return Err(ApiError::internal(
-            "an injected bd invoker opens .beads/bd-cache.toml as written; env and flag \
-             overrides of its keys need the configured bd",
-        ));
-    }
-    bd_cache_sync::compose_with(
+    bd_cache_sync::compose_with_config_and_backend(
         &settings.repo,
+        settings.config.clone(),
         |_locks| sc_bd_cli::BdCli::with_invoker(invoker),
         Arc::new(sc_bd_cli::ProjectLocks::new()),
         clock,

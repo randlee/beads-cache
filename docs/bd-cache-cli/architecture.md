@@ -131,7 +131,8 @@ Consequences: a request member the decoder learns is a flag with one row;
 Context: contract §2 needs `BD_CACHE__*` env overrides and flags over
 `.beads/bd-cache.toml`, never reads `bd` from the file, and refuses the
 legacy file. b-1 added `bd_cache_sync::compose_with_config` for a merged
-configuration.
+configuration; b-3 adds `compose_with_config_and_backend` for a merged
+configuration with a caller's backend (S72).
 
 Decision:
 
@@ -146,18 +147,18 @@ Decision:
   opened through `compose_with_config` with `$BEADS_DIR` from the given
   environment. `ComposeError` maps through `ApiError::config_invalid` (or the
   cache error's own code).
-- An injected `invoker` (`run`'s test seam, feature `fake-bd`) is opened with
-  `compose_with`, which takes a backend but loads the TOML itself; a
-  configuration changed by env or flags is refused there (`INTERNAL`), never
-  silently not applied. `compose_with_config` takes no backend, so this is
-  the one path that does not use it.
+- An injected `invoker` (`run`'s test seam, feature `fake-bd`) is opened
+  with `compose_with_config_and_backend` over the same merged configuration
+  (lead ruling S72), so env and flag overrides apply on both paths; the test
+  `overrides_apply_through_an_injected_invoker` (`tests/fixtures.rs`) holds
+  that.
 - `--help` reads whether stdout is a terminal from `run_with`'s `Stdout`;
   `run` answers as for a pipe, so in-process tests do not depend on the
   terminal they run in.
 
-Consequences: a bd-cache-sync function that takes both a merged
-configuration and a backend would let the in-process seam apply overrides
-too.
+Consequences: the configuration a command opens never depends on whether
+its `bd` is the configured binary or an injected one. The ruled decisions
+are also recorded in the contract (S69 in §5.4, S70 in §2, S71 in §4).
 
 ### The scenario file
 
