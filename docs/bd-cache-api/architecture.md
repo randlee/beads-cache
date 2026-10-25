@@ -8,8 +8,8 @@ ADR-BDC-0009 and [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md).
 | Module | Holds |
 |---|---|
 | `request/{beads,manage}.rs` | One typed request per command of contract §5.3 and §6 (not `cache tick`), with schemars schemas; `Command`, `Request` |
-| `decode.rs` | `decode(command, json)`: the one decoder (REQ-API-0001, 0002); `NOT_SERVED_OPERATIONS` |
-| `ops/{beads,manage}.rs` | One function per command over `&mut Cache<S, L, B>`, returning `Result<Data, ApiError>`; `execute`; `CacheFacts` |
+| `decode.rs` | `decode(command, json)`: the one decoder and the only constructor of a `Request` (REQ-API-0001, 0002) |
+| `ops/{beads,manage}.rs` | One crate-private function per command over `&mut Cache<S, L, B>`, returning `Result<Data, ApiError>`; the public `execute`; `CacheFacts` |
 | `filter.rs` | Scope selection and the list and ready filters (REQ-API-0004) |
 | `page.rs` | The two total orders and the keyset cursor (REQ-API-0003) |
 | `v0.rs` | `/v0` patch ↔ stored BD-CACHE args (REQ-API-0006) |
@@ -31,7 +31,11 @@ helpers that name the member on failure. `null` is the same as absent.
 
 **Consequences.** The per-command lists are the single statement of what the
 cache serves; adding a member is one edit there. Request types do not
-implement `Deserialize`.
+implement `Deserialize`, have crate-private fields with read accessors, and
+cannot be built outside the crate, so `decode` is the only constructor and
+`execute` the only public operation (QA RCR-001). An unused list of
+unserved operation names was removed: its names did not match contract
+§5.4, and a front end, which owns its command names, maps them itself.
 
 ## ADR-API-0002: The cursor carries a checksum
 

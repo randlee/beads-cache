@@ -343,3 +343,20 @@ fn the_error_serializes_as_the_envelope_error() {
     assert_eq!(v, e.to_json());
     assert_eq!(v["kind"], "invalid_input");
 }
+
+#[test]
+fn an_operation_the_cache_does_not_serve_is_unsupported_operation() {
+    // A front end maps a /v0 operation it does not offer (contract §5.4).
+    let e = ApiError::unsupported(bd_cache_api::Unsupported::Operation, "createIssue");
+    assert_eq!(
+        (e.code(), e.kind()),
+        ("BD_CACHE.UNSUPPORTED", ErrorKind::InvalidInput)
+    );
+    assert_eq!(e.details()["unsupported"], "operation");
+    assert_eq!(e.details()["name"], "createIssue");
+    assert!(
+        e.details().get("v0_reason").is_none(),
+        "v0_reason is for parameters and members"
+    );
+    assert_eq!(e.suggested_action(), Some("call bd or bd serve directly"));
+}

@@ -376,7 +376,7 @@ reason ready parity is stated against the released CLI.
 | Command | Core verb | Old verb | Mutates |
 |---|---|---|---|
 | `cache status` | `status` + **new** `journal_counts()` | `status` | no |
-| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no |
+| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no; **yes with `--probe`** (store): it records bd's fingerprint, a changed schema rebuilds the cache (cached rows dropped, journal kept), and an unreachable bd is recorded as an outage |
 | `cache scopes` | `status().phases` + config + `sync_alert` per scope (N store reads, no bd) | (in `status`) | no |
 | `cache refresh scopes [S…]` | `sync` per scope; with no S, every known scope | `sync` | store |
 | `cache refresh issues ID…` | `refresh(ids)` (REQ-BDC-0907) | — | store |

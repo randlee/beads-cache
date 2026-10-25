@@ -1,8 +1,10 @@
 //! The operations: one function per command over `&mut Cache<S, L, B>` (contract §9).
 //!
 //! Each returns its command's `data` or an [`ApiError`]; a front end wraps
-//! the value without reshaping it (contract §8). [`execute`] dispatches a
-//! decoded [`Request`].
+//! the value without reshaping it (contract §8). The functions are
+//! crate-private: the only public entry is [`execute`], which takes a
+//! [`Request`] that only [`decode`](crate::decode) can build, so every front
+//! end's input passes the decoder's validation (REQ-API-0001).
 //!
 //! The writes go through `write_returning`, one store transaction that
 //! returns the entry and the views before and after (REQ-BDC-0809);
@@ -21,13 +23,11 @@ use crate::data::Data;
 use crate::error::ApiError;
 use crate::request::Request;
 
-#[doc(inline)]
-pub use beads::{
+pub(crate) use beads::{
     context, dependencies_add, dependencies_list, issues_close, issues_get, issues_list,
     issues_update, ready,
 };
-#[doc(inline)]
-pub use manage::{
+pub(crate) use manage::{
     cache_evict, cache_flush, cache_health, cache_refresh_issues, cache_refresh_scopes,
     cache_scopes, cache_status, journal_announce, journal_get, journal_list, journal_resolve,
 };
@@ -70,16 +70,16 @@ pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Request::DependenciesAdd(r) => Data::DependenciesAdd(dependencies_add(cache, r)?),
         Request::Context(_) => Data::Context(context(cache, facts)?),
         Request::CacheStatus(_) => Data::CacheStatus(cache_status(cache, facts)?),
-        Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, r)?),
+        Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, *r)?),
         Request::CacheScopes(_) => Data::CacheScopes(cache_scopes(cache)?),
         Request::CacheRefreshScopes(r) => Data::CacheRefreshScopes(cache_refresh_scopes(cache, r)?),
         Request::CacheRefreshIssues(r) => Data::CacheRefreshIssues(cache_refresh_issues(cache, r)?),
         Request::CacheFlush(r) => Data::CacheFlush(cache_flush(cache, r)?),
         Request::CacheEvict(r) => Data::CacheEvict(cache_evict(cache, r)?),
         Request::JournalGet(r) => Data::JournalGet(journal_get(cache, r)?),
-        Request::JournalList(r) => Data::JournalList(journal_list(cache, r)?),
+        Request::JournalList(r) => Data::JournalList(journal_list(cache, *r)?),
         Request::JournalResolve(r) => Data::JournalResolve(journal_resolve(cache, r)?),
-        Request::JournalAnnounce(r) => Data::JournalAnnounce(journal_announce(cache, r)?),
+        Request::JournalAnnounce(r) => Data::JournalAnnounce(journal_announce(cache, *r)?),
     })
 }
 

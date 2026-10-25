@@ -27,7 +27,7 @@ use crate::request::{IssuePatch, MetadataPatch};
 /// let req = serde_json::json!({"id": "b1", "actor": "san", "idempotency_key": "k",
 ///     "patch": {"metadata": {"set": {"k": "v"}, "unset": ["old"]}}});
 /// let Ok(Request::IssuesUpdate(u)) = decode(Command::IssuesUpdate, &req) else { panic!() };
-/// assert_eq!(patch_args(&u.patch),
+/// assert_eq!(patch_args(u.patch()),
 ///     serde_json::json!({"set_metadata": {"k": "v"}, "unset_metadata": ["old"]}));
 /// ```
 #[must_use]

@@ -16,8 +16,15 @@ members are reported before unsupported ones. An empty patch and
 `status: "closed"` are `BAD_ARGS`; a patch is validated as the journal parses
 it (`Op::parse_new`).
 
+Decode, then `execute`, is the only path: `Request` and its per-command
+structs have crate-private fields (read through accessors), the unit
+requests are `#[non_exhaustive]`, and the per-command operations are
+crate-private, so no front end can build or alter a request the decoder did
+not check (QA RCR-001). Operation-level `UNSUPPORTED` is left to the front
+end, which builds it with `ApiError::unsupported(Unsupported::Operation, name)`.
+
 **Refines:** REQ-BDC-0807
-**Acceptance evidence:** `decode_refusals` (`tests/fixtures.rs`, fixture `decode_refusals.json`).
+**Acceptance evidence:** `decode_refusals` (`tests/fixtures.rs`, fixture `decode_refusals.json`); the `compile_fail` doctests in `src/lib.rs` (a literal `IssuesUpdate`, a field changed after decoding, `ops::issues_update`); `an_operation_the_cache_does_not_serve_is_unsupported_operation` (`tests/error_table.rs`).
 
 ## REQ-API-0002: The idempotency key is required, never derived
 

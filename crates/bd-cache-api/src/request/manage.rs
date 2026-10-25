@@ -6,17 +6,27 @@ use schemars::JsonSchema;
 
 /// `cache status`: no members.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[non_exhaustive]
 pub struct CacheStatus;
 
 /// `cache health [--probe]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 pub struct CacheHealth {
     /// Also run the backend check (fingerprint and the rebuild rule).
-    pub probe: bool,
+    pub(crate) probe: bool,
+}
+
+impl CacheHealth {
+    /// Also run the backend check (fingerprint and the rebuild rule).
+    #[must_use]
+    pub fn probe(&self) -> bool {
+        self.probe
+    }
 }
 
 /// `cache scopes`: no members.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[non_exhaustive]
 pub struct CacheScopes;
 
 /// `cache refresh scopes [S…]`.
@@ -24,7 +34,15 @@ pub struct CacheScopes;
 pub struct CacheRefreshScopes {
     /// The scopes to sync, in request order; empty syncs every known scope.
     #[schemars(with = "Vec<String>")]
-    pub scopes: Vec<ScopeId>,
+    pub(crate) scopes: Vec<ScopeId>,
+}
+
+impl CacheRefreshScopes {
+    /// The scopes to sync, in request order; empty syncs every known scope.
+    #[must_use]
+    pub fn scopes(&self) -> &[ScopeId] {
+        &self.scopes
+    }
 }
 
 /// `cache refresh issues ID…`.
@@ -32,18 +50,46 @@ pub struct CacheRefreshScopes {
 pub struct CacheRefreshIssues {
     /// The beads to re-read from bd (nonempty).
     #[schemars(with = "Vec<String>")]
-    pub ids: Vec<BeadId>,
+    pub(crate) ids: Vec<BeadId>,
     /// The read's timeout; absent takes the configured miss-fill timeout.
-    pub timeout_ms: Option<u64>,
+    pub(crate) timeout_ms: Option<u64>,
+}
+
+impl CacheRefreshIssues {
+    /// The beads to re-read from bd (nonempty).
+    #[must_use]
+    pub fn ids(&self) -> &[BeadId] {
+        &self.ids
+    }
+
+    /// The read's timeout; absent takes the configured miss-fill timeout.
+    #[must_use]
+    pub fn timeout_ms(&self) -> Option<u64> {
+        self.timeout_ms
+    }
 }
 
 /// `cache flush [--start-gate-ms N] [--deadline-ms M]`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
 pub struct CacheFlush {
     /// No entry starts after this many milliseconds (default 25,000).
-    pub start_gate_ms: u64,
+    pub(crate) start_gate_ms: u64,
     /// No bd call runs past this many milliseconds (default 28,000; above `start_gate_ms`).
-    pub deadline_ms: u64,
+    pub(crate) deadline_ms: u64,
+}
+
+impl CacheFlush {
+    /// No entry starts after this many milliseconds (default 25,000).
+    #[must_use]
+    pub fn start_gate_ms(&self) -> u64 {
+        self.start_gate_ms
+    }
+
+    /// No bd call runs past this many milliseconds (default 28,000; above `start_gate_ms`).
+    #[must_use]
+    pub fn deadline_ms(&self) -> u64 {
+        self.deadline_ms
+    }
 }
 
 impl CacheFlush {
@@ -58,7 +104,15 @@ impl CacheFlush {
 pub struct CacheEvict {
     /// The scope to prune.
     #[schemars(with = "String")]
-    pub scope: ScopeId,
+    pub(crate) scope: ScopeId,
+}
+
+impl CacheEvict {
+    /// The scope to prune.
+    #[must_use]
+    pub fn scope(&self) -> &ScopeId {
+        &self.scope
+    }
 }
 
 /// How `cache journal get` names its entry.
@@ -75,7 +129,15 @@ pub enum JournalKey {
 pub struct JournalGet {
     /// The entry (`seq` or `idempotency_key` on the wire; exactly one).
     #[schemars(with = "String")]
-    pub key: JournalKey,
+    pub(crate) key: JournalKey,
+}
+
+impl JournalGet {
+    /// The entry (`seq` or `idempotency_key` on the wire; exactly one).
+    #[must_use]
+    pub fn key(&self) -> &JournalKey {
+        &self.key
+    }
 }
 
 /// The states `cache journal list` serves.
@@ -93,9 +155,23 @@ pub enum JournalListState {
 pub struct JournalList {
     /// The state listed (`applied` and `resolved` are `UNSUPPORTED`).
     #[schemars(with = "Option<String>")]
-    pub state: JournalListState,
+    pub(crate) state: JournalListState,
     /// Only the escalations not yet announced.
-    pub unannounced: bool,
+    pub(crate) unannounced: bool,
+}
+
+impl JournalList {
+    /// The state listed (`applied` and `resolved` are `UNSUPPORTED`).
+    #[must_use]
+    pub fn state(&self) -> JournalListState {
+        self.state
+    }
+
+    /// Only the escalations not yet announced.
+    #[must_use]
+    pub fn unannounced(&self) -> bool {
+        self.unannounced
+    }
 }
 
 /// `cache journal resolve <seq> --note T --actor A`.
@@ -103,12 +179,32 @@ pub struct JournalList {
 pub struct JournalResolve {
     /// The escalated entry.
     #[schemars(with = "i64")]
-    pub seq: Seq,
+    pub(crate) seq: Seq,
     /// The lead's note.
-    pub note: String,
+    pub(crate) note: String,
     /// Who resolves.
     #[schemars(with = "String")]
-    pub actor: Actor,
+    pub(crate) actor: Actor,
+}
+
+impl JournalResolve {
+    /// The escalated entry.
+    #[must_use]
+    pub fn seq(&self) -> Seq {
+        self.seq
+    }
+
+    /// The lead's note.
+    #[must_use]
+    pub fn note(&self) -> &str {
+        &self.note
+    }
+
+    /// Who resolves.
+    #[must_use]
+    pub fn actor(&self) -> &Actor {
+        &self.actor
+    }
 }
 
 /// `cache journal announce <seq>`.
@@ -116,5 +212,13 @@ pub struct JournalResolve {
 pub struct JournalAnnounce {
     /// The escalated entry.
     #[schemars(with = "i64")]
-    pub seq: Seq,
+    pub(crate) seq: Seq,
+}
+
+impl JournalAnnounce {
+    /// The escalated entry.
+    #[must_use]
+    pub fn seq(&self) -> Seq {
+        self.seq
+    }
 }

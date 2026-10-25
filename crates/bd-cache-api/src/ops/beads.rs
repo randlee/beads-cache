@@ -66,7 +66,7 @@ fn required_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ///
 /// `NOT_FOUND`, `NOT_CACHED`, `BD_UNAVAILABLE` (`details.timed_out`), and
 /// the store's errors.
-pub fn issues_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn issues_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &IssuesGet,
 ) -> Result<IssuesGetData, ApiError> {
@@ -98,7 +98,7 @@ pub fn issues_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ///
 /// `SCOPE_UNKNOWN` without a scope or for one the cache does not know; the
 /// store's errors.
-pub fn issues_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn issues_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &IssuesList,
 ) -> Result<IssuesListData, ApiError> {
@@ -131,7 +131,7 @@ pub fn issues_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// `SCOPE_UNKNOWN`; the store's errors.
-pub fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &Ready,
 ) -> Result<ReadyData, ApiError> {
@@ -179,7 +179,7 @@ pub fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors.
-pub fn dependencies_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn dependencies_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &DependenciesList,
 ) -> Result<DependenciesListData, ApiError> {
@@ -255,7 +255,7 @@ fn write_x_cache(o: &WriteOutcome) -> WriteXCache {
 ///
 /// `BAD_ARGS`, `BAD_PRECONDITION`, `PRECONDITION` (`details.unmet`),
 /// `IDEM_CONFLICT`, `NOT_FOUND`, `BD_UNAVAILABLE`; the store's errors.
-pub fn issues_update<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn issues_update<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &IssuesUpdate,
 ) -> Result<IssuesUpdateData, ApiError> {
@@ -282,7 +282,7 @@ pub fn issues_update<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// As [`issues_update`].
-pub fn issues_close<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn issues_close<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &IssuesClose,
 ) -> Result<IssuesCloseData, ApiError> {
@@ -314,7 +314,7 @@ pub fn issues_close<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// As [`issues_update`].
-pub fn dependencies_add<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn dependencies_add<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &DependenciesAdd,
 ) -> Result<DependenciesAddData, ApiError> {
@@ -341,7 +341,7 @@ pub fn dependencies_add<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors.
-pub fn context<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn context<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     facts: &CacheFacts,
 ) -> Result<ContextData, ApiError> {

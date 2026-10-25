@@ -88,7 +88,7 @@ fn counts(c: StateCounts) -> StateCountsData {
 /// # Errors
 ///
 /// The store's errors.
-pub fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     facts: &CacheFacts,
 ) -> Result<CacheStatusData, ApiError> {
@@ -134,9 +134,9 @@ pub fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors; with `probe`, the backend check's typed error.
-pub fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    req: &CacheHealth,
+    req: CacheHealth,
 ) -> Result<CacheHealthData, ApiError> {
     let probe = if req.probe {
         let hard = Deadline::after(&*cache.clock(), cache.config().call_timeout);
@@ -176,7 +176,7 @@ pub fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors.
-pub fn cache_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
 ) -> Result<CacheScopesData, ApiError> {
     let st = cache.status()?.store;
@@ -191,7 +191,7 @@ pub fn cache_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors reading the known scopes.
-pub fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &CacheRefreshScopes,
 ) -> Result<CacheRefreshScopesData, ApiError> {
@@ -238,7 +238,7 @@ pub fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ///
 /// `BD_UNAVAILABLE` (`details.timed_out`) and the other mapped backend
 /// errors; the store's errors.
-pub fn cache_refresh_issues<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_refresh_issues<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &CacheRefreshIssues,
 ) -> Result<CacheRefreshIssuesData, ApiError> {
@@ -264,7 +264,7 @@ pub fn cache_refresh_issues<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors; bd's failures are reported in the data.
-pub fn cache_flush<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_flush<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &CacheFlush,
 ) -> Result<CacheFlushData, ApiError> {
@@ -302,7 +302,7 @@ pub fn cache_flush<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// `PRUNE_BLOCKED`; the store's errors.
-pub fn cache_evict<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn cache_evict<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &CacheEvict,
 ) -> Result<CacheEvictData, ApiError> {
@@ -319,7 +319,7 @@ pub fn cache_evict<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// `NOT_FOUND`; the store's errors.
-pub fn journal_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn journal_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &JournalGet,
 ) -> Result<JournalGetData, ApiError> {
@@ -338,9 +338,9 @@ pub fn journal_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// The store's errors.
-pub fn journal_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn journal_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    req: &JournalList,
+    req: JournalList,
 ) -> Result<JournalListData, ApiError> {
     let mut entries = match (req.state, req.unannounced) {
         (JournalListState::Escalated, true) => cache.unannounced_escalations()?,
@@ -360,7 +360,7 @@ pub fn journal_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ///
 /// `NOT_ESCALATED` for a pending or applied entry; `NOT_FOUND`; `BAD_ARGS`
 /// for a note over the size limit; the store's errors.
-pub fn journal_resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn journal_resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &JournalResolve,
 ) -> Result<JournalResolveData, ApiError> {
@@ -384,9 +384,9 @@ pub fn journal_resolve<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// # Errors
 ///
 /// `NOT_FOUND`; the store's errors.
-pub fn journal_announce<S: CacheStore, L: DrainLock, B: CacheBackend>(
+pub(crate) fn journal_announce<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    req: &JournalAnnounce,
+    req: JournalAnnounce,
 ) -> Result<JournalAnnounceData, ApiError> {
     let before = cache.entry(req.seq)?;
     if before.announced_at.is_some() {

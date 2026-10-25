@@ -13,6 +13,12 @@
 //! the same as an absent one. The `/v0` names per operation are those of
 //! the pinned spec, beads v1.3.2 @ `9b65b9e` (contract §5.2).
 //!
+//! Operation-level `UNSUPPORTED` (contract §5.4) is not decided here: a
+//! front end knows its own command names and maps a `/v0` operation it does
+//! not offer with `ApiError::unsupported(Unsupported::Operation, name)`
+//! (`tests/error_table.rs` shows the shape). The decoder takes a
+//! [`Command`], which is always served.
+//!
 //! The writes take a required `idempotency_key`: the cache never derives
 //! one from the request (REQ-BDC-0004). A patch is validated as the journal
 //! will parse it ([`Op::parse_new`]), so a front end learns of a bad
@@ -31,44 +37,6 @@ use crate::request::{
     JournalListState, JournalResolve, MetadataPatch, Ready, Request,
 };
 use crate::v0::patch_args;
-
-/// The `/v0` operations the cache does not serve (contract §5.4): a request
-/// for one is `UNSUPPORTED` with `unsupported: operation`.
-pub const NOT_SERVED_OPERATIONS: &[&str] = &[
-    "createIssue",
-    "batchCreateIssues",
-    "deleteIssues",
-    "sweepIssues",
-    "claimIssue",
-    "releaseIssue",
-    "claimNextIssue",
-    "reopenIssue",
-    "compareAndSetMetadata",
-    "applyBatch",
-    "batchCloseIssues",
-    "removeDependency",
-    "queryIssues",
-    "countIssues",
-    "countReadyWork",
-    "getStats",
-    "getDependencyTree",
-    "listDependencyCycles",
-    "countDependencyEdges",
-    "listBlockingAnnotations",
-    "listRelatedIssues",
-    "addComment",
-    "listSettings",
-    "getSetting",
-    "setSetting",
-    "unsetSetting",
-    "listMemories",
-    "rememberMemory",
-    "getMemory",
-    "forgetMemory",
-    "listEvents",
-    "watchEvents",
-    "health",
-];
 
 /// Decodes the JSON request of `command` (module docs).
 ///
