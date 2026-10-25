@@ -189,6 +189,7 @@ fn new_entry(key: &str, bead: &str, scope: &ScopeId, op: Op) -> NewEntry {
         op,
         precondition: Guards::default(),
         actor: actor("dev"),
+        changed: Some(true),
     }
 }
 
@@ -514,4 +515,197 @@ fn the_python_and_rust_drain_locks_exclude_each_other() {
     assert!(line.contains("\"held\": false"), "Rust holds it: {line}");
     held.release(CHILD_TIMEOUT);
     drop(guard);
+}
+
+/// REQ-BDC-0804, sprint b-1: the columns `last_error_code`, `note` and
+/// `changed` are additive and nullable at `user_version` 3, both ways.
+///
+/// `bd_cache.py` opens a file the Rust store wrote with the new columns,
+/// escalates (as its drain does) and resolves entries. The Rust store reads
+/// them back with `note` split out of `last_error` and `last_error_code`
+/// taken from the `CODE: ` prefix where `bd_cache.py` left the column NULL or
+/// stale. An entry the Rust store resolved has its note in `note`, and
+/// `last_error` left as it was.
+#[test]
+fn python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back() {
+    let f = Shared::new("b1-columns");
+    let [
+        rust_escalated,
+        python_escalated,
+        python_resolved,
+        rust_resolved,
+    ] = seed_rust_entries(&f);
+
+    // bd_cache.py opens the file with the new columns and writes to it.
+    let seq = |s: bd_cache_model::Seq| s.get().to_string();
+    assert_eq!(
+        f.run(
+            "escalate",
+            &[&seq(python_escalated), "BD_CACHE.NOT_FOUND: gone"]
+        )["ok"],
+        true
+    );
+    assert_eq!(
+        f.run(
+            "escalate",
+            &[&seq(python_resolved), "BD_CACHE.PRECONDITION: x"]
+        )["ok"],
+        true
+    );
+    for (s, note) in [(rust_escalated, "set by hand"), (python_resolved, "again")] {
+        let out = f.run(
+            "cli",
+            &["resolve", &seq(s), "--note", note, "--actor", "lead-1"],
+        );
+        assert_eq!(out["state"], "resolved", "{out}");
+    }
+    let status = f.run("cli", &["status"]);
+    assert_eq!(
+        status["journal"],
+        json!({"ct:resolved": 3, "ct:escalated": 1}),
+        "{status}"
+    );
+
+    let store = f.open();
+    let read = |s| store.entry_by_seq(s).unwrap().unwrap();
+    let e = read(rust_escalated);
+    assert_eq!(e.state, JournalState::Resolved);
+    assert_eq!(
+        e.last_error.as_deref(),
+        Some("BD_CACHE.PRECONDITION: status is closed")
+    );
+    assert_eq!(e.note.as_deref(), Some("resolved by lead-1: set by hand"));
+    assert_eq!(e.last_error_code.as_deref(), Some("BD_CACHE.PRECONDITION"));
+    assert_eq!(e.changed, Some(true));
+    assert_eq!(
+        e.legacy_last_error().as_deref(),
+        Some("BD_CACHE.PRECONDITION: status is closed | resolved by lead-1: set by hand"),
+        "the 0.1 rendering is the text bd_cache.py stored"
+    );
+
+    let e = read(python_escalated);
+    assert_eq!(e.state, JournalState::Escalated);
+    assert_eq!(e.last_error.as_deref(), Some("BD_CACHE.NOT_FOUND: gone"));
+    assert_eq!(
+        e.last_error_code.as_deref(),
+        Some("BD_CACHE.NOT_FOUND"),
+        "the stale column is not the code of the text bd_cache.py wrote"
+    );
+    assert_eq!((e.note, e.changed), (None, Some(false)));
+
+    let e = read(python_resolved);
+    assert_eq!(e.last_error.as_deref(), Some("BD_CACHE.PRECONDITION: x"));
+    assert_eq!(e.note.as_deref(), Some("resolved by lead-1: again"));
+    assert_eq!(e.last_error_code.as_deref(), Some("BD_CACHE.PRECONDITION"));
+    assert_eq!(e.changed, None, "journaled without changed");
+
+    let e = read(rust_resolved);
+    assert_eq!(
+        (e.last_error.as_deref(), e.note.as_deref()),
+        (
+            Some("BD_CACHE.PRECONDITION: assignee"),
+            Some("resolved by lead: by hand")
+        )
+    );
+    drop(store);
+
+    check_raw_columns(&f, rust_resolved, python_resolved);
+}
+
+/// The four entries of
+/// [`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`],
+/// as the Rust store writes them, in seq order.
+fn seed_rust_entries(f: &Shared) -> [bd_cache_model::Seq; 4] {
+    let mut store = f.open();
+    store.ensure_scope(&ct()).unwrap();
+    store
+        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .unwrap();
+    let close = || Op::Close { reason: None };
+    let journal = |store: &mut SqliteStore, key: &str, bead: &str, changed| {
+        store
+            .insert_entry(
+                NewEntry {
+                    changed,
+                    ..new_entry(key, bead, &ct(), close())
+                },
+                &ts(T0),
+            )
+            .unwrap()
+    };
+    // rs-1: escalated by Rust (code column set), resolved by Python.
+    let rust_escalated = journal(&mut store, "rs-1", "ct-2", Some(true));
+    store
+        .escalate(
+            rust_escalated,
+            "BD_CACHE.PRECONDITION: status is closed",
+            &ts(T0),
+        )
+        .unwrap();
+    // rs-2: an attempt recorded by Rust, escalated by Python (stale code column).
+    let python_escalated = journal(&mut store, "rs-2", "ct-3", Some(false));
+    store
+        .record_attempt(
+            python_escalated,
+            "BD_CACHE.BD_WRITE_FAILED: exit 1",
+            &ts(T0),
+        )
+        .unwrap();
+    // rs-3: escalated and resolved by Python (code column NULL).
+    let python_resolved = journal(&mut store, "rs-3", "ct-1", None);
+    // rs-4: escalated and resolved by Rust.
+    let rust_resolved = journal(&mut store, "rs-4", "ct-1", Some(true));
+    store
+        .escalate(rust_resolved, "BD_CACHE.PRECONDITION: assignee", &ts(T0))
+        .unwrap();
+    store
+        .resolve(rust_resolved, "by hand", &actor("lead"), &ts(T0))
+        .unwrap();
+    drop(store);
+    [
+        rust_escalated,
+        python_escalated,
+        python_resolved,
+        rust_resolved,
+    ]
+}
+
+/// The stored columns: `user_version` 3, the Rust resolve's `note`, and
+/// `bd_cache.py`'s text as it wrote it.
+fn check_raw_columns(
+    f: &Shared,
+    rust_resolved: bd_cache_model::Seq,
+    python_resolved: bd_cache_model::Seq,
+) {
+    let c = rusqlite::Connection::open(&f.db).unwrap();
+    let version: i32 = c
+        .pragma_query_value(None, "user_version", |r| r.get(0))
+        .unwrap();
+    assert_eq!(version, 3, "user_version is unchanged");
+    let raw = |s: bd_cache_model::Seq| -> (Option<String>, Option<String>, Option<String>) {
+        c.query_row(
+            "SELECT last_error, last_error_code, note FROM journal WHERE seq = ?1",
+            [s.get()],
+            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
+        )
+        .unwrap()
+    };
+    assert_eq!(
+        raw(rust_resolved),
+        (
+            Some("BD_CACHE.PRECONDITION: assignee".into()),
+            Some("BD_CACHE.PRECONDITION".into()),
+            Some("resolved by lead: by hand".into())
+        ),
+        "the Rust resolve writes note and leaves last_error as it was"
+    );
+    assert_eq!(
+        raw(python_resolved),
+        (
+            Some("BD_CACHE.PRECONDITION: x | resolved by lead-1: again".into()),
+            None,
+            None
+        ),
+        "bd_cache.py's columns as it wrote them: the split is on read only"
+    );
 }

@@ -8,9 +8,11 @@ use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp, rf
 
 use super::lock;
 use crate::error::CacheError;
-use crate::journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
+use crate::journal::{
+    IdemKey, JournalEntry, JournalState, NewEntry, Seq, error_code_prefix, resolve_note,
+};
 use crate::op::normalize;
-use crate::reply::PruneReport;
+use crate::reply::{JournalCounts, PruneReport};
 use crate::scope::ScopeId;
 use crate::state::{
     FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus,
@@ -32,6 +34,12 @@ fn newer(stored: &str, incoming: &str) -> bool {
         (Some(a), Some(b)) => a > b,
         _ => false,
     }
+}
+
+/// Stores `err` as the entry's `last_error`, with its code.
+fn set_error(e: &mut JournalEntry, err: Option<&str>) {
+    e.last_error = err.map(str::to_owned);
+    e.last_error_code = err.and_then(error_code_prefix).map(str::to_owned);
 }
 
 fn alert_key(s: &ScopeId) -> String {
@@ -326,6 +334,9 @@ impl CacheStore for FakeStore {
                 state: JournalState::Pending,
                 attempts: 0,
                 last_error: None,
+                last_error_code: None,
+                note: None,
+                changed: e.changed,
                 announced_at: None,
                 created_at: at.clone(),
                 applied_at: None,
@@ -367,7 +378,7 @@ impl CacheStore for FakeStore {
         }
         let e = st.entry_mut(seq)?;
         e.state = JournalState::Applied;
-        e.last_error = err.map(str::to_owned);
+        set_error(e, err);
         e.applied_at = Some(at.clone());
         Ok(())
     }
@@ -376,7 +387,7 @@ impl CacheStore for FakeStore {
         let mut st = lock(&self.state);
         let e = st.entry_mut(seq)?;
         e.attempts += 1;
-        e.last_error = Some(err.to_owned());
+        set_error(e, Some(err));
         Ok(e.attempts)
     }
 
@@ -384,7 +395,7 @@ impl CacheStore for FakeStore {
         let mut st = lock(&self.state);
         let e = st.entry_mut(seq)?;
         e.state = JournalState::Escalated;
-        e.last_error = Some(reason.to_owned());
+        set_error(e, Some(reason));
         Ok(())
     }
 
@@ -407,12 +418,7 @@ impl CacheStore for FakeStore {
             });
         };
         e.state = JournalState::Resolved;
-        let mut text = e.last_error.take().unwrap_or_default();
-        text.push_str(" | resolved by ");
-        text.push_str(actor.as_str());
-        text.push_str(": ");
-        text.push_str(note);
-        e.last_error = Some(text);
+        e.note = Some(resolve_note(actor, note));
         Ok(())
     }
 
@@ -555,6 +561,16 @@ impl CacheStore for FakeStore {
                 e.state == JournalState::Escalated && e.announced_at.is_none()
             }),
         })
+    }
+
+    fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
+        // One guard: a consistent snapshot.
+        let st = lock(&self.state);
+        let mut counts = JournalCounts::default();
+        for e in st.journal.values() {
+            counts.add(e.scope.as_ref(), e.state, 1);
+        }
+        Ok(counts)
     }
 
     fn status(&self) -> Result<StoreStatus, CacheError> {

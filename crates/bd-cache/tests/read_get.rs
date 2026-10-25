@@ -331,3 +331,32 @@ fn entry_returns_an_entry_in_any_state() {
     let e = c.entry(bd_cache_model::Seq::new(99)).unwrap_err();
     assert_eq!(e.code(), "BD_CACHE.NOT_FOUND");
 }
+
+/// Contract §5.3 `issues get`: `GetReply.scope` is the bead's scope, and
+/// `None` for a row outside every scope. A second configured scope is listed
+/// first, so "the first configured scope" is never the answer by accident.
+#[test]
+fn get_reply_scope_is_the_beads_scope_and_none_outside_every_scope() {
+    let w = World::new();
+    let a = ScopeId::phase("a").unwrap();
+    let mut config = w.config.clone();
+    config.scopes = vec![a.clone(), x()];
+    let mut c = w.cache_with(config);
+    c.sync(&x(), w.after(T30)).unwrap();
+    w.add("o1", |b| b.labels.clear());
+    w.add("a1", |b| b.labels = vec!["phase-a".into()]);
+
+    let scoped = c.get(&id("b1"), None).unwrap();
+    assert_eq!(scoped.scope, Some(x()), "b1 is in phase-x");
+    assert!(scoped.scope_last_ok_at.is_some());
+    let other = c.get(&id("a1"), None).unwrap();
+    assert_eq!(other.scope, Some(a), "a1 is in phase-a");
+    let outside = c.get(&id("o1"), None).unwrap();
+    assert_eq!(outside.scope, None, "o1 has no phase label");
+    assert_eq!(outside.row.blocked, None);
+    assert_eq!(
+        c.cached(&id("o1")).unwrap().unwrap().scope,
+        None,
+        "cached answers the same"
+    );
+}

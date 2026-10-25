@@ -42,6 +42,7 @@ fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
         op: Op::Close { reason: None },
         precondition: Guards::default(),
         actor: actor("san"),
+        changed: Some(true),
     }
 }
 

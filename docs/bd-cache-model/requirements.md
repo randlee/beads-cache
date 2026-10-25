@@ -37,7 +37,10 @@ in seq order and skips escalated, resolved and applied ones.
 **Acceptance evidence:** `close_overlay_and_achieved`,
 `update_overlay_applies_fields_in_order_and_achieved_checks_each`,
 `dep_add_overlay_adds_the_edge_once_and_achieved_sees_it`,
-`replay_applies_pending_entries_in_seq_order_and_skips_the_rest`.
+`replay_applies_pending_entries_in_seq_order_and_skips_the_rest`;
+`Op::changes` (sprint b-1: a close changes a view that is not closed, any
+other op when its overlay changes the view),
+`changes_is_not_already_closed_or_the_overlay` (`tests/ops.rs`).
 
 ## REQ-MODEL-0003: Typed errors
 
@@ -65,7 +68,7 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 `FakeStore` + `FakeDrainLock` pass and every implementation must pass.
 
 **Refines:** NFR-BDC-0005, ADR-BDC-0004
-**Acceptance evidence:** `tests/store_contract.rs`: the 22 rules of `store_contract_tests!` (`round_trip_is_normalize`, `upsert_replaces_outgoing_edges`, `a_store_clears_stale`, `membership_follows_labels_on_scoped_upserts_only`, `newer_rows_are_kept_unless_forced`, `newer_row_guard_compares_instants`, `status_changes_are_reported`, `apply_with_readback_marks_applied`, `fingerprint_rebuild_rule`, `scopes_persist_across_restarts`, `ready_base_rules`, `base_entry_rules` (a-7), `has_entries_since_rules` (a-7), `applied_since_is_inclusive_and_ordered`, `journal_lifecycle`, `resolve_note_without_prior_error`, `sync_state_alerts_and_outage_round_trip`, `bounded_marker_writes_match_the_unbounded_forms` (a-7, S33, QA7-004), `prune_scope_rules`, `status_counts`, `status_lists_stale_rows_until_reread`, `drain_lock_is_exclusive`), including `status_lists_stale_rows_until_reread` (a-1 amendment 1).
+**Acceptance evidence:** `tests/store_contract.rs`: the a-1 rules of `store_contract_tests!` (`round_trip_is_normalize`, `upsert_replaces_outgoing_edges`, `a_store_clears_stale`, `membership_follows_labels_on_scoped_upserts_only`, `newer_rows_are_kept_unless_forced`, `newer_row_guard_compares_instants`, `status_changes_are_reported`, `apply_with_readback_marks_applied`, `fingerprint_rebuild_rule`, `scopes_persist_across_restarts`, `ready_base_rules`, `base_entry_rules` (a-7), `has_entries_since_rules` (a-7), `applied_since_is_inclusive_and_ordered`, `journal_lifecycle`, `resolve_note_without_prior_error`, `sync_state_alerts_and_outage_round_trip`, `bounded_marker_writes_match_the_unbounded_forms` (a-7, S33, QA7-004), `prune_scope_rules`, `status_counts`, `status_lists_stale_rows_until_reread`, `drain_lock_is_exclusive`), including `status_lists_stale_rows_until_reread` (a-1 amendment 1); sprint b-1 adds `insert_entry_stores_changed`, `error_writes_store_the_code` and `journal_counts_rules` (25 rules).
 
 ## REQ-MODEL-0005: Repository configuration
 

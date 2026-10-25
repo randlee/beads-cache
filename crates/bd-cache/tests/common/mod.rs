@@ -175,5 +175,6 @@ pub fn new_entry(key: &str, bead: &str, op: &str, args: &str) -> NewEntry {
         op: Op::parse(op, args).unwrap_or_else(|e| panic!("{op} {args}: {e}")),
         precondition: Guards::default(),
         actor: sc_beads::testing::actor("san"),
+        changed: Some(true),
     }
 }
