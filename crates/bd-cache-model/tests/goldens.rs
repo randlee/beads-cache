@@ -548,3 +548,51 @@ fn store_failures_keep_their_source() {
     );
     assert_eq!(e, again, "store causes compare by text");
 }
+
+/// REQ-BDC-0910: the fields sprint b-1 adds are not serialized, so the 0.1
+/// Python `get` and `entry` dicts keep their key sets; a resolved entry's
+/// `last_error` is still `bd_cache.py`'s text, the note appended.
+#[test]
+fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
+    let reply = bd_cache_model::GetReply {
+        row: bd_cache_model::RowView {
+            bead: sc_beads::testing::bead("b1"),
+            stale: false,
+            blocked: Some(vec![]),
+        },
+        scope_last_ok_at: None,
+        pending: 0,
+        outage: None,
+        scope: Some(ScopeId::phase("x").unwrap()),
+    };
+    let v = serde_json::to_value(&reply).unwrap();
+    let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
+    assert_eq!(keys, ["outage", "pending", "row", "scope_last_ok_at"]);
+
+    let entry = bd_cache_model::JournalEntry {
+        seq: Seq::new(7),
+        idem_key: bd_cache_model::IdemKey::new("k1").unwrap(),
+        scope: Some(ScopeId::phase("x").unwrap()),
+        bead: id("b1"),
+        op: bd_cache_model::Op::Close { reason: None },
+        precondition: sc_beads::Guards::default(),
+        actor: sc_beads::testing::actor("dev"),
+        state: bd_cache_model::JournalState::Resolved,
+        attempts: 1,
+        last_error: Some("BD_CACHE.PRECONDITION: no".into()),
+        last_error_code: Some("BD_CACHE.PRECONDITION".into()),
+        note: Some("resolved by lead: set by hand".into()),
+        changed: Some(true),
+        announced_at: None,
+        created_at: Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
+        applied_at: None,
+    };
+    assert_eq!(
+        serde_json::to_value(&entry).unwrap(),
+        json!({"seq": 7, "idem_key": "k1", "phase": "x", "bead": "b1", "op": "close",
+               "args": {}, "precondition": {}, "actor": "dev", "state": "resolved",
+               "attempts": 1,
+               "last_error": "BD_CACHE.PRECONDITION: no | resolved by lead: set by hand",
+               "announced_at": null, "created_at": "2026-10-23T10:00:00Z", "applied_at": null})
+    );
+}

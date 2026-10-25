@@ -63,7 +63,10 @@ pub use error::{
     TYPED_ERROR_EXIT, UNREACHABLE_CODES, Unmet,
 };
 #[doc(inline)]
-pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
+pub use journal::{
+    IdemKey, JournalEntry, JournalState, NewEntry, RESOLVE_SEPARATOR, Seq, error_code_prefix,
+    resolve_note, split_resolve_note,
+};
 #[doc(inline)]
 pub use limits::{
     MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_WRITE_ARGS_BYTES, check_note_size, check_write_size,
@@ -77,8 +80,8 @@ pub use op::{
 pub use pyjson::python_json;
 #[doc(inline)]
 pub use reply::{
-    DrainReport, EscalatedItem, GetReply, ListReply, PruneReport, ReadyBasis, ReadyReply, RowView,
-    StatusReply, SyncReport, WriteReply,
+    DrainReport, EscalatedItem, GetReply, JournalCounts, ListReply, PruneReport, ReadyBasis,
+    ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome, WriteReply,
 };
 #[doc(inline)]
 pub use scope::{PhaseName, ScopeId};

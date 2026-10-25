@@ -45,8 +45,9 @@ use std::time::Duration;
 #[doc(no_inline)]
 pub use bd_cache_model::{
     CacheConfig, CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock,
-    DrainReport, GetReply, IdemKey, JournalEntry, ListReply, OpenWork, PruneReport, ReadyReply,
-    RowView, ScopeId, Seq, StatusReply, SyncReport, WriteReply,
+    DrainReport, GetReply, IdemKey, JournalCounts, JournalEntry, ListReply, OpenWork, PruneReport,
+    ReadyReply, RowView, ScopeId, Seq, StateCounts, StatusReply, SyncReport, WriteOutcome,
+    WriteReply,
 };
 use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
 
@@ -186,6 +187,17 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         get::entry(self, seq)
     }
 
+    /// The journal entry an idempotency key journals, in any state (REQ-BDC-0908).
+    ///
+    /// Answers a retry after a lost reply (`journal get --idempotency-key`).
+    ///
+    /// # Errors
+    ///
+    /// `NOT_FOUND` when no entry holds `key`; store errors.
+    pub fn entry_by_key(&self, key: &IdemKey) -> Result<JournalEntry, CacheError> {
+        get::entry_by_key(self, key)
+    }
+
     /// The cached rows of a known scope with the overlay applied.
     ///
     /// # Errors
@@ -235,6 +247,37 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         write::write(self, id, op_name, args_json, pre, key, actor)
     }
 
+    /// Journals one write as [`Cache::write`] does, and answers the stored
+    /// entry with the bead's views before and after it (REQ-BDC-0809).
+    ///
+    /// The entry and its `changed` are stored in one store transaction, so a
+    /// concurrent reader sees neither or both. `changed` is whether the write
+    /// changes the view; for a close it is `!already_closed`, where
+    /// `already_closed` describes the view before the write. `after` is the
+    /// row a [`Cache::get`] answers right after the call.
+    ///
+    /// A retry with the same key and the same `(bead, op)` is a duplicate,
+    /// whatever its guards and actor (contract §5.1): it journals nothing and
+    /// returns the stored entry with its stored `changed`, and `before` and
+    /// `after` are both the current view. Unlike [`Cache::write`], a duplicate
+    /// for a bead the cache no longer holds fills it (one bounded `bd list`).
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::write`]; on a duplicate, also the miss-fill errors of a
+    /// bead the cache no longer holds.
+    pub fn write_returning(
+        &mut self,
+        id: &BeadId,
+        op_name: &str,
+        args_json: &str,
+        pre: Guards,
+        key: IdemKey,
+        actor: Actor,
+    ) -> Result<WriteOutcome, CacheError> {
+        write::write_returning(self, id, op_name, args_json, pre, key, actor)
+    }
+
     /// Applies pending entries in seq order within the budget.
     ///
     /// # Errors
@@ -280,6 +323,19 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// Store errors.
     pub fn status(&self) -> Result<StatusReply, CacheError> {
         status::status(self)
+    }
+
+    /// The journal counted by state: in total, per scope and unscoped
+    /// (contract §6, `cache status` `journal`).
+    ///
+    /// The store's one grouped query, never a scan of the journal; starts no
+    /// bd call. `total` is the sum of the scope buckets and `unscoped`.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
+        status::journal_counts(self)
     }
 
     /// Whether `scope` has synced at least once (its `sync_state.last_ok_at` is set).

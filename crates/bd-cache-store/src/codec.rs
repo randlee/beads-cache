@@ -7,8 +7,8 @@
 //! another implementation wrote is read the same way.
 
 use bd_cache_model::{
-    CacheError, IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, normalize,
-    parse_precondition, python_json,
+    CacheError, IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, error_code_prefix,
+    normalize, parse_precondition, python_json, split_resolve_note,
 };
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, DepType, Edge, Timestamp};
 use serde_json::Value;
@@ -125,13 +125,16 @@ pub(crate) struct JournalRow {
     pub(crate) announced_at: Option<String>,
     pub(crate) created_at: String,
     pub(crate) applied_at: Option<String>,
+    pub(crate) last_error_code: Option<String>,
+    pub(crate) note: Option<String>,
+    pub(crate) changed: Option<i64>,
 }
 
 /// The `journal` columns [`JournalRow`] reads, in order, as a literal (for `concat!`).
 macro_rules! journal_columns {
     () => {
         "seq, idem_key, phase, bead, op, args_json, precondition_json, actor, state, \
-         attempts, last_error, announced_at, created_at, applied_at"
+         attempts, last_error, announced_at, created_at, applied_at, last_error_code, note, changed"
     };
 }
 pub(crate) use journal_columns;
@@ -157,12 +160,50 @@ impl JournalRow {
             announced_at: r.get(11)?,
             created_at: r.get(12)?,
             applied_at: r.get(13)?,
+            last_error_code: r.get(14)?,
+            note: r.get(15)?,
+            changed: r.get(16)?,
         })
     }
 
     /// Validates the row into a [`JournalEntry`].
+    ///
+    /// An entry `bd_cache.py` wrote has the extension columns NULL, or stale
+    /// where it rewrote `last_error` after this store did, and is read as this
+    /// store would have written it (ADR-STORE-0001):
+    ///
+    /// - `note` NULL on a resolved entry: a trailing `" | resolved by <actor>:
+    ///   <note>"` of `last_error` is split out into `note`;
+    /// - `last_error_code`: the stored code while `last_error` still starts
+    ///   with `<code>: `, else the code of the text's `CODE: ` prefix;
+    /// - `changed`: `None` when NULL.
     pub(crate) fn decode(self, step: Step<'_>) -> Result<JournalEntry, CacheError> {
         let seq = self.seq;
+        let state = JournalState::parse(&self.state).ok_or_else(|| {
+            corrupt(
+                step,
+                format_args!("journal entry {seq}: state: unknown state {:?}", self.state),
+            )
+        })?;
+        let (last_error, note) = match (self.note, self.last_error) {
+            (None, Some(text)) if state == JournalState::Resolved => {
+                match split_resolve_note(&text) {
+                    Some((error, note)) => (error.map(str::to_owned), Some(note.to_owned())),
+                    None => (Some(text), None),
+                }
+            }
+            (note, last_error) => (last_error, note),
+        };
+        let last_error_code = match (self.last_error_code, last_error.as_deref()) {
+            (Some(code), Some(text))
+                if text
+                    .strip_prefix(code.as_str())
+                    .is_some_and(|rest| rest.starts_with(": ")) =>
+            {
+                Some(code)
+            }
+            (_, text) => text.and_then(error_code_prefix).map(str::to_owned),
+        };
         let bad = |what: &str, e: &dyn std::fmt::Display| {
             corrupt(step, format_args!("journal entry {seq}: {what}: {e}"))
         };
@@ -187,10 +228,12 @@ impl JournalRow {
             op: Op::parse(&self.op, &self.args_json).map_err(in_entry)?,
             precondition: parse_precondition(&self.precondition_json).map_err(in_entry)?,
             actor: Actor::new(self.actor).map_err(|e| bad("actor", &e))?,
-            state: JournalState::parse(&self.state)
-                .ok_or_else(|| bad("state", &format_args!("unknown state {:?}", self.state)))?,
+            state,
             attempts: u32::try_from(self.attempts).map_err(|e| bad("attempts", &e))?,
-            last_error: self.last_error,
+            last_error,
+            last_error_code,
+            note,
+            changed: self.changed.map(|v| v != 0),
             announced_at: opt_timestamp(step, "announced_at", self.announced_at.as_deref())?,
             created_at: timestamp(step, "created_at", &self.created_at)?,
             applied_at: opt_timestamp(step, "applied_at", self.applied_at.as_deref())?,

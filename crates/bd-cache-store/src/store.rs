@@ -7,9 +7,10 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use bd_cache_model::{
-    BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry,
-    JournalState, NewEntry, OpenWork, Outage, PruneReport, ReadyBase, RepoConfig, ScopeId,
-    ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, phase_of, precondition_json,
+    BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalCounts,
+    JournalEntry, JournalState, NewEntry, OpenWork, Outage, PruneReport, ReadyBase, RepoConfig,
+    ScopeId, ScopeStatus, Seq, StoreStatus, SyncState, UpsertReport, error_code_prefix, phase_of,
+    precondition_json, resolve_note,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use sc_beads::logging::tracing;
@@ -1118,7 +1119,8 @@ impl CacheStore for SqliteStore {
         }
         tx.prepare_cached(
             "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, actor, \
-             state, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'pending', ?8, ?8)",
+             state, created_at, updated_at, changed) \
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'pending', ?8, ?8, ?9)",
         )
         .at(st)?
         .execute(params![
@@ -1130,8 +1132,11 @@ impl CacheStore for SqliteStore {
             precondition_json(&e.precondition),
             e.actor.as_str(),
             at.as_str(),
+            e.changed,
         ])
         .at(st)?;
+        // The entry and its `changed` are one row of one statement, committed
+        // once: no reader sees the entry without it (REQ-BDC-0809).
         let seq = Seq::new(tx.last_insert_rowid());
         tx.commit().at(st)?;
         Ok(seq)
@@ -1209,11 +1214,17 @@ impl CacheStore for SqliteStore {
             }
         }
         tx.prepare_cached(
-            "UPDATE journal SET state = 'applied', last_error = ?2, applied_at = ?3, \
-             applied_epoch = ?4, updated_at = ?3 WHERE seq = ?1",
+            "UPDATE journal SET state = 'applied', last_error = ?2, last_error_code = ?5, \
+             applied_at = ?3, applied_epoch = ?4, updated_at = ?3 WHERE seq = ?1",
         )
         .at(st)?
-        .execute(params![seq.get(), err, at.as_str(), at.unix()])
+        .execute(params![
+            seq.get(),
+            err,
+            at.as_str(),
+            at.unix(),
+            err.and_then(error_code_prefix)
+        ])
         .at(st)?;
         tx.commit().at(st)
     }
@@ -1222,11 +1233,14 @@ impl CacheStore for SqliteStore {
         self.write("record an attempt", |tx, st| {
             let attempts: i64 = tx
                 .prepare_cached(
-                    "UPDATE journal SET attempts = attempts + 1, last_error = ?2, updated_at = ?3 \
-                     WHERE seq = ?1 RETURNING attempts",
+                    "UPDATE journal SET attempts = attempts + 1, last_error = ?2, \
+                     last_error_code = ?4, updated_at = ?3 WHERE seq = ?1 RETURNING attempts",
                 )
                 .at(st)?
-                .query_row(params![seq.get(), err, at.as_str()], |r| r.get(0))
+                .query_row(
+                    params![seq.get(), err, at.as_str(), error_code_prefix(err)],
+                    |r| r.get(0),
+                )
                 .optional()
                 .at(st)?
                 .ok_or_else(|| not_found(seq))?;
@@ -1240,11 +1254,16 @@ impl CacheStore for SqliteStore {
         self.write("escalate", |tx, st| {
             let n = tx
                 .prepare_cached(
-                    "UPDATE journal SET state = 'escalated', last_error = ?2, updated_at = ?3 \
-                     WHERE seq = ?1",
+                    "UPDATE journal SET state = 'escalated', last_error = ?2, \
+                     last_error_code = ?4, updated_at = ?3 WHERE seq = ?1",
                 )
                 .at(st)?
-                .execute(params![seq.get(), reason, at.as_str()])
+                .execute(params![
+                    seq.get(),
+                    reason,
+                    at.as_str(),
+                    error_code_prefix(reason)
+                ])
                 .at(st)?;
             if n == 0 {
                 return Err(not_found(seq));
@@ -1276,13 +1295,13 @@ impl CacheStore for SqliteStore {
                 ),
             });
         }
-        let suffix = format!(" | resolved by {actor}: {note}");
+        // The note has its own column; `last_error` is left as it was. Its 0.1
+        // rendering appends the note as bd_cache.py does (ADR-STORE-0001).
         tx.prepare_cached(
-            "UPDATE journal SET state = 'resolved', last_error = COALESCE(last_error, '') || ?2, \
-             updated_at = ?3 WHERE seq = ?1",
+            "UPDATE journal SET state = 'resolved', note = ?2, updated_at = ?3 WHERE seq = ?1",
         )
         .at(st)?
-        .execute(params![seq.get(), suffix, at.as_str()])
+        .execute(params![seq.get(), resolve_note(actor, note), at.as_str()])
         .at(st)?;
         tx.commit().at(st)
     }
@@ -1584,7 +1603,34 @@ impl CacheStore for SqliteStore {
     fn status(&self) -> Result<StoreStatus, CacheError> {
         self.read("read status", || self.status_now())
     }
+
+    fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
+        let at = self.at("count the journal");
+        // One grouped statement: one snapshot, no read transaction needed.
+        let mut stmt = self.conn.prepare_cached(JOURNAL_COUNTS_SQL).at(at)?;
+        let rows = stmt
+            .query_map([], |r| {
+                Ok((
+                    r.get::<_, Option<String>>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, i64>(2)?,
+                ))
+            })
+            .at(at)?;
+        let mut counts = JournalCounts::default();
+        for r in rows {
+            let (phase, state, n) = r.at(at)?;
+            let scope = phase.as_deref().map(|p| scope(at, p)).transpose()?;
+            let state = JournalState::parse(&state)
+                .ok_or_else(|| corrupt(at, format_args!("journal state {state:?} is unknown")))?;
+            counts.add(scope.as_ref(), state, count(n));
+        }
+        Ok(counts)
+    }
 }
+
+/// `CacheStore::journal_counts`: the journal grouped by phase and state.
+const JOURNAL_COUNTS_SQL: &str = "SELECT phase, state, COUNT(*) FROM journal GROUP BY phase, state";
 
 /// Reads that span several statements, each run on one snapshot.
 impl SqliteStore {
@@ -2024,6 +2070,7 @@ mod tests {
                     op: bd_cache_model::Op::Close { reason: None },
                     precondition: sc_beads::Guards::default(),
                     actor: sc_beads::testing::actor("san"),
+                    changed: Some(true),
                 },
                 &at,
             )
@@ -2153,5 +2200,204 @@ mod tests {
             "seq 1 is dated by its time"
         );
         assert_eq!(undated_count(&path), 4, "only the unreadable ones remain");
+    }
+
+    fn new_entry(key: &str, scope: Option<&str>, changed: Option<bool>) -> NewEntry {
+        NewEntry {
+            idem_key: IdemKey::new(key).unwrap(),
+            scope: scope.map(|s| ScopeId::phase(s).unwrap()),
+            bead: sc_beads::testing::id("b1"),
+            op: bd_cache_model::Op::Close { reason: None },
+            precondition: sc_beads::Guards::default(),
+            actor: sc_beads::testing::actor("san"),
+            changed,
+        }
+    }
+
+    /// The committed journal as `(seq, changed)`.
+    type Committed = Vec<(i64, Option<i64>)>;
+
+    /// The committed journal as `(seq, changed)`, read on a connection of its
+    /// own: what another process sees.
+    fn committed_changed(path: &Path) -> Committed {
+        let c =
+            Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();
+        let mut stmt = c
+            .prepare("SELECT seq, changed FROM journal ORDER BY seq")
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap()
+    }
+
+    /// REQ-BDC-0809: the entry and its `changed` are committed together.
+    ///
+    /// Temporary triggers on every insert into and update of `journal` call
+    /// `probe_committed()` from inside the store's write transaction, while it
+    /// holds the write lock. The probe reads the committed journal on a second
+    /// connection, as another process would, and records it. Every snapshot
+    /// must show either no entry or the entry with its `changed`: an entry
+    /// committed first and given its `changed` by a later transaction would be
+    /// seen without it by the probe of that later write. Causal, no timing.
+    #[test]
+    fn a_reader_never_sees_an_entry_without_its_changed() {
+        let TempStore { store, path, _dir } = temp_store();
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        let snapshots: Arc<std::sync::Mutex<Vec<Committed>>> = Arc::default();
+        let sink = Arc::clone(&snapshots);
+        let probe_path = path.clone();
+        store
+            .conn
+            .create_scalar_function(
+                "probe_committed",
+                0,
+                rusqlite::functions::FunctionFlags::SQLITE_UTF8,
+                move |_| {
+                    sink.lock().unwrap().push(committed_changed(&probe_path));
+                    Ok(0_i64)
+                },
+            )
+            .unwrap();
+        store
+            .conn
+            .execute_batch(
+                "CREATE TEMP TRIGGER probe_insert AFTER INSERT ON main.journal \
+                 BEGIN SELECT probe_committed(); END; \
+                 CREATE TEMP TRIGGER probe_update AFTER UPDATE ON main.journal \
+                 BEGIN SELECT probe_committed(); END;",
+            )
+            .unwrap();
+        let mut store = store;
+        let a = store
+            .insert_entry(new_entry("a", Some("x"), Some(true)), &at)
+            .unwrap();
+        let b = store
+            .insert_entry(new_entry("b", None, Some(false)), &at)
+            .unwrap();
+
+        let seen = snapshots.lock().unwrap().clone();
+        assert!(seen.len() >= 2, "the probe ran inside each write: {seen:?}");
+        for snapshot in &seen {
+            for (seq, changed) in snapshot {
+                assert!(
+                    changed.is_some(),
+                    "entry {seq} was visible without its changed: {seen:?}"
+                );
+            }
+        }
+        assert_eq!(
+            seen.first(),
+            Some(&vec![]),
+            "inside the first write nothing is committed yet"
+        );
+        assert_eq!(
+            committed_changed(&path),
+            [(a.get(), Some(1)), (b.get(), Some(0))],
+            "both committed with their changed"
+        );
+        assert_eq!(store.entry_by_seq(a).unwrap().unwrap().changed, Some(true));
+        assert_eq!(store.entry_by_seq(b).unwrap().unwrap().changed, Some(false));
+    }
+
+    thread_local! {
+        /// The statements `count_statements` saw on this thread.
+        static STATEMENTS: std::cell::RefCell<Vec<String>> = const {
+            std::cell::RefCell::new(Vec::new())
+        };
+    }
+
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "the signature rusqlite's trace_v2 takes"
+    )]
+    fn count_statements(event: rusqlite::trace::TraceEvent<'_>) {
+        if let rusqlite::trace::TraceEvent::Stmt(_, sql) = event {
+            STATEMENTS.with(|s| s.borrow_mut().push(sql.to_owned()));
+        }
+    }
+
+    /// Contract §6 `journal`: `journal_counts` is one grouped query, whatever
+    /// the size of the journal, and its buckets sum to the total.
+    ///
+    /// The store's statements are counted with SQLite's statement trace on
+    /// its own connection (the query counter): exactly one runs.
+    #[test]
+    fn journal_counts_is_one_query_and_its_buckets_sum_to_the_total() {
+        let TempStore {
+            mut store,
+            path: _path,
+            _dir,
+        } = temp_store();
+        let at = Timestamp::parse("2026-10-24T09:00:00Z").unwrap();
+        let lead = sc_beads::testing::actor("lead");
+        let mut n = 0;
+        let mut journal = |store: &mut SqliteStore, scope: Option<&str>| {
+            n += 1;
+            store
+                .insert_entry(new_entry(&format!("k{n}"), scope, Some(true)), &at)
+                .unwrap()
+        };
+        // x: 3 pending, 2 applied, 1 escalated; y: 1 resolved, 1 pending;
+        // unscoped: 2 pending, 1 escalated, 1 applied.
+        for _ in 0..3 {
+            journal(&mut store, Some("x"));
+        }
+        for _ in 0..2 {
+            let s = journal(&mut store, Some("x"));
+            store.apply_with_readback(s, None, None, &at).unwrap();
+        }
+        let s = journal(&mut store, Some("x"));
+        store.escalate(s, "BD_CACHE.PRECONDITION: no", &at).unwrap();
+        let s = journal(&mut store, Some("y"));
+        store.escalate(s, "why", &at).unwrap();
+        store.resolve(s, "by hand", &lead, &at).unwrap();
+        journal(&mut store, Some("y"));
+        for _ in 0..2 {
+            journal(&mut store, None);
+        }
+        let s = journal(&mut store, None);
+        store.escalate(s, "why", &at).unwrap();
+        let s = journal(&mut store, None);
+        store.apply_with_readback(s, None, None, &at).unwrap();
+
+        STATEMENTS.with(|s| s.borrow_mut().clear());
+        store.conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+            Some(count_statements),
+        );
+        let counts = store.journal_counts().unwrap();
+        store
+            .conn
+            .trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+        let ran = STATEMENTS.with(|s| s.borrow().clone());
+        assert_eq!(ran.len(), 1, "one query: {ran:?}");
+
+        let sc = |pending, applied, escalated, resolved| bd_cache_model::StateCounts {
+            pending,
+            applied,
+            escalated,
+            resolved,
+        };
+        let x = ScopeId::phase("x").unwrap();
+        let y = ScopeId::phase("y").unwrap();
+        assert_eq!(counts.by_scope.get(&x), Some(&sc(3, 2, 1, 0)));
+        assert_eq!(counts.by_scope.get(&y), Some(&sc(1, 0, 0, 1)));
+        assert_eq!(counts.by_scope.len(), 2);
+        assert_eq!(counts.unscoped, sc(2, 1, 1, 0));
+        assert_eq!(counts.total, sc(6, 3, 2, 1), "the hand count");
+        let mut summed = counts.unscoped;
+        for bucket in counts.by_scope.values() {
+            for state in [
+                JournalState::Pending,
+                JournalState::Applied,
+                JournalState::Escalated,
+                JournalState::Resolved,
+            ] {
+                summed.add(state, bucket.get(state));
+            }
+        }
+        assert_eq!(summed, counts.total, "total is the sum of the buckets");
+        assert_eq!(counts.total.sum(), 12, "every entry counted once");
     }
 }

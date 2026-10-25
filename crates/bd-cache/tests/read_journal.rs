@@ -100,8 +100,17 @@ fn test_resolve_closes_only_escalated_entries_and_unblocks_prune() {
     let entry = c.entry(pending).unwrap();
     assert_eq!(entry.state, JournalState::Resolved);
     assert_eq!(
-        entry.last_error.as_deref(),
-        Some("precondition no longer holds | resolved by lead: set by hand")
+        (entry.last_error.as_deref(), entry.note.as_deref()),
+        (
+            Some("precondition no longer holds"),
+            Some("resolved by lead: set by hand")
+        ),
+        "the note has its own field; last_error is left as it was"
+    );
+    assert_eq!(
+        entry.legacy_last_error().as_deref(),
+        Some("precondition no longer holds | resolved by lead: set by hand"),
+        "the 0.1 rendering appends the note as bd_cache.py does"
     );
     assert_eq!(
         c.get(&id("b1"), None).unwrap().row.bead.status.as_deref(),
@@ -135,8 +144,10 @@ fn test_resolve_keeps_the_note_when_the_entry_had_no_error() {
     let seq = journal(&mut c, &w, "k1", "b1");
     escalate(&mut c, &w, seq, "");
     c.resolve(seq, "set by hand", actor("lead")).unwrap();
+    let entry = c.entry(seq).unwrap();
+    assert_eq!(entry.note.as_deref(), Some("resolved by lead: set by hand"));
     assert_eq!(
-        c.entry(seq).unwrap().last_error.as_deref(),
+        entry.legacy_last_error().as_deref(),
         Some(" | resolved by lead: set by hand")
     );
 }

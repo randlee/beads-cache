@@ -5,8 +5,9 @@ use std::time::Duration;
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
+use crate::journal::JournalState;
 use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
-use crate::reply::PruneReport;
+use crate::reply::{JournalCounts, PruneReport};
 use crate::scope::ScopeId;
 use crate::state::{
     BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
@@ -51,9 +52,18 @@ use crate::state::{
 /// - `applied_since(at)` returns entries applied at or after `at`, in seq order.
 /// - journal reads (`pending_entries`, `pending_for`, `unannounced_escalations`)
 ///   are in seq order; `insert_entry` on a used key is `IDEM_CONFLICT`;
+///   `insert_entry` stores the entry and its `changed` in one transaction,
+///   so no reader ever sees one without the other (REQ-BDC-0809);
 ///   `escalate` does not change `attempts`; `resolve` on an entry that is
-///   not escalated, or on an absent seq, is `NOT_ESCALATED`, else it appends
-///   `" | resolved by <actor>: <note>"` to `last_error`.
+///   not escalated, or on an absent seq, is `NOT_ESCALATED`, else it stores
+///   `note` as [`resolve_note`](crate::resolve_note) (`resolved by <actor>:
+///   <note>`) and leaves `last_error` as it was.
+/// - `record_attempt`, `escalate` and `apply_with_readback` set
+///   `last_error_code` to the `CODE` of the text they store
+///   ([`error_code_prefix`](crate::error_code_prefix)), `None` when it has
+///   none.
+/// - `journal_counts` counts every entry once in `total` and once in its
+///   scope's bucket or `unscoped`, from one snapshot.
 /// - `prune_scope` is `PRUNE_BLOCKED` while the scope has a pending or
 ///   escalated entry; otherwise it deletes the scope's beads that no other
 ///   scope holds (with their edges), the scope's journal entries, sync state
@@ -239,6 +249,32 @@ pub trait CacheStore: Send {
     /// One consistent snapshot: every field is read at the same point (one
     /// read transaction for SQLite, one lock for `FakeStore`).
     fn status(&self) -> Result<StoreStatus, CacheError>;
+    /// The journal counted by state, in total, per scope and unscoped
+    /// (contract §6, `cache status` `journal`).
+    ///
+    /// One consistent snapshot, and for SQLite one grouped query, never a
+    /// scan of the journal in Rust. The provided body derives the counts from
+    /// [`CacheStore::status`]'s `phase:state` keys, where a missing phase is
+    /// `None`, so it counts the entries of a scope named `None` as unscoped;
+    /// every store of this workspace overrides it.
+    fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
+        let mut counts = JournalCounts::default();
+        for (key, n) in self.status()?.journal {
+            let Some((phase, state)) = key.rsplit_once(':') else {
+                continue;
+            };
+            let Some(state) = JournalState::parse(state) else {
+                continue;
+            };
+            let scope = if phase == "None" {
+                None
+            } else {
+                ScopeId::phase(phase).ok()
+            };
+            counts.add(scope.as_ref(), state, n);
+        }
+        Ok(counts)
+    }
 }
 
 /// Cross-process single drain writer (a-4: `flock` on `<cache file>.drain.lock`).

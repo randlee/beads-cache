@@ -56,6 +56,16 @@ pub(crate) const EXTENSION_COLUMNS: &[(&str, &str, &str)] = &[
     // Unix seconds of `applied_at`, filled when this store marks an entry
     // applied (ADR-STORE-0004); NULL for entries bd_cache.py applied.
     ("journal", "applied_epoch", "INTEGER"),
+    // The `CODE` of `last_error`, written with it by this store; NULL when
+    // bd_cache.py wrote the error (read from the text's `CODE: ` prefix).
+    ("journal", "last_error_code", "TEXT"),
+    // The resolve note, `resolved by <actor>: <note>`, written by this
+    // store's resolve; NULL when bd_cache.py resolved (it appends the note to
+    // `last_error`, split out on read).
+    ("journal", "note", "TEXT"),
+    // 1 / 0: whether the write changed the view when it was journaled, as a
+    // duplicate returns it (lead ruling S62); NULL for bd_cache.py's entries.
+    ("journal", "changed", "INTEGER"),
     ("sync_state", "backend_kind", "TEXT"),
     ("sync_state", "endpoint", "TEXT"),
     ("sync_state", "replica_id", "TEXT"),
