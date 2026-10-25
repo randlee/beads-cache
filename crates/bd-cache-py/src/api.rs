@@ -29,6 +29,14 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// How deep a request value may nest (a `list`, `tuple` or `dict` inside another counts one level).
+///
+/// `json_of` recurses on the native stack, which a self-referencing container or a very
+/// deep one would overflow, killing the interpreter. Past this depth the value is refused
+/// with `ValueError`, so a cycle always ends in a normal exception. No contract request
+/// nests beyond four levels (a patch's `metadata.set` map).
+const MAX_DEPTH: usize = 64;
+
 /// The object for `cache.<name>` when `name` is a namespace; `AttributeError` otherwise.
 pub(crate) fn namespace(cache: &Bound<'_, PyCache>, name: &str) -> PyResult<Py<PyAny>> {
     let py = cache.py();
@@ -48,7 +56,7 @@ fn request_of(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Value> {
     if let Some(kwargs) = kwargs {
         for (key, value) in kwargs.iter() {
             let key = key.extract::<String>()?;
-            map.insert(key, json_of(&value)?);
+            map.insert(key, json_of(&value, 0)?);
         }
     }
     Ok(Value::Object(map))
@@ -60,8 +68,9 @@ fn request_of(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Value> {
 /// # Errors
 ///
 /// `TypeError` for any other type or a non-`str` key; `ValueError` for an `int` outside
-/// 64 bits or a non-finite `float`.
-fn json_of(v: &Bound<'_, PyAny>) -> PyResult<Value> {
+/// 64 bits, a non-finite `float`, or nesting deeper than [`MAX_DEPTH`] (which includes a
+/// container that contains itself).
+fn json_of(v: &Bound<'_, PyAny>, depth: usize) -> PyResult<Value> {
     if v.is_none() {
         return Ok(Value::Null);
     }
@@ -86,10 +95,18 @@ fn json_of(v: &Bound<'_, PyAny>) -> PyResult<Value> {
     if v.is_instance_of::<PyString>() {
         return Ok(Value::String(v.extract::<String>()?));
     }
+    let container = v.is_instance_of::<PyList>()
+        || v.is_instance_of::<PyTuple>()
+        || v.is_instance_of::<PyDict>();
+    if container && depth >= MAX_DEPTH {
+        return Err(PyValueError::new_err(format!(
+            "a request nests deeper than {MAX_DEPTH} levels (or contains itself)"
+        )));
+    }
     if v.is_instance_of::<PyList>() || v.is_instance_of::<PyTuple>() {
         return v
             .try_iter()?
-            .map(|item| json_of(&item?))
+            .map(|item| json_of(&item?, depth + 1))
             .collect::<PyResult<Vec<_>>>()
             .map(Value::Array);
     }
@@ -99,7 +116,7 @@ fn json_of(v: &Bound<'_, PyAny>) -> PyResult<Value> {
             let key = key.extract::<String>().map_err(|e| {
                 PyTypeError::new_err(format!("a request object needs str keys, got {key} ({e})"))
             })?;
-            map.insert(key, json_of(&value)?);
+            map.insert(key, json_of(&value, depth + 1)?);
         }
         return Ok(Value::Object(map));
     }
@@ -158,17 +175,17 @@ namespace_class! {
     PyBeads = "Beads" {
         /// `issues get`: `id`, `miss_timeout_ms`.
         issues_get => IssuesGet,
-        /// `issues list`: `scope`, filters, paging.
+        /// `issues list`: `scope`, `status`, `label`, `label_any`, `exclude_label`, `assignee`, `all`, `sort`, `limit`, `cursor`.
         issues_list => IssuesList,
-        /// `ready`: `scope`, paging.
+        /// `ready`: `scope`, `label`, `label_any`, `exclude_label`, `assignee`, `unassigned`, `priority`, `limit`, `sort`, `fresh_within_ms`.
         ready => Ready,
-        /// `dependencies list`: `ids`.
+        /// `dependencies list`: `issue_id`, `type`.
         dependencies_list => DependenciesList,
-        /// `issues update`: `id`, `actor`, `idempotency_key`, `patch`, guards.
+        /// `issues update`: `id`, `actor`, `idempotency_key`, `patch`, `expected_status`, `expected_assignee`.
         issues_update => IssuesUpdate,
-        /// `issues close`: `id`, `actor`, `idempotency_key`, `reason`.
+        /// `issues close`: `id`, `actor`, `idempotency_key`, `reason`, `expected_status`, `expected_assignee`.
         issues_close => IssuesClose,
-        /// `dependencies add`: `from`, `to`, `type`, `actor`, `idempotency_key`.
+        /// `dependencies add`: `actor`, `idempotency_key`, `edges` (exactly one edge: `{issue_id, depends_on_id, type}`).
         dependencies_add => DependenciesAdd,
         /// `context`: the project, scopes and capabilities.
         context => Context,

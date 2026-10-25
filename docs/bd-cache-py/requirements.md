@@ -201,7 +201,7 @@ milliseconds (`miss_timeout_ms`, `timeout_ms`, `start_gate_ms`, `deadline_ms`). 
 method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope id. The
 namespaces are resolved by `Cache.__getattr__`, so `dir(Cache)` keeps exactly the 0.1
 names. A Python-level type mistake (a positional argument, a value with no JSON form)
-is `TypeError`; a non-finite float or an integer beyond 64 bits is `ValueError`.
+is `TypeError`; a non-finite float, an integer beyond 64 bits, or a value nested deeper than 64 levels (which includes a container that contains itself) is `ValueError`, never a crash (`test_api_robustness.py`, each case in a subprocess).
 
 **Refines:** REQ-BDC-0807, REQ-BDC-0808, REQ-BDC-0809
 **Acceptance evidence:** `test_api_fixtures.py` (each shared fixture of
