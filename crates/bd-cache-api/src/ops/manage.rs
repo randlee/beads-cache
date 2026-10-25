@@ -6,7 +6,7 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
-    ScopeId, ScopeStatus, Seq, StateCounts, SyncReport,
+    ScopeId, ScopeStatus, StateCounts, SyncReport,
 };
 use sc_beads::{BeadId, CacheBackend, Deadline, Timestamp};
 
@@ -175,7 +175,7 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let unresolved_escalations = u64::try_from(st.escalated.len()).unwrap_or(u64::MAX);
     let now = cache.clock().now_utc();
     let oldest_pending_age_s = oldest_pending_age_s(cache, &now)?;
-    let last_drain_at = last_drain_at(cache)?;
+    let last_drain_at = cache.last_applied_at()?;
     let max_age = req.max_pending_age_s();
     let mut reasons = Vec::new();
     if stale_rows > 0 {
@@ -249,14 +249,6 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     })
 }
 
-/// How many of the newest journal entries [`last_drain_at`] looks at.
-///
-/// The store has no "newest applied entry" query and `bd-cache-model`'s
-/// `CacheStore` is not extended for it, so health reads the newest entries by
-/// seq (an index lookup each). A journal whose last 256 entries include no
-/// applied one reports `null`: the drainer has not applied anything lately.
-const DRAIN_LOOKBACK: u64 = 256;
-
 /// Whole seconds from the oldest pending entry's `created_at` to `now`
 /// (never negative under clock skew); `None` with nothing pending.
 fn oldest_pending_age_s<S: CacheStore, L: DrainLock, B: CacheBackend>(
@@ -269,28 +261,6 @@ fn oldest_pending_age_s<S: CacheStore, L: DrainLock, B: CacheBackend>(
         .map(|e| &e.created_at)
         .min()
         .map(|oldest| u64::try_from(now.unix().saturating_sub(oldest.unix())).unwrap_or(0)))
-}
-
-/// When the journal last applied an entry: the newest `applied_at` among the
-/// [`DRAIN_LOOKBACK`] most recent entries (seqs run 1 to the journal's
-/// entry count); `None` when none of them was applied. Derived from existing
-/// columns, no schema change.
-fn last_drain_at<S: CacheStore, L: DrainLock, B: CacheBackend>(
-    cache: &Cache<S, L, B>,
-) -> Result<Option<Timestamp>, ApiError> {
-    let t = cache.journal_counts()?.total;
-    let newest = t.pending + t.applied + t.escalated + t.resolved;
-    let oldest = newest.saturating_sub(DRAIN_LOOKBACK - 1).max(1);
-    let mut latest: Option<Timestamp> = None;
-    for n in (oldest..=newest).rev() {
-        let Ok(seq) = i64::try_from(n) else { continue };
-        match cache.entry(Seq::new(seq)) {
-            Ok(e) => latest = latest.max(e.applied_at),
-            Err(CacheError::NotFound { .. }) => {}
-            Err(e) => return Err(e.into()),
-        }
-    }
-    Ok(latest)
 }
 
 /// `cache scopes`: every scope, by id (store reads only, no bd).

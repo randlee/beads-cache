@@ -457,10 +457,11 @@ negative). The limit is `--max-pending-age-s N` (request member
 `max_pending_age_s`), **300 s by default**: the cron drains every minute, so
 an entry that old means the drainer is not running or cannot apply it. An age
 equal to the limit is `ok`. `last_drain_at` is when the journal last applied
-an entry. It is derived from the existing `applied_at` column, with no schema
-change: the newest `applied_at` among the 256 most recent entries, so it is
-`null` when none of them was applied (a drainer that has applied nothing
-lately). Health reads the store and starts no bd call without `--probe`.
+an entry. It is derived from the existing applied-time columns, with no
+schema change: the newest applied time of any entry the journal still holds
+(an index read, never a window of seqs, so the gaps `cache evict` leaves in
+the seqs do not matter), `null` when none was applied. Health reads the
+store and starts no bd call without `--probe`.
 
 **Probe that cannot reach bd (QA ARCH-001).** `cache health --probe` whose
 backend check fails with an unreachable code (`BD_UNAVAILABLE`,

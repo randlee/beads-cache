@@ -224,6 +224,34 @@ pub const APPLIED_SINCE_SQL: &str = concat!(
      ORDER BY seq"
 );
 
+/// `CacheStore::last_applied_at`, the dated half: the newest `applied_epoch`
+/// of an applied entry (Unix seconds). One descending read of the
+/// `journal_applied_epoch` index to its first row, so it does not walk the
+/// applied history (`tests/store.rs` asserts the plan and the step count).
+pub const NEWEST_APPLIED_EPOCH_SQL: &str = "SELECT applied_epoch \
+    FROM journal INDEXED BY journal_applied_epoch \
+    WHERE state = 'applied' AND applied_epoch IS NOT NULL \
+    ORDER BY applied_epoch DESC LIMIT 1";
+
+/// [`NEWEST_APPLIED_EPOCH_SQL`] without the index hint.
+pub const NEWEST_APPLIED_EPOCH_UNHINTED_SQL: &str = "SELECT applied_epoch \
+    FROM journal WHERE state = 'applied' AND applied_epoch IS NOT NULL \
+    ORDER BY applied_epoch DESC LIMIT 1";
+
+/// `CacheStore::last_applied_at`, the undated half: the newest readable time
+/// (`applied_at` else `updated_at`) among entries applied without an epoch
+/// (another writer's). Walks `journal_applied_unknown`, which holds only those
+/// entries; one with an unreadable time yields `NULL` and is skipped.
+pub const NEWEST_UNDATED_APPLIED_SQL: &str = "SELECT \
+    MAX(unixepoch(COALESCE(applied_at, updated_at))) \
+    FROM journal INDEXED BY journal_applied_unknown \
+    WHERE state = 'applied' AND applied_epoch IS NULL";
+
+/// [`NEWEST_UNDATED_APPLIED_SQL`] without the index hint.
+pub const NEWEST_UNDATED_APPLIED_UNHINTED_SQL: &str = "SELECT \
+    MAX(unixepoch(COALESCE(applied_at, updated_at))) \
+    FROM journal WHERE state = 'applied' AND applied_epoch IS NULL";
+
 /// [`APPLIED_SINCE_SQL`] without the index hints.
 pub const APPLIED_SINCE_UNHINTED_SQL: &str = concat!(
     "SELECT ",

@@ -160,8 +160,8 @@ pub struct CacheHealthData {
     pub stale_rows: u64,
     /// Seconds since the oldest pending entry was journaled; `null` with none pending.
     pub oldest_pending_age_s: Option<u64>,
-    /// When the journal last applied an entry (the newest `applied_at` of the
-    /// 256 most recent entries); `null` when none there was applied.
+    /// When the journal last applied an entry (the newest applied time of the
+    /// entries it holds); `null` when none was applied.
     pub last_drain_at: Option<String>,
     /// Escalated entries nobody has resolved, announced or not.
     pub unresolved_escalations: u64,

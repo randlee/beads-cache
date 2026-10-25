@@ -510,6 +510,50 @@ fn health_degrades_when_the_oldest_pending_entry_is_too_old() {
     assert_eq!(h["last_drain_at"], "2026-10-23T10:05:01.000Z", "{h}");
 }
 
+/// RCR-001 of #91: `last_drain_at` is the newest applied time among the
+/// entries the journal holds, not a window of seqs derived from its row
+/// count. `cache evict` deletes the scope's entries, so the next entry's seq
+/// (AUTOINCREMENT) runs ahead of the row count; the second drain must still
+/// be what health reports, on the injected clock.
+#[test]
+fn last_drain_at_follows_the_newest_applied_entry_after_an_evict_leaves_a_seq_gap() {
+    let (w, mut cache) = world();
+    journal_update(&mut cache, "b2", "k1");
+    w.clock.advance(std::time::Duration::from_secs(30));
+    let first = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(first["applied"], json!([1]), "{first}");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], "2026-10-23T10:00:30.000Z", "{h}");
+
+    // The evict deletes entry 1: the journal is empty, the next seq is 2.
+    w.clock.advance(std::time::Duration::from_secs(60));
+    ok(&mut cache, "cache evict", &json!({"scope": "x"}));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], Value::Null, "nothing left applied: {h}");
+    ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+
+    w.clock.advance(std::time::Duration::from_secs(60));
+    journal_update(&mut cache, "b2", "k2");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], Value::Null, "k2 is only pending: {h}");
+    w.clock.advance(std::time::Duration::from_secs(60));
+    let second = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(
+        second["applied"],
+        json!([2]),
+        "seq 2, journal holds 1 row: {second}"
+    );
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(
+        h["last_drain_at"], "2026-10-23T10:03:30.000Z",
+        "the second apply time, not null: {h}"
+    );
+}
+
 /// I7: an escalation nobody resolved keeps health `degraded` after it was
 /// announced, until `journal resolve` settles it.
 #[test]
