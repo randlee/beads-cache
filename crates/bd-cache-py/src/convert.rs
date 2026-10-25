@@ -88,9 +88,41 @@ pub(crate) fn seconds(name: &str, secs: f64) -> PyResult<Duration> {
     })
 }
 
+/// A configured timeout given in seconds: positive, as the file loader requires
+/// of `call_timeout_s` and `miss_fill_timeout_ms` (lead ruling S56).
+///
+/// A value so small it rounds to zero nanoseconds is zero, and refused.
+///
+/// # Errors
+///
+/// `ValueError` for zero and for everything [`seconds`] refuses.
+pub(crate) fn positive_seconds(name: &str, secs: f64) -> PyResult<Duration> {
+    let d = seconds(name, secs)?;
+    if d.is_zero() {
+        return Err(PyValueError::new_err(format!(
+            "{name} must be a positive number of seconds, got {secs}"
+        )));
+    }
+    Ok(d)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn positive_seconds_refuse_zero_and_what_rounds_to_zero() {
+        for zero in [0.0, -0.0, 1e-12] {
+            assert!(positive_seconds("t", zero).is_err(), "{zero}");
+        }
+        assert_eq!(
+            positive_seconds("t", 0.001).ok(),
+            Some(Duration::from_millis(1))
+        );
+        for bad in [-1.0, f64::NAN, f64::INFINITY] {
+            assert!(positive_seconds("t", bad).is_err(), "{bad}");
+        }
+    }
 
     #[test]
     fn seconds_accept_zero_and_fractions() {

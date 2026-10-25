@@ -162,7 +162,14 @@ Decision:
   program is `tests/fake_bd_main.py`, a recording fake the Rust `BdCli`
   spawns like the real one (strict rows, exit 13 guard refusals, down, delayed
   or blocked-until-released answers on request, start and end of every call
-  logged). Tests about time are causal: a call is blocked until a Python thread
+  logged, each start with the child's `BEADS_DIR` and working directory). It
+  answers as `sc-bd-cli`'s `FakeBd` does (PE-ARCH-007): `--set-metadata`
+  values are coerced as `coerce_metadata` does, checked against the shared
+  table `tests/fixtures/metadata-coercion.json` (generated from that function),
+  and `bd blocked` / `bd ready` follow the P-6 recording (ADR-BEADS-0004),
+  checked against `crates/sc-beads/tests/fixtures/p6-blocked/`. An autouse
+  fixture removes any ambient `BEADS_DIR` (PE-FTQ-001); a test that needs one
+  sets it, with its working directory, in a child process. Tests about time are causal: a call is blocked until a Python thread
   creates a release file, which that thread does only after seeing something
   that needs the GIL free; durations are loose sanity bounds only. The mapping
   test reads `tests/atm_core_05831df_calls.json`, extracted from atm-core with

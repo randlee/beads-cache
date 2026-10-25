@@ -21,7 +21,7 @@ use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
 use crate::compose::{self, Composition, OpenError, OpenKind, Opened, Overrides};
-use crate::convert::{json_text, reply, seconds};
+use crate::convert::{json_text, positive_seconds, reply, seconds};
 use crate::error::{ClosedError, bad_argument, cache_err};
 use crate::slot::{NotRun, Slot};
 
@@ -147,10 +147,10 @@ impl PyCache {
             cache_path,
             scopes,
             call_timeout: call_timeout_s
-                .map(|t| seconds("call_timeout_s", t))
+                .map(|t| positive_seconds("call_timeout_s", t))
                 .transpose()?,
             miss_fill_timeout: miss_fill_timeout_ms
-                .map(|ms| seconds("miss_fill_timeout_ms", ms / 1000.0))
+                .map(|ms| positive_seconds("miss_fill_timeout_ms", ms / 1000.0))
                 .transpose()?,
             max_attempts: max_attempts.map(attempts).transpose()?,
         };
@@ -504,13 +504,14 @@ mod tests {
         dir
     }
 
+    /// The composition with `$BEADS_DIR` explicitly unset, so the ambient
+    /// environment of the test run cannot redirect the store (PE-FTQ-001).
+    fn open_unset(dir: &std::path::Path) -> Result<Opened, OpenError> {
+        compose::open_with(dir, "bd", None, Overrides::default(), Ok(None))
+    }
+
     fn inner(dir: &std::path::Path) -> Result<(Inner, PathBuf), OpenError> {
-        Ok(Inner::from_opened(compose::open(
-            dir,
-            "bd",
-            None,
-            Overrides::default(),
-        )?))
+        Ok(Inner::from_opened(open_unset(dir)?))
     }
 
     #[test]
@@ -537,7 +538,7 @@ mod tests {
         let slot = Slot::new(value);
         // The file is held while the handle lives.
         assert!(matches!(
-            compose::open(dir.path(), "bd", None, Overrides::default()),
+            open_unset(dir.path()),
             Err(OpenError::Cache(ModelError::StoreFailed { .. }))
         ));
         let outcome = slot.with(|v| -> u32 {
