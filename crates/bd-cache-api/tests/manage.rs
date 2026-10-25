@@ -92,7 +92,10 @@ fn an_escalation_is_listed_announced_and_resolved_with_its_note_apart() {
     );
     assert_eq!(r["already_resolved"], false);
     assert_eq!(r["entry"]["state"], "resolved");
-    assert_eq!(r["entry"]["note"], "closed by hand");
+    assert_eq!(
+        r["entry"]["note"], "resolved by lead: closed by hand",
+        "lead ruling S65"
+    );
     assert_eq!(r["entry"]["last_error"]["code"], "BD_CACHE.PRECONDITION");
     assert!(
         !r["entry"]["last_error"]["message"]
@@ -107,7 +110,10 @@ fn an_escalation_is_listed_announced_and_resolved_with_its_note_apart() {
         &json!({"seq": 2, "note": "other", "actor": "lead"}),
     );
     assert_eq!(again["already_resolved"], true);
-    assert_eq!(again["entry"]["note"], "closed by hand", "left unchanged");
+    assert_eq!(
+        again["entry"]["note"], "resolved by lead: closed by hand",
+        "left unchanged"
+    );
 
     let e = err(
         &mut cache,

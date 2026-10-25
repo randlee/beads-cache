@@ -74,10 +74,10 @@ fn scopes_by_id<S: CacheStore, L: DrainLock, B: CacheBackend>(
 
 fn counts(c: StateCounts) -> StateCountsData {
     StateCountsData {
-        pending: c.pending,
-        applied: c.applied,
-        escalated: c.escalated,
-        resolved: c.resolved,
+        pending: c.get(JournalState::Pending),
+        applied: c.get(JournalState::Applied),
+        escalated: c.get(JournalState::Escalated),
+        resolved: c.get(JournalState::Resolved),
     }
 }
 

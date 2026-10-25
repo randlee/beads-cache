@@ -54,8 +54,8 @@ pub(crate) struct WriteOutcome {
     pub(crate) changed: bool,
 }
 
-/// b-1's `StateCounts`.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+/// b-1's `StateCounts` (Serialize, with `get`, `add` and `sum`).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct StateCounts {
     pub(crate) pending: u64,
     pub(crate) applied: u64,
@@ -64,7 +64,24 @@ pub(crate) struct StateCounts {
 }
 
 impl StateCounts {
-    fn add(&mut self, state: JournalState, n: u64) {
+    /// The count of one state.
+    pub(crate) fn get(&self, state: JournalState) -> u64 {
+        match state {
+            JournalState::Pending => self.pending,
+            JournalState::Applied => self.applied,
+            JournalState::Escalated => self.escalated,
+            JournalState::Resolved => self.resolved,
+        }
+    }
+
+    /// Every state's count added up.
+    #[cfg(test)]
+    pub(crate) fn sum(&self) -> u64 {
+        self.pending + self.applied + self.escalated + self.resolved
+    }
+
+    /// Adds `n` to one state's count.
+    pub(crate) fn add(&mut self, state: JournalState, n: u64) {
         let slot = match state {
             JournalState::Pending => &mut self.pending,
             JournalState::Applied => &mut self.applied,
@@ -75,8 +92,8 @@ impl StateCounts {
     }
 }
 
-/// b-1's `JournalCounts`.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+/// b-1's `JournalCounts` (Serialize).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
 pub(crate) struct JournalCounts {
     pub(crate) total: StateCounts,
     pub(crate) by_scope: BTreeMap<ScopeId, StateCounts>,
@@ -91,12 +108,16 @@ pub(crate) struct EntryExtras {
     pub(crate) last_error_code: Option<String>,
     /// `last_error` without a trailing resolve note.
     pub(crate) last_error: Option<String>,
-    /// The resolve note, split out of `" | resolved by <actor>: <note>"`.
+    /// The resolve note as b-1 stores it, `resolved by <actor>: <note>`
+    /// (lead ruling S65), split out of a legacy `last_error`.
     pub(crate) note: Option<String>,
 }
 
-/// The separator `resolve` appends before the actor and note.
-const RESOLVED_BY: &str = " | resolved by ";
+/// b-1's `RESOLVE_SEPARATOR`: what a legacy `resolve` put between the error
+/// and the note.
+const RESOLVE_SEPARATOR: &str = " | ";
+/// How the note a legacy `resolve` appended begins.
+const RESOLVED_BY: &str = "resolved by ";
 
 /// b-1's `JournalEntry.{last_error_code, note}`.
 pub(crate) fn extras(e: &JournalEntry) -> EntryExtras {
@@ -107,11 +128,11 @@ pub(crate) fn extras(e: &JournalEntry) -> EntryExtras {
             note: None,
         };
     };
-    let (error, note) = match text.rfind(RESOLVED_BY) {
+    let marker = format!("{RESOLVE_SEPARATOR}{RESOLVED_BY}");
+    let (error, note) = match text.rfind(&marker) {
         Some(at) if e.state == JournalState::Resolved => {
             let (head, tail) = text.split_at(at);
-            let tail = tail.get(RESOLVED_BY.len()..).unwrap_or("");
-            let note = tail.split_once(": ").map_or(tail, |(_, n)| n);
+            let note = tail.get(RESOLVE_SEPARATOR.len()..).unwrap_or("");
             (head, Some(note.to_owned()))
         }
         _ => (text, None),
@@ -261,4 +282,19 @@ pub(crate) fn backend_check<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<(bd_cache_model::FingerprintOutcome, bool), CacheError> {
     bd_cache::testing::backend_check(cache, hard)
         .map_err(|f| f.into_error("bd version / bd schema: no answer in time"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn state_counts_get_add_and_sum() {
+        let mut c = StateCounts::default();
+        c.add(JournalState::Pending, 2);
+        c.add(JournalState::Resolved, 1);
+        assert_eq!(c.get(JournalState::Pending), 2);
+        assert_eq!(c.get(JournalState::Applied), 0);
+        assert_eq!(c.sum(), 3);
+    }
 }

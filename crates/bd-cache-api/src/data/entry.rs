@@ -42,7 +42,7 @@ pub struct Entry {
     pub attempts: u32,
     /// The latest failure or escalation reason.
     pub last_error: Option<OpError>,
-    /// The lead's resolve note.
+    /// The resolve note, `resolved by <actor>: <note>` (lead ruling S65).
     pub note: Option<String>,
     /// When the escalation was announced.
     pub announced_at: Option<String>,
