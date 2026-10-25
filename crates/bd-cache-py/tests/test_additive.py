@@ -11,7 +11,6 @@ import warnings
 import pytest
 
 import bd_cache_rs
-from conftest import Stopwatch
 
 VERBS_01 = {"get", "refresh", "write", "list", "ready", "sync", "drain", "entry", "resolve", "prune",
             "status", "unannounced_escalations", "mark_announced", "sync_alert", "set_sync_alert",
@@ -80,13 +79,18 @@ def test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_beh
 
 
 def test_miss_timeout_ms_is_milliseconds(cache, repo):
+    """Causal (NFR-BDC-0005): bd is gated, so only the 300 ms timeout can end the first call.
+
+    Read as seconds the call would wait for the gate's own deadline and then return the row,
+    not raise; no wall-clock bound is asserted.
+    """
     repo.bd.add({**repo.bd.get("b1"), "id": "late-1", "title": "late-1"})
-    repo.bd.delay("list", 4)
-    with Stopwatch() as watch:
-        err = raised(cache.beads.issues_get, id="late-1", miss_timeout_ms=300)
+    release = repo.bd.block("list", deadline=10)
+    err = raised(cache.beads.issues_get, id="late-1", miss_timeout_ms=300)
+    assert release.started(), "the miss reached bd"
+    assert not release.is_set(), "the call gave up while bd was still gated: the timeout cut it"
     assert err.code == "BD_CACHE.BD_UNAVAILABLE" and err.retryable is True
-    assert watch.elapsed < 3, f"300 ms waited {watch.elapsed:.1f} s: read as seconds?"
-    repo.bd.delay("list", 0)
+    release.set()
     assert cache.beads.issues_get(id="late-1", miss_timeout_ms=20000)["id"] == "late-1"
 
 
