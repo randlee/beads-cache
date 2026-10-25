@@ -34,14 +34,16 @@
 //! row step 3's view gives, read before step 6; `after` is the row a `get`
 //! answers right after the write. A duplicate returns the stored entry and
 //! its stored `changed` (never recomputed: the entry's overlay is already in
-//! the view), with `before` and `after` both the current view. `write` is the
+//! the view), with `before` and `after` both the current view. An entry
+//! stored without `changed` answers a prediction only while it is pending,
+//! else `None`: unknown, never guessed (lead ruling S68). `write` is the
 //! same journaling without the views, so a duplicate still needs no row.
 use std::collections::BTreeMap;
 
 use bd_cache_model::{
-    CacheError, CacheStore, DrainLock, Freshness, GuardKey, IdemKey, JournalEntry, NewEntry, Op,
-    PreconditionReason, RowView, ScopeId, Seq, Unmet, WriteOutcome, WriteReply, check_write_size,
-    replay, unmet,
+    CacheError, CacheStore, DrainLock, Freshness, GuardKey, IdemKey, JournalEntry, JournalState,
+    NewEntry, Op, PreconditionReason, RowView, ScopeId, Seq, Unmet, WriteOutcome, WriteReply,
+    check_write_size, replay, unmet,
 };
 use sc_beads::{Actor, Bead, BeadId, CacheBackend, Guards};
 
@@ -104,8 +106,8 @@ pub(crate) fn write_returning<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let (view, freshness) = current_view_or_fill(cache, id)?;
     let (after, _) = row_in_scope(cache, view, freshness)?;
     let changed = match entry.changed {
-        Some(stored) => stored,
-        None => predicted_changed(cache, &entry, &after.bead)?,
+        Some(stored) => Some(stored),
+        None => predicted_changed(cache, &entry)?,
     };
     let before = j.before.unwrap_or_else(|| after.clone());
     Ok(WriteOutcome {
@@ -208,16 +210,24 @@ fn dedupe(held: &JournalEntry, id: &BeadId, op: &Op) -> Result<Journaled, CacheE
     })
 }
 
-/// `changed` of an entry journaled without one (by `bd_cache.py`): predicted
-/// against the stored row with only the pending entries before it replayed,
-/// the view that write saw. `current` stands in when the row is gone.
+/// `changed` of an entry journaled without one (by `bd_cache.py`, or before
+/// the column existed), or `None` when it cannot be known (lead ruling S68).
+///
+/// Only a `Pending` entry is predicted: its effect is not in the stored row,
+/// so the stored row with only the pending entries before it replayed is the
+/// view that write saw. An applied, escalated or resolved entry may already
+/// be in the stored row (an applied close makes the row closed, and a
+/// prediction would say `false` where the write changed the view), so it is
+/// `None`; so is a pending entry whose bead has no stored row. Never a guess.
 fn predicted_changed<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     entry: &JournalEntry,
-    current: &Bead,
-) -> Result<bool, CacheError> {
+) -> Result<Option<bool>, CacheError> {
+    if entry.state != JournalState::Pending {
+        return Ok(None);
+    }
     let Some((row, _)) = cache.store.get_row(&entry.bead)? else {
-        return Ok(entry.op.changes(current));
+        return Ok(None);
     };
     let earlier: Vec<JournalEntry> = cache
         .store
@@ -225,7 +235,7 @@ fn predicted_changed<S: CacheStore, L: DrainLock, B: CacheBackend>(
         .into_iter()
         .filter(|e| e.seq < entry.seq)
         .collect();
-    Ok(entry.op.changes(&replay(&row, &earlier)))
+    Ok(Some(entry.op.changes(&replay(&row, &earlier))))
 }
 
 /// The bead as reads see it, filling a miss with one bounded `bd list --id`.

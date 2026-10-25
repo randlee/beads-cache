@@ -208,6 +208,9 @@ Decision:
   counts from `status()`'s `phase:state` keys (so a scope named `None` reads
   as unscoped there), and `FakeStore` and `SqliteStore` override it.
 - `GetReply.scope` is the bead's scope.
+- `WriteOutcome.changed` is `Option<bool>` (lead ruling S68): stored, else
+  predicted only for a pending entry, else `None`. `note` is `resolved by
+  <actor>: <note>` (S65).
 - The 0.1 wire is unchanged: `GetReply.scope` is `#[serde(skip)]`, and
   `JournalEntry` serializes the same fourteen keys, with `last_error` as
   `legacy_last_error()` (the error, `" | "`, the note), byte-identical to

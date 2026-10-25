@@ -60,9 +60,14 @@ A retry with the same key and the same `(bead, op)` is a duplicate whatever
 its guards and actor (contract §5.1): it journals nothing, and answers the
 stored entry and its stored `changed`, never a recomputed one (the original
 overlay is already in the view, so a recomputation is `false`); `before` and
-`after` are both the current view. An entry journaled without `changed` (by
-`bd_cache.py`) answers the prediction against the stored row with only the
-pending entries before it replayed.
+`after` are both the current view. `WriteOutcome.changed` is an
+`Option<bool>` (lead ruling S68, bc-lead, 2026-10-25): `Some(stored)` when the
+entry stores it; for an entry journaled without it (by `bd_cache.py`, or
+before the column existed), `Some(predicted)` only while the entry is
+`Pending`, predicted against the stored row with only the pending entries
+before it replayed; and `None` (unknown) in any other state. An applied,
+escalated or resolved entry's effect may already be in the stored row (an
+applied close leaves the row closed), so a prediction would be a guess.
 
 `write` is the same journaling without the views, and keeps its signature and
 reply (`WriteReply {seq, duplicate}`): a duplicate still needs no row, so a
@@ -70,14 +75,17 @@ retry after a rebuild stays answerable while bd is down.
 
 The views are read in the store's own read snapshots just before and just
 after the insert transaction, as the precondition is; the entry and its
-`changed` are the one transaction.
+`changed` are the one transaction (lead ruling S64), so `after` may already
+reflect a concurrent drain. `Entry.note` is `resolved by <actor>: <note>`
+(lead ruling S65).
 
 **Refines:** REQ-BDC-0809, 0004
 **Acceptance evidence:** `tests/write_returning.rs`:
 `write_returning_answers_the_stored_entry_and_both_views`,
 `changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise`,
 `a_retry_with_another_actor_and_guard_returns_the_stored_changed`,
-`a_duplicate_of_an_entry_without_changed_predicts_it`; the store side,
+`a_duplicate_of_an_entry_without_changed_predicts_it`,
+`a_duplicate_of_an_applied_entry_without_changed_is_unknown` (S68); the store side,
 `a_reader_never_sees_an_entry_without_its_changed` (bd-cache-store `store.rs`).
 
 ## REQ-CORE-0102: One drain pass and its report

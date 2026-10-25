@@ -254,12 +254,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// concurrent reader sees neither or both. `changed` is whether the write
     /// changes the view; for a close it is `!already_closed`, where
     /// `already_closed` describes the view before the write. `after` is the
-    /// row a [`Cache::get`] answers right after the call.
+    /// row a [`Cache::get`] answers right after the call; `before` and
+    /// `after` are snapshots read on either side of the insert transaction,
+    /// so `after` may already reflect a concurrent drain (lead ruling S64).
     ///
     /// A retry with the same key and the same `(bead, op)` is a duplicate,
     /// whatever its guards and actor (contract §5.1): it journals nothing and
     /// returns the stored entry with its stored `changed`, and `before` and
-    /// `after` are both the current view. Unlike [`Cache::write`], a duplicate
+    /// `after` are both the current view. An entry stored without `changed`
+    /// (by `bd_cache.py`) answers a prediction while pending and `None`
+    /// otherwise (lead ruling S68). Unlike [`Cache::write`], a duplicate
     /// for a bead the cache no longer holds fills it (one bounded `bd list`).
     ///
     /// # Errors

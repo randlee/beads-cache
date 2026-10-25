@@ -257,6 +257,13 @@ pub trait CacheStore: Send {
     /// [`CacheStore::status`]'s `phase:state` keys, where a missing phase is
     /// `None`, so it counts the entries of a scope named `None` as unscoped;
     /// every store of this workspace overrides it.
+    ///
+    /// Known limitation of the provided body (QA on #75): `None` is a valid
+    /// phase name, and v3's `status` keys cannot tell `None:pending` (no
+    /// phase) from the scope `None`, so that scope's entries land in
+    /// `unscoped` and it gets no `by_scope` bucket; `total` is still right.
+    /// The overrides in `FakeStore` and `SqliteStore` read the phase itself
+    /// and count such a scope in its own bucket.
     fn journal_counts(&self) -> Result<JournalCounts, CacheError> {
         let mut counts = JournalCounts::default();
         for (key, n) in self.status()?.journal {

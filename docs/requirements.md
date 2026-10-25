@@ -586,6 +586,12 @@ A journaled write returns its entry (`seq`, `state`, `duplicate`, idempotency ke
 
 **Source:** contract §1 rule 4, §5.1, §9; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
+**Amendment (lead ruling S64, bc-lead, 2026-10-25):** the one store transaction covers the journal entry and its `changed`. `before` and `after` are snapshots read on either side of it, so `after` may already reflect a concurrent drain.
+
+**Amendment (lead ruling S65, bc-lead, 2026-10-25):** an entry's `note` is `resolved by <actor>: <note>`.
+
+**Amendment (lead ruling S68, bc-lead, 2026-10-25):** `changed` is unknown (`None`) for an entry stored without it (by `bd_cache.py`, or before the column existed) unless the entry is still pending, when it is predicted against the stored row with the earlier pending entries replayed. It is never guessed: `WriteOutcome.changed` is `Option<bool>`.
+
 ## REQ-BDC-0810: CLI configuration
 
 **Status:** Proposed (phase-b plan; approved when the plan PR merges)

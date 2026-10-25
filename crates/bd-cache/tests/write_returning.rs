@@ -76,7 +76,11 @@ fn write_returning_answers_the_stored_entry_and_both_views() {
 
     assert!(w.bd.calls().is_empty(), "a cached bead needs no bd call");
     assert!(!out.duplicate);
-    assert!(out.changed, "open -> in_progress changes the view");
+    assert_eq!(
+        out.changed,
+        Some(true),
+        "open -> in_progress changes the view"
+    );
     assert_eq!(out.entry.changed, Some(true), "changed is stored");
     assert_eq!(out.entry.state, JournalState::Pending);
     assert_eq!(out.entry.scope, Some(x()));
@@ -105,7 +109,7 @@ fn changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise() {
     let w = World::new();
     let mut c = synced(&w);
     let first = returning(&mut c, "b1", "close", "{}", Guards::default(), "k1", "san");
-    assert!(first.changed, "b1 was in progress");
+    assert_eq!(first.changed, Some(true), "b1 was in progress");
     assert_eq!(first.before.bead.status.as_deref(), Some("in_progress"));
     assert_eq!(first.after.bead.status.as_deref(), Some("closed"));
 
@@ -119,8 +123,9 @@ fn changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise() {
         "san",
     );
     assert!(!again.duplicate, "another key: a new entry");
-    assert!(
-        !again.changed,
+    assert_eq!(
+        again.changed,
+        Some(false),
         "already closed in the view before the write"
     );
     assert_eq!(again.entry.changed, Some(false));
@@ -135,7 +140,7 @@ fn changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise() {
         "k3",
         "san",
     );
-    assert!(!same.changed, "b2 is already unassigned");
+    assert_eq!(same.changed, Some(false), "b2 is already unassigned");
     assert_eq!(same.after, same.before);
 
     let edge = returning(
@@ -147,7 +152,7 @@ fn changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise() {
         "k4",
         "san",
     );
-    assert!(edge.changed, "a new edge");
+    assert_eq!(edge.changed, Some(true), "a new edge");
     assert_eq!(edge.after.bead.dependencies.len(), 1);
     let twice = returning(
         &mut c,
@@ -158,7 +163,11 @@ fn changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise() {
         "k5",
         "san",
     );
-    assert!(!twice.changed, "the edge is already in the view");
+    assert_eq!(
+        twice.changed,
+        Some(false),
+        "the edge is already in the view"
+    );
 }
 
 /// REQ-BDC-0004, contract §5.1: a retry with the same key, another actor and
@@ -178,7 +187,7 @@ fn a_retry_with_another_actor_and_guard_returns_the_stored_changed() {
         "k1",
         "san",
     );
-    assert!(first.changed && !first.duplicate);
+    assert!(first.changed == Some(true) && !first.duplicate);
 
     // The guard no longer holds (the view is in progress) and the actor differs.
     let retry = returning(
@@ -192,8 +201,9 @@ fn a_retry_with_another_actor_and_guard_returns_the_stored_changed() {
     );
     assert!(retry.duplicate);
     assert_eq!(retry.entry.seq, first.entry.seq, "the original seq");
-    assert!(
+    assert_eq!(
         retry.changed,
+        Some(true),
         "the original changed, not a recomputed false"
     );
     assert_eq!(retry.entry, first.entry, "the stored entry, unchanged");
@@ -258,7 +268,7 @@ fn a_duplicate_of_an_entry_without_changed_predicts_it() {
     assert!(dup.duplicate);
     assert_eq!(dup.entry.seq, seq);
     assert_eq!(dup.entry.changed, None, "nothing is written on a duplicate");
-    assert!(dup.changed, "b2 was open before that write");
+    assert_eq!(dup.changed, Some(true), "b2 was open before that write");
 }
 
 /// REQ-BDC-0908: `entry_by_key` answers the entry in every state; an unknown
@@ -364,4 +374,47 @@ fn journal_counts_equal_a_hand_count_with_unscoped_entries() {
         store(&c).status().unwrap().journal.values().sum::<u64>(),
         "every entry counted once"
     );
+}
+
+/// Lead ruling S68 (RCR-001): an applied entry stored without `changed` (as
+/// `bd_cache.py` or a pre-b-1 store wrote it) answers `None` on a duplicate.
+/// Its effect is already in the stored row (the applied close left it
+/// closed), so a prediction would say `false` where the write changed the
+/// view: unknown, never a guess.
+#[test]
+fn a_duplicate_of_an_applied_entry_without_changed_is_unknown() {
+    let w = World::new();
+    let mut c = synced(&w);
+    let at = w.clock.now_utc();
+    let seq = store_mut(&mut c)
+        .insert_entry(
+            NewEntry {
+                changed: None,
+                ..new_entry("py-close", "b2", "close", "{}")
+            },
+            &at,
+        )
+        .unwrap();
+    let mut closed = w.bd_row("b2");
+    closed.status = Some("closed".into());
+    store_mut(&mut c)
+        .apply_with_readback(seq, Some(&closed), None, &at)
+        .unwrap();
+    let dup = returning(
+        &mut c,
+        "b2",
+        "close",
+        "{}",
+        Guards::default(),
+        "py-close",
+        "san",
+    );
+    assert!(dup.duplicate);
+    assert_eq!(dup.entry.seq, seq);
+    assert_eq!(dup.entry.state, JournalState::Applied);
+    assert_eq!(
+        dup.changed, None,
+        "unknown: the stored row already carries the close"
+    );
+    assert_eq!(dup.after.bead.status.as_deref(), Some("closed"));
 }

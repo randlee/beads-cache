@@ -126,8 +126,13 @@ pub struct WriteOutcome {
     /// True when the idempotency key already journaled this write.
     pub duplicate: bool,
     /// Whether the write changes the view (for a close, `!already_closed`),
-    /// stored with the entry; on a duplicate, the stored value.
-    pub changed: bool,
+    /// stored with the entry; on a duplicate, the stored value (lead ruling S68).
+    ///
+    /// `Some(stored)` when the entry stores it (every entry this core
+    /// journals); for an entry stored without it (by `bd_cache.py`, or before
+    /// the column existed), `Some(predicted)` while it is pending, and `None`
+    /// (unknown) in any other state, never a guess.
+    pub changed: Option<bool>,
 }
 
 /// Journal entry counts by state (contract §6, `cache status` `journal`).
