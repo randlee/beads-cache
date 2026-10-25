@@ -110,6 +110,27 @@ jobs:
           print(f"boundaries ok: {sorted(members)}")
           PY
 
+      # The check above sees direct edges only. This one rejects sc-command or
+      # clap anywhere in the normal or build graph of bd-cache-api or
+      # bd-cache-py (contract section 9; QA review), with every feature and
+      # every target, so a dependency that pulls either in is caught too.
+      - name: Crate boundaries, transitive (no sc-command or clap under bd-cache-api, bd-cache-py)
+        run: |
+          set -euo pipefail
+          fail=0
+          for pkg in bd-cache-api bd-cache-py; do
+            tree=$(cargo tree -p "$pkg" -e normal,build --all-features --target all --prefix none --format '{p}')
+            for dep in sc-command clap; do
+              if grep -qE "^${dep} v" <<<"$tree"; then
+                echo "::error::$pkg -> $dep (normal or build, transitive): no sc-command or clap (contract section 9)"
+                cargo tree -p "$pkg" -e normal,build --all-features --target all -i "$dep"
+                fail=1
+              fi
+            done
+          done
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "transitive boundaries ok: no sc-command or clap under bd-cache-api, bd-cache-py"
+
       - name: Release scripts tests (scripts/prerelease_tag.py)
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
 
@@ -146,7 +167,8 @@ jobs:
         run: cargo test --workspace $EXCLUDE --all-features
 
       # NFR-BDC-0002 (sprint b-3): a new-process `bdc issues get` cache hit is
-      # under 50 ms (median and p95 of 50), measured in a release build; the
-      # log also reports the ungated pending-write case.
+      # under 50 ms, measured in a release build: the median of 50 is gated on
+      # Unix and the p95 reported (lead ruling S80); Windows reports both (S79).
+      # The log also reports the ungated pending-write case.
       - name: Latency (NFR-BDC-0002, release profile)
         run: cargo test --release -p bd-cache-cli --test latency -- --ignored --nocapture
