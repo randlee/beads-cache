@@ -19,6 +19,7 @@
 )]
 
 use std::collections::VecDeque;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
@@ -27,7 +28,7 @@ use chrono::{DateTime, Utc};
 use sc_cron::{
     CronError, Generation, HookTarget, Job, ManualClock, NewSchedule, RunOutcome, Schedule,
     ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, Scheduler, SeqJitter,
-    SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
+    SqliteScheduleStore, StopDecision, StoreError, StoreErrorKind, Timestamp, WorkerHandle,
 };
 use serde_json::{Value, json};
 use tokio::sync::watch;
@@ -78,10 +79,15 @@ pub enum Write {
     },
 }
 
-/// A store that logs every run-state write after it completes.
+/// A store that logs every run-state write after it completes, counts its
+/// `list_active` calls, and can fail one `stop` or `disable` call on demand.
 pub struct RecordingStore {
     inner: SqliteScheduleStore,
     writes: watch::Sender<Vec<Write>>,
+    lists: watch::Sender<usize>,
+    failures: watch::Sender<usize>,
+    fail_stop: AtomicBool,
+    fail_disable: AtomicBool,
 }
 
 impl RecordingStore {
@@ -89,7 +95,47 @@ impl RecordingStore {
         Self {
             inner: SqliteScheduleStore::open_in_memory().expect("store"),
             writes: watch::Sender::new(Vec::new()),
+            lists: watch::Sender::new(0),
+            failures: watch::Sender::new(0),
+            fail_stop: AtomicBool::new(false),
+            fail_disable: AtomicBool::new(false),
         }
+    }
+
+    /// Makes the next `stop` call fail with a store error, once.
+    pub fn fail_next_stop(&self) {
+        self.fail_stop.store(true, Ordering::SeqCst);
+    }
+
+    /// Makes the next `disable` call fail with a store error, once.
+    pub fn fail_next_disable(&self) {
+        self.fail_disable.store(true, Ordering::SeqCst);
+    }
+
+    /// How many `list_active` calls the store has answered.
+    pub fn lists(&self) -> usize {
+        *self.lists.borrow()
+    }
+
+    pub async fn wait_failures(&self, count: usize) {
+        wait_on(
+            &self.failures,
+            &format!("{count} planted failures"),
+            |seen| *seen >= count,
+        )
+        .await;
+    }
+
+    /// Returns a planted failure if `flag` is set, clearing it.
+    fn planted(&self, flag: &AtomicBool, what: &str) -> Result<(), CronError> {
+        if flag.swap(false, Ordering::SeqCst) {
+            self.failures.send_modify(|seen| *seen += 1);
+            return Err(CronError::Store(StoreError::new(
+                StoreErrorKind::Other,
+                format!("planted {what} failure"),
+            )));
+        }
+        Ok(())
     }
 
     fn log(&self, write: Write) {
@@ -155,7 +201,9 @@ impl ScheduleStore for RecordingStore {
     }
 
     fn list_active(&self) -> Result<Vec<Schedule>, CronError> {
-        self.inner.list_active()
+        let rows = self.inner.list_active();
+        self.lists.send_modify(|lists| *lists += 1);
+        rows
     }
 
     fn record_run(
@@ -192,6 +240,7 @@ impl ScheduleStore for RecordingStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        self.planted(&self.fail_stop, "stop")?;
         let changed = self.inner.stop(id, generation, at, reason)?;
         self.log(Write::Stop {
             id,
@@ -212,6 +261,7 @@ impl ScheduleStore for RecordingStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        self.planted(&self.fail_disable, "disable")?;
         let changed = self.inner.disable(id, generation, at, reason)?;
         self.log(Write::Disable {
             id,
@@ -308,10 +358,23 @@ pub struct Fixture {
 
 impl Fixture {
     pub fn new() -> Self {
+        Self::build(|scheduler| scheduler)
+    }
+
+    /// A fixture whose worker reloads every `interval` while a disabled
+    /// schedule exists.
+    pub fn with_disabled_poll(interval: Duration) -> Self {
+        Self::build(|scheduler| scheduler.with_disabled_poll(interval))
+    }
+
+    fn build(configure: impl FnOnce(TestScheduler) -> TestScheduler) -> Self {
         let store = Arc::new(RecordingStore::new());
         let clock = Arc::new(ManualClock::new(at("2026-10-19T00:00:00Z")));
-        let scheduler =
-            Scheduler::new(store.clone(), clock.clone(), Arc::new(SeqJitter::default()));
+        let scheduler = configure(Scheduler::new(
+            store.clone(),
+            clock.clone(),
+            Arc::new(SeqJitter::default()),
+        ));
         Self {
             store,
             clock,

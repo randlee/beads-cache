@@ -21,12 +21,19 @@
 //! its stop check answers continue, disable or delete (REQ-CRON-0005,
 //! ADR-CRON-0007). A disabled schedule has no slot, so it never fires
 //! (REQ-CRON-0014).
+//!
+//! Nothing signals this worker when another process enables a schedule it
+//! dropped. So while the last reload saw a disabled active row, the worker
+//! reloads again every [`DEFAULT_DISABLED_POLL`] (or the interval set with
+//! `Scheduler::with_disabled_poll`) on the injected clock: a re-enable made
+//! elsewhere is noticed at most one interval after it is written
+//! (REQ-CRON-0014). With no disabled row there is no poll.
 
 use std::future::poll_fn;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use tokio::sync::{oneshot, watch};
@@ -38,6 +45,21 @@ use crate::{
     Clock, CronError, HookCall, HookEvent, HookTarget, MissedTickPolicy, RunOutcome, Schedule,
     ScheduleStore, StopDecision, StoreError, StoreErrorKind, Timestamp,
 };
+
+/// How often a worker reloads while a disabled active row exists.
+///
+/// A schedule enabled by another process sends this worker no signal, so the
+/// reload is the only way it learns of that (REQ-CRON-0014). 30 s keeps the
+/// delay before a re-enabled schedule resumes short against the usual tick
+/// (a minute or more) and costs one `list_active` per 30 s. A shorter interval
+/// raises that cost; a longer one raises the worst-case delay.
+pub const DEFAULT_DISABLED_POLL: Duration = Duration::from_secs(30);
+
+/// The shortest disabled-row poll accepted; anything below is raised to it.
+///
+/// Below one second the poll would cost a reload per tick of a busy loop for
+/// no gain, since the finest schedule resolution is one second.
+pub(crate) const MIN_DISABLED_POLL: Duration = Duration::from_secs(1);
 
 /// Stop reason recorded when an expression has no further occurrence.
 pub(crate) const EXHAUSTED: &str = "no future occurrence";
@@ -76,7 +98,8 @@ struct Slot {
     run: Option<InFlight>,
 }
 
-/// Backoff for a failed reload: 1 s doubling per failure, capped at 60 s.
+/// Backoff for a failed reload, or a lost slot to rebuild: 1 s doubling per
+/// failure, capped at 60 s.
 #[derive(Debug, Default)]
 struct ReloadRetry {
     failures: u32,
@@ -118,6 +141,10 @@ pub(crate) struct Worker<S, C> {
     slots: Vec<Slot>,
     reload_wanted: bool,
     retry: ReloadRetry,
+    /// How often to reload while a disabled active row exists.
+    disabled_poll: chrono::Duration,
+    /// When the next such reload is due; `None` while no disabled row is known.
+    poll_due: Option<DateTime<Utc>>,
 }
 
 impl<S, C> Worker<S, C>
@@ -130,6 +157,7 @@ where
         clock: Arc<C>,
         target: HookTarget,
         policy: MissedTickPolicy,
+        disabled_poll: Duration,
         shutdown: oneshot::Receiver<()>,
     ) -> Self {
         Self {
@@ -142,6 +170,9 @@ where
             slots: Vec::new(),
             reload_wanted: true,
             retry: ReloadRetry::default(),
+            disabled_poll: chrono::Duration::from_std(disabled_poll.max(MIN_DISABLED_POLL))
+                .unwrap_or(chrono::Duration::MAX),
+            poll_due: None,
         }
     }
 
@@ -163,7 +194,8 @@ where
             if self.stop_requested() {
                 break;
             }
-            if self.reload_wanted || self.retry.is_due(self.clock.now()) {
+            let due = self.clock.now();
+            if self.reload_wanted || self.retry.is_due(due) || self.poll_is_due(due) {
                 self.reload().await;
             }
             self.expire().await;
@@ -204,8 +236,26 @@ where
         });
         slots
             .chain(self.retry.due)
+            .chain(self.poll_due)
             .min()
             .unwrap_or(DateTime::<Utc>::MAX_UTC)
+    }
+
+    fn poll_is_due(&self, now: DateTime<Utc>) -> bool {
+        self.poll_due.is_some_and(|due| due <= now)
+    }
+
+    /// Starts the disabled-row poll if it is not running.
+    fn arm_poll(&mut self) {
+        let due = self.clock.now().checked_add_signed(self.disabled_poll);
+        self.poll_due = self.poll_due.or(due);
+    }
+
+    /// Asks for a retry of the reload after a store error left a schedule
+    /// without a slot, so it is not silently lost. The reload rebuilds the
+    /// slot from the row, which is still active and enabled.
+    fn rebuild_later(&mut self) {
+        self.retry.failed(self.clock.now());
     }
 
     fn now_stamp(&self) -> Timestamp {
@@ -228,6 +278,9 @@ where
 
     async fn reload(&mut self) {
         self.reload_wanted = false;
+        // A successful merge arms the poll again; a failed one is retried by
+        // the backoff, so a past deadline must not linger and spin the loop.
+        self.poll_due = None;
         match self.store_call(ScheduleStore::list_active).await {
             Ok(rows) => {
                 self.retry.succeeded();
@@ -250,7 +303,14 @@ where
     async fn merge(&mut self, rows: Vec<Schedule>) {
         let mut previous = std::mem::take(&mut self.slots);
         // A disabled schedule gets no slot, so it never fires and its stored
-        // next run is left alone (REQ-CRON-0014).
+        // next run is left alone (REQ-CRON-0014). Another process can enable
+        // it without telling this worker, so poll for that while one exists.
+        if rows
+            .iter()
+            .any(|schedule| schedule.is_active() && !schedule.enabled)
+        {
+            self.arm_poll();
+        }
         for schedule in rows
             .into_iter()
             .filter(|schedule| schedule.is_active() && schedule.enabled)
@@ -537,8 +597,13 @@ where
         {
             Ok(true) => log(schedule, "stopped", reason),
             Ok(false) => self.fenced(schedule, "stop"),
-            Err(error) => tracing::error!(subsystem = "sc_cron", action = "stop_failed",
-                schedule = %id, code = error.code(), %error, "schedule stop not stored: {error}"),
+            Err(error) => {
+                // The slot is gone but the row is still active: rebuild it.
+                tracing::error!(subsystem = "sc_cron", action = "stop_failed",
+                    schedule = %id, code = error.code(), %error,
+                    "schedule stop not stored: {error}");
+                self.rebuild_later();
+            }
         }
     }
 
@@ -551,10 +616,19 @@ where
             .store_call(move |store| store.disable(id, generation, at, &owned))
             .await
         {
-            Ok(true) => log(schedule, "disabled", reason),
+            Ok(true) => {
+                log(schedule, "disabled", reason);
+                // The row is disabled now: poll for an enable made elsewhere.
+                self.arm_poll();
+            }
             Ok(false) => self.fenced(schedule, "disable"),
-            Err(error) => tracing::error!(subsystem = "sc_cron", action = "disable_failed",
-                schedule = %id, code = error.code(), %error, "schedule disable not stored: {error}"),
+            Err(error) => {
+                // The slot is gone but the row is still enabled: rebuild it.
+                tracing::error!(subsystem = "sc_cron", action = "disable_failed",
+                    schedule = %id, code = error.code(), %error,
+                    "schedule disable not stored: {error}");
+                self.rebuild_later();
+            }
         }
     }
 

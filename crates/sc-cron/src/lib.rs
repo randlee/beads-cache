@@ -138,3 +138,5 @@ pub use types::{
     Generation, NewSchedule, RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleName,
     ScheduleSpec, StopDecision,
 };
+#[doc(inline)]
+pub use worker::DEFAULT_DISABLED_POLL;

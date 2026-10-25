@@ -14,12 +14,13 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::limits::encode_payload;
-use crate::worker::Worker;
+use crate::worker::{DEFAULT_DISABLED_POLL, MIN_DISABLED_POLL, Worker};
 use crate::{
     Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
     ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
@@ -125,6 +126,7 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
 pub struct Scheduler<S: ScheduleStore, C: Clock, J: JitterSource> {
     core: Arc<Core<S, C, J>>,
     policy: MissedTickPolicy,
+    disabled_poll: Duration,
     worker_live: Arc<AtomicBool>,
 }
 
@@ -147,6 +149,7 @@ where
                 reload: watch::channel(0).0,
             }),
             policy: MissedTickPolicy::default(),
+            disabled_poll: DEFAULT_DISABLED_POLL,
             worker_live: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -155,6 +158,22 @@ where
     #[must_use]
     pub fn with_missed_tick_policy(mut self, policy: MissedTickPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Sets how often a worker spawned after this call reloads while a
+    /// disabled schedule exists (REQ-CRON-0014).
+    ///
+    /// A schedule enabled by another process or scheduler sends this
+    /// scheduler's worker no signal, so the worker reloads on this interval
+    /// on the scheduler's clock for as long as the last reload saw a disabled
+    /// active schedule. A re-enable made elsewhere is therefore noticed at
+    /// most `interval` after it is stored. The default is
+    /// [`DEFAULT_DISABLED_POLL`] (30 s); an interval under one second is
+    /// raised to one second.
+    #[must_use]
+    pub fn with_disabled_poll(mut self, interval: Duration) -> Self {
+        self.disabled_poll = interval.max(MIN_DISABLED_POLL);
         self
     }
 
@@ -236,11 +255,13 @@ where
     /// it: a run that came due while it was disabled counts as missed and is
     /// handled per the [`MissedTickPolicy`]. A run in flight when it is
     /// disabled is cancelled and records nothing, as with
-    /// [`Scheduler::stop`]. This scheduler's worker is told at once; a worker
-    /// in another process or on another scheduler notices at its next
-    /// reload, or when its next tick finds the schedule disabled. This calls
-    /// the store synchronously; from async code use
-    /// [`Scheduler::set_enabled_async`].
+    /// [`Scheduler::stop`]. This scheduler's worker is told at once. A worker
+    /// in another process or on another scheduler is not told: it notices a
+    /// disable when its next tick finds the schedule disabled, and an enable
+    /// at its next reload, which happens at most
+    /// [`Scheduler::with_disabled_poll`] (default 30 s) after the write while
+    /// a disabled schedule exists. This calls the store synchronously; from
+    /// async code use [`Scheduler::set_enabled_async`].
     ///
     /// # Errors
     ///
@@ -282,7 +303,10 @@ where
     ///
     /// The worker loads the active schedules from the store, then sleeps on
     /// the clock until the next run, run deadline or reload signal. A failed
-    /// load is retried with a backoff of 1 s doubling to 60 s.
+    /// load is retried with a backoff of 1 s doubling to 60 s. While a
+    /// disabled schedule exists it also reloads every
+    /// [`Scheduler::with_disabled_poll`], so an enable made by another process
+    /// is noticed.
     ///
     /// Stop the worker with [`WorkerHandle::shutdown`] and await it: that is
     /// the only way to know in-flight outcomes were recorded before the
@@ -317,6 +341,7 @@ where
             Arc::clone(&self.core.clock),
             target,
             self.policy,
+            self.disabled_poll,
             shutdown_rx,
         );
         let task = tokio::spawn(async move {

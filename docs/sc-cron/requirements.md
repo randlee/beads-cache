@@ -1,7 +1,7 @@
 # sc-cron Requirements
 
 Status: REQ-CRON-0001..0012 are Approved (lead ruling 2026-10-24, a-3 QA-2).
-REQ-CRON-0013..0015 are Proposed (sprint b-6); b-6 also amends REQ-CRON-0001,
+REQ-CRON-0013..0015 are Approved (Rand's rulings, 2026-10-25); b-6 also amends REQ-CRON-0001,
 0002, 0005, 0006, 0007, 0009 and 0011, marked in each.
 
 Domain code: `CRON`. Owned by sprint a-3 (`requirements.owns` in
@@ -225,7 +225,7 @@ them on tokio's blocking pool.
 
 ## REQ-CRON-0013: Python hook target
 
-**Status:** Proposed (sprint b-6)
+**Status:** Approved (Rand's rulings, 2026-10-25)
 
 A schedule's worker runs a `HookTarget`: a Rust `Job`, or a Python module
 (`HookTarget::Python(PythonHook)`). A Python target runs as
@@ -263,7 +263,7 @@ REQ-CRON-0010 (time is injected), REQ-CRON-0011
 
 ## REQ-CRON-0014: Enabled flag
 
-**Status:** Proposed (sprint b-6)
+**Status:** Approved (Rand's rulings, 2026-10-25)
 
 Each schedule has an `enabled` boolean, stored in an `enabled` column that
 defaults to 1. `Scheduler::set_enabled(name, enabled)` (and `set_enabled_async`)
@@ -275,9 +275,18 @@ next run is left as it was. A run in flight when the schedule is disabled is
 cancelled and records nothing. Enabling resumes the same schedule; a run that
 came due meanwhile counts as missed and is handled per the `MissedTickPolicy`
 (REQ-CRON-0004). The change reaches this scheduler's worker at once. A worker
-in another process notices at its next reload or its next tick, because
-`set_next` refuses a disabled schedule and a refused write makes the worker
-reload before it launches (REQ-CRON-0007). A new or restarted schedule is
+in another process, or on another scheduler, gets no signal, and notices as
+follows. A disable: its next tick, because `set_next` refuses a disabled
+schedule and a refused write makes the worker reload before it launches
+(REQ-CRON-0007). An enable: the worker keeps no slot for a disabled row, so
+nothing would wake it; instead, while its last reload saw an active disabled
+row (whether disabled by `set_enabled` or by a stop check), it reloads again
+every disabled-poll interval on the injected clock
+(`Scheduler::with_disabled_poll`, default `DEFAULT_DISABLED_POLL`, 30 s;
+values under 1 s are raised to 1 s). A re-enable made elsewhere is therefore
+noticed at most one interval after it is stored, and the reload rebuilds the
+slot (a run that came due meanwhile is handled per the `MissedTickPolicy`).
+With no disabled active row there is no poll. A new or restarted schedule is
 enabled, and a stop check can disable a schedule (REQ-CRON-0005).
 
 **Constrained by:** REQ-CRON-0008 (the store reads no clock), REQ-CRON-0009
@@ -287,7 +296,7 @@ enabled, and a stop check can disable a schedule (REQ-CRON-0005).
 
 ## REQ-CRON-0015: Five-field expressions
 
-**Status:** Proposed (sprint b-6)
+**Status:** Approved (Rand's rulings, 2026-10-25)
 
 A standard five-field crontab expression (minute, hour, day of month, month,
 day of week) is accepted, in UTC, and fires at second 0 of each matching

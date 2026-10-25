@@ -9,9 +9,12 @@
 mod common;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use common::{Fixture, ScriptedJob, StopScript, name, shutdown, ts};
-use sc_cron::{CronError, HookTarget, RunOutcome, Schedule, ScheduleStore};
+use sc_cron::{
+    CronError, DEFAULT_DISABLED_POLL, HookTarget, RunOutcome, Schedule, ScheduleStore, StopDecision,
+};
 
 fn rust(job: &Arc<ScriptedJob>) -> HookTarget {
     HookTarget::Rust(job.clone())
@@ -210,4 +213,87 @@ async fn disabling_cancels_a_run_in_flight_and_records_nothing() {
     let row = fixture.row(&schedule);
     assert_eq!(row.last_outcome, None);
     assert!(row.is_active() && !row.enabled);
+}
+
+/// Runs a worker over `fixture`'s store, disables the schedule straight in
+/// the store, then enables it straight in the store. Neither write signals the
+/// worker. Asserts it stays quiet while disabled and fires again within
+/// `bound` of the enable.
+#[expect(
+    clippy::expect_used,
+    reason = "test helper: a failed expectation is the test failure"
+)]
+async fn enable_made_elsewhere_resumes(fixture: &Fixture, bound: Duration) {
+    let job = Arc::new(ScriptedJob::new());
+    let schedule = fixture.start(fixture.spec("poll"));
+    let worker = fixture.worker(rust(&job)).await;
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    fixture.store.wait_recorded(&schedule, RunOutcome::Ok).await;
+
+    assert!(
+        fixture
+            .store
+            .set_enabled(&schedule.spec.name, false)
+            .expect("disable")
+    );
+    // The next tick finds the row disabled and the worker drops its slot.
+    fixture.step(60).await;
+    fixture.store.wait_next_refused(&schedule).await;
+    fixture.step(180).await;
+    assert_eq!(job.runs(), 1, "a disabled row does not fire");
+
+    assert!(
+        fixture
+            .store
+            .set_enabled(&schedule.spec.name, true)
+            .expect("enable")
+    );
+    fixture
+        .step(i64::try_from(bound.as_secs()).expect("bound"))
+        .await;
+    // The ticks missed while it was off are replayed as one run.
+    job.wait_runs(2).await;
+    fixture.store.wait_recorded(&schedule, RunOutcome::Ok).await;
+    fixture.step(60).await;
+    job.wait_runs(3).await;
+    shutdown(worker).await;
+}
+
+#[tokio::test]
+async fn an_enable_made_elsewhere_is_noticed_within_the_default_poll() {
+    enable_made_elsewhere_resumes(&Fixture::new(), DEFAULT_DISABLED_POLL).await;
+}
+
+#[tokio::test]
+async fn an_enable_made_elsewhere_is_noticed_within_a_configured_poll() {
+    let bound = Duration::from_secs(10);
+    enable_made_elsewhere_resumes(&Fixture::with_disabled_poll(bound), bound).await;
+}
+
+#[tokio::test]
+async fn an_enable_made_elsewhere_resumes_a_row_the_stop_check_disabled() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    job.then_stop(StopScript::Decide(StopDecision::Disable("quiet".into())));
+    let schedule = fixture.start(fixture.spec("paused"));
+    let worker = fixture.worker(rust(&job)).await;
+    fixture.step(60).await;
+    fixture.store.wait_disabled(&schedule, "quiet").await;
+    assert_eq!(job.runs(), 0);
+
+    assert!(
+        fixture
+            .store
+            .set_enabled(&schedule.spec.name, true)
+            .expect("enable")
+    );
+    // The poll finds the row enabled; its next run is the following minute.
+    fixture
+        .step(i64::try_from(DEFAULT_DISABLED_POLL.as_secs()).expect("bound"))
+        .await;
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    shutdown(worker).await;
+    assert_eq!(job.stop_checks(), 2);
 }

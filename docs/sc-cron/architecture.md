@@ -1,7 +1,7 @@
 # sc-cron Architecture
 
 Status: ADR-CRON-0001..0006 are Approved (lead ruling 2026-10-24, a-3 QA-1).
-ADR-CRON-0007 and 0008 are Proposed (sprint b-6), which also amends
+ADR-CRON-0007 and 0008 are Approved (Rand's rulings, 2026-10-25), which also amends
 ADR-CRON-0006 (its amendment below). Domain code: `CRON`. Requirements:
 [requirements.md](requirements.md). Governing repo-level decision:
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime).
@@ -41,8 +41,7 @@ Third-party dependencies: `async-trait`, `chrono`, `cron` 0.17, `getrandom`,
 `process-wrap` (hook process group and job object, ADR-CRON-0008),
 `rusqlite` (bundled), `serde_json`, `tempfile` (a hook's working directory),
 `tokio` (with `process` and `io-util`), `tracing`. The `sc-cron` row of
-[docs/architecture.md](../architecture.md) lists the first-sprint set and has
-not yet been updated for `process-wrap` and `tempfile`.
+[docs/architecture.md](../architecture.md) lists the same set.
 
 ## Public contract
 
@@ -193,7 +192,8 @@ flight with its monotonic deadline. Each pass, checking for shutdown
 between slots:
 
 1. Reload from `list_active` if signalled (by `start`, `stop`,
-   `set_enabled` or a fenced write) or a retry is due. A disabled row gets no
+   `set_enabled` or a fenced write), a retry is due, or the disabled-row poll
+   is due. A disabled row gets no
    slot, so it never fires and a run in flight for it is cancelled. A slot
    whose `(id, generation)` is unchanged and still enabled is kept with its
    run in flight. Any other old slot is dropped, which cancels
@@ -201,15 +201,27 @@ between slots:
    unchanged slots are still kept, so their runs reach the drain. A failed
    reload (including a corrupt row) is logged with its code and retried
    after 1 s, doubling to 60 s (the shift is capped, so it never
-   overflows).
+   overflows). The same retry rebuilds a slot lost to a store error: when the
+   `stop` or `disable` write a stop check asked for returns an error (not
+   `false`), the slot is already dropped but the row is still active and
+   enabled, so the worker schedules a reload and the row's slot comes back.
+   The disabled-row poll: a reload that finds an active, disabled row sets the
+   next reload due one interval later (`Scheduler::with_disabled_poll`, default
+   30 s, minimum 1 s, on the injected clock), as does a successful stop-check
+   `disable`; a reload that finds none clears it. Another process's
+   `set_enabled(true)` sends no signal and a disabled row has no slot, so
+   this poll is the only way the worker notices it, at most one interval after
+   the write. The poll adds the cost of one `list_active` per interval, and
+   only while a disabled row exists.
 2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,
    and record `TimedOut`.
 3. For each due slot: compute and store the next run (a fenced `set_next`
    skips the launch and reloads at once), then skip it if a run is in
    flight, skip it if missed under `Skip`, or launch it.
-4. Sleep on `Clock::sleep_until` until the earliest next run or run
-   deadline (converted from monotonic to wall time), unless a reload
-   signal, a finished run or shutdown comes first.
+4. Sleep on `Clock::sleep_until` until the earliest next run, run
+   deadline (converted from monotonic to wall time), reload retry or
+   disabled-row poll, unless a reload signal, a finished run or shutdown comes
+   first.
 
 A launched run is its own task: the stop check, then `run` with the
 deadline, for a Rust target; for a Python target the `cron.stop` hook, then the
@@ -396,7 +408,7 @@ fail the whole call.
 
 ## ADR-CRON-0007: Stop decision is continue, disable or delete
 
-**Status:** Proposed (sprint b-6)
+**Status:** Approved (Rand's rulings, 2026-10-25)
 
 Context: the stop check could only end a schedule (`Stop(reason)`), and a
 schedule could only be ended or left running. A consumer wants a check that
@@ -430,7 +442,7 @@ enabled. A job that wants a time limit still checks it in the payload
 
 ## ADR-CRON-0008: Python hooks run as supervised child processes
 
-**Status:** Proposed (sprint b-6)
+**Status:** Approved (Rand's rulings, 2026-10-25)
 
 Context: sc-cron must stay general (ANC-005, REQ-CRON-0011), yet a schedule
 should be able to run a Python module instead of a Rust `Job`, and b-7 needs

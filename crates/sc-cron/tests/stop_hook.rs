@@ -303,3 +303,62 @@ mod python {
         assert_eq!(events(&stub), ["cron.stop"]);
     }
 }
+
+/// After a planted store failure the worker must rebuild the slot: steps the
+/// clock one second at a time until the worker has reloaded the rows again.
+#[expect(
+    clippy::panic,
+    reason = "test helper: a failed expectation is the test failure"
+)]
+async fn step_until_reloaded(fixture: &Fixture, lists_before: usize) {
+    for _ in 0..10 {
+        if fixture.store.lists() > lists_before {
+            return;
+        }
+        fixture.step(1).await;
+    }
+    panic!("the worker never reloaded after the failed store call");
+}
+
+#[tokio::test]
+async fn a_failed_disable_is_retried_and_the_schedule_keeps_firing() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    job.then_stop(StopScript::Decide(StopDecision::Disable("quiet".into())));
+    fixture.store.fail_next_disable();
+    let schedule = fixture.start(fixture.spec("flaky"));
+    let worker = fixture.worker(rust(&job)).await;
+    let lists = fixture.store.lists();
+    fixture.step(60).await;
+    fixture.store.wait_failures(1).await;
+    step_until_reloaded(&fixture, lists).await;
+
+    // The row is still enabled, so the rebuilt slot fires at the next tick.
+    assert!(fixture.row(&schedule).enabled);
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    shutdown(worker).await;
+    assert_eq!(job.stop_checks(), 2);
+    assert!(fixture.row(&schedule).enabled);
+}
+
+#[tokio::test]
+async fn a_failed_delete_is_retried_and_the_schedule_keeps_firing() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    job.then_stop(StopScript::Decide(StopDecision::Delete("done".into())));
+    fixture.store.fail_next_stop();
+    let schedule = fixture.start(fixture.spec("flaky-end"));
+    let worker = fixture.worker(rust(&job)).await;
+    let lists = fixture.store.lists();
+    fixture.step(60).await;
+    fixture.store.wait_failures(1).await;
+    step_until_reloaded(&fixture, lists).await;
+
+    assert!(fixture.row(&schedule).is_active());
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    shutdown(worker).await;
+    assert_eq!(job.stop_checks(), 2);
+    assert!(fixture.row(&schedule).is_active());
+}
