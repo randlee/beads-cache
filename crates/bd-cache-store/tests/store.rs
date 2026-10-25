@@ -1367,3 +1367,35 @@ fn applied_since_reads_both_partial_indexes_and_no_history() {
     assert_eq!(keys, ["mine", "unreadable-0"], "seq order, both halves");
     assert!(got[0].seq < got[1].seq);
 }
+
+/// A pending entry journaled before PE-RBP-F004 (an earlier build, or
+/// `bd_cache.py`) may carry a metadata key a new write is refused for. It must
+/// still decode, so the drain reaches it and escalates it, instead of every
+/// pending read failing with `BAD_ARGS` (QA RCR-001 on #60).
+#[test]
+fn a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes() {
+    let (open, store) = fresh("legacy-meta-key");
+    {
+        let c = Connection::open(&open.path).unwrap();
+        let mut ins = c
+            .prepare(
+                "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                 actor, state, attempts, created_at, updated_at) \
+                 VALUES (?1, 'x', 'b1', 'update', ?2, '{}', 'san', 'pending', 0, \
+                 '2026-10-24T07:00:00Z', '2026-10-24T07:00:00Z')",
+            )
+            .unwrap();
+        ins.execute(["legacy-eq", r#"{"set_metadata": {"a=b": "x"}}"#])
+            .unwrap();
+        ins.execute(["legacy-empty", r#"{"set_metadata": {"": "x"}}"#])
+            .unwrap();
+    }
+    let pending = store.pending_entries().unwrap();
+    assert_eq!(pending.len(), 2, "both legacy entries decode");
+    for e in &pending {
+        let Op::Update(patch) = &e.op else {
+            panic!("an update, got {:?}", e.op)
+        };
+        assert_eq!(patch.set_metadata.len(), 1);
+    }
+}

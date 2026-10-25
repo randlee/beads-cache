@@ -2,7 +2,7 @@
 //!
 //! The steps run in this order (`docs/bd-cache/write-path.md`, REQ-CORE-0101):
 //!
-//! 1. [`check_write_size`], then [`Op::parse`]: `BAD_ARGS` for args or a key
+//! 1. [`check_write_size`], then [`Op::parse_new`]: `BAD_ARGS` for args or a key
 //!    over its size limit ([`MAX_WRITE_ARGS_BYTES`](bd_cache_model::MAX_WRITE_ARGS_BYTES),
 //!    [`MAX_IDEM_KEY_BYTES`](bd_cache_model::MAX_IDEM_KEY_BYTES)), then
 //!    `BAD_OP` / `BAD_ARGS`, before anything else, so an invalid write never
@@ -46,7 +46,7 @@ pub(crate) fn write<S: CacheStore, L: DrainLock, B: CacheBackend>(
     actor: Actor,
 ) -> Result<WriteReply, CacheError> {
     check_write_size(args_json, &key)?;
-    let op = Op::parse(op_name, args_json)?;
+    let op = Op::parse_new(op_name, args_json)?;
     if let Some(held) = cache.store.entry_by_key(&key)? {
         return dedupe(&held, id, &op);
     }

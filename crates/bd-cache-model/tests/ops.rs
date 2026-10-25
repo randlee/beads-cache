@@ -24,7 +24,7 @@ fn code(op: &str, args: &str) -> &'static str {
 /// refused at parse time, in both spellings of a metadata set; ordinary keys,
 /// including ones with dots, dashes and colons, are kept.
 #[test]
-fn empty_or_equals_metadata_keys_are_bad_args_at_parse_time() {
+fn empty_or_equals_metadata_keys_are_bad_args_for_a_new_write_only() {
     for args in [
         r#"{"set_metadata": {"": "x"}}"#,
         r#"{"set_metadata": {"a=b": "x"}}"#,
@@ -33,9 +33,12 @@ fn empty_or_equals_metadata_keys_are_bad_args_at_parse_time() {
         r#"{"metadata": {"set": {"": "x"}}}"#,
         r#"{"metadata": {"set": {"x=y": "z"}}}"#,
     ] {
-        let e = Op::parse("update", args).unwrap_err();
+        let e = Op::parse_new("update", args).unwrap_err();
         assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{args}");
         assert!(e.detail().starts_with("set_metadata key"), "{args}: {e}");
+        // A stored entry is decoded with `parse`, which must still accept it
+        // so a journal from an earlier build drains instead of wedging.
+        assert!(Op::parse("update", args).is_ok(), "{args}");
     }
     for key in ["k", "a.b", "team-lead", "ns:key", "with space"] {
         let args = serde_json::json!({"set_metadata": {key: "x"}}).to_string();
