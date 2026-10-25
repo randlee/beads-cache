@@ -34,3 +34,7 @@ rustc-ice-*.txt
 # Python bytecode (S43)
 __pycache__/
 *.pyc
+
+# sc-publish kit clone and renderer venv (release/sc-publish-pin.toml)
+.sc-publish-kit/
+.sc-publish-venv/

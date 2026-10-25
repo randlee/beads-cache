@@ -9,6 +9,15 @@ license = "MIT"
 workspace_toml = "Cargo.toml"
 rust_toolchain = "1.98.1"
 
+[prerelease]
+tag_prefix = "prerelease/v"
+tag_script = "scripts/prerelease_tag.py"
+install_root = "~/.beads-cache-builds"
+binaries = []
+protected_branches = ["develop", "main"]
+selector_dir = { darwin = "~/.beads-cache-builds/selectors/darwin", linux = "~/.beads-cache-builds/selectors/linux", windows = "%LOCALAPPDATA%\\beads-cache\\prerelease-selectors" }
+post_install = "{python} -m pip install --force-reinstall {wheels}"
+verify = "{python} -m pip show bd-cache-rs"
 
 [[release_targets]]
 target = "x86_64-unknown-linux-gnu"
