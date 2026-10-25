@@ -3,7 +3,16 @@
 # own Cargo.toml (docs/plans/phase-a/phase-a-plan.md, Shared files). A missing
 # workspace dependency is an amendment to sprint a-1.
 [workspace]
-members = ["crates/*"]
+members = [
+    "crates/bd-cache",
+    "crates/bd-cache-model",
+    "crates/bd-cache-py",
+    "crates/bd-cache-store",
+    "crates/bd-cache-sync",
+    "crates/sc-bd-cli",
+    "crates/sc-beads",
+    "crates/sc-cron",
+]
 resolver = "3"
 
 [workspace.package]
