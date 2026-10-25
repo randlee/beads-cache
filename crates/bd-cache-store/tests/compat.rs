@@ -1,7 +1,7 @@
 //! Compatibility both ways with the reference `bd_cache.py` (REQ-BDC-0804).
 //!
 //! The reference implementation, its model and the bd-1.3.1 fixtures are
-//! vendored at atm-core `05831df` under `tests/compat/` (see
+//! vendored at atm-core `1695220` under `tests/compat/` (see
 //! `tests/compat/PROVENANCE.md`) and run with `uv`, as CI installs it.
 //! `tests/compat/driver.py` drives them with a deterministic bd; no bd runs.
 //! A missing `uv` fails these tests: they are never skipped. The first test to
@@ -610,6 +610,127 @@ fn python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back() {
     drop(store);
 
     check_raw_columns(&f, rust_resolved, python_resolved);
+}
+
+/// The mixed cutover (I9): the Rust store journals two writes, `bd_cache.py`'s
+/// drain applies them through a fake bd that accepts writes, and the Rust store
+/// reads the result back.
+///
+/// Asserted on both sides: the bd commands the drain ran (the precondition
+/// became `--if-status`), the bead rows after the read-back, the entries'
+/// state as Python and as Rust read them, and that nothing is left pending.
+#[test]
+fn python_drains_entries_the_rust_store_wrote_and_the_rust_store_reads_the_result() {
+    let f = Shared::new("mixed-drain");
+    let (close, update) = seed_close_and_update(&f);
+
+    let out = f.run("drain", &[]);
+    assert_eq!(
+        out["report"]["applied"],
+        json!([close.get(), update.get()]),
+        "{out}"
+    );
+    assert_eq!(out["report"]["escalated"], json!([]), "{out}");
+    assert_eq!(out["report"]["retrying"], json!([]), "{out}");
+    assert_eq!(
+        out["commands"],
+        json!([
+            [
+                "bd", "close", "ct-2", "--reason", "landed", "--actor", "dev"
+            ],
+            [
+                "bd",
+                "update",
+                "ct-1",
+                "--add-label",
+                "reviewed",
+                "--if-status",
+                "in_progress",
+                "--actor",
+                "dev"
+            ]
+        ]),
+        "{out}"
+    );
+    for seq in [close, update] {
+        assert_eq!(out["entries"][seq.get().to_string()]["state"], "applied");
+    }
+    assert_eq!(out["beads"]["ct-2"]["status"], "closed", "{out}");
+    assert_eq!(out["beads"]["ct-2"]["close_reason"], "landed", "{out}");
+
+    let store = f.open();
+    assert!(store.pending_entries().unwrap().is_empty());
+    for seq in [close, update] {
+        let e = store.entry_by_seq(seq).unwrap().unwrap();
+        assert_eq!(e.state, JournalState::Applied, "seq {seq:?}");
+        assert_eq!(e.attempts, 0, "seq {seq:?}");
+        assert_eq!(e.last_error, None, "seq {seq:?}");
+    }
+    let row = |name: &str| {
+        let (bead, freshness) = store.get_row(&id(name)).unwrap().unwrap();
+        (serde_json::to_value(&bead).unwrap(), freshness)
+    };
+    let (closed, freshness) = row("ct-2");
+    assert_eq!(
+        (closed["status"].as_str(), closed["close_reason"].as_str()),
+        (Some("closed"), Some("landed"))
+    );
+    assert_eq!(freshness, Freshness::Fresh);
+    let (updated, _) = row("ct-1");
+    assert_eq!(updated["status"], "in_progress");
+    assert!(
+        updated["labels"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("reviewed")),
+        "{updated}"
+    );
+    assert_eq!(
+        row("ct-3").0["status"],
+        "closed",
+        "an untouched bead is unchanged"
+    );
+}
+
+/// The two entries of the mixed-cutover test, as the Rust store writes them:
+/// a close with a reason, and an update guarded by `status`.
+fn seed_close_and_update(f: &Shared) -> (bd_cache_model::Seq, bd_cache_model::Seq) {
+    let mut store = f.open();
+    store.ensure_scope(&ct()).unwrap();
+    store
+        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .unwrap();
+    let close = store
+        .insert_entry(
+            new_entry(
+                "rs-close",
+                "ct-2",
+                &ct(),
+                Op::Close {
+                    reason: Some("landed".into()),
+                },
+            ),
+            &ts(T0),
+        )
+        .unwrap();
+    let update = store
+        .insert_entry(
+            NewEntry {
+                precondition: Guards {
+                    status: Some("in_progress".into()),
+                    assignee: None,
+                },
+                ..new_entry(
+                    "rs-update",
+                    "ct-1",
+                    &ct(),
+                    Op::parse("update", r#"{"add_labels": ["reviewed"]}"#).unwrap(),
+                )
+            },
+            &ts(T0),
+        )
+        .unwrap();
+    (close, update)
 }
 
 /// The four entries of

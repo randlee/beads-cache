@@ -11,11 +11,12 @@ use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use bd_cache::Cache;
-use bd_cache_api::CacheFacts;
+use bd_cache_api::{ApiError, CacheFacts};
 use bd_cache_model::{CacheError, RepoConfig, ScopeId};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, DatabaseIdentity,
-    FlockDrainLock, SCHEMA_VERSION, SqliteStore, beads_dir as beads_dir_of, load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, ConfigLoadError,
+    DatabaseIdentity, FlockDrainLock, SCHEMA_VERSION, SqliteStore, beads_dir as beads_dir_of,
+    load_repo_config,
 };
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef, SystemClock};
@@ -111,6 +112,8 @@ pub(crate) enum OpenError {
     },
     /// The store refused: a typed [`CacheError`].
     Cache(CacheError),
+    /// The legacy `.atm-bd` cache file would be abandoned: `CONFIG_INVALID`, as `bdc` refuses it.
+    Legacy(ApiError),
 }
 
 impl From<CacheError> for OpenError {
@@ -143,6 +146,41 @@ impl From<ConfigLoadError> for OpenError {
             },
         }
     }
+}
+
+/// The `CONFIG_INVALID` refusal of an open that would fork the legacy cache file.
+///
+/// The same refusal `bdc` gives (contract §2): the default file would be created
+/// beside a `.atm-bd` file whose pending entries it would strand. The fix names
+/// `cache_path` and the legacy file, relative to the repository root.
+fn legacy_refusal(repo_root: &Path, location: &CacheLocation, legacy: &Path) -> OpenError {
+    let relative = legacy.strip_prefix(repo_root).unwrap_or(legacy);
+    // A TOML string and a Python argument take forward slashes on every platform.
+    let suggested = relative.to_string_lossy().replace('\\', "/");
+    let default = Path::new(bd_cache_store::DEFAULT_CACHE_DIR).join(
+        location
+            .cache_path
+            .file_name()
+            .unwrap_or_else(|| OsStr::new("")),
+    );
+    let mut details = serde_json::Map::new();
+    details.insert("key".into(), "cache_path".into());
+    details.insert("legacy_path".into(), legacy.display().to_string().into());
+    OpenError::Legacy(
+        ApiError::config_invalid(
+            "binding_legacy_cache_file",
+            format!(
+                "no cache_path is configured and {} does not exist, but the legacy cache file {} does",
+                default.display(),
+                legacy.display()
+            ),
+            details,
+        )
+        .with_suggested_action(format!(
+            "set cache_path to the legacy file to keep using it: cache_path = \"{suggested}\" in \
+             .beads/bd-cache.toml, or bd_cache_rs.Cache(repo, cache_path=\"{suggested}\")"
+        )),
+    )
 }
 
 /// The handle's parts: the cache, the clock it shares with its backend, and its file.
@@ -282,7 +320,10 @@ fn unresolvable_beads_dir(e: &BeadsDirError) -> OpenError {
 /// [`OpenError::Read`] for an unreadable config file; [`OpenError::Cache`]
 /// for `NO_DATABASE` (including a `$BEADS_DIR` that cannot be made absolute, checked
 /// before the config file is read), `WRONG_DATABASE`, `SCHEMA_VERSION`, `STORE_FAILED`
-/// or `STORE_IN_USE` (a second open of the same file in this process).
+/// or `STORE_IN_USE` (a second open of the same file in this process);
+/// [`OpenError::Legacy`] (`CONFIG_INVALID`) when no `cache_path` is configured (by the
+/// file or by an argument), the default file does not exist and the legacy
+/// `.atm-bd/<db>.bd-cache.sqlite3` does. Nothing is created in that case.
 pub(crate) fn open_with(
     repo_root: &Path,
     bd_binary: &str,
@@ -303,6 +344,10 @@ pub(crate) fn open_with(
     }
     if overrides.max_attempts.is_some() {
         config.max_attempts = overrides.max_attempts;
+    }
+    let location = CacheLocation::resolve_with(repo_root, &config, beads_dir.as_ref())?;
+    if let Some(legacy) = location.legacy_conflict(repo_root, &config) {
+        return Err(legacy_refusal(repo_root, &location, &legacy));
     }
     let store = SqliteStore::open_with(repo_root, &config, beads_dir.as_ref())?;
     let path = store.path().to_path_buf();
@@ -413,6 +458,79 @@ mod tests {
             other => panic!("{:?}", other.err()),
         }
         assert!(!root.path().join(".bd-cache").exists());
+    }
+
+    /// A repository holding only the legacy `.atm-bd` cache file of `database`.
+    fn repo_with_legacy(database: &str) -> (tempfile::TempDir, PathBuf) {
+        let root = repo_named(database);
+        let legacy = root
+            .path()
+            .join(".atm-bd")
+            .join(format!("{database}.bd-cache.sqlite3"));
+        std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        std::fs::write(&legacy, b"").unwrap();
+        (root, legacy)
+    }
+
+    /// The default path would fork the legacy journal: `CONFIG_INVALID` naming the fix,
+    /// and nothing is created (B2).
+    #[test]
+    fn the_legacy_cache_file_is_refused_by_default_naming_cache_path() {
+        let (root, legacy) = repo_with_legacy("atm-dev");
+        let Err(OpenError::Legacy(e)) = open_unset(root.path(), None) else {
+            panic!("the default open did not refuse the legacy file");
+        };
+        assert_eq!(e.code(), "BD_CACHE.CONFIG_INVALID");
+        assert!(
+            e.message().contains(&legacy.display().to_string()),
+            "{}",
+            e.message()
+        );
+        let fix = e.suggested_action().unwrap_or_default();
+        assert!(
+            fix.contains("set cache_path")
+                && fix.contains("cache_path = \".atm-bd/atm-dev.bd-cache.sqlite3\""),
+            "{fix}"
+        );
+        assert_eq!(e.details()["key"], "cache_path");
+        assert!(
+            !root.path().join(".bd-cache").exists(),
+            "a refusal creates no file"
+        );
+    }
+
+    /// An explicit `cache_path`, argument or file, naming the legacy file opens it (B2).
+    #[test]
+    fn an_explicit_cache_path_to_the_legacy_file_opens_it() {
+        let (root, legacy) = repo_with_legacy("atm-dev");
+        let overrides = Overrides {
+            cache_path: Some(PathBuf::from(".atm-bd/atm-dev.bd-cache.sqlite3")),
+            ..Overrides::default()
+        };
+        let opened = open_with(root.path(), "bd", None, overrides, Ok(None))
+            .unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(opened.path, legacy);
+        drop(opened);
+
+        let (root, legacy) = repo_with_legacy("from-file");
+        std::fs::write(
+            root.path().join(".beads").join("bd-cache.toml"),
+            "cache_path = \".atm-bd/from-file.bd-cache.sqlite3\"\n",
+        )
+        .unwrap();
+        let opened = open_unset(root.path(), None).unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(opened.path, legacy);
+        drop(opened);
+
+        // Any configured path is the caller's choice, even with a legacy file beside it.
+        let (root, _) = repo_with_legacy("elsewhere");
+        let overrides = Overrides {
+            cache_path: Some(PathBuf::from("state/new.sqlite3")),
+            ..Overrides::default()
+        };
+        let opened = open_with(root.path(), "bd", None, overrides, Ok(None))
+            .unwrap_or_else(|e| panic!("{e:?}"));
+        assert_eq!(opened.path, root.path().join("state/new.sqlite3"));
     }
 
     #[test]

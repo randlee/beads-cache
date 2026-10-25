@@ -93,6 +93,31 @@ maturin is fetched by pip as the build backend:
 pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=crates/bd-cache-py"
 ```
 
+## Migrating from `bd_cache.py`
+
+The whole call table is in
+[`docs/bd-cache-py/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/bd-cache-py/architecture.md).
+The points that bite on cutover:
+
+- **The legacy file.** `Cache(repo)` opens `.bd-cache/<db>.bd-cache.sqlite3`.
+  If atm-bd's `.atm-bd/<db>.bd-cache.sqlite3` exists and no default file does,
+  the open is refused with `BD_CACHE.CONFIG_INVALID`, instead of forking the
+  journal and stranding its pending entries. Set `cache_path` to the legacy
+  file (`cache_path = ".atm-bd/<db>.bd-cache.sqlite3"` in
+  `.beads/bd-cache.toml`, or `Cache(repo, cache_path=...)`); that opens it with
+  no refusal.
+- **No `runner=`.** The module takes `bd_binary`, a program path. Put the
+  environment, retries and attempt log in a wrapper executable and pass that.
+- **No detached drain.** Replace `python bd_cache.py drain` spawned with
+  stdout to `DEVNULL` by a detached `bdc cache flush`, and log its stdout and
+  stderr: its JSON envelope is the only place a refusal (for example a
+  `CONFIG_INVALID`) shows.
+- **One handle per process.** A second `Cache` on the same file in the same
+  process is `STORE_IN_USE` until the first is closed.
+- **Resolve notes.** The note is in the entry's `note`, not appended to
+  `last_error`; `bd_cache.py`'s `entry()` does not show it on an entry the Rust
+  side resolved.
+
 ## Known limits
 
 - One process holds one connection per cache file. A second handle on the

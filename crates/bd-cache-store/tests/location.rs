@@ -331,3 +331,49 @@ fn metadata_json_that_cannot_be_read_says_permission_denied_not_bd_init() {
     assert_eq!(missing.code(), "BD_CACHE.NO_DATABASE");
     assert!(missing.fix().contains("bd init"), "{}", missing.fix());
 }
+
+/// The legacy-file rule (contract §2) as a helper every opener shares: a
+/// conflict only when nothing is configured, the default file is absent and the
+/// `.atm-bd` file is there.
+#[test]
+fn legacy_conflict_is_named_only_when_the_default_would_fork_it() {
+    let tmp = TempDir::new("legacy");
+    let root = tmp.path();
+    workspace(root, "testdb", "p-1");
+    let none = RepoConfig::default();
+    let at = |config: &RepoConfig| {
+        CacheLocation::resolve_with(root, config, None)
+            .unwrap()
+            .legacy_conflict(root, config)
+    };
+    assert_eq!(at(&none), None, "no legacy file, nothing to refuse");
+
+    let legacy = root.join(".atm-bd").join("testdb.bd-cache.sqlite3");
+    std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+    std::fs::write(&legacy, b"").unwrap();
+    assert_eq!(
+        at(&none),
+        Some(legacy.clone()),
+        "the fork the rule prevents"
+    );
+
+    let explicit = RepoConfig {
+        cache_path: Some(PathBuf::from(".atm-bd/testdb.bd-cache.sqlite3")),
+        ..RepoConfig::default()
+    };
+    assert_eq!(at(&explicit), None, "naming the legacy file opens it");
+    let elsewhere = RepoConfig {
+        cache_path: Some(PathBuf::from("state/cache.sqlite3")),
+        ..RepoConfig::default()
+    };
+    assert_eq!(
+        at(&elsewhere),
+        None,
+        "any configured path is the user's choice"
+    );
+
+    let default_file = root.join(".bd-cache").join("testdb.bd-cache.sqlite3");
+    std::fs::create_dir_all(default_file.parent().unwrap()).unwrap();
+    std::fs::write(&default_file, b"").unwrap();
+    assert_eq!(at(&none), None, "an existing default file wins, as in bdc");
+}

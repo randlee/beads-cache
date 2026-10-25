@@ -80,13 +80,20 @@ def test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_beh
 
 
 def test_miss_timeout_ms_is_milliseconds(cache, repo):
+    # Causal first: `bd list` blocks on a gate this test releases only after the call returned.
+    # A call that returns at all, with BD_UNAVAILABLE and not the bead, was cut off by a limit;
+    # one that waited for bd would sit on the gate until its 60 s backstop and then return the
+    # bead. The clock is only a very loose sanity bound on the unit (33x the 300 ms limit; read
+    # as seconds the limit is capped at the 30 s call timeout), never a pass/fail margin.
     repo.bd.add({**repo.bd.get("b1"), "id": "late-1", "title": "late-1"})
-    repo.bd.delay("list", 4)
+    release = repo.bd.block("list", deadline=60)
     with Stopwatch() as watch:
         err = raised(cache.beads.issues_get, id="late-1", miss_timeout_ms=300)
     assert err.code == "BD_CACHE.BD_UNAVAILABLE" and err.retryable is True
-    assert watch.elapsed < 3, f"300 ms waited {watch.elapsed:.1f} s: read as seconds?"
-    repo.bd.delay("list", 0)
+    assert watch.elapsed < 10, f"300 ms waited {watch.elapsed:.1f} s: read as seconds?"
+    assert not release.is_set(), "the gate was never released: the call was not waiting on bd's answer"
+    assert release.started(), "bd was asked and still blocked when the call gave up"
+    release.set()
     assert cache.beads.issues_get(id="late-1", miss_timeout_ms=20000)["id"] == "late-1"
 
 

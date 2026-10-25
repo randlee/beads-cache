@@ -449,6 +449,7 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
             decorate(PyOSError::new_err(text), OpenKind::Read, Some(&path))
         }
         OpenError::Cache(e) => cache_err(py, &e),
+        OpenError::Legacy(e) => api_err(py, &e),
     }
 }
 

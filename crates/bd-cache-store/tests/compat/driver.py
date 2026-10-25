@@ -12,9 +12,12 @@ Commands (each prints one JSON object on success, exits nonzero on failure):
     hold     <root> <db>         take bd_cache.py's drain lock, print {"held": ...}, wait for stdin EOF
     escalate <root> <db> <seq> <reason>
                                  escalate a journal entry as bd_cache.py's drain does (`_mark`)
+    drain    <root> <db>         run bd_cache.py's drain against a fake bd that accepts writes (the mixed
+                                 cutover: Python drains what Rust journaled); prints the report, the bd
+                                 commands run, the drained entries and the cached beads
     cli      <root> <db> args..  run bd_cache.py's own CLI (`get`, `status`, `prune`, ...)
 
-No bd process runs: the backend calls go to the deterministic runner below.
+No bd process runs: the backend calls go to the deterministic runners below.
 """
 import json
 import subprocess
@@ -32,7 +35,7 @@ if sys.platform == "win32":
     sys.modules.setdefault("fcntl", types.ModuleType("fcntl"))
 
 sys.path.insert(0, str(HERE))
-import bd_cache  # noqa: E402  (vendored, atm-core 05831df)
+import bd_cache  # noqa: E402  (vendored, atm-core 1695220)
 
 
 class Runner:
@@ -53,6 +56,40 @@ class Runner:
         else:
             raise AssertionError(f"the compat driver runs no writes: {command}")
         return subprocess.CompletedProcess(command, 0, out, "")
+
+
+class WritingRunner(Runner):
+    """A bd that also accepts `close` and `update`: it applies them to its rows, so the read-back sees them.
+
+    Every command it receives is kept in `commands`, so a test can assert what the drain ran.
+    """
+
+    STAMP = "2026-10-23T10:00:00Z"
+
+    def __init__(self, schema):
+        super().__init__(schema)
+        self.commands = []
+
+    def __call__(self, command, **kwargs):
+        verb = command[1]
+        if verb not in ("close", "update"):
+            return super().__call__(command, **kwargs)
+        self.commands.append(list(command))
+        row = next(r for r in self.rows if r["id"] == command[2])
+        flags = command[3:]
+        if verb == "close":
+            row["status"] = "closed"
+            row["closed_at"] = self.STAMP
+            if "--reason" in flags:
+                row["close_reason"] = flags[flags.index("--reason") + 1]
+        else:
+            for i, flag in enumerate(flags):
+                if flag == "--add-label":
+                    row["labels"] = row["labels"] + [flags[i + 1]]
+                elif flag == "--status":
+                    row["status"] = flags[i + 1]
+        row["updated_at"] = self.STAMP
+        return subprocess.CompletedProcess(command, 0, "", "")
 
 
 def pinned_schema():
@@ -94,6 +131,17 @@ def escalate(root, db, seq, reason):
     return {"ok": True, "seq": int(seq)}
 
 
+def drain(root, db):
+    runner = WritingRunner(pinned_schema())
+    c = bd_cache.BdCache(root, runner=runner, clock=lambda: CLOCK, db_path=db)
+    report = c.drain()
+    seqs = sorted({*report["applied"], *report["retrying"], *report["deferred"],
+                   *(e["seq"] for e in report["escalated"])})
+    return {"ok": True, "report": report, "commands": runner.commands,
+            "entries": {str(s): c.entry(s) for s in seqs},
+            "beads": {b: c.cached(b) for b in ("ct-1", "ct-2", "ct-3")}}
+
+
 def main(argv):
     command, root, db, rest = argv[0], argv[1], argv[2], argv[3:]
     if command == "cli":
@@ -101,7 +149,7 @@ def main(argv):
     if command == "escalate":
         out = escalate(root, db, *rest)
     else:
-        out = {"write": write, "rebuild": rebuild, "hold": hold}[command](root, db)
+        out = {"write": write, "rebuild": rebuild, "hold": hold, "drain": drain}[command](root, db)
     if out is not None:
         print(json.dumps(out, sort_keys=True))
     return 0

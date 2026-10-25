@@ -22,6 +22,54 @@ def test_the_default_cache_file_is_named_for_the_dolt_database(repo):
     assert cache.path == repo.root / ".bd-cache" / "atm-dev.bd-cache.sqlite3"
 
 
+LEGACY = ".atm-bd/atm-dev.bd-cache.sqlite3"
+
+
+def legacy_cache_with_a_pending_write(repo):
+    """The file atm-bd's `bd_cache.py` keeps: opened by path, one write journaled and left pending."""
+    legacy = repo.root / LEGACY
+    legacy.parent.mkdir()
+    seeded = repo.open(cache_path=LEGACY, scopes=["x"])
+    seeded.sync("x", 30)
+    seeded.write("b1", "update", {"assignee": "dev-1"}, None, "legacy-1", "dev-1")
+    seeded.close()
+    return legacy
+
+
+def test_the_default_open_refuses_the_legacy_atm_bd_file_and_names_the_fix(repo):
+    legacy = legacy_cache_with_a_pending_write(repo)
+    with pytest.raises(bd_cache_rs.CacheError) as caught:
+        repo.open(scopes=["x"])
+    err = caught.value
+    assert err.code == "BD_CACHE.CONFIG_INVALID" and err.kind == "invalid_input", err.body
+    assert str(legacy) in err.message and err.details["legacy_path"] == str(legacy)
+    assert err.details["key"] == "cache_path"
+    assert f'cache_path = "{LEGACY}"' in err.suggested_action
+    assert "set cache_path" in err.suggested_action
+    assert not (repo.root / ".bd-cache").exists(), "the refusal forked nothing"
+
+
+def test_naming_the_legacy_file_as_cache_path_opens_it_with_its_pending_entries(repo):
+    legacy_cache_with_a_pending_write(repo)
+    by_argument = repo.open(cache_path=LEGACY, scopes=["x"])
+    assert by_argument.path == repo.root / LEGACY
+    assert by_argument.entry(1)["state"] == "pending"
+    by_argument.close()
+    repo.config(f'cache_path = "{LEGACY}"\nscopes = ["x"]\n')
+    by_config = repo.open()
+    assert by_config.path == repo.root / LEGACY
+    assert by_config.entry(1)["state"] == "pending"
+    assert not (repo.root / ".bd-cache").exists()
+    by_config.close()
+    assert repo.open(cache_path="state/new.sqlite3", scopes=["x"]).path == repo.root / "state" / "new.sqlite3"
+
+
+def test_an_existing_default_file_is_not_a_legacy_conflict(repo):
+    legacy_cache_with_a_pending_write(repo)
+    repo.open(scopes=["x"], cache_path=".bd-cache/atm-dev.bd-cache.sqlite3").close()
+    assert repo.open(scopes=["x"]).path == repo.root / ".bd-cache" / "atm-dev.bd-cache.sqlite3"
+
+
 def test_explicit_arguments_override_the_config_file(repo):
     repo.config('scopes = ["x"]\n')
     cache = repo.open(scopes=["z"], cache_path="other.sqlite3", max_attempts=1)

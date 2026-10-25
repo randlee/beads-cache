@@ -20,6 +20,9 @@ use serde_json::Value;
 pub const BEADS_DIR_ENV: &str = "BEADS_DIR";
 /// The default cache directory, under the repository root.
 pub const DEFAULT_CACHE_DIR: &str = ".bd-cache";
+/// The directory of the legacy cache file, written by the 0.1 tooling
+/// (`bd_cache.py` of atm-bd): `<repo>/.atm-bd/<db>.bd-cache.sqlite3`.
+const LEGACY_CACHE_DIR: &str = ".atm-bd";
 /// The repository configuration file, under the repository root (for display;
 /// paths are built with [`Path::join`] per component).
 pub const REPO_CONFIG_FILE: &str = ".beads/bd-cache.toml";
@@ -465,6 +468,56 @@ impl CacheLocation {
             identity,
             cache_path,
         })
+    }
+
+    /// The legacy cache file this location would silently abandon, if any.
+    ///
+    /// Some when no `cache_path` is configured, the default file does not exist
+    /// yet, and `<repo>/.atm-bd/<db>.bd-cache.sqlite3` does. Opening the default
+    /// then would create a second cache with its own drain lock and strand the
+    /// legacy file's pending journal entries, so every opener (`bdc` and the
+    /// Python binding) refuses with `CONFIG_INVALID` and tells the user to set
+    /// `cache_path` to the returned path (contract §2). `config` must already
+    /// carry every override (environment, flags, arguments): an explicit
+    /// `cache_path`, including one naming the legacy file, is never a conflict.
+    ///
+    /// The returned path is under `repo_root`, so
+    /// `path.strip_prefix(repo_root)` is the value to configure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use bd_cache_model::RepoConfig;
+    /// use bd_cache_store::CacheLocation;
+    /// let dir = tempfile::TempDir::new()?;
+    /// let root = dir.path();
+    /// std::fs::create_dir_all(root.join(".beads"))?;
+    /// std::fs::write(
+    ///     root.join(".beads").join("metadata.json"),
+    ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+    /// )?;
+    /// let config = RepoConfig::default();
+    /// let loc = CacheLocation::resolve_with(root, &config, None)?;
+    /// assert_eq!(loc.legacy_conflict(root, &config), None);
+    /// std::fs::create_dir_all(root.join(".atm-bd"))?;
+    /// std::fs::write(root.join(".atm-bd").join("atm-dev.bd-cache.sqlite3"), b"")?;
+    /// assert_eq!(
+    ///     loc.legacy_conflict(root, &config),
+    ///     Some(root.join(".atm-bd").join("atm-dev.bd-cache.sqlite3"))
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[must_use]
+    pub fn legacy_conflict(&self, repo_root: &Path, config: &RepoConfig) -> Option<PathBuf> {
+        if config.cache_path.is_some() || self.cache_path.exists() {
+            return None;
+        }
+        let legacy = repo_root
+            .join(LEGACY_CACHE_DIR)
+            .join(format!("{}.bd-cache.sqlite3", self.identity.dolt_database));
+        legacy.exists().then_some(legacy)
     }
 }
 
