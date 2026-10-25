@@ -1,22 +1,38 @@
 //! The `bd-cache` / `bdc` command line (contract `docs/bd-cache-cli/contract.md`).
 //!
-//! This crate is the home of the two binaries `bd-cache` and its alias `bdc`
-//! (REQ-BDC-0805), and of the `fake-bd` test harness (feature `fake-bd`,
-//! contract §8 "Testing"). Sprint b-3a ships the skeleton: [`run`] answers
-//! `--version` and answers everything else with a `BD_CACHE.USAGE` envelope.
-//! Sprint b-3 adds the commands behind the same signature.
+//! The two binaries `bd-cache` and its alias `bdc` (REQ-BDC-0805) implement
+//! both command groups of the contract over `bd-cache-api`: surface (a), the
+//! beads commands in `/v0` vocabulary (§5), and surface (b), the cache
+//! commands (§6). The crate also holds the `fake-bd` test harness (feature
+//! `fake-bd`, contract §8 "Testing").
 //!
-//! # One envelope on stdout
+//! # One path for every command
 //!
-//! Every reply is one [`sc_command::Envelope`] followed by a newline
-//! (contract §1 rule 1, §4). The exit code is `0` for `ok: true`, `2` for a
-//! usage error and `3` for any other typed error (contract §3).
+//! 1. argv is parsed by clap (one table of commands, module `args`). Long
+//!    options are spelled out in full; any argv-shape error is
+//!    `BD_CACHE.USAGE`, exit 2, with `details.did_you_mean` and `valid`.
+//! 2. argv becomes the command's JSON request (or `--input FILE|-` gives it
+//!    whole), which goes to `bd_cache_api::decode`: validation lives there,
+//!    so every front end returns the same code for the same input.
+//! 3. The configuration (flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` >
+//!    default; no upward search) is opened through
+//!    `bd_cache_sync::compose_with_config`, and `bd_cache_api::execute` runs
+//!    the request. `cache tick` runs `bd_cache_sync::tick`.
+//! 4. The result is one [`sc_command::Envelope`] on stdout, or text with
+//!    `--format text`. Logs go to stderr (`-v`, `-q`, `BD_CACHE__LOG`).
 //!
-//! # In process and as a process
+//! # Exit codes (contract §3)
 //!
-//! [`run`] is the in-process entry point the tests call. [`run_process`] is
-//! the body of both binaries: it reads the real argv and environment, calls
-//! [`run`] and prints the reply.
+//! `0` for `ok: true` (degraded results are reported in `data`), `2` for
+//! `USAGE`, `3` for any other typed error. A caught panic is
+//! `BD_CACHE.INTERNAL`, exit 3.
+//!
+//! # `--help`
+//!
+//! Text when stdout is a terminal and no `--format` is given; otherwise the
+//! envelope, with `data: {command, synopsis, arguments}`. Exit 0. [`run`]
+//! answers as for a pipe; [`run_with`] takes the terminal state, which
+//! [`run_process`] reads from the real stdout.
 //!
 //! # Example
 //!
@@ -36,16 +52,26 @@
 //! ```
 
 use std::collections::BTreeMap;
-use std::io::Write as _;
+use std::io::{IsTerminal as _, Write as _};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use clap::{Arg, ArgAction, Command};
+use bd_cache_api::ApiError;
+use clap::ArgMatches;
+use clap::error::{ContextKind, ContextValue};
 use sc_bd_cli::CliInvoker;
 use sc_beads::Clock;
-use sc_command::{Envelope, ErrorKind, OpError};
-use sc_observability_types::ErrorCode;
+use sc_beads::logging::tracing;
 use serde_json::{Value, json};
+
+mod args;
+mod commands;
+mod config;
+mod help;
+mod log;
+mod render;
+mod request;
 
 #[cfg(feature = "fake-bd")]
 pub mod scenario;
@@ -57,27 +83,39 @@ pub mod scenario;
 pub const NAME: &str = "bd-cache";
 
 /// The contract version this build implements (contract header, `1.0.0`).
-pub const CONTRACT_VERSION: &str = "1.0.0";
+pub const CONTRACT_VERSION: &str = bd_cache_api::CONTRACT_VERSION;
 
 /// The exit code of a `BD_CACHE.USAGE` reply (contract §3).
 pub const EXIT_USAGE: i32 = 2;
 
-/// The error code of an argv-shape error (contract §4).
-const CODE_USAGE: &str = "BD_CACHE.USAGE";
+/// The exit code of every typed error other than `USAGE` (contract §3).
+pub const EXIT_ERROR: i32 = 3;
 
-/// The long flags this build understands, listed in a `USAGE` reply as `details.valid`.
-const VALID_FLAGS: &[&str] = &["--version", "--repo", "--cache-path", "--bd"];
+/// The environment variable that makes a command panic after parsing, so the
+/// tests can see a caught panic answer `BD_CACHE.INTERNAL`. Only read in a
+/// build with the `fake-bd` feature, which a release build never has.
+#[cfg(feature = "fake-bd")]
+pub const PANIC_ENV: &str = "BDC_TEST_PANIC";
 
-/// Runs one command and returns `(exit code, stdout)`.
+/// Whether stdout is a terminal: the one thing `--help` depends on (contract §8).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stdout {
+    /// A terminal: `--help` without `--format` prints text.
+    Terminal,
+    /// A pipe or a file: `--help` prints the envelope.
+    Piped,
+}
+
+/// Runs one command and returns `(exit code, stdout)`, as for a piped stdout.
 ///
 /// `argv` is the command line **without** the program name. `env` is the
-/// process environment as a map; `invoker` is the `bd` to use (`None` means
-/// the real `bd` the configuration names) and `clock` the time source of the
-/// command. The skeleton of sprint b-3a reads none of `env`, `invoker` and
-/// `clock`; b-3 consumes them behind this signature, which is final.
+/// process environment as a map (`BD_CACHE__*`, `BEADS_DIR`); `invoker` is
+/// the `bd` to use (`None` means the real `bd` the configuration names; an
+/// injected one needs the `fake-bd` feature) and `clock` the time source of
+/// the command.
 ///
-/// The reply is always one envelope and a trailing newline. Only `--version`
-/// succeeds in this build; every other argv is a `BD_CACHE.USAGE` error.
+/// The reply is one envelope and a trailing newline, or text with
+/// `--format text`.
 ///
 /// # Examples
 ///
@@ -95,95 +133,289 @@ const VALID_FLAGS: &[&str] = &["--version", "--repo", "--cache-path", "--bd"];
 #[must_use]
 pub fn run(
     argv: &[String],
-    _env: &BTreeMap<String, String>,
-    _invoker: Option<Box<dyn CliInvoker>>,
-    _clock: Arc<dyn Clock>,
+    env: &BTreeMap<String, String>,
+    invoker: Option<Box<dyn CliInvoker>>,
+    clock: Arc<dyn Clock>,
 ) -> (i32, String) {
-    match command()
-        .try_get_matches_from(std::iter::once(NAME.to_owned()).chain(argv.iter().cloned()))
-    {
-        Ok(matches) if matches.get_flag("version") => {
-            let data = json!({
-                "name": NAME,
-                "version": env!("CARGO_PKG_VERSION"),
-                "contract_version": CONTRACT_VERSION,
-            });
-            (0, render(&Envelope::success(data)))
+    run_with(argv, env, invoker, clock, Stdout::Piped)
+}
+
+/// As [`run`], with the state of stdout given (only `--help` reads it).
+#[must_use]
+pub fn run_with(
+    argv: &[String],
+    env: &BTreeMap<String, String>,
+    invoker: Option<Box<dyn CliInvoker>>,
+    clock: Arc<dyn Clock>,
+    stdout: Stdout,
+) -> (i32, String) {
+    let text = args::format_flag(argv) == Some("text");
+    match catch_unwind(AssertUnwindSafe(|| {
+        dispatch(argv, env, invoker, clock, stdout)
+    })) {
+        Ok(reply) => reply,
+        Err(payload) => {
+            let why = payload
+                .downcast_ref::<&str>()
+                .map(|s| (*s).to_owned())
+                .or_else(|| payload.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "a panic with no message".to_owned());
+            let e = ApiError::internal(format!("bdc panicked: {why}"))
+                .with_suggested_action("report this bug, with the command that caused it");
+            finish(Err(e), text)
         }
-        Ok(_) => usage("no command given; only --version is implemented in this build"),
-        Err(e) => usage(first_line(&e.to_string())),
     }
 }
 
 /// The body of the `bd-cache` and `bdc` binaries.
 ///
-/// Reads the real argv and environment, calls [`run`] with the real `bd`
-/// (`None`) and the system clock, writes the reply to stdout and returns the
-/// exit code.
+/// Reads the real argv and environment, calls [`run_with`] with the real `bd`
+/// (`None`), the system clock and whether stdout is a terminal, writes the
+/// reply to stdout and returns the exit code.
 #[must_use]
 pub fn run_process() -> ExitCode {
     let argv: Vec<String> = std::env::args_os()
         .skip(1)
         .map(|a| a.to_string_lossy().into_owned())
         .collect();
-    let env: BTreeMap<String, String> = std::env::vars().collect();
-    let (code, stdout) = run(&argv, &env, None, Arc::new(sc_beads::SystemClock));
+    let env: BTreeMap<String, String> = std::env::vars_os()
+        .map(|(k, v)| {
+            (
+                k.to_string_lossy().into_owned(),
+                v.to_string_lossy().into_owned(),
+            )
+        })
+        .collect();
+    // The libraries' gated `log_*!` calls reach the stderr log of each command.
+    sc_beads::logging::LOGGING_ENABLED.store(true, std::sync::atomic::Ordering::Relaxed);
+    let stdout = if std::io::stdout().is_terminal() {
+        Stdout::Terminal
+    } else {
+        Stdout::Piped
+    };
+    let (code, reply) = run_with(&argv, &env, None, Arc::new(sc_beads::SystemClock), stdout);
     // A closed stdout leaves nobody to tell; the exit code still reports the outcome.
-    let _written = std::io::stdout().write_all(stdout.as_bytes());
+    let _written = std::io::stdout().write_all(reply.as_bytes());
     ExitCode::from(u8::try_from(code).unwrap_or(3))
 }
 
-/// The argv grammar of this build: `--version` and the three global path options of
-/// contract §2, which are accepted so that the harness invocation
-/// (`bdc --repo DIR --bd PATH ...`) has its final shape. b-3 reads them; this build
-/// does not. Abbreviations are refused (clap's `infer_long_args` is off), as
-/// contract §2 requires.
-fn command() -> Command {
-    let path = |name: &'static str, value_name: &'static str| {
-        Arg::new(name)
-            .long(name)
-            .value_name(value_name)
-            .num_args(1)
-            .global(true)
+/// The exit code and stdout of a result.
+fn finish(result: Result<Value, ApiError>, text: bool) -> (i32, String) {
+    let exit = match &result {
+        Ok(_) => 0,
+        Err(e) => e.exit_code().unwrap_or(EXIT_ERROR),
     };
-    Command::new(NAME)
-        .disable_help_flag(true)
-        .disable_version_flag(true)
-        .arg(
-            Arg::new("version")
-                .long("version")
-                .action(ArgAction::SetTrue),
-        )
-        .arg(path("repo", "DIR"))
-        .arg(path("cache-path", "PATH"))
-        .arg(path("bd", "PATH"))
+    // USAGE is always JSON (contract §8).
+    let usage = result
+        .as_ref()
+        .is_err_and(|e| e.exit_code() == Some(EXIT_USAGE));
+    let out = if text && !usage {
+        render::text::render(&result)
+    } else {
+        render::json::envelope(&result)
+    };
+    (exit, out)
 }
 
-/// A `BD_CACHE.USAGE` reply (contract §3, §4).
-fn usage(message: &str) -> (i32, String) {
-    let error = OpError::new(
-        ErrorKind::InvalidInput,
-        ErrorCode::new_static(CODE_USAGE),
-        message,
-    )
-    .with_details(json!({ "valid": VALID_FLAGS, "did_you_mean": Value::Null }))
-    .with_suggestion("run `bdc --version`; the commands arrive with sprint b-3");
-    (EXIT_USAGE, render(&Envelope::<Value>::failure(error)))
-}
-
-/// The envelope as one line of JSON.
-fn render(envelope: &Envelope<Value>) -> String {
-    // An envelope of plain JSON values always serializes; the fallback is a valid
-    // failure envelope should that ever stop being true.
-    let mut line = serde_json::to_string(envelope).unwrap_or_else(|_| {
-        r#"{"version":"1","ok":false,"data":null,"error":{"kind":"internal","code":"ENVELOPE.SERIALIZATION","message":"the reply could not be serialized","details":null,"suggested_action":null}}"#.to_owned()
+fn dispatch(
+    argv: &[String],
+    env: &BTreeMap<String, String>,
+    invoker: Option<Box<dyn CliInvoker>>,
+    clock: Arc<dyn Clock>,
+    stdout: Stdout,
+) -> (i32, String) {
+    let format = args::format_flag(argv);
+    if args::has_flag(argv, "--help") {
+        return help(argv, format, stdout);
+    }
+    if args::has_flag(argv, "--version") {
+        if format == Some("text") {
+            let text = format!(
+                "{NAME} {} (contract {CONTRACT_VERSION})\n",
+                env!("CARGO_PKG_VERSION")
+            );
+            return (0, text);
+        }
+        let data = json!({
+            "name": NAME,
+            "version": env!("CARGO_PKG_VERSION"),
+            "contract_version": CONTRACT_VERSION,
+        });
+        return finish(Ok(data), false);
+    }
+    if let Some(e) = commands::beads::unserved(&args::words(argv)) {
+        return finish(Err(e), format == Some("text"));
+    }
+    let relaxed = args::has_flag(argv, "--input");
+    let matches = match args::clap_tree(relaxed)
+        .try_get_matches_from(std::iter::once(NAME.to_owned()).chain(argv.iter().cloned()))
+    {
+        Ok(m) => m,
+        Err(e) => return finish(Err(usage_from_clap(&e, argv)), false),
+    };
+    let (path, leaf) = leaf(&matches);
+    let Some(spec) = args::command(&path) else {
+        let valid = args::children(&path);
+        let e =
+            ApiError::usage("no command given", &valid).with_detail("did_you_mean", Value::Null);
+        return finish(Err(e), false);
+    };
+    let text = leaf.get_one::<String>("format").map(String::as_str) == Some("text");
+    let request = match leaf.get_one::<String>("input") {
+        Some(_) if request::has_request_args(spec, leaf) => {
+            let e = ApiError::usage(
+                "--input gives the whole request: it cannot be combined with request flags",
+                &["--input"],
+            )
+            .with_detail("did_you_mean", Value::Null);
+            return finish(Err(e), false);
+        }
+        Some(source) => request::from_input(source),
+        None => request::from_matches(spec, leaf),
+    };
+    let request = match request {
+        Ok(r) => r,
+        Err(e) => return finish(Err(e), text),
+    };
+    let flags = config::Flags {
+        repo: leaf.get_one::<String>("repo").cloned(),
+        cache_path: leaf.get_one::<String>("cache-path").cloned(),
+        bd: leaf.get_one::<String>("bd").cloned(),
+    };
+    let level = log::level(
+        leaf.get_count("verbose"),
+        leaf.get_flag("quiet"),
+        config::env_value(env, "LOG"),
+    );
+    let ctx = commands::Context {
+        flags,
+        env,
+        invoker,
+        clock,
+    };
+    let result = tracing::subscriber::with_default(log::StderrLog::new(level), || {
+        tracing::info!(command = spec.path, "running");
+        for key in config::unknown_env_keys(env) {
+            tracing::warn!(
+                key = %format!("{}{key}", config::ENV_PREFIX),
+                "this environment variable is not a bdc setting and is ignored"
+            );
+        }
+        test_panic(env);
+        commands::run(spec.target, &request, ctx)
     });
-    line.push('\n');
-    line
+    finish(result, text)
 }
 
-/// The first line of a clap message (the rest is a usage block for a terminal).
-fn first_line(message: &str) -> &str {
-    let line = message.lines().next().unwrap_or(message).trim();
-    line.strip_prefix("error: ").unwrap_or(line)
+/// The test hook of [`PANIC_ENV`].
+#[cfg(feature = "fake-bd")]
+#[expect(
+    clippy::panic,
+    reason = "the hook exists to prove that a caught panic is BD_CACHE.INTERNAL"
+)]
+fn test_panic(env: &BTreeMap<String, String>) {
+    if env.contains_key(PANIC_ENV) {
+        panic!("{PANIC_ENV} is set");
+    }
+}
+
+#[cfg(not(feature = "fake-bd"))]
+fn test_panic(_env: &BTreeMap<String, String>) {}
+
+/// The deepest subcommand matched: its path and its matches.
+fn leaf(matches: &ArgMatches) -> (String, &ArgMatches) {
+    let mut path: Vec<&str> = Vec::new();
+    let mut node = matches;
+    while let Some((name, sub)) = node.subcommand() {
+        path.push(name);
+        node = sub;
+    }
+    (path.join(" "), node)
+}
+
+/// The longest prefix of the command words that names a command or group.
+fn known_path(words: &[&str]) -> String {
+    let mut path = String::new();
+    for w in words {
+        let next = if path.is_empty() {
+            (*w).to_owned()
+        } else {
+            format!("{path} {w}")
+        };
+        if help::of(&next).is_none() {
+            break;
+        }
+        let is_command = args::command(&next).is_some();
+        path = next;
+        if is_command {
+            break;
+        }
+    }
+    path
+}
+
+/// `--help`: text on a terminal without `--format`, else the envelope.
+fn help(argv: &[String], format: Option<&str>, stdout: Stdout) -> (i32, String) {
+    let words = args::words(argv);
+    let path = known_path(&words);
+    let depth = path.split_whitespace().count();
+    if args::command(&path).is_none() && words.len() > depth {
+        // A word that names nothing: the parser's own USAGE, with its suggestion.
+        let without: Vec<String> = argv.iter().filter(|t| *t != "--help").cloned().collect();
+        let e = match args::clap_tree(true)
+            .try_get_matches_from(std::iter::once(NAME.to_owned()).chain(without.iter().cloned()))
+        {
+            Err(e) => usage_from_clap(&e, &without),
+            Ok(_) => ApiError::usage("unknown command", &args::children(&path)),
+        };
+        return finish(Err(e), false);
+    }
+    let Some(h) = help::of(&path) else {
+        let e = ApiError::usage("unknown command", &args::children(""));
+        return finish(Err(e), false);
+    };
+    let as_text = match format {
+        Some("text") => true,
+        Some(_) => false,
+        None => stdout == Stdout::Terminal,
+    };
+    if as_text {
+        (0, h.text())
+    } else {
+        finish(Ok(h.data()), false)
+    }
+}
+
+/// The words a `USAGE` reply lists as `valid` at the deepest known path of argv.
+fn valid_words(argv: &[String]) -> Vec<String> {
+    let path = known_path(&args::words(argv));
+    match args::command(&path) {
+        Some(spec) => spec
+            .args
+            .iter()
+            .map(args::ArgSpec::spelled)
+            .chain(args::GLOBALS.iter().map(|g| g.flag.to_owned()))
+            .collect(),
+        None => args::children(&path)
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+    }
+}
+
+/// A clap error as `BD_CACHE.USAGE` (contract §3).
+fn usage_from_clap(e: &clap::Error, argv: &[String]) -> ApiError {
+    let rendered = e.to_string();
+    let first = rendered.lines().next().unwrap_or(&rendered).trim();
+    let message = first.strip_prefix("error: ").unwrap_or(first);
+    let suggestion = [ContextKind::SuggestedArg, ContextKind::SuggestedSubcommand]
+        .into_iter()
+        .find_map(|k| match e.get(k) {
+            Some(ContextValue::String(s)) => Some(s.clone()),
+            Some(ContextValue::Strings(v)) => v.first().cloned(),
+            _ => None,
+        });
+    let valid = valid_words(argv);
+    let valid: Vec<&str> = valid.iter().map(String::as_str).collect();
+    ApiError::usage(message, &valid).with_detail("did_you_mean", json!(suggestion))
 }

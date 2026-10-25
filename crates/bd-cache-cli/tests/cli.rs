@@ -50,8 +50,8 @@ fn usage_errors_are_envelopes_with_exit_2() {
         &["frobnicate"][..],
         &["--bogus"],
         &["--versio"], // an abbreviation is refused (contract §2)
-        &["--help"],   // help is a USAGE reply until b-3 (contract §8)
-        &[],
+        &[],           // no command
+        &["cache"],    // a group without its command
     ] {
         let ran = run_binary(BDC, argv);
         assert_eq!(ran.exit, 2, "{argv:?}: {ran:?}");

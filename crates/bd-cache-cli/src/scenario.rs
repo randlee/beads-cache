@@ -30,7 +30,7 @@ use std::time::Duration;
 
 use sc_bd_cli::CliInvoker;
 use sc_bd_cli::testing::FakeBd;
-use sc_beads::testing::{FakeBackend, FakeOp, Injection, ManualClock};
+use sc_beads::testing::{FakeBackend, FakeCall, FakeOp, Injection, ManualClock};
 use sc_beads::{Bead, DepType, ProjectRef, Refusal};
 use serde::{Deserialize, Serialize};
 
@@ -98,6 +98,12 @@ pub struct Faults {
     /// Every write is refused with this exit code; the rows do not change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub refuse_write: Option<RefuseWrite>,
+    /// Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one
+    /// of these labels fails with exit 1 (a failure that is not an outage);
+    /// the other labels answer. One scope of a `cache refresh scopes` can so
+    /// fail while another passes.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub fail_labels: Vec<String>,
 }
 
 /// A refused write.
@@ -214,6 +220,18 @@ impl Scenario {
                 Injection::Failed(refuse.exit_code)
             };
             backend.inject_where(|call| call.op().is_write(), outcome);
+        }
+        if !self.faults.fail_labels.is_empty() {
+            let labels = self.faults.fail_labels.clone();
+            backend.inject_where(
+                move |call| match call {
+                    FakeCall::ListScope { label, .. }
+                    | FakeCall::ListBlocked { label }
+                    | FakeCall::ListReady { label } => labels.contains(label),
+                    _ => false,
+                },
+                Injection::Failed(1),
+            );
         }
         let fake = FakeBd::over(backend);
         if let Some(version) = &self.version {

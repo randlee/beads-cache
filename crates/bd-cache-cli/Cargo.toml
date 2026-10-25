@@ -17,6 +17,10 @@ publish = false
 fake-bd = ["sc-bd-cli/test-support", "sc-beads/testing"]
 
 [dependencies]
+bd-cache-api.workspace = true
+bd-cache-model.workspace = true
+bd-cache-store.workspace = true
+bd-cache-sync = { path = "../bd-cache-sync" }
 clap.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true
@@ -24,6 +28,7 @@ sc-command.workspace = true
 sc-observability-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+toml.workspace = true
 
 [dev-dependencies]
 # Lets the integration tests use CARGO_BIN_EXE_fake-bd and the test doubles.
