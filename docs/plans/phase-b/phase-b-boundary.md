@@ -110,12 +110,13 @@ Everything stays general: no beads, bd-cache or consumer types or names.
 1. `HookTarget = Rust(Job) | Python { interpreter, module }`.
    - Python runs as `<interpreter> -I -m <module>`, with the cwd set to a temp dir.
      The schedule's JSON payload and the event go on stdin as one object:
-     `{"protocol": "sc-cron.hook.v1", "event": "run", "schedule": "<name>",
-     "payload": {...}, "deadline": "..."}`.
+     `{"protocol": "sc-cron.hook.v1", "event": "cron.tick", "schedule": "<name>",
+     "payload": {...}, "deadline": "..."}`, plus `cron.stop` before a row is
+     stopped. These are the same event names as sc-runtime's plan, and Rand ruled
+     they are allowed.
    - The process is killed at the row's timeout, as a Unix process group or a
      Windows job object.
    - Output is capped, and the outcome is recorded as the run's result.
-   - The event names are neutral (`run`), not another scheduler's request names.
 2. An `enabled` column (default 1). `Scheduler::set_enabled(name, bool)` changes only
    that column. A disabled row never fires, and keeps its generation, expression and
    payload.

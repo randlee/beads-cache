@@ -1,6 +1,6 @@
 # beads-cache Architecture
 
-Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25). ADR-BDC-0010 is Approved (lead ruling S82, 2026-10-25); its lint gate lands in sprint b-10 (`docs/plans/phase-b/phase-b-boundary.md`).
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25). ADR-BDC-0010 is Approved (lead ruling S82, 2026-10-25); its lint gate lands in sprint b-6 (`docs/plans/phase-b/phase-b-boundary.md`).
 
 ## Overview
 
@@ -207,7 +207,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0004) |
 | ADR-BDC-0008 | Draft | not in phase a |
 | ADR-BDC-0009 | Approved | `bd-cache-api` (sprint b-2: the request vocabulary, decoder, operations and error table; ADR-API-0001..0003 in `docs/bd-cache-api/architecture.md`); `bd-cache-cli` (sprint b-3: both command groups of `docs/bd-cache-cli/contract.md` §1–§8, the exit codes, configuration and help; ADR-CLI-0001..0004 in `docs/bd-cache-cli/architecture.md`) |
-| ADR-BDC-0010 | Approved | `scripts/lint_no_atm.py` and its tests (with the phase-b plan, run per sprint with `--paths`); the removal of the existing code is sprints b-6..b-9; the CI lint gate is sprint b-10 (`docs/plans/phase-b/phase-b-boundary.md`) |
+| ADR-BDC-0010 | Approved | `scripts/lint_no_atm.py` and its tests (with the phase-b plan, run per sprint with `--paths`); the removal of the existing code is sprint b-6, and its CI lint gate lands there too (`docs/plans/phase-b/phase-b-boundary.md`) |
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
@@ -636,18 +636,20 @@ Decision:
 - Notification state is neutral data the caller reads and marks (for example
   an escalated entry not yet notified, an outage or alert per scope); the
   cache does not decide who is told or how.
-- The scheduled job offers one generic extension point: a consumer registers
-  a script in beads-cache's own configuration, by path or module name, with
-  no consumer named. Each run the job calls it with the cache's neutral state
-  (pending and escalated-unnotified entries, outage and alert state, scope
-  status) and records what the script reports back (for example which
-  entries it notified). The job sends nothing and knows nothing about what
-  the script does. The call protocol is beads-cache's own, not a copy of
-  ATM cron's (no `cron.tick`, `cron.stop` or `doctor` request names); its
-  design is left to the implementing sprint.
+- Scheduling is `sc-cron`, which stays general purpose. A schedule row has a
+  cron string, a timeout, a JSON payload, an `enabled` flag and a hook target:
+  `Rust` (an in-process `Job`) or `Python` (an interpreter and a module, run
+  as a subprocess with one JSON object on stdin, for the `cron.tick` and
+  `cron.stop` events). The bd sync is one row. Its target switches between
+  the built-in sync and a consumer's Python replacement, which feeds the cache
+  through `ingest_scope`. The built-in sync calls an optional post-sync Python
+  hook with the sync results, errors and unnotified escalations. The hook marks
+  what it handled through the cache API. The cache sends nothing and knows
+  nothing about what the hook does (plan:
+  `docs/plans/phase-b/phase-b-boundary.md`).
 - Consumers use the PyO3 API from their hooks and for direct reads (a TUI).
 - Enforcement: `scripts/lint_no_atm.py`, a CI gate in the `ci` lint job
-  from sprint b-10, with no inline suppression and no allowlist file. Until
+  from sprint b-6, with no inline suppression and no allowlist file. Until
   then each sprint runs it on its own files with `--paths <prefix>...`. It
   scans the product: the tracked files under `crates/`, `docs/` and
   `scripts/`, plus `Cargo.toml`, `README.md`, `rust-toolchain.toml` and the
@@ -678,7 +680,7 @@ Consequences:
 - Consumers (atm-bd) own messaging, scheduling policy, migration of their own
   files and their own compat tests against the published wheel. atm-bd ships
   its script and depends on the beads-cache wheel.
-- To be superseded by the removal sprints b-6..b-9 (not edited here):
+- To be superseded by the removal sprint b-6 (not edited here):
   REQ-BDC-0701 (the `team` and `fallback_lead` of the `[tick]` table),
   REQ-BDC-0702 (phases from `.atm-bd/phase-*.toml` with `root` and `lead`),
   REQ-BDC-0703 (only its per-phase sync wording; the budget itself is
