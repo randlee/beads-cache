@@ -6,6 +6,10 @@
 //! platform without a shell script. The invocation checked is the reference's
 //! (`bd_cache_cron.py` at atm-core `05831df`): `send <lead>@<team> --team tool
 //! --stdin --json` with `ATM_IDENTITY=cron` and `ATM_TEAM=tool`.
+//!
+//! Two tests need a process of their own, a **host** (`--host-<mode>`): one
+//! that can start no program when its send is stopped (RSH-002), and one whose
+//! `PATH` and working directory are the test's (RSH-003).
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -23,6 +27,11 @@ use bd_cache_model::{EscalationSender, SendErrorKind};
 use bd_cache_sync::{AtmSender, StopFlag, TICK_BUDGET};
 
 const FLAG: &str = "--fake-atm=";
+/// Runs this binary as a host that sends once while it can start no program.
+#[cfg(unix)]
+const HOST_NO_HELPERS: &str = "--host-no-helpers=";
+/// Runs this binary as a host that sends once with the default `atm`.
+const HOST_RESOLVE: &str = "--host-resolve";
 /// How long a test waits for a child to show it started, or to be gone.
 const WAIT: Duration = Duration::from_secs(10);
 /// How long a hanging fake lives at most, so a failing test leaves no long-lived orphan.
@@ -577,6 +586,133 @@ fn an_address_that_could_be_read_as_an_option_is_refused_before_any_process_star
     }
 }
 
+/// The host of [`the_tree_kill_needs_no_kill_program`]: a `tree` send stopped
+/// once both fakes run and this process may start no process at all
+/// (`RLIMIT_NPROC` 0; its `PATH` is empty too). Prints the error kind and
+/// whether spawning was really forbidden.
+#[cfg(unix)]
+fn host_without_helpers(out: &str) -> i32 {
+    let stop = StopFlag::new();
+    let watcher = {
+        let (flag, out) = (stop.clone(), out.to_owned());
+        std::thread::spawn(move || {
+            let _ = pid_in(&format!("{out}.pid"));
+            let _ = pid_in(&format!("{out}.grandchild.pid"));
+            let mut limit = libc::rlimit {
+                rlim_cur: 0,
+                rlim_max: 0,
+            };
+            // SAFETY: `limit` is a valid, writable `rlimit` that outlives the call.
+            let got = unsafe { libc::getrlimit(libc::RLIMIT_NPROC, &raw mut limit) };
+            limit.rlim_cur = 0;
+            // SAFETY: `limit` is a valid `rlimit`, only read by the call. Lowering
+            // this test host's soft limit is the point of the test.
+            let set = unsafe { libc::setrlimit(libc::RLIMIT_NPROC, &raw const limit) };
+            let forbidden = got == 0
+                && set == 0
+                && std::process::Command::new("/bin/sh")
+                    .args(["-c", "true"])
+                    .status()
+                    .is_err();
+            flag.stop();
+            forbidden
+        })
+    };
+    let result = sender("tree", Path::new(out))
+        .with_timeout(GENEROUS)
+        .unwrap()
+        .with_stop(stop)
+        .send("l", "t", "hi");
+    let forbidden = watcher.join().unwrap_or(false);
+    println!("forbidden:{forbidden}");
+    println!("kind:{:?}", result.err().map(|e| e.kind));
+    0
+}
+
+/// RSH-002: the tree kill needs no `kill` program. The host's send is stopped
+/// when it can start no process and has an empty `PATH`; the TERM-ignoring
+/// grandchild still dies with the group. A root host is exempt from
+/// `RLIMIT_NPROC`, so there only the kill itself is checked.
+#[cfg(unix)]
+fn the_tree_kill_needs_no_kill_program() {
+    let reaper = Reaper::default();
+    let dir = tempfile::tempdir().unwrap();
+    let out = dir.path().join("nohelpers");
+    let host = std::process::Command::new(std::env::current_exe().unwrap())
+        .arg(format!("{HOST_NO_HELPERS}{}", out.display()))
+        .env("PATH", "")
+        .output()
+        .unwrap();
+    let said = String::from_utf8_lossy(&host.stdout).into_owned();
+    let grandchild = reaper.track(&format!("{}.grandchild.pid", out.display()));
+    assert!(host.status.success(), "the host failed: {host:?}");
+    assert!(said.contains("kind:Some(Cancelled)"), "{said}");
+    // SAFETY: `geteuid` has no preconditions.
+    let root = unsafe { libc::geteuid() } == 0;
+    assert!(
+        root || said.contains("forbidden:true"),
+        "the host could still start a process: {said}"
+    );
+    wait_until_not(
+        |p| exists(p) && !zombie(p),
+        grandchild,
+        "the grandchild",
+        "survived the tree kill",
+    );
+}
+
+#[cfg(not(unix))]
+fn the_tree_kill_needs_no_kill_program() {}
+
+/// RSH-003: an empty or relative `PATH` segment never finds the `atm` in the
+/// working directory. With `PATH` `:/usr/bin` and then `.:/usr/bin`, and an
+/// executable `atm` in the cwd that writes a marker, the default sender does
+/// not run it.
+#[cfg(unix)]
+fn a_relative_path_segment_never_runs_an_atm_in_the_cwd() {
+    use std::os::unix::fs::PermissionsExt as _;
+    for path in [":/usr/bin", ".:/usr/bin"] {
+        let dir = tempfile::tempdir().unwrap();
+        let marker = dir.path().join("marker");
+        let atm = dir.path().join("atm");
+        std::fs::write(
+            &atm,
+            format!("#!/bin/sh\necho ran > '{}'\n", marker.display()),
+        )
+        .unwrap();
+        std::fs::set_permissions(&atm, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let host = std::process::Command::new(std::env::current_exe().unwrap())
+            .arg(HOST_RESOLVE)
+            .env("PATH", path)
+            .current_dir(dir.path())
+            .output()
+            .unwrap();
+        let said = String::from_utf8_lossy(&host.stdout).into_owned();
+        assert!(host.status.success(), "{path}: the host failed: {host:?}");
+        assert!(
+            !marker.exists(),
+            "{path}: the atm in the working directory ran: {said}"
+        );
+        assert!(said.contains("resolved:none"), "{path}: {said}");
+    }
+}
+
+#[cfg(not(unix))]
+fn a_relative_path_segment_never_runs_an_atm_in_the_cwd() {}
+
+/// The host of [`a_relative_path_segment_never_runs_an_atm_in_the_cwd`]: what
+/// the default sender resolves, and one send.
+fn host_resolve() -> i32 {
+    let sender = AtmSender::default();
+    match sender.resolve() {
+        Ok(p) => println!("resolved:{}", p.display()),
+        Err(_) => println!("resolved:none"),
+    }
+    let result = sender.send("lead-x", "atm-dev", "hi");
+    println!("kind:{:?}", result.err().map(|e| e.kind));
+    0
+}
+
 fn a_timeout_that_no_message_could_use_is_refused() {
     let s = AtmSender::default();
     assert!(s.clone().with_timeout(Duration::ZERO).is_err());
@@ -584,6 +720,10 @@ fn a_timeout_that_no_message_could_use_is_refused() {
     assert!(s.with_timeout(Duration::from_secs(5)).is_ok());
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "the dispatch to the fakes and hosts, then the test table"
+)]
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if let Some(mode) = args.first().and_then(|a| a.strip_prefix(FLAG)) {
@@ -592,7 +732,26 @@ fn main() {
         std::io::stdout().flush().unwrap();
         std::process::exit(code);
     }
-    let tests: [(&str, fn()); 14] = [
+    #[cfg(unix)]
+    if let Some(out) = args.first().and_then(|a| a.strip_prefix(HOST_NO_HELPERS)) {
+        let code = host_without_helpers(out);
+        std::io::stdout().flush().unwrap();
+        std::process::exit(code);
+    }
+    if args.first().map(String::as_str) == Some(HOST_RESOLVE) {
+        let code = host_resolve();
+        std::io::stdout().flush().unwrap();
+        std::process::exit(code);
+    }
+    let tests: [(&str, fn()); 16] = [
+        (
+            "the_tree_kill_needs_no_kill_program",
+            the_tree_kill_needs_no_kill_program,
+        ),
+        (
+            "a_relative_path_segment_never_runs_an_atm_in_the_cwd",
+            a_relative_path_segment_never_runs_an_atm_in_the_cwd,
+        ),
         (
             "delivers_the_body_on_stdin_with_the_reference_invocation",
             delivers_the_body_on_stdin_with_the_reference_invocation,

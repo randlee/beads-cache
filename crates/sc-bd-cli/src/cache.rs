@@ -35,7 +35,7 @@ use sc_beads::{
 
 use crate::argv::{self, IDS_PER_CALL};
 use crate::backend::BdCli;
-use crate::bounded::BoundedError;
+use crate::bounded::{BoundedError, TimeoutPhase};
 
 /// bd's exit status for a refused `--if-status` / `--if-assignee` guard
 /// (`bd update --help`: "a mismatch writes nothing and exits 13").
@@ -166,6 +166,29 @@ impl BdCli {
             Err(BoundedError::Wait(source)) => {
                 log_error!("[bd] {what}: waiting for bd failed: {source}");
                 return Err(BeadsCacheError::Transport { what, source });
+            }
+            // A shutdown before bd started (RSH-001): nothing ran, so it is an
+            // outage that a later call may retry, not a timeout.
+            Err(
+                e @ BoundedError::Interrupted {
+                    phase: TimeoutPhase::Lock,
+                    ..
+                },
+            ) => {
+                log_error!("[bd] {what}: {e}");
+                return Err(BeadsCacheError::Unavailable {
+                    reason: format!("{what}: {e}"),
+                    timed_out: false,
+                });
+            }
+            // A shutdown while bd ran: it was killed, so what it did is unknown, as
+            // with a child that could not be waited for (`Transport`).
+            Err(e @ BoundedError::Interrupted { .. }) => {
+                log_error!("[bd] {what}: {e}");
+                return Err(BeadsCacheError::Transport {
+                    what,
+                    source: std::io::Error::new(std::io::ErrorKind::Interrupted, e.to_string()),
+                });
             }
         };
         check_exit(&self.inv.binary(), out)

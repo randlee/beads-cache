@@ -27,6 +27,14 @@
 //! `USAGE`, `3` for any other typed error. A caught panic is
 //! `BD_CACHE.INTERNAL`, exit 3.
 //!
+//! # Signals (RSH-001, ADR-CLI-0005)
+//!
+//! On Unix [`run_process`] handles `SIGTERM`, `SIGINT` and `SIGHUP`: the
+//! running `bd` call's process group is killed and reaped, the project locks
+//! are released as the call returns, `cache tick` stops (with its `atm`
+//! child), the command's envelope is still written, and the process exits
+//! `128 + signal` (143 for `SIGTERM`) whatever the envelope says.
+//!
 //! # `--help`
 //!
 //! Text when stdout is a terminal and no `--format` is given; otherwise the
@@ -58,6 +66,7 @@ use std::process::ExitCode;
 use std::sync::Arc;
 
 use bd_cache_api::ApiError;
+use bd_cache_sync::StopFlag;
 use clap::ArgMatches;
 use clap::error::{ContextKind, ContextValue};
 use sc_bd_cli::CliInvoker;
@@ -149,9 +158,21 @@ pub fn run_with(
     clock: Arc<dyn Clock>,
     stdout: Stdout,
 ) -> (i32, String) {
+    run_stoppable(argv, env, invoker, clock, stdout, &StopFlag::new())
+}
+
+/// As [`run_with`], with the flag a signal sets (`cache tick` stops on it).
+fn run_stoppable(
+    argv: &[String],
+    env: &BTreeMap<String, String>,
+    invoker: Option<Box<dyn CliInvoker>>,
+    clock: Arc<dyn Clock>,
+    stdout: Stdout,
+    stop: &StopFlag,
+) -> (i32, String) {
     let text = args::format_flag(argv) == Some("text");
     match catch_unwind(AssertUnwindSafe(|| {
-        dispatch(argv, env, invoker, clock, stdout)
+        dispatch(argv, env, invoker, clock, stdout, stop)
     })) {
         Ok(reply) => reply,
         Err(payload) => {
@@ -172,8 +193,21 @@ pub fn run_with(
 /// Reads the real argv and environment, calls [`run_with`] with the real `bd`
 /// (`None`), the system clock and whether stdout is a terminal, writes the
 /// reply to stdout and returns the exit code.
+///
+/// On Unix `SIGTERM`, `SIGINT` and `SIGHUP` stop the command instead of
+/// killing the process outright (RSH-001; module docs, "Signals"): the reply
+/// is still written, and the exit code is then `128 + signal`.
 #[must_use]
 pub fn run_process() -> ExitCode {
+    let stop = StopFlag::new();
+    // Before anything can start a `bd`: from here a signal stops the calls.
+    if let Err(e) = commands::signal::install(&stop) {
+        // No log is set up yet; stderr is the log's destination anyway.
+        let _written = writeln!(
+            std::io::stderr(),
+            "bdc: cannot handle SIGTERM/SIGINT/SIGHUP ({e}); a signal will kill bdc but not its bd"
+        );
+    }
     let argv: Vec<String> = std::env::args_os()
         .skip(1)
         .map(|a| a.to_string_lossy().into_owned())
@@ -193,10 +227,27 @@ pub fn run_process() -> ExitCode {
     } else {
         Stdout::Piped
     };
-    let (code, reply) = run_with(&argv, &env, None, Arc::new(sc_beads::SystemClock), stdout);
+    let (code, reply) = run_stoppable(
+        &argv,
+        &env,
+        None,
+        Arc::new(sc_beads::SystemClock),
+        stdout,
+        &stop,
+    );
     // A closed stdout leaves nobody to tell; the exit code still reports the outcome.
     let _written = std::io::stdout().write_all(reply.as_bytes());
-    ExitCode::from(u8::try_from(code).unwrap_or(3))
+    let _flushed = std::io::stdout().flush();
+    match sc_bd_cli::shutdown::requested() {
+        Some(signal) => {
+            let _written = writeln!(
+                std::io::stderr(),
+                "bdc: stopped by signal {signal}; its bd calls were killed"
+            );
+            ExitCode::from(commands::signal::exit_code(signal))
+        }
+        None => ExitCode::from(u8::try_from(code).unwrap_or(3)),
+    }
 }
 
 /// The exit code and stdout of a result.
@@ -223,6 +274,7 @@ fn dispatch(
     invoker: Option<Box<dyn CliInvoker>>,
     clock: Arc<dyn Clock>,
     stdout: Stdout,
+    stop: &StopFlag,
 ) -> (i32, String) {
     let format = args::format_flag(argv);
     if args::has_flag(argv, "--help") {
@@ -292,6 +344,7 @@ fn dispatch(
         env,
         invoker,
         clock,
+        stop,
     };
     let result = tracing::subscriber::with_default(log::StderrLog::new(level), || {
         tracing::info!(command = spec.path, "running");

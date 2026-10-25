@@ -63,6 +63,11 @@ sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "v0.1.0" }
 sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
 clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
 
+# phase b, phase-end fix RSH-001: bdc's SIGTERM / SIGINT / SIGHUP handling
+# (bd-cache-cli, Unix only). The iterator receives signals on a thread of its
+# own, so no handler code of ours runs in signal context.
+signal-hook = { version = "0.3", default-features = false, features = ["iterator"] }
+
 [workspace.lints.rust]
 ambiguous_negative_literals = "warn"
 missing_debug_implementations = "warn"

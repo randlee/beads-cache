@@ -14,6 +14,8 @@ ADR-BDC-0007; the contract it implements is
 | `cache` | `CacheBackend for BdCli`: exit-status classification, guards on close, fingerprint parsing | new |
 | `argv` | the argv of every cache call, as pure functions | new |
 | `bounded` | `run_bounded` and `BoundedError`: the deadline-bounded process run | new |
+| `shutdown` | the process-wide shutdown request every bounded call observes (RSH-001) | new |
+| `process_group` (Unix) | `kill` and `exists` of a process group through `kill(2)` (RSH-002) | new |
 | `testing` (feature `test-support`) | `RecordingInvoker` (btit's, plus `run_bounded`), `FakeBd` | btit-cli's `testing`, new |
 
 The crate depends on `sc-beads` (workspace crate), `serde_json` and `tracing`
@@ -327,3 +329,84 @@ Tests: `src/path.rs` (`the_inherited_path_keeps_only_absolute_segments`,
 Windows twin); in `bd-cache-cli`, `tests/process.rs`
 (`an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo`,
 `the_users_path_beats_a_fallback_directory`).
+
+## ADR-BDCLI-0006: A cross-process project lock, and process control without helper programs
+
+**Status:** Approved (lead ruling S81, bc-lead, 2026-10-25; phase-end fixes RSH-001..004)
+
+Context: embedded Dolt crashes when two `bd` processes open one database at
+once. The only exclusion was `ProjectLocks`, an in-process mutex, so two bdc
+processes (a cron `cache tick` and an agent's `get`) could run two `bd` on one
+project (RSH-004). The timeout kill of a `bd` group ran `/bin/kill` or `kill`
+from `PATH`; in a minimal image that program is missing or cannot start, and
+only the leader died (RSH-002). And a host that died of SIGTERM left its `bd`
+group running, since the group does not get the host's signals (RSH-001).
+
+Decision:
+
+- **Cross-process lock (S81).** Every bounded call (`run_bounded*`,
+  `CliRunner::run_bounded`) on an embedded-Dolt project takes, after the
+  in-process mutex and for as long as it, an exclusive advisory lock on a
+  per-project file:
+  `<canonical project dir>/.beads/sc-bd-cli.lock`, or, when that cannot be
+  opened (no `.beads/`, not writable and no existing file to open read-only),
+  `<OS temp dir>/sc-bd-cli-<FNV-1a 64 of the canonical dir>.lock`. `.beads/`
+  first, because it is the project's own directory that every process on the
+  project can see, whoever runs it; the temp fallback keys on a stable hash so
+  every process without `.beads/` meets in one file. The lock is
+  `std::fs::File::try_lock` (`flock` / `LockFileEx`, the primitive the drain
+  lock uses through fs4), polled with the call's other waits against its
+  deadline, so a wait ends as `TimeoutPhase::Lock`. It is released by closing
+  the file: on every return (success, timeout, failure, shutdown, after the
+  kill of the child's group) and when the process dies. The file is never
+  deleted. btit's unbounded calls keep the mutex only. A lock file that can
+  be neither opened nor locked fails the call as a spawn failure (nothing
+  started).
+- **Server mode takes no file lock** (fenix's input on S81, atm-bd owner): when
+  the project's `.beads/metadata.json` resolves to `DoltMode::Server` by bd's
+  own rule (`dolt_mode: "server"`, or a non-local `dolt_server_host` with no
+  mode), many `bd` processes are concurrent by bd's design, and the lock would
+  only make every miss fill wait behind a long sync; atm-bd runs bd that way.
+  A missing or unreadable `metadata.json`, `embedded`, `proxied-server` and any
+  other value take the lock. The in-process mutex is unchanged in every mode.
+  The protection is partial in embedded mode: agents and bd's git hooks call
+  `bd` directly without this lock, so it orders bdc's own calls only.
+- **Release lag.** A child forked by another thread while a guard is held
+  inherits the locked file until it execs (files are close-on-exec), so a
+  dropped guard can release the lock a moment late; callers poll for it, as
+  the bounded calls do against their deadline (RCR-001).
+- **Kill with `kill(2)`.** On Unix the group kill and the "group is gone"
+  probe are `kill(-pgid, SIGKILL)` and `kill(-pgid, 0)` (`process_group::kill`,
+  `process_group::exists`, safe wrappers that refuse the pgids 0 and 1). No
+  program is started. Windows keeps the job object and `taskkill /T`.
+  `bd-cache-sync`'s `atm` sender uses the same wrappers, so it stays free of
+  `unsafe`.
+- **Shutdown.** `shutdown::request(signal)` (a process-wide atomic; signals are
+  process-wide) makes every bounded call stop as on a timeout, with
+  `BoundedError::Interrupted { phase, signal }`. The cache maps it to
+  `Unavailable` (not a timeout) when no `bd` started, and to `Transport` when
+  one was killed. On Linux a bounded child also gets `PR_SET_PDEATHSIG`
+  (SIGKILL) in a `pre_exec` hook; the spawning thread polls the child until it
+  is gone, so the thread-scoped death signal never fires early.
+- `PATH` (finding 5): the inherited `PATH` is read with `var_os` and
+  `split_paths`, so one non-UTF-8 segment no longer drops the rest; the
+  child's `PATH` is an `OsString`. `path::absolute_path_entries` is the
+  S76/S77 rule for another crate's own `PATH` search (the `atm` lookup,
+  RSH-003).
+
+Consequences: on an embedded-Dolt project a `bd` call waits for another
+process's call on the same project, bounded by its deadline. A `.beads/sc-bd-cli.lock` file appears in
+an embedded-Dolt project and is never removed: add `sc-bd-cli.lock` to the
+project's `.beads/.gitignore` (contract §3, "Concurrent `bd` calls"). Two processes that
+disagree on whether `.beads/` is usable would use different files; an existing
+file is opened read-only to narrow that case.
+
+Tests (`tests/process.rs`, each a separate process where the case needs one):
+`two_processes_never_run_bd_on_one_project_at_once` (an explicit embedded
+project), `a_server_mode_project_takes_no_cross_process_lock`,
+`the_cross_process_lock_is_released_when_a_call_is_cut`,
+`the_group_kill_needs_no_kill_program` (a host with an empty `PATH` and
+`RLIMIT_NPROC` 0), `a_shutdown_request_stops_the_calls`,
+`a_non_utf8_path_reaches_the_child`; FTQ-002: the two process-group timeout
+tests trigger their timeout through `run_bounded_expiring` (feature
+`test-support`) only once the grandchild runs, under a 60 s fail-safe.

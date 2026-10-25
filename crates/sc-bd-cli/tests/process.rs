@@ -18,20 +18,29 @@
 //! `probe` it only prints whether that grandchild still runs), `leaver` (starts the
 //! same grandchild with the child's standard output, then exits at once: the
 //! grandchild holds the pipe, so the call times out reading the output; `probe` as
-//! for `spawner`) and `orphan` (the Windows grandchild: writes its pid to
-//! `$SC_BD_PID_FILE`, then runs 30 s).
+//! for `spawner`; it writes its own pid to `pid` just before it exits) and `orphan`
+//! (the Windows grandchild: writes its pid to `$SC_BD_PID_FILE`, then runs 30 s),
+//! `exclusive` (records an overlap with another `exclusive` run in `overlap`, says
+//! `started`, then runs until the file `release` exists) and `pathdump` (writes its
+//! `PATH`, byte for byte, to `path`).
+//!
+//! Some tests need a process of their own (a second process on one project, a
+//! process that cannot start any program, a shutdown request, a `PATH` that is not
+//! UTF-8). With `SC_BD_CLI_HOST=<mode>` set the binary is such a **host**: it makes
+//! the bounded calls the mode names, prints one result line and exits (`host`).
 
 use std::fs;
 use std::io::{Read, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use sc_bd_cli::bounded::{
-    kill_and_reap, run_bounded, run_bounded_capped, BoundedError, OutputStream, TimeoutPhase,
-    MAX_OUTPUT_BYTES,
+    kill_and_reap, run_bounded, run_bounded_capped, run_bounded_expiring, BoundedError,
+    OutputStream, TimeoutPhase, MAX_OUTPUT_BYTES,
 };
 use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::{
@@ -50,11 +59,23 @@ const FLOOD_STDERR: usize = 1024 * 1024;
 /// The slowest a bounded call may take to give up in these tests; the children run
 /// for 30 s, so a call that waited for one fails this bound by a wide margin.
 const GIVE_UP_WITHIN: Duration = Duration::from_secs(10);
+/// The fail-safe deadline of a call whose timeout the test triggers itself (FTQ-002):
+/// far above any host's start-up, so only the trigger ever cuts the call.
+const FAIL_SAFE: Duration = Duration::from_secs(60);
+/// The environment variable that makes this binary a host process (module docs).
+const HOST_ENV: &str = "SC_BD_CLI_HOST";
+/// The working directory a host's calls use.
+const HOST_WD_ENV: &str = "SC_BD_CLI_HOST_WD";
+/// The timeout of a host's call, in ms.
+const HOST_TIMEOUT_ENV: &str = "SC_BD_CLI_HOST_TIMEOUT_MS";
 
 fn main() -> ExitCode {
-    match child_mode() {
-        Some(mode) => child(&mode),
-        None => run_tests(),
+    if let Some(mode) = child_mode() {
+        return child(&mode);
+    }
+    match std::env::var(HOST_ENV) {
+        Ok(mode) => host(&mode),
+        Err(_) => run_tests(),
     }
 }
 
@@ -71,6 +92,9 @@ fn child(mode: &str) -> ExitCode {
     let first = args.first().map(String::as_str);
     if mode == "spawner" || mode == "leaver" || mode == "orphan" {
         return process_group_child(mode, first);
+    }
+    if mode.starts_with("exclusive") || mode == "pathdump" {
+        return lock_child(mode);
     }
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
@@ -199,10 +223,14 @@ fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
             };
             let _ = writeln!(out, "ready");
             let _ = out.flush();
-            if spawn_grandchild(&PathBuf::from(dir).join("grandchild"), true).is_err() {
+            let dir = PathBuf::from(dir);
+            if spawn_grandchild(&dir.join("grandchild"), true).is_err() {
                 let _ = writeln!(err, "cannot start the grandchild");
                 return ExitCode::from(97);
             }
+            // The last thing before exiting: a test that sees the pid and then this
+            // process exited knows the call is past its child phase (FTQ-002).
+            write_whole(&dir.join("pid"), &std::process::id().to_string());
             ExitCode::SUCCESS
         }
         ("orphan", _) => {
@@ -213,6 +241,48 @@ fn process_group_child(mode: &str, first: Option<&str>) -> ExitCode {
             ExitCode::SUCCESS
         }
         _ => ExitCode::from(99),
+    }
+}
+
+/// The modes `exclusive` and `pathdump`, of the lock and `PATH` tests.
+fn lock_child(mode: &str) -> ExitCode {
+    let Some(dir) = std::env::var_os("BEADS_PATH").map(PathBuf::from) else {
+        return ExitCode::from(98);
+    };
+    if mode == "pathdump" {
+        let path = std::env::var_os("PATH").unwrap_or_default();
+        #[cfg(unix)]
+        let bytes = std::os::unix::ffi::OsStrExt::as_bytes(path.as_os_str()).to_vec();
+        #[cfg(not(unix))]
+        let bytes = path.to_string_lossy().into_owned().into_bytes();
+        let _ = fs::write(dir.join("path"), bytes);
+        return ExitCode::SUCCESS;
+    }
+    // `exclusive`: a second run while one is running records the overlap.
+    let running = dir.join("running");
+    if fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&running)
+        .is_err()
+    {
+        write_whole(&dir.join("overlap"), &std::process::id().to_string());
+    }
+    write_whole(&dir.join("started"), &std::process::id().to_string());
+    let until = Instant::now() + Duration::from_secs(SLOW_CHILD_SECS);
+    while !dir.join("release").exists() && Instant::now() < until {
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    let _ = fs::remove_file(&running);
+    ExitCode::SUCCESS
+}
+
+/// Writes `text` to `path` whole (a temporary file renamed into place), so a reader
+/// sees no file or all of it.
+fn write_whole(path: &Path, text: &str) {
+    let tmp = path.with_extension("tmp");
+    if fs::write(&tmp, text).is_ok() {
+        let _ = fs::rename(&tmp, path);
     }
 }
 
@@ -299,6 +369,207 @@ fn kill_leftover(pid: &str) {
             .args(["-KILL", pid])
             .output()
     };
+}
+
+// ---- the host processes -----------------------------------------------------------
+
+/// A bounded call's outcome as one word: `ok:<stdout>`, `timedout:<phase>`,
+/// `interrupted:<phase>:<signal>` or `error:<text>`.
+fn outcome(r: &Result<sc_beads::CliOutput, BoundedError>) -> String {
+    let phase = |p: &TimeoutPhase| match p {
+        TimeoutPhase::Lock => "lock",
+        TimeoutPhase::Child => "child",
+        TimeoutPhase::Output => "output",
+    };
+    match r {
+        Ok(out) => format!("ok:{}", out.stdout.trim()),
+        Err(BoundedError::TimedOut { phase: p }) => format!("timedout:{}", phase(p)),
+        Err(BoundedError::Interrupted { phase: p, signal }) => {
+            format!("interrupted:{}:{signal}", phase(p))
+        }
+        Err(e) => format!("error:{e}"),
+    }
+}
+
+/// This binary as a host process (`SC_BD_CLI_HOST=<mode>`): makes the bounded calls of
+/// `mode` against itself as the fake bd, in `SC_BD_CLI_HOST_WD`, and prints their
+/// outcomes, one line each.
+///
+/// - `call`: one `list` with a timeout of `SC_BD_CLI_HOST_TIMEOUT_MS`.
+/// - `nohelpers` (Unix): a `list` on a `spawner` whose timeout is triggered once the
+///   grandchild runs and this process can start no program at all (RSH-002).
+/// - `shutdown`: a `list` on a `spawner`, stopped by [`sc_bd_cli::shutdown::request`]
+///   once the grandchild runs, then a second call (RSH-001).
+fn host(mode: &str) -> ExitCode {
+    let exe = match std::env::current_exe() {
+        Ok(p) => p.to_string_lossy().into_owned(),
+        Err(_) => return ExitCode::from(90),
+    };
+    let Ok(wd) = std::env::var(HOST_WD_ENV) else {
+        return ExitCode::from(91);
+    };
+    let lines = match mode {
+        "call" => {
+            let ms = std::env::var(HOST_TIMEOUT_ENV)
+                .ok()
+                .and_then(|t| t.parse().ok())
+                .unwrap_or(60_000);
+            vec![outcome(&run_bounded(
+                &exe,
+                &ProjectLocks::new(),
+                &WorkingDir::new(&wd),
+                &words(&["list"]),
+                Duration::from_millis(ms),
+            ))]
+        }
+        #[cfg(unix)]
+        "nohelpers" => host_without_helpers(&exe, &wd),
+        "shutdown" => host_shutdown(&exe, &wd),
+        _ => return ExitCode::from(92),
+    };
+    let mut out = std::io::stdout();
+    for line in lines {
+        let _ = writeln!(out, "{line}");
+    }
+    let _ = out.flush();
+    ExitCode::SUCCESS
+}
+
+/// Starts a `list` on the `spawner` in `wd` in a thread, with a fail-safe deadline
+/// and the returned expiry trigger, and waits for its grandchild's pid.
+fn spawner_call(
+    exe: &str,
+    wd: &str,
+    expire: &Arc<AtomicBool>,
+) -> (
+    std::thread::JoinHandle<Result<sc_beads::CliOutput, BoundedError>>,
+    Result<String, String>,
+) {
+    let _ = fs::remove_file(Path::new(wd).join("grandchild"));
+    let (exe, wd_owned, expire) = (exe.to_owned(), wd.to_owned(), Arc::clone(expire));
+    let call = std::thread::spawn(move || {
+        run_bounded_expiring(
+            &exe,
+            &ProjectLocks::new(),
+            &WorkingDir::new(&wd_owned),
+            &words(&["list"]),
+            FAIL_SAFE,
+            &expire,
+        )
+    });
+    let grandchild = pid_in(&Path::new(wd).join("grandchild"));
+    (call, grandchild)
+}
+
+/// RSH-002: once the grandchild runs, this process loses the right to start any
+/// process (`RLIMIT_NPROC` 0) and `PATH` is empty, so no `kill` program can be found
+/// or started; then the call's timeout is triggered. Prints the call's outcome.
+#[cfg(unix)]
+fn host_without_helpers(exe: &str, wd: &str) -> Vec<String> {
+    std::env::set_var("PATH", "");
+    let expire = Arc::new(AtomicBool::new(false));
+    let (call, grandchild) = spawner_call(exe, wd, &expire);
+    let mut limited = libc::rlimit {
+        rlim_cur: 0,
+        rlim_max: 0,
+    };
+    // SAFETY: `limited` is a valid, writable `rlimit` that outlives the call.
+    let got = unsafe { libc::getrlimit(libc::RLIMIT_NPROC, &raw mut limited) };
+    // The soft limit only: the hard one stays as it is (raising it is refused).
+    limited.rlim_cur = 0;
+    // SAFETY: `limited` is a valid `rlimit` that outlives the call, which only reads
+    // it. Lowering the soft limit of this test process is the point of the test.
+    let rc = got | unsafe { libc::setrlimit(libc::RLIMIT_NPROC, &raw const limited) };
+    let forbidden = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg("true")
+        .status()
+        .is_err();
+    expire.store(true, Ordering::SeqCst);
+    let result = call
+        .join()
+        .unwrap_or_else(|_| Err(BoundedError::Output(std::io::Error::other("panicked"))));
+    vec![
+        format!("grandchild:{}", grandchild.unwrap_or_default()),
+        format!("spawning_forbidden:{}", rc == 0 && forbidden),
+        outcome(&result),
+    ]
+}
+
+/// RSH-001: once the grandchild runs, the host asks for a shutdown (as bdc's signal
+/// handler does); the running call is stopped, and a later call starts nothing.
+fn host_shutdown(exe: &str, wd: &str) -> Vec<String> {
+    let expire = Arc::new(AtomicBool::new(false));
+    let (call, grandchild) = spawner_call(exe, wd, &expire);
+    sc_bd_cli::shutdown::request(15);
+    let first = call
+        .join()
+        .unwrap_or_else(|_| Err(BoundedError::Output(std::io::Error::other("panicked"))));
+    // A call that comes after the request: the binary does not exist, so one that got
+    // past the shutdown check would fail to spawn instead.
+    let later = run_bounded(
+        "definitely-not-a-real-cli-binary-xyz",
+        &ProjectLocks::new(),
+        &WorkingDir::new(wd),
+        &words(&["list"]),
+        FAIL_SAFE,
+    );
+    vec![
+        format!("grandchild:{}", grandchild.unwrap_or_default()),
+        outcome(&first),
+        outcome(&later),
+    ]
+}
+
+/// Runs this binary as a host in `mode` on the working directory `wd` and returns its
+/// output lines.
+fn run_host(
+    env: &Env,
+    mode: &str,
+    wd: &str,
+    extra: &[(&str, &str)],
+) -> Result<Vec<String>, String> {
+    let mut command = std::process::Command::new(&env.exe);
+    command.env(HOST_ENV, mode).env(HOST_WD_ENV, wd);
+    for (k, v) in extra {
+        command.env(k, v);
+    }
+    let out = command
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| format!("cannot start the host: {e}"))?;
+    if !out.status.success() {
+        return Err(format!(
+            "the host {mode} failed: {:?} {}",
+            out.status,
+            String::from_utf8_lossy(&out.stderr)
+        ));
+    }
+    Ok(String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .map(str::to_owned)
+        .collect())
+}
+
+/// The value after `prefix:` in the host line that starts with it.
+fn host_value<'a>(lines: &'a [String], prefix: &str) -> Option<&'a str> {
+    lines
+        .iter()
+        .find_map(|l| l.strip_prefix(prefix)?.strip_prefix(':'))
+}
+
+/// Waits (up to [`GIVE_UP_WITHIN`]) until `pid` no longer runs; kills it and fails
+/// if it still does then.
+fn require_gone(pid: &str, what: &str) -> TestResult {
+    let until = Instant::now() + GIVE_UP_WITHIN;
+    while process_runs(pid) {
+        if Instant::now() >= until {
+            kill_leftover(pid);
+            return Err(format!("{what} {pid} still runs"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
 }
 
 // ---- the tests --------------------------------------------------------------------
@@ -437,31 +708,41 @@ fn kill_and_reap_ends_a_running_child(env: &Env) -> TestResult {
 /// started, which ignores TERM, is gone when the call returns, and the next call on
 /// the same project, queued behind the project lock while the first one runs, starts
 /// only once the grandchild is gone.
+///
+/// The timeout is the test's (FTQ-002): the call's deadline is a 60 s fail-safe, and
+/// the cut is triggered only once the grandchild has written its pid, so it always
+/// lands in the child phase, never before the grandchild exists.
 fn a_timed_out_child_takes_its_process_group_with_it(env: &Env) -> TestResult {
     let wd = env.dir("spawner")?;
     let grandchild_file = Path::new(&wd).join("grandchild");
     let _ = fs::remove_file(&grandchild_file);
     let _ = fs::remove_file(Path::new(&wd).join("pid"));
     let locks = Arc::new(ProjectLocks::new());
+    let expire = Arc::new(AtomicBool::new(false));
 
     let (exe, first_locks, first_wd) = (env.exe.clone(), Arc::clone(&locks), wd.clone());
+    let first_expire = Arc::clone(&expire);
     let first = std::thread::spawn(move || {
-        run_bounded(
+        run_bounded_expiring(
             &exe,
             &first_locks,
             &WorkingDir::new(&first_wd),
             &words(&["list"]),
-            Duration::from_secs(3),
+            FAIL_SAFE,
+            &first_expire,
         )
     });
-    // The grandchild runs, so the first call holds the project lock.
-    let grandchild = pid_in(&grandchild_file)?;
+    // The grandchild runs, so the first call holds the project lock, and its child
+    // (which sleeps 30 s) is still running: the cut lands in the child phase.
+    let grandchild = pid_in(&grandchild_file);
+    expire.store(true, Ordering::SeqCst);
+    let grandchild = grandchild?;
     let next = run_bounded(
         &env.exe,
         &locks,
         &WorkingDir::new(&wd),
         &words(&["probe"]),
-        Duration::from_secs(60),
+        FAIL_SAFE,
     );
     let first = first
         .join()
@@ -499,30 +780,46 @@ fn a_timed_out_child_takes_its_process_group_with_it(env: &Env) -> TestResult {
 /// project, queued behind the lock, runs only once it is gone. The kill must reach
 /// the helper although the bd it descends from has exited (Windows: a `taskkill /T`
 /// from the exited bd finds nothing) and must not be sent to a reaped pid.
+///
+/// The timeout is the test's (FTQ-002): a 60 s fail-safe, and the cut is triggered
+/// only once the helper has written its pid and the bd has exited, so the call is
+/// past its child phase and the cut lands in the output phase.
 fn an_output_timeout_takes_the_left_behind_helper_with_it(env: &Env) -> TestResult {
     let wd = env.dir("leaver")?;
     let helper_file = Path::new(&wd).join("grandchild");
+    let pid_file = Path::new(&wd).join("pid");
     let _ = fs::remove_file(&helper_file);
+    let _ = fs::remove_file(&pid_file);
     let locks = Arc::new(ProjectLocks::new());
+    let expire = Arc::new(AtomicBool::new(false));
 
     let (exe, first_locks, first_wd) = (env.exe.clone(), Arc::clone(&locks), wd.clone());
+    let first_expire = Arc::clone(&expire);
     let first = std::thread::spawn(move || {
-        run_bounded(
+        run_bounded_expiring(
             &exe,
             &first_locks,
             &WorkingDir::new(&first_wd),
             &words(&["list"]),
-            Duration::from_secs(3),
+            FAIL_SAFE,
+            &first_expire,
         )
     });
-    // The helper runs, so the first call holds the project lock.
-    let helper = pid_in(&helper_file)?;
+    // The helper runs, so the first call holds the project lock; the bd wrote its
+    // pid last and has exited (a zombie until the call reaps it).
+    let ready = pid_in(&helper_file).and_then(|helper| {
+        let bd = pid_in(&pid_file)?;
+        wait_until_exited(&bd)?;
+        Ok(helper)
+    });
+    expire.store(true, Ordering::SeqCst);
+    let helper = ready?;
     let next = run_bounded(
         &env.exe,
         &locks,
         &WorkingDir::new(&wd),
         &words(&["probe"]),
-        Duration::from_secs(60),
+        FAIL_SAFE,
     );
     let first = first
         .join()
@@ -551,6 +848,262 @@ fn an_output_timeout_takes_the_left_behind_helper_with_it(env: &Env) -> TestResu
     require(
         !still_runs,
         format!("the helper {helper} outlived the output timeout"),
+    )
+}
+
+/// Waits (up to [`GIVE_UP_WITHIN`]) until `pid` runs no more: exited, a zombie its
+/// parent has not reaped yet counting as exited.
+fn wait_until_exited(pid: &str) -> TestResult {
+    let until = Instant::now() + GIVE_UP_WITHIN;
+    while process_runs(pid) {
+        if Instant::now() >= until {
+            return Err(format!("{pid} never exited"));
+        }
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    Ok(())
+}
+
+/// RSH-002: the group kill needs no `kill` program. A host that can start no process
+/// at all (`RLIMIT_NPROC` 0, an empty `PATH`) when its call times out still kills
+/// the whole group: the TERM-ignoring grandchild dies with the bd.
+///
+/// Unix only. A root host is exempt from `RLIMIT_NPROC`, so there the condition
+/// cannot be set up and only the kill itself is checked.
+#[cfg(unix)]
+fn the_group_kill_needs_no_kill_program(env: &Env) -> TestResult {
+    let wd = env.dir("spawner")?;
+    let lines = run_host(env, "nohelpers", &wd, &[])?;
+    let grandchild = host_value(&lines, "grandchild")
+        .filter(|p| !p.is_empty())
+        .ok_or_else(|| format!("the grandchild never ran: {lines:?}"))?
+        .to_owned();
+    let gone = require_gone(&grandchild, "the grandchild");
+    // SAFETY: `geteuid` has no preconditions.
+    let root = unsafe { libc::geteuid() } == 0;
+    require(
+        root || host_value(&lines, "spawning_forbidden") == Some("true"),
+        format!("the host could still start a process: {lines:?}"),
+    )?;
+    require(
+        lines.iter().any(|l| l == "timedout:child"),
+        format!("expected a timeout in the child phase: {lines:?}"),
+    )?;
+    gone
+}
+
+/// RSH-001: a shutdown request stops a running call as a timeout would (its group
+/// killed, the grandchild gone) with `Interrupted`, and a later call starts nothing.
+fn a_shutdown_request_stops_the_calls(env: &Env) -> TestResult {
+    let wd = env.dir("spawner")?;
+    let lines = run_host(env, "shutdown", &wd, &[])?;
+    let grandchild = host_value(&lines, "grandchild")
+        .filter(|p| !p.is_empty())
+        .ok_or_else(|| format!("the grandchild never ran: {lines:?}"))?
+        .to_owned();
+    let gone = require_gone(&grandchild, "the grandchild");
+    require(
+        lines.get(1).map(String::as_str) == Some("interrupted:child:15"),
+        format!("the running call was not interrupted: {lines:?}"),
+    )?;
+    require(
+        lines.get(2).map(String::as_str) == Some("interrupted:lock:15"),
+        format!("a call after the request started something: {lines:?}"),
+    )?;
+    gone
+}
+
+/// RSH-004 (lead ruling S81): two processes never run bd on one project at once. A
+/// first process's bd runs (and says so); a second process's call on the same project
+/// then waits for the cross-process lock and times out there, without starting its
+/// bd; once the first bd is released the first call succeeds, no overlap was ever
+/// recorded, and the lock file is the project's `.beads/sc-bd-cli.lock`. The project
+/// is embedded Dolt (`dolt_mode: "embedded"`); a server-mode one takes no lock
+/// ([`a_server_mode_project_takes_no_cross_process_lock`]).
+///
+/// Each process has its own `ProjectLocks`, so only the lock file can exclude them.
+/// Causal: the second call starts only after the first bd has started, and its
+/// outcome says which side of the lock it was on (a call past the lock would run its
+/// bd, which waits for `release` too, and time out in the child phase instead).
+fn two_processes_never_run_bd_on_one_project_at_once(env: &Env) -> TestResult {
+    let wd = env.dir("exclusive")?;
+    let dir = Path::new(&wd).to_path_buf();
+    for name in ["running", "overlap", "started", "release"] {
+        let _ = fs::remove_file(dir.join(name));
+    }
+    fs::create_dir_all(dir.join(".beads")).map_err(|e| format!("create .beads: {e}"))?;
+    // An embedded-Dolt project, explicitly: it takes the cross-process lock.
+    fs::write(
+        dir.join(".beads").join("metadata.json"),
+        r#"{"backend":"dolt","dolt_mode":"embedded"}"#,
+    )
+    .map_err(|e| format!("metadata.json: {e}"))?;
+    let first = std::process::Command::new(&env.exe)
+        .env(HOST_ENV, "call")
+        .env(HOST_WD_ENV, &wd)
+        .env(HOST_TIMEOUT_ENV, FAIL_SAFE.as_millis().to_string())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("cannot start the first host: {e}"))?;
+    let started = pid_in(&dir.join("started"));
+    let second = started
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|_| run_host(env, "call", &wd, &[(HOST_TIMEOUT_ENV, "1000")]));
+    let _ = fs::write(dir.join("release"), "");
+    let first = first
+        .wait_with_output()
+        .map_err(|e| format!("the first host: {e}"))?;
+    let first = String::from_utf8_lossy(&first.stdout).trim().to_owned();
+    started?;
+    let second = second?;
+    require(
+        second == ["timedout:lock"],
+        format!("the second process got past the lock: {second:?}"),
+    )?;
+    require(first == "ok:", format!("the first call: {first:?}"))?;
+    require(
+        !dir.join("overlap").exists(),
+        "two bd processes ran on the project at once",
+    )?;
+    require(
+        dir.join(".beads").join("sc-bd-cli.lock").is_file(),
+        "the lock file is not the project's .beads/sc-bd-cli.lock",
+    )
+}
+
+/// RSH-004 with fenix's input on S81: a Dolt server-mode project
+/// (`.beads/metadata.json` `dolt_mode: "server"`) takes no cross-process lock, as
+/// concurrent bd processes are bd's design there. The same two processes as in
+/// [`two_processes_never_run_bd_on_one_project_at_once`] now overlap: the second
+/// gets past the lock and runs its bd (which waits for `release`, so it times out in
+/// the child phase), and the overlap is recorded. Causal as that test is.
+fn a_server_mode_project_takes_no_cross_process_lock(env: &Env) -> TestResult {
+    let wd = env.dir("exclusive-server")?;
+    let dir = Path::new(&wd).to_path_buf();
+    for name in ["running", "overlap", "started", "release"] {
+        let _ = fs::remove_file(dir.join(name));
+    }
+    fs::create_dir_all(dir.join(".beads")).map_err(|e| format!("create .beads: {e}"))?;
+    fs::write(
+        dir.join(".beads").join("metadata.json"),
+        r#"{"backend":"dolt","dolt_mode":"server"}"#,
+    )
+    .map_err(|e| format!("metadata.json: {e}"))?;
+    let first = std::process::Command::new(&env.exe)
+        .env(HOST_ENV, "call")
+        .env(HOST_WD_ENV, &wd)
+        .env(HOST_TIMEOUT_ENV, FAIL_SAFE.as_millis().to_string())
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("cannot start the first host: {e}"))?;
+    let started = pid_in(&dir.join("started"));
+    let second = started
+        .as_ref()
+        .map_err(Clone::clone)
+        .and_then(|_| run_host(env, "call", &wd, &[(HOST_TIMEOUT_ENV, "1000")]));
+    let _ = fs::write(dir.join("release"), "");
+    let first = first
+        .wait_with_output()
+        .map_err(|e| format!("the first host: {e}"))?;
+    let first = String::from_utf8_lossy(&first.stdout).trim().to_owned();
+    started?;
+    let second = second?;
+    require(first == "ok:", format!("the first call: {first:?}"))?;
+    require(
+        second == ["timedout:child"],
+        format!("the second process did not run its bd: {second:?}"),
+    )?;
+    require(
+        dir.join("overlap").exists(),
+        "a server-mode project still serialized the two bd processes",
+    )?;
+    require(
+        !dir.join(".beads").join("sc-bd-cli.lock").exists(),
+        "a server-mode project created the lock file",
+    )
+}
+
+/// RSH-004: the cross-process lock is released when a call is cut: after a call
+/// whose bd is killed at its (injected) timeout, a call with a fresh `ProjectLocks`
+/// (so only the lock file is shared) gets the lock and runs.
+fn the_cross_process_lock_is_released_when_a_call_is_cut(env: &Env) -> TestResult {
+    let wd = env.dir("exclusive")?;
+    let dir = Path::new(&wd).to_path_buf();
+    for name in ["running", "overlap", "started", "release"] {
+        let _ = fs::remove_file(dir.join(name));
+    }
+    let expire = Arc::new(AtomicBool::new(false));
+    let (exe, first_wd, first_expire) = (env.exe.clone(), wd.clone(), Arc::clone(&expire));
+    let first = std::thread::spawn(move || {
+        run_bounded_expiring(
+            &exe,
+            &ProjectLocks::new(),
+            &WorkingDir::new(&first_wd),
+            &words(&["list"]),
+            FAIL_SAFE,
+            &first_expire,
+        )
+    });
+    let started = pid_in(&dir.join("started"));
+    expire.store(true, Ordering::SeqCst);
+    let first = first
+        .join()
+        .map_err(|_panic| "the first call panicked".to_owned())?;
+    started?;
+    require(
+        matches!(
+            first,
+            Err(BoundedError::TimedOut {
+                phase: TimeoutPhase::Child
+            })
+        ),
+        format!("expected the first call cut in the child phase, got {first:?}"),
+    )?;
+    // The killed bd could not remove its marker; the next one must not see it.
+    let _ = fs::remove_file(dir.join("running"));
+    let _ = fs::write(dir.join("release"), "");
+    let next = run_bounded(
+        &env.exe,
+        &ProjectLocks::new(),
+        &WorkingDir::new(&wd),
+        &words(&["list"]),
+        Duration::from_secs(5),
+    );
+    require(
+        matches!(&next, Ok(out) if out.success),
+        format!("the lock was not released by the cut call: {next:?}"),
+    )
+}
+
+/// A `PATH` with a segment that is not UTF-8 reaches the bd child whole: neither that
+/// segment nor the others are dropped (it used to empty the inherited `PATH`).
+#[cfg(unix)]
+fn a_non_utf8_path_reaches_the_child(env: &Env) -> TestResult {
+    use std::os::unix::ffi::OsStrExt as _;
+    let wd = env.dir("pathdump")?;
+    let dump = Path::new(&wd).join("path");
+    let _ = fs::remove_file(&dump);
+    let path = std::ffi::OsStr::from_bytes(b"/sc-bd-cli-caf\xe9:/usr/bin");
+    let out = std::process::Command::new(&env.exe)
+        .env(HOST_ENV, "call")
+        .env(HOST_WD_ENV, &wd)
+        .env("PATH", path)
+        .output()
+        .map_err(|e| format!("cannot start the host: {e}"))?;
+    require(
+        String::from_utf8_lossy(&out.stdout).trim() == "ok:",
+        format!("the call failed: {out:?}"),
+    )?;
+    let seen = fs::read(&dump).map_err(|e| format!("read {}: {e}", dump.display()))?;
+    require(
+        seen.starts_with(path.as_bytes()),
+        format!(
+            "the child's PATH lost the inherited segments: {}",
+            String::from_utf8_lossy(&seen)
+        ),
     )
 }
 
@@ -837,6 +1390,7 @@ fn an_empty_list_is_no_rows(env: &Env) -> TestResult {
     require(rows.is_empty(), "expected no rows")
 }
 
+#[expect(clippy::too_many_lines, reason = "the test table: one entry per test")]
 fn run_tests() -> ExitCode {
     let tests: &[(&str, Test)] = &[
         (
@@ -859,6 +1413,32 @@ fn run_tests() -> ExitCode {
         (
             "two_spellings_of_a_project_share_its_lock",
             two_spellings_of_a_project_share_its_lock,
+        ),
+        #[cfg(unix)]
+        (
+            "the_group_kill_needs_no_kill_program",
+            the_group_kill_needs_no_kill_program,
+        ),
+        (
+            "a_shutdown_request_stops_the_calls",
+            a_shutdown_request_stops_the_calls,
+        ),
+        (
+            "two_processes_never_run_bd_on_one_project_at_once",
+            two_processes_never_run_bd_on_one_project_at_once,
+        ),
+        (
+            "a_server_mode_project_takes_no_cross_process_lock",
+            a_server_mode_project_takes_no_cross_process_lock,
+        ),
+        (
+            "the_cross_process_lock_is_released_when_a_call_is_cut",
+            the_cross_process_lock_is_released_when_a_call_is_cut,
+        ),
+        #[cfg(unix)]
+        (
+            "a_non_utf8_path_reaches_the_child",
+            a_non_utf8_path_reaches_the_child,
         ),
         (
             "output_over_the_cap_is_an_error",
