@@ -7,7 +7,8 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-readme = false
+readme = "README.md"
+documentation = "https://docs.rs/sc-cron"
 keywords = ["cron", "scheduler", "sqlite", "tokio"]
 categories = ["date-and-time", "asynchronous"]
 
