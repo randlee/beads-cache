@@ -1,7 +1,7 @@
 ---
 id: b-5
 phase: b
-status: ready
+status: complete
 closure_type: integration
 target_boundary: release manifest and publish channels
 track: release

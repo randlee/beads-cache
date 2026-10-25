@@ -1,6 +1,11 @@
 # Phase B — bdc CLI, bd-cache-api, Python 0.2, release channels
 
-Status: ready for dispatch. The contract, ADR-BDC-0009 and the REQ-BDC-0801,
+Status: complete (2026-10-25). All six sprints merged into
+`integrate/phase-b` after QA and CI were green: b-1 #75, b-2 #76, b-3a #74,
+b-3 #78, b-4 #77, b-5 #80. The stable 0.2.0 release and its channel
+dispatches wait for randlee/sc-publish#135 and P-6.
+
+The contract, ADR-BDC-0009 and the REQ-BDC-0801,
 0802, 0803 and 0806 amendments were approved by Rand (lead ruling S60,
 2026-10-25).
 
