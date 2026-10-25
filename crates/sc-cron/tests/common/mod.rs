@@ -88,6 +88,7 @@ pub struct RecordingStore {
     failures: watch::Sender<usize>,
     fail_stop: AtomicBool,
     fail_disable: AtomicBool,
+    fail_every_stop: AtomicBool,
 }
 
 impl RecordingStore {
@@ -99,12 +100,23 @@ impl RecordingStore {
             failures: watch::Sender::new(0),
             fail_stop: AtomicBool::new(false),
             fail_disable: AtomicBool::new(false),
+            fail_every_stop: AtomicBool::new(false),
         }
     }
 
     /// Makes the next `stop` call fail with a store error, once.
     pub fn fail_next_stop(&self) {
         self.fail_stop.store(true, Ordering::SeqCst);
+    }
+
+    /// Makes every `stop` call fail with a store error until turned off.
+    pub fn fail_every_stop(&self, on: bool) {
+        self.fail_every_stop.store(on, Ordering::SeqCst);
+    }
+
+    /// How many planted failures the store has returned.
+    pub fn failure_count(&self) -> usize {
+        *self.failures.borrow()
     }
 
     /// Makes the next `disable` call fail with a store error, once.
@@ -241,6 +253,13 @@ impl ScheduleStore for RecordingStore {
         reason: &str,
     ) -> Result<bool, CronError> {
         self.planted(&self.fail_stop, "stop")?;
+        if self.fail_every_stop.load(Ordering::SeqCst) {
+            self.failures.send_modify(|seen| *seen += 1);
+            return Err(CronError::Store(StoreError::new(
+                StoreErrorKind::Other,
+                "planted persistent stop failure",
+            )));
+        }
         let changed = self.inner.stop(id, generation, at, reason)?;
         self.log(Write::Stop {
             id,

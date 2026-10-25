@@ -101,8 +101,8 @@ struct Slot {
     run: Option<InFlight>,
 }
 
-/// Backoff for a failed reload, or a lost slot to rebuild: 1 s doubling per
-/// failure, capped at 60 s.
+/// Backoff for a failed reload, or for a failed stop or disable write: 1 s
+/// doubling per failure, capped at 60 s.
 #[derive(Debug, Default)]
 struct ReloadRetry {
     failures: u32,
@@ -144,6 +144,16 @@ pub(crate) struct Worker<S, C> {
     slots: Vec<Slot>,
     reload_wanted: bool,
     retry: ReloadRetry,
+    /// Backoff for the writes a stop check or an exhausted schedule needs.
+    /// Unlike `retry`, a successful reload does not reset it: only a write
+    /// that reached the store does, so a store that keeps failing that write
+    /// is retried at 1 s, 2 s, ... 60 s, not every second.
+    write_retry: ReloadRetry,
+    /// Exhausted schedules whose ending write failed. Their last occurrence
+    /// has run, but the stored next run is still that occurrence, so a slot
+    /// rebuilt from the row would run it again: no slot is built for these,
+    /// and the write is retried until the store answers.
+    pending_ends: Vec<Schedule>,
     /// The most the worker waits between reloads.
     reload_poll: chrono::Duration,
     /// When the next periodic reload is due; `None` until the first reload
@@ -174,6 +184,8 @@ where
             slots: Vec::new(),
             reload_wanted: true,
             retry: ReloadRetry::default(),
+            write_retry: ReloadRetry::default(),
+            pending_ends: Vec::new(),
             reload_poll: chrono::Duration::from_std(reload_poll.max(MIN_RELOAD_POLL))
                 .unwrap_or(chrono::Duration::MAX),
             poll_due: None,
@@ -199,7 +211,12 @@ where
                 break;
             }
             let due = self.clock.now();
-            if self.reload_wanted || self.retry.is_due(due) || self.poll_is_due(due) {
+            let write_due = self.write_retry.is_due(due);
+            if write_due {
+                self.write_retry.due = None;
+                self.retry_ends().await;
+            }
+            if self.reload_wanted || write_due || self.retry.is_due(due) || self.poll_is_due(due) {
                 self.reload().await;
             }
             self.expire().await;
@@ -240,6 +257,7 @@ where
         });
         slots
             .chain(self.retry.due)
+            .chain(self.write_retry.due)
             .chain(self.poll_due)
             .min()
             .unwrap_or(DateTime::<Utc>::MAX_UTC)
@@ -249,11 +267,54 @@ where
         self.poll_due.is_some_and(|due| due <= now)
     }
 
-    /// Asks for a retry of the reload after a store error left a schedule
-    /// without a slot, so it is not silently lost. The reload rebuilds the
-    /// slot from the row, which is still active and enabled.
+    /// Asks for a reload, with backoff, after a store error on a stop check's
+    /// `Delete` or `Disable` left a schedule without a slot, so it is not
+    /// silently lost. The reload rebuilds the slot from the row, which is
+    /// still active and enabled, and its next run was already advanced.
+    ///
+    /// Not for an exhausted schedule: its stored next run is the occurrence
+    /// that has already run, so a rebuilt slot would run it again. Those go
+    /// through [`Worker::end_exhausted`].
     fn rebuild_later(&mut self) {
-        self.retry.failed(self.clock.now());
+        self.write_retry.failed(self.clock.now());
+    }
+
+    /// Called when a stop or disable write reached the store.
+    fn write_answered(&mut self) {
+        if self.pending_ends.is_empty() {
+            self.write_retry.failures = 0;
+        }
+    }
+
+    fn is_pending_end(&self, schedule: &Schedule) -> bool {
+        self.pending_ends
+            .iter()
+            .any(|ending| ending.id == schedule.id && ending.generation == schedule.generation)
+    }
+
+    /// Ends a schedule whose last occurrence has run. If the store fails, the
+    /// write is retried with backoff and the schedule gets no slot meanwhile,
+    /// so it can never run again.
+    async fn end_exhausted(&mut self, schedule: &Schedule) {
+        if self.end(schedule, EXHAUSTED).await {
+            return;
+        }
+        if !self.is_pending_end(schedule) {
+            self.pending_ends.push(schedule.clone());
+        }
+        self.write_retry.failed(self.clock.now());
+    }
+
+    /// Retries the ending writes that failed.
+    async fn retry_ends(&mut self) {
+        for schedule in std::mem::take(&mut self.pending_ends) {
+            if self.stop_requested() {
+                self.pending_ends.push(schedule);
+            } else if !self.end(&schedule, EXHAUSTED).await {
+                self.pending_ends.push(schedule);
+                self.write_retry.failed(self.clock.now());
+            }
+        }
     }
 
     fn now_stamp(&self) -> Timestamp {
@@ -334,6 +395,10 @@ where
     }
 
     async fn new_slot(&mut self, schedule: Schedule) -> Option<Slot> {
+        if self.is_pending_end(&schedule) {
+            // Its last occurrence has run; only the ending write is missing.
+            return None;
+        }
         let next = if let Some(next) = schedule.next_run_at {
             Some(next.as_datetime())
         } else {
@@ -350,7 +415,7 @@ where
             next
         };
         if next.is_none() {
-            self.end(&schedule, EXHAUSTED).await;
+            self.end_exhausted(&schedule).await;
             return None;
         }
         Some(Slot {
@@ -448,7 +513,7 @@ where
             };
             if slot.next.is_none() && slot.run.is_none() {
                 let slot = self.slots.remove(index);
-                self.end(&slot.schedule, EXHAUSTED).await;
+                self.end_exhausted(&slot.schedule).await;
             } else {
                 index += 1;
             }
@@ -514,7 +579,9 @@ where
         match result {
             Ok(Report::Delete(reason)) => {
                 self.slots.remove(index);
-                self.end(&schedule, &reason).await;
+                if !self.end(&schedule, &reason).await {
+                    self.rebuild_later();
+                }
                 return true;
             }
             Ok(Report::Disable(reason)) => {
@@ -539,7 +606,7 @@ where
             .is_some_and(|slot| slot.next.is_none())
         {
             self.slots.remove(index);
-            self.end(&schedule, EXHAUSTED).await;
+            self.end_exhausted(&schedule).await;
             return true;
         }
         false
@@ -582,7 +649,9 @@ where
         }
     }
 
-    async fn end(&mut self, schedule: &Schedule, reason: &str) {
+    /// Writes the end of a schedule; returns `false` only when the store
+    /// failed, so the caller can retry. A fenced write is answered (`true`).
+    async fn end(&mut self, schedule: &Schedule, reason: &str) -> bool {
         let (id, generation) = (schedule.id, schedule.generation);
         let at = self.now_stamp();
         let owned = reason.to_owned();
@@ -593,13 +662,14 @@ where
             Ok(true) => log(schedule, "stopped", reason),
             Ok(false) => self.fenced(schedule, "stop"),
             Err(error) => {
-                // The slot is gone but the row is still active: rebuild it.
                 tracing::error!(subsystem = "sc_cron", action = "stop_failed",
                     schedule = %id, code = error.code(), %error,
                     "schedule stop not stored: {error}");
-                self.rebuild_later();
+                return false;
             }
         }
+        self.write_answered();
+        true
     }
 
     /// Disables the schedule on its stop check's say-so; fenced like every write.
@@ -611,7 +681,10 @@ where
             .store_call(move |store| store.disable(id, generation, at, &owned))
             .await
         {
-            Ok(true) => log(schedule, "disabled", reason),
+            Ok(true) => {
+                log(schedule, "disabled", reason);
+                self.write_answered();
+            }
             Ok(false) => self.fenced(schedule, "disable"),
             Err(error) => {
                 // The slot is gone but the row is still enabled: rebuild it.

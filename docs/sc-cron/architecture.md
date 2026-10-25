@@ -201,10 +201,23 @@ between slots:
    unchanged slots are still kept, so their runs reach the drain. A failed
    reload (including a corrupt row) is logged with its code and retried
    after 1 s, doubling to 60 s (the shift is capped, so it never
-   overflows). The same retry rebuilds a slot lost to a store error: when the
-   `stop` or `disable` write a stop check asked for returns an error (not
-   `false`), the slot is already dropped but the row is still active and
-   enabled, so the worker schedules a reload and the row's slot comes back.
+   overflows). A store error on a write that dropped a slot is never silent:
+   - A stop check's `Delete` or `Disable` whose `stop` or `disable` write
+     returns an error (not `false`): the slot is already dropped but the row is
+     still active and enabled, and its stored next run was advanced when the run
+     launched, so the worker schedules a reload and the slot comes back.
+   - An exhausted schedule (no occurrence after the one that just ran) whose
+     ending `stop` write returns an error: the row's stored next run is still
+     the occurrence that has run, so a slot rebuilt from it would run that
+     occurrence again, whether rebuilt by a retry or by the reload poll. The worker instead keeps the schedule on a pending-end
+     list: `new_slot` builds no slot for a pending schedule, so it cannot run
+     again, and the `stop` write itself is retried. A pending end is lost only
+     if the process exits first, when the final occurrence runs once more on
+     the next start.
+   - Both retries use one backoff, 1 s doubling to 60 s, that a successful
+     reload does not reset: only a stop or disable write that reaches the store
+     does. A store that keeps failing that write is therefore retried at 1 s,
+     2 s, 4 s ... 60 s, and the reload poll adds no stop attempts.
    The reload poll: every successful reload sets the next reload due one
    interval after the moment it began (`Scheduler::with_reload_poll`, default
    30 s, minimum 1 s, on the injected clock), so the worker reloads at least

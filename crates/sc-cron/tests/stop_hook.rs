@@ -362,3 +362,75 @@ async fn a_failed_delete_is_retried_and_the_schedule_keeps_firing() {
     assert_eq!(job.stop_checks(), 2);
     assert!(fixture.row(&schedule).is_active());
 }
+
+/// A schedule whose only occurrence is 00:01:00 on the fixture's first day.
+fn once(name: &str) -> sc_cron::ScheduleSpec {
+    sc_cron::ScheduleSpec::new(
+        name,
+        "0 1 0 19 10 * 2026",
+        std::time::Duration::from_secs(20),
+        serde_json::json!({}),
+    )
+    .expect("spec")
+}
+
+const EXHAUSTED: &str = "no future occurrence";
+
+#[tokio::test]
+async fn a_failed_stop_of_an_exhausted_schedule_never_runs_its_last_occurrence_again() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    fixture.store.fail_next_stop();
+    let schedule = fixture.start(once("once"));
+    let worker = fixture.worker(rust(&job)).await;
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    fixture.store.wait_failures(1).await;
+
+    // Time passes through the backoff retry and several poll intervals.
+    for _ in 0..8 {
+        fixture.step(15).await;
+    }
+    fixture.store.wait_stopped(&schedule, EXHAUSTED).await;
+    for _ in 0..4 {
+        fixture.step(30).await;
+    }
+    shutdown(worker).await;
+    assert_eq!(job.runs(), 1, "the last occurrence ran exactly once");
+    assert!(!fixture.row(&schedule).is_active());
+}
+
+#[tokio::test]
+async fn a_stop_of_an_exhausted_schedule_that_keeps_failing_backs_off_and_runs_it_once() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    fixture.store.fail_every_stop(true);
+    let schedule = fixture.start(once("stuck"));
+    let worker = fixture.worker(rust(&job)).await;
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    fixture.store.wait_failures(1).await;
+
+    for _ in 0..100 {
+        fixture.step(1).await;
+    }
+    // Attempts at +0, 1, 3, 7, 15, 31 and 63 s: 1 s, 2 s ... doubling. A retry
+    // that reset to one second would have tried about a hundred times.
+    let attempts = fixture.store.failure_count();
+    assert!(
+        (6..=10).contains(&attempts),
+        "{attempts} stop attempts in 100 s"
+    );
+    assert_eq!(job.runs(), 1, "the last occurrence did not run again");
+    assert!(fixture.row(&schedule).is_active(), "the stop never landed");
+
+    // The store recovers: the pending stop lands within the 60 s cap.
+    fixture.store.fail_every_stop(false);
+    for _ in 0..7 {
+        fixture.step(10).await;
+    }
+    fixture.store.wait_stopped(&schedule, EXHAUSTED).await;
+    shutdown(worker).await;
+    assert_eq!(job.runs(), 1);
+    assert!(!fixture.row(&schedule).is_active());
+}
