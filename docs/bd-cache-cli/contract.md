@@ -376,7 +376,7 @@ reason ready parity is stated against the released CLI.
 | Command | Core verb | Old verb | Mutates |
 |---|---|---|---|
 | `cache status` | `status` + **new** `journal_counts()` | `status` | no |
-| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no |
+| `cache health [--probe]` | `open_work`, outage, stale rows; with `--probe`, also the backend check | (`doctor`) | no; **yes with `--probe`** (store): it records bd's fingerprint, a changed schema rebuilds the cache (cached rows dropped, journal kept), and an unreachable bd is recorded as an outage |
 | `cache scopes` | `status().phases` + config + `sync_alert` per scope (N store reads, no bd) | (in `status`) | no |
 | `cache refresh scopes [S…]` | `sync` per scope; with no S, every known scope | `sync` | store |
 | `cache refresh issues ID…` | `refresh(ids)` (REQ-BDC-0907) | — | store |
@@ -432,9 +432,17 @@ str|null, announced_at, created_at, applied_at}`.
 | `cache flush` | `cache journal get <seq>` for each seq it reports; `cache status` |
 | `cache refresh scopes` | `cache scopes` (`last_ok_at`, `last_error`) |
 | `cache refresh issues` | `issues get` (`x_cache.rows[id].stale` is false) |
-| `cache evict` | `cache scopes`; `issues list --scope` returns `SCOPE_UNKNOWN` |
+| `cache evict` | `cache scopes`; `issues list --scope` returns `SCOPE_UNKNOWN` (see below) |
 | `journal resolve` / `journal announce` | `cache journal get <seq>`; `cache journal list --unannounced` |
 | `cache tick` | `cache status`, `cache scopes`, `cache journal list --unannounced` |
+
+**A scope with no completed sync is not served** (lead ruling S67). A scope
+with no completed sync since it was last evicted, or ever, is not served:
+`issues list` and `ready` on it return `SCOPE_UNKNOWN`, with
+`suggested_action` `bdc cache refresh scopes --scope <s>`, and never an
+empty list. Eviction deletes the scope's sync state, so after
+`cache evict` the scope stays unserved until its next sync, even when it
+is configured. `details.known` lists the served scopes.
 
 ## 8. Help, the MCP constraint, testing
 
