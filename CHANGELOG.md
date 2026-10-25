@@ -22,7 +22,7 @@ Phase-end fixes, after the 0.1.0 code described below.
   `with_cache` returns `Result<T, CacheLost>` and `try_with_cache` returns
   `Result<Option<T>, CacheLost>`. The new `join_idle(deadline)` waits for an
   in-flight tick at shutdown.
-- Error codes, recorded in ADR-MODEL-0002 (status Proposed):
+- Error codes, recorded in ADR-MODEL-0002 (approved, lead ruling S58). These reclassify existing triggers:
   - A second open of a cache file in one process is the new
     `BD_CACHE.STORE_IN_USE` (it was `STORE_FAILED`).
   - Unreadable or oversized `bd` output is the new

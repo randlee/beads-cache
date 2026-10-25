@@ -134,7 +134,7 @@ Consequences: one definition of each set; a new variant must be classified.
 
 ### ADR-MODEL-0002 amendment (phase-a end): transport, not-found, in-use, metadata cause
 
-**Status:** Proposed (phase-end fix; PE-RBP-F001, F008, F013, F014)
+**Status:** Approved (lead ruling S58, bc-lead, 2026-10-25; phase-end fix; PE-RBP-F001, F008, F013, F014). This reclassifies existing triggers rather than only adding codes: a second in-process open moves from `STORE_FAILED` to `STORE_IN_USE`, and unreadable or oversized `bd` output moves from `BD_CONTRACT` to `BD_LIST_FAILED`, `BD_WRITE_FAILED` or `SYNC_FAILED`. Callers that matched the old codes for these triggers must update.
 
 Context: four failures reached the caller with a code whose fix was wrong.
 Output `bd` printed that could not be read whole (a read error, or over
