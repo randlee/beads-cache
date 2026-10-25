@@ -1,7 +1,7 @@
 ---
 id: a-1
 phase: a
-status: in-review
+status: complete
 closure_type: contract
 target_boundary: sc-beads, bd-cache-model, bd-cache (skeleton and shared helpers)
 vertical_rationale: "Contract sprint for three boundaries every wave-2 sprint consumes: the shared-trait crate, the pure model crate whose behaviour is the contract, and the bd-cache skeleton with the helpers (view, backend_check, miss, outage) that both a-5 and a-6 call, so neither depends on the other."

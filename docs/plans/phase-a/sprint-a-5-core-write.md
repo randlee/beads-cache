@@ -1,7 +1,7 @@
 ---
 id: a-5
 phase: a
-status: in-review
+status: complete
 closure_type: boundary
 target_boundary: bd-cache (write path)
 track: core
