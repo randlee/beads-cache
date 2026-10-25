@@ -14,15 +14,16 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::limits::encode_payload;
-use crate::worker::Worker;
+use crate::worker::{DEFAULT_RELOAD_POLL, MIN_RELOAD_POLL, Worker};
 use crate::{
-    Clock, CronError, Generation, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
-    ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
+    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
+    ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
 };
 
 /// What the worker does with occurrences that came due while it could not run them.
@@ -81,6 +82,14 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
         Ok(())
     }
 
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError> {
+        if !self.store.set_enabled(name, enabled)? {
+            return Err(CronError::NotFound(name.clone()));
+        }
+        self.signal_reload();
+        Ok(())
+    }
+
     fn signal_reload(&self) {
         self.reload
             .send_modify(|version| *version = version.wrapping_add(1));
@@ -117,6 +126,7 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
 pub struct Scheduler<S: ScheduleStore, C: Clock, J: JitterSource> {
     core: Arc<Core<S, C, J>>,
     policy: MissedTickPolicy,
+    reload_poll: Duration,
     worker_live: Arc<AtomicBool>,
 }
 
@@ -139,6 +149,7 @@ where
                 reload: watch::channel(0).0,
             }),
             policy: MissedTickPolicy::default(),
+            reload_poll: DEFAULT_RELOAD_POLL,
             worker_live: Arc::new(AtomicBool::new(false)),
         }
     }
@@ -147,6 +158,25 @@ where
     #[must_use]
     pub fn with_missed_tick_policy(mut self, policy: MissedTickPolicy) -> Self {
         self.policy = policy;
+        self
+    }
+
+    /// Sets the longest a worker spawned after this call goes between
+    /// reloads of the active schedules (REQ-CRON-0014).
+    ///
+    /// A schedule started, restarted, enabled, disabled or stopped by another
+    /// process or scheduler sends this scheduler's worker no signal, so the
+    /// worker reloads at least once per `interval` on the scheduler's clock,
+    /// whatever the rows are. Such a change is therefore noticed at most
+    /// `interval` after it is stored (a reload that fails is retried with a
+    /// backoff, so the bound holds while the store can be read). A disable or
+    /// stop is also noticed earlier, at the schedule's next tick. Each reload
+    /// is one `list_active` query, so the poll costs one query per interval.
+    /// The default is [`DEFAULT_RELOAD_POLL`] (30 s); an interval under one
+    /// second is raised to one second.
+    #[must_use]
+    pub fn with_reload_poll(mut self, interval: Duration) -> Self {
+        self.reload_poll = interval.max(MIN_RELOAD_POLL);
         self
     }
 
@@ -220,11 +250,65 @@ where
         blocking(move || core.stop(id, generation, &reason)).await
     }
 
-    /// Spawns the worker that runs `job` for every active schedule.
+    /// Enables or disables the active schedule `name`; only its `enabled`
+    /// flag changes (REQ-CRON-0014).
+    ///
+    /// A disabled schedule never fires. It keeps its id, generation,
+    /// expression, payload and stored next run, so enabling it again resumes
+    /// it: a run that came due while it was disabled counts as missed and is
+    /// handled per the [`MissedTickPolicy`]. A run in flight when it is
+    /// disabled is cancelled and records nothing, as with
+    /// [`Scheduler::stop`]. This scheduler's worker is told at once. A worker
+    /// in another process or on another scheduler is not told: it notices the
+    /// change at its next reload, at most [`Scheduler::with_reload_poll`]
+    /// (default 30 s) after the write, or for a disable when its next tick
+    /// finds the schedule disabled, if that is sooner. This calls the store synchronously; from
+    /// async code use [`Scheduler::set_enabled_async`].
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::NotFound`] if no active schedule has this name, or the
+    /// store's errors.
+    pub fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError> {
+        self.core.set_enabled(name, enabled)
+    }
+
+    /// [`Scheduler::set_enabled`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::set_enabled`], or [`CronError::Store`] if the
+    /// blocking task panics.
+    pub async fn set_enabled_async(
+        &self,
+        name: &ScheduleName,
+        enabled: bool,
+    ) -> Result<(), CronError> {
+        let core = Arc::clone(&self.core);
+        let name = name.clone();
+        blocking(move || core.set_enabled(&name, enabled)).await
+    }
+
+    /// Spawns the worker that runs the Rust `job` for every active schedule.
+    ///
+    /// This is [`Scheduler::spawn_worker_for`] with [`HookTarget::Rust`].
+    ///
+    /// # Panics
+    ///
+    /// As [`Scheduler::spawn_worker_for`].
+    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle {
+        self.spawn_worker_for(HookTarget::Rust(job))
+    }
+
+    /// Spawns the worker that runs `target` for every active, enabled schedule
+    /// (REQ-CRON-0013, REQ-CRON-0014).
     ///
     /// The worker loads the active schedules from the store, then sleeps on
     /// the clock until the next run, run deadline or reload signal. A failed
-    /// load is retried with a backoff of 1 s doubling to 60 s.
+    /// load is retried with a backoff of 1 s doubling to 60 s. It also
+    /// reloads at least once per [`Scheduler::with_reload_poll`] (default
+    /// 30 s), so a schedule started, restarted, enabled or stopped by another
+    /// process is noticed within that interval.
     ///
     /// Stop the worker with [`WorkerHandle::shutdown`] and await it: that is
     /// the only way to know in-flight outcomes were recorded before the
@@ -241,7 +325,8 @@ where
     ///
     /// Panics outside a tokio runtime, or if a worker from this scheduler is
     /// still running: two workers would run every schedule twice.
-    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle {
+    #[must_use]
+    pub fn spawn_worker_for(&self, target: HookTarget) -> WorkerHandle {
         let claimed = self
             .worker_live
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -256,8 +341,9 @@ where
         let worker = Worker::new(
             Arc::clone(&self.core.store),
             Arc::clone(&self.core.clock),
-            job,
+            target,
             self.policy,
+            self.reload_poll,
             shutdown_rx,
         );
         let task = tokio::spawn(async move {

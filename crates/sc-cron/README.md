@@ -4,31 +4,42 @@ A SQLite-backed cron scheduler for tokio, with generation fencing, per-schedule
 jitter and missed-tick handling.
 
 `sc-cron` runs a caller's `Job` on cron schedules kept in a `ScheduleStore`.
-It was extracted from atm-core's `atm-cron` and carries no ATM or bd-cache
-types: a schedule's input is an opaque JSON payload, and every failure is a
-`CronError` with a stable `code()`. It is a prototype for sc-runtime, which it
+It was extracted from an earlier in-house scheduler and carries no
+consumer-specific type: a schedule's input is an opaque JSON payload, and every
+failure is a `CronError` with a stable `code()`. It is a prototype for sc-runtime, which it
 is expected to move to unchanged.
 
-- **Validated input.** `ScheduleName` (at most 128 bytes), `CronExpr` (the
-  `cron` crate's grammar in UTC: six or seven fields with seconds first, or
-  `@hourly`, `@daily` and the like; five-field expressions are refused),
+- **Validated input.** `ScheduleName` (at most 128 bytes), `CronExpr` (in UTC:
+  standard five-field crontab, minute first; or the `cron` crate's six or
+  seven fields with seconds first; or `@hourly`, `@daily` and the like),
   `RunTimeout` (more than zero, at most 24 h) and the JSON payload (at most
   64 KiB).
 - **Start.** `Scheduler::start` checks that the expression has a future
   occurrence before anything is written, draws a fixed jitter for the
   schedule and stores its first run time.
 - **The worker.** `Scheduler::spawn_worker` starts one tokio task that runs
-  every active schedule. Before each run it asks `Job::should_stop`. It
-  bounds the stop check and the run by the schedule's timeout on the
-  monotonic clock (recording `RunOutcome::TimedOut` without delaying the next
-  tick), skips a tick while the previous run is still in flight, and handles
-  missed ticks per `MissedTickPolicy` (`Coalesce` by default, or `Skip`).
+  every active, enabled schedule. Before each run it asks
+  `Job::should_stop`, which answers `Continue`, `Disable(reason)` or
+  `Delete(reason)`. It bounds the stop check and the run by the schedule's
+  timeout on the monotonic clock (recording `RunOutcome::TimedOut` without
+  delaying the next tick), skips a tick while the previous run is still in
+  flight, and handles missed ticks per `MissedTickPolicy` (`Coalesce` by
+  default, or `Skip`).
+- **Enabled flag.** `Scheduler::set_enabled(name, bool)` turns a schedule off
+  and on again without rewriting its row; a disabled schedule never fires.
+- **Python hook target.** `Scheduler::spawn_worker_for(HookTarget::Python(..))`
+  runs `<interpreter> -I -m <module>` from a temporary directory for the
+  events `cron.stop` and `cron.tick`, with one JSON object on stdin. Every
+  hook is killed, with everything it started, at the schedule's timeout
+  capped by the time left before the run's deadline, and its output is
+  capped.
 - **Fencing.** Every run-state write names `(id, generation)`. A run from an
   older generation is fenced and records nothing, so a stale run never
   writes over a restarted schedule.
 - **Stores read no clock.** Every instant is a `Timestamp` argument.
   `SqliteScheduleStore` is the rusqlite implementation (SQLite bundled), on a
-  database file of its own (`PRAGMA user_version` = `SCHEMA_VERSION`, 1).
+  database file of its own (`PRAGMA user_version` = `SCHEMA_VERSION`, 2; a
+  version 1 file gains the `enabled` column when opened).
   `list_active` skips a row that does not decode, with a `tracing` warning,
   so the other schedules keep running; `get` on that row still returns the
   `Corrupt` error.

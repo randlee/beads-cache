@@ -53,7 +53,7 @@ libc = "0.2"                                               # O_NONBLOCK for open
 dunce = "1"                                                # canonical paths without the Windows \\?\ prefix, bd-cache-py (a-8, R12)
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
-tempfile = "3.20"                                          # dev-dependency only (sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)
+tempfile = "3.20"                                          # runtime in sc-cron (a Python hook's working directory); dev-dependency (tests) in the other crates
 pyo3 = "0.30"
 
 # phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:

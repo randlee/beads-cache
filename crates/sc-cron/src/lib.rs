@@ -1,10 +1,10 @@
 //! A SQLite-backed cron scheduler with generation fencing.
 //!
 //! `sc-cron` runs a caller's [`Job`] on cron schedules kept in a
-//! [`ScheduleStore`]. It was extracted from atm-core's `atm-cron`
-//! (ADR-BDC-0006) and carries no ATM or bd-cache types: a schedule's input
-//! is an opaque JSON payload and every failure is a [`CronError`] with a
-//! stable [`code`](CronError::code).
+//! [`ScheduleStore`]. It was extracted from an earlier in-house scheduler
+//! (ADR-BDC-0006) and carries no consumer-specific type (REQ-CRON-0011): a
+//! schedule's input is an opaque JSON payload and every
+//! failure is a [`CronError`] with a stable [`code`](CronError::code).
 //!
 //! - Input is validated once, by type: [`ScheduleName`], [`CronExpr`],
 //!   [`RunTimeout`], [`Timestamp`], within the [limits](MAX_PAYLOAD_BYTES).
@@ -17,6 +17,14 @@
 //!   (recording [`RunOutcome::TimedOut`] without delaying the next tick),
 //!   skips a tick whose previous run is still in flight and handles missed
 //!   ticks per [`MissedTickPolicy`].
+//! - A schedule can be switched off and on again with
+//!   [`Scheduler::set_enabled`] without rewriting its row (REQ-CRON-0014),
+//!   and its stop check answers [`StopDecision::Continue`], `Disable` or
+//!   `Delete` (REQ-CRON-0005).
+//! - The worker runs a [`HookTarget`]: a Rust [`Job`], or a Python module run
+//!   as `<interpreter> -I -m <module>` with every hook killed at its timeout
+//!   (REQ-CRON-0013, NFR-BDC-0004). Five-field crontab expressions are
+//!   accepted (REQ-CRON-0015).
 //! - Every run-state write names `(id, generation)`; a run from an older
 //!   generation is fenced and records nothing.
 //! - Stores read no clock: every instant is a [`Timestamp`] argument.
@@ -82,9 +90,11 @@
 mod clock;
 mod error;
 mod expr;
+mod hook;
 mod jitter;
 mod job;
 mod limits;
+mod process;
 mod scheduler;
 mod sqlite;
 mod store;
@@ -101,6 +111,11 @@ pub use clock::{Clock, SystemClock};
 pub use error::{CronError, StoreError, StoreErrorKind};
 #[doc(inline)]
 pub use expr::CronExpr;
+#[doc(inline)]
+pub use hook::{
+    HOOK_PROTOCOL, HookCall, HookEvent, HookOutput, HookStatus, HookTarget, MAX_HOOK_OUTPUT_BYTES,
+    PythonHook, kill_budget,
+};
 #[cfg(feature = "test-utils")]
 #[doc(inline)]
 pub use jitter::SeqJitter;
@@ -123,3 +138,5 @@ pub use types::{
     Generation, NewSchedule, RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleName,
     ScheduleSpec, StopDecision,
 };
+#[doc(inline)]
+pub use worker::DEFAULT_RELOAD_POLL;
