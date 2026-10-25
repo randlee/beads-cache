@@ -1,7 +1,7 @@
 ---
 id: b-4
 phase: b
-status: ready
+status: complete
 closure_type: integration
 target_boundary: bd-cache-py 0.2
 track: python

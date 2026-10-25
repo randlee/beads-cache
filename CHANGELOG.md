@@ -8,9 +8,73 @@ All crates in the workspace share one version.
 
 ## [Unreleased]
 
+## [0.2.0] - unreleased
+
+The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
+(phase b; contract `docs/bd-cache-cli/contract.md`, version 1.0.0).
+
+### Added
+
+- **`bd-cache` / `bdc` CLI** (crate `bd-cache-cli`, two binaries, one program),
+  built on sc-command.
+  - Two command groups. Beads: `issues get|list|update|close`, `ready`,
+    `dependencies list|add`, `context`. Cache management: `cache
+    status|health|scopes|refresh scopes|refresh issues|flush|evict|journal
+    get|list|resolve|announce|tick`.
+  - Beads commands match bd serve `/v0` in vocabulary only, not in behaviour.
+    Every reply carries `x_cache`; a write reply says it is journaled, not
+    applied.
+  - Every command, `--version` and every failure prints one sc-command
+    envelope on stdout (`{version, ok, data, error}`); logs go to stderr.
+    Exit codes: 0 success, 2 `BD_CACHE.USAGE` (argv shape only), 3 any other
+    typed error.
+  - Configuration precedence is flag > `BD_CACHE__*` env > `.beads/bd-cache.toml`
+    > default. `--bd` is never read from TOML. `--format text` is flag-only.
+    There is no upward search for `.beads`.
+  - Latency (NFR-BDC-0002): a new-process `get` cache hit, with nothing pending
+    on the scope, is under 50 ms median and p95 (release build, `fake-bd`
+    delayed 60 ms per call). CI gates it on Unix; on hosted Windows runners
+    it is reported, not gated (S78, S79).
+- **`bd-cache-api`** (internal, not published): the request, data and error
+  vocabulary shared by every front end. One decoder (`UNSUPPORTED` and
+  `BAD_ARGS` come from it), the operation layer, the error table and schemars
+  schemas. It depends on neither sc-command nor clap. `CONTRACT_VERSION` is
+  `1.0.0`.
+- **Python 0.2** (`bd-cache-rs` 0.2.0): `cache.beads.*` and `cache.manage.*`
+  over `bd-cache-api`, with milliseconds for timeouts. Additive: nothing in
+  0.1 changes and 0.2 issues no `DeprecationWarning`.
+  `bd_cache_rs.CONTRACT_VERSION` is the contract version the new namespaces
+  implement.
+- **Core additions** (`bd-cache`, `bd-cache-model`, `bd-cache-store`):
+  `write_returning` (one transaction that returns the entry and the views
+  before and after the write), `entry_by_key`, `journal_counts`,
+  `GetReply.scope`, and `bd_cache_sync::compose_with_config`.
+- **Store columns**: the additive nullable columns `last_error_code`, `note`
+  and `changed` on the journal. `PRAGMA user_version` stays 3, and
+  `bd_cache.py` still reads the file. `WriteOutcome.changed` is
+  `Option<bool>`, `None` when unknown, never guessed (S62, S68).
+- **Release channels**: `bd-cache` and `bdc` binaries for Linux, macOS (arm and
+  intel) and Windows on GitHub Releases, plus Homebrew (`randlee/tap`), Scoop
+  (`randlee/scoop-bucket`) and WinGet (`randlee.bd-cache`). The stable channels
+  go live with the first stable release, which waits for
+  randlee/sc-publish#135.
+
+### Changed
+
+- **One workspace version, 0.2.0** (S61). `sc-beads`, `sc-cron`, `sc-bd-cli`
+  and the wheel all move to 0.2.0.
+- **Error codes** (S58, ADR-MODEL-0002; recorded under the phase-end fixes
+  below) and **S68**: `changed` is unknown (`None`) rather than predicted for
+  an entry stored without it, unless the entry is still pending.
+- **Refresh outage (S75)**: `cache refresh scopes` reports a scope whose sync
+  could not reach bd as a failed result (`BD_UNAVAILABLE`, retryable), counted
+  in `data.failed`, even though the core returned a report with an `outage`.
+  `cache refresh issues` fails as a whole with `BD_UNAVAILABLE`. The core is
+  unchanged.
+
 ### Security
 
-- `sc-bd-cli`: the `PATH` given to every `bd` child keeps only absolute
+- `sc-bd-cli` (S76, S77): the `PATH` given to every `bd` child keeps only absolute
   directories. Empty segments (an unset or empty `PATH`, or a leading,
   trailing or doubled `:` / `;`), relative ones (`.`, `bin`, `./x`) and
   fallback directories under a relative or empty `HOME` / `GOPATH` (on
@@ -24,9 +88,9 @@ All crates in the workspace share one version.
   named by the user's `PATH` now wins over one in a fixed directory, and each
   directory appears once (lead ruling S77, contract §2).
 
-### Changed
+### Phase-end fixes
 
-Phase-end fixes, after the 0.1.0 code described below.
+Phase-end fixes to the 0.1.0 code described below.
 
 - `bd_cache_sync::compose_with(repo_root, backend, locks, clock, beads_dir_env)`:
   the backend is now built from the lock set
@@ -144,10 +208,11 @@ bindings. `sc-beads`, `sc-bd-cli` and `sc-cron` go to crates.io and
 ### Not included
 
 - The `bdc` / `bd-cache` CLI binary, and with it any Homebrew, Scoop or WinGet
-  package.
+  package (added in 0.2.0).
 - The HTTPS MCP server and the `bd serve` HTTP backend (`sc-bd-http`).
 - Scope kinds other than `phase-<x>`, and user metadata schema packages
   (ADR-BDC-0008, draft).
 
 [Unreleased]: https://github.com/randlee/beads-cache/commits/develop
+[0.2.0]: https://github.com/randlee/beads-cache/commits/develop
 [0.1.0]: https://github.com/randlee/beads-cache/commits/develop

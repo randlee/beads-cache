@@ -1,7 +1,7 @@
 ---
 id: b-1
 phase: b
-status: ready
+status: complete
 closure_type: boundary
 target_boundary: bd-cache, bd-cache-model, bd-cache-store
 track: core
