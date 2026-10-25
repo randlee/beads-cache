@@ -1,7 +1,7 @@
 # bd-cache / bdc CLI contract
 
-Status: **Draft for approval** (Rand). This document is a design; nothing in
-it is implemented yet. Contract version: `1.0.0-draft`.
+Status: **Approved** (lead ruling S60, bc-lead, 2026-10-25, at `8115a0a`).
+Nothing in it is implemented yet. Contract version: `1.0.0`.
 
 Scope: the `bd-cache` binary (alias `bdc`, REQ-BDC-0805), the MCP server that
 comes later, and the Python binding `bd_cache_rs`. All three share one
@@ -15,9 +15,9 @@ Governing inputs:
 - Lead ruling S59: REQ-BDC-0806 is superseded; parity with `bd_cache.py` is
   behavioural; the CLI follows sc-command and `/v0`.
 
-This contract replaces the command-structure clause of ADR-BDC-0003. It
-depends on **ADR-BDC-0009** (Proposed, in `docs/architecture.md`) and on the
-requirement amendments in Appendix A. Both wait for Rand's approval.
+This contract replaces the command-structure clause of ADR-BDC-0003 through
+**ADR-BDC-0009** (Approved, S60, in `docs/architecture.md`). The requirement
+amendments it needs are applied in `docs/requirements.md` (Appendix A).
 
 ## 1. Shape
 
@@ -484,8 +484,8 @@ Core changes this contract needs:
 - The store columns `last_error_code` and `note`.
 
 `blocked(scope)` is deferred (§5.5). The CI boundary check reads the
-Boundaries table in `docs/architecture.md`, so adding the rows there (done on
-this branch, marked Proposed) is the whole CI change.
+Boundaries table in `docs/architecture.md`, so adding the rows there (done with
+ADR-BDC-0009) is the whole CI change.
 
 ## 10. Python binding
 
@@ -560,23 +560,19 @@ the MCP server:
 
 | # | Question | Position |
 |---|---|---|
-| Q1 | Which beads reference? | **Agreed by fenix (2026-10-25); pending Rand's approval:** pin v1.3.2 @ 9b65b9e for vocabulary. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. The pin fixes names, not behaviour. |
-| Q2 | Required `/v0` fields the cache cannot fill | **Agreed by fenix (2026-10-25); pending Rand's approval:** they stay absent. Surface (a) shares `/v0`'s vocabulary, not its behaviour, so no client can switch between the cache and bd serve without code changes. §5.4 lists the divergences, and the output shapes are the cache's own. |
-| Q3 | Idempotency key | **Agreed by fenix (2026-10-25); pending Rand's approval:** required on every front end, never derived (REQ-BDC-0004). |
-| Q4 | Partial success | **Agreed by fenix (2026-10-25); pending Rand's approval:** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
-| Q5 | Name of the extra member | **Agreed by fenix (2026-10-25); pending Rand's approval:** `x_cache`. |
-| Q6 | Default cache path | **Agreed by fenix (2026-10-25); pending Rand's approval:** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
-| Q7 | Request to sc-runtime | **Agreed by fenix (2026-10-25); pending Rand's approval:** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
-| Q8 | Approve ADR-BDC-0009 and the Appendix A amendments? | open |
+| Q1 | Which beads reference? | **Approved (S60; agreed with fenix):** pin v1.3.2 @ 9b65b9e for vocabulary. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. The pin fixes names, not behaviour. |
+| Q2 | Required `/v0` fields the cache cannot fill | **Approved (S60; agreed with fenix):** they stay absent. Surface (a) shares `/v0`'s vocabulary, not its behaviour, so no client can switch between the cache and bd serve without code changes. §5.4 lists the divergences, and the output shapes are the cache's own. |
+| Q3 | Idempotency key | **Approved (S60; agreed with fenix):** required on every front end, never derived (REQ-BDC-0004). |
+| Q4 | Partial success | **Approved (S60; agreed with fenix):** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
+| Q5 | Name of the extra member | **Approved (S60; agreed with fenix):** `x_cache`. |
+| Q6 | Default cache path | **Approved (S60; agreed with fenix):** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
+| Q7 | Request to sc-runtime | **Approved (S60; agreed with fenix):** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
+| Q8 | Approve ADR-BDC-0009 and the Appendix A amendments? | **Approved (S60).** |
 
-## Appendix A. Requirement amendments (pending Rand's approval)
+## Appendix A. Requirement amendments
 
-| REQ | Amended text |
-|---|---|
-| REQ-BDC-0801 | The CLI offers the commands of `docs/bd-cache-cli/contract.md`: a beads surface shaped like `/v0`, and a `cache` management surface. Each command prints one sc-command envelope on stdout. The BD-CACHE verbs map to these commands as the contract's §5 and §6 list (ADR-BDC-0009). |
-| REQ-BDC-0802 | Exit 0 is `ok: true`. Exit 2 is a usage error (`BD_CACHE.USAGE`), reported in the envelope. Exit 3 is any other typed error, with `{kind, code, message, details, suggested_action}` in `error`. |
-| REQ-BDC-0803 | The error codes are those of BD-CACHE.md, plus the additive `SCOPE_UNKNOWN`, `STORE_FAILED`, `STORE_IN_USE`, `USAGE`, `UNSUPPORTED`, `CONFIG_INVALID`, `NOT_CACHED`, `INTERNAL` and `TICK_*`. Each code has one fixed kind, given in the contract's error table. `NO_TOML` is never emitted. |
-| REQ-BDC-0806 | **Superseded** (lead ruling S59): parity with `bd_cache.py` is behavioural, and the CLI follows sc-command and the contract. |
+Applied in `docs/requirements.md` (REQ-BDC-0801, 0802, 0803 amended;
+REQ-BDC-0806 Superseded; lead ruling S60, ADR-BDC-0009).
 
 [main]: https://github.com/gastownhall/beads/blob/73f64fdfce978a39608f9a3c7340d28354f5c05e/internal/httpapi/spec/openapi.v0.yaml
 [rel]: https://github.com/gastownhall/beads/blob/9b65b9e198acbcc98e7fd3a87a5d55baa065a572/internal/httpapi/spec/openapi.v0.yaml

@@ -505,7 +505,9 @@ The schedule stops when no phase is active and no entry is pending or escalated-
 
 **Status:** Approved
 
-The CLI offers `get`, `list`, `write`, `drain`, `sync`, `prune`, `resolve` and `status` with the arguments in BD-CACHE.md, printing one JSON object on stdout.
+The CLI offers the commands of `docs/bd-cache-cli/contract.md`: a beads surface shaped like `/v0`, and a `cache` management surface. Each command prints one sc-command envelope on stdout. The BD-CACHE verbs map to these commands as the contract's §5 and §6 list (ADR-BDC-0009).
+
+*Amended by lead ruling S60 (bc-lead, 2026-10-25) and ADR-BDC-0009: was `get`, `list`, `write`, `drain`, `sync`, `prune`, `resolve` and `status` with the BD-CACHE.md arguments; the CLI contract is `docs/bd-cache-cli/contract.md`.*
 
 **Source:** BD-CACHE.md CLI
 
@@ -513,7 +515,9 @@ The CLI offers `get`, `list`, `write`, `drain`, `sync`, `prune`, `resolve` and `
 
 **Status:** Approved
 
-Exit 0 is ok, 2 is usage, 3 is a typed error `{ok: false, code, detail, fix, ...}`.
+Exit 0 is `ok: true`. Exit 2 is a usage error (`BD_CACHE.USAGE`), reported in the envelope. Exit 3 is any other typed error, with `{kind, code, message, details, suggested_action}` in `error`.
+
+*Amended by lead ruling S60 (bc-lead, 2026-10-25) and ADR-BDC-0009: was exit 3 with `{ok: false, code, detail, fix, ...}`; the CLI contract is `docs/bd-cache-cli/contract.md`.*
 
 **Source:** BD-CACHE.md CLI
 
@@ -521,9 +525,11 @@ Exit 0 is ok, 2 is usage, 3 is a typed error `{ok: false, code, detail, fix, ...
 
 **Status:** Approved
 
-The error codes are those in BD-CACHE.md's table, each with its fix text, plus the additive `BD_CACHE.SCOPE_UNKNOWN`; `BD_CACHE.NO_TOML` (Python < 3.11 only) is never emitted.
+The error codes are those of BD-CACHE.md, plus the additive `SCOPE_UNKNOWN`, `STORE_FAILED`, `STORE_IN_USE`, `USAGE`, `UNSUPPORTED`, `CONFIG_INVALID`, `NOT_CACHED`, `INTERNAL` and `TICK_*`. Each code has one fixed kind, given in the contract's error table. `NO_TOML` is never emitted.
 
 *Amended in planning: SCOPE_UNKNOWN added for REQ-BDC-0902; NO_TOML retired.*
+
+*Amended by lead ruling S60 (bc-lead, 2026-10-25) and ADR-BDC-0009: adds the codes after `SCOPE_UNKNOWN` and one fixed kind per code; the CLI contract is `docs/bd-cache-cli/contract.md`.*
 
 **Source:** BD-CACHE.md CLI
 **Acceptance evidence:** `test_bad_ops_are_typed`
@@ -548,9 +554,11 @@ The primary command is `bd-cache`, with the alias `bdc`.
 
 ## REQ-BDC-0806: CLI and JSON drop-in
 
-**Status:** Approved
+**Status:** Superseded
 
 The `bd-cache` CLI, its JSON replies and exit codes are unchanged from the Python implementation, so hooks can switch binaries without edits.
+
+*Superseded by lead ruling S59 and, with the CLI contract, by lead ruling S60 (bc-lead, 2026-10-25) and ADR-BDC-0009: parity with `bd_cache.py` is behavioural, and the CLI follows sc-command and `docs/bd-cache-cli/contract.md`.*
 
 **Source:** BD-CACHE.md Rust shape (split from REQ-BDC-0804)
 
