@@ -424,6 +424,24 @@ impl ApiError {
         .with_suggested_action("pass scope, or a phase-<x> label of one of the known scopes")
     }
 
+    /// `SCOPE_UNKNOWN` for a scope with no completed sync since it was last
+    /// evicted, or ever (lead ruling S67): the cache does not serve it, and
+    /// never answers it with an empty list.
+    #[must_use]
+    pub fn scope_not_served(scope: &ScopeId, known: &[ScopeId]) -> Self {
+        let label = scope.label();
+        Self::table(
+            "SCOPE_UNKNOWN",
+            format!(
+                "scope {label} has no completed sync (never synced, or evicted since): the \
+                 cache does not serve it"
+            ),
+        )
+        .with_detail("scope", label.as_str())
+        .with_detail("known", labels(known))
+        .with_suggested_action(format!("bdc cache refresh scopes --scope {label}"))
+    }
+
     /// `CONFIG_INVALID`, keeping the store's or sync's code in `details.source`.
     ///
     /// `source` is the underlying code: `store_config_*`, `sync_config_*`,

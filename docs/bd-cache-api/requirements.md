@@ -54,10 +54,14 @@ sort, is `BAD_ARGS` with `v0_code: invalid_cursor`.
 A list-like read names a scope with `scope` or its first `phase-<x>` label
 (else `SCOPE_UNKNOWN` with `details.known` in label form); every label is
 still an AND filter. `issues list` excludes closed rows, templates and `gate`
-rows unless `status` or `all` is set.
+rows unless `status` or `all` is set. A scope with no completed sync since it
+was last evicted, or ever, is not served: `issues list` and `ready` return
+`SCOPE_UNKNOWN` with `suggested_action` `bdc cache refresh scopes --scope
+<s>`, never an empty list (lead ruling S67, contract §7).
 
-**Refines:** REQ-BDC-0902, contract §5.1, §5.3
-**Acceptance evidence:** `issues_list_filters` (`tests/fixtures.rs`).
+**Refines:** REQ-BDC-0902, contract §5.1, §5.3, §7
+**Acceptance evidence:** `issues_list_filters` (`tests/fixtures.rs`);
+`evict_is_blocked_by_pending_writes`, `a_configured_scope_never_synced_is_not_served` (`tests/manage.rs`).
 
 ## REQ-API-0005: The error table and the CacheError mapping
 

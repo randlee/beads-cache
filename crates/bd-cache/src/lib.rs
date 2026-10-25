@@ -423,6 +423,39 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         self.store.set_sync_alert_within(s, cause, wait)
     }
 
+    /// Every pending journal entry, by seq (`cache journal list --state
+    /// pending`; lead ruling S66).
+    ///
+    /// A store read only: no bd call.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError> {
+        self.store.pending_entries()
+    }
+
+    /// The backend check on its own (`cache health --probe`; lead ruling S66):
+    /// one `fingerprint` call under `hard`, then the rebuild rule, exactly as
+    /// a sync or a non-empty drain starts.
+    ///
+    /// Returns what the store did with the fingerprint (`Rebuilt` when the
+    /// schema changed: cached rows dropped, journal kept) and `model_current`,
+    /// whether the live schema is the pinned one.
+    ///
+    /// # Errors
+    ///
+    /// `BD_UNAVAILABLE` when `hard` cuts the call or bd is unreachable (the
+    /// latter is recorded as an outage; the check never clears one);
+    /// `BD_VERSION_FAILED` / `BD_SCHEMA_FAILED`; store errors.
+    pub fn backend_check(
+        &mut self,
+        hard: Deadline,
+    ) -> Result<(bd_cache_model::FingerprintOutcome, bool), CacheError> {
+        backend_check::run(self, hard)
+            .map_err(|f| f.into_error("bd version / bd schema: no answer before the deadline"))
+    }
+
     /// Pending and unannounced-escalated counts (the stop rule).
     ///
     /// # Errors

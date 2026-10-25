@@ -3,11 +3,10 @@
 use std::time::Duration;
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheStore, DrainLock, IdemKey, RowView, ScopeId};
+use bd_cache_model::{CacheStore, DrainLock, IdemKey, RowView, ScopeId, WriteOutcome};
 use sc_beads::{Actor, Assignee, BeadId, CacheBackend, Guards};
 use serde_json::json;
 
-use crate::b1_stub::{self, WriteOutcome};
 use crate::data::{
     Basis, ContextData, ContextXCache, DependenciesAddData, DependenciesListData, DepsXCache,
     GetXCache, IssuesCloseData, IssuesGetData, IssuesListData, IssuesUpdateData, OutageData,
@@ -23,15 +22,39 @@ use crate::request::{
 use crate::v0::patch_args;
 use crate::{CAPABILITIES, CONTRACT_VERSION};
 
-/// The scope a list-like read names, or `SCOPE_UNKNOWN` naming the known ones.
+/// The scopes the cache serves: known, with a completed sync since they
+/// were last evicted (lead ruling S67).
+fn served_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+) -> Result<Vec<ScopeId>, ApiError> {
+    let mut served = Vec::new();
+    for s in known_scopes(cache)? {
+        if cache.scope_synced(&s)? {
+            served.push(s);
+        }
+    }
+    Ok(served)
+}
+
+/// The scope a list-like read names, if the cache serves it.
+///
+/// `SCOPE_UNKNOWN` naming the served scopes when the read names none, or
+/// names one with no completed sync since it was last evicted, or ever
+/// (S67): such a scope is never answered with an empty list. A prune
+/// deletes the scope's sync state, so an evicted scope is unsynced until
+/// its next sync.
 fn required_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     scope: Option<&ScopeId>,
     labels: &[String],
 ) -> Result<ScopeId, ApiError> {
-    match select_scope(scope, labels) {
-        Some(s) => Ok(s),
-        None => Err(ApiError::scope_required(&known_scopes(cache)?)),
+    let Some(s) = select_scope(scope, labels) else {
+        return Err(ApiError::scope_required(&served_scopes(cache)?));
+    };
+    if cache.scope_synced(&s)? {
+        Ok(s)
+    } else {
+        Err(ApiError::scope_not_served(&s, &served_scopes(cache)?))
     }
 }
 
@@ -53,9 +76,8 @@ pub fn issues_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
             .ok_or_else(|| ApiError::not_cached(req.id.as_str()))?,
         ms => cache.get(&req.id, ms.map(Duration::from_millis))?,
     };
-    let scope = b1_stub::get_scope(cache, &reply)?;
     let read = ReadXCache::new(
-        scope.as_ref(),
+        reply.scope.as_ref(),
         reply.scope_last_ok_at.as_ref(),
         reply.outage.as_ref(),
         std::slice::from_ref(&reply.row),
@@ -212,16 +234,9 @@ fn write<S: CacheStore, L: DrainLock, B: CacheBackend>(
     key: &IdemKey,
     actor: &Actor,
 ) -> Result<WriteOutcome, ApiError> {
-    b1_stub::write_returning(
-        cache,
-        id,
-        op,
-        &args.to_string(),
-        pre,
-        key.clone(),
-        actor.clone(),
-    )
-    .map_err(ApiError::from)
+    cache
+        .write_returning(id, op, &args.to_string(), pre, key.clone(), actor.clone())
+        .map_err(ApiError::from)
 }
 
 fn write_x_cache(o: &WriteOutcome) -> WriteXCache {

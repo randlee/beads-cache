@@ -34,6 +34,7 @@ fn world_with_old_applied_entry(op: &str, args: &str) -> common::TestCache {
                 op: Op::parse(op, args).unwrap(),
                 precondition: Guards::default(),
                 actor: Actor::new("san").unwrap(),
+                changed: None,
             },
             &at,
         )

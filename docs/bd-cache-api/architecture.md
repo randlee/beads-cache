@@ -15,7 +15,6 @@ ADR-BDC-0009 and [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md).
 | `v0.rs` | `/v0` patch ↔ stored BD-CACHE args (REQ-API-0006) |
 | `data/{beads,manage,entry,x_cache}.rs` | The `data` of each command, `Entry`, `x_cache`, `OpError` |
 | `error.rs` | `ApiError`, `ErrorKind`, `ERROR_TABLE`, `From<CacheError>` (REQ-API-0005) |
-| `b1_stub.rs` | **Interim**: sprint b-1's core items over today's facade; deleted when b-1 lands |
 | `tests/fixtures/*.json` | The shared fixtures b-3 and b-4 replay (format in its README) |
 
 ## ADR-API-0001: Decode by hand, not with serde
@@ -50,7 +49,11 @@ it detects edits, not forgery.
 
 ## ADR-API-0003: Interim adapter for sprint b-1
 
-**Status:** Proposed (sprint b-2)
+**Status:** Superseded: b-1 merged (#75); the adapter was deleted and the
+operations call b-1's `write_returning`, `entry_by_key`, `journal_counts`,
+`GetReply.scope` and entry fields directly. The two items b-1's contract did
+not cover became `Cache::pending_entries` and `Cache::backend_check` (lead
+ruling S66).
 
 **Context.** b-2 is built in parallel with b-1, which adds `write_returning`,
 `entry_by_key`, `journal_counts`, `GetReply.scope` and the entry columns.

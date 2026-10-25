@@ -5,7 +5,6 @@ use sc_beads::BeadId;
 use serde::Serialize;
 use serde_json::Value;
 
-use crate::b1_stub;
 use crate::data::x_cache::{OpError, cache_time, opt_time};
 use crate::v0::entry_args;
 
@@ -56,7 +55,6 @@ impl Entry {
     /// The api form of a stored entry.
     #[must_use]
     pub fn of(e: &JournalEntry) -> Self {
-        let extras = b1_stub::extras(e);
         Self {
             seq: e.seq.get(),
             idempotency_key: e.idem_key.as_str().to_owned(),
@@ -73,11 +71,11 @@ impl Entry {
             actor: e.actor.as_str().to_owned(),
             state: e.state.as_str(),
             attempts: e.attempts,
-            last_error: extras
+            last_error: e
                 .last_error
                 .as_deref()
-                .map(|t| OpError::from_parts(extras.last_error_code.as_deref(), t)),
-            note: extras.note,
+                .map(|t| OpError::from_parts(e.last_error_code.as_deref(), t)),
+            note: e.note.clone(),
             announced_at: opt_time(e.announced_at.as_ref()),
             created_at: cache_time(&e.created_at),
             applied_at: opt_time(e.applied_at.as_ref()),

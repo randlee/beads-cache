@@ -35,7 +35,6 @@
 
 #![deny(missing_docs)]
 
-mod b1_stub;
 pub mod data;
 mod decode;
 mod error;

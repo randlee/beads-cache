@@ -247,15 +247,27 @@ fn evict_is_blocked_by_pending_writes() {
     let r = ok(&mut cache, "cache evict", &json!({"scope": "x"}));
     assert_eq!(r["scope"], "phase-x");
     assert_eq!(r["beads_deleted"], 2);
-    // The core keeps a pruned scope registered (CacheStore rules), so a
-    // configured scope lists empty, with no sync, rather than SCOPE_UNKNOWN.
-    let gone = ok(
+    // S67: an evicted scope is not served until its next sync, never an empty list.
+    for command in ["issues list", "ready"] {
+        let gone = err(&mut cache, command, &json!({"scope": "x"}));
+        assert_eq!(gone["code"], "BD_CACHE.SCOPE_UNKNOWN", "{command}: {gone}");
+        assert_eq!(
+            gone["suggested_action"],
+            "bdc cache refresh scopes --scope phase-x"
+        );
+        assert_eq!(gone["details"]["scope"], "phase-x");
+    }
+    ok(
         &mut cache,
-        "issues list",
-        &json!({"scope": "x", "all": true}),
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
     );
-    assert_eq!(gone["items"], json!([]));
-    assert_eq!(gone["x_cache"]["last_ok_at"], Value::Null);
+    let back = ok(&mut cache, "issues list", &json!({"scope": "x"}));
+    assert_eq!(
+        back["items"].as_array().unwrap().len(),
+        2,
+        "served again after a sync"
+    );
 }
 
 #[test]
@@ -278,4 +290,21 @@ fn journal_list_refuses_states_it_does_not_serve() {
     assert_eq!(e["code"], "BD_CACHE.BAD_ARGS");
     let e = err(&mut cache, "cache journal get", &json!({"seq": 99}));
     assert_eq!(e["code"], "BD_CACHE.NOT_FOUND");
+}
+
+#[test]
+fn a_configured_scope_never_synced_is_not_served() {
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    for command in ["issues list", "ready"] {
+        let e = err(&mut cache, command, &json!({"scope": "phase-x"}));
+        assert_eq!(e["code"], "BD_CACHE.SCOPE_UNKNOWN", "{command}: {e}");
+        assert_eq!(e["kind"], "conflict");
+        assert_eq!(e["details"]["known"], json!([]), "no scope is served yet");
+        assert_eq!(
+            e["suggested_action"],
+            "bdc cache refresh scopes --scope phase-x"
+        );
+    }
 }

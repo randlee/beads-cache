@@ -432,9 +432,17 @@ str|null, announced_at, created_at, applied_at}`.
 | `cache flush` | `cache journal get <seq>` for each seq it reports; `cache status` |
 | `cache refresh scopes` | `cache scopes` (`last_ok_at`, `last_error`) |
 | `cache refresh issues` | `issues get` (`x_cache.rows[id].stale` is false) |
-| `cache evict` | `cache scopes`; `issues list --scope` returns `SCOPE_UNKNOWN` |
+| `cache evict` | `cache scopes`; `issues list --scope` returns `SCOPE_UNKNOWN` (see below) |
 | `journal resolve` / `journal announce` | `cache journal get <seq>`; `cache journal list --unannounced` |
 | `cache tick` | `cache status`, `cache scopes`, `cache journal list --unannounced` |
+
+**A scope with no completed sync is not served** (lead ruling S67). A scope
+with no completed sync since it was last evicted, or ever, is not served:
+`issues list` and `ready` on it return `SCOPE_UNKNOWN`, with
+`suggested_action` `bdc cache refresh scopes --scope <s>`, and never an
+empty list. Eviction deletes the scope's sync state, so after
+`cache evict` the scope stays unserved until its next sync, even when it
+is configured. `details.known` lists the served scopes.
 
 ## 8. Help, the MCP constraint, testing
 

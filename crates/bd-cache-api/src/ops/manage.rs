@@ -6,11 +6,11 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, ScopeId, ScopeStatus,
+    StateCounts,
 };
 use sc_beads::{BeadId, CacheBackend, Deadline};
 
 use crate::CONTRACT_VERSION;
-use crate::b1_stub::{self, StateCounts};
 use crate::data::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
     CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthState,
@@ -93,7 +93,7 @@ pub fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
     facts: &CacheFacts,
 ) -> Result<CacheStatusData, ApiError> {
     let st = cache.status()?.store;
-    let jc = b1_stub::journal_counts(cache)?;
+    let jc = cache.journal_counts()?;
     let mut escalated: Vec<Entry> = st.escalated.iter().map(Entry::of).collect();
     escalated.sort_by_key(|e| e.seq);
     let mut stale = st.stale.clone();
@@ -140,7 +140,7 @@ pub fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<CacheHealthData, ApiError> {
     let probe = if req.probe {
         let hard = Deadline::after(&*cache.clock(), cache.config().call_timeout);
-        let (outcome, model_current) = b1_stub::backend_check(cache, hard)?;
+        let (outcome, model_current) = cache.backend_check(hard)?;
         Some((outcome, model_current))
     } else {
         None
@@ -325,7 +325,7 @@ pub fn journal_get<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<JournalGetData, ApiError> {
     let e = match &req.key {
         JournalKey::Seq(seq) => cache.entry(*seq)?,
-        JournalKey::IdempotencyKey(k) => b1_stub::entry_by_key(cache, k)?,
+        JournalKey::IdempotencyKey(k) => cache.entry_by_key(k)?,
     };
     Ok(JournalGetData {
         entry: Entry::of(&e),
@@ -345,7 +345,7 @@ pub fn journal_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let mut entries = match (req.state, req.unannounced) {
         (JournalListState::Escalated, true) => cache.unannounced_escalations()?,
         (JournalListState::Escalated, false) => cache.status()?.store.escalated,
-        (JournalListState::Pending, _) => b1_stub::pending_entries(cache)?,
+        (JournalListState::Pending, _) => cache.pending_entries()?,
     };
     entries.sort_by_key(|e| e.seq);
     Ok(JournalListData {
