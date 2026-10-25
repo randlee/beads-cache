@@ -1,6 +1,7 @@
 # bd-cache-cli Requirements
 
-Status: Draft (sprints b-3a, b-3). Crate-local requirements (domain code `CLI`)
+Status: Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed,
+2026-10-25; written in sprints b-3a, b-3). Crate-local requirements (domain code `CLI`)
 refining [`../requirements.md`](../requirements.md). Architecture:
 [`architecture.md`](architecture.md). Contract:
 [`contract.md`](contract.md). Created by sprint b-3a, which owns the harness
@@ -12,10 +13,12 @@ Test files are under `crates/bd-cache-cli/tests/`; the shared harness is
 
 ## REQ-CLI-0001: The crate builds on all three CI OSes with sc-command pinned
 
-**Status:** Draft
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `bd-cache-cli` builds on ubuntu, macOS and Windows with sc-command taken as a
-git dependency at sc-runtime tag `prerelease/v0.1.0` (`ba971c1`), and
+git dependency at sc-runtime's stable tag `v0.1.0` (`ae3e10b`; it replaced
+`prerelease/v0.1.0`, `ba971c1`, whose crates are byte-identical, at the
+sc-runtime team's request), and
 `bdc --version` prints one sc-command envelope: `ok: true`,
 `data: {name, version, contract_version}`, one line, a trailing newline.
 An argv-shape error is a `BD_CACHE.USAGE` envelope with exit 2, with
@@ -28,7 +31,7 @@ An argv-shape error is a `BD_CACHE.USAGE` envelope with exit 2, with
 
 ## REQ-CLI-0002: `bd-cache` and `bdc` are one program
 
-**Status:** Draft
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 The two binaries call one entry point, `bd_cache_cli::run_process`, and give
 the same exit code, stdout and stderr for the same argv. The `name` in
@@ -40,7 +43,7 @@ the same exit code, stdout and stderr for the same argv. The `name` in
 
 ## REQ-CLI-0003: `run()` is the in-process entry point at its final signature
 
-**Status:** Draft
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `pub fn run(argv, env, invoker, clock) -> (i32, String)` returns the exit
 code and the one-line envelope the process would print. `argv` has no program
@@ -54,7 +57,7 @@ sprint b-3.
 
 ## REQ-CLI-0004: `fake-bd` is a stateful bd across processes
 
-**Status:** Draft
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 The `fake-bd` executable runs sc-bd-cli's `FakeBd` behind the `bd` argv. It
 reads its state from the scenario file named by `$FAKE_BD_SCENARIO` and writes
@@ -75,19 +78,24 @@ read is exit 70, outside the exit codes of a real bd.
 
 ## REQ-CLI-0005: The harness injects faults, and a release build carries none of it
 
-**Status:** Draft
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
-A scenario can mark bd unavailable, slow by N ms (a real delay) or refusing
-writes with an exit code. `BdCli` over `fake-bd` returns the unreachable error
-for an unavailable scenario and times out for a delay longer than the call
-timeout. The `fake-bd` binary has `required-features = ["fake-bd"]`;
+A scenario can mark bd unavailable, slow by N ms (a real delay), blocked at
+a gate file (`faults.gate_file`) or refusing writes with an exit code.
+`BdCli` over `fake-bd` returns the unreachable error for an unavailable
+scenario, and times out while a gated bd is still blocked: the gated call
+writes a `started` marker, waits for the release file the test creates only
+after the caller returned, then writes a `passed` marker, so "the caller did
+not wait for bd" is asserted causally (no `passed` marker), never as a
+wall-clock bound (QA FTQ-001). The `fake-bd` binary has `required-features = ["fake-bd"]`;
 `cargo build --release --bin bd-cache --bin bdc` does not build it and the
 two artifacts contain no `test-support` code. The crate is `publish = false`.
 
 **Refines:** contract §8 "Testing"; ADR-CLI-0001
 **Acceptance evidence:**
 `an_unavailable_scenario_makes_bdcli_return_the_unreachable_error`,
-`slow_by_500_ms_with_a_100_ms_call_timeout_times_out`,
+`a_blocked_bd_times_out_while_it_is_still_blocked`,
+`a_gated_bd_answers_once_released`,
 `a_refused_write_carries_its_exit_code_and_changes_nothing`
 (`tests/harness.rs`); `fake_bd_is_a_gated_bin_and_the_crate_is_not_publishable`,
 `an_ungated_fake_bd_fails_the_metadata_check`,
@@ -96,7 +104,7 @@ two artifacts contain no `test-support` code. The crate is `publish = false`.
 
 ## REQ-CLI-0006: Every command of both surfaces runs its bd-cache-api operation
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Every command of contract §5.2 and §6 turns its argv into the command's JSON
 request, which goes to `bd_cache_api::decode` and then `execute`; `--input
@@ -113,7 +121,7 @@ through `run()` with the envelopes they expect.
 
 ## REQ-CLI-0007: Exit codes and one envelope on stdout
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Exit 0 is `ok: true`; exit 2 is `BD_CACHE.USAGE` for the shape of argv only
 (an unknown command or flag, an abbreviated long option, a missing or
@@ -129,7 +137,7 @@ given; `USAGE` is JSON even then. A caught panic is `BD_CACHE.INTERNAL`.
 
 ## REQ-CLI-0008: Configuration precedence and file locations
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` > default. `--bd` is never
 read from TOML (a `bd` key there is ignored with a warning); `--format` comes
@@ -148,7 +156,7 @@ file is `CONFIG_INVALID` with `details.key: "cache_path"` and
 
 ## REQ-CLI-0009: `--help` and `--version`
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `--help` prints text when stdout is a terminal and no `--format` is given,
 and otherwise the envelope with `data: {command, synopsis, arguments: [{name,
@@ -162,7 +170,7 @@ contract_version}` and follows `--format`.
 
 ## REQ-CLI-0010: The stderr log
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Logs go to stderr at `warn` by default; `-q` keeps errors, `-v` adds `info`
 (more `v` for more), and either flag wins over `BD_CACHE__LOG`. stdout never
@@ -174,29 +182,40 @@ ignored.
 
 ## REQ-CLI-0011: The named negative scenarios pass through the process
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Each scenario of contract §8 "Testing" runs as real `bdc` processes against
 `fake-bd`: an outage during a write, an escalation at flush, a partial
 `refresh scopes`, `fresh_within` running out, a schema change, a cache file
-of another project, a retry after a lost reply.
+of another project, a retry after a lost reply. Two more come from the
+phase-B review: a bd that hangs under `cache refresh scopes` is a failed
+result, `BD_UNAVAILABLE` with `details.timed_out` (QA RCR-001), and
+`cache health --probe` with bd unreachable is exit 0 with `state: "down"`
+(QA ARCH-001).
 
 **Refines:** contract §8 "Testing"
 **Acceptance evidence:** `tests/scenarios.rs`, one test per scenario.
 
 ## REQ-CLI-0012: A new-process `get` is under 50 ms
 
-**Status:** Draft (sprint b-3)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
-In a release build, the median and the p95 of 50 new-process `bdc issues get`
-cache hits with nothing pending on the scope are under 50 ms, with `fake-bd`
-delayed by 60 ms per call (so no bd call fits). The same with 10 pending
-entries in a 1,000-row scope is reported, not gated. On Windows both are reported, not gated, in CI (lead
+In a release build, the median of 50 new-process `bdc issues get` cache hits
+with nothing pending on the scope is under 50 ms, with `fake-bd` delayed by
+60 ms per call (so no bd call fits). Their p95 is reported, not gated, and
+so is the same measurement with 10 pending entries in a 1,000-row scope. On Windows both are reported, not gated, in CI (lead
 rulings S78/S79, bc-lead, 2026-10-25): hosted windows-latest runners measured
 the same code at median 27 ms and then 66 ms (p95 190 to 400 ms) on successive
 runs, which measures a shared VM's process creation and scanning rather than
 bdc. Windows evidence comes from a run on a real host (fastpc4); until then it
 is an open item.
+
+**Amendment (lead ruling S80, bc-lead, 2026-10-25; QA FTQ-004):** on Unix the
+gate is the median only, and the p95 is reported. The p95 of 50 process
+starts on a shared runner measures the host's scheduling as much as bdc. The
+structural guarantee is kept: every bd call costs 60 ms, so a `get` that
+calls bd is over the bound on every run, and so is its median. Windows stays
+report-only (S79).
 
 **Refines:** NFR-BDC-0002
 **Acceptance evidence:** `a_new_process_get_is_under_50_ms` (`tests/latency.rs`,

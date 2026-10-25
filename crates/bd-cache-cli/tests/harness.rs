@@ -13,7 +13,7 @@ mod support;
 
 use std::time::{Duration, Instant};
 
-use bd_cache_cli::scenario::{Faults, RefuseWrite, Scenario};
+use bd_cache_cli::scenario::{Faults, RefuseWrite, Scenario, gate_passed, gate_started};
 use sc_bd_cli::BdCli;
 use sc_beads::testing::actor;
 use sc_beads::{
@@ -198,33 +198,53 @@ fn the_same_scenario_without_the_fault_answers() {
     assert_eq!(rows, vec![labelled("b-1"), labelled("b-2")]);
 }
 
+/// The call timeout of [`a_blocked_bd_times_out_while_it_is_still_blocked`]:
+/// long enough for the warmed `fake-bd` to start and reach its gate, so its
+/// `started` marker is there; the assertion itself is causal, not timed.
+const GATED_TIMEOUT: Duration = Duration::from_secs(1);
+
 #[test]
-fn slow_by_500_ms_with_a_100_ms_call_timeout_times_out() {
-    // Start the binary once beforehand (a scenario without the fault), so the first
-    // execution of a fresh binary is not what uses up the 100 ms.
+fn a_blocked_bd_times_out_while_it_is_still_blocked() {
+    // Start the binary once beforehand (a scenario without the fault), so the
+    // first execution of a fresh binary does not use up the timeout.
     assert_eq!(TestRepo::new(&two_beads()).fake_bd(&["version"]).exit, 0);
-    let repo = TestRepo::new(&with_faults(Faults {
-        slow_ms: 500,
-        ..Faults::default()
-    }));
-    let started = Instant::now();
-    let err = list(
-        &repo.process_backend(),
-        &repo.project(),
-        Duration::from_millis(100),
-    )
-    .expect_err("the call must time out");
+    let repo = TestRepo::new(&two_beads());
+    let gate = repo.gate_file();
+    repo.edit(|s| s.faults.gate_file = Some(gate.clone()));
+    let result = list(&repo.process_backend(), &repo.project(), GATED_TIMEOUT);
+    // Causal, on every OS (QA FTQ-001): bd reached its gate, and the gate is
+    // released only below, so the caller gave up while bd was still blocked;
+    // it did not wait for bd to answer.
+    assert!(gate_started(&gate).exists(), "bd was never called");
+    assert!(
+        !gate_passed(&gate).exists(),
+        "the call returned only after bd passed its gate: {result:?}"
+    );
+    let err = result.expect_err("the call must time out");
     assert!(err.is_timeout(), "{err:?}");
-    // The caller gave up on the child; it did not wait for the 500 ms to pass. Only
-    // asserted on Unix: killing a process tree on Windows (`taskkill /T`) can itself
-    // take a few hundred milliseconds.
-    if cfg!(unix) {
-        assert!(
-            started.elapsed() < Duration::from_millis(500),
-            "{:?}",
-            started.elapsed()
-        );
-    }
+    repo.release_gate();
+}
+
+#[test]
+fn a_gated_bd_answers_once_released() {
+    // The control: the same gate, released while the call waits, answers with
+    // bd's rows, and the call returns after bd passed the gate.
+    let repo = TestRepo::new(&two_beads());
+    let gate = repo.gate_file();
+    repo.edit(|s| s.faults.gate_file = Some(gate.clone()));
+    let rows = std::thread::scope(|scope| {
+        let call = scope.spawn(|| list(&repo.process_backend(), &repo.project(), LONG));
+        while !gate_started(&gate).exists() && !call.is_finished() {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(gate_started(&gate).exists(), "bd was never called");
+        assert!(!gate_passed(&gate).exists(), "bd waits at its gate");
+        repo.release_gate();
+        call.join().unwrap()
+    })
+    .expect("a released bd answers");
+    assert_eq!(rows.len(), 2);
+    assert!(gate_passed(&gate).exists());
 }
 
 #[test]

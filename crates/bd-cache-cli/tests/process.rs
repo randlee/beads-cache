@@ -20,9 +20,11 @@ use std::path::Path;
 use std::process::Stdio;
 
 use serde_json::Value;
+#[cfg(unix)]
+use support::write_script;
 use support::{
-    BD_CACHE, BDC, FAKE_BD, Ran, TestRepo, envelope_json, hermetic, metadata, parse_envelope,
-    path_str, two_beads,
+    BD_CACHE, BDC, FAKE_BD, Ran, TestRepo, copy_executable, envelope_json, hermetic, metadata,
+    parse_envelope, path_str, two_beads,
 };
 
 /// A repository whose scope `phase-x` has been synced once.
@@ -553,20 +555,16 @@ fn flag_beats_env_beats_toml_beats_default() {
 }
 
 /// Writes an executable shell script at `path` that records its run in
-/// `marker` and exits 1.
+/// `marker` and exits 1 (through [`write_script`], so no ETXTBSY).
 #[cfg(unix)]
 fn marker_script(path: &Path, marker: &Path) {
-    use std::os::unix::fs::PermissionsExt as _;
-
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).unwrap();
     }
-    std::fs::write(
+    write_script(
         path,
-        format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display()),
-    )
-    .unwrap();
-    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).unwrap();
+        &format!("#!/bin/sh\n: > '{}'\nexit 1\n", marker.display()),
+    );
 }
 
 /// `bd = "…"` in TOML is ignored: a planted bd named there never runs.
@@ -590,7 +588,7 @@ fn bd_is_never_read_from_toml() {
     } else {
         "planted-bd"
     });
-    std::fs::copy(FAKE_BD, &planted).unwrap();
+    copy_executable(Path::new(FAKE_BD), &planted);
     let on_path = tempfile::TempDir::new().unwrap();
     let marker = tools.path().join("path-bd-ran");
     #[cfg(unix)]
@@ -718,7 +716,7 @@ fn the_users_path_beats_a_fallback_directory() {
     let marker = home.path().join("fallback-ran");
     marker_script(&home.path().join(".local/bin/bd"), &marker);
     let user = tempfile::TempDir::new().unwrap();
-    std::fs::copy(FAKE_BD, user.path().join("bd")).unwrap();
+    copy_executable(Path::new(FAKE_BD), &user.path().join("bd"));
     let path = format!("{}:/usr/bin:/bin", path_str(user.path()));
     let args = ["--repo", path_str(&root), "cache", "refresh", "scopes", "x"];
     let (exit, v) = envelope_json(&repo.bdc_raw(

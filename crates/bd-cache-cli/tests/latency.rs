@@ -3,12 +3,15 @@
 //! Measured in a release build only: the test is `#[ignore]` and runs in its
 //! own CI step, `cargo test --release -p bd-cache-cli --test latency -- --ignored`.
 //!
-//! - **Gated:** the median and the p95 of 50 new-process `bdc issues get`
-//!   cache hits, with nothing pending on the scope, are under 50 ms (contract
-//!   §2). The scenario gives `fake-bd` a 60 ms delay on every call, so a `get`
-//!   that called bd at all (a backend check on open, a miss) could not pass.
-//! - **Reported, not gated:** the same with 10 pending entries in a 1,000-row
-//!   scope, where the core adjusts the whole base while a write is pending.
+//! - **Gated (Unix):** the median of 50 new-process `bdc issues get` cache
+//!   hits, with nothing pending on the scope, is under 50 ms (contract §2;
+//!   lead ruling S80). The scenario gives `fake-bd` a 60 ms delay on every
+//!   call, so a `get` that called bd at all (a backend check on open, a miss)
+//!   would make most runs, and so the median, miss the bound.
+//! - **Reported, not gated:** the p95 of the same runs (S80: process creation
+//!   on a shared runner is not bdc's latency); the same with 10 pending
+//!   entries in a 1,000-row scope, where the core adjusts the whole base while
+//!   a write is pending; and every number on Windows (S79).
 
 #![allow(
     clippy::unwrap_used,
@@ -117,10 +120,10 @@ fn a_new_process_get_is_under_50_ms() {
     let (median, p95) = measure(&gated);
     println!(
         "NFR-BDC-0002 gated: {RUNS} new-process `bdc issues get` cache hits, nothing pending, \
-         fake-bd delay {BD_DELAY_MS} ms: median {:.1} ms, p95 {:.1} ms (bound {} ms)",
+         fake-bd delay {BD_DELAY_MS} ms: median {:.1} ms (bound {} ms), p95 {:.1} ms (reported)",
         ms(median),
-        ms(p95),
-        BOUND.as_millis()
+        BOUND.as_millis(),
+        ms(p95)
     );
 
     let reported = prepared(1_000, 10);
@@ -137,10 +140,16 @@ fn a_new_process_get_is_under_50_ms() {
     // runs: process creation and on-access scanning on a shared VM, not bdc.
     // There the numbers are reported; a Windows measurement on a real host
     // (fastpc4) is the evidence for that platform.
+    // Lead ruling S80: on Unix the median is gated and the p95 reported. The
+    // 60 ms bd delay keeps the gate structural: a get that calls bd is over
+    // the bound on every run, so its median is too.
     if cfg!(windows) {
         println!("NFR-BDC-0002: reported, not gated, on Windows (S79)");
     } else {
+        println!(
+            "NFR-BDC-0002: median gated, p95 {:.1} ms reported (S80)",
+            ms(p95)
+        );
         assert!(median < BOUND, "median {median:?} is not under {BOUND:?}");
-        assert!(p95 < BOUND, "p95 {p95:?} is not under {BOUND:?}");
     }
 }
