@@ -11,7 +11,8 @@
 //!
 //! Modes: `ok` (answers `version`, `schema`, `list`), `refuse` (exit 13), `down`
 //! (exit 1, "connection refused"), `slow` (prints `ready`, then runs 30 s),
-//! `flood` (writes far more than a pipe holds), `stdin` (reads standard input to the
+//! `flood` (writes far more than a pipe holds), `huge` (writes one byte more than
+//! `MAX_OUTPUT_BYTES` to stdout, then exits 0), `stdin` (reads standard input to the
 //! end), `echo` (prints its argv), `spawner` (starts a grandchild that ignores TERM,
 //! writes its pid to `grandchild`, prints `ready`, then runs 30 s; with the argument
 //! `probe` it only prints whether that grandchild still runs), `leaver` (starts the
@@ -29,7 +30,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use sc_bd_cli::bounded::{
-    kill_and_reap, run_bounded, run_bounded_capped, BoundedError, TimeoutPhase,
+    kill_and_reap, run_bounded, run_bounded_capped, BoundedError, OutputStream, TimeoutPhase,
+    MAX_OUTPUT_BYTES,
 };
 use sc_bd_cli::{BdCli, ProjectLocks, WorkingDir};
 use sc_beads::{
@@ -106,6 +108,17 @@ fn child(mode: &str) -> ExitCode {
             let _ = writeln!(out, "ready");
             let _ = out.flush();
             std::thread::sleep(Duration::from_secs(SLOW_CHILD_SECS));
+            ExitCode::SUCCESS
+        }
+        ("huge", _) => {
+            // The cap in whole chunks, then the one byte over it.
+            let chunk = vec![b'x'; 1024 * 1024];
+            let mut sent = 0;
+            while sent < MAX_OUTPUT_BYTES && out.write_all(&chunk).is_ok() {
+                sent += chunk.len();
+            }
+            let _ = out.write_all(b"x");
+            let _ = out.flush();
             ExitCode::SUCCESS
         }
         ("flood", _) => {
@@ -646,21 +659,56 @@ fn output_larger_than_a_pipe_is_drained(env: &Env) -> TestResult {
     )
 }
 
-/// A stream over the cap is an error naming the cap, and the child is still drained to
-/// the end (it exits instead of stalling on a full pipe).
+/// A stream over the cap is `OutputTooLarge` naming the stream and the cap, not a
+/// read error, and the child is still drained to the end (it exits instead of
+/// stalling on a full pipe).
 fn output_over_the_cap_is_an_error(env: &Env) -> TestResult {
+    const CAP: usize = 1024 * 1024;
     let r = run_bounded_capped(
         &env.exe,
         &ProjectLocks::new(),
         &WorkingDir::new(&env.dir("flood")?),
         &words(&["list"]),
         Duration::from_secs(60),
-        1024 * 1024,
+        CAP,
     );
     require(
-        matches!(&r, Err(BoundedError::Output(e)) if e.to_string().contains("cap")),
-        format!("expected an output error naming the cap, got {r:?}"),
+        matches!(
+            &r,
+            Err(BoundedError::OutputTooLarge {
+                stream: OutputStream::Stdout,
+                limit: CAP,
+            })
+        ),
+        format!("expected OutputTooLarge for stdout at {CAP} bytes, got {r:?}"),
     )
+}
+
+/// PE-RBP-F012: a real `bd` whose stdout is one byte over `MAX_OUTPUT_BYTES` reaches
+/// the cache caller as `Transport` whose source names stdout and the cap, with its
+/// own error kind, not as a generic read error.
+fn oversized_stdout_reaches_the_caller_as_transport_naming_the_cap(env: &Env) -> TestResult {
+    let e = match env
+        .cli()
+        .list_ready(&env.project("huge")?, &scope(), after(60_000))
+    {
+        Ok(ids) => return Err(format!("expected an error, got {} ids", ids.len())),
+        Err(e) => e,
+    };
+    let BeadsCacheError::Transport { what, source } = &e else {
+        return Err(format!("expected Transport, got {e:?}"));
+    };
+    require(what == "bd ready", format!("what = {what}"))?;
+    require(
+        source.kind() == std::io::ErrorKind::FileTooLarge,
+        format!("expected FileTooLarge, got {source:?}"),
+    )?;
+    let text = source.to_string();
+    require(
+        text.contains("stdout") && text.contains(&MAX_OUTPUT_BYTES.to_string()),
+        format!("the source does not name stdout and the cap: {text}"),
+    )?;
+    require(!e.is_unavailable(), format!("{e:?} is an outage"))
 }
 
 fn standard_input_is_closed(env: &Env) -> TestResult {
@@ -815,6 +863,10 @@ fn run_tests() -> ExitCode {
         (
             "output_over_the_cap_is_an_error",
             output_over_the_cap_is_an_error,
+        ),
+        (
+            "oversized_stdout_reaches_the_caller_as_transport_naming_the_cap",
+            oversized_stdout_reaches_the_caller_as_transport_naming_the_cap,
         ),
         (
             "waiting_for_the_project_lock_is_bounded",

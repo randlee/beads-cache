@@ -24,7 +24,7 @@
 //!   ([`TimeoutPhase::Output`], after which the group or job the child left behind is
 //!   killed too, before the child is reaped), and each stream is capped at [`MAX_OUTPUT_BYTES`]
 //!   (the excess is drained and dropped, and the call fails with
-//!   [`BoundedError::Output`]).
+//!   [`BoundedError::OutputTooLarge`]).
 //!
 //! The time limit is a [`Duration`] measured on the real clock from the moment the
 //! function is entered. The caller turns its [`Deadline`](sc_beads::Deadline) into
@@ -60,7 +60,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(5);
 /// A 1000-bead phase listed with `bd list` is a few megabytes of JSON, so 64 MiB
 /// leaves a wide margin while keeping a runaway child from exhausting memory. Over the
 /// cap the rest is read and dropped (so the child is not stalled on a full pipe) and
-/// the call fails with [`BoundedError::Output`].
+/// the call fails with [`BoundedError::OutputTooLarge`].
 pub const MAX_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
 
 /// How long killing a child's process group and reaping the child may take together
@@ -111,7 +111,37 @@ impl std::fmt::Display for TimeoutPhase {
     }
 }
 
+/// One of a child's two output streams.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OutputStream {
+    /// Standard output.
+    Stdout,
+    /// Standard error.
+    Stderr,
+}
+
+impl OutputStream {
+    /// The stream's conventional name: `stdout` or `stderr`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Stdout => "stdout",
+            Self::Stderr => "stderr",
+        }
+    }
+}
+
+impl std::fmt::Display for OutputStream {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Why a bounded invocation produced no output.
+///
+/// The enum is `#[non_exhaustive]`: [`Wait`](Self::Wait) and
+/// [`OutputTooLarge`](Self::OutputTooLarge) were added after the first release
+/// (PE-RBP-F012), and a match outside this crate needs a wildcard arm.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum BoundedError {
@@ -120,13 +150,26 @@ pub enum BoundedError {
         /// What the call was waiting for.
         phase: TimeoutPhase,
     },
-    /// The call could not be made: the process could not be started or waited on,
-    /// or the project reference is not supported. The cause is kept as the
-    /// [`BeadsError`] (for a spawn failure, with its `io::Error` source).
+    /// The call could not be made: the process could not be started, or the project
+    /// reference is not supported. The cause is kept as the [`BeadsError`] (for a
+    /// spawn failure, with its `io::Error` source).
     Failed(BeadsError),
-    /// The child's output could not be read, or exceeded [`MAX_OUTPUT_BYTES`]. The
-    /// read error is the source.
+    /// The child was started, but asking whether it had exited, or reaping it, failed
+    /// (PE-RBP-F012). The child's process group (job) was killed. The child may have
+    /// run, so what it did is unknown; the OS error is the source.
+    Wait(io::Error),
+    /// Reading the child's output failed, or a reader thread could not be started or
+    /// ended without a result. The read error is the source. A stream over the cap
+    /// is [`OutputTooLarge`](Self::OutputTooLarge) instead.
     Output(io::Error),
+    /// A stream of the child's output was longer than `limit` bytes (by default
+    /// [`MAX_OUTPUT_BYTES`]); the rest was drained and dropped (PE-RBP-F012).
+    OutputTooLarge {
+        /// The stream that was over the cap.
+        stream: OutputStream,
+        /// The cap, in bytes.
+        limit: usize,
+    },
 }
 
 impl std::fmt::Display for BoundedError {
@@ -134,7 +177,11 @@ impl std::fmt::Display for BoundedError {
         match self {
             Self::TimedOut { phase } => write!(f, "timed out {phase}"),
             Self::Failed(e) => std::fmt::Display::fmt(e, f),
+            Self::Wait(e) => write!(f, "waiting for the child failed: {e}"),
             Self::Output(e) => write!(f, "reading the child's output failed: {e}"),
+            Self::OutputTooLarge { stream, limit } => {
+                write!(f, "the child's {stream} exceeds the cap of {limit} bytes")
+            }
         }
     }
 }
@@ -142,9 +189,9 @@ impl std::fmt::Display for BoundedError {
 impl std::error::Error for BoundedError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            Self::TimedOut { .. } => None,
+            Self::TimedOut { .. } | Self::OutputTooLarge { .. } => None,
             Self::Failed(e) => Some(e),
-            Self::Output(e) => Some(e),
+            Self::Wait(e) | Self::Output(e) => Some(e),
         }
     }
 }
@@ -183,11 +230,13 @@ pub fn run_bounded(
 ///   within `timeout`; a running child's process group is killed and the child
 ///   reaped (or handed to the reaper at [`KILL_BOUND`]) first, under the lock.
 /// - [`BoundedError::Failed`] with [`BeadsError::Spawn`] (`operation` = the first
-///   argument) when the process cannot be started or waiting for it fails, and with
+///   argument) when the process cannot be started, and with
 ///   [`BeadsError::Unsupported`] when the canonical path of `working_dir` is not UTF-8
 ///   ([`ProjectLocks::try_guard_dir`]).
-/// - [`BoundedError::Output`] when a reader thread cannot be started, a read fails,
-///   or a stream exceeds `max_output`.
+/// - [`BoundedError::Wait`] when the started child cannot be polled for its exit or
+///   reaped; its process group (job) is killed first.
+/// - [`BoundedError::Output`] when a reader thread cannot be started or a read fails.
+/// - [`BoundedError::OutputTooLarge`] when a stream exceeds `max_output`.
 pub fn run_bounded_capped(
     binary: &str,
     locks: &ProjectLocks,
@@ -269,11 +318,24 @@ pub(crate) fn run_bounded_in(
 /// is killed the same way, and only then is the child reaped (RCR-001).
 /// `binary` and `operation` name the spawn in a [`BeadsError::Spawn`].
 pub(crate) fn run_child(
+    command: Command,
+    binary: &str,
+    operation: Option<&str>,
+    limit: Instant,
+    max_output: usize,
+) -> Result<CliOutput, BoundedError> {
+    run_child_with(command, binary, operation, limit, max_output, has_exited)
+}
+
+/// [`run_child`] with the exit check `exited` in place of [`has_exited`]: the seam
+/// a test uses to make the wait fail, which no real child can be made to do.
+fn run_child_with(
     mut command: Command,
     binary: &str,
     operation: Option<&str>,
     limit: Instant,
     max_output: usize,
+    exited: fn(&mut Child) -> io::Result<bool>,
 ) -> Result<CliOutput, BoundedError> {
     let spawn_error = |source: io::Error| {
         BoundedError::Failed(BeadsError::Spawn {
@@ -293,17 +355,25 @@ pub(crate) fn run_child(
         .map_err(spawn_error)?;
     let mut spawned = Spawned::start(child).map_err(spawn_error)?;
 
-    let stdout = match drain(spawned.child.stdout.take(), max_output) {
+    let stdout = match drain(
+        spawned.child.stdout.take(),
+        OutputStream::Stdout,
+        max_output,
+    ) {
         Ok(rx) => rx,
         Err(e) => return Err(abort(spawned, BoundedError::Output(e))),
     };
-    let stderr = match drain(spawned.child.stderr.take(), max_output) {
+    let stderr = match drain(
+        spawned.child.stderr.take(),
+        OutputStream::Stderr,
+        max_output,
+    ) {
         Ok(rx) => rx,
         Err(e) => return Err(abort(spawned, BoundedError::Output(e))),
     };
 
     loop {
-        match has_exited(&mut spawned.child) {
+        match exited(&mut spawned.child) {
             Ok(true) => break,
             Ok(false) => {
                 if let Err(timed_out) = wait_or_time_out(limit, TimeoutPhase::Child) {
@@ -313,7 +383,9 @@ pub(crate) fn run_child(
                     return Err(timed_out);
                 }
             }
-            Err(e) => return Err(abort(spawned, spawn_error(e))),
+            // The child is running or gone, not unstarted: a wait failure, never a
+            // spawn failure (PE-RBP-F012).
+            Err(e) => return Err(abort(spawned, BoundedError::Wait(e))),
         }
     }
 
@@ -325,7 +397,7 @@ pub(crate) fn run_child(
         // its group (job): kill that too, so it does not outlive the project lock.
         return Err(abort(spawned, timed_out));
     }
-    let status = spawned.finish().map_err(spawn_error)?;
+    let status = spawned.finish().map_err(BoundedError::Wait)?;
     let (stdout, stderr) = output?;
     Ok(CliOutput {
         status: status.code(),
@@ -482,10 +554,10 @@ fn has_exited(child: &mut Child) -> io::Result<bool> {
 }
 
 /// The output one reader thread sent, waited for until `limit`.
-fn collect(rx: &Receiver<io::Result<Vec<u8>>>, limit: Instant) -> Result<String, BoundedError> {
+fn collect(rx: &Receiver<Drained>, limit: Instant) -> Result<String, BoundedError> {
     match rx.recv_timeout(limit.saturating_duration_since(Instant::now())) {
         Ok(Ok(bytes)) => Ok(String::from_utf8_lossy(&bytes).into_owned()),
-        Ok(Err(e)) => Err(BoundedError::Output(e)),
+        Ok(Err(e)) => Err(e),
         Err(RecvTimeoutError::Timeout) => Err(BoundedError::TimedOut {
             phase: TimeoutPhase::Output,
         }),
@@ -506,12 +578,18 @@ fn wait_or_time_out(limit: Instant, phase: TimeoutPhase) -> Result<(), BoundedEr
     Ok(())
 }
 
-/// Starts a thread that reads `pipe` to the end and sends what it read, or the read
-/// error, or [`io::ErrorKind::Other`] when the stream is longer than `max_output`.
+/// What a reader thread sends: the stream's bytes, or why there are none
+/// ([`BoundedError::Output`] or [`BoundedError::OutputTooLarge`]).
+type Drained = Result<Vec<u8>, BoundedError>;
+
+/// Starts a thread that reads `pipe` (the child's `stream`) to the end and sends what
+/// it read, or [`BoundedError::Output`] with the read error, or
+/// [`BoundedError::OutputTooLarge`] when the stream is longer than `max_output`.
 fn drain<R: Read + Send + 'static>(
     pipe: Option<R>,
+    stream: OutputStream,
     max_output: usize,
-) -> io::Result<Receiver<io::Result<Vec<u8>>>> {
+) -> io::Result<Receiver<Drained>> {
     let (tx, rx) = mpsc::channel();
     let Some(mut pipe) = pipe else {
         // Both pipes were requested with `Stdio::piped()`; an absent one yields empty output.
@@ -530,12 +608,13 @@ fn drain<R: Read + Send + 'static>(
                 Ok(_) if bytes.len() > max_output => {
                     // Keep reading and discard, so the child is not stalled on a full pipe.
                     let _ = io::copy(&mut pipe, &mut io::sink());
-                    Err(io::Error::other(format!(
-                        "output exceeds the cap of {max_output} bytes"
-                    )))
+                    Err(BoundedError::OutputTooLarge {
+                        stream,
+                        limit: max_output,
+                    })
                 }
                 Ok(_) => Ok(bytes),
-                Err(e) => Err(e),
+                Err(e) => Err(BoundedError::Output(e)),
             };
             // The receiver is gone when the call timed out; nothing to report.
             let _ = tx.send(result);
@@ -1032,7 +1111,6 @@ mod job {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(unix)]
     use super::*;
 
     /// Whether `pid` names a process that exists and is not a zombie.
@@ -1130,5 +1208,58 @@ mod tests {
             &mut child,
             Instant::now() + Duration::from_secs(10)
         ));
+    }
+
+    /// The exit check that fails as `waitid` / `try_wait` would on an OS error.
+    fn failing_exit_check(_: &mut Child) -> io::Result<bool> {
+        Err(io::Error::other("injected wait failure"))
+    }
+
+    /// A child that runs far longer than the test waits.
+    fn long_running() -> Command {
+        #[cfg(windows)]
+        {
+            let mut c = Command::new("ping");
+            c.args(["-n", "30", "127.0.0.1"]);
+            c
+        }
+        #[cfg(not(windows))]
+        {
+            let mut c = Command::new("sleep");
+            c.arg("30");
+            c
+        }
+    }
+
+    /// PE-RBP-F012: a started child whose exit check fails is a wait failure that
+    /// keeps the OS error, never a spawn failure, and the child is killed rather than
+    /// waited for.
+    ///
+    /// No real child can be made to fail `waitid` / `try_wait`, so the exit check is
+    /// injected through `run_child_with`; spawning, draining and the kill are real.
+    #[test]
+    fn a_failed_exit_check_is_a_wait_error_not_a_spawn_failure() {
+        let started = Instant::now();
+        let r = run_child_with(
+            long_running(),
+            "sleep",
+            Some("30"),
+            started + Duration::from_secs(60),
+            MAX_OUTPUT_BYTES,
+            failing_exit_check,
+        );
+        match &r {
+            Err(BoundedError::Wait(e)) => assert_eq!(e.to_string(), "injected wait failure"),
+            other => panic!("expected BoundedError::Wait, got {other:?}"),
+        }
+        assert!(
+            !matches!(&r, Err(BoundedError::Failed(BeadsError::Spawn { .. }))),
+            "{r:?}"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "the child was waited for: {:?}",
+            started.elapsed()
+        );
     }
 }

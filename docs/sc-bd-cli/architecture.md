@@ -80,6 +80,9 @@ Decision, classification (`cache::check_exit`, in this order):
 | any other nonzero exit | `Failed { code, stderr }` (`-1` when ended by a signal); in `fingerprint`, `CheckFailed { step, code, stderr }` |
 | deadline passed before the call, or reached during it | `Unavailable { timed_out: true }` |
 | bd cannot be started, or the project is not local | `Btit(Spawn)` / `Btit(Unsupported)` |
+| bd's output cannot be read (`BoundedError::Output`) | `Transport`, the read error as its `source` (PE-RBP-F001) |
+| a stream exceeds `MAX_OUTPUT_BYTES` (`BoundedError::OutputTooLarge { stream, limit }`) | `Transport`, its `source` an `io::ErrorKind::FileTooLarge` naming the stream and the cap (PE-RBP-F012) |
+| bd started but could not be polled for its exit or reaped (`BoundedError::Wait`) | `Transport`, the OS error as its `source` (PE-RBP-F012) |
 | stdout breaks the strict row contract | `Contract`, from `parse_bd_rows` / `parse_blocked_rows` |
 
 Why this shape: exit 13 is the only typed signal bd gives (`bd update --help`).
@@ -92,6 +95,10 @@ change degrades to `Failed`, never to a success. A bd that cannot be started is
 `Btit(Spawn)` rather than `Unavailable` so the `io::Error` stays in the `source`
 chain (`Unavailable` carries only text); `BeadsCacheError::is_unavailable()`
 covers it by design (ADR-BEADS-0002), so the cache treats it as an outage.
+A wait failure is not a spawn failure and not an outage: bd did start and may have
+finished, a write included, so what it did is unknown. It is `Transport`, like output
+that could not be read, which the cache maps by call kind (`BD_WRITE_FAILED` for a
+write) instead of treating it as a safe-to-retry `BD_UNAVAILABLE` (PE-RBP-F012).
 
 Consequences: any new flag or form is one function in `argv.rs` with a literal
 test; a bd release that changes a form or a message fails the compat workflow's live
@@ -146,11 +153,13 @@ Decision:
   outlives the call on both platforms. The public `kill_and_reap(&mut Child)` is
   bounded by `KILL_BOUND` as well; it cannot move a borrowed child to the reaper, so a
   child still there at the bound stays with its owner. Two reader threads drain stdout and stderr and send
-  `io::Result<Vec<u8>>`, so a read error is `BoundedError::Output` with the real
-  `io::Error` as its source (the cache reports it as `Contract`, field `output`, not as
-  a spawn failure). Each stream is capped at `MAX_OUTPUT_BYTES` (64 MiB): the excess is
-  read and dropped so the child is not stalled, and the call fails with a message naming
-  the cap. After a kill the readers are abandoned, not waited for: they end when the
+  the bytes or the error, so a read error is `BoundedError::Output` with the real
+  `io::Error` as its source (the cache reports it as `Transport`, not as a spawn
+  failure). Each stream is capped at `MAX_OUTPUT_BYTES` (64 MiB): the excess is read and
+  dropped so the child is not stalled, and the call fails with
+  `BoundedError::OutputTooLarge { stream, limit }`, distinct from a read error
+  (PE-RBP-F012). A failed exit check or reap of a started child is
+  `BoundedError::Wait`, never `Failed(Spawn)`; the child's group (job) is killed first. After a kill the readers are abandoned, not waited for: they end when the
   pipes close, even if a grandchild holds them, and nothing they hold is needed. After a
   normal exit, waiting for them is bounded by the same deadline (`Output` phase).
   Standard input is closed. The environment and working directory are btit's: the

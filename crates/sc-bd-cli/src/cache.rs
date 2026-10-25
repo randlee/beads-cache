@@ -7,7 +7,9 @@
 //! | Outcome | Result |
 //! |---|---|
 //! | the deadline has already passed, or runs out during the call | `Unavailable { timed_out: true }`, the reason naming the phase (lock, child, output) |
-//! | the child's output cannot be read, or exceeds `MAX_OUTPUT_BYTES` | `Transport`, the read error as its `source` (PE-RBP-F001) |
+//! | the child's output cannot be read | `Transport`, the read error as its `source` (PE-RBP-F001) |
+//! | a stream exceeds `MAX_OUTPUT_BYTES` | `Transport`, its `source` an `io::ErrorKind::FileTooLarge` naming the stream and the cap (PE-RBP-F012) |
+//! | `bd` started but could not be polled for its exit or reaped | `Transport`, the OS error as its `source`: bd may have run, so this is not `Unavailable` (PE-RBP-F012) |
 //! | a guarded close whose guard check finds no row for the bead | `NotFound` (PE-RBP-F013) |
 //! | `bd` cannot be started (or the project is not local) | `Btit(Spawn)` / `Btit(Unsupported)`: [`BeadsCacheError::is_unavailable`] is true for a spawn failure, and the `io::Error` stays in the `source` chain |
 //! | exit 13 | `Refused(Refusal::Precondition)` |
@@ -134,11 +136,35 @@ impl BdCli {
                 return Err(timed_out(&what, phase.as_str()));
             }
             Err(BoundedError::Failed(e)) => return Err(BeadsCacheError::Btit(e)),
-            // Output that cannot be read whole, or is over the cap, is a transport
-            // failure, not a row-contract break: nothing was parsed. The read error
-            // stays the source.
+            // Output that cannot be read whole is a transport failure, not a
+            // row-contract break: nothing was parsed. The read error stays the source.
             Err(BoundedError::Output(source)) => {
                 log_error!("[bd] {what}: reading the output failed: {source}");
+                return Err(BeadsCacheError::Transport { what, source });
+            }
+            // Output over the cap is a transport failure too, but not a read error:
+            // the source names the stream and the cap, with its own kind
+            // (PE-RBP-F012).
+            Err(BoundedError::OutputTooLarge { stream, limit }) => {
+                log_error!("[bd] {what}: {stream} exceeds the cap of {limit} bytes");
+                return Err(BeadsCacheError::Transport {
+                    what,
+                    source: std::io::Error::new(
+                        std::io::ErrorKind::FileTooLarge,
+                        format!("{stream} exceeds the cap of {limit} bytes"),
+                    ),
+                });
+            }
+            // A child that was started but could not be polled or reaped is a
+            // transport failure, not `Unavailable` (PE-RBP-F012). `Unavailable` (and
+            // btit's `Spawn`, which `is_unavailable` counts as one) says bd or its
+            // server could not be reached, so nothing ran and a retry later is safe.
+            // Here bd did start, and may have finished and written: what it did is
+            // unknown, as with output that could not be read. So it takes the same
+            // path as an unreadable output: `Transport`, mapped by call kind
+            // (`BD_WRITE_FAILED` for a write), with the OS error as the source.
+            Err(BoundedError::Wait(source)) => {
+                log_error!("[bd] {what}: waiting for bd failed: {source}");
                 return Err(BeadsCacheError::Transport { what, source });
             }
         };
@@ -377,12 +403,12 @@ mod tests {
         BeadId::new(s).unwrap_or_else(|e| panic!("{e}"))
     }
 
-    /// PE-RBP-F001: unreadable or oversized output is a transport failure that keeps
-    /// the read error, never a row-contract break.
+    /// PE-RBP-F001: unreadable output is a transport failure that keeps the read
+    /// error, never a row-contract break.
     #[test]
     fn unreadable_output_is_transport_with_the_read_error_as_source() {
         let cli = scripted(Err(BoundedError::Output(std::io::Error::other(
-            "stdout exceeded the cap",
+            "the pipe broke",
         ))));
         let e = cli
             .list_by_ids(&ProjectRef::local(None), &[bead_id("b-1")], deadline())
@@ -392,7 +418,7 @@ mod tests {
             "{e:?}"
         );
         let io = std::error::Error::source(&e).expect("the read error is kept");
-        assert_eq!(io.to_string(), "stdout exceeded the cap");
+        assert_eq!(io.to_string(), "the pipe broke");
         assert!(!e.is_unavailable());
     }
 
