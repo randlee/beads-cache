@@ -95,10 +95,13 @@ journaled reads back identically.
 A write reply carries the view after the write, `changed` (a close:
 `already_closed = !changed`) and `x_cache {seq, state, duplicate,
 idempotency_key}`; on a duplicate, `changed` is the value stored with the
-original entry.
+original entry. When that value is unknown (lead ruling S68: a duplicate of
+an entry with no stored `changed` that is no longer pending), `changed` is
+absent, never `null` and never guessed; `already_closed` is `!changed`, so
+it is absent too.
 
 **Refines:** REQ-BDC-0809, contract §5.1
-**Acceptance evidence:** `writes` (`tests/fixtures.rs`).
+**Acceptance evidence:** `writes` (`tests/fixtures.rs`); `tests/unknown_changed.rs`.
 
 ## REQ-API-0008: Contract version and no front-end dependency
 
