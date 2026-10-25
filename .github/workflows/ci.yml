@@ -131,7 +131,12 @@ jobs:
           if [ "$fail" -ne 0 ]; then exit 1; fi
           echo "transitive boundaries ok: no sc-command or clap under bd-cache-api, bd-cache-py"
 
-      - name: Release scripts tests (scripts/prerelease_tag.py)
+      # ADR-BDC-0010 boundary lint. The step is not named after what it forbids:
+      # that name would itself be a hit outside the exempt paths.
+      - name: Strict consumer boundary (ADR-BDC-0010)
+        run: python3 scripts/lint_no_atm.py
+
+      - name: Release and lint scripts tests (scripts/test_*.py)
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
 
   # Clippy and tests on every supported OS (QA-004).
