@@ -493,7 +493,7 @@ Three cases have fixed answers:
 | `journal list` | `{entries: [Entry]}` | seq, ascending |
 | `journal resolve` | `{entry, already_resolved: bool}`. An entry already resolved returns `true` and is left unchanged; a pending or applied entry is `NOT_ESCALATED`. | — |
 | `journal announce` | `{entry, already_announced: bool}` | — |
-| `cache tick` | `TickReply`, with each `refused[]` item an OpError | as produced |
+| `cache tick` | the on-demand run's reply: each scope's result and error (§6.1; the `TickReply` with `refused[]` is removed by sprint b-7) | as produced |
 
 `Entry` is `{seq, idempotency_key, scope, bead, op, args, expected_status,
 expected_assignee, actor, state, attempts, last_error: OpError|null, note:
@@ -507,6 +507,23 @@ str|null, announced_at, created_at, applied_at}`.
   (REQ-BDC-0804).
 - `Outage.last_error` is decoded from the stored text `CODE: detail`, and an
   alert is decoded from either writer's format (`AlertCause::from_stored`).
+
+### 6.1 Commands and members landing in sprint b-7 (ADR-BDC-0010)
+
+Everything in this subsection lands in sprint b-7
+(`docs/plans/phase-b/sprint-b-7-sync-job.md`); until it merges the binary does
+not offer it. The data shapes are fixed by b-7 and written into the tables
+above when it lands. beads-cache sends no messages: the built-in sync
+records state, and a registered hook acts on it.
+
+| Item | Contract | Lands in |
+|---|---|---|
+| `bdc cache schedule set\|show\|enable\|disable\|clear` | Manages the built-in sync row in the cache file's SQLite cron table. There is at most one built-in row per repository, and a second is refused (REQ-BDC-0701). A row has a cron string, a timeout (the sync budget, REQ-BDC-0703), a JSON payload, an `enabled` flag and a hook target (ADR-BDC-0010). `enable` and `disable` flip only sc-cron's `enabled` column on the existing row, without rewriting it; a consumer disables the built-in row this way before enabling its own Python row. | b-7 |
+| `bdc cache tick` | Runs the built-in sync once, on demand, with the job's budget. The schedule stays in the cron table. The `refused` and `pass-through` replies are gone: the reply carries each scope's result and error. | b-7 |
+| `bdc cache scopes ingest` and `ingest_scope(scope, rows, blocked, revision=None)` | Feeds the cache from a consumer's own sync (REQ-BDC-0708). Rules: the **strict row decoder** of the built-in sync; **nothing is stored on a bad row** (one bad row rejects the whole ingest, in one all-or-nothing transaction); the **newer-row guard** (an older row never replaces a newer one). Offered in Rust, in the CLI and in the Python binding, as an addition (REQ-BDC-0812). | b-7 |
+| Post-sync hook request | After each built-in sync the job calls the optional hook named in its row's payload, through sc-cron's Python runner, bounded by the row's timeout (NFR-BDC-0004). The request carries each scope's result and error, its `failing_since` and notified state, the escalated entries not yet notified, and the pending count. Reads never wait on the hook (REQ-BDC-0001). | b-7 |
+| `cache journal announce` and `cache scopes announce --since` | How the hook marks what it handled: `journal announce` for an escalated entry, and the compare-and-set `scopes announce --since` for a scope's sync failure. What the hook does not mark is offered again on the next run (REQ-BDC-0706). | b-7 |
+| `details.outage` | An error that can come from bd carries `details.outage: bool`, true only when bd could not be reached. A `BD_LIST_FAILED` from a bd that answered has `outage: false`. Reads keep coming from the cache during an outage (ADR-BDC-0005). | b-7 |
 
 ## 7. Audit pairs
 
