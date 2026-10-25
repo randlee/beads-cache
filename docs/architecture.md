@@ -1,6 +1,6 @@
 # beads-cache Architecture
 
-Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase.
+Status: approved. ADR-BDC-0001..0007 are Approved by lead ruling (2026-10-24); ADR-BDC-0008 is Draft for a later phase; ADR-BDC-0009 is Approved (lead ruling S60, 2026-10-25).
 
 ## Overview
 
@@ -144,11 +144,12 @@ integrating with sc-runtime.
 | `sc-bd-http` (shared, published) | The `bd serve` HTTP implementation of the same traits | `sc-beads` | when bd releases the `id` and `updated_after` filters |
 | `bd-cache-store` | Implements `CacheStore` and `DrainLock` over SQLite: BD-CACHE v3 tables unchanged plus additive tables and nullable columns, file location from `.beads/metadata.json`, meta and rebuild rule, journal, scopes and membership, edges index, outage record, cross-process drain lock (`flock`) | `bd-cache-model`, `sc-beads` (logging through `sc_beads::logging::tracing`), rusqlite (bundled), fs4, serde_json (the list and the test-only features are ADR-STORE-0005) | a |
 | `bd-cache` (core library) | `Cache`: get, list, write, drain, sync, resolve, prune, status, the ready base and local adjustment (ADR-BDC-0002) and outage handling (ADR-BDC-0005); shared `view`, `backend_check` and `miss` helpers; takes a `CacheConfig` and a `Clock` | `bd-cache-model`, `sc-beads` | a |
-| `bdc` binary (`bd-cache`) | JSON-first CLI, mapped to `/v0` vocabulary where it makes sense; BD-CACHE CLI contract | core, sc-command / sc-config | after sc-runtime |
+| `bd-cache-api` (ADR-BDC-0009) | Request and data models, the shared request decoder, the operation layer (filters, paging, order, `/v0` mapping), the error registry, schemars schemas; no sc-command, no clap | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars | b |
+| `bd-cache-cli` (binaries `bd-cache`, `bdc`; ADR-BDC-0009) | JSON-first CLI per `docs/bd-cache-cli/contract.md`: clap argv to request, sc-command envelope, `--format text`. Config through `load_repo_config` plus `BD_CACHE__*` env overrides; no sc-config dependency until it offers a missing-allowed file source | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads`, sc-command, clap | b |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from atm-core's `atm-cron`: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no ATM or bd-cache types (ADR-BDC-0006) | cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing | a |
 | `bd-cache-sync` | The sync task on `sc-cron`: `tick` (drain with `T - 5 s` / `T - 2 s`, then sync each active phase, deferring any not started by `T - 2 s`), `stop_reason`, announcements through `EscalationSender` (sync failures once per cause, outage once per scope as the alert `backend_unavailable`, escalations once with the `resolve` command; `AtmSender`, which runs `atm send`, is one implementation), `SyncJob` (the `sc-cron` job: `Cache` in `Arc<Mutex<_>>` under `spawn_blocking`), `schedule_spec`, and `compose` (the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, toml (phase files), tracing, libc (Unix only: O_NONBLOCK) (the list is ADR-SYNC-0006) | a |
 | `bd-cache-py` | Python module (maturin / PyO3) over the concrete composition with atm-bd's verbs; replies as dicts, `CacheError` as one exception class | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, pyo3, serde, serde_json, dunce | a |
-| MCP server | HTTPS MCP front end over the core | core, sc-runtime, sc-transport | later |
+| MCP server | HTTPS MCP front end over `bd-cache-api` (ADR-BDC-0009) | `bd-cache-api`, `bd-cache-sync`, sc-command (server), sc-runtime, sc-transport | later |
 
 Phase a acceptance runs through the core library API with the fake
 backend: the ported cases from `test_bd_cache.py` (44), the 13 cases from
@@ -174,7 +175,9 @@ workspace crates (third-party edges are in the Crate Layout table):
 | `bd-cache-store` | `bd-cache-model`, `sc-beads` |
 | `bd-cache` | `bd-cache-model`, `sc-beads` (never the store or `sc-bd-cli`) |
 | `bd-cache-sync` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-cron`, `sc-beads` |
-| `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads` |
+| `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads`, `bd-cache-api` (ADR-BDC-0009) |
+| `bd-cache-api` | `bd-cache`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009) |
+| `bd-cache-cli` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009) |
 
 `bd-cache-model` does no I/O. `sc-beads`, `sc-bd-cli` and `sc-cron` depend on
 no bd-cache crate, so they can move or be published on their own.
@@ -203,6 +206,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0006 | Approved | `sc-cron` (ADR-CRON-0001..0006), `bd-cache-sync` (dependencies listed in the Crate Layout) |
 | ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0004) |
 | ADR-BDC-0008 | Draft | not in phase a |
+| ADR-BDC-0009 | Approved | not yet implemented (`docs/bd-cache-cli/contract.md`) |
 
 ## ADR-BDC-0001: Sync scopes with per-scope cursors and bead membership
 
@@ -323,7 +327,9 @@ precondition keys, with room for `expected_version`; refusals keep the
 `BD_CACHE.*` codes and add a `reason` using `/v0` names
 (`precondition_failed`, `not_closable`, `already_claimed`). The CLI keeps its
 cache verbs (`get`, `list`, `write`, `drain`, `sync`, `resolve`, `prune`,
-`status`), because a journaled write is not an applied write.
+`status`), because a journaled write is not an applied write. *(This
+command-structure clause is superseded by ADR-BDC-0009; the rest of this ADR
+stands.)*
 
 Consequences: every change is additive to the BD-CACHE CLI contract and
 needs agreement on #557.
@@ -562,6 +568,40 @@ Open:
 Consequences: adds schema-package loading, version selection and a validator
 to `sc-beads`, a new error code, and a pour-time version stamp in each
 consuming skill.
+
+## ADR-BDC-0009: CLI and MCP command structure: a /v0-shaped beads surface and a cache surface
+
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25). Amends ADR-BDC-0003.
+
+Context: ADR-BDC-0003 aligned the data vocabulary with bd serve `/v0` but kept
+BD-CACHE's command structure ("align the data vocabulary, not the command
+structure"; the CLI keeps `get`, `list`, `write`, `drain`, `sync`, `resolve`,
+`prune`, `status`). Rand's direction (2026-10-24) is that an agent using the
+cache over MCP should see the same operations as talking to beads directly,
+and that cache management should use conventional cache terms. Lead ruling
+S59 superseded REQ-BDC-0806 (CLI drop-in), so no hook depends on the old
+command lines.
+
+Decision:
+- **Supersedes ADR-BDC-0003's command-structure clause only.** Its data
+  vocabulary (patch keys, `expected_status` / `expected_assignee`, `/v0`
+  refusal names, `BD_CACHE.*` codes) stands.
+- The CLI and MCP tools expose two surfaces (`docs/bd-cache-cli/contract.md`):
+  a beads surface shaped like `/v0` at a pinned beads release (`bdc issues
+  get|list|update|close`, `bdc ready`, `bdc dependencies list|add`, `bdc
+  context`), whose bodies are the `/v0` bodies plus one `x_cache` member,
+  with a published divergence list; and a cache surface (`bdc cache status|
+  health|scopes|refresh|flush|evict|journal|tick`).
+- A journaled write is still not an applied write: every write reply names
+  its journal `seq` and `state`.
+- Every reply is an sc-command envelope; the request, data and error models
+  live in a new `bd-cache-api` crate shared by the CLI, the MCP server and
+  `bd-cache-py`.
+
+Consequences: REQ-BDC-0801, 0802 and 0803 are amended as in the contract's
+Appendix A, applied in `docs/requirements.md` (S60); new crates `bd-cache-api` and `bd-cache-cli`
+in the Crate Layout and Boundaries tables; the Python binding gains the two
+surfaces additively (wheel 0.2.0) and keeps its 0.1 verbs.
 
 ## Per-Crate Architecture
 
