@@ -25,8 +25,10 @@
 //! --probe` needs a public backend check).
 //!
 //! What the stub cannot do as b-1 will: it does not run in one store
-//! transaction, and it does not store `changed`. On a duplicate it
-//! recomputes the original `changed` from the stored row and the entries
+//! transaction, and it does not store `changed`. On a duplicate of an entry
+//! no longer pending it answers `None` (unknown, lead ruling S68), as b-1
+//! does for an entry with no stored `changed`. On a duplicate of a pending
+//! entry it recomputes the original `changed` from the stored row and the entries
 //! journaled before the original one, which equals the stored value while
 //! those entries are still pending (every test here).
 
@@ -51,7 +53,9 @@ pub(crate) struct WriteOutcome {
     /// The key already journaled this write.
     pub(crate) duplicate: bool,
     /// Stored with the entry; on a duplicate, the stored value.
-    pub(crate) changed: bool,
+    /// `None`: unknown (lead ruling S68), a duplicate of an entry with no
+    /// stored `changed` that is no longer pending.
+    pub(crate) changed: Option<bool>,
 }
 
 /// b-1's `StateCounts` (Serialize, with `get`, `add` and `sum`).
@@ -231,10 +235,14 @@ pub(crate) fn write_returning<S: CacheStore, L: DrainLock, B: CacheBackend>(
         None => cache.get(id, None)?.row,
     };
     let before = before.unwrap_or_else(|| after.clone());
-    let changed = if reply.duplicate {
-        original_changed(cache, &entry)?
+    let changed = if !reply.duplicate {
+        Some(changed_by(&op, &before.bead))
+    } else if entry.state == JournalState::Pending {
+        Some(original_changed(cache, &entry)?)
     } else {
-        changed_by(&op, &before.bead)
+        // The stub stores no `changed`, so an entry no longer pending is
+        // the S68 case: a duplicate of an entry with nothing stored.
+        None
     };
     Ok(WriteOutcome {
         entry,

@@ -64,8 +64,11 @@ pub struct IssuesUpdateData {
     /// The view after the write.
     pub issue: Bead,
     /// The overlay changed the view (a prediction: bd decides at flush);
+    /// absent when unknown (lead ruling S68: a duplicate of an entry with no
+    /// stored value that is no longer pending), never `null` or a guess;
     /// on a duplicate, the value stored with the original entry.
-    pub changed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub changed: Option<bool>,
     /// The journal entry.
     pub x_cache: WriteXCache,
 }
@@ -76,7 +79,10 @@ pub struct IssuesCloseData {
     /// The view after the write.
     pub issue: Bead,
     /// The view before the write was closed; on a duplicate, the stored value.
-    pub already_closed: bool,
+    /// It is `!changed` (a close stores `changed = !already_closed`, S62),
+    /// so it is absent exactly when `changed` is unknown (S68).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub already_closed: Option<bool>,
     /// The journal entry.
     pub x_cache: WriteXCache,
 }

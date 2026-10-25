@@ -24,6 +24,8 @@ serde_json.workspace = true
 schemars.workspace = true
 
 [dev-dependencies]
+# Test hooks onto the store (tests/unknown_changed.rs seeds a pre-b-1 entry).
+bd-cache = { workspace = true, features = ["testing"] }
 bd-cache-model = { workspace = true, features = ["testing"] }
 sc-beads = { workspace = true, features = ["testing"] }
 

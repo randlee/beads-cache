@@ -288,7 +288,8 @@ pub fn issues_close<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(IssuesCloseData {
         x_cache: write_x_cache(&o),
         // A close stores `changed = !already_closed` (lead ruling S62).
-        already_closed: !o.changed,
+        // and an unknown `changed` leaves it unknown, so absent (S68).
+        already_closed: o.changed.map(|c| !c),
         issue: o.after.bead,
     })
 }
