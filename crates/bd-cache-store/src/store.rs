@@ -2034,6 +2034,16 @@ mod tests {
             "probe_mark",
             "AFTER UPDATE OF announced_at ON main.journal",
         );
+        // Less time left than the store's own timeout: the time left, as the
+        // alert's (the planted bug S33 gave the mark the full timeout).
+        store.mark_announced_within(seq, &at, quarter).unwrap();
+        assert_eq!(mark.load(Ordering::SeqCst), ms(quarter), "the time left");
+        assert_eq!(busy_timeout_ms(&store.conn), normal, "restored afterwards");
+        store
+            .mark_announced_within(seq, &at, Duration::ZERO)
+            .unwrap();
+        assert_eq!(mark.load(Ordering::SeqCst), 0, "no time left: no wait");
+        assert_eq!(busy_timeout_ms(&store.conn), normal);
         // More time left than the store's own timeout: capped at it.
         store
             .mark_announced_within(seq, &at, Duration::from_secs(60))
