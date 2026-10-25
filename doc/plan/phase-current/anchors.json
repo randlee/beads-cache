@@ -848,14 +848,14 @@
       "deterministic_check": "grep -n 'docs/team-protocol.md' scripts/lint_no_atm.py shows it in EXEMPT_FILES; git diff <phase base>..HEAD -- docs/team-protocol.md is empty",
       "fixtures": {
         "pass": [
-          "The lint adds a scope-prefix rule and keeps docs/team-protocol.md in EXEMPT_FILES unchanged."
+          "The lint adds a scope-prefix rule and keeps docs/team-protocol.md in EXEMPT_FILES; grep -n team-protocol scripts/lint_no_atm.py shows the EXEMPT_FILES entry and git diff integrate/phase-b -- docs/team-protocol.md is empty (output attached)."
         ],
         "fail": [
           "The sprint moves docs/team-protocol.md out of docs/ and removes it from the lint's exemptions."
         ]
       },
       "question_overrides": {},
-      "version": 3,
+      "version": 4,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -891,6 +891,13 @@
           "fields": [
             "deterministic_check",
             "kind"
+          ]
+        },
+        {
+          "at": "2026-10-25T21:57:20+00:00",
+          "event": "updated",
+          "fields": [
+            "fixtures"
           ]
         }
       ]
@@ -1083,14 +1090,14 @@
       "deterministic_check": "every numbered deliverable under '## Deliverables' in docs/plans/phase-b/sprint-*.md cites at least one REQ-* or ADR-* id, and each cited id exists in docs/requirements.md, docs/*/requirements.md or docs/**/architecture.md",
       "fixtures": {
         "pass": [
-          "Deliverable 3 adds the enabled column to sc-cron's schedule table (REQ-CRON-0004, ADR-SCCRON-0003); deliverable 4 adds ingest_scope (REQ-BDC-0812)."
+          "Deliverable 3 adds the enabled column (REQ-CRON-0014) and deliverable 4 adds ingest_scope (REQ-BDC-0007); the citation check script lists every deliverable with an existing REQ or ADR id and exits 0 (output attached)."
         ],
         "fail": [
           "Deliverable 3 adds a metrics dashboard and a retry daemon to bd-cache-sync; no requirement or ADR is cited for either."
         ]
       },
       "question_overrides": {},
-      "version": 4,
+      "version": 5,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -1135,6 +1142,13 @@
             "deterministic_check",
             "kind"
           ]
+        },
+        {
+          "at": "2026-10-25T21:57:20+00:00",
+          "event": "updated",
+          "fields": [
+            "fixtures"
+          ]
         }
       ]
     },
@@ -1148,7 +1162,7 @@
       "stated_by": "randlee",
       "stated_at": "2026-10-25",
       "context": "planning session",
-      "summary": "Reads never wait on the backend",
+      "summary": "Reads never start bd",
       "scope": "any bead that changes the read path, the sync job, a post-sync hook or a Python sync method",
       "deterministic_check": "test_miss_fetches_once_then_serves_from_cache passes; a read during a running sync or hook test starts no bd process",
       "fixtures": {
@@ -1160,7 +1174,7 @@
         ]
       },
       "question_overrides": {},
-      "version": 2,
+      "version": 3,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -1203,6 +1217,13 @@
           "item": "b-6",
           "reason": "sc-cron has no bd dependency and no cache read path.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-25T21:52:03+00:00",
+          "event": "updated",
+          "fields": [
+            "summary"
+          ]
         }
       ],
       "exclude": [

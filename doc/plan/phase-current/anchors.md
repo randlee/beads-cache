@@ -19,7 +19,7 @@ Intent: `doc/plan/phase-current/intent.md`
 | ADR-BDC-0009 | locked | bdc has a beads surface and a cache surface | 2026-10-25 |
 | ADR-STORE-0001 | locked | Store file stays v3 plus additive extensions | 2026-10-25 |
 | ANC-011 | locked | Only code justified by a REQ or ADR | 2026-10-25 |
-| REQ-BDC-0001 | locked | Reads never wait on the backend | 2026-10-25 |
+| REQ-BDC-0001 | locked | Reads never start bd | 2026-10-25 |
 | REQ-BDC-0006 | locked | Backend access only through bd | 2026-10-25 |
 | REQ-BDC-0007 | locked | Strict row contract on every ingested row | 2026-10-25 |
 | REQ-BDC-0008 | locked | A bad row stores nothing | 2026-10-25 |
@@ -246,7 +246,7 @@ Anchor: The no-ATM lint (script scripts/lint_no_atm.py; ATM is the agent-team me
 
 > team-protocol stays as it is and is exempting from lint.
 
-Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 3.
+Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 4.
 
 Summary: team-protocol stays exempt from the lint
 
@@ -257,7 +257,7 @@ Deterministic check to pair with the development gate: grep -n 'docs/team-protoc
 Beads: anchor `bdc-7qk`, plan questions `bdc-7qk.1`, dev questions `bdc-7qk.2`
 
 Fixtures:
-- pass: The lint adds a scope-prefix rule and keeps docs/team-protocol.md in EXEMPT_FILES unchanged.
+- pass: The lint adds a scope-prefix rule and keeps docs/team-protocol.md in EXEMPT_FILES; grep -n team-protocol scripts/lint_no_atm.py shows the EXEMPT_FILES entry and git diff integrate/phase-b -- docs/team-protocol.md is empty (output attached).
 - fail: The sprint moves docs/team-protocol.md out of docs/ and removes it from the lint's exemptions.
 
 ## ADR-BDC-0009
@@ -313,7 +313,7 @@ Anchor: Every code deliverable in a phase-B sprint plan must cite a REQ or ADR i
 
 > Add an anchor for only allowing code that is justified by req/adr to keep project tight.
 
-Said by Rand, phase-b planning session, 2026-10-25 (Rand), 2026-10-25. Status: locked. Version 4.
+Said by Rand, phase-b planning session, 2026-10-25 (Rand), 2026-10-25. Status: locked. Version 5.
 
 Summary: Only code justified by a REQ or ADR
 
@@ -324,7 +324,7 @@ Deterministic check to pair with the development gate: every numbered deliverabl
 Beads: anchor `bdc-9hq`, plan questions `bdc-9hq.1`, dev questions `bdc-9hq.2`
 
 Fixtures:
-- pass: Deliverable 3 adds the enabled column to sc-cron's schedule table (REQ-CRON-0004, ADR-SCCRON-0003); deliverable 4 adds ingest_scope (REQ-BDC-0812).
+- pass: Deliverable 3 adds the enabled column (REQ-CRON-0014) and deliverable 4 adds ingest_scope (REQ-BDC-0007); the citation check script lists every deliverable with an existing REQ or ADR id and exits 0 (output attached).
 - fail: Deliverable 3 adds a metrics dashboard and a retry daemon to bd-cache-sync; no requirement or ADR is cited for either.
 
 ## REQ-BDC-0001
@@ -333,9 +333,9 @@ Anchor: A read of a cached bead must be answered from the local SQLite file with
 
 > A read of a cached bead must be answered from the local SQLite file without starting a bd process.
 
-Said by randlee, planning session, 2026-10-25. Status: locked. Version 2.
+Said by randlee, planning session, 2026-10-25. Status: locked. Version 3.
 
-Summary: Reads never wait on the backend
+Summary: Reads never start bd
 
 Scope: any bead that changes the read path, the sync job, a post-sync hook or a Python sync method
 
