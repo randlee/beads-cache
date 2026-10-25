@@ -16,6 +16,11 @@
 //! and a wall-clock jump cannot cut it short. A tick that comes due while
 //! the previous run is still in flight is skipped and logged. Every store
 //! write names `(id, generation)`; a fenced write makes the worker reload.
+//!
+//! A run is a Rust job or a Python module ([`HookTarget`], REQ-CRON-0013), and
+//! its stop check answers continue, disable or delete (REQ-CRON-0005,
+//! ADR-CRON-0007). A disabled schedule has no slot, so it never fires
+//! (REQ-CRON-0014).
 
 use std::future::poll_fn;
 use std::pin::Pin;
@@ -28,9 +33,10 @@ use tokio::sync::{oneshot, watch};
 use tokio::task::{JoinError, JoinHandle};
 
 use crate::clock::{sleep_until_monotonic, wall_after};
+use crate::hook::{Step, stop_step, tick_outcome};
 use crate::{
-    Clock, CronError, Job, MissedTickPolicy, RunOutcome, Schedule, ScheduleStore, StopDecision,
-    StoreError, StoreErrorKind, Timestamp,
+    Clock, CronError, HookCall, HookEvent, HookTarget, MissedTickPolicy, RunOutcome, Schedule,
+    ScheduleStore, StopDecision, StoreError, StoreErrorKind, Timestamp,
 };
 
 /// Stop reason recorded when an expression has no further occurrence.
@@ -40,8 +46,10 @@ pub(crate) const EXHAUSTED: &str = "no future occurrence";
 #[derive(Debug)]
 enum Report {
     /// The stop check asked to end the schedule; the job did not run.
-    Stop(String),
-    /// The job ran with this outcome.
+    Delete(String),
+    /// The stop check asked to disable the schedule; the job did not run.
+    Disable(String),
+    /// The job ran with this outcome, or the run was skipped with one.
     Ran(RunOutcome),
 }
 
@@ -103,7 +111,7 @@ impl ReloadRetry {
 pub(crate) struct Worker<S, C> {
     store: Arc<S>,
     clock: Arc<C>,
-    job: Arc<dyn Job>,
+    target: HookTarget,
     policy: MissedTickPolicy,
     shutdown: oneshot::Receiver<()>,
     stopping: bool,
@@ -120,14 +128,14 @@ where
     pub(crate) fn new(
         store: Arc<S>,
         clock: Arc<C>,
-        job: Arc<dyn Job>,
+        target: HookTarget,
         policy: MissedTickPolicy,
         shutdown: oneshot::Receiver<()>,
     ) -> Self {
         Self {
             store,
             clock,
-            job,
+            target,
             policy,
             shutdown,
             stopping: false,
@@ -241,7 +249,12 @@ where
     /// cancelled by dropping its slot.
     async fn merge(&mut self, rows: Vec<Schedule>) {
         let mut previous = std::mem::take(&mut self.slots);
-        for schedule in rows.into_iter().filter(Schedule::is_active) {
+        // A disabled schedule gets no slot, so it never fires and its stored
+        // next run is left alone (REQ-CRON-0014).
+        for schedule in rows
+            .into_iter()
+            .filter(|schedule| schedule.is_active() && schedule.enabled)
+        {
             let kept = previous.iter().position(|slot| {
                 slot.schedule.id == schedule.id && slot.schedule.generation == schedule.generation
             });
@@ -255,7 +268,11 @@ where
         }
         for slot in previous {
             if slot.run.is_some() {
-                log(&slot.schedule, "cancelled", "schedule ended or restarted");
+                log(
+                    &slot.schedule,
+                    "cancelled",
+                    "schedule ended, disabled or restarted",
+                );
             }
             // Dropping the slot aborts its run, which records nothing.
         }
@@ -388,17 +405,46 @@ where
         let Some(slot) = self.slots.get_mut(index) else {
             return;
         };
-        let timeout = slot.schedule.spec.timeout.get();
+        let timeout = slot.schedule.spec.timeout;
         // RunTimeout is at most 24 h, so this cannot overflow in practice.
-        let deadline = monotonic.checked_add(timeout).unwrap_or(monotonic);
-        let job = Arc::clone(&self.job);
+        let deadline = monotonic.checked_add(timeout.get()).unwrap_or(monotonic);
         let payload = slot.schedule.spec.payload.clone();
-        let handle = tokio::spawn(async move {
-            match job.should_stop(&payload).await {
-                StopDecision::Stop(reason) => Report::Stop(reason),
-                StopDecision::Continue => Report::Ran(job.run(&payload, deadline).await),
+        let handle = match &self.target {
+            HookTarget::Rust(job) => {
+                let job = Arc::clone(job);
+                tokio::spawn(async move {
+                    match job.should_stop(&payload).await {
+                        StopDecision::Continue => Report::Ran(job.run(&payload, deadline).await),
+                        StopDecision::Disable(reason) => Report::Disable(reason),
+                        StopDecision::Delete(reason) | StopDecision::Stop(reason) => {
+                            Report::Delete(reason)
+                        }
+                    }
+                })
             }
-        });
+            HookTarget::Python(hook) => {
+                let hook = hook.clone();
+                let clock = Arc::clone(&self.clock);
+                let name = slot.schedule.spec.name.clone();
+                tokio::spawn(async move {
+                    let call = |event| HookCall {
+                        event,
+                        schedule: &name,
+                        payload: &payload,
+                        timeout,
+                        deadline,
+                    };
+                    match stop_step(&hook, clock.as_ref(), &call(HookEvent::Stop)).await {
+                        Step::Run => Report::Ran(
+                            tick_outcome(&hook, clock.as_ref(), &call(HookEvent::Tick)).await,
+                        ),
+                        Step::Skip(outcome) => Report::Ran(outcome),
+                        Step::Disable(reason) => Report::Disable(reason),
+                        Step::Delete(reason) => Report::Delete(reason),
+                    }
+                })
+            }
+        };
         log(&slot.schedule, "launched", "run started");
         slot.run = Some(InFlight { handle, deadline });
     }
@@ -411,9 +457,14 @@ where
         slot.run = None;
         let schedule = slot.schedule.clone();
         match result {
-            Ok(Report::Stop(reason)) => {
+            Ok(Report::Delete(reason)) => {
                 self.slots.remove(index);
                 self.end(&schedule, &reason).await;
+                return true;
+            }
+            Ok(Report::Disable(reason)) => {
+                self.slots.remove(index);
+                self.disable(&schedule, &reason).await;
                 return true;
             }
             Ok(Report::Ran(outcome)) => self.record(&schedule, outcome).await,
@@ -488,6 +539,22 @@ where
             Ok(false) => self.fenced(schedule, "stop"),
             Err(error) => tracing::error!(subsystem = "sc_cron", action = "stop_failed",
                 schedule = %id, code = error.code(), %error, "schedule stop not stored: {error}"),
+        }
+    }
+
+    /// Disables the schedule on its stop check's say-so; fenced like every write.
+    async fn disable(&mut self, schedule: &Schedule, reason: &str) {
+        let (id, generation) = (schedule.id, schedule.generation);
+        let at = self.now_stamp();
+        let owned = reason.to_owned();
+        match self
+            .store_call(move |store| store.disable(id, generation, at, &owned))
+            .await
+        {
+            Ok(true) => log(schedule, "disabled", reason),
+            Ok(false) => self.fenced(schedule, "disable"),
+            Err(error) => tracing::error!(subsystem = "sc_cron", action = "disable_failed",
+                schedule = %id, code = error.code(), %error, "schedule disable not stored: {error}"),
         }
     }
 

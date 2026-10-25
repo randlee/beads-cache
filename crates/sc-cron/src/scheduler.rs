@@ -21,8 +21,8 @@ use tokio::task::JoinHandle;
 use crate::limits::encode_payload;
 use crate::worker::Worker;
 use crate::{
-    Clock, CronError, Generation, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
-    ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
+    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
+    ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
 };
 
 /// What the worker does with occurrences that came due while it could not run them.
@@ -76,6 +76,14 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
         let at = Timestamp::from_datetime(self.clock.now());
         if !self.store.stop(id, generation, at, reason)? {
             return Err(CronError::Fenced { id, generation });
+        }
+        self.signal_reload();
+        Ok(())
+    }
+
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError> {
+        if !self.store.set_enabled(name, enabled)? {
+            return Err(CronError::NotFound(name.clone()));
         }
         self.signal_reload();
         Ok(())
@@ -220,7 +228,57 @@ where
         blocking(move || core.stop(id, generation, &reason)).await
     }
 
-    /// Spawns the worker that runs `job` for every active schedule.
+    /// Enables or disables the active schedule `name`; only its `enabled`
+    /// flag changes (REQ-CRON-0014).
+    ///
+    /// A disabled schedule never fires. It keeps its id, generation,
+    /// expression, payload and stored next run, so enabling it again resumes
+    /// it: a run that came due while it was disabled counts as missed and is
+    /// handled per the [`MissedTickPolicy`]. A run in flight when it is
+    /// disabled is cancelled and records nothing, as with
+    /// [`Scheduler::stop`]. This scheduler's worker is told at once; a worker
+    /// in another process or on another scheduler notices at its next
+    /// reload, or when its next tick finds the schedule disabled. This calls
+    /// the store synchronously; from async code use
+    /// [`Scheduler::set_enabled_async`].
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::NotFound`] if no active schedule has this name, or the
+    /// store's errors.
+    pub fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError> {
+        self.core.set_enabled(name, enabled)
+    }
+
+    /// [`Scheduler::set_enabled`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::set_enabled`], or [`CronError::Store`] if the
+    /// blocking task panics.
+    pub async fn set_enabled_async(
+        &self,
+        name: &ScheduleName,
+        enabled: bool,
+    ) -> Result<(), CronError> {
+        let core = Arc::clone(&self.core);
+        let name = name.clone();
+        blocking(move || core.set_enabled(&name, enabled)).await
+    }
+
+    /// Spawns the worker that runs the Rust `job` for every active schedule.
+    ///
+    /// This is [`Scheduler::spawn_worker_for`] with [`HookTarget::Rust`].
+    ///
+    /// # Panics
+    ///
+    /// As [`Scheduler::spawn_worker_for`].
+    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle {
+        self.spawn_worker_for(HookTarget::Rust(job))
+    }
+
+    /// Spawns the worker that runs `target` for every active, enabled schedule
+    /// (REQ-CRON-0013, REQ-CRON-0014).
     ///
     /// The worker loads the active schedules from the store, then sleeps on
     /// the clock until the next run, run deadline or reload signal. A failed
@@ -241,7 +299,8 @@ where
     ///
     /// Panics outside a tokio runtime, or if a worker from this scheduler is
     /// still running: two workers would run every schedule twice.
-    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle {
+    #[must_use]
+    pub fn spawn_worker_for(&self, target: HookTarget) -> WorkerHandle {
         let claimed = self
             .worker_live
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -256,7 +315,7 @@ where
         let worker = Worker::new(
             Arc::clone(&self.core.store),
             Arc::clone(&self.core.clock),
-            job,
+            target,
             self.policy,
             shutdown_rx,
         );

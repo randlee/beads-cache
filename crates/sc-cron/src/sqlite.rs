@@ -4,9 +4,10 @@
 //! opens a second connection to another store's file. On open it sets the
 //! busy timeout first, then WAL, then checks the schema version in
 //! `PRAGMA user_version`. A fresh file (version 0, no tables) gets the
-//! schema and version [`SCHEMA_VERSION`]. A file at another version, or one
-//! that already holds other tables, is refused with
-//! [`StoreErrorKind::SchemaMismatch`].
+//! schema and version [`SCHEMA_VERSION`]. A file at version 1, which lacks the
+//! `enabled` column, gains it in place with every schedule enabled
+//! (REQ-CRON-0014). A file at any other version, or one that already holds
+//! other tables, is refused with [`StoreErrorKind::SchemaMismatch`].
 //!
 //! `create` runs as one immediate transaction, so the active-name check and
 //! the write cannot interleave with another writer. Run-state writes are
@@ -32,8 +33,13 @@ use crate::{
 
 const TABLE: &str = "sc_cron_schedule";
 
-/// The `PRAGMA user_version` this code writes and accepts.
-pub const SCHEMA_VERSION: i64 = 1;
+/// The `PRAGMA user_version` this code writes. Version 1, the schema before
+/// the `enabled` column, is upgraded in place on open.
+pub const SCHEMA_VERSION: i64 = 2;
+
+/// Adds the `enabled` column to a version 1 table; every row stays enabled.
+const ADD_ENABLED: &str = "ALTER TABLE sc_cron_schedule
+    ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1))";
 
 fn schema() -> String {
     format!(
@@ -53,6 +59,7 @@ fn schema() -> String {
     last_outcome TEXT,
     ended_at     TEXT,
     stop_reason  TEXT,
+    enabled      INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
     CHECK ((ended_at IS NULL) = (next_run_at IS NOT NULL)),
     CHECK ((ended_at IS NULL) = (stop_reason IS NULL))
 );"
@@ -60,7 +67,7 @@ fn schema() -> String {
 }
 
 const COLUMNS: &str = "id, generation, name, expr, timeout_ms, jitter_ms, payload, created_at, \
-     next_run_at, last_run_at, last_outcome, ended_at, stop_reason";
+     next_run_at, last_run_at, last_outcome, ended_at, stop_reason, enabled";
 
 /// How long a writer waits for another connection's lock on the same file.
 const BUSY_TIMEOUT: Duration = Duration::from_secs(5);
@@ -207,6 +214,14 @@ fn init_schema(connection: &mut Connection) -> Result<(), CronError> {
                 .map_err(|error| store_error("failed to set schema version", error))?;
         }
         SCHEMA_VERSION => {}
+        1 => {
+            transaction
+                .execute_batch(ADD_ENABLED)
+                .map_err(|error| store_error("failed to add the enabled column", error))?;
+            transaction
+                .pragma_update(None, "user_version", SCHEMA_VERSION)
+                .map_err(|error| store_error("failed to set schema version", error))?;
+        }
         other => {
             return Err(StoreError::new(
                 StoreErrorKind::SchemaMismatch,
@@ -340,7 +355,7 @@ impl ScheduleStore for SqliteScheduleStore {
     ) -> Result<bool, CronError> {
         self.guarded_update(
             "UPDATE sc_cron_schedule SET next_run_at = ?3
-             WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
+             WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL AND enabled = 1",
             id,
             generation,
             &[&next_run_at.to_string()],
@@ -360,6 +375,37 @@ impl ScheduleStore for SqliteScheduleStore {
             id,
             generation,
             &[&at.to_string(), &reason],
+        )
+    }
+
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError> {
+        let changed = self
+            .lock()
+            .execute(
+                "UPDATE sc_cron_schedule SET enabled = ?2
+                 WHERE name = ?1 AND ended_at IS NULL",
+                params![name.as_str(), enabled],
+            )
+            .map_err(|error| store_error(&format!("failed to update {TABLE} {name}"), error))?;
+        Ok(changed == 1)
+    }
+
+    fn disable(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        reason: &str,
+    ) -> Result<bool, CronError> {
+        self.guarded_update(
+            "UPDATE sc_cron_schedule SET enabled = 0, last_run_at = ?3, last_outcome = ?4
+             WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
+            id,
+            generation,
+            &[
+                &at.to_string(),
+                &RunOutcome::Refused(reason.to_owned()).to_string(),
+            ],
         )
     }
 }
@@ -432,7 +478,7 @@ impl Columns {
                 "UPDATE sc_cron_schedule SET generation = ?2, expr = ?3, timeout_ms = ?4,
                     jitter_ms = ?5, payload = ?6, created_at = ?7, next_run_at = ?8,
                     last_run_at = NULL, last_outcome = NULL, ended_at = NULL,
-                    stop_reason = NULL
+                    stop_reason = NULL, enabled = 1
                  WHERE id = ?1",
                 params![
                     id,
@@ -520,6 +566,7 @@ struct RawRow {
     last_outcome: Option<String>,
     ended_at: Option<String>,
     stop_reason: Option<String>,
+    enabled: i64,
 }
 
 impl RawRow {
@@ -538,6 +585,7 @@ impl RawRow {
             last_outcome: row.get(10)?,
             ended_at: row.get(11)?,
             stop_reason: row.get(12)?,
+            enabled: row.get(13)?,
         })
     }
 
@@ -589,6 +637,11 @@ impl RawRow {
             last_outcome,
             ended_at: optional_stamp("ended_at", self.ended_at.as_deref())?,
             stop_reason: self.stop_reason,
+            enabled: match self.enabled {
+                0 => false,
+                1 => true,
+                other => return Err(corrupt(format!("enabled is {other}, not 0 or 1"))),
+            },
         })
     }
 }
