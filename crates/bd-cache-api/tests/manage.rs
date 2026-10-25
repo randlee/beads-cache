@@ -333,3 +333,108 @@ fn refresh_issues_with_bd_unreachable_is_bd_unavailable() {
     let spec = bd_cache_api::spec(e["code"].as_str().unwrap()).unwrap();
     assert!(spec.retryable, "{e}");
 }
+
+/// Far past any per-call cap: the fake moves its clock to the call's deadline
+/// and times out, as a bd that hangs does.
+const HANG: std::time::Duration = std::time::Duration::from_hours(24);
+
+/// QA RCR-001: a bd that hangs makes the sync's one call time out exactly at
+/// the sync's deadline (the per-call cap), which the core reports as `Ok`
+/// with `deferred` and no outage. That is a failed result, `BD_UNAVAILABLE`
+/// with `details.timed_out`, and the never-synced scope stays unserved.
+#[test]
+fn refresh_scopes_with_a_hung_bd_is_a_failed_result() {
+    for op in [FakeOp::Fingerprint, FakeOp::ListScope] {
+        let w = World::new();
+        w.add("b1", &Map::new());
+        let mut cache = w.cache();
+        w.bd.inject(op, Injection::Delay(HANG));
+        let r = ok(
+            &mut cache,
+            "cache refresh scopes",
+            &json!({"scopes": ["x"]}),
+        );
+        assert_eq!(r["failed"], 1, "{op:?}: {r}");
+        let result = &r["results"][0];
+        assert_eq!(result["report"]["deferred"], true, "{op:?}: {result}");
+        assert_eq!(result["report"]["outage"], Value::Null, "{op:?}: {result}");
+        let e = &result["error"];
+        assert_eq!(e["code"], "BD_CACHE.BD_UNAVAILABLE", "{op:?}: {e}");
+        assert_eq!(e["kind"], "unavailable", "{op:?}: {e}");
+        assert_eq!(e["retryable"], true, "{op:?}: {e}");
+        assert_eq!(e["details"]["timed_out"], true, "{op:?}: {e}");
+        let gone = err(&mut cache, "issues list", &json!({"scope": "x"}));
+        assert_eq!(gone["code"], "BD_CACHE.SCOPE_UNKNOWN", "{op:?}: {gone}");
+    }
+    // The control: the same world without the hang refreshes and serves.
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    assert_eq!(r["failed"], 0, "{r}");
+    assert_eq!(r["results"][0]["error"], Value::Null, "{r}");
+    let listed = ok(&mut cache, "issues list", &json!({"scope": "x"}));
+    assert_eq!(listed["items"].as_array().unwrap().len(), 1, "{listed}");
+}
+
+/// A failed sync's result carries the details its envelope error would have.
+#[test]
+fn a_failed_sync_result_carries_its_details() {
+    let (w, mut cache) = world();
+    w.bd.inject(FakeOp::ListScope, Injection::Failed(1));
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    let e = &r["results"][0]["error"];
+    assert_eq!(e["code"], "BD_CACHE.SYNC_FAILED", "{e}");
+    assert_eq!(e["details"]["scope"], "phase-x", "{e}");
+    // A refreshed scope has no error at all.
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    assert_eq!(r["results"][0]["error"], Value::Null, "{r}");
+}
+
+/// QA ARCH-001: `cache health --probe` with bd unreachable on the
+/// fingerprint call is a result (contract §3, §6): `state: "down"`, the
+/// outage, `probe: null`, never a typed error.
+#[test]
+fn health_probe_with_bd_unreachable_on_the_fingerprint_is_down() {
+    // (fault, the code, whether the probe recorded the outage)
+    let cases = [
+        (
+            Injection::Unavailable { timed_out: false },
+            "BD_CACHE.BD_UNAVAILABLE",
+            true,
+        ),
+        // A hang: the per-call cap ends it before the probe's deadline, so it
+        // is an outage, recorded, and not a silent cut.
+        (Injection::Delay(HANG), "BD_CACHE.BD_UNAVAILABLE", true),
+        // bd answers `bd version` with a failure: an unreachable code, but
+        // not an outage; the outage is the one the probe observed.
+        (Injection::Failed(1), "BD_CACHE.BD_VERSION_FAILED", false),
+    ];
+    for (fault, code, recorded) in cases {
+        let (w, mut cache) = world();
+        w.bd.inject(FakeOp::Fingerprint, fault.clone());
+        let h = ok(&mut cache, "cache health", &json!({"probe": true}));
+        assert_eq!(h["state"], "down", "{fault:?}: {h}");
+        assert_eq!(h["probe"], Value::Null, "{fault:?}: {h}");
+        assert_eq!(h["outage"]["last_error"]["code"], code, "{fault:?}: {h}");
+        assert!(h["outage"]["since"].is_string(), "{fault:?}: {h}");
+        let after = ok(&mut cache, "cache health", &json!({}));
+        assert_eq!(
+            after["state"] == "down",
+            recorded,
+            "{fault:?}: the probe recorded the outage: {after}"
+        );
+    }
+}

@@ -7,6 +7,7 @@ use std::collections::BTreeMap;
 
 use sc_beads::{Bead, BeadId};
 use serde::Serialize;
+use serde_json::{Map, Value};
 
 use crate::data::entry::Entry;
 use crate::data::x_cache::{OpError, OutageData, RowsXCache};
@@ -187,7 +188,7 @@ pub struct RefreshScopeResult {
 }
 
 /// A failed result's error in `cache refresh scopes`: the [`OpError`] with
-/// its code's `kind` and `retryable` from the error table (lead ruling S75).
+/// its code's `kind`, `retryable` and `details` (lead ruling S75).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct RefreshError {
     /// The code and message.
@@ -197,19 +198,31 @@ pub struct RefreshError {
     pub kind: ErrorKind,
     /// Whether a retry may succeed (contract §4).
     pub retryable: bool,
+    /// The code's details, as an envelope error has them (contract §4):
+    /// `timed_out` for `BD_UNAVAILABLE`; `{}` when the code has none.
+    pub details: Map<String, Value>,
 }
 
 impl RefreshError {
-    /// `error` with the error table's `kind` and `retryable` for its code; a
-    /// code the table does not hold is `internal`, not retryable.
+    /// `error` with the error table's `kind` and `retryable` for its code
+    /// and no details; a code the table does not hold is `internal`, not
+    /// retryable.
     #[must_use]
     pub fn of(error: OpError) -> Self {
         let spec = spec(&error.code);
         Self {
             kind: spec.map_or(ErrorKind::Internal, |s| s.kind),
             retryable: spec.is_some_and(|s| s.retryable),
+            details: Map::new(),
             error,
         }
+    }
+
+    /// Adds one detail.
+    #[must_use]
+    pub fn with_detail(mut self, key: &str, value: impl Into<Value>) -> Self {
+        self.details.insert(key.to_owned(), value.into());
+        self
     }
 }
 

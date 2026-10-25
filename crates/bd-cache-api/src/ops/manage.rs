@@ -5,8 +5,8 @@ use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::{
-    CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, ScopeId, ScopeStatus,
-    StateCounts,
+    CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
+    ScopeId, ScopeStatus, StateCounts, SyncReport,
 };
 use sc_beads::{BeadId, CacheBackend, Deadline};
 
@@ -15,8 +15,8 @@ use crate::data::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
     CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthState,
     JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpError, OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, RowsXCache,
-    ScopeData, StateCountsData, SyncReportData, opt_time, outage, rows,
+    OpError, OpenWorkData, OutageData, ProbeData, ProjectData, RefreshError, RefreshScopeResult,
+    RowsXCache, ScopeData, StateCountsData, SyncReportData, opt_time, outage, rows,
 };
 use crate::error::{ApiError, CODE_PREFIX};
 use crate::ops::beads::{META_BD_VERSION, META_SCHEMA_VERSION, META_SHA};
@@ -30,6 +30,16 @@ use crate::request::{
 const OUTAGE_ALERT: &str = "backend_unavailable";
 /// The generic stored alert `bd_cache.py` records for every sync failure.
 const SYNC_FAILED_ALERT: &str = "BD_CACHE.SYNC_FAILED";
+
+/// How far past the per-call cap the `cache health --probe` deadline lies.
+///
+/// The backend check classifies a timeout at an expired hard deadline as a
+/// cut, which records nothing (bd-cache's `outage::classify`). With the hard
+/// deadline this much later than `call_timeout`, a bd that hangs is ended by
+/// the per-call cap first, so it is classified and recorded as an outage, as
+/// contract §6 states for `--probe`. One second covers killing and reaping
+/// the bd child; a larger value only lengthens a probe that is cut anyway.
+const PROBE_GRACE: Duration = Duration::from_secs(1);
 
 /// A stored sync alert, in either writer's format (the bare key, or
 /// `bd_cache.py`'s `CODE: detail`): `backend_unavailable`, `sync_failed`, a
@@ -131,43 +141,71 @@ pub(crate) fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// stale rows or unannounced escalations, `ok` otherwise; with `probe`, the
 /// backend check runs too.
 ///
+/// A probe that could not reach bd (an [`UNREACHABLE_CODES`] error, which
+/// includes a deadline cut) is a result, not an error (contract §3, §6):
+/// `state` is `down`, `probe` is `null`, and `outage` is the outage the probe
+/// recorded, or, when it recorded none (a cut, or a bd that answered with a
+/// failure), one observed now from the probe's error.
+///
+/// [`UNREACHABLE_CODES`]: bd_cache_model::UNREACHABLE_CODES
+///
 /// # Errors
 ///
-/// The store's errors; with `probe`, the backend check's typed error.
+/// The store's errors; with `probe`, any other typed error of the backend
+/// check (a store failure recording the fingerprint).
 pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: CacheHealth,
 ) -> Result<CacheHealthData, ApiError> {
     let probe = if req.probe {
-        let hard = Deadline::after(&*cache.clock(), cache.config().call_timeout);
-        let (outcome, model_current) = cache.backend_check(hard)?;
-        Some((outcome, model_current))
+        let hard = Deadline::after(&*cache.clock(), cache.config().call_timeout + PROBE_GRACE);
+        match cache.backend_check(hard) {
+            Ok(checked) => Some(Ok(checked)),
+            Err(e) if e.is_unreachable() => Some(Err(e)),
+            Err(e) => return Err(e.into()),
+        }
     } else {
         None
     };
+    // Read after the probe: a probe that could not reach bd records the outage.
     let st = cache.status()?.store;
     let work = cache.open_work()?;
     let stale_rows = u64::try_from(st.stale.len()).unwrap_or(u64::MAX);
-    let state = if st.outage.is_some() {
+    let unreachable = match &probe {
+        Some(Err(e)) => Some(e),
+        _ => None,
+    };
+    let state = if st.outage.is_some() || unreachable.is_some() {
         HealthState::Down
     } else if stale_rows > 0 || work.escalated_unannounced > 0 {
         HealthState::Degraded
     } else {
         HealthState::Ok
     };
+    let outage = outage(st.outage.as_ref()).or_else(|| {
+        unreachable.map(|e| {
+            OutageData::of(&Outage {
+                since: cache.clock().now_utc(),
+                last_error: e.to_string(),
+            })
+        })
+    });
     Ok(CacheHealthData {
         state,
-        outage: outage(st.outage.as_ref()),
+        outage,
         open_work: OpenWorkData {
             pending: work.pending,
             escalated_unannounced: work.escalated_unannounced,
         },
         stale_rows,
-        probe: probe.map(|(outcome, model_current)| ProbeData {
-            bd_version: st.meta.get(META_BD_VERSION).cloned(),
-            model_current,
-            rebuilt: outcome == FingerprintOutcome::Rebuilt,
-        }),
+        probe: match probe {
+            Some(Ok((outcome, model_current))) => Some(ProbeData {
+                bd_version: st.meta.get(META_BD_VERSION).cloned(),
+                model_current,
+                rebuilt: outcome == FingerprintOutcome::Rebuilt,
+            }),
+            Some(Err(_)) | None => None,
+        },
     })
 }
 
@@ -187,7 +225,8 @@ pub(crate) fn cache_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 
 /// `cache refresh scopes [S…]`: one sync per scope, each under the per-call
 /// cap; a failed scope is reported in its result and counted in `failed`. A
-/// sync that returned an outage is failed too, with `BD_UNAVAILABLE` (S75).
+/// sync that returned an outage is failed too, with `BD_UNAVAILABLE` (S75),
+/// and so is one the deadline cut (`deferred`): it refreshed nothing.
 ///
 /// # Errors
 ///
@@ -201,20 +240,14 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
     } else {
         req.scopes.clone()
     };
+    let call_timeout = cache.config().call_timeout;
     let mut results = Vec::with_capacity(scopes.len());
     for s in scopes {
-        let d = Deadline::after(&*cache.clock(), cache.config().call_timeout);
+        let d = Deadline::after(&*cache.clock(), call_timeout);
         let result = match cache.sync(&s, d) {
             Ok(r) => RefreshScopeResult {
                 scope: s.label(),
-                // A sync that could not reach bd serves stale rows (ADR-BDC-0005),
-                // but it did not refresh: a failed result (lead ruling S75).
-                error: r.outage.as_ref().map(|o| {
-                    RefreshError::of(OpError {
-                        code: format!("{CODE_PREFIX}BD_UNAVAILABLE"),
-                        message: OpError::from_stored(&o.last_error).message,
-                    })
-                }),
+                error: sync_report_error(&s, &r, call_timeout),
                 report: Some(SyncReportData {
                     rebuilt: r.rebuilt,
                     model_current: r.model_current,
@@ -227,7 +260,7 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
             Err(e) => RefreshScopeResult {
                 scope: s.label(),
                 report: None,
-                error: Some(RefreshError::of(OpError::of(&e))),
+                error: Some(refresh_error(&e)),
             },
         };
         results.push(result);
@@ -237,6 +270,42 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
         failed: u64::try_from(failed).unwrap_or(u64::MAX),
         results,
     })
+}
+
+/// The error of a sync that returned a report, or `None` when it refreshed.
+///
+/// A sync that could not reach bd serves stale rows (ADR-BDC-0005), but it
+/// did not refresh: a failed result (lead ruling S75). A sync the deadline
+/// cut (`deferred`) did not complete either: bd did not answer within the
+/// per-call cap, which is also the sync's whole deadline, so the core
+/// classified the timeout as a cut and recorded no outage (QA RCR-001).
+fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Option<RefreshError> {
+    let unavailable = |message: String| {
+        RefreshError::of(OpError {
+            code: format!("{CODE_PREFIX}BD_UNAVAILABLE"),
+            message,
+        })
+    };
+    if let Some(o) = &r.outage {
+        return Some(unavailable(OpError::from_stored(&o.last_error).message));
+    }
+    r.deferred.then(|| {
+        unavailable(format!(
+            "the sync of {} was cut: bd did not answer within the per-call cap ({} ms); \
+             nothing was refreshed",
+            s.label(),
+            call_timeout.as_millis()
+        ))
+        .with_detail("timed_out", true)
+    })
+}
+
+/// A failed sync's error with the details its envelope error would carry.
+fn refresh_error(e: &CacheError) -> RefreshError {
+    RefreshError {
+        details: ApiError::from(e).details().clone(),
+        ..RefreshError::of(OpError::of(e))
+    }
 }
 
 /// `cache refresh issues ID…`: one fresh `bd list --id` (REQ-BDC-0907), rows
