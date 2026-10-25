@@ -527,6 +527,66 @@ fn the_store_writes_the_outage_in_one_transaction_per_change() {
     writer.join().expect("the writer thread panicked");
 }
 
+/// The store's own `outage()` is read whole while a raw writer on another
+/// thread free-runs set/clear toggles. The exit is count-based, not
+/// wall-clock: the reader runs until it has made `READS` reads and the writer
+/// has completed `MIN_TOGGLES` toggles. The hang guard only fails a true hang.
+/// Every read must be `Ok` (a split read surfaces as a corrupt-store error).
+#[test]
+fn the_store_reads_the_outage_whole_while_a_raw_writer_free_runs() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::time::{Duration, Instant};
+
+    const READS: u32 = 2_000;
+    const MIN_TOGGLES: u32 = 200;
+    const HANG_GUARD: Duration = Duration::from_secs(120);
+
+    let (open, store) = fresh("outage-reader");
+    let path = open.path.clone();
+    let stop = Arc::new(AtomicBool::new(false));
+    let toggles = Arc::new(AtomicU32::new(0));
+    let writer = {
+        let (stop, toggles) = (Arc::clone(&stop), Arc::clone(&toggles));
+        std::thread::spawn(move || -> rusqlite::Result<()> {
+            let c = Connection::open(&path)?;
+            c.busy_timeout(Duration::from_secs(5))?;
+            c.pragma_update(None, "synchronous", "OFF")?;
+            while !stop.load(Ordering::Relaxed) {
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
+                     ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x'); COMMIT;",
+                )?;
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; DELETE FROM meta WHERE key IN ('outage_since', 'outage_error'); COMMIT;",
+                )?;
+                toggles.fetch_add(1, Ordering::Relaxed);
+            }
+            Ok(())
+        })
+    };
+
+    let started = Instant::now();
+    let mut reads = 0_u32;
+    let mut failure = None;
+    while reads < READS || toggles.load(Ordering::Relaxed) < MIN_TOGGLES {
+        if started.elapsed() > HANG_GUARD {
+            failure = Some(format!("hang guard after {reads} reads"));
+            break;
+        }
+        if let Err(e) = store.outage() {
+            failure = Some(format!("read {reads}: {e}"));
+            break;
+        }
+        reads += 1;
+    }
+    stop.store(true, Ordering::Relaxed);
+    let done = toggles.load(Ordering::Relaxed);
+    let written = writer.join().expect("the writer thread panicked");
+    assert!(written.is_ok(), "the writer failed: {written:?}");
+    assert!(failure.is_none(), "{failure:?} ({done} toggles)");
+}
+
 /// Opt-in stress (`cargo test -- --ignored`): the outage is read whole while a
 /// second connection free-runs [`TOGGLES`] set/clear toggles. Speed dependent,
 /// so it has its own generous deadline and is not in the default suite.
