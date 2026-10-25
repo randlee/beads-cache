@@ -195,12 +195,17 @@ Decision:
   value that does not decode or is inconsistent (`row_json`, an edge or
   scope kind, an id, timestamp or phase name, journal fields, the ready
   base, an `outage_since` without `outage_error`), each naming the entry
-  and never skipped; a refused one-connection claim (NFR-BDC-0007); and a
-  journal mode SQLite will not set to WAL. A type-conversion error
+  and never skipped; and a journal mode SQLite will not set to WAL. A
+  refused one-connection claim (NFR-BDC-0007) is not a store failure: it is
+  `BD_CACHE.STORE_IN_USE` (PE-RBP-F008, ADR-MODEL-0002 amendment), whose fix
+  says to close or reuse the other handle, since the file is fine. A type-conversion error
   rusqlite raises while reading a column keeps that rusqlite error as its
   source (`failed`); a value the store's own validation refuses after
   reading has no source (`corrupt`). `NO_DATABASE` means only missing or
-  invalid `metadata.json` (REQ-BDC-0102).
+  invalid `metadata.json` (REQ-BDC-0102); an I/O or JSON error reading it is
+  kept as its source and its text stays in the detail, and a permission-denied
+  read says so in the detail and the fix instead of the `bd init` advice
+  (PE-RBP-F014).
   Journal text that no longer parses keeps `Op::parse`'s own code
   (`BAD_OP` / `BAD_ARGS` / `BAD_PRECONDITION`) with the entry's seq. One
   module makes the mapping: `error::failed` (with a source) and
@@ -290,9 +295,11 @@ Decision:
 - The environment-reading paths, `SqliteStore::open` and `CacheLocation::resolve`, build
   the override with `from_env`. An unresolvable environment value is
   `BD_CACHE.NO_DATABASE`, its detail naming the value and the I/O error, before any file
-  is read: the beads directory cannot be located, which is what `NO_DATABASE` reports,
-  and its fix ("run from the beads repository root (or set BEADS_DIR) after bd init")
-  applies. `bd-cache-py`, which opens through `SqliteStore::open`, raises it as it raises
+  is read: the beads directory cannot be located, which is what `NO_DATABASE` reports.
+  Its detail ends with the real remedy, "set an absolute BEADS_DIR or run from a
+  readable working directory" (PE-RSH-043), since the code's `bd init` fix does not
+  address it; the I/O error stays text only, so a permission-denied working directory
+  does not select the fix for an unreadable `metadata.json`. `bd-cache-py`, which opens through `SqliteStore::open`, raises it as it raises
   any `NO_DATABASE`.
 - `bd-cache-sync`'s `compose_with` builds the override once and passes the same value to
   `SqliteStore::open_with` and its `as_os_str()` to `BdCli::with_child_var`; it maps a

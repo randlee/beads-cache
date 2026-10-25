@@ -13,7 +13,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId};
+use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId, StoreCause};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -95,6 +95,7 @@ impl DoltDatabase {
         if let Some(why) = unportable(&name) {
             return Err(CacheError::NoDatabase {
                 detail: format!("invalid dolt_database {name:?}: {why}"),
+                source: None,
             });
         }
         Ok(Self(name))
@@ -128,6 +129,7 @@ impl ProjectId {
         if id.trim().is_empty() {
             return Err(CacheError::NoDatabase {
                 detail: format!("invalid project_id {id:?}"),
+                source: None,
             });
         }
         Ok(Self(id))
@@ -162,16 +164,40 @@ impl DatabaseIdentity {
     ///
     /// `BD_CACHE.NO_DATABASE` when the file cannot be read, is not JSON, or
     /// lacks a valid string `dolt_database` or `project_id` (REQ-BDC-0102).
+    /// An I/O or JSON error is kept as the source and its text in the detail
+    /// (PE-RBP-F014); a file this process may not read says so, in the detail
+    /// and in the fix, instead of the `bd init` advice.
     pub fn read(beads_dir: &Path) -> Result<Self, CacheError> {
         let path = beads_dir.join("metadata.json");
-        let no_db = |why: String| CacheError::NoDatabase {
-            detail: format!(
+        let detail = |why: &dyn fmt::Display| {
+            format!(
                 "cannot read dolt_database/project_id from {}: {why}",
                 path.display()
-            ),
+            )
         };
-        let text = std::fs::read_to_string(&path).map_err(|e| no_db(e.to_string()))?;
-        let data: Value = serde_json::from_str(&text).map_err(|e| no_db(e.to_string()))?;
+        let no_db = |why: String| CacheError::NoDatabase {
+            detail: detail(&why),
+            source: None,
+        };
+        let text = std::fs::read_to_string(&path).map_err(|e| {
+            let detail = if e.kind() == io::ErrorKind::PermissionDenied {
+                format!(
+                    "permission denied reading {}: {e}; the file exists, so bd init will not \
+                     help: make it readable by this process",
+                    path.display()
+                )
+            } else {
+                detail(&e)
+            };
+            CacheError::NoDatabase {
+                detail,
+                source: Some(StoreCause::new(e)),
+            }
+        })?;
+        let data: Value = serde_json::from_str(&text).map_err(|e| CacheError::NoDatabase {
+            detail: detail(&format_args!("not JSON: {e}")),
+            source: Some(StoreCause::new(e)),
+        })?;
         let field = |key: &str| match data.get(key) {
             Some(Value::String(s)) => Ok(s.clone()),
             Some(other) => Err(no_db(format!("{key} is not a string: {other}"))),
@@ -337,10 +363,29 @@ pub(crate) fn env_beads_dir() -> Result<Option<BeadsDirOverride>, CacheError> {
     BeadsDirOverride::from_env().map_err(|e| unresolvable(&e))
 }
 
-/// The `BD_CACHE.NO_DATABASE` of an unresolvable `$BEADS_DIR`.
+/// What to do about an unresolvable `$BEADS_DIR` (PE-RSH-043): `NO_DATABASE`'s
+/// own fix is about `bd init`, which is not the problem here.
+const UNRESOLVABLE_REMEDY: &str =
+    "set an absolute BEADS_DIR or run from a readable working directory";
+
 fn unresolvable(e: &BeadsDirError) -> CacheError {
-    CacheError::NoDatabase {
-        detail: format!("{e}: {}", e.source),
+    e.to_cache_error()
+}
+
+impl BeadsDirError {
+    /// The `BD_CACHE.NO_DATABASE` of this unresolvable `$BEADS_DIR`, as
+    /// [`SqliteStore::open`](crate::SqliteStore::open) reports it: the detail
+    /// names the value, the I/O error and the remedy. Hosts that read the
+    /// variable themselves use this so their error matches the store's.
+    ///
+    /// The I/O error is kept as text only: as a source, a permission-denied
+    /// working directory would select the fix for an unreadable `metadata.json`.
+    #[must_use]
+    pub fn to_cache_error(&self) -> CacheError {
+        CacheError::NoDatabase {
+            detail: format!("{self}: {}; {UNRESOLVABLE_REMEDY}", self.source),
+            source: None,
+        }
     }
 }
 
@@ -651,6 +696,14 @@ mod tests {
         assert_eq!(cache.code(), "BD_CACHE.NO_DATABASE");
         assert!(
             cache.detail().contains("BEADS_DIR rel") && cache.detail().contains("getcwd failed"),
+            "{}",
+            cache.detail()
+        );
+        // PE-RSH-043: the detail names the real remedy, not only bd init.
+        assert!(
+            cache
+                .detail()
+                .ends_with("; set an absolute BEADS_DIR or run from a readable working directory"),
             "{}",
             cache.detail()
         );

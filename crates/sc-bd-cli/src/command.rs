@@ -1,6 +1,8 @@
 //! [`new_command`]: the platform-adjusted `std::process::Command` every spawn starts from,
-//! and the crate-private `ChildEnv`, the environment changes a [`CliRunner`](crate::CliRunner)
-//! applies to every child it spawns (ADR-BDCLI-0004).
+//! the crate-private `ChildEnv`, the environment changes a [`CliRunner`](crate::CliRunner)
+//! applies to every child it spawns (ADR-BDCLI-0004), and the crate-private
+//! `lead_process_group`, which makes a bounded child the leader of its own process
+//! group so a timeout can kill everything it started (PE-RSH-001).
 
 use std::ffi::{OsStr, OsString};
 use std::process::Command;
@@ -30,6 +32,43 @@ pub fn new_command(program: &str) -> Command {
         cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
     }
     cmd
+}
+
+/// Windows `CREATE_NO_WINDOW`: no console window for the child (as [`new_command`]).
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+
+/// Windows `CREATE_NEW_PROCESS_GROUP`: the child is the root of a new process group.
+#[cfg(target_os = "windows")]
+const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
+
+/// Makes the child `cmd` starts the leader of a new process group (PE-RSH-001).
+///
+/// On Unix the group id is the child's pid (`process_group(0)`), so a kill of the
+/// negative pid reaches every process the child started that stayed in its group
+/// (a `dolt` that `bd` spawned). On Windows the child gets
+/// `CREATE_NEW_PROCESS_GROUP` (with [`new_command`]'s `CREATE_NO_WINDOW` kept); the
+/// tree is killed there with `taskkill /T`, which follows parent ids.
+///
+/// Only the deadline-bounded spawns use it: they never read the terminal (standard
+/// input is closed, the outputs are pipes), so leaving the terminal's foreground
+/// group changes nothing for them, while btit's unbounded calls keep btit's
+/// behaviour (Ctrl-C reaches them with the app).
+pub(crate) fn lead_process_group(cmd: &mut Command) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt as _;
+        cmd.process_group(0);
+    }
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt as _;
+        cmd.creation_flags(CREATE_NO_WINDOW | CREATE_NEW_PROCESS_GROUP);
+    }
+    #[cfg(not(any(unix, target_os = "windows")))]
+    {
+        let _ = cmd;
+    }
 }
 
 /// Environment variables a runner sets on, or removes from, every child it spawns

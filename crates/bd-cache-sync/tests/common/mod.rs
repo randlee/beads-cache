@@ -29,7 +29,7 @@ use blocking::Controlled;
 
 use std::fmt::Write as _;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -38,7 +38,7 @@ use bd_cache_model::testing::{FakeDrainLock, FakeStore};
 use bd_cache_model::{
     CacheConfig, EscalationSender, IdemKey, JournalEntry, ScopeId, SendError, Seq, TickConfig,
 };
-use bd_cache_sync::{TICK_BUDGET, TickReply, tick};
+use bd_cache_sync::{ComposeError, TICK_BUDGET, TickReply, tick};
 use sc_beads::testing::{FakeBackend, ManualClock, actor, bead};
 use sc_beads::{Bead, BeadId, Clock, Deadline, Guards, ProjectRef};
 
@@ -224,15 +224,27 @@ impl World {
     /// A cache over this world's parts with no configured scope.
     #[must_use]
     pub fn cache(&self) -> TestCache {
-        let clock: Arc<dyn Clock> = Arc::clone(&self.clock) as Arc<dyn Clock>;
-        Cache::new(
-            CacheConfig::new(ProjectRef::local(None), vec![]),
+        cache_over(&self.clock, &self.store, &self.lock, &self.switch)
+    }
+
+    /// The recompose function of a `SyncJob` over this world: each call builds
+    /// a new cache over the same parts (the same composition inputs) and
+    /// counts one in `built`.
+    pub fn recompose(
+        &self,
+        built: &Arc<AtomicUsize>,
+    ) -> impl Fn() -> Result<TestCache, ComposeError> + Send + Sync + 'static {
+        let (clock, store, lock, switch) = (
+            Arc::clone(&self.clock),
             self.store.clone(),
             self.lock.clone(),
             self.switch.clone(),
-            clock,
-        )
-        .unwrap()
+        );
+        let built = Arc::clone(built);
+        move || {
+            built.fetch_add(1, Ordering::SeqCst);
+            Ok(cache_over(&clock, &store, &lock, &switch))
+        }
     }
 
     /// A deadline `d` from now.
@@ -277,6 +289,24 @@ impl World {
         use bd_cache_model::CacheStore;
         self.store.entry_by_seq(seq).unwrap().unwrap()
     }
+}
+
+/// A cache over the given parts with no configured scope.
+fn cache_over(
+    clock: &Arc<ManualClock>,
+    store: &FakeStore,
+    lock: &FakeDrainLock,
+    switch: &Controlled,
+) -> TestCache {
+    let clock: Arc<dyn Clock> = Arc::clone(clock) as Arc<dyn Clock>;
+    Cache::new(
+        CacheConfig::new(ProjectRef::local(None), vec![]),
+        store.clone(),
+        lock.clone(),
+        switch.clone(),
+        clock,
+    )
+    .unwrap()
 }
 
 impl Default for World {

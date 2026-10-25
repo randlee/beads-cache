@@ -26,37 +26,41 @@ use sc_beads::{DepType, Guards};
 use sc_cron::RunOutcome;
 
 fn close(r: &Real, bead: &str, key: &str) -> Seq {
-    r.job.with_cache(|c| {
-        c.write(
-            &id(bead),
-            "close",
-            r#"{"reason": "PASS"}"#,
-            Guards::default(),
-            IdemKey::new(key).unwrap(),
-            actor("san"),
-        )
+    r.job
+        .with_cache(|c| {
+            c.write(
+                &id(bead),
+                "close",
+                r#"{"reason": "PASS"}"#,
+                Guards::default(),
+                IdemKey::new(key).unwrap(),
+                actor("san"),
+            )
+            .unwrap()
+            .seq
+        })
         .unwrap()
-        .seq
-    })
 }
 
 fn update_status(r: &Real, bead: &str, status: &str, key: &str) -> Seq {
-    r.job.with_cache(|c| {
-        c.write(
-            &id(bead),
-            "update",
-            &format!(r#"{{"status": "{status}"}}"#),
-            Guards::default(),
-            IdemKey::new(key).unwrap(),
-            actor("san"),
-        )
+    r.job
+        .with_cache(|c| {
+            c.write(
+                &id(bead),
+                "update",
+                &format!(r#"{{"status": "{status}"}}"#),
+                Guards::default(),
+                IdemKey::new(key).unwrap(),
+                actor("san"),
+            )
+            .unwrap()
+            .seq
+        })
         .unwrap()
-        .seq
-    })
 }
 
 fn entry(r: &Real, seq: Seq) -> bd_cache_model::JournalEntry {
-    r.job.with_cache(|c| c.entry(seq).unwrap())
+    r.job.with_cache(|c| c.entry(seq).unwrap()).unwrap()
 }
 
 /// A write journaled through the core lands in bd via the scheduled drain and
@@ -73,7 +77,8 @@ async fn a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain(
     // Visible to reads at once, not yet in bd.
     assert_eq!(
         r.job
-            .with_cache(|c| c.get(&id("b1"), None).unwrap().row.bead.status),
+            .with_cache(|c| c.get(&id("b1"), None).unwrap().row.bead.status)
+            .unwrap(),
         Some("closed".into())
     );
     assert_eq!(
@@ -134,7 +139,7 @@ async fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_
         &*r.clock,
         TICK_BUDGET,
     ));
-    let report = r.job.with_cache(|c| c.drain(&budget).unwrap());
+    let report = r.job.with_cache(|c| c.drain(&budget).unwrap()).unwrap();
 
     assert_eq!(report.applied, [first], "{report:?}");
     assert_eq!(report.retrying, [second], "held, not written: {report:?}");
@@ -142,7 +147,9 @@ async fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_
     assert_eq!(e.state, JournalState::Applied);
     assert!(e.last_error.is_some(), "the read-back error is kept");
     assert_eq!(
-        r.job.with_cache(|c| c.status().unwrap().store.stale),
+        r.job
+            .with_cache(|c| c.status().unwrap().store.stale)
+            .unwrap(),
         [id("b1")]
     );
     assert_eq!(
@@ -158,6 +165,7 @@ async fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_
     assert!(
         r.job
             .with_cache(|c| c.status().unwrap().store.stale)
+            .unwrap()
             .is_empty()
     );
     assert_eq!(
@@ -176,17 +184,19 @@ async fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_
 }
 
 fn ready_ids(r: &Real) -> Vec<String> {
-    r.job.with_cache(|c| {
-        let mut ids: Vec<String> = c
-            .ready(&scope("x"), None)
-            .unwrap()
-            .ready
-            .iter()
-            .map(|v| v.bead.id.as_str().to_owned())
-            .collect();
-        ids.sort();
-        ids
-    })
+    r.job
+        .with_cache(|c| {
+            let mut ids: Vec<String> = c
+                .ready(&scope("x"), None)
+                .unwrap()
+                .ready
+                .iter()
+                .map(|v| v.bead.id.as_str().to_owned())
+                .collect();
+            ids.sort();
+            ids
+        })
+        .unwrap()
 }
 
 /// A journaled close of a blocker, applied by a scheduled drain, makes the
@@ -208,7 +218,10 @@ async fn test_e2e_blocker_close_and_reopen_update_ready() {
     // Cached blocker: close, applied by the next scheduled tick.
     close(&r, "blk", "k-close");
     assert_eq!(r.step().await, RunOutcome::Ok);
-    let reply = r.job.with_cache(|c| c.ready(&scope("x"), None).unwrap());
+    let reply = r
+        .job
+        .with_cache(|c| c.ready(&scope("x"), None).unwrap())
+        .unwrap();
     assert!(
         !reply.locally_adjusted,
         "bd's own answer, fetched after the drain: {reply:?}"
@@ -222,7 +235,9 @@ async fn test_e2e_blocker_close_and_reopen_update_ready() {
 
     // A blocker outside every scope: the journaled close is fetched and
     // applied; the sync's `bd blocked` / `bd ready` see it.
-    r.job.with_cache(|c| c.get(&id("out"), None).unwrap());
+    r.job
+        .with_cache(|c| c.get(&id("out"), None).unwrap())
+        .unwrap();
     close(&r, "out", "k-out");
     assert_eq!(r.step().await, RunOutcome::Ok);
     assert_eq!(ready_ids(&r), ["blk", "dep2", "rx"]);
@@ -246,12 +261,16 @@ async fn an_outage_of_several_ticks_through_the_real_store_and_cli() {
     // More ticks than the attempts rule allows.
     for _ in 0..7 {
         assert_eq!(r.step().await, RunOutcome::Ok);
-        let got = r.job.with_cache(|c| c.get(&id("b1"), None).unwrap());
+        let got = r
+            .job
+            .with_cache(|c| c.get(&id("b1"), None).unwrap())
+            .unwrap();
         assert!(got.outage.is_some(), "{got:?}");
         assert_eq!(got.row.bead.status.as_deref(), Some("closed"));
         let list = r
             .job
-            .with_cache(|c| c.list(&scope("x"), None, None).unwrap());
+            .with_cache(|c| c.list(&scope("x"), None, None).unwrap())
+            .unwrap();
         assert!(list.outage.is_some());
     }
     let e = entry(&r, seq);
@@ -273,6 +292,7 @@ async fn an_outage_of_several_ticks_through_the_real_store_and_cli() {
     assert!(
         r.job
             .with_cache(|c| c.status().unwrap().store.outage)
+            .unwrap()
             .is_none()
     );
     assert_eq!(r.sender.sent().len(), 1, "recovery is silent");

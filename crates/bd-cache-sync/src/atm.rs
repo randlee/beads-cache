@@ -37,7 +37,9 @@
 //! ADR-SYNC-0007).
 //!
 //! Each send starts at most three threads (the message writer and one reader per
-//! output stream); they end when the pipes close, so a descendant that outlives
+//! output stream), each with `thread::Builder`: one that cannot be started
+//! fails the send and the child's tree is killed and reaped (PE-RSH-011). They
+//! end when the pipes close, so a descendant that outlives
 //! a failed send keeps its readers until it exits (ADR-SYNC-0007). A tick that
 //! sends several messages passes each one the time left before
 //! its end `T` ([`tick`](crate::tick)). After a successful send nothing is
@@ -47,7 +49,7 @@
 
 use std::ffi::{OsStr, OsString};
 use std::fmt;
-use std::io::{Read, Write};
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::{OnceLock, mpsc};
@@ -316,32 +318,97 @@ struct Captured {
     truncated: bool,
 }
 
+/// Starts one named helper thread of a send (the message writer or an output
+/// reader). A parameter of the send, so a test can make it fail (PE-RSH-011).
+type StartThread = fn(&'static str, Box<dyn FnOnce() + Send + 'static>) -> io::Result<()>;
+
+/// The real [`StartThread`]: a named thread, whose start failure is an error
+/// instead of the panic of `thread::spawn`.
+fn start_thread(name: &'static str, body: Box<dyn FnOnce() + Send + 'static>) -> io::Result<()> {
+    thread::Builder::new()
+        .name(name.to_owned())
+        .spawn(body)
+        .map(drop)
+}
+
 /// Reads a stream to the end, keeping up to [`CAPTURE_LIMIT`] bytes, so a
 /// chatty child never blocks on a full pipe.
-fn capture(mut from: impl Read + Send + 'static) -> mpsc::Receiver<Captured> {
+///
+/// # Errors
+///
+/// The error of `start` when the reader thread cannot be started.
+fn capture(
+    mut from: impl Read + Send + 'static,
+    name: &'static str,
+    start: StartThread,
+) -> io::Result<mpsc::Receiver<Captured>> {
     let (tx, rx) = mpsc::channel();
-    thread::spawn(move || {
-        let mut kept: Vec<u8> = Vec::new();
-        let mut truncated = false;
-        let mut buf = [0_u8; 1024];
-        loop {
-            let n = match from.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => n,
-                Err(e) if e.kind() == std::io::ErrorKind::Interrupted => continue,
-                Err(_) => break,
-            };
-            let room = CAPTURE_LIMIT - kept.len();
-            truncated |= n > room;
-            kept.extend(buf.iter().copied().take(n.min(room)));
-        }
-        // The receiver may be gone after a timeout; nobody is waiting.
-        let _ = tx.send(Captured {
-            text: String::from_utf8_lossy(&kept).trim().to_owned(),
-            truncated,
-        });
-    });
-    rx
+    start(
+        name,
+        Box::new(move || {
+            let mut kept: Vec<u8> = Vec::new();
+            let mut truncated = false;
+            let mut buf = [0_u8; 1024];
+            loop {
+                let n = match from.read(&mut buf) {
+                    Ok(0) => break,
+                    Ok(n) => n,
+                    Err(e) if e.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(_) => break,
+                };
+                let room = CAPTURE_LIMIT - kept.len();
+                truncated |= n > room;
+                kept.extend(buf.iter().copied().take(n.min(room)));
+            }
+            // The receiver may be gone after a timeout; nobody is waiting.
+            let _ = tx.send(Captured {
+                text: String::from_utf8_lossy(&kept).trim().to_owned(),
+                truncated,
+            });
+        }),
+    )?;
+    Ok(rx)
+}
+
+/// The output readers of a running child.
+type Readers = (
+    Option<mpsc::Receiver<Captured>>,
+    Option<mpsc::Receiver<Captured>>,
+);
+
+/// Starts the two output readers and the writer of `message` to the child's
+/// standard input.
+///
+/// The writer runs in its own thread: a child that never reads must not
+/// block the send past its timeout.
+///
+/// # Errors
+///
+/// The error of the first thread that cannot be started; the threads already
+/// started end when the child's pipes close.
+fn start_helpers(child: &mut Child, message: &str, start: StartThread) -> io::Result<Readers> {
+    let stdout = child
+        .stdout
+        .take()
+        .map(|s| capture(s, "atm-send-stdout", start))
+        .transpose()?;
+    let stderr = child
+        .stderr
+        .take()
+        .map(|s| capture(s, "atm-send-stderr", start))
+        .transpose()?;
+    let stdin = child.stdin.take();
+    let message = message.to_owned();
+    start(
+        "atm-send-stdin",
+        Box::new(move || {
+            if let Some(mut stdin) = stdin {
+                // A child that exits early closes the pipe; its status says why.
+                let _ = stdin.write_all(message.as_bytes());
+            }
+        }),
+    )?;
+    Ok((stdout, stderr))
 }
 
 /// How long the tree kill and the reaping of the child may take together
@@ -577,6 +644,21 @@ impl EscalationSender for AtmSender {
         body: &str,
         timeout: Duration,
     ) -> Result<(), SendError> {
+        self.send_using(lead, team, body, timeout, start_thread)
+    }
+}
+
+impl AtmSender {
+    /// [`EscalationSender::send_within`], with the function that starts the
+    /// send's helper threads.
+    fn send_using(
+        &self,
+        lead: &str,
+        team: &str,
+        body: &str,
+        timeout: Duration,
+        start: StartThread,
+    ) -> Result<(), SendError> {
         // Defensive: the tick passes names it validated (`MemberName`), but the
         // port takes text, and this text becomes a command-line argument.
         let lead = MemberName::new(lead).map_err(|e| {
@@ -629,18 +711,18 @@ impl EscalationSender for AtmSender {
         })?;
         let started = Instant::now();
         let until = started + timeout;
-        let stdout = child.stdout.take().map(capture);
-        let stderr = child.stderr.take().map(capture);
-        // Written from a thread: a child that never reads must not block us
-        // past the timeout.
-        let stdin = child.stdin.take();
-        let message = body.to_owned();
-        thread::spawn(move || {
-            if let Some(mut stdin) = stdin {
-                // A child that exits early closes the pipe; its status says why.
-                let _ = stdin.write_all(message.as_bytes());
+        let (stdout, stderr) = match start_helpers(&mut child, body, start) {
+            Ok(readers) => readers,
+            Err(e) => {
+                // Without its readers or its writer the child could block on a
+                // pipe; it is not left running (PE-RSH-011).
+                kill_tree(child);
+                return Err(SendError::with_kind(
+                    SendErrorKind::Other,
+                    format!("cannot start a thread for {name}: {e}; it was killed"),
+                ));
             }
-        });
+        };
         let status = self.wait_for(child, &name, until, timeout)?;
         if status.success() {
             return Ok(());
@@ -657,9 +739,7 @@ impl EscalationSender for AtmSender {
             },
         ))
     }
-}
 
-impl AtmSender {
     /// Waits for the child until `until`, polling; kills its tree on a stop or a timeout.
     fn wait_for(
         &self,
@@ -916,5 +996,74 @@ mod tests {
         child.kill().unwrap();
         adopt(child);
         assert_reaped(pid, "the adopted child");
+    }
+
+    #[cfg(unix)]
+    thread_local! {
+        /// The helper thread [`failing_start`] refuses to start on this thread.
+        static REFUSED: std::cell::Cell<&'static str> = const { std::cell::Cell::new("") };
+        /// The file the scripted child writes its pid to.
+        static PID_FILE: std::cell::RefCell<PathBuf> = const { std::cell::RefCell::new(PathBuf::new()) };
+        /// The pid it wrote, seen by [`failing_start`] before it refused.
+        static CHILD_PID: std::cell::Cell<u32> = const { std::cell::Cell::new(0) };
+    }
+
+    /// A [`StartThread`] that refuses the thread named in [`REFUSED`] (once
+    /// the child has written its pid, so the test knows whom to look for) and
+    /// starts the others.
+    #[cfg(unix)]
+    fn failing_start(
+        name: &'static str,
+        body: Box<dyn FnOnce() + Send + 'static>,
+    ) -> io::Result<()> {
+        if name != REFUSED.get() {
+            return start_thread(name, body);
+        }
+        CHILD_PID.set(PID_FILE.with_borrow(|p| pid_in(p)));
+        Err(io::Error::new(
+            io::ErrorKind::OutOfMemory,
+            "no thread can be started",
+        ))
+    }
+
+    /// A send whose stdout reader, stderr reader or stdin writer cannot be
+    /// started is an error, not a panic, and its child is killed and reaped
+    /// rather than left running (PE-RSH-011).
+    #[cfg(unix)]
+    #[test]
+    fn a_helper_thread_that_cannot_start_fails_the_send_and_kills_the_child() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        for refused in ["atm-send-stdout", "atm-send-stderr", "atm-send-stdin"] {
+            let dir = tempfile::tempdir().unwrap();
+            let pid_file = dir.path().join("pid");
+            let atm = dir.path().join("atm");
+            std::fs::write(
+                &atm,
+                format!(
+                    "#!/bin/sh\necho $$ > '{}'\nexec sleep 30\n",
+                    pid_file.display()
+                ),
+            )
+            .unwrap();
+            std::fs::set_permissions(&atm, std::fs::Permissions::from_mode(0o755)).unwrap();
+            REFUSED.set(refused);
+            PID_FILE.set(pid_file);
+            CHILD_PID.set(0);
+
+            let sender = AtmSender::with_binary(&atm);
+            let err = sender
+                .send_using("lead-x", "atm-dev", "hello", SEND_TIMEOUT, failing_start)
+                .unwrap_err();
+
+            assert_eq!(err.kind, SendErrorKind::Other, "{refused}: {err:?}");
+            assert!(
+                err.detail.contains("cannot start a thread") && err.detail.contains("killed"),
+                "{refused}: {err:?}"
+            );
+            let pid = CHILD_PID.get();
+            assert_ne!(pid, 0, "{refused}: the refusal saw the child");
+            assert_reaped(pid, refused);
+        }
     }
 }

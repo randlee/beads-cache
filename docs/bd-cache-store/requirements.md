@@ -45,7 +45,8 @@ resolves `.` and `..` textually; S50). A value that cannot be made absolute is a
 (S48). `CacheLocation::resolve_with`, `SqliteStore::open_with` and `beads_dir` take
 `Option<&BeadsDirOverride>`; `resolve` and `SqliteStore::open` build it from the
 environment with `BeadsDirOverride::from_env`, and an unresolvable environment value
-is `BD_CACHE.NO_DATABASE` naming the value and the I/O error. Evidence (`src/location.rs`):
+is `BD_CACHE.NO_DATABASE` naming the value, the I/O error and the remedy ("set an
+absolute BEADS_DIR or run from a readable working directory", PE-RSH-043). Evidence (`src/location.rs`):
 `an_unset_or_empty_beads_dir_is_no_override`,
 `a_relative_beads_dir_is_made_absolute_against_the_working_directory`,
 `an_absolute_beads_dir_is_kept`,
@@ -167,7 +168,9 @@ extended file, the store reads consistent rows and memberships
 
 `load_repo_config(repo_root)` reads `<repo_root>/.beads/bd-cache.toml` into
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,
-invalid TOML, an unknown key, a mistyped value or a `scopes` entry that is
+invalid TOML, an unknown key, a mistyped value, a zero `call_timeout_s`,
+`miss_fill_timeout_ms` or `max_attempts` (`ConfigLoadError::Parse`, each with its
+own message from `RepoConfig::validate`; PE-RSH-006) or a `scopes` entry that is
 not a phase name is a `ConfigLoadError`. Its message names the file and a
 fix; the cause is carried once, as `Error::source`. Each variant has one
 store-owned code, `store_config_unreadable`, `store_config_invalid` or
@@ -181,7 +184,8 @@ consumer until it is mapped (lead ruling S38).
 `repo_config_is_parsed_and_unknown_keys_refused` (the `store_config_invalid` and
 `store_config_bad_scope` codes, `Display` ending with `fix()`),
 `unreadable_repo_config_is_an_error_not_the_default` (the `store_config_unreadable`
-code) (`tests/location.rs`, S37); the `ConfigLoadError::code` doctest
+code), `zero_timeouts_and_attempts_are_refused_at_load_each_with_its_own_message`
+(PE-RSH-006) (`tests/location.rs`, S37); the `ConfigLoadError::code` doctest
 (`src/location.rs`).
 
 ## REQ-STORE-0008: Cached reads cost the same at any scope size and journal length

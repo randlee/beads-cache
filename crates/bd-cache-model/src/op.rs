@@ -16,7 +16,8 @@
 //! (REQ-BDC-0303): an int, a bool, or a string with no surrounding whitespace
 //! that does not parse as a JSON number, boolean or null (`NaN` and
 //! `Infinity` included, as Python's `json.loads` reads them). Floats, nulls,
-//! arrays, objects and integers outside `i64` are `BAD_ARGS`. A dependency
+//! arrays, objects and integers outside `i64` are `BAD_ARGS`, and so is a
+//! metadata key that is empty or contains `=` (bd's `key=value` separator). A dependency
 //! type must be one of bd's ([`DepType`], REQ-BDC-0304).
 //!
 //! Empty collections in `update` args mean "not requested"; an update that
@@ -152,6 +153,25 @@ pub fn meta_value(key: &str, v: &Value) -> Result<MetaValue, CacheError> {
     }
 }
 
+/// Refuses a `set_metadata` key `bd --set-metadata key=value` cannot carry: an
+/// empty key, or one holding the `=` that separates key from value
+/// (PE-RBP-F004). Refused by [`Op::parse_new`], at write time, it is one
+/// `BAD_ARGS`; journaled, the drain would retry it `max_attempts` times before
+/// escalating. Stored entries are decoded with [`Op::parse`], which does not
+/// apply it, so a journal written by an earlier build still decodes and drains.
+fn check_metadata_key(key: &str) -> Result<(), CacheError> {
+    if key.is_empty() {
+        return Err(bad_args("set_metadata key is empty; bd needs key=value"));
+    }
+    if key.contains('=') {
+        return Err(bad_args(format!(
+            "set_metadata key {key:?} contains '=', which bd --set-metadata key=value reads as \
+             the end of the key"
+        )));
+    }
+    Ok(())
+}
+
 fn parse_patch(args: &Map<String, Value>) -> Result<Patch, CacheError> {
     if let Some(k) = args.keys().find(|k| !UPDATE_KEYS.contains(&k.as_str())) {
         return Err(bad_args(format!(
@@ -230,7 +250,34 @@ fn parse_patch(args: &Map<String, Value>) -> Result<Patch, CacheError> {
 }
 
 impl Op {
-    /// Parses a write request: the op name and its args as a JSON object.
+    /// Parses a new write request: [`Op::parse`], plus the checks only a new
+    /// write gets, so a stored entry that predates them still decodes.
+    ///
+    /// # Errors
+    ///
+    /// Everything [`Op::parse`] refuses, and `BAD_ARGS` for a metadata key
+    /// that is empty or contains `=` (PE-RBP-F004).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::Op;
+    /// let args = r#"{"set_metadata": {"a=b": "x"}}"#;
+    /// assert_eq!(Op::parse_new("update", args).unwrap_err().code(), "BD_CACHE.BAD_ARGS");
+    /// assert!(Op::parse("update", args).is_ok(), "a stored entry still decodes");
+    /// ```
+    pub fn parse_new(op: &str, args_json: &str) -> Result<Op, CacheError> {
+        let parsed = Self::parse(op, args_json)?;
+        if let Op::Update(patch) = &parsed {
+            for key in patch.set_metadata.keys() {
+                check_metadata_key(key)?;
+            }
+        }
+        Ok(parsed)
+    }
+
+    /// Parses an op and its args JSON: the decoding shared by new writes
+    /// ([`Op::parse_new`]) and stored journal entries.
     ///
     /// # Errors
     ///

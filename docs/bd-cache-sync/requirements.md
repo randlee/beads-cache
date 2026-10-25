@@ -51,6 +51,19 @@ reported as unreadable roots, and neither counts as closed for the stop rule
 `a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs`
 (`tests/tick_phases.rs`).
 
+Amendment (phase-end fix, PE-RSH-010): the caps on the phases directory
+cannot hide a configured phase. With `[tick] phases` set, the directory is
+opened (so a missing one is the same `phases_dir_unreadable`) but not scanned:
+each configured `phase-<x>.toml` is looked up by name, however many files the
+directory holds. Without it, the scan visits at most `MAX_PHASES_DIR_ENTRIES`
+(1024) entries of any kind and reads at most `MAX_PHASE_FILES` (256) phase
+files; past the entry cap it reports `PhaseFileProblem::TooManyEntries`
+(`phase_files_too_many`). Evidence:
+`every_configured_phase_is_read_from_a_directory_over_the_file_cap` (300 phase
+files, all configured, all read),
+`the_scan_of_the_phases_directory_visits_a_bounded_number_of_entries`
+(`tests/tick_phases.rs`).
+
 ## REQ-SYNC-0003: One schedule per repository, with a team and a fallback lead
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
@@ -63,6 +76,12 @@ without them `schedule_spec` and `tick` refuse, and a refused tick makes no
 
 **Refines:** REQ-BDC-0701
 **Acceptance evidence:** `test_missing_team_is_refused` (`tests/tick_phases.rs`).
+
+Amendment (phase-end fix, PE-QA-003): a missing phases directory has one
+code on both surfaces: `ScheduleError::PhasesDir` reports the tick's
+`phases_dir_unreadable` (it was `phases_dir_missing`) with the same fix.
+Evidence: `a_missing_phases_directory_has_one_code_for_the_schedule_and_the_tick`
+(`tests/tick_phases.rs`).
 
 ## REQ-SYNC-0004: The tick budget
 
@@ -94,7 +113,18 @@ recovered, cleared, and reported once in the tick reply.
 `a_second_tick_while_a_blocking_sync_is_running_is_skipped_and_reported_busy`,
 `a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy`,
 `should_stop_returns_continue_when_busy`,
-`a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply`
+`a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes`
+(`tests/job_threading.rs`).
+
+Amendment (phase-end fix, S55, PE-RBP-F007, PE-RSH-004): a poisoned mutex's
+cache is dropped, never reused; the next tick recomposes it from the same
+composition inputs (`SyncJob::with_recompose`) and reports the poison once
+(ADR-SYNC-0002 amendment). Shutdown waits for the tick in flight, with a
+bound: `SyncJob::join_idle(deadline)` after `WorkerHandle::shutdown`.
+Evidence: `a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes`,
+`a_job_without_a_recompose_function_reports_the_cache_lost_after_a_panic`,
+`a_recompose_that_fails_is_tried_again_by_the_next_tick`,
+`join_idle_waits_for_the_tick_in_flight_up_to_its_deadline`
 (`tests/job_threading.rs`).
 
 ## REQ-SYNC-0006: Announcements are sent through the sender port and retried until delivered
@@ -261,7 +291,8 @@ the normalization of S44 lives in one validated type,
 value to `SqliteStore::open_with` and its `as_os_str()` to
 `BdCli::with_child_var`. It fails closed (S48): a relative value that cannot
 be made absolute (the working directory cannot be read) fails the
-composition with `ComposeError::BeadsDir { value, source }` before the
+composition with `ComposeError::BeadsDir` (the store's `BeadsDirError`
+whole since the phase-end fix, RBP-F050) before the
 configuration is read or the store opened, with the stable code
 `sync_beads_dir_unresolvable`, the fix "set an absolute BEADS_DIR, or run
 from a readable working directory", and the `io::Error` as `source()`; the
@@ -274,6 +305,20 @@ earlier fallback to the relative value is gone. Evidence:
 reader does not finish within 10 s after the child ends prints
 `<stdout reader did not finish within 10s>` (or the stderr one) in that
 stream's place, not an empty output (QA10-003, `tests/compose.rs`).
+
+Amendment (phase-end fix, S54, PE-RSH-003): `compose` builds every `BdCli`
+over one process-wide `ProjectLocks` (a `OnceLock` static in `compose.rs`, as
+`bd-cache-py` keeps its own), so two compositions of one project (two cache
+files, or a cache recomposed after a panic) never run `bd` at once.
+`compose_with` takes the set as an `Arc<ProjectLocks>` and the backend as a
+function of it, so a host shares its own set; `sc-bd-cli` normalizes the
+lock key. The `ProjectRef` text is the repository root unchanged: a root that
+is not UTF-8 is `ComposeError::RepoRootNotUtf8` (`sync_repo_root_not_utf8`),
+never a lossy copy. Evidence: `two_compositions_of_one_project_never_run_bd_at_once`
+(two cache files of one repository, each `bd` child a script that marks an
+overlap when another holds its directory), `compose_hands_out_one_lock_set`
+(`Arc::ptr_eq`), `a_repository_root_that_is_not_utf8_is_refused`
+(`src/compose.rs`).
 
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
@@ -373,6 +418,13 @@ A `StopFlag` ends a running tick after the drain, before the one
 `bd list --id` of the uncached phase roots, between phases and before every message;
 given to the `AtmSender` it kills the child and its whole process tree. An
 `atm` that outlives its timeout takes its descendants with it.
+
+Amendment (phase-end fix, PE-RSH-004): the host waits for the tick in flight
+before it drops the job: set the flag, await `WorkerHandle::shutdown`, then
+`SyncJob::join_idle(deadline)` (bounded; `false` when a tick still held the
+cache at the deadline), then drop the job. Evidence:
+`join_idle_waits_for_the_tick_in_flight_up_to_its_deadline`
+(`tests/job_threading.rs`).
 
 **Refines:** REQ-BDC-0703
 **Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`

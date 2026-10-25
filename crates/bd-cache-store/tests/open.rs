@@ -237,6 +237,7 @@ fn one_connection_per_process_through_a_symlink() {
     std::os::unix::fs::symlink(&path, &link).unwrap();
     let err = SqliteStore::open_at(&link, &identity()).unwrap_err();
     assert!(err.detail().contains("NFR-BDC-0007"), "{}", err.detail());
+    assert_eq!(err.code(), "BD_CACHE.STORE_IN_USE", "{err}");
     let dir_link = tmp.path().join("dir-link");
     std::os::unix::fs::symlink(tmp.path().join(".bd-cache"), &dir_link).unwrap();
     let err =
@@ -246,6 +247,34 @@ fn one_connection_per_process_through_a_symlink() {
     assert!(
         SqliteStore::open_at(&link, &identity()).is_ok(),
         "released on drop"
+    );
+}
+
+/// PE-RBP-F008: a second open in this process is `STORE_IN_USE`, whose fix says to
+/// close or reuse the other handle, never `STORE_FAILED`'s "move the file aside".
+#[test]
+fn a_second_open_in_this_process_is_store_in_use_with_its_own_fix() {
+    let tmp = TempDir::new("store-in-use");
+    let path = file(&tmp);
+    let first = SqliteStore::open_at(&path, &identity()).unwrap();
+    let err = SqliteStore::open_at(&path, &identity()).unwrap_err();
+    assert_eq!(err.code(), "BD_CACHE.STORE_IN_USE", "{err}");
+    assert!(
+        err.detail().contains(&path.display().to_string()),
+        "names the file: {}",
+        err.detail()
+    );
+    assert!(
+        err.fix().contains("close that handle, or reuse it"),
+        "{}",
+        err.fix()
+    );
+    assert!(!err.fix().contains("move it aside"), "{}", err.fix());
+    assert!(std::error::Error::source(&err).is_none());
+    drop(first);
+    assert!(
+        SqliteStore::open_at(&path, &identity()).is_ok(),
+        "the file is fine once the first handle is closed"
     );
 }
 

@@ -150,6 +150,10 @@ pub type VersionProbeFn = dyn Fn(&str) -> Result<CliOutput, BeadsError> + Send +
 
 /// One configured binary. Owned by `BdCli`/`BrCli`; the app holds one at a time.
 ///
+/// [`run_json`](CliInvoker::run_json) and [`run_raw`](CliInvoker::run_raw) are btit's
+/// unbounded calls; [`run_bounded`](CliInvoker::run_bounded) is the cache's. Do not
+/// let the two share one [`ProjectLocks`] (see there, PE-RSH-012).
+///
 /// The version probe runs lazily on the first [`client_info`](CliInvoker::client_info)
 /// call. Both a parsed success and a failure (spawn error, non-zero exit or
 /// unparsable version) are cached: a failing binary is probed at most once per
@@ -263,9 +267,19 @@ impl CliInvoker for CliRunner {
             ProbeState::Failed => return None,
             ProbeState::Unprobed => {}
         }
-        let Ok(output) = (self.version_probe)(&self.binary) else {
-            *cached = ProbeState::Failed;
-            return None;
+        let output = match (self.version_probe)(&self.binary) {
+            Ok(output) => output,
+            Err(e) => {
+                // Logged before caching: a failing binary is probed once, so this is
+                // the one record of why (PE-RBP-F021).
+                log_warn!(
+                    "[cli_detect] Failed to run {} --version: {}",
+                    self.binary,
+                    e
+                );
+                *cached = ProbeState::Failed;
+                return None;
+            }
         };
         if !output.success {
             log_warn!("[cli_detect] Failed to get version from {}", self.binary);
@@ -312,7 +326,8 @@ impl CliInvoker for CliRunner {
         argv: &[String],
         timeout: Duration,
     ) -> Result<CliOutput, BoundedError> {
-        // No probe here: `--version` is an unbounded spawn, and this crate is the bd backend.
+        // No probe here: `--version` has its own bound (`VERSION_PROBE_TIMEOUT`), which
+        // is not this call's deadline, and this crate is the bd backend.
         let wd = crate::run::resolve_project_dir(project, CliClient::Bd)?;
         crate::bounded::run_bounded_in(
             &self.binary,
@@ -622,6 +637,65 @@ mod tests {
             assert_eq!(calls.load(Ordering::SeqCst), 1);
             assert_eq!(runner.client(), CliClient::Unknown);
             assert_eq!(runner.version(), None);
+        }
+
+        /// Captures the `message` of every event, for asserting on a log.
+        struct Capture(Arc<Mutex<Vec<String>>>);
+
+        struct Message<'a>(&'a mut String);
+
+        impl tracing::field::Visit for Message<'_> {
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                if field.name() == "message" {
+                    *self.0 = format!("{value:?}");
+                }
+            }
+        }
+
+        impl tracing::Subscriber for Capture {
+            fn enabled(&self, _: &tracing::Metadata<'_>) -> bool {
+                true
+            }
+            fn new_span(&self, _: &tracing::span::Attributes<'_>) -> tracing::span::Id {
+                tracing::span::Id::from_u64(1)
+            }
+            fn record(&self, _: &tracing::span::Id, _: &tracing::span::Record<'_>) {}
+            fn record_follows_from(&self, _: &tracing::span::Id, _: &tracing::span::Id) {}
+            fn event(&self, event: &tracing::Event<'_>) {
+                let mut message = String::new();
+                event.record(&mut Message(&mut message));
+                self.0
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .push(message);
+            }
+            fn enter(&self, _: &tracing::span::Id) {}
+            fn exit(&self, _: &tracing::span::Id) {}
+        }
+
+        /// A `--version` spawn failure is logged, with its cause, before `Failed` is
+        /// cached (PE-RBP-F021): the probe is not retried, so the log is the only
+        /// record of why the runner reports no client.
+        #[test]
+        fn a_probe_spawn_failure_is_logged_before_it_is_cached() {
+            sc_beads::logging::LOGGING_ENABLED.store(true, Ordering::SeqCst);
+            let (f, calls) = counting_probe(|| Err(spawn_error(MISSING)));
+            let runner = CliRunner::with_version_probe(MISSING, Arc::new(ProjectLocks::new()), f);
+            let events = Arc::new(Mutex::new(Vec::new()));
+            let info = tracing::subscriber::with_default(Capture(Arc::clone(&events)), || {
+                runner.client_info()
+            });
+            assert_eq!(info, None);
+            assert_eq!(*runner.cached(), ProbeState::Failed);
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+            let events = events.lock().unwrap_or_else(PoisonError::into_inner);
+            assert!(
+                events.iter().any(
+                    |m| m.contains(&format!("Failed to run {MISSING} --version"))
+                        && m.contains("no such binary")
+                ),
+                "no log of the spawn failure in {events:?}"
+            );
         }
 
         #[test]

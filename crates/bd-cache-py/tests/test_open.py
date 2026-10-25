@@ -145,7 +145,8 @@ def test_a_second_open_of_one_file_in_a_process_is_refused_until_the_first_close
     first = repo.open()
     with pytest.raises(bd_cache_rs.CacheError) as caught:
         repo.open()
-    assert caught.value.code == "BD_CACHE.STORE_FAILED"
+    assert caught.value.code == "BD_CACHE.STORE_IN_USE"
+    assert "close that handle, or reuse it" in caught.value.fix
     first.close()
     second = repo.open()
     assert second.closed is False

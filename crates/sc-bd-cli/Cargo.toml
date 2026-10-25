@@ -10,6 +10,7 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 readme = "README.md"
+documentation = "https://docs.rs/sc-bd-cli"
 keywords = ["beads", "bd", "issue-tracker", "cli"]
 categories = ["api-bindings", "development-tools"]
 
@@ -22,6 +23,20 @@ test-support = ["sc-beads/testing"]
 sc-beads.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+
+# The non-reaping exit check of a bounded child (`waitid` with `WNOWAIT`, RCR-001).
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+# The job object a bounded child's process tree runs in (RCR-001).
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Diagnostics_ToolHelp",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }
 
 [dev-dependencies]
 sc-bd-cli = { path = ".", features = ["test-support"] }

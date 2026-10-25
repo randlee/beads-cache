@@ -169,10 +169,16 @@ impl Live {
         )
         .unwrap();
         let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-        let backend =
-            BdCli::new_with_clock(self.bin.as_str(), Arc::clone(locks()), Arc::clone(&clock));
+        let bin = self.bin.as_str();
         // `None`: no `$BEADS_DIR`, whatever the environment holds (S36, ARCH-807).
-        let composed = compose_with(&self.dir, backend, clock, None).expect("compose");
+        let composed = compose_with(
+            &self.dir,
+            |locks| BdCli::new(bin, locks),
+            Arc::clone(locks()),
+            clock,
+            None,
+        )
+        .expect("compose");
         let sender = Arc::new(RecordingSender::default());
         let job = SyncJob::new(
             composed.cache,
@@ -241,6 +247,7 @@ fn write_close(job: &RealJob, bead: &BeadId, key: &str) -> bd_cache_model::Seq {
         .unwrap()
         .seq
     })
+    .unwrap()
 }
 
 /// A write journaled through the core lands in a real `bd` via the tick's
@@ -266,7 +273,7 @@ fn a_journaled_write_lands_in_a_real_bd_through_the_tick() {
     };
     assert_eq!(second.outcome, TickOutcome::PassThrough, "{second:?}");
     assert_eq!(second.drain.as_ref().unwrap().applied, [seq], "{second:?}");
-    let entry = job.with_cache(|c| c.entry(seq).unwrap());
+    let entry = job.with_cache(|c| c.entry(seq).unwrap()).unwrap();
     assert_eq!(entry.state, JournalState::Applied);
     assert!(entry.last_error.is_none(), "read back cleanly: {entry:?}");
     // And bd itself says so.
@@ -275,6 +282,7 @@ fn a_journaled_write_lands_in_a_real_bd_through_the_tick() {
     assert!(sender.sent().is_empty(), "nothing escalated or announced");
     assert!(
         !job.with_cache(|c| c.list(&live.scope(), None, None).unwrap())
+            .unwrap()
             .rows
             .is_empty()
     );
@@ -305,15 +313,17 @@ fn an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_repor
     );
 
     // A few beads change in bd, then the incremental sync.
-    let ids = job.with_cache(|c| {
-        c.list(&live.scope(), None, None)
-            .unwrap()
-            .rows
-            .into_iter()
-            .take(5)
-            .map(|r| r.bead.id)
-            .collect::<Vec<_>>()
-    });
+    let ids = job
+        .with_cache(|c| {
+            c.list(&live.scope(), None, None)
+                .unwrap()
+                .rows
+                .into_iter()
+                .take(5)
+                .map(|r| r.bead.id)
+                .collect::<Vec<_>>()
+        })
+        .unwrap();
     for id in &ids {
         live.bd(&["update", id.as_str(), "--notes", "changed"]);
     }
@@ -321,6 +331,7 @@ fn an_incremental_sync_of_a_1000_bead_phase_is_incremental_and_its_time_is_repor
     let started = Instant::now();
     let report = job
         .with_cache(|c| c.sync(&live.scope(), end))
+        .unwrap()
         .expect("incremental sync");
     let took = started.elapsed();
 

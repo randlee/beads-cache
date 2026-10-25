@@ -132,6 +132,49 @@ Decision (additive; no change to the wire format):
 
 Consequences: one definition of each set; a new variant must be classified.
 
+### ADR-MODEL-0002 amendment (phase-a end): transport, not-found, in-use, metadata cause
+
+**Status:** Proposed (phase-end fix; PE-RBP-F001, F008, F013, F014)
+
+Context: four failures reached the caller with a code whose fix was wrong.
+Output `bd` printed that could not be read whole (a read error, or over
+`sc-bd-cli`'s `MAX_OUTPUT_BYTES`) was `BD_CONTRACT` ("regenerate sc-beads'
+rows"), though nothing was parsed. A guarded close whose guard check found no
+row was a fabricated `Failed { code: 1 }`, so the drain retried a missing bead
+`max_attempts` times. A second open of one cache file in one process was
+`STORE_FAILED` ("move it aside"), though the file is fine. A `metadata.json`
+that could not be read or parsed was `NO_DATABASE` with the cause flattened into
+text and the `bd init` fix, even when the file exists but is not readable.
+
+Decision (additive):
+
+1. `BeadsCacheError` (`sc-beads`, `#[non_exhaustive]`) gains
+   `Transport { what, source: io::Error }` (`SC_BEADS_TRANSPORT`, the read error
+   as its `source`) and `NotFound { bead }` (`SC_BEADS_NOT_FOUND`). `sc-bd-cli`
+   maps `BoundedError::Output` to `Transport` and a guard check that finds no row
+   to `NotFound`. `Contract` stays for real row-contract breaks.
+2. `from_backend` maps `Transport` by `CallKind` to the transient codes:
+   `Write` → `BD_WRITE_FAILED`, `Sync` → `SYNC_FAILED` (cause `BD_LIST_FAILED`),
+   every other kind, `Check` included, → `BD_LIST_FAILED` (bd ran, so
+   `BD_VERSION_FAILED`'s "check that bd is installed" would be wrong). The kept
+   backend copy keeps the `io::Error`'s kind and text. `NotFound` maps to
+   `NOT_FOUND`, which the drain escalates without counting an attempt.
+3. The additive code `BD_CACHE.STORE_IN_USE`, `CacheError::StoreInUse { detail }`:
+   this process already has the cache file open (NFR-BDC-0007). Its fix: close
+   that handle or reuse it; the file is fine. Not unreachable, no payload, exit 3.
+   `bd-cache-store` returns it for a refused one-connection claim instead of
+   `STORE_FAILED`.
+4. `CacheError::NoDatabase` gains `source: Option<StoreCause>`: the I/O or JSON
+   error reading `metadata.json`, rendered as `source: {detail}` like
+   `STORE_FAILED`'s. When the source is an I/O error of kind `PermissionDenied`,
+   `fix()` says the file exists and must be made readable, not `bd init`.
+
+Consequences: `CacheError` has 21 codes (`golden_json_for_every_code`). The codes
+are additive to the v3 CLI contract (ADR-BDC-0003). A consumer that matched
+`STORE_FAILED` for a double open (the Python bindings' open path) now sees
+`STORE_IN_USE`. Constructing `NoDatabase` needs the new field; matching it with
+`{ .. }` is unchanged.
+
 ## ADR-MODEL-0003: Store rule clarifications
 
 **Status:** Approved (lead ruling, 2026-10-23)

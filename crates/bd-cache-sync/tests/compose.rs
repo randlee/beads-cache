@@ -47,8 +47,13 @@ use sc_beads::{BeadsCacheError, CacheBackend, Clock, Deadline, ProjectRef, Syste
 /// `compose` without the environment: a `bd` that is never run, and no
 /// `$BEADS_DIR` (S36).
 fn compose(root: &Path, clock: &Arc<dyn Clock>) -> Result<Composed, ComposeError> {
-    let backend = BdCli::new_with_clock("bd", Arc::new(ProjectLocks::new()), Arc::clone(clock));
-    compose_with(root, backend, Arc::clone(clock), None)
+    compose_with(
+        root,
+        |locks| BdCli::new_with_clock("bd", locks, Arc::clone(clock)),
+        Arc::new(ProjectLocks::new()),
+        Arc::clone(clock),
+        None,
+    )
 }
 
 fn repo(toml: &str) -> tempfile::TempDir {
@@ -162,12 +167,16 @@ fn the_composed_backend_measures_deadlines_on_the_composition_clock() {
     let root = repo("");
     let manual = Arc::new(ManualClock::default());
     manual.advance(Duration::from_secs(3600));
-    let backend = BdCli::new(
-        "definitely-not-a-real-bd-binary-s40",
-        Arc::new(ProjectLocks::new()),
-    );
+    let backend = |locks| BdCli::new("definitely-not-a-real-bd-binary-s40", locks);
     let clock: Arc<dyn Clock> = Arc::clone(&manual) as Arc<dyn Clock>;
-    let composed = compose_with(root.path(), backend, clock, None).unwrap();
+    let composed = compose_with(
+        root.path(),
+        backend,
+        Arc::new(ProjectLocks::new()),
+        clock,
+        None,
+    )
+    .unwrap();
     let passed = Deadline::at(manual.now_mono());
     assert!(
         !passed.expired(&SystemClock),
@@ -209,9 +218,16 @@ fn seen_by_the_child(root: &Path, beads_dir_env: Option<&std::ffi::OsStr>) -> (S
     use sc_beads::backend::CliBackend;
 
     // Built on the system clock; compose_with rebinds it to the given one (S40).
-    let backend = BdCli::new("/bin/sh", Arc::new(ProjectLocks::new()));
+    let backend = |locks| BdCli::new("/bin/sh", locks);
     let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let composed = compose_with(root, backend, clock, beads_dir_env).unwrap();
+    let composed = compose_with(
+        root,
+        backend,
+        Arc::new(ProjectLocks::new()),
+        clock,
+        beads_dir_env,
+    )
+    .unwrap();
     let project = ProjectRef::local(Some(root.to_string_lossy().into_owned()));
     let out = bd_cache::testing::backend(&composed.cache)
         .run_raw(&project, &["-c", "printf %s \"${BEADS_DIR-<unset>}\""])

@@ -25,7 +25,8 @@
 //!    `NOT_FOUND`; an achieved write stores the fresh row and is applied
 //!    with no second write (REQ-BDC-0005); an unmet precondition stores the
 //!    fresh row and escalates `PRECONDITION`; otherwise the write runs. A bd
-//!    guard refusal (exit 13) escalates; any other failure of the write
+//!    guard refusal (exit 13) escalates, and so does a bead the write finds
+//!    gone (`NOT_FOUND`); any other failure of the write
 //!    counts one attempt, holds the bead for the rest of the pass and
 //!    escalates at `max_attempts`.
 //! 6. Read-back (REQ-BDC-0405): one `bd list --id <bead>`, then
@@ -266,8 +267,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
         })
     }
 
-    /// Step 4's failure branch: a refusal escalates, anything else counts an attempt.
+    /// Step 4's failure branch: a refusal or a missing bead escalates, anything
+    /// else counts an attempt.
     fn write_failed(&mut self, e: &JournalEntry, err: CacheError) -> Result<Flow, CacheError> {
+        // The bead is gone (a guarded close's check found no row, PE-RBP-F013).
+        // `NOT_FOUND` carries no backend cause, and a write call's store work
+        // never produces one, so it is classified before the store-failure test.
+        if let CacheError::NotFound { .. } = err {
+            self.escalate(e, err.to_string())?;
+            return Ok(Flow::Next);
+        }
         if err.backend_cause().is_none() {
             return Err(err);
         }

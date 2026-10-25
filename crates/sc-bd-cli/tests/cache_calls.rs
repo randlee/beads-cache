@@ -459,7 +459,7 @@ fn a_guarded_close_reads_the_bead_first_and_closes_only_when_the_guards_hold() {
 }
 
 #[test]
-fn a_guarded_close_of_an_unknown_bead_fails_and_is_not_a_refusal() {
+fn a_guarded_close_of_an_unknown_bead_is_not_found_and_not_a_refusal() {
     let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(ok("[]")));
     let guards = Guards {
         status: Some("open".into()),
@@ -477,7 +477,7 @@ fn a_guarded_close_of_an_unknown_bead_fails_and_is_not_a_refusal() {
         )
         .unwrap_err();
     assert!(
-        matches!(e, BeadsCacheError::Failed { code: 1, .. }),
+        matches!(&e, BeadsCacheError::NotFound { bead } if bead.as_str() == "nope"),
         "{e:?}"
     );
 }
@@ -701,7 +701,7 @@ fn a_timeout_is_unavailable_with_timed_out_set() {
 }
 
 #[test]
-fn unreadable_or_oversized_output_is_a_contract_error_not_a_spawn_failure() {
+fn unreadable_or_oversized_output_is_a_transport_error_not_a_contract_or_spawn_failure() {
     let rig = Rig::new(
         RecordingInvoker::new(None)
             .reply_bounded(Err(BoundedError::Output(std::io::Error::other("cap")))),
@@ -711,9 +711,11 @@ fn unreadable_or_oversized_output_is_a_contract_error_not_a_spawn_failure() {
         .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
         .unwrap_err();
     assert!(
-        matches!(&e, BeadsCacheError::Contract { field, detail, .. } if field == "output" && detail.contains("cap")),
+        matches!(&e, BeadsCacheError::Transport { what, .. } if what == "bd ready"),
         "{e:?}"
     );
+    let io = std::error::Error::source(&e).expect("the read error is the source");
+    assert_eq!(io.to_string(), "cap");
     assert!(!e.is_unavailable());
 }
 

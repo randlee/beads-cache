@@ -259,12 +259,7 @@ pub(crate) fn open(
 /// The same code and detail as `SqliteStore::open` gives it (lead ruling S49), so
 /// the binding's open error does not depend on which layer read the variable.
 fn unresolvable_beads_dir(e: &BeadsDirError) -> OpenError {
-    let mut detail = e.to_string();
-    if let Some(cause) = std::error::Error::source(e) {
-        detail.push_str(": ");
-        detail.push_str(&cause.to_string());
-    }
-    OpenError::Cache(CacheError::NoDatabase { detail })
+    OpenError::Cache(e.to_cache_error())
 }
 
 /// [`open`] with the validated `$BEADS_DIR` given, so a test does not read or
@@ -283,7 +278,8 @@ fn unresolvable_beads_dir(e: &BeadsDirError) -> OpenError {
 /// given), or a `project_dir` that is not UTF-8 or does not resolve to a directory;
 /// [`OpenError::Read`] for an unreadable config file; [`OpenError::Cache`]
 /// for `NO_DATABASE` (including a `$BEADS_DIR` that cannot be made absolute, checked
-/// before the config file is read), `WRONG_DATABASE`, `SCHEMA_VERSION` or `STORE_FAILED`.
+/// before the config file is read), `WRONG_DATABASE`, `SCHEMA_VERSION`, `STORE_FAILED`
+/// or `STORE_IN_USE` (a second open of the same file in this process).
 pub(crate) fn open_with(
     repo_root: &Path,
     bd_binary: &str,
@@ -390,8 +386,10 @@ mod tests {
             Err(unresolvable),
         );
         match r {
-            Err(OpenError::Cache(CacheError::NoDatabase { detail })) => assert!(
-                detail.contains("BEADS_DIR rel") && detail.ends_with(": getcwd failed"),
+            Err(OpenError::Cache(CacheError::NoDatabase { detail, .. })) => assert!(
+                detail.contains("BEADS_DIR rel")
+                    && detail.contains(": getcwd failed; ")
+                    && detail.ends_with("run from a readable working directory"),
                 "{detail}"
             ),
             other => panic!("{:?}", other.err()),

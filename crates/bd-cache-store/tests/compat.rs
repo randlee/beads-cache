@@ -4,7 +4,9 @@
 //! vendored at atm-core `05831df` under `tests/compat/` (see
 //! `tests/compat/PROVENANCE.md`) and run with `uv`, as CI installs it.
 //! `tests/compat/driver.py` drives them with a deterministic bd; no bd runs.
-//! A missing `uv` fails these tests: they are never skipped.
+//! A missing `uv` fails these tests: they are never skipped. The first test to
+//! need `uv` resolves its environment alone (`warm_uv`), so parallel tests never
+//! race on a cold uv cache.
 #![allow(
     clippy::unwrap_used,
     clippy::expect_used,
@@ -18,6 +20,7 @@ mod common;
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
 
 use bd_cache_model::{
     CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalState, NewEntry, Op, Outage,
@@ -40,20 +43,71 @@ fn compat_dir() -> PathBuf {
         .join("compat")
 }
 
-/// `uv run ... python driver.py <args>`, bounded; returns stdout parsed as JSON.
-fn driver(args: &[&OsStr]) -> Value {
+/// The requirement every `uv run` of the reference implementation resolves.
+const PYDANTIC: &str = "pydantic>=2,<3";
+
+/// `uv run --no-project --quiet --with pydantic python`, run in the compat
+/// directory, after the one shared warm-up ([`warm_uv`]).
+fn uv_python() -> Command {
+    warm_uv();
     let mut cmd = Command::new("uv");
     cmd.args([
         "run",
         "--no-project",
         "--quiet",
         "--with",
-        "pydantic>=2,<3",
+        PYDANTIC,
         "python",
     ])
-    .arg(compat_dir().join("driver.py"))
-    .args(args)
     .current_dir(compat_dir());
+    cmd
+}
+
+/// Resolves and installs the `uv` environment once, before any test's driver
+/// runs (PE-FTQ-004).
+///
+/// The tests run in parallel, and each `uv run --with` resolves against the
+/// shared uv cache: on a cold cache several would download and build the same
+/// environment at once and race. The first caller does it alone, under the
+/// same 180 s bound ([`CHILD_TIMEOUT`]) as every child; the others wait for it.
+/// A failed warm-up fails every test that needs it, with its output, instead
+/// of each racing on its own.
+fn warm_uv() {
+    static WARM: OnceLock<Result<(), String>> = OnceLock::new();
+    let outcome = WARM.get_or_init(|| {
+        let mut cmd = Command::new("uv");
+        cmd.args([
+            "run",
+            "--no-project",
+            "--quiet",
+            "--with",
+            PYDANTIC,
+            "python",
+            "-c",
+            "import pydantic",
+        ])
+        .current_dir(compat_dir());
+        let out = run_bounded(&mut cmd, CHILD_TIMEOUT);
+        if out.status.success() {
+            Ok(())
+        } else {
+            Err(format!(
+                "uv warm-up failed ({}):\n{}\n{}",
+                out.status,
+                String::from_utf8_lossy(&out.stdout),
+                String::from_utf8_lossy(&out.stderr)
+            ))
+        }
+    });
+    if let Err(why) = outcome {
+        panic!("{why}");
+    }
+}
+
+/// `uv run ... python driver.py <args>`, bounded; returns stdout parsed as JSON.
+fn driver(args: &[&OsStr]) -> Value {
+    let mut cmd = uv_python();
+    cmd.arg(compat_dir().join("driver.py")).args(args);
     let out = run_bounded(&mut cmd, CHILD_TIMEOUT);
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
@@ -316,8 +370,9 @@ fn the_python_get_and_status_read_a_file_the_rust_store_wrote() {
 
     // The extension tables survive Python's open, for this store and the next one.
     check_extensions(&store, pending);
-    assert!(
-        SqliteStore::open_at(&f.db, &identity()).is_err(),
+    assert_eq!(
+        SqliteStore::open_at(&f.db, &identity()).unwrap_err().code(),
+        "BD_CACHE.STORE_IN_USE",
         "still one connection per process"
     );
     drop(store);
@@ -442,20 +497,11 @@ fn the_python_and_rust_drain_locks_exclude_each_other() {
     drop(f.open());
     let lock = FlockDrainLock::for_cache_file(&f.db);
     let python = |f: &Shared| {
-        let mut cmd = Command::new("uv");
-        cmd.args([
-            "run",
-            "--no-project",
-            "--quiet",
-            "--with",
-            "pydantic>=2,<3",
-            "python",
-        ])
-        .arg(compat_dir().join("driver.py"))
-        .arg("hold")
-        .arg(&f.root)
-        .arg(&f.db)
-        .current_dir(compat_dir());
+        let mut cmd = uv_python();
+        cmd.arg(compat_dir().join("driver.py"))
+            .arg("hold")
+            .arg(&f.root)
+            .arg(&f.db);
         Holder::spawn(&mut cmd, "\"held\"", CHILD_TIMEOUT)
     };
     let (held, line) = python(&f);

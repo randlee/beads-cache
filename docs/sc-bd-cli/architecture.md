@@ -116,11 +116,36 @@ Decision:
   provided body refuses with `Unsupported` rather than falling back to an unbounded
   spawn. `CliRunner` implements it with `bounded::run_bounded`; `RecordingInvoker`
   and `FakeBd` implement it for tests.
-- `run_bounded` polls: the project lock with `try_lock`, the child with `try_wait`
-  every 5 ms (shortened to the time left), so no wait outlasts the timeout. A timeout
+- `run_bounded` polls: the project lock with `try_lock`, the child's exit every 5 ms
+  (shortened to the time left), so no wait outlasts the timeout. A timeout
   names its phase (`TimeoutPhase`: `Lock`, `Child`, `Output`) and the phase is in the
-  `Unavailable` reason. At the timeout the child is killed and reaped
-  (`kill_and_reap`). Two reader threads drain stdout and stderr and send
+  `Unavailable` reason. The child is spawned as the leader of its own process group
+  (`process_group(0)` on Unix, `CREATE_NEW_PROCESS_GROUP` on Windows). On Windows it
+  is also created suspended, put in a job object of its own
+  (`JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE` while the call runs) and then resumed, so
+  everything it starts is in the job (RCR-001). At the timeout the whole group is
+  killed (`kill -KILL -- -<pid>` on Unix, a program; `TerminateJobObject` on
+  Windows, through the job's handle, with `taskkill /T /F` only when no job could
+  be set up), then the child, and the child is reaped by polling `try_wait`; the
+  call then waits until the group has no member left (Unix: `kill -0`; Windows: the
+  job's active-process count). All of it shares one `KILL_BOUND` (1 s); a kill
+  program or child still running at the bound is handed to a detached reaper thread
+  instead of being waited for (PE-RSH-001, PE-RSH-002). The project lock is held
+  throughout, so the next call on the project starts only after the group is gone
+  or the bound has passed. On an `Output` timeout (the child exited, a process it
+  left in its group holds a pipe) that group is killed the same way, before the
+  child is reaped (RCR-001): on Unix the exit is noticed with `waitid(P_PID, pid,
+  WEXITED | WNOHANG | WNOWAIT)`, which leaves the child a zombie, and POSIX reuses
+  neither a pid nor a process group id equal to it while that process exists (XBD
+  4.14), so the group kill can only reach the group the child led; on Windows the
+  job reaches the helper although its parent has exited, and no pid is named. These
+  are the crate's only `unsafe` blocks (libc `waitid`; the Win32 job and
+  thread-resume calls in `bounded::job`), each with a `SAFETY` comment. After a
+  normal exit the child is reaped and, on Windows, the job's kill-on-close is
+  cleared, so a process the child left running that holds none of its pipes
+  outlives the call on both platforms. The public `kill_and_reap(&mut Child)` is
+  bounded by `KILL_BOUND` as well; it cannot move a borrowed child to the reaper, so a
+  child still there at the bound stays with its owner. Two reader threads drain stdout and stderr and send
   `io::Result<Vec<u8>>`, so a read error is `BoundedError::Output` with the real
   `io::Error` as its source (the cache reports it as `Contract`, field `output`, not as
   a spawn failure). Each stream is capped at `MAX_OUTPUT_BYTES` (64 MiB): the excess is
@@ -131,11 +156,17 @@ Decision:
   Standard input is closed. The environment and working directory are btit's: the
   extended `PATH`, `BEADS_PATH` = the working directory, plus any child variables set
   through `CliInvoker::set_child_var` (ADR-BDCLI-0004).
-- The lock key is a `WorkingDir`, built by `run::resolve_project_dir` and normalised
-  (trailing separators dropped, a root kept), so `/p` and `/p/` are one lock;
-  `ProjectLocks::guard(&str)` keeps btit's signature and normalises too.
-- The cache path never probes `--version` (that spawn is unbounded); the crate is
-  the bd backend, so it assumes `CliClient::Bd`.
+- The lock is named by a `WorkingDir`, built by `run::resolve_project_dir` and
+  normalised lexically (trailing separators dropped, a root kept). The map key is
+  the directory's canonical path, resolved when the lock is taken
+  (`ProjectLocks::try_guard_dir`, PE-RBP-F010), so `/p`, `/p/`, `/p/sub/..` and a
+  symlink to `/p` are one lock; a directory that does not exist keys on its lexical
+  form, and one whose canonical path is not UTF-8 is refused (`Unsupported`).
+  `ProjectLocks::guard(&str)` and `guard_dir` keep their signatures and canonicalize
+  too (falling back to the lexical form for a non-UTF-8 path, as they cannot fail).
+- The cache path never probes `--version` (that probe has its own bound,
+  `VERSION_PROBE_TIMEOUT`, not the call's deadline); the crate is the bd backend, so
+  it assumes `CliClient::Bd`.
 - `BdCli` holds the `Arc<dyn Clock>` the cache and its store share and turns each
   `Deadline` into the time left with it (`Deadline::remaining`); the child is then
   limited with real elapsed time, so a test clock decides whether a deadline has
@@ -150,8 +181,17 @@ Alternatives rejected: a worker thread per call that abandons the child on timeo
 (leaves processes running); a new trait beside `CliInvoker` (a second set of
 constructors and a second test double for no gain).
 
-Consequences: btit's own operations (`ops`, `run_json`, `run_raw`, the probe) remain
-unbounded exactly as in btit; only the cache calls carry NFR-BDC-0004.
+Consequences: btit's own operations (`ops`, `run_json`, `run_raw`) remain
+unbounded exactly as in btit; only the cache calls carry NFR-BDC-0004. The
+`--version` probe is bounded by `VERSION_PROBE_TIMEOUT` (10 s) and kills its process
+group at the bound (PE-RSH-012); its signature is btit's. Because a btit JSON call
+waits for and holds the project lock without a bound, a hung btit call would make
+every cache call on that project time out at the `Lock` phase: a `ProjectLocks` used
+by btit's calls must not be shared with the cache (documented on `ProjectLocks`,
+`BdCli` and `CliRunner`). Evidence: `a_hanging_version_probe_is_stopped_at_its_bound`
+(`run.rs`). A probe that cannot be spawned is logged with its cause before `Failed` is
+cached (PE-RBP-F021; `a_probe_spawn_failure_is_logged_before_it_is_cached`,
+`runner.rs`).
 
 ## ADR-BDCLI-0003: Test doubles, features and edition
 

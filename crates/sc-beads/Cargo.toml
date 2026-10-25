@@ -9,6 +9,7 @@ license.workspace = true
 repository.workspace = true
 authors.workspace = true
 readme = "README.md"
+documentation = "https://docs.rs/sc-beads"
 keywords = ["beads", "bd", "issue-tracker", "backend"]
 categories = ["api-bindings", "development-tools"]
 

@@ -15,7 +15,12 @@ classifiers = [
     "Programming Language :: Python :: Implementation :: CPython",
     "License :: OSI Approved :: MIT License",
 ]
-dynamic = ["version"]
+version = "0.1.0"
+keywords = ["beads", "bd", "cache", "sqlite"]
+
+[project.urls]
+Repository = "https://github.com/randlee/beads-cache"
+Changelog = "https://github.com/randlee/beads-cache/blob/develop/CHANGELOG.md"
 
 [project.optional-dependencies]
 test = ["pytest>=7"]
