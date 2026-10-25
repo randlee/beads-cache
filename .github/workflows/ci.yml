@@ -96,6 +96,9 @@ jobs:
           print(f"boundaries ok: {sorted(members)}")
           PY
 
+      - name: Release scripts tests (scripts/prerelease_tag.py)
+        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
   # Clippy and tests on every supported OS (QA-004).
   test:
     name: clippy and test (${{ matrix.os }})

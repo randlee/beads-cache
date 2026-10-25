@@ -148,37 +148,56 @@ def bump_workspace_toml(text: str, old: str, new: str) -> str:
     return "".join(out)
 
 
-def apply_bump(repo: Path, manifest: dict, workspace_toml: str, old: str, new: str) -> list[str]:
-    """Write the bump into the working tree; return the touched paths."""
+def apply_bump(repo: Path, manifest: dict, workspace_toml: str, old: str, new: str, touched: list[str]) -> None:
+    """Write the bump into the working tree.
+
+    Each path is appended to the caller-owned `touched` before it is written,
+    so a failure at any step leaves the caller the full set to restore.
+    """
+    touched.append(workspace_toml)
     root = repo / workspace_toml
     root.write_text(bump_workspace_toml(root.read_text(encoding="utf-8"), old, new), encoding="utf-8")
-    touched = [workspace_toml]
     for package in manifest.get("python_packages", []):
         pyproject = package.get("manifest")
         if isinstance(pyproject, str) and pyproject.endswith("pyproject.toml"):
-            release_artifacts(repo, "sync-python-version", "--workspace-toml", workspace_toml, "--pyproject", pyproject)
             touched.append(pyproject)
+            release_artifacts(repo, "sync-python-version", "--workspace-toml", workspace_toml, "--pyproject", pyproject)
     if (repo / "Cargo.lock").is_file():
-        run(repo, "cargo", "update", "--workspace", "--offline")
         touched.append("Cargo.lock")
+        run(repo, "cargo", "update", "--workspace", "--offline")
     manifest_path = str(MANIFEST)
     release_artifacts(repo, "verify-version", "--manifest", manifest_path, "--workspace-toml", workspace_toml, "--version", new)
     release_artifacts(repo, "verify-version-lockstep", "--manifest", manifest_path, "--workspace-toml", workspace_toml)
-    return touched
+
+
+def restore(repo: Path, paths: list[str]) -> None:
+    """Return `paths` to HEAD (the tree was clean on entry, so this loses nothing)."""
+    if paths:
+        git(repo, "reset", "-q", "HEAD", "--", *paths, check=False)
+        git(repo, "checkout", "--", *paths, check=False)
 
 
 def commit_bump(repo: Path, manifest: dict, workspace_toml: str, old: str, new: str) -> None:
     touched: list[str] = []
     try:
-        touched = apply_bump(repo, manifest, workspace_toml, old, new)
+        apply_bump(repo, manifest, workspace_toml, old, new, touched)
         git(repo, "add", "--", *touched)
         git(repo, "commit", "-m", f"chore(release): bump workspace version to {new}")
     except BaseException:
-        # The tree was clean on entry, so restoring these paths loses nothing.
-        paths = touched or [workspace_toml]
-        git(repo, "reset", "-q", "HEAD", "--", *paths, check=False)
-        git(repo, "checkout", "--", *paths, check=False)
+        restore(repo, touched)
         raise
+
+
+def push_tag(repo: Path, tag: str, message: str) -> None:
+    """Create and push `tag`; a failed push deletes the local tag so the version stays selectable."""
+    git(repo, "tag", "-a", tag, "-m", message)
+    pushed = False
+    try:
+        git(repo, "push", "origin", f"refs/tags/{tag}")
+        pushed = True
+    finally:
+        if not pushed:
+            git(repo, "tag", "-d", tag, check=False)
 
 
 # --- entry point ------------------------------------------------------------
@@ -221,8 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         commit_bump(repo, manifest, workspace_toml, old, new)
     commit = git(repo, "rev-parse", "HEAD").stdout.strip()
     git(repo, "push", "origin", f"HEAD:refs/heads/{branch}")
-    git(repo, "tag", "-a", tag, "-m", f"Prerelease {new}")
-    git(repo, "push", "origin", f"refs/tags/{tag}")
+    push_tag(repo, tag, f"Prerelease {new}")
     print(f"created and pushed {tag} from {commit}")
     return 0
 
