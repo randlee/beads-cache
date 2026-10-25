@@ -280,7 +280,9 @@ fn the_scenario_example_in_the_architecture_doc_is_a_valid_scenario() {
         env!("CARGO_MANIFEST_DIR"),
         "/../../docs/bd-cache-cli/architecture.md"
     ))
-    .expect("the architecture doc");
+    .expect("the architecture doc")
+    // A Windows checkout may have CRLF line endings.
+    .replace("\r\n", "\n");
     let example = doc
         .split("```json\n")
         .nth(1)
