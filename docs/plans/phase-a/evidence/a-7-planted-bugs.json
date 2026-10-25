@@ -291,6 +291,9 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_configured_phase_without_a_file_and_a_broken_file_are_refused_but_the_rest_runs",
+   "every_configured_phase_is_read_from_a_directory_over_the_file_cap",
+   "phase_file_problems_have_their_own_codes",
    "test_custom_phases_limits_sync_and_stop"
   ]
  },
@@ -366,8 +369,10 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_job_without_a_recompose_function_reports_the_cache_lost_after_a_panic",
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
-   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+   "a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes",
+   "a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes"
   ]
  },
  {
@@ -378,7 +383,8 @@
   "const_assert": false,
   "failed": [
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
-   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+   "a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes",
+   "a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes"
   ]
  },
  {
@@ -389,6 +395,7 @@
   "const_assert": false,
   "failed": [
    "a_blocking_task_left_over_from_a_timed_out_tick_makes_the_next_tick_busy",
+   "a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes",
    "an_undelivered_escalation_is_recorded_by_the_scheduler_as_refused_and_retried",
    "job::tests::a_failed_run_carries_the_poison_note_and_outcomes_are_clipped"
   ]
@@ -474,10 +481,13 @@
  {
   "bug": "atm kills only the direct child",
   "file": "crates/bd-cache-sync/src/atm.rs",
-  "exit": 0,
+  "exit": 101,
   "compile_error": false,
   "const_assert": false,
-  "failed": []
+  "failed": [
+   "the_atm_child_leads_a_process_group_that_holds_its_descendants",
+   "atm_process (process test)"
+  ]
  },
  {
   "bug": "atm ignores the time the tick passes",
@@ -498,6 +508,7 @@
   "const_assert": false,
   "failed": [
    "an_atm_that_hangs_is_killed_and_reaped",
+   "the_atm_child_leads_a_process_group_that_holds_its_descendants",
    "the_stop_flag_kills_the_child_and_its_descendants",
    "atm_process (process test)"
   ]
@@ -531,8 +542,11 @@
   "compile_error": false,
   "const_assert": false,
   "failed": [
+   "a_job_without_a_recompose_function_reports_the_cache_lost_after_a_panic",
    "a_poison_met_by_the_stop_check_is_still_reported_by_the_next_tick",
-   "a_poisoned_mutex_is_recovered_and_reported_in_the_tick_reply"
+   "a_poisoned_mutex_drops_the_cache_and_the_next_tick_recomposes",
+   "a_recompose_that_fails_is_tried_again_by_the_next_tick",
+   "a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_recomposes"
   ]
  },
  {
@@ -1180,10 +1194,12 @@
  {
   "bug": "S33: mark_announced_within is the unbounded write",
   "file": "crates/bd-cache-store/src/store.rs",
-  "exit": 0,
+  "exit": 101,
   "compile_error": false,
   "const_assert": false,
-  "failed": []
+  "failed": [
+   "store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout"
+  ]
  },
  {
   "bug": "S33: set_sync_alert_within is the unbounded write",
@@ -1292,24 +1308,25 @@
  },
  {
   "bug": "S44: an empty BEADS_DIR reaches the bd child as an empty value",
-  "file": "crates/bd-cache-sync/src/compose.rs",
+  "file": "crates/bd-cache-store/src/location.rs",
   "exit": 101,
   "compile_error": false,
   "const_assert": false,
   "failed": [
    "an_empty_explicit_beads_dir_is_unset_for_the_bd_child",
-   "compose::tests::an_empty_or_unset_beads_dir_is_none"
+   "location::tests::an_unset_or_empty_beads_dir_is_no_override",
+   "test_beads_dir_env_names_the_database"
   ]
  },
  {
   "bug": "S44: a relative BEADS_DIR is not made absolute against the working directory",
-  "file": "crates/bd-cache-sync/src/compose.rs",
+  "file": "crates/bd-cache-store/src/location.rs",
   "exit": 101,
   "compile_error": false,
   "const_assert": false,
   "failed": [
    "a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child",
-   "compose::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory"
+   "location::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory"
   ]
  },
  {
@@ -1330,6 +1347,58 @@
   "const_assert": false,
   "failed": [
    "announce::tests::a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does"
+  ]
+ },
+ {
+  "bug": "S48: a BEADS_DIR that cannot be made absolute falls back to the relative value",
+  "file": "crates/bd-cache-store/src/location.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "location::tests::a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause"
+  ]
+ },
+ {
+  "bug": "S48: compose_with ignores an unresolvable BEADS_DIR and opens the store without it",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens"
+  ]
+ },
+ {
+  "bug": "S48: an unresolvable BEADS_DIR is reported with the cache code",
+  "file": "crates/bd-cache-sync/src/compose.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens"
+  ]
+ },
+ {
+  "bug": "S49: beads_dir ignores the override",
+  "file": "crates/bd-cache-store/src/location.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child",
+   "location::tests::an_absolute_beads_dir_is_kept",
+   "test_beads_dir_env_names_the_database"
+  ]
+ },
+ {
+  "bug": "S49: CacheLocation::resolve does not build the override from the environment",
+  "file": "crates/bd-cache-store/src/location.rs",
+  "exit": 101,
+  "compile_error": false,
+  "const_assert": false,
+  "failed": [
+   "test_beads_dir_env_names_the_database"
   ]
  },
  {
