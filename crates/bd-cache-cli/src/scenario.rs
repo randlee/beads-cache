@@ -108,6 +108,12 @@ pub struct Faults {
     /// fail while another passes.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub fail_labels: Vec<String>,
+    /// Reads (`bd list`, `bd show`, `bd ready`, `bd blocked`) report these
+    /// beads with this status, while writes check their `--if-*` guards
+    /// against the true rows. A guard can so hold on the cache's fresh read at
+    /// flush and miss in bd itself, which tests that the guard reaches bd.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub read_status: BTreeMap<String, String>,
 }
 
 /// A refused write.
@@ -287,6 +293,17 @@ pub fn serve(argv: &[String], path: &Path) -> Served {
 fn serve_checked(argv: &[String], path: &Path) -> Result<Served, ScenarioError> {
     let mut scenario = Scenario::load(path)?;
     let fake = scenario.fake_bd()?;
+    let read = argv
+        .first()
+        .is_some_and(|w| matches!(w.as_str(), "list" | "show" | "ready" | "blocked"));
+    if read {
+        for (id, status) in &scenario.faults.read_status {
+            if !fake.backend().edit(id, |b| b.status = Some(status.clone())) {
+                return Err(ScenarioError::UnknownBead(id.clone()));
+            }
+        }
+    }
+    // Taken after `read_status`, so a read never writes its view back.
     let before = fake.backend().rows();
     if scenario.faults.slow_ms > 0 {
         std::thread::sleep(Duration::from_millis(scenario.faults.slow_ms));

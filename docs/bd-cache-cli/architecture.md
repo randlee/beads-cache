@@ -175,6 +175,7 @@ One JSON object. Every key is optional.
 | `faults.slow_ms` | integer | Every call sleeps this long before it answers. The delay is real, so the caller's own timeout ends it. |
 | `faults.fail_labels` | array of labels | Every scope read (`bd list -l`, `bd blocked -l`, `bd ready -l`) of one of these labels fails with exit 1, a failure that is not an outage; other labels answer. Used for a partial `cache refresh scopes`. |
 | `faults.refuse_write` | `{exit_code}` | Every write (`close`, `update`, `dep add`) fails with this exit code and changes nothing. `13` is bd's refused guard (precondition); another code is a plain failure with that code. |
+| `faults.read_status` | object: id → status | Reads (`bd list`, `bd show`, `bd ready`, `bd blocked`) report each bead with this status; writes check their `--if-*` guards against the true rows, and a read never writes its view back. Used so a guard holds on the cache's fresh read at flush and misses in bd itself (QA RCR-001). An id that is not a row is a harness error. |
 | `faults.refuse_close` | `{exit_code}` | As `refuse_write`, for `bd close` only; `update` and `dep add` run and check their own `--if-*` guards. Used so the escalation scenario tests a guard miss and a refused close apart (QA RCR-001). |
 
 Any other key is rejected. A scenario that cannot be read, parsed or applied

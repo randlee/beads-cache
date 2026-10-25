@@ -4,7 +4,7 @@
 //! | Scenario | Test |
 //! |---|---|
 //! | an outage during a write | [`an_outage_during_a_write`] |
-//! | an escalation at flush (a guard miss; a refused close, `PRECONDITION` over the bd CLI, S69) | [`a_guard_miss_escalates_at_flush`], [`a_refused_close_escalates_at_flush`] |
+//! | an escalation at flush (a guard miss; a refused close, `PRECONDITION` over the bd CLI, S69) | [`a_guard_miss_escalates_at_flush`], [`bd_refuses_a_guard_that_misses_at_flush`], [`a_refused_close_escalates_at_flush`] |
 //! | a partial `refresh scopes` | [`a_partial_refresh_scopes`] |
 //! | `fresh_within` running out | [`fresh_within_runs_out`] |
 //! | a schema change (rebuild) | [`a_schema_change_rebuilds`] |
@@ -118,9 +118,10 @@ fn escalated_with(repo: &TestRepo, seq: i64, code: &str) {
 
 /// Acceptance 6, the guard miss (QA RCR-001): an update guarded on
 /// `--expected-status open` is flushed after bd moved the bead on. No write
-/// fault is injected: the fake bd's own `--if-status` check refuses it, so
-/// the escalation proves the guard reached bd at flush. `cache flush` lists it
-/// in `escalated[]` with `PRECONDITION`, and `journal get` shows
+/// fault is injected: the drain's check on its fresh read refuses it before
+/// bd is called (bd's own `--if-status` is tested by
+/// [`bd_refuses_a_guard_that_misses_at_flush`]). `cache flush` lists it in
+/// `escalated[]` with `PRECONDITION`, and `journal get` shows
 /// `last_error.code` with no note.
 #[test]
 fn a_guard_miss_escalates_at_flush() {
@@ -157,6 +158,61 @@ fn a_guard_miss_escalates_at_flush() {
     assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
     assert_eq!(e["actor"], "dev");
     assert_eq!(e["scope"], "phase-x");
+    assert_eq!(flush["applied"], json!([]));
+    escalated_with(&repo, g, "BD_CACHE.PRECONDITION");
+    let b1 = repo.scenario();
+    let b1 = b1.rows.iter().find(|b| b.id.as_str() == "b-1").unwrap();
+    assert_ne!(b1.assignee.as_deref(), Some("dev"), "nothing written");
+}
+
+/// Acceptance 6, the guard checked by bd itself (QA RCR-001): the cache's
+/// fresh read at flush still shows b-1 open (`faults.read_status`), so the
+/// drain's own check passes, but bd's true row is in progress. Only bd's
+/// `--if-status open` refuses the write (exit 13), so the escalation proves
+/// the guard is passed to bd at flush. No write fault is injected.
+#[test]
+fn bd_refuses_a_guard_that_misses_at_flush() {
+    let repo = synced();
+    let guarded = ok(
+        &repo,
+        &[
+            "issues",
+            "update",
+            "b-1",
+            "--actor",
+            "dev",
+            "--idempotency-key",
+            "guard-bd-1",
+            "--assignee",
+            "dev",
+            "--expected-status",
+            "open",
+        ],
+    );
+    let g = guarded["x_cache"]["seq"].as_i64().unwrap();
+    repo.edit(|s| {
+        let b1 = s.rows.iter_mut().find(|b| b.id.as_str() == "b-1").unwrap();
+        b1.status = Some("in_progress".to_owned());
+        s.faults
+            .read_status
+            .insert("b-1".to_owned(), "open".to_owned());
+    });
+
+    let flush = ok(&repo, &["cache", "flush"]);
+    let escalated = flush["escalated"].as_array().unwrap();
+    assert_eq!(escalated.len(), 1, "the guard reached bd: {flush}");
+    let e = &escalated[0];
+    assert_eq!(
+        (e["seq"].as_i64(), &e["op"]),
+        (Some(g), &json!("update")),
+        "{flush}"
+    );
+    assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
+    let message = e["reason"]["message"].as_str().unwrap_or_default();
+    assert!(
+        !message.contains("at drain time"),
+        "bd refused it, not the drain's own check: {e}"
+    );
     assert_eq!(flush["applied"], json!([]));
     escalated_with(&repo, g, "BD_CACHE.PRECONDITION");
     let b1 = repo.scenario();
