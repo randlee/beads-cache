@@ -647,10 +647,23 @@ Decision:
   design is left to the implementing sprint.
 - Consumers use the PyO3 API from their hooks and for direct reads (a TUI).
 - Enforcement: `scripts/lint_no_atm.py`, run as a CI gate in the `ci` lint
-  job, with no inline suppression and no allowlist file. Its only exemptions
-  are the fixed paths in the script (the script and its tests,
-  `CHANGELOG.md`, `docs/plans/**`, and this section of this file); they
-  change only through a later ADR.
+  job, with no inline suppression and no allowlist file. It scans the
+  product: the tracked files under `crates/`, `docs/` and `scripts/`, plus
+  `Cargo.toml`, `README.md`, `rust-toolchain.toml` and the repo's own
+  workflows `ci.yml`, `python.yml` and `bd-compat.yml`. Within that scope its
+  only exemptions are the lint and its tests, `docs/team-protocol.md` (the
+  agent-team messaging protocol), `docs/plans/**`, and this section of this
+  file. Out of scope by construction, as dev tooling and not product: the
+  agent tooling (`.claude/**`, `.cursor/**`, `.codex/**`, `.agents/**`,
+  `CLAUDE.md`, `AGENTS.md`), which the repo's own agents use to coordinate
+  over ATM; the sc-publish kit, frozen upstream (`.github/scripts/**`,
+  `.github/actions/**`, the `*-publish.yml`, `release*.yml` and
+  `prerelease-archive.yml` workflows, `release/**`, `install.py`,
+  `README.sc-publish.md`, and the kit docs `docs/getting-started.md`,
+  `docs/npm-channel-compatibility.md`, `docs/consumer-preflight-and-docli.md`
+  and `docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md`);
+  `CHANGELOG.md`; and the generated `Cargo.lock`. The scope and the
+  exemptions change only through a later ADR.
 
 Consequences:
 - Consumers (atm-bd) own messaging, scheduling policy, migration of their own

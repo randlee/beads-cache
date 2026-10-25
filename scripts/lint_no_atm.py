@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-"""Fail on any ATM or atm-bd concern in the tracked tree (ADR-BDC-0010).
+"""Fail on any ATM or atm-bd concern in the product (ADR-BDC-0010).
 
 beads-cache is a cache, a CLI for configuration and management, and a PyO3
 API. It sends no messages, reads no ATM or atm-bd configuration, and names no
-ATM or atm-bd concept in source, tests, scripts, workflows or docs. This lint
-keeps it that way: it scans every git-tracked file (`git ls-files -z`),
-skipping binary files, and reports each line that matches a rule below,
-case-insensitively, as `path:line: <rule>: <text>`.
+ATM or atm-bd concept in its source, tests, scripts, workflows or docs. This
+lint keeps it that way: it scans the git-tracked files (`git ls-files -z`)
+under the product roots in SCOPE_DIRS and SCOPE_FILES, skipping binary files,
+and reports each line that matches a rule below, case-insensitively, as
+`path:line: <rule>: <text>`.
 
-Exemptions are the fixed tuples below and nothing else: no inline pragma, no
-allowlist file. They change only through a later ADR.
+Out of scope by construction (dev tooling, not product): the agent tooling
+(`.claude/**`, `.cursor/**`, `.codex/**`, `.agents/**`, `CLAUDE.md`,
+`AGENTS.md`), which coordinates the repo's own agents over ATM; the sc-publish
+kit, frozen upstream (`.github/scripts/**`, `.github/actions/**`, the
+`*-publish.yml`, `release*.yml` and `prerelease-archive.yml` workflows,
+`release/**`, `install.py`, `README.sc-publish.md` and the kit docs in
+KIT_DOCS); `CHANGELOG.md` (a historical record); and `Cargo.lock` (generated,
+with no hits).
+
+Exemptions inside the scope are the fixed tuples below and nothing else: no
+inline pragma, no allowlist file. Scope and exemptions change only through a
+later ADR.
 
 Run from anywhere inside the repository:
 
@@ -58,17 +69,42 @@ COMPILED: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
     (name, re.compile(pattern, re.IGNORECASE)) for name, pattern in RULES
 )
 
+# --- scope -------------------------------------------------------------------
+
+# The product: every tracked file under these directories, and these files.
+# The Python package config (crates/bd-cache-py/pyproject.toml) is under
+# crates/. scripts/ holds only repo-owned scripts (the kit's live in
+# .github/scripts/). The workflows are the repo's own; the kit's are not.
+SCOPE_DIRS: tuple[str, ...] = ("crates/", "docs/", "scripts/")
+SCOPE_FILES: tuple[str, ...] = (
+    "Cargo.toml",
+    "README.md",
+    "rust-toolchain.toml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/python.yml",
+    ".github/workflows/bd-compat.yml",
+)
+
+# sc-publish kit docs installed under docs/ (kit install 21f8299, pin bump
+# 2449acf, release b-5 9c31a82): kit files, frozen upstream, not product.
+KIT_DOCS: tuple[str, ...] = (
+    "docs/getting-started.md",
+    "docs/npm-channel-compatibility.md",
+    "docs/consumer-preflight-and-docli.md",
+    "docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md",
+)
+
 # --- exemptions --------------------------------------------------------------
 
-# Whole files, by repository-relative path: this lint and its tests, and the
-# changelog (a historical record of what shipped).
+# Whole files inside the scope: this lint and its tests, and the agent-team
+# messaging protocol (how the repo's agents coordinate, not product behaviour).
 EXEMPT_FILES: tuple[str, ...] = (
     "scripts/lint_no_atm.py",
     "scripts/test_lint_no_atm.py",
-    "CHANGELOG.md",
+    "docs/team-protocol.md",
 )
 
-# Whole directories: the phase plans are a historical record.
+# Whole directories inside the scope: the phase plans are a historical record.
 EXEMPT_DIRS: tuple[str, ...] = ("docs/plans/",)
 
 # One section of one file: the ADR that states this boundary has to name what
@@ -91,6 +127,12 @@ class Hit:
     line: int
     rule: str
     text: str
+
+
+def in_scope(path: str) -> bool:
+    if path in KIT_DOCS:
+        return False
+    return path in SCOPE_FILES or any(path.startswith(d) for d in SCOPE_DIRS)
 
 
 def is_exempt(path: str) -> bool:
@@ -145,7 +187,7 @@ def repo_root() -> Path:
 def scan_repo(root: Path) -> list[Hit]:
     hits: list[Hit] = []
     for path in tracked_files(root):
-        if is_exempt(path):
+        if not in_scope(path) or is_exempt(path):
             continue
         try:
             data = (root / path).read_bytes()
