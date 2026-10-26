@@ -50,13 +50,13 @@ adrs:
   - ADR-BDC-0012
   - ADR-BDC-0013
   - ADR-BDC-0015
-  - "ADR-STORE-0002, ADR-STORE-0006"
+  - "ADR-STORE-0001..0006"
   - "ADR-BEADS-0001..0004"
   - "ADR-BDCLI-0001..0006"
   - "ADR-CRON-0001..0009"
   - "ADR-API-0001..0003"
   - "ADR-CLI-0001..0005"
-  - "ADR-PY-0004, ADR-PY-0005, ADR-PY-0006"
+  - "ADR-PY-0001..0006"
 owned_paths:
   - "crates/bd-cache-store/tests/compat* (removal)"
   - "every existing file of crates/bd-cache-py/tests/ (the two vendored call-log files and test_mapping_doc.py removed), the new crates/bd-cache-py/tests/corpus/** and crates/bd-cache-py/tests/test_corpus.py"
@@ -106,8 +106,9 @@ the approved register. It merges last.
    (NFR-BDC-0004; `refresh_scopes_timeout_ms_bounds_the_sync`), with the QA fixes already made on
    #91 (`last_drain_at` from the newest applied entry; the contract §10 test reads every name).
    Health adds the sync mode, the enabled row's last run and the degraded states of
-   REQ-BDC-0732. Delete `docs/bd-cache-cli/cutover-runbook.md`; the baseline design document
-   (`docs/baseline/`) was deleted by the planning PR. A CLI scenario
+   REQ-BDC-0732. Delete `docs/bd-cache-cli/cutover-runbook.md`; PR #97 deleted the baseline design document
+   (`docs/baseline/`) in applying A8's no-consumer-wording ruling, awaiting Rand's
+   confirmation (phase-b-plan.md, Open items). A CLI scenario
    (`crates/bd-cache-cli/tests/outage_scenario.rs`): with bd unavailable, `issues get` answers
    from the cache and the outage is recorded for the scope (ADR-BDC-0005; the b-3 finding).
 4. **Contract** (WP-8; ADR-BDC-0009, ADR-BDC-0013, ADR-BDC-0015, REQ-BDC-0811). The contract text
@@ -116,9 +117,10 @@ the approved register. It merges last.
    the lead, never settled here.
    - §2: the legacy-directory refusal and `bdc_legacy_cache_file` are removed (REQ-BDC-0810 as
      amended); the `[[scope]]` tables.
-   - §4: the error table gains `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and
-     `TICK_IN_FLIGHT` as REQ-BDC-0729 gives them, and loses the `TICK_<REFUSAL>` family;
-     `details.outage`.
+   - §4: the error-table rows of `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and
+     `TICK_IN_FLIGHT` (one row each, as REQ-BDC-0729 gives them) are b-7's and the removal of the
+     `TICK_<REFUSAL>` row is b-8's, each with `error_table.rs` (phase-b-plan.md, Shared files);
+     this sprint checks those rows against the register and adds `details.outage`.
    - §6: the scopes, schedule, cron, sync and ingest verbs; `cache scopes` as `scopes list`'s
      alias; `cache tick` without `refused[]` and the consumer's flag; the `bd-cache.run.v1`
      `post_sync` request and the Python sync row's payload; scopes named as bd filters
@@ -148,7 +150,7 @@ the approved register. It merges last.
      ids, the §12 deferral, the legacy-file rule) are pre-release edits, not §11 breaking
      changes: `CONTRACT_VERSION` stays 1.0.0 and the wheel stays 0.2.0. The prerelease wheel 0.1.0
      has none of them, so its verbs are untouched. The plan marks this version choice as a
-     decision for Rand in the PR, with this recommendation.
+     decision for Rand (phase-b-plan.md, Open items), with this recommendation.
 5. **Lint gate** (WP-10; ADR-BDC-0010 as amended by ADR-BDC-0012). The CI step "Strict consumer
    boundary (ADR-BDC-0010)" in the `ci` lint job; `python3 scripts/lint_no_atm.py` exits 0 on the
    whole tree, and any residual fix is listed in the PR. The script's exemptions become only the

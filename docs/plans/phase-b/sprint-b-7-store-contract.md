@@ -13,17 +13,20 @@ recommended_model: opus
 must_follow: [b-6]
 parallel_safe: []
 requirements:
-  owns: [REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, "REQ-BDC-0501 (amended)", "REQ-BDC-0602 (amended)", "REQ-BDC-0603 (amended)", "REQ-BDC-0804 (amended)", "REQ-BDC-0812 (amended: the 0.1 bare-name rule)", "REQ-BDC-0901 (amended)", "REQ-BDC-0909 (amended)", "NFR-BDC-0007 (amended)", "REQ-STORE-0003 (amended)", REQ-CRON-0017]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0103, REQ-BDC-0107, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0604, REQ-BDC-0722, REQ-BDC-0727, REQ-BDC-0803, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0005, "REQ-STORE-0001, 0002, 0004..0008", "REQ-CORE-0001..0004, REQ-CORE-0101..0104", "REQ-MODEL-0001..0005", "REQ-BEADS-0001..0005", "REQ-BDCLI-0001..0009", "REQ-CRON-0008, 0009, 0014", "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0005, ADR-BDC-0007, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, "ADR-STORE-0001..0006", "ADR-CORE-0001, 0002, 0101..0103, 0201..0206", "ADR-MODEL-0001..0004", "ADR-BEADS-0001..0004", "ADR-BDCLI-0001..0006", "ADR-CRON-0006, ADR-CRON-0009 (the store method)", "ADR-API-0001..0003, ADR-CLI-0001..0005, ADR-PY-0001..0005, ADR-SYNC-0001..0007 (the mechanical edits only)"]
+  owns: [REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, "REQ-BDC-0501 (amended)", "REQ-BDC-0602 (amended)", "REQ-BDC-0603 (amended)", "REQ-BDC-0804 (amended)", "REQ-BDC-0812 (amended: the 0.1 bare-name rule)", "REQ-BDC-0901 (amended)", "REQ-BDC-0909 (amended)", "NFR-BDC-0007 (amended)", "REQ-STORE-0003 (amended)", "REQ-STORE-0007 (amended)", REQ-CRON-0017]
+  not_binding: "REQ-CRON-0002..0005, 0016, 0018: next-run, jitter, missed-tick, stop-check, resolver and supervisor rules of the worker and hooks, which b-7's store methods do not touch (b-8)"
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0103, REQ-BDC-0107, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0604, REQ-BDC-0722, REQ-BDC-0727, REQ-BDC-0803, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0005, "REQ-STORE-0001, 0002, 0004..0006, 0008", "REQ-CORE-0001..0004, REQ-CORE-0101..0104", "REQ-MODEL-0001..0005", "REQ-BEADS-0001..0005", "REQ-BDCLI-0001..0009", "REQ-CRON-0001, 0006..0015", "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BDC-0009, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, ADR-BDC-0015, "ADR-STORE-0001..0006", "ADR-CORE-0001, 0002, 0101..0103, 0201..0206", "ADR-MODEL-0001..0004", "ADR-BEADS-0001..0004", "ADR-BDCLI-0001..0006", "ADR-CRON-0001..0009 (the store methods)", "ADR-API-0001..0003, ADR-CLI-0001..0005, ADR-PY-0001..0006, ADR-SYNC-0001..0008 (the mechanical edits only)"]
 owned_paths:
   - "crates/bd-cache-store/** (except tests/compat*)"
   - "crates/bd-cache/**"
   - "crates/bd-cache-model/**"
   - "crates/sc-beads/src/cache.rs, crates/sc-beads/src/testing/**, crates/sc-beads/tests/**"
   - "crates/sc-bd-cli/src/argv.rs, crates/sc-bd-cli/src/testing/**, crates/sc-bd-cli/tests/**"
-  - "crates/sc-cron/src/{store.rs,sqlite.rs,scheduler.rs} and crates/sc-cron/tests/{sqlite_store.rs,enabled.rs} (set_enabled_many only)"
+  - "crates/sc-cron/src/{store.rs,sqlite.rs,scheduler.rs}, crates/sc-cron/tests/{sqlite_store.rs,enabled.rs} and the RecordingStore impls in crates/sc-cron/tests/worker.rs and crates/sc-cron/tests/common/** (the two store methods only)"
   - "crates/bd-cache-api/**, crates/bd-cache-cli/** (with src/bin/fake-bd.rs), crates/bd-cache-py/**, crates/bd-cache-sync/** (the mechanical edits the ScopeId, ScopeFilter and store changes force, and the code rows of crates/bd-cache-api/src/error.rs)"
+  - "crates/bd-cache-api/tests/error_table.rs (the TICK_ row match only), the new crates/bd-cache-api/tests/scope_names.rs, and crates/bd-cache-py/tests/test_reads.py (the 0.1 bare-name cases)"
+  - "docs/bd-cache-cli/contract.md (the §4 error-table rows of the four new codes only)"
   - "docs/architecture.md (the bd-cache-model, bd-cache-store, sc-beads and sc-bd-cli rows of the Crate Layout and Boundaries tables)"
   - "docs/bd-cache-store/**, docs/bd-cache/**, docs/bd-cache-model/** (implementation notes)"
 ---
@@ -50,9 +53,11 @@ here mechanically, and the semantic removals stay with b-8.
    (`crates/bd-cache-store/tests/format_golden.rs` and its DDL fixture) pins the exact v3 DDL
    plus every extension; it is this sprint's alone, and b-9 only verifies it.
 2. **Scope filters** (ADR-BDC-0013; REQ-BDC-0721, 0501, 0602, 0603, 0901, 0909 amended).
-   - `ScopeName` and `ScopeFilter` (`All` | `Criteria`) in `bd-cache-model`, validated once;
-     `ScopeId(ScopeName)` replaces `ScopeId::Phase`, and `Scope { id, filter }` is the
-     registry's row. The registry: `scopes add|set|remove|list` operations in the store and the
+   - `ScopeName` (`PhaseName`'s rule, so every stored name stays valid) and `ScopeFilter`
+     (`All` | `Criteria`) in `bd-cache-model`, validated once, with the one conversion to
+     `sc_beads::ScopeFilter`; `ScopeId(ScopeName)` replaces `ScopeId::Phase`, and `Scope { id,
+     filter }` is the registry's row. Stored names stay bare; a NULL `scope.filter` is the
+     phase-a scope whose label is `LEGACY_SCOPE_PREFIX` plus the name (ADR-BDC-0013). The registry: `scopes add|set|remove|list` operations in the store and the
      core; the `.beads/bd-cache.toml` `[[scope]]` tables and `scopes` list, created or updated on
      open, the file winning (`CONFIG_INVALID` on `set`/`remove` of a file scope); on-demand
      registration as a label scope. These operations surface only as `bdc cache` cache-management
@@ -89,23 +94,31 @@ here mechanically, and the semantic removals stay with b-8.
    guard and the backoff are b-8's). Store calls for `tick_lease` (take under `BEGIN IMMEDIATE`,
    refusal of a live lease, takeover of an expired one, release) and for `hook_state` (count,
    reset, next attempt); the `TickBudget` type in `bd-cache-model` with its one constructor.
-6. **Codes and outage** (REQ-BDC-0729, ADR-BDC-0005). `INGEST_INVALID`, `SCHEDULE_INVALID`,
-   `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` in the model's error table and as rows of
-   `bd-cache-api`'s `ERROR_TABLE`, with REQ-BDC-0729's kinds, exits and details keys; and
+6. **Codes and outage** (REQ-BDC-0729, REQ-BDC-0803, ADR-BDC-0005). `INGEST_INVALID`,
+   `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` in the model's error table, as rows
+   of `bd-cache-api`'s `ERROR_TABLE` and as the matching rows of contract §4's error table, one
+   row per code, with REQ-BDC-0729's kinds, exits and details keys. `tests/error_table.rs`
+   matches the `TICK_<REFUSAL>` row by that literal code, not by the `TICK_` prefix, so the two
+   new `TICK_` codes parse as rows; that row and its expectation stay for b-8. And
    `details.outage` on errors that can come from bd. An outage is recorded per affected scope
    in `sync_state` (its result, error and `failing_since`); reads keep answering from the cache
    with no bd process (REQ-BDC-0001).
 7. **The schedule store** (ADR-BDC-0014, NFR-BDC-0007 amended, REQ-CRON-0017).
-   `ScheduleStore::set_enabled_many` in sc-cron (`store.rs`), implemented by
-   `SqliteScheduleStore` (`sqlite.rs`) in one `BEGIN IMMEDIATE`, and wrapped by
-   `Scheduler::set_enabled_many` / `set_enabled_many_async` (`scheduler.rs`); it flips only each
-   row's `enabled` boolean column in place, never rewriting the row, on `SqliteScheduleStore` and
-   on `CacheScheduleStore`'s `sc_cron_schedule` (ANC-006, REQ-CRON-0014); no other sc-cron change.
-   `set_enabled_many` is a general store-trait method with no beads-cache name; sc-cron gains no
+   `ScheduleStore::set_enabled_many` and `ScheduleStore::replace_and_set_enabled` in sc-cron
+   (`store.rs`), required methods with no default body, implemented by `SqliteScheduleStore`
+   (`sqlite.rs`) in one `BEGIN IMMEDIATE` each, by both `RecordingStore` test doubles (delegating),
+   and wrapped by `Scheduler` methods and their async forms (`scheduler.rs`). `set_enabled_many`
+   flips only each row's `enabled` boolean column in place, never rewriting the row, on
+   `SqliteScheduleStore` and on `CacheScheduleStore`'s `sc_cron_schedule` (ANC-006,
+   REQ-CRON-0014); `replace_and_set_enabled` writes one row with its flag and other rows' flags in
+   one transaction, as REQ-CRON-0017 says. `sqlite.rs`'s rustdoc cites REQ-CRON-0009, not
+   NFR-BDC-0007. No other sc-cron change.
+   Both are general store-trait methods with no beads-cache name; sc-cron gains no
    dependency and stays copyable to sc-runtime unchanged, and the cache-specific schedule logic is
    `CacheScheduleStore`'s (ANC-005). `CacheScheduleStore` in `bd-cache-store` implements `sc_cron::ScheduleStore` over the
-   cache's one connection (the connection behind a mutex shared with `SqliteStore`,
-   `SqliteStore::schedule_store()`), keeping `sc_cron_schedule` in the cache file and checking
+   cache's one connection (the connection and the per-process claim in one object behind a
+   mutex shared with `SqliteStore`, `SqliteStore::schedule_store()`, so the claim is released only
+   when the last holder drops), keeping `sc_cron_schedule` in the cache file and checking
    the `sc_cron_schedule_version` row; a mismatch is refused before any schedule is served.
    `bd-cache-store` gains the `sc-cron` dependency (its own `Cargo.toml`; the workspace entry
    exists) and the Boundaries / Crate Layout rows say so.
@@ -139,9 +152,13 @@ Dolt, against the store and the fakes (NFR-BDC-0005).
    the set on the next sync. `ScopeFilter::Criteria` with every field empty, and `all` with a
    criterion, are refused at construction. Planted negative: pass `--status` to bd for a status
    criterion, and the argv test fails.
-4. The 0.1 bare-name rule (REQ-BDC-0812): a 0.1 Python verb called with a bare name `x` against a
-   cache whose scope is the legacy-prefixed `x` reads that scope, and a new scope argument with
-   the same bare name is `SCOPE_UNKNOWN`. Planted negative: drop the prefix rule from the 0.1
+4. The 0.1 bare-name rule (REQ-BDC-0812, ADR-BDC-0013): on a cache holding the phase-a scope
+   stored as `x` (label `<prefix>x`), a 0.1 Python verb given `x` or `<prefix>x` reads it; a new
+   scope argument (`issues list --scope`, the 0.2 namespaces) given `x` reads it, and given
+   `<prefix>x` is `SCOPE_UNKNOWN`. A read of an unknown name is `SCOPE_UNKNOWN` and registers
+   nothing; `cache refresh scopes` and the 0.1 `sync` register it. The new-argument cases run in
+   `crates/bd-cache-api/tests/scope_names.rs`, the 0.1 cases in the existing
+   `crates/bd-cache-py/tests/test_reads.py`. Planted negative: drop the prefix rule from the 0.1
    path, and the 0.1 test fails; apply it to a new argument, and the new-argument test fails.
    The existing 0.1 Python tests pass unchanged.
 5. The outage truth table has one test per row: spawn failure, timeout, lock, transport, and an
@@ -155,13 +172,20 @@ Dolt, against the store and the fakes (NFR-BDC-0005).
    store and its schedule view are open, the process holds one connection to the cache file (a
    second `SqliteStore` open in the process is still `STORE_IN_USE`, and the schedule view
    shares the store's connection, which the test checks by a write through one being visible
-   through the other inside one transaction); a cache file whose `sc_cron_schedule_version` row
-   names another version is refused before any schedule is served. `set_enabled_many` flips two
-   rows in one transaction, seen whole by a second connection, and a call naming a missing row
-   changes neither, on both stores. Planted negative: open a second connection for the schedule
-   view, and the one-connection test fails.
-8. The new codes are in `ERROR_TABLE` with REQ-BDC-0729's kinds and exits, and the model and api
-   tables agree.
+   through the other inside one transaction); after the `SqliteStore` is dropped with the view
+   alive, a second open is still `STORE_IN_USE`; a cache file whose `sc_cron_schedule_version`
+   row names another version is refused before any schedule is served. `set_enabled_many` flips
+   two rows in one transaction, seen whole by a second connection; `replace_and_set_enabled`
+   creating a disabled row while enabling another, polled by a second connection, never shows
+   both enabled; a replace of an active row keeps its id, raises its generation and keeps the
+   given flag; a call naming a missing row changes nothing; each on both stores. Planted
+   negatives: open a second connection for the schedule view (the one-connection test fails);
+   keep the claim in `SqliteStore` (the drop test fails); write the row enabled and then flip it
+   (the polling test fails).
+8. The new codes are in `ERROR_TABLE` and in contract §4, one row each, with REQ-BDC-0729's
+   kinds and exits; the model and api tables agree, and `error_table.rs` passes with the
+   `TICK_<REFUSAL>` row still present. Planted negative: drop one new row from the contract, and
+   the test fails.
 9. The whole workspace builds and its tests pass with this sprint's changes alone. AC-0:
    `python3 scripts/lint_no_atm.py --paths crates/bd-cache-store/ crates/bd-cache/
    crates/bd-cache-model/ docs/bd-cache-store/ docs/bd-cache/ docs/bd-cache-model/` exits 0,
