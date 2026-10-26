@@ -1,7 +1,8 @@
 # Intent - beads-cache phase B
 
 Written 2026-10-25 by bc-lead, from Rand's phase-B direction; the boundary extension is
-`docs/plans/phase-b/phase-b-boundary.md` (r3 with Amendments A1–A6). One page at most. This is the "why"
+`docs/plans/phase-b/phase-b-boundary.md` (r3 with Amendments A1–A8: A7, of 2026-10-26, makes the sync
+switch two cron rows with a CLI convenience; A8, of 2026-10-26, settles the PR #97 QA round). One page at most. This is the "why"
 that frames every anchor beneath it; Jev questions are judged against anchors, not against this
 document.
 
