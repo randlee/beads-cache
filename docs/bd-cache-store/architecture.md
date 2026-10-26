@@ -538,3 +538,24 @@ Decision:
 
 Consequences: no feature reaches a non-test build; adding a dependency or feature to
 `crates/bd-cache-store/Cargo.toml` amends this ADR and the Crate Layout row.
+
+## ADR-STORE-0006: The phase-B extensions for the tick, ingest and marking
+
+**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-7)
+
+Context: the tick on the sc-cron table, the consumer's Python sync and the post-sync hook
+(ADR-BDC-0011, REQ-BDC-0720..0729) need per-scope methods, failure state, ingest stamps, a tick
+lease and method registration in the cache file. ADR-STORE-0001 freezes the file as v3 plus
+additive extensions.
+
+Decision: add, through the existing mechanism (`PRAGMA table_info` / `CREATE TABLE IF NOT
+EXISTS` under `BEGIN IMMEDIATE`, `user_version` 3), exactly the extensions listed in
+`docs/plans/phase-b/phase-b-boundary.md` §Store extensions: the columns `scope.method`,
+`scope.revision`, `sync_state.failing_since`, `sync_state.notified_since`,
+`journal.first_offered_at`, `journal.ingest_tick_id` and `scope.last_ingest_tick_id`; the
+tables `registration` and `tick_lease`; and the sc-cron schedule tables, created on the first
+`schedule set`. Existing names stay (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`); the
+API names them neutrally.
+
+Consequences: a v3 reader that does not know an extension still reads and writes the file. The
+format golden pins the v3 DDL plus these extensions. Further extensions need a later ADR.

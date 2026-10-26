@@ -428,25 +428,19 @@ An escalated entry stays unannounced until it is marked announced; marking recor
 
 ## REQ-BDC-0701: One schedule per repository
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-The sync task runs as one schedule per repository started from the beads root with a `team` (the ATM team of the phase leads); a missing team is refused.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0720. The tick is a row in the cache file's sc-cron table, at most one per repository (A3), with no consumer team or lead configuration.*
 
-*Amended (lead ruling, bc-lead, 2026-10-24, a-7): `fallback_lead` is required beside `team`, in the same `[tick]` table, and a missing one is refused the same way. It is the lead told of escalations that belong to no phase, and of backend alerts for a phase whose file names no lead (REQ-BDC-0704, 0706).*
-
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_missing_team_is_refused`
+The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0702: Active phases
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-Phases come from `.atm-bd/phase-*.toml` (`root`, `lead`), optionally limited by a configured phase list; a phase is active while its root bead is not closed, with uncached roots read in one `bd list --id`. A malformed phase list is refused.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0721. Scopes are configured in the cache as a name plus a bd filter (A5); no phase files are read.*
 
-*Amended (lead ruling, bc-lead, 2026-10-24, a-7): a root that cannot be read (uncached during an outage) makes its phase inactive for that tick, as in the baseline, and is reported; the stop rule never treats an unreadable root as closed (REQ-BDC-0707). A configured phase list must name at least one phase; an empty list is refused. A phase file with no `lead` is kept (the baseline skips it) so that its alerts reach `fallback_lead`.*
-
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_tick_syncs_only_phases_with_an_open_root`, `test_custom_phases_limits_sync_and_stop`, `test_malformed_custom_phases_is_refused`
+The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0703: Tick budget
 
@@ -454,52 +448,122 @@ Phases come from `.atm-bd/phase-*.toml` (`root`, `lead`), optionally limited by 
 
 A tick runs within a 25 s budget: drain with a deadline 5 s before the budget ends, then sync each active phase, deferring any not started 2 s before it.
 
+*Amended (phase-B boundary extension; takes effect when the planning PR merges): the budget is the tick row's `budget_ms` (default 25000, range 1000–600000), with a `hook_reserve_ms` (default 5000) the drain and sync cannot use, so the post-sync hook always runs. The tick drains, then syncs each configured scope, deferring any not started in time (REQ-BDC-0720).*
+
 **Source:** BD-CACHE.md Cron module
 **Acceptance evidence:** `test_tick_budget_defers_drain_entries`
 
 ## REQ-BDC-0704: Sync failures announced once per cause
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-A sync failure whose cause differs from `sync_alert:<phase>` is sent to that phase's lead and recorded; a success clears it. An outage is announced the same way under the cause key `backend_unavailable`.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727 and REQ-BDC-0728. The cache records failure state; a registered post-sync hook decides what to tell anyone. The cache sends nothing (ADR-BDC-0010).*
 
-*Amended in planning: outage announcement uses the per-scope alert (ADR-BDC-0005).*
-
-*Amended (lead ruling, bc-lead, 2026-10-24, a-7): a sync failure or an outage for a phase whose file names no lead is sent to `fallback_lead`. An outage is told to the leads of the active phases and of the phases whose root could not be read, never of a phase known to be closed.*
-
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_sync_failure_is_announced_once_per_cause`
+The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0705: Escalations announced once
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-Every escalated entry with no `announced_at` is sent to its phase's lead with the `resolve` command, then marked.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727. Unnotified escalations are offered to the post-sync hook, which marks them with `journal announce`.*
 
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_escalation_is_sent_once_to_the_phase_lead`
+The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0706: Undelivered messages retried
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-Any message not delivered, or an entry whose phase has no lead, makes the tick reply `refused` with the list, and is retried next tick; otherwise the reply is `pass-through`.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727. Anything the hook does not mark is offered again on the next tick; there is no `refused` or `pass-through` reply.*
 
-*Amended (lead ruling, bc-lead, 2026-10-24, a-7): an escalated entry with no scope (a bead outside every scope) is sent to `fallback_lead`; an entry whose phase has a scope but no lead is still `refused`. A message is sent only while the tick has time left before its end; one that cannot be started is left unmarked and sent by the next tick, which is not a refusal.*
-
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_undelivered_escalation_is_retried_and_the_tick_refuses`
+The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0707: Stop rule
 
-**Status:** Approved
+**Status:** Superseded (when the phase-B planning PR merges)
 
-The schedule stops when no phase is active and no entry is pending or escalated-unannounced.
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): removed. There is no consumer stop rule; a schedule is paused with sc-cron's `enabled` flag, and an sc-cron stop hook may continue, disable or delete it (A2).*
 
-*Amended (lead ruling, bc-lead, 2026-10-24, a-7): the schedule stops only on positive knowledge. A `[tick]` table the tick would refuse, an unreadable phases directory or phase file, a root that cannot be read, or a failed store read all keep it running; the baseline's "uncached root during an outage counts as inactive" applies to syncing, not to stopping.*
+The superseded text is in git history (before the phase-B planning PR).
 
-**Source:** BD-CACHE.md Cron module
-**Acceptance evidence:** `test_stop_only_when_no_active_phase_and_no_open_work`
+## REQ-BDC-0720: The tick on the cache's cron table
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+beads-cache syncs bd on a tick scheduled in the sc-cron tables of the cache file, at most one tick row per repository (A3), set with `bdc cache schedule set|show|enable|disable|clear`; `enable` and `disable` flip only the row's `enabled` flag (A4). `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run the same Rust tick: lease, drain, sync, post-sync hook, reply (S83, S90).
+
+**Source:** phase-b-boundary.md §Scheduling, §One tick; S83, S90, A3, A4
+
+## REQ-BDC-0721: Scopes are configured bd filters
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+A scope is a name plus a bd filter (labels all or any, status, type, assignee, or `--all`) with a method, `builtin` by default, `python` or `external`, managed with `bdc cache scopes add|set|remove|list`. Removing a scope deletes its membership rows, not bead rows another scope still holds. A tick with no scopes still drains and runs the hook.
+
+**Source:** phase-b-boundary.md §Scopes; A5
+
+## REQ-BDC-0722: One tick at a time
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+Ticks are single-flight across processes through a `tick_lease` row taken under `BEGIN IMMEDIATE`, expiring at the deadline plus 10 s. A tick that finds a live lease replies `skipped: in_flight`; an expired lease is taken over.
+
+**Source:** phase-b-boundary.md §Single flight; S90
+
+## REQ-BDC-0723: Registered methods run isolated
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+A registered method runs through sc-cron's Python runner as `<absolute interpreter> -I -m bd_cache_rs.run <kind> <module:function>`, from a private temp cwd, with only the allowlisted environment, its output capped, and killed with its process group or job object at its deadline (NFR-BDC-0004). There is no in-process call. The tick refuses to run registered code from a cache file not owned by the current user, or group- or world-writable.
+
+**Source:** phase-b-boundary.md §Calling a Python method; S89, S90, A2
+
+## REQ-BDC-0724: Registration lives in the cache file
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+The `sync` and `post_sync` methods are registered in the cache file's `registration` table (`bdc cache hooks register|show|clear`, PyO3 `Cache.hooks_*`) with an absolute interpreter and a `module:function`; `.beads/bd-cache.toml` cannot register code (`CONFIG_INVALID`). A relative interpreter or a function that does not import is `REGISTRATION_INVALID`.
+
+**Source:** phase-b-boundary.md §Registration; S89
+
+## REQ-BDC-0725: A consumer's Python sync replaces the built-in one per scope
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+`builtin` scopes are synced with `bd list` and `bd blocked`; `python` scopes go to the registered `sync` method once per tick; `external` scopes are never synced. A python scope counts as ingested only when an `ingest_scope` call stamped with the tick's `tick_id` committed for it; one neither ingested nor reported failed is `TICK_SYNC_MISSING`.
+
+**Source:** phase-b-boundary.md §One tick, §Request and result shapes; S87, decision D1
+
+## REQ-BDC-0726: Ingest is as strict as the built-in sync
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+`ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)` (Rust, `bdc cache scopes ingest`, PyO3) applies the strict row decoder, declared membership, the built-in `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless allowed; at most 50 000 rows and 64 MiB; any violation is `INGEST_INVALID` with the stored scope untouched.
+
+**Source:** phase-b-boundary.md §Ingest; S87
+
+## REQ-BDC-0727: The post-sync hook gets every result, and delivery is at-least-once
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+After the sync, a registered `post_sync` method gets the drain result, each scope's result and error with `failing_since` and `notified`, the escalated entries not yet notified with `first_offered_at`, and the pending count, with at least `hook_reserve_ms` left. The tick marks nothing; anything the hook does not mark is offered again on the next tick. The cache sends nothing (ADR-BDC-0010).
+
+**Source:** phase-b-boundary.md §Request and result shapes, §Failure state and marking; S88
+
+## REQ-BDC-0728: Failure state and compare-and-set marking
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+`failing_since` is set on the first non-ok result after an ok, kept across consecutive failures, cleared on ok, and opaque to callers. `scope_announce(scope, since)` / `bdc cache scopes announce <scope> --since <token>` marks only when `since` equals the current `failing_since`, otherwise `PRECONDITION`. `journal_announce` is unchanged.
+
+**Source:** phase-b-boundary.md §Failure state and marking; S88
+
+## REQ-BDC-0729: Outage is classified, and the new codes are typed
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The codes `TICK_SYNC_MISSING`, `TICK_RUN_FAILED`, `INGEST_INVALID` and `REGISTRATION_INVALID` have the kinds and exits of the codes table (REQ-BDC-0803).
+
+**Source:** phase-b-boundary.md §New codes; ADR-BDC-0005
 
 ## REQ-BDC-0801: CLI commands
 
@@ -539,6 +603,8 @@ The error codes are those of BD-CACHE.md, plus the additive `SCOPE_UNKNOWN`, `ST
 **Status:** Approved
 
 The SQLite file is shared with the Python implementation: a file written by either is read by the other. The Rust store writes the v3 tables unchanged plus only additive tables and nullable columns.
+
+*Amended (phase-B boundary extension, S84; takes effect when the planning PR merges): the store file stays readable and writable by any v3 reader; the format is v3 plus the additive extensions of ADR-STORE-0006, with `user_version` 3. Compatibility with a consumer's own implementation is the consumer's test, run against the published wheel; beads-cache vendors no consumer code.*
 
 *Amended in planning (ADR or review): split from the CLI half, now REQ-BDC-0806 (review PLAN-CRIT-003).*
 

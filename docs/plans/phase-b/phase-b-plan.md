@@ -1,8 +1,10 @@
 # Phase B — bdc CLI, bd-cache-api, Python 0.2, release channels
 
-Status: ready for dispatch. The contract, ADR-BDC-0009 and the REQ-BDC-0801,
-0802, 0803 and 0806 amendments were approved by Rand (lead ruling S60,
-2026-10-25).
+Status: b-1..b-5 complete and merged into `integrate/phase-b` (b-1 #75, b-2 #76, b-3a #74,
+b-3 #78, b-4 #77, b-5 #80); b-6 complete and merged (#92). b-7, b-8 and b-9 are planned by the
+boundary extension [phase-b-boundary.md](phase-b-boundary.md) (r3, lead ruling S82, with
+Rand's later Amendments A1–A6). The contract, ADR-BDC-0009 and the REQ-BDC-0801, 0802, 0803
+and 0806 amendments were approved by Rand (lead ruling S60, 2026-10-25).
 
 Phase id: `b`. Plan branch: `plan/phase-b` (PR to `develop`). Phase branch:
 `integrate/phase-b`, cut from `develop` after PR #69 (the contract) merges.
@@ -66,6 +68,10 @@ the workspace-edge check cannot see.
 | [b-3](sprint-b-3-cli.md) | integration | `bd-cache-cli` | 2 | cli | b-1, b-2, b-3a |
 | [b-4](sprint-b-4-python-0-2.md) | integration | `bd-cache-py` 0.2 | 2 | python | b-1, b-2 |
 | [b-5](sprint-b-5-release-channels.md) | integration | release manifest and channels | 3 | release | b-3, b-4 |
+| [b-6](sprint-b-6-sc-cron.md) | boundary | `sc-cron` (Amendment A2) | 4 | core | — |
+| [b-7](sprint-b-7-store-contract.md) | boundary | store and core for the tick (WP-6a) | 5 | core | b-6 |
+| [b-8](sprint-b-8-tick-python.md) | integration | the tick, the Python surface, end to end (WP-6b, WP-9) | 6 | core | b-7 |
+| [b-9](sprint-b-9-boundary-lint.md) | integration | neutral tests, docs and API, lint gate (WP-7, WP-8, WP-10) | 5–7 (merges last) | docs | b-8 |
 
 - Width: 3 in wave 1 (b-1, b-2, b-3a), 2 in wave 2 (b-3, b-4), 1 in wave 3.
 - Critical path: b-1 → b-3 → b-5.
@@ -122,6 +128,11 @@ All are bc-lead, 2026-10-25, recording Rand's answers.
 | S61 | One workspace version for everything. Wheel 0.2.0 means `[workspace.package].version` is 0.2.0, so sc-beads, sc-cron and sc-bd-cli also publish as 0.2.0. The crates are not decoupled and the kit is not changed. The bump goes in b-4, because the wheel build and `verify-version-lockstep` need the pyproject and workspace versions to match in the commit that ships the wheel. | b-4 deliverable 5 |
 | S62 | A third additive nullable store column, `changed`, is accepted. It is named in contract §9 (amended on this branch). | b-1 deliverable 5 |
 | S63 | Channel names: WinGet id `randlee.bd-cache`; Homebrew formula `bd-cache` in randlee/homebrew-tap; Scoop `bucket/bd-cache.json` in randlee/scoop-bucket. | b-5 |
+| S82–S90 | The boundary extension r3: ADR-BDC-0010 and the lint, the tick on the sc-cron table, the frozen v3 store plus extensions, #86 kept, fen-tick and fen-py abandoned, the Python `sync` replacement through `ingest_scope`, the post-sync hook, registration and trust, one execution path and the tick lease. | [phase-b-boundary.md](phase-b-boundary.md) §Lead rulings |
+| A1–A6 | Rand's rulings after r3: `cron.tick` / `cron.stop` allowed; sc-cron general with the `enabled` flag and continue / disable / delete; one tick row per repository; enable and disable through the cron table; scopes as bd filters including `--all`; every deliverable justified by a REQ or ADR. | [phase-b-boundary.md](phase-b-boundary.md) §Amendments after r3 |
+
+S64–S81 were recorded during delivery, in the b-1..b-6 PRs and the requirements they amend;
+b-9 (WP-8) collects them into this table.
 
 ## Open items
 
