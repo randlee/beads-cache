@@ -388,6 +388,16 @@ fn one_second_call_timeout(repo: &TestRepo) {
     .unwrap();
 }
 
+/// Takes the one-second cap off again, so a control run that expects bd to
+/// answer is not bound by a cap a slow process start on a CI runner can miss.
+fn default_call_timeout(repo: &TestRepo) {
+    std::fs::write(
+        repo.root().join(".beads").join("bd-cache.toml"),
+        "scopes = [\"x\"]\n",
+    )
+    .unwrap();
+}
+
 /// Far past the one-second cap: the parent kills fake-bd long before.
 const HUNG_MS: u64 = 60_000;
 
@@ -416,6 +426,7 @@ fn a_hung_bd_fails_refresh_scopes() {
 
     // The control: the same repository with bd answering refreshes and serves.
     repo.edit(|s| s.faults.slow_ms = 0);
+    default_call_timeout(&repo);
     let data = ok(&repo, &["cache", "refresh", "scopes", "x"]);
     assert_eq!(data["failed"], 0, "{data}");
     let listed = ok(&repo, &["issues", "list", "--scope", "x"]);
@@ -544,14 +555,15 @@ fn health_reports_the_sync_mode_and_no_sync_row_enabled() {
 #[test]
 fn a_probe_that_cannot_reach_bd_is_down() {
     let repo = synced();
-    one_second_call_timeout(&repo);
     // A sync row, so only the probe decides (REQ-BDC-0732).
     ok(&repo, &["cache", "schedule", "set", "0 * * * * *"]);
-    // The control: bd answers, so the probe runs and the cache is ok.
+    // The control: bd answers, so the probe runs and the cache is ok. It
+    // runs before the one-second cap, which a slow process start can miss.
     let health = ok(&repo, &["cache", "health", "--probe"]);
     assert_eq!(health["state"], "ok", "{health}");
     assert!(health["probe"].is_object(), "{health}");
 
+    one_second_call_timeout(&repo);
     repo.edit(|s| s.faults.slow_ms = HUNG_MS);
     let health = ok(&repo, &["cache", "health", "--probe"]);
     assert_eq!(health["state"], "down", "{health}");
