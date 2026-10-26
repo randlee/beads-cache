@@ -16,15 +16,17 @@ use clap::{Arg, ArgAction, ArgGroup, Command as Clap};
 use bd_cache_api::Command;
 
 use crate::NAME;
-use crate::commands::{beads, manage, tick};
+use crate::commands::{beads, cron, manage, schedule, scopes, sync, tick};
 
 /// What a command runs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Target {
     /// A `bd-cache-api` command: decode, then execute.
     Api(Command),
-    /// `cache tick`: bd-cache-sync's tick (its request is decoded here).
-    Tick,
+    /// A phase-B verb `bd-cache-api` decodes and this crate runs over
+    /// `bd-cache-sync` (ADR-BDC-0015): `cache schedule *`, `cron run`,
+    /// `tick`, `sync *`.
+    Sync(Command),
 }
 
 /// How many values an argument takes.
@@ -182,7 +184,11 @@ pub(crate) fn commands() -> impl Iterator<Item = &'static CommandSpec> {
     beads::COMMANDS
         .iter()
         .chain(manage::COMMANDS)
+        .chain(scopes::COMMANDS)
+        .chain(schedule::COMMANDS)
+        .chain(cron::COMMANDS)
         .chain(std::iter::once(&tick::COMMAND))
+        .chain(sync::COMMANDS)
 }
 
 /// The command with this path.
@@ -384,6 +390,16 @@ fn group(mut parent: Clap, prefix: &str, relaxed: bool) -> Clap {
             format!("{prefix} {word}")
         };
         let sub = match command(&path) {
+            // A command that is also a group (`cache scopes` and `cache
+            // scopes list` …): its own arguments, and its subcommands.
+            Some(spec) if !children(&path).is_empty() => group(
+                leaf(spec, relaxed)
+                    .subcommand_required(false)
+                    .args_conflicts_with_subcommands(true)
+                    .disable_help_subcommand(true),
+                &path,
+                relaxed,
+            ),
             Some(spec) => leaf(spec, relaxed),
             None => group(
                 Clap::new(word)

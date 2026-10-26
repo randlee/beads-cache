@@ -3,6 +3,7 @@
 mod beads;
 mod entry;
 mod manage;
+mod sync;
 mod x_cache;
 
 use serde::Serialize;
@@ -22,6 +23,8 @@ pub use manage::{
     OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, ScopeData,
     StateCountsData, SyncReportData,
 };
+#[doc(inline)]
+pub use sync::{ScopesAnnounceData, ScopesChangeData, ScopesIngestData, ScopesRemoveData};
 #[doc(inline)]
 pub use x_cache::{
     Basis, ContextXCache, DepsXCache, GetXCache, OpError, OutageData, ReadFallback, ReadXCache,
@@ -72,6 +75,14 @@ pub enum Data {
     JournalResolve(JournalResolveData),
     /// `cache journal announce`.
     JournalAnnounce(JournalAnnounceData),
+    /// `cache scopes add` and `cache scopes set`.
+    ScopesChange(ScopesChangeData),
+    /// `cache scopes remove`.
+    ScopesRemove(ScopesRemoveData),
+    /// `cache scopes ingest`.
+    ScopesIngest(ScopesIngestData),
+    /// `cache scopes announce`.
+    ScopesAnnounce(ScopesAnnounceData),
 }
 
 impl Data {

@@ -22,8 +22,7 @@
 //!
 //! The api crate depends on neither the store nor the sync crate, so their
 //! configuration errors reach it as text: a front end maps them with
-//! [`ApiError::config_invalid`], and the tick's refusals with
-//! [`ApiError::tick_refusal`].
+//! [`ApiError::config_invalid`].
 
 use std::fmt;
 
@@ -111,8 +110,8 @@ const TYPED_EXIT: Option<i32> = Some(3);
 
 /// The error table of contract §4: code, kind, exit, retryable and `v0_code`.
 ///
-/// The `TICK_<REFUSAL>` family is not a row here: its kind depends on the
-/// refusal, see [`ApiError::tick_refusal`].
+/// Every code is one row (REQ-BDC-0729). The `TICK_<REFUSAL>` family is
+/// removed with the refusals it reported (ADR-BDC-0015, sprint b-8).
 pub const ERROR_TABLE: &[ErrorSpec] = &[
     row("USAGE", InvalidInput, USAGE_EXIT, false, None),
     row(
@@ -322,8 +321,7 @@ impl ApiError {
     }
 
     /// The process exit from the table: 2 for `USAGE`, 3 otherwise; `None`
-    /// for a code that never ends a command (`BD_WRITE_FAILED`, the
-    /// `TICK_<REFUSAL>` family).
+    /// for a code that never ends a command (`BD_WRITE_FAILED`).
     #[must_use]
     pub fn exit_code(&self) -> Option<i32> {
         self.exit
@@ -476,35 +474,6 @@ impl ApiError {
         e.with_detail("source", source)
     }
 
-    /// The `TICK_<REFUSAL>` error of one tick refusal (contract §4).
-    ///
-    /// `refusal` is bd-cache-sync's `RefusalCode::as_str()` (e.g. `busy`).
-    /// Config and phase-file refusals are `invalid_input`; an undelivered
-    /// message or a missing lead is `unavailable` (retryable); `busy` is
-    /// `conflict`. A refusal this crate does not know is `internal`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bd_cache_api::{ApiError, ErrorKind};
-    /// let e = ApiError::tick_refusal("busy", "an earlier tick holds the cache");
-    /// assert_eq!((e.code(), e.kind()), ("BD_CACHE.TICK_BUSY", ErrorKind::Conflict));
-    /// assert_eq!(e.exit_code(), None);
-    /// ```
-    #[must_use]
-    pub fn tick_refusal(refusal: &str, message: impl Into<String>) -> Self {
-        let kind = tick_refusal_kind(refusal);
-        Self {
-            kind,
-            code: format!("{CODE_PREFIX}TICK_{}", refusal.to_ascii_uppercase()),
-            message: message.into(),
-            details: Map::new(),
-            suggested_action: None,
-            exit: None,
-            retryable: kind == ErrorKind::Unavailable,
-        }
-    }
-
     /// `INTERNAL`: a bug, such as a caught panic.
     #[must_use]
     pub fn internal(message: impl Into<String>) -> Self {
@@ -518,34 +487,6 @@ impl ApiError {
         Self::table("USAGE", message)
             .with_detail("valid", valid.to_vec())
             .with_suggested_action("run `bdc <cmd> --help`")
-    }
-}
-
-/// The kind of a tick refusal, by its `RefusalCode` name.
-fn tick_refusal_kind(refusal: &str) -> ErrorKind {
-    match refusal {
-        // Configuration and phase-file refusals.
-        "missing_team"
-        | "missing_fallback_lead"
-        | "bad_member"
-        | "malformed_phases"
-        | "empty_phases"
-        | "phases_dir_unreadable"
-        | "phase_not_named"
-        | "phase_file_unreadable"
-        | "phase_file_too_large"
-        | "phase_file_not_regular"
-        | "phase_file_invalid"
-        | "phase_root_not_returned"
-        | "phase_file_missing"
-        | "phase_files_too_many" => InvalidInput,
-        // An undelivered message, or a lead that is missing.
-        "sync_failure_undelivered"
-        | "outage_undelivered"
-        | "escalation_undelivered"
-        | "escalation_no_lead" => Unavailable,
-        "busy" => Conflict,
-        _ => Internal,
     }
 }
 

@@ -24,15 +24,24 @@ bd-cache-sync.workspace = true
 clap.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true
+# `cron run`: sc-cron's Scheduler over the cache file's CacheScheduleStore with
+# bd-cache-sync's resolver (ADR-SYNC-0008: the edge bd-cache-cli -> sc-cron).
+sc-cron.workspace = true
 sc-command.workspace = true
 sc-observability-types.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# The runtime of `cron run`, `tick` and the switch (ADR-SYNC-0008).
+tokio = { workspace = true, features = ["rt-multi-thread"] }
 toml.workspace = true
 
 # bdc stops its bd children on SIGTERM / SIGINT / SIGHUP (RSH-001, ADR-CLI-0005).
 [target.'cfg(unix)'.dependencies]
 signal-hook.workspace = true
+
+# `cron run` stops on Ctrl-C and Ctrl-Break (REQ-BDC-0730).
+[target.'cfg(windows)'.dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "signal"] }
 
 [dev-dependencies]
 # Lets the integration tests use CARGO_BIN_EXE_fake-bd and the test doubles.

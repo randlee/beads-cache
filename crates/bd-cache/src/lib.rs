@@ -597,17 +597,16 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 
     /// The scope's last announced sync-failure cause.
     ///
-    /// The alert verbs take any valid name, registered or not: they are
-    /// keyed by the tick's phase names (its phase files and the v3 cron's
-    /// `sync_alert:<phase>` keys), which need not be registered scopes. They
-    /// are the recorded exception to ADR-BDC-0013's refusal of an unknown
-    /// scope (ADR-CORE-0205 amendment 1, `docs/bd-cache/read-path.md`), until
-    /// b-8 replaces the tick.
+    /// Like every verb that names a scope, the alert verbs refuse a name
+    /// that is not registered with `SCOPE_UNKNOWN` and register nothing
+    /// (ADR-BDC-0013; the exception of its amendment 1 ended in sprint b-8,
+    /// which removed the tick's phase files).
     ///
     /// # Errors
     ///
-    /// Store errors.
+    /// `SCOPE_UNKNOWN`; store errors.
     pub fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
+        ready::require_known(self, s)?;
         self.store.sync_alert(s)
     }
 
@@ -615,8 +614,9 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// Store errors.
+    /// `SCOPE_UNKNOWN`; store errors.
     pub fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
+        ready::require_known(self, s)?;
         self.store.set_sync_alert(s, cause)
     }
 
@@ -626,13 +626,15 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// As [`Cache::mark_announced_within`]; the alert is left as it was.
+    /// `SCOPE_UNKNOWN`; as [`Cache::mark_announced_within`]; the alert is
+    /// left as it was.
     pub fn set_sync_alert_within(
         &mut self,
         s: &ScopeId,
         cause: Option<&str>,
         wait: Duration,
     ) -> Result<(), CacheError> {
+        ready::require_known(self, s)?;
         self.store.set_sync_alert_within(s, cause, wait)
     }
 

@@ -149,7 +149,7 @@ async fn use_python_switches_and_runs_at_once_and_use_builtin_reverses_it() {
         assert!(["PATH", "HOME", "LANG", "BEADS_DIR", "BD_CACHE_PATH", "PWD", "SHLVL", "_", "OLDPWD"].contains(&name)
             || name.starts_with("LC_"), "{name} leaked into the script");
     }
-    assert_eq!(repo.store_lease_free(), true);
+    assert!(repo.store_lease_free());
 
     let e = schedule_enable(&repo.scheduler, true).await.unwrap_err();
     assert_eq!(reason(&e), ("schedule", ScheduleReason::PythonSyncEnabled));

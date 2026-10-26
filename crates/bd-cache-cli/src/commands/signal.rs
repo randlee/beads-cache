@@ -10,9 +10,10 @@
 //!    a running child's process group is killed and reaped exactly as on a
 //!    timeout, and the in-process and cross-process project locks are released
 //!    by the call's normal return;
-//! 2. sets the command's [`StopFlag`], which `cache tick` passes to the tick and
-//!    to its [`AtmSender`](bd_cache_sync::AtmSender), so the tick ends early and
-//!    an `atm` child is killed with its group;
+//! 2. sets the command's [`StopFlag`]: `cache tick` and `sync use-python` stop
+//!    between steps and kill a running hook's or script's process tree, and
+//!    `cache cron run` starts no new run and waits for the runs in flight up to
+//!    `--shutdown-timeout-ms` (REQ-BDC-0730);
 //! 3. leaves the command to unwind normally: it writes its envelope, and
 //!    [`run_process`](crate::run_process) exits with `128 + signal` (143 for
 //!    `SIGTERM`), the shell's convention for a signal death.

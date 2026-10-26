@@ -117,7 +117,7 @@ impl World {
     pub fn add(&self, name: &str, labels: &[&str], f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
         b.labels = labels.iter().map(|l| (*l).to_owned()).collect();
-        b.updated_at = self.clock.now_utc().as_str().to_owned();
+        self.clock.now_utc().as_str().clone_into(&mut b.updated_at);
         f(&mut b);
         self.bd.insert(b.clone());
         b
@@ -279,8 +279,7 @@ echo '{"protocol":"bd-cache.run.v1","ok":true,"result":{"handled":true}}'
     #[must_use]
     pub fn calls(&self) -> usize {
         std::fs::read_to_string(self.dir.path().join("count"))
-            .map(|s| s.trim().parse().unwrap())
-            .unwrap_or(0)
+            .map_or(0, |s| s.trim().parse().unwrap())
     }
 
     /// The request of call `n` (from 1).

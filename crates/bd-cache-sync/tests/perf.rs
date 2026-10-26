@@ -150,7 +150,7 @@ fn check_steps(c: &rusqlite::Connection, at: i64) -> i32 {
     stmt.get_status(rusqlite::StatementStatus::VmStep)
 }
 
-/// The same with entries `bd_cache.py` applies while the cache is open (no
+/// The same with entries another writer applies while the cache is open (no
 /// `applied_at`, no epoch, QA4-002): a cached `get` still makes the same
 /// store calls, and its journal check dates them, so the SQL work of the
 /// next check is index probes again, not one per entry. Measured in SQLite

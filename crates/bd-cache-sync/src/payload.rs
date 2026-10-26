@@ -533,6 +533,8 @@ fn millis(d: Duration) -> u64 {
 
 #[cfg(all(test, unix))]
 mod tests {
+    #![allow(clippy::unwrap_used, clippy::panic, reason = "test code: a failed unwrap is a test failure")]
+
     use std::os::unix::fs::PermissionsExt as _;
 
     use super::*;

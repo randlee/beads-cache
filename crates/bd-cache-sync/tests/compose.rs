@@ -1,4 +1,4 @@
-//! `compose` resolves the phases directory against the repository root (QA-008),
+//! `compose` names the cache file, the beads directory and the schedule table,
 //! and its errors carry this crate's stable `sync_config_*` codes (S34), one
 //! per `ConfigLoadError` variant, beside the store's own `store_config_*`
 //! codes (S37).
@@ -62,35 +62,23 @@ fn repo(toml: &str) -> tempfile::TempDir {
     std::fs::create_dir_all(&beads).unwrap();
     std::fs::write(
         beads.join("metadata.json"),
-        r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+        r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
     )
     .unwrap();
     std::fs::write(beads.join("bd-cache.toml"), toml).unwrap();
     root
 }
 
-/// The working directory of the test is the crate's, not the repository's:
-/// a relative `phases_dir`, and the default, still name the repository's.
+/// The composition exposes the cache file, the beads directory and the
+/// schedule table of the cache file (ADR-BDC-0014).
 #[test]
-fn a_relative_phases_dir_and_the_default_are_rooted_at_the_repository() {
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let root = repo("[tick]\nteam = \"t\"\nfallback_lead = \"f\"\nphases_dir = \"phases\"\n");
+fn the_composition_names_the_cache_file_the_beads_dir_and_its_schedule_table() {
+    let root = repo("");
+    let clock: Arc<dyn Clock> = Arc::new(sc_beads::SystemClock);
     let composed = compose(root.path(), &clock).unwrap();
-    assert_eq!(composed.tick.phases_dir, Some(root.path().join("phases")));
-    drop(composed);
-
-    let root = repo("[tick]\nteam = \"t\"\nfallback_lead = \"f\"\n");
-    let composed = compose(root.path(), &clock).unwrap();
-    assert_eq!(composed.tick.phases_dir, Some(root.path().join(".atm-bd")));
-    drop(composed);
-
-    let abs = tempfile::tempdir().unwrap();
-    let root = repo(&format!(
-        "[tick]\nteam = \"t\"\nfallback_lead = \"f\"\nphases_dir = '{}'\n",
-        abs.path().display()
-    ));
-    let composed = compose(root.path(), &clock).unwrap();
-    assert_eq!(composed.tick.phases_dir.as_deref(), Some(abs.path()));
+    assert!(composed.cache_path.ends_with(".bd-cache/dev.bd-cache.sqlite3"), "{:?}", composed.cache_path);
+    assert!(composed.schedule_store().is_ok());
+    assert!(composed.beads_dir.is_absolute());
 }
 
 /// Errors have a code and keep their cause as the source, not in the text.
@@ -325,7 +313,7 @@ fn the_bd_child_sees_the_explicit_beads_dir_not_the_environments() {
     let other = tempfile::tempdir().unwrap();
     std::fs::write(
         other.path().join("metadata.json"),
-        r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+        r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
     )
     .unwrap();
     assert_ne!(
@@ -370,7 +358,7 @@ fn a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_
 
         let (name, seen) = seen_by_the_child(&root, Some(std::ffi::OsStr::new("rel")));
 
-        assert_eq!(name, "atm-rel.bd-cache.sqlite3", "the store read cwd/rel");
+        assert_eq!(name, "rel.bd-cache.sqlite3", "the store read cwd/rel");
         assert!(Path::new(&seen).is_absolute(), "{seen}");
         assert_eq!(Path::new(&seen), cwd.join("rel"));
         return;
@@ -380,7 +368,7 @@ fn a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_
     std::fs::create_dir(cwd.path().join("rel")).unwrap();
     std::fs::write(
         cwd.path().join("rel").join("metadata.json"),
-        r#"{"dolt_database": "atm-rel", "project_id": "p-1"}"#,
+        r#"{"dolt_database": "rel", "project_id": "p-1"}"#,
     )
     .unwrap();
     run_case_in_child(NAME, |cmd| {

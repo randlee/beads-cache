@@ -3,15 +3,22 @@
 //! Every surface (a) and (b) command is a `bd-cache-api` [`Command`]: its
 //! request goes through [`bd_cache_api::decode`], then
 //! [`bd_cache_api::execute`] over the composed cache, and the `data` comes
-//! back unreshaped (contract §8, MCP design constraint). `cache tick` runs
-//! bd-cache-sync's tick ([`tick`]). The request is decoded **before** the
-//! cache is opened, so a bad request never touches the store.
+//! back unreshaped (contract §8, MCP design constraint). The phase-B verbs
+//! a front end runs (`cache schedule *`, `cron run`, `tick`, `sync *`) are
+//! decoded by the same decoder, then run over `bd-cache-sync` ([`schedule`],
+//! [`cron`], [`tick`], [`sync`]; ADR-BDC-0015). The request is decoded
+//! **before** the cache is opened, so a bad request never touches the store.
 //!
 //! [`Command`]: bd_cache_api::Command
 
 pub(crate) mod beads;
+pub(crate) mod cron;
 pub(crate) mod manage;
+pub(crate) mod runtime;
+pub(crate) mod schedule;
+pub(crate) mod scopes;
 pub(crate) mod signal;
+pub(crate) mod sync;
 pub(crate) mod tick;
 
 use std::collections::BTreeMap;
@@ -37,7 +44,8 @@ pub(crate) struct Context<'a> {
     pub(crate) invoker: Option<Box<dyn CliInvoker>>,
     /// The command's clock.
     pub(crate) clock: Arc<dyn Clock>,
-    /// Set by a signal (RSH-001): `cache tick` and its `atm` sender stop on it.
+    /// Set by a signal (RSH-001, REQ-BDC-0730): `cron run`, `tick` and
+    /// `sync use-python` stop on it.
     pub(crate) stop: &'a StopFlag,
 }
 
@@ -50,12 +58,6 @@ impl std::fmt::Debug for Context<'_> {
     }
 }
 
-/// A request that has passed its decoder.
-enum Decoded {
-    Api(Box<Request>),
-    Tick(tick::TickRequest),
-}
-
 /// Runs `target` with `request` and returns its `data`.
 ///
 /// # Errors
@@ -64,15 +66,32 @@ enum Decoded {
 /// (`CONFIG_INVALID`, `NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`,
 /// `STORE_FAILED`), then the command's own.
 pub(crate) fn run(target: Target, request: &Value, ctx: Context<'_>) -> Result<Value, ApiError> {
-    let decoded = match target {
-        Target::Api(command) => Decoded::Api(Box::new(decode(command, request)?)),
-        Target::Tick => Decoded::Tick(tick::decode(request)?),
-    };
+    let (Target::Api(command) | Target::Sync(command)) = target;
+    let decoded = decode(command, request)?;
     let settings = config::resolve(&ctx.flags, ctx.env)?;
     let mut composed = open(&settings, ctx.invoker, Arc::clone(&ctx.clock))?;
-    match decoded {
-        Decoded::Api(req) => execute(&mut composed.cache, &req, &facts(&settings))?.to_json(),
-        Decoded::Tick(req) => tick::run(&mut composed, &req, &*ctx.clock, ctx.stop),
+    match target {
+        Target::Api(_) => execute(&mut composed.cache, &decoded, &facts(&settings))?.to_json(),
+        Target::Sync(_) => run_sync(composed, &decoded, ctx.stop),
+    }
+}
+
+/// Runs a phase-B verb over `bd-cache-sync` (ADR-BDC-0015).
+fn run_sync(composed: Composed, req: &Request, stop: &StopFlag) -> Result<Value, ApiError> {
+    match req {
+        Request::ScheduleSet(r) => schedule::set(composed, r),
+        Request::ScheduleShow(_) => schedule::show(composed),
+        Request::ScheduleEnable(_) => schedule::enable(composed, true),
+        Request::ScheduleDisable(_) => schedule::enable(composed, false),
+        Request::ScheduleClear(_) => schedule::clear(composed),
+        Request::CronRun(r) => cron::run(composed, r, stop),
+        Request::CacheTick(_) => tick::run(composed, stop),
+        Request::SyncUsePython(r) => sync::use_python(composed, r, stop),
+        Request::SyncUseBuiltin(_) => sync::use_builtin(composed),
+        other => Err(ApiError::internal(format!(
+            "{} is not a front-end verb",
+            other.command().path()
+        ))),
     }
 }
 

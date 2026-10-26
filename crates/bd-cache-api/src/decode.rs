@@ -24,7 +24,9 @@
 //! will parse it ([`Op::parse_new`]), so a front end learns of a bad
 //! metadata value at decode time, with the same code.
 
-use bd_cache_model::{IdemKey, Op, ScopeId, Seq};
+use bd_cache_model::{
+    FailingSince, FilterParts, IdemKey, IngestSnapshot, Op, Scope, ScopeFilter, ScopeId, Seq,
+};
 use sc_beads::{Actor, BeadId, DepType, Edge};
 use serde_json::{Map, Value};
 
@@ -35,6 +37,10 @@ use crate::request::{
     CacheStatus, Command, Context, DependenciesAdd, DependenciesList, IssuePatch, IssuesClose,
     IssuesGet, IssuesList, IssuesUpdate, JournalAnnounce, JournalGet, JournalKey, JournalList,
     JournalListState, JournalResolve, MetadataPatch, Ready, Request,
+};
+use crate::request::{
+    CronRun, ScheduleNoArgs, ScheduleSet, ScopesAdd, ScopesAnnounce, ScopesIngest, ScopesList,
+    ScopesRemove, ScopesSet, SyncUsePython,
 };
 use crate::v0::patch_args;
 
@@ -125,6 +131,154 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
             let m = Members::check(obj, "", &["seq"], &[], Unsupported::Member)?;
             Request::JournalAnnounce(JournalAnnounce { seq: m.seq("seq")? })
         }
+        phase_b => decode_phase_b(phase_b, obj)?,
+    })
+}
+
+/// The phase-B verbs (ADR-BDC-0015): the store-only ones and those a front end runs.
+fn decode_phase_b(command: Command, obj: &Map<String, Value>) -> Result<Request, ApiError> {
+    Ok(match command {
+        Command::ScopesAdd => Request::ScopesAdd(ScopesAdd {
+            scope: scope_with_filter(obj)?,
+        }),
+        Command::ScopesSet => Request::ScopesSet(ScopesSet {
+            scope: scope_with_filter(obj)?,
+        }),
+        Command::ScopesRemove => {
+            let m = Members::check(obj, "", &["scope"], &[], Unsupported::Member)?;
+            Request::ScopesRemove(ScopesRemove {
+                scope: scope_of("scope", &m.required_str("scope")?)?,
+            })
+        }
+        Command::ScopesList => {
+            Members::check(obj, "", &[], &[], Unsupported::Member)?;
+            Request::ScopesList(ScopesList)
+        }
+        Command::ScopesIngest => Request::ScopesIngest(Box::new(scopes_ingest(obj)?)),
+        Command::ScopesAnnounce => {
+            let m = Members::check(obj, "", &["scope", "since"], &[], Unsupported::Member)?;
+            let since = m.required_str("since")?;
+            Request::ScopesAnnounce(ScopesAnnounce {
+                scope: scope_of("scope", &m.required_str("scope")?)?,
+                since: FailingSince::parse(since)
+                    .map_err(|e| ApiError::bad_member("since", format!("since is not a token: {e}")))?,
+            })
+        }
+        Command::ScheduleSet => {
+            let m = Members::check(
+                obj,
+                "",
+                &["cron", "budget_ms", "hook_reserve_ms", "post_sync", "python", "env"],
+                &[],
+                Unsupported::Member,
+            )?;
+            Request::ScheduleSet(ScheduleSet {
+                cron: m.required_str("cron")?,
+                budget_ms: m.uint("budget_ms")?,
+                hook_reserve_ms: m.uint("hook_reserve_ms")?,
+                post_sync: m.str("post_sync")?,
+                python: m.str("python")?,
+                env: m.strings("env")?,
+            })
+        }
+        Command::ScheduleShow => Request::ScheduleShow(no_args(obj)?),
+        Command::ScheduleEnable => Request::ScheduleEnable(no_args(obj)?),
+        Command::ScheduleDisable => Request::ScheduleDisable(no_args(obj)?),
+        Command::ScheduleClear => Request::ScheduleClear(no_args(obj)?),
+        Command::CacheTick => Request::CacheTick(no_args(obj)?),
+        Command::SyncUseBuiltin => Request::SyncUseBuiltin(no_args(obj)?),
+        Command::CronRun => {
+            let m = Members::check(obj, "", &["once", "shutdown_timeout_ms"], &[], Unsupported::Member)?;
+            let timeout = m
+                .uint("shutdown_timeout_ms")?
+                .unwrap_or(CronRun::DEFAULT_SHUTDOWN_TIMEOUT_MS);
+            if timeout > CronRun::MAX_SHUTDOWN_TIMEOUT_MS {
+                return Err(ApiError::bad_member(
+                    "shutdown_timeout_ms",
+                    format!("shutdown_timeout_ms is 0 to {}", CronRun::MAX_SHUTDOWN_TIMEOUT_MS),
+                ));
+            }
+            Request::CronRun(CronRun {
+                once: m.flag("once")?,
+                shutdown_timeout_ms: timeout,
+            })
+        }
+        Command::SyncUsePython => {
+            let m = Members::check(
+                obj,
+                "",
+                &["python", "module", "cron", "timeout_ms", "env"],
+                &[],
+                Unsupported::Member,
+            )?;
+            Request::SyncUsePython(SyncUsePython {
+                python: m.required_str("python")?,
+                module: m.required_str("module")?,
+                cron: m.str("cron")?,
+                timeout_ms: m.uint("timeout_ms")?,
+                env: m.strings("env")?,
+            })
+        }
+        other => {
+            return Err(ApiError::internal(format!("{} is decoded by decode", other.path())));
+        }
+    })
+}
+
+/// A request with no member.
+fn no_args(obj: &Map<String, Value>) -> Result<ScheduleNoArgs, ApiError> {
+    Members::check(obj, "", &[], &[], Unsupported::Member)?;
+    Ok(ScheduleNoArgs)
+}
+
+/// `scope` and its filter members (`all`, `labels_all`, `labels_any`,
+/// `status`, `type`, `assignee`), validated once by the model (ADR-BDC-0013):
+/// a filter it refuses is `BAD_ARGS` naming the filter.
+fn scope_with_filter(obj: &Map<String, Value>) -> Result<Scope, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &["scope", "all", "labels_all", "labels_any", "status", "type", "assignee"],
+        &[],
+        Unsupported::Member,
+    )?;
+    let id = scope_of("scope", &m.required_str("scope")?)?;
+    let filter = ScopeFilter::from_parts(FilterParts {
+        all: m.flag("all")?,
+        labels_all: m.strings("labels_all")?,
+        labels_any: m.strings("labels_any")?,
+        status: m.strings("status")?,
+        issue_type: m.str("type")?,
+        assignee: m.str("assignee")?,
+    })
+    .map_err(|e| ApiError::bad_member("filter", format!("the scope's filter is refused: {e}")))?;
+    Ok(Scope::new(id, filter))
+}
+
+/// `cache scopes ingest`: the rows are decoded strictly, counted as they
+/// decode (REQ-BDC-0726); a violation is `INGEST_INVALID`.
+fn scopes_ingest(obj: &Map<String, Value>) -> Result<ScopesIngest, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &["scope", "rows", "blocked", "revision", "allow_empty"],
+        &[],
+        Unsupported::Member,
+    )?;
+    let scope = scope_of("scope", &m.required_str("scope")?)?;
+    let text = |name: &str| -> Result<String, ApiError> {
+        match m.get(name) {
+            None => Ok("[]".to_owned()),
+            Some(v @ Value::Array(_)) => Ok(v.to_string()),
+            Some(_) => Err(m.wrong(name, "an array")),
+        }
+    };
+    let snapshot = IngestSnapshot::from_json(&scope, &text("rows")?, &text("blocked")?)?;
+    Ok(ScopesIngest {
+        scope,
+        snapshot,
+        revision: m.str("revision")?,
+        allow_empty: m.flag("allow_empty")?,
     })
 }
 

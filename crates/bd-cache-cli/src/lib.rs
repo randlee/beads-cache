@@ -17,7 +17,11 @@
 //! 3. The configuration (flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` >
 //!    default; no upward search) is opened through
 //!    `bd_cache_sync::compose_with_config`, and `bd_cache_api::execute` runs
-//!    the request. `cache tick` runs `bd_cache_sync::tick`.
+//!    the request. The phase-B verbs a front end runs (`cache schedule *`,
+//!    `cache cron run`, `cache tick`, `cache sync *`) run over
+//!    `bd-cache-sync` (ADR-BDC-0015). Every new command is on the `cache`
+//!    management surface; none joins the `/v0`-shaped beads surface
+//!    (ADR-BDC-0009).
 //! 4. The result is one [`sc_command::Envelope`] on stdout, or text with
 //!    `--format text`. Logs go to stderr (`-v`, `-q`, `BD_CACHE__LOG`).
 //!
@@ -31,9 +35,12 @@
 //!
 //! On Unix [`run_process`] handles `SIGTERM`, `SIGINT` and `SIGHUP`: the
 //! running `bd` call's process group is killed and reaped, the project locks
-//! are released as the call returns, `cache tick` stops (with its `atm`
-//! child), the command's envelope is still written, and the process exits
-//! `128 + signal` (143 for `SIGTERM`) whatever the envelope says.
+//! are released as the call returns, `cache tick` and `sync use-python` stop
+//! (killing a hook's or script's process tree), `cache cron run` starts no
+//! new run and waits for the runs in flight up to `--shutdown-timeout-ms`
+//! (REQ-BDC-0730), the command's envelope is still written, and the process
+//! exits `128 + signal` (143 for `SIGTERM`) whatever the envelope says. A
+//! second signal changes neither the wait nor the exit code.
 //!
 //! # `--help`
 //!
@@ -161,7 +168,7 @@ pub fn run_with(
     run_stoppable(argv, env, invoker, clock, stdout, &StopFlag::new())
 }
 
-/// As [`run_with`], with the flag a signal sets (`cache tick` stops on it).
+/// As [`run_with`], with the flag a signal sets (`cron run`, `tick` and `sync use-python` stop on it).
 fn run_stoppable(
     argv: &[String],
     env: &BTreeMap<String, String>,
@@ -323,7 +330,13 @@ fn dispatch(
             return finish(&Err(e), false);
         }
         Some(source) => request::from_input(source),
-        None => request::from_matches(spec, leaf),
+        None => request::from_matches(spec, leaf).and_then(|mut r| {
+            // `scopes ingest` takes its snapshot on stdin (REQ-BDC-0726).
+            if spec.path == "cache scopes ingest" {
+                commands::scopes::merge_stdin(&mut r, std::io::stdin().lock())?;
+            }
+            Ok(r)
+        }),
     };
     let request = match request {
         Ok(r) => r,
@@ -346,6 +359,12 @@ fn dispatch(
         clock,
         stop,
     };
+    if spec.path == "cache cron run" {
+        // sc-cron's events come from runtime and signal threads: the stderr
+        // log is the process default for `cron run` (REQ-BDC-0730). A second
+        // default in one process (in-process tests) keeps the first.
+        let _first = tracing::subscriber::set_global_default(log::StderrLog::new(level));
+    }
     let result = tracing::subscriber::with_default(log::StderrLog::new(level), || {
         tracing::info!(command = spec.path, "running");
         for key in config::unknown_env_keys(env) {

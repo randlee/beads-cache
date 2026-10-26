@@ -236,7 +236,6 @@ the table leaves out. † marks a new code.
 | `SCHEDULE_INVALID` † | invalid_input | 3 | no | — | `schedule set\|enable`, `sync use-python` (REQ-BDC-0729). `details.field`, `details.reason`. Suggested action: fix the named option; switch rows with `bdc cache sync use-python\|use-builtin`. |
 | `TICK_RUN_FAILED` † | unavailable | 3 | no | — | `sync use-python`, `cron run --once`; also embedded, as an error object, in the `hook.error` member of a built-in run's reply, whose own exit is 0 (REQ-BDC-0729). `details.row`, `run_id`, `reason` (`exit`, `timeout`, `spawn`, `oversize`, `stop_answer`, `untrusted`, `signal`), `exit_status`, `stderr`, `restored` (the command form only). Suggested action: read `stderr`; `bdc cache sync use-builtin` restores the built-in sync. |
 | `TICK_IN_FLIGHT` † | conflict | 3 | yes | — | The lease, for `sync use-python`; a scheduled or on-demand run that finds the lease replies `skipped: "in_flight"` with exit 0 instead (REQ-BDC-0722, 0729). `details.holder` (`pid`, `host`, `expires_at`). Suggested action: retry after `expires_at`. |
-| `TICK_<REFUSAL>` † | invalid_input for config and phase-file refusals; unavailable for an undelivered message or a missing recipient; conflict for `BUSY` | — | per kind | — | Only appears inside `cache tick` `refused[]`. `<REFUSAL>` is bd-cache-sync's `RefusalCode`, upper-cased. |
 
 **Why `SCOPE_UNKNOWN` is a conflict, not a 404.** The request is valid, and
 bd may well hold those beads. What refuses is the replica, which does not

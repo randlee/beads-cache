@@ -188,8 +188,7 @@ exit 0
     #[must_use]
     pub fn count(&self, event: &str) -> usize {
         std::fs::read_to_string(self.dir.path().join(format!("{event}.count")))
-            .map(|s| s.trim().parse().unwrap())
-            .unwrap_or(0)
+            .map_or(0, |s| s.trim().parse().unwrap())
     }
 
     /// The `n`th request of `event`.
