@@ -54,7 +54,11 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
                 Int,
                 false,
                 "timeout_ms",
-                "The script's timeout (default 60000, 1000-600000).",
+                concat!(
+                    "The script's timeout (default 60000, 1000-",
+                    bd_cache_model::max_timeout_ms!(),
+                    ")."
+                ),
             ),
             ArgSpec::flag(
                 "env",

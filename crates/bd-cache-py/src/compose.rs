@@ -17,8 +17,7 @@ use bd_cache::Cache;
 use bd_cache_api::CacheFacts;
 use bd_cache_model::{CacheError, RepoConfig, ScopeId};
 use bd_cache_store::{
-    BeadsDirError, BeadsDirOverride, ConfigLoadError, DatabaseIdentity, FlockDrainLock,
-    SCHEMA_VERSION, SqliteStore, load_repo_config,
+    BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore, load_repo_config,
 };
 use bd_cache_sync::{ComposeError, ComposeTuning, ScheduleTable, SyncFiles, compose_tuned};
 use sc_bd_cli::BdCli;
@@ -335,16 +334,8 @@ pub(crate) fn open_with(
         },
     )
     .map_err(open_error)?;
-    let identity = DatabaseIdentity::read(&composed.beads_dir)?;
     let path = composed.cache_path.clone();
-    let facts = CacheFacts {
-        cache_path: path.to_string_lossy().into_owned(),
-        store_schema_version: i64::from(SCHEMA_VERSION),
-        database: identity.dolt_database.as_str().to_owned(),
-        project_id: identity.project_id.as_str().to_owned(),
-        beads_dir: Some(composed.beads_dir.to_string_lossy().into_owned()),
-        repo_root: Some(repo_root.to_string_lossy().into_owned()),
-    };
+    let facts = composed.facts();
     let files = composed.files();
     Ok(Opened {
         cache: composed.cache,

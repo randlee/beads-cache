@@ -176,16 +176,12 @@ impl Rows {
     /// The flags a write of `row` with `enabled` sets on the other row:
     /// written enabled, the other row (when it exists) is disabled in the
     /// same call; written disabled, the other row is left as it is.
-    fn others(
-        &self,
-        row: SyncRow,
-        enabled: bool,
-    ) -> Result<Vec<(sc_cron::ScheduleName, bool)>, CacheError> {
+    fn others(&self, row: SyncRow, enabled: bool) -> Vec<(sc_cron::ScheduleName, bool)> {
         let other = row.other();
-        Ok(match self.get(other) {
-            Some(_) if enabled => vec![(schedule_name(other)?, false)],
+        match self.get(other) {
+            Some(_) if enabled => vec![(schedule_name(other), false)],
             _ => Vec::new(),
-        })
+        }
     }
 }
 
@@ -284,7 +280,7 @@ pub struct UsePython {
     pub module: String,
     /// `--cron <expr>`; default the built-in row's expression.
     pub cron: Option<String>,
-    /// `--timeout-ms N` (default 60000, 1000–600000).
+    /// `--timeout-ms N` (default 60000, 1000 to `MAX_PYTHON_TIMEOUT_MS`).
     pub timeout_ms: Option<u64>,
     /// `--env NAME`, repeatable.
     pub env: Vec<String>,
@@ -689,7 +685,7 @@ where
         let rows = self.rows().await?;
         let python_enabled = rows.python.as_ref().is_some_and(|r| r.enabled);
         let enabled = rows.builtin.as_ref().map_or(!python_enabled, |r| r.enabled);
-        let flags = rows.others(SyncRow::Builtin, enabled)?;
+        let flags = rows.others(SyncRow::Builtin, enabled);
         let written = self
             .scheduler
             .replace_and_set_enabled_async(spec, enabled, flags)
@@ -729,7 +725,7 @@ where
             ));
         }
         self.scheduler
-            .set_enabled_async(&schedule_name(SyncRow::Builtin)?, enabled)
+            .set_enabled_async(&schedule_name(SyncRow::Builtin), enabled)
             .await
             .map_err(schedule_store_failed)?;
         let mode = self.rows().await?.mode();
@@ -905,7 +901,7 @@ where
                 SyncRunEnd::Failed
             })
             .await;
-        self.record_on_row(&written, &result).await;
+        self.record_on_row(lease.run_id(), &written, &result).await;
         let outcome = match result {
             Ok(PythonRun {
                 run_id,
@@ -919,7 +915,9 @@ where
                 mode: SyncMode::Python,
             }),
             Err(failure) => {
-                let restored = self.restore(&before, &written, new_spec).await;
+                let restored = self
+                    .restore(lease.run_id(), &before, &written, new_spec)
+                    .await;
                 Err(with_restored(failure, restored))
             }
         };
@@ -978,7 +976,7 @@ where
             payload.timeout().get(),
             &SyncPayload::Python(payload.clone()),
         )?;
-        let flags = before.others(SyncRow::Python, true)?;
+        let flags = before.others(SyncRow::Python, true);
         let written = self
             .scheduler
             .replace_and_set_enabled_async(new_spec.clone(), true, flags)
@@ -989,7 +987,12 @@ where
 
     /// Records the immediate run's outcome on the row it ran, as sc-cron
     /// records a worker run's (`last_run_at`, `last_outcome`).
-    async fn record_on_row(&self, written: &Schedule, result: &Result<PythonRun, CacheError>) {
+    async fn record_on_row(
+        &self,
+        run_id: &bd_cache_model::RunId,
+        written: &Schedule,
+        result: &Result<PythonRun, CacheError>,
+    ) {
         let store = Arc::clone(&self.store);
         let (id, generation) = (written.id, written.generation);
         let outcome = outcome_of(result);
@@ -1002,6 +1005,8 @@ where
         .await;
         if let Err(e) = recorded {
             tracing::warn!(
+                row = SyncRow::Python.as_str(),
+                run_id = %run_id,
                 code = e.code(),
                 detail = e.detail(),
                 "the immediate run's outcome could not be recorded on the Python row"
@@ -1012,18 +1017,26 @@ where
     /// Restores `before` after a failed immediate run, under the mode lock,
     /// in one store call; `false` (logged) when the restore failed or another
     /// command replaced the Python row since `written` (its state stands).
-    async fn restore(&self, before: &Rows, written: &Schedule, new_spec: ScheduleSpec) -> bool {
+    async fn restore(
+        &self,
+        run_id: &bd_cache_model::RunId,
+        before: &Rows,
+        written: &Schedule,
+        new_spec: ScheduleSpec,
+    ) -> bool {
         let restored: Result<bool, CacheError> = async {
             let _mode = self.mode.hold().await?;
             let now = self.rows().await?;
             if now.python.as_ref().map(|r| r.generation) != Some(written.generation) {
                 tracing::warn!(
+                    row = SyncRow::Python.as_str(),
+                    run_id = %run_id,
                     "another command changed the Python row during the run; its state is kept, not restored"
                 );
                 return Ok(false);
             }
             let builtin_flag = match (&before.builtin, &now.builtin) {
-                (Some(row), Some(_)) => vec![(schedule_name(SyncRow::Builtin)?, row.enabled)],
+                (Some(row), Some(_)) => vec![(schedule_name(SyncRow::Builtin), row.enabled)],
                 _ => Vec::new(),
             };
             let (spec, enabled) = match &before.python {
@@ -1039,6 +1052,8 @@ where
         .await;
         restored.unwrap_or_else(|e| {
             tracing::error!(
+                row = SyncRow::Python.as_str(),
+                run_id = %run_id,
                 code = e.code(),
                 detail = e.detail(),
                 "the state before sync use-python could not be restored"
@@ -1069,8 +1084,8 @@ where
         if rows.builtin.is_none() {
             return Err(no_builtin_row());
         }
-        let mut flags = vec![(schedule_name(SyncRow::Builtin)?, true)];
-        flags.extend(rows.others(SyncRow::Builtin, true)?);
+        let mut flags = vec![(schedule_name(SyncRow::Builtin), true)];
+        flags.extend(rows.others(SyncRow::Builtin, true));
         self.scheduler
             .set_enabled_many_async(flags)
             .await
@@ -1210,8 +1225,8 @@ mod tests {
             builtin: Some(row("* * * * * *", "2026-10-26T10:00:00Z")),
             python: None,
         };
-        assert_eq!(rows.others(SyncRow::Python, true).unwrap().len(), 1);
-        assert!(rows.others(SyncRow::Python, false).unwrap().is_empty());
-        assert!(rows.others(SyncRow::Builtin, true).unwrap().is_empty());
+        assert_eq!(rows.others(SyncRow::Python, true).len(), 1);
+        assert!(rows.others(SyncRow::Python, false).is_empty());
+        assert!(rows.others(SyncRow::Builtin, true).is_empty());
     }
 }

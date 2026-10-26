@@ -1,20 +1,18 @@
 //! [`TickBudget`]: the built-in sync row's time budget (REQ-BDC-0703 as
 //! amended, REQ-BDC-0720).
 
+use std::fmt;
 use std::time::Duration;
 
 use sc_beads::InvalidValue;
+
+use crate::limits::MAX_TIMEOUT_MS;
 
 /// The literals of the range constants, so each refusal states the range it
 /// checks from the one value (`concat!` takes literals only).
 macro_rules! min_budget_ms {
     () => {
         1000
-    };
-}
-macro_rules! max_budget_ms {
-    () => {
-        600000
     };
 }
 macro_rules! min_work_ms {
@@ -28,12 +26,54 @@ macro_rules! min_hook_reserve_ms_with_hook {
     };
 }
 
+/// The field of a [`TickBudget`] a refusal names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BudgetField {
+    /// `budget_ms`.
+    BudgetMs,
+    /// `hook_reserve_ms`.
+    HookReserveMs,
+}
+
+/// A [`TickBudget`] refusal: the field out of range and the value's detail.
+///
+/// The field is typed, so a caller maps it to its own field type with an
+/// exhaustive `match`; the [`InvalidValue`] keeps the text (`kind` is the
+/// field's name) and its range.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BudgetError {
+    field: BudgetField,
+    invalid: InvalidValue,
+}
+
+impl BudgetError {
+    /// The field that is out of range.
+    #[must_use]
+    pub fn field(&self) -> BudgetField {
+        self.field
+    }
+
+    /// The rejected value and the range it broke.
+    #[must_use]
+    pub fn invalid(&self) -> &InvalidValue {
+        &self.invalid
+    }
+}
+
+impl fmt::Display for BudgetError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.invalid.fmt(f)
+    }
+}
+
+impl std::error::Error for BudgetError {}
+
 /// The default `budget_ms` of the built-in row.
 pub const DEFAULT_BUDGET_MS: u64 = 25_000;
 /// The smallest `budget_ms`.
 pub(crate) const MIN_BUDGET_MS: u64 = min_budget_ms!();
-/// The largest `budget_ms`.
-pub(crate) const MAX_BUDGET_MS: u64 = max_budget_ms!();
+/// The largest `budget_ms`: [`MAX_TIMEOUT_MS`].
+pub(crate) const MAX_BUDGET_MS: u64 = MAX_TIMEOUT_MS;
 /// The default `hook_reserve_ms`.
 pub const DEFAULT_HOOK_RESERVE_MS: u64 = 5_000;
 /// The smallest `hook_reserve_ms` when a post-sync hook is named.
@@ -112,7 +152,7 @@ pub fn check_lease_expiry(
 /// assert!(TickBudget::new(Some(2_000), Some(1_001), false).is_err());
 /// assert!(TickBudget::new(Some(2_000), Some(0), true).is_err());
 /// assert!(TickBudget::new(Some(2_000), Some(0), false).is_ok());
-/// # Ok::<(), sc_beads::InvalidValue>(())
+/// # Ok::<(), bd_cache_model::BudgetError>(())
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TickBudget {
@@ -122,52 +162,61 @@ pub struct TickBudget {
 
 impl TickBudget {
     /// The budget of `budget_ms` (default [`DEFAULT_BUDGET_MS`], range 1000
-    /// to 600000) with a hook reserve of `hook_reserve_ms` (default
+    /// to [`MAX_TIMEOUT_MS`]) with a hook reserve of `hook_reserve_ms` (default
     /// [`DEFAULT_HOOK_RESERVE_MS`], range 0 to `budget_ms` − 1000, and at
     /// least 1000 when `hook_named`). Each refusal states its range.
     ///
     /// # Errors
     ///
-    /// [`InvalidValue`] naming `budget_ms` or `hook_reserve_ms` (its `kind`)
-    /// for a value out of range, the default reserve included.
+    /// [`BudgetError`] naming `budget_ms` or `hook_reserve_ms` (its
+    /// [`BudgetField`]) for a value out of range, the default reserve included.
     pub fn new(
         budget_ms: Option<u64>,
         hook_reserve_ms: Option<u64>,
         hook_named: bool,
-    ) -> Result<Self, InvalidValue> {
+    ) -> Result<Self, BudgetError> {
         let budget = budget_ms.unwrap_or(DEFAULT_BUDGET_MS);
         if !(MIN_BUDGET_MS..=MAX_BUDGET_MS).contains(&budget) {
-            return Err(InvalidValue {
-                kind: "budget_ms",
-                value: budget.to_string(),
-                reason: concat!(
-                    "out of range: budget_ms is ",
-                    min_budget_ms!(),
-                    " to ",
-                    max_budget_ms!()
-                ),
+            return Err(BudgetError {
+                field: BudgetField::BudgetMs,
+                invalid: InvalidValue {
+                    kind: "budget_ms",
+                    value: budget.to_string(),
+                    reason: concat!(
+                        "out of range: budget_ms is ",
+                        min_budget_ms!(),
+                        " to ",
+                        crate::max_timeout_ms!()
+                    ),
+                },
             });
         }
         let reserve = hook_reserve_ms.unwrap_or(DEFAULT_HOOK_RESERVE_MS);
         if reserve > budget.saturating_sub(MIN_WORK_MS) {
-            return Err(InvalidValue {
-                kind: "hook_reserve_ms",
-                value: reserve.to_string(),
-                reason: concat!(
-                    "out of range: hook_reserve_ms is 0 to budget_ms - ",
-                    min_work_ms!()
-                ),
+            return Err(BudgetError {
+                field: BudgetField::HookReserveMs,
+                invalid: InvalidValue {
+                    kind: "hook_reserve_ms",
+                    value: reserve.to_string(),
+                    reason: concat!(
+                        "out of range: hook_reserve_ms is 0 to budget_ms - ",
+                        min_work_ms!()
+                    ),
+                },
             });
         }
         if hook_named && reserve < MIN_HOOK_RESERVE_MS_WITH_HOOK {
-            return Err(InvalidValue {
-                kind: "hook_reserve_ms",
-                value: reserve.to_string(),
-                reason: concat!(
-                    "out of range: hook_reserve_ms is at least ",
-                    min_hook_reserve_ms_with_hook!(),
-                    " when a hook is named"
-                ),
+            return Err(BudgetError {
+                field: BudgetField::HookReserveMs,
+                invalid: InvalidValue {
+                    kind: "hook_reserve_ms",
+                    value: reserve.to_string(),
+                    reason: concat!(
+                        "out of range: hook_reserve_ms is at least ",
+                        min_hook_reserve_ms_with_hook!(),
+                        " when a hook is named"
+                    ),
+                },
             });
         }
         Ok(Self {
@@ -231,6 +280,26 @@ mod tests {
         assert_ne!(
             Ok(TickBudget::default()),
             TickBudget::new(Some(DEFAULT_BUDGET_MS + 1), None, false)
+        );
+    }
+
+    /// Each refusal names its field as a type, not a string: the sync crate
+    /// maps it to its `SCHEDULE_INVALID` field without a wildcard (PE1-RBP-F002).
+    #[test]
+    fn a_refusal_names_its_field() {
+        let field = |b, r, hook| TickBudget::new(b, r, hook).unwrap_err().field();
+        assert_eq!(field(Some(999), None, false), BudgetField::BudgetMs);
+        assert_eq!(
+            field(Some(MAX_TIMEOUT_MS + 1), None, false),
+            BudgetField::BudgetMs
+        );
+        assert_eq!(
+            field(Some(2_000), Some(1_001), false),
+            BudgetField::HookReserveMs
+        );
+        assert_eq!(
+            field(Some(2_000), Some(0), true),
+            BudgetField::HookReserveMs
         );
     }
 }

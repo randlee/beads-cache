@@ -27,7 +27,6 @@ use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io;
-use std::rc::Rc;
 
 use sc_beads::{Bead, BeadId, BlockedRow, parse_bd_row, parse_blocked_rows};
 use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
@@ -227,11 +226,12 @@ impl IngestSnapshot {
     /// );
     /// ```
     pub fn from_reader(scope: &ScopeId, reader: impl io::Read) -> Result<Self, CacheError> {
-        let over = Rc::new(Cell::new(false));
+        // `Counted` borrows the flag: reader and flag live in this one frame.
+        let over = Cell::new(false);
         let counted = Counted {
             inner: reader,
             read: 0,
-            over: Rc::clone(&over),
+            over: &over,
         };
         let mut fault = None;
         let mut de = serde_json::Deserializer::from_reader(counted);
@@ -404,13 +404,13 @@ impl<'de> Visitor<'de> for RowsSeed<'_> {
 
 /// A reader that counts its bytes and fails once past [`MAX_INGEST_BYTES`],
 /// setting `over`, so a stream is never read past the limit.
-struct Counted<R> {
+struct Counted<'a, R> {
     inner: R,
     read: usize,
-    over: Rc<Cell<bool>>,
+    over: &'a Cell<bool>,
 }
 
-impl<R: io::Read> io::Read for Counted<R> {
+impl<R: io::Read> io::Read for Counted<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let n = self.inner.read(buf)?;
         self.read = self.read.saturating_add(n);
@@ -481,7 +481,9 @@ impl<'de> Visitor<'de> for SnapshotSeed<'_> {
                 _ => {
                     *self.fault = Some(CacheError::BadArgs {
                         detail: format!(
-                            "ingest of scope {}: the snapshot object has the member {key:?};                              it may hold only rows and blocked (the scope and the other                              arguments are the command's)",
+                            "ingest of scope {}: the snapshot object has the member {key:?}; \
+                             it may hold only rows and blocked (the scope and the other \
+                             arguments are the command's)",
                             self.scope
                         ),
                     });
@@ -841,5 +843,22 @@ mod tests {
         let bad_blocked = serde_json::json!([{"id": "b0", "surprise": 1}]);
         let e = IngestSnapshot::from_values(&x(), Some(&rows), Some(&bad_blocked)).unwrap_err();
         assert_eq!(reason(&e), (IngestReason::RowInvalid, Some(0)));
+    }
+
+    /// The unknown-member detail is one clean sentence, with no run of
+    /// padding left by a broken string continuation (PE1-RBP-F001).
+    #[test]
+    fn the_unknown_member_detail_is_one_clean_sentence() {
+        let e = IngestSnapshot::from_reader(&x(), br#"{"rows": [], "scope": "other"}"#.as_slice())
+            .unwrap_err();
+        let CacheError::BadArgs { detail } = e else {
+            panic!("expected BAD_ARGS, got {e:?}");
+        };
+        assert_eq!(
+            detail,
+            "ingest of scope x: the snapshot object has the member \"scope\"; \
+             it may hold only rows and blocked (the scope and the other \
+             arguments are the command's)"
+        );
     }
 }

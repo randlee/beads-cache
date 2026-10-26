@@ -25,6 +25,8 @@ use crate::locks::ProjectLocks;
 /// [`run_json`](Self::run_json) and [`run_raw`](Self::run_raw) return [`BeadsError`]
 /// as documented on [`run::spawn_json`](crate::run::spawn_json) and
 /// [`run::run_raw`](crate::run::run_raw).
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 pub trait CliInvoker: Send + Sync {
     /// The configured binary name or path.
     fn binary(&self) -> String;

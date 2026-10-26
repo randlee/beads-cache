@@ -189,15 +189,15 @@ pub struct CronRun {
 impl CronRun {
     /// The default `--shutdown-timeout-ms`.
     pub const DEFAULT_SHUTDOWN_TIMEOUT_MS: u64 = 10_000;
-    /// The largest `--shutdown-timeout-ms`.
-    pub const MAX_SHUTDOWN_TIMEOUT_MS: u64 = 600_000;
+    /// The largest `--shutdown-timeout-ms`: [`bd_cache_model::MAX_TIMEOUT_MS`].
+    pub const MAX_SHUTDOWN_TIMEOUT_MS: u64 = bd_cache_model::MAX_TIMEOUT_MS;
 
     /// Run what is due once and exit.
     #[must_use]
     pub fn once(&self) -> bool {
         self.once
     }
-    /// How long a stop waits for the runs in flight (0–600000 ms).
+    /// How long a stop waits for the runs in flight (0 to [`Self::MAX_SHUTDOWN_TIMEOUT_MS`] ms).
     #[must_use]
     pub fn shutdown_timeout_ms(&self) -> u64 {
         self.shutdown_timeout_ms

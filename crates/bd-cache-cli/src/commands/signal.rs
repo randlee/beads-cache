@@ -7,7 +7,7 @@
 //! with no project lock held. So on Unix [`install`] takes over the three
 //! signals before any command runs. A signal is handled by [`Signals`]:
 //!
-//! 1. its number is recorded (the first one; a later one changes nothing);
+//! 1. its number is recorded (the first one's; a later one never replaces it);
 //! 2. the command's [`StopFlag`] is set: `cache tick` and `sync use-python`
 //!    stop between steps and kill a running hook's or script's process tree,
 //!    and `cache cron run` starts no new run;
@@ -18,7 +18,9 @@
 //!    it ([`Signals::defer_bd_kill`]): its runs in flight, their bd calls
 //!    included, get up to `--shutdown-timeout-ms`, and only when that expires
 //!    are the bd calls stopped ([`Signals::kill_bd`]) and the trees killed
-//!    (Rand's ruling 5, REQ-BDC-0730);
+//!    (Rand's ruling 5, REQ-BDC-0730). A repeated signal during that grace
+//!    period (Ctrl-C twice) means "stop now": it stops the bd calls and kills
+//!    the runs' trees at once, as the expiry does ([`Signals::hurry`]);
 //! 4. the command unwinds normally: it writes its envelope, and
 //!    [`run_process`](crate::run_process) exits with `128 + signal` (143 for
 //!    `SIGTERM`), the shell's convention for a signal death.
@@ -49,11 +51,13 @@ pub(crate) fn exit_code(signal: i32) -> u8 {
     u8::try_from(128 + signal).unwrap_or(128 + 15)
 }
 
-/// What the process's signals did: the flag the command watches, the first
-/// signal's number, and whether `bd` calls are stopped at once (module docs).
+/// What the process's signals did: the flag the command watches, the flag a
+/// repeated signal sets during `cron run`'s grace period, the first signal's
+/// number, and whether `bd` calls are stopped at once (module docs).
 #[derive(Debug, Clone, Default)]
 pub(crate) struct Signals {
     stop: StopFlag,
+    hurry: StopFlag,
     first: Arc<AtomicI32>,
     defer: Arc<AtomicBool>,
 }
@@ -80,14 +84,32 @@ impl Signals {
         }
     }
 
+    /// The flag a repeated signal sets while `cron run` defers the `bd` kill:
+    /// the grace period ends at once (module docs).
+    #[must_use]
+    pub(crate) fn hurry(&self) -> &StopFlag {
+        &self.hurry
+    }
+
     /// Handles `signal` (module docs, steps 1 to 3).
     pub(crate) fn received(&self, signal: i32) {
-        let _first =
-            self.first
-                .compare_exchange(0, signal.max(1), Ordering::SeqCst, Ordering::SeqCst);
+        self.received_with(signal, || self.kill_bd());
+    }
+
+    /// [`received`](Self::received) with the `bd` kill given, so a test does
+    /// not set the process-wide request.
+    fn received_with(&self, signal: i32, kill_bd: impl Fn()) {
+        let first = self
+            .first
+            .compare_exchange(0, signal.max(1), Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok();
         self.stop.stop();
         if !self.defer.load(Ordering::SeqCst) {
-            self.kill_bd();
+            kill_bd();
+        } else if !first {
+            // A repeated signal in the grace period: stop now, as the expiry would.
+            kill_bd();
+            self.hurry.stop();
         }
     }
 
@@ -138,7 +160,7 @@ pub(crate) fn install(signals: &Signals) -> std::io::Result<()> {
 const SIGINT: i32 = 2;
 
 /// Ctrl-C and Ctrl-Break stop `cron run` on Windows (exit 130, REQ-BDC-0730):
-/// a task on the current runtime that hands the first of them to
+/// a task on the current runtime that hands each of them to
 /// [`Signals::received`]. A handler that cannot be registered is logged at
 /// `WARN`: `cron run` then cannot be stopped gracefully that way.
 #[cfg(windows)]
@@ -155,27 +177,31 @@ pub(crate) fn console_stop(signals: &Signals) -> tokio::task::JoinHandle<()> {
                 tracing::warn!(error = %e, "cannot handle Ctrl-Break; cron run cannot be stopped with it");
             })
             .ok();
-        let ctrl_c = async {
-            match c.as_mut() {
-                Some(c) => {
-                    c.recv().await;
+        // Every Ctrl-C or Ctrl-Break, not only the first: a repeated one during
+        // the grace period means "stop now" (`Signals::received`).
+        loop {
+            let ctrl_c = async {
+                match c.as_mut() {
+                    Some(c) => {
+                        c.recv().await;
+                    }
+                    None => std::future::pending().await,
                 }
-                None => std::future::pending().await,
-            }
-        };
-        let ctrl_break = async {
-            match b.as_mut() {
-                Some(b) => {
-                    b.recv().await;
+            };
+            let ctrl_break = async {
+                match b.as_mut() {
+                    Some(b) => {
+                        b.recv().await;
+                    }
+                    None => std::future::pending().await,
                 }
-                None => std::future::pending().await,
+            };
+            tokio::select! {
+                () = ctrl_c => {}
+                () = ctrl_break => {}
             }
-        };
-        tokio::select! {
-            () = ctrl_c => {}
-            () = ctrl_break => {}
+            signals.received(SIGINT);
         }
-        signals.received(SIGINT);
     })
 }
 
@@ -199,15 +225,34 @@ mod tests {
         let signals = Signals::new();
         signals.defer_bd_kill();
         assert_eq!(signals.first(), None);
-        signals.received(15);
-        signals.received(2);
+        let kills = std::cell::Cell::new(0);
+        signals.received_with(15, || kills.set(kills.get() + 1));
         assert_eq!(signals.first(), Some(15));
         assert!(signals.stop().is_stopped());
-        assert_eq!(
-            sc_bd_cli::shutdown::requested(),
-            None,
-            "deferred: no bd kill yet"
-        );
+        assert_eq!(kills.get(), 0, "deferred: no bd kill yet");
+        assert!(!signals.hurry().is_stopped());
+        signals.received_with(2, || kills.set(kills.get() + 1));
+        assert_eq!(signals.first(), Some(15));
+    }
+
+    /// A repeated signal during the grace period is "stop now": the bd calls
+    /// are stopped and the hurry flag is set (PE1-RSH-007). Without the
+    /// deferral every signal stops the bd calls and none hurries anything.
+    #[test]
+    fn a_repeated_signal_in_the_grace_period_stops_now() {
+        let signals = Signals::new();
+        signals.defer_bd_kill();
+        let kills = std::cell::Cell::new(0);
+        signals.received_with(15, || kills.set(kills.get() + 1));
+        assert_eq!((kills.get(), signals.hurry().is_stopped()), (0, false));
+        signals.received_with(2, || kills.set(kills.get() + 1));
+        assert_eq!((kills.get(), signals.hurry().is_stopped()), (1, true));
+        assert_eq!(signals.first(), Some(15), "the exit code stays the first's");
+
+        let plain = Signals::new();
+        plain.received_with(15, || kills.set(kills.get() + 1));
+        plain.received_with(15, || kills.set(kills.get() + 1));
+        assert!(!plain.hurry().is_stopped());
     }
 }
 

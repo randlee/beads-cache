@@ -121,7 +121,7 @@ pub use expr::CronExpr;
 #[doc(inline)]
 pub use hook::{
     HOOK_PROTOCOL, HookCall, HookEvent, HookOutput, HookStatus, HookTarget, MAX_HOOK_OUTPUT_BYTES,
-    PythonHook, TargetResolver, kill_budget,
+    PythonHook, TargetResolver, is_identifier, kill_budget,
 };
 #[cfg(feature = "test-utils")]
 #[doc(inline)]

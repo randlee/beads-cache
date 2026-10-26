@@ -58,8 +58,8 @@ pub mod testing;
 
 #[doc(inline)]
 pub use budget::{
-    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, ROW_TIMEOUT_MARGIN, TickBudget,
-    check_lease_expiry,
+    BudgetError, BudgetField, DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL,
+    ROW_TIMEOUT_MARGIN, TickBudget, check_lease_expiry,
 };
 #[doc(inline)]
 pub use call::{CallFailure, CallKind};
@@ -67,7 +67,7 @@ pub use call::{CallFailure, CallKind};
 pub use compat::{LEGACY_SCOPE_PREFIX, legacy_label, legacy_scope};
 #[doc(inline)]
 pub use config::{
-    CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
+    BdKey, CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, MAX_CALL_TIMEOUT_S, MAX_CONFIGURED_SCOPES,
     MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS, RepoConfig, START_GATE_MARGIN, SchemaPackageRef,
     ScopeConfigError, ScopeTable,
@@ -87,7 +87,8 @@ pub use journal::{
 };
 #[doc(inline)]
 pub use limits::{
-    MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_WRITE_ARGS_BYTES, check_note_size, check_write_size,
+    MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_TIMEOUT_MS, MAX_WRITE_ARGS_BYTES, check_note_size,
+    check_write_size,
 };
 #[doc(inline)]
 pub use op::{

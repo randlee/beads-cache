@@ -23,9 +23,9 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use bd_cache_api::ApiError;
-use bd_cache_model::{ConfigError, RepoConfig};
+use bd_cache_model::{BdKey, RepoConfig};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirOverride, CacheLocation, ConfigLoadError, REPO_CONFIG_FILE, beads_dir,
+    BEADS_DIR_ENV, BeadsDirOverride, ConfigLoadError, REPO_CONFIG_FILE, load_repo_config_with,
 };
 use serde_json::{Map, Value, json};
 
@@ -70,10 +70,6 @@ pub(crate) struct Settings {
     pub(crate) bd: String,
     /// `$BEADS_DIR` from the given environment.
     pub(crate) beads_dir_env: Option<OsString>,
-    /// The cache file and the identity from `metadata.json`.
-    pub(crate) location: CacheLocation,
-    /// The beads directory `metadata.json` was read from.
-    pub(crate) beads_dir: PathBuf,
 }
 
 /// Resolves the configuration of one command.
@@ -82,8 +78,8 @@ pub(crate) struct Settings {
 ///
 /// `CONFIG_INVALID` (with `details.source`) for a TOML file that cannot be
 /// read or parsed, an env value that does not parse, a merged value that
-/// cannot work, or an unresolvable `$BEADS_DIR`;
-/// `NO_DATABASE` when `metadata.json` cannot be read.
+/// cannot work, or an unresolvable `$BEADS_DIR`. The cache file and
+/// `metadata.json` are resolved once, when the cache is opened.
 pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<Settings, ApiError> {
     let repo = repo_root(flags, env)?;
     let mut config = read_toml(&repo)?;
@@ -101,23 +97,20 @@ pub(crate) fn resolve(flags: &Flags, env: &BTreeMap<String, String>) -> Result<S
         .get(BEADS_DIR_ENV)
         .filter(|v| !v.is_empty())
         .map(OsString::from);
-    let over = BeadsDirOverride::new(beads_dir_env.as_deref()).map_err(|e| {
+    // Validated here, before any command runs; the cache is opened (and the
+    // cache file and `metadata.json` resolved) once, by the composition.
+    BeadsDirOverride::new(beads_dir_env.as_deref()).map_err(|e| {
         ApiError::config_invalid(
             "sync_beads_dir_unresolvable",
             e.to_string(),
             details(&[("key", json!(BEADS_DIR_ENV))]),
         )
     })?;
-    let location =
-        CacheLocation::resolve_with(&repo, &config, over.as_ref()).map_err(ApiError::from)?;
-    let beads_dir = beads_dir(&repo, over.as_ref());
     Ok(Settings {
         repo,
         config,
         bd,
         beads_dir_env,
-        location,
-        beads_dir,
     })
 }
 
@@ -175,38 +168,18 @@ fn load_error(e: &ConfigLoadError) -> ApiError {
     .with_suggested_action(e.fix())
 }
 
-/// Reads `<repo>/.beads/bd-cache.toml` as `bd-cache-store`'s loader does,
-/// except that a top-level `bd` key is dropped (never read from TOML).
+/// Reads `<repo>/.beads/bd-cache.toml` through `bd-cache-store`'s one loader,
+/// which drops a top-level `bd` key (never read from TOML) and says so; the
+/// warning is the CLI's.
 fn read_toml(repo: &Path) -> Result<RepoConfig, ApiError> {
-    let path = repo.join(REPO_CONFIG_FILE);
-    let text = match bd_cache_store::read_bounded(&path) {
-        Ok(t) => t,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RepoConfig::default()),
-        Err(source) => return Err(load_error(&ConfigLoadError::Read { path, source })),
-    };
-    let parse = |detail: String| {
-        load_error(&ConfigLoadError::Parse {
-            path: path.clone(),
-            source: ConfigError { detail },
-        })
-    };
-    let mut table: toml::Table = text
-        .parse()
-        .map_err(|e: toml::de::Error| parse(e.to_string()))?;
-    if table.remove("bd").is_some() {
+    let loaded = load_repo_config_with(repo, BdKey::Strip).map_err(|e| load_error(&e))?;
+    if loaded.bd_key_stripped {
         sc_beads::logging::tracing::warn!(
-            file = %path.display(),
+            file = %repo.join(REPO_CONFIG_FILE).display(),
             "bd in .beads/bd-cache.toml is ignored: the bd binary comes from --bd or BD_CACHE__BD"
         );
     }
-    let config: RepoConfig = table
-        .try_into()
-        .map_err(|e: toml::de::Error| parse(e.to_string()))?;
-    config.validate().map_err(|e| parse(e.detail))?;
-    if let Err(source) = config.configured_scopes() {
-        return Err(load_error(&ConfigLoadError::Scope { path, source }));
-    }
-    Ok(config)
+    Ok(loaded.config)
 }
 
 fn env_invalid(key: &str, value: &str, expected: &str) -> ApiError {

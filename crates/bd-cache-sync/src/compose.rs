@@ -8,10 +8,12 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use bd_cache::Cache;
+use bd_cache_api::CacheFacts;
 use bd_cache_model::{CacheError, RepoConfig};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheScheduleStore, ConfigLoadError,
-    FlockDrainLock, SqliteStore, beads_dir as beads_dir_of, load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, CacheScheduleStore,
+    ConfigLoadError, DatabaseIdentity, FlockDrainLock, SCHEMA_VERSION, SqliteStore,
+    beads_dir as beads_dir_of, load_repo_config,
 };
 
 use crate::job::SyncFiles;
@@ -31,6 +33,10 @@ pub struct Composed {
     pub name: String,
     /// The cache file.
     pub cache_path: PathBuf,
+    /// The identity read from `metadata.json`: with [`Composed::cache_path`],
+    /// the one resolved [`CacheLocation`] the store was opened at, so no front
+    /// end resolves it again.
+    pub identity: DatabaseIdentity,
     /// The beads directory: `$BEADS_DIR` when set, else `<repo>/.beads`
     /// (`bd_cache_store::beads_dir`, the store's one rule).
     pub beads_dir: PathBuf,
@@ -73,6 +79,21 @@ impl Composed {
     /// As [`ScheduleTable::store`].
     pub fn schedule_store(&self) -> Result<Arc<CacheScheduleStore>, CacheError> {
         self.schedules.store()
+    }
+
+    /// What `context` and `cache status` report of the cache file and
+    /// `metadata.json` (`bd-cache-api` opens neither): built here, once, for
+    /// every front end.
+    #[must_use]
+    pub fn facts(&self) -> CacheFacts {
+        CacheFacts {
+            cache_path: self.cache_path.display().to_string(),
+            store_schema_version: i64::from(SCHEMA_VERSION),
+            database: self.identity.dolt_database.as_str().to_owned(),
+            project_id: self.identity.project_id.as_str().to_owned(),
+            beads_dir: Some(self.beads_dir.display().to_string()),
+            repo_root: Some(self.repo_root.display().to_string()),
+        }
     }
 
     /// The files a sync run of this cache uses.
@@ -501,8 +522,14 @@ fn compose_inner(
         Config::Load => load_repo_config(repo_root).map_err(ComposeError::Config)?,
         Config::Given(repo) => *repo,
     };
-    let store = SqliteStore::open_with(repo_root, &repo, beads_dir.as_ref())
+    // The location is resolved once, here: the store opens at it, and the
+    // composition keeps it for the front ends.
+    let CacheLocation {
+        identity,
+        cache_path: located,
+    } = CacheLocation::resolve_with(repo_root, &repo, beads_dir.as_ref())
         .map_err(ComposeError::Cache)?;
+    let store = SqliteStore::open_at(&located, &identity).map_err(ComposeError::Cache)?;
     let name = store
         .path()
         .file_name()
@@ -536,6 +563,7 @@ fn compose_inner(
         cache,
         name,
         cache_path,
+        identity,
         beads_dir: beads_path,
         repo_root: repo_root.to_path_buf(),
         schedules,
@@ -642,6 +670,40 @@ mod tests {
         assert_eq!(err.code(), "sync_repo_root_not_utf8");
         assert!(err.to_string().contains("not valid UTF-8"), "{err}");
         assert!(err.source().is_none());
+    }
+
+    /// The composition owns the facts every front end reports (PE1-RBQA-F005)
+    /// and the identity it resolved, once (PE1-RBQA-F004): the cache file, the
+    /// schema version, `metadata.json`'s two names, the beads directory and
+    /// the repository root.
+    #[test]
+    fn the_composition_owns_the_cache_facts() {
+        let root = repo();
+        let composed = compose_with_config(
+            root.path(),
+            RepoConfig::default(),
+            "bd",
+            Arc::new(SystemClock),
+            None,
+        )
+        .unwrap();
+        assert_eq!(composed.identity.dolt_database.as_str(), "dev");
+        let facts = composed.facts();
+        assert_eq!(
+            facts,
+            CacheFacts {
+                cache_path: composed.cache_path.display().to_string(),
+                store_schema_version: i64::from(SCHEMA_VERSION),
+                database: "dev".to_owned(),
+                project_id: "p-1".to_owned(),
+                beads_dir: Some(root.path().join(".beads").display().to_string()),
+                repo_root: Some(root.path().display().to_string()),
+            }
+        );
+        assert!(
+            facts.cache_path.ends_with("dev.bd-cache.sqlite3"),
+            "{facts:?}"
+        );
     }
 
     /// `compose_with_config` uses the configuration it is given and never
