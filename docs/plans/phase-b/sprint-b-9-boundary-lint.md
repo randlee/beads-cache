@@ -72,7 +72,9 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    recorded for the scope (ADR-BDC-0005; the b-3 finding).
 4. **Contract** (WP-8; ADR-BDC-0009). §10 becomes "0.1 → 0.2 API differences", naming no
    consumer: `outage` on Ok, the `issues_list` default exclusions, optional `changed` /
-   `already_closed`, one handle per process, install, and `cache_path` for an existing file. It
+   `already_closed`, one handle per process, install, and `cache_path` for an existing file. Every
+   item in that list is additive or opt-in: the 0.1 verbs, arguments and returned dicts are unchanged
+   for existing calls, and the neutral 0.1 call corpus test is the proof (REQ-BDC-0812). It
    adds the scopes, schedule, cron, sync and ingest verbs, the `bd-cache.run.v1` shapes and
    the new-codes table, under b-8's merged names. The contract keeps its two surfaces, a bd
    /v0-shaped beads surface and the cache-management surface; every new verb joins the
@@ -105,7 +107,7 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
 1. AC-0 on this fence throughout; at the end, the whole-tree lint exits 0 and the CI step is
    green on the three OSes.
 2. The format golden matches the v3 DDL plus the extensions; `PRAGMA user_version` stays 3.
-3. The neutral corpus covers every 0.1 verb, with no loss against the deleted corpus.
+3. The neutral corpus covers every 0.1 verb, with no loss against the deleted corpus; pytest passes with `-W error::DeprecationWarning` (REQ-BDC-0812).
 4. The register written in the planning PR matches the merged names; any difference is raised
    with the lead.
 5. AC-Q.
