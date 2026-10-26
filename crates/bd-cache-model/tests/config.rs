@@ -10,22 +10,22 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use bd_cache_model::{CacheConfig, DrainBudget, RepoConfig, ScopeId};
+use bd_cache_model::{CacheConfig, DrainBudget, RepoConfig, Scope, ScopeId};
 use sc_beads::{Clock, Deadline, ProjectRef};
 
 const SAMPLE: &str = r#"
-cache_path = ".atm-bd/atm-dev.bd-cache.sqlite3"
+cache_path = ".cache-dir/dev.bd-cache.sqlite3"
 scopes = ["bk", "phase-bj", "bk", "  "]
 miss_fill_timeout_ms = 500
 
 [[schema_packages]]
-path = ".claude/skills/atm-beads/schemas"
+path = "schemas/beads"
 enforcement = "warn"
 
 [tick]
-team = "atm-dev"
-fallback_lead = "team-lead"
-phases_dir = ".atm-bd"
+team = "dev"
+fallback_lead = "lead-1"
+phases_dir = ".phases"
 "#;
 
 #[test]
@@ -33,7 +33,7 @@ fn sample_config_parses_and_derives_defaults() {
     let cfg = RepoConfig::from_toml(SAMPLE).unwrap();
     assert_eq!(
         cfg.cache_path,
-        Some(PathBuf::from(".atm-bd/atm-dev.bd-cache.sqlite3"))
+        Some(PathBuf::from(".cache-dir/dev.bd-cache.sqlite3"))
     );
     assert_eq!(
         cfg.schema_packages.len(),
@@ -41,13 +41,16 @@ fn sample_config_parses_and_derives_defaults() {
         "schema packages are kept opaque"
     );
     let tick = cfg.tick.as_ref().unwrap();
-    assert_eq!(tick.team.as_deref(), Some("atm-dev"));
-    assert_eq!(tick.fallback_lead.as_deref(), Some("team-lead"));
-    assert_eq!(tick.phases_dir, Some(PathBuf::from(".atm-bd")));
+    assert_eq!(tick.team.as_deref(), Some("dev"));
+    assert_eq!(tick.fallback_lead.as_deref(), Some("lead-1"));
+    assert_eq!(tick.phases_dir, Some(PathBuf::from(".phases")));
     let cache = cfg.cache_config(ProjectRef::local(Some("/repo".into())));
     assert_eq!(
         cache.scopes,
-        vec![ScopeId::phase("bk").unwrap(), ScopeId::phase("bj").unwrap()]
+        vec![
+            Scope::legacy(ScopeId::new("bk").unwrap()),
+            Scope::legacy(ScopeId::new("bj").unwrap())
+        ]
     );
     assert_eq!(cache.call_timeout, Duration::from_secs(30));
     assert_eq!(cache.miss_fill_timeout, Duration::from_millis(500));

@@ -7,16 +7,18 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 `bd-cache-store` implements a-1's `CacheStore` and `DrainLock` ports
 (`bd-cache-model`) over one SQLite file per dolt database, the file
 the baseline Python implementation of BD-CACHE v3 uses. It depends on `bd-cache-model`, `sc-beads`
-(also its logging, `sc_beads::logging::tracing`), rusqlite (bundled,
-NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the `row_json` and
-ready-base text), as the Crate Layout of [`../architecture.md`](../architecture.md)
-lists them; ADR-STORE-0005 records them with the test-only features.
+(also its logging, `sc_beads::logging::tracing`), `sc-cron` (the schedule rows in the
+cache file, ADR-BDC-0014), rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and
+`serde_json` (the `row_json` and ready-base text), as the Crate Layout of
+[`../architecture.md`](../architecture.md) lists them; ADR-STORE-0005, amended by
+ADR-BDC-0014, records them with the test-only features.
 
 | Module | Contents |
 |---|---|
 | `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `BeadsDirOverride` and `BeadsDirError` (the one validated `$BEADS_DIR`, S49), `CacheLocation`, `beads_dir`, `load_repo_config` and `ConfigLoadError` |
-| `schema` | the v3 DDL as the baseline Python implementation runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
-| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method |
+| `schema` | the v3 DDL as the baseline Python implementation runs it, the extension tables, columns and indexes (with ADR-STORE-0006's: `tick_lease`, `hook_state`, `sc_cron_schedule`, the `meta` row `sc_cron_schedule_version`), the membership take-over (ADR-STORE-0001, 0002) |
+| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method (the scope registry, `ingest_scope`, failure marking, lease and hook state included, sprint b-7), and `schedule_store()`; the connection and the claim live in one mutex-guarded object shared with the schedule view (ADR-BDC-0014) |
+| `schedule` | `CacheScheduleStore`: sc-cron's `ScheduleStore` over the cache's one connection, sc-cron's SQL on the `sc_cron_schedule` table in the cache file, the version row checked before any schedule is served (ADR-BDC-0014, REQ-CRON-0017) |
 | `codec` | encoding and validated decoding of stored rows, edges, journal entries, ready bases and timestamps |
 | `lock` | `FlockDrainLock` and its guard |
 | `registry` | the process-wide claim that keeps one connection per cache file (ADR-STORE-0003) |
@@ -542,7 +544,7 @@ dating, the plans and SQL work (VM steps), the undatable-entry warning and the h
 
 ## ADR-STORE-0005: Dependencies and test-only features
 
-**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10)
+**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10). Amended by ADR-BDC-0014 (sprint b-7): the runtime dependency `sc-cron`.
 
 Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
 crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),
@@ -550,7 +552,10 @@ and the store took `tracing` directly, which the layout does not list (ARCH-401)
 
 Decision:
 - Runtime dependencies: `bd-cache-model`, `sc-beads`, rusqlite (workspace features:
-  `bundled`, NFR-BDC-0007), fs4, `serde_json`. Nothing else.
+  `bundled`, NFR-BDC-0007), fs4, `serde_json`, and (amended by ADR-BDC-0014) `sc-cron`
+  for `CacheScheduleStore`: its `ScheduleStore` trait, types, limits and `SCHEMA_VERSION`.
+  Nothing else. sc-cron's `test-utils` feature is not used: the store's schedule tests drive
+  the store directly with fixed timestamps.
 - Logging goes through `sc_beads::logging::tracing` (ADR-BDC-0007), as `bd-cache` does;
   the store has no direct `tracing` dependency.
 - Dev-dependencies, test builds only:
@@ -617,3 +622,24 @@ the schedule would not move with the cache).
 
 Consequences: a v3 reader that does not know an extension still reads and writes the file.
 Further extensions need a later ADR.
+
+Implementation notes (sprint b-7):
+- `schema.rs` adds the five columns through `EXTENSION_COLUMNS` and the two tables through
+  `EXTENSION_TABLES`; `sc_cron_schedule` is sc-cron's version-2 DDL with sc-cron's own limits
+  (`sc_cron_schedule_table`), and the `meta` row is written with `INSERT OR IGNORE`, so a file
+  holding another version keeps it and `CacheScheduleStore` refuses it
+  (`StoreErrorKind::SchemaMismatch`). `tests/format_golden.rs` pins the whole schema
+  (`tests/fixtures/format-golden.txt`) and checks that a v3-only file
+  (`tests/fixtures/v3-schema.sql`) gains every extension at `user_version` 3 and that a v3
+  reader still reads and writes the extended file.
+- `scope.kind` is `phase` for a phase-a scope (`filter` NULL) and `filter` for a scope with a
+  stored filter; any other pairing does not decode. A v3 `phase` column is read as a
+  phase-a scope's membership only, never a filter scope's of the same name (`IN_SCOPE`,
+  `RECONCILE_MEMBERSHIP`).
+- `ingest_scope` encodes and size-checks every row before its one `BEGIN IMMEDIATE`, so an
+  oversized snapshot writes nothing; in the transaction it registers the scope if absent,
+  replaces the scope's memberships with the snapshot's rows the status criterion admits,
+  stores rows unforced, writes the ready base restricted to the members, records an ok sync
+  state and the revision.
+- The lease and the hook state are one-row tables (`id = 1`); `lease_take` decides free, live
+  or expired inside one write transaction.

@@ -40,7 +40,7 @@ fn synced(
     let lock = store.drain_lock();
     let clock = Arc::new(ManualClock::default());
     let bd = FakeBackend::new(Arc::clone(&clock));
-    let x = ScopeId::phase("x").expect("scope");
+    let x = ScopeId::new("x").expect("scope");
     for i in 0..beads {
         let mut b = bead(&format!("b{i}"));
         b.labels = vec!["phase-x".into()];
@@ -50,7 +50,10 @@ fn synced(
         bd.add_edge(&format!("b{i}"), &format!("b{}", i + 1), DepType::Blocks);
     }
     let mut cache = Cache::new(
-        CacheConfig::new(ProjectRef::local(None), vec![x.clone()]),
+        CacheConfig::new(
+            ProjectRef::local(None),
+            vec![bd_cache_model::Scope::legacy(x.clone())],
+        ),
         store,
         lock,
         bd,

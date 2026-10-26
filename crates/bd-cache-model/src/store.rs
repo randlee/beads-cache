@@ -1,17 +1,19 @@
 //! The store port ([`CacheStore`]) and the cross-process drain lock ([`DrainLock`]).
 
+use std::collections::BTreeSet;
 use std::time::Duration;
 
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::error::CacheError;
+use crate::ingest::IngestSnapshot;
 use crate::journal::JournalState;
 use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
 use crate::reply::{JournalCounts, PruneReport};
-use crate::scope::ScopeId;
+use crate::scope::{Scope, ScopeId};
 use crate::state::{
-    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, StoreStatus, SyncState,
-    UpsertReport,
+    BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
+    OpenWork, Outage, ReadyBase, StoreStatus, SyncState, UpsertReport,
 };
 
 /// The cache's store; a-4 implements it over SQLite, `testing::FakeStore` in memory.
@@ -23,10 +25,11 @@ use crate::state::{
 /// - upsert writes the bead's outgoing edges from `Bead.dependencies`,
 ///   replacing the old ones.
 /// - any successful store of a bead clears `stale`.
-/// - `upsert_rows(Some(s), ..)` sets membership of `s` from the row's labels
-///   (added when the row carries `s`'s label, removed when it does not);
-///   `upsert_rows(None, ..)` never changes existing membership (a new row
-///   stored with `None` has none: an out-of-scope row).
+/// - `upsert_rows(Some(s), ..)` sets membership of `s` from [`Scope::holds`]
+///   (added when the scope holds the row: its label for a phase-a scope, its
+///   filter with the status criterion for a filter scope; removed when it
+///   does not); `upsert_rows(None, ..)` never changes existing membership (a
+///   new row stored with `None` has none: an out-of-scope row).
 /// - unforced upserts skip a row whose stored `updated_at` is a later
 ///   instant (`skipped_newer`); `updated_at` is compared as an RFC 3339
 ///   instant at second precision, never as text (`12:00:00+02:00` equals
@@ -42,8 +45,32 @@ use crate::state::{
 ///   `sync_state` rows and every ready base; keeps the journal (and the
 ///   scope registry, alerts and outage). The first fingerprint is
 ///   `Recorded` and drops nothing.
-/// - `ensure_scope` persists; `scopes()` returns configured and on-demand
-///   scopes across restarts.
+/// - The registry (ADR-BDC-0013): `ensure_scope` registers a scope that is
+///   absent and returns the stored one (an existing scope keeps its filter);
+///   `put_scope` creates or updates; `scope_add` refuses an existing name
+///   (`BAD_ARGS`), `scope_set` an absent one (`SCOPE_UNKNOWN`). A changed
+///   filter (`put_scope`, `scope_set`) drops the scope's memberships, sync
+///   state and ready base, so its next sync starts from nothing; the rows stay.
+///   `scope_remove` is `prune_scope` (and its refusal) followed by removing
+///   the scope from the registry, in one transaction. `scopes()` returns
+///   every registered scope, by name, across restarts.
+/// - `ingest_scope` (REQ-BDC-0726) stores a checked snapshot in one
+///   transaction: rows unforced (the newer-row guard), the scope's membership
+///   replaced by the snapshot's rows the scope's status criterion admits
+///   (other scopes' memberships kept), the ready base replaced by `blocked`
+///   and `ready` restricted to those members, the sync state an ok result at
+///   `at` (`failing_since` cleared), and `revision` stored as given. Over
+///   50 000 rows or 64 MiB of encoded rows is `INGEST_INVALID`, nothing written.
+/// - `scope_announce(s, since)` marks the current failure only when `since`
+///   equals the stored `failing_since`, else `PRECONDITION` (REQ-BDC-0728);
+///   `mark_offered` sets `first_offered_at` of entries that have none, never
+///   changing a set one.
+/// - `lease_take` (REQ-BDC-0722) takes the one lease under one write
+///   transaction: free, it is `Taken`; held with `expires_at` after `now`, it
+///   is `Held` and nothing changes; expired, it is `TookOver`. `lease_release`
+///   frees it only for its own `run_id`.
+/// - `hook_failed` counts one failure (keeping the first failure's time),
+///   `hook_succeeded` resets the count (REQ-BDC-0727).
 /// - `replace_ready_base` replaces the whole base for the scope and clears
 ///   its stale mark; its `at` is the instant taken before the sync's first
 ///   `list_blocked` / `list_ready` call. `ready_base` is `None` only when the
@@ -93,10 +120,69 @@ use crate::state::{
     reason = "error rules are documented once on the trait"
 )]
 pub trait CacheStore: Send {
-    /// Registers a scope (configured, or on demand by a sync); idempotent and persistent.
-    fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError>;
-    /// Every registered scope.
-    fn scopes(&self) -> Result<Vec<ScopeId>, CacheError>;
+    /// Registers `s` when its name is absent (on demand, by a sync); returns
+    /// the registered scope, whose filter an existing scope keeps.
+    fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError>;
+    /// Creates or updates `s` (the scopes the configuration file defines,
+    /// written when the cache opens: the file wins).
+    fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError>;
+    /// Adds a new scope; `BAD_ARGS` when the name is registered.
+    fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError>;
+    /// Changes a registered scope's filter; `SCOPE_UNKNOWN` when it is absent.
+    fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError>;
+    /// Prunes a scope and removes it from the registry, in one transaction.
+    fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;
+    /// The registered scope of a name.
+    fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError>;
+    /// Every registered scope, by name.
+    fn scopes(&self) -> Result<Vec<Scope>, CacheError>;
+    /// The opaque `revision` the last ingest of the scope stored.
+    fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError>;
+    /// The ids of the beads the scope holds.
+    ///
+    /// Equal to the ids of [`CacheStore::rows_in_scope`]; the provided body
+    /// loads the rows, an implementation that can read the ids alone overrides it.
+    fn members(&self, s: &ScopeId) -> Result<BTreeSet<BeadId>, CacheError> {
+        Ok(self
+            .rows_in_scope(s)?
+            .into_iter()
+            .map(|(b, _)| b.id)
+            .collect())
+    }
+    /// Stores a checked snapshot of the scope in one transaction (see the rules above).
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        snapshot: &IngestSnapshot,
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError>;
+    /// Marks the scope's current failure as notified when `since` is it; else `PRECONDITION`.
+    fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError>;
+    /// Sets `first_offered_at` to `at` on each entry that has none.
+    fn mark_offered(&mut self, seqs: &[Seq], at: &Timestamp) -> Result<(), CacheError>;
+    /// Takes the sync lease for `holder` (see the rules above).
+    fn lease_take(
+        &mut self,
+        holder: &LeaseHolder,
+        now: &Timestamp,
+    ) -> Result<LeaseTake, CacheError>;
+    /// Releases the lease when `run_id` holds it; `false` when it does not.
+    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError>;
+    /// The lease's holder, live or expired; `None` when it is free.
+    fn lease(&self) -> Result<Option<LeaseHolder>, CacheError>;
+    /// The post-sync hook's backoff state.
+    fn hook_state(&self) -> Result<HookState, CacheError>;
+    /// Counts one failed hook call with its error and next attempt; returns the new state.
+    fn hook_failed(
+        &mut self,
+        err: &str,
+        at: &Timestamp,
+        next_attempt_at: Option<&Timestamp>,
+    ) -> Result<HookState, CacheError>;
+    /// Resets the hook's failure count after a success.
+    fn hook_succeeded(&mut self) -> Result<(), CacheError>;
     /// The stored row and its freshness.
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError>;
     /// Rows the scope holds, by id.
@@ -104,7 +190,7 @@ pub trait CacheStore: Send {
     /// Stores validated rows (see the rules above).
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError>;
@@ -276,7 +362,7 @@ pub trait CacheStore: Send {
             let scope = if phase == "None" {
                 None
             } else {
-                ScopeId::phase(phase).ok()
+                ScopeId::new(phase).ok()
             };
             counts.add(scope.as_ref(), state, n);
         }

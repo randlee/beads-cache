@@ -16,7 +16,7 @@ use bd_cache::testing::{store, store_mut};
 use bd_cache_model::{
     CacheConfig, CacheStore, DrainBudget, Freshness, IdemKey, JournalEntry, JournalState, Seq,
 };
-use common::{TestCache, World, id, x};
+use common::{TestCache, World, id};
 use sc_beads::Guards;
 use sc_beads::testing::{FakeCall, FakeOp, Injection, actor};
 
@@ -223,7 +223,7 @@ fn test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync()
     // A sync re-reads the row, which clears the stale mark; the entry then drains.
     let row = w.bd_row("b1");
     store_mut(&mut c)
-        .upsert_rows(Some(&x()), &[row], false)
+        .upsert_rows(Some(&common::sx()), &[row], false)
         .unwrap();
     let r = c.drain(&roomy(&w)).unwrap();
     assert_eq!(r.applied, vec![e2]);

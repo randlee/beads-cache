@@ -234,8 +234,17 @@ impl FakeBd {
     fn list(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
         let args = match Args::parse(
             rest,
-            &["--id", "-l", "--status", "-n", "--updated-after"],
-            &["--json"],
+            &[
+                "--id",
+                "-l",
+                "--label-any",
+                "-t",
+                "-a",
+                "--status",
+                "-n",
+                "--updated-after",
+            ],
+            &["--json", "--all"],
         ) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
@@ -250,16 +259,13 @@ impl FakeBd {
                 return Ok(failure(1, "Error: invalid --id list"));
             };
             self.backend.list_by_ids(&p, &ids, d)
-        } else if let Some(label) = args.one("-l") {
+        } else if let Some(filter) = filter_of(&args, true) {
             let cursor = args.one("--updated-after").map(SyncCursor::new);
-            self.backend.list_scope(
-                &p,
-                &ScopeFilter::Label(label.to_owned()),
-                cursor.as_ref(),
-                d,
-            )
+            self.backend.list_scope(&p, &filter, cursor.as_ref(), d)
         } else {
-            return Ok(usage("list needs --id or -l in this fake"));
+            return Ok(usage(
+                "list needs --id, --all or a filter (-l, --label-any, -t, -a) in this fake",
+            ));
         };
         let rows = match rows {
             Ok(rows) => rows,
@@ -273,18 +279,16 @@ impl FakeBd {
     }
 
     fn blocked(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l"], &["--json"]) {
+        // bd blocked has no type or assignee flag (ADR-BDC-0013): -t / -a are unknown flags.
+        let args = match Args::parse(rest, &["-l", "--label-any"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("blocked needs -l in this fake"));
-        };
-        let blocked = match self.backend.list_blocked(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        let filter = filter_of(&args, false).unwrap_or(ScopeFilter::All);
+        let blocked = match self
+            .backend
+            .list_blocked(&ProjectRef::local(None), &filter, d)
+        {
             Ok(rows) => rows,
             Err(e) => return failed(e),
         };
@@ -302,18 +306,15 @@ impl FakeBd {
     }
 
     fn ready(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l", "-n"], &["--json"]) {
+        let args = match Args::parse(rest, &["-l", "--label-any", "-t", "-a", "-n"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("ready needs -l in this fake"));
-        };
-        let ids = match self.backend.list_ready(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        let filter = filter_of(&args, false).unwrap_or(ScopeFilter::All);
+        let ids = match self
+            .backend
+            .list_ready(&ProjectRef::local(None), &filter, d)
+        {
             Ok(ids) => ids,
             Err(e) => return failed(e),
         };
@@ -432,6 +433,40 @@ impl FakeBd {
             .backend
             .dep_add_typed(&ProjectRef::local(None), id, on, kind, &actor, d);
         written(r, "added")
+    }
+}
+
+/// The scope filter a list, blocked or ready argv names (ADR-BDC-0013): `All`
+/// for `--all` (when `all_flag` is allowed), `Label(l)` for a lone `-l l`,
+/// else the criteria of `-l a,b`, `--label-any c,d`, `-t` and `-a`; `None`
+/// when the argv names no filter at all.
+fn filter_of(args: &Args, all_flag: bool) -> Option<ScopeFilter> {
+    if all_flag && args.one("--all").is_some() {
+        return Some(ScopeFilter::All);
+    }
+    let split = |flag: &str| -> Vec<String> {
+        args.one(flag)
+            .map(|v| v.split(',').map(str::to_owned).collect())
+            .unwrap_or_default()
+    };
+    let labels_all = split("-l");
+    let labels_any = split("--label-any");
+    let issue_type = args.one("-t").map(str::to_owned);
+    let assignee = args.one("-a").map(str::to_owned);
+    match (
+        labels_all.as_slice(),
+        labels_any.as_slice(),
+        &issue_type,
+        &assignee,
+    ) {
+        ([], [], None, None) => None,
+        ([one], [], None, None) => Some(ScopeFilter::Label(one.clone())),
+        _ => Some(ScopeFilter::Criteria {
+            labels_all,
+            labels_any,
+            issue_type,
+            assignee,
+        }),
     }
 }
 

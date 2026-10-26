@@ -7,16 +7,17 @@ use std::sync::{Arc, Mutex};
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp, rfc3339_to_unix};
 
 use super::lock;
-use crate::error::CacheError;
+use crate::error::{CacheError, IngestReason, PreconditionReason};
+use crate::ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS};
 use crate::journal::{
     IdemKey, JournalEntry, JournalState, NewEntry, Seq, error_code_prefix, resolve_note,
 };
 use crate::op::normalize;
 use crate::reply::{JournalCounts, PruneReport};
-use crate::scope::ScopeId;
+use crate::scope::{Scope, ScopeFilter, ScopeId};
 use crate::state::{
-    FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus,
-    SyncState, UpsertReport,
+    FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake, OpenWork,
+    Outage, ReadyBase, ScopeStatus, StoreStatus, SyncState, UpsertReport,
 };
 use crate::store::{CacheStore, DrainGuard, DrainLock};
 
@@ -48,7 +49,10 @@ fn alert_key(s: &ScopeId) -> String {
 
 #[derive(Debug, Default)]
 struct State {
-    scopes: BTreeSet<ScopeId>,
+    /// The registry: each scope's filter (`None` = a phase-a scope) and revision.
+    scopes: BTreeMap<ScopeId, (Option<ScopeFilter>, Option<String>)>,
+    lease: Option<LeaseHolder>,
+    hook: HookState,
     /// Normalized rows without `dependencies` (those live in `edges`) and their stale flag.
     rows: BTreeMap<BeadId, (Bead, bool)>,
     edges: BTreeSet<Edge>,
@@ -133,6 +137,97 @@ impl State {
     fn entries(&self, f: impl Fn(&JournalEntry) -> bool) -> Vec<JournalEntry> {
         self.journal.values().filter(|e| f(e)).cloned().collect()
     }
+
+    /// Drops what a scope's filter derived: its memberships, sync state and
+    /// ready base (a changed filter starts the scope again; the rows stay).
+    fn reset_scope(&mut self, s: &ScopeId) {
+        for m in self.members.values_mut() {
+            m.remove(s);
+        }
+        self.sync.remove(s);
+        self.ready.remove(s);
+    }
+
+    /// Writes a scope's filter, resetting it when the filter changed.
+    fn write_scope(&mut self, s: &Scope) {
+        let changed = self
+            .scopes
+            .get(&s.id)
+            .is_some_and(|(filter, _)| *filter != s.filter);
+        if changed {
+            self.reset_scope(&s.id);
+        }
+        let revision = self.scopes.get(&s.id).and_then(|(_, r)| r.clone());
+        self.scopes
+            .insert(s.id.clone(), (s.filter.clone(), revision));
+    }
+
+    fn scope(&self, s: &ScopeId) -> Option<Scope> {
+        self.scopes.get(s).map(|(filter, _)| Scope {
+            id: s.clone(),
+            filter: filter.clone(),
+        })
+    }
+
+    fn prune(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        let open = self
+            .journal
+            .values()
+            .filter(|e| e.scope.as_ref() == Some(s))
+            .filter(|e| matches!(e.state, JournalState::Pending | JournalState::Escalated))
+            .count();
+        if open > 0 {
+            return Err(CacheError::PruneBlocked {
+                detail: format!("scope {} has {open} pending or escalated writes", s.name()),
+            });
+        }
+        let mut report = PruneReport {
+            scope: s.clone(),
+            beads_deleted: 0,
+            out_of_scope_swept: 0,
+        };
+        let held: Vec<BeadId> = self
+            .members
+            .iter()
+            .filter(|(_, m)| m.contains(s))
+            .map(|(id, _)| id.clone())
+            .collect();
+        for id in held {
+            let last = self.members.get_mut(&id).is_some_and(|m| {
+                m.remove(s);
+                m.is_empty()
+            });
+            if last && !self.has_open_entry(&id) {
+                self.delete_bead(&id);
+                report.beads_deleted += 1;
+            }
+        }
+        self.journal.retain(|_, e| e.scope.as_ref() != Some(s));
+        self.sync.remove(s);
+        self.ready.remove(s);
+        let unscoped: Vec<BeadId> = self
+            .rows
+            .keys()
+            .filter(|id| self.members.get(*id).is_none_or(BTreeSet::is_empty))
+            .filter(|id| !self.has_open_entry(id))
+            .cloned()
+            .collect();
+        for id in unscoped {
+            self.delete_bead(&id);
+            report.out_of_scope_swept += 1;
+        }
+        Ok(report)
+    }
+}
+
+/// `INGEST_INVALID` from the store's own limit check.
+fn too_big(s: &ScopeId, reason: IngestReason, detail: &str) -> CacheError {
+    CacheError::IngestInvalid {
+        detail: format!("ingest of scope {s}: {detail}"),
+        scope: s.clone(),
+        reason,
+        index: None,
+    }
 }
 
 /// In-memory [`CacheStore`] keeping every rule of the port.
@@ -140,20 +235,20 @@ impl State {
 /// Clones share one store: hand a clone to a second `Cache` to model two
 /// processes on one file, or keep a clone to inspect state a test drove.
 /// It stores the outage and sync alerts as `meta` keys (`outage_since`,
-/// `outage_error`, `sync_alert:<phase>`) as BD-CACHE v3 does.
+/// `outage_error`, `sync_alert:<scope>`) as BD-CACHE v3 does.
 ///
 /// # Examples
 ///
 /// ```
-/// use bd_cache_model::{CacheStore, ScopeId};
+/// use bd_cache_model::{CacheStore, Scope, ScopeFilter, ScopeId};
 /// use bd_cache_model::testing::FakeStore;
 ///
 /// let mut store = FakeStore::new();
 /// let mut b = sc_beads::testing::bead("b1");
-/// b.labels = vec!["phase-x".into()];
-/// let x = ScopeId::phase("x").unwrap();
+/// b.labels = vec!["area".into()];
+/// let x = Scope::new(ScopeId::new("x").unwrap(), ScopeFilter::label("area").unwrap());
 /// store.upsert_rows(Some(&x), &[b], false).unwrap();
-/// assert_eq!(store.rows_in_scope(&x).unwrap().len(), 1);
+/// assert_eq!(store.rows_in_scope(&x.id).unwrap().len(), 1);
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct FakeStore {
@@ -191,13 +286,258 @@ impl FakeStore {
 }
 
 impl CacheStore for FakeStore {
-    fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError> {
-        lock(&self.state).scopes.insert(s.clone());
+    fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
+        let mut st = lock(&self.state);
+        if let Some(known) = st.scope(&s.id) {
+            return Ok(known);
+        }
+        st.scopes.insert(s.id.clone(), (s.filter.clone(), None));
+        Ok(s.clone())
+    }
+
+    fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
+        lock(&self.state).write_scope(s);
         Ok(())
     }
 
-    fn scopes(&self) -> Result<Vec<ScopeId>, CacheError> {
-        Ok(lock(&self.state).scopes.iter().cloned().collect())
+    fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
+        let mut st = lock(&self.state);
+        if st.scopes.contains_key(&s.id) {
+            return Err(CacheError::BadArgs {
+                detail: format!("scope {} is already registered; use scopes set", s.id),
+            });
+        }
+        st.scopes.insert(s.id.clone(), (s.filter.clone(), None));
+        Ok(())
+    }
+
+    fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
+        let mut st = lock(&self.state);
+        if !st.scopes.contains_key(&s.id) {
+            return Err(CacheError::ScopeUnknown {
+                detail: format!("scope {} is not registered", s.id),
+                known: st.scopes.keys().cloned().collect(),
+            });
+        }
+        st.write_scope(s);
+        Ok(())
+    }
+
+    fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        let mut st = lock(&self.state);
+        if !st.scopes.contains_key(s) {
+            return Err(CacheError::ScopeUnknown {
+                detail: format!("scope {s} is not registered"),
+                known: st.scopes.keys().cloned().collect(),
+            });
+        }
+        let report = st.prune(s)?;
+        st.scopes.remove(s);
+        Ok(report)
+    }
+
+    fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
+        Ok(lock(&self.state).scope(s))
+    }
+
+    fn scopes(&self) -> Result<Vec<Scope>, CacheError> {
+        let st = lock(&self.state);
+        Ok(st.scopes.keys().filter_map(|id| st.scope(id)).collect())
+    }
+
+    fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
+        Ok(lock(&self.state)
+            .scopes
+            .get(s)
+            .and_then(|(_, revision)| revision.clone()))
+    }
+
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        snapshot: &IngestSnapshot,
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        let rows = snapshot.rows();
+        if rows.len() > MAX_INGEST_ROWS {
+            return Err(too_big(
+                &s.id,
+                IngestReason::TooManyRows,
+                &format!("{} rows", rows.len()),
+            ));
+        }
+        let bytes: usize = rows
+            .iter()
+            .map(|r| serde_json::to_vec(r).map_or(0, |v| v.len()))
+            .sum();
+        if bytes > MAX_INGEST_BYTES {
+            return Err(too_big(
+                &s.id,
+                IngestReason::TooLarge,
+                &format!("{bytes} bytes of rows"),
+            ));
+        }
+        let mut st = lock(&self.state);
+        let mut report = UpsertReport::default();
+        let mut members = BTreeSet::new();
+        for row in rows {
+            if s.admits(row) {
+                members.insert(row.id.clone());
+            }
+            let existing = st
+                .rows
+                .get(&row.id)
+                .map(|(b, _)| (b.updated_at.clone(), b.status.clone()));
+            if let Some((updated_at, _)) = &existing
+                && newer(updated_at, &row.updated_at)
+            {
+                report.skipped_newer.push(row.id.clone());
+                continue;
+            }
+            if let Some((_, status)) = &existing
+                && *status != row.status
+            {
+                report.status_changed.push(row.id.clone());
+            }
+            st.store(row);
+            report.stored.push(row.id.clone());
+        }
+        for (id, m) in &mut st.members {
+            if !members.contains(id) {
+                m.remove(&s.id);
+            }
+        }
+        for id in &members {
+            st.members
+                .entry(id.clone())
+                .or_default()
+                .insert(s.id.clone());
+        }
+        let blocked: Vec<BlockedRow> = snapshot
+            .blocked()
+            .iter()
+            .filter(|b| members.contains(&b.id))
+            .cloned()
+            .collect();
+        let ready: Vec<BeadId> = ready
+            .iter()
+            .filter(|id| members.contains(*id))
+            .cloned()
+            .collect();
+        st.ready.insert(
+            s.id.clone(),
+            ReadyBase {
+                blocked,
+                ready,
+                fetched_at: at.clone(),
+                stale: false,
+            },
+        );
+        st.sync.insert(
+            s.id.clone(),
+            SyncState {
+                scope: s.id.clone(),
+                last_started_at: Some(at.clone()),
+                last_ok_at: Some(at.clone()),
+                last_error: None,
+                failing_since: None,
+                notified_since: None,
+            },
+        );
+        let filter = st
+            .scopes
+            .get(&s.id)
+            .map_or(s.filter.clone(), |(f, _)| f.clone());
+        st.scopes
+            .insert(s.id.clone(), (filter, revision.map(str::to_owned)));
+        Ok(report)
+    }
+
+    fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError> {
+        let mut st = lock(&self.state);
+        let state = st.sync.get_mut(s);
+        match state {
+            Some(state) if state.failing_since.as_ref() == Some(since) => {
+                state.notified_since = Some(since.clone());
+                Ok(())
+            }
+            other => Err(stale_since(
+                s,
+                since,
+                other.and_then(|st| st.failing_since.as_ref()),
+            )),
+        }
+    }
+
+    fn mark_offered(&mut self, seqs: &[Seq], at: &Timestamp) -> Result<(), CacheError> {
+        let mut st = lock(&self.state);
+        for seq in seqs {
+            let e = st.entry_mut(*seq)?;
+            if e.first_offered_at.is_none() {
+                e.first_offered_at = Some(at.clone());
+            }
+        }
+        Ok(())
+    }
+
+    fn lease_take(
+        &mut self,
+        holder: &LeaseHolder,
+        now: &Timestamp,
+    ) -> Result<LeaseTake, CacheError> {
+        let mut st = lock(&self.state);
+        let took = match st.lease.take() {
+            None => LeaseTake::Taken,
+            Some(live) if live.expires_at.unix() > now.unix() => {
+                let held = live.clone();
+                st.lease = Some(live);
+                return Ok(LeaseTake::Held(held));
+            }
+            Some(expired) => LeaseTake::TookOver(expired),
+        };
+        st.lease = Some(holder.clone());
+        Ok(took)
+    }
+
+    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+        let mut st = lock(&self.state);
+        if st.lease.as_ref().is_some_and(|l| l.run_id == run_id) {
+            st.lease = None;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
+        Ok(lock(&self.state).lease.clone())
+    }
+
+    fn hook_state(&self) -> Result<HookState, CacheError> {
+        Ok(lock(&self.state).hook.clone())
+    }
+
+    fn hook_failed(
+        &mut self,
+        err: &str,
+        at: &Timestamp,
+        next_attempt_at: Option<&Timestamp>,
+    ) -> Result<HookState, CacheError> {
+        let mut st = lock(&self.state);
+        let h = &mut st.hook;
+        h.consecutive_failures = h.consecutive_failures.saturating_add(1);
+        if h.first_failure_at.is_none() {
+            h.first_failure_at = Some(at.clone());
+        }
+        h.last_error = Some(err.to_owned());
+        h.next_attempt_at = next_attempt_at.cloned();
+        Ok(h.clone())
+    }
+
+    fn hook_succeeded(&mut self) -> Result<(), CacheError> {
+        lock(&self.state).hook = HookState::default();
+        Ok(())
     }
 
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
@@ -216,7 +556,7 @@ impl CacheStore for FakeStore {
 
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {
@@ -243,9 +583,9 @@ impl CacheStore for FakeStore {
             if let Some(s) = s {
                 let m = st.members.entry(row.id.clone()).or_default();
                 if s.holds(row) {
-                    m.insert(s.clone());
+                    m.insert(s.id.clone());
                 } else {
-                    m.remove(s);
+                    m.remove(&s.id);
                 }
             }
             report.stored.push(row.id.clone());
@@ -340,6 +680,7 @@ impl CacheStore for FakeStore {
                 announced_at: None,
                 created_at: at.clone(),
                 applied_at: None,
+                first_offered_at: None,
             },
         );
         Ok(seq)
@@ -501,54 +842,7 @@ impl CacheStore for FakeStore {
     }
 
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
-        let mut st = lock(&self.state);
-        let open = st
-            .journal
-            .values()
-            .filter(|e| e.scope.as_ref() == Some(s))
-            .filter(|e| matches!(e.state, JournalState::Pending | JournalState::Escalated))
-            .count();
-        if open > 0 {
-            return Err(CacheError::PruneBlocked {
-                detail: format!("phase {} has {open} pending or escalated writes", s.name()),
-            });
-        }
-        let mut report = PruneReport {
-            scope: s.clone(),
-            beads_deleted: 0,
-            out_of_scope_swept: 0,
-        };
-        let held: Vec<BeadId> = st
-            .members
-            .iter()
-            .filter(|(_, m)| m.contains(s))
-            .map(|(id, _)| id.clone())
-            .collect();
-        for id in held {
-            let last = st.members.get_mut(&id).is_some_and(|m| {
-                m.remove(s);
-                m.is_empty()
-            });
-            if last && !st.has_open_entry(&id) {
-                st.delete_bead(&id);
-                report.beads_deleted += 1;
-            }
-        }
-        st.journal.retain(|_, e| e.scope.as_ref() != Some(s));
-        st.sync.remove(s);
-        st.ready.remove(s);
-        let unscoped: Vec<BeadId> = st
-            .rows
-            .keys()
-            .filter(|id| st.members.get(*id).is_none_or(BTreeSet::is_empty))
-            .filter(|id| !st.has_open_entry(id))
-            .cloned()
-            .collect();
-        for id in unscoped {
-            st.delete_bead(&id);
-            report.out_of_scope_swept += 1;
-        }
-        Ok(report)
+        lock(&self.state).prune(s)
     }
 
     fn open_work(&self) -> Result<OpenWork, CacheError> {
@@ -580,7 +874,7 @@ impl CacheStore for FakeStore {
             let phase = e.scope.as_ref().map_or("None", ScopeId::name);
             *journal.entry(format!("{phase}:{}", e.state)).or_insert(0) += 1;
         }
-        let names: BTreeSet<ScopeId> = st.scopes.iter().chain(st.sync.keys()).cloned().collect();
+        let names: BTreeSet<ScopeId> = st.scopes.keys().chain(st.sync.keys()).cloned().collect();
         let scopes = names
             .into_iter()
             .map(|s| ScopeStatus {
@@ -601,6 +895,19 @@ impl CacheStore for FakeStore {
             outage: st.outage(),
             stale: st.stale(),
         })
+    }
+}
+
+/// `PRECONDITION` for a `scope_announce` whose `since` is not the current failure.
+fn stale_since(s: &ScopeId, since: &FailingSince, current: Option<&FailingSince>) -> CacheError {
+    CacheError::Precondition {
+        detail: format!(
+            "scope {s}: since {since} is not its current failing_since ({})",
+            current.map_or("none", FailingSince::as_str)
+        ),
+        unmet: BTreeMap::new(),
+        reason: PreconditionReason::PreconditionFailed,
+        source: None,
     }
 }
 

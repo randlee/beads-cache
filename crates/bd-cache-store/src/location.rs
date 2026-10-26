@@ -13,7 +13,7 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId, StoreCause};
+use bd_cache_model::{CacheError, ConfigError, RepoConfig, ScopeName, StoreCause};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -75,7 +75,7 @@ impl DoltDatabase {
     /// or be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
     /// `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, with or without an
     /// extension). This is
-    /// stricter than `bd_cache.py`, which refuses only `/`.
+    /// stricter than the v3 Python writer, which refuses only `/`.
     ///
     /// # Errors
     ///
@@ -85,7 +85,7 @@ impl DoltDatabase {
     ///
     /// ```
     /// use bd_cache_store::DoltDatabase;
-    /// assert_eq!(DoltDatabase::new("atm-dev").unwrap().as_str(), "atm-dev");
+    /// assert_eq!(DoltDatabase::new("dev").unwrap().as_str(), "dev");
     /// assert!(DoltDatabase::new("a/b").is_err());
     /// assert!(DoltDatabase::new("").is_err());
     /// assert!(DoltDatabase::new("nul").is_err());
@@ -442,10 +442,10 @@ impl CacheLocation {
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(
     ///     root.join(".beads").join("metadata.json"),
-    ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+    ///     r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
     /// )?;
     /// let loc = CacheLocation::resolve_with(root, &RepoConfig::default(), None)?;
-    /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
+    /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("dev.bd-cache.sqlite3")));
     /// # Ok(())
     /// # }
     /// ```
@@ -493,22 +493,27 @@ pub enum ConfigLoadError {
         /// Why.
         source: ConfigError,
     },
-    /// A `scopes` entry is not a phase name.
+    /// A configured scope is refused (ADR-BDC-0013): a `scopes` entry or a
+    /// `[[scope]]` name that is not a valid scope name, a `[[scope]]` filter
+    /// that is refused, or a name defined twice.
     Scope {
         /// The file.
         path: PathBuf,
-        /// The entry as written.
+        /// The `scopes` entry, or the `[[scope]]` table's name, as written.
         value: String,
+        /// Why it is refused.
+        reason: String,
     },
 }
 
-/// The fix of [`ConfigLoadError::Scope`]: it states the phase-name rule in the
-/// model's one text ([`PhaseName::RULE`], RBP-F037).
+/// The fix of [`ConfigLoadError::Scope`]: it states the scope-name rule in the
+/// model's one text ([`ScopeName::RULE`], RBP-F037).
 static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
     format!(
-        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
-         without the phase- prefix",
-        PhaseName::RULE
+        "name each scope of .beads/bd-cache.toml ({}), define each name once, and give each \
+         [[scope]] table one filter: labels_all, labels_any, status, type or assignee, or \
+         all = true alone",
+        ScopeName::RULE
     )
 });
 
@@ -569,9 +574,13 @@ impl fmt::Display for ConfigLoadError {
             Self::Parse { path, .. } => {
                 write!(f, "invalid {}; fix: {}", path.display(), self.fix())
             }
-            Self::Scope { path, value } => write!(
+            Self::Scope {
+                path,
+                value,
+                reason,
+            } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: {}",
+                "invalid {}: scope {value:?}: {reason}; fix: {}",
                 path.display(),
                 self.fix()
             ),
@@ -591,9 +600,10 @@ impl std::error::Error for ConfigLoadError {
 
 /// Loads `<repo_root>/.beads/bd-cache.toml` into a [`RepoConfig`]: the one loader.
 ///
-/// A missing file is [`RepoConfig::default`]. Every `scopes` entry must be a
-/// phase name (with or without `phase-`); [`RepoConfig::cache_config`] would
-/// otherwise skip it silently.
+/// A missing file is [`RepoConfig::default`]. Every configured scope must be
+/// valid ([`RepoConfig::configured_scopes`]: the `scopes` entries by the 0.1
+/// rule and the `[[scope]]` tables, ADR-BDC-0013); [`RepoConfig::cache_config`]
+/// would otherwise skip it silently.
 ///
 /// # Errors
 ///
@@ -626,10 +636,11 @@ pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError>
         path: path.clone(),
         source,
     })?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.configured_scopes() {
         return Err(ConfigLoadError::Scope {
             path,
-            value: bad.clone(),
+            value: bad.value,
+            reason: bad.reason,
         });
     }
     Ok(config)

@@ -161,13 +161,14 @@ pub(crate) fn phase_problem(phase: &str) -> String {
     )
 }
 
-/// Parses a phase name (with or without `phase-`).
+/// Parses a 0.1 phase argument: `x` or the legacy-prefixed `x` names the
+/// phase-a scope stored as `x` (REQ-BDC-0812 as amended).
 ///
 /// # Errors
 ///
 /// [`phase_problem`] text.
 pub(crate) fn parse_phase(phase: &str) -> Result<ScopeId, String> {
-    ScopeId::parse(phase).ok_or_else(|| phase_problem(phase))
+    bd_cache_model::legacy_scope(phase).ok_or_else(|| phase_problem(phase))
 }
 
 /// Every `bd` call of every handle in the process goes through this one lock set.

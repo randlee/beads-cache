@@ -2,7 +2,9 @@
 //!
 //! One variant per baseline code (REQ-BDC-0803), plus the additive
 //! `SCOPE_UNKNOWN`, `STORE_FAILED` (a-1 amendment 1) and `STORE_IN_USE`
-//! (PE-RBP-F008). `NO_TOML` is
+//! (PE-RBP-F008), and phase B's `CONFIG_INVALID` (a file scope changed through
+//! the registry, ADR-BDC-0013), `INGEST_INVALID`, `SCHEDULE_INVALID`,
+//! `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` (REQ-BDC-0729). `NO_TOML` is
 //! Python-only and never emitted. Every typed
 //! error exits 3 (REQ-BDC-0802) and renders as
 //! `{ok: false, code, detail, fix, reason?, ...payload, source?}`
@@ -39,12 +41,13 @@ use serde_json::{Value, json};
 use crate::call::CallKind;
 use crate::journal::Seq;
 use crate::scope::ScopeId;
+use crate::state::LeaseHolder;
 
 /// Exit code of every typed error (REQ-BDC-0802).
 pub const TYPED_ERROR_EXIT: i32 = 3;
 
 /// The codes that mean `bd` could not answer at all: a backend outage, never a
-/// write attempt (the set `bd_cache.py` calls `UNREACHABLE`).
+/// write attempt (the set the v3 Python writer calls `UNREACHABLE`).
 ///
 /// [`CacheError::is_unreachable`] is the same set by variant; a test keeps the two equal.
 pub const UNREACHABLE_CODES: [&str; 4] = [
@@ -166,6 +169,82 @@ impl SyncCause {
 }
 
 impl Serialize for SyncCause {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
+/// Why an ingest was refused (`INGEST_INVALID`'s `details.reason`, REQ-BDC-0729).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum IngestReason {
+    /// `row_invalid`: a row or blocked row the strict decoder refuses, or input that is not a JSON array.
+    RowInvalid,
+    /// `empty`: a snapshot with no row, without `allow_empty`.
+    Empty,
+    /// `too_many_rows`: more than 50 000 rows.
+    TooManyRows,
+    /// `too_large`: more than 64 MiB of input.
+    TooLarge,
+    /// `membership`: a bead listed twice.
+    Membership,
+}
+
+impl IngestReason {
+    /// The wire name, e.g. `row_invalid`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::RowInvalid => "row_invalid",
+            Self::Empty => "empty",
+            Self::TooManyRows => "too_many_rows",
+            Self::TooLarge => "too_large",
+            Self::Membership => "membership",
+        }
+    }
+}
+
+impl Serialize for IngestReason {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        s.serialize_str(self.as_str())
+    }
+}
+
+/// Why a sync row's run failed (`TICK_RUN_FAILED`'s `details.reason`, REQ-BDC-0729).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum TickRunReason {
+    /// `exit`: a non-zero exit status.
+    Exit,
+    /// `timeout`: the run's deadline passed.
+    Timeout,
+    /// `spawn`: the process could not start.
+    Spawn,
+    /// `oversize`: its output went over the cap.
+    Oversize,
+    /// `stop_answer`: a stop answer other than `continue`.
+    StopAnswer,
+    /// `untrusted`: the cache file failed the trust check.
+    Untrusted,
+    /// `signal`: the command was stopped by a signal.
+    Signal,
+}
+
+impl TickRunReason {
+    /// The wire name, e.g. `stop_answer`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Exit => "exit",
+            Self::Timeout => "timeout",
+            Self::Spawn => "spawn",
+            Self::Oversize => "oversize",
+            Self::StopAnswer => "stop_answer",
+            Self::Untrusted => "untrusted",
+            Self::Signal => "signal",
+        }
+    }
+}
+
+impl Serialize for TickRunReason {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         s.serialize_str(self.as_str())
     }
@@ -381,6 +460,60 @@ pub enum CacheError {
         /// The file, e.g. `cache store /repo/.bd-cache/x.sqlite3: open: ...`.
         detail: String,
     },
+    /// `BD_CACHE.CONFIG_INVALID` (ADR-BDC-0013): a scope `.beads/bd-cache.toml`
+    /// defines was changed or removed through the registry; the file wins.
+    ConfigInvalid {
+        /// What happened.
+        detail: String,
+        /// The check that refused, `details.source` (`config_scope`).
+        origin: &'static str,
+    },
+    /// `BD_CACHE.INGEST_INVALID` (REQ-BDC-0726, 0729): an ingest was refused
+    /// and the stored scope is untouched.
+    IngestInvalid {
+        /// What happened.
+        detail: String,
+        /// The scope ingested.
+        scope: ScopeId,
+        /// Why.
+        reason: IngestReason,
+        /// The index of the row at fault, when one row is.
+        index: Option<usize>,
+    },
+    /// `BD_CACHE.SCHEDULE_INVALID` (REQ-BDC-0729): a schedule or switch
+    /// option is refused.
+    ScheduleInvalid {
+        /// What happened.
+        detail: String,
+        /// The option at fault.
+        field: String,
+        /// Why, e.g. `python_sync_enabled`.
+        reason: String,
+    },
+    /// `BD_CACHE.TICK_RUN_FAILED` (REQ-BDC-0729): a sync row's run failed.
+    TickRunFailed {
+        /// What happened.
+        detail: String,
+        /// The row that ran.
+        row: String,
+        /// The run.
+        run_id: String,
+        /// Why.
+        reason: TickRunReason,
+        /// The exit status, when the process exited.
+        exit_status: Option<i32>,
+        /// Its stderr, truncated.
+        stderr: String,
+        /// Whether the previous state was restored (the command form only).
+        restored: Option<bool>,
+    },
+    /// `BD_CACHE.TICK_IN_FLIGHT` (REQ-BDC-0722, 0729): another run holds the lease.
+    TickInFlight {
+        /// What happened.
+        detail: String,
+        /// Who holds it.
+        holder: LeaseHolder,
+    },
 }
 
 /// The fix of a `NO_DATABASE` whose `metadata.json` exists but this process
@@ -414,10 +547,15 @@ impl CacheError {
             Self::ScopeUnknown { .. } => "BD_CACHE.SCOPE_UNKNOWN",
             Self::StoreFailed { .. } => "BD_CACHE.STORE_FAILED",
             Self::StoreInUse { .. } => "BD_CACHE.STORE_IN_USE",
+            Self::ConfigInvalid { .. } => "BD_CACHE.CONFIG_INVALID",
+            Self::IngestInvalid { .. } => "BD_CACHE.INGEST_INVALID",
+            Self::ScheduleInvalid { .. } => "BD_CACHE.SCHEDULE_INVALID",
+            Self::TickRunFailed { .. } => "BD_CACHE.TICK_RUN_FAILED",
+            Self::TickInFlight { .. } => "BD_CACHE.TICK_IN_FLIGHT",
         }
     }
 
-    /// The fix carried with the error (BD-CACHE.md, CLI table).
+    /// The fix carried with the error (the BD-CACHE baseline design, CLI table).
     #[must_use]
     pub fn fix(&self) -> &'static str {
         match self {
@@ -464,6 +602,19 @@ impl CacheError {
             Self::StoreInUse { .. } => {
                 "another handle in this process already has this cache file open: close that handle, or reuse it instead of opening a second one; the file itself is fine"
             }
+            Self::ConfigInvalid { .. } => {
+                "change the scope in .beads/bd-cache.toml, which defines it; the file wins"
+            }
+            Self::IngestInvalid { .. } => {
+                "fix the named row or limit and resend the whole snapshot"
+            }
+            Self::ScheduleInvalid { .. } => {
+                "fix the named option; switch rows with bdc cache sync use-python|use-builtin"
+            }
+            Self::TickRunFailed { .. } => {
+                "read stderr; bdc cache sync use-builtin restores the built-in sync"
+            }
+            Self::TickInFlight { .. } => "retry after expires_at",
         }
     }
 
@@ -493,7 +644,75 @@ impl CacheError {
             | Self::NotEscalated { .. }
             | Self::ScopeUnknown { .. }
             | Self::StoreFailed { .. }
-            | Self::StoreInUse { .. } => false,
+            | Self::StoreInUse { .. }
+            | Self::ConfigInvalid { .. }
+            | Self::IngestInvalid { .. }
+            | Self::ScheduleInvalid { .. }
+            | Self::TickRunFailed { .. }
+            | Self::TickInFlight { .. } => false,
+        }
+    }
+
+    /// Whether bd could not be reached, for an error that can come from bd
+    /// (`details.outage`, REQ-BDC-0729); `None` for an error that cannot.
+    ///
+    /// True only for a spawn failure, a timeout (a lock wait included) or a
+    /// transport failure; an error from a bd that answered (a `BD_LIST_FAILED`
+    /// for a nonzero exit, a contract break, a refusal) is `Some(false)`. Every
+    /// `BD_UNAVAILABLE` is an outage, including one the caller's own deadline cut.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{CacheError, CallKind};
+    /// use sc_beads::BeadsCacheError;
+    /// let down = BeadsCacheError::Unavailable { reason: "refused".into(), timed_out: false };
+    /// let e = CacheError::from_backend(&down, CallKind::Refresh);
+    /// assert_eq!(e.outage(), Some(true));
+    /// let answered = BeadsCacheError::Failed { code: 1, stderr: "no".into() };
+    /// let e = CacheError::from_backend(&answered, CallKind::Refresh);
+    /// assert_eq!(e.code(), "BD_CACHE.BD_LIST_FAILED");
+    /// assert_eq!(e.outage(), Some(false));
+    /// assert_eq!(CacheError::BadArgs { detail: "x".into() }.outage(), None);
+    /// ```
+    #[must_use]
+    pub fn outage(&self) -> Option<bool> {
+        let unreached = |source: &Option<BackendCause>| {
+            source.as_ref().is_some_and(|c| {
+                c.error().is_unavailable() || matches!(c.error(), BeadsCacheError::Transport { .. })
+            })
+        };
+        match self {
+            // bd timed out, could not start or could not be reached, or the
+            // caller's own deadline cut the call: always unreached.
+            Self::BdUnavailable { .. } => Some(true),
+            Self::BdVersionFailed { source, .. }
+            | Self::BdSchemaFailed { source, .. }
+            | Self::BdContract { source, .. }
+            | Self::BdWriteFailed { source, .. }
+            | Self::BdListFailed { source, .. }
+            | Self::Precondition { source, .. } => Some(unreached(source)),
+            Self::SyncFailed { source, cause, .. } => {
+                Some(unreached(source) || matches!(cause, Some(SyncCause::BdUnavailable)))
+            }
+            Self::NoDatabase { .. }
+            | Self::WrongDatabase { .. }
+            | Self::NotFound { .. }
+            | Self::IdemConflict { .. }
+            | Self::BadOp { .. }
+            | Self::BadArgs { .. }
+            | Self::BadPrecondition { .. }
+            | Self::SchemaVersion { .. }
+            | Self::PruneBlocked { .. }
+            | Self::NotEscalated { .. }
+            | Self::ScopeUnknown { .. }
+            | Self::StoreFailed { .. }
+            | Self::StoreInUse { .. }
+            | Self::ConfigInvalid { .. }
+            | Self::IngestInvalid { .. }
+            | Self::ScheduleInvalid { .. }
+            | Self::TickRunFailed { .. }
+            | Self::TickInFlight { .. } => None,
         }
     }
 
@@ -512,6 +731,18 @@ impl CacheError {
             Self::IdemConflict { .. } => &["seq"],
             Self::SyncFailed { .. } => &["cause", "phase"],
             Self::ScopeUnknown { .. } => &["known"],
+            Self::ConfigInvalid { .. } => &["config_source"],
+            Self::IngestInvalid { .. } => &["scope", "ingest_reason", "index"],
+            Self::ScheduleInvalid { .. } => &["field", "schedule_reason"],
+            Self::TickRunFailed { .. } => &[
+                "row",
+                "run_id",
+                "run_reason",
+                "exit_status",
+                "stderr",
+                "restored",
+            ],
+            Self::TickInFlight { .. } => &["holder"],
             Self::BdUnavailable { .. }
             | Self::NoDatabase { .. }
             | Self::WrongDatabase { .. }
@@ -570,7 +801,12 @@ impl CacheError {
             | Self::NotEscalated { detail }
             | Self::ScopeUnknown { detail, .. }
             | Self::StoreFailed { detail, .. }
-            | Self::StoreInUse { detail } => detail,
+            | Self::StoreInUse { detail }
+            | Self::ConfigInvalid { detail, .. }
+            | Self::IngestInvalid { detail, .. }
+            | Self::ScheduleInvalid { detail, .. }
+            | Self::TickRunFailed { detail, .. }
+            | Self::TickInFlight { detail, .. } => detail,
         }
     }
 
@@ -594,7 +830,11 @@ impl CacheError {
     ///
     /// Payload keys: `BD_CONTRACT` `bead`, `field`; `PRECONDITION` `unmet`;
     /// `IDEM_CONFLICT` `seq`; `SYNC_FAILED` `phase`, `cause`; `SCOPE_UNKNOWN`
-    /// `known`. A mapped error adds `source: {code, detail}`, the backend error;
+    /// `known`; `CONFIG_INVALID` `config_source`; `INGEST_INVALID` `scope`,
+    /// `ingest_reason`, `index`; `SCHEDULE_INVALID` `field`, `schedule_reason`;
+    /// `TICK_RUN_FAILED` `row`, `run_id`, `run_reason`, `exit_status`, `stderr`,
+    /// `restored`; `TICK_IN_FLIGHT` `holder`. (`reason` is the `/v0` refusal
+    /// reason of `PRECONDITION` only; `bd-cache-api` names these `reason`.) A mapped error adds `source: {code, detail}`, the backend error;
     /// a `STORE_FAILED` or `NO_DATABASE` with a cause adds `source: {detail}`.
     #[must_use]
     pub fn to_json(&self) -> Value {
@@ -615,6 +855,33 @@ impl CacheError {
                 "cause": cause,
             }),
             Self::ScopeUnknown { known, .. } => json!({"known": known}),
+            Self::ConfigInvalid { origin, .. } => json!({"config_source": origin}),
+            Self::IngestInvalid {
+                scope,
+                reason,
+                index,
+                ..
+            } => json!({"scope": scope, "ingest_reason": reason, "index": index}),
+            Self::ScheduleInvalid { field, reason, .. } => {
+                json!({"field": field, "schedule_reason": reason})
+            }
+            Self::TickRunFailed {
+                row,
+                run_id,
+                reason,
+                exit_status,
+                stderr,
+                restored,
+                ..
+            } => json!({
+                "row": row,
+                "run_id": run_id,
+                "run_reason": reason,
+                "exit_status": exit_status,
+                "stderr": stderr,
+                "restored": restored,
+            }),
+            Self::TickInFlight { holder, .. } => json!({"holder": holder}),
             _ => Value::Null,
         };
         if let (Value::Object(base), Value::Object(more)) = (&mut v, extra) {
@@ -721,6 +988,10 @@ impl CacheError {
             BeadsCacheError::NotFound { bead } => Self::NotFound {
                 detail: format!("bead {bead} is not in bd; nothing was written"),
             },
+            // Refused before any bd call: the request, not bd, is at fault.
+            BeadsCacheError::Invalid(invalid) => Self::BadArgs {
+                detail: invalid.to_string(),
+            },
             other => failed(kind, other.to_string(), source()),
         }
     }
@@ -759,6 +1030,7 @@ fn clone_backend(e: &BeadsCacheError) -> BeadsCacheError {
             source: std::io::Error::new(source.kind(), source.to_string()),
         },
         BeadsCacheError::NotFound { bead } => BeadsCacheError::NotFound { bead: bead.clone() },
+        BeadsCacheError::Invalid(invalid) => BeadsCacheError::Invalid(invalid.clone()),
         other => BeadsCacheError::Failed {
             code: -1,
             stderr: format!("{}: {other}", other.code()),
@@ -884,12 +1156,17 @@ mod classification_tests {
         ScopeUnknown,
         StoreFailed,
         StoreInUse,
+        ConfigInvalid,
+        IngestInvalid,
+        ScheduleInvalid,
+        TickRunFailed,
+        TickInFlight,
     );
 
     /// Samples of every variant, with and without a kept source.
     #[expect(clippy::too_many_lines, reason = "a table of one sample per case")]
     fn samples() -> Vec<CacheError> {
-        let x = ScopeId::phase("x").unwrap();
+        let x = ScopeId::new("x").unwrap();
         let unmet = BTreeMap::from([(
             GuardKey::Status,
             Unmet {
@@ -997,7 +1274,40 @@ mod classification_tests {
             CacheError::NotEscalated { detail: d() },
             CacheError::ScopeUnknown {
                 detail: d(),
-                known: vec![x],
+                known: vec![x.clone()],
+            },
+            CacheError::ConfigInvalid {
+                detail: d(),
+                origin: "config_scope",
+            },
+            CacheError::IngestInvalid {
+                detail: d(),
+                scope: x,
+                reason: IngestReason::RowInvalid,
+                index: Some(3),
+            },
+            CacheError::ScheduleInvalid {
+                detail: d(),
+                field: "python".to_owned(),
+                reason: "not_absolute".to_owned(),
+            },
+            CacheError::TickRunFailed {
+                detail: d(),
+                row: "python".to_owned(),
+                run_id: "r1".to_owned(),
+                reason: TickRunReason::Exit,
+                exit_status: Some(1),
+                stderr: "boom".to_owned(),
+                restored: Some(true),
+            },
+            CacheError::TickInFlight {
+                detail: d(),
+                holder: LeaseHolder {
+                    run_id: "r0".to_owned(),
+                    pid: 7,
+                    host: "h".to_owned(),
+                    expires_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
+                },
             },
             CacheError::StoreFailed {
                 detail: d(),
@@ -1009,6 +1319,50 @@ mod classification_tests {
             },
             CacheError::StoreInUse { detail: d() },
         ]
+    }
+
+    /// The outage truth table of REQ-BDC-0729, one row per case (AC5): spawn
+    /// failure, timeout, lock, transport, and a `BD_LIST_FAILED` from a bd
+    /// that answered.
+    #[test]
+    fn outage_is_true_only_when_bd_could_not_be_reached() {
+        let spawn: BeadsCacheError = BeadsError::Spawn {
+            binary: "bd".into(),
+            operation: None,
+            source: std::io::Error::other("missing"),
+        }
+        .into();
+        let timeout = BeadsCacheError::Unavailable {
+            reason: "bd list did not finish before its deadline (child)".into(),
+            timed_out: true,
+        };
+        let lock = BeadsCacheError::Unavailable {
+            reason: "bd list did not finish before its deadline (lock)".into(),
+            timed_out: true,
+        };
+        let transport = BeadsCacheError::Transport {
+            what: "bd list".into(),
+            source: std::io::Error::other("stdout exceeded 64 MiB"),
+        };
+        let answered = BeadsCacheError::Failed {
+            code: 1,
+            stderr: "Error: bad filter".into(),
+        };
+        for (case, e, want) in [
+            ("spawn", &spawn, true),
+            ("timeout", &timeout, true),
+            ("lock", &lock, true),
+            ("transport", &transport, true),
+            ("answered", &answered, false),
+        ] {
+            for kind in [CallKind::Refresh, CallKind::Sync, CallKind::Ready] {
+                let mapped = CacheError::from_backend(e, kind);
+                assert_eq!(mapped.outage(), Some(want), "{case} {kind:?}: {mapped}");
+            }
+        }
+        let answered = CacheError::from_backend(&answered, CallKind::Refresh);
+        assert_eq!(answered.code(), "BD_CACHE.BD_LIST_FAILED");
+        assert_eq!(answered.outage(), Some(false));
     }
 
     #[test]

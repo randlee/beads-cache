@@ -8,17 +8,22 @@
 //! (ADR-MODEL-0004): no toml type appears in this API.
 //!
 //! ```toml
-//! cache_path = ".bd-cache/atm-dev.bd-cache.sqlite3"   # optional
-//! scopes = ["bk", "phase-bj"]                         # phase names, `phase-` optional
+//! cache_path = ".bd-cache/dev.bd-cache.sqlite3"       # optional
+//! scopes = ["bk", "bj"]                               # phase-a scopes, by the 0.1 rule
 //! call_timeout_s = 30                                 # optional
 //! miss_fill_timeout_ms = 2000                         # optional
 //! max_attempts = 5                                    # optional
 //! schema_packages = []                                # opaque in phase a
 //!
+//! [[scope]]                                           # a named bd filter (ADR-BDC-0013)
+//! name = "open-bugs"
+//! labels_all = ["area"]                               # also labels_any, status, type, assignee
+//! status = ["open", "in_progress"]                    # or `all = true` alone
+//!
 //! [tick]                                              # bd-cache-sync's keys (a-7)
-//! team = "atm-dev"
-//! fallback_lead = "team-lead"
-//! phases_dir = ".atm-bd"
+//! team = "dev"
+//! fallback_lead = "lead-1"
+//! phases_dir = ".phases"
 //! phases = ["bk"]
 //! ```
 
@@ -26,12 +31,13 @@ use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use sc_beads::{Deadline, ProjectRef};
+use sc_beads::{Deadline, InvalidValue, ProjectRef};
 use serde::Deserialize;
 
-use crate::scope::ScopeId;
+use crate::compat::legacy_scope;
+use crate::scope::{FilterParts, Scope, ScopeFilter, ScopeId};
 
-/// The per-call cap on every `bd` call (BD-CACHE.md, Drain bounds; NFR-BDC-0004).
+/// The per-call cap on every `bd` call (the BD-CACHE baseline design, Drain bounds; NFR-BDC-0004).
 pub const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 /// How long a cache miss may wait on bd before `BD_UNAVAILABLE` (ADR-BDC-0005).
 pub const DEFAULT_MISS_FILL_TIMEOUT: Duration = Duration::from_secs(2);
@@ -49,9 +55,14 @@ pub struct RepoConfig {
     /// Cache file; default `.bd-cache/<dolt_database>.bd-cache.sqlite3` (REQ-BDC-0101).
     #[serde(default)]
     pub cache_path: Option<PathBuf>,
-    /// Configured scopes: phase names, with or without the `phase-` prefix.
+    /// Configured phase-a scopes, by the 0.1 rule: each entry `x` or the
+    /// legacy prefix followed by `x` names the phase-a scope stored as `x`
+    /// (ADR-BDC-0013).
     #[serde(default)]
     pub scopes: Vec<String>,
+    /// Configured filter scopes: the `[[scope]]` tables (ADR-BDC-0013).
+    #[serde(default, rename = "scope")]
+    pub scope_tables: Vec<ScopeTable>,
     /// Per-call cap in seconds; default 30.
     #[serde(default)]
     pub call_timeout_s: Option<u64>,
@@ -70,6 +81,63 @@ pub struct RepoConfig {
     pub tick: Option<TickConfig>,
 }
 
+/// One `[[scope]]` table of `.beads/bd-cache.toml`: a name and a filter
+/// (ADR-BDC-0013). Validated by [`ScopeTable::scope`].
+#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScopeTable {
+    /// The scope's name, taken as written.
+    pub name: String,
+    /// Every bead; refused together with a criterion.
+    #[serde(default)]
+    pub all: bool,
+    /// Labels a bead must all carry.
+    #[serde(default)]
+    pub labels_all: Vec<String>,
+    /// Labels of which a bead must carry one.
+    #[serde(default)]
+    pub labels_any: Vec<String>,
+    /// bd statuses a member must have.
+    #[serde(default)]
+    pub status: Vec<String>,
+    /// The issue type.
+    #[serde(default, rename = "type")]
+    pub issue_type: Option<String>,
+    /// The assignee.
+    #[serde(default)]
+    pub assignee: Option<String>,
+}
+
+impl ScopeTable {
+    /// The validated scope this table defines.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for a name that is not a valid scope name, or a filter
+    /// [`ScopeFilter::from_parts`] refuses.
+    pub fn scope(&self) -> Result<Scope, InvalidValue> {
+        let id = ScopeId::new(self.name.clone())?;
+        let filter = ScopeFilter::from_parts(FilterParts {
+            all: self.all,
+            labels_all: self.labels_all.clone(),
+            labels_any: self.labels_any.clone(),
+            status: self.status.clone(),
+            issue_type: self.issue_type.clone(),
+            assignee: self.assignee.clone(),
+        })?;
+        Ok(Scope::new(id, filter))
+    }
+}
+
+/// A configured scope that is refused: the entry as written and why.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScopeConfigError {
+    /// The `scopes` entry, or the `[[scope]]` table's name, as written.
+    pub value: String,
+    /// Why it is refused.
+    pub reason: String,
+}
+
 /// One `schema_packages` entry, kept opaque in phase a.
 ///
 /// The package format is decided in a later phase (`docs/architecture.md`,
@@ -82,13 +150,13 @@ pub struct SchemaPackageRef(toml::Value);
 #[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TickConfig {
-    /// The ATM team of the phase leads (REQ-BDC-0701).
+    /// The team of the phase leads (REQ-BDC-0701).
     #[serde(default)]
     pub team: Option<String>,
     /// The lead told when no phase lead is known.
     #[serde(default)]
     pub fallback_lead: Option<String>,
-    /// Where the `phase-*.toml` phase files live.
+    /// Where the phase files live.
     #[serde(default)]
     pub phases_dir: Option<PathBuf>,
     /// Limits the synced phases (REQ-BDC-0702).
@@ -123,10 +191,10 @@ impl RepoConfig {
     /// # Examples
     ///
     /// ```
-    /// use bd_cache_model::{RepoConfig, ScopeId};
+    /// use bd_cache_model::{RepoConfig, Scope, ScopeId};
     /// let cfg = RepoConfig::from_toml("scopes = [\"bk\"]\nmax_attempts = 3\n").unwrap();
     /// let cache = cfg.cache_config(sc_beads::ProjectRef::local(None));
-    /// assert_eq!(cache.scopes, vec![ScopeId::phase("bk").unwrap()]);
+    /// assert_eq!(cache.scopes, vec![Scope::legacy(ScopeId::new("bk").unwrap())]);
     /// assert_eq!(cache.max_attempts, 3);
     /// assert!(RepoConfig::from_toml("surprise = 1").is_err());
     /// assert!(RepoConfig::from_toml("max_attempts = 0").is_err());
@@ -177,15 +245,77 @@ impl RepoConfig {
         Ok(())
     }
 
+    /// Every scope the file defines, validated: the `scopes` entries as
+    /// phase-a scopes (by the 0.1 rule), then the `[[scope]]` tables.
+    ///
+    /// # Errors
+    ///
+    /// The first [`ScopeConfigError`]: a `scopes` entry or a `[[scope]]` name
+    /// that is not a valid scope name, a `[[scope]]` filter that is refused,
+    /// or a name defined twice (ADR-STORE-0003 amendment as amended by
+    /// ADR-BDC-0013).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::RepoConfig;
+    /// let cfg = RepoConfig::from_toml(
+    ///     "scopes = [\"bk\"]\n[[scope]]\nname = \"bugs\"\ntype = \"bug\"\n",
+    /// ).unwrap();
+    /// let scopes = cfg.configured_scopes().unwrap();
+    /// assert!(scopes[0].is_legacy() && !scopes[1].is_legacy());
+    /// let twice = RepoConfig::from_toml("scopes = [\"x\"]\n[[scope]]\nname = \"x\"\nall = true\n").unwrap();
+    /// assert!(twice.configured_scopes().is_err());
+    /// ```
+    pub fn configured_scopes(&self) -> Result<Vec<Scope>, ScopeConfigError> {
+        fn add(scopes: &mut Vec<Scope>, scope: Scope, value: &str) -> Result<(), ScopeConfigError> {
+            if scopes.iter().any(|s| s.id == scope.id) {
+                return Err(ScopeConfigError {
+                    value: value.to_owned(),
+                    reason: format!("scope {} is defined twice", scope.id),
+                });
+            }
+            scopes.push(scope);
+            Ok(())
+        }
+        let mut scopes: Vec<Scope> = Vec::new();
+        for entry in &self.scopes {
+            let id = legacy_scope(entry).ok_or_else(|| ScopeConfigError {
+                value: entry.clone(),
+                reason: format!("not a scope name ({})", crate::ScopeName::RULE),
+            })?;
+            // `x` and the prefixed `x` name one phase-a scope: kept once.
+            let scope = Scope::legacy(id);
+            if !scopes.contains(&scope) {
+                add(&mut scopes, scope, entry)?;
+            }
+        }
+        for table in &self.scope_tables {
+            let scope = table.scope().map_err(|e| ScopeConfigError {
+                value: table.name.clone(),
+                reason: e.to_string(),
+            })?;
+            add(&mut scopes, scope, &table.name)?;
+        }
+        Ok(scopes)
+    }
+
     /// The cache configuration for `project`, with defaults for unset keys.
     ///
-    /// Blank or invalid scope names are skipped (the loader reports them);
-    /// duplicates are kept once.
+    /// Invalid scopes are skipped (the loader reports them,
+    /// [`RepoConfig::configured_scopes`]); a name is kept once, the first
+    /// definition winning.
     #[must_use]
     pub fn cache_config(&self, project: ProjectRef) -> CacheConfig {
-        let mut scopes: Vec<ScopeId> = Vec::new();
-        for s in self.scopes.iter().filter_map(|s| ScopeId::parse(s)) {
-            if !scopes.contains(&s) {
+        let mut scopes: Vec<Scope> = Vec::new();
+        let legacy = self
+            .scopes
+            .iter()
+            .filter_map(|s| legacy_scope(s))
+            .map(Scope::legacy);
+        let tables = self.scope_tables.iter().filter_map(|t| t.scope().ok());
+        for s in legacy.chain(tables) {
+            if !scopes.iter().any(|known| known.id == s.id) {
                 scopes.push(s);
             }
         }
@@ -208,8 +338,10 @@ impl RepoConfig {
 pub struct CacheConfig {
     /// The beads project.
     pub project: ProjectRef,
-    /// Configured scopes; syncing another phase registers it on demand (REQ-BDC-0909).
-    pub scopes: Vec<ScopeId>,
+    /// The scopes `.beads/bd-cache.toml` defines: created or updated in the
+    /// registry when the cache opens, and the file wins (ADR-BDC-0013). Syncing
+    /// another name registers it on demand (REQ-BDC-0909).
+    pub scopes: Vec<Scope>,
     /// The single owner of the 30 s per-call cap.
     pub call_timeout: Duration,
     /// Cache-miss fetch limit, default 2 s (ADR-BDC-0005).
@@ -221,7 +353,7 @@ pub struct CacheConfig {
 impl CacheConfig {
     /// Defaults for `project` with the given scopes.
     #[must_use]
-    pub fn new(project: ProjectRef, scopes: Vec<ScopeId>) -> Self {
+    pub fn new(project: ProjectRef, scopes: Vec<Scope>) -> Self {
         Self {
             project,
             scopes,

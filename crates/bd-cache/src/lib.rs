@@ -45,15 +45,17 @@ use std::time::Duration;
 #[doc(no_inline)]
 pub use bd_cache_model::{
     CacheConfig, CacheError, CacheStore, CallFailure, CallKind, DrainBudget, DrainLock,
-    DrainReport, GetReply, IdemKey, JournalCounts, JournalEntry, ListReply, OpenWork, PruneReport,
-    ReadyReply, RowView, ScopeId, Seq, StateCounts, StatusReply, SyncReport, WriteOutcome,
-    WriteReply,
+    DrainReport, FailingSince, GetReply, HookState, IdemKey, IngestSnapshot, JournalCounts,
+    JournalEntry, LeaseHolder, LeaseTake, ListReply, OpenWork, PruneReport, ReadyReply, RowView,
+    Scope, ScopeId, Seq, StateCounts, StatusReply, SyncReport, SyncState, UpsertReport,
+    WriteOutcome, WriteReply,
 };
 use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
 
 mod backend_check;
 mod drain;
 mod get;
+mod ingest;
 mod list;
 mod miss;
 mod outage;
@@ -61,6 +63,7 @@ mod prune;
 mod ready;
 mod refresh;
 mod resolve;
+mod scopes;
 mod status;
 mod sync;
 mod view;
@@ -93,13 +96,15 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> fmt::Debug for Cache<S, L, B>
 }
 
 impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
-    /// Builds a cache and registers every configured scope with the store.
+    /// Builds a cache and writes every configured scope to the store's
+    /// registry: created, or updated to the file's filter (the file wins,
+    /// ADR-BDC-0013).
     ///
     /// The backend must have been built with the same `clock`.
     ///
     /// # Errors
     ///
-    /// The store's error when registering a scope fails.
+    /// The store's error when writing a scope fails.
     pub fn new(
         config: CacheConfig,
         mut store: S,
@@ -108,7 +113,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         clock: Arc<dyn Clock>,
     ) -> Result<Self, CacheError> {
         for s in &config.scopes {
-            store.ensure_scope(s)?;
+            store.put_scope(s)?;
         }
         Ok(Self {
             config,
@@ -262,7 +267,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// whatever its guards and actor (contract §5.1): it journals nothing and
     /// returns the stored entry with its stored `changed`, and `before` and
     /// `after` are both the current view. An entry stored without `changed`
-    /// (by `bd_cache.py`) answers a prediction while pending and `None`
+    /// (by the v3 Python writer) answers a prediction while pending and `None`
     /// otherwise (lead ruling S68). Unlike [`Cache::write`], a duplicate
     /// for a bead the cache no longer holds fills it (one bounded `bd list`).
     ///
@@ -298,6 +303,202 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// `SYNC_FAILED` and the other typed errors of a failed sync; store errors.
     pub fn sync(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError> {
         sync::sync(self, s, d)
+    }
+
+    /// `sync` of the phase-a scope a 0.1 argument names (REQ-BDC-0812 as
+    /// amended): `x` registers the phase-a scope `x` (label: the legacy prefix
+    /// followed by `x`) when absent; the 0.1 Python `sync` calls this.
+    ///
+    /// # Errors
+    ///
+    /// As [`Cache::sync`], and `SCOPE_UNKNOWN` when `s` is registered as a
+    /// filter scope, which a 0.1 name never means (nothing is synced).
+    pub fn sync_legacy(&mut self, s: &ScopeId, d: Deadline) -> Result<SyncReport, CacheError> {
+        sync::sync_legacy(self, s, d)
+    }
+
+    /// The phase-a scope a 0.1 argument names: `x` or the legacy-prefixed `x`
+    /// (REQ-BDC-0812 as amended, ADR-BDC-0013). For the 0.1 verbs only; every
+    /// other interface takes a scope name as written ([`ScopeId::new`]).
+    ///
+    /// # Errors
+    ///
+    /// `SCOPE_UNKNOWN` for an argument that names no valid scope, or one
+    /// whose registered scope has a filter.
+    pub fn legacy_scope(&self, arg: &str) -> Result<ScopeId, CacheError> {
+        scopes::legacy(self, arg)
+    }
+
+    /// Every registered scope with its filter, by name (`scopes list`).
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn scopes(&self) -> Result<Vec<Scope>, CacheError> {
+        self.store.scopes()
+    }
+
+    /// The registered scope of a name.
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
+        self.store.scope(s)
+    }
+
+    /// The opaque `revision` the scope's last ingest stored (REQ-BDC-0726).
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
+        self.store.scope_revision(s)
+    }
+
+    /// `scopes add`: registers a new scope (ADR-BDC-0013).
+    ///
+    /// # Errors
+    ///
+    /// `CONFIG_INVALID` when `.beads/bd-cache.toml` defines the name;
+    /// `BAD_ARGS` when the name is registered.
+    pub fn scopes_add(&mut self, scope: &Scope) -> Result<(), CacheError> {
+        scopes::add(self, scope)
+    }
+
+    /// `scopes set`: changes a registry scope's filter; a changed filter
+    /// starts the scope again (its memberships, sync state and ready base go).
+    ///
+    /// # Errors
+    ///
+    /// `CONFIG_INVALID` when `.beads/bd-cache.toml` defines the scope;
+    /// `SCOPE_UNKNOWN` when it is not registered.
+    pub fn scopes_set(&mut self, scope: &Scope) -> Result<(), CacheError> {
+        scopes::set(self, scope)
+    }
+
+    /// `scopes remove`: prunes the scope and removes it from the registry
+    /// (REQ-BDC-0602 as amended): its memberships go, not the rows another
+    /// scope holds.
+    ///
+    /// # Errors
+    ///
+    /// `CONFIG_INVALID` when `.beads/bd-cache.toml` defines the scope;
+    /// `SCOPE_UNKNOWN` when it is not registered; `PRUNE_BLOCKED` while it
+    /// has pending or escalated writes.
+    pub fn scopes_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        scopes::remove(self, s)
+    }
+
+    /// Stores a snapshot of a scope a caller fetched through bd, by the
+    /// built-in sync's rules, in one transaction (REQ-BDC-0726; module
+    /// `ingest`). Starts no bd process.
+    ///
+    /// # Errors
+    ///
+    /// `SCOPE_UNKNOWN` for an unregistered scope; `INGEST_INVALID` for an
+    /// empty snapshot without `allow_empty`, or one over the store's limits,
+    /// with the stored scope untouched.
+    pub fn ingest_scope(
+        &mut self,
+        s: &ScopeId,
+        snapshot: &IngestSnapshot,
+        revision: Option<&str>,
+        allow_empty: bool,
+    ) -> Result<UpsertReport, CacheError> {
+        ingest::ingest(self, s, snapshot, revision, allow_empty)
+    }
+
+    /// A scope's sync state, its failure state included (REQ-BDC-0728).
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError> {
+        self.store.sync_state(s)
+    }
+
+    /// Marks the scope's current failure as notified, compare-and-set on
+    /// `since` (REQ-BDC-0728): a mark meant for an old failure never silences
+    /// a new one.
+    ///
+    /// # Errors
+    ///
+    /// `PRECONDITION` when `since` is not the scope's current `failing_since`.
+    pub fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError> {
+        self.store.scope_announce(s, since)
+    }
+
+    /// Records that these entries were offered to a post-sync hook now:
+    /// `first_offered_at` is set once and never changed (REQ-BDC-0727).
+    ///
+    /// # Errors
+    ///
+    /// `NOT_FOUND` for an absent seq.
+    pub fn mark_offered(&mut self, seqs: &[Seq]) -> Result<(), CacheError> {
+        let at = self.clock.now_utc();
+        self.store.mark_offered(seqs, &at)
+    }
+
+    /// Takes the sync lease for `holder` at the clock's now (REQ-BDC-0722,
+    /// the store call; the guard around a run is the sync crate's).
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn lease_take(&mut self, holder: &LeaseHolder) -> Result<LeaseTake, CacheError> {
+        let now = self.clock.now_utc();
+        self.store.lease_take(holder, &now)
+    }
+
+    /// Releases the lease when `run_id` holds it; `false` when it does not.
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+        self.store.lease_release(run_id)
+    }
+
+    /// The lease's holder, live or expired.
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
+        self.store.lease()
+    }
+
+    /// The post-sync hook's backoff state (REQ-BDC-0727).
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn hook_state(&self) -> Result<HookState, CacheError> {
+        self.store.hook_state()
+    }
+
+    /// Counts one failed hook call now, with its error and next attempt.
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn hook_failed(
+        &mut self,
+        err: &str,
+        next_attempt_at: Option<&sc_beads::Timestamp>,
+    ) -> Result<HookState, CacheError> {
+        let at = self.clock.now_utc();
+        self.store.hook_failed(err, &at, next_attempt_at)
+    }
+
+    /// Resets the hook's failure count after a success.
+    ///
+    /// # Errors
+    ///
+    /// The store's failure.
+    pub fn hook_succeeded(&mut self) -> Result<(), CacheError> {
+        self.store.hook_succeeded()
     }
 
     /// Resolves an escalated entry with the lead's note.

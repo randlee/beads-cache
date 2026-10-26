@@ -296,3 +296,90 @@ async fn an_enable_made_elsewhere_resumes_a_row_the_stop_check_disabled() {
     shutdown(worker).await;
     assert_eq!(job.stop_checks(), 2);
 }
+
+/// `Scheduler::set_enabled_many` flips every listed row and refuses a list
+/// naming a schedule that is not active, changing nothing (REQ-CRON-0017).
+#[test]
+fn set_enabled_many_flips_every_listed_row_or_none() {
+    let fixture = Fixture::new();
+    let a = fixture.start(fixture.spec("a"));
+    let b = fixture.start(fixture.spec("b"));
+    fixture
+        .scheduler
+        .set_enabled_many(&[(name("a"), false), (name("b"), false)])
+        .expect("flip");
+    assert!(!fixture.row(&a).enabled && !fixture.row(&b).enabled);
+    let missing = fixture
+        .scheduler
+        .set_enabled_many(&[(name("a"), true), (name("nobody"), true)]);
+    assert!(
+        matches!(&missing, Err(CronError::NotFound(n)) if n.as_str() == "nobody"),
+        "{missing:?}"
+    );
+    assert!(!fixture.row(&a).enabled, "nothing changed");
+}
+
+/// `Scheduler::replace_and_set_enabled` fills the jitter, the next run and
+/// the creation time as `start` does, writes the row with its flag and sets
+/// the listed flags; an active name is replaced in place (REQ-CRON-0017).
+#[test]
+fn replace_and_set_enabled_writes_the_row_with_its_flag_and_the_listed_flags() {
+    let fixture = Fixture::new();
+    let builtin = fixture.start(fixture.spec("builtin"));
+    let started = fixture.start(fixture.spec("probe"));
+    let python = fixture
+        .scheduler
+        .replace_and_set_enabled(fixture.spec("python"), true, &[(name("builtin"), false)])
+        .expect("write");
+    assert!(python.enabled);
+    assert!(!fixture.row(&builtin).enabled);
+    // The same sources as `start`: a stored next run and creation time.
+    assert!(python.next_run_at.is_some());
+    assert_eq!(python.created_at, started.created_at);
+    let replaced = fixture
+        .scheduler
+        .replace_and_set_enabled(fixture.spec("python"), false, &[(name("builtin"), true)])
+        .expect("replace");
+    assert_eq!(
+        (replaced.id, replaced.generation.get(), replaced.enabled),
+        (python.id, 2, false)
+    );
+    assert!(fixture.row(&builtin).enabled);
+    let missing = fixture.scheduler.replace_and_set_enabled(
+        fixture.spec("python"),
+        true,
+        &[(name("nobody"), false)],
+    );
+    assert!(
+        matches!(missing, Err(CronError::NotFound(_))),
+        "{missing:?}"
+    );
+    assert_eq!(fixture.row(&replaced), replaced, "nothing changed");
+}
+
+/// The async forms tell this scheduler's worker at once: a row disabled by
+/// `set_enabled_many_async` stops firing (REQ-CRON-0014, REQ-CRON-0017).
+#[tokio::test]
+async fn set_enabled_many_async_stops_the_next_tick() {
+    let fixture = Fixture::new();
+    let job = Arc::new(ScriptedJob::new());
+    let schedule = fixture.start(fixture.spec("live"));
+    let worker = fixture.worker(rust(&job)).await;
+    fixture.step(60).await;
+    job.wait_runs(1).await;
+    fixture.store.wait_recorded(&schedule, RunOutcome::Ok).await;
+    fixture
+        .scheduler
+        .set_enabled_many_async(vec![(schedule.spec.name.clone(), false)])
+        .await
+        .expect("disable");
+    fixture.step(180).await;
+    shutdown(worker).await;
+    assert_eq!(job.runs(), 1);
+    let replaced = fixture
+        .scheduler
+        .replace_and_set_enabled_async(fixture.spec("live"), false, Vec::new())
+        .await
+        .expect("replace");
+    assert!(!replaced.enabled);
+}

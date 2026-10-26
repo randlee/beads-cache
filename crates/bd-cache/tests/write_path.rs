@@ -383,10 +383,7 @@ fn the_entry_scope_is_the_views_first_phase_label() {
     };
     assert_eq!(scope(&mut c, "b1", "k1"), Some(x()));
     assert_eq!(scope(&mut c, "o1", "k2"), None, "an out-of-scope bead");
-    assert_eq!(
-        scope(&mut c, "y1", "k3"),
-        Some(ScopeId::phase("y").unwrap())
-    );
+    assert_eq!(scope(&mut c, "y1", "k3"), Some(ScopeId::new("y").unwrap()));
 }
 
 #[test]

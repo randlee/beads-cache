@@ -62,7 +62,7 @@
       "name": "journal get by key, after a lost reply",
       "command": "cache journal get",
       "request": {"idempotency_key": "k-upd"},
-      "expect": {"ok": true, "data": {"entry": {"seq": 1, "idempotency_key": "k-upd", "scope": "phase-x", "bead": "b2", "op": "update",
+      "expect": {"ok": true, "data": {"entry": {"seq": 1, "idempotency_key": "k-upd", "scope": "x", "bead": "b2", "op": "update",
         "args": {"status": "in_progress", "assignee": "san"}, "expected_status": "open", "expected_assignee": null, "actor": "san",
         "state": "pending", "attempts": 0, "last_error": null, "note": null, "announced_at": null,
         "created_at": "2026-10-23T10:00:00.000Z", "applied_at": null}}}
@@ -90,7 +90,7 @@
       "command": "cache status",
       "request": {},
       "expect": {"ok": true, "data": {"contract_version": "1.0.0", "journal": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0,
-        "by_scope": {"phase-x": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0}},
+        "by_scope": {"x": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0}},
         "unscoped": {"pending": 0, "applied": 0, "escalated": 0, "resolved": 0}}}}
     }
   ]

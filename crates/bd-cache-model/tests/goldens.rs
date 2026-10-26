@@ -11,8 +11,8 @@
 use std::collections::BTreeMap;
 
 use bd_cache_model::{
-    CacheError, CallKind, DrainReport, EscalatedItem, GuardKey, PhaseName, PreconditionReason,
-    ReadyBasis, ScopeId, Seq, SyncCause, Unmet,
+    CacheError, CallKind, DrainReport, EscalatedItem, GuardKey, PreconditionReason, ReadyBasis,
+    ScopeId, Seq, SyncCause, Unmet,
 };
 use sc_beads::testing::id;
 use sc_beads::{BeadsCacheError, BeadsError, CheckStep, CliClient, Refusal, Timestamp};
@@ -59,7 +59,7 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::SyncFailed {
             detail: d("BD_CACHE.BD_CONTRACT: b2: status"),
-            scope: Some(ScopeId::phase("x").unwrap()),
+            scope: Some(ScopeId::new("x").unwrap()),
             cause: Some(SyncCause::BdContract),
             source: None,
         },
@@ -99,7 +99,7 @@ fn every_error() -> Vec<CacheError> {
         },
         CacheError::ScopeUnknown {
             detail: d("phase zz is not a known scope"),
-            known: vec![ScopeId::phase("x").unwrap(), ScopeId::phase("y").unwrap()],
+            known: vec![ScopeId::new("x").unwrap(), ScopeId::new("y").unwrap()],
         },
         CacheError::StoreFailed {
             detail: d("open /repo/.bd-cache/testdb.bd-cache.sqlite3: database is locked"),
@@ -405,7 +405,7 @@ fn reply_goldens() {
             bead: id("b1"),
             op: "update".into(),
             actor: sc_beads::testing::actor("san"),
-            phase: Some(PhaseName::new("x").unwrap()),
+            phase: Some(ScopeId::new("x").unwrap()),
             reason: "bd refused: precondition changed (exit 13)".into(),
         }],
         deferred: vec![Seq::new(3)],
@@ -427,7 +427,7 @@ fn reply_goldens() {
     );
     // a-1 amendment 2: ready replies carry the scope's last_ok_at and the basis' fetch time.
     let reply = bd_cache_model::ReadyReply {
-        scope: ScopeId::phase("x").unwrap(),
+        scope: ScopeId::new("x").unwrap(),
         last_ok_at: Some(Timestamp::parse("2026-10-23T10:00:00Z").unwrap()),
         basis: ReadyBasis::Fresh {
             fetched_at: Timestamp::parse("2026-10-23T10:00:05Z").unwrap(),
@@ -551,7 +551,7 @@ fn store_failures_keep_their_source() {
 
 /// REQ-BDC-0910: the fields sprint b-1 adds are not serialized, so the 0.1
 /// Python `get` and `entry` dicts keep their key sets; a resolved entry's
-/// `last_error` is still `bd_cache.py`'s text, the note appended.
+/// `last_error` is still the v3 Python writer's text, the note appended.
 #[test]
 fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
     let reply = bd_cache_model::GetReply {
@@ -563,7 +563,7 @@ fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
         scope_last_ok_at: None,
         pending: 0,
         outage: None,
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
     };
     let v = serde_json::to_value(&reply).unwrap();
     let keys: Vec<&str> = v.as_object().unwrap().keys().map(String::as_str).collect();
@@ -572,7 +572,7 @@ fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
     let entry = bd_cache_model::JournalEntry {
         seq: Seq::new(7),
         idem_key: bd_cache_model::IdemKey::new("k1").unwrap(),
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
         bead: id("b1"),
         op: bd_cache_model::Op::Close { reason: None },
         precondition: sc_beads::Guards::default(),
@@ -586,7 +586,9 @@ fn the_new_fields_stay_out_of_the_0_1_wire_shapes() {
         announced_at: None,
         created_at: Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         applied_at: None,
+        first_offered_at: Some(Timestamp::parse("2026-10-23T10:00:01Z").unwrap()),
     };
+    // first_offered_at is not part of the 0.1 dict (REQ-BDC-0910).
     assert_eq!(
         serde_json::to_value(&entry).unwrap(),
         json!({"seq": 7, "idem_key": "k1", "phase": "x", "bead": "b1", "op": "close",

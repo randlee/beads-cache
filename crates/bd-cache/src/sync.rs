@@ -4,28 +4,38 @@
 //! In order, all under the caller's deadline `d` (each call also capped by
 //! `call_timeout`):
 //!
-//! 1. register the scope (`ensure_scope`): a sync of an unconfigured phase
-//!    makes it an on-demand scope (REQ-BDC-0909);
+//! 1. register the scope (`ensure_scope`): a sync of an unregistered name
+//!    makes it an on-demand label scope with that one label (REQ-BDC-0909 as
+//!    amended by ADR-BDC-0013); the 0.1 path registers the phase-a scope its
+//!    argument names instead ([`sync_legacy`]);
 //! 2. `backend_check::run` (REQ-BDC-0105); a rebuild drops the cursor;
-//! 3. one `list_scope` (`CallKind::Sync`), with the cursor
-//!    `last_ok_at - 2 min` once a sync has succeeded (REQ-BDC-0501);
+//! 3. one `list_scope` of the scope's filter (`CallKind::Sync`; ADR-BDC-0013's
+//!    argv, all seven statuses), with the cursor `last_ok_at - 2 min` once a
+//!    sync has succeeded (REQ-BDC-0501);
 //! 4. every row checked before any is stored (REQ-BDC-0008), then stored
-//!    unforced, so a newer stored row is kept (REQ-BDC-0502);
+//!    unforced, so a newer stored row is kept (REQ-BDC-0502); membership is
+//!    the scope's filter with its status criterion, so a bead whose status
+//!    left the set leaves the scope;
 //! 5. stale rows re-read with one `list_by_ids` (`CallKind::Refresh`) and
 //!    stored forced, which clears their stale mark (REQ-BDC-0503);
-//! 6. the ready base: `list_blocked` and `list_ready` (`CallKind::Ready`)
-//!    and `replace_ready_base`, its `at` taken before the first of the two;
+//! 6. the ready base: `list_blocked` and `list_ready` (`CallKind::Ready`),
+//!    intersected with the scope's members, and `replace_ready_base`, its `at`
+//!    taken before the first of the two;
 //!    if either fails the previous base is kept and marked stale
 //!    (ADR-BDC-0002) and a `tracing` warning names the error's code and
 //!    detail (ADR-CORE-0203);
-//! 7. `sync_state`: `last_ok_at` is the sync's start time (REQ-BDC-0504).
+//! 7. `sync_state`: `last_ok_at` is the sync's start time (REQ-BDC-0504),
+//!    and `failing_since` is cleared (REQ-BDC-0728).
 //!
-//! Failures of steps 2 to 5 (ADR-BDC-0005, ADR-CORE-0202):
+//! Failures of steps 2 to 5 (ADR-BDC-0005, ADR-CORE-0202). A failure or an
+//! outage is a non-ok result: `failing_since` is set to the sync's start on
+//! the first one after an ok, and kept across later ones (REQ-BDC-0728); the
+//! outage is recorded per scope, its error in `last_error` (REQ-BDC-0729):
 //!
 //! | Failure | Reply | `sync_state` |
 //! |---|---|---|
-//! | reachable backend (`call` gives `Error`) | `Err(SYNC_FAILED)`, `phase` set, `cause` the underlying code | `last_error` = the error |
-//! | unreachable backend (`Outage`, recorded by `call`) | `Ok`, `outage` set | `last_started_at` only |
+//! | reachable backend (`call` gives `Error`) | `Err(SYNC_FAILED)`, `phase` set, `cause` the underlying code | `last_started_at`; `last_error` = the error; `failing_since` |
+//! | unreachable backend (`Outage`, recorded by `call`) | `Ok`, `outage` set | `last_started_at`; `last_error` = the outage's error; `failing_since` |
 //! | deadline cut (`Cut`), or `d` expired before the start | `Ok`, `deferred` | `last_started_at` only (nothing when not started) |
 //!
 //! No sync touches a sync alert; announcing is the scheduler's (a-7).
@@ -33,8 +43,8 @@
 use std::time::Duration;
 
 use bd_cache_model::{
-    CacheError, CacheStore, CallFailure, CallKind, DrainLock, FingerprintOutcome, ScopeId,
-    SyncCause, SyncReport, SyncState,
+    CacheError, CacheStore, CallFailure, CallKind, DrainLock, FingerprintOutcome, Scope, ScopeId,
+    SyncCause, SyncReport,
 };
 use sc_beads::{Bead, CacheBackend, Deadline, SyncCursor, Timestamp};
 
@@ -72,13 +82,57 @@ impl From<CallFailure> for Stop {
     }
 }
 
-/// `sync(scope, d)`: see the module docs.
+/// `sync(scope, d)` of a name taken as written: the registered scope, or an
+/// on-demand label scope with that one label (see the module docs).
 pub(crate) fn sync<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     s: &ScopeId,
     d: Deadline,
 ) -> Result<SyncReport, CacheError> {
-    cache.store.ensure_scope(s)?;
+    let scope = match cache.store.scope(s)? {
+        Some(scope) => scope,
+        None => Scope::on_demand(s.clone()).map_err(|e| CacheError::BadArgs {
+            detail: format!("scope {s} cannot be registered on demand: {e}"),
+        })?,
+    };
+    sync_scope(cache, &scope, d)
+}
+
+/// `sync` of the phase-a scope a 0.1 argument names (REQ-BDC-0812 as
+/// amended): registered as a phase-a scope when absent. A registered scope of
+/// that name with a filter is another scope, never the one the 0.1 name
+/// means: `SCOPE_UNKNOWN`, and nothing is registered or synced.
+pub(crate) fn sync_legacy<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &mut Cache<S, L, B>,
+    s: &ScopeId,
+    d: Deadline,
+) -> Result<SyncReport, CacheError> {
+    match cache.store.scope(s)? {
+        Some(scope) if !scope.is_legacy() => Err(not_legacy(cache, s)?),
+        _ => sync_scope(cache, &Scope::legacy(s.clone()), d),
+    }
+}
+
+/// `SCOPE_UNKNOWN` for a 0.1 name whose registered scope has a filter.
+pub(crate) fn not_legacy<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    s: &ScopeId,
+) -> Result<CacheError, CacheError> {
+    Ok(CacheError::ScopeUnknown {
+        detail: format!("scope {s} is a filter scope, not the phase-a scope a 0.1 name means"),
+        known: cache.store.scopes()?.into_iter().map(|k| k.id).collect(),
+    })
+}
+
+/// `sync` of `scope`, registered first when its name is absent; a
+/// registered scope of the name keeps its own filter.
+pub(crate) fn sync_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &mut Cache<S, L, B>,
+    scope: &Scope,
+    d: Deadline,
+) -> Result<SyncReport, CacheError> {
+    let scope = cache.store.ensure_scope(scope)?;
+    let s = &scope.id;
     let mut report = SyncReport {
         scope: s.clone(),
         rebuilt: false,
@@ -93,19 +147,18 @@ pub(crate) fn sync<S: CacheStore, L: DrainLock, B: CacheBackend>(
         return Ok(report);
     }
     let started = cache.clock.now_utc();
-    if let Err(stop) = sync_rows(cache, s, d, &mut report) {
-        return finish_stopped(cache, s, started, stop, report);
+    if let Err(stop) = sync_rows(cache, &scope, d, &mut report) {
+        return finish_stopped(cache, s, &started, stop, report);
     }
-    match fetch_base(cache, s, d) {
+    match fetch_base(cache, &scope, d) {
         Ok(base) => {
-            store_base(cache, s, &base)?;
-            report.blocked = base.blocked_len();
+            report.blocked = store_base(cache, &scope, &base)?;
         }
         // The previous base stays, marked stale; an outage is already recorded.
         Err(failure) => {
             let e = failure.into_error("bd blocked / bd ready: cut by the sync deadline");
             sc_beads::logging::tracing::warn!(
-                phase = %s,
+                scope = %s,
                 code = e.code(),
                 detail = e.detail(),
                 "ready base fetch failed; the previous base is kept, marked stale"
@@ -113,12 +166,12 @@ pub(crate) fn sync<S: CacheStore, L: DrainLock, B: CacheBackend>(
             cache.store.mark_ready_base_stale(s)?;
         }
     }
-    cache.store.record_sync(&SyncState {
-        scope: s.clone(),
-        last_started_at: Some(started.clone()),
-        last_ok_at: Some(started),
-        last_error: None,
-    })?;
+    let mut state = cache.store.sync_state(s)?;
+    state.last_started_at = Some(started.clone());
+    state.last_ok_at = Some(started.clone());
+    state.last_error = None;
+    state.record_result(true, &started);
+    cache.store.record_sync(&state)?;
     report.outage = cache.store.outage()?;
     Ok(report)
 }
@@ -126,7 +179,7 @@ pub(crate) fn sync<S: CacheStore, L: DrainLock, B: CacheBackend>(
 /// Steps 2 to 5: backend check, scope list, stale re-read.
 fn sync_rows<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     d: Deadline,
     report: &mut SyncReport,
 ) -> Result<(), Stop> {
@@ -137,10 +190,10 @@ fn sync_rows<S: CacheStore, L: DrainLock, B: CacheBackend>(
     // list is a full one.
     let cursor = cache
         .store
-        .sync_state(s)?
+        .sync_state(&s.id)?
         .last_ok_at
         .map(|t| SyncCursor::new(t.minus(CURSOR_MARGIN).as_str()));
-    let filter = s.filter();
+    let filter = s.backend_filter();
     let rows = crate::call(cache, CallKind::Sync, d, |b, p, dl| {
         b.list_scope(p, &filter, cursor.as_ref(), dl)
     })?;
@@ -158,17 +211,17 @@ fn sync_rows<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(())
 }
 
-/// `BD_CONTRACT` when a scope list returned a row without the scope's label;
-/// checked before any row of the list is stored (REQ-BDC-0008).
-fn check_scope_rows(s: &ScopeId, rows: &[Bead]) -> Result<(), CacheError> {
-    match rows.iter().find(|r| !s.holds(r)) {
+/// `BD_CONTRACT` when a scope list returned a row its filter does not select
+/// (labels, type or assignee); checked before any row of the list is stored
+/// (REQ-BDC-0008).
+fn check_scope_rows(s: &Scope, rows: &[Bead]) -> Result<(), CacheError> {
+    match rows.iter().find(|r| !s.selects(r)) {
         Some(row) => Err(CacheError::BdContract {
             bead: Some(row.id.clone()),
             field: "labels".into(),
             detail: format!(
-                "bd list -l {} returned {} without that label",
-                s.label(),
-                row.id
+                "bd list for scope {} returned {}, which its filter does not select",
+                s.id, row.id
             ),
             source: None,
         }),
@@ -180,7 +233,7 @@ fn check_scope_rows(s: &ScopeId, rows: &[Bead]) -> Result<(), CacheError> {
 fn finish_stopped<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     s: &ScopeId,
-    started: Timestamp,
+    started: &Timestamp,
     stop: Stop,
     mut report: SyncReport,
 ) -> Result<SyncReport, CacheError> {
@@ -189,14 +242,18 @@ fn finish_stopped<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Stop::Backend(f) => f,
     };
     let mut state = cache.store.sync_state(s)?;
-    state.last_started_at = Some(started);
+    state.last_started_at = Some(started.clone());
     match failure {
         CallFailure::Cut => {
             cache.store.record_sync(&state)?;
             report.deferred = true;
             Ok(report)
         }
-        CallFailure::Outage(_) => {
+        // The outage is this scope's result too (REQ-BDC-0729): its error
+        // and the failure state are recorded per scope.
+        CallFailure::Outage(e) => {
+            state.last_error = Some(e.to_string());
+            state.record_result(false, started);
             cache.store.record_sync(&state)?;
             report.outage = cache.store.outage()?;
             Ok(report)
@@ -204,6 +261,7 @@ fn finish_stopped<S: CacheStore, L: DrainLock, B: CacheBackend>(
         CallFailure::Error(e) => {
             let e = sync_failed(s, e)?;
             state.last_error = Some(e.to_string());
+            state.record_result(false, started);
             cache.store.record_sync(&state)?;
             Err(e)
         }
@@ -221,7 +279,7 @@ fn sync_failed(s: &ScopeId, e: CacheError) -> Result<CacheError, CacheError> {
             source,
             ..
         } => Ok(CacheError::SyncFailed {
-            detail: format!("phase {s}: {detail}"),
+            detail: format!("scope {s}: {detail}"),
             scope: Some(s.clone()),
             cause,
             source,
@@ -236,11 +294,11 @@ fn sync_failed(s: &ScopeId, e: CacheError) -> Result<CacheError, CacheError> {
                         detail,
                         ..
                     } => format!(
-                        "phase {s}: {}: {}: {field}: {detail}",
+                        "scope {s}: {}: {}: {field}: {detail}",
                         other.code(),
                         bead.as_ref().map_or("?", |b| b.as_str())
                     ),
-                    _ => format!("phase {s}: {other}"),
+                    _ => format!("scope {s}: {other}"),
                 },
                 scope: Some(s.clone()),
                 cause: Some(cause),

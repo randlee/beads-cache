@@ -11,7 +11,7 @@ use sc_beads::{Actor, Bead, BeadId, Timestamp};
 use serde::Serialize;
 
 use crate::journal::{JournalEntry, JournalState, Seq};
-use crate::scope::{PhaseName, ScopeId};
+use crate::scope::ScopeId;
 use crate::state::{Outage, StoreStatus};
 
 /// A bead as a read returns it: the view, its freshness and its blocked state.
@@ -129,7 +129,7 @@ pub struct WriteOutcome {
     /// stored with the entry; on a duplicate, the stored value (lead ruling S68).
     ///
     /// `Some(stored)` when the entry stores it (every entry this core
-    /// journals); for an entry stored without it (by `bd_cache.py`, or before
+    /// journals); for an entry stored without it (by the v3 Python writer, or before
     /// the column existed), `Some(predicted)` while it is pending, and `None`
     /// (unknown) in any other state, never a guess.
     pub changed: Option<bool>,
@@ -191,7 +191,7 @@ impl StateCounts {
 ///
 /// ```
 /// use bd_cache_model::{JournalCounts, JournalState, ScopeId};
-/// let x = ScopeId::phase("x").unwrap();
+/// let x = ScopeId::new("x").unwrap();
 /// let mut c = JournalCounts::default();
 /// c.add(Some(&x), JournalState::Pending, 2);
 /// c.add(None, JournalState::Escalated, 1);
@@ -232,8 +232,8 @@ pub struct EscalatedItem {
     pub op: String,
     /// Who wrote it.
     pub actor: Actor,
-    /// The entry's phase.
-    pub phase: Option<PhaseName>,
+    /// The entry's scope (`phase` in the 0.1 wire form).
+    pub phase: Option<ScopeId>,
     /// Why it escalated.
     pub reason: String,
 }

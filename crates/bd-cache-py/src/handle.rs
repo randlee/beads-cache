@@ -81,6 +81,10 @@ impl fmt::Debug for Inner {
 /// The `bd_cache_rs` module's version: the wheel's, which versions the reply shapes.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The phase-a scope a 0.1 verb's `phase` names: `x` or the legacy-prefixed
+/// `x` (REQ-BDC-0812 as amended, ADR-BDC-0013); `ValueError` for a name that
+/// is not a scope name. The verbs then refuse, inside the call, a registered
+/// filter scope of that name ([`bd_cache::Cache::legacy_scope`]).
 fn scope(phase: &str) -> PyResult<ScopeId> {
     compose::parse_phase(phase).map_err(|text| PyValueError::new_err(format!("phase: {text}")))
 }
@@ -305,6 +309,7 @@ impl PyCache {
             ));
         }
         self.call(py, move |c| {
+            let s = c.cache.legacy_scope(s.name())?;
             c.cache.list(&s, status.as_deref(), label.as_deref())
         })
     }
@@ -326,7 +331,10 @@ impl PyCache {
         let within = fresh_within
             .map(|t| seconds("fresh_within", t))
             .transpose()?;
-        self.call(py, move |c| c.cache.ready(&s, within))
+        self.call(py, move |c| {
+            let s = c.cache.legacy_scope(s.name())?;
+            c.cache.ready(&s, within)
+        })
     }
 
     /// Syncs `phase` (registering it on demand) within `timeout` seconds.
@@ -337,7 +345,7 @@ impl PyCache {
         let after = seconds("timeout", timeout)?;
         self.call(py, move |c| {
             let d = Deadline::after(c.clock.as_ref(), after);
-            c.cache.sync(&s, d)
+            c.cache.sync_legacy(&s, d)
         })
     }
 
@@ -378,7 +386,10 @@ impl PyCache {
     /// Prunes a phase; returns `{scope, beads_deleted, out_of_scope_swept}`.
     fn prune<'py>(&self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
-        self.call(py, move |c| c.cache.prune(&s))
+        self.call(py, move |c| {
+            let s = c.cache.legacy_scope(s.name())?;
+            c.cache.prune(&s)
+        })
     }
 
     /// The store's status: `{meta, journal, phases, escalated, outage, stale}`.

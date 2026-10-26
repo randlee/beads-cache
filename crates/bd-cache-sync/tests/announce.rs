@@ -26,7 +26,7 @@ fn world_with_escalation() -> (World, common::TestCache, bd_cache_model::Seq) {
     w.add("b1", Some("x"), |_| {});
     let mut cache = w.cache();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     let seq = w.journal_close(&mut cache, "b1", "k1");
     w.bd.remove("b1");
@@ -120,7 +120,7 @@ fn an_entry_whose_phase_has_no_lead_is_refused_every_tick_until_it_has_one() {
     w.add("b1", Some("x"), |_| {});
     let mut cache = w.cache();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     let seq = w.journal_close(&mut cache, "b1", "k1");
     w.bd.remove("b1");
@@ -334,7 +334,7 @@ fn many_escalations_and_a_slow_sender_stay_within_the_tick_budget() {
     }
     let mut cache = w.cache();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     let seqs: Vec<_> = (0..10)
         .map(|i| w.journal_close(&mut cache, &format!("e{i}"), &format!("k{i}")))
@@ -446,7 +446,7 @@ fn a_sender_that_ignores_its_timeout_stops_the_tick_after_the_send_that_overran(
     }
     let mut cache = w.cache();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     let seqs: Vec<_> = (0..8)
         .map(|i| w.journal_close(&mut cache, &format!("e{i}"), &format!("k{i}")))

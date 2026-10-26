@@ -15,8 +15,10 @@
 //! | `fix` | `suggested_action` |
 //! | `reason` | `details.v0_code` (else the table's `v0_code`) |
 //! | `unmet` | `details.unmet: {status?: {expected, actual}, assignee?: …}` |
-//! | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*`, same names (`known` in label form) |
-//! | `phase` | `details.scope`, in label form (`phase-<x>`) |
+//! | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*`, same names (`known` as scope names) |
+//! | `phase` | `details.scope`, the scope's name (ADR-BDC-0013) |
+//! | the payload of `CONFIG_INVALID`, `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED`, `TICK_IN_FLIGHT` | `details.*` with REQ-BDC-0729's keys (`source`; `scope`, `reason`, `index`; `field`, `reason`; `row`, `run_id`, `reason`, `exit_status`, `stderr`, `restored`; `holder`) |
+//! | [`CacheError::outage`] | `details.outage`, on every error that can come from bd (REQ-BDC-0729) |
 //!
 //! The api crate depends on neither the store nor the sync crate, so their
 //! configuration errors reach it as text: a front end maps them with
@@ -204,6 +206,11 @@ pub const ERROR_TABLE: &[ErrorSpec] = &[
         Some("internal"),
     ),
     row("INTERNAL", Internal, TYPED_EXIT, false, Some("internal")),
+    // REQ-BDC-0729 (ADR-BDC-0015): the phase-B codes, one row each.
+    row("INGEST_INVALID", InvalidInput, TYPED_EXIT, false, None),
+    row("SCHEDULE_INVALID", InvalidInput, TYPED_EXIT, false, None),
+    row("TICK_RUN_FAILED", Unavailable, TYPED_EXIT, false, None),
+    row("TICK_IN_FLIGHT", Conflict, TYPED_EXIT, true, None),
 ];
 
 /// The table row of `code`, with or without the `BD_CACHE.` prefix.
@@ -315,7 +322,8 @@ impl ApiError {
     }
 
     /// The process exit from the table: 2 for `USAGE`, 3 otherwise; `None`
-    /// for a code that never ends a command (`BD_WRITE_FAILED`, `TICK_*`).
+    /// for a code that never ends a command (`BD_WRITE_FAILED`, the
+    /// `TICK_<REFUSAL>` family).
     #[must_use]
     pub fn exit_code(&self) -> Option<i32> {
         self.exit
@@ -429,7 +437,7 @@ impl ApiError {
     /// never answers it with an empty list.
     #[must_use]
     pub fn scope_not_served(scope: &ScopeId, known: &[ScopeId]) -> Self {
-        let label = scope.label();
+        let label = scope.name().to_owned();
         Self::table(
             "SCOPE_UNKNOWN",
             format!(
@@ -541,9 +549,9 @@ fn tick_refusal_kind(refusal: &str) -> ErrorKind {
     }
 }
 
-/// Scope ids in label form (`phase-<x>`), as every scope appears in the api.
+/// Scope names, as written: how every scope appears in the api (ADR-BDC-0013).
 fn labels(scopes: &[ScopeId]) -> Vec<String> {
-    scopes.iter().map(ScopeId::label).collect()
+    scopes.iter().map(|s| s.name().to_owned()).collect()
 }
 
 impl fmt::Display for ApiError {
@@ -582,7 +590,7 @@ impl From<&CacheError> for ApiError {
             }
             CacheError::SyncFailed { scope, cause, .. } => {
                 out = out
-                    .with_detail("scope", json!(scope.as_ref().map(ScopeId::label)))
+                    .with_detail("scope", json!(scope.as_ref().map(ScopeId::name)))
                     .with_detail("cause", json!(cause));
             }
             CacheError::ScopeUnknown { known, .. } => {
@@ -594,7 +602,57 @@ impl From<&CacheError> for ApiError {
                 let timed_out = source.as_ref().is_none_or(|c| c.error().is_timeout());
                 out = out.with_detail("timed_out", timed_out);
             }
+            CacheError::ConfigInvalid { origin, .. } => {
+                out = out.with_detail("source", *origin);
+            }
+            CacheError::IngestInvalid {
+                scope,
+                reason,
+                index,
+                ..
+            } => {
+                out = out
+                    .with_detail("scope", scope.name())
+                    .with_detail("reason", reason.as_str());
+                if let Some(index) = index {
+                    out = out.with_detail("index", json!(index));
+                }
+            }
+            CacheError::ScheduleInvalid { field, reason, .. } => {
+                out = out
+                    .with_detail("field", field.as_str())
+                    .with_detail("reason", reason.as_str());
+            }
+            CacheError::TickRunFailed {
+                row,
+                run_id,
+                reason,
+                exit_status,
+                stderr,
+                restored,
+                ..
+            } => {
+                out = out
+                    .with_detail("row", row.as_str())
+                    .with_detail("run_id", run_id.as_str())
+                    .with_detail("reason", reason.as_str())
+                    .with_detail("exit_status", json!(exit_status))
+                    .with_detail("stderr", stderr.as_str());
+                if let Some(restored) = restored {
+                    out = out.with_detail("restored", *restored);
+                }
+            }
+            CacheError::TickInFlight { holder, .. } => {
+                out = out.with_detail(
+                    "holder",
+                    json!({"pid": holder.pid, "host": holder.host, "expires_at": holder.expires_at}),
+                );
+            }
             _ => {}
+        }
+        // Every error that can come from bd says whether bd was reached (REQ-BDC-0729).
+        if let Some(outage) = e.outage() {
+            out = out.with_detail("outage", outage);
         }
         if let Some(cause) = e.backend_cause() {
             out = out.with_detail(

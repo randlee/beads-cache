@@ -56,11 +56,23 @@ pub fn list_by_ids(ids: &[&BeadId]) -> Vec<String> {
     argv
 }
 
-/// `bd list -l <label> --status <all seven> -n 0 [--updated-after <cursor>] --json`.
+/// `bd list <filter> --status <all seven> -n 0 [--updated-after <cursor>] --json`.
+///
+/// The filter words are ADR-BDC-0013's table: `--all` for
+/// [`ScopeFilter::All`]; for a label or criteria filter `-l a,b` (all of),
+/// `--label-any c,d`, `-t <type>` and `-a <assignee>`, each only when set.
+/// Every status is named, so closed beads are listed too (REQ-BDC-0501).
+/// The caller checks the filter first ([`ScopeFilter::validate`]); an empty
+/// criteria filter would list every bead.
 #[must_use]
 pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<String> {
-    let mut argv = words(&["list", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["list"]);
+    if *filter == ScopeFilter::All {
+        argv.push("--all".to_owned());
+    } else {
+        push_labels(&mut argv, filter);
+        push_type_and_assignee(&mut argv, filter);
+    }
     argv.extend(words(&["--status", ALL_STATUSES, "-n", "0"]));
     if let Some(cursor) = since {
         argv.push("--updated-after".to_owned());
@@ -70,22 +82,53 @@ pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<Strin
     argv
 }
 
-/// `bd blocked -l <label> --json`.
+/// `bd blocked [-l a,b] [--label-any c,d] --json`.
+///
+/// `bd blocked` takes no type or assignee flag (ADR-BDC-0013), so only the
+/// label criteria are passed; the cache intersects the answer with the
+/// scope's members. [`ScopeFilter::All`] passes no filter word.
 #[must_use]
 pub fn blocked(filter: &ScopeFilter) -> Vec<String> {
-    let mut argv = words(&["blocked", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["blocked"]);
+    push_labels(&mut argv, filter);
     argv.push("--json".to_owned());
     argv
 }
 
-/// `bd ready -l <label> -n 0 --json`.
+/// `bd ready [-l a,b] [--label-any c,d] [-t <type>] [-a <assignee>] -n 0 --json`.
 #[must_use]
 pub fn ready(filter: &ScopeFilter) -> Vec<String> {
-    let mut argv = words(&["ready", "-l"]);
-    argv.push(filter.label().to_owned());
+    let mut argv = words(&["ready"]);
+    push_labels(&mut argv, filter);
+    push_type_and_assignee(&mut argv, filter);
     argv.extend(words(&["-n", "0", "--json"]));
     argv
+}
+
+/// `-l a,b` and `--label-any c,d`, each when the filter has such labels.
+fn push_labels(argv: &mut Vec<String>, filter: &ScopeFilter) {
+    let all = filter.labels_all();
+    if !all.is_empty() {
+        argv.push("-l".to_owned());
+        argv.push(all.join(","));
+    }
+    let any = filter.labels_any();
+    if !any.is_empty() {
+        argv.push("--label-any".to_owned());
+        argv.push(any.join(","));
+    }
+}
+
+/// `-t <type>` and `-a <assignee>`, each when set.
+fn push_type_and_assignee(argv: &mut Vec<String>, filter: &ScopeFilter) {
+    if let Some(t) = filter.issue_type() {
+        argv.push("-t".to_owned());
+        argv.push(t.to_owned());
+    }
+    if let Some(a) = filter.assignee() {
+        argv.push("-a".to_owned());
+        argv.push(a.to_owned());
+    }
 }
 
 /// `bd close <id> [--reason <reason>] --actor <actor>`.
@@ -249,6 +292,91 @@ mod tests {
             ready(&scope),
             strings(&["ready", "-l", "phase-x", "-n", "0", "--json"])
         );
+    }
+
+    /// ADR-BDC-0013's table, one literal per variant; `status` is never sent.
+    #[test]
+    fn every_filter_variant_has_the_table_argv() {
+        let all = ScopeFilter::All;
+        assert_eq!(
+            list_scope(&all, Some(&SyncCursor::new("c"))),
+            strings(&[
+                "list",
+                "--all",
+                "--status",
+                ALL_STATUSES,
+                "-n",
+                "0",
+                "--updated-after",
+                "c",
+                "--json"
+            ])
+        );
+        assert_eq!(blocked(&all), strings(&["blocked", "--json"]));
+        assert_eq!(ready(&all), strings(&["ready", "-n", "0", "--json"]));
+        let criteria = ScopeFilter::Criteria {
+            labels_all: vec!["a".into(), "b".into()],
+            labels_any: vec!["c".into(), "d".into()],
+            issue_type: Some("bug".into()),
+            assignee: Some("who".into()),
+        };
+        assert_eq!(
+            list_scope(&criteria, None),
+            strings(&[
+                "list",
+                "-l",
+                "a,b",
+                "--label-any",
+                "c,d",
+                "-t",
+                "bug",
+                "-a",
+                "who",
+                "--status",
+                ALL_STATUSES,
+                "-n",
+                "0",
+                "--json"
+            ])
+        );
+        assert_eq!(
+            blocked(&criteria),
+            strings(&["blocked", "-l", "a,b", "--label-any", "c,d", "--json"])
+        );
+        assert_eq!(
+            ready(&criteria),
+            strings(&[
+                "ready",
+                "-l",
+                "a,b",
+                "--label-any",
+                "c,d",
+                "-t",
+                "bug",
+                "-a",
+                "who",
+                "-n",
+                "0",
+                "--json"
+            ])
+        );
+        let any_only = ScopeFilter::Criteria {
+            labels_all: Vec::new(),
+            labels_any: vec!["c".into()],
+            issue_type: None,
+            assignee: None,
+        };
+        assert_eq!(
+            blocked(&any_only),
+            strings(&["blocked", "--label-any", "c", "--json"])
+        );
+        for argv in [
+            list_scope(&criteria, None),
+            blocked(&criteria),
+            ready(&criteria),
+        ] {
+            assert!(!argv.iter().any(|w| w == "-s"), "{argv:?}");
+        }
     }
 
     #[test]

@@ -240,7 +240,7 @@ fn a_retry_with_another_actor_and_guard_returns_the_stored_changed() {
     assert!(matches!(e, CacheError::IdemConflict { .. }), "{e:?}");
 }
 
-/// An entry journaled without `changed` (as `bd_cache.py` writes it) answers
+/// An entry journaled without `changed` (as the v3 Python writer writes it) answers
 /// on a duplicate the prediction against the view that write saw.
 #[test]
 fn a_duplicate_of_an_entry_without_changed_predicts_it() {
@@ -318,7 +318,7 @@ fn entry_by_key_answers_every_state_and_not_found_for_an_unknown_key() {
 fn journal_counts_equal_a_hand_count_with_unscoped_entries() {
     let w = World::new();
     let mut c = synced(&w);
-    let y = bd_cache_model::ScopeId::phase("y").unwrap();
+    let y = bd_cache_model::ScopeId::new("y").unwrap();
     let at = w.clock.now_utc();
     let mut n = 0;
     let mut journal = |c: &mut TestCache, scope: Option<bd_cache_model::ScopeId>| {
@@ -377,7 +377,7 @@ fn journal_counts_equal_a_hand_count_with_unscoped_entries() {
 }
 
 /// Lead ruling S68 (RCR-001): an applied entry stored without `changed` (as
-/// `bd_cache.py` or a pre-b-1 store wrote it) answers `None` on a duplicate.
+/// the v3 Python writer or a pre-b-1 store wrote it) answers `None` on a duplicate.
 /// Its effect is already in the stored row (the applied close left it
 /// closed), so a prediction would say `false` where the write changed the
 /// view: unknown, never a guess.

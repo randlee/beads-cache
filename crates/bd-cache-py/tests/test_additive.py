@@ -90,15 +90,17 @@ def test_miss_timeout_ms_is_milliseconds(cache, repo):
     assert cache.beads.issues_get(id="late-1", miss_timeout_ms=20000)["id"] == "late-1"
 
 
-def test_both_scope_spellings_and_the_0_1_list_return_the_same_rows(cache):
+def test_the_0_1_list_takes_both_spellings_and_the_0_2_namespaces_the_name_as_written(cache):
+    # ADR-BDC-0013, REQ-BDC-0812 as amended: the legacy prefix is read on the 0.1
+    # paths only; a 0.2 scope argument is a scope name as written.
     bare = cache.beads.issues_list(scope="x")
-    label = cache.beads.issues_list(scope="phase-x")
     old = cache.list("phase-x")
-    assert ids(bare["items"]) == ids(label["items"]) == ids(old["rows"]) == ["b1", "b2", "s1"]
+    assert ids(bare["items"]) == ids(old["rows"]) == ["b1", "b2", "s1"]
     assert cache.list("x")["rows"] == old["rows"]
-    assert ids(cache.beads.ready(scope="x")["items"]) == ids(cache.beads.ready(scope="phase-x")["items"])
-    assert cache.manage.refresh_scopes(scopes=["x"])["results"][0]["scope"] == "phase-x"
-    assert cache.manage.refresh_scopes(scopes=["phase-x"])["results"][0]["scope"] == "phase-x"
+    assert raised(cache.beads.issues_list, scope="phase-x").code == "BD_CACHE.SCOPE_UNKNOWN"
+    assert raised(cache.beads.ready, scope="phase-x").code == "BD_CACHE.SCOPE_UNKNOWN"
+    assert ids(cache.beads.ready(scope="x")["items"]) == ids(cache.ready("phase-x")["ready"])
+    assert cache.manage.refresh_scopes(scopes=["x"])["results"][0]["scope"] == "x"
 
 
 def test_an_unknown_scope_is_scope_unknown_for_both_spellings(cache):

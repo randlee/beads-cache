@@ -9,7 +9,12 @@
 //!   (REQ-BDC-0301, 0304, 0305);
 //! - the journal types ([`JournalEntry`], [`NewEntry`], [`Seq`], [`IdemKey`]),
 //!   the size limits on what is journaled ([`MAX_WRITE_ARGS_BYTES`],
-//!   [`check_write_size`]), scopes ([`ScopeId`]) and store-side state;
+//!   [`check_write_size`]) and store-side state;
+//! - scopes as named bd filters ([`ScopeName`], [`ScopeId`], [`ScopeFilter`],
+//!   [`Scope`]; ADR-BDC-0013) and the 0.1 compatibility rule
+//!   ([`LEGACY_SCOPE_PREFIX`], [`legacy_scope`]);
+//! - the phase-B sync's store-side types (ADR-STORE-0006): [`IngestSnapshot`],
+//!   [`FailingSince`], [`LeaseHolder`], [`HookState`] and [`TickBudget`];
 //! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
 //! - reply and report shapes, [`CallKind`] / [`CallFailure`];
@@ -33,9 +38,12 @@
 
 #![deny(missing_docs)]
 
+mod budget;
 mod call;
+mod compat;
 mod config;
 mod error;
+mod ingest;
 mod journal;
 mod limits;
 mod op;
@@ -50,18 +58,27 @@ mod store;
 pub mod testing;
 
 #[doc(inline)]
+pub use budget::{
+    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_BUDGET_MS, MIN_BUDGET_MS,
+    MIN_HOOK_RESERVE_MS_WITH_HOOK, MIN_WORK_MS, ROW_TIMEOUT_MARGIN, TickBudget,
+};
+#[doc(inline)]
 pub use call::{CallFailure, CallKind};
+#[doc(inline)]
+pub use compat::{LEGACY_SCOPE_PREFIX, legacy_label, legacy_scope};
 #[doc(inline)]
 pub use config::{
     CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
-    SchemaPackageRef, TickConfig,
+    SchemaPackageRef, ScopeConfigError, ScopeTable, TickConfig,
 };
 #[doc(inline)]
 pub use error::{
-    BackendCause, CacheError, ENVELOPE_KEYS, GuardKey, PreconditionReason, StoreCause, SyncCause,
-    TYPED_ERROR_EXIT, UNREACHABLE_CODES, Unmet,
+    BackendCause, CacheError, ENVELOPE_KEYS, GuardKey, IngestReason, PreconditionReason,
+    StoreCause, SyncCause, TYPED_ERROR_EXIT, TickRunReason, UNREACHABLE_CODES, Unmet,
 };
+#[doc(inline)]
+pub use ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS};
 #[doc(inline)]
 pub use journal::{
     IdemKey, JournalEntry, JournalState, NewEntry, RESOLVE_SEPARATOR, Seq, error_code_prefix,
@@ -84,13 +101,13 @@ pub use reply::{
     ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome, WriteReply,
 };
 #[doc(inline)]
-pub use scope::{PhaseName, ScopeId};
+pub use scope::{Criteria, FilterParts, Scope, ScopeFilter, ScopeId, ScopeName};
 #[doc(inline)]
 pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
 #[doc(inline)]
 pub use state::{
-    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus,
-    StoreStatus, SyncState, UpsertReport,
+    BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
+    OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus, SyncState, UpsertReport,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

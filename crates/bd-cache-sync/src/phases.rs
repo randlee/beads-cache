@@ -18,7 +18,7 @@ use std::fmt;
 use std::io::{self, Read as _};
 use std::path::{Path, PathBuf};
 
-use bd_cache_model::{PhaseName, ScopeId, TickConfig};
+use bd_cache_model::{ScopeId, ScopeName, TickConfig};
 use sc_beads::BeadId;
 use serde::Deserialize;
 
@@ -217,7 +217,7 @@ pub struct TickSettings {
     team: MemberName,
     fallback_lead: MemberName,
     phases_dir: PathBuf,
-    only: Option<Vec<PhaseName>>,
+    only: Option<Vec<ScopeName>>,
 }
 
 impl TickSettings {
@@ -239,10 +239,10 @@ impl TickSettings {
             None => None,
             Some(list) if list.is_empty() => return Err(ConfigRefusal::EmptyPhases),
             Some(list) => {
-                let mut names: Vec<PhaseName> = Vec::new();
+                let mut names: Vec<ScopeName> = Vec::new();
                 for entry in list {
-                    let name = ScopeId::parse(entry)
-                        .map(|s| s.phase_name().clone())
+                    let name = bd_cache_model::legacy_scope(entry)
+                        .map(|s| s.scope_name().clone())
                         .ok_or_else(|| ConfigRefusal::MalformedPhases {
                             entry: entry.clone(),
                         })?;
@@ -284,7 +284,7 @@ impl TickSettings {
 
     /// The configured phase list, when it limits the phases.
     #[must_use]
-    pub fn only(&self) -> Option<&[PhaseName]> {
+    pub fn only(&self) -> Option<&[ScopeName]> {
         self.only.as_deref()
     }
 }
@@ -322,7 +322,7 @@ fn member(
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Phase {
     /// The phase name (the `<x>` of `phase-<x>.toml` and of the `phase-<x>` label).
-    pub name: PhaseName,
+    pub name: ScopeName,
     /// The root bead; the phase is active while it is not closed.
     pub root: BeadId,
     /// Who is told about the phase; `None` when the file names no lead.
@@ -333,7 +333,7 @@ impl Phase {
     /// The sync scope of the phase.
     #[must_use]
     pub fn scope(&self) -> ScopeId {
-        ScopeId::Phase(self.name.clone())
+        ScopeId::from_name(self.name.clone())
     }
 }
 
@@ -342,7 +342,7 @@ impl Phase {
 #[non_exhaustive]
 pub enum PhaseFileProblem {
     /// The file name after `phase-` is not a phase name.
-    NotAPhaseName {
+    NotAScopeName {
         /// The file.
         file: PathBuf,
     },
@@ -384,7 +384,7 @@ pub enum PhaseFileProblem {
     /// A phase named in `[tick] phases` has no file.
     NoFile {
         /// The phase.
-        phase: PhaseName,
+        phase: ScopeName,
         /// Where it was looked for.
         dir: PathBuf,
     },
@@ -409,7 +409,7 @@ pub enum PhaseFileProblem {
 impl fmt::Display for PhaseFileProblem {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::NotAPhaseName { file } => {
+            Self::NotAScopeName { file } => {
                 write!(
                     f,
                     "{}: the name after phase- is not a phase name",
@@ -463,7 +463,7 @@ impl PhaseFileProblem {
     #[must_use]
     pub fn code(&self) -> RefusalCode {
         match self {
-            Self::NotAPhaseName { .. } => RefusalCode::PhaseNotNamed,
+            Self::NotAScopeName { .. } => RefusalCode::PhaseNotNamed,
             Self::Unreadable { .. } => RefusalCode::PhaseFileUnreadable,
             Self::TooLarge { .. } => RefusalCode::PhaseFileTooLarge,
             Self::NotAFile { .. } => RefusalCode::PhaseFileNotRegular,
@@ -567,7 +567,7 @@ struct PhaseFile {
 /// # Errors
 ///
 /// [`PhasesError`] when the directory cannot be read.
-pub fn load_phases(dir: &Path, only: Option<&[PhaseName]>) -> Result<PhaseSet, PhasesError> {
+pub fn load_phases(dir: &Path, only: Option<&[ScopeName]>) -> Result<PhaseSet, PhasesError> {
     let fail = |source| PhasesError {
         dir: dir.to_path_buf(),
         source,
@@ -582,9 +582,9 @@ pub fn load_phases(dir: &Path, only: Option<&[PhaseName]>) -> Result<PhaseSet, P
 }
 
 /// The configured phases, each looked up by its file name.
-fn load_named(dir: &Path, only: &[PhaseName]) -> PhaseSet {
+fn load_named(dir: &Path, only: &[ScopeName]) -> PhaseSet {
     let mut set = PhaseSet::default();
-    let mut names: Vec<&PhaseName> = only.iter().collect();
+    let mut names: Vec<&ScopeName> = only.iter().collect();
     names.sort();
     names.dedup();
     for name in names {
@@ -610,7 +610,7 @@ fn load_named(dir: &Path, only: &[PhaseName]) -> PhaseSet {
 /// Every `phase-*.toml` file of a directory, within the two caps.
 fn scan(dir: &Path, entries: std::fs::ReadDir) -> io::Result<PhaseSet> {
     let mut set = PhaseSet::default();
-    let mut files: Vec<(PhaseName, PathBuf)> = Vec::new();
+    let mut files: Vec<(ScopeName, PathBuf)> = Vec::new();
     for (visited, entry) in entries.enumerate() {
         if visited >= MAX_PHASES_DIR_ENTRIES {
             set.problems.push(PhaseFileProblem::TooManyEntries {
@@ -636,11 +636,11 @@ fn scan(dir: &Path, entries: std::fs::ReadDir) -> io::Result<PhaseSet> {
             });
             break;
         }
-        match PhaseName::new(stem) {
+        match ScopeName::new(stem) {
             Ok(name) => files.push((name, path)),
             Err(_) => set
                 .problems
-                .push(PhaseFileProblem::NotAPhaseName { file: path }),
+                .push(PhaseFileProblem::NotAScopeName { file: path }),
         }
     }
     files.sort();
@@ -666,7 +666,7 @@ fn open_without_blocking(path: &Path) -> io::Result<std::fs::File> {
 }
 
 /// Parses one phase file.
-fn read_phase(path: &Path, name: PhaseName) -> Result<Phase, PhaseFileProblem> {
+fn read_phase(path: &Path, name: ScopeName) -> Result<Phase, PhaseFileProblem> {
     let file = || path.to_path_buf();
     let unreadable = |e: io::Error| PhaseFileProblem::Unreadable {
         file: file(),

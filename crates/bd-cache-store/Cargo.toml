@@ -15,6 +15,10 @@ sc-beads.workspace = true
 rusqlite.workspace = true
 fs4.workspace = true
 serde_json.workspace = true
+# The schedule rows in the cache file: `CacheScheduleStore` implements
+# `sc_cron::ScheduleStore` over the cache's one connection (ADR-BDC-0014,
+# amending ADR-STORE-0005).
+sc-cron.workspace = true
 
 # Logging is `sc_beads::logging::tracing` (ADR-BDC-0007): no direct `tracing` (ADR-STORE-0005).
 

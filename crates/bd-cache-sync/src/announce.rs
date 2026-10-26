@@ -12,7 +12,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use bd_cache::Cache;
 use bd_cache_model::{
-    CacheError, CacheStore, DrainLock, EscalationSender, JournalEntry, Outage, PhaseName, ScopeId,
+    CacheError, CacheStore, DrainLock, EscalationSender, JournalEntry, Outage, ScopeId, ScopeName,
     SendError, Seq, SyncCause,
 };
 use sc_beads::CacheBackend;
@@ -346,7 +346,7 @@ pub(crate) fn sync_succeeded<S: CacheStore, L: DrainLock, B: CacheBackend>(
 }
 
 /// The text of an outage message.
-fn outage_body(outage: &Outage, phases: &[&PhaseName]) -> String {
+fn outage_body(outage: &Outage, phases: &[&ScopeName]) -> String {
     let names: Vec<&str> = phases.iter().map(|p| p.as_str()).collect();
     format!(
         "bd-cache: the beads backend is unreachable (since {since}).\n\
@@ -418,7 +418,7 @@ pub(crate) fn outage<S: CacheStore, L: DrainLock, B: CacheBackend>(
         }
     }
     for (lead, phases) in by_lead {
-        let names: Vec<&PhaseName> = phases.iter().map(|p| &p.name).collect();
+        let names: Vec<&ScopeName> = phases.iter().map(|p| &p.name).collect();
         let body = outage_body(&outage, &names);
         match deliver(sender, budget, lead, settings, &body, reply) {
             None => {}
@@ -488,7 +488,7 @@ pub(crate) fn escalations<S: CacheStore, L: DrainLock, B: CacheBackend>(
             None => Some(settings.fallback_lead()),
             Some(scope) => phases
                 .iter()
-                .find(|p| p.name == *scope.phase_name())
+                .find(|p| p.name == *scope.scope_name())
                 .and_then(|p| p.lead.as_ref()),
         };
         let Some(lead) = lead else {
@@ -579,7 +579,7 @@ mod tests {
 
     fn phase() -> Phase {
         Phase {
-            name: PhaseName::new("x").unwrap(),
+            name: ScopeName::new("x").unwrap(),
             root: sc_beads::testing::id("rx"),
             lead: Some(MemberName::new("lead-x").unwrap()),
         }
@@ -597,7 +597,7 @@ mod tests {
     fn sync_failed(cause: Option<SyncCause>) -> CacheError {
         CacheError::SyncFailed {
             detail: "phase x: scripted".into(),
-            scope: Some(ScopeId::phase("x").unwrap()),
+            scope: Some(ScopeId::new("x").unwrap()),
             cause,
             source: None,
         }

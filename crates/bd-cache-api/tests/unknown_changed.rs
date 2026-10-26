@@ -29,7 +29,7 @@ fn world_with_old_applied_entry(op: &str, args: &str) -> common::TestCache {
         .insert_entry(
             NewEntry {
                 idem_key: IdemKey::new("k-old").unwrap(),
-                scope: ScopeId::phase("x").ok(),
+                scope: ScopeId::new("x").ok(),
                 bead: BeadId::new("b1").unwrap(),
                 op: Op::parse(op, args).unwrap(),
                 precondition: Guards::default(),

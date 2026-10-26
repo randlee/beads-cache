@@ -29,7 +29,7 @@ use std::time::Duration;
 
 use bd_cache_model::{
     CacheError, CacheStore, CallFailure, CallKind, DrainLock, Freshness, JournalEntry,
-    JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, ScopeId, replay,
+    JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, Scope, ScopeId, replay,
 };
 use sc_beads::{
     Bead, BeadId, BlockedRow, CacheBackend, Deadline, DepType, Edge, Timestamp, rfc3339_to_unix,
@@ -43,7 +43,7 @@ const OPEN: &str = "open";
 /// A scope's ready base with our journal applied (ADR-BDC-0002).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Adjusted {
-    scope: ScopeId,
+    scope: Scope,
     /// The base's fetch instant.
     pub(crate) fetched_at: Timestamp,
     /// The base's stale mark.
@@ -99,13 +99,13 @@ pub(crate) fn row_view_with(
 /// adjusted. Rows outside the scope have no blocked state.
 pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     view: &Bead,
 ) -> Result<Option<Vec<BeadId>>, CacheError> {
     if !s.holds(view) {
         return Ok(None);
     }
-    let Some(entry) = cache.store.base_entry(s, &view.id)? else {
+    let Some(entry) = cache.store.base_entry(&s.id, &view.id)? else {
         return Ok(None);
     };
     let untouched = !cache.store.has_entries_since(&entry.fetched_at)?;
@@ -115,43 +115,47 @@ pub(crate) fn blocked_state<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(adjusted(cache, s)?.and_then(|a| a.blocked_of(view)))
 }
 
-/// The registered scope a view belongs to: its v3 phase
-/// ([`ScopeId::from_labels`]) when that scope is known, else the first known
-/// scope that holds the view; `None` for a bead outside every scope.
+/// The registered scope a view belongs to: the phase-a scope its v3 phase
+/// names ([`ScopeId::from_labels`]) when that scope is registered as a
+/// phase-a scope, else the first registered scope that holds the view;
+/// `None` for a bead outside every scope (ADR-CORE-0204 as amended by
+/// ADR-BDC-0013).
 pub(crate) fn scope_for<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     view: &Bead,
-) -> Result<Option<ScopeId>, CacheError> {
+) -> Result<Option<Scope>, CacheError> {
     let known = cache.store.scopes()?;
-    Ok(ScopeId::from_labels(&view.labels)
-        .filter(|s| known.contains(s))
-        .or_else(|| known.into_iter().find(|s| s.holds(view))))
+    let phase = ScopeId::from_labels(&view.labels);
+    let legacy = known
+        .iter()
+        .find(|s| s.is_legacy() && phase.as_ref() == Some(&s.id))
+        .cloned();
+    Ok(legacy.or_else(|| known.into_iter().find(|s| s.holds(view))))
 }
 
-/// `SCOPE_UNKNOWN`, naming the known scopes, unless `s` was configured or
-/// synced (REQ-BDC-0902, 0909).
+/// The registered scope `s` names; `SCOPE_UNKNOWN`, naming the known scopes,
+/// unless it was configured or synced (REQ-BDC-0902, 0909).
 pub(crate) fn require_known<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     s: &ScopeId,
-) -> Result<(), CacheError> {
-    let known = cache.store.scopes()?;
-    if known.contains(s) {
-        Ok(())
-    } else {
-        Err(CacheError::ScopeUnknown {
-            detail: format!("phase {s} was never configured or synced"),
-            known,
-        })
+) -> Result<Scope, CacheError> {
+    if let Some(scope) = cache.store.scope(s)? {
+        return Ok(scope);
     }
+    let known = cache.store.scopes()?.into_iter().map(|k| k.id).collect();
+    Err(CacheError::ScopeUnknown {
+        detail: format!("scope {s} was never configured or synced"),
+        known,
+    })
 }
 
 /// The scope's stored base with our journal applied; `None` when the scope
 /// has no base yet. Starts no bd call.
 pub(crate) fn adjusted<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
 ) -> Result<Option<Adjusted>, CacheError> {
-    let Some(base) = cache.store.ready_base(s)? else {
+    let Some(base) = cache.store.ready_base(&s.id)? else {
         return Ok(None);
     };
     let pending = cache.store.pending_entries()?;
@@ -184,23 +188,16 @@ pub(crate) struct FreshBase {
     at: Timestamp,
 }
 
-impl FreshBase {
-    /// Number of blocked rows.
-    pub(crate) fn blocked_len(&self) -> u32 {
-        u32::try_from(self.blocked.len()).unwrap_or(u32::MAX)
-    }
-}
-
-/// `list_blocked` then `list_ready` for the scope, both through `call`
-/// (`CallKind::Ready`) under the one deadline `hard`; `at` is taken before
-/// the first call.
+/// `list_blocked` then `list_ready` for the scope's filter (ADR-BDC-0013's
+/// argv), both through `call` (`CallKind::Ready`) under the one deadline
+/// `hard`; `at` is taken before the first call.
 pub(crate) fn fetch_base<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     hard: Deadline,
 ) -> Result<FreshBase, CallFailure> {
     let at = cache.clock.now_utc();
-    let filter = s.filter();
+    let filter = s.backend_filter();
     let blocked = crate::call(cache, CallKind::Ready, hard, |b, p, d| {
         b.list_blocked(p, &filter, d)
     })?;
@@ -210,15 +207,33 @@ pub(crate) fn fetch_base<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(FreshBase { blocked, ready, at })
 }
 
-/// Replaces the scope's stored base with a fetched one (clears its stale mark).
+/// Replaces the scope's stored base with a fetched one (clears its stale
+/// mark): bd's answer intersected with the scope's members (ADR-BDC-0002 as
+/// amended by ADR-BDC-0013), since `bd blocked` takes no type or assignee
+/// flag and the status criterion is the store's. Returns the number of
+/// blocked rows stored.
 pub(crate) fn store_base<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
-    s: &ScopeId,
+    s: &Scope,
     base: &FreshBase,
-) -> Result<(), CacheError> {
+) -> Result<u32, CacheError> {
+    let members = cache.store.members(&s.id)?;
+    let blocked: Vec<BlockedRow> = base
+        .blocked
+        .iter()
+        .filter(|b| members.contains(&b.id))
+        .cloned()
+        .collect();
+    let ready: Vec<BeadId> = base
+        .ready
+        .iter()
+        .filter(|id| members.contains(*id))
+        .cloned()
+        .collect();
     cache
         .store
-        .replace_ready_base(s, &base.blocked, &base.ready, &base.at)
+        .replace_ready_base(&s.id, &blocked, &ready, &base.at)?;
+    Ok(u32::try_from(blocked.len()).unwrap_or(u32::MAX))
 }
 
 /// `ready(scope, fresh_within)`: the module docs, REQ-BDC-0911 and 0912.
@@ -227,7 +242,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     s: &ScopeId,
     fresh_within: Option<Duration>,
 ) -> Result<ReadyReply, CacheError> {
-    require_known(cache, s)?;
+    let scope = require_known(cache, s)?;
     // The fetch instant of bd's answer, when one came in time.
     let mut fresh: Option<Timestamp> = None;
     let mut read_fallback = None;
@@ -235,16 +250,16 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
         // One deadline for both calls: the caller's limit expiring is a cut,
         // never an outage, and the reply never waits past it.
         let hard = Deadline::after(&*cache.clock, limit);
-        match fetch_base(cache, s, hard) {
+        match fetch_base(cache, &scope, hard) {
             Ok(base) => {
-                store_base(cache, s, &base)?;
+                store_base(cache, &scope, &base)?;
                 fresh = Some(base.at);
             }
             Err(failure) => read_fallback = Some(fallback_reason(failure, limit)),
         }
     }
     let last_ok_at = cache.store.sync_state(s)?.last_ok_at;
-    let Some(adj) = adjusted(cache, s)? else {
+    let Some(adj) = adjusted(cache, &scope)? else {
         return Ok(ReadyReply {
             scope: s.clone(),
             last_ok_at,
@@ -361,7 +376,7 @@ impl Facts {
 /// Applies journal entries to one scope's base.
 struct Engine<'a, S: CacheStore> {
     store: &'a S,
-    scope: &'a ScopeId,
+    scope: &'a Scope,
     base: &'a ReadyBase,
     pending: &'a [JournalEntry],
     now_unix: i64,
@@ -375,7 +390,7 @@ struct Engine<'a, S: CacheStore> {
 impl<'a, S: CacheStore> Engine<'a, S> {
     fn new(
         store: &'a S,
-        scope: &'a ScopeId,
+        scope: &'a Scope,
         base: &'a ReadyBase,
         pending: &'a [JournalEntry],
         now_unix: i64,

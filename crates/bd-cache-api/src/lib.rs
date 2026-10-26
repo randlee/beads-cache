@@ -27,10 +27,10 @@
 //! # use sc_beads::testing::{FakeBackend, ManualClock};
 //! use bd_cache_api::{CacheFacts, Command, decode, execute};
 //! # let clock = Arc::new(ManualClock::new("2026-10-23T10:00:00Z"));
-//! # let config = CacheConfig::new(sc_beads::ProjectRef::local(None), vec![ScopeId::phase("x").unwrap()]);
+//! # let config = CacheConfig::new(sc_beads::ProjectRef::local(None), vec![bd_cache_model::Scope::legacy(ScopeId::new("x").unwrap())]);
 //! # let mut cache = Cache::new(config, FakeStore::new(), FakeDrainLock::new(),
 //! #     FakeBackend::new(Arc::clone(&clock)), clock).unwrap();
-//! let req = decode(Command::IssuesList, &serde_json::json!({"scope": "phase-x"})).unwrap();
+//! let req = decode(Command::IssuesList, &serde_json::json!({"scope": "x"})).unwrap();
 //! // Never synced: the scope is not served (lead ruling S67).
 //! let err = execute(&mut cache, &req, &CacheFacts::default()).unwrap_err();
 //! assert_eq!(err.code(), "BD_CACHE.SCOPE_UNKNOWN");

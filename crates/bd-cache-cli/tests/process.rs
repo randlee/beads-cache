@@ -47,7 +47,7 @@ fn exit_0_is_ok_true() {
     let repo = synced();
     for args in [
         &["issues", "get", "b-1"][..],
-        &["issues", "list", "--scope", "phase-x"],
+        &["issues", "list", "--scope", "x"],
         &["cache", "status"],
         &["--version"],
     ] {
@@ -65,7 +65,7 @@ fn exit_3_is_any_other_typed_error() {
     let repo = synced();
     for (args, want) in [
         (
-            &["issues", "list", "--scope", "phase-zz"][..],
+            &["issues", "list", "--scope", "zz"][..],
             "BD_CACHE.SCOPE_UNKNOWN",
         ),
         (
@@ -134,7 +134,7 @@ fn exit_3_is_any_other_typed_error() {
 fn exit_2_is_usage_for_the_shape_of_argv_only() {
     let repo = synced();
     let input = repo.root().join("request.json");
-    std::fs::write(&input, r#"{"scope": "phase-x"}"#).unwrap();
+    std::fs::write(&input, r#"{"scope": "x"}"#).unwrap();
     let input = path_str(&input).to_owned();
     let cases: Vec<(Vec<&str>, Option<&str>)> = vec![
         (vec!["issues", "list", "--bogus"], None),
@@ -530,7 +530,7 @@ fn flag_beats_env_beats_toml_beats_default() {
     assert_eq!(Path::new(&path), repo.root().join("env.sqlite3"));
 
     // scopes: TOML [x], env "y" -> refreshing every known scope of a cache file
-    // never opened before syncs phase-y only.
+    // never opened before syncs y only (the env list names phase-a scopes).
     let repo = TestRepo::new(&two_beads());
     let root = repo.root();
     let args = [
@@ -543,7 +543,7 @@ fn flag_beats_env_beats_toml_beats_default() {
         "scopes",
     ];
     let (_, v) = envelope_json(&repo.bdc_raw(&root, &args, &[("BD_CACHE__SCOPES", "y")]));
-    assert_eq!(v["data"]["results"][0]["scope"], "phase-y", "{v}");
+    assert_eq!(v["data"]["results"][0]["scope"], "y", "{v}");
     assert_eq!(v["data"]["results"].as_array().map(Vec::len), Some(1));
     // An env value that does not parse is CONFIG_INVALID, exit 3.
     let (exit, v) = envelope_json(&repo.bdc_raw(

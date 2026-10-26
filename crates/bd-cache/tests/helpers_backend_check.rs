@@ -23,7 +23,7 @@ fn test_schema_change_rebuilds_rows_and_keeps_the_journal() {
     let mut c = w.cache();
     let rows = w.bd.rows();
     store_mut(&mut c)
-        .upsert_rows(Some(&x()), &rows, false)
+        .upsert_rows(Some(&common::sx()), &rows, false)
         .unwrap();
     store_mut(&mut c)
         .insert_entry(

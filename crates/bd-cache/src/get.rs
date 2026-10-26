@@ -94,7 +94,7 @@ pub(crate) fn row_in_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Some(s) => blocked_state(cache, s, &view)?,
         None => None,
     };
-    Ok((row_view_with(view, freshness, blocked), scope))
+    Ok((row_view_with(view, freshness, blocked), scope.map(|s| s.id)))
 }
 
 /// `entry(seq)`: one journal entry in any state (REQ-BDC-0908).

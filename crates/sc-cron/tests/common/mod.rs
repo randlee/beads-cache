@@ -273,6 +273,21 @@ impl ScheduleStore for RecordingStore {
         self.inner.set_enabled(name, enabled)
     }
 
+    fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<bool, CronError> {
+        self.inner.set_enabled_many(flags)
+    }
+
+    fn replace_and_set_enabled(
+        &self,
+        schedule: &NewSchedule,
+        enabled: bool,
+        created_at: Timestamp,
+        flags: &[(ScheduleName, bool)],
+    ) -> Result<Option<Schedule>, CronError> {
+        self.inner
+            .replace_and_set_enabled(schedule, enabled, created_at, flags)
+    }
+
     fn disable(
         &self,
         id: ScheduleId,

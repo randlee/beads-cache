@@ -90,6 +90,64 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
         Ok(())
     }
 
+    fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<(), CronError> {
+        if !self.store.set_enabled_many(flags)? {
+            return Err(self.first_missing(flags.iter().map(|(name, _)| name))?);
+        }
+        self.signal_reload();
+        Ok(())
+    }
+
+    fn replace_and_set_enabled(
+        &self,
+        spec: ScheduleSpec,
+        enabled: bool,
+        flags: &[(ScheduleName, bool)],
+    ) -> Result<Schedule, CronError> {
+        encode_payload(&spec.payload)?;
+        let now = self.clock.now();
+        spec.expr.require_future(now)?;
+        let jitter = jitter::draw(&spec.expr, now, self.jitter.as_ref());
+        let next = spec.expr.next_run(jitter, now).ok_or_else(|| {
+            CronError::BadExpression("expression has no future occurrence".into())
+        })?;
+        let schedule = NewSchedule {
+            spec,
+            jitter,
+            next_run_at: Timestamp::from_datetime(next),
+        };
+        let Some(written) = self.store.replace_and_set_enabled(
+            &schedule,
+            enabled,
+            Timestamp::from_datetime(now),
+            flags,
+        )?
+        else {
+            return Err(self.first_missing(flags.iter().map(|(name, _)| name))?);
+        };
+        self.signal_reload();
+        Ok(written)
+    }
+
+    /// The `NotFound` of the first of `names` with no active schedule, after
+    /// a store call refused the list for one; a name gone by the time of this
+    /// read is reported as the first name.
+    fn first_missing<'n>(
+        &self,
+        mut names: impl Iterator<Item = &'n ScheduleName> + Clone,
+    ) -> Result<CronError, CronError> {
+        let active = self.store.list_active()?;
+        let first = names.clone().next().cloned();
+        let missing = names
+            .find(|name| !active.iter().any(|s| s.spec.name == **name))
+            .cloned()
+            .or(first);
+        Ok(match missing {
+            Some(name) => CronError::NotFound(name),
+            None => CronError::InvalidSpec("an empty list of schedules changed nothing".into()),
+        })
+    }
+
     fn signal_reload(&self) {
         self.reload
             .send_modify(|version| *version = version.wrapping_add(1));
@@ -287,6 +345,82 @@ where
         let core = Arc::clone(&self.core);
         let name = name.clone();
         blocking(move || core.set_enabled(&name, enabled)).await
+    }
+
+    /// Sets the `enabled` flag of every named active schedule in one store
+    /// transaction (REQ-CRON-0017), and tells this scheduler's worker as
+    /// [`Scheduler::set_enabled`] does (REQ-CRON-0014).
+    ///
+    /// Another connection sees every flag of the list change at once, or
+    /// none. A worker in another process notices at its next reload. This
+    /// calls the store synchronously; from async code use
+    /// [`Scheduler::set_enabled_many_async`].
+    ///
+    /// # Errors
+    ///
+    /// [`CronError::NotFound`] naming a listed schedule that is not active,
+    /// with nothing changed, or the store's errors.
+    pub fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<(), CronError> {
+        self.core.set_enabled_many(flags)
+    }
+
+    /// [`Scheduler::set_enabled_many`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::set_enabled_many`], or [`CronError::Store`] if the
+    /// blocking task panics.
+    pub async fn set_enabled_many_async(
+        &self,
+        flags: Vec<(ScheduleName, bool)>,
+    ) -> Result<(), CronError> {
+        let core = Arc::clone(&self.core);
+        blocking(move || core.set_enabled_many(&flags)).await
+    }
+
+    /// Writes the schedule `spec` with its `enabled` flag and sets each
+    /// listed other schedule's flag, in one store transaction (REQ-CRON-0017).
+    ///
+    /// The jitter, the next run and the creation time come from the injected
+    /// sources, as [`Scheduler::start`] does, and the same checks run before
+    /// anything is written. A new name is created; an ended name is restarted
+    /// in place; an active name is replaced in place with its generation
+    /// raised, so a run of the old generation is fenced. The worker is told as
+    /// [`Scheduler::set_enabled`] does. This lets a caller keep "at most one
+    /// of these schedules enabled" across a create or an update, which
+    /// [`Scheduler::start`] (always enabled, `AlreadyActive` for an active
+    /// name) cannot. This calls the store synchronously; from async code use
+    /// [`Scheduler::replace_and_set_enabled_async`].
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::start`] for the spec; [`CronError::InvalidSpec`] if
+    /// `flags` names `spec`'s schedule; [`CronError::NotFound`] naming a
+    /// listed schedule that is not active, with nothing written; or the
+    /// store's errors.
+    pub fn replace_and_set_enabled(
+        &self,
+        spec: ScheduleSpec,
+        enabled: bool,
+        flags: &[(ScheduleName, bool)],
+    ) -> Result<Schedule, CronError> {
+        self.core.replace_and_set_enabled(spec, enabled, flags)
+    }
+
+    /// [`Scheduler::replace_and_set_enabled`] on tokio's blocking pool.
+    ///
+    /// # Errors
+    ///
+    /// As [`Scheduler::replace_and_set_enabled`], or [`CronError::Store`] if
+    /// the blocking task panics.
+    pub async fn replace_and_set_enabled_async(
+        &self,
+        spec: ScheduleSpec,
+        enabled: bool,
+        flags: Vec<(ScheduleName, bool)>,
+    ) -> Result<Schedule, CronError> {
+        let core = Arc::clone(&self.core);
+        blocking(move || core.replace_and_set_enabled(spec, enabled, &flags)).await
     }
 
     /// Spawns the worker that runs the Rust `job` for every active schedule.

@@ -63,7 +63,7 @@ pub fn id(s: &str) -> BeadId {
 /// The `phase-<x>` scope.
 #[must_use]
 pub fn scope(x: &str) -> ScopeId {
-    ScopeId::phase(x).unwrap()
+    ScopeId::new(x).unwrap()
 }
 
 /// One message the sender was asked to deliver.

@@ -60,7 +60,7 @@ fn an_escalation_is_listed_announced_and_resolved_with_its_note_apart() {
         (esc["seq"].as_i64(), esc["bead"].as_str()),
         (Some(2), Some("b1"))
     );
-    assert_eq!(esc["scope"], "phase-x");
+    assert_eq!(esc["scope"], "x");
     assert_eq!(esc["reason"]["code"], "BD_CACHE.PRECONDITION");
 
     let listed = ok(&mut cache, "cache journal list", &json!({}));
@@ -164,7 +164,7 @@ fn health_reports_down_during_an_outage_and_probes_on_request() {
         Injection::Unavailable { timed_out: false },
     );
     let refreshed = ok(&mut cache, "cache refresh scopes", &json!({}));
-    assert_eq!(refreshed["results"][0]["scope"], "phase-x");
+    assert_eq!(refreshed["results"][0]["scope"], "x");
     // Lead ruling S75: a sync that could not reach bd is a failed result,
     // BD_UNAVAILABLE (unavailable, retryable), though the core returned Ok
     // with an outage in its report.
@@ -189,12 +189,12 @@ fn refresh_scopes_names_each_scope_and_counts_failures() {
     let r = ok(
         &mut cache,
         "cache refresh scopes",
-        &json!({"scopes": ["x", "phase-y"]}),
+        &json!({"scopes": ["x", "y"]}),
     );
     let results = r["results"].as_array().unwrap();
     assert_eq!(results.len(), 2);
-    assert_eq!(results[0]["scope"], "phase-x");
-    assert_eq!(results[1]["scope"], "phase-y");
+    assert_eq!(results[0]["scope"], "x");
+    assert_eq!(results[1]["scope"], "y");
     assert_eq!(results[0]["report"], Value::Null);
     assert_eq!(results[0]["error"]["code"], "BD_CACHE.SYNC_FAILED");
     assert_eq!(results[0]["error"]["kind"], "unavailable");
@@ -209,7 +209,7 @@ fn refresh_scopes_names_each_scope_and_counts_failures() {
             y["configured"].as_bool(),
             y["on_demand"].as_bool()
         ),
-        (Some("phase-y"), Some(false), Some(true))
+        (Some("y"), Some(false), Some(true))
     );
     assert_eq!(
         scopes["scopes"][0]["last_error"]["code"],
@@ -245,14 +245,14 @@ fn evict_is_blocked_by_pending_writes() {
         "issues update",
         &json!({"id": "b2", "actor": "san", "idempotency_key": "k1", "patch": {"add_labels": ["l"]}}),
     );
-    let e = err(&mut cache, "cache evict", &json!({"scope": "phase-x"}));
+    let e = err(&mut cache, "cache evict", &json!({"scope": "x"}));
     assert_eq!(
         (e["code"].as_str(), e["kind"].as_str()),
         (Some("BD_CACHE.PRUNE_BLOCKED"), Some("conflict"))
     );
     ok(&mut cache, "cache flush", &json!({}));
     let r = ok(&mut cache, "cache evict", &json!({"scope": "x"}));
-    assert_eq!(r["scope"], "phase-x");
+    assert_eq!(r["scope"], "x");
     assert_eq!(r["beads_deleted"], 2);
     // S67: an evicted scope is not served until its next sync, never an empty list.
     for command in ["issues list", "ready"] {
@@ -260,9 +260,9 @@ fn evict_is_blocked_by_pending_writes() {
         assert_eq!(gone["code"], "BD_CACHE.SCOPE_UNKNOWN", "{command}: {gone}");
         assert_eq!(
             gone["suggested_action"],
-            "bdc cache refresh scopes --scope phase-x"
+            "bdc cache refresh scopes --scope x"
         );
-        assert_eq!(gone["details"]["scope"], "phase-x");
+        assert_eq!(gone["details"]["scope"], "x");
     }
     ok(
         &mut cache,
@@ -305,14 +305,11 @@ fn a_configured_scope_never_synced_is_not_served() {
     w.add("b1", &Map::new());
     let mut cache = w.cache();
     for command in ["issues list", "ready"] {
-        let e = err(&mut cache, command, &json!({"scope": "phase-x"}));
+        let e = err(&mut cache, command, &json!({"scope": "x"}));
         assert_eq!(e["code"], "BD_CACHE.SCOPE_UNKNOWN", "{command}: {e}");
         assert_eq!(e["kind"], "conflict");
         assert_eq!(e["details"]["known"], json!([]), "no scope is served yet");
-        assert_eq!(
-            e["suggested_action"],
-            "bdc cache refresh scopes --scope phase-x"
-        );
+        assert_eq!(e["suggested_action"], "bdc cache refresh scopes --scope x");
     }
 }
 
@@ -393,7 +390,7 @@ fn a_failed_sync_result_carries_its_details() {
     );
     let e = &r["results"][0]["error"];
     assert_eq!(e["code"], "BD_CACHE.SYNC_FAILED", "{e}");
-    assert_eq!(e["details"]["scope"], "phase-x", "{e}");
+    assert_eq!(e["details"]["scope"], "x", "{e}");
     // A refreshed scope has no error at all.
     let r = ok(
         &mut cache,

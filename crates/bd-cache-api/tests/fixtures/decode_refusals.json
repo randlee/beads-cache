@@ -20,7 +20,7 @@
     {
       "name": "unknown member on a read",
       "command": "issues list",
-      "request": {"scope": "phase-x", "colour": "red"},
+      "request": {"scope": "x", "colour": "red"},
       "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "colour"}}}
     },
     {

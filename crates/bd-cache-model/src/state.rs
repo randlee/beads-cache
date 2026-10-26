@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-use sc_beads::{BeadId, BlockedRow, Timestamp};
+use sc_beads::{BeadId, BlockedRow, InvalidValue, Timestamp};
 use serde::Serialize;
 
 use crate::journal::JournalEntry;
@@ -19,6 +19,9 @@ pub enum Freshness {
 }
 
 /// One scope's sync cursor and last outcome (`sync_state`).
+///
+/// `failing_since` and `notified_since` are the ADR-STORE-0006 columns of
+/// REQ-BDC-0728; they are not part of the 0.1 status dict.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SyncState {
     /// The scope.
@@ -30,6 +33,12 @@ pub struct SyncState {
     pub last_ok_at: Option<Timestamp>,
     /// The latest failure, `CODE: detail`.
     pub last_error: Option<String>,
+    /// Since when the scope's results have not been ok ([`FailingSince`]).
+    #[serde(skip)]
+    pub failing_since: Option<FailingSince>,
+    /// The `failing_since` a hook last marked ([`SyncState::notified`]).
+    #[serde(skip)]
+    pub notified_since: Option<FailingSince>,
 }
 
 impl SyncState {
@@ -41,8 +50,140 @@ impl SyncState {
             last_started_at: None,
             last_ok_at: None,
             last_error: None,
+            failing_since: None,
+            notified_since: None,
         }
     }
+
+    /// True when the current failure has been marked: `notified_since`
+    /// equals `failing_since` (REQ-BDC-0728).
+    #[must_use]
+    pub fn notified(&self) -> bool {
+        self.failing_since.is_some() && self.notified_since == self.failing_since
+    }
+
+    /// Applies one sync result to the failure state (REQ-BDC-0728): an ok
+    /// result clears `failing_since` (and the mark); a non-ok one (a failure
+    /// or an outage) keeps a `failing_since` already set, and otherwise sets
+    /// it to `at`, the instant of this first non-ok result.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{ScopeId, SyncState};
+    /// use sc_beads::Timestamp;
+    /// let t1 = Timestamp::parse("2026-10-23T10:00:00Z").unwrap();
+    /// let t2 = Timestamp::parse("2026-10-23T10:01:00Z").unwrap();
+    /// let mut st = SyncState::new(ScopeId::new("x").unwrap());
+    /// st.record_result(false, &t1);
+    /// let since = st.failing_since.clone().unwrap();
+    /// st.record_result(false, &t2);
+    /// assert_eq!(st.failing_since, Some(since));
+    /// st.record_result(true, &t2);
+    /// assert_eq!(st.failing_since, None);
+    /// ```
+    pub fn record_result(&mut self, ok: bool, at: &Timestamp) {
+        if ok {
+            self.failing_since = None;
+            self.notified_since = None;
+        } else if self.failing_since.is_none() {
+            self.failing_since = Some(FailingSince::at(at));
+        }
+    }
+}
+
+/// When a scope's results stopped being ok: an opaque token (REQ-BDC-0728).
+///
+/// Callers round-trip it (to `scope_announce`) and never parse it; equality
+/// is the only operation they rely on. The store keeps it as text.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_model::FailingSince;
+/// use sc_beads::Timestamp;
+/// let at = Timestamp::parse("2026-10-23T10:00:00Z").unwrap();
+/// let token = FailingSince::at(&at);
+/// assert_eq!(FailingSince::parse(token.as_str()).unwrap(), token);
+/// assert!(FailingSince::parse("").is_err());
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
+pub struct FailingSince(String);
+
+impl FailingSince {
+    /// The token of a failure that started at `at`.
+    #[must_use]
+    pub fn at(at: &Timestamp) -> Self {
+        Self(at.as_str().to_owned())
+    }
+
+    /// A token a caller hands back (`--since <token>`, a stored value).
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty or blank token.
+    pub fn parse(token: impl Into<String>) -> Result<Self, InvalidValue> {
+        let token = token.into();
+        if token.trim().is_empty() {
+            return Err(InvalidValue {
+                kind: "failing_since token",
+                value: token,
+                reason: "empty",
+            });
+        }
+        Ok(Self(token))
+    }
+
+    /// The token's text, to hand back unchanged.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for FailingSince {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+/// Who holds the one sync lease (`tick_lease`, REQ-BDC-0722).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LeaseHolder {
+    /// The run holding it.
+    pub run_id: String,
+    /// The holder's process id.
+    pub pid: u32,
+    /// The holder's host name.
+    pub host: String,
+    /// When the lease expires: an expired lease may be taken over.
+    pub expires_at: Timestamp,
+}
+
+/// What a lease take found (REQ-BDC-0722).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(tag = "lease", rename_all = "snake_case")]
+pub enum LeaseTake {
+    /// The lease was free and is now held by the caller.
+    Taken,
+    /// An expired lease was taken over; its last holder.
+    TookOver(LeaseHolder),
+    /// A live lease is held by another run: nothing changed.
+    Held(LeaseHolder),
+}
+
+/// The built-in row's post-sync hook backoff state (`hook_state`, REQ-BDC-0727).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct HookState {
+    /// Consecutive failed hook calls; 0 after a success.
+    pub consecutive_failures: u32,
+    /// When the first of those failures happened.
+    pub first_failure_at: Option<Timestamp>,
+    /// The latest failure's error.
+    pub last_error: Option<String>,
+    /// The hook is not called before this instant (the backoff).
+    pub next_attempt_at: Option<Timestamp>,
 }
 
 /// The backend outage record (ADR-BDC-0005).

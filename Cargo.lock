@@ -137,6 +137,7 @@ dependencies = [
  "fs4",
  "rusqlite",
  "sc-beads",
+ "sc-cron",
  "serde_json",
  "tempfile",
 ]

@@ -110,7 +110,7 @@ fn test_resolve_closes_only_escalated_entries_and_unblocks_prune() {
     assert_eq!(
         entry.legacy_last_error().as_deref(),
         Some("precondition no longer holds | resolved by lead: set by hand"),
-        "the 0.1 rendering appends the note as bd_cache.py does"
+        "the 0.1 rendering appends the note as the v3 Python writer does"
     );
     assert_eq!(
         c.get(&id("b1"), None).unwrap().row.bead.status.as_deref(),

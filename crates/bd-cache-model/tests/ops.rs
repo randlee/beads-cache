@@ -40,7 +40,7 @@ fn empty_or_equals_metadata_keys_are_bad_args_for_a_new_write_only() {
         // so a journal from an earlier build drains instead of wedging.
         assert!(Op::parse("update", args).is_ok(), "{args}");
     }
-    for key in ["k", "a.b", "team-lead", "ns:key", "with space"] {
+    for key in ["k", "a.b", "lead-1", "ns:key", "with space"] {
         let args = serde_json::json!({"set_metadata": {key: "x"}}).to_string();
         assert_eq!(code("update", &args), "ok", "{key:?}");
     }
@@ -317,7 +317,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
     JournalEntry {
         seq: Seq::new(seq),
         idem_key: IdemKey::new(format!("k{seq}")).unwrap(),
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
         bead: id("b1"),
         op,
         precondition: Guards::default(),
@@ -331,6 +331,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
         announced_at: None,
         created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         applied_at: None,
+        first_offered_at: None,
     }
 }
 
@@ -470,7 +471,7 @@ fn resolve_notes_split_and_error_codes_parse() {
     let lead = sc_beads::testing::actor("lead");
     let note = resolve_note(&lead, "set by hand");
     assert_eq!(note, "resolved by lead: set by hand");
-    // bd_cache.py's text, with and without an earlier error: the round trip.
+    // the v3 Python writer's text, with and without an earlier error: the round trip.
     for error in ["BD_CACHE.PRECONDITION: status is open", ""] {
         let text = format!("{error} | {note}");
         let (got_error, got_note) = split_resolve_note(&text).unwrap();

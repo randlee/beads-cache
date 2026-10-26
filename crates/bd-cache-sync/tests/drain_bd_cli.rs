@@ -102,7 +102,7 @@ impl CliInvoker for Shared {
 }
 
 fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap()
+    ScopeId::new("x").unwrap()
 }
 
 #[test]
@@ -122,7 +122,10 @@ fn a_guarded_close_of_a_bead_gone_from_bd_escalates_not_found_without_retrying()
     let cli =
         BdCli::with_invoker(Box::new(Shared(Arc::clone(&inv)))).with_clock(Arc::clone(&dyn_clock));
     let store = FakeStore::new();
-    let config = CacheConfig::new(ProjectRef::local(None), vec![x()]);
+    let config = CacheConfig::new(
+        ProjectRef::local(None),
+        vec![bd_cache_model::Scope::legacy(x())],
+    );
     let mut c = Cache::new(
         config,
         store.clone(),

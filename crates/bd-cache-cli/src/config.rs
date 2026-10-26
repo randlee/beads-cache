@@ -24,7 +24,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use bd_cache_api::ApiError;
-use bd_cache_model::{ConfigError, RepoConfig, ScopeId, TickConfig};
+use bd_cache_model::{ConfigError, RepoConfig, TickConfig};
 use bd_cache_store::{
     BEADS_DIR_ENV, BeadsDirOverride, CacheLocation, ConfigLoadError, DEFAULT_CACHE_DIR,
     REPO_CONFIG_FILE, beads_dir,
@@ -214,10 +214,11 @@ fn read_toml(repo: &Path) -> Result<RepoConfig, ApiError> {
         .try_into()
         .map_err(|e: toml::de::Error| parse(e.to_string()))?;
     config.validate().map_err(|e| parse(e.detail))?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.configured_scopes() {
         return Err(load_error(&ConfigLoadError::Scope {
             path,
-            value: bad.clone(),
+            value: bad.value,
+            reason: bad.reason,
         }));
     }
     Ok(config)
@@ -303,10 +304,10 @@ fn validate(config: &RepoConfig) -> Result<(), ApiError> {
         ApiError::config_invalid(SOURCE_ENV, e.to_string(), Map::new())
             .with_suggested_action("give each timeout and max_attempts a value of at least 1")
     })?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
+    if let Err(bad) = config.configured_scopes() {
         return Err(ApiError::config_invalid(
             SOURCE_ENV,
-            format!("scope {bad:?} is not a phase name"),
+            format!("scope {:?} is invalid: {}", bad.value, bad.reason),
             details(&[("key", json!("scopes"))]),
         ));
     }

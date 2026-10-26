@@ -15,9 +15,9 @@
     {
       "name": "default exclusions",
       "command": "issues list",
-      "request": {"scope": "phase-x"},
+      "request": {"scope": "x"},
       "expect": {"ok": true, "data": {"items": [{"id": "o1"}, {"id": "o2"}], "has_more": false, "next_cursor": "$absent",
-        "x_cache": {"scope": "phase-x", "last_ok_at": "2026-10-23T10:00:00.000Z", "outage": null,
+        "x_cache": {"scope": "x", "last_ok_at": "2026-10-23T10:00:00.000Z", "outage": null,
           "rows": {"o1": {"stale": false, "blocked_by": "$any"}, "o2": {"stale": false, "blocked_by": "$any"}}}}}
     },
     {
@@ -36,19 +36,19 @@
       "name": "a scope is required",
       "command": "issues list",
       "request": {},
-      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "kind": "conflict", "details": {"known": ["phase-x"]}}}
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "kind": "conflict", "details": {"known": ["x"]}}}
     },
     {
       "name": "a scope the cache does not know",
       "command": "issues list",
-      "request": {"scope": "phase-y"},
-      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["phase-x"]}}}
+      "request": {"scope": "y"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["x"]}}}
     },
     {
       "name": "a phase label selects the scope",
       "command": "issues list",
       "request": {"label": ["phase-x"]},
-      "expect": {"ok": true, "data": {"items": [{"id": "o1"}, {"id": "o2"}], "x_cache": {"scope": "phase-x"}}}
+      "expect": {"ok": true, "data": {"items": [{"id": "o1"}, {"id": "o2"}], "x_cache": {"scope": "x"}}}
     },
     {
       "name": "every label still filters",

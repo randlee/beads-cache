@@ -20,7 +20,9 @@ fn synced_labels(w: &World) -> Vec<String> {
     w.bd.calls()
         .into_iter()
         .filter_map(|c| match c {
-            FakeCall::ListScope { label, .. } => Some(label),
+            FakeCall::ListScope { filter, .. } => {
+                filter.labels_all().first().map(|l| (*l).to_owned())
+            }
             _ => None,
         })
         .collect()
@@ -40,7 +42,7 @@ fn test_tick_syncs_only_phases_with_an_open_root() {
     let reply = w.tick(&mut cache);
 
     assert_eq!(reply.outcome, TickOutcome::PassThrough, "{reply:?}");
-    assert_eq!(reply.active, [scope("x").phase_name().clone()]);
+    assert_eq!(reply.active, [scope("x").scope_name().clone()]);
     assert_eq!(synced_labels(&w), ["phase-x"], "only x is synced");
     assert!(cache.get(&id("bx"), None).is_ok());
     assert_eq!(reply.synced.len(), 1);
@@ -112,7 +114,7 @@ fn a_root_that_bd_does_not_know_is_no_open_root_and_is_reported() {
         synced_labels(&w).is_empty(),
         "no sync of an unknown root's phase"
     );
-    assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
+    assert_eq!(reply.unreadable_roots, [scope("z").scope_name().clone()]);
     // A root bd answered without has its own refusal (RBP-F039); the phase
     // stays unknown, so the schedule goes on (S23).
     let not_returned: Vec<_> = reply
@@ -146,7 +148,7 @@ fn test_custom_phases_limits_sync_and_stop() {
     let mut only_y = w.config();
     only_y.phases = Some(vec!["y".into()]);
     let reply = w.tick_with(&mut cache, &only_y);
-    assert_eq!(reply.active, [scope("y").phase_name().clone()]);
+    assert_eq!(reply.active, [scope("y").scope_name().clone()]);
     assert_eq!(synced_labels(&w), ["phase-y"], "x is not synced");
 
     // The stop rule honours the same list: x is open, but the list names only z,
@@ -241,7 +243,7 @@ fn an_unreadable_phases_directory_is_refused_and_the_journal_still_drains() {
     w.tick(&mut cache);
     w.add("b1", Some("x"), |_| {});
     cache
-        .sync(&scope("x"), w.after(std::time::Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(std::time::Duration::from_secs(20)))
         .unwrap();
     let seq = w.journal_close(&mut cache, "b1", "k1");
 
@@ -367,10 +369,10 @@ fn every_configured_phase_is_read_from_a_directory_over_the_file_cap() {
             format!("root = \"r{i}\"\n"),
         )
         .unwrap();
-        names.push(bd_cache_model::PhaseName::new(format!("p{i}")).unwrap());
+        names.push(bd_cache_model::ScopeName::new(format!("p{i}")).unwrap());
     }
     // One configured phase has no file.
-    names.push(bd_cache_model::PhaseName::new("absent").unwrap());
+    names.push(bd_cache_model::ScopeName::new("absent").unwrap());
 
     let set = bd_cache_sync::load_phases(dir.path(), Some(&names)).unwrap();
 
@@ -566,7 +568,7 @@ fn a_root_with_two_phase_labels_is_trusted_only_after_its_own_phase_syncs() {
     let mut cache = w.cache();
     // Phase a syncs and caches the root (open); phase x never synced.
     cache
-        .sync(&scope("a"), w.after(std::time::Duration::from_secs(20)))
+        .sync_legacy(&scope("a"), w.after(std::time::Duration::from_secs(20)))
         .unwrap();
     assert!(
         cache

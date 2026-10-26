@@ -68,7 +68,9 @@ fn cached_root<S: CacheStore, L: DrainLock, B: CacheBackend>(
         return Ok(Cached::Unknown);
     };
     let scope = phase.scope();
-    if scope.holds(&reply.row.bead) && cache.scope_synced(&scope)? {
+    if bd_cache_model::Scope::legacy(scope.clone()).holds(&reply.row.bead)
+        && cache.scope_synced(&scope)?
+    {
         return Ok(Cached::Known {
             closed: is_closed(reply.row.bead.status.as_deref()),
         });
@@ -168,7 +170,7 @@ mod tests {
 
     use super::*;
     use crate::phases::MemberName;
-    use bd_cache_model::PhaseName;
+    use bd_cache_model::ScopeName;
 
     /// A stop that is already set does not start the `bd list --id` of the
     /// uncached roots (QA4-006); without it the root is read.
@@ -186,7 +188,7 @@ mod tests {
         )
         .unwrap();
         let phase = Phase {
-            name: PhaseName::new("x").unwrap(),
+            name: ScopeName::new("x").unwrap(),
             root: id("rx"),
             lead: Some(MemberName::new("lead-x").unwrap()),
         };

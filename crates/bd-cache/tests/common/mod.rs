@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, ScopeId};
+use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
 
@@ -33,10 +33,16 @@ pub const SCHEMA_TEXT: &str =
 /// Where the [`World`] clock starts.
 pub const START: &str = "2026-10-23T10:00:00Z";
 
-/// The `phase-x` scope.
+/// The phase-a scope `x`: the beads labelled `phase-x`.
 #[must_use]
 pub fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap_or_else(|e| panic!("{e}"))
+    ScopeId::new("x").unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// The phase-a scope `x` as the registry holds it (no stored filter).
+#[must_use]
+pub fn sx() -> Scope {
+    Scope::legacy(x())
 }
 
 /// A bead id.
@@ -79,7 +85,7 @@ impl World {
             clock,
             store: FakeStore::new(),
             lock: FakeDrainLock::new(),
-            config: CacheConfig::new(ProjectRef::local(None), vec![x()]),
+            config: CacheConfig::new(ProjectRef::local(None), vec![sx()]),
         }
     }
 

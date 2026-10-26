@@ -22,9 +22,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use bd_cache_model::{
-    BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry,
-    NewEntry, OpenWork, Outage, PruneReport, ReadyBase, ScopeId, Seq, StoreStatus, SyncState,
-    UpsertReport,
+    BaseEntry, CacheError, CacheStore, FailingSince, FingerprintOutcome, Freshness, HookState,
+    IdemKey, IngestSnapshot, JournalEntry, LeaseHolder, LeaseTake, NewEntry, OpenWork, Outage,
+    PruneReport, ReadyBase, Scope, ScopeId, Seq, StoreStatus, SyncState, UpsertReport,
 };
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
@@ -88,11 +88,70 @@ impl<S> Counting<S> {
 }
 
 impl<S: CacheStore> CacheStore for Counting<S> {
-    fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError> {
+    fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
         self.inner.ensure_scope(s)
     }
-    fn scopes(&self) -> Result<Vec<ScopeId>, CacheError> {
+    fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.put_scope(s)
+    }
+    fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.scope_add(s)
+    }
+    fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.scope_set(s)
+    }
+    fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        self.inner.scope_remove(s)
+    }
+    fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
+        let r = self.inner.scope(s);
+        self.add(0);
+        r
+    }
+    fn scopes(&self) -> Result<Vec<Scope>, CacheError> {
         self.counted(self.inner.scopes())
+    }
+    fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
+        self.inner.scope_revision(s)
+    }
+    fn ingest_scope(
+        &mut self,
+        s: &Scope,
+        snapshot: &IngestSnapshot,
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        self.inner.ingest_scope(s, snapshot, ready, at, revision)
+    }
+    fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError> {
+        self.inner.scope_announce(s, since)
+    }
+    fn mark_offered(&mut self, seqs: &[Seq], at: &Timestamp) -> Result<(), CacheError> {
+        self.inner.mark_offered(seqs, at)
+    }
+    fn lease_take(&mut self, h: &LeaseHolder, now: &Timestamp) -> Result<LeaseTake, CacheError> {
+        self.inner.lease_take(h, now)
+    }
+    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+        self.inner.lease_release(run_id)
+    }
+    fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
+        self.inner.lease()
+    }
+    fn hook_state(&self) -> Result<HookState, CacheError> {
+        self.inner.hook_state()
+    }
+    fn hook_failed(
+        &mut self,
+        err: &str,
+        at: &Timestamp,
+        next: Option<&Timestamp>,
+    ) -> Result<HookState, CacheError> {
+        self.inner.hook_failed(err, at, next)
+    }
+    fn hook_succeeded(&mut self) -> Result<(), CacheError> {
+        self.inner.hook_succeeded()
     }
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
         let r = self.inner.get_row(id);
@@ -106,7 +165,7 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {

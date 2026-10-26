@@ -92,7 +92,7 @@ fn an_escalation_is_marked_with_the_time_left_before_t() {
     w.add("b1", Some("x"), |_| {});
     let (mut cache, recorded) = recording_cache(&w);
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     cache
         .write(
@@ -140,7 +140,7 @@ fn an_outage_alert_is_recorded_with_the_time_left_before_t() {
     w.phase("x", Some("lead-x"));
     let (mut cache, recorded) = recording_cache(&w);
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     w.switch.set_down(true);
 
@@ -160,7 +160,7 @@ fn an_unannounced_escalation(w: &World, cache: &mut WaitCache) {
     w.phase("x", Some("lead-x"));
     w.add("b1", Some("x"), |_| {});
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     cache
         .write(
@@ -298,7 +298,7 @@ fn a_failed_outage_alert_write_fails_the_tick_and_the_next_tick_sends_again() {
     let (mut cache, _, fail_next) = armable_cache(&w);
     for s in ["x", "y"] {
         cache
-            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .sync_legacy(&scope(s), w.after(Duration::from_secs(20)))
             .unwrap();
     }
     w.switch.set_down(true);
@@ -335,7 +335,7 @@ fn a_failed_outage_over_clear_does_not_fail_the_tick_and_the_next_tick_clears_it
     w.phase("x", Some("lead-x"));
     let (mut cache, _, fail_next) = armable_cache(&w);
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     w.switch.set_down(true);
     tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
@@ -398,7 +398,7 @@ fn an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it() {
     w.phase("x", Some("lead-x"));
     let (mut cache, recorded) = recording_cache(&w);
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     w.switch.set_down(true);
     tick(&mut cache, &w.config(), &*w.sender, w.after(TICK_BUDGET)).unwrap();
@@ -410,7 +410,7 @@ fn an_outage_over_clear_is_not_started_after_t_and_the_next_tick_clears_it() {
     w.switch.set_down(false);
     // A list that answers ends the outage; the alert is the tick's to clear.
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     assert!(cache.status().unwrap().store.outage.is_none());
     recorded.lock().unwrap().clear();

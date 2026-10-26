@@ -1,6 +1,6 @@
 //! `Entry`: one journal entry in the api's vocabulary (contract §6).
 
-use bd_cache_model::{JournalEntry, ScopeId};
+use bd_cache_model::JournalEntry;
 use sc_beads::BeadId;
 use serde::Serialize;
 use serde_json::Value;
@@ -58,7 +58,7 @@ impl Entry {
         Self {
             seq: e.seq.get(),
             idempotency_key: e.idem_key.as_str().to_owned(),
-            scope: e.scope.as_ref().map(ScopeId::label),
+            scope: e.scope.as_ref().map(|s| s.name().to_owned()),
             bead: e.bead.clone(),
             op: e.op.name(),
             args: entry_args(&e.op, &e.bead),

@@ -165,7 +165,7 @@ fn a_guard_miss_escalates_at_flush() {
         "the drain's guard check, not bd, refused it: {e}"
     );
     assert_eq!(e["actor"], "dev");
-    assert_eq!(e["scope"], "phase-x");
+    assert_eq!(e["scope"], "x");
     assert_eq!(flush["applied"], json!([]));
     escalated_with(&repo, g, "BD_CACHE.PRECONDITION");
     let b1 = repo.scenario();
@@ -281,7 +281,7 @@ fn a_refused_close_escalates_at_flush() {
     );
     assert_eq!(e["reason"]["code"], "BD_CACHE.PRECONDITION", "{e}");
     assert_eq!(e["actor"], "dev");
-    assert_eq!(e["scope"], "phase-x");
+    assert_eq!(e["scope"], "x");
     assert_eq!(
         flush["applied"],
         json!([u]),
@@ -306,11 +306,13 @@ fn a_refused_close_escalates_at_flush() {
 #[test]
 fn a_partial_refresh_scopes() {
     let mut scenario = two_beads();
+    // `y` is not configured: a refresh registers it on demand as the label
+    // scope with that one label (REQ-BDC-0909 as amended by ADR-BDC-0013).
     let mut y = labelled("y-1");
-    y.labels = vec!["phase-y".to_owned()];
+    y.labels = vec!["y".to_owned()];
     scenario.rows.push(y);
     scenario.faults = Faults {
-        fail_labels: vec!["phase-y".to_owned()],
+        fail_labels: vec!["y".to_owned()],
         ..Faults::default()
     };
     let repo = TestRepo::new(&scenario);
@@ -328,7 +330,7 @@ fn a_partial_refresh_scopes() {
             .iter()
             .map(|r| r["scope"].as_str().unwrap())
             .collect();
-        let want: Vec<String> = order.iter().map(|s| format!("phase-{s}")).collect();
+        let want: Vec<String> = order.iter().map(|s| (*s).to_owned()).collect();
         assert_eq!(scopes, want, "request order");
         let bad = &data["results"][failing];
         assert!(!bad["error"].is_null() && bad["report"].is_null(), "{data}");

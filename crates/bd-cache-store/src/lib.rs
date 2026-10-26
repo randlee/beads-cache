@@ -1,7 +1,7 @@
 //! The bd-cache SQLite store: [`SqliteStore`] ([`CacheStore`]) and [`FlockDrainLock`] ([`DrainLock`]).
 //!
 //! The store keeps the cache in one SQLite file per dolt database, the file
-//! BD-CACHE v3's `bd_cache.py` uses, so either implementation reads what the
+//! the BD-CACHE v3 Python writer uses, so either implementation reads what the
 //! other wrote (REQ-BDC-0804). The v3 tables are kept unchanged; the
 //! extensions are additive tables and nullable columns only, at
 //! `user_version` 3 (ADR-STORE-0001 in `docs/bd-cache-store/architecture.md`):
@@ -28,12 +28,12 @@
 //! std::fs::create_dir_all(root.join(".beads"))?;
 //! std::fs::write(
 //!     root.join(".beads").join("metadata.json"),
-//!     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+//!     r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
 //! )?;
 //! let config = load_repo_config(root)?;
 //! // `None`: no `$BEADS_DIR`, whatever the environment holds (S36).
 //! let store = SqliteStore::open_with(root, &config, None)?;
-//! assert!(store.path().ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
+//! assert!(store.path().ends_with(std::path::Path::new(".bd-cache").join("dev.bd-cache.sqlite3")));
 //! let lock = store.drain_lock();
 //! let guard = lock.try_acquire()?;
 //! assert!(guard.is_some() && lock.try_acquire()?.is_none());
@@ -49,6 +49,7 @@ mod error;
 mod location;
 mod lock;
 mod registry;
+mod schedule;
 mod schema;
 mod store;
 
@@ -63,9 +64,12 @@ pub use location::{
 #[doc(inline)]
 pub use lock::FlockDrainLock;
 #[doc(inline)]
+pub use schedule::CacheScheduleStore;
+#[doc(inline)]
 pub use schema::{
     APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
-    HAS_ENTRIES_SINCE_UNHINTED_SQL, SCHEMA_VERSION,
+    HAS_ENTRIES_SINCE_UNHINTED_SQL, SC_CRON_SCHEDULE_VERSION, SC_CRON_SCHEDULE_VERSION_KEY,
+    SCHEMA_VERSION,
 };
 #[doc(inline)]
 pub use store::{BUSY_TIMEOUT, READ_DATING_THRESHOLD, SqliteStore};

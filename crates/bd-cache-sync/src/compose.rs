@@ -528,7 +528,9 @@ mod tests {
         assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
         assert_eq!(
             composed.cache.config().scopes,
-            [bd_cache_model::ScopeId::phase("bk").unwrap()]
+            [bd_cache_model::Scope::legacy(
+                bd_cache_model::ScopeId::new("bk").unwrap()
+            )]
         );
         assert_eq!(
             composed.tick.phases_dir.as_deref(),
@@ -574,7 +576,9 @@ mod tests {
         assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
         assert_eq!(
             composed.cache.config().scopes,
-            [bd_cache_model::ScopeId::phase("bk").unwrap()]
+            [bd_cache_model::Scope::legacy(
+                bd_cache_model::ScopeId::new("bk").unwrap()
+            )]
         );
     }
 

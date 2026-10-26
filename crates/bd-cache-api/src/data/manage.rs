@@ -61,7 +61,7 @@ pub struct JournalCountsData {
 /// A Scope (`cache scopes`, `cache status`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScopeData {
-    /// The scope, e.g. `phase-bk`.
+    /// The scope's name, e.g. `bk` (ADR-BDC-0013).
     pub scope: String,
     /// Listed in the configuration.
     pub configured: bool,

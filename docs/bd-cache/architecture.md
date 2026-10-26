@@ -111,3 +111,27 @@ helpers are then used by a-5's code, and CI's default-feature
 
 Consequences: the "allowed to be unused until a-5 and a-6 call them" sentence
 above no longer applies once a-5 merges.
+
+## Implementation notes (sprint b-7)
+
+- Scopes are named bd filters (ADR-BDC-0013). `Cache::new` writes the configured scopes to
+  the registry (the file wins); `scopes_add`, `scopes_set` and `scopes_remove` manage the
+  others and refuse a file scope with `CONFIG_INVALID` (`scopes.rs`). `sync(name)` takes the
+  name as written and registers an unknown one on demand as the label scope with that label;
+  `sync_legacy` and `legacy_scope` are the 0.1 paths, where `x` and the legacy-prefixed `x`
+  mean the phase-a scope `x` and never a filter scope of that name (REQ-BDC-0812).
+- A sync lists the scope's filter (`Scope::backend_filter`), checks every row against it
+  (`selects`), and stores bd's ready and blocked answers intersected with the scope's members
+  (`ready::store_base`, ADR-BDC-0002 as amended). Its result sets the failure state
+  (`SyncState::record_result`): a failure or an outage sets `failing_since`, an ok clears it;
+  an outage is recorded per scope with its error (REQ-BDC-0728, 0729).
+- `ingest_scope` (`ingest.rs`) stores a checked `IngestSnapshot` with no bd call: an
+  unregistered scope is `SCOPE_UNKNOWN`, an empty snapshot `INGEST_INVALID` unless allowed,
+  and the ready ids are the open, unblocked, undeferred rows (REQ-BDC-0726).
+- The store-side calls of the lease, the hook state, `scope_announce` and `mark_offered` are
+  passthroughs for the sync crate (REQ-BDC-0722, 0727, 0728); their guards and backoff are
+  sprint b-8's.
+- Tests: `scope_filters.rs` (`sync_label_filter_scope`, `sync_all_scope`, the status
+  criterion, on-demand registration, the file-wins and 0.1 rules), `ingest.rs` (each Ingest
+  rule and the built-in snapshot regression), `failure_state.rs` (one test per
+  `failing_since` transition, compare-and-set marking, reads during an outage).

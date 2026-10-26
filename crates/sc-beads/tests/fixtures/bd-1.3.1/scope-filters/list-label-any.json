@@ -1,0 +1,60 @@
+[
+  {
+    "id": "sf-j91",
+    "title": "e: task area-x team-y closed",
+    "status": "closed",
+    "priority": 2,
+    "issue_type": "task",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-26T04:31:11Z",
+    "created_by": "recorder",
+    "updated_at": "2026-10-26T04:31:13Z",
+    "closed_at": "2026-10-26T04:31:13Z",
+    "close_reason": "done",
+    "labels": [
+      "area-x",
+      "team-y"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "sf-40r",
+    "title": "c: task team-y dev in progress",
+    "status": "in_progress",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "dev",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-26T04:31:10Z",
+    "created_by": "recorder",
+    "updated_at": "2026-10-26T04:31:13Z",
+    "started_at": "2026-10-26T04:31:13Z",
+    "labels": [
+      "team-y"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 0,
+    "comment_count": 0
+  },
+  {
+    "id": "sf-1vh",
+    "title": "a: task area-x team-y dev",
+    "status": "open",
+    "priority": 2,
+    "issue_type": "task",
+    "assignee": "dev",
+    "owner": "randlee@users.noreply.github.com",
+    "created_at": "2026-10-26T04:31:09Z",
+    "created_by": "recorder",
+    "updated_at": "2026-10-26T04:31:09Z",
+    "labels": [
+      "area-x",
+      "team-y"
+    ],
+    "dependency_count": 0,
+    "dependent_count": 1,
+    "comment_count": 0
+  }
+]

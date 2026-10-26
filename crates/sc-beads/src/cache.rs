@@ -427,21 +427,139 @@ pub struct Fingerprint {
     pub schema_version: String,
 }
 
-/// Which beads a scope list selects.
+/// Which beads a scope list selects (ADR-BDC-0013).
+///
+/// The backend's filter: it has no status criterion, because bd is never
+/// sent one (a scope list names all seven statuses, REQ-BDC-0501). The
+/// cache's validated scope filter converts into this one; this type takes
+/// its variants as given, and the backends refuse only an empty
+/// [`ScopeFilter::Criteria`] ([`ScopeFilter::validate`]), before any bd call.
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::ScopeFilter;
+/// let label = ScopeFilter::Label("area".into());
+/// assert_eq!(label.labels_all(), vec!["area"]);
+/// let any = ScopeFilter::Criteria {
+///     labels_all: vec![],
+///     labels_any: vec!["a".into(), "b".into()],
+///     issue_type: Some("bug".into()),
+///     assignee: None,
+/// };
+/// assert!(any.validate().is_ok());
+/// let empty = ScopeFilter::Criteria {
+///     labels_all: vec![],
+///     labels_any: vec![],
+///     issue_type: None,
+///     assignee: None,
+/// };
+/// assert!(empty.validate().is_err());
+/// assert!(ScopeFilter::All.validate().is_ok());
+/// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ScopeFilter {
-    /// Beads carrying this label (`bd list -l <label>`).
+    /// Beads carrying this label (`bd list -l <label>`): the same as
+    /// [`ScopeFilter::Criteria`] with `labels_all = [label]`.
     Label(String),
+    /// Every bead (`bd list --all`).
+    All,
+    /// Beads matching every given criterion (`bd list -l .. --label-any ..
+    /// -t .. -a ..`).
+    Criteria {
+        /// Labels a bead must all carry (`-l a,b`).
+        labels_all: Vec<String>,
+        /// Labels of which a bead must carry at least one (`--label-any c,d`).
+        labels_any: Vec<String>,
+        /// The issue type (`-t`).
+        issue_type: Option<String>,
+        /// The assignee (`-a`).
+        assignee: Option<String>,
+    },
 }
 
 impl ScopeFilter {
-    /// The label of a [`ScopeFilter::Label`].
+    /// The labels a bead must all carry: `[l]` for `Label(l)`, empty for `All`.
     #[must_use]
-    pub fn label(&self) -> &str {
+    pub fn labels_all(&self) -> Vec<&str> {
         match self {
-            Self::Label(l) => l,
+            Self::Label(l) => vec![l.as_str()],
+            Self::All => Vec::new(),
+            Self::Criteria { labels_all, .. } => labels_all.iter().map(String::as_str).collect(),
         }
+    }
+
+    /// The labels of which a bead must carry one; empty when there is no such criterion.
+    #[must_use]
+    pub fn labels_any(&self) -> Vec<&str> {
+        match self {
+            Self::Criteria { labels_any, .. } => labels_any.iter().map(String::as_str).collect(),
+            Self::Label(_) | Self::All => Vec::new(),
+        }
+    }
+
+    /// The issue type criterion.
+    #[must_use]
+    pub fn issue_type(&self) -> Option<&str> {
+        match self {
+            Self::Criteria { issue_type, .. } => issue_type.as_deref(),
+            Self::Label(_) | Self::All => None,
+        }
+    }
+
+    /// The assignee criterion.
+    #[must_use]
+    pub fn assignee(&self) -> Option<&str> {
+        match self {
+            Self::Criteria { assignee, .. } => assignee.as_deref(),
+            Self::Label(_) | Self::All => None,
+        }
+    }
+
+    /// Refuses a [`ScopeFilter::Criteria`] that sets no criterion, which bd
+    /// would answer with every bead (ADR-BDC-0013); every other value is
+    /// taken as given. Backends call it before any bd call.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty `Criteria`.
+    pub fn validate(&self) -> Result<(), InvalidValue> {
+        match self {
+            Self::Criteria {
+                labels_all,
+                labels_any,
+                issue_type: None,
+                assignee: None,
+            } if labels_all.is_empty() && labels_any.is_empty() => Err(InvalidValue {
+                kind: "scope filter",
+                value: String::new(),
+                reason: "a criteria filter sets no criterion",
+            }),
+            _ => Ok(()),
+        }
+    }
+
+    /// True when bd's list for this filter returns `row`, in any status: the
+    /// labels, type and assignee match (ADR-BDC-0013).
+    #[must_use]
+    pub fn selects(&self, row: &Bead) -> bool {
+        let typed = self
+            .issue_type()
+            .is_none_or(|t| row.issue_type.as_deref() == Some(t));
+        let assigned = self
+            .assignee()
+            .is_none_or(|a| row.assignee.as_deref() == Some(a));
+        self.selects_blocked(row) && typed && assigned
+    }
+
+    /// True when bd's blocked set for this filter can name `row`: the label
+    /// criteria only, since `bd blocked` takes no type or assignee flag.
+    #[must_use]
+    pub fn selects_blocked(&self, row: &Bead) -> bool {
+        let all = self.labels_all().iter().all(|l| row.has_label(l));
+        let any = self.labels_any();
+        all && (any.is_empty() || any.iter().any(|l| row.has_label(l)))
     }
 }
 
@@ -676,6 +794,9 @@ pub enum BeadsCacheError {
         /// The missing bead.
         bead: BeadId,
     },
+    /// The call was refused before any bd call because an argument is
+    /// invalid: an empty [`ScopeFilter::Criteria`] (ADR-BDC-0013).
+    Invalid(InvalidValue),
 }
 
 impl BeadsCacheError {
@@ -691,6 +812,7 @@ impl BeadsCacheError {
             Self::Btit(e) => e.code(),
             Self::Transport { .. } => "SC_BEADS_TRANSPORT",
             Self::NotFound { .. } => "SC_BEADS_NOT_FOUND",
+            Self::Invalid(_) => "SC_BEADS_INVALID",
         }
     }
 
@@ -759,6 +881,7 @@ impl fmt::Display for BeadsCacheError {
                 write!(f, "{what}: the output could not be read whole")
             }
             Self::NotFound { bead } => write!(f, "no bead {bead} in the backend"),
+            Self::Invalid(e) => write!(f, "refused before any bd call: {e}"),
         }
     }
 }
@@ -768,6 +891,7 @@ impl std::error::Error for BeadsCacheError {
         match self {
             Self::Btit(e) => Some(e),
             Self::Transport { source, .. } => Some(source),
+            Self::Invalid(e) => Some(e),
             _ => None,
         }
     }

@@ -18,7 +18,7 @@
       "request": {"id": "s1"},
       "expect": {"ok": true, "data": {"id": "s1", "status": "open", "assignee": "$absent", "revision": "$absent",
         "dependencies": [{"issue_id": "s1", "depends_on_id": "b1", "type": "blocks"}, {"issue_id": "s1", "depends_on_id": "b2", "type": "related"}],
-        "x_cache": {"scope": "phase-x", "last_ok_at": "2026-10-23T10:00:00.000Z", "outage": null, "pending": 0,
+        "x_cache": {"scope": "x", "last_ok_at": "2026-10-23T10:00:00.000Z", "outage": null, "pending": 0,
           "rows": {"s1": {"stale": false, "blocked_by": ["b1"]}}}}}
     },
     {
@@ -30,9 +30,9 @@
     {
       "name": "ready, in its stated order",
       "command": "ready",
-      "request": {"scope": "phase-x"},
+      "request": {"scope": "x"},
       "expect": {"ok": true, "data": {"items": [{"id": "b1"}, {"id": "b4"}, {"id": "b3"}, {"id": "b2"}], "has_more": false,
-        "x_cache": {"scope": "phase-x", "basis": {"kind": "cached", "fetched_at": "$any", "stale": false}, "locally_adjusted": false,
+        "x_cache": {"scope": "x", "basis": {"kind": "cached", "fetched_at": "$any", "stale": false}, "locally_adjusted": false,
           "read_fallback": null, "read_fallback_error": null, "missing_rows": [], "outage": null}}}
     },
     {
@@ -67,7 +67,7 @@
       "name": "cache scopes",
       "command": "cache scopes",
       "request": {},
-      "expect": {"ok": true, "data": {"scopes": [{"scope": "phase-x", "configured": true, "on_demand": false,
+      "expect": {"ok": true, "data": {"scopes": [{"scope": "x", "configured": true, "on_demand": false,
         "last_ok_at": "2026-10-23T10:00:00.000Z", "last_error": null, "alert": null, "beads": 5}]}}
     }
   ]

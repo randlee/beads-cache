@@ -328,6 +328,7 @@ impl CacheBackend for BdCli {
         since: Option<&SyncCursor>,
         d: Deadline,
     ) -> Result<Vec<Bead>, BeadsCacheError> {
+        f.validate().map_err(BeadsCacheError::Invalid)?;
         let stdout = self.run(p, &argv::list_scope(f, since), d)?;
         parse_bd_rows(&stdout)
     }
@@ -338,6 +339,7 @@ impl CacheBackend for BdCli {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BlockedRow>, BeadsCacheError> {
+        f.validate().map_err(BeadsCacheError::Invalid)?;
         let stdout = self.run(p, &argv::blocked(f), d)?;
         parse_blocked_rows(&stdout)
     }
@@ -348,6 +350,7 @@ impl CacheBackend for BdCli {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BeadId>, BeadsCacheError> {
+        f.validate().map_err(BeadsCacheError::Invalid)?;
         let stdout = self.run(p, &argv::ready(f), d)?;
         Ok(parse_bd_rows(&stdout)?.into_iter().map(|b| b.id).collect())
     }

@@ -28,7 +28,9 @@ fn world_with_entries(n: usize) -> (World, common::TestCache, Vec<bd_cache_model
     for i in 1..=n {
         w.add(&format!("b{i}"), Some("x"), |_| {});
     }
-    cache.sync(&scope("x"), w.after(20 * SECOND)).unwrap();
+    cache
+        .sync_legacy(&scope("x"), w.after(20 * SECOND))
+        .unwrap();
     for i in 1..=n {
         seqs.push(w.journal_close(&mut cache, &format!("b{i}"), &format!("k{i}")));
     }
@@ -59,7 +61,7 @@ fn test_tick_budget_defers_drain_entries() {
     }
     // The drain used the clock up to the hard deadline; the phase's sync was
     // then not started (T - 2 s has passed) and is reported deferred.
-    assert_eq!(reply.deferred, [scope("x").phase_name().clone()]);
+    assert_eq!(reply.deferred, [scope("x").scope_name().clone()]);
     assert!(reply.synced.is_empty());
     assert!(
         w.clock.elapsed().saturating_sub(start) <= TICK_BUDGET,
@@ -123,8 +125,12 @@ fn no_tick_exceeds_25_s_with_every_bd_call_timing_out() {
             w.add("b1", Some("x"), |_| {});
             let mut cache = w.cache();
             if cached_roots {
-                cache.sync(&scope("x"), w.after(20 * SECOND)).unwrap();
-                cache.sync(&scope("y"), w.after(20 * SECOND)).unwrap();
+                cache
+                    .sync_legacy(&scope("x"), w.after(20 * SECOND))
+                    .unwrap();
+                cache
+                    .sync_legacy(&scope("y"), w.after(20 * SECOND))
+                    .unwrap();
             }
             for i in 0..entries {
                 let bead = format!("e{i}");
