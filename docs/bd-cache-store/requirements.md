@@ -118,8 +118,12 @@ and WAL refused have none (ADR-STORE-0003). A type-conversion error rusqlite rai
 
 **Refines:** REQ-BDC-0105, 0109, 0405, 0502, 0504, 0601, 0602, 0604, 0901,
 0902, 0909, 0603 (store side)
-**Acceptance evidence:** the a-1 contract suite (`store_contract.rs`, 19
-rules, including `status_lists_stale_rows_until_reread`); `test_dependents_use_the_edge_index`,
+**Acceptance evidence:** the a-1 contract suite (`store_contract.rs`, 25
+rules, including `status_lists_stale_rows_until_reread` and b-1's
+`insert_entry_stores_changed`, `error_writes_store_the_code`,
+`journal_counts_rules`); `a_reader_never_sees_an_entry_without_its_changed`
+and `journal_counts_is_one_query_and_its_buckets_sum_to_the_total`
+(`store.rs` unit tests, sprint b-1); `test_dependents_use_the_edge_index`,
 `test_escalations_are_unannounced_until_marked`, `test_sync_alert_round_trip`,
 `test_pending_work_counts_as_open`,
 `pruning_a_scope_deletes_only_beads_no_other_scope_holds`,
@@ -159,6 +163,8 @@ extended file, the store reads consistent rows and memberships
 **Acceptance evidence:** `a_python_written_v3_file_opens_and_reads_back_equal`,
 `the_python_get_and_status_read_a_file_the_rust_store_wrote`,
 `after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows`
+(`compat.rs`); b-1's three journal columns both ways (ADR-STORE-0001,
+Amendment b-1): `python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`
 (`compat.rs`); `rows_another_implementation_wrote_belong_to_their_phase`,
 `a_python_row_written_while_open_is_read_by_its_phase` (`store.rs`).
 

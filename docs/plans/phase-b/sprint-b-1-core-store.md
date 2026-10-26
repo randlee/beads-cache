@@ -1,7 +1,7 @@
 ---
 id: b-1
 phase: b
-status: ready
+status: complete
 closure_type: boundary
 target_boundary: bd-cache, bd-cache-model, bd-cache-store
 track: core
@@ -47,7 +47,7 @@ pub struct WriteOutcome {
     pub before: RowView,       // the view before the write
     pub after: RowView,        // the view after the write (contract §5.3 "issue")
     pub duplicate: bool,
-    pub changed: bool,         // stored with the entry; on a duplicate, the stored value
+    pub changed: Option<bool>, // S68: Some(stored); Some(predicted) only for a Pending pre-b-1 entry with a stored row; None (unknown) otherwise
 }
 pub struct StateCounts { pub pending: u64, pub applied: u64, pub escalated: u64, pub resolved: u64 }
 pub struct JournalCounts {

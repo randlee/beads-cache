@@ -187,8 +187,9 @@ moving monotonic time.
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2); amended by b-6 (two
 codes added; the Python hook protocol is generic)
 
-`sc-cron` depends on no consumer crate (bd-cache and sc-beads included), and no
-consumer type appears in its API (*Amended by ADR-CRON-0009 (phase-B planning PR, sc-cron generality review)*). A schedule's input is an opaque `serde_json::Value`, and
+`sc-cron` depends on no bd-cache or sc-beads crate, and no beads, bd or
+bd-cache type appears in its API. *Amended by ADR-CRON-0009:* it depends on no
+consumer crate at all, and no consumer type appears in its API. A schedule's input is an opaque `serde_json::Value`, and
 every failure is a `CronError` with a stable `code()` (`BAD_EXPRESSION`,
 `INVALID_SPEC`, `ALREADY_ACTIVE`, `NOT_FOUND`, `HOOK_FAILED`, `STORE_FAILED`,
 `FENCED`) and `recovery()` text. The Python hook protocol (REQ-CRON-0013)
@@ -249,7 +250,16 @@ path of ASCII identifiers of at most 256 bytes, both checked once when
 `CronError::HookFailed` (`HOOK_FAILED`) from `PythonHook::invoke`, and a
 `Failed` outcome from the worker.
 
-**Refines:** ADR-CRON-0001, ADR-CRON-0008, ADR-CRON-0009; **constrained by:** REQ-CRON-0005,
+This runner is also the one `bd-cache-sync` (b-7) uses for the consumer's
+Python sync method and the post-sync hook, so the kill here is what enforces
+NFR-BDC-0004 for both.
+
+*Amended by ADR-CRON-0009:* `bd-cache-sync` (sprint b-8) runs the consumer's
+Python sync row through `PythonHook` and its post-sync hook through this crate's
+exported supervisor (REQ-CRON-0018); the kill described here still enforces
+NFR-BDC-0004 for both.
+
+**Refines:** ADR-CRON-0001, ADR-CRON-0008; **constrained by:** NFR-BDC-0004,
 REQ-CRON-0010 (time is injected), REQ-CRON-0011
 
 ## REQ-CRON-0016: A hook target per schedule row

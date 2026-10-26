@@ -75,6 +75,9 @@ the workspace-edge check cannot see.
 
 - Width: 3 in wave 1 (b-1, b-2, b-3a), 2 in wave 2 (b-3, b-4), 1 in wave 3.
 - Critical path: b-1 → b-3 → b-5.
+- Boundary amendment (2026-10-25): b-6 and b-8 run in parallel, b-7 follows b-6, and b-8 merges
+  last. Each sprint is gated by the plan anchors in `doc/plan/phase-current/anchors.json` on
+  develop. Finished sprints b-1..b-5 are excluded from anchors whose work moved to b-6..b-8.
 - b-2 codes against b-1's Public contract from day one. It merges to
   `integrate/phase-b` after b-1, and its write, journal and status
   operations are wired once b-1 has merged.

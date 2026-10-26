@@ -1,7 +1,7 @@
 ---
 id: b-3a
 phase: b
-status: ready
+status: complete
 closure_type: boundary
 target_boundary: bd-cache-cli skeleton and fake-bd
 track: cli

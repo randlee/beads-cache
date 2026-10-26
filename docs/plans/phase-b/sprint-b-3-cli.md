@@ -1,7 +1,7 @@
 ---
 id: b-3
 phase: b
-status: ready
+status: complete
 closure_type: integration
 target_boundary: bd-cache-cli
 track: cli

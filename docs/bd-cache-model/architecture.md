@@ -190,6 +190,37 @@ open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
 
+### ADR-MODEL-0003 amendment (sprint b-1): the journal fields, `journal_counts`, the 0.1 wire
+
+**Status:** Approved with the phase-b plan (contract §9, lead ruling S62, bc-lead, 2026-10-25)
+
+Decision:
+- `JournalEntry` gains `last_error_code` (the `CODE` of `last_error`,
+  `error_code_prefix`), `note` (the resolve note, `resolve_note`:
+  `resolved by <actor>: <note>`, which keeps the resolver, as the journal has
+  no column for it) and `changed` (`None` for an entry journaled without it).
+  `NewEntry` gains `changed`, stored by `insert_entry` in the same
+  transaction as the entry.
+- `resolve` stores `note` and leaves `last_error` as it was; it no longer
+  appends `" | resolved by <actor>: <note>"`.
+- `CacheStore::journal_counts` returns `JournalCounts {total, by_scope,
+  unscoped}` of `StateCounts`, one snapshot; its provided body derives the
+  counts from `status()`'s `phase:state` keys (so a scope named `None` reads
+  as unscoped there), and `FakeStore` and `SqliteStore` override it.
+- `GetReply.scope` is the bead's scope.
+- `WriteOutcome.changed` is `Option<bool>` (lead ruling S68): stored, else
+  predicted only for a pending entry, else `None`. `note` is `resolved by
+  <actor>: <note>` (S65).
+- The 0.1 wire is unchanged: `GetReply.scope` is `#[serde(skip)]`, and
+  `JournalEntry` serializes the same fourteen keys, with `last_error` as
+  `legacy_last_error()` (the error, `" | "`, the note), byte-identical to
+  what `bd_cache.py` stores. `WriteOutcome` is not serialized: `bd-cache-api`
+  has its own data model.
+
+Consequences: the 0.1 Python dicts keep their key sets
+(`the_new_fields_stay_out_of_the_0_1_wire_shapes`, `tests/goldens.rs`;
+`tests/test_key_sets.py` in bd-cache-py).
+
 ### ADR-MODEL-0003 amendment (a-1 amendment 1): status reports stale rows
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)

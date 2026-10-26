@@ -426,10 +426,10 @@ fail the whole call.
 **Status:** Approved (Rand's rulings, 2026-10-25)
 
 Context: the stop check could only end a schedule (`Stop(reason)`), and a
-schedule could only be ended or left running. A scheduler user may want a check
-that pauses a schedule without losing it, an enabled flag so a task can be
-switched off without rewriting its row (REQ-CRON-0014), and a stop hook that
-answers `continue`, `disable` or `delete` (REQ-CRON-0005).
+schedule could only be ended or left running. A consumer wants a check that
+pauses a schedule without losing it, and ANC-006 asks for an enabled flag so a
+task can be switched off without rewriting its row. ANC-007 asks for a stop
+hook that answers `continue`, `disable` or `delete`.
 
 Decision: `StopDecision` is `Continue`, `Disable(reason)` and `Delete(reason)`.
 `Disable` sets `enabled = 0` through the fenced `ScheduleStore::disable`, keeps
@@ -446,9 +446,14 @@ lost its reason is refused, not acted on. A stop check that cannot answer
 reply) is no decision: the run is skipped and the schedule left active and
 enabled, with `Failed` or `TimedOut` recorded.
 
-`StopDecision::Stop(reason)` was kept as an alias of `Delete(reason)` while a
-caller still used it. *Amended by ADR-CRON-0009 (phase-B planning PR, sc-cron generality review)*: the alias is removed (sprint b-8); sc-cron
-is an unpublished prototype, so the removal needs no deprecation period.
+`StopDecision::Stop(reason)` is kept as an alias of `Delete(reason)`. Its one
+caller outside this crate, `bd-cache-sync`'s stop rule, is owned by sprint b-7,
+which removes that rule; keeping the alias lets the workspace build between b-6
+and b-7. It is to be deleted when no caller is left.
+
+*Amended by ADR-CRON-0009:* the last caller moved to sprint b-8, which removes
+the alias together with it; sc-cron is an unpublished prototype, so the removal
+needs no deprecation period.
 
 Consequences: a disabled schedule is not asked its stop check again until it is
 enabled. A job that wants a time limit still checks it in the payload
@@ -458,9 +463,10 @@ enabled. A job that wants a time limit still checks it in the payload
 
 **Status:** Approved (Rand's rulings, 2026-10-25)
 
-Context: sc-cron must stay general (REQ-CRON-0011), yet a schedule should be
-able to run a child process instead of a Rust `Job`, with every call killed at
-its timeout (REQ-CRON-0005). `forbid(unsafe_code)` is set
+Context: sc-cron must stay general (ANC-005, REQ-CRON-0011), yet a schedule
+should be able to run a Python module instead of a Rust `Job`, and b-7 needs
+one runner for the consumer's Python sync method and the post-sync hook with
+every call killed at its timeout (NFR-BDC-0004). `forbid(unsafe_code)` is set
 for the crate, and the kill must reach processes the hook starts.
 
 Decision:
@@ -471,9 +477,8 @@ Decision:
   the worker, not stored in the row: a Rust closure cannot be stored, and the
   row stays the opaque spec of ADR-CRON-0001. A caller that wants a row per
   target keeps the choice in its payload.
-- A Python target runs `<interpreter> -I -m <module>` (`-I` makes Python ignore the `PYTHON*` variables, the user site directory and
-  the working directory on `sys.path`; it does not clear the environment, which
-  the child inherits) from a new
+- A Python target runs `<interpreter> -I -m <module>` (`-I` isolates it from the
+  caller's environment, user site and the working directory) from a new
   temporary directory per call, with one JSON object on stdin
   (`protocol`, `event`, `schedule`, `payload`, `deadline`) and the events
   `cron.stop` and `cron.tick`. No name in the protocol is beads-specific. The

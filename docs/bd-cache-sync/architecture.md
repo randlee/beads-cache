@@ -20,7 +20,7 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `control` | `StopFlag` and the tick's time budget for messages |
 | `job` | `SyncJob` (the `sc-cron` `Job`; `with_recompose`, `join_idle`), `TickRun`, `CacheLost`, `JobCacheError`, `schedule_spec`, `TICK_EXPR` |
 | messaging module (the `src/` file whose path the lint flags) | the consumer's message sender: the consumer's send command with the body on stdin, bounded, the whole process tree killed on timeout or stop |
-| `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose` builds every `BdCli` over one process-wide `ProjectLocks` (a `OnceLock` static, as `bd-cache-py` keeps its own; S54, PE-RSH-003) and `compose_with` takes the lock set as an `Arc<ProjectLocks>` and the backend as a function of it, so a host shares its own set; a repository root that is not UTF-8 is `ComposeError::RepoRootNotUtf8` (`sync_repo_root_not_utf8`), never a lossy `ProjectRef`; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir(BeadsDirError)` (`sync_beads_dir_unresolvable`; the store's error whole, its `Display` and `source`, the `io::Error`, delegated: RBP-F050) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
+| `compose` | `compose` / `compose_with` / `compose_with_config` / `compose_with_config_and_backend` (the last two take a merged `RepoConfig` and do not read `.beads/bd-cache.toml`; the last also takes the caller's backend and lock set, for bdc's injected invoker, S72): the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose` builds every `BdCli` over one process-wide `ProjectLocks` (a `OnceLock` static, as `bd-cache-py` keeps its own; S54, PE-RSH-003) and `compose_with` takes the lock set as an `Arc<ProjectLocks>` and the backend as a function of it, so a host shares its own set; a repository root that is not UTF-8 is `ComposeError::RepoRootNotUtf8` (`sync_repo_root_not_utf8`), never a lossy `ProjectRef`; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir(BeadsDirError)` (`sync_beads_dir_unresolvable`; the store's error whole, its `Display` and `source`, the `io::Error`, delegated: RBP-F050) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
 
@@ -350,6 +350,18 @@ holds the cache mutex; the file's type is then checked on the opened handle.
 No `libc` function is called, so the crate still has no `unsafe`. The
 Crate Layout row of `docs/architecture.md` lists it (ARCH-303). This closes
 ARCH-301.
+
+Amendment (phase-end fixes RSH-002, RSH-003; **Status:** Approved (bc-lead,
+2026-10-25)): on Unix the `atm` process group is killed with
+`sc_bd_cli::process_group::kill` (`kill(-pgid, SIGKILL)` in sc-bd-cli's safe
+wrapper) instead of the `kill` program, which a minimal image may lack or be
+unable to start; Windows keeps `taskkill /T`. The `unsafe` stays in sc-bd-cli,
+so this crate still has none. `AtmSender::resolve` searches the absolute
+directories of `PATH` only (`sc_bd_cli::path::absolute_path_entries`, lead
+rulings S76 and S77): an empty or relative segment would find an `atm`
+committed in the working directory. Tests (`tests/atm_process.rs`):
+`the_tree_kill_needs_no_kill_program`,
+`a_relative_path_segment_never_runs_an_atm_in_the_cwd`.
 
 Consequences: a new dependency is a change to this ADR.
 

@@ -24,7 +24,7 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped; amended by sprint b-1 (contract §9, lead ruling S62: `journal.last_error_code`, `journal.note`, `journal.changed`; see "Amendment b-1" below)
 
 Context: the file is shared with the baseline Python implementation (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
@@ -51,6 +51,9 @@ ALTER TABLE beads ADD COLUMN membership_known INTEGER;   -- ADR-STORE-0002
 ALTER TABLE beads ADD COLUMN revision TEXT;              -- ADR-BDC-0004
 ALTER TABLE journal ADD COLUMN applied_at TEXT;          -- set by apply_with_readback
 ALTER TABLE journal ADD COLUMN applied_epoch INTEGER;    -- ADR-STORE-0004: Unix seconds of applied_at
+ALTER TABLE journal ADD COLUMN last_error_code TEXT;     -- b-1: the CODE of last_error
+ALTER TABLE journal ADD COLUMN note TEXT;                -- b-1: the resolve note
+ALTER TABLE journal ADD COLUMN changed INTEGER;          -- b-1 (S62): 1 / 0, stored with the entry
 ALTER TABLE sync_state ADD COLUMN backend_kind TEXT;     -- ADR-BDC-0004
 ALTER TABLE sync_state ADD COLUMN endpoint TEXT;
 ALTER TABLE sync_state ADD COLUMN replica_id TEXT;
@@ -82,6 +85,33 @@ Consequences: the baseline Python implementation opens the extended file (its `C
 EXISTS` and column-named inserts ignore the additions) and its `status`
 shows the extra `sync_state` columns. A later version change is an explicit
 migration command, never done on open.
+
+### Amendment b-1: `last_error_code`, `note`, `changed`
+
+Context: the contract's front ends (contract §5.3, §6, §9) answer a write
+with `changed` and an entry with `last_error` as an error object and the
+resolve note apart, and a duplicate must answer the `changed` of the
+original write (REQ-BDC-0809, lead ruling S62).
+
+Decision: three nullable journal columns, created on open when absent;
+`user_version` stays 3 and no v3 column changes meaning for `bd_cache.py`.
+
+| Column | Written by this store | When NULL (or stale) on read |
+|---|---|---|
+| `changed` | `insert_entry`, in the same `INSERT` as the entry (one transaction): 1 / 0 | `None` (an entry `bd_cache.py` journaled) |
+| `last_error_code` | with every `last_error` it writes (`record_attempt`, `escalate`, `apply_with_readback`): the text's `CODE: ` prefix, NULL when it has none | the code of `last_error`'s `CODE: ` prefix. A stored code is used only while `last_error` still starts with `<code>: `, since `bd_cache.py` rewrites `last_error` without it |
+| `note` | `resolve`: `resolved by <actor>: <note>`; `last_error` is left as it was (it no longer gets the note appended) | on a resolved entry, a trailing `" \| resolved by <actor>: <note>"` of `last_error` (what `bd_cache.py`'s resolve appends) is split out into `note`, and the rest is `last_error` (`None` when empty) |
+
+The split is on read only: the stored text `bd_cache.py` wrote is never
+rewritten. The 0.1 Python `entry` dict renders `last_error` as before, the
+error then `" | "` and the note (`JournalEntry::legacy_last_error`), so its
+text is unchanged; `bd_cache.py` reading an entry this store resolved sees
+`last_error` without the note.
+
+Consequences: `bd_cache.py`'s column-named `INSERT` leaves `changed` NULL
+and its `_mark` leaves `last_error_code` stale, which the read rules cover;
+`tests/compat.rs` (`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`)
+runs both directions.
 
 ## ADR-STORE-0002: Sharing the file with the baseline Python implementation
 

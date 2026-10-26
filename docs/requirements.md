@@ -629,7 +629,7 @@ The `bd-cache` CLI, its JSON replies and exit codes are unchanged from the Pytho
 
 ## REQ-BDC-0807: One request vocabulary
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 The CLI, the Python bindings and the later MCP server decode every request through one `bd-cache-api` decoder, so the same input gives the same reply or the same error code on every front end. A `/v0` operation, parameter or member the cache does not serve is `BD_CACHE.UNSUPPORTED`; an unknown member is `BD_CACHE.BAD_ARGS`; neither is ignored.
 
@@ -637,7 +637,7 @@ The CLI, the Python bindings and the later MCP server decode every request throu
 
 ## REQ-BDC-0808: Stated order and paging
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Every list has a stated total order. `issues list` pages with an opaque keyset cursor; inside a known scope the default is no limit.
 
@@ -645,15 +645,21 @@ Every list has a stated total order. `issues list` pages with an opaque keyset c
 
 ## REQ-BDC-0809: A write reply names its journal entry
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 A journaled write returns its entry (`seq`, `state`, `duplicate`, idempotency key) and the views before and after it, all from one store transaction. `changed` is stored with the entry, and a duplicate returns the stored value.
 
 **Source:** contract §1 rule 4, §5.1, §9; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
+**Amendment (lead ruling S64, bc-lead, 2026-10-25):** the one store transaction covers the journal entry and its `changed`. `before` and `after` are snapshots read on either side of it, so `after` may already reflect a concurrent drain.
+
+**Amendment (lead ruling S65, bc-lead, 2026-10-25):** an entry's `note` is `resolved by <actor>: <note>`.
+
+**Amendment (lead ruling S68, bc-lead, 2026-10-25):** `changed` is unknown (`None`) for an entry stored without it (by `bd_cache.py`, or before the column existed) unless the entry is still pending, when it is predicted against the stored row with the earlier pending entries replayed. It is never guessed: `WriteOutcome.changed` is `Option<bool>`.
+
 ## REQ-BDC-0810: CLI configuration
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Each setting is resolved as flag, then `BD_CACHE__*` env, then `.beads/bd-cache.toml`, then the default. The bd binary is never read from TOML, `--format` is read from the flag only, there is no upward search, and the legacy cache file in the first consumer's own directory is refused as the contract states.
 
@@ -661,7 +667,7 @@ Each setting is resolved as flag, then `BD_CACHE__*` env, then `.beads/bd-cache.
 
 ## REQ-BDC-0811: Contract version
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `context`, `cache status`, `--version` and `bd_cache_rs.CONTRACT_VERSION` report the contract's semver version.
 
@@ -669,7 +675,7 @@ Each setting is resolved as flag, then `BD_CACHE__*` env, then `.beads/bd-cache.
 
 ## REQ-BDC-0812: Python 0.2 is additive
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, argument and dict is unchanged, and 0.2.x issues no `DeprecationWarning`.
 
@@ -677,7 +683,7 @@ Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, 
 
 ## REQ-BDC-0813: Binary distribution
 
-**Status:** Proposed (phase-b plan; approved when the plan PR merges)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `bd-cache` and `bdc` are released as binaries for Linux, macOS (arm and intel) and Windows: on the GitHub Release and through Homebrew, Scoop and WinGet. A GitHub prerelease carries them.
 
