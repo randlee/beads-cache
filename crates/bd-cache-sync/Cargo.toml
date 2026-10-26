@@ -9,6 +9,13 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[features]
+# The internals the integration tests drive directly (`run_builtin`,
+# `TickLease`, `PythonSyncJob`, `Budget`, `TrustedCacheFile`, ...): public only
+# with this feature, which the dev-dependency on this crate itself enables. No
+# dependent crate turns it on.
+testing = []
+
 [dependencies]
 bd-cache.workspace = true
 # The contract's requests and errors: bd-cache-sync runs the front-end verbs
@@ -35,6 +42,7 @@ tracing.workspace = true
 rustix = { workspace = true, features = ["std", "process"] }
 
 [dev-dependencies]
+bd-cache-sync = { path = ".", features = ["testing"] }
 # `bd_cache::testing::backend`: the S40 test reaches the composed backend.
 bd-cache = { workspace = true, features = ["testing"] }
 bd-cache-model = { workspace = true, features = ["testing"] }

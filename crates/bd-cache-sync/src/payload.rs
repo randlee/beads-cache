@@ -475,12 +475,14 @@ impl PythonPayload {
     /// The cache file the row was written for. A run never trusts it: the
     /// trust check and the script's `BD_CACHE_PATH` use the file the worker
     /// actually opened (REQ-BDC-0723).
+    #[cfg(feature = "testing")]
     #[must_use]
     pub fn cache_path(&self) -> &Path {
         &self.cache_path
     }
 
     /// The beads directory, when one is set.
+    #[cfg(feature = "testing")]
     #[must_use]
     pub fn beads_dir(&self) -> Option<&Path> {
         self.beads_dir.as_deref()

@@ -4,11 +4,7 @@
 //! subscriber can be set once.
 
 #![cfg(unix)]
-#![expect(
-    clippy::unwrap_used,
-    clippy::panic,
-    reason = "test code: a failed unwrap is a test failure"
-)]
+#![expect(clippy::unwrap_used, reason = "test code")]
 
 mod common;
 

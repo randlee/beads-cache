@@ -26,8 +26,7 @@ pub(crate) mod tick;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use bd_cache_api::{ApiError, CacheFacts, Command, Request, decode};
-use bd_cache_store::SCHEMA_VERSION;
+use bd_cache_api::{ApiError, Command, Request, decode};
 use bd_cache_sync::{ComposeError, Composed, FrontEnd, compose_with_config};
 use sc_bd_cli::CliInvoker;
 use sc_beads::Clock;
@@ -77,7 +76,7 @@ pub(crate) fn run(command: Command, request: &Value, ctx: Context<'_>) -> Result
     let settings = config::resolve(&ctx.flags, ctx.env)?;
     let mut composed = open(&settings, ctx.invoker, Arc::clone(&ctx.clock))?;
     if !command.is_front_end() {
-        let facts = facts(&settings);
+        let facts = composed.facts();
         return Ok(bd_cache_sync::execute_api(
             &composed.schedules,
             &mut composed.cache,
@@ -107,19 +106,6 @@ fn run_front_end(composed: Composed, req: &Request, signals: &Signals) -> Result
     ));
     rt.shutdown_timeout(runtime::ONE_SHOT_TEARDOWN);
     out
-}
-
-/// The facts of the cache file and `metadata.json` that `context` and
-/// `cache status` report (the api opens neither).
-fn facts(s: &Settings) -> CacheFacts {
-    CacheFacts {
-        cache_path: s.location.cache_path.display().to_string(),
-        store_schema_version: i64::from(SCHEMA_VERSION),
-        database: s.location.identity.dolt_database.as_str().to_owned(),
-        project_id: s.location.identity.project_id.as_str().to_owned(),
-        beads_dir: Some(s.beads_dir.display().to_string()),
-        repo_root: Some(s.repo.display().to_string()),
-    }
 }
 
 /// A composition error as the contract's code (contract §2, §4).

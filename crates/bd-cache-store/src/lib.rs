@@ -60,12 +60,12 @@ mod schema;
 mod store;
 
 #[doc(no_inline)]
-pub use bd_cache_model::{CacheStore, DrainLock};
+pub use bd_cache_model::{BdKey, CacheStore, DrainLock};
 #[doc(inline)]
 pub use location::{
     BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, ConfigLoadError,
-    DEFAULT_CACHE_DIR, DatabaseIdentity, DoltDatabase, MAX_CONFIG_BYTES, ProjectId,
-    REPO_CONFIG_FILE, beads_dir, load_repo_config, read_bounded,
+    DEFAULT_CACHE_DIR, DatabaseIdentity, DoltDatabase, LoadedConfig, MAX_CONFIG_BYTES, ProjectId,
+    REPO_CONFIG_FILE, beads_dir, load_repo_config, load_repo_config_with, read_bounded,
 };
 #[doc(inline)]
 pub use lock::FlockDrainLock;

@@ -261,6 +261,7 @@ impl TickLease {
     }
 
     /// The lease row this run wrote.
+    #[cfg(feature = "testing")]
     #[must_use]
     pub fn holder(&self) -> &LeaseHolder {
         &self.holder

@@ -280,7 +280,7 @@ pub struct UsePython {
     pub module: String,
     /// `--cron <expr>`; default the built-in row's expression.
     pub cron: Option<String>,
-    /// `--timeout-ms N` (default 60000, 1000 to [`crate::MAX_PYTHON_TIMEOUT_MS`]).
+    /// `--timeout-ms N` (default 60000, 1000 to `MAX_PYTHON_TIMEOUT_MS`).
     pub timeout_ms: Option<u64>,
     /// `--env NAME`, repeatable.
     pub env: Vec<String>,

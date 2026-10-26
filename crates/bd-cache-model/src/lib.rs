@@ -67,7 +67,7 @@ pub use call::{CallFailure, CallKind};
 pub use compat::{LEGACY_SCOPE_PREFIX, legacy_label, legacy_scope};
 #[doc(inline)]
 pub use config::{
-    CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
+    BdKey, CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, MAX_CALL_TIMEOUT_S, MAX_CONFIGURED_SCOPES,
     MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS, RepoConfig, START_GATE_MARGIN, SchemaPackageRef,
     ScopeConfigError, ScopeTable,

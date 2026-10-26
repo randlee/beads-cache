@@ -4,12 +4,6 @@
 //! `--shutdown-timeout-ms`. The Python row runs a stub interpreter (Unix).
 
 #![cfg(unix)]
-#![expect(
-    clippy::unwrap_used,
-    clippy::panic,
-    reason = "test code: a failed unwrap is a test failure"
-)]
-
 mod common;
 
 use std::sync::Arc;

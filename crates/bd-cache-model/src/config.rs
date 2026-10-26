@@ -193,7 +193,54 @@ impl fmt::Display for ConfigError {
 
 impl std::error::Error for ConfigError {}
 
+/// What parsing `.beads/bd-cache.toml` does with a top-level `bd` key.
+///
+/// The bd binary is never chosen by a checked-in file: the Python front end
+/// refuses a file that names it ([`BdKey::Refuse`], an unknown key), and bdc
+/// ignores the key with a warning ([`BdKey::Strip`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum BdKey {
+    /// A top-level `bd` key is an unknown key, so the file is refused.
+    Refuse,
+    /// A top-level `bd` key is dropped before the file is read; the caller
+    /// is told it was there.
+    Strip,
+}
+
 impl RepoConfig {
+    /// As [`RepoConfig::from_toml`], with a policy for a top-level `bd` key;
+    /// the flag is true when [`BdKey::Strip`] dropped one.
+    ///
+    /// # Errors
+    ///
+    /// As [`RepoConfig::from_toml`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{BdKey, RepoConfig};
+    /// let text = "bd = \"/tmp/evil-bd\"\nscopes = [\"bk\"]\n";
+    /// assert!(RepoConfig::from_toml_with(text, BdKey::Refuse).is_err());
+    /// let (config, stripped) = RepoConfig::from_toml_with(text, BdKey::Strip).unwrap();
+    /// assert!(stripped);
+    /// assert_eq!(config.scopes, ["bk"]);
+    /// ```
+    pub fn from_toml_with(text: &str, bd: BdKey) -> Result<(Self, bool), ConfigError> {
+        let err = |e: toml::de::Error| ConfigError {
+            detail: e.to_string(),
+        };
+        match bd {
+            BdKey::Refuse => Self::from_toml(text).map(|c| (c, false)),
+            BdKey::Strip => {
+                let mut table: toml::Table = text.parse().map_err(err)?;
+                let stripped = table.remove("bd").is_some();
+                let config: Self = table.try_into().map_err(err)?;
+                config.validate()?;
+                Ok((config, stripped))
+            }
+        }
+    }
+
     /// Parses the text of `.beads/bd-cache.toml`.
     ///
     /// # Errors
