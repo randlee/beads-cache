@@ -36,9 +36,11 @@ use crate::schema::{
     BACKFILL_APPLIED_EPOCH_UNHINTED, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
     FIRST_DATEABLE_ABOVE_SQL, FIRST_DATEABLE_ABOVE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
     HAS_ENTRIES_SINCE_UNHINTED_SQL, LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL,
-    RECONCILE_MEMBERSHIP, SC_CRON_SCHEDULE_VERSION, SC_CRON_SCHEDULE_VERSION_KEY, SCHEMA_VERSION,
-    UNDATABLE_BETWEEN_SQL, UNDATABLE_BETWEEN_UNHINTED_SQL, UNDATED_ABOVE_SQL,
-    UNDATED_ABOVE_UNHINTED_SQL, UNDATED_SEQS, V3_SCHEMA, sc_cron_schedule_table,
+    NEWEST_APPLIED_EPOCH_SQL, NEWEST_APPLIED_EPOCH_UNHINTED_SQL, NEWEST_UNDATED_APPLIED_SQL,
+    NEWEST_UNDATED_APPLIED_UNHINTED_SQL, RECONCILE_MEMBERSHIP, SC_CRON_SCHEDULE_VERSION,
+    SC_CRON_SCHEDULE_VERSION_KEY, SCHEMA_VERSION, UNDATABLE_BETWEEN_SQL,
+    UNDATABLE_BETWEEN_UNHINTED_SQL, UNDATED_ABOVE_SQL, UNDATED_ABOVE_UNHINTED_SQL, UNDATED_SEQS,
+    V3_SCHEMA, sc_cron_schedule_table,
 };
 
 /// SQLite's busy timeout on the shared file (REQ-BDC-0103).
@@ -2121,6 +2123,44 @@ impl Session<'_> {
         Ok(out)
     }
 
+    fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
+        // Two index reads, no write (health calls this): the newest dated
+        // entry, and the newest readable time among those another writer
+        // applied without an epoch. The seq plays no part, so entries a prune
+        // deleted leave no gap to mislead it.
+        let at = self.at("read the newest applied time");
+        let dated: Option<i64> = self
+            .hinted(
+                NEWEST_APPLIED_EPOCH_SQL,
+                NEWEST_APPLIED_EPOCH_UNHINTED_SQL,
+                |sql| {
+                    self.conn
+                        .prepare_cached(sql)?
+                        .query_row([], |r| r.get(0))
+                        .optional()
+                },
+            )
+            .at(at)?;
+        let undated: Option<i64> = self
+            .hinted(
+                NEWEST_UNDATED_APPLIED_SQL,
+                NEWEST_UNDATED_APPLIED_UNHINTED_SQL,
+                |sql| self.conn.prepare_cached(sql)?.query_row([], |r| r.get(0)),
+            )
+            .at(at)?;
+        dated
+            .max(undated)
+            .map(|secs| {
+                Timestamp::from_unix(secs).map_err(|e| {
+                    corrupt(
+                        at,
+                        format_args!("an applied time of {secs} is out of range: {e}"),
+                    )
+                })
+            })
+            .transpose()
+    }
+
     fn apply_with_readback(
         &mut self,
         seq: Seq,
@@ -2684,6 +2724,9 @@ impl CacheStore for SqliteStore {
     }
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError> {
         self.session(|x| x.applied_since(at))
+    }
+    fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
+        self.session(|x| x.last_applied_at())
     }
     fn apply_with_readback(
         &mut self,

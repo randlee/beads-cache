@@ -1612,3 +1612,84 @@ fn a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes() {
         assert_eq!(patch.set_metadata.len(), 1);
     }
 }
+
+/// `last_applied_at` is two index reads that walk no history (RCR-001 of
+/// #91): thousands of old applied entries are not read, the plan names the
+/// indexes, and the answer does not depend on how many rows the journal has
+/// or on the seqs they carry.
+#[test]
+fn last_applied_at_reads_the_applied_indexes_and_ignores_history_and_seqs() {
+    let (open, mut store) = fresh("last-applied-at");
+    {
+        let mut c = Connection::open(&open.path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    let c = Connection::open(&open.path).unwrap();
+    for sql in [
+        bd_cache_store::NEWEST_APPLIED_EPOCH_SQL,
+        bd_cache_store::NEWEST_UNDATED_APPLIED_SQL,
+    ] {
+        let plan: Vec<String> = c
+            .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+            .unwrap()
+            .query_map([], |r| r.get::<_, String>(3))
+            .unwrap()
+            .collect::<Result<_, _>>()
+            .unwrap();
+        assert!(
+            plan.iter()
+                .filter(|d| d.contains("journal"))
+                .all(|d| d.contains("USING")),
+            "{plan:?}"
+        );
+        let steps = vm_steps(&c, sql, []);
+        assert!(steps < 100, "5000 old entries are not read: {steps} steps");
+    }
+    // Control: both unhinted forms answer the same on this file.
+    for sql in [
+        bd_cache_store::NEWEST_APPLIED_EPOCH_UNHINTED_SQL,
+        bd_cache_store::NEWEST_UNDATED_APPLIED_UNHINTED_SQL,
+    ] {
+        assert!(vm_steps(&c, sql, []) > 0);
+    }
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-01T00:00:00Z")),
+        "the seeded history is the newest applied time"
+    );
+
+    // A newer one wins whatever its seq, and a python-applied entry (no
+    // epoch) counts by its `updated_at`.
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    let mine = store
+        .insert_entry(entry("mine", "b2", Some(x())), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    store
+        .apply_with_readback(mine, None, None, &ts("2026-10-24T00:00:00Z"))
+        .unwrap();
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-24T00:00:00Z"))
+    );
+    seed_python_applied(&open.path, 1, "2026-10-25T00:00:00Z", "py-new");
+    seed_python_applied(&open.path, 1, "garbage", "py-bad");
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-25T00:00:00Z")),
+        "undated entries count by updated_at; an unreadable one is skipped"
+    );
+}

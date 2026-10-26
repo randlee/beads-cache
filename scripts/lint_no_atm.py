@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail on any ATM or atm-bd concern in the product (ADR-BDC-0010).
+"""Fail on any ATM or atm-bd concern in the product (ADR-BDC-0010, ADR-BDC-0012).
 
 beads-cache is a cache, a CLI for configuration and management, and a PyO3
 API. It sends no messages, reads no ATM or atm-bd configuration, and names no
@@ -20,11 +20,17 @@ non-exempt file it matches every rule below, case-insensitively, against
 those repo-relative prefixes, so a sprint can lint its own fence; it never
 widens the scope or lifts an exemption.
 
-Exemptions inside the scope are the fixed tuples below and nothing else: the
-lint and its tests and `docs/team-protocol.md` (EXEMPT_FILES), `docs/plans/`
-(EXEMPT_DIRS), and the `## ADR-BDC-0010` section of `docs/architecture.md`
-(EXEMPT_SECTIONS, contents only). No inline pragma, no allowlist file. Scope
-and exemptions change only through a later ADR.
+The only exemptions inside the scope are the lint and its tests and
+`docs/team-protocol.md` (EXEMPT_FILES, ADR-BDC-0012). The plans, the anchor
+record and every ADR are scanned like any other doc and name a prohibited word
+only as "a prohibited word". One rule is narrowed for one line: `scope-prefix`
+does not match the one `LEGACY_SCOPE_PREFIX` declaration of `bd-cache-model`'s
+compatibility module (NARROWED, ADR-BDC-0012); the same text in any other
+file, and any other line of that file, still hits. No inline pragma, no
+allowlist file. Scope, exemptions and narrowed lines change only through a
+later ADR.
+
+The RULES below are the one place the prohibited words are written (ADR-BDC-0012).
 
 Out of scope by construction (dev tooling, not product): the agent tooling
 (`.claude/**`, `.cursor/**`, `.codex/**`, `.agents/**`, `CLAUDE.md`,
@@ -86,6 +92,11 @@ RULES: tuple[tuple[str, str], ...] = (
     # Scopes are configured, never derived from a consumer's phase naming.
     # Not a hit: the column `phase`, `DEFAULT 'phase'`, `phase-b` in prose.
     ("scope-prefix", r"[\"']phase-[\"']|(?<![a-z0-9_])phase-\{"),
+    # The first consumer's maintainer handle (ADR-BDC-0012, anchor ANC-001), as
+    # a word: on its own, in a path, or before `'s`, `@`, `-` or `_`. Not a hit
+    # inside an ordinary word (phoenix): a letter or digit before it, or a
+    # letter after it, rules it out.
+    ("maintainer-handle", r"(?<![a-z0-9])fenix(?![a-z])"),
 )
 
 COMPILED: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
@@ -127,13 +138,16 @@ EXEMPT_FILES: tuple[str, ...] = (
     "docs/team-protocol.md",
 )
 
-# Whole directories inside the scope: the phase plans are a historical record.
-EXEMPT_DIRS: tuple[str, ...] = ("docs/plans/",)
-
-# One section of one file: the ADR that states this boundary has to name what
-# it forbids. The section runs from its heading to the next `## ` heading.
-EXEMPT_SECTIONS: tuple[tuple[str, str], ...] = (
-    ("docs/architecture.md", "## ADR-BDC-0010"),
+# The one line a rule is narrowed for (ADR-BDC-0012): (rule, path, the line
+# with its surrounding whitespace removed). The 0.1 bare-name rule of
+# ADR-BDC-0013 writes the legacy scope prefix once, as this constant; every use
+# refers to it. Any other line, in this file or another, is matched as usual.
+NARROWED: tuple[tuple[str, str, str], ...] = (
+    (
+        "scope-prefix",
+        "crates/bd-cache-model/src/compat.rs",
+        'pub const LEGACY_SCOPE_PREFIX: &str = "phase-";',
+    ),
 )
 
 # The lint's own file names, removed from a line before it is matched, so the
@@ -159,36 +173,26 @@ def in_scope(path: str) -> bool:
 
 
 def is_exempt(path: str) -> bool:
-    return path in EXEMPT_FILES or any(path.startswith(d) for d in EXEMPT_DIRS)
+    return path in EXEMPT_FILES
 
 
 def is_binary(data: bytes) -> bool:
     return b"\0" in data[:8192]
 
 
-def blank_exempt_sections(path: str, lines: list[str]) -> list[str]:
-    """Blank the exempt section's lines, keeping line numbers."""
-    headings = [h for p, h in EXEMPT_SECTIONS if p == path]
-    if not headings:
-        return lines
-    out: list[str] = []
-    inside = False
-    for line in lines:
-        if line.startswith("## "):
-            inside = any(line.startswith(h) for h in headings)
-        out.append("" if inside else line)
-    return out
+def is_narrowed(rule: str, path: str, line: str) -> bool:
+    """True for the one line NARROWED takes out of `rule`."""
+    return (rule, path, line.strip()) in NARROWED
 
 
 def scan_text(path: str, text: str) -> list[Hit]:
     hits: list[Hit] = []
-    lines = blank_exempt_sections(path, text.splitlines())
-    for number, line in enumerate(lines, start=1):
+    for number, line in enumerate(text.splitlines(), start=1):
         probe = line
         for name in SELF_NAMES:
             probe = probe.replace(name, "")
         for rule, pattern in COMPILED:
-            if pattern.search(probe):
+            if pattern.search(probe) and not is_narrowed(rule, path, line):
                 hits.append(Hit(path, number, rule, line.strip()))
     return hits
 

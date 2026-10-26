@@ -502,11 +502,17 @@ fn millis(d: Duration) -> u64 {
     u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
 
-fn row_view(row: &Schedule, kind: SyncRow, history: RowHistory) -> RowView {
-    let outcome = row.last_outcome.as_ref().map(|o| match o {
+/// A row's last outcome as `schedule show` and `cache health` report it:
+/// `ok`, or the failure's redacted text, cut to 8 KiB.
+pub(crate) fn outcome_text(outcome: &RunOutcome) -> String {
+    match outcome {
         RunOutcome::Ok => "ok".to_owned(),
         other => cut(&other.to_string(), MAX_KEPT_STDERR_BYTES).to_owned(),
-    });
+    }
+}
+
+fn row_view(row: &Schedule, kind: SyncRow, history: RowHistory) -> RowView {
+    let outcome = row.last_outcome.as_ref().map(outcome_text);
     let payload = match SyncPayload::decode(&row.spec.payload) {
         Ok(SyncPayload::Python(p)) => PayloadView::Python {
             module: p.interpreter().module().to_owned(),

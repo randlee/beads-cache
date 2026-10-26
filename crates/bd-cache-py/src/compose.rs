@@ -337,6 +337,7 @@ pub(crate) fn open_with(
         project_id: identity.project_id.as_str().to_owned(),
         beads_dir: Some(composed.beads_dir.to_string_lossy().into_owned()),
         repo_root: Some(repo_root.to_string_lossy().into_owned()),
+        sync: None,
     };
     let files = composed.files();
     Ok(Opened {

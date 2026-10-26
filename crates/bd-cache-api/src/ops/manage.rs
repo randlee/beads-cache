@@ -8,19 +8,20 @@ use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
     ScopeFilter, ScopeId, ScopeStatus, StateCounts, SyncReport,
 };
-use sc_beads::{BeadId, CacheBackend, Deadline};
+use sc_beads::{BeadId, CacheBackend, Deadline, Timestamp};
 
 use crate::CONTRACT_VERSION;
 use crate::data::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
-    CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthState,
-    JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpError, OpenWorkData, OutageData, ProbeData, ProjectData, RefreshError, RefreshScopeResult,
-    RowsXCache, ScopeData, StateCountsData, SyncReportData, opt_time, outage, rows,
+    CacheRefreshScopesData, CacheScopesData, CacheStatusData, Entry, EscalatedData, HealthReason,
+    HealthState, JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData,
+    JournalResolveData, LastRunData, OpError, OpenWorkData, OutageData, ProbeData, ProjectData,
+    RefreshError, RefreshScopeResult, RowsXCache, ScopeData, StateCountsData, SyncHealthData,
+    SyncModeData, SyncReportData, opt_time, outage, rows,
 };
 use crate::error::{ApiError, CODE_PREFIX};
 use crate::ops::beads::{META_BD_VERSION, META_SCHEMA_VERSION, META_SHA};
-use crate::ops::{CacheFacts, known_scopes};
+use crate::ops::{CacheFacts, SyncFacts, known_scopes};
 use crate::request::{
     CacheEvict, CacheFlush, CacheHealth, CacheRefreshIssues, CacheRefreshScopes, JournalAnnounce,
     JournalGet, JournalKey, JournalList, JournalListState, JournalResolve,
@@ -138,9 +139,11 @@ pub(crate) fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
     })
 }
 
-/// `cache health [--probe]`: `down` while an outage holds, `degraded` with
-/// stale rows or unannounced escalations, `ok` otherwise; with `probe`, the
-/// backend check runs too.
+/// `cache health [--probe]`: `down` while an outage holds, `degraded` with a
+/// reason for each cause (#86: stale rows, unresolved escalations, a pending
+/// entry older than the limit; REQ-BDC-0732, from `facts.sync`: no sync row
+/// enabled, a stale scope, a failing sync row, a failing hook), `ok`
+/// otherwise; with `probe`, the backend check runs too.
 ///
 /// A probe that could not reach bd (an [`UNREACHABLE_CODES`] error, which
 /// includes a deadline cut) is a result, not an error (contract §3, §6):
@@ -157,6 +160,7 @@ pub(crate) fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
 pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: CacheHealth,
+    facts: &CacheFacts,
 ) -> Result<CacheHealthData, ApiError> {
     let probe = if req.probe {
         let hard = Deadline::after(&*cache.clock(), cache.config().call_timeout + PROBE_GRACE);
@@ -172,33 +176,61 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let st = cache.status()?.store;
     let work = cache.open_work()?;
     let stale_rows = u64::try_from(st.stale.len()).unwrap_or(u64::MAX);
+    let unresolved_escalations = u64::try_from(st.escalated.len()).unwrap_or(u64::MAX);
+    let now = cache.clock().now_utc();
+    let oldest_pending_age_s = oldest_pending_age_s(cache, &now)?;
+    let last_drain_at = cache.last_applied_at()?;
+    let mut reasons = journal_reasons(
+        stale_rows,
+        unresolved_escalations,
+        work.escalated_unannounced,
+        oldest_pending_age_s,
+        req.max_pending_age_s(),
+    );
+    if let Some(sync) = &facts.sync {
+        sync_reasons(cache, sync, &now, &mut reasons)?;
+    }
     let unreachable = match &probe {
         Some(Err(e)) => Some(e),
         _ => None,
     };
     let state = if st.outage.is_some() || unreachable.is_some() {
         HealthState::Down
-    } else if stale_rows > 0 || work.escalated_unannounced > 0 {
-        HealthState::Degraded
-    } else {
+    } else if reasons.is_empty() {
         HealthState::Ok
+    } else {
+        HealthState::Degraded
     };
     let outage = outage(st.outage.as_ref()).or_else(|| {
         unreachable.map(|e| {
             OutageData::of(&Outage {
-                since: cache.clock().now_utc(),
+                since: now.clone(),
                 last_error: e.to_string(),
             })
         })
     });
     Ok(CacheHealthData {
         state,
+        reasons,
         outage,
         open_work: OpenWorkData {
             pending: work.pending,
             escalated_unannounced: work.escalated_unannounced,
         },
         stale_rows,
+        oldest_pending_age_s,
+        last_drain_at: opt_time(last_drain_at.as_ref()),
+        unresolved_escalations,
+        sync: facts.sync.as_ref().map(|s| SyncHealthData {
+            mode: s.mode,
+            last_run: s.enabled.as_ref().map(|r| LastRunData {
+                row: r.row,
+                last_run_at: opt_time(r.last_run_at.as_ref()),
+                outcome: r.outcome.clone(),
+                run_id: r.run_id.clone(),
+                consecutive_failures: r.consecutive_failures,
+            }),
+        }),
         probe: match probe {
             Some(Ok((outcome, model_current))) => Some(ProbeData {
                 bd_version: st.meta.get(META_BD_VERSION).cloned(),
@@ -208,6 +240,161 @@ pub(crate) fn cache_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
             Some(Err(_)) | None => None,
         },
     })
+}
+
+/// The reasons of #86 (contract §6): stale rows, unresolved escalations
+/// (`escalated_unannounced` of them not yet announced), and an oldest pending
+/// entry older than `max_age` seconds.
+fn journal_reasons(
+    stale_rows: u64,
+    unresolved_escalations: u64,
+    escalated_unannounced: u64,
+    oldest_pending_age_s: Option<u64>,
+    max_age: u64,
+) -> Vec<HealthReason> {
+    let mut reasons = Vec::new();
+    if stale_rows > 0 {
+        reasons.push(HealthReason {
+            code: "stale_rows",
+            message: format!(
+                "{stale_rows} row(s) failed their read-back and are stale; \
+                 `bdc cache refresh issues <id>...` re-reads them"
+            ),
+        });
+    }
+    if unresolved_escalations > 0 {
+        reasons.push(HealthReason {
+            code: "unresolved_escalations",
+            message: format!(
+                "{unresolved_escalations} escalated journal entries are unresolved \
+                 ({escalated_unannounced} not yet announced); see `bdc cache journal list` \
+                 and settle each with `bdc cache journal resolve <seq> --note T --actor A`"
+            ),
+        });
+    }
+    if let Some(age) = oldest_pending_age_s.filter(|a| *a > max_age) {
+        reasons.push(HealthReason {
+            code: "pending_too_old",
+            message: format!(
+                "the oldest pending journal entry is {age} s old (limit {max_age} s): \
+                 the drainer is not running or cannot apply it; run `bdc cache flush`"
+            ),
+        });
+    }
+    reasons
+}
+
+/// How many consecutive failed runs of the enabled sync row make health
+/// `sync_failing` (REQ-BDC-0732: "the enabled row's last three runs failed").
+pub(crate) const SYNC_FAILING_RUNS: u32 = 3;
+
+/// How many periods of the enabled row a scope's last successful sync may be
+/// old before health is `sync_stale` (REQ-BDC-0732: "older than three periods").
+pub(crate) const SYNC_STALE_PERIODS: u32 = 3;
+
+/// How many consecutive hook failures make health `hook_failing`
+/// (REQ-BDC-0732: "the hook has failed three times in a row"); the same count
+/// from which the hook is backed off (REQ-BDC-0727).
+pub(crate) const HOOK_FAILING_RUNS: u32 = 3;
+
+/// The degraded-sync reasons of REQ-BDC-0732, judged at `now` (the cache's
+/// clock) from what the front end read of the sync rows:
+///
+/// - `no_sync_row_enabled`: a sync row exists and none is enabled (the
+///   `both_disabled` flag of `schedule show`, REQ-BDC-0731). A cache file with
+///   no sync row at all reports mode `none` without this reason.
+/// - `sync_stale`: a registered scope (the scopes the built-in row syncs,
+///   REQ-BDC-0721) whose last successful sync, or before its first one the
+///   enabled row's `created_at`, is more than [`SYNC_STALE_PERIODS`] periods
+///   before `now`. A row with no period (no next run, or none after it) is
+///   not judged.
+/// - `sync_failing`: the enabled row's last [`SYNC_FAILING_RUNS`] runs failed.
+/// - `hook_failing`: the hook the built-in row names failed
+///   [`HOOK_FAILING_RUNS`] times in a row.
+fn sync_reasons<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    sync: &SyncFacts,
+    now: &Timestamp,
+    reasons: &mut Vec<HealthReason>,
+) -> Result<(), ApiError> {
+    if sync.has_rows && sync.mode == SyncModeData::None {
+        reasons.push(HealthReason {
+            code: "no_sync_row_enabled",
+            message: "no sync row is enabled, so nothing syncs the cache on a schedule; \
+                      `bdc cache schedule enable` or `bdc cache sync use-builtin` enables the \
+                      built-in row, `bdc cache sync use-python` the Python row"
+                .to_owned(),
+        });
+    }
+    if let Some(row) = &sync.enabled {
+        if let Some(period) = row.period {
+            let limit = period.saturating_mul(SYNC_STALE_PERIODS);
+            let limit_s = i64::try_from(limit.as_secs()).unwrap_or(i64::MAX);
+            let st = cache.status()?.store;
+            let mut stale: Vec<String> = Vec::new();
+            for scope in cache.scopes()? {
+                let last_ok = st
+                    .scopes
+                    .iter()
+                    .find(|s| s.sync.scope == scope.id)
+                    .and_then(|s| s.sync.last_ok_at.as_ref());
+                let since = last_ok.unwrap_or(&row.created_at);
+                if now.unix().saturating_sub(since.unix()) > limit_s {
+                    stale.push(scope.id.name().to_owned());
+                }
+            }
+            stale.sort();
+            if !stale.is_empty() {
+                reasons.push(HealthReason {
+                    code: "sync_stale",
+                    message: format!(
+                        "the last successful sync of scope(s) {} is older than {SYNC_STALE_PERIODS} \
+                         periods of the {} row ({} s): the worker or the scheduler that runs \
+                         `bdc cache cron run` may not be running; see `bdc cache schedule show`",
+                        stale.join(", "),
+                        row.row,
+                        limit.as_secs()
+                    ),
+                });
+            }
+        }
+        if row.consecutive_failures >= SYNC_FAILING_RUNS {
+            reasons.push(HealthReason {
+                code: "sync_failing",
+                message: format!(
+                    "the {} sync row's last {} runs failed (latest outcome: {}); \
+                     see `bdc cache schedule show`",
+                    row.row,
+                    row.consecutive_failures,
+                    row.outcome.as_deref().unwrap_or("not recorded")
+                ),
+            });
+        }
+    }
+    if let Some(failures) = sync.hook_failures.filter(|n| *n >= HOOK_FAILING_RUNS) {
+        reasons.push(HealthReason {
+            code: "hook_failing",
+            message: format!(
+                "the post-sync hook failed {failures} times in a row and is backed off; \
+                 see its last error in `bdc cache schedule show`"
+            ),
+        });
+    }
+    Ok(())
+}
+
+/// Whole seconds from the oldest pending entry's `created_at` to `now`
+/// (never negative under clock skew); `None` with nothing pending.
+fn oldest_pending_age_s<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    now: &Timestamp,
+) -> Result<Option<u64>, ApiError> {
+    Ok(cache
+        .pending_entries()?
+        .iter()
+        .map(|e| &e.created_at)
+        .min()
+        .map(|oldest| u64::try_from(now.unix().saturating_sub(oldest.unix())).unwrap_or(0)))
 }
 
 /// `cache scopes`: every scope, by id (store reads only, no bd).
@@ -242,13 +429,14 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
         req.scopes.clone()
     };
     let call_timeout = cache.config().call_timeout;
+    let deadline_after = req.timeout_ms.map_or(call_timeout, Duration::from_millis);
     let mut results = Vec::with_capacity(scopes.len());
     for s in scopes {
-        let d = Deadline::after(&*cache.clock(), call_timeout);
+        let d = Deadline::after(&*cache.clock(), deadline_after);
         let result = match cache.sync(&s, d) {
             Ok(r) => RefreshScopeResult {
                 scope: s.name().to_owned(),
-                error: sync_report_error(&s, &r, call_timeout),
+                error: sync_report_error(&s, &r, deadline_after),
                 report: Some(SyncReportData {
                     rebuilt: r.rebuilt,
                     model_current: r.model_current,
@@ -280,7 +468,7 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
 /// cut (`deferred`) did not complete either: bd did not answer within the
 /// per-call cap, which is also the sync's whole deadline, so the core
 /// classified the timeout as a cut and recorded no outage (QA RCR-001).
-fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Option<RefreshError> {
+fn sync_report_error(s: &ScopeId, r: &SyncReport, deadline: Duration) -> Option<RefreshError> {
     let unavailable = |message: String| {
         RefreshError::of(OpError {
             code: format!("{CODE_PREFIX}BD_UNAVAILABLE"),
@@ -292,10 +480,10 @@ fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Opt
     }
     r.deferred.then(|| {
         unavailable(format!(
-            "the sync of {} was cut: bd did not answer within the per-call cap ({} ms); \
+            "the sync of {} was cut: bd did not answer within the sync deadline ({} ms); \
              nothing was refreshed",
             s.name(),
-            call_timeout.as_millis()
+            deadline.as_millis()
         ))
         .with_detail("timed_out", true)
     })

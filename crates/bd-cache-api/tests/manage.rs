@@ -441,3 +441,418 @@ fn health_probe_with_bd_unreachable_on_the_fingerprint_is_down() {
         );
     }
 }
+
+/// Journals an update on `id` (a pending entry) at the world clock's time.
+fn journal_update(cache: &mut common::TestCache, id: &str, key: &str) {
+    ok(
+        cache,
+        "issues update",
+        &json!({"id": id, "actor": "san", "idempotency_key": key, "patch": {"status": "in_progress"}}),
+    );
+}
+
+/// I7: a pending entry that nothing drains is `degraded` once it is older
+/// than the limit (default 300 s, `max_pending_age_s` overrides it), judged
+/// on the oldest entry and on the injected clock; the drain clears it.
+#[test]
+fn health_degrades_when_the_oldest_pending_entry_is_too_old() {
+    let (w, mut cache) = world();
+    journal_update(&mut cache, "b2", "k1");
+    w.clock.advance(std::time::Duration::from_secs(200));
+    // A younger entry must not hide the older one.
+    journal_update(&mut cache, "b1", "k2");
+    w.clock.advance(std::time::Duration::from_secs(100));
+
+    // Exactly at the limit: still ok (the limit is "older than").
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["oldest_pending_age_s"], 300, "{h}");
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["reasons"], json!([]), "{h}");
+    assert_eq!(h["last_drain_at"], Value::Null, "nothing drained yet: {h}");
+    assert_eq!(h["unresolved_escalations"], 0, "{h}");
+
+    w.clock.advance(std::time::Duration::from_secs(1));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["oldest_pending_age_s"], 301, "{h}");
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(h["reasons"][0]["code"], "pending_too_old", "{h}");
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("301 s"),
+        "{h}"
+    );
+
+    // The limit is configurable.
+    let h = ok(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": 301}),
+    );
+    assert_eq!(h["state"], "ok", "{h}");
+    let h = ok(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": 60}),
+    );
+    assert_eq!(h["state"], "degraded", "{h}");
+    let bad = err(
+        &mut cache,
+        "cache health",
+        &json!({"max_pending_age_s": -1}),
+    );
+    assert_eq!(bad["code"], "BD_CACHE.BAD_ARGS", "{bad}");
+
+    // The drain applies both entries: nothing pending, and the drain is dated.
+    let flush = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(flush["applied"], json!([1, 2]), "{flush}");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["oldest_pending_age_s"], Value::Null, "{h}");
+    assert_eq!(h["last_drain_at"], "2026-10-23T10:05:01.000Z", "{h}");
+}
+
+/// RCR-001 of #91: `last_drain_at` is the newest applied time among the
+/// entries the journal holds, not a window of seqs derived from its row
+/// count. `cache evict` deletes the scope's entries, so the next entry's seq
+/// (AUTOINCREMENT) runs ahead of the row count; the second drain must still
+/// be what health reports, on the injected clock.
+#[test]
+fn last_drain_at_follows_the_newest_applied_entry_after_an_evict_leaves_a_seq_gap() {
+    let (w, mut cache) = world();
+    journal_update(&mut cache, "b2", "k1");
+    w.clock.advance(std::time::Duration::from_secs(30));
+    let first = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(first["applied"], json!([1]), "{first}");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], "2026-10-23T10:00:30.000Z", "{h}");
+
+    // The evict deletes entry 1: the journal is empty, the next seq is 2.
+    w.clock.advance(std::time::Duration::from_secs(60));
+    ok(&mut cache, "cache evict", &json!({"scope": "x"}));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], Value::Null, "nothing left applied: {h}");
+    ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+
+    w.clock.advance(std::time::Duration::from_secs(60));
+    journal_update(&mut cache, "b2", "k2");
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["last_drain_at"], Value::Null, "k2 is only pending: {h}");
+    w.clock.advance(std::time::Duration::from_secs(60));
+    let second = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(
+        second["applied"],
+        json!([2]),
+        "seq 2, journal holds 1 row: {second}"
+    );
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(
+        h["last_drain_at"], "2026-10-23T10:03:30.000Z",
+        "the second apply time, not null: {h}"
+    );
+}
+
+/// I7: an escalation nobody resolved keeps health `degraded` after it was
+/// announced, until `journal resolve` settles it.
+#[test]
+fn health_degrades_on_an_unresolved_escalation_until_it_is_resolved() {
+    let (w, mut cache) = world();
+    ok(
+        &mut cache,
+        "issues close",
+        &json!({"id": "b1", "actor": "san", "idempotency_key": "k1"}),
+    );
+    w.bd.inject(FakeOp::Close, Injection::Refused(Refusal::NotClosable));
+    let flush = ok(&mut cache, "cache flush", &json!({}));
+    assert_eq!(flush["escalated"][0]["seq"], 1, "{flush}");
+
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(h["unresolved_escalations"], 1, "{h}");
+    assert_eq!(h["reasons"][0]["code"], "unresolved_escalations", "{h}");
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("journal resolve <seq>"),
+        "{h}"
+    );
+
+    // Announced, but nobody resolved it: still degraded.
+    ok(&mut cache, "cache journal announce", &json!({"seq": 1}));
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["open_work"]["escalated_unannounced"], 0, "{h}");
+    assert_eq!(
+        h["state"], "degraded",
+        "an announced escalation is open: {h}"
+    );
+    assert_eq!(h["unresolved_escalations"], 1, "{h}");
+
+    ok(
+        &mut cache,
+        "cache journal resolve",
+        &json!({"seq": 1, "note": "closed by hand", "actor": "lead"}),
+    );
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(h["unresolved_escalations"], 0, "{h}");
+    assert_eq!(h["reasons"], json!([]), "{h}");
+}
+
+/// I10: `cache refresh scopes` takes `timeout_ms`, the sync's deadline. A bd
+/// that answers in 10 s of (injected) time is cut by a 5 s deadline and
+/// refreshes by the default one; the failed result names the deadline.
+#[test]
+fn refresh_scopes_timeout_ms_is_the_sync_deadline() {
+    let delay = std::time::Duration::from_secs(10);
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    w.bd.inject(FakeOp::Fingerprint, Injection::Delay(delay));
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"], "timeout_ms": 5000}),
+    );
+    assert_eq!(r["failed"], 1, "{r}");
+    let result = &r["results"][0];
+    assert_eq!(result["report"]["deferred"], true, "{result}");
+    assert_eq!(
+        result["error"]["code"], "BD_CACHE.BD_UNAVAILABLE",
+        "{result}"
+    );
+    assert_eq!(result["error"]["details"]["timed_out"], true, "{result}");
+    assert!(
+        result["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("5000 ms"),
+        "{result}"
+    );
+    let gone = err(&mut cache, "issues list", &json!({"scope": "x"}));
+    assert_eq!(gone["code"], "BD_CACHE.SCOPE_UNKNOWN", "{gone}");
+
+    // The control: the same delay under the default deadline (30 s) refreshes.
+    let w = World::new();
+    w.add("b1", &Map::new());
+    let mut cache = w.cache();
+    w.bd.inject(FakeOp::Fingerprint, Injection::Delay(delay));
+    let r = ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    assert_eq!(r["failed"], 0, "{r}");
+    let bad = err(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"timeout_ms": "soon"}),
+    );
+    assert_eq!(bad["code"], "BD_CACHE.BAD_ARGS", "{bad}");
+}
+
+/// The facts of a cache file whose `row` is the enabled sync row, written at
+/// the world's start (REQ-BDC-0732), with `hook_failures` for the hook the
+/// built-in row names.
+fn sync_facts(
+    mode: bd_cache_api::data::SyncModeData,
+    row: Option<bd_cache_api::SyncRowFacts>,
+    hook_failures: Option<u32>,
+) -> bd_cache_api::CacheFacts {
+    bd_cache_api::CacheFacts {
+        sync: Some(bd_cache_api::SyncFacts {
+            mode,
+            has_rows: true,
+            enabled: row,
+            hook_failures,
+        }),
+        ..default_facts()
+    }
+}
+
+/// The built-in row, every minute, written at the world's start, with
+/// `failures` consecutive failed runs.
+fn builtin_row(failures: u32) -> bd_cache_api::SyncRowFacts {
+    bd_cache_api::SyncRowFacts {
+        row: "builtin",
+        created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
+        period: Some(std::time::Duration::from_secs(60)),
+        last_run_at: Some(sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap()),
+        outcome: Some(
+            if failures == 0 {
+                "ok"
+            } else {
+                "failed: exit 1"
+            }
+            .to_owned(),
+        ),
+        run_id: Some("run-1".to_owned()),
+        consecutive_failures: failures,
+    }
+}
+
+fn health_with(cache: &mut common::TestCache, facts: &bd_cache_api::CacheFacts) -> Value {
+    let got = run(cache, "cache health", &json!({}), facts);
+    assert_eq!(got["ok"], true, "{got}");
+    got["data"].clone()
+}
+
+fn codes(h: &Value) -> Vec<String> {
+    h["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["code"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+/// REQ-BDC-0732: with no sync facts (the api on its own) health reports
+/// `sync: null` and no sync reason; with the facts of an enabled built-in
+/// row, the mode and that row's last run.
+#[test]
+fn health_reports_the_sync_mode_and_the_enabled_rows_last_run() {
+    let (_w, mut cache) = world();
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["sync"], Value::Null, "{h}");
+    let h = health_with(
+        &mut cache,
+        &sync_facts(
+            bd_cache_api::data::SyncModeData::Builtin,
+            Some(builtin_row(0)),
+            None,
+        ),
+    );
+    assert_eq!(h["state"], "ok", "{h}");
+    assert_eq!(
+        h["sync"],
+        json!({"mode": "builtin", "last_run": {"row": "builtin",
+            "last_run_at": "2026-10-23T10:00:00.000Z", "outcome": "ok", "run_id": "run-1",
+            "consecutive_failures": 0}}),
+        "{h}"
+    );
+}
+
+/// REQ-BDC-0732 (b-9 acceptance 4): `no_sync_row_enabled` when both rows are
+/// disabled. Planted negatives: an enabled row, and a file with no sync row
+/// at all, raise no such reason.
+#[test]
+fn health_is_degraded_when_no_sync_row_is_enabled() {
+    use bd_cache_api::data::SyncModeData;
+    let (_w, mut cache) = world();
+    let h = health_with(&mut cache, &sync_facts(SyncModeData::None, None, None));
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(codes(&h), ["no_sync_row_enabled"], "{h}");
+    assert_eq!(h["sync"], json!({"mode": "none", "last_run": null}), "{h}");
+
+    let enabled = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
+    assert_eq!(health_with(&mut cache, &enabled)["state"], "ok");
+    let mut no_rows = sync_facts(SyncModeData::None, None, None);
+    no_rows.sync.as_mut().unwrap().has_rows = false;
+    let h = health_with(&mut cache, &no_rows);
+    assert_eq!(h["state"], "ok", "no sync row exists: {h}");
+}
+
+/// REQ-BDC-0732 (b-9 acceptance 4): `sync_failing` when the enabled row's
+/// last three runs failed. Planted negative: two failures are not enough.
+#[test]
+fn health_is_degraded_when_the_enabled_row_failed_three_runs_in_a_row() {
+    use bd_cache_api::data::SyncModeData;
+    let (_w, mut cache) = world();
+    let two = sync_facts(SyncModeData::Builtin, Some(builtin_row(2)), None);
+    assert_eq!(codes(&health_with(&mut cache, &two)), Vec::<String>::new());
+    let three = sync_facts(SyncModeData::Builtin, Some(builtin_row(3)), None);
+    let h = health_with(&mut cache, &three);
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(codes(&h), ["sync_failing"], "{h}");
+    let message = h["reasons"][0]["message"].as_str().unwrap();
+    assert!(
+        message.contains("last 3 runs failed") && message.contains("failed: exit 1"),
+        "{h}"
+    );
+}
+
+/// REQ-BDC-0732 (b-9 acceptance 4): `sync_stale` when a scope's last
+/// successful sync is more than three periods old, on the injected clock;
+/// a registered scope never synced is aged from the row's `created_at`.
+/// Planted negatives: exactly three periods is not stale, and a row with no
+/// period is not judged.
+#[test]
+fn health_is_degraded_when_a_scope_is_older_than_three_periods() {
+    use bd_cache_api::data::SyncModeData;
+    let (w, mut cache) = world();
+    let facts = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
+    w.clock.advance(std::time::Duration::from_secs(180));
+    let h = health_with(&mut cache, &facts);
+    assert_eq!(
+        codes(&h),
+        Vec::<String>::new(),
+        "exactly three periods: {h}"
+    );
+
+    w.clock.advance(std::time::Duration::from_secs(1));
+    let h = health_with(&mut cache, &facts);
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(codes(&h), ["sync_stale"], "{h}");
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("scope(s) x"),
+        "{h}"
+    );
+
+    // A sync now makes x fresh again.
+    ok(
+        &mut cache,
+        "cache refresh scopes",
+        &json!({"scopes": ["x"]}),
+    );
+    assert_eq!(health_with(&mut cache, &facts)["state"], "ok");
+
+    // A scope registered but never synced is aged from the row's created_at.
+    ok(
+        &mut cache,
+        "cache scopes add",
+        &json!({"scope": "fresh", "labels_all": ["area"]}),
+    );
+    let h = health_with(&mut cache, &facts);
+    assert_eq!(
+        codes(&h),
+        ["sync_stale"],
+        "fresh is 181 s past the row's created_at: {h}"
+    );
+    assert!(
+        h["reasons"][0]["message"]
+            .as_str()
+            .unwrap()
+            .contains("scope(s) fresh"),
+        "{h}"
+    );
+
+    let mut no_period = builtin_row(0);
+    no_period.period = None;
+    let unjudged = sync_facts(SyncModeData::Builtin, Some(no_period), None);
+    assert_eq!(health_with(&mut cache, &unjudged)["state"], "ok");
+}
+
+/// REQ-BDC-0732 (b-9 acceptance 4): `hook_failing` after three hook failures
+/// in a row. Planted negative: two failures are not enough, and a built-in
+/// row that names no hook is never judged.
+#[test]
+fn health_is_degraded_when_the_hook_failed_three_times_in_a_row() {
+    use bd_cache_api::data::SyncModeData;
+    let (_w, mut cache) = world();
+    let two = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), Some(2));
+    assert_eq!(health_with(&mut cache, &two)["state"], "ok");
+    let none = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
+    assert_eq!(health_with(&mut cache, &none)["state"], "ok");
+    let three = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), Some(3));
+    let h = health_with(&mut cache, &three);
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(codes(&h), ["hook_failing"], "{h}");
+}

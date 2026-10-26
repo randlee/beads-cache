@@ -1,4 +1,4 @@
-"""Tests for scripts/lint_no_atm.py (ADR-BDC-0010).
+"""Tests for scripts/lint_no_atm.py (ADR-BDC-0010, ADR-BDC-0012).
 
 Each test builds a temporary git repository with fixed file contents and runs
 the lint in it, in a subprocess (exit code and output) or in process (the
@@ -54,6 +54,14 @@ PLANTED: dict[str, tuple[str, ...]] = {
         "the bd_cache_cron script",
         "Source: BD-CACHE.md Cron module",
     ),
+    "maintainer-handle": (
+        "reviewed by fenix",
+        "fenix's input on S81",
+        '"created_by": "fenix",',
+        "ping @fenix",
+        "see fenix-review.txt and fenix_notes",
+        "FENIX",
+    ),
 }
 
 # Ordinary text that must never hit, including the generic words the cron's
@@ -79,6 +87,10 @@ NEGATIVES: tuple[str, ...] = (
     # L5: neutral words around cron and tool.
     "the cron job uses a tool",
     "cron_tools_dir and mycron-tool and cron-toolkit",
+    # ADR-BDC-0012: ordinary words that contain the maintainer handle.
+    "a phoenix rises; Phoenix, AZ",
+    "afenix and fenixia and fenixes",
+    "the maintainer of the first consumer",
 )
 
 
@@ -146,7 +158,9 @@ class RuleTest(unittest.TestCase):
         self.assertEqual([h.rule for h in hits], ["atm-word"])
 
 
-class ExemptSectionTest(unittest.TestCase):
+class NoSectionExemptionTest(unittest.TestCase):
+    """ADR-BDC-0012: the ADR-BDC-0010 section of docs/architecture.md is scanned like any text."""
+
     DOC = (
         "# Architecture\n"
         "\n"
@@ -160,13 +174,20 @@ class ExemptSectionTest(unittest.TestCase):
         "atm send leaks here\n"
     )
 
-    def test_only_the_adr_section_of_architecture_md_is_skipped(self) -> None:
+    def test_the_adr_section_of_architecture_md_is_caught(self) -> None:
         hits = scan_text("docs/architecture.md", self.DOC)
-        self.assertEqual([(h.line, h.rule) for h in hits], [(10, "atm-word")])
-
-    def test_the_same_section_elsewhere_is_caught(self) -> None:
-        hits = scan_text("docs/other.md", self.DOC)
         self.assertEqual(sorted({h.line for h in hits}), [5, 6, 8, 10])
+
+    def test_architecture_md_and_any_other_doc_are_scanned_alike(self) -> None:
+        self.assertEqual(
+            [(h.line, h.rule) for h in scan_text("docs/architecture.md", self.DOC)],
+            [(h.line, h.rule) for h in scan_text("docs/other.md", self.DOC)],
+        )
+
+    def test_the_restated_section_passes(self) -> None:
+        doc = ("## ADR-BDC-0010: No consumer-specific concerns in beads-cache\n"
+               "the first consumer's name is a prohibited word; its maintainer handle is one too\n")
+        self.assertEqual(scan_text("docs/architecture.md", doc), [])
 
 
 class RepoTest(RepoCase):
@@ -194,13 +215,37 @@ class RepoTest(RepoCase):
         self.assertEqual(self.run_lint().returncode, 0)
 
     def test_exempt_paths_are_skipped(self) -> None:
-        text = "atm send as cron@tool to the team-lead\n"
+        text = "atm send as cron@tool to the team-lead, reviewed by fenix\n"
         for path in ("scripts/lint_no_atm.py", "scripts/test_lint_no_atm.py",
-                     "docs/team-protocol.md", "docs/plans/phase-b/sprint.md",
-                     "docs/plans/deep/nested/x.toml"):
+                     "docs/team-protocol.md"):
             self.write(path, text)
         result = self.run_lint()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_prohibited_word_under_docs_plans_fails(self) -> None:
+        # ADR-BDC-0012: `docs/plans/` is no longer exempt (the planted negative of b-9 AC-1).
+        self.write("docs/plans/phase-b/sprint.md", "the sprint removes the atm sender\n")
+        self.write("docs/plans/phase-b/anchors/anchors.md", "said by fenix\n")
+        self.write("docs/plans/deep/nested/x.toml", "clean = true\n")
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ["docs/plans/phase-b/anchors/anchors.md:1: maintainer-handle: said by fenix",
+             "docs/plans/phase-b/sprint.md:1: atm-word: the sprint removes the atm sender"],
+        )
+
+    def test_the_maintainer_handle_in_a_fixture_fails(self) -> None:
+        # ADR-BDC-0012, ANC-001: the planted negative of b-9 AC-1.
+        self.write("crates/sc-beads/tests/fixtures/bd-1.3.1/list-rows.json",
+                   '[{"id": "a", "created_by": "recorder"},\n {"id": "b", "created_by": "fenix"}]\n')
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(
+            result.stdout.splitlines(),
+            ['crates/sc-beads/tests/fixtures/bd-1.3.1/list-rows.json:2: maintainer-handle: '
+             '{"id": "b", "created_by": "fenix"}]'],
+        )
 
     def test_similar_paths_are_not_exempt(self) -> None:
         text = "atm send x\n"
@@ -211,12 +256,12 @@ class RepoTest(RepoCase):
         self.assertEqual(result.returncode, 1)
         self.assertEqual(len(result.stdout.splitlines()), 4, result.stdout)
 
-    def test_adr_section_is_exempt_in_architecture_md_only(self) -> None:
-        self.write("docs/architecture.md", ExemptSectionTest.DOC)
+    def test_the_adr_section_of_architecture_md_is_not_exempt(self) -> None:
+        self.write("docs/architecture.md", NoSectionExemptionTest.DOC)
         result = self.run_lint()
         self.assertEqual(result.returncode, 1)
-        self.assertEqual(result.stdout.splitlines(),
-                         ["docs/architecture.md:10: atm-word: atm send leaks here"])
+        self.assertEqual(sorted({int(line.split(":")[1]) for line in result.stdout.splitlines()}),
+                         [5, 6, 8, 10])
 
     def test_binary_files_are_skipped(self) -> None:
         self.write("crates/x/assets/blob.bin", b"\x00\x01atm send cron@tool\x00")
@@ -288,11 +333,37 @@ class ScopeTest(RepoCase):
 
 
 class ScopePrefixTest(unittest.TestCase):
+    COMPAT = "crates/bd-cache-model/src/compat.rs"
+    DECLARATION = 'pub const LEGACY_SCOPE_PREFIX: &str = "phase-";'
+
     def test_hits(self) -> None:
         for line in ('format!("phase-{}", x)', '"phase-"', 'f"phase-{x}"', "'phase-'",
                      'FORMAT!("PHASE-{}", X)'):
             with self.subTest(line=line):
                 self.assertEqual([h.rule for h in scan_text("src/x.rs", line)], ["scope-prefix"])
+
+    def test_the_one_legacy_declaration_is_not_a_hit(self) -> None:
+        # ADR-BDC-0012: the compatibility constant, with or without indentation.
+        for line in (self.DECLARATION, f"    {self.DECLARATION}  "):
+            with self.subTest(line=line):
+                self.assertEqual(scan_text(self.COMPAT, line), [])
+
+    def test_any_other_legacy_literal_hits(self) -> None:
+        # ADR-BDC-0012: the planted negative of b-9 AC-1, a second literal of the prefix.
+        cases = (
+            (self.COMPAT, 'pub const OTHER: &str = "phase-";'),
+            (self.COMPAT, 'let label = format!("phase-{}", id);'),
+            (self.COMPAT, f'{self.DECLARATION} // and "phase-" again'),
+            ("crates/bd-cache-model/src/scope.rs", self.DECLARATION),
+            ("crates/bd-cache/src/sync.rs", 'if name.starts_with("phase-") {'),
+        )
+        for path, line in cases:
+            with self.subTest(path=path, line=line):
+                self.assertEqual([h.rule for h in scan_text(path, line)], ["scope-prefix"])
+
+    def test_the_declaration_with_more_text_on_its_line_is_matched_as_usual(self) -> None:
+        hits = scan_text(self.COMPAT, f"{self.DECLARATION} // atm")
+        self.assertEqual(sorted(h.rule for h in hits), ["atm-word", "scope-prefix"])
 
     def test_non_hits(self) -> None:
         for line in ("phase TEXT NOT NULL DEFAULT 'phase'", "let phase = row.get(\"phase\")?;",
@@ -341,10 +412,19 @@ class PathScanTest(RepoCase):
                           "docs/atm.md:2: atm-word: atm send x"])
 
     def test_exempt_and_out_of_scope_paths_are_not_path_hits(self) -> None:
-        for path in ("docs/plans/atm_notes.md", ".claude/atm.md", "src/atm.rs",
+        for path in (".claude/atm.md", "src/atm.rs",
                      "scripts/lint_no_atm.py", "scripts/test_lint_no_atm.py"):
             self.write(path, "clean\n")
         self.assertEqual(self.run_lint().returncode, 0, self.run_lint().stdout)
+
+    def test_a_plans_path_is_a_path_hit(self) -> None:
+        self.write("docs/plans/atm_notes.md", "clean\n")
+        self.write("docs/plans/fenix-review.md", "clean\n")
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(sorted(result.stdout.splitlines()),
+                         ["docs/plans/atm_notes.md:0: atm-word: docs/plans/atm_notes.md",
+                          "docs/plans/fenix-review.md:0: maintainer-handle: docs/plans/fenix-review.md"])
 
     def test_path_hit_annotation_has_no_line(self) -> None:
         self.write("crates/x/src/atm.rs", "clean\n")
@@ -391,11 +471,14 @@ class PathsOptionTest(RepoCase):
 
     def test_does_not_widen_scope_or_lift_exemptions(self) -> None:
         self.write(".claude/x.md", "atm send x\n")
-        self.write("docs/plans/p.md", "atm send x\n")
         self.write("docs/team-protocol.md", "atm send x\n")
-        for prefix in (".claude", "docs/plans", "docs/team-protocol.md"):
+        for prefix in (".claude", "docs/team-protocol.md"):
             with self.subTest(prefix=prefix):
                 self.assertEqual(self.run_lint("--paths", prefix).returncode, 0)
+
+    def test_docs_plans_is_scanned_through_paths_too(self) -> None:
+        self.write("docs/plans/p.md", "atm send x\n")
+        self.assertEqual(self.run_lint("--paths", "docs/plans").returncode, 1)
 
     def test_count_with_paths(self) -> None:
         result = self.run_lint("--count", "--paths", "docs")
@@ -408,10 +491,26 @@ class PathsOptionTest(RepoCase):
 
 class ExemptionTableTest(unittest.TestCase):
     def test_exemptions_are_exactly_the_adr_list(self) -> None:
+        # ADR-BDC-0012: the lint, its tests and the team protocol; no directory, no section.
         self.assertEqual(lint_no_atm.EXEMPT_FILES,
                          ("scripts/lint_no_atm.py", "scripts/test_lint_no_atm.py", "docs/team-protocol.md"))
-        self.assertEqual(lint_no_atm.EXEMPT_DIRS, ("docs/plans/",))
-        self.assertEqual(lint_no_atm.EXEMPT_SECTIONS, (("docs/architecture.md", "## ADR-BDC-0010"),))
+        self.assertFalse(hasattr(lint_no_atm, "EXEMPT_DIRS"))
+        self.assertFalse(hasattr(lint_no_atm, "EXEMPT_SECTIONS"))
+
+    def test_the_one_narrowed_line_is_the_legacy_declaration(self) -> None:
+        self.assertEqual(lint_no_atm.NARROWED, (
+            ("scope-prefix", "crates/bd-cache-model/src/compat.rs",
+             'pub const LEGACY_SCOPE_PREFIX: &str = "phase-";'),
+        ))
+
+    def test_the_narrowed_line_is_the_one_in_the_tree(self) -> None:
+        # The declaration the rule is narrowed for is the line the compatibility module holds,
+        # so a rename there makes the whole-tree run fail rather than pass silently.
+        compat = Path(__file__).resolve().parent.parent / "crates/bd-cache-model/src/compat.rs"
+        if not compat.is_file():
+            self.skipTest("not run inside the beads-cache tree")
+        lines = [line.strip() for line in compat.read_text(encoding="utf-8").splitlines()]
+        self.assertIn(lint_no_atm.NARROWED[0][2], lines)
 
 
 if __name__ == "__main__":

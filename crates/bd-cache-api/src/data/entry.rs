@@ -21,7 +21,7 @@ pub struct Entry {
     pub seq: i64,
     /// The caller's key.
     pub idempotency_key: String,
-    /// The bead's scope when journaled, in label form.
+    /// The bead's scope when journaled, by its name as written (ADR-BDC-0013).
     pub scope: Option<String>,
     /// The bead written.
     pub bead: BeadId,

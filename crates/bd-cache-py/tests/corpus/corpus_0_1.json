@@ -1,0 +1,1555 @@
+{
+ "unreachable_codes": [
+  "BD_CACHE.BD_LIST_FAILED",
+  "BD_CACHE.BD_SCHEMA_FAILED",
+  "BD_CACHE.BD_UNAVAILABLE",
+  "BD_CACHE.BD_VERSION_FAILED"
+ ],
+ "verbs": [
+  "closed",
+  "drain",
+  "entry",
+  "get",
+  "list",
+  "mark_announced",
+  "open_work",
+  "path",
+  "prune",
+  "ready",
+  "refresh",
+  "resolve",
+  "set_sync_alert",
+  "status",
+  "sync",
+  "sync_alert",
+  "unannounced_escalations",
+  "write"
+ ],
+ "calls": [
+  {
+   "verb": "sync",
+   "case": "first sync of a configured scope",
+   "call": "sync('x', 30)",
+   "reply": {
+    "blocked": 1,
+    "deferred": false,
+    "model_current": true,
+    "outage": null,
+    "rebuilt": false,
+    "scope": "x",
+    "stored": 3
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "-l",
+     "phase-x",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "path",
+   "case": "the cache file",
+   "call": "path",
+   "reply": "<path>",
+   "bd_calls": []
+  },
+  {
+   "verb": "closed",
+   "case": "an open handle",
+   "call": "closed",
+   "reply": false,
+   "bd_calls": []
+  },
+  {
+   "verb": "get",
+   "case": "a cached row, no bd call",
+   "call": "get('b1')",
+   "reply": {
+    "outage": null,
+    "pending": 0,
+    "row": {
+     "bead": {
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "b1",
+      "issue_type": "task",
+      "labels": [
+       "phase-x"
+      ],
+      "metadata": {},
+      "priority": 2,
+      "status": "open",
+      "title": "b1",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": [],
+     "stale": false
+    },
+    "scope_last_ok_at": "<timestamp>"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "get",
+   "case": "a miss with no time to ask bd",
+   "call": "get('zz-9', miss_timeout=0)",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.BD_UNAVAILABLE",
+    "fix": "transient backend outage: the drain retries without counting an attempt; a timed-out write retries",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "get",
+   "case": "a bead in neither the cache nor bd",
+   "call": "get('zz-9', miss_timeout=5)",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.NOT_FOUND",
+    "fix": "check the bead id",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": [
+    [
+     "list",
+     "--id",
+     "zz-9",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "get",
+   "case": "a miss filled from bd",
+   "call": "get('o1', miss_timeout=5)",
+   "reply": {
+    "outage": null,
+    "pending": 0,
+    "row": {
+     "bead": {
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "o1",
+      "issue_type": "task",
+      "labels": [],
+      "metadata": {},
+      "priority": 2,
+      "status": "open",
+      "title": "o1",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": null,
+     "stale": false
+    },
+    "scope_last_ok_at": null
+   },
+   "bd_calls": [
+    [
+     "list",
+     "--id",
+     "o1",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "refresh",
+   "case": "two ids in one bd call",
+   "call": "refresh(['b1', 'b2'], 5)",
+   "reply": [
+    {
+     "bead": {
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "b1",
+      "issue_type": "task",
+      "labels": [
+       "phase-x"
+      ],
+      "metadata": {},
+      "priority": 2,
+      "status": "open",
+      "title": "b1",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": [],
+     "stale": false
+    },
+    {
+     "bead": {
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "b2",
+      "issue_type": "task",
+      "labels": [
+       "phase-x"
+      ],
+      "metadata": {},
+      "priority": 2,
+      "status": "open",
+      "title": "b2",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": [],
+     "stale": false
+    }
+   ],
+   "bd_calls": [
+    [
+     "list",
+     "--id",
+     "b1,b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "sync",
+   "case": "an incremental sync lists from the cursor",
+   "call": "sync('x', 30)",
+   "reply": {
+    "blocked": 1,
+    "deferred": false,
+    "model_current": true,
+    "outage": null,
+    "rebuilt": false,
+    "scope": "x",
+    "stored": 1
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "-l",
+     "phase-x",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--updated-after",
+     "<timestamp>",
+     "--json"
+    ],
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "list",
+   "case": "every row of the scope",
+   "call": "list('x')",
+   "reply": {
+    "last_ok_at": "<timestamp>",
+    "outage": null,
+    "rows": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [
+        {
+         "depends_on_id": "b1",
+         "issue_id": "s1",
+         "type": "blocks"
+        }
+       ],
+       "id": "s1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "s1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [
+       "b1"
+      ],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "list",
+   "case": "by status",
+   "call": "list('x', status='closed')",
+   "reply": {
+    "last_ok_at": "<timestamp>",
+    "outage": null,
+    "rows": [],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "list",
+   "case": "by label, the label spelling of the scope",
+   "call": "list('phase-x', None, 'stage:dev')",
+   "reply": {
+    "last_ok_at": "<timestamp>",
+    "outage": null,
+    "rows": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "list",
+   "case": "an unknown scope",
+   "call": "list('nope')",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.SCOPE_UNKNOWN",
+    "fix": "sync the scope first, or use one of the known scopes",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {
+     "known": [
+      "x"
+     ]
+    },
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "known",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "ready",
+   "case": "the cached ready base, no bd call",
+   "call": "ready('x')",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "cached",
+     "stale": false
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": false,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "ready",
+   "case": "bd's answer when it comes in time",
+   "call": "ready('x', fresh_within=10)",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "fresh"
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": false,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": [
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "sync",
+   "case": "a bare name registers the legacy-prefixed label scope",
+   "call": "sync('y', 30)",
+   "reply": {
+    "blocked": 0,
+    "deferred": false,
+    "model_current": true,
+    "outage": null,
+    "rebuilt": false,
+    "scope": "y",
+    "stored": 1
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "-l",
+     "phase-y",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "blocked",
+     "-l",
+     "phase-y",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-y",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "list",
+   "case": "the bare name reads the legacy-prefixed label scope",
+   "call": "list('y')",
+   "reply": {
+    "last_ok_at": "<timestamp>",
+    "outage": null,
+    "rows": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "y1",
+       "issue_type": "task",
+       "labels": [
+        "phase-y"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "y1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "y"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "list",
+   "case": "the label spelling reads the same scope",
+   "call": "list('phase-y')",
+   "reply": {
+    "last_ok_at": "<timestamp>",
+    "outage": null,
+    "rows": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "y1",
+       "issue_type": "task",
+       "labels": [
+        "phase-y"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "y1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "y"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "a close, journaled",
+   "call": "write('b1', 'close', {'reason': 'PASS'}, {'status': 'open'}, 'k-close', 'dev-1')",
+   "reply": {
+    "duplicate": false,
+    "seq": 1
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "the same key and op again",
+   "call": "write('b1', 'close', {'reason': 'PASS'}, {'status': 'open'}, 'k-close', 'dev-1')",
+   "reply": {
+    "duplicate": true,
+    "seq": 1
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "the same key with another op",
+   "call": "write('b1', 'close', {'reason': 'other'}, None, 'k-close', 'dev-1')",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.IDEM_CONFLICT",
+    "fix": "use a key derived from the whole operation",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {
+     "seq": 1
+    },
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok",
+     "seq"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "an update with JSON text for args",
+   "call": "write('b2', 'update', '{\"add_labels\": [\"a\"]}', None, 'k-update', 'dev-1')",
+   "reply": {
+    "duplicate": false,
+    "seq": 2
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "an edge",
+   "call": "write('s1', 'dep_add', {'depends_on': 'b2', 'type': 'blocks'}, None, 'k-dep', 'dev-1')",
+   "reply": {
+    "duplicate": false,
+    "seq": 3
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "an unknown op",
+   "call": "write('b1', 'frobnicate', {}, None, 'k-bad-op', 'dev-1')",
+   "raises": {
+    "type": "ValueError"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "arguments the op does not take",
+   "call": "write('b1', 'update', {}, None, 'k-bad-args', 'dev-1')",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.BAD_ARGS",
+    "fix": "fix the args named in detail",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "a precondition the cached row fails",
+   "call": "write('b2', 'close', {}, {'status': 'closed'}, 'k-pre', 'dev-1')",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.PRECONDITION",
+    "fix": "re-read the bead and decide again",
+    "reason": "precondition_failed",
+    "exit_code": 3,
+    "payload": {
+     "unmet": {
+      "status": {
+       "actual": "open",
+       "expected": "closed"
+      }
+     }
+    },
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok",
+     "reason",
+     "unmet"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "entry",
+   "case": "a pending entry",
+   "call": "entry(1)",
+   "reply": {
+    "actor": "dev-1",
+    "announced_at": null,
+    "applied_at": null,
+    "args": {
+     "reason": "PASS"
+    },
+    "attempts": 0,
+    "bead": "b1",
+    "created_at": "<timestamp>",
+    "idem_key": "k-close",
+    "last_error": null,
+    "op": "close",
+    "phase": "x",
+    "precondition": {
+     "status": "open"
+    },
+    "seq": 1,
+    "state": "pending"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "entry",
+   "case": "an unknown seq",
+   "call": "entry(99)",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.NOT_FOUND",
+    "fix": "check the bead id",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "open_work",
+   "case": "pending writes",
+   "call": "open_work()",
+   "reply": {
+    "escalated_unannounced": 0,
+    "pending": 3
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "get",
+   "case": "a pending write replayed into the view",
+   "call": "get('b1')",
+   "reply": {
+    "outage": null,
+    "pending": 1,
+    "row": {
+     "bead": {
+      "close_reason": "PASS",
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "b1",
+      "issue_type": "task",
+      "labels": [
+       "phase-x"
+      ],
+      "metadata": {},
+      "priority": 2,
+      "status": "closed",
+      "title": "b1",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": [],
+     "stale": false
+    },
+    "scope_last_ok_at": "<timestamp>"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "drain",
+   "case": "applies in order",
+   "call": "drain(10, 20)",
+   "reply": {
+    "applied": [
+     1,
+     2,
+     3
+    ],
+    "busy": false,
+    "deferred": [],
+    "deferred_in_flight": [],
+    "escalated": [],
+    "outage": null,
+    "retrying": []
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "--id",
+     "b1,b2,s1",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "list",
+     "--id",
+     "b1",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "close",
+     "b1",
+     "--reason",
+     "PASS",
+     "--actor",
+     "dev-1"
+    ],
+    [
+     "list",
+     "--id",
+     "b1",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "update",
+     "b2",
+     "--add-label",
+     "a",
+     "--actor",
+     "dev-1"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "dep",
+     "add",
+     "s1",
+     "b2",
+     "--type",
+     "blocks",
+     "--actor",
+     "dev-1"
+    ],
+    [
+     "list",
+     "--id",
+     "s1",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "write",
+   "case": "an update the bead will refuse",
+   "call": "write('b2', 'update', {'assignee': 'dev-1'}, {'status': 'open'}, 'k-esc', 'dev-1')",
+   "reply": {
+    "duplicate": false,
+    "seq": 4
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "drain",
+   "case": "escalates a failed precondition",
+   "call": "drain(10, 20)",
+   "reply": {
+    "applied": [],
+    "busy": false,
+    "deferred": [],
+    "deferred_in_flight": [],
+    "escalated": [
+     {
+      "actor": "dev-1",
+      "bead": "b2",
+      "op": "update",
+      "phase": "x",
+      "reason": "BD_CACHE.PRECONDITION: precondition no longer holds for b2 at drain time: status: expected \"open\", actual \"in_progress\"; not written",
+      "seq": 4
+     }
+    ],
+    "outage": null,
+    "retrying": []
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "unannounced_escalations",
+   "case": "one escalated entry",
+   "call": "unannounced_escalations()",
+   "reply": [
+    {
+     "actor": "dev-1",
+     "announced_at": null,
+     "applied_at": null,
+     "args": {
+      "assignee": "dev-1"
+     },
+     "attempts": 0,
+     "bead": "b2",
+     "created_at": "<timestamp>",
+     "idem_key": "k-esc",
+     "last_error": "BD_CACHE.PRECONDITION: precondition no longer holds for b2 at drain time: status: expected \"open\", actual \"in_progress\"; not written",
+     "op": "update",
+     "phase": "x",
+     "precondition": {
+      "status": "open"
+     },
+     "seq": 4,
+     "state": "escalated"
+    }
+   ],
+   "bd_calls": []
+  },
+  {
+   "verb": "open_work",
+   "case": "an unannounced escalation",
+   "call": "open_work()",
+   "reply": {
+    "escalated_unannounced": 1,
+    "pending": 0
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "mark_announced",
+   "case": "the escalation",
+   "call": "mark_announced(4)",
+   "reply": null,
+   "bd_calls": []
+  },
+  {
+   "verb": "mark_announced",
+   "case": "an unknown seq",
+   "call": "mark_announced(99)",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.NOT_FOUND",
+    "fix": "check the bead id",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "unannounced_escalations",
+   "case": "none after marking",
+   "call": "unannounced_escalations()",
+   "reply": [],
+   "bd_calls": []
+  },
+  {
+   "verb": "entry",
+   "case": "an escalated entry",
+   "call": "entry(4)",
+   "reply": {
+    "actor": "dev-1",
+    "announced_at": "<timestamp>",
+    "applied_at": null,
+    "args": {
+     "assignee": "dev-1"
+    },
+    "attempts": 0,
+    "bead": "b2",
+    "created_at": "<timestamp>",
+    "idem_key": "k-esc",
+    "last_error": "BD_CACHE.PRECONDITION: precondition no longer holds for b2 at drain time: status: expected \"open\", actual \"in_progress\"; not written",
+    "op": "update",
+    "phase": "x",
+    "precondition": {
+     "status": "open"
+    },
+    "seq": 4,
+    "state": "escalated"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "resolve",
+   "case": "an escalated entry",
+   "call": "resolve(4, 'set by hand', 'lead-1')",
+   "reply": null,
+   "bd_calls": []
+  },
+  {
+   "verb": "entry",
+   "case": "a resolved entry keeps the note in last_error",
+   "call": "entry(4)",
+   "reply": {
+    "actor": "dev-1",
+    "announced_at": "<timestamp>",
+    "applied_at": null,
+    "args": {
+     "assignee": "dev-1"
+    },
+    "attempts": 0,
+    "bead": "b2",
+    "created_at": "<timestamp>",
+    "idem_key": "k-esc",
+    "last_error": "BD_CACHE.PRECONDITION: precondition no longer holds for b2 at drain time: status: expected \"open\", actual \"in_progress\"; not written | resolved by lead-1: set by hand",
+    "op": "update",
+    "phase": "x",
+    "precondition": {
+     "status": "open"
+    },
+    "seq": 4,
+    "state": "resolved"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "write",
+   "case": "a close left pending",
+   "call": "write('b2', 'close', {}, None, 'k-late', 'dev-1')",
+   "reply": {
+    "duplicate": false,
+    "seq": 5
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "drain",
+   "case": "a spent start gate defers without calling bd",
+   "call": "drain(0, 0)",
+   "reply": {
+    "applied": [],
+    "busy": false,
+    "deferred": [
+     5
+    ],
+    "deferred_in_flight": [],
+    "escalated": [],
+    "outage": null,
+    "retrying": []
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "sync_alert",
+   "case": "none set",
+   "call": "sync_alert('x')",
+   "reply": null,
+   "bd_calls": []
+  },
+  {
+   "verb": "set_sync_alert",
+   "case": "set",
+   "call": "set_sync_alert('x', 'BD_CACHE.BD_CONTRACT: bad row')",
+   "reply": null,
+   "bd_calls": []
+  },
+  {
+   "verb": "sync_alert",
+   "case": "read back, the label spelling",
+   "call": "sync_alert('phase-x')",
+   "reply": "BD_CACHE.BD_CONTRACT: bad row",
+   "bd_calls": []
+  },
+  {
+   "verb": "set_sync_alert",
+   "case": "cleared with None",
+   "call": "set_sync_alert('x', None)",
+   "reply": null,
+   "bd_calls": []
+  },
+  {
+   "verb": "sync",
+   "case": "bd unreachable reports an outage",
+   "call": "sync('x', 30)",
+   "reply": {
+    "blocked": 0,
+    "deferred": false,
+    "model_current": false,
+    "outage": {
+     "last_error": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused",
+     "since": "<timestamp>"
+    },
+    "rebuilt": false,
+    "scope": "x",
+    "stored": 0
+   },
+   "bd_calls": [
+    [
+     "version"
+    ]
+   ]
+  },
+  {
+   "verb": "get",
+   "case": "a miss while bd is down",
+   "call": "get('zz-9', miss_timeout=5)",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.BD_UNAVAILABLE",
+    "fix": "transient backend outage: the drain retries without counting an attempt; a timed-out write retries",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {
+     "source": {
+      "code": "SC_BEADS_UNAVAILABLE",
+      "detail": "backend unavailable: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused"
+     }
+    },
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok",
+     "source"
+    ]
+   },
+   "bd_calls": [
+    [
+     "list",
+     "--id",
+     "zz-9",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "status",
+   "case": "an outage is recorded",
+   "call": "status()",
+   "reply": {
+    "escalated": [],
+    "journal": {
+     "x:applied": 3,
+     "x:pending": 1,
+     "x:resolved": 1
+    },
+    "meta": {
+     "bd_schema_sha256": "caf8fe18e1117c067ff7bbd824484b24849677e2cbf86d793ddf6b64069a31a2",
+     "bd_schema_version": "1",
+     "bd_version": "1.3.1",
+     "dolt_database": "dev-db",
+     "outage_error": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused",
+     "outage_since": "<timestamp>",
+     "project_id": "p-1",
+     "sc_cron_schedule_version": "2"
+    },
+    "outage": {
+     "last_error": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused",
+     "since": "<timestamp>"
+    },
+    "phases": [
+     {
+      "beads": 3,
+      "last_error": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused",
+      "last_ok_at": "<timestamp>",
+      "last_started_at": "<timestamp>",
+      "phase": "x"
+     },
+     {
+      "beads": 1,
+      "last_error": null,
+      "last_ok_at": "<timestamp>",
+      "last_started_at": "<timestamp>",
+      "phase": "y"
+     }
+    ],
+    "stale": []
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "sync",
+   "case": "bd back",
+   "call": "sync('x', 30)",
+   "reply": {
+    "blocked": 1,
+    "deferred": false,
+    "model_current": true,
+    "outage": null,
+    "rebuilt": false,
+    "scope": "x",
+    "stored": 3
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "-l",
+     "phase-x",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--updated-after",
+     "<timestamp>",
+     "--json"
+    ],
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "status",
+   "case": "the end state",
+   "call": "status()",
+   "reply": {
+    "escalated": [],
+    "journal": {
+     "x:applied": 3,
+     "x:pending": 1,
+     "x:resolved": 1
+    },
+    "meta": {
+     "bd_schema_sha256": "caf8fe18e1117c067ff7bbd824484b24849677e2cbf86d793ddf6b64069a31a2",
+     "bd_schema_version": "1",
+     "bd_version": "1.3.1",
+     "dolt_database": "dev-db",
+     "project_id": "p-1",
+     "sc_cron_schedule_version": "2"
+    },
+    "outage": null,
+    "phases": [
+     {
+      "beads": 3,
+      "last_error": null,
+      "last_ok_at": "<timestamp>",
+      "last_started_at": "<timestamp>",
+      "phase": "x"
+     },
+     {
+      "beads": 1,
+      "last_error": null,
+      "last_ok_at": "<timestamp>",
+      "last_started_at": "<timestamp>",
+      "phase": "y"
+     }
+    ],
+    "stale": []
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "prune",
+   "case": "refused while a write is pending",
+   "call": "prune('x')",
+   "raises": {
+    "type": "CacheError",
+    "code": "BD_CACHE.PRUNE_BLOCKED",
+    "fix": "drain, or resolve the escalated entries with the lead, then prune",
+    "reason": null,
+    "exit_code": 3,
+    "payload": {},
+    "detail_is_text": true,
+    "body_keys": [
+     "code",
+     "detail",
+     "fix",
+     "ok"
+    ]
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "drain",
+   "case": "the last pending write",
+   "call": "drain(10, 20)",
+   "reply": {
+    "applied": [
+     5
+    ],
+    "busy": false,
+    "deferred": [],
+    "deferred_in_flight": [],
+    "escalated": [],
+    "outage": null,
+    "retrying": []
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "close",
+     "b2",
+     "--actor",
+     "dev-1"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "prune",
+   "case": "a scope with nothing open",
+   "call": "prune('x')",
+   "reply": {
+    "beads_deleted": 3,
+    "out_of_scope_swept": 1,
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "list",
+   "case": "after the prune",
+   "call": "list('x')",
+   "reply": {
+    "last_ok_at": null,
+    "outage": null,
+    "rows": [],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "closed",
+   "case": "a closed handle",
+   "call": "closed",
+   "reply": true,
+   "bd_calls": []
+  }
+ ]
+}

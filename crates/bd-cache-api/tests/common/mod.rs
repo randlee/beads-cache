@@ -44,6 +44,7 @@ pub fn default_facts() -> CacheFacts {
         project_id: "proj-1".into(),
         beads_dir: Some("/repo/.beads".into()),
         repo_root: Some("/repo".into()),
+        sync: None,
     }
 }
 

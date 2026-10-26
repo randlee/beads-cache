@@ -231,7 +231,7 @@ def repo(tmp_path):
     root = tmp_path / "repo"
     (root / ".beads").mkdir(parents=True)
     (root / ".beads" / "metadata.json").write_text(
-        json.dumps({"dolt_database": "atm-dev", "project_id": "p-1"}), encoding="utf-8")
+        json.dumps({"dolt_database": "dev-db", "project_id": "p-1"}), encoding="utf-8")
     fake = FakeBd(tmp_path)
     fake.add(
         bead("b1"),

@@ -159,7 +159,7 @@ pub(crate) fn rows<'a>(views: impl IntoIterator<Item = &'a RowView>) -> Rows {
 /// `x_cache` on reads: `{scope, last_ok_at, outage, rows}`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ReadXCache {
-    /// The scope read, in label form; `null` when the bead has none.
+    /// The scope read, by its name as written (ADR-BDC-0013); `null` when the bead has none.
     pub scope: Option<String>,
     /// The scope's last successful sync.
     pub last_ok_at: Option<String>,

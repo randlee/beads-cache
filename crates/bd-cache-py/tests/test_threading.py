@@ -50,7 +50,7 @@ def test_any_thread_can_use_the_handle_and_none_panics(cache):
     thread = daemon(other_thread)
     thread.start()
     join(thread)
-    assert outcome == ["atm-dev", 1]
+    assert outcome == ["dev-db", 1]
     assert cache.entry(1)["idem_key"] == "k-thread", "the owning thread sees what the other wrote"
 
 

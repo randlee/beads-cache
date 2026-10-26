@@ -104,7 +104,7 @@ pub use decode::decode;
 #[doc(inline)]
 pub use error::{ApiError, CODE_PREFIX, ERROR_TABLE, ErrorKind, ErrorSpec, Unsupported, spec};
 #[doc(inline)]
-pub use ops::{CacheFacts, execute};
+pub use ops::{CacheFacts, SyncFacts, SyncRowFacts, execute};
 #[doc(inline)]
 pub use page::{Cursor, ListSort};
 #[doc(inline)]

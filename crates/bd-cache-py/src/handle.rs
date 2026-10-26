@@ -93,6 +93,20 @@ impl Inner {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
+
+    /// The facts `manage.health()` judges: the handle's, with the sync rows'
+    /// state read now from the handle's schedule table (REQ-BDC-0732), as
+    /// `bdc cache health` reads it (`bd_cache_sync::sync_facts`).
+    fn health_facts(&self) -> Result<CacheFacts, bd_cache_api::ApiError> {
+        let to_api = |e: &ModelError| bd_cache_sync::FrontEnd::Python.api_error(e);
+        let store = self.schedules.store().map_err(|e| to_api(&e))?;
+        let sync =
+            bd_cache_sync::sync_facts(store.as_ref(), &self.cache()).map_err(|e| to_api(&e))?;
+        Ok(CacheFacts {
+            sync: Some(sync),
+            ..self.facts.clone()
+        })
+    }
 }
 
 impl fmt::Debug for Inner {
@@ -544,8 +558,13 @@ impl PyCache {
         }
         let request = decode(command, request).map_err(|e| api_err(py, &e))?;
         let outcome = py.detach(|| {
-            self.inner
-                .with(|i| execute(&mut i.cache(), &request, &i.facts).and_then(|d| d.to_json()))
+            self.inner.with(|i| {
+                if command == Command::CacheHealth {
+                    let facts = i.health_facts()?;
+                    return execute(&mut i.cache(), &request, &facts).and_then(|d| d.to_json());
+                }
+                execute(&mut i.cache(), &request, &i.facts).and_then(|d| d.to_json())
+            })
         });
         match outcome {
             Ok(Ok(data)) => to_py(py, &data),

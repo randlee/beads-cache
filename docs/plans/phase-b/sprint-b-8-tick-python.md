@@ -1,7 +1,7 @@
 ---
 id: b-8
 phase: b
-status: in-review
+status: complete
 closure_type: integration
 target_boundary: bd-cache-sync, bd-cache-cli, bd-cache-py, bd-cache-api (the new verbs), sc-cron (general features)
 track: core

@@ -102,6 +102,8 @@ use crate::state::{
 ///   scope never stored one; `mark_ready_base_stale` on a missing base is a
 ///   no-op; `prune_scope` deletes it.
 /// - `applied_since(at)` returns entries applied at or after `at`, in seq order.
+/// - `last_applied_at` is the newest applied time among the entries the
+///   journal still holds (`None` when none is applied), whatever their seqs.
 /// - journal reads (`pending_entries`, `pending_for`, `unannounced_escalations`)
 ///   are in seq order; `insert_entry` on a used key is `IDEM_CONFLICT`;
 ///   `insert_entry` stores the entry and its `changed` in one transaction,
@@ -328,6 +330,24 @@ pub trait CacheStore: Send {
     /// date entries, must not wait for the write lock to do so, and returns
     /// the same entries either way.
     fn applied_since(&self, at: &Timestamp) -> Result<Vec<JournalEntry>, CacheError>;
+    /// When the journal last applied an entry: the newest applied time of any
+    /// entry still in the journal, `None` when none was applied.
+    ///
+    /// Judged on the entries' applied times, never on their seqs: a prune
+    /// deletes entries, so seqs have gaps and the newest entry need not be the
+    /// last row count. The provided body reads every applied entry through
+    /// [`CacheStore::applied_since`]; an implementation that can ask an index
+    /// overrides it (`SqliteStore` does, with no write).
+    fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
+        let Ok(floor) = Timestamp::from_unix(Timestamp::MIN_UNIX) else {
+            return Ok(None);
+        };
+        Ok(self
+            .applied_since(&floor)?
+            .into_iter()
+            .filter_map(|e| e.applied_at)
+            .max())
+    }
     /// Marks an entry applied, storing the read-back row or marking the bead stale; one transaction.
     fn apply_with_readback(
         &mut self,

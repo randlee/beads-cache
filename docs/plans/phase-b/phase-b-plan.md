@@ -2,7 +2,7 @@
 
 Status: b-1..b-5 complete and merged into `integrate/phase-b` (b-1 #75, b-2 #76, b-3a #74,
 b-3 #78, b-4 #77, b-5 #80); b-6 complete and merged (#92); b-7 complete and merged (#99); b-8
-in review (#100); b-9 planned. b-7, b-8 and b-9 are the sprints of the
+complete and merged (#100); b-9 in review. b-7, b-8 and b-9 are the sprints of the
 boundary extension [phase-b-boundary.md](phase-b-boundary.md) (r3, lead ruling S82, with
 Rand's later Amendments A1–A8). The contract, ADR-BDC-0009 and the REQ-BDC-0801, 0802, 0803
 and 0806 amendments were approved by Rand (lead ruling S60, 2026-10-25). The phase-B extension's

@@ -10,17 +10,21 @@
 //! returns the entry and the views before and after (REQ-BDC-0809);
 //! `cache journal get` reads by key with `entry_by_key`; `cache status`
 //! counts with `journal_counts`. The api never opens a file, so `context`
-//! and `cache status` take the file's facts as [`CacheFacts`].
+//! and `cache status` take the file's facts as [`CacheFacts`], and
+//! `cache health` the sync rows' state as [`SyncFacts`] (REQ-BDC-0732),
+//! which the front end reads from the schedule table through `bd-cache-sync`.
 
 mod beads;
 mod manage;
 mod scopes;
 
+use std::time::Duration;
+
 use bd_cache::Cache;
 use bd_cache_model::{CacheStore, DrainLock, ScopeId};
-use sc_beads::CacheBackend;
+use sc_beads::{CacheBackend, Timestamp};
 
-use crate::data::Data;
+use crate::data::{Data, SyncModeData};
 use crate::error::ApiError;
 use crate::request::Request;
 
@@ -50,6 +54,47 @@ pub struct CacheFacts {
     pub beads_dir: Option<String>,
     /// The repository root, when known.
     pub repo_root: Option<String>,
+    /// The sync rows' state, for `cache health` (REQ-BDC-0732); `None` when
+    /// the front end did not read the schedule table (health then reports
+    /// `sync: null` and no sync reason).
+    pub sync: Option<SyncFacts>,
+}
+
+/// What a front end read of the cache file's sync rows for `cache health`
+/// (REQ-BDC-0732); `bd-cache-sync`'s `sync_facts` builds it from the rows
+/// `schedule show` reports (REQ-BDC-0731).
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct SyncFacts {
+    /// The mode the rows' flags give.
+    pub mode: SyncModeData,
+    /// Whether a sync row exists, enabled or not.
+    pub has_rows: bool,
+    /// The enabled row; `None` in mode `none`.
+    pub enabled: Option<SyncRowFacts>,
+    /// The consecutive failures of the post-sync hook the built-in row names;
+    /// `None` when it names none.
+    pub hook_failures: Option<u32>,
+}
+
+/// The enabled sync row, as `cache health` judges it (REQ-BDC-0732).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SyncRowFacts {
+    /// Which row: `builtin` or `python`.
+    pub row: &'static str,
+    /// When the row was written or last replaced (sc-cron's `created_at`).
+    pub created_at: Timestamp,
+    /// One period of the row at evaluation (REQ-BDC-0727): the gap between
+    /// its next two scheduled times; `None` when it has no next run, or none
+    /// after it.
+    pub period: Option<Duration>,
+    /// When its last recorded run finished.
+    pub last_run_at: Option<Timestamp>,
+    /// That run's outcome: `ok`, or the failure's text.
+    pub outcome: Option<String>,
+    /// The latest run's id.
+    pub run_id: Option<String>,
+    /// Consecutive failed runs, the latest included.
+    pub consecutive_failures: u32,
 }
 
 /// Runs one decoded request.
@@ -79,7 +124,7 @@ pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Request::DependenciesAdd(r) => Data::DependenciesAdd(dependencies_add(cache, r)?),
         Request::Context(_) => Data::Context(context(cache, facts)?),
         Request::CacheStatus(_) => Data::CacheStatus(cache_status(cache, facts)?),
-        Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, *r)?),
+        Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, *r, facts)?),
         Request::CacheScopes(_) | Request::ScopesList(_) => Data::CacheScopes(cache_scopes(cache)?),
         Request::CacheRefreshScopes(r) => Data::CacheRefreshScopes(cache_refresh_scopes(cache, r)?),
         Request::CacheRefreshIssues(r) => Data::CacheRefreshIssues(cache_refresh_issues(cache, r)?),

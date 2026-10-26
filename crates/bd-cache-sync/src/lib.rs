@@ -20,6 +20,8 @@
 //! - [`execute`] with a [`FrontEnd`]: a decoded front-end verb of the
 //!   contract run over it, the request mapped to its inputs and every error
 //!   to the contract's once (ADR-BDC-0015);
+//! - [`sync_facts`]: the sync rows' state `cache health` judges
+//!   (REQ-BDC-0732), read for every front end;
 //! - [`StopFlag`], the flag a signal sets.
 //!
 //! Inside: [`run_builtin`] (the built-in row's run: lease, drain, every scope
@@ -50,6 +52,7 @@ mod compose;
 mod control;
 mod cron;
 mod front_end;
+mod health;
 mod history;
 mod hook;
 mod job;
@@ -98,6 +101,8 @@ pub use control::StopFlag;
 pub use cron::{CronOnce, CronStopped, DueRunView};
 #[doc(inline)]
 pub use front_end::{FrontEnd, execute};
+#[doc(inline)]
+pub use health::sync_facts;
 #[doc(inline)]
 pub use history::RowHistory;
 #[doc(inline)]

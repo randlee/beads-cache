@@ -730,6 +730,55 @@ pub fn applied_since_is_inclusive_and_ordered(fx: &mut impl StoreFixture) {
     assert_eq!(ok(s.applied_since(&ts(T0)), "all").len(), 3);
 }
 
+/// `last_applied_at` is the newest applied time of the entries the journal
+/// holds: `None` until one is applied, newest by time and not by seq, and
+/// unharmed by the seq gap a prune leaves.
+pub fn last_applied_at_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert_eq!(ok(s.last_applied_at(), "empty journal"), None);
+    ok(s.ensure_scope(&sx()), "x");
+    let first = ok(
+        s.insert_entry(entry("k1", "b1", Some(x())), &ts(T0)),
+        "insert k1",
+    );
+    assert_eq!(ok(s.last_applied_at(), "pending only"), None);
+    ok(
+        s.apply_with_readback(first, None, None, &ts(T2)),
+        "apply k1",
+    );
+    assert_eq!(ok(s.last_applied_at(), "one applied"), Some(ts(T2)));
+
+    // The newest time wins over the newest seq.
+    let loose = ok(
+        s.insert_entry(entry("k2", "b2", None), &ts(T0)),
+        "insert k2",
+    );
+    ok(
+        s.apply_with_readback(loose, None, None, &ts(T1)),
+        "apply k2",
+    );
+    assert_eq!(ok(s.last_applied_at(), "older seq is newer"), Some(ts(T2)));
+
+    // A prune deletes x's entry and leaves a gap in the seqs: the survivor
+    // is the only applied entry, then a later one is journaled and applied.
+    ok(s.prune_scope(&x()), "prune x");
+    assert_eq!(ok(s.last_applied_at(), "after the prune"), Some(ts(T1)));
+    let later = ok(
+        s.insert_entry(entry("k3", "b3", None), &ts(T0)),
+        "insert k3",
+    );
+    assert!(later > loose, "seqs only grow");
+    assert_eq!(ok(s.last_applied_at(), "k3 pending"), Some(ts(T1)));
+    ok(
+        s.apply_with_readback(later, None, None, &ts("2026-10-23T10:00:03Z")),
+        "apply k3",
+    );
+    assert_eq!(
+        ok(s.last_applied_at(), "after the gap"),
+        Some(ts("2026-10-23T10:00:03Z"))
+    );
+}
+
 /// Journal basics: seqs increase, lookups by key and seq in any state, ordered pending reads,
 /// attempts, escalation, resolve, announcement and open work.
 #[expect(
@@ -1904,6 +1953,7 @@ macro_rules! store_contract_tests {
             base_entry_rules,
             has_entries_since_rules,
             applied_since_is_inclusive_and_ordered,
+            last_applied_at_rules,
             journal_lifecycle,
             resolve_note_without_prior_error,
             insert_entry_stores_changed,

@@ -152,6 +152,33 @@ Phase-end fixes to the 0.1.0 code described below.
 - `sc-cron`: an undecodable schedule row is skipped with a warning instead of
   stopping every schedule.
 
+### Boundary extension: health, the neutral tests and the lint gate (sprint b-9)
+
+- **`cache health`** (REQ-BDC-0732, #86): `reasons[]` for every degraded cause; the oldest
+  pending entry's age (`oldest_pending_age_s`, `--max-pending-age-s N`, default 300 s), the last
+  drain (`last_drain_at`, the newest applied time the journal holds, an index read) and the
+  unresolved escalations; and the sync's state (`sync: {mode, last_run}`) with the reasons
+  `no_sync_row_enabled`, `sync_stale` (three periods of the enabled row), `sync_failing` (three
+  failed runs) and `hook_failing` (three hook failures), the same from `bdc` and
+  `cache.manage.health()`.
+- **`cache refresh scopes --timeout-ms N`** (NFR-BDC-0004): each scope's sync deadline; every bd
+  call is killed at its timeout capped by the time left.
+- **The contract** (`docs/bd-cache-cli/contract.md`) states what the phase-B extension built:
+  the scope filters, the sync rows, the switch, the post-sync hook and the new verbs (§2, §4,
+  §6), the 0.1 → 0.2 API differences (§10) and the classification of the extension's changes as
+  pre-release edits of the unreleased 1.0.0 (§11).
+- **Tests are neutral** (REQ-BDC-0812, ADR-STORE-0006, ADR-PY-0006): the vendored compat
+  implementation, its call log and the mapping test are removed; a 0.1 call corpus generated in
+  this repository against the fake bd (`crates/bd-cache-py/tests/corpus/`) pins every 0.1 verb,
+  reply, error and bd argv, the 0.1 bare-name rule included. A CLI outage scenario shows
+  `issues get` answering from the cache while the outage is recorded for the scope.
+- **CI** (ADR-BDC-0010 as amended by ADR-BDC-0012): the step "Strict consumer boundary
+  (ADR-BDC-0010)" runs the boundary lint on the whole tree, plans included, with no exemption
+  but the lint, its tests and the team protocol; the lint gains the maintainer-handle rule and
+  narrows `scope-prefix` for the one `LEGACY_SCOPE_PREFIX` declaration. The unit-test jobs
+  assert that no `bd` or `dolt` is on `PATH` (NFR-BDC-0005), and the lint job that no crate
+  depends on a Dolt or MySQL client (REQ-BDC-0006). The compat test's `uv` setup is gone.
+
 ## [0.1.0] - unreleased
 
 The first release: the beads SQLite cache extracted from its first

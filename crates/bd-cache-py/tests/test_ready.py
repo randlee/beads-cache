@@ -8,7 +8,7 @@ def ready_ids(reply):
 
 
 def sanity_world(repo):
-    """The `atm task open` world: a sanity bead blocked by the dev bead."""
+    """A sanity bead blocked by the dev bead."""
     repo.config('scopes = ["x"]\n')
     repo.bd.add(
         bead("dev-1", status="in_progress", assignee="dev-1"),

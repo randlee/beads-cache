@@ -50,7 +50,7 @@ pub use bd_cache_model::{
     PruneReport, ReadyReply, RowView, Scope, ScopeId, Seq, StateCounts, StatusReply, SyncReport,
     SyncRun, SyncRunEnd, SyncState, UpsertReport, WriteOutcome, WriteReply,
 };
-use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards};
+use sc_beads::{Actor, BeadId, CacheBackend, Clock, Deadline, Guards, Timestamp};
 
 mod backend_check;
 mod drain;
@@ -711,6 +711,20 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// Store errors.
     pub fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError> {
         self.store.pending_entries()
+    }
+
+    /// When the journal last applied an entry (`cache health`
+    /// `last_drain_at`), `None` when it has applied none.
+    ///
+    /// The newest applied time of the entries the journal holds, read from the
+    /// store's applied-time index and never from seqs, so a prune's gaps do not
+    /// matter. A store read only: no bd call, no write.
+    ///
+    /// # Errors
+    ///
+    /// Store errors.
+    pub fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
+        self.store.last_applied_at()
     }
 
     /// The backend check on its own (`cache health --probe`; lead ruling S66):

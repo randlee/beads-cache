@@ -1,3 +1,0 @@
-# Vendored files are pinned by sha256 (PROVENANCE.md) and the schema text is
-# compared between Rust and Python: keep them LF on every platform.
-* text eol=lf

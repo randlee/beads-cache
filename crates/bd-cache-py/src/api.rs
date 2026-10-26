@@ -200,11 +200,11 @@ namespace_class! {
     PyManage = "Manage" {
         /// `cache status`.
         status => CacheStatus,
-        /// `cache health`: `probe`.
+        /// `cache health`: `probe`, `max_pending_age_s`.
         health => CacheHealth,
         /// `cache scopes`.
         scopes => CacheScopes,
-        /// `cache refresh scopes`: `scopes`.
+        /// `cache refresh scopes`: `scopes`, `timeout_ms`.
         refresh_scopes => CacheRefreshScopes,
         /// `cache refresh issues`: `ids`, `timeout_ms`.
         refresh_issues => CacheRefreshIssues,

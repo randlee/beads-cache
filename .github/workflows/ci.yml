@@ -131,8 +131,29 @@ jobs:
           if [ "$fail" -ne 0 ]; then exit 1; fi
           echo "transitive boundaries ok: no sc-command or clap under bd-cache-api, bd-cache-py"
 
-      - name: Release scripts tests (scripts/prerelease_tag.py)
+      - name: Release scripts tests (scripts/prerelease_tag.py, scripts/lint_no_atm.py)
         run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+
+      # ADR-BDC-0010 as amended by ADR-BDC-0012 (sprint b-9): beads-cache names no
+      # consumer concern in its source, tests, scripts, workflows or docs, plans
+      # included. The whole tree; no suppression, no allowlist; the only
+      # exemptions are the lint, its tests and docs/team-protocol.md.
+      - name: Strict consumer boundary (ADR-BDC-0010)
+        run: python3 -I scripts/lint_no_atm.py
+
+      # REQ-BDC-0006: the backend is reached only through bd, so no crate of the
+      # workspace depends, with any edge kind, feature or target, on a Dolt or
+      # MySQL client.
+      - name: No Dolt or MySQL client (REQ-BDC-0006)
+        run: |
+          set -euo pipefail
+          tree=$(cargo tree --workspace -e normal,build,dev --all-features --target all --prefix none --format '{p}')
+          hits=$(grep -iE '^([a-z0-9_-]*dolt[a-z0-9_-]*|[a-z0-9_-]*mysql[a-z0-9_-]*|mariadb[a-z0-9_-]*) v' <<<"$tree" | sort -u || true)
+          if [ -n "$hits" ]; then
+            echo "::error::a Dolt or MySQL client is in the dependency graph (REQ-BDC-0006): $hits"
+            exit 1
+          fi
+          echo "no Dolt or MySQL client in the workspace graph"
 
   # Clippy and tests on every supported OS (QA-004).
   test:
@@ -151,9 +172,17 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # bd-cache-store's compatibility test (sprint a-4) runs the reference
-      # Python implementation with uv.
-      - uses: astral-sh/setup-uv@v6
+      # NFR-BDC-0005: the unit tests run against fakes, never a real bd or Dolt;
+      # neither may be reachable on PATH while they run.
+      - name: No bd or dolt on PATH (NFR-BDC-0005)
+        run: |
+          for tool in bd dolt; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "::error::$tool is on PATH ($(command -v "$tool")): the unit tests must run without it (NFR-BDC-0005)"
+              exit 1
+            fi
+          done
+          echo "no bd or dolt on PATH"
 
       - name: Clippy
         run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings

@@ -19,7 +19,7 @@ def test_the_config_file_supplies_scopes_and_the_cache_path(repo):
 
 def test_the_default_cache_file_is_named_for_the_dolt_database(repo):
     cache = repo.open()
-    assert cache.path == repo.root / ".bd-cache" / "atm-dev.bd-cache.sqlite3"
+    assert cache.path == repo.root / ".bd-cache" / "dev-db.bd-cache.sqlite3"
 
 
 def test_explicit_arguments_override_the_config_file(repo):
@@ -134,11 +134,11 @@ def test_a_cache_file_of_another_project_is_refused(repo):
     path = cache.path
     cache.close()
     (repo.root / ".beads" / "metadata.json").write_text(
-        json.dumps({"dolt_database": "atm-dev", "project_id": "p-2"}), encoding="utf-8")
+        json.dumps({"dolt_database": "dev-db", "project_id": "p-2"}), encoding="utf-8")
     with pytest.raises(bd_cache_rs.CacheError) as caught:
         repo.open()
     assert caught.value.code == "BD_CACHE.WRONG_DATABASE"
-    assert path.name == "atm-dev.bd-cache.sqlite3"
+    assert path.name == "dev-db.bd-cache.sqlite3"
 
 
 def test_a_second_open_of_one_file_in_a_process_is_refused_until_the_first_closes(repo):
@@ -165,7 +165,7 @@ def test_close_ends_the_handle_and_is_idempotent(repo):
 
 def test_the_handle_is_a_context_manager(repo):
     with repo.open() as cache:
-        assert cache.status()["meta"]["dolt_database"] == "atm-dev"
+        assert cache.status()["meta"]["dolt_database"] == "dev-db"
     assert cache.closed is True
 
 
@@ -275,4 +275,4 @@ def test_the_ambient_beads_dir_does_not_reach_a_test(repo):
     # PE-FTQ-001: conftest's autouse fixture removes it; run the suite with BEADS_DIR set
     # to a directory without metadata.json and this repository still opens.
     assert "BEADS_DIR" not in os.environ
-    assert repo.open().status()["meta"]["dolt_database"] == "atm-dev"
+    assert repo.open().status()["meta"]["dolt_database"] == "dev-db"
