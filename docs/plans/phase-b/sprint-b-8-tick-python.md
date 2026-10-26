@@ -13,74 +13,9 @@ recommended_model: opus
 must_follow: [b-7]
 parallel_safe: []
 requirements:
-  owns:
-    - REQ-BDC-0720
-    - REQ-BDC-0722
-    - REQ-BDC-0723
-    - REQ-BDC-0724
-    - REQ-BDC-0725
-    - REQ-BDC-0727
-    - REQ-BDC-0730
-    - REQ-BDC-0731
-    - "REQ-BDC-0703 (amended)"
-    - "REQ-BDC-0803 (amended)"
-    - "REQ-BDC-0810 (amended)"
-    - "REQ-BDC-0701, 0702, 0704..0707 (superseded; their code removed)"
-    - "REQ-SYNC-0001, 0004, 0010, 0012 (amended)"
-    - "REQ-SYNC-0002, 0003, 0006..0009, 0011 (superseded; their code removed)"
-    - "REQ-CRON-0005 (amended)"
-    - REQ-CRON-0016
-    - REQ-CRON-0018
-    - "REQ-MODEL-0005 (amended)"
-    - "REQ-CLI-0006, REQ-CLI-0008 (amended)"
-    - "REQ-PY-0002, 0005, 0008 (amended)"
-    - "REQ-API-0001, REQ-API-0005 (amended)"
-  constrained_by:
-    - REQ-BDC-0001
-    - REQ-BDC-0006
-    - REQ-BDC-0007
-    - REQ-BDC-0008
-    - REQ-BDC-0401
-    - REQ-BDC-0402
-    - REQ-BDC-0502
-    - REQ-BDC-0721
-    - REQ-BDC-0726
-    - REQ-BDC-0728
-    - REQ-BDC-0729
-    - REQ-BDC-0801
-    - REQ-BDC-0802
-    - REQ-BDC-0807
-    - REQ-BDC-0812
-    - REQ-BDC-0910
-    - NFR-BDC-0002
-    - NFR-BDC-0003
-    - NFR-BDC-0004
-    - NFR-BDC-0005
-    - NFR-BDC-0007
-    - "REQ-SYNC-0005, 0013"
-    - "REQ-CRON-0001..0004, 0006..0015, 0017"
-    - "REQ-API-0002..0004, 0006..0008"
-    - "REQ-CLI-0001..0005, 0007, 0009..0012"
-    - "REQ-PY-0001, 0003, 0004, 0006, 0007, 0010..0014"
-    - "REQ-MODEL-0001..0004"
-adrs:
-  - ADR-BDC-0004
-  - ADR-BDC-0005
-  - ADR-BDC-0006
-  - ADR-BDC-0009
-  - ADR-BDC-0010
-  - ADR-BDC-0011
-  - ADR-BDC-0012
-  - ADR-BDC-0013
-  - ADR-BDC-0014
-  - ADR-BDC-0015
-  - "ADR-SYNC-0001..0008"
-  - "ADR-CRON-0001..0009"
-  - "ADR-PY-0001..0006"
-  - "ADR-CLI-0001..0005"
-  - "ADR-API-0001..0003"
-  - "ADR-STORE-0001, 0003, 0006"
-  - "ADR-MODEL-0004"
+  owns: [REQ-BDC-0720, REQ-BDC-0722, REQ-BDC-0723, REQ-BDC-0724, REQ-BDC-0725, REQ-BDC-0727, REQ-BDC-0730, REQ-BDC-0731, "REQ-BDC-0703 (amended)", "REQ-BDC-0803 (amended)", "REQ-BDC-0810 (amended)", "REQ-BDC-0701, 0702, 0704..0707 (superseded; their code removed)", "REQ-SYNC-0001, 0004, 0010, 0012 (amended)", "REQ-SYNC-0002, 0003, 0006..0009, 0011 (superseded; their code removed)", "REQ-CRON-0005 (amended)", REQ-CRON-0016, REQ-CRON-0018, "REQ-MODEL-0005 (amended)", "REQ-CLI-0006, REQ-CLI-0008 (amended)", "REQ-PY-0002, 0005, 0008 (amended)", "REQ-API-0001, REQ-API-0005 (amended)"]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0502, REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, REQ-BDC-0801, REQ-BDC-0802, REQ-BDC-0807, REQ-BDC-0812, REQ-BDC-0910, NFR-BDC-0002, NFR-BDC-0003, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0007, "REQ-SYNC-0005, 0013", "REQ-CRON-0001..0004, 0006..0015, 0017", "REQ-API-0002..0004, 0006..0008", "REQ-CLI-0001..0005, 0007, 0009..0012", "REQ-PY-0001, 0003, 0004, 0006, 0007, 0010..0014", "REQ-MODEL-0001..0004"]
+adrs: [ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0009, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, ADR-BDC-0015, "ADR-SYNC-0001..0008", "ADR-CRON-0001..0009", "ADR-PY-0001..0006", "ADR-CLI-0001..0005", "ADR-API-0001..0003", "ADR-STORE-0001, 0003, 0006", "ADR-MODEL-0004"]
 owned_paths:
   - "crates/bd-cache-sync/**"
   - "crates/bd-cache-model/src/{sender.rs,config.rs,lib.rs} and crates/bd-cache-model/tests/config.rs (the removals)"
@@ -101,8 +36,7 @@ owned_paths:
 beads-cache syncs bd itself, on a row of the sc-cron table in the cache file. A consumer can
 switch to its own Python sync row with one command, which runs the script at once and rolls back
 on failure, and the built-in sync gives a post-sync hook every result and error; the cache sends
-nothing (ADR-BDC-0010). One sync runs at a time, `cron run` stops cleanly on a signal, and sc-cron
-gains only general features (ADR-CRON-0009). The design is ADR-SYNC-0008, ADR-BDC-0015,
+nothing (ADR-BDC-0010). The design is ADR-SYNC-0008, ADR-BDC-0015,
 ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
 
 ## Deliverables
@@ -117,10 +51,8 @@ ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
    writes: the interpreter (`TrustedInterpreter`: absolute, a regular executable, then `-I -c
    'import bd_cache_rs'` within 5 s), the `module:function`, and `hook_reserve_ms` of at least
    1000 when a hook is named. `schedule show` reports everything REQ-BDC-0731 lists.
-2. **Entry points and shutdown** (REQ-BDC-0720, REQ-BDC-0730, S90). `bdc cache cron run` (the
-   sc-cron worker with bd-cache-sync's resolver, `MissedTickPolicy::Skip`, on a multi-thread
-   tokio runtime; `bd-cache-cli` gains `tokio` with `rt-multi-thread` and `signal` in its own
-   `Cargo.toml`), `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run the built-in
+2. **Entry points and shutdown** (REQ-BDC-0720, REQ-BDC-0730, S90). `bdc cache cron run` (sc-cron's
+   worker with bd-cache-sync's resolver, `MissedTickPolicy::Skip`; `bd-cache-cli` gains `tokio`), `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run the built-in
    row's code; `Cache.tick()` releases the GIL and owns its runtime as ADR-PY-0006 says. Scheduled
    times come only from the rows (ANC-002). `cron run` handles `SIGINT` / `SIGTERM` (Ctrl-C and
    Ctrl-Break on Windows) with `--shutdown-timeout-ms` (default 10000): no new run, runs in flight
@@ -144,10 +76,9 @@ ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
      bd process.
 4. **The Python sync row and the switch** (REQ-BDC-0724, REQ-BDC-0725, REQ-BDC-0722, ANC-003).
    - `bdc cache sync use-python --python <absolute interpreter> --module <module> [--cron
-     <expr>] [--timeout-ms N] [--env NAME]...` and `bdc cache sync use-builtin`, with the input
-     checks, lease, one-transaction mode switch (sc-cron's `set_enabled_many`), immediate run,
-     rollback, failure reasons, stderr cap and redaction, and the recovery rule of REQ-BDC-0724
-     and ADR-SYNC-0008. A second Python sync row is refused.
+     <expr>] [--timeout-ms N] [--env NAME]...` disables the built-in row and enables the Python
+     row in one transaction (sc-cron's `set_enabled_many`), runs it at once and rolls back on
+     failure, as REQ-BDC-0724 says; `bdc cache sync use-builtin` reverses it.
    - `PythonSyncJob`: the Python row's target, resolved per launch with the trust check, running
      the script with sc-cron's protocol (`cron.stop`, then `cron.tick`) under the lease, with the
      payload of REQ-BDC-0725 (`cache_path`, `beads_dir`, `run_id`) and the environment allowlist.
@@ -156,14 +87,12 @@ ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
      0008, 0502), and its run is judged by its exit status. beads-cache itself reaches the backend
      only through bd on both paths and reads no Dolt table (REQ-BDC-0006).
    - `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
-5. **Post-sync hook** (REQ-BDC-0723, REQ-BDC-0727, REQ-BDC-0728). Run through sc-cron's exported
-   supervisor (REQ-CRON-0018) as ADR-SYNC-0008 says: the command, the cleared environment with
-   the allowlist and `--env` names, the private temp cwd, the 1 MiB caps and the 8 KiB stderr in
-   the reply, the kill at its deadline (NFR-BDC-0004), the request of ADR-SYNC-0008 with the
-   500-entry and 4 MiB caps, at-least-once delivery, the consecutive-failure count and backoff in
-   `hook_state`, and the trust check before every launch (`TrustedCacheFile`; the Windows ACL
-   check is a documented gap). The run itself marks nothing. bd-cache-sync adds no dependency
-   (ADR-SYNC-0008 amends ADR-SYNC-0006) and drops `toml` and `libc`.
+5. **Post-sync hook** (REQ-BDC-0723, REQ-BDC-0727, REQ-BDC-0728). The optional hook a consumer
+   names in the built-in row gets the sync results and errors after each sync; it runs through
+   sc-cron's exported supervisor (REQ-CRON-0018) with REQ-BDC-0723's command, environment, cwd,
+   caps and kill at its deadline (NFR-BDC-0004), REQ-BDC-0727's capped request, at-least-once
+   delivery and backoff, and the trust check before every launch (`TrustedCacheFile`). The run
+   marks nothing. bd-cache-sync adds no dependency and drops `toml` and `libc` (ADR-SYNC-0008).
 6. **sc-cron's general features** (REQ-CRON-0016, REQ-CRON-0018, REQ-CRON-0005 amended,
    ADR-CRON-0009). `TargetResolver` and `Scheduler::spawn_worker_with`, called once per launch,
    an error recorded `Failed` with the row left active; `spawn_worker_for` and `spawn_worker` kept.
@@ -172,13 +101,11 @@ ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
    removed with its match arms. sc-cron's rustdoc cites only its own requirements; test fixtures
    use neutral names. sc-cron gets no beads-cache name, path, type, protocol or option.
 7. **Python packaging and entry points** (ADR-PY-0006, REQ-BDC-0723, REQ-BDC-0725). The mixed
-   layout: native module `bd_cache_rs._native` (`module-name` in `pyproject.toml`, `#[pymodule]
-   fn _native`), `python/bd_cache_rs/__init__.py` re-exporting every name with the same
-   `__all__`, `__version__` and `CONTRACT_VERSION`; `python -m bd_cache_rs.run post_sync
-   <module:function>` (opens its own `Cache` on `BD_CACHE_PATH`, calls `func(cache, request)`,
-   prints the result envelope); `bd_cache_rs.sync.main(func)` (the sync-script harness). `flush`,
-   `drain`, `tick` and `schedule_*` raise `PRECONDITION` inside a run. The pyproject description
-   loses its consumer wording.
+   layout (native module `bd_cache_rs._native`, `python/bd_cache_rs/__init__.py` re-exporting
+   every name, so existing imports keep working); `python -m bd_cache_rs.run post_sync
+   <module:function>` and `bd_cache_rs.sync.main(func)` as ADR-SYNC-0008 says; `flush`, `drain`,
+   `tick` and `schedule_*` raise `PRECONDITION` inside a run; the pyproject description loses its
+   consumer wording.
 8. **PyO3 surface** (ADR-PY-0006, REQ-PY-0002, 0005, 0008 amended, REQ-BDC-0726). `ingest_scope`,
    `scope_announce`, `scopes_*`, `schedule_*`, `sync_use_python` / `sync_use_builtin` and `tick()`
    on the handle's own connection (ADR-PY-0003), and the new codes in the exports. New scope
@@ -209,9 +136,8 @@ ADR-PY-0006 and ADR-CRON-0009, with REQ-BDC-0720..0731.
     stop hook itself, returning continue, disable or delete, is b-6's (REQ-CRON-0005, ANC-007)
     and stays.
 11. **Architecture rows** (ADR-BDC-0011, ADR-BDC-0015, ADR-PY-0006, ADR-SYNC-0008). The Crate
-    Layout and Boundaries rows of `bd-cache-sync` (no sender, no phase files, no `toml` or
-    `libc`), `bd-cache-py` (`bd-cache-sync` edge), `bd-cache-cli` (`tokio`), `sc-cron` (the
-    general features) and `bd-cache-model` (no sender port), and the ADR implementation table.
+    Layout and Boundaries rows of the crates this sprint changes, and the ADR implementation
+    table.
 
 ## Acceptance
 
@@ -219,7 +145,7 @@ Each item has a positive test and a planted negative (AC-N). Unit tests run with
 Dolt, against fake-bd and the injected clock (NFR-BDC-0005); every bd call, hook and script run
 is killed at its timeout capped by the time left before the deadline (NFR-BDC-0004).
 
-1. `grep -rn` of the removal list finds nothing; AC-0 on this fence.
+1. `grep -rn` of the removal list finds nothing.
 2. Schedule: `schedule set/show/enable/disable/clear` round-trip and a second built-in row is
    refused; `SCHEDULE_INVALID` for each refusal of deliverable 1, each with a planted negative:
    a relative interpreter, a missing one, one that is not executable, one that cannot import
@@ -251,11 +177,9 @@ is killed at its timeout capped by the time left before the deadline (NFR-BDC-00
 6. One table holds the built-in Rust row and the Python row, each run with its own target; an
    unresolvable row is recorded `Failed` and stays active (sc-cron's per-row resolver).
 7. Post-sync hook runner: kill at the deadline, causal through the shared `gate_file` helper, on
-   Unix process groups and in a Windows job-object test; stdout and stderr caps; a large request
-   written without a deadlock; the environment is only the allowlist plus the `--env` names; the
-   cwd is a temp dir; an untrusted cache file gives `TICK_RUN_FAILED` and runs nothing (Unix).
-   An oversized request is capped at 500 escalations and 4 MiB with `escalated_truncated` and
-   `escalated_remaining` set; an oversized stderr is kept to 8 KiB in the reply.
+   Unix process groups and in a Windows job-object test; output caps; a large request written
+   without a deadlock; only the allowlisted environment; a temp cwd; an untrusted cache file runs
+   nothing (Unix); an oversized request capped at 500 escalations and 4 MiB.
 8. Budget and hook: when the sync uses everything, the hook still gets `hook_reserve_ms`; a hook
    that times out still lets the run finish by its deadline; the built-in row's sc-cron timeout is
    at least `budget_ms + 10000`, and an overrunning run is killed by sc-cron only after its lease
@@ -283,8 +207,7 @@ is killed at its timeout capped by the time left before the deadline (NFR-BDC-00
     reads still answer, and the hook receives it. `scopes ingest` of stdin over 64 MiB is
     refused with `INGEST_INVALID` before the input is held whole.
 13. sc-cron stays general: `cargo tree -p sc-cron` shows no bd-cache or sc-beads crate, and
-    `grep -ri 'bead\|bd_cache\|bd-cache' crates/sc-cron/src` finds nothing (ANC-005); the exported
-    supervisor kills a grandchild at expiry and on drop through the public API.
+    `grep -ri 'bead\|bd_cache\|bd-cache' crates/sc-cron/src` finds nothing (ANC-005).
 14. The CLI: `cache scopes` and `scopes list` give the same reply; `cache evict` keeps its 0.1
     reply; `scopes remove` of a scope with pending entries is `PRUNE_BLOCKED`; the new codes have
     REQ-BDC-0729's exits; `the_legacy_cache_file_is_config_invalid` is gone and a repository with

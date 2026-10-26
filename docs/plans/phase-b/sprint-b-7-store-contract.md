@@ -13,61 +13,9 @@ recommended_model: opus
 must_follow: [b-6]
 parallel_safe: []
 requirements:
-  owns:
-    - REQ-BDC-0721
-    - REQ-BDC-0726
-    - REQ-BDC-0728
-    - REQ-BDC-0729
-    - "REQ-BDC-0501 (amended)"
-    - "REQ-BDC-0602 (amended)"
-    - "REQ-BDC-0603 (amended)"
-    - "REQ-BDC-0804 (amended)"
-    - "REQ-BDC-0812 (amended: the 0.1 bare-name rule)"
-    - "REQ-BDC-0901 (amended)"
-    - "REQ-BDC-0909 (amended)"
-    - "NFR-BDC-0007 (amended)"
-    - "REQ-STORE-0003 (amended)"
-    - REQ-CRON-0017
-  constrained_by:
-    - REQ-BDC-0001
-    - REQ-BDC-0006
-    - REQ-BDC-0007
-    - REQ-BDC-0008
-    - REQ-BDC-0103
-    - REQ-BDC-0107
-    - REQ-BDC-0502
-    - REQ-BDC-0504
-    - REQ-BDC-0604
-    - REQ-BDC-0722
-    - REQ-BDC-0727
-    - REQ-BDC-0803
-    - REQ-BDC-0910
-    - NFR-BDC-0001
-    - NFR-BDC-0005
-    - "REQ-STORE-0001, 0002, 0004..0008"
-    - "REQ-CORE-0001..0004, REQ-CORE-0101..0104"
-    - "REQ-MODEL-0001..0005"
-    - "REQ-BEADS-0001..0005"
-    - "REQ-BDCLI-0001..0009"
-    - "REQ-CRON-0008, 0009, 0014"
-    - "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"
-adrs:
-  - ADR-BDC-0001
-  - ADR-BDC-0002
-  - ADR-BDC-0005
-  - ADR-BDC-0007
-  - ADR-BDC-0010
-  - ADR-BDC-0011
-  - ADR-BDC-0012
-  - ADR-BDC-0013
-  - ADR-BDC-0014
-  - "ADR-STORE-0001..0006"
-  - "ADR-CORE-0001, 0002, 0101..0103, 0201..0206"
-  - "ADR-MODEL-0001..0004"
-  - "ADR-BEADS-0001..0004"
-  - "ADR-BDCLI-0001..0006"
-  - "ADR-CRON-0006, ADR-CRON-0009 (the store method)"
-  - "ADR-API-0001..0003, ADR-CLI-0001..0005, ADR-PY-0001..0005, ADR-SYNC-0001..0007 (the mechanical edits only)"
+  owns: [REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, "REQ-BDC-0501 (amended)", "REQ-BDC-0602 (amended)", "REQ-BDC-0603 (amended)", "REQ-BDC-0804 (amended)", "REQ-BDC-0812 (amended: the 0.1 bare-name rule)", "REQ-BDC-0901 (amended)", "REQ-BDC-0909 (amended)", "NFR-BDC-0007 (amended)", "REQ-STORE-0003 (amended)", REQ-CRON-0017]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0103, REQ-BDC-0107, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0604, REQ-BDC-0722, REQ-BDC-0727, REQ-BDC-0803, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0005, "REQ-STORE-0001, 0002, 0004..0008", "REQ-CORE-0001..0004, REQ-CORE-0101..0104", "REQ-MODEL-0001..0005", "REQ-BEADS-0001..0005", "REQ-BDCLI-0001..0009", "REQ-CRON-0008, 0009, 0014", "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0005, ADR-BDC-0007, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, "ADR-STORE-0001..0006", "ADR-CORE-0001, 0002, 0101..0103, 0201..0206", "ADR-MODEL-0001..0004", "ADR-BEADS-0001..0004", "ADR-BDCLI-0001..0006", "ADR-CRON-0006, ADR-CRON-0009 (the store method)", "ADR-API-0001..0003, ADR-CLI-0001..0005, ADR-PY-0001..0005, ADR-SYNC-0001..0007 (the mechanical edits only)"]
 owned_paths:
   - "crates/bd-cache-store/** (except tests/compat*)"
   - "crates/bd-cache/**"
@@ -107,7 +55,9 @@ here mechanically, and the semantic removals stay with b-8.
      registry's row. The registry: `scopes add|set|remove|list` operations in the store and the
      core; the `.beads/bd-cache.toml` `[[scope]]` tables and `scopes` list, created or updated on
      open, the file winning (`CONFIG_INVALID` on `set`/`remove` of a file scope); on-demand
-     registration as a label scope. Removing a scope deletes its membership rows, not bead rows
+     registration as a label scope. These operations surface only as `bdc cache` cache-management
+     verbs (b-8, ADR-BDC-0009); the bd /v0-shaped beads commands keep their names, flags and
+     replies, and a filter changes only the argv sent to bd. Removing a scope deletes its membership rows, not bead rows
      another scope still holds.
    - `sc-beads`' `ScopeFilter` gains `All` and `Criteria`; `FakeBackend` answers them.
      `sc-bd-cli`'s argv for `bd list`, `bd blocked` and `bd ready` per variant, as ADR-BDC-0013's
@@ -124,12 +74,17 @@ here mechanically, and the semantic removals stay with b-8.
    empty-snapshot refusal, the 50 000-row / 64 MiB limits, `INGEST_INVALID` with the stored scope
    untouched, one transaction, other memberships kept, the newer-row guard, and opaque
    `revision`. One invalid row among valid ones stores no row from that call (REQ-BDC-0008).
+   A consumer's Python sync, which runs as the sync while the built-in row is disabled (b-8
+   deliverable 4), stores its snapshots only through `ingest_scope`, so it replaces the built-in
+   bd sync with no bd process of beads-cache's (ANC-003).
    `ingest_scope` stores a snapshot the caller fetched through bd; the store and core open no
    Dolt or MySQL connection and read no Dolt tables (REQ-BDC-0006).
 4. **Failure state and marking** (REQ-BDC-0728). The `failing_since` lifecycle (with the
    `FailingSince` token type in `bd-cache-model`), `notified_since`, `scope_announce(scope,
    since)` compare-and-set, and `first_offered_at` set once. `journal_announce` is unchanged.
-   These are what the optional post-sync hook receives and marks (ANC-004), in b-8.
+   After each bd sync, the optional post-sync hook a consumer names in the built-in row receives
+   each scope's result, error and `failing_since` and the escalated entries with
+   `first_offered_at`, and marks them through these calls; b-8 deliverable 5 calls it (ANC-004).
 5. **Lease and hook state, store side** (REQ-BDC-0722 and REQ-BDC-0727, store calls only; the
    guard and the backoff are b-8's). Store calls for `tick_lease` (take under `BEGIN IMMEDIATE`,
    refusal of a live lease, takeover of an expired one, release) and for `hook_state` (count,
@@ -143,8 +98,12 @@ here mechanically, and the semantic removals stay with b-8.
 7. **The schedule store** (ADR-BDC-0014, NFR-BDC-0007 amended, REQ-CRON-0017).
    `ScheduleStore::set_enabled_many` in sc-cron (`store.rs`), implemented by
    `SqliteScheduleStore` (`sqlite.rs`) in one `BEGIN IMMEDIATE`, and wrapped by
-   `Scheduler::set_enabled_many` / `set_enabled_many_async` (`scheduler.rs`); no other sc-cron
-   change. `CacheScheduleStore` in `bd-cache-store` implements `sc_cron::ScheduleStore` over the
+   `Scheduler::set_enabled_many` / `set_enabled_many_async` (`scheduler.rs`); it flips only each
+   row's `enabled` boolean column in place, never rewriting the row, on `SqliteScheduleStore` and
+   on `CacheScheduleStore`'s `sc_cron_schedule` (ANC-006, REQ-CRON-0014); no other sc-cron change.
+   `set_enabled_many` is a general store-trait method with no beads-cache name; sc-cron gains no
+   dependency and stays copyable to sc-runtime unchanged, and the cache-specific schedule logic is
+   `CacheScheduleStore`'s (ANC-005). `CacheScheduleStore` in `bd-cache-store` implements `sc_cron::ScheduleStore` over the
    cache's one connection (the connection behind a mutex shared with `SqliteStore`,
    `SqliteStore::schedule_store()`), keeping `sc_cron_schedule` in the cache file and checking
    the `sc_cron_schedule_version` row; a mismatch is refused before any schedule is served.
@@ -172,7 +131,8 @@ Dolt, against the store and the fakes (NFR-BDC-0005).
    rows and blocked, through ingest); the scope registry, with a file scope refused by `scopes
    set` and `scopes remove`; `scope_announce` including a stale `since` refused; one test per
    `failing_since` transition; `first_offered_at` set once; lease take, refusal, expiry takeover
-   and release; `hook_state` count and reset.
+   and release; `hook_state` count and reset; an `ingest_scope` snapshot is stored with no
+   built-in sync run and no bd process started (the fakes record no call).
 3. Scope filters: `sync_label_filter_scope` and `sync_all_scope` sync a label-criteria scope and
    an `All` scope end to end against `FakeBackend`, and against `fake-bd` through the CLI; each
    variant's argv equals ADR-BDC-0013's table; a status criterion drops a bead whose status left

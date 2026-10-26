@@ -197,6 +197,13 @@
           "item": "b-7",
           "reason": "b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T03:17:06+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 builds the store, the scope filters and the schedule table's store only; the cron-timed sync rows and their schedule are b-8's.",
+          "replaced": true
         }
       ],
       "exclude": [
@@ -218,7 +225,7 @@
         },
         {
           "item": "b-7",
-          "reason": "b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's."
+          "reason": "b-7 builds the store, the scope filters and the schedule table's store only; the cron-timed sync rows and their schedule are b-8's."
         }
       ]
     },
@@ -616,12 +623,11 @@
           "item": "b-7",
           "reason": "b-7 edits nothing in crates/sc-cron.",
           "replaced": false
-        }
-      ],
-      "exclude": [
+        },
         {
-          "item": "b-7",
-          "reason": "b-7 edits nothing in crates/sc-cron."
+          "at": "2026-10-26T03:17:05+00:00",
+          "event": "exclusion_removed",
+          "item": "b-7"
         }
       ]
     },
@@ -709,12 +715,11 @@
           "item": "b-7",
           "reason": "b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's.",
           "replaced": false
-        }
-      ],
-      "exclude": [
+        },
         {
-          "item": "b-7",
-          "reason": "b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's."
+          "at": "2026-10-26T03:17:05+00:00",
+          "event": "exclusion_removed",
+          "item": "b-7"
         }
       ]
     },
@@ -814,12 +819,19 @@
           "item": "b-7",
           "reason": "b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T03:17:05+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 touches only sc-cron's store (set_enabled_many); the stop hook and its continue, disable and delete answers are b-6's, unchanged.",
+          "replaced": true
         }
       ],
       "exclude": [
         {
           "item": "b-7",
-          "reason": "b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged."
+          "reason": "b-7 touches only sc-cron's store (set_enabled_many); the stop hook and its continue, disable and delete answers are b-6's, unchanged."
         }
       ]
     },
@@ -1370,6 +1382,13 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T03:23:53+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 adds or changes no store table, column or index: the store extensions and CacheScheduleStore's table are b-7's, and b-8 only uses them.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -1380,6 +1399,10 @@
         {
           "item": "b-6",
           "reason": "b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule."
+        },
+        {
+          "item": "b-8",
+          "reason": "b-8 adds or changes no store table, column or index: the store extensions and CacheScheduleStore's table are b-7's, and b-8 only uses them."
         }
       ]
     },
@@ -2115,6 +2138,11 @@
           "item": "b-7",
           "reason": "b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T03:17:05+00:00",
+          "event": "exclusion_removed",
+          "item": "b-7"
         }
       ],
       "exclude": [
@@ -2125,10 +2153,6 @@
         {
           "item": "b-5",
           "reason": "b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding."
-        },
-        {
-          "item": "b-7",
-          "reason": "b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding."
         }
       ]
     },
@@ -2209,6 +2233,13 @@
           "item": "b-7",
           "reason": "b-7 starts no bd call, Python method or hook; the tick and runner are b-8's.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T03:17:05+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 adds no new bd call path and starts no Python method or hook; its scope argv changes keep each bd call under sc-bd-cli's existing deadline bound, and the runners are b-8's.",
+          "replaced": true
         }
       ],
       "exclude": [
@@ -2218,7 +2249,7 @@
         },
         {
           "item": "b-7",
-          "reason": "b-7 starts no bd call, Python method or hook; the tick and runner are b-8's."
+          "reason": "b-7 adds no new bd call path and starts no Python method or hook; its scope argv changes keep each bd call under sc-bd-cli's existing deadline bound, and the runners are b-8's."
         }
       ]
     },

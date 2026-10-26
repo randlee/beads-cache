@@ -4,7 +4,7 @@ The planning gate (plan-anchoring, 2026-10-26, Jev `jev-1.14.0`, threshold 0.6) 
 every phase-B sprint doc on this branch, against the 23 anchors in
 `docs/plans/phase-b/anchors/anchors.json`. b-1..b-6 are executed and merged, so their docs are not
 changed; each failing cell is recorded here with where its fix lands. Run files are in
-`docs/plans/phase-b/anchors/runs/` (runs `plan-20261026T0134*`, against the reworded anchor record of 2026-10-26).
+`docs/plans/phase-b/anchors/runs/` (runs `plan-20261026T0134*`, against the reworded anchor record of 2026-10-26). After the PR #97 QA round, b-7, b-8 and b-9 were judged again from this branch's worktree and pass: `plan-20261026T032307Z-b-7`, `plan-20261026T032433Z-b-8` and `plan-20261026T031749Z-b-9` (the earlier failing runs of that round are kept beside them).
 
 | Sprint | Result | Failing cells |
 |---|---|---|

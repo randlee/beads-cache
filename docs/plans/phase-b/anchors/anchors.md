@@ -69,7 +69,7 @@ Excluded from (not judged; the cell passes as `excluded`):
 - `b-2`: b-2 defines the bd-cache-api request vocabulary; sync scheduling is not in it.
 - `b-3a`: b-3a builds the CLI skeleton and fake-bd harness; it does not schedule, run or configure the bd sync.
 - `b-6`: sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7.
-- `b-7`: b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's.
+- `b-7`: b-7 builds the store, the scope filters and the schedule table's store only; the cron-timed sync rows and their schedule are b-8's.
 
 Beads: anchor `bdc-g4s`, plan questions `bdc-g4s.1`, dev questions `bdc-g4s.2`
 
@@ -144,9 +144,6 @@ Scope: any bead that edits crates/sc-cron
 
 Deterministic check to pair with the development gate: cargo tree -p sc-cron shows no bd-cache-* or sc-beads dependency; grep finds no beads or cache types in crates/sc-cron/src
 
-Excluded from (not judged; the cell passes as `excluded`):
-- `b-7`: b-7 edits nothing in crates/sc-cron.
-
 Beads: anchor `bdc-3ku`, plan questions `bdc-3ku.1`, dev questions `bdc-3ku.2`
 
 Fixtures:
@@ -166,9 +163,6 @@ Summary: sc-cron rows have an enabled flag
 Scope: any bead that edits crates/sc-cron's schedule table or scheduler API
 
 Deterministic check to pair with the development gate: a test toggles enabled and asserts the row's generation, expression and payload are unchanged
-
-Excluded from (not judged; the cell passes as `excluded`):
-- `b-7`: b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's.
 
 Beads: anchor `bdc-mvv`, plan questions `bdc-mvv.1`, dev questions `bdc-mvv.2`
 
@@ -191,7 +185,7 @@ Scope: any bead that edits sc-cron's hooks, Job trait or run loop
 Deterministic check to pair with the development gate: tests cover each of continue, disable and delete for a Rust and a Python stop hook
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-7`: b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged.
+- `b-7`: b-7 touches only sc-cron's store (set_enabled_many); the stop hook and its continue, disable and delete answers are b-6's, unchanged.
 
 Beads: anchor `bdc-7of`, plan questions `bdc-7of.1`, dev questions `bdc-7of.2`
 
@@ -311,6 +305,7 @@ Deterministic check to pair with the development gate: the format golden test ma
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-3`: b-3 is the bdc CLI; it edits neither crates/bd-cache-store/src/schema.rs nor any store column or table.
 - `b-6`: b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule.
+- `b-8`: b-8 adds or changes no store table, column or index: the store extensions and CacheScheduleStore's table are b-7's, and b-8 only uses them.
 
 Beads: anchor `bdc-2rd`, plan questions `bdc-2rd.1`, dev questions `bdc-2rd.2`
 
@@ -499,7 +494,6 @@ Deterministic check to pair with the development gate: pytest -W error::Deprecat
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method.
 - `b-5`: b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding.
-- `b-7`: b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding.
 
 Beads: anchor `bdc-hqn`, plan questions `bdc-hqn.1`, dev questions `bdc-hqn.2`
 
@@ -523,7 +517,7 @@ Deterministic check to pair with the development gate: a test with a hanging fak
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it.
-- `b-7`: b-7 starts no bd call, Python method or hook; the tick and runner are b-8's.
+- `b-7`: b-7 adds no new bd call path and starts no Python method or hook; its scope argv changes keep each bd call under sc-bd-cli's existing deadline bound, and the runners are b-8's.
 
 Beads: anchor `bdc-vkg`, plan questions `bdc-vkg.1`, dev questions `bdc-vkg.2`
 
