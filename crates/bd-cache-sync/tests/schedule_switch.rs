@@ -333,8 +333,16 @@ async fn a_failed_immediate_run_restores_the_mode_before_the_command() {
     ];
     for (file, text, why) in cases {
         stub.set(file, text);
+        // Only the `sleep` case wants a timeout, and it times out however
+        // slow the start is. The exit and stop-answer cases run without a
+        // short cap, so a slow stub start cannot turn them into `timeout`.
+        let timeout_ms = if why == TickRunReason::Timeout {
+            1_000
+        } else {
+            60_000
+        };
         let req = UsePython {
-            timeout_ms: Some(1_000),
+            timeout_ms: Some(timeout_ms),
             ..use_python(&stub)
         };
         let e = sync_use_python(&repo, StopFlag::new(), &req)
@@ -739,14 +747,7 @@ async fn a_failed_restore_says_restored_false_and_use_builtin_recovers() {
     let repo = Repo::new(vec![]);
     schedule_set(&repo, &set("*/30 * * * * *")).await.unwrap();
     let stub = PyStub::new();
-    let gate = stub.dir.path().join("stopgate");
-    assert!(
-        std::process::Command::new("mkfifo")
-            .arg(&gate)
-            .status()
-            .unwrap()
-            .success()
-    );
+    let gate = stub.arm_stop_gate();
     stub.set("tick", "exit:1");
     let run = {
         let schedules = repo.schedules();
@@ -787,14 +788,7 @@ async fn the_immediate_runs_timeout_is_on_the_injected_clock() {
         let repo = Repo::new(vec![]);
         schedule_set(&repo, &set("*/30 * * * * *")).await.unwrap();
         let stub = PyStub::new();
-        let gate = stub.dir.path().join("stopgate");
-        assert!(
-            std::process::Command::new("mkfifo")
-                .arg(&gate)
-                .status()
-                .unwrap()
-                .success()
-        );
+        let gate = stub.arm_stop_gate();
         let schedules = repo.schedules();
         let req = UsePython {
             timeout_ms: Some(60_000),
@@ -899,10 +893,13 @@ async fn a_run_aborted_while_it_takes_the_lease_releases_it() {
         })
     };
     holding.recv().unwrap();
-    let run = {
+    let (run, idle) = {
         let cache = Arc::clone(&repo.cache);
         let ctx = repo.run_ctx();
-        tokio::spawn(async move {
+        // The cache's owners before the run's blocking step exists: this
+        // test, the holder thread and the spawned task (it holds `cache`).
+        let idle = Arc::strong_count(&repo.cache);
+        let run = tokio::spawn(async move {
             bd_cache_sync::run_builtin(
                 &cache,
                 &bd_cache_sync::BuiltinPayload::default(),
@@ -910,10 +907,18 @@ async fn a_run_aborted_while_it_takes_the_lease_releases_it() {
                 bd_cache_sync::new_run_id(7).unwrap(),
             )
             .await
-        })
+        });
+        (run, idle)
     };
-    // The run's blocking step waits for the mutex; abort the run meanwhile.
-    std::thread::sleep(std::time::Duration::from_millis(100));
+    // Handshake, not a sleep: `run_builtin` clones the cache into its first
+    // blocking step as it submits it, so one more owner means the step is
+    // submitted to the blocking pool, which runs it to the end even once the
+    // run is aborted; it waits for the mutex (the holder has it until
+    // `release`). The abort lands on a run that is inside the code under
+    // test, never before it. Bounded by `wait_until` (30 s).
+    common::wait_until("the run's blocking step to be submitted", || {
+        Arc::strong_count(&repo.cache) > idle
+    });
     run.abort();
     let _ = run.await;
     release.send(()).unwrap();

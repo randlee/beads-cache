@@ -23,9 +23,10 @@
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::Arc;
-use std::time::Duration;
+use std::sync::mpsc::{Receiver, RecvTimeoutError};
+use std::time::{Duration, Instant};
 
 use sc_cron::{
     Generation, ManualClock, RunOutcome, ScheduleId, ScheduleSpec, ScheduleStore, Scheduler,
@@ -33,6 +34,10 @@ use sc_cron::{
 };
 
 const PEER_FLAG: &str = "--two-process-peer";
+
+/// The most the parent waits for one reply line, and for the peer to exit.
+/// A sqlite call takes milliseconds; this only bounds a hang.
+const PEER_TIMEOUT: Duration = Duration::from_secs(60);
 
 type Shared = Scheduler<SqliteScheduleStore, ManualClock, SeqJitter>;
 
@@ -121,7 +126,9 @@ fn peer(path: &Path) {
 struct Peer {
     child: Child,
     to: ChildStdin,
-    from: BufReader<ChildStdout>,
+    /// The peer's reply lines, read on a thread of their own so that a
+    /// silent peer fails the test after [`PEER_TIMEOUT`] instead of hanging it.
+    from: Receiver<String>,
 }
 
 impl Peer {
@@ -134,21 +141,38 @@ impl Peer {
             .spawn()
             .expect("spawn peer");
         let to = child.stdin.take().expect("peer stdin");
-        let from = BufReader::new(child.stdout.take().expect("peer stdout"));
+        let stdout = BufReader::new(child.stdout.take().expect("peer stdout"));
+        let (sender, from) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            for line in stdout.lines().map_while(Result::ok) {
+                if sender.send(line).is_err() {
+                    break;
+                }
+            }
+        });
         Self { child, to, from }
     }
 
     fn ask(&mut self, command: &str) -> String {
         writeln!(self.to, "{command}").expect("send");
         self.to.flush().expect("flush");
-        let mut reply = String::new();
-        self.from.read_line(&mut reply).expect("reply");
-        reply.trim().to_owned()
+        match self.from.recv_timeout(PEER_TIMEOUT) {
+            Ok(reply) => reply.trim().to_owned(),
+            Err(RecvTimeoutError::Timeout) => panic!("no reply to {command:?} in {PEER_TIMEOUT:?}"),
+            Err(RecvTimeoutError::Disconnected) => panic!("the peer ended before replying"),
+        }
     }
 
     fn finish(mut self) {
         writeln!(self.to, "quit").expect("quit");
-        let status = self.child.wait().expect("peer exit");
+        let until = Instant::now() + PEER_TIMEOUT;
+        let status = loop {
+            if let Some(status) = self.child.try_wait().expect("peer exit") {
+                break status;
+            }
+            assert!(Instant::now() < until, "the peer did not exit after quit");
+            std::thread::sleep(Duration::from_millis(20));
+        };
         assert!(status.success(), "peer exited with {status}");
     }
 }

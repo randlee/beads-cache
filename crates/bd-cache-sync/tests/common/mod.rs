@@ -166,6 +166,7 @@ impl World {
             repo_root: self.dir.path().to_path_buf(),
             kill: stop.clone(),
             stop,
+            expire: StopFlag::new(),
         }
     }
 }

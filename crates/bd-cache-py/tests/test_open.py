@@ -112,8 +112,13 @@ def test_the_smallest_positive_timeouts_are_accepted(repo):
 
 
 def test_float_timeouts_are_accepted_and_applied(repo):
-    cache = repo.open(call_timeout_s=0.5, miss_fill_timeout_ms=250.5, max_attempts=2)
-    cache.sync("x", 30)
+    # The setup sync runs on a default-cap open, so a slow interpreter start cannot defer it;
+    # only the blocked call below runs under the 0.5 s cap.
+    default = repo.open()
+    report = default.sync("x", 30)
+    assert report["scope"] == "x" and report["stored"] > 0, report
+    assert report["outage"] is None and report["deferred"] is False, report
+    cache = repo.reopen(default, call_timeout_s=0.5, miss_fill_timeout_ms=250.5, max_attempts=2)
     release = repo.bd.block("*")
     # The per-call cap (0.5 s) cuts a blocked call even though the caller allowed 30 s.
     with pytest.raises(bd_cache_rs.CacheError) as caught:
