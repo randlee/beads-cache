@@ -27,6 +27,23 @@
  ],
  "calls": [
   {
+   "verb": "ready",
+   "case": "no base before the first sync",
+   "call": "ready('x')",
+   "reply": {
+    "basis": {
+     "kind": "unknown"
+    },
+    "last_ok_at": null,
+    "locally_adjusted": false,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
    "verb": "sync",
    "case": "first sync of a configured scope",
    "call": "sync('x', 30)",
@@ -597,6 +614,266 @@
   },
   {
    "verb": "sync",
+   "case": "a sync whose ready-base fetch fails keeps the previous base",
+   "call": "sync('x', 30)",
+   "reply": {
+    "blocked": 0,
+    "deferred": false,
+    "model_current": true,
+    "outage": null,
+    "rebuilt": false,
+    "scope": "x",
+    "stored": 1
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "-l",
+     "phase-x",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--updated-after",
+     "<timestamp>",
+     "--json"
+    ],
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "ready",
+   "case": "the kept base is marked stale",
+   "call": "ready('x')",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "cached",
+     "stale": true
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": false,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "ready",
+   "case": "bd answers again: a fresh base replaces the stale one",
+   "call": "ready('x', fresh_within=10)",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "fresh"
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": false,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     },
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": [
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ],
+    [
+     "ready",
+     "-l",
+     "phase-x",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "ready",
+   "case": "a ready bead whose row another writer deleted is in missing_rows",
+   "call": "ready('x')",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "cached",
+     "stale": false
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": false,
+    "missing_rows": [
+     "b2"
+    ],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "refresh",
+   "case": "re-reading the deleted row stores it again",
+   "call": "refresh(['b2'], 5)",
+   "reply": [
+    {
+     "bead": {
+      "comment_count": 0,
+      "created_at": "<timestamp>",
+      "dependencies": [],
+      "id": "b2",
+      "issue_type": "task",
+      "labels": [
+       "phase-x",
+       "stage:dev"
+      ],
+      "metadata": {},
+      "priority": 2,
+      "status": "open",
+      "title": "b2",
+      "updated_at": "<timestamp>"
+     },
+     "blocked": [],
+     "stale": false
+    }
+   ],
+   "bd_calls": [
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ]
+   ]
+  },
+  {
+   "verb": "sync",
    "case": "a bare name registers the legacy-prefixed label scope",
    "call": "sync('y', 30)",
    "reply": {
@@ -914,6 +1191,47 @@
      "stale": false
     },
     "scope_last_ok_at": "<timestamp>"
+   },
+   "bd_calls": []
+  },
+  {
+   "verb": "ready",
+   "case": "a pending close adjusts the cached base",
+   "call": "ready('x')",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "cached",
+     "stale": false
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": true,
+    "missing_rows": [],
+    "read_fallback": null,
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [],
+       "id": "b2",
+       "issue_type": "task",
+       "labels": [
+        "phase-x",
+        "stage:dev",
+        "a"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "b2",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
    },
    "bd_calls": []
   },
@@ -1280,6 +1598,63 @@
    ]
   },
   {
+   "verb": "ready",
+   "case": "bd down: the cached base, with why the fresh answer fell back",
+   "call": "ready('x', fresh_within=5)",
+   "reply": {
+    "basis": {
+     "fetched_at": "<timestamp>",
+     "kind": "cached",
+     "stale": false
+    },
+    "last_ok_at": "<timestamp>",
+    "locally_adjusted": true,
+    "missing_rows": [],
+    "read_fallback": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused; retry, or run sync",
+    "ready": [
+     {
+      "bead": {
+       "comment_count": 0,
+       "created_at": "<timestamp>",
+       "dependencies": [
+        {
+         "depends_on_id": "b1",
+         "issue_id": "s1",
+         "type": "blocks"
+        },
+        {
+         "depends_on_id": "b2",
+         "issue_id": "s1",
+         "type": "blocks"
+        }
+       ],
+       "id": "s1",
+       "issue_type": "task",
+       "labels": [
+        "phase-x"
+       ],
+       "metadata": {},
+       "priority": 2,
+       "status": "open",
+       "title": "s1",
+       "updated_at": "<timestamp>"
+      },
+      "blocked": [],
+      "stale": false
+     }
+    ],
+    "scope": "x"
+   },
+   "bd_calls": [
+    [
+     "blocked",
+     "-l",
+     "phase-x",
+     "--json"
+    ]
+   ]
+  },
+  {
    "verb": "get",
    "case": "a miss while bd is down",
    "call": "get('zz-9', miss_timeout=5)",
@@ -1344,7 +1719,7 @@
     },
     "phases": [
      {
-      "beads": 3,
+      "beads": 2,
       "last_error": "BD_CACHE.BD_UNAVAILABLE: Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused",
       "last_ok_at": "<timestamp>",
       "last_started_at": "<timestamp>",
@@ -1470,6 +1845,86 @@
     ]
    },
    "bd_calls": []
+  },
+  {
+   "verb": "drain",
+   "case": "a refused apply stays pending to retry",
+   "call": "drain(10, 20)",
+   "reply": {
+    "applied": [],
+    "busy": false,
+    "deferred": [],
+    "deferred_in_flight": [],
+    "escalated": [],
+    "outage": null,
+    "retrying": [
+     5
+    ]
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "close",
+     "b2",
+     "--actor",
+     "dev-1"
+    ]
+   ]
+  },
+  {
+   "verb": "drain",
+   "case": "the hard deadline cuts a slow apply",
+   "call": "drain(10, 1)",
+   "reply": {
+    "applied": [],
+    "busy": false,
+    "deferred": [],
+    "deferred_in_flight": [
+     5
+    ],
+    "escalated": [],
+    "outage": null,
+    "retrying": []
+   },
+   "bd_calls": [
+    [
+     "version"
+    ],
+    [
+     "schema"
+    ],
+    [
+     "list",
+     "--id",
+     "b2",
+     "--status",
+     "open,in_progress,blocked,deferred,closed,pinned,hooked",
+     "-n",
+     "0",
+     "--json"
+    ],
+    [
+     "close",
+     "b2",
+     "--actor",
+     "dev-1"
+    ]
+   ]
   },
   {
    "verb": "drain",

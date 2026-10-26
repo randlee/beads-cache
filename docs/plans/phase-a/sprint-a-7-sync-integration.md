@@ -190,7 +190,7 @@ schema and the consumer's messaging command) added; **S2** `Cache::clock()` and 
 is independent of scope size (ADR-CORE-0206, ADR-STORE-0004); **S5** the stop rule's narrowing (Deviation 4) approved,
 REQ-BDC-0707/0702 amended; **S6** ownership reconciled; **S7** workspace dependencies; **S8** testbed items; **S9** the
 bd-compat close-out runs are phase close-out gates owned by bc-lead; **S10** phase-file format confirmed against
-the baseline Python implementation's cron script at the baseline `05831df`; **S11** `send_within` and `SendError` kinds; **S12** project-plan row.
+the baseline Python implementation's cron script in the v3 baseline; **S11** `send_within` and `SendError` kinds; **S12** project-plan row.
 
 ## Rulings applied in fix-a-7-2 (QA round 2)
 
@@ -230,7 +230,7 @@ Lead rulings of bc-lead, 2026-10-24, fix-a-7-15 (QA round 10): **S48** (QA10-001
 
 ## Deviations from this document
 
-1. **Phase file format** (closed by S10): confirmed against the baseline Python implementation's cron script at the baseline `05831df` and two real
+1. **Phase file format** (closed by S10): confirmed against the baseline Python implementation's cron script in the v3 baseline and two real
    phase files ported as fixtures. Deliberate differences from the reference are listed in ADR-SYNC-0007 (a file
    without `lead` is kept; an unreadable directory is refused and never stops the schedule; an empty phase list is
    refused). The messaging-command invocation was wrong in round 0 and now matches the reference.
@@ -526,7 +526,7 @@ Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`): PR #33 at `8f4f0
 | ARCH-001..005 | Approved ADR-SYNC-0001..0005 (lead ruling S1) with the round's corrections | docs/bd-cache-sync/architecture.md |
 | ARCH-006, REQ-QA-008, F-2, Deviation 1 | `Cache::clock()` added (S2); `tick`, `stop_reason`, `SyncJob::new` lose the clock parameter; four-parameter `tick` restored | `tick` doctest; `tests/*` call `tick(cache, cfg, sender, end)`; ADR-SYNC-0001 |
 | ARCH-007 | ADR-SYNC-0006 records the third-party and dev dependencies (Approved) | docs/bd-cache-sync/architecture.md |
-| ARCH-008, REQ-QA-011 | ADR-SYNC-0007: phase-file schema and messaging-command contract checked against the baseline Python implementation's cron script at the baseline 05831df; the invocation was wrong (`--as cron`, no `--json`, no env) and is fixed; two real phase configuration files of the first consumer ported as fixtures | `tests/fixtures/`, the consumer phase-file fixture case (name in git history), `delivers_the_body_on_stdin_with_the_reference_invocation` |
+| ARCH-008, REQ-QA-011 | ADR-SYNC-0007: phase-file schema and messaging-command contract checked against the baseline Python implementation's cron script in the v3 baseline; the invocation was wrong (`--as cron`, no `--json`, no env) and is fixed; two real phase configuration files of the first consumer ported as fixtures | `tests/fixtures/`, the consumer phase-file fixture case (name in git history), `delivers_the_body_on_stdin_with_the_reference_invocation` |
 | ARCH-009 | Outage targets = active + unreadable phases, never known-closed | `an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed`; planted 'outage not told to every configured lead...' |
 | ARCH-010 | ADR-BDC-0003 added to `adrs` | sprint doc frontmatter |
 | ARCH-011, FTQ-003 | One clock source (`Cache::clock`); the e2e fixture's `Bridge` clock puts the cron and cache timelines on one origin; deterministic budget e2e | `tests/common/real.rs` `Bridge`; `a_scheduled_tick_with_a_slow_bd_ends_within_its_budget` |

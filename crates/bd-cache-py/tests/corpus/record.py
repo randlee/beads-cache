@@ -13,10 +13,27 @@ Nothing here is typed by hand except the script: the replies come from the wheel
 from the fake. Values that change between runs (instants, paths, floats) are recorded by kind.
 The script includes the 0.1 bare-name rule (ADR-BDC-0013, REQ-BDC-0812 as amended): a bare
 name given to a 0.1 verb means the label scope with the legacy prefix (`BARE_NAME_CASE`).
+The writer refuses to run under CI (`CI` set): CI compares, it never regenerates.
+
+Reply shapes (docs/bd-cache-py/architecture.md, the 0.1 shape table): besides each verb's plain
+success and error, the script reaches every variant of the `ready` and `drain` replies: a basis
+of each kind (`unknown` before the first sync, `cached`, `cached` with `stale: true` after a
+sync whose ready-base fetch failed, `fresh`), `locally_adjusted: true` under a pending write, a
+non-null `read_fallback` while bd is down, a non-empty `missing_rows` once another writer of the
+shared file deleted a ready row, and a drain with `retrying` and one with `deferred_in_flight`.
+
+Before and after (sprint b-9): before this sprint the 0.1 handle's members were the sixteen
+verbs of `VERBS_01` in `test_corpus.py` plus `path` and `closed` (unchanged since
+`integrate/phase-b` de64914, where `test_additive.py` lists the same `VERBS_01`), and the
+coverage evidence was a vendored call log whose names a Mapping table mapped onto those verbs.
+After it the same sixteen verbs and two members are the corpus's verbs, each with a successful
+case recorded here and the error paths with a failing one; every name the deleted log listed
+mapped onto one of them, so no 0.1 verb lost coverage.
 """
 
 import os
 import re
+import sqlite3
 
 import bd_cache_rs
 from conftest import bead
@@ -64,6 +81,13 @@ def error_shape(err):
     }
 
 
+def delete_row(path, bead_id):
+    """What another writer of the shared v3 file may do (REQ-STORE-0006): delete a bead's row."""
+    with sqlite3.connect(str(path)) as conn:
+        conn.execute("DELETE FROM beads WHERE id = ?", (bead_id,))
+    conn.close()
+
+
 def argv_shape(calls):
     return [["<timestamp>" if TIMESTAMP.match(word) else word for word in argv] for argv in calls]
 
@@ -104,6 +128,7 @@ def build(repo):
     repo.config('scopes = ["x"]\n')
     cache = repo.open()
     rec = Recorder(repo, cache)
+    rec.run("ready", "no base before the first sync", "x")
     rec.run("sync", "first sync of a configured scope", "x", 30)
 
     # Reads.
@@ -123,6 +148,14 @@ def build(repo):
     rec.run("list", "an unknown scope", "nope")
     rec.run("ready", "the cached ready base, no bd call", "x")
     rec.run("ready", "bd's answer when it comes in time", "x", fresh_within=10)
+    repo.bd.fail("ready", "bd ready refused")
+    rec.run("sync", "a sync whose ready-base fetch fails keeps the previous base", "x", 30)
+    rec.run("ready", "the kept base is marked stale", "x")
+    repo.bd.unfail("ready")
+    rec.run("ready", "bd answers again: a fresh base replaces the stale one", "x", fresh_within=10)
+    delete_row(cache.path, "b2")
+    rec.run("ready", "a ready bead whose row another writer deleted is in missing_rows", "x")
+    rec.run("refresh", "re-reading the deleted row stores it again", ["b2"], 5)
 
     # The 0.1 bare-name rule (ADR-BDC-0013, REQ-BDC-0812 as amended).
     repo.bd.add(bead("y1", labels=(LEGACY_LABEL_Y,)))
@@ -143,6 +176,7 @@ def build(repo):
     rec.run("entry", "an unknown seq", 99)
     rec.run("open_work", "pending writes")
     rec.run("get", "a pending write replayed into the view", "b1")
+    rec.run("ready", "a pending close adjusts the cached base", "x")
 
     # Draining, escalation and what a caller does with it.
     rec.run("drain", "applies in order", 10, 20)
@@ -169,6 +203,7 @@ def build(repo):
     # The backend goes away and comes back.
     repo.bd.down()
     rec.run("sync", "bd unreachable reports an outage", "x", 30)
+    rec.run("ready", "bd down: the cached base, with why the fresh answer fell back", "x", fresh_within=5)
     rec.run("get", "a miss while bd is down", "zz-9", miss_timeout=5)
     rec.run("status", "an outage is recorded")
     repo.bd.down(False)
@@ -176,6 +211,12 @@ def build(repo):
 
     rec.run("status", "the end state")
     rec.run("prune", "refused while a write is pending", "x")
+    repo.bd.fail("close", "bd close refused")
+    rec.run("drain", "a refused apply stays pending to retry", 10, 20)
+    repo.bd.unfail("close")
+    repo.bd.delay("close", 5)
+    rec.run("drain", "the hard deadline cuts a slow apply", 10, 1)
+    repo.bd.delay("close", 0)
     rec.run("drain", "the last pending write", 10, 20)
     rec.run("prune", "a scope with nothing open", "x")
     rec.run("list", "after the prune", "x")

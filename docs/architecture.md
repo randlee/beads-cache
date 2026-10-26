@@ -149,7 +149,7 @@ integrating with sc-runtime.
 | `bd-cache-api` (ADR-BDC-0009; `docs/bd-cache-api/`) | Request and data models, the shared request decoder, the operation layer (filters, paging, order, `/v0` mapping), the error table (`ERROR_TABLE`, `ApiError`), schemars request schemas, the shared fixtures; no sc-command, no clap (CI-checked) | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars | b |
 | `bd-cache-cli` (binaries `bd-cache`, `bdc`; ADR-BDC-0009; `docs/bd-cache-cli/`) | JSON-first CLI per `docs/bd-cache-cli/contract.md` (sprint b-3): clap argv to the JSON request, `bd_cache_api::decode` then `execute`, one sc-command envelope on stdout, `--format text`, `--help` (text on a terminal), the stderr log. Config: `.beads/bd-cache.toml` read by the store's rules (a `bd` key ignored) plus `BD_CACHE__*` env overrides and flags, opened through `bd_cache_sync::compose_with_config`; no sc-config dependency until it offers a missing-allowed file source. The `fake-bd` harness behind feature `fake-bd` (ADR-CLI-0001, 0002). Sprint b-8 (ADR-BDC-0015, ADR-SYNC-0008): the `cache` commands `scopes add|set|remove|list|ingest|announce`, `schedule set|show|enable|disable|clear`, `cron run [--once]`, `tick` and `sync use-python|use-builtin`; `cron run` runs bd-cache-sync's `SystemSchedules::cron_run` (sc-cron's worker over `CacheScheduleStore` with the sync resolver) and stops on `SIGINT`/`SIGTERM`/`SIGHUP` (Ctrl-C/Ctrl-Break on Windows), its runs in flight given the grace period before their bd calls and trees are killed; the other phase-B verbs run through `bd_cache_sync::execute`; the legacy-directory refusal is removed; a `fake-python` test interpreter beside `fake-bd` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads`, sc-command, sc-observability-types, clap, serde, serde_json, toml, tokio (rt-multi-thread; signal on Windows; b-8) | b |
 | `sc-cron` (prototype, moves to sc-runtime) | SQLite-backed cron scheduler extracted from an earlier in-house scheduler: expression parse, next-run computation, jitter, missed-tick replay, stop check before every run, generation fencing of overlapping runs, schedule store with a rusqlite implementation. Generic job payload and error type; no caller types (ADR-BDC-0006). Sprint b-8 (ADR-CRON-0009): a hook target per row (`TargetResolver`, `Scheduler::spawn_worker_with`, REQ-CRON-0016), `Scheduler::run_due_with`, the exported child-process supervisor `sc_cron::process` (`ChildSpec`, `ChildEnv`, `TempCwd`, `supervise`; `PythonHook::with_env`; `HookOutput::stop_decision` / `run_outcome`, REQ-CRON-0018); `StopDecision::Stop` removed | cron, chrono, tokio (with process, io-util), rusqlite (bundled), async-trait, serde_json, getrandom, process-wrap (hook process group and job object), tempfile (a child's working directory), tracing | a; b (b-6, b-7, b-8) |
-| `bd-cache-sync` | The bd sync on sc-cron rows in the cache file (ADR-SYNC-0008): the built-in row's run (`run_builtin`: lease, drain, every scope by its filter, the post-sync hook, the reply), `TickLease`, `Budget`, the post-sync hook runner over sc-cron's supervisor (`bd-cache.run.v1`, the environment allowlist, the caps and the backoff), `PythonSyncJob`, `sync_resolver` (sc-cron's per-row target), the one surface of the front ends: `Schedules` / `SystemSchedules` (`schedule set|show|enable|disable|clear`, `sync use-python|use-builtin`, `tick`, `cron run`, `cron run --once`, decided under the cache file's mode lock) and `execute` with a `FrontEnd` (a decoded front-end verb of the contract, its errors mapped once), the rows' typed run history (`sync_run`), `TrustedCacheFile`, and `compose` / `compose_tuned` (the one composition root: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository with its schedule table, over one process-wide `ProjectLocks`). It sends nothing (ADR-BDC-0010). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `bd-cache-api`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, tracing, rustix (Unix only: the effective uid of the trust check; QA97R2-014) (the list is ADR-SYNC-0006 as amended by ADR-SYNC-0008 and its QA-1 amendment) | a; b (b-8) |
+| `bd-cache-sync` | The bd sync on sc-cron rows in the cache file (ADR-SYNC-0008): the built-in row's run (`run_builtin`: lease, drain, every scope by its filter, the post-sync hook, the reply), `TickLease`, `Budget`, the post-sync hook runner over sc-cron's supervisor (`bd-cache.run.v1`, the environment allowlist, the caps and the backoff), `PythonSyncJob`, `sync_resolver` (sc-cron's per-row target), the one surface of the front ends: `Schedules` / `SystemSchedules` (`schedule set|show|enable|disable|clear`, `sync use-python|use-builtin`, `tick`, `cron run`, `cron run --once`, decided under the cache file's mode lock) and `execute` with a `FrontEnd` (a decoded front-end verb of the contract, its errors mapped once) and `execute_api` (a decoded command `bd-cache-api` runs, with `cache health` given the sync rows' state, ADR-BDC-0015 amendment 1), the rows' typed run history (`sync_run`), `TrustedCacheFile`, and `compose` / `compose_tuned` (the one composition root: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository with its schedule table, over one process-wide `ProjectLocks`). It sends nothing (ADR-BDC-0010). Crate-local decisions: `ADR-SYNC-*` | `bd-cache`, `bd-cache-model`, `bd-cache-store`, `bd-cache-api`, `sc-bd-cli`, `sc-cron`, `sc-beads`, tokio, async-trait, serde, serde_json, tracing, rustix (Unix only: the effective uid of the trust check; QA97R2-014) (the list is ADR-SYNC-0006 as amended by ADR-SYNC-0008 and its QA-1 amendment) | a; b (b-8) |
 | `bd-cache-py` | Python package `bd_cache_rs` (maturin / PyO3, the mixed layout of ADR-PY-0006: the native module `bd_cache_rs._native`, `bd_cache_rs.run` and `bd_cache_rs.sync`) over the concrete composition with the 0.1 verbs and the 0.2 namespaces; replies as dicts, `CacheError` as one exception class. Sprint b-8: `tick()`, `schedule_*`, `sync_use_python` / `sync_use_builtin`, `ingest_scope`, `scope_announce`, `scopes_*` on the handle's own connection (`dir(Cache)` unchanged), `CODES`; the handle opened through bd-cache-sync's `compose_tuned` and the front-end verbs run through `bd_cache_sync::execute` (QA-1) | `bd-cache`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-model`, `sc-beads`, `bd-cache-api`, `bd-cache-sync` (b-8), pyo3, serde, serde_json, tokio (rt; b-8) | a; b (b-4, b-8) |
 | MCP server | HTTPS MCP front end over `bd-cache-api` (ADR-BDC-0009) | `bd-cache-api`, `bd-cache-sync`, sc-command (server), sc-runtime, sc-transport | later |
 
@@ -393,7 +393,7 @@ Decision:
   attempt, as in v3, since it may have reached the backend. While it holds, the drain
   stops without counting an attempt, and a sync that meets it records the
   outage instead of an announced `SYNC_FAILED`. These are the rules v3 adopted
-  in the baseline at 05831df (Rand approved); the two implementations must apply the
+  in the v3 baseline (Rand approved); the two implementations must apply the
   same rules because they share a journal, and only one may drain it.
   Only failures from a reachable backend (`BD_WRITE_FAILED`, guard refusal)
   count towards `MAX_ATTEMPTS` or escalate.
@@ -813,6 +813,30 @@ as `sc-beads` and `sc-bd-cli`) is not a "use" of the scope prefix; "every use re
 constant" applies to code that builds or strips a scope label. Tests in crates that depend on
 `bd-cache-model` build their labels from `LEGACY_SCOPE_PREFIX` or `legacy_label` where they can.
 
+### Amendment 2: the inverted scope, tracker data, and the three OSes (sprint b-9, QA-1)
+
+**Status:** Approved (lead ruling 5 and 6 of the b-9 QA-1 fix round, sprint b-9)
+
+- **Scope inverted.** The lint scans every tracked file unless it is on a declared
+  out-of-scope list in the lint (`OUT_OF_SCOPE`, each entry with its reason): the agent
+  tooling (`.claude/`, `.cursor/`, `.codex/`, `.agents/`, `.sc/`), the sc-publish kit (its
+  scripts, actions, publish and release workflows, `release/`, `install.py`,
+  `README.sc-publish.md` and the kit docs under `docs/`), `.beads/**` as tracker data (the
+  issue tracker's records, not product), `CHANGELOG.md` (a historical record, out of scope by
+  ADR-BDC-0010; its lines name no consumer command all the same) and `Cargo.lock`
+  (generated). A new or misspelled directory is scanned, never skipped silently. A unit test
+  fails on a tracked path the list does not classify and on a declared entry that matches no
+  tracked path. The exemptions inside the scope are unchanged (the lint, its tests,
+  `docs/team-protocol.md`).
+- **No silent skip.** A file with a NUL byte is skipped only when its extension is on the
+  lint's known-binary list; UTF-16 text is decoded and scanned; any other such file is a hit
+  (`unscannable`). A tracked symlink is scanned as its target's text. The `scope-prefix` rule
+  also matches the prefix before `%`, `$` and `\(` (the other format and interpolation
+  spellings), and its narrowing spares the one declaration once per file.
+- **Where it runs.** The CI step "Strict consumer boundary (ADR-BDC-0010)" and the
+  scripts' unit tests run in the `ci` lint job and in the three-OS test matrix (b-9
+  acceptance 1), not in the ubuntu lint job alone.
+
 ## ADR-BDC-0013: Scopes are named bd filters
 
 **Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0001 (the scope kinds), ADR-BDC-0002
@@ -1018,6 +1042,32 @@ Decision:
 Consequences: sprint b-8 owns the `bd-cache-api` request, data and error files for these verbs
 and `bd-cache-cli/src/request.rs`; b-9 writes the contract text from this register. REQ-BDC-0810,
 REQ-CLI-0006 and REQ-CLI-0008 are amended.
+
+### Amendment 1: `cache health`'s sync facts (sprint b-9, QA-1)
+
+**Status:** Approved (lead ruling 9 of the b-9 QA-1 fix round, sprint b-9)
+
+`cache health` judges the sync rows (REQ-BDC-0732), which only `bd-cache-sync` can read
+(ADR-BDC-0014), so the seam between the two crates is a `bd-cache-api` type, never an
+optional field a front end may leave out:
+
+- **Types (`bd-cache-api`).** `SyncFacts { rows: SyncRows, hook_failures: Option<u32> }`,
+  with `SyncRows` one of `NoRows`, `AllDisabled` or `Enabled(SyncRowFacts)`, so the mode is
+  derived and no value contradicts itself; `SyncRowFacts.row` is `bd-cache-model`'s
+  `SyncRow`, and the mode `bd-cache-model`'s `SyncMode`, the one enum of each, which
+  `bd-cache-sync` re-exports for `schedule show`. The hook threshold is
+  `bd_cache_model::HOOK_BACKOFF_FROM`, which the sync's backoff and health's `hook_failing`
+  both read.
+- **Who builds them.** `bd_cache_sync::sync_facts` reads them from the cache file's schedule
+  table and the rows' run records.
+- **Every front end supplies them.** `bd_cache_api::execute` refuses `cache health` with
+  `INTERNAL`; `bd_cache_api::execute_health` runs it and takes the facts as a required
+  argument, as `Result<SyncFacts, CacheError>`: a failure reading them is a `degraded` reply
+  with reason `sync_state_unreadable` and `sync: null`, never a failed health. The front ends
+  (`bd-cache-cli`, `bd-cache-py`, the MCP server later) call one function,
+  `bd_cache_sync::execute_api`, for every command `bd-cache-api` runs; it reads the facts for
+  `cache health` and calls `execute` for the rest, so no front end wires health on its own.
+  `CacheFacts` no longer carries the sync state.
 
 ## Per-Crate Architecture
 

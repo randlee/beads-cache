@@ -1,6 +1,6 @@
 //! `Entry`: one journal entry in the api's vocabulary (contract §6).
 
-use bd_cache_model::JournalEntry;
+use bd_cache_model::{JournalEntry, JournalState, Op};
 use sc_beads::BeadId;
 use serde::Serialize;
 use serde_json::Value;
@@ -26,7 +26,7 @@ pub struct Entry {
     /// The bead written.
     pub bead: BeadId,
     /// `close`, `update` or `dep_add`.
-    pub op: &'static str,
+    pub op: EntryOp,
     /// The write in `/v0` names.
     pub args: Value,
     /// The status guard.
@@ -36,7 +36,7 @@ pub struct Entry {
     /// Who wrote it.
     pub actor: String,
     /// `pending`, `applied`, `escalated` or `resolved`.
-    pub state: &'static str,
+    pub state: EntryState,
     /// Failed attempts on a reachable backend.
     pub attempts: u32,
     /// The latest failure or escalation reason.
@@ -60,7 +60,7 @@ impl Entry {
             idempotency_key: e.idem_key.as_str().to_owned(),
             scope: e.scope.as_ref().map(|s| s.name().to_owned()),
             bead: e.bead.clone(),
-            op: e.op.name(),
+            op: EntryOp::of(&e.op),
             args: entry_args(&e.op, &e.bead),
             expected_status: e.precondition.status.clone(),
             expected_assignee: e
@@ -69,7 +69,7 @@ impl Entry {
                 .as_ref()
                 .map(|a| a.as_wire().to_owned()),
             actor: e.actor.as_str().to_owned(),
-            state: e.state.as_str(),
+            state: e.state.into(),
             attempts: e.attempts,
             last_error: e
                 .last_error
@@ -80,5 +80,87 @@ impl Entry {
             created_at: cache_time(&e.created_at),
             applied_at: opt_time(e.applied_at.as_ref()),
         }
+    }
+}
+
+/// A journal entry's state on the wire ([`JournalState`], one variant each),
+/// serialized as `pending`, `applied`, `escalated` or `resolved`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryState {
+    /// [`JournalState::Pending`].
+    Pending,
+    /// [`JournalState::Applied`].
+    Applied,
+    /// [`JournalState::Escalated`].
+    Escalated,
+    /// [`JournalState::Resolved`].
+    Resolved,
+}
+
+impl From<JournalState> for EntryState {
+    fn from(s: JournalState) -> Self {
+        match s {
+            JournalState::Pending => Self::Pending,
+            JournalState::Applied => Self::Applied,
+            JournalState::Escalated => Self::Escalated,
+            JournalState::Resolved => Self::Resolved,
+        }
+    }
+}
+
+/// A journal entry's op on the wire ([`Op`]'s kind), serialized as `close`,
+/// `update` or `dep_add`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum EntryOp {
+    /// [`Op::Close`].
+    Close,
+    /// [`Op::Update`].
+    Update,
+    /// [`Op::DepAdd`].
+    DepAdd,
+}
+
+impl EntryOp {
+    /// The kind of `op`.
+    #[must_use]
+    pub fn of(op: &Op) -> Self {
+        match op {
+            Op::Close { .. } => Self::Close,
+            Op::Update(_) => Self::Update,
+            Op::DepAdd { .. } => Self::DepAdd,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// B9Q1-036: the typed state and op serialize byte-identically to the
+    /// stored names they replace.
+    #[test]
+    fn the_typed_state_and_op_keep_the_wire_names() {
+        for s in [
+            JournalState::Pending,
+            JournalState::Applied,
+            JournalState::Escalated,
+            JournalState::Resolved,
+        ] {
+            assert_eq!(
+                serde_json::to_value(EntryState::from(s)).ok(),
+                Some(serde_json::Value::from(s.as_str()))
+            );
+        }
+        let close = Op::Close { reason: None };
+        assert_eq!(
+            serde_json::to_value(EntryOp::of(&close)).ok(),
+            Some(serde_json::Value::from(close.name()))
+        );
+        assert_eq!(
+            serde_json::to_value(EntryOp::DepAdd).ok(),
+            Some(serde_json::Value::from("dep_add"))
+        );
     }
 }

@@ -284,6 +284,95 @@ pub fn clip_hook_error(err: &str) -> &str {
     &err[..end]
 }
 
+/// The name of the built-in sync row (a Rust job) in the cache file's
+/// schedule table (ADR-SYNC-0008, REQ-BDC-0720).
+pub const BUILTIN_ROW: &str = "bd-cache.sync.builtin";
+
+/// The name of the Python sync row (a consumer's script) in the cache
+/// file's schedule table (ADR-SYNC-0008, REQ-BDC-0720).
+pub const PYTHON_ROW: &str = "bd-cache.sync.python";
+
+/// One of the two sync rows (REQ-BDC-0720): the one enum every crate names a
+/// row with (`bd-cache-sync`'s table and runs, `bd-cache-api`'s
+/// `cache health`). Serialized as `builtin` / `python`.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_model::{BUILTIN_ROW, SyncMode, SyncRow};
+/// assert_eq!(SyncRow::of(BUILTIN_ROW), Some(SyncRow::Builtin));
+/// assert_eq!(SyncRow::Builtin.other(), SyncRow::Python);
+/// assert_eq!(SyncRow::Python.mode(), SyncMode::Python);
+/// assert_eq!(serde_json::to_value(SyncRow::Python).unwrap(), "python");
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncRow {
+    /// [`BUILTIN_ROW`].
+    Builtin,
+    /// [`PYTHON_ROW`].
+    Python,
+}
+
+impl SyncRow {
+    /// The row's name in the table.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Builtin => BUILTIN_ROW,
+            Self::Python => PYTHON_ROW,
+        }
+    }
+
+    /// The sync row named `name`, if it is one.
+    #[must_use]
+    pub fn of(name: &str) -> Option<Self> {
+        match name {
+            BUILTIN_ROW => Some(Self::Builtin),
+            PYTHON_ROW => Some(Self::Python),
+            _ => None,
+        }
+    }
+
+    /// The other sync row.
+    #[must_use]
+    pub fn other(self) -> Self {
+        match self {
+            Self::Builtin => Self::Python,
+            Self::Python => Self::Builtin,
+        }
+    }
+
+    /// The sync mode this row's being enabled gives.
+    #[must_use]
+    pub fn mode(self) -> SyncMode {
+        match self {
+            Self::Builtin => SyncMode::Builtin,
+            Self::Python => SyncMode::Python,
+        }
+    }
+}
+
+/// The sync mode (REQ-BDC-0731): which of the two sync rows is enabled.
+/// Serialized as `builtin`, `python` or `none` (`schedule show` and
+/// `cache health`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncMode {
+    /// The built-in row is enabled.
+    Builtin,
+    /// The Python row is enabled.
+    Python,
+    /// Neither is, or no sync row exists.
+    None,
+}
+
+/// The consecutive hook failure from which the post-sync hook is backed off
+/// and `cache health` reports `hook_failing` (REQ-BDC-0727, REQ-BDC-0732:
+/// "three times in a row"). The one owner of that count: `bd-cache-sync`'s
+/// backoff and `bd-cache-api`'s health both read it.
+pub const HOOK_BACKOFF_FROM: u32 = 3;
+
 /// The built-in row's post-sync hook backoff state (`hook_state`, REQ-BDC-0727).
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct HookState {
@@ -537,6 +626,13 @@ pub struct ScopeStatus {
     pub filter: Option<ScopeFilter>,
     /// Beads held by the scope.
     pub beads: u64,
+    /// The scope has a registry row (a scope the built-in sync row syncs,
+    /// REQ-BDC-0721); `false` for a name with sync state only. Read in the
+    /// same snapshot as the rest of the status, so `cache health` judges the
+    /// registered scopes and their sync state at one point in time. Not part
+    /// of the 0.1 status dict.
+    #[serde(skip)]
+    pub registered: bool,
 }
 
 /// What `status` reports from the store (REQ-BDC-0603).

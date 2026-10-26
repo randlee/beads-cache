@@ -591,13 +591,14 @@ fn a_schedule_table_of_another_version_is_store_failed() {
         cron_clock,
         cache,
         store,
+        table,
         scheduler,
         cache_path: path,
         beads_dir: _,
         down: _,
     } = Repo::new(vec![]);
     let root = dir.path().to_path_buf();
-    drop((bd, clock, cron_clock, cache, store, scheduler));
+    drop((bd, clock, cron_clock, cache, store, table, scheduler));
     let conn = rusqlite::Connection::open(&path).unwrap();
     conn.execute(
         "UPDATE meta SET value = '99' WHERE key = 'sc_cron_schedule_version'",

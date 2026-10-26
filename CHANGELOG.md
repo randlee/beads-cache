@@ -51,7 +51,7 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   `GetReply.scope`, and `bd_cache_sync::compose_with_config`.
 - **Store columns**: the additive nullable columns `last_error_code`, `note`
   and `changed` on the journal. `PRAGMA user_version` stays 3, and
-  `bd_cache.py` still reads the file. `WriteOutcome.changed` is
+  the v3 Python writer still reads the file. `WriteOutcome.changed` is
   `Option<bool>`, `None` when unknown, never guessed (S62, S68).
 - **Release channels**: `bd-cache` and `bdc` binaries for Linux, macOS (arm and
   intel) and Windows on GitHub Releases, plus Homebrew (`randlee/tap`), Scoop
@@ -99,20 +99,20 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   and takes none (a missing or unreadable file counts as embedded). The
   protection is partial: agents and bd hooks that run `bd` directly do not
   take the lock. Add `sc-bd-cli.lock` to `.beads/.gitignore`.
-- `sc-bd-cli`, `bd-cache-sync` (RSH-002): the timeout kill of a `bd` or `atm`
+- `sc-bd-cli`, `bd-cache-sync` (RSH-002): the timeout kill of a `bd` or messaging-command
   process group is `kill(-pgid, SIGKILL)` itself (`sc_bd_cli::process_group`),
   not the `kill` program, so a dolt grandchild dies with the group in an
   image without `/bin/kill` or with no process slot left.
 - `bdc` (RSH-001): SIGTERM, SIGINT and SIGHUP no longer leave the `bd` / dolt
   group running. The running `bd` call's group is killed and reaped, the
-  locks are released, `cache tick` and its `atm` child stop, the envelope is
+  locks are released, `cache tick` and its messaging-command child stop, the envelope is
   written, and bdc exits `128 + signal` (143 for SIGTERM; contract §3,
   ADR-CLI-0005). On
   Linux a `bd` child also gets `PR_SET_PDEATHSIG`. New:
   `sc_bd_cli::shutdown`, `BoundedError::Interrupted`.
-- `bd-cache-sync` (RSH-003): `AtmSender::resolve` searches the absolute
-  directories of `PATH` only, so an `atm` committed in the working directory
-  never runs for `:/usr/bin` or `.:/usr/bin` (S76/S77 applied to `atm`).
+- `bd-cache-sync` (RSH-003): the messaging command's sender (removed in sprint b-8) searches
+  the absolute directories of `PATH` only, so a messaging command committed in the working
+  directory never runs for `:/usr/bin` or `.:/usr/bin` (S76/S77 applied to it).
 - `sc-bd-cli`: a `PATH` with a segment that is not UTF-8 no longer empties the
   inherited `PATH`; the child gets every segment.
 
@@ -159,10 +159,17 @@ Phase-end fixes to the 0.1.0 code described below.
   drain (`last_drain_at`, the newest applied time the journal holds, an index read) and the
   unresolved escalations; and the sync's state (`sync: {mode, last_run}`) with the reasons
   `no_sync_row_enabled`, `sync_stale` (three periods of the enabled row), `sync_failing` (three
-  failed runs) and `hook_failing` (three hook failures), the same from `bdc` and
-  `cache.manage.health()`.
-- **`cache refresh scopes --timeout-ms N`** (NFR-BDC-0004): each scope's sync deadline; every bd
+  failed runs) and `hook_failing` (three hook failures, the count from which the hook is backed
+  off), the same from `bdc` and `cache.manage.health()`: both run through
+  `bd_cache_sync::execute_api`, which gives health the sync rows' state (ADR-BDC-0015
+  amendment 1). A cache file with no sync row at all is `degraded` with `no_sync_row_enabled`;
+  sync rows that cannot be read are `degraded` with `sync_state_unreadable`, not a failed health.
+  The oldest pending age is read from the store's bounded summary, never the whole backlog.
+- **`cache refresh scopes --timeout-ms N`** (NFR-BDC-0004): each scope's sync deadline, 1 to
+  600000 ms (`0` or more is `BAD_ARGS`, as for `cache refresh issues --timeout-ms`); every bd
   call is killed at its timeout capped by the time left.
+- **Scope selection**: a 0.2 `issues list` or `ready` names its scope with `scope` only; no
+  scope is derived from a legacy-prefixed label (ADR-BDC-0013, contract §5.1).
 - **The contract** (`docs/bd-cache-cli/contract.md`) states what the phase-B extension built:
   the scope filters, the sync rows, the switch, the post-sync hook and the new verbs (§2, §4,
   §6), the 0.1 → 0.2 API differences (§10) and the classification of the extension's changes as
@@ -172,12 +179,17 @@ Phase-end fixes to the 0.1.0 code described below.
   this repository against the fake bd (`crates/bd-cache-py/tests/corpus/`) pins every 0.1 verb,
   reply, error and bd argv, the 0.1 bare-name rule included. A CLI outage scenario shows
   `issues get` answering from the cache while the outage is recorded for the scope.
-- **CI** (ADR-BDC-0010 as amended by ADR-BDC-0012): the step "Strict consumer boundary
-  (ADR-BDC-0010)" runs the boundary lint on the whole tree, plans included, with no exemption
-  but the lint, its tests and the team protocol; the lint gains the maintainer-handle rule and
+- **CI** (ADR-BDC-0010 as amended by ADR-BDC-0012 and its Amendment 2): the step "Strict
+  consumer boundary (ADR-BDC-0010)" scans every tracked file except a declared out-of-scope
+  list (agent tooling, the sc-publish kit, `.beads/` tracker data, this changelog,
+  `Cargo.lock`), plans included, with no exemption inside the scope but the lint, its tests and
+  the team protocol, in the lint job and on the three OSes; the lint gains the
+  maintainer-handle rule, matches the scope prefix before any format or interpolation marker,
+  reads UTF-16 text and symlink targets, reports an unreadable file instead of skipping it, and
   narrows `scope-prefix` for the one `LEGACY_SCOPE_PREFIX` declaration. The unit-test jobs
   assert that no `bd` or `dolt` is on `PATH` (NFR-BDC-0005), and the lint job that no crate
-  depends on a Dolt or MySQL client (REQ-BDC-0006). The compat test's `uv` setup is gone.
+  depends on a Dolt or MySQL client (REQ-BDC-0006), both through `scripts/check_no_backend.py`.
+  The compat test's `uv` setup is gone.
 
 ## [0.1.0] - unreleased
 

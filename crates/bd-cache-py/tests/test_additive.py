@@ -72,6 +72,47 @@ def test_no_verb_old_or_new_issues_a_deprecation_warning(cache):
         cache.manage.journal_list()
 
 
+def codes(health):
+    return [reason["code"] for reason in health["reasons"]]
+
+
+def test_manage_health_reads_the_sync_rows_as_bdc_cache_health_does(cache):
+    """REQ-BDC-0732 through the binding (`bd_cache_sync::execute_api`, as the CLI runs it).
+
+    A cache with no sync row at all is degraded with `no_sync_row_enabled` (lead ruling 2 of
+    sprint b-9); the built-in row enabled gives mode `builtin`, its last run and `ok`; both rows
+    disabled is degraded again. The journal facts come with every reply.
+    """
+    health = cache.manage.health()
+    assert health["state"] == "degraded" and codes(health) == ["no_sync_row_enabled"], health
+    assert health["sync"] == {"mode": "none", "last_run": None}, health
+    assert health["last_drain_at"] is None and health["oldest_pending_age_s"] is None, health
+
+    cache.schedule_set("0 * * * * *")
+    health = cache.manage.health()
+    assert health["state"] == "ok" and codes(health) == [], health
+    assert health["sync"]["mode"] == "builtin", health
+    assert health["sync"]["last_run"]["row"] == "builtin", health
+    assert health["sync"]["last_run"]["consecutive_failures"] == 0, health
+
+    cache.schedule_disable()
+    health = cache.manage.health()
+    assert health["state"] == "degraded" and codes(health) == ["no_sync_row_enabled"], health
+    assert health["sync"]["last_run"] is None, health
+
+
+def test_manage_health_reports_the_last_drain_and_the_pending_age(cache):
+    cache.schedule_set("0 * * * * *")
+    cache.write("b1", "close", {"reason": "PASS"}, None, "k-health", "dev-1")
+    pending = cache.manage.health()
+    assert pending["open_work"]["pending"] == 1 and pending["oldest_pending_age_s"] is not None
+    assert pending["last_drain_at"] is None, pending
+    cache.manage.flush()
+    drained = cache.manage.health()
+    assert drained["oldest_pending_age_s"] is None and drained["last_drain_at"] is not None, drained
+    assert drained["state"] == "ok", drained
+
+
 def test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_behaviour(cache, repo):
     calls = len(repo.bd.calls())
     err = raised(cache.beads.issues_get, id="zz-9", miss_timeout_ms=0)

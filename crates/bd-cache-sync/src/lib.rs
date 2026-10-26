@@ -20,8 +20,10 @@
 //! - [`execute`] with a [`FrontEnd`]: a decoded front-end verb of the
 //!   contract run over it, the request mapped to its inputs and every error
 //!   to the contract's once (ADR-BDC-0015);
-//! - [`sync_facts`]: the sync rows' state `cache health` judges
-//!   (REQ-BDC-0732), read for every front end;
+//! - [`execute_api`]: a decoded command `bd-cache-api` runs, with `cache
+//!   health` given the sync rows' state [`sync_facts`] reads now
+//!   (REQ-BDC-0732, ADR-BDC-0015 amendment 1), so no front end can leave it
+//!   out;
 //! - [`StopFlag`], the flag a signal sets.
 //!
 //! Inside: [`run_builtin`] (the built-in row's run: lease, drain, every scope
@@ -102,7 +104,7 @@ pub use cron::{CronOnce, CronStopped, DueRunView};
 #[doc(inline)]
 pub use front_end::{FrontEnd, execute};
 #[doc(inline)]
-pub use health::sync_facts;
+pub use health::{execute_api, sync_facts};
 #[doc(inline)]
 pub use history::RowHistory;
 #[doc(inline)]
@@ -145,7 +147,7 @@ pub use python_job::{PythonRun, PythonSyncJob};
 #[doc(hidden)]
 pub use run::{RunContext, SharedCache, run_builtin};
 #[doc(hidden)]
-pub use schedule::{Rows, row_period};
+pub use schedule::Rows;
 #[doc(hidden)]
 pub use text::MAX_KEPT_STDERR_BYTES;
 #[doc(hidden)]

@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use bd_cache_model::{CacheError, Outage, ReadyBasis, RowView, ScopeId};
+use bd_cache_model::{CacheError, FallbackCause, Outage, ReadyBasis, RowView, ScopeId};
 use sc_beads::{BeadId, Timestamp};
 use serde::Serialize;
 
@@ -242,24 +242,20 @@ pub enum ReadFallback {
     Failed,
 }
 
-/// The core's cut text: a fresh read the caller's limit ran out on.
-const CUT_MARK: &str = "no answer within";
-
 impl ReadFallback {
-    /// Classifies the core's `read_fallback` text, `CODE: detail; hint`, by
-    /// whether its error was an outage (`outage`, the core's
-    /// [`CacheError::outage`] of it, REQ-BDC-0729): an answered
-    /// `BD_LIST_FAILED` is `failed`, next to `details.outage: false`.
-    pub(crate) fn of(text: &str, outage: bool) -> (Self, OpError) {
-        let error = OpError::from_stored(text);
-        let kind = if outage && error.message.contains(CUT_MARK) {
-            Self::TimedOut
-        } else if outage {
-            Self::Unavailable
-        } else {
-            Self::Failed
+    /// The fallback the core's typed `cause` names (a cut is `timed_out`, bd
+    /// not reached, the core's [`CacheError::outage`], is `unavailable`, an
+    /// answered `BD_LIST_FAILED` is `failed`, REQ-BDC-0729), with the
+    /// core's `read_fallback` text, `CODE: detail; hint`, as its error. The
+    /// kind never depends on the text's wording; a reply with no cause (none
+    /// is built so) is `failed`.
+    pub(crate) fn of(text: &str, cause: Option<FallbackCause>) -> (Self, OpError) {
+        let kind = match cause {
+            Some(FallbackCause::Cut) => Self::TimedOut,
+            Some(FallbackCause::Unreachable) => Self::Unavailable,
+            Some(FallbackCause::Answered) | None => Self::Failed,
         };
-        (kind, error)
+        (kind, OpError::from_stored(text))
     }
 }
 
@@ -287,7 +283,7 @@ pub struct WriteXCache {
     /// The entry.
     pub seq: i64,
     /// `pending`, `applied`, `escalated` or `resolved`.
-    pub state: &'static str,
+    pub state: crate::data::entry::EntryState,
     /// The key already journaled this write.
     pub duplicate: bool,
     /// The caller's key.
@@ -331,19 +327,41 @@ pub struct ContextXCache {
 mod tests {
     use super::*;
 
-    /// `read_fallback` follows the core's outage flag, not the code: an
-    /// answered `BD_LIST_FAILED` is `failed` (B7Q1-015).
+    /// `read_fallback` follows the core's typed cause, not the code: an
+    /// answered `BD_LIST_FAILED` is `failed` (B7Q1-015), a transport failure
+    /// that did not reach bd is `unavailable`.
     #[test]
-    fn the_fallback_kind_follows_the_outage_flag() {
+    fn the_fallback_kind_follows_the_typed_cause() {
         let cut = "BD_CACHE.BD_UNAVAILABLE: bd blocked / bd ready: no answer within 5ms; retry";
-        assert_eq!(ReadFallback::of(cut, true).0, ReadFallback::TimedOut);
+        let of = |text, cause| ReadFallback::of(text, Some(cause)).0;
+        assert_eq!(of(cut, FallbackCause::Cut), ReadFallback::TimedOut);
         let down = "BD_CACHE.BD_UNAVAILABLE: refused; retry";
-        assert_eq!(ReadFallback::of(down, true).0, ReadFallback::Unavailable);
+        assert_eq!(
+            of(down, FallbackCause::Unreachable),
+            ReadFallback::Unavailable
+        );
         let answered = "BD_CACHE.BD_LIST_FAILED: exit 1; retry";
-        assert_eq!(ReadFallback::of(answered, false).0, ReadFallback::Failed);
+        assert_eq!(of(answered, FallbackCause::Answered), ReadFallback::Failed);
         let transport = "BD_CACHE.BD_LIST_FAILED: stdout exceeded; retry";
         assert_eq!(
-            ReadFallback::of(transport, true).0,
+            of(transport, FallbackCause::Unreachable),
+            ReadFallback::Unavailable
+        );
+    }
+
+    /// B9Q1-016: the kind does not depend on the core's wording. A cut whose
+    /// text is reworded is still `timed_out`, and text that reads like a cut
+    /// is not one unless the cause says so.
+    #[test]
+    fn the_fallback_kind_survives_a_reworded_core_message() {
+        let reworded = "BD_CACHE.BD_UNAVAILABLE: bd ready gave nothing in 5ms; retry";
+        assert_eq!(
+            ReadFallback::of(reworded, Some(FallbackCause::Cut)).0,
+            ReadFallback::TimedOut
+        );
+        let looks_cut = "BD_CACHE.BD_UNAVAILABLE: no answer within 5ms; retry";
+        assert_eq!(
+            ReadFallback::of(looks_cut, Some(FallbackCause::Unreachable)).0,
             ReadFallback::Unavailable
         );
     }

@@ -18,7 +18,9 @@ requirements:
     - "REQ-STORE-0006 (amended)"
     - "REQ-PY-0009 (superseded; its test and vendored log removed)"
   constrained_by:
+    - "REQ-BDC-0001 (a cached read starts no bd: the corpus case)"
     - REQ-BDC-0006
+    - "REQ-BDC-0105, REQ-BDC-0201, REQ-BDC-0301 (cited by the restated comments and research docs)"
     - REQ-BDC-0720
     - REQ-BDC-0721
     - REQ-BDC-0722
@@ -35,12 +37,15 @@ requirements:
     - REQ-BDC-0810
     - REQ-BDC-0811
     - REQ-BDC-0812
+    - "REQ-BDC-0909 (on-demand scopes: contract D7)"
     - NFR-BDC-0004
     - NFR-BDC-0005
     - "REQ-BEADS-0001..0005, REQ-BDCLI-0001..0009, REQ-CRON-0001..0018 (comments, provenance and tests only)"
-    - "REQ-API-0001..0008, REQ-CLI-0001..0012 (health only)"
+    - "REQ-API-0001..0008 (health, scope selection: REQ-API-0004 as amended, the refresh timeouts, the typed reply members), REQ-CLI-0001..0012 (health through bd_cache_sync::execute_api; tests)"
     - "REQ-PY-0001..0014"
+    - "REQ-STORE-0005 (evidence), REQ-MODEL-0003, REQ-MODEL-0004 (the port's last_applied_at, the contract suite, FakeStore)"
 adrs:
+  - "ADR-BDC-0001..0004 (the contract's and the research docs' subjects)"
   - ADR-BDC-0005
   - ADR-BDC-0006
   - ADR-BDC-0007
@@ -49,8 +54,12 @@ adrs:
   - ADR-BDC-0011
   - ADR-BDC-0012
   - ADR-BDC-0013
-  - ADR-BDC-0015
-  - "ADR-STORE-0001..0006"
+  - "ADR-BDC-0014 (health reads the schedule table through it)"
+  - "ADR-BDC-0015 (and its Amendment 1, sprint b-9)"
+  - "ADR-BDC-0012 Amendment 2 (sprint b-9)"
+  - "ADR-SYNC-0008 (deliverable 4; health's sync facts)"
+  - "ADR-MODEL-0003, ADR-CORE-0203, ADR-CORE-0204 (scope rules, the bounded fresh ready, the v3 phase column)"
+  - "ADR-STORE-0001..0006 (ADR-STORE-0006 Amendment 2, sprint b-9)"
   - "ADR-BEADS-0001..0004"
   - "ADR-BDCLI-0001..0006"
   - "ADR-CRON-0001..0009"
@@ -68,6 +77,16 @@ owned_paths:
   - ".github/workflows/{ci.yml,python.yml,bd-compat.yml} (not the kit's workflows)"
   - "README.md"
   - "CHANGELOG.md"
+  # Fence amendment, fix round 1 (lead ruling 7; B9Q1-001, B9Q1-008): the health read path and
+  # every other file the sprint and its fix round edit, each with its reason.
+  - "the health read path and its seam (REQ-BDC-0732, ADR-BDC-0015 Amendment 1, ADR-STORE-0006 Amendment 2): crates/bd-cache-api/src/{data/*,decode.rs,error.rs,filter.rs,lib.rs,ops/*,request/manage.rs} with tests/{common/mod.rs,manage.rs,fixtures/issues_list_filters.json}; crates/bd-cache-cli/src/commands/mod.rs with tests/{fixtures/cli_commands.json,scenarios.rs,process.rs,sync_process.rs}; crates/bd-cache-model/src/{compat.rs,config.rs,error.rs,lib.rs,op.rs,reply.rs,scope.rs,state.rs,store.rs,testing/contract.rs,testing/store.rs} with tests/{goldens.rs,fixtures/PROVENANCE.md}; crates/bd-cache-store/src/{lib.rs,schema.rs,store.rs} with tests/store.rs; crates/bd-cache/src/{lib.rs,ready.rs} with tests/read_ready.rs; crates/bd-cache-sync/src/{health.rs,hook.rs,lib.rs,payload.rs,python_job.rs,schedule.rs} with tests/{common/repo.rs,health.rs,schedule_switch.rs}; crates/bd-cache-py/src/{api.rs,compose.rs,handle.rs}"
+  - "crates/sc-bd-cli/src/locks.rs (the private LockKey, B9Q1-038, ADR-BDCLI-0006; no version bump), crates/sc-bd-cli/src/{argv.rs,testing/fake_bd.rs} (comments only, B9Q1-018)"
+  - "scripts/check_no_backend.py and scripts/test_check_no_backend.py (B9Q1-030); scripts/test_prerelease_tag.py (one Windows skip, so the scripts tests run on the three OSes, B9Q1-011)"
+  - "Cargo.toml (the unused dunce entry removed, B9Q1-048)"
+  - "doc/plan/phase-current/ (removed, B9Q1-012) and .beads/issues.jsonl (its 13 pointers to that record repointed to docs/plans/phase-b/anchors/anchors.json)"
+  - ".claude/skills/checking-beads-compatibility/{SKILL.md,references/pin-locations.md} (B9Q1-049)"
+  - "register edits the lead approved (rulings 2, 8, 9, 11, 14; listed below): docs/architecture.md, docs/requirements.md, docs/bd-cache-api/{architecture,requirements}.md, docs/bd-cache-cli/architecture.md, docs/bd-cache-store/{architecture,requirements}.md, docs/bd-cache-sync/{architecture,requirements}.md, docs/sc-cron/architecture.md (the b-8 QA-2 group-kill note), docs/sc-bd-cli/architecture.md"
+  - "docs/plans/phase-a/{phase-a-plan,sprint-a-4-store,sprint-a-7-sync-integration,sprint-a-8-python-bindings}.md (the consumer-repository commit hash removed, ruling 11, no other change); docs/plans/phase-b/{phase-b-plan,sprint-b-8-tick-python,phase-b-boundary}.md and docs/project-plan.md (status rows: b-8 merged, b-9 in review; this fence amendment)"
 ---
 
 # Sprint b-9 — neutral tests, docs and API text, health, and the lint gate (WP-7, WP-8, WP-10)
@@ -184,6 +203,56 @@ the approved register. It merges last.
 6. The contract matches the register; every difference found is raised with the lead and
    recorded in the PR.
 7. AC-Q.
+
+## Fix round 1 (QA-1, PR #101)
+
+The 50 findings B9Q1-001..050 (merged review on PR #101) are fixed under the lead's rulings,
+except B9Q1-020 (a dated supply-chain waiver) and B9Q1-047 (pinning the CI actions and tools),
+which the lead dropped: deliverable 5 above already records the supply-chain deferral.
+
+**Lead-approved annotations (ruling 8, B9Q1-004).** These pointers inside Approved ADR text
+change no decision; each points at the amendment that supersedes the sentence it follows:
+
+- ADR-SYNC-0008 (`docs/bd-cache-sync/architecture.md`): lines 623-624 (the harness's `Cache`
+  call, superseded by the implementation notes), 637-639 (the `bd-cache-cli` → `sc-cron` edge,
+  superseded by "One surface"), 641-642 (the signal handling, superseded by "Shutdown") and
+  669-671 (the root `Cargo.toml` entries, superseded by B8Q1-036).
+- ADR-PY-0002 (`docs/bd-cache-py/architecture.md`): lines 90-91 (the Mapping table removed by
+  ADR-PY-0006); and this round's line 105 (the `config` kind, amended below it).
+- ADR-PY-0004 (`docs/bd-cache-py/architecture.md`): lines 198-200 (the mapping test, call log
+  and script, superseded by ADR-PY-0006).
+
+**The 0.1 verb lists, before and after (deliverable 1, B9Q1-007).** The comparison is the
+docstring of `crates/bd-cache-py/tests/corpus/record.py` ("Before and after"): the sixteen 0.1
+verbs plus `path` and `closed`, the same set before and after this sprint, each with a
+recorded successful case; every name the deleted call log listed mapped onto one of them.
+
+**Residual lint fixes (deliverable 5).** With the scope inverted, the whole-tree run found only
+the stale anchor record `doc/plan/phase-current/` (removed). `CHANGELOG.md` stays out of scope
+(ADR-BDC-0010) and its five lines that named the consumer's messaging command or its file are
+reworded all the same. The three `src` files of the original commit carry one doc-comment line
+each, restated neutrally, and no code: `crates/sc-bd-cli/src/locks.rs:18`,
+`crates/sc-bd-cli/src/path.rs:14`, `crates/sc-beads/src/row.rs:15`. This round adds code to
+`locks.rs` only for B9Q1-038 (the private `LockKey`).
+
+**Register versus code (acceptance 6).** Two differences were raised with the lead, and both
+are ruled and written into the contract as normative text: the 0.2 reads selected a scope from
+a legacy-prefixed label (ruling 1: removed; a missing scope is `SCOPE_UNKNOWN`, contract §5.1,
+REQ-API-0004 amended), and a cache file with no sync row was not `no_sync_row_enabled`
+(ruling 2: REQ-BDC-0732 read literally, contract §6). The `CONTRACT_VERSION` and wheel choice
+stays in phase-b-plan.md, Open items.
+
+**Register edits this round (rulings 9, 11, 14).** ADR-BDC-0012 Amendment 2 and ADR-BDC-0015
+Amendment 1 (`docs/architecture.md`); ADR-STORE-0006 Amendment 2 and the `compat.rs` pointers
+of ADR-STORE-0001's Amendment b-1 and ADR-STORE-0002's consequences
+(`docs/bd-cache-store/architecture.md`); the evidence of REQ-STORE-0005 and REQ-STORE-0006
+(`docs/bd-cache-store/requirements.md`); REQ-PY-0001 (the `config` kind removed, `errno`),
+REQ-PY-0003, REQ-PY-0009 and REQ-PY-0013 evidence (`docs/bd-cache-py/requirements.md`);
+ADR-PY-0002's amendment and ADR-PY-0004's neutral packaging bullets
+(`docs/bd-cache-py/architecture.md`); REQ-API-0004 (`docs/bd-cache-api/requirements.md`); the
+`bdc_legacy_cache_file` clause of `docs/bd-cache-cli/architecture.md` (now a pointer to
+ADR-BDC-0015); and the consumer-repository commit hash, removed from every product doc and
+plan with no other change.
 
 ## Reference
 

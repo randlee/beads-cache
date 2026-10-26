@@ -1,11 +1,13 @@
 //! `cache health` judges the sync rows from what [`sync_facts`] reads of the
-//! real table (REQ-BDC-0732, b-9 acceptance 4): both rows disabled
-//! (`no_sync_row_enabled`), no worker for three periods (`sync_stale`, on
-//! the injected clocks), the Python row failing three runs in a row
-//! (`sync_failing`) and the hook failing three times in a row
-//! (`hook_failing`), each with its planted negative. The rows run over the
-//! real composition with sc-cron's `ManualClock`; the Python row and the hook
-//! run stub interpreters (Unix).
+//! real table, run through [`execute_api`] as every front end runs it
+//! (REQ-BDC-0732, b-9 acceptance 4, ADR-BDC-0015 amendment 1): both rows
+//! disabled or no row at all (`no_sync_row_enabled`), no worker for three
+//! periods (`sync_stale`, on the injected clocks), the Python row failing
+//! three runs in a row (`sync_failing`) and the hook failing three times in
+//! a row (`hook_failing`, at the count the hook's backoff starts from), each
+//! with its planted negative. The rows run over the real composition with
+//! sc-cron's `ManualClock`; the Python row and the hook run stub
+//! interpreters (Unix).
 
 #![expect(
     clippy::unwrap_used,
@@ -16,8 +18,8 @@ mod common;
 
 use std::time::Duration;
 
-use bd_cache_api::{CacheFacts, Command, decode, execute};
-use bd_cache_sync::{ScheduleSet, StopFlag, sync_facts};
+use bd_cache_api::{CacheFacts, Command, decode};
+use bd_cache_sync::{ScheduleSet, StopFlag, execute_api};
 use common::label_scope;
 use common::repo::Repo;
 use serde_json::{Value, json};
@@ -33,18 +35,16 @@ fn every_minute() -> ScheduleSet {
     }
 }
 
-/// `cache health` over `repo`'s cache, with the sync facts read now.
+/// `cache health` over `repo`'s cache, run as a front end runs it: through
+/// [`execute_api`], which reads the sync facts ([`sync_facts`]) now.
+///
+/// [`sync_facts`]: bd_cache_sync::sync_facts
 fn health(repo: &Repo) -> Value {
     let mut cache = repo.cache.lock().unwrap();
-    let facts = CacheFacts {
-        sync: Some(sync_facts(repo.store.as_ref(), &cache).unwrap()),
-        ..CacheFacts::default()
-    };
     let req = decode(Command::CacheHealth, &json!({})).unwrap();
-    execute(&mut cache, &req, &facts)
+    execute_api(&repo.table, &mut cache, &req, &CacheFacts::default())
         .unwrap()
         .to_json()
-        .unwrap()
 }
 
 fn codes(h: &Value) -> Vec<String> {
@@ -72,15 +72,20 @@ async fn cron_run_once(repo: &Repo) -> Option<bd_cache_api::ApiError> {
         .error()
 }
 
-/// Both rows disabled is `no_sync_row_enabled`. Planted negative: the
-/// built-in row enabled again clears it, and a file with no sync row reports
-/// mode `none` without the reason.
+/// Both rows disabled is `no_sync_row_enabled`, and so is a file with no
+/// sync row at all (REQ-BDC-0732 read literally, lead ruling 2 of sprint
+/// b-9). Planted negative: the built-in row enabled again clears it.
 #[tokio::test(flavor = "multi_thread")]
 async fn both_rows_disabled_is_no_sync_row_enabled() {
     let repo = Repo::new(vec![]);
     let h = health(&repo);
-    assert_eq!(h["sync"]["mode"], "none", "{h}");
-    assert_eq!(codes(&h), Vec::<String>::new(), "no sync row exists: {h}");
+    assert_eq!(h["state"], "degraded", "no sync row exists: {h}");
+    assert_eq!(
+        codes(&h),
+        ["no_sync_row_enabled"],
+        "no sync row exists: {h}"
+    );
+    assert_eq!(h["sync"], json!({"mode": "none", "last_run": null}), "{h}");
 
     repo.schedules().set(&every_minute()).await.unwrap();
     repo.schedules().enable(false).await.unwrap();
@@ -174,8 +179,11 @@ async fn the_python_row_failing_three_runs_is_sync_failing() {
     assert_eq!(h["state"], "ok", "an ok run resets the count: {h}");
 }
 
-/// The hook failing three times in a row is `hook_failing`. Planted
-/// negative: after two failures it is not.
+/// The hook failing three times in a row is `hook_failing`, at exactly the
+/// count from which the sync backs the hook off (one owner,
+/// `bd_cache_model::HOOK_BACKOFF_FROM`, B9Q1-015): after each failure,
+/// health reports `hook_failing` if and only if the backoff gives a next
+/// attempt. Planted negative: after two failures it is neither.
 #[cfg(unix)]
 #[tokio::test(flavor = "multi_thread")]
 async fn the_hook_failing_three_times_is_hook_failing() {
@@ -188,12 +196,15 @@ async fn the_hook_failing_three_times_is_hook_failing() {
         ..every_minute()
     };
     repo.schedules().set(&set).await.unwrap();
+    let now = sc_beads::Timestamp::parse(common::START).unwrap();
+    let backed_off = |n: u32| bd_cache_sync::next_attempt(n, None, &now).is_some();
     for n in 1..=2 {
         step(&repo, 60);
         assert!(cron_run_once(&repo).await.is_none(), "the run itself is ok");
         assert_eq!(hook.calls(), n);
         let h = health(&repo);
         assert_eq!(codes(&h), Vec::<String>::new(), "{n} hook failures: {h}");
+        assert!(!backed_off(u32::try_from(n).unwrap()), "{n} failures");
     }
     step(&repo, 60);
     assert!(cron_run_once(&repo).await.is_none());
@@ -201,4 +212,10 @@ async fn the_hook_failing_three_times_is_hook_failing() {
     let h = health(&repo);
     assert_eq!(h["state"], "degraded", "{h}");
     assert_eq!(codes(&h), ["hook_failing"], "{h}");
+    assert!(backed_off(3), "health and the backoff agree at three");
+    assert_eq!(
+        bd_cache_sync::HOOK_BACKOFF_FROM,
+        3,
+        "REQ-BDC-0732: three in a row"
+    );
 }

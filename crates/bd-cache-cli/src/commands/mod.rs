@@ -2,8 +2,9 @@
 //!
 //! Every surface (a) and (b) command is a `bd-cache-api` [`Command`]: its
 //! request goes through [`bd_cache_api::decode`], then
-//! [`bd_cache_api::execute`] over the composed cache, and the `data` comes
-//! back unreshaped (contract §8, MCP design constraint). The phase-B verbs
+//! [`bd_cache_sync::execute_api`] over the composed cache (which gives
+//! `cache health` the sync rows' state, ADR-BDC-0015 amendment 1), and the
+//! `data` comes back unreshaped (contract §8, MCP design constraint). The phase-B verbs
 //! a front end runs ([`Command::is_front_end`]: `cache schedule *`, `cron
 //! run`, `tick`, `sync *`) are decoded by the same decoder, then run over
 //! `bd-cache-sync`: `cron run` here ([`cron`]), the others through
@@ -25,7 +26,7 @@ pub(crate) mod tick;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use bd_cache_api::{ApiError, CacheFacts, Command, Request, SyncFacts, decode, execute};
+use bd_cache_api::{ApiError, CacheFacts, Command, Request, decode};
 use bd_cache_store::SCHEMA_VERSION;
 use bd_cache_sync::{ComposeError, Composed, FrontEnd, compose_with_config};
 use sc_bd_cli::CliInvoker;
@@ -76,11 +77,14 @@ pub(crate) fn run(command: Command, request: &Value, ctx: Context<'_>) -> Result
     let settings = config::resolve(&ctx.flags, ctx.env)?;
     let mut composed = open(&settings, ctx.invoker, Arc::clone(&ctx.clock))?;
     if !command.is_front_end() {
-        let mut facts = facts(&settings);
-        if command == Command::CacheHealth {
-            facts.sync = Some(sync_facts(&composed)?);
-        }
-        return execute(&mut composed.cache, &decoded, &facts)?.to_json();
+        let facts = facts(&settings);
+        return Ok(bd_cache_sync::execute_api(
+            &composed.schedules,
+            &mut composed.cache,
+            &decoded,
+            &facts,
+        )?
+        .to_json());
     }
     run_front_end(composed, &decoded, ctx.signals)
 }
@@ -113,18 +117,7 @@ fn facts(s: &Settings) -> CacheFacts {
         project_id: s.location.identity.project_id.as_str().to_owned(),
         beads_dir: Some(s.beads_dir.display().to_string()),
         repo_root: Some(s.repo.display().to_string()),
-        sync: None,
     }
-}
-
-/// The sync rows' state `cache health` judges (REQ-BDC-0732), read from the
-/// cache file's schedule table (`bd_cache_sync::sync_facts`, as the binding reads it).
-fn sync_facts(composed: &Composed) -> Result<SyncFacts, ApiError> {
-    let store = composed
-        .schedule_store()
-        .map_err(|e| FrontEnd::Cli.api_error(&e))?;
-    bd_cache_sync::sync_facts(store.as_ref(), &composed.cache)
-        .map_err(|e| FrontEnd::Cli.api_error(&e))
 }
 
 /// A composition error as the contract's code (contract §2, §4).

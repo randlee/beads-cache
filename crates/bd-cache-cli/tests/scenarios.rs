@@ -483,7 +483,14 @@ fn health_reports_the_pending_age_and_takes_the_age_limit() {
         ],
     );
     let health = ok(&repo, &["cache", "health", "--max-pending-age-s", "86400"]);
-    assert_eq!(health["state"], "ok", "{health}");
+    // The entry is younger than the limit: the only reason is that no sync
+    // row exists (REQ-BDC-0732, lead ruling 2 of sprint b-9).
+    assert_eq!(health["state"], "degraded", "{health}");
+    assert_eq!(
+        health["reasons"],
+        json!([{"code": "no_sync_row_enabled", "message": health["reasons"][0]["message"]}]),
+        "{health}"
+    );
     assert!(health["oldest_pending_age_s"].is_u64(), "{health}");
     assert_eq!(health["last_drain_at"], Value::Null, "{health}");
     assert_eq!(health["unresolved_escalations"], 0, "{health}");
@@ -492,15 +499,20 @@ fn health_reports_the_pending_age_and_takes_the_age_limit() {
 }
 
 /// REQ-BDC-0732: `bdc cache health` reads the sync rows of the cache file:
-/// no row is mode `none` and `ok`; the built-in row is mode `builtin` with
+/// no row at all is mode `none` and `degraded` with `no_sync_row_enabled`
+/// (lead ruling 2 of sprint b-9); the built-in row is mode `builtin` with
 /// its last run; both rows disabled is `degraded` with `no_sync_row_enabled`
 /// (planted negative: enabled again, `ok`).
 #[test]
 fn health_reports_the_sync_mode_and_no_sync_row_enabled() {
     let repo = synced();
     let health = ok(&repo, &["cache", "health"]);
-    assert_eq!(health["state"], "ok", "{health}");
+    assert_eq!(health["state"], "degraded", "{health}");
     assert_eq!(health["sync"]["mode"], "none", "{health}");
+    assert_eq!(
+        health["reasons"][0]["code"], "no_sync_row_enabled",
+        "{health}"
+    );
 
     ok(&repo, &["cache", "schedule", "set", "0 * * * * *"]);
     let health = ok(&repo, &["cache", "health"]);
@@ -533,6 +545,8 @@ fn health_reports_the_sync_mode_and_no_sync_row_enabled() {
 fn a_probe_that_cannot_reach_bd_is_down() {
     let repo = synced();
     one_second_call_timeout(&repo);
+    // A sync row, so only the probe decides (REQ-BDC-0732).
+    ok(&repo, &["cache", "schedule", "set", "0 * * * * *"]);
     // The control: bd answers, so the probe runs and the cache is ok.
     let health = ok(&repo, &["cache", "health", "--probe"]);
     assert_eq!(health["state"], "ok", "{health}");

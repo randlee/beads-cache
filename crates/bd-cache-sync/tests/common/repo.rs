@@ -46,6 +46,8 @@ pub struct Repo {
     pub cache: RealShared,
     /// The schedule table.
     pub store: Arc<CacheScheduleStore>,
+    /// The schedule table as the composition hands it to the front ends.
+    pub table: bd_cache_sync::ScheduleTable,
     /// The scheduler over it.
     pub scheduler: RealScheduler,
     /// The cache file.
@@ -81,6 +83,7 @@ impl Repo {
         )
         .unwrap();
         let store = composed.schedule_store().unwrap();
+        let table = composed.schedules.clone();
         let cache_path = composed.cache_path.clone();
         let beads_dir = composed.beads_dir.clone();
         let mut cache = composed.cache;
@@ -100,6 +103,7 @@ impl Repo {
             cron_clock,
             cache: Arc::new(Mutex::new(cache)),
             store,
+            table,
             scheduler,
             cache_path,
             beads_dir,

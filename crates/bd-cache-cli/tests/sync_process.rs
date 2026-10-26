@@ -306,6 +306,11 @@ fn scopes_ingest_reads_stdin_and_refuses_more_than_64_mib() {
 const SECRET: &str = "s3cr3t-token-value-0451";
 
 /// The `HOME` the redaction tests give bdc (every child keeps `HOME`).
+///
+/// It is data, not a home directory (cross-platform guidelines, QA-008):
+/// the value is a marker the redaction must hide when `--env HOME` names it,
+/// nothing resolves a path from it, and this file is Unix-only
+/// (`#![cfg(unix)]`), so no Windows `USERPROFILE` behaviour is assumed.
 const HOME_VALUE: &str = "/home/redaction-test-0451";
 
 /// A post-sync hook stub: `-c` exits 0; the hook reads its request and acts

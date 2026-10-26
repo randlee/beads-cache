@@ -5,7 +5,7 @@
 
 use std::collections::BTreeMap;
 
-use bd_cache_model::FilterParts;
+use bd_cache_model::{FilterParts, SyncMode, SyncRow};
 use sc_beads::{Bead, BeadId};
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -141,35 +141,45 @@ pub enum HealthState {
     Down,
 }
 
+/// The stable key of a [`HealthReason`] (contract §6), serialized in
+/// snake case: the closed set `cache health` reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HealthReasonCode {
+    /// Rows failed their read-back and are stale (#86).
+    StaleRows,
+    /// Escalated journal entries are unresolved (#86).
+    UnresolvedEscalations,
+    /// The oldest pending entry is older than the limit (#86).
+    PendingTooOld,
+    /// No sync row is enabled, or none exists (REQ-BDC-0732).
+    NoSyncRowEnabled,
+    /// A registered scope's last successful sync is older than three
+    /// periods of the enabled row (REQ-BDC-0732).
+    SyncStale,
+    /// The enabled row's last three runs failed (REQ-BDC-0732).
+    SyncFailing,
+    /// The post-sync hook failed three times in a row (REQ-BDC-0732).
+    HookFailing,
+    /// The sync rows' state could not be read, so the sync is not judged
+    /// (REQ-BDC-0732, B9Q1-034).
+    SyncStateUnreadable,
+}
+
 /// One reason `cache health` is not `ok`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct HealthReason {
-    /// A stable key: `stale_rows`, `unresolved_escalations`, `pending_too_old`
-    /// (#86), or a degraded sync (REQ-BDC-0732): `no_sync_row_enabled`,
-    /// `sync_stale`, `sync_failing`, `hook_failing`.
-    pub code: &'static str,
+    /// The stable key.
+    pub code: HealthReasonCode,
     /// What is wrong and what to do.
     pub message: String,
-}
-
-/// The sync mode (REQ-BDC-0731): which of the two sync rows is enabled.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SyncModeData {
-    /// The built-in row is enabled.
-    Builtin,
-    /// The Python row is enabled.
-    Python,
-    /// Neither is (or no sync row exists).
-    #[default]
-    None,
 }
 
 /// `cache health` `sync.last_run`: the enabled row's last run (REQ-BDC-0732).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LastRunData {
     /// Which row: `builtin` or `python`.
-    pub row: &'static str,
+    pub row: SyncRow,
     /// When its last recorded run finished; `null` before the first.
     pub last_run_at: Option<String>,
     /// That run's outcome: `ok`, or the failure's text; `null` before the first.
@@ -184,7 +194,7 @@ pub struct LastRunData {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SyncHealthData {
     /// The sync mode.
-    pub mode: SyncModeData,
+    pub mode: SyncMode,
     /// The enabled row's last run; `null` when no row is enabled.
     pub last_run: Option<LastRunData>,
 }
@@ -209,8 +219,8 @@ pub struct CacheHealthData {
     pub last_drain_at: Option<String>,
     /// Escalated entries nobody has resolved, announced or not.
     pub unresolved_escalations: u64,
-    /// The sync rows' state (REQ-BDC-0732); `null` when the front end did not
-    /// read the cache file's schedule table (the api on its own).
+    /// The sync rows' state (REQ-BDC-0732); `null` only when it could not be
+    /// read (reason `sync_state_unreadable`).
     pub sync: Option<SyncHealthData>,
     /// The backend check, with `probe`; `null` without.
     pub probe: Option<ProbeData>,

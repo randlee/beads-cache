@@ -721,7 +721,7 @@ impl CacheError {
         }
     }
 
-    /// The fix carried with the error (the BD-CACHE baseline design, CLI table).
+    /// The fix carried with the error (the v3 error table, REQ-BDC-0803).
     #[must_use]
     pub fn fix(&self) -> &'static str {
         match self {

@@ -239,8 +239,8 @@ clears) and `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
 (`src/announce.rs`).
 
 Note (fix-a-7-3, lead ruling S21): the baseline Python implementation's cron
-stores `sync_alert` as `"<code>: <detail>"` (verified in the baseline at
-`05831df`), where this crate stores
+stores `sync_alert` as `"<code>: <detail>"` (verified in the v3
+baseline), where this crate stores
 the bare key. The tick reads the code before the first `": "` with
 `AlertCause::from_key` (through `AlertCause::from_stored`), so an alert written
 in the Python form does not make it announce the same cause again. Python
@@ -377,7 +377,7 @@ Consequences: a new dependency is a change to this ADR.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Context: both are defined by the baseline Python implementation's cron script
-at `05831dfe866d389feed138add3c29cb93cd6c82b` (the baseline); the Rust
+in the v3 baseline; the Rust
 side must read the same files and talk to the same program.
 
 Decision (confirmed against that commit with `gh api`; two ported

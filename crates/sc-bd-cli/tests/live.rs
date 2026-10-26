@@ -45,7 +45,9 @@ struct Live {
     project: ProjectRef,
     /// A label no other probe or run uses, so scopes never overlap.
     label: String,
-    seq: std::cell::Cell<u32>,
+    /// The title counter `create` bumps: an atomic, so `create` takes `&self`
+    /// and `Live` stays `Sync` (RBP-F014).
+    seq: std::sync::atomic::AtomicU32,
     /// The `bd` under test and the scratch workspace, for the raw calls.
     bin: String,
     dir: WorkingDir,
@@ -78,7 +80,7 @@ impl Live {
             bin,
             project: ProjectRef::local(Some(dir.clone())),
             label: format!("live-{}-{nanos}", std::process::id()),
-            seq: std::cell::Cell::new(0),
+            seq: std::sync::atomic::AtomicU32::new(0),
         }))
     }
 
@@ -116,8 +118,8 @@ impl Live {
 
     /// Creates a bead, in this probe's scope unless `outside_scope`, and returns its id.
     fn create(&self, title: &str, outside_scope: bool) -> Result<BeadId, String> {
-        self.seq.set(self.seq.get() + 1);
-        let title = format!("{title} #{}", self.seq.get());
+        let n = self.seq.fetch_add(1, std::sync::atomic::Ordering::Relaxed) + 1;
+        let title = format!("{title} #{n}");
         let mut args = vec!["create", title.as_str()];
         if !outside_scope {
             args.extend(["--labels", self.label.as_str()]);

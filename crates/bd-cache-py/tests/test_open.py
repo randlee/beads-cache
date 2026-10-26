@@ -1,9 +1,11 @@
 """Opening the cache: the repository config, explicit arguments, the handle's life cycle."""
 
+import errno
 import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -75,6 +77,9 @@ def test_an_unreadable_config_file_is_an_os_error_with_kind_and_path(repo):
     finally:
         path.chmod(0o600)
     assert caught.value.kind == "read" and caught.value.path.name == "bd-cache.toml"
+    # The OS error code and file come from the typed error, not from its text (RBP-F010).
+    assert caught.value.errno == errno.EACCES, caught.value
+    assert Path(caught.value.filename).name == "bd-cache.toml", caught.value
 
 
 @pytest.mark.parametrize("keyword, value", [

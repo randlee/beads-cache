@@ -10,6 +10,8 @@ import json
 import os
 from pathlib import Path
 
+import pytest
+
 import bd_cache_rs
 from conftest import bead
 from corpus.record import BARE_NAME_CASE, LEGACY_LABEL_Y, build
@@ -30,6 +32,13 @@ def committed():
 
 
 def test_the_committed_corpus_is_what_the_fake_bd_run_produces(repo):
+    """The guard of every 0.1 reply, error and argv, the bare-name rule's included.
+
+    Dropping the 0.1 bare-name rule makes `BARE_NAME_CASE` store no row and ask bd for `-l y`, so
+    this comparison fails (and `test_the_bare_name_case_syncs_the_legacy_prefixed_label` with it).
+    """
+    if os.environ.get("BDC_WRITE_CORPUS") and os.environ.get("CI"):
+        pytest.fail("BDC_WRITE_CORPUS is refused under CI: CI compares the corpus, never rewrites it")
     built = render(build(repo))
     if os.environ.get("BDC_WRITE_CORPUS"):
         CORPUS.write_text(built, encoding="utf-8")
@@ -59,6 +68,25 @@ def test_the_corpus_records_the_bd_argv_of_the_verbs_that_reach_bd():
     assert no_bd and no_bd[0]["bd_calls"] == [], "a cached read starts no bd (REQ-BDC-0001)"
 
 
+def replies(corpus, verb):
+    return [c["reply"] for c in corpus["calls"] if c["verb"] == verb and "reply" in c]
+
+
+def test_the_corpus_pins_every_ready_and_drain_reply_variant():
+    """REQ-BDC-0812, B9Q1-017: each variant of the shape table is in the record, not only the plain one."""
+    corpus = committed()
+    ready = replies(corpus, "ready")
+    kinds = {r["basis"]["kind"] for r in ready}
+    assert kinds == {"unknown", "cached", "fresh"}, kinds
+    assert any(r["basis"].get("stale") is True for r in ready), "a stale cached base"
+    assert any(r["locally_adjusted"] for r in ready), "a base adjusted by a pending write"
+    assert any(r["read_fallback"] for r in ready), "a fresh answer that fell back"
+    assert any(r["missing_rows"] for r in ready), "a ready bead with no cached row"
+    drains = replies(corpus, "drain")
+    for member in ("applied", "retrying", "escalated", "deferred", "deferred_in_flight"):
+        assert any(d[member] for d in drains), f"a drain with {member}"
+
+
 def test_the_corpus_records_the_error_fields_and_the_unreachable_codes():
     corpus = committed()
     errors = [c["raises"] for c in corpus["calls"] if c.get("raises", {}).get("code")]
@@ -82,13 +110,16 @@ def test_the_bare_name_case_syncs_the_legacy_prefixed_label():
     assert listed and listed[0][1:3] == ["-l", LEGACY_LABEL_Y], entry
 
 
-def test_without_the_bare_name_rule_the_case_does_not_match_the_corpus(repo):
-    """Planted negative (REQ-BDC-0812 as amended): the corpus fails if the 0.1 rule is dropped.
+def test_the_0_2_namespace_takes_the_bare_name_as_written_unlike_the_0_1_rule(repo):
+    """The contrast the bare-name rule makes (REQ-BDC-0812 as amended), not its guard.
 
-    Without the rule a bare `y` would be the scope named as written, which the cache registers on
+    The guard is the corpus comparison above with `test_the_bare_name_case_syncs_the_legacy_
+    prefixed_label` (`stored == 1`, `-l` of the legacy-prefixed label): drop the rule from the
+    0.1 path and both fail (QA-007 confirmed it by mutation). This test shows what the case
+    would record without the rule: a bare `y` taken as written, which the cache registers on
     demand as the label scope of the label `y` (ADR-BDC-0013). The 0.2 namespace takes names
-    that way, so the same case run through it is the case as it would run with the rule dropped:
-    its record differs from the committed one in the label bd is asked for and the rows stored.
+    that way, so the same case run through it differs from the committed record in the label bd
+    is asked for and the rows stored.
     """
     repo.config('scopes = ["x"]\n')
     cache = repo.open()

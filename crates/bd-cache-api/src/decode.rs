@@ -102,7 +102,7 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
                 .collect::<Result<_, _>>()?;
             Request::CacheRefreshScopes(CacheRefreshScopes {
                 scopes,
-                timeout_ms: m.uint("timeout_ms")?,
+                timeout_ms: refresh_timeout(&m, CacheRefreshScopes::MAX_TIMEOUT_MS)?,
             })
         }
         Command::CacheRefreshIssues => {
@@ -116,7 +116,7 @@ pub fn decode(command: Command, request: &Value) -> Result<Request, ApiError> {
             }
             Request::CacheRefreshIssues(CacheRefreshIssues {
                 ids,
-                timeout_ms: m.uint("timeout_ms")?,
+                timeout_ms: refresh_timeout(&m, CacheRefreshIssues::MAX_TIMEOUT_MS)?,
             })
         }
         Command::CacheFlush => Request::CacheFlush(cache_flush(obj)?),
@@ -216,6 +216,19 @@ fn schedule_set(obj: &Map<String, Value>) -> Result<Request, ApiError> {
         python: m.str("python")?,
         env: m.strings("env")?,
     }))
+}
+
+/// A refresh's `timeout_ms`, from 1 to `max`: `0` would expire the deadline
+/// before any bd call is made and report a timeout for a call never made
+/// (B9Q1-045), and an unbounded value would hold the command indefinitely.
+fn refresh_timeout(m: &Members<'_>, max: u64) -> Result<Option<u64>, ApiError> {
+    match m.uint("timeout_ms")? {
+        Some(ms) if ms == 0 || ms > max => Err(ApiError::bad_member(
+            "timeout_ms",
+            format!("timeout_ms is 1 to {max} milliseconds, not {ms}"),
+        )),
+        ms => Ok(ms),
+    }
 }
 
 fn cron_run(obj: &Map<String, Value>) -> Result<Request, ApiError> {

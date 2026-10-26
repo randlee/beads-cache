@@ -337,11 +337,19 @@ pub trait CacheStore: Send {
     /// deletes entries, so seqs have gaps and the newest entry need not be the
     /// last row count. The provided body reads every applied entry through
     /// [`CacheStore::applied_since`]; an implementation that can ask an index
-    /// overrides it (`SqliteStore` does, with no write).
+    /// overrides it (`SqliteStore` does, with no write, in one read
+    /// snapshot). ADR-STORE-0006 amendment (sprint b-9).
+    ///
+    /// # Panics
+    ///
+    /// Never: [`Timestamp::MIN_UNIX`] is the earliest instant `from_unix` accepts.
+    #[expect(
+        clippy::expect_used,
+        reason = "invariant: Timestamp::MIN_UNIX is in range by definition"
+    )]
     fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
-        let Ok(floor) = Timestamp::from_unix(Timestamp::MIN_UNIX) else {
-            return Ok(None);
-        };
+        let floor = Timestamp::from_unix(Timestamp::MIN_UNIX)
+            .expect("Timestamp::MIN_UNIX is a valid timestamp");
         Ok(self
             .applied_since(&floor)?
             .into_iter()

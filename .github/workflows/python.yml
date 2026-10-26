@@ -52,16 +52,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      # NFR-BDC-0005: the tests run against the fake bd, never a real bd or Dolt.
+      # NFR-BDC-0005: the tests run against the fake bd, never a real bd or Dolt
+      # (scripts/check_no_backend.py, the one copy of the check).
       - name: No bd or dolt on PATH (NFR-BDC-0005)
-        run: |
-          for tool in bd dolt; do
-            if command -v "$tool" >/dev/null 2>&1; then
-              echo "::error::$tool is on PATH ($(command -v "$tool")): the tests must run without it (NFR-BDC-0005)"
-              exit 1
-            fi
-          done
-          echo "no bd or dolt on PATH"
+        run: python -I scripts/check_no_backend.py path
 
       - name: Clippy
         run: cargo clippy -p bd-cache-py --all-targets --all-features -- -D warnings
@@ -132,16 +126,10 @@ jobs:
           name: wheel-${{ matrix.os }}
           path: dist
 
-      # NFR-BDC-0005: the tests run against the fake bd, never a real bd or Dolt.
+      # NFR-BDC-0005: the tests run against the fake bd, never a real bd or Dolt
+      # (scripts/check_no_backend.py, the one copy of the check).
       - name: No bd or dolt on PATH (NFR-BDC-0005)
-        run: |
-          for tool in bd dolt; do
-            if command -v "$tool" >/dev/null 2>&1; then
-              echo "::error::$tool is on PATH ($(command -v "$tool")): the tests must run without it (NFR-BDC-0005)"
-              exit 1
-            fi
-          done
-          echo "no bd or dolt on PATH"
+        run: python -I scripts/check_no_backend.py path
 
       - name: Install the wheel and pytest
         run: |

@@ -2124,6 +2124,14 @@ impl Session<'_> {
     }
 
     fn last_applied_at(&self) -> Result<Option<Timestamp>, CacheError> {
+        // One read snapshot (ADR-STORE-0002): a drainer in another process
+        // that commits between the two reads cannot mix two points in time.
+        self.read("read the newest applied time", || {
+            self.last_applied_at_now()
+        })
+    }
+
+    fn last_applied_at_now(&self) -> Result<Option<Timestamp>, CacheError> {
         // Two index reads, no write (health calls this): the newest dated
         // entry, and the newest readable time among those another writer
         // applied without an epoch. The seq plays no part, so entries a prune
@@ -2939,6 +2947,7 @@ impl Session<'_> {
             scopes.push(ScopeStatus {
                 beads: self.scope_beads(at, &s)?,
                 filter: registry.get(&s).and_then(|r| r.filter.clone()),
+                registered: registry.contains_key(&s),
                 sync: self.sync_state(&s)?,
             });
         }
@@ -3627,5 +3636,89 @@ mod tests {
         }
         assert_eq!(summed, counts.total, "total is the sum of the buckets");
         assert_eq!(counts.total.sum(), 12, "every entry counted once");
+    }
+
+    /// The statements `last_applied_at` runs, traced on the store's connection.
+    fn last_applied_at_statements(store: &SqliteStore) -> Vec<String> {
+        STATEMENTS.with(|s| s.borrow_mut().clear());
+        store.inner().conn.trace_v2(
+            rusqlite::trace::TraceEventCodes::SQLITE_TRACE_STMT,
+            Some(count_statements),
+        );
+        store.last_applied_at().unwrap();
+        store
+            .inner()
+            .conn
+            .trace_v2(rusqlite::trace::TraceEventCodes::empty(), None);
+        STATEMENTS.with(|s| s.borrow().clone())
+    }
+
+    /// ADR-STORE-0002, B9Q1-005: `last_applied_at`'s two index reads run
+    /// inside one read transaction, so a drainer committing between them
+    /// cannot make the answer mix two points in time.
+    #[test]
+    fn last_applied_at_reads_one_snapshot() {
+        let TempStore {
+            store,
+            path: _path,
+            _dir,
+        } = temp_store();
+        let ran = last_applied_at_statements(&store);
+        assert_eq!(ran.len(), 4, "BEGIN, the two reads, COMMIT: {ran:?}");
+        assert!(ran[0].starts_with("BEGIN"), "{ran:?}");
+        assert_eq!(ran[1], NEWEST_APPLIED_EPOCH_SQL, "{ran:?}");
+        assert_eq!(ran[2], NEWEST_UNDATED_APPLIED_SQL, "{ran:?}");
+        assert_eq!(ran[3], "COMMIT", "{ran:?}");
+    }
+
+    /// `last_applied_at`'s two reads (RCR-001 of #91, B9Q1-037): the plan of
+    /// each names its index and walks no history, so 5000 old applied
+    /// entries are not read; both unhinted forms run on the same file.
+    #[test]
+    fn last_applied_at_queries_use_the_applied_indexes() {
+        let TempStore {
+            store: _store,
+            path,
+            _dir,
+        } = temp_store();
+        let mut c = Connection::open(&path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+        for sql in [NEWEST_APPLIED_EPOCH_SQL, NEWEST_UNDATED_APPLIED_SQL] {
+            let plan: Vec<String> = c
+                .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
+                .unwrap()
+                .query_map([], |r| r.get::<_, String>(3))
+                .unwrap()
+                .collect::<Result<_, _>>()
+                .unwrap();
+            assert!(
+                plan.iter()
+                    .filter(|d| d.contains("journal"))
+                    .all(|d| d.contains("USING")),
+                "{plan:?}"
+            );
+            let steps = vm_steps(&c, sql, []);
+            assert!(steps < 100, "5000 old entries are not read: {steps} steps");
+        }
+        for sql in [
+            NEWEST_APPLIED_EPOCH_UNHINTED_SQL,
+            NEWEST_UNDATED_APPLIED_UNHINTED_SQL,
+        ] {
+            assert!(vm_steps(&c, sql, []) > 0);
+        }
     }
 }

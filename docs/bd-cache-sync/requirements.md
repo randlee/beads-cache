@@ -36,7 +36,7 @@ A phase is a phase file, named for its phase, in `[tick] phases_dir` (default:
 the first consumer's own directory, relative to the working directory;
 `compose` resolves it against the repository root) with a `root` bead and an
 optional recipient key; other keys are ignored. `[tick] phases` limits the phases
-(names with or without the `phase-` prefix). The schema was confirmed against the baseline Python implementation's cron module at the baseline at `05831df`, and two real phase files of the first consumer are test fixtures (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
+(names with or without the `phase-` prefix). The schema was confirmed against the baseline Python implementation's cron module in the v3 baseline, and two real phase files of the first consumer are test fixtures (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
 tick before any work; an unusable file, an unreadable directory or a
 configured phase with no file is listed as refused while the phases that are
 usable still run. A phase is active while its root is not closed: a root the

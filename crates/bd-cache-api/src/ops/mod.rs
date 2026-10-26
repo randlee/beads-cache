@@ -10,9 +10,13 @@
 //! returns the entry and the views before and after (REQ-BDC-0809);
 //! `cache journal get` reads by key with `entry_by_key`; `cache status`
 //! counts with `journal_counts`. The api never opens a file, so `context`
-//! and `cache status` take the file's facts as [`CacheFacts`], and
-//! `cache health` the sync rows' state as [`SyncFacts`] (REQ-BDC-0732),
-//! which the front end reads from the schedule table through `bd-cache-sync`.
+//! and `cache status` take the file's facts as [`CacheFacts`]. `cache
+//! health` also judges the sync rows' state, [`SyncFacts`] (REQ-BDC-0732),
+//! which only `bd-cache-sync` can read from the schedule table: it runs
+//! through [`execute_health`], which takes those facts as a required
+//! argument, and [`execute`] refuses it (ADR-BDC-0015 amendment 1), so no
+//! front end can report a sync it did not read. The front ends call
+//! `bd_cache_sync::execute_api`, which reads the facts and calls it.
 
 mod beads;
 mod manage;
@@ -21,12 +25,12 @@ mod scopes;
 use std::time::Duration;
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheStore, DrainLock, ScopeId};
+use bd_cache_model::{CacheError, CacheStore, DrainLock, ScopeId, SyncMode, SyncRow};
 use sc_beads::{CacheBackend, Timestamp};
 
-use crate::data::{Data, SyncModeData};
+use crate::data::Data;
 use crate::error::ApiError;
-use crate::request::Request;
+use crate::request::{CacheHealth, Request};
 
 pub(crate) use beads::{
     context, dependencies_add, dependencies_list, issues_close, issues_get, issues_list,
@@ -54,33 +58,59 @@ pub struct CacheFacts {
     pub beads_dir: Option<String>,
     /// The repository root, when known.
     pub repo_root: Option<String>,
-    /// The sync rows' state, for `cache health` (REQ-BDC-0732); `None` when
-    /// the front end did not read the schedule table (health then reports
-    /// `sync: null` and no sync reason).
-    pub sync: Option<SyncFacts>,
 }
 
-/// What a front end read of the cache file's sync rows for `cache health`
-/// (REQ-BDC-0732); `bd-cache-sync`'s `sync_facts` builds it from the rows
-/// `schedule show` reports (REQ-BDC-0731).
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+/// The cache file's sync rows as `cache health` judges them (REQ-BDC-0732),
+/// a required argument of [`execute_health`] (ADR-BDC-0015 amendment 1).
+///
+/// `bd-cache-sync`'s `sync_facts` builds it from the rows `schedule show`
+/// reports (REQ-BDC-0731); the mode is derived from [`SyncFacts::rows`], so
+/// no value can contradict itself.
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncFacts {
-    /// The mode the rows' flags give.
-    pub mode: SyncModeData,
-    /// Whether a sync row exists, enabled or not.
-    pub has_rows: bool,
-    /// The enabled row; `None` in mode `none`.
-    pub enabled: Option<SyncRowFacts>,
+    /// The rows' state.
+    pub rows: SyncRows,
     /// The consecutive failures of the post-sync hook the built-in row names;
     /// `None` when it names none.
     pub hook_failures: Option<u32>,
 }
 
+/// The state of the two sync rows (REQ-BDC-0720: at most one enabled).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SyncRows {
+    /// The schedule table holds no sync row.
+    NoRows,
+    /// A sync row exists and none is enabled.
+    AllDisabled,
+    /// The enabled row.
+    Enabled(SyncRowFacts),
+}
+
+impl SyncRows {
+    /// The sync mode these rows give: the enabled row's, else `none`.
+    #[must_use]
+    pub fn mode(&self) -> SyncMode {
+        match self {
+            Self::Enabled(r) => r.row.mode(),
+            Self::NoRows | Self::AllDisabled => SyncMode::None,
+        }
+    }
+
+    /// The enabled row, if any.
+    #[must_use]
+    pub fn enabled(&self) -> Option<&SyncRowFacts> {
+        match self {
+            Self::Enabled(r) => Some(r),
+            Self::NoRows | Self::AllDisabled => None,
+        }
+    }
+}
+
 /// The enabled sync row, as `cache health` judges it (REQ-BDC-0732).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SyncRowFacts {
-    /// Which row: `builtin` or `python`.
-    pub row: &'static str,
+    /// Which row.
+    pub row: SyncRow,
     /// When the row was written or last replaced (sc-cron's `created_at`).
     pub created_at: Timestamp,
     /// One period of the row at evaluation (REQ-BDC-0727): the gap between
@@ -101,12 +131,14 @@ pub struct SyncRowFacts {
 ///
 /// The verbs a front end runs over `bd-cache-sync` ([`Command::is_front_end`]:
 /// `cache schedule *`, `cron run`, `tick`, `sync *`) are not run here
-/// (ADR-BDC-0015).
+/// (ADR-BDC-0015), and neither is `cache health`, which needs the sync rows'
+/// state: [`execute_health`] runs it with that state as a required argument
+/// (ADR-BDC-0015 amendment 1).
 ///
 /// # Errors
 ///
 /// The command's errors (contract §5.3, §6), as [`ApiError`]; `INTERNAL`
-/// for a front-end verb.
+/// for a front-end verb and for `cache health`.
 ///
 /// [`Command::is_front_end`]: crate::Command::is_front_end
 pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
@@ -124,7 +156,13 @@ pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Request::DependenciesAdd(r) => Data::DependenciesAdd(dependencies_add(cache, r)?),
         Request::Context(_) => Data::Context(context(cache, facts)?),
         Request::CacheStatus(_) => Data::CacheStatus(cache_status(cache, facts)?),
-        Request::CacheHealth(r) => Data::CacheHealth(cache_health(cache, *r, facts)?),
+        Request::CacheHealth(_) => {
+            return Err(ApiError::internal(
+                "cache health judges the sync rows, which bd-cache-api cannot read: run it \
+                 through bd_cache_sync::execute_api (bd_cache_api::execute_health with the \
+                 SyncFacts), ADR-BDC-0015 amendment 1",
+            ));
+        }
         Request::CacheScopes(_) | Request::ScopesList(_) => Data::CacheScopes(cache_scopes(cache)?),
         Request::CacheRefreshScopes(r) => Data::CacheRefreshScopes(cache_refresh_scopes(cache, r)?),
         Request::CacheRefreshIssues(r) => Data::CacheRefreshIssues(cache_refresh_issues(cache, r)?),
@@ -154,6 +192,25 @@ pub fn execute<S: CacheStore, L: DrainLock, B: CacheBackend>(
             )));
         }
     })
+}
+
+/// Runs a decoded `cache health` with the sync rows' state a front end read
+/// through `bd-cache-sync` (REQ-BDC-0732, ADR-BDC-0015 amendment 1).
+///
+/// `sync` is required: `Err` is the failure reading the rows, which health
+/// reports as `degraded` with reason `sync_state_unreadable` and `sync:
+/// null`, keeping its state and journal facts; it never fails health.
+///
+/// # Errors
+///
+/// As `cache health` (contract §6): the store's errors, and with `--probe`
+/// the backend check's other typed errors.
+pub fn execute_health<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &mut Cache<S, L, B>,
+    request: CacheHealth,
+    sync: Result<SyncFacts, CacheError>,
+) -> Result<Data, ApiError> {
+    Ok(Data::CacheHealth(cache_health(cache, request, sync)?))
 }
 
 /// Every scope the cache knows, by id.

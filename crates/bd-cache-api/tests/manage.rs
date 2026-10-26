@@ -9,6 +9,10 @@
 
 mod common;
 
+use bd_cache_api::{
+    Command, Request, SyncFacts, SyncRowFacts, SyncRows, decode, execute, execute_health,
+};
+use bd_cache_model::SyncRow;
 use common::{World, default_facts, run};
 use sc_beads::Refusal;
 use sc_beads::testing::{FakeOp, Injection};
@@ -513,6 +517,35 @@ fn health_degrades_when_the_oldest_pending_entry_is_too_old() {
     assert_eq!(h["last_drain_at"], "2026-10-23T10:05:01.000Z", "{h}");
 }
 
+/// ADR-SYNC-0008 bounded reads (B9Q1-014): health takes the oldest pending
+/// age from the store's bounded `pending_summary` and never loads the
+/// backlog, which is largest during an outage, when health matters most.
+/// Planted negative: `cache journal list --state pending` does load it, and
+/// the counter sees that.
+#[test]
+fn health_does_not_load_the_pending_backlog() {
+    let (w, mut cache) = world();
+    for k in ["k1", "k2", "k3"] {
+        journal_update(&mut cache, "b2", k);
+    }
+    w.clock.advance(std::time::Duration::from_secs(42));
+    let before = w.store.pending_loads();
+    let h = ok(&mut cache, "cache health", &json!({}));
+    assert_eq!(h["oldest_pending_age_s"], 42, "{h}");
+    assert_eq!(h["open_work"]["pending"], 3, "{h}");
+    assert_eq!(w.store.pending_loads(), before, "health loaded the backlog");
+    ok(
+        &mut cache,
+        "cache journal list",
+        &json!({"state": "pending"}),
+    );
+    assert_eq!(
+        w.store.pending_loads(),
+        before + 1,
+        "the counter sees a load"
+    );
+}
+
 /// RCR-001 of #91: `last_drain_at` is the newest applied time among the
 /// entries the journal holds, not a window of seqs derived from its row
 /// count. `cache evict` deletes the scope's entries, so the next entry's seq
@@ -656,30 +689,65 @@ fn refresh_scopes_timeout_ms_is_the_sync_deadline() {
     assert_eq!(bad["code"], "BD_CACHE.BAD_ARGS", "{bad}");
 }
 
-/// The facts of a cache file whose `row` is the enabled sync row, written at
-/// the world's start (REQ-BDC-0732), with `hook_failures` for the hook the
-/// built-in row names.
-fn sync_facts(
-    mode: bd_cache_api::data::SyncModeData,
-    row: Option<bd_cache_api::SyncRowFacts>,
-    hook_failures: Option<u32>,
-) -> bd_cache_api::CacheFacts {
-    bd_cache_api::CacheFacts {
-        sync: Some(bd_cache_api::SyncFacts {
-            mode,
-            has_rows: true,
-            enabled: row,
-            hook_failures,
-        }),
-        ..default_facts()
+/// B9Q1-045: `timeout_ms` of `cache refresh scopes` and `cache refresh
+/// issues` is 1 to the command's `MAX_TIMEOUT_MS`. Planted negatives: `0`
+/// (a deadline already expired, a timeout for a call never made) and one
+/// past the cap are `BAD_ARGS` naming the member; the bounds themselves
+/// decode.
+#[test]
+fn refresh_timeout_ms_is_one_to_its_cap() {
+    use bd_cache_api::request::{CacheRefreshIssues, CacheRefreshScopes};
+    let (_w, mut cache) = world();
+    for (command, base, max) in [
+        (
+            "cache refresh scopes",
+            json!({"scopes": ["x"]}),
+            CacheRefreshScopes::MAX_TIMEOUT_MS,
+        ),
+        (
+            "cache refresh issues",
+            json!({"ids": ["b1"]}),
+            CacheRefreshIssues::MAX_TIMEOUT_MS,
+        ),
+    ] {
+        for bad in [0, max + 1] {
+            let mut req = base.clone();
+            req["timeout_ms"] = json!(bad);
+            let e = err(&mut cache, command, &req);
+            assert_eq!(e["code"], "BD_CACHE.BAD_ARGS", "{command} {bad}: {e}");
+            assert_eq!(e["details"]["member"], "timeout_ms", "{command} {bad}: {e}");
+        }
+        for good in [1, max] {
+            let mut req = base.clone();
+            req["timeout_ms"] = json!(good);
+            assert!(
+                decode(Command::parse(command).unwrap(), &req).is_ok(),
+                "{command} {good}"
+            );
+        }
     }
+}
+
+/// The sync facts of a cache file whose enabled row is `rows`, with
+/// `hook_failures` for the hook the built-in row names (REQ-BDC-0732).
+fn sync_facts(rows: SyncRows, hook_failures: Option<u32>) -> SyncFacts {
+    SyncFacts {
+        rows,
+        hook_failures,
+    }
+}
+
+/// The built-in row enabled, every minute, written at the world's start,
+/// with `failures` consecutive failed runs.
+fn enabled(failures: u32) -> SyncRows {
+    SyncRows::Enabled(builtin_row(failures))
 }
 
 /// The built-in row, every minute, written at the world's start, with
 /// `failures` consecutive failed runs.
-fn builtin_row(failures: u32) -> bd_cache_api::SyncRowFacts {
-    bd_cache_api::SyncRowFacts {
-        row: "builtin",
+fn builtin_row(failures: u32) -> SyncRowFacts {
+    SyncRowFacts {
+        row: SyncRow::Builtin,
         created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         period: Some(std::time::Duration::from_secs(60)),
         last_run_at: Some(sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap()),
@@ -696,10 +764,20 @@ fn builtin_row(failures: u32) -> bd_cache_api::SyncRowFacts {
     }
 }
 
-fn health_with(cache: &mut common::TestCache, facts: &bd_cache_api::CacheFacts) -> Value {
-    let got = run(cache, "cache health", &json!({}), facts);
-    assert_eq!(got["ok"], true, "{got}");
-    got["data"].clone()
+/// `cache health` run with `sync` as the front end read it (ADR-BDC-0015
+/// amendment 1).
+fn health_read(
+    cache: &mut common::TestCache,
+    sync: Result<SyncFacts, bd_cache_model::CacheError>,
+) -> Value {
+    let Ok(Request::CacheHealth(req)) = decode(Command::CacheHealth, &json!({})) else {
+        panic!("cache health decodes");
+    };
+    execute_health(cache, req, sync).unwrap().to_json()
+}
+
+fn health_with(cache: &mut common::TestCache, sync: &SyncFacts) -> Value {
+    health_read(cache, Ok(sync.clone()))
 }
 
 fn codes(h: &Value) -> Vec<String> {
@@ -711,22 +789,12 @@ fn codes(h: &Value) -> Vec<String> {
         .collect()
 }
 
-/// REQ-BDC-0732: with no sync facts (the api on its own) health reports
-/// `sync: null` and no sync reason; with the facts of an enabled built-in
-/// row, the mode and that row's last run.
+/// REQ-BDC-0732: with the facts of an enabled built-in row, health reports
+/// the mode and that row's last run.
 #[test]
 fn health_reports_the_sync_mode_and_the_enabled_rows_last_run() {
     let (_w, mut cache) = world();
-    let h = ok(&mut cache, "cache health", &json!({}));
-    assert_eq!(h["sync"], Value::Null, "{h}");
-    let h = health_with(
-        &mut cache,
-        &sync_facts(
-            bd_cache_api::data::SyncModeData::Builtin,
-            Some(builtin_row(0)),
-            None,
-        ),
-    );
+    let h = health_with(&mut cache, &sync_facts(enabled(0), None));
     assert_eq!(h["state"], "ok", "{h}");
     assert_eq!(
         h["sync"],
@@ -737,35 +805,73 @@ fn health_reports_the_sync_mode_and_the_enabled_rows_last_run() {
     );
 }
 
-/// REQ-BDC-0732 (b-9 acceptance 4): `no_sync_row_enabled` when both rows are
-/// disabled. Planted negatives: an enabled row, and a file with no sync row
-/// at all, raise no such reason.
+/// ADR-BDC-0015 amendment 1 (B9Q1-003): `execute` refuses `cache health`
+/// with `INTERNAL`, so a front end cannot run it without the sync facts;
+/// `execute_health` takes them as a required argument.
+#[test]
+fn execute_refuses_cache_health_without_the_sync_facts() {
+    let (_w, mut cache) = world();
+    let req = decode(Command::CacheHealth, &json!({})).unwrap();
+    let e = execute(&mut cache, &req, &default_facts()).unwrap_err();
+    assert_eq!(e.code(), "BD_CACHE.INTERNAL", "{e}");
+    assert!(e.to_string().contains("execute_health"), "{e}");
+}
+
+/// REQ-BDC-0732 (b-9 acceptance 4, lead ruling 2 of sprint b-9):
+/// `no_sync_row_enabled` when both rows are disabled, and also when the
+/// table holds no sync row at all. Planted negative: an enabled row raises
+/// no such reason.
 #[test]
 fn health_is_degraded_when_no_sync_row_is_enabled() {
-    use bd_cache_api::data::SyncModeData;
     let (_w, mut cache) = world();
-    let h = health_with(&mut cache, &sync_facts(SyncModeData::None, None, None));
+    let h = health_with(&mut cache, &sync_facts(SyncRows::AllDisabled, None));
     assert_eq!(h["state"], "degraded", "{h}");
     assert_eq!(codes(&h), ["no_sync_row_enabled"], "{h}");
     assert_eq!(h["sync"], json!({"mode": "none", "last_run": null}), "{h}");
 
-    let enabled = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
-    assert_eq!(health_with(&mut cache, &enabled)["state"], "ok");
-    let mut no_rows = sync_facts(SyncModeData::None, None, None);
-    no_rows.sync.as_mut().unwrap().has_rows = false;
-    let h = health_with(&mut cache, &no_rows);
-    assert_eq!(h["state"], "ok", "no sync row exists: {h}");
+    let h = health_with(&mut cache, &sync_facts(SyncRows::NoRows, None));
+    assert_eq!(h["state"], "degraded", "no sync row exists: {h}");
+    assert_eq!(codes(&h), ["no_sync_row_enabled"], "{h}");
+    assert_eq!(h["sync"], json!({"mode": "none", "last_run": null}), "{h}");
+
+    assert_eq!(
+        health_with(&mut cache, &sync_facts(enabled(0), None))["state"],
+        "ok"
+    );
+}
+
+/// B9Q1-034: a failure reading the sync rows is a degraded reply with
+/// `sync_state_unreadable` and `sync: null`, never a failed health; the
+/// journal facts are still reported. Planted negative: readable facts give
+/// no such reason.
+#[test]
+fn health_reports_unreadable_sync_rows_as_degraded() {
+    let (_w, mut cache) = world();
+    let unreadable = bd_cache_model::CacheError::store_failed(
+        "schedule store (sc_cron_schedule): version 9",
+        std::io::Error::other("planted"),
+    );
+    let h = health_read(&mut cache, Err(unreadable));
+    assert_eq!(h["state"], "degraded", "{h}");
+    assert_eq!(codes(&h), ["sync_state_unreadable"], "{h}");
+    assert_eq!(h["sync"], Value::Null, "{h}");
+    assert_eq!(h["open_work"]["pending"], 0, "{h}");
+    assert_eq!(h["stale_rows"], 0, "{h}");
+    let h = health_with(&mut cache, &sync_facts(enabled(0), None));
+    assert!(
+        !codes(&h).contains(&"sync_state_unreadable".to_owned()),
+        "{h}"
+    );
 }
 
 /// REQ-BDC-0732 (b-9 acceptance 4): `sync_failing` when the enabled row's
 /// last three runs failed. Planted negative: two failures are not enough.
 #[test]
 fn health_is_degraded_when_the_enabled_row_failed_three_runs_in_a_row() {
-    use bd_cache_api::data::SyncModeData;
     let (_w, mut cache) = world();
-    let two = sync_facts(SyncModeData::Builtin, Some(builtin_row(2)), None);
+    let two = sync_facts(enabled(2), None);
     assert_eq!(codes(&health_with(&mut cache, &two)), Vec::<String>::new());
-    let three = sync_facts(SyncModeData::Builtin, Some(builtin_row(3)), None);
+    let three = sync_facts(enabled(3), None);
     let h = health_with(&mut cache, &three);
     assert_eq!(h["state"], "degraded", "{h}");
     assert_eq!(codes(&h), ["sync_failing"], "{h}");
@@ -783,9 +889,8 @@ fn health_is_degraded_when_the_enabled_row_failed_three_runs_in_a_row() {
 /// period is not judged.
 #[test]
 fn health_is_degraded_when_a_scope_is_older_than_three_periods() {
-    use bd_cache_api::data::SyncModeData;
     let (w, mut cache) = world();
-    let facts = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
+    let facts = sync_facts(enabled(0), None);
     w.clock.advance(std::time::Duration::from_secs(180));
     let h = health_with(&mut cache, &facts);
     assert_eq!(
@@ -836,7 +941,7 @@ fn health_is_degraded_when_a_scope_is_older_than_three_periods() {
 
     let mut no_period = builtin_row(0);
     no_period.period = None;
-    let unjudged = sync_facts(SyncModeData::Builtin, Some(no_period), None);
+    let unjudged = sync_facts(SyncRows::Enabled(no_period), None);
     assert_eq!(health_with(&mut cache, &unjudged)["state"], "ok");
 }
 
@@ -845,13 +950,12 @@ fn health_is_degraded_when_a_scope_is_older_than_three_periods() {
 /// row that names no hook is never judged.
 #[test]
 fn health_is_degraded_when_the_hook_failed_three_times_in_a_row() {
-    use bd_cache_api::data::SyncModeData;
     let (_w, mut cache) = world();
-    let two = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), Some(2));
+    let two = sync_facts(enabled(0), Some(2));
     assert_eq!(health_with(&mut cache, &two)["state"], "ok");
-    let none = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), None);
+    let none = sync_facts(enabled(0), None);
     assert_eq!(health_with(&mut cache, &none)["state"], "ok");
-    let three = sync_facts(SyncModeData::Builtin, Some(builtin_row(0)), Some(3));
+    let three = sync_facts(enabled(0), Some(3));
     let h = health_with(&mut cache, &three);
     assert_eq!(h["state"], "degraded", "{h}");
     assert_eq!(codes(&h), ["hook_failing"], "{h}");

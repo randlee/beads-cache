@@ -171,6 +171,29 @@ fn test_sync_alert_round_trip() {
     assert_eq!(store.sync_alert(&x()).unwrap(), None);
 }
 
+/// REQ-STORE-0006 (B9Q1-027): the sync alert another writer of the shared v3
+/// file stored, in its `CODE: detail` format under the v3 meta key, reads
+/// back as written, so `cache status` can decode it (`bd-cache-api`'s
+/// `alert_of`, which `alerts_decode_from_either_writer` tests).
+#[test]
+fn an_alert_another_implementation_wrote_reads_back_as_written() {
+    let (open, mut store) = fresh("foreign-alert");
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    drop(store);
+    Connection::open(&open.path)
+        .unwrap()
+        .execute(
+            "INSERT OR REPLACE INTO meta(key, value) VALUES ('sync_alert:x', ?1)",
+            ["BD_CACHE.SYNC_FAILED: bd list failed"],
+        )
+        .unwrap();
+    let store = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    assert_eq!(
+        store.sync_alert(&x()).unwrap().as_deref(),
+        Some("BD_CACHE.SYNC_FAILED: bd list failed")
+    );
+}
+
 #[test]
 fn test_pending_work_counts_as_open() {
     let (_open, mut store) = fresh("open-work");
@@ -1148,7 +1171,7 @@ fn the_expression_index_of_an_earlier_build_is_dropped_on_open() {
     assert_eq!(left, 0);
 }
 
-/// the v3 Python writer (baseline `05831df`) never creates, reads or writes `ready_base`,
+/// the v3 Python writer never creates, reads or writes `ready_base`,
 /// `ready_base_blocked` or `scope_member`: its rebuild deletes `edges`, `beads`
 /// and `sync_state`, and its prune deletes a phase's `edges`, `beads`,
 /// `journal` and `sync_state` rows. Neither touches a stored base or its index
@@ -1613,12 +1636,14 @@ fn a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes() {
     }
 }
 
-/// `last_applied_at` is two index reads that walk no history (RCR-001 of
-/// #91): thousands of old applied entries are not read, the plan names the
-/// indexes, and the answer does not depend on how many rows the journal has
-/// or on the seqs they carry.
+/// `last_applied_at` answers from the applied times, not from the history or
+/// the seqs (RCR-001 of #91): thousands of old applied entries leave the
+/// newest time the answer, and the answer does not depend on how many rows
+/// the journal has or on the seqs they carry. The plans of its two index
+/// reads, and the one read snapshot they share (ADR-STORE-0002), are
+/// asserted by `store.rs`' unit tests, where the SQL is.
 #[test]
-fn last_applied_at_reads_the_applied_indexes_and_ignores_history_and_seqs() {
+fn last_applied_at_ignores_history_and_seqs() {
     let (open, mut store) = fresh("last-applied-at");
     {
         let mut c = Connection::open(&open.path).unwrap();
@@ -1637,34 +1662,6 @@ fn last_applied_at_reads_the_applied_indexes_and_ignores_history_and_seqs() {
             }
         }
         tx.commit().unwrap();
-    }
-    let c = Connection::open(&open.path).unwrap();
-    for sql in [
-        bd_cache_store::NEWEST_APPLIED_EPOCH_SQL,
-        bd_cache_store::NEWEST_UNDATED_APPLIED_SQL,
-    ] {
-        let plan: Vec<String> = c
-            .prepare(&format!("EXPLAIN QUERY PLAN {sql}"))
-            .unwrap()
-            .query_map([], |r| r.get::<_, String>(3))
-            .unwrap()
-            .collect::<Result<_, _>>()
-            .unwrap();
-        assert!(
-            plan.iter()
-                .filter(|d| d.contains("journal"))
-                .all(|d| d.contains("USING")),
-            "{plan:?}"
-        );
-        let steps = vm_steps(&c, sql, []);
-        assert!(steps < 100, "5000 old entries are not read: {steps} steps");
-    }
-    // Control: both unhinted forms answer the same on this file.
-    for sql in [
-        bd_cache_store::NEWEST_APPLIED_EPOCH_UNHINTED_SQL,
-        bd_cache_store::NEWEST_UNDATED_APPLIED_UNHINTED_SQL,
-    ] {
-        assert!(vm_steps(&c, sql, []) > 0);
     }
     assert_eq!(
         store.last_applied_at().unwrap(),

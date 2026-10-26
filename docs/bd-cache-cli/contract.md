@@ -1,9 +1,9 @@
 # bd-cache / bdc CLI contract
 
 Status: **Approved** (lead ruling S60, bc-lead, 2026-10-25, at `8115a0a`).
-Implemented in phase B (sprints b-1 to b-5; phase B closed 2026-10-25) by
-`bd-cache-api`, the `bd-cache`/`bdc` binary (`bd-cache-cli`) and
-`bd_cache_rs` 0.2; the MCP server comes later. Contract version: `1.0.0`, unreleased: the
+Implemented in phase B by `bd-cache-api`, the `bd-cache`/`bdc` binary (`bd-cache-cli`) and
+`bd_cache_rs` 0.2: sprints b-1 to b-5 (closed 2026-10-25) and the phase-B extension below,
+sprints b-6 to b-9; the MCP server comes later. Contract version: `1.0.0`, unreleased: the
 phase-B extension's edits below are pre-release edits of 1.0.0 (§11).
 
 Scope: the `bd-cache` binary (alias `bdc`, REQ-BDC-0805), the MCP server that
@@ -30,8 +30,9 @@ ADR-SYNC-0008 (`docs/bd-cache-sync/architecture.md`). Sprint b-7 added the four 
 the §4 error table (with `ERROR_TABLE`, so the error-table test stays green), sprint b-8 removed
 the `TICK_<REFUSAL>` row, and sprint b-9 wrote §2, §4, §6, §10, §11 and §12 from that register,
 with no change of meaning (ADR-BDC-0009, ADR-BDC-0013, ADR-BDC-0015, REQ-BDC-0811). Where this
-text and the register differ, the register governs and the difference is raised with the lead;
-the open ones are marked *Open (b-9)* below.
+text and the register differ, the register governs and the difference is raised with the lead.
+Sprint b-9 raised two, and the lead ruled on both: no 0.2 read selects a scope from a label
+(§5.1), and a cache file with no sync row at all is `degraded` with `no_sync_row_enabled` (§6).
 
 ## 1. Shape
 
@@ -266,12 +267,12 @@ request is well formed, the state refuses it, and nothing was written.
 - **Scope selection.** A list-like read names a known scope with `scope`
   (`--scope`), by its name as written (ADR-BDC-0013, ANC-009); a scope is a
   bd filter, so its name carries no prefix. Every `label` is applied as an
-  AND filter. Naming no known scope gives `SCOPE_UNKNOWN`. The only prefix
-  rule is the 0.1 compatibility rule of the 0.1 Python verbs (§10).
-  *Open (b-9, raised with the lead):* the code also selects a scope from the
-  first legacy-prefixed `label` when `scope` is absent (`bd-cache-api`'s
-  `select_scope`, through `ScopeId::from_labels`, ADR-CORE-0204 as amended);
-  ADR-BDC-0013 applies the prefix rule on the 0.1 paths only.
+  AND filter. Naming no known scope gives `SCOPE_UNKNOWN`. No scope is
+  derived from a label: a read without `scope` is `SCOPE_UNKNOWN` whatever
+  its labels, a legacy-prefixed one included. The only prefix rule is the 0.1
+  compatibility rule of the 0.1 Python verbs (§10); the shared v3 `phase`
+  column alone still reads a row's phase-a scope from its labels
+  (ADR-CORE-0204 as amended by ADR-BDC-0013).
 - **Filters, paging and order** are applied in `bd-cache-api`, on top of
   `Cache::list(scope)`. The core filters nothing beyond the scope.
 - **`x_cache` on reads:** `{scope: str|null, last_ok_at: ts|null, outage:
@@ -585,7 +586,12 @@ bd-cache-api's refresh op.
 
 A sync the deadline cut is a failed result the same way (QA RCR-001). Each
 sync's deadline is `timeout_ms` when the request gives one (`--timeout-ms N`,
-milliseconds, per scope) and the per-call cap otherwise; every bd call of the
+milliseconds, 1 to 600000; `0` or more is `BAD_ARGS`) and the per-call cap otherwise. The
+deadline is per scope: it bounds one scope's whole sync and starts again for the next, so
+`refresh scopes` of N scopes takes at most N times it. The default, the per-call cap (30 s),
+bounds the whole sync of one scope, which makes several bd calls (the list, `bd blocked` and
+`bd ready`), so a slow bd can cut a sync at the default that a larger `timeout_ms` lets
+finish; every bd call of the
 sync is killed at its own timeout capped by the time left before that
 deadline (NFR-BDC-0004), so a bd that hangs is ended by it. The core then
 returns its report with `deferred: true` and no outage (a cut records none).
@@ -613,10 +619,11 @@ cause, when:
 | `stale_rows` | a row failed its read-back and is stale |
 | `unresolved_escalations` | an escalated entry is not yet resolved, announced or not (`unresolved_escalations` counts them; `open_work.escalated_unannounced` is the subset not yet announced). Settle each with `bdc cache journal resolve <seq> --note T --actor A`. |
 | `pending_too_old` | `oldest_pending_age_s` is greater than the limit |
-| `no_sync_row_enabled` | no sync row is enabled: a sync row exists and both are disabled (mode `none`) |
+| `no_sync_row_enabled` | no sync row is enabled (mode `none`): both rows are disabled, or the cache file has no sync row at all (REQ-BDC-0732; lead ruling, sprint b-9) |
 | `sync_stale` | the last successful sync of a registered scope is older than three periods of the enabled row (one period as the hook's backoff defines it, evaluated when health runs). Before a scope's first successful sync its age is measured from the enabled row's `created_at` (when the row was written or last replaced), so a new scope or a new row is not stale at once. It also covers a worker or an OS scheduler that is not running. A row with no period (no next run, or none after it) is not judged. |
 | `sync_failing` | the enabled row's last three runs failed |
-| `hook_failing` | the post-sync hook the built-in row names failed three times in a row |
+| `hook_failing` | the post-sync hook the built-in row names failed three times in a row (the count from which the sync backs the hook off) |
+| `sync_state_unreadable` | the sync rows' state (the schedule table or the rows' run records) could not be read; `sync` is `null` and the sync is not judged, and every other member is reported as usual |
 
 and `ok` otherwise. `oldest_pending_age_s` is whole seconds from the oldest
 pending entry's `created_at` to now (`null` with nothing pending; never
@@ -627,12 +634,12 @@ is not running or cannot apply it. An age equal to the limit is `ok`.
 time of any entry the journal still holds (an index read, never a window of
 seqs, so the gaps `cache evict` leaves in the seqs do not matter), `null` when
 none was applied. `sync` is the sync mode and the enabled row's last run, read
-from the cache file's cron table by every front end. Health reads the store
-and starts no bd call without `--probe`. *Open (b-9, raised with the lead):*
-a cache file with no sync row at all is mode `none` without
-`no_sync_row_enabled`, as `schedule show`'s `both_disabled` flag and b-9's
-acceptance ("both rows are disabled") read REQ-BDC-0732; the register's wording
-"no sync row is enabled" also reads on a file with no row.
+from the cache file's cron table by every front end through `bd-cache-sync`'s one entry
+(ADR-BDC-0015 amendment 1); it is `null` only with `sync_state_unreadable`. Health reads the
+store and starts no bd call without `--probe`. REQ-BDC-0732 is read literally: a cache file
+with no sync row at all has no sync row enabled, so it is mode `none` and `degraded` with
+`no_sync_row_enabled`, like one whose two rows are disabled (`schedule show` flags only the
+second as `both_disabled`).
 
 Three cases have fixed answers:
 
@@ -660,7 +667,7 @@ set) or `null` for a scope with the 0.1 meaning (the label scope of the legacy p
 | `cache scopes ingest` | `{scope, rows: int, stored: int, skipped_newer: int, revision}`. stdin is a rows array or `{"rows": [...], "blocked": [...]}` and nothing else; at most 50 000 rows and 64 MiB, enforced while it is read; the strict row decoder, declared membership, the `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless `--allow-empty`. Any violation is `INGEST_INVALID` with the stored scope untouched. | — |
 | `cache scopes announce` | `{scope, since, notified: bool}`; marks only when `since` equals the current `failing_since`, else `PRECONDITION` (REQ-BDC-0728). `failing_since` is set on the first non-ok result after an ok, kept across consecutive failures, cleared on ok, and opaque. | — |
 | `cache refresh scopes` | takes `scopes`, `timeout_ms`. `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable, details}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4 and the `details` its envelope error would carry (`{}` for none; `timed_out` for `BD_UNAVAILABLE`). A scope that could not reach bd, or whose sync the deadline cut, is a failed result (S75, RCR-001, above). | request order (by scope id when no scope is named) |
-| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms`. Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
+| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms` (1 to 600000; `0` or more is `BAD_ARGS`). Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
 | `cache flush [--start-gate-ms N] [--deadline-ms M]` | `{busy, applied: [seq], retrying: [seq], escalated: [{seq, bead, op, actor, scope, reason: OpError}], deferred: [seq], deferred_in_flight: [seq], outage}`. N and M default to 25,000 and 28,000 ms, and M must be greater than N. A detached `bdc cache flush` (one a hook starts and does not wait for) must send its stdout and stderr to a log of the caller's, or its result and errors are lost. | seq, ascending |
 | `cache evict` | `{scope, beads_deleted: int, out_of_scope_swept: int}` | — |
 | `journal get` | `{entry: Entry}` | — |
@@ -747,9 +754,9 @@ is configured. `details.known` lists the served scopes.
 | Crate | Holds | May depend on |
 |---|---|---|
 | `bd-cache-api` (new) | Request and data models; the decoder (validation, `UNSUPPORTED` / `BAD_ARGS`); the operation layer (filters, paging, order, `/v0` mapping); the error table; schemars schemas (published with the MCP server, §12a) | `bd-cache`, `bd-cache-model`, `sc-beads`, serde, serde_json, schemars. **No** sc-command and no clap: errors are its own `ApiError {kind, code, message, details, suggested_action}`. |
-| `bd-cache-cli` (new; binaries `bd-cache`, `bdc`) | clap argv → request, the envelope, `--format text`, `run()` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync` (tick, compose), `bd-cache-model`, `sc-beads`, sc-command, clap |
+| `bd-cache-cli` (new; binaries `bd-cache`, `bdc`) | clap argv → request, the envelope, `--format text`, `run()` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync` (compose, the front-end verbs, `execute_api`), `bd-cache-model`, `sc-beads`, sc-command, clap. **No** `sc-cron`: `cron run` reaches it only through `bd-cache-sync` (sprint b-8). |
 | MCP server (later) | rmcp tools over `bd-cache-api` | `bd-cache-api`, `bd-cache-sync` (compose), sc-command (server) |
-| `bd-cache-py` | maps `ApiError` to `CacheError` attributes | as today, plus `bd-cache-api`; no sc-command, no clap |
+| `bd-cache-py` | maps `ApiError` to `CacheError` attributes | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads`, `bd-cache-api` (ADR-BDC-0009) and `bd-cache-sync` (ADR-PY-0006, sprint b-8: the sync methods and `execute_api`), as the Boundaries table of `docs/architecture.md` lists; no sc-command, no clap |
 
 Core changes this contract needs:
 
@@ -803,7 +810,7 @@ argv, and a change to any of them is a diff.
 
 | 0.1 verb (unchanged) | New in 0.2 | How the 0.1 shape differs |
 |---|---|---|
-| `get(bead, miss_timeout)` | `cache.beads.issues_get(id=, miss_timeout_ms=)` | `{row: {bead, stale, blocked}, scope_last_ok_at, pending, outage}`. **Unit change:** 0.1 takes seconds (float), 0.2 takes milliseconds (int). |
+| `get(bead, miss_timeout)` | `cache.beads.issues_get(id=, miss_timeout_ms=)` | `{row: {bead, stale, blocked}, scope_last_ok_at, pending, outage}`. **Unit change:** 0.1 takes seconds (float), 0.2 takes milliseconds (int). **A zero timeout:** 0.2 `miss_timeout_ms=0` on a miss is `NOT_CACHED` (retryable; bd is not asked, §4), while the 0.1 `miss_timeout=0` still raises `BD_UNAVAILABLE`. |
 | `list(phase, status, label)` | `cache.beads.issues_list(...)` | `{scope: "bk", last_ok_at, rows}`; no paging; every row of the scope (no default exclusions, below) |
 | `ready(phase, fresh_within)` | `cache.beads.ready(...)` | the beads are in `ready`; the basis is top-level; seconds |
 | `write(...)` | `cache.beads.issues_update`, `issues_close`, `dependencies_add` | `{seq, duplicate}`; an unknown op raises `ValueError`; the stored op spellings |
@@ -828,7 +835,7 @@ The differences a 0.1 caller can meet, each additive or opt-in:
 | D4 | **One handle per process.** One process holds one connection per cache file: a second `Cache` on the same file in the same process is `STORE_IN_USE` until the first is closed (ADR-PY-0003); separate processes are fine. The 0.2 namespaces, `tick()` and the sync methods all run on the handle's own connection (ADR-PY-0006). | unchanged (the rule is 0.1's); a hook or script opens its own handle in its own process |
 | D5 | **Install.** The wheel is `bd-cache-rs` (abi3, CPython 3.9 or later) and imports as `bd_cache_rs`; 0.2 is a mixed layout (the native module `bd_cache_rs._native` and the modules `bd_cache_rs.run` and `bd_cache_rs.sync`), and `import bd_cache_rs` gives every 0.1 name unchanged. | unchanged import; install the 0.2 wheel in place of 0.1 |
 | D6 | **`cache_path` for an existing file.** The default file is `.bd-cache/<dolt_database>.bd-cache.sqlite3`. A file kept elsewhere is opened by passing `cache_path`; there is no search for it and no refusal of it (ADR-BDC-0015). | unchanged: 0.1 `cache_path` is kept |
-| D7 | **The 0.1 bare-name rule** (ADR-BDC-0013, REQ-BDC-0812 as amended). The 0.1 verbs keep the 0.1 scope rule as a compatibility rule: a bare `x` and the legacy-prefixed `x` both mean the label scope whose label is the legacy prefix followed by `x`, and a 0.1 `sync` of an unregistered `x` registers that scope. Every other scope argument (the 0.2 namespaces, the new methods, the CLI, the `[[scope]]` tables) takes a scope name as written: there a legacy-prefixed name is another, longer name, and an unknown one is `SCOPE_UNKNOWN`. A registered filter scope named `x` is never what a 0.1 `x` means (`SCOPE_UNKNOWN` on the 0.1 verbs). | unchanged: the corpus pins the rule, and fails when it is dropped |
+| D7 | **The 0.1 bare-name rule** (ADR-BDC-0013, REQ-BDC-0812 as amended). The 0.1 verbs keep the 0.1 scope rule as a compatibility rule: a bare `x` and the legacy-prefixed `x` both mean the label scope whose label is the legacy prefix followed by `x`, and a 0.1 `sync` of an unregistered `x` registers that scope. Every other scope argument (the 0.2 namespaces, the new methods, the CLI, the `[[scope]]` tables) takes a scope name as written: there a legacy-prefixed name is another, longer name. A read or any other verb that names an unregistered scope is `SCOPE_UNKNOWN` and registers nothing; only a sync registers on demand, so `refresh scopes` of an unregistered name registers it as the label scope of that one label and syncs it (`on_demand: true` in `cache scopes`; REQ-BDC-0909 as amended by ADR-BDC-0013). A registered filter scope named `x` is never what a 0.1 `x` means (`SCOPE_UNKNOWN` on the 0.1 verbs). | unchanged: the corpus pins the rule, and fails when it is dropped |
 
 The new methods raise `CacheError` for every contract error. A Python-level type mistake still
 raises `TypeError`.
@@ -859,9 +866,7 @@ are pre-release edits, not §11 changes:
 | removed: `cache tick`'s flag naming a send command; the `TICK_<REFUSAL>` codes and `TickReply.refused[]`; the `[tick]` table and its `BD_CACHE__TICK__*` names; the phase-shaped scope ids (scopes are named as written, §5.1); the §12 deferral of other scope kinds; the legacy-file rule and `bdc_legacy_cache_file` (§2) | pre-release edits of the unreleased 1.0.0 |
 
 The prerelease wheel 0.1.0 has none of the removed items, so its verbs are untouched (§10).
-`CONTRACT_VERSION` stays 1.0.0 and the wheel stays 0.2.0. *Open for Rand (phase-b-plan.md,
-Open items):* this version choice is his decision; the recommendation is contract 1.0.0 and
-wheel 0.2.0 with the edits above as pre-release edits.
+`CONTRACT_VERSION` stays 1.0.0 and the wheel stays 0.2.0.
 
 ## 12. Deferred
 

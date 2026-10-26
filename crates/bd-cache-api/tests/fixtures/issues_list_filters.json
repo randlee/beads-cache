@@ -45,15 +45,15 @@
       "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["x"]}}}
     },
     {
-      "name": "a phase label selects the scope",
+      "name": "a label-only read names no scope (ADR-BDC-0013: no scope is derived from a label)",
       "command": "issues list",
       "request": {"label": ["phase-x"]},
-      "expect": {"ok": true, "data": {"items": [{"id": "o1"}, {"id": "o2"}], "x_cache": {"scope": "x"}}}
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["x"]}}}
     },
     {
       "name": "every label still filters",
       "command": "issues list",
-      "request": {"label": ["phase-x", "red"]},
+      "request": {"scope": "x", "label": ["phase-x", "red"]},
       "expect": {"ok": true, "data": {"items": [{"id": "o1", "labels": ["phase-x", "red"]}]}}
     },
     {

@@ -8,6 +8,7 @@
 //! handle's or a sync run's, shares one process-wide `ProjectLocks` (the lock
 //! that keeps two `bd` processes off one embedded Dolt database).
 
+use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
@@ -50,17 +51,6 @@ pub(crate) enum ConfigKind {
     Scope,
     /// An argument is invalid: a path that is not UTF-8, missing or not a directory.
     Argument,
-    /// Any other problem the loader reports. Reserved: `ConfigLoadError` is
-    /// exhaustive (lead ruling S38), so the match in `From<ConfigLoadError>`
-    /// names every variant and none maps here; the `config` kind text stays.
-    #[cfg_attr(
-        not(test),
-        expect(
-            dead_code,
-            reason = "ConfigLoadError is exhaustive (S38): no loader error maps here; the `config` kind text is kept"
-        )
-    )]
-    Other,
 }
 
 /// The `kind` attribute of an open failure: a [`ConfigKind`], or a read failure.
@@ -87,7 +77,6 @@ impl OpenKind {
             Self::Config(ConfigKind::Parse) => "parse",
             Self::Config(ConfigKind::Scope) => "scope",
             Self::Config(ConfigKind::Argument) => "argument",
-            Self::Config(ConfigKind::Other) => "config",
             Self::Read => "read",
         }
     }
@@ -105,12 +94,15 @@ pub(crate) enum OpenError {
         /// The message, with the cause chain.
         text: String,
     },
-    /// `.beads/bd-cache.toml` exists but cannot be read: an `OSError`.
+    /// `.beads/bd-cache.toml` exists but cannot be read: an `OSError` whose
+    /// `errno` and `filename` come from `source`.
     Read {
         /// The file.
         path: PathBuf,
         /// The message, with the cause.
         text: String,
+        /// The read's own error, kept for its OS error code.
+        source: std::io::Error,
     },
     /// The store refused: a typed [`CacheError`].
     Cache(CacheError),
@@ -133,7 +125,7 @@ impl From<ConfigLoadError> for OpenError {
             cause = c.source();
         }
         match e {
-            ConfigLoadError::Read { path, .. } => Self::Read { path, text },
+            ConfigLoadError::Read { path, source } => Self::Read { path, text, source },
             ConfigLoadError::Parse { path, .. } => Self::Config {
                 kind: ConfigKind::Parse,
                 path: Some(path),
@@ -162,21 +154,36 @@ pub(crate) struct Opened {
     pub(crate) facts: CacheFacts,
 }
 
-/// The one message for a phase name that does not parse.
-pub(crate) fn phase_problem(phase: &str) -> String {
-    format!(
-        "{phase:?} is not a phase name (letters, digits, '-', '_', '.', optional phase- prefix)"
-    )
+/// A 0.1 phase argument that is not a phase name: the rejected text, with
+/// the one message for it ([`fmt::Display`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PhaseError {
+    /// The argument as given.
+    pub(crate) phase: String,
 }
+
+impl fmt::Display for PhaseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "{:?} is not a phase name (letters, digits, '-', '_', '.', optional phase- prefix)",
+            self.phase
+        )
+    }
+}
+
+impl std::error::Error for PhaseError {}
 
 /// Parses a 0.1 phase argument: `x` or the legacy-prefixed `x` names the
 /// phase-a scope stored as `x` (REQ-BDC-0812 as amended).
 ///
 /// # Errors
 ///
-/// [`phase_problem`] text.
-pub(crate) fn parse_phase(phase: &str) -> Result<ScopeId, String> {
-    bd_cache_model::legacy_scope(phase).ok_or_else(|| phase_problem(phase))
+/// [`PhaseError`] naming the argument.
+pub(crate) fn parse_phase(phase: &str) -> Result<ScopeId, PhaseError> {
+    bd_cache_model::legacy_scope(phase).ok_or_else(|| PhaseError {
+        phase: phase.to_owned(),
+    })
 }
 
 fn refuse(text: String) -> OpenError {
@@ -237,10 +244,10 @@ fn open_error(e: ComposeError) -> OpenError {
         ComposeError::RepoRootNotUtf8(root) => {
             refuse(format!("repo_root {} is not valid UTF-8", root.display()))
         }
-        other => OpenError::Cache(CacheError::StoreFailed {
-            detail: format!("cannot open the cache ({}): {other}", other.code()),
-            source: None,
-        }),
+        other => OpenError::Cache(CacheError::store_failed(
+            format!("cannot open the cache ({}): {other}", other.code()),
+            other,
+        )),
     }
 }
 
@@ -337,7 +344,6 @@ pub(crate) fn open_with(
         project_id: identity.project_id.as_str().to_owned(),
         beads_dir: Some(composed.beads_dir.to_string_lossy().into_owned()),
         repo_root: Some(repo_root.to_string_lossy().into_owned()),
-        sync: None,
     };
     let files = composed.files();
     Ok(Opened {
@@ -434,13 +440,11 @@ mod tests {
             OpenKind::Config(ConfigKind::Parse),
             OpenKind::Config(ConfigKind::Scope),
             OpenKind::Config(ConfigKind::Argument),
-            OpenKind::Config(ConfigKind::Other),
             OpenKind::Read,
         ];
         let texts: std::collections::BTreeSet<&str> =
             kinds.into_iter().map(OpenKind::as_str).collect();
-        let want: std::collections::BTreeSet<&str> =
-            ["parse", "scope", "argument", "config", "read"].into();
+        let want: std::collections::BTreeSet<&str> = ["parse", "scope", "argument", "read"].into();
         assert_eq!(texts, want);
     }
 
@@ -450,7 +454,9 @@ mod tests {
             parse_phase("phase-bk").map(|s| s.name().to_owned()),
             Ok("bk".to_owned())
         );
-        let text = parse_phase("b k").unwrap_err();
+        let e = parse_phase("b k").unwrap_err();
+        assert_eq!(e.phase, "b k", "the rejected name is kept");
+        let text = e.to_string();
         assert!(
             text.contains("\"b k\"") && text.contains("phase name"),
             "{text}"

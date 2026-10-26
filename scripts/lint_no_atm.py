@@ -6,17 +6,30 @@ API. It sends no messages, reads no ATM or atm-bd configuration, and names no
 ATM or atm-bd concept in its source, tests, scripts, workflows or docs. This
 lint keeps it that way.
 
-Scope: the git-tracked files (`git ls-files -z`) under SCOPE_DIRS
-(`crates/`, `docs/`, `scripts/`) and the files in SCOPE_FILES (`Cargo.toml`,
-`README.md`, `rust-toolchain.toml` and the workflows `ci.yml`, `python.yml`,
-`bd-compat.yml`), minus the kit docs in KIT_DOCS. For each in-scope,
-non-exempt file it matches every rule below, case-insensitively, against
+Scope (ADR-BDC-0012 Amendment 2): every git-tracked file (`git ls-files -z`)
+is scanned unless it is on the declared out-of-scope list, OUT_OF_SCOPE, each
+entry with its reason: the agent tooling (`.claude/`, `.cursor/`, `.codex/`,
+`.agents/`, `.sc/`), which coordinates the repo's own agents; the sc-publish
+kit, frozen upstream (`.github/scripts/`, `.github/actions/`, the
+`*-publish.yml`, `release*.yml` and `prerelease-archive.yml` workflows,
+`release/`, `install.py`, `README.sc-publish.md` and the kit docs under
+`docs/`); the tracker's data (`.beads/`, the issue tracker's records, not
+product); `CHANGELOG.md` (a historical record, ADR-BDC-0010); and `Cargo.lock`
+(generated). A new or misspelled directory is scanned, never skipped
+silently; `test_lint_no_atm.py` fails on a tracked path the list does not
+classify and on a declared entry that matches no tracked path. For each
+scanned, non-exempt file it matches every rule below, case-insensitively,
+against
 
 - the file's tracked path, reported as `path:0: <rule>: <path>`; and
-- each line of its contents (binary files skipped), reported as
-  `path:line: <rule>: <text>`.
+- each line of its contents, reported as `path:line: <rule>: <text>`. A
+  tracked symlink is scanned as the text of its target. A file with a UTF-16
+  byte-order mark is decoded as UTF-16. Any other file with a NUL byte is
+  skipped only when its extension is on KNOWN_BINARY; otherwise it is
+  reported as `path:0: unscannable: <path>`, so text never escapes as
+  "binary".
 
-`--paths PREFIX...` narrows the scan to the in-scope files equal to or under
+`--paths PREFIX...` narrows the scan to the scanned files equal to or under
 those repo-relative prefixes, so a sprint can lint its own fence; it never
 widens the scope or lifts an exemption.
 
@@ -26,20 +39,11 @@ record and every ADR are scanned like any other doc and name a prohibited word
 only as "a prohibited word". One rule is narrowed for one line: `scope-prefix`
 does not match the one `LEGACY_SCOPE_PREFIX` declaration of `bd-cache-model`'s
 compatibility module (NARROWED, ADR-BDC-0012); the same text in any other
-file, and any other line of that file, still hits. No inline pragma, no
-allowlist file. Scope, exemptions and narrowed lines change only through a
-later ADR.
+file, any other line of that file, and a second copy of the declaration in
+that file still hit. No inline pragma, no allowlist file. Scope, exemptions
+and narrowed lines change only through a later ADR.
 
 The RULES below are the one place the prohibited words are written (ADR-BDC-0012).
-
-Out of scope by construction (dev tooling, not product): the agent tooling
-(`.claude/**`, `.cursor/**`, `.codex/**`, `.agents/**`, `CLAUDE.md`,
-`AGENTS.md`), which coordinates the repo's own agents over ATM; the sc-publish
-kit, frozen upstream (`.github/scripts/**`, `.github/actions/**`, the
-`*-publish.yml`, `release*.yml` and `prerelease-archive.yml` workflows,
-`release/**`, `install.py`, `README.sc-publish.md` and the kit docs in
-KIT_DOCS); `CHANGELOG.md` (a historical record); and `Cargo.lock` (generated,
-with no hits).
 
 Strings built at runtime (joined from parts, read from input) cannot be caught
 here; review guards against them.
@@ -56,6 +60,7 @@ Exit codes: 0 no hits, 1 hits, 2 the scan could not run (not a git tree).
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import os
 import re
 import subprocess
@@ -87,11 +92,14 @@ RULES: tuple[tuple[str, str], ...] = (
     # (`BD-CACHE.md`). The shared store format name "BD-CACHE" alone is not a
     # hit; the consumer's files are.
     ("atm-bd-artifact", r"\bbd_cache\.py\b|\bbd_cache_cron\b|\bBD-CACHE\.md\b"),
-    # A hard-coded scope prefix: a `"phase-"` / `'phase-'` string literal or a
-    # `phase-{` format string (`format!("phase-{}", x)`, `f"phase-{x}"`).
-    # Scopes are configured, never derived from a consumer's phase naming.
-    # Not a hit: the column `phase`, `DEFAULT 'phase'`, `phase-b` in prose.
-    ("scope-prefix", r"[\"']phase-[\"']|(?<![a-z0-9_])phase-\{"),
+    # A hard-coded scope prefix: a `"phase-"` / `'phase-'` string literal, or
+    # the prefix followed by a format or interpolation marker in any spelling:
+    # `phase-{` (`format!("phase-{}", x)`, `f"phase-{x}"`), `phase-%`
+    # (`"phase-%s" % x`), `phase-$` (`"phase-$x"`, `"phase-${x}"`) and
+    # `phase-\(` (`"phase-\(x)"`). Scopes are configured, never derived from a
+    # consumer's phase naming. Not a hit: the column `phase`, `DEFAULT 'phase'`,
+    # `phase-b` in prose.
+    ("scope-prefix", r"[\"']phase-[\"']|(?<![a-z0-9_])phase-(?:\{|%|\$|\\\()"),
     # The first consumer's maintainer handle (ADR-BDC-0012, anchor ANC-001), as
     # a word: on its own, in a path, or before `'s`, `@`, `-` or `_`. Not a hit
     # inside an ordinary word (phoenix): a letter or digit before it, or a
@@ -105,27 +113,45 @@ COMPILED: tuple[tuple[str, re.Pattern[str]], ...] = tuple(
 
 # --- scope -------------------------------------------------------------------
 
-# The product: every tracked file under these directories, and these files.
-# The Python package config (crates/bd-cache-py/pyproject.toml) is under
-# crates/. scripts/ holds only repo-owned scripts (the kit's live in
-# .github/scripts/). The workflows are the repo's own; the kit's are not.
-SCOPE_DIRS: tuple[str, ...] = ("crates/", "docs/", "scripts/")
-SCOPE_FILES: tuple[str, ...] = (
-    "Cargo.toml",
-    "README.md",
-    "rust-toolchain.toml",
-    ".github/workflows/ci.yml",
-    ".github/workflows/python.yml",
-    ".github/workflows/bd-compat.yml",
+AGENT_TOOLING = "agent tooling: how the repo's own agents work, not product"
+KIT = "sc-publish kit, frozen upstream"
+TRACKER = "tracker data: the issue tracker's records, not product"
+HISTORY = "a historical record (ADR-BDC-0010)"
+GENERATED = "generated"
+
+# The declared out-of-scope list (ADR-BDC-0012 Amendment 2): (pattern, reason).
+# A pattern ending in `/` is a directory prefix, one with `*` an fnmatch glob on
+# the whole path, any other an exact path. Every other tracked file is scanned.
+OUT_OF_SCOPE: tuple[tuple[str, str], ...] = (
+    (".claude/", AGENT_TOOLING),
+    (".cursor/", AGENT_TOOLING),
+    (".codex/", AGENT_TOOLING),
+    (".agents/", AGENT_TOOLING),
+    (".sc/", AGENT_TOOLING),
+    (".github/scripts/", KIT),
+    (".github/actions/", KIT),
+    (".github/workflows/*-publish.yml", KIT),
+    (".github/workflows/release*.yml", KIT),
+    (".github/workflows/prerelease-archive.yml", KIT),
+    ("release/", KIT),
+    ("install.py", KIT),
+    ("README.sc-publish.md", KIT),
+    # sc-publish kit docs installed under docs/ (kit install 21f8299, pin bump
+    # 2449acf, release b-5 9c31a82).
+    ("docs/getting-started.md", KIT),
+    ("docs/npm-channel-compatibility.md", KIT),
+    ("docs/consumer-preflight-and-docli.md", KIT),
+    ("docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md", KIT),
+    (".beads/", TRACKER),
+    ("CHANGELOG.md", HISTORY),
+    ("Cargo.lock", GENERATED),
 )
 
-# sc-publish kit docs installed under docs/ (kit install 21f8299, pin bump
-# 2449acf, release b-5 9c31a82): kit files, frozen upstream, not product.
-KIT_DOCS: tuple[str, ...] = (
-    "docs/getting-started.md",
-    "docs/npm-channel-compatibility.md",
-    "docs/consumer-preflight-and-docli.md",
-    "docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md",
+# Extensions of files that may hold NUL bytes and carry no prose: skipped when
+# they do. Any other file with a NUL byte and no UTF-16 BOM is `unscannable`.
+KNOWN_BINARY: tuple[str, ...] = (
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".pdf", ".zip", ".gz", ".whl",
+    ".sqlite3", ".db",
 )
 
 # --- exemptions --------------------------------------------------------------
@@ -166,34 +192,79 @@ class Hit:
     text: str
 
 
+def matches(pattern: str, path: str) -> bool:
+    """True when the OUT_OF_SCOPE `pattern` covers `path`."""
+    if pattern.endswith("/"):
+        return path.startswith(pattern)
+    if "*" in pattern:
+        return fnmatch.fnmatchcase(path, pattern)
+    return path == pattern
+
+
+def out_of_scope_reason(path: str) -> str | None:
+    """The declared reason `path` is out of scope, or `None` when it is scanned."""
+    for pattern, reason in OUT_OF_SCOPE:
+        if matches(pattern, path):
+            return reason
+    return None
+
+
 def in_scope(path: str) -> bool:
-    if path in KIT_DOCS:
-        return False
-    return path in SCOPE_FILES or any(path.startswith(d) for d in SCOPE_DIRS)
+    return out_of_scope_reason(path) is None
 
 
 def is_exempt(path: str) -> bool:
     return path in EXEMPT_FILES
 
 
-def is_binary(data: bytes) -> bool:
-    return b"\0" in data[:8192]
+UTF16_BOMS: tuple[bytes, ...] = (b"\xff\xfe", b"\xfe\xff")
+
+
+def decode(path: str, data: bytes) -> str | None:
+    """The text to scan, or `None` for a known binary file (KNOWN_BINARY).
+
+    UTF-8 by default; UTF-16 when the file starts with its byte-order mark.
+    A file with a NUL byte that is neither is not text this lint can read:
+    `UnscannableError`, which the scan reports as a hit.
+    """
+    if data.startswith(UTF16_BOMS):
+        return data.decode("utf-16", "replace")
+    if b"\0" not in data[:8192]:
+        return data.decode("utf-8", "replace")
+    if path.lower().endswith(KNOWN_BINARY):
+        return None
+    raise UnscannableError(path)
+
+
+class UnscannableError(Exception):
+    """A tracked, in-scope file with a NUL byte that is neither UTF-16 nor a known binary."""
 
 
 def is_narrowed(rule: str, path: str, line: str) -> bool:
-    """True for the one line NARROWED takes out of `rule`."""
+    """True for a line NARROWED takes out of `rule`."""
     return (rule, path, line.strip()) in NARROWED
 
 
 def scan_text(path: str, text: str) -> list[Hit]:
+    """Matches every rule against each line of `text`.
+
+    A narrowed line is spared once per file: a second copy of it in the same
+    file hits as usual (ADR-BDC-0012 narrows the one declaration).
+    """
     hits: list[Hit] = []
+    spared: set[tuple[str, str]] = set()
     for number, line in enumerate(text.splitlines(), start=1):
         probe = line
         for name in SELF_NAMES:
             probe = probe.replace(name, "")
         for rule, pattern in COMPILED:
-            if pattern.search(probe) and not is_narrowed(rule, path, line):
-                hits.append(Hit(path, number, rule, line.strip()))
+            if not pattern.search(probe):
+                continue
+            key = (rule, line.strip())
+            if is_narrowed(rule, path, line) and key not in spared:
+                spared.add(key)
+                continue
+            hits.append(Hit(path, number, rule, line.strip()))
     return hits
 
 
@@ -245,13 +316,23 @@ def scan_repo(root: Path, prefixes: list[str] | None = None) -> list[Hit]:
         if wanted is not None and not under_prefixes(path, wanted):
             continue
         hits.extend(scan_path(path))
+        target = root / path
+        if target.is_symlink():
+            # A tracked symlink is stored as its target's text: scan that, so a
+            # dangling or directory link is read, not skipped.
+            hits.extend(scan_text(path, os.readlink(target)))
+            continue
         try:
-            data = (root / path).read_bytes()
+            data = target.read_bytes()
         except (FileNotFoundError, IsADirectoryError):
             continue  # deleted in the work tree, or a submodule
-        if is_binary(data):
+        try:
+            text = decode(path, data)
+        except UnscannableError:
+            hits.append(Hit(path, 0, "unscannable", path))
             continue
-        hits.extend(scan_text(path, data.decode("utf-8", "replace")))
+        if text is not None:
+            hits.extend(scan_text(path, text))
     return hits
 
 
@@ -283,7 +364,7 @@ def main(argv: list[str] | None = None) -> int:
         "--paths",
         nargs="+",
         metavar="PREFIX",
-        help="scan only the in-scope tracked files equal to or under these repo-relative prefixes",
+        help="scan only the scanned tracked files equal to or under these repo-relative prefixes",
     )
     args = parser.parse_args(argv)
     try:

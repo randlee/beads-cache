@@ -102,12 +102,23 @@ checks them before the core (lead ruling R7, bc-lead, 2026-10-24; the core's
 becomes `ValueError` here. An invalid configuration is a `ValueError` whose `kind` is
 `parse`, `scope`, `argument` or `config`; `config` is reserved; not produced
 while ConfigLoadError has no further variants (S38/S42), and `path` may be
-`None`. An unreadable config
+`None`. *(Amended below, sprint b-9: the `config` kind is removed.)* An unreadable config
 file is an `OSError` of kind `read`.
 
 Consequences: `error.extra` of the baseline Python implementation is
 `error.payload`; its
 `as_json()` is `error.body`.
+
+### Amendment: the open-error kinds (sprint b-9, fix round 1)
+
+**Status:** Approved (lead ruling, sprint b-9 fix round 1: B9Q1-040, B9Q1-041)
+
+The reserved `config` kind is removed with its variant (`ConfigKind::Other`): the
+`ValueError` kinds are `parse`, `scope` and `argument`, and nothing produced `config`. It
+comes back only if `ConfigLoadError` becomes non-exhaustive. The `OSError` of an unreadable
+config file (kind `read`) is built from the typed read error, so its `errno` and `filename`
+are set; the cause of an open failure is kept as the error's source, never flattened into
+text alone.
 
 ## ADR-PY-0003: Threading
 
@@ -154,11 +165,11 @@ Python code).
 Decision:
 
 - Names: crate `bd-cache-py`, library and Python module `bd_cache_rs`,
-  distribution `bd-cache-rs` (`bd_cache` stays the baseline Python implementation's module name, so both
-  import in one interpreter during the cutover). The version is the
+  distribution `bd-cache-rs` (the `_rs` suffix names the Rust binding, so the module never
+  takes a name another package of the same purpose may use). The version is the
   workspace's; `bd_cache_rs.__version__` versions the reply shapes.
 - Wheels: abi3 (`abi3-py39`), one wheel per platform serves CPython 3.9 and
-  later (the first consumer's cron needs 3.11 for `tomllib`; hooks may run older).
+  later (the oldest CPython the binding supports; it needs nothing newer).
   `pyo3` has no `extension-module` feature here: maturin sets
   `PYO3_BUILD_EXTENSION_MODULE`, so `cargo clippy` and `cargo test` link
   against a Python and work for this crate too.
@@ -167,7 +178,8 @@ Decision:
   clippy and `cargo test` for the crate on macOS, Linux and Windows (lead ruling
   R4), a wheel on macOS arm64 and Linux x86_64, and the pytest suite against
   the installed wheel on Python 3.9, 3.11 and 3.13. The wheel and pytest stay
-  off Windows because the first consumer's hooks run on POSIX only.
+  off Windows: the pytest harness runs the fake `bd` through a POSIX shell wrapper,
+  and the crate's `cargo test` covers Windows.
 - Tests: pytest drives every verb against the real composition. The `bd`
   program is `tests/fake_bd_main.py`, a recording fake the Rust `BdCli`
   spawns like the real one (strict rows, exit 13 guard refusals, down, delayed
@@ -182,9 +194,8 @@ Decision:
   sets it, with its working directory, in a child process. Tests about time are causal: a call is blocked until a Python thread
   creates a release file, which that thread does only after seeing something
   that needs the GIL free; durations are loose sanity bounds only. The mapping
-  test reads the vendored call log recorded from the first consumer at
-  `05831df`, made by the companion extraction script (both under `tests/`,
-  the files whose paths the lint flags). *(Superseded by ADR-PY-0006: sprint b-9 deleted the
+  test read a vendored call log recorded from another implementation's callers, made by a
+  companion extraction script (both under `tests/`, the files whose paths the lint flags). *(Superseded by ADR-PY-0006: sprint b-9 deleted the
   mapping test, the call log and the script; the neutral 0.1 call corpus, `tests/corpus/` with
   `tests/test_corpus.py`, generated in this repository against the fake bd, replaces them.)*
   It runs under the interpreter that
@@ -338,7 +349,9 @@ Amends ADR-PY-0001 where it calls the `ProjectLocks` `OnceLock` the module's onl
 
 ## Reply shapes
 
-Versioned with the wheel (`0.1.0`). `ts` is an RFC 3339 UTC `str` with second
+Versioned with the wheel (`bd_cache_rs.__version__`, now 0.2.0); these 0.1 shapes are
+unchanged since wheel 0.1.0 (REQ-BDC-0812), and `tests/corpus/corpus_0_1.json` records each
+variant. `ts` is an RFC 3339 UTC `str` with second
 resolution; `bead` is a bd row dict (all `bd list --json` keys of the strict
 model); `view` is `{bead, stale, blocked}`; `outage` is `None` or
 `{since: ts, last_error: str}`; `entry` is below.

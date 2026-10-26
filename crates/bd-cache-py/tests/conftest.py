@@ -106,6 +106,12 @@ class FakeBd:
         self.state.setdefault("fail", {})[command] = message
         self.save()
 
+    def unfail(self, command):
+        """Undoes `fail(command)`: `command` answers again."""
+        self.load()
+        self.state.get("fail", {}).pop(command, None)
+        self.save()
+
     def delay(self, command, seconds):
         """Makes `command` (or `*` for all) answer after `seconds`."""
         self.load()

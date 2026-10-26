@@ -96,7 +96,7 @@ R15 it edits `sc-cron`'s test lint configuration plus one sentence of
 | A pytest suite drives every verb in deliverable 1 against the real composition with a recording `bd` invoker, and checks each reply's fields (REQ-BDC-0910) | req:REQ-BDC-0910 |
 | A typed error raises the exception with `code`, `fix` and payload; `PRECONDITION` carries `unmet` | req:REQ-BDC-0910 |
 | `refresh` returns fresh rows with the overlay; `entry(seq)` returns an entry in any state; `sync` then `list` of an unconfigured phase works | req:REQ-BDC-0910 |
-| The mapping table in `docs/bd-cache-py/architecture.md` covers every baseline Python implementation function the first consumer's hooks and cron script call at the baseline 05831df | req:REQ-BDC-0910 |
+| The mapping table in `docs/bd-cache-py/architecture.md` covers every baseline Python implementation function the first consumer's hooks and cron script call in the v3 baseline | req:REQ-BDC-0910 |
 | The `task open` path: after a dev close journaled through the binding, `ready` for its sanity bead is true with the backend unreachable (REQ-BDC-0911) | req:REQ-BDC-0910 |
 | An escalated entry is announced once through the binding's announcement verbs (marked, not re-sent) | req:REQ-BDC-0910 |
 | `ready(phase, fresh_within=0.5)` against a recording `bd` that answers late returns the cached adjusted answer with `read_fallback` set, within the limit | req:REQ-BDC-0912 |
@@ -152,7 +152,7 @@ Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 | every verb, fields checked, recording `bd` | `test_verbs.py` (one test per verb; argv asserted), `test_reads.py` |
 | typed error with `code`, `fix`, payload; `PRECONDITION` carries `unmet` | `test_errors.py::test_a_precondition_error_carries_unmet_with_expected_and_actual` and the other `test_errors.py` cases |
 | `refresh` fresh rows with overlay; `entry(seq)` any state; sync then list of an unconfigured phase | `test_reads.py::test_refresh_returns_fresh_rows_with_the_overlay`, `test_entry_returns_an_entry_in_any_state`, `test_sync_then_list_of_an_unconfigured_phase_works` |
-| mapping table covers every call at the baseline 05831df | `docs/bd-cache-py/architecture.md`, Mapping; `test_mapping_doc.py` |
+| mapping table covers every call in the v3 baseline | `docs/bd-cache-py/architecture.md`, Mapping; `test_mapping_doc.py` |
 | `task open` path with the backend unreachable | `test_ready.py::test_task_open_path_ready_after_a_dev_close_with_the_backend_unreachable` (no `bd` call logged) |
 | escalated entry announced once | `test_announce.py::test_an_escalated_entry_is_announced_once_then_marked` |
 | `ready(fresh_within=0.5)` with a late `bd` | `test_ready.py::test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still_blocked` (`read_fallback` set; returns while `bd` is still blocked, loose bound 10 s) |
@@ -335,7 +335,7 @@ Lead rulings R1-R8 (bc-lead, 2026-10-24) applied: REQ-PY and ADR-PY approved
 (R1); workspace dependencies (R2); serde and serde_json recorded (R3); Windows
 in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
 REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
-the first consumer's call evidence at the baseline 05831df, vendored in `crates/bd-cache-py/tests/` with
+the first consumer's call evidence in the v3 baseline, vendored in `crates/bd-cache-py/tests/` with
 the script that extracted it (R8).
 
 ## Fix round 4 (QA-4 at 99c25c5)

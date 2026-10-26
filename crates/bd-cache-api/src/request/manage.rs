@@ -53,12 +53,21 @@ pub struct CacheRefreshScopes {
     /// The scopes to sync, in request order; empty syncs every known scope.
     #[schemars(with = "Vec<String>")]
     pub(crate) scopes: Vec<ScopeId>,
-    /// Each scope's sync deadline; absent takes the per-call cap. A bd call
-    /// is still capped by the per-call cap, so a larger value does not lengthen it.
+    /// Each scope's sync deadline, from 1 to [`Self::MAX_TIMEOUT_MS`]; absent
+    /// takes the per-call cap. It bounds one scope's whole sync (several bd
+    /// calls) and restarts for the next scope, so the command takes at most
+    /// N times it for N scopes. Each bd call stays capped by the per-call cap
+    /// as well, so a value above the cap lengthens the sync as a whole, never
+    /// a single bd call.
     pub(crate) timeout_ms: Option<u64>,
 }
 
 impl CacheRefreshScopes {
+    /// The largest `timeout_ms`: ten minutes, far past any one scope's sync,
+    /// and the bound of a request that would otherwise hold the command for
+    /// any `u64` of milliseconds (contract §6).
+    pub const MAX_TIMEOUT_MS: u64 = 600_000;
+
     /// The scopes to sync, in request order; empty syncs every known scope.
     #[must_use]
     pub fn scopes(&self) -> &[ScopeId] {
@@ -78,11 +87,16 @@ pub struct CacheRefreshIssues {
     /// The beads to re-read from bd (nonempty).
     #[schemars(with = "Vec<String>")]
     pub(crate) ids: Vec<BeadId>,
-    /// The read's timeout; absent takes the configured miss-fill timeout.
+    /// The read's timeout, from 1 to [`Self::MAX_TIMEOUT_MS`]; absent takes
+    /// the configured miss-fill timeout.
     pub(crate) timeout_ms: Option<u64>,
 }
 
 impl CacheRefreshIssues {
+    /// The largest `timeout_ms`: ten minutes, the bound of one `bd list --id`
+    /// read (contract §6).
+    pub const MAX_TIMEOUT_MS: u64 = 600_000;
+
     /// The beads to re-read from bd (nonempty).
     #[must_use]
     pub fn ids(&self) -> &[BeadId] {

@@ -37,7 +37,7 @@ use serde::Deserialize;
 use crate::compat::legacy_scope;
 use crate::scope::{FilterParts, Scope, ScopeFilter, ScopeId};
 
-/// The per-call cap on every `bd` call (the BD-CACHE baseline design, Drain bounds; NFR-BDC-0004).
+/// The per-call cap on every `bd` call (the v3 drain bounds; NFR-BDC-0004).
 pub const DEFAULT_CALL_TIMEOUT: Duration = Duration::from_secs(30);
 /// How long a cache miss may wait on bd before `BD_UNAVAILABLE` (ADR-BDC-0005).
 pub const DEFAULT_MISS_FILL_TIMEOUT: Duration = Duration::from_secs(2);

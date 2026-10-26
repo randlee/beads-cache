@@ -4,7 +4,7 @@ Each test builds a temporary git repository with fixed file contents and runs
 the lint in it, in a subprocess (exit code and output) or in process (the
 pure scan). No timing, no network.
 
-Run: python3 -m unittest discover -s scripts -p 'test_lint_no_atm.py'
+Run: python3 -I -m unittest discover -s scripts
 """
 
 from __future__ import annotations
@@ -23,6 +23,7 @@ import lint_no_atm  # noqa: E402
 from lint_no_atm import scan_text  # noqa: E402
 
 SCRIPT = Path(__file__).resolve().parent / "lint_no_atm.py"
+REPO = Path(__file__).resolve().parent.parent
 
 # Planted strings, one or more per rule.
 PLANTED: dict[str, tuple[str, ...]] = {
@@ -42,6 +43,10 @@ PLANTED: dict[str, tuple[str, ...]] = {
         'if name.starts_with("phase-") {',
         "prefix = 'phase-'",
         'scope = f"phase-{x}"',
+        'label = "phase-%s" % name',
+        'label="phase-$name"',
+        'label="phase-${name}"',
+        'let label = "phase-\\(name)"',
     ),
     "atm-roles": ("tell the team-lead", "fallback_lead = \"x\"", "open a herdr pane"),
     "atm-bd-phase-file": (
@@ -263,10 +268,37 @@ class RepoTest(RepoCase):
         self.assertEqual(sorted({int(line.split(":")[1]) for line in result.stdout.splitlines()}),
                          [5, 6, 8, 10])
 
-    def test_binary_files_are_skipped(self) -> None:
-        self.write("crates/x/assets/blob.bin", b"\x00\x01atm send cron@tool\x00")
+    def test_a_known_binary_is_skipped(self) -> None:
+        self.write("crates/x/assets/logo.png", b"\x89PNG\x00\x01atm send cron@tool\x00")
         self.write("crates/x/src/lib.rs", "clean\n")
         self.assertEqual(self.run_lint().returncode, 0)
+
+    def test_text_with_a_nul_byte_and_no_known_extension_is_unscannable(self) -> None:
+        # RSH-006: a NUL byte no longer hides a file; only KNOWN_BINARY extensions are skipped.
+        self.write("crates/x/assets/blob.bin", b"\x00\x01atm send cron@tool\x00")
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.splitlines(),
+                         ["crates/x/assets/blob.bin:0: unscannable: crates/x/assets/blob.bin"])
+
+    def test_utf16_text_is_decoded_and_scanned(self) -> None:
+        # RSH-006: UTF-16 text has NUL bytes but a byte-order mark; it is read, not skipped.
+        self.write("docs/notes.txt", "clean\natm send x\n".encode("utf-16"))
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.splitlines(), ["docs/notes.txt:2: atm-word: atm send x"])
+
+    @unittest.skipIf(os.name == "nt", "symlinks need privileges on Windows")
+    def test_a_tracked_symlink_is_scanned_as_its_target_text(self) -> None:
+        # RSH-006: a dangling link and a link to a directory are reported, not skipped.
+        (self.root / "docs").mkdir(parents=True, exist_ok=True)
+        (self.root / "docs" / "dangling").symlink_to("atm-notes/missing.md")
+        (self.root / "crates").mkdir(parents=True, exist_ok=True)
+        (self.root / "crates" / "dir-link").symlink_to(".")
+        git(self.root, "add", "--", "docs/dangling", "crates/dir-link")
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout.splitlines(), ["docs/dangling:1: atm-word: atm-notes/missing.md"])
 
     def test_count_prints_rule_and_file_totals(self) -> None:
         self.write("docs/a.md", "atm\natm\nteam-lead\n")
@@ -299,23 +331,40 @@ class RepoTest(RepoCase):
 class ScopeTest(RepoCase):
     TEXT = "atm send as cron@tool to the team-lead\n"
 
-    def test_out_of_scope_tooling_and_kit_files_are_not_hits(self) -> None:
+    def test_declared_out_of_scope_files_are_not_hits(self) -> None:
         for path in (".claude/skills/team-lead/SKILL.md", ".claude/agents/qa.md",
                      ".cursor/skills/x/SKILL.md", ".codex/skills/x/SKILL.md",
-                     ".agents/skills/x/SKILL.md", "CLAUDE.md", "AGENTS.md",
+                     ".agents/skills/x/SKILL.md", ".sc/plan-anchor/settings.yaml",
+                     ".beads/issues.jsonl", ".beads/config.yaml",
                      "CHANGELOG.md", "README.sc-publish.md", "install.py",
                      "release/publish-artifacts.toml", ".github/scripts/release_artifacts.py",
                      ".github/scripts/tests/test_release_artifacts.py",
                      ".github/actions/setup-renderer/action.yml",
                      ".github/workflows/release.yml", ".github/workflows/pypi-publish.yml",
+                     ".github/workflows/release-candidate.yml",
                      ".github/workflows/prerelease-archive.yml",
                      "docs/getting-started.md", "docs/npm-channel-compatibility.md",
                      "docs/consumer-preflight-and-docli.md",
                      "docs/sprints/fix-homebrew-formula-bundled-paths-tojson.md",
-                     "src/lib.rs", "Cargo.lock"):
+                     "Cargo.lock"):
             self.write(path, self.TEXT)
         result = self.run_lint()
         self.assertEqual(result.returncode, 0, result.stdout)
+
+    def test_a_path_not_declared_is_scanned_wherever_it_is(self) -> None:
+        # ADR-BDC-0012 Amendment 2 (B9Q1-013): the scope is inverted, so a new or
+        # misspelled top-level directory, a root file and a lookalike of a declared
+        # entry are scanned, never skipped silently.
+        paths = ("src/lib.rs", "newdir/notes.md", "doc/plan/x.md", ".github/CODEOWNERS",
+                 ".github/workflows/other.yml", "LICENSE", ".gitattributes",
+                 "CLAUDE.md", ".beadsx/data.jsonl", "release.md", "install.py.bak",
+                 "docs/getting-started.md.orig")
+        for path in paths:
+            self.write(path, "atm send x\n")
+        result = self.run_lint()
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(sorted(line.split(":")[0] for line in result.stdout.splitlines()),
+                         sorted(paths))
 
     def test_every_product_root_is_scanned(self) -> None:
         paths = ("crates/bd-cache-sync/src/tick.rs", "crates/bd-cache-py/pyproject.toml",
@@ -338,7 +387,8 @@ class ScopePrefixTest(unittest.TestCase):
 
     def test_hits(self) -> None:
         for line in ('format!("phase-{}", x)', '"phase-"', 'f"phase-{x}"', "'phase-'",
-                     'FORMAT!("PHASE-{}", X)'):
+                     'FORMAT!("PHASE-{}", X)', '"phase-%d" % n', '"phase-$x"',
+                     '"phase-${x}"', '"phase-\\(x)"', "sprintf('phase-%s', $x)"):
             with self.subTest(line=line):
                 self.assertEqual([h.rule for h in scan_text("src/x.rs", line)], ["scope-prefix"])
 
@@ -347,6 +397,13 @@ class ScopePrefixTest(unittest.TestCase):
         for line in (self.DECLARATION, f"    {self.DECLARATION}  "):
             with self.subTest(line=line):
                 self.assertEqual(scan_text(self.COMPAT, line), [])
+
+    def test_a_second_copy_of_the_declaration_hits(self) -> None:
+        # RBQA-F011 (B9Q1-033): the narrowing spares the one declaration, once per file.
+        text = f"{self.DECLARATION}\nfn f() {{}}\n    {self.DECLARATION}\n"
+        hits = scan_text(self.COMPAT, text)
+        self.assertEqual([(h.line, h.rule) for h in hits], [(3, "scope-prefix")])
+        self.assertEqual(scan_text(self.COMPAT, f"{self.DECLARATION}\n"), [])
 
     def test_any_other_legacy_literal_hits(self) -> None:
         # ADR-BDC-0012: the planted negative of b-9 AC-1, a second literal of the prefix.
@@ -367,7 +424,9 @@ class ScopePrefixTest(unittest.TestCase):
 
     def test_non_hits(self) -> None:
         for line in ("phase TEXT NOT NULL DEFAULT 'phase'", "let phase = row.get(\"phase\")?;",
-                     "SELECT phase FROM scopes", "the phase-b sprints", "scope phase-b is synced"):
+                     "SELECT phase FROM scopes", "the phase-b sprints", "scope phase-b is synced",
+                     "50% of phase-a", "a phase-(x) note", "the cost is $5 per phase-b run",
+                     "subphase-{x}", "multiphase-%s"):
             with self.subTest(line=line):
                 self.assertEqual(scan_text("src/x.rs", line), [])
 
@@ -412,7 +471,7 @@ class PathScanTest(RepoCase):
                           "docs/atm.md:2: atm-word: atm send x"])
 
     def test_exempt_and_out_of_scope_paths_are_not_path_hits(self) -> None:
-        for path in (".claude/atm.md", "src/atm.rs",
+        for path in (".claude/atm.md", ".beads/atm.jsonl",
                      "scripts/lint_no_atm.py", "scripts/test_lint_no_atm.py"):
             self.write(path, "clean\n")
         self.assertEqual(self.run_lint().returncode, 0, self.run_lint().stdout)
@@ -503,14 +562,50 @@ class ExemptionTableTest(unittest.TestCase):
              'pub const LEGACY_SCOPE_PREFIX: &str = "phase-";'),
         ))
 
-    def test_the_narrowed_line_is_the_one_in_the_tree(self) -> None:
+    def test_the_narrowed_line_is_the_one_in_the_tree_exactly_once(self) -> None:
         # The declaration the rule is narrowed for is the line the compatibility module holds,
-        # so a rename there makes the whole-tree run fail rather than pass silently.
-        compat = Path(__file__).resolve().parent.parent / "crates/bd-cache-model/src/compat.rs"
+        # once (RBQA-F011), so a rename there makes the whole-tree run fail rather than pass
+        # silently, and a second copy is a hit.
+        compat = REPO / "crates/bd-cache-model/src/compat.rs"
         if not compat.is_file():
             self.skipTest("not run inside the beads-cache tree")
         lines = [line.strip() for line in compat.read_text(encoding="utf-8").splitlines()]
-        self.assertIn(lint_no_atm.NARROWED[0][2], lines)
+        self.assertEqual(lines.count(lint_no_atm.NARROWED[0][2]), 1)
+
+
+class TreeClassificationTest(unittest.TestCase):
+    """ADR-BDC-0012 Amendment 2 (B9Q1-013): every tracked path is scanned or declared out of scope."""
+
+    def tracked(self) -> list[str]:
+        if shutil.which("git") is None or not (REPO / "crates/bd-cache-model/src/compat.rs").is_file():
+            self.skipTest("not run inside the beads-cache tree")
+        return lint_no_atm.tracked_files(REPO)
+
+    def test_every_tracked_path_is_scanned_or_declared_with_a_reason(self) -> None:
+        reasons = {reason for _, reason in lint_no_atm.OUT_OF_SCOPE}
+        for path in self.tracked():
+            with self.subTest(path=path):
+                reason = lint_no_atm.out_of_scope_reason(path)
+                self.assertTrue(lint_no_atm.in_scope(path) or reason in reasons, path)
+                self.assertEqual(lint_no_atm.in_scope(path), reason is None, path)
+
+    def test_every_declared_entry_matches_a_tracked_path(self) -> None:
+        # A declaration that matches nothing is stale: it would hide a file added later.
+        tracked = self.tracked()
+        for pattern, _ in lint_no_atm.OUT_OF_SCOPE:
+            with self.subTest(pattern=pattern):
+                self.assertTrue(any(lint_no_atm.matches(pattern, p) for p in tracked), pattern)
+
+    def test_the_product_roots_are_scanned(self) -> None:
+        tracked = set(self.tracked())
+        for path in ("Cargo.toml", "README.md", "rust-toolchain.toml", "LICENSE",
+                     ".github/workflows/ci.yml", ".github/workflows/python.yml",
+                     ".github/workflows/bd-compat.yml", "crates/bd-cache/src/lib.rs",
+                     "docs/architecture.md", "docs/plans/phase-b/anchors/anchors.json",
+                     "scripts/lint_no_atm.py"):
+            with self.subTest(path=path):
+                self.assertIn(path, tracked)
+                self.assertTrue(lint_no_atm.in_scope(path), path)
 
 
 if __name__ == "__main__":
