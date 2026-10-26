@@ -14,7 +14,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, JournalState, ScopeId};
+use bd_cache_model::{CacheError, CacheStore, JournalState, LEGACY_SCOPE_PREFIX, ScopeId};
 use common::{TestCache, World, id, new_entry, x};
 use sc_beads::testing::{FakeCall, FakeOp, Injection};
 use sc_beads::{BeadId, Clock};
@@ -342,7 +342,7 @@ fn get_reply_scope_is_the_beads_scope_and_none_outside_every_scope() {
     let mut c = w.cache_with(config);
     c.sync(&x(), w.after(T30)).unwrap();
     w.add("o1", |b| b.labels.clear());
-    w.add("a1", |b| b.labels = vec!["phase-a".into()]);
+    w.add("a1", |b| b.labels = vec![format!("{LEGACY_SCOPE_PREFIX}a")]);
 
     let scoped = c.get(&id("b1"), None).unwrap();
     assert_eq!(scoped.scope, Some(x()), "b1 is in phase-x");

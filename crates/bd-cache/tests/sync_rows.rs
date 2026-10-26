@@ -15,7 +15,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, ReadyBasis, ScopeId, SyncCause};
+use bd_cache_model::{CacheError, CacheStore, LEGACY_SCOPE_PREFIX, ReadyBasis, ScopeId, SyncCause};
 use common::{TestCache, World, id, new_entry, ts, x};
 use sc_beads::testing::{FakeCall, FakeOp, Injection};
 use sc_beads::{CheckStep, Clock, DepType};
@@ -308,7 +308,7 @@ fn sync_then_list_of_an_unconfigured_phase_works() {
     let w = World::new();
     let y = ScopeId::new("y").unwrap();
     let mut b = sc_beads::testing::bead("y1");
-    b.labels = vec!["phase-y".into()];
+    b.labels = vec![format!("{LEGACY_SCOPE_PREFIX}y")];
     w.bd.insert(b);
     let mut c = w.cache();
     let e = c.list(&y, None, None).unwrap_err();

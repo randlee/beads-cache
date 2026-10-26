@@ -9,7 +9,7 @@
 
 mod common;
 
-use bd_cache_model::IdemKey;
+use bd_cache_model::{IdemKey, LEGACY_SCOPE_PREFIX};
 use common::{World, default_facts, run};
 use sc_beads::{Actor, BeadId, Guards};
 use serde_json::{Map, Value, json};
@@ -18,7 +18,10 @@ fn world() -> (World, common::TestCache) {
     let w = World::new();
     let mut meta = Map::new();
     meta.insert("metadata".into(), json!({"old": "x", "keep": 1}));
-    meta.insert("labels".into(), json!(["phase-x", "red"]));
+    meta.insert(
+        "labels".into(),
+        json!([format!("{LEGACY_SCOPE_PREFIX}x"), "red"]),
+    );
     w.add("b1", &meta);
     let mut cache = w.cache();
     w.sync(&mut cache, "x");

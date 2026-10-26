@@ -155,8 +155,9 @@ fn an_ingest_that_fails_mid_transaction_leaves_nothing_behind() {
 /// A full-size ingest (`MAX_INGEST_ROWS` rows) holds the connection's mutex
 /// and the write lock for one transaction; it stays well under
 /// `BUSY_TIMEOUT`, the most another writer waits (B7Q1-050). Debug builds
-/// are several times slower than release, so the bound is checked on a
-/// release build and reported on a debug one.
+/// are several times slower than release, so a release build is held to half
+/// of `BUSY_TIMEOUT` and a debug build to `BUSY_TIMEOUT` itself: both profiles
+/// assert a bound, so CI's debug run executes one.
 #[test]
 fn a_full_size_ingest_holds_the_write_lock_well_under_the_busy_timeout() {
     let tmp = TempDir::new("big");
@@ -173,9 +174,12 @@ fn a_full_size_ingest_holds_the_write_lock_well_under_the_busy_timeout() {
     let took = start.elapsed();
     eprintln!("a {MAX_INGEST_ROWS}-row ingest took {took:?} (BUSY_TIMEOUT {BUSY_TIMEOUT:?})");
     assert_eq!(store.members(&lane().id).unwrap().len(), MAX_INGEST_ROWS);
-    if !cfg!(debug_assertions) {
-        assert!(took < BUSY_TIMEOUT / 2, "{took:?}");
-    }
+    let bound = if cfg!(debug_assertions) {
+        BUSY_TIMEOUT
+    } else {
+        BUSY_TIMEOUT / 2
+    };
+    assert!(took < bound, "{took:?} is not under {bound:?}");
 }
 
 /// `.beads/bd-cache.toml` is read through a bounded reader: a file over

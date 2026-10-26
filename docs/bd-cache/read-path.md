@@ -329,15 +329,22 @@ Decision:
   is registered as a phase-a scope, else the first scope, by name, whose
   stored membership holds the bead (`CacheStore::scopes_of`) and that the
   view is in. A bead with none (out of scope) has no `scope_last_ok_at` and
-  `blocked: None`. *Amended in sprint b-7 fix round 1 (B7Q1-008, B7Q1-024):
-  the scope is found through the bead's membership rows, never by reading the
-  whole registry, and a bead is in a scope when the scope holds its view or
-  it is a stored member whose stored row the filter does not hold (a member
-  an ingest declared, REQ-BDC-0726); a pending write that moves the view out
-  of a scope still takes the bead out. Before, a non-member filter scope that
-  held the view also counted; a miss-filled row is now in no filter scope
-  until a sync or ingest makes it a member. The same rule decides `list`,
-  `ready` and the blocked state, so the four reads agree.*
+  `blocked: None`. *Amended in sprint b-7 fix round 1 (B7Q1-008, B7Q1-024),
+  Status: Approved (lead ruling, sprint b-7). The scope is found through the
+  bead's membership rows, never by reading the whole registry. `get` and
+  `scope_for` use stored membership only: a bead is in a scope for `get` when
+  the scope stores it as a member (`CacheStore::scopes_of`) and either holds
+  its view or the bead is a member whose stored row the filter does not hold
+  (a member an ingest declared, REQ-BDC-0726); a pending write that moves the
+  view out of a scope the stored row is held by takes the bead out. `list`
+  returns the scope's stored members only; `ready` and the blocked state
+  (`blocked_of`) apply the same test to the members of the scope's base, and
+  also accept a scope that holds the view when the bead is not a stored
+  member. Before, a non-member
+  filter scope that held the view also gave `get` its scope; now a miss-filled
+  row (stored with no membership) has `GetReply.scope` `None` and `blocked:
+  None` until a sync or an ingest makes it a member, while `ready` and
+  `blocked_of` still count it in a scope that holds its view.*
 - `refresh` returns rows in request order without repeats; ids bd does not
   know are absent (not an error), and the rows are stored with membership
   unchanged, like a miss fill.
@@ -367,6 +374,8 @@ stale rows (`StoreStatus.stale`, filled by the store from
 
 ### Amendment 1: unknown scopes (sprint b-7 fix round 1, B7Q1-009)
 
+**Status:** Approved (lead ruling, sprint b-7)
+
 `prune` of an unregistered scope is `SCOPE_UNKNOWN` and prunes and sweeps
 nothing (ADR-BDC-0013: every verb that names a scope refuses an unknown one
 and registers nothing); `cache evict` and the 0.1 Python `prune` go through
@@ -374,8 +383,8 @@ it. The alert verbs (`sync_alert`, `set_sync_alert`,
 `set_sync_alert_within`) are the one exception: they are keyed by the tick's
 phase names (its phase files, and the v3 cron's `sync_alert:<phase>` keys),
 which need not be registered scopes, so they take any valid name, until
-sprint b-8 replaces the tick. ADR-BDC-0013's text in `docs/architecture.md`
-should name this exception; that edit is the plan branch's.
+sprint b-8 replaces the tick and makes them refuse unknown names.
+ADR-BDC-0013 in `docs/architecture.md` records the same exception.
 
 ## ADR-CORE-0206: `get` reads the bead's own entry of the ready base (a-7 amendment)
 

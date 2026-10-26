@@ -15,7 +15,9 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, ReadyBasis, ReadyReply, ScopeId, Seq};
+use bd_cache_model::{
+    CacheError, CacheStore, LEGACY_SCOPE_PREFIX, ReadyBasis, ReadyReply, ScopeId, Seq,
+};
 use common::{TestCache, World, id, new_entry, ts, x};
 use sc_beads::testing::{FakeOp, Injection};
 use sc_beads::{BeadId, Clock, DepType};
@@ -472,7 +474,7 @@ fn rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_onl
         "k1",
         "b2",
         "update",
-        r#"{"remove_labels": ["phase-x"]}"#,
+        &format!(r#"{{"remove_labels": ["{LEGACY_SCOPE_PREFIX}x"]}}"#),
     );
     let l = c.list(&x(), None, None).unwrap();
     let b2 = l.rows.iter().find(|r| r.bead.id == id("b2")).unwrap();

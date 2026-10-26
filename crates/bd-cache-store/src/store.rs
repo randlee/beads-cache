@@ -1467,10 +1467,10 @@ impl Session<'_> {
     /// for the whole snapshot: up to [`MAX_INGEST_ROWS`](bd_cache_model::MAX_INGEST_ROWS) row upserts, their
     /// memberships and the ready base. `tests/phase_b_store.rs` measures a
     /// 50 000-row ingest: about 1.3 s on a debug build (macOS, Apple silicon,
-    /// 2026), and it checks a release build stays under half of
-    /// [`BUSY_TIMEOUT`], the most other writers (another process,
-    /// `CacheScheduleStore` on this connection) wait, so the default busy
-    /// wait suffices and no longer one is set for this call.
+    /// 2026), and it asserts a debug build stays under [`BUSY_TIMEOUT`] and a
+    /// release build under half of it. That is the most other writers
+    /// (another process, `CacheScheduleStore` on this connection) wait, so the
+    /// default busy wait suffices and no longer one is set for this call.
     fn ingest_scope(
         &mut self,
         s: &ScopeId,

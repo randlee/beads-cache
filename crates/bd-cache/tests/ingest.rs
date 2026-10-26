@@ -23,7 +23,7 @@ use bd_cache::testing::store;
 use bd_cache_model::testing::FakeStore;
 use bd_cache_model::{
     CacheConfig, CacheError, CacheStore, FilterParts, IngestReason, IngestSnapshot,
-    MAX_INGEST_BYTES, MAX_INGEST_ROWS, Scope, ScopeFilter, ScopeId,
+    LEGACY_SCOPE_PREFIX, MAX_INGEST_BYTES, MAX_INGEST_ROWS, Scope, ScopeFilter, ScopeId,
 };
 use common::{World, id, sx, x};
 use sc_beads::{Bead, CacheBackend, DepType, ProjectRef};
@@ -43,7 +43,9 @@ fn lane() -> Scope {
 }
 
 fn lane_bead(w: &World, name: &str) -> Bead {
-    w.add(name, |b| b.labels = vec!["lane".into(), "phase-x".into()])
+    w.add(name, |b| {
+        b.labels = vec!["lane".into(), format!("{LEGACY_SCOPE_PREFIX}x")];
+    })
 }
 
 /// The rows and blocked rows bd answers for `scope`, as the built-in sync reads them.
@@ -345,6 +347,30 @@ fn a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing() {
     // A registered scope still prunes, sweeping the loose row.
     let r = c.prune(&x()).unwrap();
     assert!(r.out_of_scope_swept >= 1, "{r:?}");
+}
+
+/// The alert verbs are the one exception to ADR-BDC-0013's refusal of an
+/// unknown scope (Approved, lead ruling, sprint b-7; until b-8 makes them
+/// refuse unknown names): on an unregistered valid name they succeed and
+/// register no scope (B7Q1-009).
+#[test]
+fn the_alert_verbs_accept_an_unregistered_name_and_register_no_scope() {
+    let w = World::new();
+    let mut c = w.cache();
+    let ghost = ScopeId::new("ghost").unwrap();
+    let known = c.scopes().unwrap();
+    assert_eq!(c.sync_alert(&ghost).unwrap(), None);
+    c.set_sync_alert(&ghost, Some("backend_unavailable"))
+        .unwrap();
+    assert_eq!(
+        c.sync_alert(&ghost).unwrap().as_deref(),
+        Some("backend_unavailable")
+    );
+    c.set_sync_alert_within(&ghost, None, Duration::from_millis(50))
+        .unwrap();
+    assert_eq!(c.sync_alert(&ghost).unwrap(), None);
+    assert_eq!(c.scope(&ghost).unwrap(), None, "no scope registered");
+    assert_eq!(c.scopes().unwrap(), known, "the registry is unchanged");
 }
 
 /// Rows over the limit are refused as they decode, before the store is

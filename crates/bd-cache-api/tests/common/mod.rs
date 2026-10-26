@@ -22,7 +22,7 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_api::{ApiError, CacheFacts, Command, decode, execute};
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, Scope, ScopeId};
+use bd_cache_model::{CacheConfig, LEGACY_SCOPE_PREFIX, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Clock, Deadline, DepType, ProjectRef};
 use serde_json::{Map, Value, json};
@@ -80,7 +80,7 @@ impl World {
     pub fn add(&self, id: &str, fields: &Map<String, Value>) {
         let mut row = serde_json::to_value(bead(id)).unwrap();
         let obj = row.as_object_mut().unwrap();
-        obj.insert("labels".into(), json!(["phase-x"]));
+        obj.insert("labels".into(), json!([format!("{LEGACY_SCOPE_PREFIX}x")]));
         for (k, v) in fields {
             obj.insert(k.clone(), v.clone());
         }

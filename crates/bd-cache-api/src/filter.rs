@@ -69,6 +69,7 @@ mod tests {
 
     use super::*;
     use crate::page::ListSort;
+    use bd_cache_model::LEGACY_SCOPE_PREFIX;
 
     fn list() -> IssuesList {
         IssuesList {
@@ -87,7 +88,11 @@ mod tests {
 
     #[test]
     fn the_first_phase_label_selects_the_scope_unless_scope_is_given() {
-        let labels = vec!["x".to_owned(), "phase-a".to_owned(), "phase-b".to_owned()];
+        let labels = vec![
+            "x".to_owned(),
+            format!("{LEGACY_SCOPE_PREFIX}a"),
+            format!("{LEGACY_SCOPE_PREFIX}b"),
+        ];
         assert_eq!(select_scope(None, &labels), ScopeId::new("a").ok());
         let b = ScopeId::new("b").unwrap();
         assert_eq!(select_scope(Some(&b), &labels), Some(b));

@@ -802,6 +802,16 @@ Decision:
 Consequences: the whole tree, `docs/plans/` included, must pass the lint before b-9 merges. A
 neutral term that hits is handled by narrowing a rule with a test, never by an exemption.
 
+### Amendment 1: test-data labels (sprint b-7 fix round 2, B7Q1-026)
+
+**Status:** Approved (lead ruling, sprint b-7)
+
+A quoted label in a test, fixture or doc example that is only data (a bead labelled for a
+scope in a fake, or an argv expectation of a crate that has no `bd-cache-model` dependency, such
+as `sc-beads` and `sc-bd-cli`) is not a "use" of the scope prefix; "every use refers to the
+constant" applies to code that builds or strips a scope label. Tests in crates that depend on
+`bd-cache-model` build their labels from `LEGACY_SCOPE_PREFIX` or `legacy_label` where they can.
+
 ## ADR-BDC-0013: Scopes are named bd filters
 
 **Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0001 (the scope kinds), ADR-BDC-0002
@@ -911,6 +921,19 @@ Decision:
 Consequences: REQ-BDC-0501, 0602, 0603, 0901, 0909 and 0721 are amended; the contract's scope
 text (§5, §6, §12) is rewritten by b-9 from this ADR. Tests `sync_label_filter_scope` and
 `sync_all_scope` pin the two new variants end to end against the fakes.
+
+### Amendment 1: the alert verbs (sprint b-7 fix round 2, B7Q1-009)
+
+**Status:** Approved (lead ruling, sprint b-7)
+
+The verb rule above has one exception. `sync_alert`, `set_sync_alert` and
+`set_sync_alert_within` accept any valid scope name, without registering it: they are keyed by
+the tick's phase names (its phase files and the v3 cron's `sync_alert:<phase>` keys), which
+need not be registered scopes. The exception ends in sprint b-8, which removes the tick's phase
+files and makes these three verbs refuse an unknown name with `SCOPE_UNKNOWN` like every other
+verb that names a scope. `prune` and `cache evict` are not excepted. ADR-CORE-0205 amendment 1
+(`docs/bd-cache/read-path.md`) records the same exception; a test pins it
+(`the_alert_verbs_accept_an_unregistered_name_and_register_no_scope`).
 
 ## ADR-BDC-0014: The schedule rows live in the cache file through sc-cron's store trait
 

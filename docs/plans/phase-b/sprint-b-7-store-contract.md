@@ -27,7 +27,7 @@ owned_paths:
   - "crates/bd-cache-api/**, crates/bd-cache-cli/** (with src/bin/fake-bd.rs), crates/bd-cache-py/**, crates/bd-cache-sync/** (the mechanical edits the ScopeId, ScopeFilter and store changes force, and the code rows of crates/bd-cache-api/src/error.rs)"
   - "crates/bd-cache-api/tests/error_table.rs (the TICK_ row match only), the new crates/bd-cache-api/tests/scope_names.rs, crates/bd-cache-py/tests/test_reads.py (the 0.1 bare-name cases), and crates/bd-cache-py/tests/test_additive.py (the prefixed scope on the 0.2 namespaces is SCOPE_UNKNOWN, ADR-BDC-0013)"
   - "docs/bd-cache-cli/contract.md (the §4 error-table rows of the four new codes only)"
-  - "docs/architecture.md (the bd-cache-model, bd-cache-store, sc-beads and sc-bd-cli rows of the Crate Layout and Boundaries tables)"
+  - "docs/architecture.md (the bd-cache-model, bd-cache-store, sc-beads and sc-bd-cli rows of the Crate Layout and Boundaries tables; and, fix round 2, the inline Amendment 1 of ADR-BDC-0013 (the alert verbs, B7Q1-009) and of ADR-BDC-0012 (test-data labels, B7Q1-026), both lead rulings)"
   - "docs/bd-cache-store/**, docs/bd-cache/**, docs/bd-cache-model/** (implementation notes; ADR-CORE-0202 amendment 1)"
   - "docs/project-plan.md (b-7's status row) and this sprint doc (its status and the fix-round amendments)"
 ---
@@ -133,6 +133,25 @@ here mechanically, and the semantic removals stay with b-8.
 9. **Wording** (ADR-BDC-0010). The consumer wording in the comments, test names and fixtures of
    this sprint's own crates (`bd-cache-store`, `bd-cache`, `bd-cache-model`), so AC-0 passes on
    them.
+10. **Fix round 2 amendments** (QA-2; lead rulings, binding).
+    - *Alert verbs (B7Q1-009).* `sync_alert`, `set_sync_alert` and `set_sync_alert_within` accept
+      any valid scope name without registering it, until b-8 removes the tick's phase files and
+      makes them refuse unknown names. Recorded as an inline Amendment 1 of ADR-BDC-0013 in
+      `docs/architecture.md` and as the Status line (Approved, lead ruling, sprint b-7) of
+      ADR-CORE-0205 amendment 1 in `docs/bd-cache/read-path.md`. The test
+      `the_alert_verbs_accept_an_unregistered_name_and_register_no_scope`
+      (`crates/bd-cache/tests/ingest.rs`) pins it.
+    - *ADR-CORE-0204 amendment (B7Q1-008).* Approved (lead ruling, sprint b-7) in
+      `docs/bd-cache/read-path.md`: `get` and `scope_for` use stored membership only; `list`
+      returns stored members; `ready` and `blocked_of` also accept a scope that holds the view;
+      the miss-filled row sentence matches the code.
+    - *Test labels (B7Q1-026).* The quoted scope labels of `bd-cache`, `bd-cache-model` and
+      `bd-cache-api` tests are built from `LEGACY_SCOPE_PREFIX`; those of `sc-beads`, `sc-bd-cli`
+      and the other crates are test data, which ADR-BDC-0012's inline Amendment 1 says are not
+      uses of the prefix.
+    - *Ingest bound (B7Q1-050).* `crates/bd-cache-store/tests/phase_b_store.rs` asserts the
+      50 000-row ingest under `BUSY_TIMEOUT` on a debug build and under half of it on a release
+      build.
 
 ## Acceptance
 
