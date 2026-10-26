@@ -1,9 +1,9 @@
 //! Shared fixtures for the bd-cache-sync tests.
 //!
-//! [`World`] is the BD-CACHE cron test world: a `FakeBackend`, a `FakeStore`
-//! and `FakeDrainLock`, a `ManualClock` at `2026-10-23T10:00:00Z`, a directory
-//! of phase files and a [`RecordingSender`] that stands in for `atm send`.
-//! Every part is a shared handle: keep it to drive or inspect the cache.
+//! [`World`] is a sync test world: a `FakeBackend` behind the [`Controlled`]
+//! switches, a `FakeStore` and `FakeDrainLock`, and a `ManualClock` at
+//! [`START`]. Every part is a shared handle: keep it to drive or inspect the
+//! cache. [`script`] writes an executable stub interpreter (Unix).
 //!
 //! Include it from a test file with `mod common;`.
 
@@ -17,30 +17,23 @@
     clippy::expect_used,
     clippy::panic,
     clippy::indexing_slicing,
-    clippy::unused_self,
-    reason = "test code: a failed unwrap or index is a test failure; fixture methods keep a uniform receiver"
+    reason = "test code: a failed unwrap or index is a test failure"
 )]
 
 pub mod blocking;
 pub mod counting;
-pub mod real;
+pub mod repo;
 
-use blocking::Controlled;
-
-use std::fmt::Write as _;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
-use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{
-    CacheConfig, EscalationSender, IdemKey, JournalEntry, ScopeId, SendError, Seq, TickConfig,
-};
-use bd_cache_sync::{ComposeError, TICK_BUDGET, TickReply, tick};
-use sc_beads::testing::{FakeBackend, ManualClock, actor, bead};
-use sc_beads::{Bead, BeadId, Clock, Deadline, Guards, ProjectRef};
+use bd_cache_model::{CacheConfig, Scope, ScopeFilter, ScopeId, FilterParts};
+use bd_cache_sync::{RunContext, SharedCache, StopFlag};
+use blocking::Controlled;
+use sc_beads::testing::{FakeBackend, ManualClock, bead};
+use sc_beads::{Bead, BeadId, Clock, ProjectRef};
 
 pub use tempfile::TempDir;
 
@@ -49,10 +42,6 @@ pub type TestCache = Cache<FakeStore, FakeDrainLock, Controlled>;
 
 /// Where the [`World`] clock starts.
 pub const START: &str = "2026-10-23T10:00:00Z";
-/// The team of the phase leads.
-pub const TEAM: &str = "atm-dev";
-/// The lead of escalations that belong to no phase.
-pub const FALLBACK: &str = "team-lead";
 
 /// A bead id.
 #[must_use]
@@ -60,83 +49,43 @@ pub fn id(s: &str) -> BeadId {
     sc_beads::testing::id(s)
 }
 
-/// The `phase-<x>` scope.
+/// A scope name.
 #[must_use]
 pub fn scope(x: &str) -> ScopeId {
     ScopeId::new(x).unwrap()
 }
 
-/// One message the sender was asked to deliver.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Sent {
-    /// Who it went to.
-    pub lead: String,
-    /// In which team.
-    pub team: String,
-    /// What it said.
-    pub body: String,
+/// A scope selecting the beads that carry `label`.
+#[must_use]
+pub fn label_scope(name: &str, label: &str) -> Scope {
+    Scope::new(
+        scope(name),
+        ScopeFilter::from_parts(FilterParts {
+            labels_all: vec![label.to_owned()],
+            ..FilterParts::default()
+        })
+        .unwrap(),
+    )
 }
 
-/// An [`EscalationSender`] that records what it delivers and can be told to fail.
-#[derive(Debug, Default)]
-pub struct RecordingSender {
-    sent: Mutex<Vec<Sent>>,
-    attempts: Mutex<Vec<Sent>>,
-    failing: AtomicBool,
+/// The `All` scope.
+#[must_use]
+pub fn all_scope(name: &str) -> Scope {
+    Scope::new(
+        scope(name),
+        ScopeFilter::from_parts(FilterParts {
+            all: true,
+            ..FilterParts::default()
+        })
+        .unwrap(),
+    )
 }
 
-impl RecordingSender {
-    /// Makes every send fail (`true`) or succeed (`false`) from now on.
-    pub fn fail(&self, failing: bool) {
-        self.failing.store(failing, Ordering::SeqCst);
-    }
-
-    /// The messages delivered so far.
-    #[must_use]
-    pub fn sent(&self) -> Vec<Sent> {
-        self.sent.lock().unwrap().clone()
-    }
-
-    /// The messages delivered to `lead`.
-    #[must_use]
-    pub fn sent_to(&self, lead: &str) -> Vec<Sent> {
-        self.sent().into_iter().filter(|s| s.lead == lead).collect()
-    }
-
-    /// Every send that was attempted, delivered or not.
-    #[must_use]
-    pub fn attempts(&self) -> Vec<Sent> {
-        self.attempts.lock().unwrap().clone()
-    }
-
-    /// Forgets the messages recorded so far.
-    pub fn clear(&self) {
-        self.sent.lock().unwrap().clear();
-        self.attempts.lock().unwrap().clear();
-    }
-}
-
-impl EscalationSender for RecordingSender {
-    fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError> {
-        let message = Sent {
-            lead: lead.to_owned(),
-            team: team.to_owned(),
-            body: body.to_owned(),
-        };
-        self.attempts.lock().unwrap().push(message.clone());
-        if self.failing.load(Ordering::SeqCst) {
-            return Err(SendError::new("atm is down"));
-        }
-        self.sent.lock().unwrap().push(message);
-        Ok(())
-    }
-}
-
-/// A world: bd, store, lock, clock, phase files and a sender.
+/// A world: bd, store, lock and clock.
 pub struct World {
     /// The clock every part reads.
     pub clock: Arc<ManualClock>,
-    /// bd (the fake underneath is `bd.inner`).
+    /// bd (the fake underneath).
     pub bd: FakeBackend,
     /// The switches in front of bd.
     pub switch: Controlled,
@@ -144,10 +93,8 @@ pub struct World {
     pub store: FakeStore,
     /// The drain lock.
     pub lock: FakeDrainLock,
-    /// The phases directory.
+    /// A directory for files the test needs (a cache file stand-in, scripts).
     pub dir: TempDir,
-    /// The sender.
-    pub sender: Arc<RecordingSender>,
 }
 
 impl World {
@@ -163,203 +110,210 @@ impl World {
             store: FakeStore::new(),
             lock: FakeDrainLock::new(),
             dir: tempfile::tempdir().unwrap(),
-            sender: Arc::new(RecordingSender::default()),
         }
     }
 
-    /// The `[tick]` table: the team, the fallback lead and this world's phases directory.
-    #[must_use]
-    pub fn config(&self) -> TickConfig {
-        TickConfig {
-            team: Some(TEAM.into()),
-            fallback_lead: Some(FALLBACK.into()),
-            phases_dir: Some(self.dir.path().to_path_buf()),
-            phases: None,
-        }
-    }
-
-    /// Writes `phase-<name>.toml` with the root and lead.
-    pub fn phase_file(&self, name: &str, root: &str, lead: Option<&str>) -> PathBuf {
-        let path = self.dir.path().join(format!("phase-{name}.toml"));
-        let mut text = format!("root = \"{root}\"\n");
-        if let Some(lead) = lead {
-            writeln!(text, "lead = \"{lead}\"").unwrap();
-        }
-        std::fs::write(&path, text).unwrap();
-        path
-    }
-
-    /// Adds a bead labelled `phase-<phase>` to bd, stamped with the clock's time.
-    pub fn add(&self, name: &str, phase: Option<&str>, f: impl FnOnce(&mut Bead)) -> Bead {
+    /// Adds a bead with `labels` to bd, stamped with the clock's time.
+    pub fn add(&self, name: &str, labels: &[&str], f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
-        if let Some(phase) = phase {
-            b.labels = vec![format!("phase-{phase}")];
-        }
-        b.updated_at = self.clock.now_utc().into();
+        b.labels = labels.iter().map(|l| (*l).to_owned()).collect();
+        b.updated_at = self.clock.now_utc().as_str().to_owned();
         f(&mut b);
         self.bd.insert(b.clone());
         b
     }
 
-    /// A phase: its file, and its open root bead `r<name>` labelled with the phase.
-    pub fn phase(&self, name: &str, lead: Option<&str>) {
-        self.phase_file(name, &format!("r{name}"), lead);
-        self.add(&format!("r{name}"), Some(name), |_| {});
-    }
-
-    /// Edits a bead in bd as another writer would, bumping its `updated_at`.
-    pub fn edit(&self, name: &str, f: impl FnOnce(&mut Bead)) {
-        let now = self.clock.now_utc();
-        assert!(self.bd.edit(name, |b| {
-            f(b);
-            b.updated_at = now.into();
-        }));
-    }
-
-    /// Closes a bead in bd.
-    pub fn close_in_bd(&self, name: &str) {
-        self.edit(name, |b| b.status = Some("closed".into()));
-    }
-
-    /// A cache over this world's parts with no configured scope.
+    /// A cache over this world's parts that registers `scopes` on open.
     #[must_use]
-    pub fn cache(&self) -> TestCache {
-        cache_over(&self.clock, &self.store, &self.lock, &self.switch)
-    }
-
-    /// The recompose function of a `SyncJob` over this world: each call builds
-    /// a new cache over the same parts (the same composition inputs) and
-    /// counts one in `built`.
-    pub fn recompose(
-        &self,
-        built: &Arc<AtomicUsize>,
-    ) -> impl Fn() -> Result<TestCache, ComposeError> + Send + Sync + 'static {
-        let (clock, store, lock, switch) = (
-            Arc::clone(&self.clock),
+    pub fn cache(&self, scopes: Vec<Scope>) -> TestCache {
+        Cache::new(
+            CacheConfig::new(ProjectRef::local(None), scopes),
             self.store.clone(),
             self.lock.clone(),
             self.switch.clone(),
-        );
-        let built = Arc::clone(built);
-        move || {
-            built.fetch_add(1, Ordering::SeqCst);
-            Ok(cache_over(&clock, &store, &lock, &switch))
-        }
+            Arc::clone(&self.clock) as Arc<dyn Clock>,
+        )
+        .unwrap()
     }
 
-    /// A deadline `d` from now.
+    /// [`World::cache`] behind the mutex the runs share.
     #[must_use]
-    pub fn after(&self, d: Duration) -> Deadline {
-        Deadline::after(&*self.clock, d)
+    pub fn shared(&self, scopes: Vec<Scope>) -> SharedCache<FakeStore, FakeDrainLock, Controlled> {
+        Arc::new(Mutex::new(self.cache(scopes)))
     }
 
-    /// Runs one tick with the world's config and sender, under the 25 s budget.
-    pub fn tick(&self, cache: &mut TestCache) -> TickReply {
-        self.tick_with(cache, &self.config())
-    }
-
-    /// Runs one tick with `config`.
-    pub fn tick_with(&self, cache: &mut TestCache, config: &TickConfig) -> TickReply {
-        tick(cache, config, &*self.sender, self.after(TICK_BUDGET)).unwrap()
-    }
-
-    /// Moves the clock to the next 30 s tick.
-    pub fn next_tick(&self) {
-        self.clock.advance(Duration::from_secs(30));
-    }
-
-    /// Journals a close of `bead` through the core.
-    pub fn journal_close(&self, cache: &mut TestCache, bead: &str, key: &str) -> Seq {
-        cache
-            .write(
-                &id(bead),
-                "close",
-                "{}",
-                Guards::default(),
-                IdemKey::new(key).unwrap(),
-                actor("san"),
-            )
-            .unwrap()
-            .seq
-    }
-
-    /// The journal entry with `seq`.
+    /// A private file standing in for the cache file (the trust check's subject).
     #[must_use]
-    pub fn entry(&self, seq: Seq) -> JournalEntry {
-        use bd_cache_model::CacheStore;
-        self.store.entry_by_seq(seq).unwrap().unwrap()
+    pub fn cache_file(&self) -> PathBuf {
+        let path = self.dir.path().join("cache.sqlite3");
+        if !path.exists() {
+            std::fs::write(&path, b"").unwrap();
+            private(&path);
+        }
+        path
     }
-}
 
-/// A cache over the given parts with no configured scope.
-fn cache_over(
-    clock: &Arc<ManualClock>,
-    store: &FakeStore,
-    lock: &FakeDrainLock,
-    switch: &Controlled,
-) -> TestCache {
-    let clock: Arc<dyn Clock> = Arc::clone(clock) as Arc<dyn Clock>;
-    Cache::new(
-        CacheConfig::new(ProjectRef::local(None), vec![]),
-        store.clone(),
-        lock.clone(),
-        switch.clone(),
-        clock,
-    )
-    .unwrap()
-}
-
-impl Default for World {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// A sender that spends `cost` of the world's clock on every message, as a slow
-/// `atm` would, and records what it was asked.
-pub struct SlowSender {
-    clock: Arc<ManualClock>,
-    cost: Duration,
-    sent: Mutex<Vec<(String, Duration)>>,
-}
-
-impl SlowSender {
-    /// A sender whose every message takes `cost` on `clock` (or the time it is given, if less).
-    pub fn new(clock: &Arc<ManualClock>, cost: Duration) -> Self {
-        Self {
-            clock: Arc::clone(clock),
-            cost,
-            sent: Mutex::new(Vec::new()),
+    /// The run context of a built-in run in this world.
+    #[must_use]
+    pub fn ctx(&self) -> RunContext {
+        let stop = StopFlag::new();
+        RunContext {
+            row: bd_cache_sync::BUILTIN_ROW.to_owned(),
+            period: None,
+            cache_path: self.cache_file(),
+            beads_dir: Some(self.dir.path().to_path_buf()),
+            kill: stop.clone(),
+            stop,
         }
     }
+}
 
-    /// Who was sent to, with the time each send was given.
-    pub fn sent(&self) -> Vec<(String, Duration)> {
-        self.sent.lock().unwrap().clone()
+/// Makes `path` private to this user (mode 0600 on Unix).
+pub fn private(path: &Path) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600)).unwrap();
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+}
+
+/// Writes an executable script through a `sh` child, so this multi-threaded
+/// test process never holds a write fd on it that a fork in a concurrent
+/// test could inherit and turn the exec into ETXTBSY (os error 26).
+#[cfg(unix)]
+pub fn script(path: &Path, contents: &str) {
+    let status = std::process::Command::new("/bin/sh")
+        .arg("-c")
+        .arg("printf '%s' \"$1\" > \"$2\" && chmod 755 \"$2\"")
+        .arg("sh")
+        .arg(contents)
+        .arg(path)
+        .status()
+        .unwrap();
+    assert!(status.success(), "cannot write {}", path.display());
+}
+
+/// Journals `n` closes in `store` and escalates them, as a drain that gave
+/// up on them would; returns their seqs, oldest first.
+pub fn escalate(world: &World, n: usize) -> Vec<bd_cache_model::Seq> {
+    use bd_cache_model::{CacheStore as _, IdemKey, NewEntry, Op};
+    let mut store = world.store.clone();
+    let at = world.clock.now_utc();
+    (0..n)
+        .map(|i| {
+            let seq = store
+                .insert_entry(
+                    NewEntry {
+                        idem_key: IdemKey::new(format!("k{i}")).unwrap(),
+                        scope: None,
+                        bead: id(&format!("e{i}")),
+                        op: Op::parse("close", "{}").unwrap(),
+                        precondition: sc_beads::Guards::default(),
+                        actor: sc_beads::testing::actor("tester"),
+                        changed: None,
+                    },
+                    &at,
+                )
+                .unwrap();
+            store.escalate(seq, "BD_CACHE.BD_FAILED: refused", &at).unwrap();
+            seq
+        })
+        .collect()
+}
+
+/// A stub of `<python> -I -m bd_cache_rs.run post_sync <module:function>`.
+///
+/// It records its argv, environment, working directory and each request
+/// (`request.<n>.json`) in its directory, then acts on the file `mode`:
+/// absent prints a valid answer; `fail` exits 1; `hang` starts a grandchild
+/// that holds the named pipe `life`, says `ready` on the named pipe `ready`
+/// and sleeps; `flood` writes 2 MiB to stdout; `wrong` answers another protocol.
+#[cfg(unix)]
+pub struct HookStub {
+    /// Its directory.
+    pub dir: TempDir,
+    /// The stub interpreter.
+    pub python: PathBuf,
+}
+
+#[cfg(unix)]
+impl HookStub {
+    /// A stub that answers `ok: true`.
+    #[must_use]
+    pub fn new() -> Self {
+        let dir = tempfile::tempdir().unwrap();
+        let python = dir.path().join("python");
+        let body = r#"#!/bin/sh
+d="@DIR@"
+[ "$2" = -c ] && exit 0
+n=$(( $(cat "$d/count" 2>/dev/null || echo 0) + 1 )); echo $n > "$d/count"
+printf '%s\n' "$@" > "$d/argv"
+env > "$d/env"
+pwd -P > "$d/cwd"
+mode=$(cat "$d/mode" 2>/dev/null)
+case "$mode" in
+  noread) ;;
+  *) cat > "$d/request.$n.json" ;;
+esac
+case "$mode" in
+  fail) echo "boom from the hook" >&2; echo '{"protocol":"bd-cache.run.v1","ok":false,"error":{"type":"RuntimeError","message":"boom"}}'; exit 1 ;;
+  hang) exec 3> "$d/life"; ( echo up > "$d/ready"; exec sleep 3600 ) & wait; exit 0 ;;
+  flood) head -c 2100000 /dev/zero | tr '\0' x; exit 0 ;;
+  wrong) echo '{"protocol":"other","ok":true}'; exit 0 ;;
+esac
+echo '{"protocol":"bd-cache.run.v1","ok":true,"result":{"handled":true}}'
+"#
+        .replace("@DIR@", &dir.path().display().to_string());
+        script(&python, &body);
+        Self { dir, python }
+    }
+
+    /// Sets the mode for the next calls.
+    pub fn mode(&self, mode: &str) {
+        std::fs::write(self.dir.path().join("mode"), mode).unwrap();
+    }
+
+    /// How many times it ran.
+    #[must_use]
+    pub fn calls(&self) -> usize {
+        std::fs::read_to_string(self.dir.path().join("count"))
+            .map(|s| s.trim().parse().unwrap())
+            .unwrap_or(0)
+    }
+
+    /// The request of call `n` (from 1).
+    #[must_use]
+    pub fn request(&self, n: usize) -> serde_json::Value {
+        let text = std::fs::read_to_string(self.dir.path().join(format!("request.{n}.json"))).unwrap();
+        serde_json::from_str(&text).unwrap()
+    }
+
+    /// A file it wrote, as text.
+    #[must_use]
+    pub fn read(&self, name: &str) -> String {
+        std::fs::read_to_string(self.dir.path().join(name)).unwrap()
+    }
+
+    /// Makes the named pipe `name` in its directory.
+    pub fn fifo(&self, name: &str) -> PathBuf {
+        let path = self.dir.path().join(name);
+        let ok = std::process::Command::new("mkfifo").arg(&path).status().unwrap();
+        assert!(ok.success());
+        path
     }
 }
 
-impl EscalationSender for SlowSender {
-    fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError> {
-        self.send_within(lead, team, body, Duration::from_secs(3600))
-    }
-
-    fn send_within(
-        &self,
-        lead: &str,
-        _team: &str,
-        _body: &str,
-        timeout: Duration,
-    ) -> Result<(), SendError> {
-        self.sent.lock().unwrap().push((lead.to_owned(), timeout));
-        if self.cost > timeout {
-            self.clock.advance(timeout);
-            return Err(SendError::with_kind(
-                bd_cache_model::SendErrorKind::TimedOut,
-                "the scripted atm was too slow",
-            ));
+/// Reads the named pipe `path` to its end on a thread of its own: the value
+/// arrives when every writer has closed it (a causal gate, never a sleep).
+pub fn gate_file(path: PathBuf) -> std::sync::mpsc::Receiver<()> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        if let Ok(mut f) = std::fs::File::open(path) {
+            let _ = std::io::Read::read_to_end(&mut f, &mut Vec::new());
         }
-        self.clock.advance(self.cost);
-        Ok(())
-    }
+        let _ = tx.send(());
+    });
+    rx
 }

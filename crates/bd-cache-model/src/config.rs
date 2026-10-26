@@ -19,13 +19,12 @@
 //! name = "open-bugs"
 //! labels_all = ["area"]                               # also labels_any, status, type, assignee
 //! status = ["open", "in_progress"]                    # or `all = true` alone
-//!
-//! [tick]                                              # bd-cache-sync's keys (a-7)
-//! team = "dev"
-//! fallback_lead = "lead-1"
-//! phases_dir = ".phases"
-//! phases = ["bk"]
 //! ```
+//!
+//! The file cannot name code to run (REQ-BDC-0724, ADR-SYNC-0008): the sync
+//! rows and the post-sync hook live in the cache file. There is no `[tick]`
+//! table; `[tick]`, `[tick.hooks]` or `[tick.sync]` is an unknown key, so the
+//! file is refused (`CONFIG_INVALID`).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -77,9 +76,6 @@ pub struct RepoConfig {
     /// configuration); opaque and ignored in phase a.
     #[serde(default)]
     pub schema_packages: Vec<SchemaPackageRef>,
-    /// bd-cache-sync's keys, read by a-7.
-    #[serde(default)]
-    pub tick: Option<TickConfig>,
 }
 
 /// One `[[scope]]` table of `.beads/bd-cache.toml`: a name and a filter
@@ -181,24 +177,6 @@ pub const MAX_MAX_ATTEMPTS: u32 = 100;
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(transparent)]
 pub struct SchemaPackageRef(toml::Value);
-
-/// The `[tick]` table: the sync task's keys (bd-cache-sync, a-7).
-#[derive(Debug, Clone, Default, PartialEq, Eq, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct TickConfig {
-    /// The team of the phase leads (REQ-BDC-0701).
-    #[serde(default)]
-    pub team: Option<String>,
-    /// The lead told when no phase lead is known.
-    #[serde(default)]
-    pub fallback_lead: Option<String>,
-    /// Where the phase files live.
-    #[serde(default)]
-    pub phases_dir: Option<PathBuf>,
-    /// Limits the synced phases (REQ-BDC-0702).
-    #[serde(default)]
-    pub phases: Option<Vec<String>>,
-}
 
 /// `.beads/bd-cache.toml` did not parse.
 #[derive(Debug, Clone, PartialEq, Eq)]

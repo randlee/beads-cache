@@ -99,6 +99,9 @@ pub struct Controlled {
     /// Blocks `list_scope` while armed.
     pub gate: Arc<Gate>,
     on_fingerprint: Hook,
+    /// Rows appended to every `list_scope` answer (a row the filter does
+    /// not select, so the strict check refuses the whole answer).
+    extra: Arc<Mutex<Vec<Bead>>>,
 }
 
 impl Controlled {
@@ -112,7 +115,13 @@ impl Controlled {
             panicking: Arc::new(AtomicBool::new(false)),
             gate: Arc::new(Gate::default()),
             on_fingerprint: Arc::new(Mutex::new(None)),
+            extra: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    /// Appends `rows` to every `list_scope` answer from now on.
+    pub fn set_extra_scope_rows(&self, rows: Vec<Bead>) {
+        *self.extra.lock().unwrap() = rows;
     }
 
     /// Runs `f` at every backend check (the first call of a drain or a sync).
@@ -257,7 +266,9 @@ impl CacheBackend for Controlled {
     ) -> Result<Vec<Bead>, BeadsCacheError> {
         self.check(true)?;
         self.gate.pass();
-        self.inner.list_scope(p, f, since, d)
+        let mut rows = self.inner.list_scope(p, f, since, d)?;
+        rows.extend(self.extra.lock().unwrap().iter().cloned());
+        Ok(rows)
     }
     fn list_blocked(
         &self,

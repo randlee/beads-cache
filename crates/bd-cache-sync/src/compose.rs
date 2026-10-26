@@ -7,31 +7,49 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, RepoConfig, TickConfig};
+use bd_cache_model::{CacheError, RepoConfig};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
-    load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheScheduleStore, ConfigLoadError,
+    FlockDrainLock, SqliteStore, load_repo_config,
 };
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
 
-use crate::phases::rooted_phases_dir;
-
 /// The cache over the real store, drain lock and `bd`.
 pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 
-/// A repository's cache with its `[tick]` table.
+/// A repository's cache, with its schedule table and the facts its sync rows need.
 #[derive(Debug)]
 pub struct Composed {
     /// The cache of the repository's file.
     pub cache: RealCache,
-    /// The `[tick]` table of `.beads/bd-cache.toml` (empty when the file has
-    /// none), with `phases_dir` resolved against the repository root: a
-    /// relative directory, or the default `.atm-bd`, names the same place
-    /// whatever the working directory is.
-    pub tick: TickConfig,
-    /// The cache file's name, for naming the schedule.
+    /// The cache file's name.
     pub name: String,
+    /// The cache file.
+    pub cache_path: PathBuf,
+    /// The beads directory: `$BEADS_DIR` when set, else `<repo>/.beads`.
+    pub beads_dir: PathBuf,
+    /// sc-cron's store over the cache's one connection, or why it cannot
+    /// serve (a `sc_cron_schedule_version` row of another version,
+    /// ADR-BDC-0014); see [`Composed::schedule_store`].
+    schedules: Result<Arc<CacheScheduleStore>, sc_cron::CronError>,
+}
+
+impl Composed {
+    /// The schedule table of the cache file (ADR-BDC-0014).
+    ///
+    /// # Errors
+    ///
+    /// `STORE_FAILED` naming the schedule-table check when the file's
+    /// `sc_cron_schedule_version` row names another version, or the table
+    /// could not be read when the cache opened: `schedule *`, `sync *`,
+    /// `tick` and `cron run` call this before serving any work.
+    pub fn schedule_store(&self) -> Result<Arc<CacheScheduleStore>, CacheError> {
+        match &self.schedules {
+            Ok(store) => Ok(Arc::clone(store)),
+            Err(e) => Err(crate::schedule::schedule_store_failed(e.clone())),
+        }
+    }
 }
 
 /// The composition could not be built.
@@ -213,7 +231,7 @@ pub fn compose(
 /// again; everything else is as [`compose`]: the cache file `config` names
 /// (with `.beads/metadata.json` and `beads_dir_env`, validated as
 /// [`compose_with`] validates it), the process-wide lock set, one clock, and
-/// `[tick]` from `config` with `phases_dir` resolved against `repo_root`.
+/// the cache file's schedule table.
 ///
 /// `config` is used as given: a caller that merged overrides into it
 /// validates the result first ([`RepoConfig::validate`]).
@@ -375,6 +393,12 @@ fn compose_with_override(
         .file_name()
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
     let lock = store.drain_lock();
+    let cache_path = store.path().to_path_buf();
+    let schedules = store.schedule_store().map(Arc::new);
+    let beads_path = beads_dir.as_ref().map_or_else(
+        || repo_root.join(".beads"),
+        |d| PathBuf::from(d.as_os_str()),
+    );
     let project = ProjectRef::local(Some(root_text.to_owned()));
     let backend = backend(locks)
         .with_clock(Arc::clone(&clock))
@@ -384,9 +408,13 @@ fn compose_with_override(
         );
     let cache = Cache::new(repo.cache_config(project), store, lock, backend, clock)
         .map_err(ComposeError::Cache)?;
-    let mut tick = repo.tick.unwrap_or_default();
-    tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));
-    Ok(Composed { cache, tick, name })
+    Ok(Composed {
+        cache,
+        name,
+        cache_path,
+        beads_dir: beads_path,
+        schedules,
+    })
 }
 
 #[cfg(test)]
@@ -408,7 +436,7 @@ mod tests {
         std::fs::create_dir_all(&beads).unwrap();
         std::fs::write(
             beads.join("metadata.json"),
-            r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+            r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
         )
         .unwrap();
         root
@@ -495,8 +523,7 @@ mod tests {
 
     /// `compose_with_config` uses the configuration it is given and never
     /// reads `.beads/bd-cache.toml`: here a file that does not parse, and
-    /// names another cache file and scope, is ignored; `[tick]` comes from
-    /// the given configuration, rooted at the repository.
+    /// names another cache file and scope, is ignored.
     #[test]
     fn compose_with_config_uses_the_given_configuration_not_the_file() {
         let root = repo();
@@ -514,11 +541,7 @@ mod tests {
         );
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
-            tick: Some(TickConfig {
-                phases_dir: Some("phases".into()),
-                ..TickConfig::default()
-            }),
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let composed =
@@ -532,10 +555,7 @@ mod tests {
                 bd_cache_model::ScopeId::new("bk").unwrap()
             )]
         );
-        assert_eq!(
-            composed.tick.phases_dir.as_deref(),
-            Some(root.path().join("phases").as_path())
-        );
+        assert!(composed.schedule_store().is_ok());
     }
 
     /// `compose_with_config_and_backend` uses the configuration it is given,
@@ -551,7 +571,7 @@ mod tests {
         .unwrap();
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let locks = Arc::new(ProjectLocks::new());

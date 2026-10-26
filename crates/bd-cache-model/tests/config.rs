@@ -21,11 +21,6 @@ miss_fill_timeout_ms = 500
 [[schema_packages]]
 path = "schemas/beads"
 enforcement = "warn"
-
-[tick]
-team = "dev"
-fallback_lead = "lead-1"
-phases_dir = ".phases"
 "#;
 
 #[test]
@@ -40,10 +35,6 @@ fn sample_config_parses_and_derives_defaults() {
         1,
         "schema packages are kept opaque"
     );
-    let tick = cfg.tick.as_ref().unwrap();
-    assert_eq!(tick.team.as_deref(), Some("dev"));
-    assert_eq!(tick.fallback_lead.as_deref(), Some("lead-1"));
-    assert_eq!(tick.phases_dir, Some(PathBuf::from(".phases")));
     let cache = cfg.cache_config(ProjectRef::local(Some("/repo".into())));
     assert_eq!(
         cache.scopes,
@@ -163,4 +154,23 @@ fn configured_scopes_are_held_to_the_registration_limits() {
         fits.configured_scopes().unwrap().len(),
         bd_cache_model::MAX_CONFIGURED_SCOPES
     );
+}
+
+/// The file cannot name code to run (REQ-BDC-0724, ADR-SYNC-0008): every
+/// `[tick]` table, `[tick.hooks]` and `[tick.sync]` included, is refused, so
+/// the CLI reports `CONFIG_INVALID`. Planted negative: the same file without
+/// the table parses.
+#[test]
+fn a_tick_table_cannot_name_code_to_run_and_is_refused() {
+    for table in [
+        "[tick]\nteam = \"dev\"\n",
+        "[tick.hooks]\npost_sync = \"pkg:fn\"\n",
+        "[tick.sync]\npython = \"/usr/bin/python3\"\nmodule = \"pkg.sync\"\n",
+        "[tick]\n",
+    ] {
+        let text = format!("scopes = [\"bk\"]\n{table}");
+        let err = RepoConfig::from_toml(&text).unwrap_err();
+        assert!(err.detail.contains("tick"), "{table}: {err}");
+    }
+    assert!(RepoConfig::from_toml("scopes = [\"bk\"]\n").is_ok());
 }

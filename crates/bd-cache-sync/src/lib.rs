@@ -1,122 +1,100 @@
-//! The bd-cache sync task: tick, stop rule and announcements, scheduled on `sc-cron`.
+//! The bd-cache sync: the built-in and Python sync rows on `sc-cron`, the
+//! switch between them, and the post-sync hook (ADR-SYNC-0008, ADR-BDC-0011).
 //!
-//! This crate composes the pieces phase A builds: the `bd-cache` core, the
-//! SQLite store (`bd-cache-store`), the `bd` CLI backend (`sc-bd-cli`) and the
-//! scheduler (`sc-cron`). It holds the BD-CACHE cron module
-//! (`bd_cache_cron.py`) in Rust:
+//! beads-cache syncs bd on rows of the sc-cron table inside the cache file
+//! (ADR-BDC-0014): at most one built-in row ([`BUILTIN_ROW`], a Rust job) and
+//! at most one Python row ([`PYTHON_ROW`], a consumer's script), at most one
+//! of them enabled (REQ-BDC-0720). The cache sends nothing (ADR-BDC-0010):
+//! a post-sync hook the built-in row names gets every result and error and
+//! decides what to tell anyone (REQ-BDC-0727).
 //!
-//! - [`tick`]: within a 25 s budget ending at `T`, drain with
-//!   `DrainBudget { start_gate: T - 5 s, hard: T - 2 s }`, then sync each
-//!   active phase with deadline `T`, deferring any not started by `T - 2 s`
-//!   (REQ-BDC-0703); phases come from `.atm-bd/phase-*.toml` and the
-//!   configured list, and a phase is active while its root bead is not closed
-//!   (REQ-BDC-0702);
-//! - announcements through the [`EscalationSender`](bd_cache_model::EscalationSender)
-//!   port (REQ-BDC-0704..0706): sync failures once per cause, an outage once
-//!   per active scope under the cause `backend_unavailable`, escalations once
-//!   with the `resolve` command; a message not delivered makes the reply
-//!   `refused` and is retried next tick. [`AtmSender`] is the implementation
-//!   that runs `atm send`;
-//! - [`stop_reason`]: stop when no phase is active and no journal entry is
-//!   pending or escalated and unannounced (REQ-BDC-0707);
-//! - [`SyncJob`]: the `sc-cron` [`Job`](sc_cron::Job) that runs both under
-//!   `spawn_blocking` with the `Cache` in an `Arc<Mutex<_>>` (ADR-CORE-0001),
-//!   and [`schedule_spec`], the one schedule per repository (REQ-BDC-0701);
-//! - [`compose`]: the real `SqliteStore` + `FlockDrainLock` + `BdCli`
-//!   cache of a repository, read from `.beads/bd-cache.toml`, over one
-//!   process-wide `bd` lock set.
+//! - [`run_builtin`]: the built-in row's run (lease, drain, every scope by its
+//!   filter, post-sync hook, reply); `cron run`, `cron run --once`,
+//!   `bdc cache tick` and `PyO3` `Cache.tick()` all run it (REQ-BDC-0720);
+//! - [`TickLease`]: one sync at a time across processes (REQ-BDC-0722);
+//! - [`sync_resolver`]: sc-cron's per-row target (REQ-CRON-0016), returning a
+//!   [`BuiltinSyncJob`] or a [`PythonSyncJob`] (REQ-BDC-0725);
+//! - [`schedule_set`], [`schedule_show`], [`schedule_enable`],
+//!   [`schedule_clear`], [`sync_use_python`], [`sync_use_builtin`] and
+//!   [`tick`]: the mode and the switch (REQ-BDC-0720, 0724, 0731);
+//! - [`cron_run`] and [`cron_run_once`] (REQ-BDC-0730);
+//! - [`TrustedCacheFile`]: the trust check before any row's or hook's code
+//!   runs (REQ-BDC-0723);
+//! - [`compose`]: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of
+//!   a repository, read from `.beads/bd-cache.toml`, with its schedule table.
 //!
-//! # Codes
-//!
-//! Every error this crate reports has a stable lower-case code
-//! (`RefusalCode::as_str`, `ScheduleError::code`, `ComposeError::code`,
-//! `CacheLost::code`), with
-//! the `BD_CACHE.*` codes of the core passed through where the cause is a
-//! `CacheError`. The code, not the message, is what a program matches on.
-//!
-//! # One ticker per cache file
-//!
-//! Either `sc-cron` runs this crate, or an external scheduler (the ATM cron
-//! module through the later `bdc tick`, or `bd_cache_cron.py` through the
-//! Python bindings) drives `drain`, `sync` and the announcement verbs. Never
-//! both on one cache file.
+//! The sync reaches the backend only through bd (REQ-BDC-0006); every bd
+//! call, hook and script run is bounded by its deadline (NFR-BDC-0004).
 //!
 //! # Example
 //!
 //! ```
-//! use bd_cache_model::TickConfig;
-//! use bd_cache_sync::schedule_spec;
+//! use bd_cache_sync::{BUILTIN_ROW, PYTHON_ROW, SyncPayload};
 //!
-//! let cfg = TickConfig {
-//!     team: Some("atm-dev".into()),
-//!     fallback_lead: Some("team-lead".into()),
-//!     ..TickConfig::default()
-//! };
-//! let spec = schedule_spec(&cfg, "atm-dev", None).unwrap();
-//! assert_eq!(spec.name.as_str(), "bd-cache:atm-dev");
+//! assert_eq!(BUILTIN_ROW, "bd-cache.sync.builtin");
+//! assert_eq!(PYTHON_ROW, "bd-cache.sync.python");
+//! let payload = serde_json::json!({"target": "builtin", "budget_ms": 25000, "hook_reserve_ms": 5000});
+//! assert!(matches!(SyncPayload::decode(&payload), Ok(SyncPayload::Builtin(_))));
 //! ```
 
 #![deny(missing_docs)]
 
-mod active;
-mod announce;
-mod atm;
 mod compose;
 mod control;
+mod cron;
+mod history;
+mod hook;
 mod job;
-mod phases;
-mod reply;
+mod lease;
+mod payload;
+mod python_job;
+mod run;
+mod schedule;
 mod text;
-mod tick;
+mod trust;
 
-#[cfg(all(test, unix))]
-mod test_script {
-    use std::path::Path;
-
-    /// Writes an executable test script through a `sh` child, so this
-    /// multi-threaded test process never holds a write fd on it that a fork in a
-    /// concurrent test could inherit and turn the exec into ETXTBSY (os error 26);
-    /// a rename would not help, because it keeps the same inode.
-    #[expect(
-        clippy::unwrap_used,
-        reason = "test-only helper; a failure fails the test"
-    )]
-    pub(crate) fn write(path: &Path, contents: &str) {
-        let status = std::process::Command::new("/bin/sh")
-            .arg("-c")
-            .arg("printf '%s' \"$1\" > \"$2\" && chmod 755 \"$2\"")
-            .arg("sh")
-            .arg(contents)
-            .arg(path)
-            .status()
-            .unwrap();
-        assert!(status.success(), "cannot write {}", path.display());
-    }
-}
-
-#[doc(inline)]
-pub use announce::{AlertCause, OUTAGE_CAUSE};
-#[doc(inline)]
-pub use atm::{AtmSender, InvalidTimeout, SEND_TIMEOUT, SENDER_IDENTITY, SENDER_TEAM};
 #[doc(inline)]
 pub use compose::{
     ComposeError, Composed, RealCache, compose, compose_with, compose_with_config,
     compose_with_config_and_backend,
 };
 #[doc(inline)]
-pub use control::StopFlag;
+pub use control::{Budget, StopFlag};
 #[doc(inline)]
-pub use job::{
-    CacheLost, JobCacheError, STOP_CHECK_BUDGET, ScheduleError, SyncJob, TICK_EXPR, TickRun,
-    schedule_spec,
+pub use cron::{
+    CronStopped, DEFAULT_SHUTDOWN_TIMEOUT, MAX_SHUTDOWN_TIMEOUT, cron_run, cron_run_once,
 };
 #[doc(inline)]
-pub use phases::{
-    ConfigRefusal, DEFAULT_PHASES_DIR, InvalidMember, MAX_PHASE_FILE_BYTES, MAX_PHASE_FILES,
-    MAX_PHASES_DIR_ENTRIES, MemberName, Phase, PhaseFileProblem, PhaseSet, PhasesError,
-    TickSettings, load_phases, rooted_phases_dir,
+pub use history::RowHistory;
+#[doc(inline)]
+pub use hook::{
+    DrainSummary, HOOK_BACKOFF_CAP, HOOK_BACKOFF_FROM, HookSuccess, MAX_ESCALATIONS_OFFERED,
+    MAX_HOOK_PIPE_BYTES, MAX_HOOK_REQUEST_BYTES, RUN_PROTOCOL, ScopeError, ScopeOutcome,
+    ScopeResult, next_attempt,
 };
 #[doc(inline)]
-pub use reply::{Announcement, AnnouncementKind, Refusal, RefusalCode, TickOutcome, TickReply};
+pub use job::{BuiltinSyncJob, SyncContext, join_idle, sync_resolver};
 #[doc(inline)]
-pub use tick::{TICK_BUDGET, stop_reason, stop_reason_with, tick, tick_with};
+pub use lease::{LEASE_MARGIN, LeaseTaken, TickLease, new_run_id};
+#[doc(inline)]
+pub use payload::{
+    BUILTIN_ROW, BuiltinPayload, DEFAULT_PYTHON_TIMEOUT_MS, EnvNames, IMPORT_CHECK_TIMEOUT,
+    MAX_ENV_NAMES, MAX_PYTHON_TIMEOUT_MS, MIN_PYTHON_TIMEOUT_MS, PYTHON_ROW, PostSyncHook,
+    PythonPayload, SyncPayload, TrustedInterpreter,
+};
+#[doc(inline)]
+pub use python_job::{PythonRun, PythonSyncJob};
+#[doc(inline)]
+pub use run::{
+    BuiltinReply, HookReport, HookStep, RunContext, RunStatus, SharedCache, run_builtin,
+};
+#[doc(inline)]
+pub use schedule::{
+    Rows, ScheduleSet, SyncError, SyncMode, UsePython, check_schedule_set, row_period,
+    schedule_clear, schedule_enable, schedule_set, schedule_show, sync_use_builtin,
+    sync_use_python, tick,
+};
+#[doc(inline)]
+pub use text::MAX_KEPT_STDERR_BYTES;
+#[doc(inline)]
+pub use trust::{TrustedCacheFile, Untrusted};
