@@ -93,7 +93,14 @@ async fn the_not_restored_warning_names_the_row_and_the_run() {
     let run = schedules.use_python(&request, StopFlag::new());
     // Another command ends the Python row while the immediate run is in flight.
     let interfere = async {
-        while stub.count("tick") == 0 {
+        // The script rewrites its counter, so a read can see it empty: wait
+        // for a whole number (a causal gate on the script having started).
+        let counter = stub.dir.path().join("tick.count");
+        while std::fs::read_to_string(&counter)
+            .ok()
+            .and_then(|t| t.trim().parse::<usize>().ok())
+            .is_none()
+        {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
         let python = repo

@@ -115,7 +115,7 @@ pub use job::SyncFiles;
 #[doc(inline)]
 pub use payload::{BUILTIN_ROW, PYTHON_ROW, SyncRow};
 #[doc(inline)]
-pub use run::{BuiltinReply, HolderView, HookReport, HookStep, RunStatus};
+pub use run::{BuiltinReply, HolderView, HookReport, HookStep, RunStatus, SharedCache};
 #[doc(inline)]
 pub use schedule::{
     HookView, PayloadView, RowView, RowsView, ScheduleClearReply, ScheduleEnableReply, ScheduleSet,
@@ -156,7 +156,7 @@ pub use payload::{
 pub use python_job::{PythonRun, PythonSyncJob};
 #[cfg(feature = "testing")]
 #[doc(hidden)]
-pub use run::{RunContext, SharedCache, run_builtin};
+pub use run::{RunContext, run_builtin};
 #[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use schedule::Rows;
