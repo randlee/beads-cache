@@ -65,7 +65,7 @@ path = "src/bin/fake-bd.rs"
 required-features = ["fake-bd"]
 
 # A stand-in interpreter for the hook and the Python row in real-process
-# tests on every OS (tests/windows.rs); test support, as fake-bd.
+# tests on every OS (tests/tree_kill.rs); test support, as fake-bd.
 [[bin]]
 name = "fake-python"
 path = "src/bin/fake-python.rs"
