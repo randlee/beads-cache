@@ -586,7 +586,7 @@ bd-cache-api's refresh op.
 
 A sync the deadline cut is a failed result the same way (QA RCR-001). Each
 sync's deadline is `timeout_ms` when the request gives one (`--timeout-ms N`,
-milliseconds, 1 to 600000; `0` or more is `BAD_ARGS`) and the per-call cap otherwise. The
+milliseconds, 1 to 600000; `0` or more than 600000 is `BAD_ARGS`) and the per-call cap otherwise. The
 deadline is per scope: it bounds one scope's whole sync and starts again for the next, so
 `refresh scopes` of N scopes takes at most N times it. The default, the per-call cap (30 s),
 bounds the whole sync of one scope, which makes several bd calls (the list, `bd blocked` and
@@ -667,7 +667,7 @@ set) or `null` for a scope with the 0.1 meaning (the label scope of the legacy p
 | `cache scopes ingest` | `{scope, rows: int, stored: int, skipped_newer: int, revision}`. stdin is a rows array or `{"rows": [...], "blocked": [...]}` and nothing else; at most 50 000 rows and 64 MiB, enforced while it is read; the strict row decoder, declared membership, the `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless `--allow-empty`. Any violation is `INGEST_INVALID` with the stored scope untouched. | — |
 | `cache scopes announce` | `{scope, since, notified: bool}`; marks only when `since` equals the current `failing_since`, else `PRECONDITION` (REQ-BDC-0728). `failing_since` is set on the first non-ok result after an ok, kept across consecutive failures, cleared on ok, and opaque. | — |
 | `cache refresh scopes` | takes `scopes`, `timeout_ms`. `{failed: int, results: [{scope, report: {rebuilt, model_current, stored, blocked, deferred, outage}\|null, error: {code, message, kind, retryable, details}\|null}]}`. `error` is an OpError plus its code's `kind` and `retryable` from §4 and the `details` its envelope error would carry (`{}` for none; `timed_out` for `BD_UNAVAILABLE`). A scope that could not reach bd, or whose sync the deadline cut, is a failed result (S75, RCR-001, above). | request order (by scope id when no scope is named) |
-| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms` (1 to 600000; `0` or more is `BAD_ARGS`). Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
+| `cache refresh issues` | `{issues: [row], x_cache: {rows}}`. The error is `BD_UNAVAILABLE` (`timed_out`). Also takes `timeout_ms` (1 to 600000; `0` or more than 600000 is `BAD_ARGS`). Ids that could not reach bd fail the command with `BD_UNAVAILABLE` (S75); there is no per-id result. | request order |
 | `cache flush [--start-gate-ms N] [--deadline-ms M]` | `{busy, applied: [seq], retrying: [seq], escalated: [{seq, bead, op, actor, scope, reason: OpError}], deferred: [seq], deferred_in_flight: [seq], outage}`. N and M default to 25,000 and 28,000 ms, and M must be greater than N. A detached `bdc cache flush` (one a hook starts and does not wait for) must send its stdout and stderr to a log of the caller's, or its result and errors are lost. | seq, ascending |
 | `cache evict` | `{scope, beads_deleted: int, out_of_scope_swept: int}` | — |
 | `journal get` | `{entry: Entry}` | — |

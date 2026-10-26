@@ -166,7 +166,7 @@ Phase-end fixes to the 0.1.0 code described below.
   sync rows that cannot be read are `degraded` with `sync_state_unreadable`, not a failed health.
   The oldest pending age is read from the store's bounded summary, never the whole backlog.
 - **`cache refresh scopes --timeout-ms N`** (NFR-BDC-0004): each scope's sync deadline, 1 to
-  600000 ms (`0` or more is `BAD_ARGS`, as for `cache refresh issues --timeout-ms`); every bd
+  600000 ms (`0` or more than 600000 is `BAD_ARGS`, as for `cache refresh issues --timeout-ms`); every bd
   call is killed at its timeout capped by the time left.
 - **Scope selection**: a 0.2 `issues list` or `ready` names its scope with `scope` only; no
   scope is derived from a legacy-prefixed label (ADR-BDC-0013, contract §5.1).

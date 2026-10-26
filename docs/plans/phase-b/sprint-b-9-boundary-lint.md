@@ -44,6 +44,8 @@ requirements:
     - "REQ-API-0001..0008 (health, scope selection: REQ-API-0004 as amended, the refresh timeouts, the typed reply members), REQ-CLI-0001..0012 (health through bd_cache_sync::execute_api; tests)"
     - "REQ-PY-0001..0014"
     - "REQ-STORE-0005 (evidence), REQ-MODEL-0003, REQ-MODEL-0004 (the port's last_applied_at, the contract suite, FakeStore)"
+    - "REQ-STORE-0004 (SqliteStore::last_applied_at under the store's rules: one read snapshot)"
+    - "REQ-BDC-0912 (bounded fresh ready: the typed read_fallback cause)"
 adrs:
   - "ADR-BDC-0001..0004 (the contract's and the research docs' subjects)"
   - ADR-BDC-0005
@@ -58,7 +60,9 @@ adrs:
   - "ADR-BDC-0015 (and its Amendment 1, sprint b-9)"
   - "ADR-BDC-0012 Amendment 2 (sprint b-9)"
   - "ADR-SYNC-0008 (deliverable 4; health's sync facts)"
-  - "ADR-MODEL-0003, ADR-CORE-0203, ADR-CORE-0204 (scope rules, the bounded fresh ready, the v3 phase column)"
+  - "ADR-MODEL-0001..0004 (ADR-MODEL-0003: scope rules, the v3 phase column)"
+  - "ADR-CORE-0001, 0002, 0101..0103, 0201..0206 (ADR-CORE-0203 and its sprint b-9 amendment: the bounded fresh ready's typed cause; ADR-CORE-0204: read shapes)"
+  - "ADR-SYNC-0001, 0002, 0006, 0008 (bd-cache-sync's health facts; 0003..0005 and 0007 are Superseded)"
   - "ADR-STORE-0001..0006 (ADR-STORE-0006 Amendment 2, sprint b-9)"
   - "ADR-BEADS-0001..0004"
   - "ADR-BDCLI-0001..0006"
@@ -217,6 +221,8 @@ change no decision; each points at the amendment that supersedes the sentence it
   call, superseded by the implementation notes), 637-639 (the `bd-cache-cli` → `sc-cron` edge,
   superseded by "One surface"), 641-642 (the signal handling, superseded by "Shutdown") and
   669-671 (the root `Cargo.toml` entries, superseded by B8Q1-036).
+- ADR-PY-0001 (`docs/bd-cache-py/architecture.md`): lines 67-69 (the "only static" sentence,
+  superseded by the QA-1 amendment of ADR-PY-0006).
 - ADR-PY-0002 (`docs/bd-cache-py/architecture.md`): lines 90-91 (the Mapping table removed by
   ADR-PY-0006); and this round's line 105 (the `config` kind, amended below it).
 - ADR-PY-0004 (`docs/bd-cache-py/architecture.md`): lines 198-200 (the mapping test, call log
