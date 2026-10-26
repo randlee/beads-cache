@@ -846,13 +846,13 @@ raises `TypeError`.
 |---|---|
 | `envelope.version` | The sc-command envelope format (`"1"`), not this contract's version. |
 | `contract_version` | Semver, reported by `context`, `cache status` and `--version`. |
-| Pre-stable | Until 1.0.0 the contract is pre-stable (Rand, 2026-10-26): a breaking change bumps the minor (0.2 → 0.3) and an additive one the patch, as Cargo reads a 0.y version. 1.0.0 follows a successful test with a real consumer; from then on the major and minor rules below apply. |
-| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 0.2.x: the wheel's minor is the contract's minor. A breaking contract change is a wheel release marked breaking, and needs its consumers' agreement. |
+| Pre-stable | Until 1.0.0 the contract is pre-stable (Rand, 2026-10-26). 1.0.0 follows a successful test with a real consumer. Each class below says which part of the version it bumps before and from 1.0.0, as Cargo reads a 0.y version. |
+| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. The wheel bumps the same version part as the contract: wheel 0.2.x implements contract 0.2.x now, and from 1.0.0 the wheel's major and minor follow the contract's. A breaking contract change is a wheel release marked breaking, and needs its consumers' agreement. |
 | **Covered** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
 | **Not covered** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
-| Breaking (major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
-| Additive (minor) | A new command or flag; an optional request member; a new `data` member; a new code (clients must handle codes they do not know); a `/v0` operation newly offered after a beads release. |
-| Pin | Follows beads v1.3.2. Moving the pin is minor if the change is additive, and major otherwise. |
+| Breaking (pre-stable: minor, 0.2 → 0.3; from 1.0.0: major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
+| Additive (pre-stable: patch; from 1.0.0: minor) | A new command or flag; an optional request member; a new `data` member; a new code (clients must handle codes they do not know); a `/v0` operation newly offered after a beads release. |
+| Pin | Follows beads v1.3.2. Moving the pin is an additive change if bd's change is additive (pre-stable: patch; from 1.0.0: minor), and a breaking one otherwise (pre-stable: minor; from 1.0.0: major). |
 
 **The phase-B extension, classified (REQ-BDC-0811).** Checked on 2026-10-26: no stable release
 exists. The only GitHub release is the prerelease `prerelease/v0.1.0`, built from `develop` at

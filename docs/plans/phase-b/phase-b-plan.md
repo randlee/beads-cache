@@ -37,8 +37,8 @@ the lead, who changes the contract. Sprints never decide it locally.
   on sc-command (contract §2, §3, §8).
 - Python wheel 0.2.0, which adds `cache.beads.*` and `cache.manage.*` and
   leaves 0.1 unchanged (contract §10, §11).
-- Binary releases: GitHub, Homebrew, Scoop and WinGet, plus a prerelease
-  that carries the binaries.
+- Binary releases: GitHub, Homebrew, Scoop and WinGet, declared and dry-run verified. The
+  prerelease that carries the binaries is cut later from `develop` or `main` (Rand, 2026-10-26).
 
 ## Prerequisites
 
@@ -47,7 +47,7 @@ the lead, who changes the contract. Sprints never decide it locally.
 | P-1 | Done: contract approved, lead ruling S60 (2026-10-25). Plan against `8115a0a` or later. PR #69 merges to `develop` before `integrate/phase-b` is cut. | every sprint | none: cut `integrate/phase-b` only after #69 merges. |
 | P-2 | Done: ADR-BDC-0009 and the contract's Appendix A amendments (REQ-BDC-0801, 0802, 0803; 0806 superseded), approved under S60 and marked Approved on #69. | — | — |
 | P-3 | sc-publish#133: a crates-only release with no assets completes. Open. | nothing in b-5 directly | b-5 declares binaries, so every GitHub Release has assets and does not take the empty-asset path. b-5 stays on the current pin `16457e0` unless P-4 needs a bump. |
-| P-4 | sc-publish staging bug: real releases upload the consumer's `release/` config as release assets. No issue filed yet; b-5 files it on randlee/sc-publish. | the first stable `release.yml` run with binaries (an immutable release cannot be corrected) | b-5 closes on the prerelease (`prerelease-archive.yml`) plus a clean `install.py --dry-run` and `validate-manifest` with the channels declared. The first stable release and its channel dispatches wait for a kit pin that contains the fix. |
+| P-4 | sc-publish staging bug: real releases upload the consumer's `release/` config as release assets. No issue filed yet; b-5 files it on randlee/sc-publish. | the first stable `release.yml` run with binaries (an immutable release cannot be corrected) | b-5 closes on a clean `install.py --dry-run` and `validate-manifest` with the channels declared; the prerelease (`prerelease-archive.yml`) is cut later from `develop` or `main` (Rand, 2026-10-26). The first stable release and its channel dispatches wait for a kit pin that contains the fix. |
 | P-5 | sc-runtime request (non-blocking, contract §2 and Q7): an sc-config file source with an explicit path, where a missing file is allowed. | nothing | bdc applies the `BD_CACHE__*` env overrides itself (contract §2). |
 | P-6 | External channel setup, by Rand: enable immutable releases on randlee/beads-cache; add repository secrets `HOMEBREW_TAP_TOKEN` (randlee/homebrew-tap, the tap the first consumer already uses), `SCOOP_BUCKET_TOKEN` (randlee/scoop-bucket) and `WINGET_GITHUB_TOKEN` (classic token with `public_repo`, from the owner of the winget-pkgs fork); fork microsoft/winget-pkgs and get the first version of the WinGet package merged by hand (`wingetcreate new`). | b-5's channel dispatches | b-5 declares the channels and proves them with the dry run; a channel whose setup is missing is dispatched later by tag, with no code change. |
 | P-7 | sc-command at sc-runtime tag `v0.1.0` (`ae3e10b`) builds on all three CI OSes. | b-3a | b-3a checks this first. On a failure, pin by `rev` and raise the issue with the sc-runtime team; no local fork. |
@@ -197,6 +197,8 @@ delivery of b-1..b-6 and are recorded in the requirements and ADRs they amend.
   contract is pre-stable until then (contract §11).
 - Ruled (Rand, 2026-10-26): phase B closes without the prerelease that carries `bd-cache` and
   `bdc` (REQ-BDC-0813, b-5 deliverable 4); the binaries are cut later from `develop` or `main`.
+  b-5 deliverable 4 and acceptance criterion 3 are deferred by this ruling; b-5's complete status
+  rests on its dry-run legs. REQ-BDC-0813 stays with b-5 as its owner.
 - This PR deleted `docs/plans/phase-a/evidence/a-7-planted-bugs.{json,py}` and
   the baseline design document (`docs/baseline/`) in applying A8's no-consumer-wording ruling; both stay in git
   history. Awaiting Rand's confirmation; neither is restored unless he says so.
