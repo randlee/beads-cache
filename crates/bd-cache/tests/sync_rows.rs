@@ -15,7 +15,7 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, ReadyBasis, ScopeId, SyncCause};
+use bd_cache_model::{CacheError, CacheStore, LEGACY_SCOPE_PREFIX, ReadyBasis, ScopeId, SyncCause};
 use common::{TestCache, World, id, new_entry, ts, x};
 use sc_beads::testing::{FakeCall, FakeOp, Injection};
 use sc_beads::{CheckStep, Clock, DepType};
@@ -154,9 +154,16 @@ fn test_sync_records_an_outage_and_a_passing_sync_clears_it() {
     let outage = r.outage.clone().expect("the outage is reported");
     assert_eq!(outage.since, since.clone());
     assert_eq!(store(&c).outage().unwrap(), Some(outage.clone()));
+    // The outage is the scope's result (REQ-BDC-0729): its error, not a
+    // SYNC_FAILED, and the failure state (REQ-BDC-0728).
     let st = store(&c).sync_state(&x()).unwrap();
-    assert_eq!(st.last_error, None, "an outage records no SYNC_FAILED");
+    let recorded = st.last_error.clone().unwrap_or_default();
+    assert!(
+        recorded.starts_with("BD_CACHE.BD_UNAVAILABLE"),
+        "an outage records the outage's error, not SYNC_FAILED: {recorded}"
+    );
     assert_eq!(st.last_ok_at, None);
+    let failing = st.failing_since.clone().expect("failing_since is set");
     assert!(!r.deferred);
 
     // Only the check answers: the outage holds and keeps its start.
@@ -167,9 +174,20 @@ fn test_sync_records_an_outage_and_a_passing_sync_clears_it() {
     );
     let r = c.sync(&x(), w.after(T30)).unwrap();
     assert_eq!(r.outage.map(|o| o.since), Some(since.clone()));
+    assert_eq!(
+        store(&c).sync_state(&x()).unwrap().failing_since,
+        Some(failing),
+        "kept across consecutive non-ok results"
+    );
 
     let r = c.sync(&x(), w.after(T30)).unwrap();
     assert_eq!(r.outage, None);
+    let st = store(&c).sync_state(&x()).unwrap();
+    assert_eq!(
+        (st.last_error, st.failing_since),
+        (None, None),
+        "an ok clears both"
+    );
     assert_eq!(
         store(&c).outage().unwrap(),
         None,
@@ -192,7 +210,14 @@ fn an_unreachable_backend_check_is_an_outage_too() {
     );
     let r = c.sync(&x(), w.after(T30)).unwrap();
     assert!(r.outage.is_some());
-    assert_eq!(store(&c).sync_state(&x()).unwrap().last_error, None);
+    let st = store(&c).sync_state(&x()).unwrap();
+    assert!(
+        st.last_error
+            .as_deref()
+            .is_some_and(|e| e.starts_with("BD_CACHE.BD_UNAVAILABLE")),
+        "{st:?}"
+    );
+    assert!(st.failing_since.is_some());
     assert_eq!(scope_lists(&w), Vec::<Option<String>>::new());
 }
 
@@ -281,19 +306,23 @@ fn a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable(
 #[test]
 fn sync_then_list_of_an_unconfigured_phase_works() {
     let w = World::new();
-    let y = ScopeId::phase("y").unwrap();
+    let y = ScopeId::new("y").unwrap();
     let mut b = sc_beads::testing::bead("y1");
-    b.labels = vec!["phase-y".into()];
+    b.labels = vec![format!("{LEGACY_SCOPE_PREFIX}y")];
     w.bd.insert(b);
     let mut c = w.cache();
     let e = c.list(&y, None, None).unwrap_err();
     assert!(matches!(&e, CacheError::ScopeUnknown { known, .. } if *known == vec![x()]));
-    c.sync(&y, w.after(T30)).unwrap();
+    // The 0.1 path: a bare `y` is the phase-a scope `y` (REQ-BDC-0812).
+    c.sync_legacy(&y, w.after(T30)).unwrap();
     let l = c.list(&y, None, None).unwrap();
     assert_eq!(l.rows.len(), 1);
     assert!(l.last_ok_at.is_some());
     assert!(
-        store(&c).scopes().unwrap().contains(&y),
+        store(&c)
+            .scopes()
+            .unwrap()
+            .contains(&bd_cache_model::Scope::legacy(y.clone())),
         "registered on demand"
     );
     // It survives a new Cache over the same store (on-demand scopes persist).

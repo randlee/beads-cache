@@ -32,7 +32,7 @@ fn deadline(timeout: Duration) -> Deadline {
 fn list(bd: &BdCli, project: &ProjectRef, timeout: Duration) -> Result<Vec<Bead>, BeadsCacheError> {
     bd.list_scope(
         project,
-        &ScopeFilter::Label(LABEL.to_owned()),
+        &ScopeFilter::label(LABEL.to_owned()),
         None,
         deadline(timeout),
     )
@@ -142,7 +142,7 @@ fn version_schema_and_the_blocked_set_come_from_the_scenario() {
         .process_backend()
         .list_blocked(
             &repo.project(),
-            &ScopeFilter::Label(LABEL.to_owned()),
+            &ScopeFilter::label(LABEL.to_owned()),
             deadline(LONG),
         )
         .expect("the blocked set");

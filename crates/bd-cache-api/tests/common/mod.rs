@@ -22,7 +22,7 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_api::{ApiError, CacheFacts, Command, decode, execute};
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, ScopeId};
+use bd_cache_model::{CacheConfig, LEGACY_SCOPE_PREFIX, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Clock, Deadline, DepType, ProjectRef};
 use serde_json::{Map, Value, json};
@@ -71,7 +71,7 @@ impl World {
             clock,
             store: FakeStore::new(),
             lock: FakeDrainLock::new(),
-            scopes: vec![ScopeId::phase("x").unwrap()],
+            scopes: vec![ScopeId::new("x").unwrap()],
         }
     }
 
@@ -80,7 +80,7 @@ impl World {
     pub fn add(&self, id: &str, fields: &Map<String, Value>) {
         let mut row = serde_json::to_value(bead(id)).unwrap();
         let obj = row.as_object_mut().unwrap();
-        obj.insert("labels".into(), json!(["phase-x"]));
+        obj.insert("labels".into(), json!([format!("{LEGACY_SCOPE_PREFIX}x")]));
         for (k, v) in fields {
             obj.insert(k.clone(), v.clone());
         }
@@ -92,7 +92,8 @@ impl World {
     #[must_use]
     pub fn cache(&self) -> TestCache {
         let clock: Arc<dyn Clock> = Arc::clone(&self.clock) as Arc<dyn Clock>;
-        let config = CacheConfig::new(ProjectRef::local(None), self.scopes.clone());
+        let scopes = self.scopes.iter().cloned().map(Scope::legacy).collect();
+        let config = CacheConfig::new(ProjectRef::local(None), scopes);
         Cache::new(
             config,
             self.store.clone(),
@@ -105,10 +106,11 @@ impl World {
 
     /// Syncs a scope into the store.
     pub fn sync(&self, cache: &mut TestCache, scope: &str) {
-        let s = ScopeId::parse(scope).unwrap();
+        // The fixture's beads carry legacy-prefixed labels: phase-a scopes.
+        let s = bd_cache_model::legacy_scope(scope).unwrap();
         let d = Deadline::after(&*self.clock, Duration::from_secs(30));
         cache
-            .sync(&s, d)
+            .sync_legacy(&s, d)
             .unwrap_or_else(|e| panic!("sync {scope}: {e}"));
     }
 }

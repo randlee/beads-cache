@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, ScopeId};
+use bd_cache_model::{CacheConfig, IdemKey, NewEntry, Op, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
 use sc_beads::{Bead, BeadId, Clock, Deadline, DepType, Guards, ProjectRef, Timestamp};
 
@@ -33,10 +33,16 @@ pub const SCHEMA_TEXT: &str =
 /// Where the [`World`] clock starts.
 pub const START: &str = "2026-10-23T10:00:00Z";
 
-/// The `phase-x` scope.
+/// The phase-a scope `x`: the beads labelled `phase-x`.
 #[must_use]
 pub fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap_or_else(|e| panic!("{e}"))
+    ScopeId::new("x").unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// The phase-a scope `x` as the registry holds it (no stored filter).
+#[must_use]
+pub fn sx() -> Scope {
+    Scope::legacy(x())
 }
 
 /// A bead id.
@@ -79,7 +85,7 @@ impl World {
             clock,
             store: FakeStore::new(),
             lock: FakeDrainLock::new(),
-            config: CacheConfig::new(ProjectRef::local(None), vec![x()]),
+            config: CacheConfig::new(ProjectRef::local(None), vec![sx()]),
         }
     }
 
@@ -97,10 +103,11 @@ impl World {
         w
     }
 
-    /// Adds a `phase-x` bead to bd, stamped with the clock's time, then moves the clock 1 s.
+    /// Adds a bead of the phase-a scope `x` to bd (its label built from
+    /// `LEGACY_SCOPE_PREFIX`), stamped with the clock's time, then moves the clock 1 s.
     pub fn add(&self, name: &str, f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
-        b.labels = vec!["phase-x".into()];
+        b.labels = vec![bd_cache_model::legacy_label(&x())];
         b.updated_at = self.clock.now_utc().into();
         f(&mut b);
         self.bd.insert(b.clone());

@@ -18,8 +18,8 @@ pub(crate) fn list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     status: Option<&str>,
     label: Option<&str>,
 ) -> Result<ListReply, CacheError> {
-    require_known(cache, s)?;
-    let adj = adjusted(cache, s)?;
+    let scope = require_known(cache, s)?;
+    let adj = adjusted(cache, &scope)?;
     let mut rows = Vec::new();
     for (row, freshness) in cache.store.rows_in_scope(s)? {
         let view = replay(&row, &cache.store.pending_for(&row.id)?);
@@ -29,7 +29,7 @@ pub(crate) fn list<S: CacheStore, L: DrainLock, B: CacheBackend>(
         if label.is_some_and(|want| !view.has_label(want)) {
             continue;
         }
-        rows.push(row_view(view, freshness, adj.as_ref()));
+        rows.push(row_view(Some(&row), view, freshness, adj.as_ref()));
     }
     Ok(ListReply {
         scope: s.clone(),

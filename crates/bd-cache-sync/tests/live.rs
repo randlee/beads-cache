@@ -190,7 +190,7 @@ impl Live {
     }
 
     fn scope(&self) -> ScopeId {
-        ScopeId::phase(&self.phase).unwrap()
+        ScopeId::new(&self.phase).unwrap()
     }
 }
 

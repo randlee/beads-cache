@@ -64,7 +64,10 @@ fn parse_contract() -> (BTreeMap<String, Row>, String) {
             panic!("short row {cells:?}");
         };
         let codes = ticked(code);
-        if codes.iter().any(|c| c.starts_with("TICK_")) {
+        // The `TICK_<REFUSAL>` family is matched by that literal code, not by
+        // the `TICK_` prefix: `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` are rows
+        // (REQ-BDC-0729). Sprint b-8 removes this row and its expectation.
+        if codes.iter().any(|c| c == "TICK_<REFUSAL>") {
             tick = Some(kind.clone());
             continue;
         }
@@ -268,14 +271,14 @@ fn reason_unmet_and_phase_map_to_details() {
 
     let e = ApiError::from(CacheError::SyncFailed {
         detail: "d".into(),
-        scope: ScopeId::phase("bk").ok(),
+        scope: ScopeId::new("bk").ok(),
         cause: Some(SyncCause::BdListFailed),
         source: None,
     });
     assert_eq!(
         e.details()["scope"],
-        "phase-bk",
-        "phase becomes scope, in label form"
+        "bk",
+        "phase becomes scope, by its name as written (ADR-BDC-0013)"
     );
     assert!(e.details().get("phase").is_none());
     assert_eq!(e.details()["cause"], "BD_CACHE.BD_LIST_FAILED");
@@ -283,9 +286,9 @@ fn reason_unmet_and_phase_map_to_details() {
 
     let e = ApiError::from(CacheError::ScopeUnknown {
         detail: "d".into(),
-        known: vec![ScopeId::phase("a").unwrap()],
+        known: vec![ScopeId::new("a").unwrap()],
     });
-    assert_eq!(e.details()["known"], json!(["phase-a"]));
+    assert_eq!(e.details()["known"], json!(["a"]));
 }
 
 #[test]

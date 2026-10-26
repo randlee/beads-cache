@@ -29,11 +29,16 @@ use sc_beads::testing::{edge, id};
 use sc_beads::{Bead, BlockedRow, DepType, Fingerprint, Guards, Sha256Hex, Timestamp};
 
 use super::{FakeDrainLock, FakeStore};
+use crate::compat::legacy_label;
 use crate::error::CacheError;
+use crate::ingest::IngestSnapshot;
 use crate::journal::{IdemKey, JournalState, NewEntry, Seq};
 use crate::op::{Op, normalize};
-use crate::scope::ScopeId;
-use crate::state::{FingerprintOutcome, Freshness, Outage, SyncState};
+use crate::scope::{FilterParts, MAX_REGISTERED_SCOPES, Scope, ScopeFilter, ScopeId};
+use crate::state::{
+    FailingSince, FingerprintOutcome, Freshness, LeaseHolder, LeaseTake, MAX_HOOK_ERROR_BYTES,
+    Outage, RunId, SyncOutcome, SyncState,
+};
 use crate::store::{CacheStore, DrainLock};
 
 /// Opens the store under test.
@@ -87,9 +92,39 @@ fn y() -> ScopeId {
     scope("y")
 }
 
+/// The label of the phase-a scope `x`: the legacy prefix followed by `x`
+/// (built from [`LEGACY_SCOPE_PREFIX`](crate::LEGACY_SCOPE_PREFIX), ADR-BDC-0012).
+fn px() -> String {
+    legacy_label(&x())
+}
+
+/// The label of the phase-a scope `y`.
+fn py() -> String {
+    legacy_label(&y())
+}
+
+/// The phase-a scope `x`: the label [`px`].
+fn sx() -> Scope {
+    Scope::legacy(x())
+}
+
+/// The phase-a scope `y`: the label [`py`].
+fn sy() -> Scope {
+    Scope::legacy(y())
+}
+
 #[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
 fn scope(name: &str) -> ScopeId {
-    ScopeId::phase(name).unwrap_or_else(|e| panic!("{e}"))
+    ScopeId::new(name).unwrap_or_else(|e| panic!("{e}"))
+}
+
+/// A filter scope from its parts.
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn filtered(name: &str, parts: FilterParts) -> Scope {
+    Scope::new(
+        scope(name),
+        ScopeFilter::from_parts(parts).unwrap_or_else(|e| panic!("{e}")),
+    )
 }
 
 #[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
@@ -166,7 +201,7 @@ fn fingerprint(digit: char) -> Fingerprint {
 /// `get_row(upsert(b)) == normalize(b)`: counts absent, edges rebuilt (sorted, outgoing only).
 pub fn round_trip_is_normalize(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let mut b = row("b1", &["phase-x", "r1"], T0);
+    let mut b = row("b1", &[&px(), "r1"], T0);
     b.dependency_count = Some(2);
     b.dependent_count = Some(0);
     b.comment_count = Some(0);
@@ -176,7 +211,7 @@ pub fn round_trip_is_normalize(fx: &mut impl StoreFixture) {
         edge("b1", "a1", DepType::Blocks),
     ];
     ok(
-        s.upsert_rows(Some(&x()), std::slice::from_ref(&b), false),
+        s.upsert_rows(Some(&sx()), std::slice::from_ref(&b), false),
         "upsert",
     );
     let (got, fresh) = get(&s, "b1").unwrap_or_default_pair();
@@ -189,7 +224,7 @@ pub fn round_trip_is_normalize(fx: &mut impl StoreFixture) {
 /// Upsert replaces a bead's outgoing edges; the edges index follows.
 pub fn upsert_replaces_outgoing_edges(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let mut b = row("b1", &["phase-x"], T0);
+    let mut b = row("b1", &[&px()], T0);
     b.dependencies = vec![
         edge("b1", "a1", DepType::Blocks),
         edge("b1", "a2", DepType::Blocks),
@@ -215,9 +250,9 @@ pub fn upsert_replaces_outgoing_edges(fx: &mut impl StoreFixture) {
 /// Any successful store clears `stale`.
 pub fn a_store_clears_stale(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let b = row("b1", &["phase-x"], T0);
+    let b = row("b1", &[&px()], T0);
     ok(
-        s.upsert_rows(Some(&x()), std::slice::from_ref(&b), false),
+        s.upsert_rows(Some(&sx()), std::slice::from_ref(&b), false),
         "upsert",
     );
     for force in [false, true] {
@@ -232,7 +267,7 @@ pub fn a_store_clears_stale(fx: &mut impl StoreFixture) {
         assert_eq!(get(&s, "b1").unwrap_or_default_pair().1, Freshness::Stale);
         assert_eq!(ok(s.stale_rows(), "stale_rows"), vec![id("b1")]);
         ok(
-            s.upsert_rows(Some(&x()), std::slice::from_ref(&b), force),
+            s.upsert_rows(Some(&sx()), std::slice::from_ref(&b), force),
             "upsert again",
         );
         assert_eq!(
@@ -261,7 +296,7 @@ pub fn a_store_clears_stale(fx: &mut impl StoreFixture) {
 pub fn membership_follows_labels_on_scoped_upserts_only(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     ok(
-        s.upsert_rows(Some(&x()), &[row("b1", &["phase-x"], T0)], false),
+        s.upsert_rows(Some(&sx()), &[row("b1", &[&px()], T0)], false),
         "scoped",
     );
     assert_eq!(ids_in(&s, &x()), ["b1"]);
@@ -271,7 +306,7 @@ pub fn membership_follows_labels_on_scoped_upserts_only(fx: &mut impl StoreFixtu
     );
     assert_eq!(ids_in(&s, &x()), ["b1"], "None never changes membership");
     ok(
-        s.upsert_rows(Some(&x()), &[row("b1", &["other"], T2)], false),
+        s.upsert_rows(Some(&sx()), &[row("b1", &["other"], T2)], false),
         "scoped without label",
     );
     assert!(
@@ -279,7 +314,7 @@ pub fn membership_follows_labels_on_scoped_upserts_only(fx: &mut impl StoreFixtu
         "scoped upsert without the label removes membership"
     );
     ok(
-        s.upsert_rows(None, &[row("o1", &["phase-x"], T0)], false),
+        s.upsert_rows(None, &[row("o1", &[&px()], T0)], false),
         "new out-of-scope row",
     );
     assert!(
@@ -288,11 +323,11 @@ pub fn membership_follows_labels_on_scoped_upserts_only(fx: &mut impl StoreFixtu
     );
     assert!(get(&s, "o1").is_some());
     ok(
-        s.upsert_rows(Some(&y()), &[row("b2", &["phase-x", "phase-y"], T0)], false),
+        s.upsert_rows(Some(&sy()), &[row("b2", &[&px(), &py()], T0)], false),
         "y",
     );
     ok(
-        s.upsert_rows(Some(&x()), &[row("b2", &["phase-x", "phase-y"], T0)], false),
+        s.upsert_rows(Some(&sx()), &[row("b2", &[&px(), &py()], T0)], false),
         "x",
     );
     assert_eq!(ids_in(&s, &x()), ["b2"]);
@@ -302,12 +337,12 @@ pub fn membership_follows_labels_on_scoped_upserts_only(fx: &mut impl StoreFixtu
 /// Unforced upserts never replace a newer row; forced ones do.
 pub fn newer_rows_are_kept_unless_forced(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let mut newer = row("b1", &["phase-x"], T2);
+    let mut newer = row("b1", &[&px()], T2);
     newer.status = Some("blocked".into());
-    ok(s.upsert_rows(Some(&x()), &[newer], false), "newer");
-    let older = row("b1", &["phase-x"], T1);
+    ok(s.upsert_rows(Some(&sx()), &[newer], false), "newer");
+    let older = row("b1", &[&px()], T1);
     let r = ok(
-        s.upsert_rows(Some(&x()), std::slice::from_ref(&older), false),
+        s.upsert_rows(Some(&sx()), std::slice::from_ref(&older), false),
         "older",
     );
     assert_eq!(r.skipped_newer, vec![id("b1")]);
@@ -316,7 +351,7 @@ pub fn newer_rows_are_kept_unless_forced(fx: &mut impl StoreFixture) {
         get(&s, "b1").unwrap_or_default_pair().0.status.as_deref(),
         Some("blocked")
     );
-    let r = ok(s.upsert_rows(Some(&x()), &[older], true), "forced");
+    let r = ok(s.upsert_rows(Some(&sx()), &[older], true), "forced");
     assert_eq!(r.stored, vec![id("b1")]);
     assert_eq!(
         get(&s, "b1").unwrap_or_default_pair().0.status.as_deref(),
@@ -328,26 +363,26 @@ pub fn newer_rows_are_kept_unless_forced(fx: &mut impl StoreFixture) {
 pub fn newer_row_guard_compares_instants(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     // Stored 10:00:00Z written with a +02:00 offset; as text it sorts after 10:00:01Z.
-    let mut stored = row("b1", &["phase-x"], "2026-10-23T12:00:00+02:00");
+    let mut stored = row("b1", &[&px()], "2026-10-23T12:00:00+02:00");
     stored.status = Some("blocked".into());
-    ok(s.upsert_rows(Some(&x()), &[stored], false), "stored");
-    let later = row("b1", &["phase-x"], "2026-10-23T10:00:01Z");
-    let r = ok(s.upsert_rows(Some(&x()), &[later], false), "later instant");
+    ok(s.upsert_rows(Some(&sx()), &[stored], false), "stored");
+    let later = row("b1", &[&px()], "2026-10-23T10:00:01Z");
+    let r = ok(s.upsert_rows(Some(&sx()), &[later], false), "later instant");
     assert_eq!(
         r.stored,
         vec![id("b1")],
         "a later instant is stored even when its text sorts first"
     );
     // Stored 10:00:01.9Z; incoming 09:00:01-01:00 is the same second: not older, stored.
-    let mut frac = row("b2", &["phase-x"], "2026-10-23T10:00:01.9Z");
+    let mut frac = row("b2", &[&px()], "2026-10-23T10:00:01.9Z");
     frac.status = Some("blocked".into());
-    ok(s.upsert_rows(Some(&x()), &[frac], false), "fractional");
-    let same = row("b2", &["phase-x"], "2026-10-23T09:00:01-01:00");
-    let r = ok(s.upsert_rows(Some(&x()), &[same], false), "same second");
+    ok(s.upsert_rows(Some(&sx()), &[frac], false), "fractional");
+    let same = row("b2", &[&px()], "2026-10-23T09:00:01-01:00");
+    let r = ok(s.upsert_rows(Some(&sx()), &[same], false), "same second");
     assert_eq!(r.stored, vec![id("b2")]);
-    let earlier = row("b2", &["phase-x"], "2026-10-23T11:00:00+01:01");
+    let earlier = row("b2", &[&px()], "2026-10-23T11:00:00+01:01");
     let r = ok(
-        s.upsert_rows(Some(&x()), &[earlier], false),
+        s.upsert_rows(Some(&sx()), &[earlier], false),
         "earlier instant",
     );
     assert_eq!(
@@ -356,14 +391,14 @@ pub fn newer_row_guard_compares_instants(fx: &mut impl StoreFixture) {
         "09:59:00Z is older than the stored 10:00:01Z"
     );
     // A stored updated_at that does not parse is never newer: the incoming row is stored.
-    let mut odd = row("b3", &["phase-x"], T2);
+    let mut odd = row("b3", &[&px()], T2);
     odd.updated_at = "not-a-time".into();
     ok(
-        s.upsert_rows(Some(&x()), &[odd], false),
+        s.upsert_rows(Some(&sx()), &[odd], false),
         "unparseable stored",
     );
     let r = ok(
-        s.upsert_rows(Some(&x()), &[row("b3", &["phase-x"], T0)], false),
+        s.upsert_rows(Some(&sx()), &[row("b3", &[&px()], T0)], false),
         "after unparseable",
     );
     assert_eq!(
@@ -373,13 +408,13 @@ pub fn newer_row_guard_compares_instants(fx: &mut impl StoreFixture) {
     );
     // An incoming updated_at that does not parse: the stored row is not newer, so it is stored.
     ok(
-        s.upsert_rows(Some(&x()), &[row("b4", &["phase-x"], T2)], false),
+        s.upsert_rows(Some(&sx()), &[row("b4", &[&px()], T2)], false),
         "valid stored",
     );
-    let mut odd_in = row("b4", &["phase-x"], T0);
+    let mut odd_in = row("b4", &[&px()], T0);
     odd_in.updated_at = "not-a-time".into();
     let r = ok(
-        s.upsert_rows(Some(&x()), &[odd_in], false),
+        s.upsert_rows(Some(&sx()), &[odd_in], false),
         "unparseable incoming",
     );
     assert_eq!(
@@ -394,8 +429,8 @@ pub fn status_changes_are_reported(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     let r = ok(
         s.upsert_rows(
-            Some(&x()),
-            &[row("b1", &["phase-x"], T0), row("b2", &["phase-x"], T0)],
+            Some(&sx()),
+            &[row("b1", &[&px()], T0), row("b2", &[&px()], T0)],
             false,
         ),
         "new",
@@ -404,15 +439,15 @@ pub fn status_changes_are_reported(fx: &mut impl StoreFixture) {
         r.status_changed.is_empty(),
         "new rows are not status changes"
     );
-    let mut closed = row("b1", &["phase-x"], T1);
+    let mut closed = row("b1", &[&px()], T1);
     closed.status = Some("closed".into());
     let r = ok(
-        s.upsert_rows(Some(&x()), &[closed, row("b2", &["phase-x"], T1)], false),
+        s.upsert_rows(Some(&sx()), &[closed, row("b2", &[&px()], T1)], false),
         "unforced",
     );
     assert_eq!(r.status_changed, vec![id("b1")]);
     let r = ok(
-        s.upsert_rows(None, &[row("b1", &["phase-x"], T0)], true),
+        s.upsert_rows(None, &[row("b1", &[&px()], T0)], true),
         "forced reopen",
     );
     assert_eq!(r.status_changed, vec![id("b1")]);
@@ -422,7 +457,7 @@ pub fn status_changes_are_reported(fx: &mut impl StoreFixture) {
 pub fn apply_with_readback_marks_applied(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
     ok(
-        s.upsert_rows(Some(&x()), &[row("b1", &["phase-x"], T0)], false),
+        s.upsert_rows(Some(&sx()), &[row("b1", &[&px()], T0)], false),
         "upsert",
     );
     let a = ok(
@@ -442,7 +477,7 @@ pub fn apply_with_readback_marks_applied(fx: &mut impl StoreFixture) {
     assert_eq!(ea.last_error.as_deref(), Some("read-back failed"));
     assert_eq!(ea.applied_at.as_ref().map(Timestamp::as_str), Some(T1));
     assert_eq!(get(&s, "b1").unwrap_or_default_pair().1, Freshness::Stale);
-    let mut fresh = row("b1", &["phase-x"], T2);
+    let mut fresh = row("b1", &[&px()], T2);
     fresh.status = Some("closed".into());
     ok(
         s.apply_with_readback(b, Some(&fresh), None, &ts(T2)),
@@ -469,10 +504,10 @@ pub fn apply_with_readback_marks_applied(fx: &mut impl StoreFixture) {
 /// rebuilds (rows, edges, memberships, sync state, ready bases gone) and keeps the journal.
 pub fn fingerprint_rebuild_rule(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "ensure");
-    let mut b = row("b1", &["phase-x"], T0);
+    ok(s.ensure_scope(&sx()), "ensure");
+    let mut b = row("b1", &[&px()], T0);
     b.dependencies = vec![edge("b1", "a1", DepType::Blocks)];
-    ok(s.upsert_rows(Some(&x()), &[b], false), "upsert");
+    ok(s.upsert_rows(Some(&sx()), &[b], false), "upsert");
     let seq = ok(
         s.insert_entry(entry("k1", "b1", Some(x())), &ts(T0)),
         "insert",
@@ -516,7 +551,7 @@ pub fn fingerprint_rebuild_rule(fx: &mut impl StoreFixture) {
     );
     assert_eq!(ok(s.pending_entries(), "pending").len(), 1, "journal kept");
     assert!(ok(s.entry_by_seq(seq), "entry").is_some());
-    assert_eq!(ok(s.scopes(), "scopes"), vec![x()], "scope registry kept");
+    assert_eq!(ok(s.scopes(), "scopes"), vec![sx()], "scope registry kept");
     assert_eq!(
         ok(s.record_fingerprint(&fingerprint('b')), "after"),
         FingerprintOutcome::Unchanged
@@ -526,19 +561,19 @@ pub fn fingerprint_rebuild_rule(fx: &mut impl StoreFixture) {
 /// `ensure_scope` persists: configured and on-demand scopes survive a restart.
 pub fn scopes_persist_across_restarts(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "configured");
-    ok(s.ensure_scope(&y()), "on demand");
-    ok(s.ensure_scope(&x()), "idempotent");
+    ok(s.ensure_scope(&sx()), "configured");
+    ok(s.ensure_scope(&sy()), "on demand");
+    ok(s.ensure_scope(&sx()), "idempotent");
     let s = fx.reopen(s);
     let mut got = ok(s.scopes(), "scopes");
     got.sort();
-    assert_eq!(got, vec![x(), y()]);
+    assert_eq!(got, vec![sx(), sy()]);
 }
 
 /// Ready base: `None` until stored; replace is whole and clears stale; stale marks; prune deletes it.
 pub fn ready_base_rules(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "ensure");
+    ok(s.ensure_scope(&sx()), "ensure");
     assert!(ok(s.ready_base(&x()), "none").is_none());
     ok(s.mark_ready_base_stale(&x()), "stale on missing is a no-op");
     assert!(ok(s.ready_base(&x()), "still none").is_none());
@@ -587,7 +622,7 @@ pub fn ready_base_rules(fx: &mut impl StoreFixture) {
 pub fn base_entry_rules(fx: &mut impl StoreFixture) {
     use crate::state::BaseEntry;
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "ensure");
+    ok(s.ensure_scope(&sx()), "ensure");
     assert!(ok(s.base_entry(&x(), &id("b2")), "none").is_none());
     let blocked = [
         BlockedRow {
@@ -929,6 +964,8 @@ pub fn sync_state_alerts_and_outage_round_trip(fx: &mut impl StoreFixture) {
         last_started_at: Some(ts(T1)),
         last_ok_at: Some(ts(T0)),
         last_error: Some("BD_CACHE.BD_LIST_FAILED: boom".into()),
+        failing_since: Some(FailingSince::at(&ts(T1))),
+        notified_since: None,
     };
     ok(s.record_sync(&st), "record");
     assert_eq!(ok(s.sync_state(&x()), "read"), st);
@@ -1029,24 +1066,20 @@ pub fn bounded_marker_writes_match_the_unbounded_forms(fx: &mut impl StoreFixtur
 /// with no open entry; deletes the scope's journal and sync state.
 pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "x");
+    ok(s.ensure_scope(&sx()), "x");
     ok(
         s.upsert_rows(
-            Some(&x()),
+            Some(&sx()),
             &[
-                row("only-x", &["phase-x"], T0),
-                row("both", &["phase-x", "phase-y"], T0),
+                row("only-x", &[&px()], T0),
+                row("both", &[&px(), &py()], T0),
             ],
             false,
         ),
         "x rows",
     );
     ok(
-        s.upsert_rows(
-            Some(&y()),
-            &[row("both", &["phase-x", "phase-y"], T0)],
-            false,
-        ),
+        s.upsert_rows(Some(&sy()), &[row("both", &[&px(), &py()], T0)], false),
         "y rows",
     );
     ok(
@@ -1107,7 +1140,7 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
     );
     assert_eq!(ok(s.sync_state(&x()), "sync"), SyncState::new(x()));
     assert!(
-        ok(s.scopes(), "scopes").contains(&x()),
+        ok(s.scopes(), "scopes").contains(&sx()),
         "the scope stays registered"
     );
 }
@@ -1116,9 +1149,9 @@ pub fn prune_scope_rules(fx: &mut impl StoreFixture) {
 /// the row is re-read (stored again) (a-1 amendment 1, REQ-BDC-0603).
 pub fn status_lists_stale_rows_until_reread(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    let b = row("b1", &["phase-x"], T0);
+    let b = row("b1", &[&px()], T0);
     ok(
-        s.upsert_rows(Some(&x()), &[b.clone(), row("b2", &["phase-x"], T0)], false),
+        s.upsert_rows(Some(&sx()), &[b.clone(), row("b2", &[&px()], T0)], false),
         "rows",
     );
     assert!(ok(s.status(), "status").stale.is_empty());
@@ -1137,7 +1170,7 @@ pub fn status_lists_stale_rows_until_reread(fx: &mut impl StoreFixture) {
         ok(s.stale_rows(), "stale_rows"),
         "same set as stale_rows"
     );
-    ok(s.upsert_rows(Some(&x()), &[b], false), "re-read");
+    ok(s.upsert_rows(Some(&sx()), &[b], false), "re-read");
     assert!(
         ok(s.status(), "status").stale.is_empty(),
         "a re-read clears it"
@@ -1147,11 +1180,11 @@ pub fn status_lists_stale_rows_until_reread(fx: &mut impl StoreFixture) {
 /// Status: journal counts per `phase:state`, per-scope bead counts.
 pub fn status_counts(fx: &mut impl StoreFixture) {
     let mut s = fx.open();
-    ok(s.ensure_scope(&x()), "x");
+    ok(s.ensure_scope(&sx()), "x");
     ok(
         s.upsert_rows(
-            Some(&x()),
-            &[row("b1", &["phase-x"], T0), row("b2", &["phase-x"], T0)],
+            Some(&sx()),
+            &[row("b1", &[&px()], T0), row("b2", &[&px()], T0)],
             false,
         ),
         "rows",
@@ -1174,6 +1207,536 @@ pub fn status_counts(fx: &mut impl StoreFixture) {
         st.escalated.iter().map(|e| e.seq).collect::<Vec<_>>(),
         vec![b]
     );
+}
+
+/// The scope registry (ADR-BDC-0013): `ensure_scope` keeps a registered
+/// scope's filter; `put_scope` writes it and a changed filter drops the
+/// scope's memberships, sync state and ready base; `scope_add` refuses a
+/// registered name and `scope_set` an absent one; filters survive a restart;
+/// `scope_remove` prunes and unregisters, deleting its memberships but not
+/// the rows another scope holds.
+pub fn scope_registry_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let area = filtered(
+        "area",
+        FilterParts {
+            labels_all: vec!["area".into()],
+            ..FilterParts::default()
+        },
+    );
+    let everything = filtered(
+        "area",
+        FilterParts {
+            all: true,
+            ..FilterParts::default()
+        },
+    );
+    assert_eq!(ok(s.ensure_scope(&area), "ensure"), area);
+    assert_eq!(
+        ok(s.ensure_scope(&everything), "ensure again"),
+        area,
+        "an existing scope keeps its filter"
+    );
+    let refused = s.scope_add(&everything);
+    assert!(
+        matches!(refused, Err(CacheError::BadArgs { .. })),
+        "{refused:?}"
+    );
+    let absent = s.scope_set(&filtered(
+        "nobody",
+        FilterParts {
+            all: true,
+            ..FilterParts::default()
+        },
+    ));
+    assert!(
+        matches!(absent, Err(CacheError::ScopeUnknown { .. })),
+        "{absent:?}"
+    );
+    ok(s.scope_add(&sx()), "add a phase-a scope");
+    ok(
+        s.upsert_rows(Some(&area), &[row("b1", &["area", &px()], T0)], false),
+        "area rows",
+    );
+    ok(
+        s.upsert_rows(Some(&sx()), &[row("b1", &["area", &px()], T0)], false),
+        "x rows",
+    );
+    ok(
+        s.upsert_rows(Some(&area), &[row("b2", &["area"], T0)], false),
+        "area only",
+    );
+    let st = SyncState {
+        last_ok_at: Some(ts(T0)),
+        ..SyncState::new(area.id.clone())
+    };
+    ok(s.record_sync(&st), "sync state");
+    // The same filter again changes nothing.
+    ok(s.put_scope(&area), "put unchanged");
+    assert_eq!(ids_in(&s, &area.id), vec!["b1", "b2"]);
+    // A changed filter starts the scope again; the rows stay.
+    ok(s.scope_set(&everything), "set");
+    assert!(ids_in(&s, &area.id).is_empty(), "memberships dropped");
+    assert_eq!(
+        ok(s.sync_state(&area.id), "sync"),
+        SyncState::new(area.id.clone())
+    );
+    assert!(get(&s, "b2").is_some(), "rows stay");
+    let s2 = fx.reopen(s);
+    let mut s = s2;
+    let mut got = ok(s.scopes(), "scopes");
+    got.sort();
+    assert_eq!(got, vec![everything.clone(), sx()], "filters persist");
+    assert_eq!(ok(s.scope(&area.id), "scope"), Some(everything.clone()));
+    ok(
+        s.upsert_rows(Some(&everything), &[row("b1", &["area", &px()], T0)], false),
+        "again",
+    );
+    let report = ok(s.scope_remove(&area.id), "remove");
+    assert_eq!(report.scope, area.id);
+    assert_eq!(ok(s.scope(&area.id), "removed"), None);
+    assert!(get(&s, "b1").is_some(), "a row another scope holds stays");
+    assert_eq!(ids_in(&s, &x()), vec!["b1"]);
+    assert!(get(&s, "b2").is_none(), "a row no scope holds is swept");
+    let gone = s.scope_remove(&area.id);
+    assert!(
+        matches!(gone, Err(CacheError::ScopeUnknown { .. })),
+        "{gone:?}"
+    );
+    // Removal is refused, and changes nothing, while the scope has open writes.
+    ok(
+        s.insert_entry(entry("k1", "b1", Some(x())), &ts(T0)),
+        "pending",
+    );
+    let blocked = s.scope_remove(&x());
+    assert!(
+        matches!(blocked, Err(CacheError::PruneBlocked { .. })),
+        "{blocked:?}"
+    );
+    assert_eq!(ok(s.scope(&x()), "kept"), Some(sx()));
+}
+
+/// A filter scope's membership is its filter, status included: a bead whose
+/// status leaves the set leaves the scope on the next scoped upsert
+/// (ADR-BDC-0013); `members` is the ids of `rows_in_scope`.
+pub fn filter_scope_membership_applies_status(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let open_bugs = filtered(
+        "open-bugs",
+        FilterParts {
+            labels_any: vec!["a".into(), "b".into()],
+            status: vec!["open".into()],
+            issue_type: Some("bug".into()),
+            ..FilterParts::default()
+        },
+    );
+    ok(s.ensure_scope(&open_bugs), "ensure");
+    let mut bug = row("b1", &["b"], T0);
+    bug.issue_type = Some("bug".into());
+    let mut task = row("t1", &["a"], T0);
+    task.issue_type = Some("task".into());
+    ok(
+        s.upsert_rows(Some(&open_bugs), &[bug.clone(), task], false),
+        "upsert",
+    );
+    assert_eq!(ids_in(&s, &open_bugs.id), vec!["b1"]);
+    assert_eq!(
+        ok(s.members(&open_bugs.id), "members"),
+        std::collections::BTreeSet::from([id("b1")])
+    );
+    bug.status = Some("closed".into());
+    T1.clone_into(&mut bug.updated_at);
+    ok(s.upsert_rows(Some(&open_bugs), &[bug], false), "closed");
+    assert!(
+        ids_in(&s, &open_bugs.id).is_empty(),
+        "a status outside the set leaves the scope"
+    );
+    assert!(get(&s, "b1").is_some(), "the row is still stored");
+}
+
+/// `ingest_scope` (REQ-BDC-0726): one transaction; rows unforced (a newer
+/// stored row is kept); the scope's membership replaced by the snapshot's
+/// rows its status criterion admits, other scopes' memberships kept; the
+/// ready base `blocked` and `ready` restricted to those members; the sync
+/// state an ok result (`failing_since` cleared); `revision` stored as given.
+pub fn ingest_scope_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let lane = filtered(
+        "lane",
+        FilterParts {
+            labels_all: vec!["lane".into()],
+            status: vec!["open".into(), "in_progress".into()],
+            ..FilterParts::default()
+        },
+    );
+    ok(s.ensure_scope(&lane), "ensure");
+    ok(s.ensure_scope(&sx()), "x");
+    ok(
+        s.upsert_rows(Some(&lane), &[row("old", &["lane"], T0)], false),
+        "an old member",
+    );
+    ok(
+        s.upsert_rows(Some(&sx()), &[row("both", &["lane", &px()], T0)], false),
+        "x member",
+    );
+    let mut newer = row("newer", &["lane"], T2);
+    newer.title = "kept".into();
+    ok(s.upsert_rows(None, &[newer], false), "a newer stored row");
+    let failing = SyncState {
+        last_started_at: Some(ts(T0)),
+        last_error: Some("BD_CACHE.BD_LIST_FAILED: boom".into()),
+        failing_since: Some(FailingSince::at(&ts(T0))),
+        ..SyncState::new(lane.id.clone())
+    };
+    ok(s.record_sync(&failing), "failing");
+    let mut closed = row("closed", &["lane"], T0);
+    closed.status = Some("closed".into());
+    let mut older = row("newer", &["lane"], T0);
+    older.title = "stale".into();
+    let snapshot = IngestSnapshot::new(
+        &lane.id,
+        vec![
+            row("both", &["lane", &px()], T1),
+            older,
+            closed,
+            row("new", &["lane"], T1),
+        ],
+        vec![
+            BlockedRow {
+                id: id("both"),
+                blocked_by: vec![id("outside")],
+            },
+            BlockedRow {
+                id: id("not-a-member"),
+                blocked_by: vec![id("both")],
+            },
+        ],
+    );
+    let snapshot = ok(snapshot, "snapshot");
+    let report = ok(
+        s.ingest_scope(
+            &lane.id,
+            &snapshot,
+            &[id("new"), id("closed"), id("stranger")],
+            &ts(T1),
+            Some("rev-1"),
+        ),
+        "ingest",
+    );
+    assert_eq!(report.skipped_newer, vec![id("newer")], "newer-row guard");
+    assert_eq!(
+        get(&s, "newer").map(|(b, _)| b.title),
+        Some("kept".to_owned())
+    );
+    assert_eq!(
+        ids_in(&s, &lane.id),
+        vec!["both", "new", "newer"],
+        "declared membership, status applied; the old member left"
+    );
+    assert_eq!(
+        ids_in(&s, &x()),
+        vec!["both"],
+        "another scope's membership kept"
+    );
+    let base = ok(s.ready_base(&lane.id), "base").unwrap_or_else(missing);
+    assert_eq!(base.blocked.len(), 1, "blocked rows of members only");
+    assert_eq!(base.blocked[0].id, id("both"));
+    assert_eq!(base.ready, vec![id("new")], "ready ids of members only");
+    assert_eq!(base.fetched_at, ts(T1));
+    let st = ok(s.sync_state(&lane.id), "sync");
+    assert_eq!(
+        (st.last_ok_at, st.last_error, st.failing_since),
+        (Some(ts(T1)), None, None)
+    );
+    assert_eq!(
+        ok(s.scope_revision(&lane.id), "revision"),
+        Some("rev-1".to_owned())
+    );
+    assert_eq!(
+        ok(s.scope(&lane.id), "filter kept"),
+        Some(lane.clone()),
+        "an ingest does not change the filter"
+    );
+}
+
+/// `failing_since` and `notified_since` round-trip through `record_sync`;
+/// `scope_announce` marks only the current failure (REQ-BDC-0728).
+pub fn scope_announce_is_compare_and_set(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let since = FailingSince::at(&ts(T0));
+    let not_failing = s.scope_announce(&x(), &since);
+    assert!(
+        matches!(not_failing, Err(CacheError::Precondition { .. })),
+        "{not_failing:?}"
+    );
+    let st = SyncState {
+        last_started_at: Some(ts(T0)),
+        last_error: Some("BD_CACHE.BD_UNAVAILABLE: down".into()),
+        failing_since: Some(since.clone()),
+        ..SyncState::new(x())
+    };
+    ok(s.record_sync(&st), "failing");
+    assert!(!ok(s.sync_state(&x()), "read").notified());
+    let stale = s.scope_announce(&x(), &FailingSince::at(&ts(T1)));
+    assert!(
+        matches!(stale, Err(CacheError::Precondition { .. })),
+        "a stale since is refused: {stale:?}"
+    );
+    assert!(!ok(s.sync_state(&x()), "unchanged").notified());
+    ok(s.scope_announce(&x(), &since), "announce");
+    let read = ok(s.sync_state(&x()), "notified");
+    assert!(read.notified());
+    assert_eq!(read.notified_since, Some(since));
+}
+
+/// `first_offered_at` is set once and never changed (REQ-BDC-0727).
+pub fn first_offered_at_is_set_once(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let seq = ok(s.insert_entry(entry("k1", "b1", None), &ts(T0)), "insert");
+    assert_eq!(
+        ok(s.entry_by_seq(seq), "entry")
+            .unwrap_or_else(missing)
+            .first_offered_at,
+        None
+    );
+    ok(s.mark_offered(&[seq], &ts(T1)), "first");
+    ok(s.mark_offered(&[seq], &ts(T2)), "again");
+    assert_eq!(
+        ok(s.entry_by_seq(seq), "entry")
+            .unwrap_or_else(missing)
+            .first_offered_at,
+        Some(ts(T1))
+    );
+    let absent = s.mark_offered(&[Seq::new(999)], &ts(T2));
+    assert!(
+        matches!(absent, Err(CacheError::NotFound { .. })),
+        "{absent:?}"
+    );
+}
+
+#[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
+fn run(id: &str) -> RunId {
+    RunId::new(id).unwrap_or_else(|e| panic!("{e}"))
+}
+
+fn holder(id: &str, expires_at: &str) -> LeaseHolder {
+    LeaseHolder {
+        run_id: run(id),
+        pid: 42,
+        host: "host".to_owned(),
+        expires_at: ts(expires_at),
+    }
+}
+
+/// The lease (REQ-BDC-0722): taken when free, refused while live, taken over
+/// once expired, released only by its holder.
+pub fn lease_rules(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert_eq!(ok(s.lease(), "free"), None);
+    let first = holder("r1", T1);
+    assert_eq!(ok(s.lease_take(&first, &ts(T0)), "take"), LeaseTake::Taken);
+    assert_eq!(
+        ok(s.lease_take(&holder("r2", T2), &ts(T0)), "live"),
+        LeaseTake::Held(first.clone())
+    );
+    assert_eq!(ok(s.lease(), "unchanged"), Some(first.clone()));
+    assert!(!ok(s.lease_release(&run("r2")), "not the holder"));
+    let second = holder("r2", T2);
+    assert_eq!(
+        ok(s.lease_take(&second, &ts(T1)), "expired"),
+        LeaseTake::TookOver(first)
+    );
+    assert!(ok(s.lease_release(&run("r2")), "release"));
+    assert_eq!(ok(s.lease(), "released"), None);
+}
+
+/// The hook's backoff state (REQ-BDC-0727): counted, first failure kept, reset.
+pub fn hook_state_counts_and_resets(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert_eq!(ok(s.hook_state(), "empty").consecutive_failures, 0);
+    ok(s.hook_failed("exit 1", &ts(T0), None), "one");
+    let two = ok(s.hook_failed("exit 2", &ts(T1), Some(&ts(T2))), "two");
+    assert_eq!(two.consecutive_failures, 2);
+    assert_eq!(two.first_failure_at, Some(ts(T0)));
+    assert_eq!(two.last_error.as_deref(), Some("exit 2"));
+    assert_eq!(two.next_attempt_at, Some(ts(T2)));
+    assert_eq!(ok(s.hook_state(), "read"), two);
+    let s = fx.reopen(s);
+    let mut s = s;
+    assert_eq!(ok(s.hook_state(), "persists").consecutive_failures, 2);
+    ok(s.hook_succeeded(), "reset");
+    assert_eq!(
+        ok(s.hook_state(), "reset"),
+        crate::state::HookState::default()
+    );
+}
+
+/// An ingest of an unregistered scope is `SCOPE_UNKNOWN`, read in its own
+/// transaction, and registers and stores nothing: only a sync or the
+/// configuration registers a scope (ADR-BDC-0013, B7Q1-013).
+pub fn ingest_refuses_an_unregistered_scope(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let lane = scope("lane");
+    let snapshot = ok(
+        IngestSnapshot::new(&lane, vec![row("b1", &["lane"], T0)], vec![]),
+        "snapshot",
+    );
+    let refused = s.ingest_scope(&lane, &snapshot, &[], &ts(T1), Some("r"));
+    assert!(
+        matches!(refused, Err(CacheError::ScopeUnknown { .. })),
+        "{refused:?}"
+    );
+    assert_eq!(ok(s.scope(&lane), "nothing registered"), None);
+    assert!(get(&s, "b1").is_none(), "nothing stored");
+    assert_eq!(ok(s.ready_base(&lane), "no base"), None);
+}
+
+/// `record_sync_result` (REQ-BDC-0728): one transition per call, applied
+/// to the stored state in one write transaction, so a mark another process
+/// made between two syncs is never overwritten (B7Q1-028).
+pub fn record_sync_result_applies_the_failing_since_lifecycle(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    // Deferred: the start only.
+    let st = ok(
+        s.record_sync_result(&x(), &SyncOutcome::Deferred, &ts(T0)),
+        "deferred",
+    );
+    assert_eq!(
+        (st.last_started_at, st.last_ok_at, st.failing_since),
+        (Some(ts(T0)), None, None)
+    );
+    // ok -> failing: failing_since is the first failure's start.
+    let failed = SyncOutcome::Failed("BD_CACHE.BD_UNAVAILABLE: down".into());
+    let st = ok(
+        s.record_sync_result(&x(), &failed, &ts(T0)),
+        "first failure",
+    );
+    let since = FailingSince::at(&ts(T0));
+    assert_eq!(st.failing_since, Some(since.clone()));
+    assert_eq!(
+        st.last_error.as_deref(),
+        Some("BD_CACHE.BD_UNAVAILABLE: down")
+    );
+    // Another process marks the failure between two syncs.
+    let stale_copy = ok(s.sync_state(&x()), "a copy read before the mark");
+    ok(s.scope_announce(&x(), &since), "announce");
+    // failing -> failing: kept, and the mark survives.
+    let st = ok(
+        s.record_sync_result(&x(), &failed, &ts(T1)),
+        "second failure",
+    );
+    assert_eq!(
+        st.failing_since,
+        Some(since.clone()),
+        "kept across failures"
+    );
+    assert!(st.notified(), "the mark is not overwritten");
+    // record_sync of the stale copy never clears the mark either.
+    ok(s.record_sync(&stale_copy), "a stale whole-row write");
+    assert!(ok(s.sync_state(&x()), "read").notified());
+    // failing -> ok: cleared, mark and all.
+    let st = ok(s.record_sync_result(&x(), &SyncOutcome::Ok, &ts(T2)), "ok");
+    assert_eq!(ok(s.sync_state(&x()), "stored"), st);
+    assert_eq!(
+        (
+            st.last_ok_at,
+            st.last_error,
+            st.failing_since,
+            st.notified_since
+        ),
+        (Some(ts(T2)), None, None, None)
+    );
+}
+
+/// `lease_take` refuses an expiry not after now or past `MAX_LEASE_TTL`,
+/// and writes nothing (REQ-BDC-0722, B7Q1-048).
+pub fn lease_take_bounds_the_expiry(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    for (case, expires) in [
+        ("not after now", T0),
+        ("far future", "2027-10-23T10:00:00Z"),
+    ] {
+        let refused = s.lease_take(&holder("r1", expires), &ts(T0));
+        assert!(
+            matches!(refused, Err(CacheError::BadArgs { .. })),
+            "{case}: {refused:?}"
+        );
+        assert_eq!(ok(s.lease(), "nothing written"), None, "{case}");
+    }
+}
+
+/// `hook_failed` keeps at most `MAX_HOOK_ERROR_BYTES` of the error (B7Q1-049).
+pub fn hook_error_is_clipped(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let long = "e".repeat(MAX_HOOK_ERROR_BYTES * 4);
+    let st = ok(s.hook_failed(&long, &ts(T0), None), "fail");
+    let kept = st.last_error.unwrap_or_default();
+    assert_eq!(kept.len(), MAX_HOOK_ERROR_BYTES);
+    assert_eq!(
+        ok(s.hook_state(), "read").last_error.as_deref(),
+        Some(kept.as_str())
+    );
+}
+
+/// The registry holds at most `MAX_REGISTERED_SCOPES` names; one more is
+/// `BAD_ARGS` on every registration path, and a registered name still
+/// re-registers (B7Q1-047).
+pub fn the_registry_is_capped(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    for i in 0..MAX_REGISTERED_SCOPES {
+        ok(
+            s.ensure_scope(&Scope::legacy(scope(&format!("s{i:04}")))),
+            "register",
+        );
+    }
+    let extra = Scope::legacy(scope("one-more"));
+    for (path, r) in [
+        ("ensure", s.ensure_scope(&extra).map(drop)),
+        ("put", s.put_scope(&extra)),
+        ("add", s.scope_add(&extra)),
+    ] {
+        assert!(
+            matches!(r, Err(CacheError::BadArgs { .. })),
+            "{path}: {r:?}"
+        );
+    }
+    assert_eq!(ok(s.scope(&extra.id), "absent"), None);
+    ok(
+        s.ensure_scope(&Scope::legacy(scope("s0000"))),
+        "a known name",
+    );
+}
+
+/// `scopes_of` lists the scopes whose stored membership holds the bead, by
+/// name: the scopes `members` lists it in (B7Q1-008).
+pub fn scopes_of_is_the_stored_membership(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    let area = filtered(
+        "area",
+        FilterParts {
+            labels_all: vec!["area".into()],
+            ..FilterParts::default()
+        },
+    );
+    ok(s.ensure_scope(&area), "area");
+    ok(s.ensure_scope(&sx()), "x");
+    ok(s.ensure_scope(&sy()), "y");
+    let both = row("b1", &["area", &px()], T0);
+    ok(
+        s.upsert_rows(Some(&area), std::slice::from_ref(&both), false),
+        "area",
+    );
+    ok(s.upsert_rows(Some(&sx()), &[both], false), "x");
+    let listed: Vec<String> = ok(s.scopes_of(&id("b1")), "scopes_of")
+        .into_iter()
+        .map(|sc| sc.id.name().to_owned())
+        .collect();
+    assert_eq!(listed, ["area", "x"]);
+    for sc in [&area.id, &x(), &y()] {
+        let member = ok(s.members(sc), "members").contains(&id("b1"));
+        assert_eq!(member, listed.contains(&sc.name().to_owned()), "{sc}");
+    }
+    assert!(ok(s.scopes_of(&id("absent")), "absent").is_empty());
 }
 
 /// The drain lock admits one holder; dropping the guard releases it; handles contend.
@@ -1246,6 +1809,19 @@ macro_rules! store_contract_tests {
             status_counts,
             status_lists_stale_rows_until_reread,
             drain_lock_is_exclusive,
+            scope_registry_rules,
+            filter_scope_membership_applies_status,
+            ingest_scope_rules,
+            scope_announce_is_compare_and_set,
+            first_offered_at_is_set_once,
+            lease_rules,
+            hook_state_counts_and_resets,
+            ingest_refuses_an_unregistered_scope,
+            record_sync_result_applies_the_failing_since_lifecycle,
+            lease_take_bounds_the_expiry,
+            hook_error_is_clipped,
+            the_registry_is_capped,
+            scopes_of_is_the_stored_membership,
         );
     };
     (@rules $fixture:expr; $($rule:ident),* $(,)?) => {

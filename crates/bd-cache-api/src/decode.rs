@@ -272,13 +272,12 @@ impl<'a> Members<'a> {
     }
 }
 
-/// A scope id: `phase-<x>` or a bare `<x>`.
+/// A scope name, taken as written (ADR-BDC-0013): no prefix is added or
+/// stripped, so a name that is not a registered scope is `SCOPE_UNKNOWN` at
+/// the operation, not here.
 fn scope_of(member: &str, s: &str) -> Result<ScopeId, ApiError> {
-    ScopeId::parse(s).ok_or_else(|| {
-        ApiError::bad_member(
-            member,
-            format!("{member} {s:?} is not a scope: use phase-<x> or <x>"),
-        )
+    ScopeId::new(s).map_err(|e| {
+        ApiError::bad_member(member, format!("{member} {s:?} is not a scope name: {e}"))
     })
 }
 

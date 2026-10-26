@@ -136,7 +136,7 @@ fn a_cursor_lists_a_row_whose_updated_at_does_not_parse() {
     let mut old = bead("old");
     old.labels = vec!["phase-x".into()];
     fake.insert_all([odd, old]);
-    let scope = sc_beads::ScopeFilter::Label("phase-x".into());
+    let scope = sc_beads::ScopeFilter::label("phase-x");
     let cursor = sc_beads::SyncCursor::new("2026-10-23T09:30:00Z");
     let d = Deadline::after(&*clock, Duration::from_secs(1));
     let rows = fake

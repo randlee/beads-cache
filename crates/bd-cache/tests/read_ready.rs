@@ -15,7 +15,9 @@ mod common;
 use std::time::Duration;
 
 use bd_cache::testing::{store, store_mut};
-use bd_cache_model::{CacheError, CacheStore, ReadyBasis, ReadyReply, ScopeId, Seq};
+use bd_cache_model::{
+    CacheError, CacheStore, LEGACY_SCOPE_PREFIX, ReadyBasis, ReadyReply, ScopeId, Seq,
+};
 use common::{TestCache, World, id, new_entry, ts, x};
 use sc_beads::testing::{FakeOp, Injection};
 use sc_beads::{BeadId, Clock, DepType};
@@ -87,7 +89,7 @@ fn ready_replies_carry_the_scopes_last_ok_at() {
 fn ready_of_an_unknown_scope_is_scope_unknown() {
     let w = World::new();
     let mut c = w.cache();
-    let e = c.ready(&ScopeId::phase("nope").unwrap(), None).unwrap_err();
+    let e = c.ready(&ScopeId::new("nope").unwrap(), None).unwrap_err();
     assert!(
         matches!(&e, CacheError::ScopeUnknown { known, .. } if *known == vec![x()]),
         "{e:?}"
@@ -472,7 +474,7 @@ fn rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_onl
         "k1",
         "b2",
         "update",
-        r#"{"remove_labels": ["phase-x"]}"#,
+        &format!(r#"{{"remove_labels": ["{LEGACY_SCOPE_PREFIX}x"]}}"#),
     );
     let l = c.list(&x(), None, None).unwrap();
     let b2 = l.rows.iter().find(|r| r.bead.id == id("b2")).unwrap();
@@ -597,6 +599,26 @@ fn bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outa
     );
     assert!(matches!(r.basis, ReadyBasis::Cached { .. }));
     assert!(store(&c).outage().unwrap().is_some());
+    assert!(r.read_fallback_outage, "bd was not reached");
+}
+
+/// An answered `bd ready` failure falls back with `read_fallback_outage`
+/// false: the error's `outage()` (REQ-BDC-0729), not the v3 `UNREACHABLE`
+/// set, which holds `BD_LIST_FAILED` (B7Q1-015).
+#[test]
+fn bounded_fresh_ready_on_an_answered_failure_is_not_an_outage() {
+    let w = World::new();
+    let mut c = synced(&w);
+    w.bd.inject(FakeOp::ListReady, Injection::Failed(1));
+    let r = c.ready(&x(), Some(LIMIT)).unwrap();
+    assert!(
+        r.read_fallback
+            .as_deref()
+            .is_some_and(|t| t.starts_with("BD_CACHE.BD_LIST_FAILED")),
+        "{:?}",
+        r.read_fallback
+    );
+    assert!(!r.read_fallback_outage, "bd answered");
 }
 
 #[test]

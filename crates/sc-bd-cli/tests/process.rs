@@ -616,7 +616,7 @@ fn after(ms: u64) -> Deadline {
 }
 
 fn scope() -> ScopeFilter {
-    ScopeFilter::Label("x".into())
+    ScopeFilter::label("x")
 }
 
 fn words(list: &[&str]) -> Vec<String> {

@@ -1,7 +1,8 @@
 //! [`ScheduleStore`] over SQLite (bundled), in its own database file.
 //!
-//! The store owns its file and its one connection (NFR-BDC-0007): it never
-//! opens a second connection to another store's file. On open it sets the
+//! The store owns its file and its one connection (REQ-CRON-0009): it never
+//! opens a second connection to another store's file. It is sc-cron's
+//! standalone default; a caller may supply any other [`ScheduleStore`]. On open it sets the
 //! busy timeout first, then WAL, then checks the schema version in
 //! `PRAGMA user_version`. A fresh file (version 0, no tables) gets the
 //! schema and version [`SCHEMA_VERSION`]. A file at version 1, which lacks the
@@ -10,7 +11,9 @@
 //! other tables, is refused with [`StoreErrorKind::SchemaMismatch`].
 //!
 //! `create` runs as one immediate transaction, so the active-name check and
-//! the write cannot interleave with another writer. Run-state writes are
+//! the write cannot interleave with another writer; so do `set_enabled_many`
+//! and `replace_and_set_enabled`, which change several rows at once
+//! (REQ-CRON-0017). Run-state writes are
 //! guarded by `id`, `generation` and `ended_at IS NULL`. Table CHECKs keep
 //! `next_run_at` set exactly while a schedule is active and `stop_reason`
 //! set exactly once it has ended, and repeat the size limits. Timestamps
@@ -261,10 +264,10 @@ impl ScheduleStore for SqliteScheduleStore {
                 return Err(CronError::AlreadyActive(schedule.spec.name.clone()));
             }
             Some((id, generation, false)) => {
-                columns.restart(&transaction, id, generation)?;
+                columns.rewrite(&transaction, id, generation, true)?;
                 id
             }
-            None => columns.insert(&transaction, schedule.spec.name.as_str())?,
+            None => columns.insert(&transaction, schedule.spec.name.as_str(), true)?,
         };
         let row = select_one(&transaction, id)?.ok_or_else(|| {
             StoreError::new(
@@ -408,6 +411,93 @@ impl ScheduleStore for SqliteScheduleStore {
             ],
         )
     }
+
+    fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<bool, CronError> {
+        let mut connection = self.lock();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|error| store_error("failed to begin transaction", error))?;
+        // A missing name returns before the commit: the transaction rolls
+        // back on drop, so no flag of the list changes (REQ-CRON-0017).
+        if !set_flags(&transaction, flags)? {
+            return Ok(false);
+        }
+        transaction
+            .commit()
+            .map_err(|error| store_error("failed to commit", error))?;
+        Ok(true)
+    }
+
+    fn replace_and_set_enabled(
+        &self,
+        schedule: &NewSchedule,
+        enabled: bool,
+        created_at: Timestamp,
+        flags: &[(ScheduleName, bool)],
+    ) -> Result<Option<Schedule>, CronError> {
+        let name = &schedule.spec.name;
+        if flags.iter().any(|(listed, _)| listed == name) {
+            return Err(CronError::InvalidSpec(format!(
+                "the flags to set name the written schedule {name}"
+            )));
+        }
+        let columns = Columns::new(schedule, created_at)?;
+        let mut connection = self.lock();
+        let transaction = connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(|error| store_error("failed to begin transaction", error))?;
+        let existing = transaction
+            .query_row(
+                "SELECT id, generation FROM sc_cron_schedule WHERE name = ?1",
+                [name.as_str()],
+                |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
+            )
+            .optional()
+            .map_err(|error| store_error(&format!("failed to read {TABLE}"), error))?;
+        // Active or ended, the row is rewritten in place with its flag; a
+        // new name is inserted with it. No write sets another flag first.
+        let id = match existing {
+            Some((id, generation)) => {
+                columns.rewrite(&transaction, id, generation, enabled)?;
+                id
+            }
+            None => columns.insert(&transaction, name.as_str(), enabled)?,
+        };
+        if !set_flags(&transaction, flags)? {
+            return Ok(None);
+        }
+        let row = select_one(&transaction, id)?.ok_or_else(|| {
+            StoreError::new(
+                StoreErrorKind::Other,
+                format!("{TABLE} id {id}: missing after write"),
+            )
+        })?;
+        transaction
+            .commit()
+            .map_err(|error| store_error("failed to commit", error))?;
+        Ok(Some(row))
+    }
+}
+
+/// Sets each listed active schedule's flag inside `transaction`; `false` as
+/// soon as a name has no active schedule (the caller then rolls back).
+fn set_flags(
+    transaction: &Transaction<'_>,
+    flags: &[(ScheduleName, bool)],
+) -> Result<bool, CronError> {
+    for (name, enabled) in flags {
+        let changed = transaction
+            .execute(
+                "UPDATE sc_cron_schedule SET enabled = ?2
+                 WHERE name = ?1 AND ended_at IS NULL",
+                params![name.as_str(), enabled],
+            )
+            .map_err(|error| store_error(&format!("failed to update {TABLE} {name}"), error))?;
+        if changed != 1 {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// One schedule's column values, converted before any write.
@@ -436,13 +526,18 @@ impl Columns {
         })
     }
 
-    fn insert(&self, transaction: &Transaction<'_>, name: &str) -> Result<i64, CronError> {
+    fn insert(
+        &self,
+        transaction: &Transaction<'_>,
+        name: &str,
+        enabled: bool,
+    ) -> Result<i64, CronError> {
         transaction
             .execute(
                 "INSERT INTO sc_cron_schedule
                     (generation, name, expr, timeout_ms, jitter_ms, payload,
-                     created_at, next_run_at)
-                 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                     created_at, next_run_at, enabled)
+                 VALUES (1, ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
                 params![
                     name,
                     self.expr,
@@ -451,17 +546,22 @@ impl Columns {
                     self.payload,
                     self.created_at,
                     self.next_run_at,
+                    enabled,
                 ],
             )
             .map_err(|error| store_error(&format!("failed to insert {TABLE}"), error))?;
         Ok(transaction.last_insert_rowid())
     }
 
-    fn restart(
+    /// Rewrites row `id` in place: generation plus one, every field from the
+    /// schedule, run and end state cleared, and `enabled` as given. A restart
+    /// of an ended row and a replace of an active one are this same write.
+    fn rewrite(
         &self,
         transaction: &Transaction<'_>,
         id: i64,
         generation: i64,
+        enabled: bool,
     ) -> Result<(), CronError> {
         let next = u32::try_from(generation)
             .ok()
@@ -478,7 +578,7 @@ impl Columns {
                 "UPDATE sc_cron_schedule SET generation = ?2, expr = ?3, timeout_ms = ?4,
                     jitter_ms = ?5, payload = ?6, created_at = ?7, next_run_at = ?8,
                     last_run_at = NULL, last_outcome = NULL, ended_at = NULL,
-                    stop_reason = NULL, enabled = 1
+                    stop_reason = NULL, enabled = ?9
                  WHERE id = ?1",
                 params![
                     id,
@@ -489,6 +589,7 @@ impl Columns {
                     self.payload,
                     self.created_at,
                     self.next_run_at,
+                    enabled,
                 ],
             )
             .map_err(|error| store_error(&format!("failed to restart {TABLE} id {id}"), error))?;

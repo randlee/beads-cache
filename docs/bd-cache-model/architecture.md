@@ -11,11 +11,12 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 |---|---|
 | `op` | `Op`, `replay`, `normalize`, `phase_of`, precondition parse / canonical JSON / `unmet` |
 | `pyjson` | `python_json`: Python `json.dumps(sort_keys=True)` text |
-| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus`. *From sprint b-7 (ADR-BDC-0013):* `ScopeId(ScopeName)` with `ScopeName::RULE`, `ScopeFilter`, `Scope`, and `LEGACY_SCOPE_PREFIX` in the compatibility module; `PhaseName` goes |
+| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus`. *From sprint b-7 (ADR-BDC-0013):* `ScopeId(ScopeName)` with `ScopeName::RULE`, `ScopeFilter`, `Scope`, and `LEGACY_SCOPE_PREFIX` in the compatibility module; `PhaseName` goes. Implemented: `scope` holds `ScopeName`, `ScopeId`, `FilterParts` (the unvalidated keys), `Criteria` and `ScopeFilter` (built only by `ScopeFilter::from_parts`, `backend()` the one conversion), and `Scope { id, filter }` (`legacy`, `on_demand`, `holds`, `selects`, `admits`); `compat` holds `LEGACY_SCOPE_PREFIX`, `legacy_scope` and `legacy_label`; `state` gains `SyncState::failing_since` / `notified_since` with `record_result`, `FailingSince`, `LeaseHolder`, `LeaseTake` and `HookState`; `JournalEntry` gains `first_offered_at` (not in the 0.1 dict) |
+| `ingest`, `budget` | *Sprint b-7:* `IngestSnapshot` (the strict decoder, the 50 000-row / 64 MiB limits, a bead listed twice refused; REQ-BDC-0726) and `TickBudget` (`budget_ms`, `hook_reserve_ms`, its one constructor; REQ-BDC-0703 as amended) |
 | `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text). *From sprint b-8 (ADR-SYNC-0008):* `sender` and everything in it are removed |
-| `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
-| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8) |
-| `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
+| `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants. *Sprint b-7:* `RepoConfig::scope_tables` (the `[[scope]]` tables, `ScopeTable`) and `RepoConfig::configured_scopes`, the one validation of every configured scope (`ScopeConfigError`); `CacheConfig::scopes` is `Vec<Scope>` |
+| `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8). *Sprint b-7:* `CONFIG_INVALID` (a file scope changed through the registry), `INGEST_INVALID` (`IngestReason`), `SCHEDULE_INVALID`, `TICK_RUN_FAILED` (`TickRunReason`) and `TICK_IN_FLIGHT` (REQ-BDC-0729), and `CacheError::outage`, the classification behind `details.outage`; their `to_json` payload keys avoid `reason`, which is `PRECONDITION`'s `/v0` reason |
+| `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!`. *Sprint b-7:* the suite gains the registry, filter membership, ingest, compare-and-set marking, `first_offered_at`, lease and hook-state rules, which `FakeStore` and `SqliteStore` both pass |
 
 ## ADR-MODEL-0001: Journal text is written exactly as Python writes it
 
@@ -244,7 +245,7 @@ Context: QA-1 found raw strings for keys, scopes and instants, and a call
 result with a dead success variant.
 
 Decision: `IdemKey::new` rejects an empty key; scopes are
-`ScopeId::Phase(PhaseName)` with a validated name (also in
+`ScopeId::Phase(PhaseName)` [now `ScopeId(ScopeName)`, ADR-BDC-0013] with a validated name (also in
 `ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
 sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
 is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
@@ -352,7 +353,7 @@ Decision:
   the constructors `SendError::new` and `with_kind`. **This is a breaking change
   to the struct literal** `SendError { detail }`; no other crate in the workspace
   or on the a-8 branch built one. `SendErrorKind` is `#[non_exhaustive]`.
-- `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
+- `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` [now `ScopeName::RULE`, ADR-BDC-0013] (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
 - `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send markers and the alert clears that send no message (S35), bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
 
 Consequences: every `CacheStore` passes the new contract rules (FakeStore

@@ -9,7 +9,9 @@
 
 mod common;
 
-use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, ScopeId, normalize};
+use bd_cache_model::{
+    CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, Scope, ScopeId, legacy_label, normalize,
+};
 use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
@@ -17,11 +19,21 @@ use sc_beads::testing::{actor, edge, id};
 use sc_beads::{Bead, DepType, Guards, Timestamp};
 
 fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap()
+    ScopeId::new("x").unwrap()
 }
 
 fn y() -> ScopeId {
-    ScopeId::phase("y").unwrap()
+    ScopeId::new("y").unwrap()
+}
+
+/// The label of the phase-a scope `x`, built from `LEGACY_SCOPE_PREFIX` (ADR-BDC-0012).
+fn px() -> String {
+    legacy_label(&x())
+}
+
+/// The label of the phase-a scope `y`.
+fn py() -> String {
+    legacy_label(&y())
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -61,12 +73,16 @@ fn fresh(tag: &str) -> (Open, SqliteStore) {
 #[test]
 fn test_dependents_use_the_edge_index() {
     let (open, mut store) = fresh("edges");
-    let mut s1 = row("s1", &["phase-x"]);
+    let mut s1 = row("s1", &[&px()]);
     s1.dependencies = vec![edge("s1", "b1", DepType::Blocks)];
-    let mut s2 = row("s2", &["phase-x"]);
+    let mut s2 = row("s2", &[&px()]);
     s2.dependencies = vec![edge("s2", "b1", DepType::Related)];
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"]), s1, s2], false)
+        .upsert_rows(
+            Some(&Scope::legacy(x())),
+            &[row("b1", &[&px()]), s1, s2],
+            false,
+        )
         .unwrap();
     assert_eq!(
         store.dependents_of(&id("b1")).unwrap(),
@@ -170,13 +186,15 @@ fn test_pending_work_counts_as_open() {
 #[test]
 fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
     let (_open, mut store) = fresh("prune");
-    let both = row("both", &["phase-x", "phase-y"]);
-    let mut only = row("only-x", &["phase-x"]);
+    let both = row("both", &[&px(), &py()]);
+    let mut only = row("only-x", &[&px()]);
     only.dependencies = vec![edge("only-x", "both", DepType::Blocks)];
     store
-        .upsert_rows(Some(&x()), &[only, both.clone()], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[only, both.clone()], false)
         .unwrap();
-    store.upsert_rows(Some(&y()), &[both], false).unwrap();
+    store
+        .upsert_rows(Some(&Scope::legacy(y())), &[both], false)
+        .unwrap();
     let report = store.prune_scope(&x()).unwrap();
     assert_eq!((report.beads_deleted, report.out_of_scope_swept), (1, 0));
     assert!(store.get_row(&id("only-x")).unwrap().is_none());
@@ -197,7 +215,7 @@ fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
 #[test]
 fn stored_rows_are_normalized_and_written_for_python() {
     let (open, mut store) = fresh("normalize");
-    let mut b = row("b1", &["phase-x", "other"]);
+    let mut b = row("b1", &[&px(), "other"]);
     b.dependency_count = Some(3);
     b.dependent_count = Some(1);
     b.comment_count = Some(2);
@@ -206,7 +224,7 @@ fn stored_rows_are_normalized_and_written_for_python() {
         edge("b1", "a", DepType::Blocks),
     ];
     store
-        .upsert_rows(Some(&x()), std::slice::from_ref(&b), false)
+        .upsert_rows(Some(&Scope::legacy(x())), std::slice::from_ref(&b), false)
         .unwrap();
     drop(store);
     let (phase, status, row_json): (Option<String>, Option<String>, String) =
@@ -236,25 +254,25 @@ fn stored_rows_are_normalized_and_written_for_python() {
     );
 }
 
-/// Rows `bd_cache.py` replaced (no `membership_known`) belong to their v3
+/// Rows the v3 Python writer replaced (no `membership_known`) belong to their v3
 /// `phase`; leftover memberships of beads deleted elsewhere are dropped.
 #[test]
 fn rows_another_implementation_wrote_belong_to_their_phase() {
     let (open, mut store) = fresh("foreign");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .upsert_rows(
-            Some(&x()),
-            &[row("kept", &["phase-x"]), row("gone", &["phase-x"])],
+            Some(&Scope::legacy(x())),
+            &[row("kept", &[&px()]), row("gone", &[&px()])],
             false,
         )
         .unwrap();
     store
-        .upsert_rows(Some(&y()), &[row("moved", &["phase-y"])], false)
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("moved", &[&py()])], false)
         .unwrap();
     drop(store);
     {
-        // What bd_cache.py does: INSERT OR REPLACE a row (extension columns NULL), DELETE a bead.
+        // What the v3 Python writer does: INSERT OR REPLACE a row (extension columns NULL), DELETE a bead.
         let c = Connection::open(&open.path).unwrap();
         let json: String = c
             .query_row("SELECT row_json FROM beads WHERE id = 'moved'", [], |r| {
@@ -282,7 +300,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     assert!(ids(&store, &y()).is_empty());
     // A bead deleted elsewhere and stored again unscoped is a new, out-of-scope row.
     store
-        .upsert_rows(None, &[row("gone", &["phase-x"])], false)
+        .upsert_rows(None, &[row("gone", &[&px()])], false)
         .unwrap();
     assert_eq!(ids(&store, &x()), ["kept", "moved"]);
     let x_status = store
@@ -299,7 +317,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
 fn a_python_row_written_while_open_is_read_by_its_phase() {
     let (open, mut store) = fresh("live");
     store
-        .upsert_rows(Some(&y()), &[row("b1", &["phase-y"])], false)
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("b1", &[&py()])], false)
         .unwrap();
     let json: String = Connection::open(&open.path)
         .unwrap()
@@ -307,7 +325,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
             r.get(0)
         })
         .unwrap();
-    // A second connection, as a concurrent bd_cache.py process would hold.
+    // A second connection, as a concurrent the v3 Python writer process would hold.
     Connection::open(&open.path)
         .unwrap()
         .execute(
@@ -320,7 +338,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
     // An unscoped store keeps that membership.
     store
-        .upsert_rows(None, &[row("b1", &["phase-y"])], true)
+        .upsert_rows(None, &[row("b1", &[&py()])], true)
         .unwrap();
     assert_eq!(store.rows_in_scope(&x()).unwrap().len(), 1);
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
@@ -330,7 +348,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
 fn undecodable_stored_values_are_errors_not_skipped() {
     let (open, mut store) = fresh("corrupt");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -365,7 +383,7 @@ fn a_guard_dropped_on_another_thread_releases_the_lock() {
 fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let (_open, mut store) = fresh("readback-id");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     let seq = store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -373,7 +391,7 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let err = store
         .apply_with_readback(
             seq,
-            Some(&row("b2", &["phase-x"])),
+            Some(&row("b2", &[&px()])),
             None,
             &ts("2026-10-23T10:00:01Z"),
         )
@@ -733,8 +751,8 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
         id: id(bead),
         blocked_by: vec![id(by)],
     };
-    store.ensure_scope(&x()).unwrap();
-    store.ensure_scope(&y()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    store.ensure_scope(&Scope::legacy(y())).unwrap();
     store
         .replace_ready_base(
             &x(),
@@ -776,7 +794,7 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
     assert_eq!(indexed("x"), 0, "a rebuild drops every base and its index");
 }
 
-/// Seeds `n` applied journal rows the way `bd_cache.py` leaves them: state
+/// Seeds `n` applied journal rows the way the v3 Python writer leaves them: state
 /// `applied`, no `applied_at`, no epoch, and `updated_at` as it writes it.
 fn seed_python_applied(path: &std::path::Path, n: usize, updated_at: &str, tag: &str) {
     // `created_at` is always readable: only the applied time is under test.
@@ -864,7 +882,7 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
         assert!(plan.contains(index), "{index} not in {plan}");
     }
     // And a pending entry still counts, whatever the time.
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .insert_entry(entry("fresh", "b9", Some(x())), &ts("2026-10-23T10:00:00Z"))
         .unwrap();
@@ -875,7 +893,7 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
     );
 }
 
-/// Entries `bd_cache.py` applied carry no `applied_at` and no epoch; their
+/// Entries the v3 Python writer applied carry no `applied_at` and no epoch; their
 /// time is `updated_at`, written as `...Z` by it and readable as `+00:00` with
 /// fractions too. Before and after they are dated (by the check or the next
 /// open), an old one is not "since", a recent one is, and one with an unreadable time counts as since:
@@ -942,14 +960,14 @@ fn entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_cou
     );
 }
 
-/// The shared file stays writable by a `bd_cache.py` on an SQLite older than
+/// The shared file stays writable by a the v3 Python writer on an SQLite older than
 /// 3.38, which has no `unixepoch()` (Ubuntu 22.04 ships 3.37.2) (S18): no index
 /// holds an expression, and with `unixepoch` replaced by a function that
 /// fails, every kind of journal write still works.
 #[test]
 fn no_index_holds_a_function_and_journal_writes_work_without_unixepoch() {
     let (open, mut store) = fresh("no-functions");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-24T08:00:00Z"))
         .unwrap();
@@ -1130,7 +1148,7 @@ fn the_expression_index_of_an_earlier_build_is_dropped_on_open() {
     assert_eq!(left, 0);
 }
 
-/// `bd_cache.py` (atm-core `05831df`) never creates, reads or writes `ready_base`,
+/// the v3 Python writer (baseline `05831df`) never creates, reads or writes `ready_base`,
 /// `ready_base_blocked` or `scope_member`: its rebuild deletes `edges`, `beads`
 /// and `sync_state`, and its prune deletes a phase's `edges`, `beads`,
 /// `journal` and `sync_state` rows. Neither touches a stored base or its index
@@ -1141,7 +1159,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
     use sc_beads::BlockedRow;
 
     let (open, mut store) = fresh("python-rewrite");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     let blocked = [BlockedRow {
         id: id("a"),
         blocked_by: vec![id("b"), id("c")],
@@ -1161,7 +1179,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
     };
     agree(&store);
     let c = Connection::open(&open.path).unwrap();
-    // bd_cache.py's rebuild, then its prune of phase x.
+    // the v3 Python writer's rebuild, then its prune of phase x.
     c.execute_batch(
         "DELETE FROM edges; DELETE FROM beads; DELETE FROM sync_state; \
          DELETE FROM journal WHERE phase = 'x';",
@@ -1171,7 +1189,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
 }
 
 /// A base another writer replaces with `INSERT OR REPLACE` (the way every
-/// `bd_cache.py` write is spelled, and what a future Python `ready_base` writer
+/// the v3 Python writer write is spelled, and what a future Python `ready_base` writer
 /// would do), without the `indexed` column, resets `indexed` to NULL: the
 /// index rows left behind are ignored and the base is read whole.
 #[test]
@@ -1179,7 +1197,7 @@ fn a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_inde
     use sc_beads::BlockedRow;
 
     let (open, mut store) = fresh("python-base");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .replace_ready_base(
             &x(),
@@ -1323,7 +1341,7 @@ fn data_version(c: &Connection) -> i64 {
         .unwrap()
 }
 
-/// Entries `bd_cache.py` applies while the store is open have no epoch; past
+/// Entries the v3 Python writer applies while the store is open have no epoch; past
 /// [`READ_DATING_THRESHOLD`] the next journal check dates them, so its SQL
 /// work goes back to a few index probes instead of one `unixepoch` per
 /// undated entry (QA4-001, S26). Measured in SQLite VM steps, never wall-clock.
@@ -1365,7 +1383,7 @@ fn entries_python_applies_while_open_are_dated_by_the_next_check() {
 }
 
 /// Below [`READ_DATING_THRESHOLD`] the journal reads write nothing (S26): a
-/// small burst `bd_cache.py` applied is walked, so a cached `get` has no WAL
+/// small burst the v3 Python writer applied is walked, so a cached `get` has no WAL
 /// commit on its path; one entry more and the next read dates them all.
 #[test]
 fn a_small_burst_is_walked_and_not_dated_until_past_the_threshold() {
@@ -1549,7 +1567,7 @@ fn applied_since_reads_both_partial_indexes_and_no_history() {
     );
 
     // Both halves answer, in seq order.
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     let mine = store
         .insert_entry(entry("mine", "b2", Some(x())), &at)
         .unwrap();
@@ -1564,7 +1582,7 @@ fn applied_since_reads_both_partial_indexes_and_no_history() {
 }
 
 /// A pending entry journaled before PE-RBP-F004 (an earlier build, or
-/// `bd_cache.py`) may carry a metadata key a new write is refused for. It must
+/// the v3 Python writer) may carry a metadata key a new write is refused for. It must
 /// still decode, so the drain reaches it and escalates it, instead of every
 /// pending read failing with `BAD_ARGS` (QA RCR-001 on #60).
 #[test]

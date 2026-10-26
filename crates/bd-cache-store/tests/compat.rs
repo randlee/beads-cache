@@ -23,7 +23,7 @@ use std::process::Command;
 use std::sync::OnceLock;
 
 use bd_cache_model::{
-    CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalState, NewEntry, Op, Outage,
+    CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalState, NewEntry, Op, Outage, Scope,
     ScopeId, SyncState, normalize,
 };
 use bd_cache_store::SqliteStore;
@@ -121,11 +121,11 @@ fn driver(args: &[&OsStr]) -> Value {
 }
 
 fn ct() -> ScopeId {
-    ScopeId::phase("ct").unwrap()
+    ScopeId::new("ct").unwrap()
 }
 
 fn zz() -> ScopeId {
-    ScopeId::phase("zz").unwrap()
+    ScopeId::new("zz").unwrap()
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -297,9 +297,9 @@ fn a_python_written_v3_file_opens_and_reads_back_equal() {
 fn the_python_get_and_status_read_a_file_the_rust_store_wrote() {
     let f = Shared::new("rs-wrote");
     let mut store = f.open();
-    store.ensure_scope(&ct()).unwrap();
+    store.ensure_scope(&Scope::legacy(ct())).unwrap();
     store
-        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .upsert_rows(Some(&Scope::legacy(ct())), &fixture_rows(), false)
         .unwrap();
     let pending = store
         .insert_entry(
@@ -386,7 +386,7 @@ fn check_extensions(store: &SqliteStore, pending: bd_cache_model::Seq) {
     assert_eq!(base.blocked[0].blocked_by, [id("ct-1")]);
     assert_eq!(ids(store.rows_in_scope(&ct()).unwrap()).len(), 3);
     assert_eq!(store.applied_since(&ts(T0)).unwrap().len(), 1);
-    assert_eq!(store.scopes().unwrap(), [ct()]);
+    assert_eq!(store.scopes().unwrap(), [Scope::legacy(ct())]);
     assert_eq!(store.pending_entries().unwrap()[0].seq, pending);
 }
 
@@ -401,8 +401,8 @@ fn after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows() {
     let both = row("both", &["phase-ct", "phase-zz"]);
     {
         let mut store = f.open();
-        store.ensure_scope(&ct()).unwrap();
-        store.ensure_scope(&zz()).unwrap();
+        store.ensure_scope(&Scope::legacy(ct())).unwrap();
+        store.ensure_scope(&Scope::legacy(zz())).unwrap();
         store
             .record_fingerprint(&Fingerprint {
                 bd_version: "1.3.1".into(),
@@ -411,10 +411,18 @@ fn after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows() {
             })
             .unwrap();
         store
-            .upsert_rows(Some(&ct()), &[row("a", &["phase-ct"]), both.clone()], false)
+            .upsert_rows(
+                Some(&Scope::legacy(ct())),
+                &[row("a", &["phase-ct"]), both.clone()],
+                false,
+            )
             .unwrap();
         store
-            .upsert_rows(Some(&zz()), &[both.clone(), row("z", &["phase-zz"])], false)
+            .upsert_rows(
+                Some(&Scope::legacy(zz())),
+                &[both.clone(), row("z", &["phase-zz"])],
+                false,
+            )
             .unwrap();
         store
             .insert_entry(
@@ -465,7 +473,7 @@ fn after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows() {
     assert!(store.status().unwrap().scopes.iter().all(|s| s.beads == 0));
     assert_eq!(
         store.scopes().unwrap(),
-        [ct(), zz()],
+        [Scope::legacy(ct()), Scope::legacy(zz())],
         "the scope registry stays"
     );
     assert_eq!(
@@ -617,9 +625,9 @@ fn python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back() {
 /// as the Rust store writes them, in seq order.
 fn seed_rust_entries(f: &Shared) -> [bd_cache_model::Seq; 4] {
     let mut store = f.open();
-    store.ensure_scope(&ct()).unwrap();
+    store.ensure_scope(&Scope::legacy(ct())).unwrap();
     store
-        .upsert_rows(Some(&ct()), &fixture_rows(), false)
+        .upsert_rows(Some(&Scope::legacy(ct())), &fixture_rows(), false)
         .unwrap();
     let close = || Op::Close { reason: None };
     let journal = |store: &mut SqliteStore, key: &str, bead: &str, changed| {

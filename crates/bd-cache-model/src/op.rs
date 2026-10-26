@@ -1,6 +1,6 @@
 //! Journal operations: [`Op`] with parse, canonical args, overlay and achieved; [`replay`].
 //!
-//! The op table (BD-CACHE.md, Journal operations; REQ-BDC-0301):
+//! The op table (the BD-CACHE baseline design, Journal operations; REQ-BDC-0301):
 //!
 //! | op | args | overlay | achieved when |
 //! |---|---|---|---|
@@ -31,7 +31,7 @@ use serde_json::{Map, Value};
 use crate::error::{CacheError, GuardKey, Unmet};
 use crate::journal::{JournalEntry, JournalState};
 use crate::pyjson::python_json;
-use crate::scope::{PhaseName, ScopeId};
+use crate::scope::ScopeId;
 
 /// The status text of a closed bead (bd's `closed`): the one literal the model, the
 /// cache and its callers compare against.
@@ -550,10 +550,12 @@ pub fn normalize(row: &Bead) -> Bead {
     b
 }
 
-/// The first valid `phase-<x>` label's suffix: the v3 `phase` column.
+/// The phase-a scope of a row, the v3 `beads.phase` column: its first label
+/// that is the legacy prefix followed by a valid name ([`ScopeId::from_labels`]);
+/// `None` for a row with no such label (ADR-BDC-0013).
 #[must_use]
-pub fn phase_of(row: &Bead) -> Option<PhaseName> {
-    ScopeId::from_labels(&row.labels).map(|s| s.phase_name().clone())
+pub fn phase_of(row: &Bead) -> Option<ScopeId> {
+    ScopeId::from_labels(&row.labels)
 }
 
 /// Parses a write precondition: `{status?, assignee?}`, with the `/v0` aliases

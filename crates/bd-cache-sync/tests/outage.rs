@@ -28,7 +28,7 @@ fn two_phases() -> (World, common::TestCache) {
     let mut cache = w.cache();
     for s in ["x", "y"] {
         cache
-            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .sync_legacy(&scope(s), w.after(Duration::from_secs(20)))
             .unwrap();
     }
     (w, cache)
@@ -214,7 +214,7 @@ fn a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once() {
     let mut cache = w.cache();
     for s in ["x", "y", "z"] {
         cache
-            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .sync_legacy(&scope(s), w.after(Duration::from_secs(20)))
             .unwrap();
     }
     w.switch.set_down(true);
@@ -301,7 +301,7 @@ fn the_alert_of_a_scope_that_is_not_synced_is_reset_when_the_outage_ends() {
     assert_eq!(back.drain.as_ref().unwrap().applied, [seq], "{back:?}");
     assert_eq!(
         back.active,
-        [scope("y").phase_name().clone()],
+        [scope("y").scope_name().clone()],
         "x is no longer active"
     );
     assert!(cache.status().unwrap().store.outage.is_none());
@@ -322,7 +322,7 @@ fn an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed() {
     let mut cache = w.cache();
     for s in ["x", "y"] {
         cache
-            .sync(&scope(s), w.after(Duration::from_secs(20)))
+            .sync_legacy(&scope(s), w.after(Duration::from_secs(20)))
             .unwrap();
     }
     assert!(
@@ -341,7 +341,7 @@ fn an_outage_is_not_told_to_the_lead_of_a_phase_known_to_be_closed() {
     told.sort();
     assert_eq!(told, ["lead-x", "lead-z"], "{reply:?}");
     assert_eq!(alert(&cache, "y"), None);
-    assert_eq!(reply.unreadable_roots, [scope("z").phase_name().clone()]);
+    assert_eq!(reply.unreadable_roots, [scope("z").scope_name().clone()]);
 }
 
 /// An outage alert in `bd_cache.py`'s form (`"backend_unavailable: <detail>"`)

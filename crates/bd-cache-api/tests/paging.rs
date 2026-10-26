@@ -93,7 +93,7 @@ fn walk(sort: &str) {
     let mut cursor: Option<String> = None;
     let mut pages = 0;
     loop {
-        let mut req = json!({"scope": "phase-x", "all": true, "sort": sort, "limit": 7});
+        let mut req = json!({"scope": "x", "all": true, "sort": sort, "limit": 7});
         if let Some(c) = &cursor {
             req["cursor"] = json!(c);
         }

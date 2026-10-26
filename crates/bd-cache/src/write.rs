@@ -210,7 +210,7 @@ fn dedupe(held: &JournalEntry, id: &BeadId, op: &Op) -> Result<Journaled, CacheE
     })
 }
 
-/// `changed` of an entry journaled without one (by `bd_cache.py`, or before
+/// `changed` of an entry journaled without one (by the v3 Python writer, or before
 /// the column existed), or `None` when it cannot be known (lead ruling S68).
 ///
 /// Only a `Pending` entry is predicted: its effect is not in the stored row,

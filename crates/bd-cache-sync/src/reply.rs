@@ -3,7 +3,7 @@
 use std::fmt;
 use std::sync::LazyLock;
 
-use bd_cache_model::{DrainReport, PhaseName, SendError, SendErrorKind, Seq, SyncReport};
+use bd_cache_model::{DrainReport, ScopeName, SendError, SendErrorKind, Seq, SyncReport};
 use serde::Serialize;
 
 use crate::announce::AlertCause;
@@ -150,11 +150,11 @@ impl RefusalCode {
 }
 
 /// The fix of [`RefusalCode::MalformedPhases`]: it states the phase-name rule
-/// in the model's one text ([`PhaseName::RULE`], RBP-F037).
+/// in the model's one text ([`ScopeName::RULE`], RBP-F037).
 static MALFORMED_PHASES_FIX: LazyLock<String> = LazyLock::new(|| {
     format!(
         "write each [tick] phases entry as a phase name ({}), with or without the phase- prefix",
-        PhaseName::RULE
+        ScopeName::RULE
     )
 });
 
@@ -162,7 +162,7 @@ static MALFORMED_PHASES_FIX: LazyLock<String> = LazyLock::new(|| {
 static PHASE_NOT_NAMED_FIX: LazyLock<String> = LazyLock::new(|| {
     format!(
         "rename the file phase-<name>.toml, where <name> is {}",
-        PhaseName::RULE
+        ScopeName::RULE
     )
 });
 
@@ -242,14 +242,14 @@ pub enum AnnouncementKind {
     /// A sync failure whose cause differs from the phase's alert (REQ-BDC-0704).
     SyncFailure {
         /// The phase.
-        phase: PhaseName,
+        phase: ScopeName,
         /// The cause now recorded as the phase's alert.
         cause: AlertCause,
     },
     /// The start of a backend outage (REQ-BDC-0704, ADR-BDC-0005).
     Outage {
         /// The phases whose alert now reads `backend_unavailable`.
-        phases: Vec<PhaseName>,
+        phases: Vec<ScopeName>,
     },
 }
 
@@ -283,14 +283,14 @@ pub struct TickReply {
     /// The drain; `None` when the tick did not get as far.
     pub drain: Option<DrainReport>,
     /// The phases found active, in sync order.
-    pub active: Vec<PhaseName>,
+    pub active: Vec<ScopeName>,
     /// One report per phase that was synced.
     pub synced: Vec<SyncReport>,
     /// Active phases whose sync did not start before the budget's margin (REQ-BDC-0703).
-    pub deferred: Vec<PhaseName>,
+    pub deferred: Vec<ScopeName>,
     /// Phases whose root could not be read this tick, or that bd did not
     /// return, so they count as inactive (and never as closed: ADR-SYNC-0004).
-    pub unreadable_roots: Vec<PhaseName>,
+    pub unreadable_roots: Vec<ScopeName>,
     /// The messages delivered this tick.
     pub sent: Vec<Announcement>,
     /// Messages not started because the tick had too little time left or was
@@ -369,7 +369,7 @@ mod tests {
     fn the_phase_name_fixes_state_the_one_rule() {
         for code in [RefusalCode::MalformedPhases, RefusalCode::PhaseNotNamed] {
             assert!(
-                code.fix().contains(PhaseName::RULE),
+                code.fix().contains(ScopeName::RULE),
                 "{code}: {}",
                 code.fix()
             );

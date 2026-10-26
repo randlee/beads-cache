@@ -64,6 +64,89 @@ pub const P6_REOPENED_READY: &str =
     include_str!("../../tests/fixtures/p6-blocked/3-x-reopened-ready.json");
 /// The P-6 scope label.
 pub const P6_LABEL: &str = "phase-p6";
+
+/// The bd 1.3.1 scope-filter recording (`tests/fixtures/bd-1.3.1/scope-filters/`,
+/// see its `PROVENANCE.md`): every row of the recorded workspace.
+pub const FILTERS_LIST_ALL: &str =
+    include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/list-all.json");
+
+/// One recorded answer of the scope-filter recording: the fixture's name and stdout.
+const FILTER_RECORDINGS: &[(&str, &str)] = &[
+    ("list-all", FILTERS_LIST_ALL),
+    (
+        "list-criteria",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/list-criteria.json"),
+    ),
+    (
+        "list-label-any",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/list-label-any.json"),
+    ),
+    (
+        "list-label",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/list-label.json"),
+    ),
+    (
+        "blocked-all",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/blocked-all.json"),
+    ),
+    (
+        "blocked-criteria",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/blocked-criteria.json"),
+    ),
+    (
+        "ready-all",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/ready-all.json"),
+    ),
+    (
+        "ready-criteria",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/ready-criteria.json"),
+    ),
+    (
+        "ready-label-any",
+        include_str!("../../tests/fixtures/bd-1.3.1/scope-filters/ready-label-any.json"),
+    ),
+];
+
+/// The filter each recording of the scope-filter fixture was made with, by
+/// name: the variant whose argv `sc-bd-cli` builds is the recorded argv
+/// (`argv.json`). `blocked-criteria` and `ready-criteria` share one filter,
+/// whose type and assignee `bd blocked` does not take.
+#[must_use]
+pub fn recorded_filter(name: &str) -> Option<ScopeFilter> {
+    let strings = |v: &[&str]| v.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    let criteria =
+        |all: &[&str], any: &[&str], t: Option<&str>, a: Option<&str>| ScopeFilter::Criteria {
+            labels_all: strings(all),
+            labels_any: strings(any),
+            issue_type: t.map(str::to_owned),
+            assignee: a.map(str::to_owned),
+        };
+    Some(match name {
+        "list-all" | "blocked-all" | "ready-all" => ScopeFilter::All,
+        "list-criteria" => criteria(
+            &["area-x", "team-y"],
+            &["team-y", "area-z"],
+            Some("task"),
+            Some("dev"),
+        ),
+        "list-label-any" => criteria(&[], &["team-y", "area-z"], None, None),
+        "list-label" => ScopeFilter::label("area-x".to_owned()),
+        "blocked-criteria" | "ready-criteria" => criteria(
+            &["area-x"],
+            &["area-x", "team-y"],
+            Some("task"),
+            Some("dev"),
+        ),
+        "ready-label-any" => criteria(&[], &["area-x", "team-y"], None, None),
+        _ => return None,
+    })
+}
+
+/// The names of the scope-filter recordings, in the order of `argv.json`.
+#[must_use]
+pub fn recorded_filter_names() -> Vec<&'static str> {
+    FILTER_RECORDINGS.iter().map(|(name, _)| *name).collect()
+}
 /// The P-6 outside blocker that is closed and reopened.
 pub const P6_OUTSIDE_BLOCKER: &str = "pr-tqm";
 
@@ -240,7 +323,7 @@ pub fn list_scope_filters_by_label_and_cursor(fx: &mut impl BackendFixture) {
         labelled("y1", "phase-y"),
     ]);
     let b = fx.backend(&world, Arc::clone(&clock));
-    let scope = ScopeFilter::Label("phase-x".into());
+    let scope = ScopeFilter::label("phase-x");
     let all = ok(
         b.list_scope(&project(), &scope, None, generous(&clock)),
         "list_scope",
@@ -257,6 +340,86 @@ pub fn list_scope_filters_by_label_and_cursor(fx: &mut impl BackendFixture) {
     assert_eq!(ids(&since), BTreeSet::from(["n1".into()]));
 }
 
+/// Every [`ScopeFilter`] variant answers as bd 1.3.1 did in the scope-filter
+/// recording (ADR-BDC-0013): `list_scope`, `list_blocked` and `list_ready` of
+/// `All`, of label and type and assignee `Criteria` and of `Label`, over the
+/// recorded workspace; and an empty `Criteria` is refused before any bd call.
+pub fn scope_lists_answer_every_filter_variant(fx: &mut impl BackendFixture) {
+    let clock = Arc::new(ManualClock::default());
+    let rows = parse_bd_rows(FILTERS_LIST_ALL);
+    assert!(rows.is_ok(), "recorded rows must validate: {rows:?}");
+    let world = World::new(rows.unwrap_or_default());
+    let b = fx.backend(&world, Arc::clone(&clock));
+    for (name, stdout) in FILTER_RECORDINGS {
+        let filter = recorded_filter(name);
+        assert!(filter.is_some(), "no filter for recording {name}");
+        let filter = filter.unwrap_or(ScopeFilter::All);
+        let (got, want): (BTreeSet<String>, BTreeSet<String>) = if name.starts_with("blocked") {
+            let got = ok(
+                b.list_blocked(&project(), &filter, generous(&clock)),
+                "list_blocked",
+            );
+            let want = parse_blocked_rows(stdout);
+            assert!(want.is_ok(), "{name}: {want:?}");
+            (
+                got.iter().map(|r| r.id.as_str().to_owned()).collect(),
+                want.unwrap_or_default()
+                    .iter()
+                    .map(|r| r.id.as_str().to_owned())
+                    .collect(),
+            )
+        } else if name.starts_with("ready") {
+            let got = ok(
+                b.list_ready(&project(), &filter, generous(&clock)),
+                "list_ready",
+            );
+            (
+                got.iter().map(|id| id.as_str().to_owned()).collect(),
+                recorded_ids(name, stdout),
+            )
+        } else {
+            let got = ok(
+                b.list_scope(&project(), &filter, None, generous(&clock)),
+                "list_scope",
+            );
+            (
+                got.iter().map(|r| r.id.as_str().to_owned()).collect(),
+                recorded_ids(name, stdout),
+            )
+        };
+        assert_eq!(got, want, "{name}: {filter:?}");
+    }
+    let empty = ScopeFilter::Criteria {
+        labels_all: Vec::new(),
+        labels_any: Vec::new(),
+        issue_type: None,
+        assignee: None,
+    };
+    let refused = b.list_scope(&project(), &empty, None, generous(&clock));
+    assert!(
+        matches!(refused, Err(BeadsCacheError::Invalid(_))),
+        "an empty criteria filter is refused: {refused:?}"
+    );
+    assert!(matches!(
+        b.list_blocked(&project(), &empty, generous(&clock)),
+        Err(BeadsCacheError::Invalid(_))
+    ));
+    assert!(matches!(
+        b.list_ready(&project(), &empty, generous(&clock)),
+        Err(BeadsCacheError::Invalid(_))
+    ));
+}
+
+/// The ids of a recorded `bd list` / `bd ready` answer.
+fn recorded_ids(name: &str, stdout: &str) -> BTreeSet<String> {
+    let rows = parse_bd_rows(stdout);
+    assert!(rows.is_ok(), "{name}: {rows:?}");
+    rows.unwrap_or_default()
+        .iter()
+        .map(|r| r.id.as_str().to_owned())
+        .collect()
+}
+
 /// `list_blocked` and `list_ready` match the recorded P-6 probe: `blocks`,
 /// parent-child inheritance (the child lists its parent), `related`, a closed
 /// blocker and a blocker outside the label; then after closing and reopening
@@ -264,7 +427,7 @@ pub fn list_scope_filters_by_label_and_cursor(fx: &mut impl BackendFixture) {
 pub fn blocked_and_ready_match_the_p6_probe(fx: &mut impl BackendFixture) {
     let clock = Arc::new(ManualClock::new("2026-10-24T04:41:30Z"));
     let b = fx.backend(&World::p6(), Arc::clone(&clock));
-    let scope = ScopeFilter::Label(P6_LABEL.into());
+    let scope = ScopeFilter::label(P6_LABEL);
     let check = |blocked: &str, ready: &str, state: &str| {
         let got = ok(
             b.list_blocked(&project(), &scope, generous(&clock)),
@@ -555,7 +718,7 @@ pub fn every_call_stops_at_its_deadline(fx: &mut impl BackendFixture) {
     let id = bead_id("b1");
     let a = super::actor("contract");
     let g = Guards::default();
-    let scope = ScopeFilter::Label("phase-x".into());
+    let scope = ScopeFilter::label("phase-x");
     let timed_out = |r: Result<(), BeadsCacheError>, what: &str| {
         assert!(
             matches!(
@@ -604,6 +767,7 @@ macro_rules! backend_contract_tests {
             fingerprint_reports_version_and_schema,
             list_by_ids_returns_every_status,
             list_scope_filters_by_label_and_cursor,
+            scope_lists_answer_every_filter_variant,
             blocked_and_ready_match_the_p6_probe,
             close_and_reopen_bump_only_the_beads_own_updated_at,
             unmet_guards_are_refused,

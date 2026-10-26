@@ -1,7 +1,7 @@
 ---
 id: b-7
 phase: b
-status: planned
+status: in-review
 closure_type: boundary
 target_boundary: bd-cache-store, bd-cache, bd-cache-model, the scope filters (sc-beads, sc-bd-cli), sc-cron's store trait
 track: core
@@ -15,20 +15,21 @@ parallel_safe: []
 requirements:
   owns: [REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, "REQ-BDC-0501 (amended)", "REQ-BDC-0602 (amended)", "REQ-BDC-0603 (amended)", "REQ-BDC-0804 (amended)", "REQ-BDC-0812 (amended: the 0.1 bare-name rule)", "REQ-BDC-0901 (amended)", "REQ-BDC-0909 (amended)", "NFR-BDC-0007 (amended)", "REQ-STORE-0003 (amended)", "REQ-STORE-0007 (amended)", REQ-CRON-0017]
   not_binding: "REQ-CRON-0002..0005, 0016, 0018: next-run, jitter, missed-tick, stop-check, resolver and supervisor rules of the worker and hooks, which b-7's store methods do not touch (b-8)"
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0103, REQ-BDC-0107, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0604, REQ-BDC-0722, REQ-BDC-0727, REQ-BDC-0803, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0005, "REQ-STORE-0001, 0002, 0004..0006, 0008", "REQ-CORE-0001..0004, REQ-CORE-0101..0104", "REQ-MODEL-0001..0005", "REQ-BEADS-0001..0005", "REQ-BDCLI-0001..0009", "REQ-CRON-0001, 0006..0015", "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0103, REQ-BDC-0107, REQ-BDC-0201, REQ-BDC-0502, REQ-BDC-0504, REQ-BDC-0604, REQ-BDC-0720, REQ-BDC-0722, REQ-BDC-0724, REQ-BDC-0727, REQ-BDC-0803, REQ-BDC-0902, REQ-BDC-0903, REQ-BDC-0904, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0002, NFR-BDC-0003, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, "REQ-CORE-0201..0207 (sync, ready, list, prune, status: the scope filters and the outage record)", "REQ-STORE-0001, 0002, 0004..0006, 0008", "REQ-CORE-0001..0004, REQ-CORE-0101..0104", "REQ-MODEL-0001..0005", "REQ-BEADS-0001..0005", "REQ-BDCLI-0001..0009", "REQ-CRON-0001, 0006..0015", "REQ-API-0001..0008, REQ-CLI-0001..0012, REQ-PY-0001..0014, REQ-SYNC-0001..0013 (the mechanical edits only)"]
 adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BDC-0009, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, ADR-BDC-0015, "ADR-STORE-0001..0006", "ADR-CORE-0001, 0002, 0101..0103, 0201..0206", "ADR-MODEL-0001..0004", "ADR-BEADS-0001..0004", "ADR-BDCLI-0001..0006", "ADR-CRON-0001..0009 (the store methods)", "ADR-API-0001..0003, ADR-CLI-0001..0005, ADR-PY-0001..0006, ADR-SYNC-0001..0008 (the mechanical edits only)"]
 owned_paths:
-  - "crates/bd-cache-store/** (except tests/compat*)"
+  - "crates/bd-cache-store/** (except tests/compat*; tests/compat.rs takes only the mechanical ScopeId -> Scope::legacy edit the type change forces)"
   - "crates/bd-cache/**"
   - "crates/bd-cache-model/**"
   - "crates/sc-beads/src/cache.rs, crates/sc-beads/src/testing/**, crates/sc-beads/tests/**"
-  - "crates/sc-bd-cli/src/argv.rs, crates/sc-bd-cli/src/testing/**, crates/sc-bd-cli/tests/**"
+  - "crates/sc-bd-cli/src/argv.rs, crates/sc-bd-cli/src/testing/**, crates/sc-bd-cli/tests/**, and in crates/sc-bd-cli/src/cache.rs the call-site change of the fallible argv builders only (fix round 1, B7Q1-014)"
   - "crates/sc-cron/src/{store.rs,sqlite.rs,scheduler.rs}, crates/sc-cron/tests/{sqlite_store.rs,enabled.rs} and the RecordingStore impls in crates/sc-cron/tests/worker.rs and crates/sc-cron/tests/common/** (the two store methods only)"
   - "crates/bd-cache-api/**, crates/bd-cache-cli/** (with src/bin/fake-bd.rs), crates/bd-cache-py/**, crates/bd-cache-sync/** (the mechanical edits the ScopeId, ScopeFilter and store changes force, and the code rows of crates/bd-cache-api/src/error.rs)"
-  - "crates/bd-cache-api/tests/error_table.rs (the TICK_ row match only), the new crates/bd-cache-api/tests/scope_names.rs, and crates/bd-cache-py/tests/test_reads.py (the 0.1 bare-name cases)"
+  - "crates/bd-cache-api/tests/error_table.rs (the TICK_ row match only), the new crates/bd-cache-api/tests/scope_names.rs, crates/bd-cache-py/tests/test_reads.py (the 0.1 bare-name cases), and crates/bd-cache-py/tests/test_additive.py (the prefixed scope on the 0.2 namespaces is SCOPE_UNKNOWN, ADR-BDC-0013)"
   - "docs/bd-cache-cli/contract.md (the §4 error-table rows of the four new codes only)"
-  - "docs/architecture.md (the bd-cache-model, bd-cache-store, sc-beads and sc-bd-cli rows of the Crate Layout and Boundaries tables)"
-  - "docs/bd-cache-store/**, docs/bd-cache/**, docs/bd-cache-model/** (implementation notes)"
+  - "docs/architecture.md (the bd-cache-model, bd-cache-store, sc-beads and sc-bd-cli rows of the Crate Layout and Boundaries tables; and, fix round 2, the inline Amendment 1 of ADR-BDC-0013 (the alert verbs, B7Q1-009) and of ADR-BDC-0012 (test-data labels, B7Q1-026), both lead rulings)"
+  - "docs/bd-cache-store/**, docs/bd-cache/**, docs/bd-cache-model/** (implementation notes; ADR-CORE-0202 amendment 1)"
+  - "docs/project-plan.md (b-7's status row) and this sprint doc (its status and the fix-round amendments)"
 ---
 
 # Sprint b-7 — store, scopes and the schedule store (work package WP-6a)
@@ -94,7 +95,9 @@ here mechanically, and the semantic removals stay with b-8.
    guard and the backoff are b-8's). Store calls for `tick_lease` (take under `BEGIN IMMEDIATE`,
    refusal of a live lease, takeover of an expired one, release) and for `hook_state` (count,
    reset, next attempt); the `TickBudget` type in `bd-cache-model` with its one constructor.
-6. **Codes and outage** (REQ-BDC-0729, REQ-BDC-0803, ADR-BDC-0005). `INGEST_INVALID`,
+6. **Codes and outage** (REQ-BDC-0729, REQ-BDC-0803, ADR-BDC-0005; ADR-CORE-0202 amendment 1 in
+   `docs/bd-cache/read-path.md`, which records the per-scope outage below as the sync's
+   outcome). `INGEST_INVALID`,
    `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` in the model's error table, as rows
    of `bd-cache-api`'s `ERROR_TABLE` and as the matching rows of contract §4's error table, one
    row per code, with REQ-BDC-0729's kinds, exits and details keys. `tests/error_table.rs`
@@ -130,6 +133,25 @@ here mechanically, and the semantic removals stay with b-8.
 9. **Wording** (ADR-BDC-0010). The consumer wording in the comments, test names and fixtures of
    this sprint's own crates (`bd-cache-store`, `bd-cache`, `bd-cache-model`), so AC-0 passes on
    them.
+10. **Fix round 2 amendments** (QA-2; lead rulings, binding).
+    - *Alert verbs (B7Q1-009).* `sync_alert`, `set_sync_alert` and `set_sync_alert_within` accept
+      any valid scope name without registering it, until b-8 removes the tick's phase files and
+      makes them refuse unknown names. Recorded as an inline Amendment 1 of ADR-BDC-0013 in
+      `docs/architecture.md` and as the Status line (Approved, lead ruling, sprint b-7) of
+      ADR-CORE-0205 amendment 1 in `docs/bd-cache/read-path.md`. The test
+      `the_alert_verbs_accept_an_unregistered_name_and_register_no_scope`
+      (`crates/bd-cache/tests/ingest.rs`) pins it.
+    - *ADR-CORE-0204 amendment (B7Q1-008).* Approved (lead ruling, sprint b-7) in
+      `docs/bd-cache/read-path.md`: `get` and `scope_for` use stored membership only; `list`
+      returns stored members; `ready` and `blocked_of` also accept a scope that holds the view;
+      the miss-filled row sentence matches the code.
+    - *Test labels (B7Q1-026).* The quoted scope labels of `bd-cache`, `bd-cache-model` and
+      `bd-cache-api` tests are built from `LEGACY_SCOPE_PREFIX`; those of `sc-beads`, `sc-bd-cli`
+      and the other crates are test data, which ADR-BDC-0012's inline Amendment 1 says are not
+      uses of the prefix.
+    - *Ingest bound (B7Q1-050).* `crates/bd-cache-store/tests/phase_b_store.rs` asserts the
+      50 000-row ingest under `BUSY_TIMEOUT` on a debug build and under half of it on a release
+      build.
 
 ## Acceptance
 
@@ -186,12 +208,22 @@ Dolt, against the store and the fakes (NFR-BDC-0005).
    kinds and exits; the model and api tables agree, and `error_table.rs` passes with the
    `TICK_<REFUSAL>` row still present. Planted negative: drop one new row from the contract, and
    the test fails.
-9. The whole workspace builds and its tests pass with this sprint's changes alone. AC-0:
-   `python3 scripts/lint_no_atm.py --paths crates/bd-cache-store/ crates/bd-cache/
-   crates/bd-cache-model/ docs/bd-cache-store/ docs/bd-cache/ docs/bd-cache-model/` exits 0,
-   except for `crates/bd-cache-model/src/sender.rs` and the `[tick]` parts of
-   `crates/bd-cache-model/src/config.rs`, which b-8 removes; the mechanically edited crates keep
-   their hits for b-8 and b-9. AC-Q: S57 QA PASS and green CI on the three OSes.
+9. The whole workspace builds and its tests pass with this sprint's changes alone. AC-0
+   (amended in fix round 1, B7Q1-001; `--paths` takes prefixes, so the store's paths are named
+   below its `tests/compat*` files, which b-9 removes):
+   `python3 scripts/lint_no_atm.py --paths crates/bd-cache-store/Cargo.toml
+   crates/bd-cache-store/src/ crates/bd-cache-store/tests/common/
+   crates/bd-cache-store/tests/fixtures/ crates/bd-cache-store/tests/<every *.rs but compat.rs>
+   crates/bd-cache/ crates/bd-cache-model/ docs/bd-cache-store/ docs/bd-cache/
+   docs/bd-cache-model/` reports no hit except these three, named:
+   - the one `LEGACY_SCOPE_PREFIX` declaration in `crates/bd-cache-model/src/compat.rs`
+     (the scope-prefix rule matches it until b-9 narrows that rule, ADR-BDC-0012; the literal
+     is not disguised);
+   - `crates/bd-cache-model/src/sender.rs`, which b-8 removes;
+   - the `[tick]` parts of `crates/bd-cache-model/src/config.rs` and their fixtures in
+     `crates/bd-cache-model/tests/config.rs`, which b-8 removes.
+   The mechanically edited crates keep their hits for b-8 and b-9. AC-Q: S57 QA PASS and green
+   CI on the three OSes.
 
 ## Reference
 

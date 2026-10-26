@@ -127,7 +127,7 @@ impl fmt::Display for JournalState {
 ///
 /// Serializes as the 0.1 Python `entry` dict, whose key set is fixed (REQ-BDC-0910):
 /// `op` as its name, `args` as the BD-CACHE args object, and `last_error`
-/// with the resolve note appended as `bd_cache.py` writes it
+/// with the resolve note appended as the v3 Python writer writes it
 /// ([`JournalEntry::legacy_last_error`]). `last_error_code`, `note` and
 /// `changed` are not serialized; `bd-cache-api` has its own data model.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -162,7 +162,7 @@ pub struct JournalEntry {
     pub note: Option<String>,
     /// Whether the write changed the view when it was journaled ([`Op::changes`]),
     /// as a duplicate returns it (lead ruling S62); `None` for an entry written
-    /// without it (by `bd_cache.py`, or before the column existed).
+    /// without it (by the v3 Python writer, or before the column existed).
     pub changed: Option<bool>,
     /// When the escalation was announced to the lead.
     pub announced_at: Option<Timestamp>,
@@ -170,13 +170,17 @@ pub struct JournalEntry {
     pub created_at: Timestamp,
     /// When it was marked applied, set by `apply_with_readback`.
     pub applied_at: Option<Timestamp>,
+    /// When it was first offered to a post-sync hook (`journal.first_offered_at`,
+    /// ADR-STORE-0006): set once, never changed after (REQ-BDC-0727, 0728).
+    /// Not part of the 0.1 `entry` dict.
+    pub first_offered_at: Option<Timestamp>,
 }
 
 impl JournalEntry {
-    /// `last_error` as the 0.1 replies and `bd_cache.py` show it: the error,
+    /// `last_error` as the 0.1 replies and the v3 Python writer show it: the error,
     /// then `" | "` and the resolve note when there is one.
     ///
-    /// This is the text `bd_cache.py` stores on a resolve
+    /// This is the text the v3 Python writer stores on a resolve
     /// (`COALESCE(last_error, '') || ' | resolved by <actor>: <note>'`), byte
     /// for byte.
     ///
@@ -203,6 +207,7 @@ impl JournalEntry {
     ///     announced_at: None,
     ///     created_at: Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
     ///     applied_at: None,
+    ///     first_offered_at: None,
     /// };
     /// assert_eq!(
     ///     e.legacy_last_error().as_deref(),
@@ -281,7 +286,7 @@ pub struct NewEntry {
     pub changed: Option<bool>,
 }
 
-/// What separates the error from the resolve note in a `bd_cache.py` `last_error`.
+/// What separates the error from the resolve note in a the v3 Python writer `last_error`.
 pub const RESOLVE_SEPARATOR: &str = " | ";
 
 /// What starts every resolve note.
@@ -289,7 +294,7 @@ const RESOLVED_BY: &str = "resolved by ";
 
 /// The resolve note stored for `note` by `actor`: `resolved by <actor>: <note>`.
 ///
-/// The text `bd_cache.py` appends to `last_error` after [`RESOLVE_SEPARATOR`],
+/// The text the v3 Python writer appends to `last_error` after [`RESOLVE_SEPARATOR`],
 /// so the 0.1 rendering ([`JournalEntry::legacy_last_error`]) is unchanged and
 /// the resolver is kept (the journal has no column for it).
 ///
@@ -304,9 +309,9 @@ pub fn resolve_note(actor: &Actor, note: &str) -> String {
     format!("{RESOLVED_BY}{actor}: {note}")
 }
 
-/// Splits a `bd_cache.py` resolved `last_error` into the error and the note.
+/// Splits a the v3 Python writer resolved `last_error` into the error and the note.
 ///
-/// `bd_cache.py` appends `" | resolved by <actor>: <note>"` to `last_error`
+/// the v3 Python writer appends `" | resolved by <actor>: <note>"` to `last_error`
 /// when it resolves (its `COALESCE` makes the error `""` when there was none).
 /// Returns `(error, note)`, the error `None` when it is empty, for the last
 /// such suffix; `None` when `text` has no suffix of that form.
@@ -340,7 +345,7 @@ pub fn split_resolve_note(text: &str) -> Option<(Option<&str>, &str)> {
 ///
 /// A code is one or more ASCII uppercase letters, digits, `_` or `.`
 /// (`BD_CACHE.PRECONDITION`), as [`CacheError`](crate::CacheError)'s `Display`
-/// and `bd_cache.py` both write it. Text without such a prefix (`retries
+/// and the v3 Python writer both write it. Text without such a prefix (`retries
 /// exhausted after 3 attempts; ...`) has no code.
 ///
 /// # Examples

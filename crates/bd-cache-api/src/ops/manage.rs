@@ -6,7 +6,7 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
-    ScopeId, ScopeStatus, StateCounts, SyncReport,
+    ScopeFilter, ScopeId, ScopeStatus, StateCounts, SyncReport,
 };
 use sc_beads::{BeadId, CacheBackend, Deadline};
 
@@ -59,9 +59,9 @@ fn scope_data<S: CacheStore, L: DrainLock, B: CacheBackend>(
     s: &ScopeStatus,
 ) -> Result<ScopeData, ApiError> {
     let id = &s.sync.scope;
-    let configured = cache.config().scopes.contains(id);
+    let configured = cache.config().scopes.iter().any(|c| c.id == *id);
     Ok(ScopeData {
-        scope: id.label(),
+        scope: id.name().to_owned(),
         configured,
         on_demand: !configured,
         last_started_at: opt_time(s.sync.last_started_at.as_ref()),
@@ -69,6 +69,7 @@ fn scope_data<S: CacheStore, L: DrainLock, B: CacheBackend>(
         last_error: s.sync.last_error.as_deref().map(OpError::from_stored),
         alert: cache.sync_alert(id)?.as_deref().and_then(alert_of),
         beads: s.beads,
+        filter: s.filter.as_ref().map(ScopeFilter::parts),
     })
 }
 
@@ -126,7 +127,7 @@ pub(crate) fn cache_status<S: CacheStore, L: DrainLock, B: CacheBackend>(
             by_scope: jc
                 .by_scope
                 .into_iter()
-                .map(|(s, c)| (s.label(), counts(c)))
+                .map(|(s, c)| (s.name().to_owned(), counts(c)))
                 .collect(),
             unscoped: counts(jc.unscoped),
         },
@@ -246,7 +247,7 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
         let d = Deadline::after(&*cache.clock(), call_timeout);
         let result = match cache.sync(&s, d) {
             Ok(r) => RefreshScopeResult {
-                scope: s.label(),
+                scope: s.name().to_owned(),
                 error: sync_report_error(&s, &r, call_timeout),
                 report: Some(SyncReportData {
                     rebuilt: r.rebuilt,
@@ -258,7 +259,7 @@ pub(crate) fn cache_refresh_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>
                 }),
             },
             Err(e) => RefreshScopeResult {
-                scope: s.label(),
+                scope: s.name().to_owned(),
                 report: None,
                 error: Some(refresh_error(&e)),
             },
@@ -293,7 +294,7 @@ fn sync_report_error(s: &ScopeId, r: &SyncReport, call_timeout: Duration) -> Opt
         unavailable(format!(
             "the sync of {} was cut: bd did not answer within the per-call cap ({} ms); \
              nothing was refreshed",
-            s.label(),
+            s.name(),
             call_timeout.as_millis()
         ))
         .with_detail("timed_out", true)
@@ -364,7 +365,7 @@ pub(crate) fn cache_flush<S: CacheStore, L: DrainLock, B: CacheBackend>(
                 bead: e.bead.clone(),
                 op: e.op.clone(),
                 actor: e.actor.as_str().to_owned(),
-                scope: e.phase.as_ref().map(|p| format!("phase-{p}")),
+                scope: e.phase.as_ref().map(|p| p.name().to_owned()),
                 reason: OpError::from_stored(&e.reason),
             })
             .collect(),
@@ -385,7 +386,7 @@ pub(crate) fn cache_evict<S: CacheStore, L: DrainLock, B: CacheBackend>(
 ) -> Result<CacheEvictData, ApiError> {
     let r = cache.prune(&req.scope)?;
     Ok(CacheEvictData {
-        scope: r.scope.label(),
+        scope: r.scope.name().to_owned(),
         beads_deleted: r.beads_deleted,
         out_of_scope_swept: r.out_of_scope_swept,
     })

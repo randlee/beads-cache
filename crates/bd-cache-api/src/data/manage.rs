@@ -5,6 +5,7 @@
 
 use std::collections::BTreeMap;
 
+use bd_cache_model::FilterParts;
 use sc_beads::{Bead, BeadId};
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -61,7 +62,7 @@ pub struct JournalCountsData {
 /// A Scope (`cache scopes`, `cache status`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScopeData {
-    /// The scope, e.g. `phase-bk`.
+    /// The scope's name, e.g. `bk` (ADR-BDC-0013).
     pub scope: String,
     /// Listed in the configuration.
     pub configured: bool,
@@ -77,6 +78,10 @@ pub struct ScopeData {
     pub alert: Option<String>,
     /// Beads the scope holds.
     pub beads: u64,
+    /// The scope's filter (ADR-BDC-0013, REQ-BDC-0603 as amended): `null`
+    /// for a phase-a scope, whose label is the legacy prefix followed by its
+    /// name. Additive.
+    pub filter: Option<FilterParts>,
 }
 
 /// `cache status`.

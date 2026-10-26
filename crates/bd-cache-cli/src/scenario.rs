@@ -262,10 +262,14 @@ impl Scenario {
         if !self.faults.fail_labels.is_empty() {
             let labels = self.faults.fail_labels.clone();
             backend.inject_where(
+                // A scope list of any filter with one of these labels fails.
                 move |call| match call {
-                    FakeCall::ListScope { label, .. }
-                    | FakeCall::ListBlocked { label }
-                    | FakeCall::ListReady { label } => labels.contains(label),
+                    FakeCall::ListScope { filter, .. }
+                    | FakeCall::ListBlocked { filter }
+                    | FakeCall::ListReady { filter } => filter
+                        .labels_all()
+                        .iter()
+                        .any(|l| labels.iter().any(|f| f == l)),
                     _ => false,
                 },
                 Injection::Failed(1),

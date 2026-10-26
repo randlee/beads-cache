@@ -88,19 +88,27 @@ pub(crate) fn seconds(name: &str, secs: f64) -> PyResult<Duration> {
     })
 }
 
-/// A configured timeout given in seconds: positive, as the file loader requires
-/// of `call_timeout_s` and `miss_fill_timeout_ms` (lead ruling S56).
+/// A configured timeout given in seconds: positive and at most `most`, as the
+/// file loader requires of `call_timeout_s` and `miss_fill_timeout_ms` (lead
+/// ruling S56; the maximums of `RepoConfig::validate`, B7Q1-046).
 ///
 /// A value so small it rounds to zero nanoseconds is zero, and refused.
 ///
 /// # Errors
 ///
-/// `ValueError` for zero and for everything [`seconds`] refuses.
-pub(crate) fn positive_seconds(name: &str, secs: f64) -> PyResult<Duration> {
+/// `ValueError` for zero, for a value over `most`, and for everything
+/// [`seconds`] refuses.
+pub(crate) fn positive_seconds(name: &str, secs: f64, most: Duration) -> PyResult<Duration> {
     let d = seconds(name, secs)?;
     if d.is_zero() {
         return Err(PyValueError::new_err(format!(
             "{name} must be a positive number of seconds, got {secs}"
+        )));
+    }
+    if d > most {
+        return Err(PyValueError::new_err(format!(
+            "{name} is out of range: {secs} s is over the most it takes, {} s",
+            most.as_secs_f64()
         )));
     }
     Ok(d)
@@ -113,15 +121,27 @@ mod tests {
     #[test]
     fn positive_seconds_refuse_zero_and_what_rounds_to_zero() {
         for zero in [0.0, -0.0, 1e-12] {
-            assert!(positive_seconds("t", zero).is_err(), "{zero}");
+            assert!(
+                positive_seconds("t", zero, Duration::MAX).is_err(),
+                "{zero}"
+            );
         }
         assert_eq!(
-            positive_seconds("t", 0.001).ok(),
+            positive_seconds("t", 0.001, Duration::MAX).ok(),
             Some(Duration::from_millis(1))
         );
         for bad in [-1.0, f64::NAN, f64::INFINITY] {
-            assert!(positive_seconds("t", bad).is_err(), "{bad}");
+            assert!(positive_seconds("t", bad, Duration::MAX).is_err(), "{bad}");
         }
+    }
+
+    /// Past the maximum is refused; the maximum itself is taken (B7Q1-046).
+    #[test]
+    fn positive_seconds_refuse_a_value_over_the_maximum() {
+        let most = Duration::from_secs(3_600);
+        assert_eq!(positive_seconds("t", 3_600.0, most).ok(), Some(most));
+        assert!(positive_seconds("t", 3_600.5, most).is_err());
+        assert!(positive_seconds("t", 1e12, most).is_err());
     }
 
     #[test]

@@ -15,7 +15,7 @@ use std::time::Duration;
 use bd_cache::testing::{backend_check, current_view, miss_fill, store, store_mut};
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, FingerprintOutcome, GuardKey, IdemKey, JournalState,
-    ScopeId, Unmet, WriteReply,
+    LEGACY_SCOPE_PREFIX, ScopeId, Unmet, WriteReply,
 };
 use common::{TestCache, World, id, x};
 use sc_beads::testing::{FakeCall, FakeOp, Injection, actor};
@@ -375,7 +375,9 @@ fn a_write_to_a_bead_unknown_to_bd_is_not_found() {
 fn the_entry_scope_is_the_views_first_phase_label() {
     let w = World::new();
     w.add("o1", |b| b.labels = vec!["misc".into()]);
-    w.add("y1", |b| b.labels = vec!["misc".into(), "phase-y".into()]);
+    w.add("y1", |b| {
+        b.labels = vec!["misc".into(), format!("{LEGACY_SCOPE_PREFIX}y")];
+    });
     let mut c = w.cache();
     let scope = |c: &mut TestCache, bead: &str, key: &str| {
         let r = write(c, bead, "close", "{}", Guards::default(), key).unwrap();
@@ -383,10 +385,7 @@ fn the_entry_scope_is_the_views_first_phase_label() {
     };
     assert_eq!(scope(&mut c, "b1", "k1"), Some(x()));
     assert_eq!(scope(&mut c, "o1", "k2"), None, "an out-of-scope bead");
-    assert_eq!(
-        scope(&mut c, "y1", "k3"),
-        Some(ScopeId::phase("y").unwrap())
-    );
+    assert_eq!(scope(&mut c, "y1", "k3"), Some(ScopeId::new("y").unwrap()));
 }
 
 #[test]

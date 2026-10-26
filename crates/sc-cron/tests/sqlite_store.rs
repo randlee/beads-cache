@@ -664,7 +664,7 @@ fn a_file_with_other_tables_is_refused() {
     let path = root.path().join("cache.db");
     Connection::open(&path)
         .expect("connection")
-        .execute_batch("CREATE TABLE beads (id TEXT);")
+        .execute_batch("CREATE TABLE other_table (id TEXT);")
         .expect("foreign table");
     assert_eq!(
         store_kind(SqliteScheduleStore::open(&path)),
@@ -702,4 +702,261 @@ fn store_errors_expose_their_rusqlite_source() {
     );
     let store = error.source().expect("store error");
     assert!(store.source().is_some(), "rusqlite error is preserved");
+}
+
+// --- REQ-CRON-0017: several rows' flags, and a row written with its flag ---
+
+fn name(text: &str) -> ScheduleName {
+    ScheduleName::new(text).expect("name")
+}
+
+/// The `enabled` flags of `names`, read in one statement by `c`.
+fn flags_of(c: &Connection, names: &[&str]) -> Vec<Option<bool>> {
+    names
+        .iter()
+        .map(|n| {
+            c.query_row(
+                "SELECT enabled FROM sc_cron_schedule WHERE name = ?1 AND ended_at IS NULL",
+                [n],
+                |row| row.get::<_, bool>(0),
+            )
+            .ok()
+        })
+        .collect()
+}
+
+/// Every pair of flags a second connection read while `flip` ran on the store.
+fn poll_while(path: &Path, names: [&str; 2], flip: impl FnOnce()) -> Vec<(bool, bool)> {
+    let path = path.to_path_buf();
+    let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop = std::sync::Arc::clone(&done);
+    let names = names.map(str::to_owned);
+    let poller = std::thread::spawn(move || {
+        let c = Connection::open(&path).expect("second connection");
+        c.busy_timeout(Duration::from_secs(5)).expect("busy");
+        let mut seen = Vec::new();
+        while !stop.load(std::sync::atomic::Ordering::SeqCst) {
+            // One statement: one snapshot of both rows.
+            let pair: (bool, bool) = c
+                .query_row(
+                    "SELECT (SELECT enabled FROM sc_cron_schedule WHERE name = ?1),
+                            (SELECT enabled FROM sc_cron_schedule WHERE name = ?2)",
+                    [&names[0], &names[1]],
+                    |row| {
+                        Ok((
+                            row.get::<_, Option<bool>>(0)?.unwrap_or(false),
+                            row.get::<_, Option<bool>>(1)?.unwrap_or(false),
+                        ))
+                    },
+                )
+                .expect("poll");
+            seen.push(pair);
+        }
+        seen
+    });
+    flip();
+    done.store(true, std::sync::atomic::Ordering::SeqCst);
+    poller.join().expect("poller")
+}
+
+/// `set_enabled_many` flips two rows in one transaction, seen whole by a
+/// second connection, and touches no other column.
+#[test]
+fn set_enabled_many_flips_two_rows_seen_whole_by_a_second_connection() {
+    let h = Harness::new();
+    let a = h.create("a", 1);
+    h.create("b", 2);
+    let seen = poll_while(&h.path, ["a", "b"], || {
+        for round in 0..200 {
+            let on = round % 2 == 1;
+            assert!(
+                h.store
+                    .set_enabled_many(&[(name("a"), on), (name("b"), on)])
+                    .expect("flip")
+            );
+        }
+    });
+    assert!(!seen.is_empty());
+    assert!(
+        seen.iter().all(|(x, y)| x == y),
+        "a second connection saw one row flipped without the other"
+    );
+    let after = h.store.get(a.id).expect("get").expect("row");
+    assert!(after.enabled);
+    assert_eq!(
+        (after.generation, after.spec, after.next_run_at),
+        (a.generation, a.spec, a.next_run_at)
+    );
+    assert!(h.store.set_enabled_many(&[]).expect("empty list"));
+}
+
+/// A flip naming a missing row changes neither row.
+#[test]
+fn set_enabled_many_naming_a_missing_row_changes_nothing() {
+    let h = Harness::new();
+    h.create("a", 1);
+    h.create("b", 2);
+    let changed = h
+        .store
+        .set_enabled_many(&[(name("a"), false), (name("missing"), false)])
+        .expect("flip");
+    assert!(!changed);
+    assert_eq!(flags_of(&h.sql(), &["a", "b"]), [Some(true), Some(true)]);
+}
+
+/// `replace_and_set_enabled` creating a disabled row while enabling another,
+/// and back, polled by a second connection, never shows both enabled.
+#[test]
+fn replace_and_set_enabled_never_shows_both_rows_enabled() {
+    let h = Harness::new();
+    h.create("builtin", 1);
+    let seen = poll_while(&h.path, ["builtin", "python"], || {
+        for round in 0..100 {
+            let python_on = round % 2 == 0;
+            let written = h
+                .store
+                .replace_and_set_enabled(
+                    &new_schedule("python"),
+                    python_on,
+                    stamp(2),
+                    &[(name("builtin"), !python_on)],
+                )
+                .expect("write")
+                .expect("builtin is active");
+            assert_eq!(written.enabled, python_on);
+        }
+    });
+    assert!(!seen.is_empty());
+    assert!(
+        !seen.iter().any(|(b, p)| *b && *p),
+        "a second connection saw both rows enabled"
+    );
+}
+
+/// A replace of an active row keeps its id, raises its generation, keeps the
+/// given flag, clears its run state and fences a run of the old generation.
+#[test]
+fn replace_of_an_active_row_keeps_its_id_and_fences_the_old_generation() {
+    let h = Harness::new();
+    let first = h.create("python", 1);
+    assert!(
+        h.store
+            .record_run(first.id, first.generation, stamp(2), &RunOutcome::Ok)
+            .expect("run")
+    );
+    let mut replacement = new_schedule("python");
+    replacement.spec.payload = serde_json::json!({"module": "new"});
+    let replaced = h
+        .store
+        .replace_and_set_enabled(&replacement, false, stamp(3), &[])
+        .expect("replace")
+        .expect("written");
+    assert_eq!(replaced.id, first.id);
+    assert_eq!(replaced.generation, generation(2));
+    assert!(!replaced.enabled);
+    assert_eq!(replaced.spec.payload, serde_json::json!({"module": "new"}));
+    assert_eq!((replaced.last_run_at, replaced.last_outcome), (None, None));
+    assert!(
+        !h.store
+            .record_run(first.id, first.generation, stamp(4), &RunOutcome::Ok)
+            .expect("fenced run"),
+        "a run of the old generation is fenced"
+    );
+    // An ended row is restarted in place, with the given flag.
+    assert!(
+        h.store
+            .stop(replaced.id, replaced.generation, stamp(5), "done")
+            .expect("stop")
+    );
+    let restarted = h
+        .store
+        .replace_and_set_enabled(&new_schedule("python"), true, stamp(6), &[])
+        .expect("restart")
+        .expect("written");
+    assert_eq!(
+        (restarted.id, restarted.generation, restarted.enabled),
+        (first.id, generation(3), true)
+    );
+    assert!(restarted.is_active());
+}
+
+/// A call naming a missing row changes nothing: the written row is neither
+/// created nor replaced; a list naming the written row is `InvalidSpec`.
+#[test]
+fn replace_and_set_enabled_naming_a_missing_row_changes_nothing() {
+    let h = Harness::new();
+    let builtin = h.create("builtin", 1);
+    let refused = h
+        .store
+        .replace_and_set_enabled(
+            &new_schedule("python"),
+            true,
+            stamp(2),
+            &[(name("builtin"), false), (name("missing"), false)],
+        )
+        .expect("call");
+    assert_eq!(refused, None);
+    assert!(
+        h.store
+            .list_active()
+            .expect("list")
+            .iter()
+            .all(|s| s.spec.name.as_str() != "python")
+    );
+    assert_eq!(h.store.get(builtin.id).expect("get"), Some(builtin));
+    let named_itself = h.store.replace_and_set_enabled(
+        &new_schedule("python"),
+        true,
+        stamp(2),
+        &[(name("python"), false)],
+    );
+    assert!(
+        matches!(named_itself, Err(CronError::InvalidSpec(_))),
+        "{named_itself:?}"
+    );
+}
+
+/// A planted failure on the second row's flag update rolls the first row's
+/// back too: `set_enabled_many` is one transaction, checked deterministically
+/// (the polling test can only make a split write likely to be seen).
+#[test]
+fn set_enabled_many_rolls_back_whole_when_the_second_row_fails() {
+    let h = Harness::new();
+    let a = h.create("a", 1);
+    let b = h.create("b", 2);
+    h.sql()
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'b' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .expect("trigger");
+    assert!(
+        h.store
+            .set_enabled_many(&[(name("a"), false), (name("b"), false)])
+            .is_err()
+    );
+    assert!(h.store.get(a.id).expect("get").expect("a").enabled);
+    assert!(h.store.get(b.id).expect("get").expect("b").enabled);
+}
+
+/// A planted failure on the other row's flag rolls the written row back:
+/// `replace_and_set_enabled` is one transaction.
+#[test]
+fn replace_and_set_enabled_rolls_back_whole_when_the_other_flag_fails() {
+    let h = Harness::new();
+    let builtin = h.create("builtin", 1);
+    h.sql()
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'builtin' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .expect("trigger");
+    let r = h.store.replace_and_set_enabled(
+        &new_schedule("python"),
+        true,
+        stamp(2),
+        &[(name("builtin"), false)],
+    );
+    assert!(r.is_err(), "{r:?}");
+    assert_eq!(h.store.list_active().expect("list"), vec![builtin]);
 }

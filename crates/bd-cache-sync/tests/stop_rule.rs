@@ -27,7 +27,7 @@ fn test_stop_only_when_no_active_phase_and_no_open_work() {
     w.add("b1", Some("x"), |_| {});
     let mut cache = w.cache();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
 
     // An active phase: keep going.
@@ -37,7 +37,7 @@ fn test_stop_only_when_no_active_phase_and_no_open_work() {
     w.close_in_bd("rx");
     w.next_tick();
     cache
-        .sync(&scope("x"), w.after(Duration::from_secs(20)))
+        .sync_legacy(&scope("x"), w.after(Duration::from_secs(20)))
         .unwrap();
     assert!(stop(&w, &mut cache).is_some());
 
@@ -121,7 +121,7 @@ fn a_root_bd_does_not_return_never_ends_the_schedule() {
     assert_eq!(stop(&w, &mut cache), None, "not returned is not closed");
     let reply = w.tick(&mut cache);
     assert!(reply.active.is_empty(), "{reply:?}");
-    assert_eq!(reply.unreadable_roots, [scope("x").phase_name().clone()]);
+    assert_eq!(reply.unreadable_roots, [scope("x").scope_name().clone()]);
     assert_eq!(stop(&w, &mut cache), None);
 
     // Once bd knows the root and it is closed: positive knowledge, stop.

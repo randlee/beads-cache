@@ -134,10 +134,10 @@ fn compose_errors_have_codes_and_sources() {
     };
     assert_eq!(loader.code(), "store_config_bad_scope");
     assert_eq!(err.fix(), loader.fix());
-    assert!(err.fix().contains("phase name"), "{}", err.fix());
-    // It states the model's one phase-name rule (RBP-F037).
+    assert!(err.fix().contains("name each scope"), "{}", err.fix());
+    // It states the model's one scope-name rule (RBP-F037).
     assert!(
-        err.fix().contains(bd_cache_model::PhaseName::RULE),
+        err.fix().contains(bd_cache_model::ScopeName::RULE),
         "{}",
         err.fix()
     );
