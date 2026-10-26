@@ -154,8 +154,8 @@ Phase-end fixes to the 0.1.0 code described below.
 
 ## [0.1.0] - unreleased
 
-The first release: the beads SQLite cache extracted from atm-core's
-`atm-bd-orchestration` skill (BD-CACHE v3), as Rust crates and Python
+The first release: the beads SQLite cache extracted from its first
+consumer (BD-CACHE v3), as Rust crates and Python
 bindings. `sc-beads`, `sc-bd-cli` and `sc-cron` go to crates.io and
 `bd-cache-rs` to PyPI; the other crates are internal (`publish = false`).
 
@@ -186,7 +186,7 @@ bindings. `sc-beads`, `sc-bd-cli` and `sc-cron` go to crates.io and
     `with_child_var` for the environment of every spawned `bd`.
   - Feature `test-support`: `RecordingInvoker` and `FakeBd`.
 - **sc-cron**: a SQLite-backed cron scheduler for tokio, extracted from
-  atm-core's `atm-cron`, with no ATM or bd types.
+  the first consumer's cron scheduler, with no consumer or bd types.
   - Validated schedule specs, a future-occurrence check before anything is
     written, a fixed jitter per schedule, missed-tick `Coalesce` (default) or
     `Skip`, a stop check before every run, run timeouts on the monotonic clock,
@@ -198,7 +198,7 @@ bindings. `sc-beads`, `sc-bd-cli` and `sc-cron` go to crates.io and
   built with maturin / PyO3, one abi3 wheel per platform for CPython 3.9 and
   later.
   - `bd_cache_rs.Cache` over the real SQLite store, `flock` drain lock and
-    `BdCli`, with the verbs atm-bd uses: `get`, `refresh`, `write`, `list`,
+    `BdCli`, with the verbs the first consumer uses: `get`, `refresh`, `write`, `list`,
     `ready`, `sync`, `drain`, `entry`, `resolve`, `prune`, `status`, and the
     announcement state `unannounced_escalations`, `mark_announced`,
     `sync_alert`, `set_sync_alert` and `open_work`.
@@ -222,7 +222,7 @@ bindings. `sc-beads`, `sc-bd-cli` and `sc-cron` go to crates.io and
 ### Schema and file versions
 
 - The cache file is the BD-CACHE v3 file: `PRAGMA user_version` 3
-  (`bd_cache_store::SCHEMA_VERSION`), shared with atm-core's `bd_cache.py`.
+  (`bd_cache_store::SCHEMA_VERSION`), shared with the baseline Python implementation.
   Additions are new tables and nullable columns only; a file at another
   nonzero version is refused, and the version is never changed on open.
 - The strict rows are pinned to bd 1.3.1, `bd schema` version 1, sha256

@@ -4,7 +4,7 @@ phase: a
 status: complete
 closure_type: integration
 target_boundary: bd-cache-py and its composition
-vertical_rationale: "The bd-cache-py boundary does not exist yet: this sprint creates it and composes the real store, sc-bd-cli and core behind it, so atm-bd can call the cache in process without sc-runtime."
+vertical_rationale: "The bd-cache-py boundary does not exist yet: this sprint creates it and composes the real store, sc-bd-cli and core behind it, so the first consumer can call the cache in process without sc-runtime."
 track: python
 wave: 3
 branch: sprint/a-8-python-bindings
@@ -41,9 +41,9 @@ owned_paths:
 ## Outcome and closure
 
 A `bd-cache-py` crate, built with maturin and PyO3, that exposes the cache
-in process to Python. atm-bd imports `bd_cache.py` today; this gives it a
-module it can switch to without waiting for sc-runtime, because atm-bd
-already has its own scheduler (ATM cron) and calls the cache synchronously.
+in process to Python. The first consumer imports the baseline Python implementation today; this gives it a
+module it can switch to without waiting for sc-runtime, because the first consumer
+already has its own cron scheduler and calls the cache synchronously.
 Closes when a Python test suite drives every exposed verb against the real
 composition and the wheel builds in CI.
 
@@ -51,7 +51,7 @@ composition and the wheel builds in CI.
 
 Composes `BdCli` (a-2), `SqliteStore` (a-4) and the write and read paths of
 `Cache` (a-5, a-6). It does not need `bd-cache-sync` or `sc-cron` (a-3, a-7):
-atm-bd's own `bd_cache_cron.py` keeps scheduling and calls `drain` and
+the first consumer's own cron script keeps scheduling and calls `drain` and
 `sync` through these bindings. It does not depend on `sc-cron`; under R14 and
 R15 it edits `sc-cron`'s test lint configuration plus one sentence of
 `docs/sc-cron/architecture.md`.
@@ -61,17 +61,17 @@ R15 it edits `sc-cron`'s test lint configuration plus one sentence of
 1. `bd_cache_rs` Python module (name final: `bd_cache_rs`) over the concrete
    composition `Cache<SqliteStore, FlockDrainLock, BdCli>`, opened from the
    repository through a-4's `load_repo_config` (or explicit arguments),
-   with the verbs atm-bd uses (REQ-BDC-0910): `get(bead, miss_timeout=None)`,
+   with the verbs the first consumer uses (REQ-BDC-0910): `get(bead, miss_timeout=None)`,
    `refresh(ids, timeout)`, `write(bead, op, args, precondition, idem_key,
    actor)`, `list(phase, status=None, label=None)`, `ready(phase, fresh_within=None)`,
    `sync(phase, timeout)`, `drain(start_gate_s, hard_s)`, `entry(seq)`,
    `resolve(seq, note, actor)`, `prune(phase)`, `status()`, and the
-   announcement state atm-bd's `bd_cache_cron.py` needs to keep announcing
+   announcement state the first consumer's cron script needs to keep announcing
    through its own sender: `unannounced_escalations()`, `mark_announced(seq)`,
    `sync_alert(phase)`, `set_sync_alert(phase, cause)`, `open_work()`.
 2. Replies are the Rust reply types converted to Python dicts. Their shapes
    are documented in `docs/bd-cache-py/architecture.md` and versioned with
-   the wheel; where they differ from `bd_cache.py`'s JSON, the mapping table
+   the wheel; where they differ from the baseline Python implementation's JSON, the mapping table
    records it. This does not close REQ-BDC-0806 (the CLI drop-in); `CacheError` becomes one Python
    exception class carrying `code`, `detail`, `fix`, `reason` and the payload
    (REQ-BDC-0802, 0803).
@@ -82,11 +82,11 @@ R15 it edits `sc-cron`'s test lint configuration plus one sentence of
    used or dropped on another thread never panics in PyO3; `close()`,
    `closed` and `__exit__` never hold the GIL while they wait.
 4. Packaging: maturin `pyproject.toml` in the crate, abi3 wheels for the
-   Python versions atm-bd runs, built in `.github/workflows/python.yml`
+   Python versions the first consumer runs, built in `.github/workflows/python.yml`
    (macOS arm64 and Linux x86_64 at least). Publishing to PyPI is a later
    release step (`pypi` / `testpypi` environments).
 5. `docs/bd-cache-py/requirements.md` and `architecture.md`, including the
-   mapping from each `bd_cache.py` function atm-bd calls today to its
+   mapping from each baseline Python implementation function the first consumer calls today to its
    binding.
 
 ## Acceptance criteria
@@ -96,7 +96,7 @@ R15 it edits `sc-cron`'s test lint configuration plus one sentence of
 | A pytest suite drives every verb in deliverable 1 against the real composition with a recording `bd` invoker, and checks each reply's fields (REQ-BDC-0910) | req:REQ-BDC-0910 |
 | A typed error raises the exception with `code`, `fix` and payload; `PRECONDITION` carries `unmet` | req:REQ-BDC-0910 |
 | `refresh` returns fresh rows with the overlay; `entry(seq)` returns an entry in any state; `sync` then `list` of an unconfigured phase works | req:REQ-BDC-0910 |
-| The mapping table in `docs/bd-cache-py/architecture.md` covers every `bd_cache.py` function the atm-bd hooks and `bd_cache_cron.py` call at atm-core 05831df | req:REQ-BDC-0910 |
+| The mapping table in `docs/bd-cache-py/architecture.md` covers every baseline Python implementation function the first consumer's hooks and cron script call at the baseline 05831df | req:REQ-BDC-0910 |
 | The `task open` path: after a dev close journaled through the binding, `ready` for its sanity bead is true with the backend unreachable (REQ-BDC-0911) | req:REQ-BDC-0910 |
 | An escalated entry is announced once through the binding's announcement verbs (marked, not re-sent) | req:REQ-BDC-0910 |
 | `ready(phase, fresh_within=0.5)` against a recording `bd` that answers late returns the cached adjusted answer with `read_fallback` set, within the limit | req:REQ-BDC-0912 |
@@ -140,7 +140,7 @@ Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
   through the verbs (the verb tests check the reply fields they define).
   REQ-BDC-0804 (a file written by either implementation is read by the other)
   is a-4's; the bindings open the shared file and the mapping table keeps
-  atm-bd's file path usable through `cache_path`. REQ-BDC-0806 is deferred
+  the first consumer's file path usable through `cache_path`. REQ-BDC-0806 is deferred
   (not closed here). NFR-BDC-0006 (live tests on the testbed only) applies
   as: no test here runs a live `bd`; all use the fake program. NFR-BDC-0001 is a-7's; the cached
   `get` number below is informational.
@@ -152,7 +152,7 @@ Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 | every verb, fields checked, recording `bd` | `test_verbs.py` (one test per verb; argv asserted), `test_reads.py` |
 | typed error with `code`, `fix`, payload; `PRECONDITION` carries `unmet` | `test_errors.py::test_a_precondition_error_carries_unmet_with_expected_and_actual` and the other `test_errors.py` cases |
 | `refresh` fresh rows with overlay; `entry(seq)` any state; sync then list of an unconfigured phase | `test_reads.py::test_refresh_returns_fresh_rows_with_the_overlay`, `test_entry_returns_an_entry_in_any_state`, `test_sync_then_list_of_an_unconfigured_phase_works` |
-| mapping table covers every call at atm-core 05831df | `docs/bd-cache-py/architecture.md`, Mapping; `test_mapping_doc.py` |
+| mapping table covers every call at the baseline 05831df | `docs/bd-cache-py/architecture.md`, Mapping; `test_mapping_doc.py` |
 | `task open` path with the backend unreachable | `test_ready.py::test_task_open_path_ready_after_a_dev_close_with_the_backend_unreachable` (no `bd` call logged) |
 | escalated entry announced once | `test_announce.py::test_an_escalated_entry_is_announced_once_then_marked` |
 | `ready(fresh_within=0.5)` with a late `bd` | `test_ready.py::test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still_blocked` (`read_fallback` set; returns while `bd` is still blocked, loose bound 10 s) |
@@ -161,7 +161,7 @@ Reply shapes: `docs/bd-cache-py/architecture.md`, Reply shapes.
 
 ## This sprint does not close
 
-Switching atm-bd to the bindings (an atm-core change, done with the one-step
+Switching the first consumer to the bindings (a change in the first consumer, done with the one-step
 cutover in the phase plan); PyPI publishing; the `bdc` binary.
 
 ## Required validation
@@ -177,7 +177,7 @@ cutover in the phase plan); PyPI publishing; the `bdc` binary.
 - **Additions beyond the verb list:** `Cache.path`, `closed`, `close()`, the
   `with` statement, `UNREACHABLE`, `ClosedError` and `__version__`.
 - **Cache file default** is `.bd-cache/<db>.bd-cache.sqlite3` (decided
-  2026-10-24); atm-bd keeps `.atm-bd/` by setting `cache_path`.
+  2026-10-24); the first consumer keeps its file in its own directory by setting `cache_path`.
 - **Tests use a fake `bd` program** (`tests/fake_bd_main.py`) so the wheel
   under test is the shipped one. Time-dependent tests are causal (the fake
   blocks until a Python thread creates a release file); durations are loose
@@ -335,8 +335,8 @@ Lead rulings R1-R8 (bc-lead, 2026-10-24) applied: REQ-PY and ADR-PY approved
 (R1); workspace dependencies (R2); serde and serde_json recorded (R3); Windows
 in the `python.yml` rust job (R4); project-plan row `in-review` (R5);
 REQ-QA-010 closed by lead evidence (R6); `op` validated in the binding (R7);
-atm-core call evidence in `crates/bd-cache-py/tests/atm_core_05831df_calls.json`,
-extracted with `atm_core_05831df_extract.py` (R8).
+the first consumer's call evidence at the baseline 05831df, vendored in `crates/bd-cache-py/tests/` with
+the script that extracted it (R8).
 
 ## Fix round 4 (QA-4 at 99c25c5)
 

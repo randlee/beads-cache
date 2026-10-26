@@ -1,0 +1,775 @@
+{
+  "schema": "plan-anchoring/run/1",
+  "run_id": "plan-20261026T013412Z-b-6",
+  "gate": "plan",
+  "created_at": "2026-10-26T01:34:12+00:00",
+  "anchors_path": "/Users/randlee/github/beads-cache/docs/plans/phase-b/anchors/anchors.json",
+  "plan": "phase-b",
+  "item": {
+    "id": "b-6",
+    "title": "Sprint b-6 — sc-cron: Python hook target, enabled flag, stop-hook action",
+    "source": "/Users/randlee/github/beads-cache/docs/plans/phase-b/sprint-b-6-sc-cron.md",
+    "chars": 3526,
+    "truncated": false,
+    "chars_before_reduction": 3526,
+    "code_reduced": {
+      "blocks": 0,
+      "lines": 0
+    }
+  },
+  "model_requested": "jev-latest",
+  "model_answered": "jev-1.14.0",
+  "threshold": 0.6,
+  "max_request_bytes": 24000,
+  "min_item_chars": 2000,
+  "dry_run": false,
+  "fixture": false,
+  "results": [
+    {
+      "anchor_id": "ANC-005",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "sc-cron, the SQLite cron job scheduler crate, must remain a general-purpose job scheduler that the sc-runtime repository can copy.",
+      "quote": "I expect 'sc-cron' to be a general tool that can be used for scheduling jobs. [...] should retain that general purpose shape for porting (copying) to sc-runtime.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "cargo tree -p sc-cron shows no bd-cache-* or sc-beads dependency; grep finds no beads or cache types in crates/sc-cron/src",
+      "kind": "prohibition",
+      "leaning": "satisfied",
+      "question_set": {
+        "gate": "plan",
+        "version": 1,
+        "overridden": false
+      },
+      "questions_sha256": "45c142d4b4a63bd5c580d2407d06af54171ebec6302dd62d0ba982450416f8cd",
+      "verdict": "satisfied",
+      "answers": {
+        "relevant": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "addressed": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "contradicted": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.97,
+          "probabilities": {
+            "yes": 0.02,
+            "no": 0.98,
+            "unclear": 0.0
+          }
+        }
+      },
+      "min_confidence": 0.97,
+      "explanation": "The directive is carried forward.",
+      "usage": {
+        "input_tokens": 2125,
+        "output_tokens": 117
+      },
+      "attempts": 1,
+      "item_chars_sent": 3526,
+      "item_shortened": false,
+      "request_bytes": 6630
+    },
+    {
+      "anchor_id": "ANC-006",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "sc-cron's cron table must have an enabled boolean column that enables or disables a schedule without rewriting the row.",
+      "quote": "cron table should have an 'enable' bool flag so scheduled tasks can be enabled/disabled w/out needing to rewrite the entire row.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "a test toggles enabled and asserts the row's generation, expression and payload are unchanged",
+      "kind": "directive",
+      "leaning": "satisfied",
+      "question_set": {
+        "gate": "plan",
+        "version": 1,
+        "overridden": false
+      },
+      "questions_sha256": "45c142d4b4a63bd5c580d2407d06af54171ebec6302dd62d0ba982450416f8cd",
+      "verdict": "satisfied",
+      "answers": {
+        "relevant": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "addressed": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "contradicted": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 0.0,
+            "no": 1.0,
+            "unclear": 0.0
+          }
+        }
+      },
+      "min_confidence": 1.0,
+      "explanation": "The directive is carried forward.",
+      "usage": {
+        "input_tokens": 2128,
+        "output_tokens": 117
+      },
+      "attempts": 1,
+      "item_chars_sent": 3526,
+      "item_shortened": false,
+      "request_bytes": 6653
+    },
+    {
+      "anchor_id": "ANC-007",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "sc-cron, the SQLite cron job scheduler crate, must let a schedule define a stop hook that returns the string value continue, disable or delete.",
+      "quote": "sc-cron should include the ability to define a `stop hook` [...] allow stop hook to return a stringenum with values 'disable', 'delete', 'continue' (or similar)",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "tests cover each of continue, disable and delete for a Rust and a Python stop hook",
+      "kind": "directive",
+      "leaning": "satisfied",
+      "question_set": {
+        "gate": "plan",
+        "version": 1,
+        "overridden": false
+      },
+      "questions_sha256": "45c142d4b4a63bd5c580d2407d06af54171ebec6302dd62d0ba982450416f8cd",
+      "verdict": "satisfied",
+      "answers": {
+        "relevant": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "addressed": {
+          "type": "choice",
+          "choice": "yes",
+          "confidence": 1.0,
+          "probabilities": {
+            "yes": 1.0,
+            "no": 0.0,
+            "unclear": 0.0
+          }
+        },
+        "contradicted": {
+          "type": "choice",
+          "choice": "no",
+          "confidence": 0.98,
+          "probabilities": {
+            "yes": 0.01,
+            "no": 0.99,
+            "unclear": 0.0
+          }
+        }
+      },
+      "min_confidence": 0.98,
+      "explanation": "The directive is carried forward.",
+      "usage": {
+        "input_tokens": 2136,
+        "output_tokens": 117
+      },
+      "attempts": 1,
+      "item_chars_sent": 3526,
+      "item_shortened": false,
+      "request_bytes": 6667
+    },
+    {
+      "anchor_id": "ANC-001",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "Words on the prohibited list of the repository's no-consumer lint (`scripts/lint_no_atm.py`) must not appear in this repository outside that lint, its tests and `docs/team-protocol.md`; the lint passes on the whole tree.",
+      "quote": "blocking [a prohibited word: the consumer's cron principal] and the other words on the lint's prohibited list from source or tests (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "`python3 scripts/lint_no_atm.py` exits 0 on the whole tree; per sprint, `python3 scripts/lint_no_atm.py --paths <sprint fence>` exits 0",
+      "kind": "structural",
+      "leaning": null,
+      "question_set": {
+        "gate": "plan",
+        "version": 1,
+        "overridden": false
+      },
+      "questions_sha256": "45c142d4b4a63bd5c580d2407d06af54171ebec6302dd62d0ba982450416f8cd",
+      "verdict": "deterministic_only",
+      "answers": null,
+      "min_confidence": null,
+      "explanation": "Structural anchor: verified by its deterministic_check, not by Jev",
+      "attempts": 0,
+      "item_chars_sent": 3526,
+      "item_shortened": false
+    },
+    {
+      "anchor_id": "ANC-011",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "Every code deliverable in a phase-B sprint plan must cite a REQ or ADR identifier that justifies it.",
+      "quote": "Add an anchor for only allowing code that is justified by req/adr to keep project tight.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand)",
+      "anchor_version": 5,
+      "deterministic_check": "every numbered deliverable under '## Deliverables' in docs/plans/phase-b/sprint-*.md cites at least one REQ-* or ADR-* id, and each cited id exists in docs/requirements.md, docs/*/requirements.md or docs/**/architecture.md",
+      "kind": "structural",
+      "leaning": null,
+      "question_set": {
+        "gate": "plan",
+        "version": 1,
+        "overridden": false
+      },
+      "questions_sha256": "45c142d4b4a63bd5c580d2407d06af54171ebec6302dd62d0ba982450416f8cd",
+      "verdict": "deterministic_only",
+      "answers": null,
+      "min_confidence": null,
+      "explanation": "Structural anchor: verified by its deterministic_check, not by Jev",
+      "attempts": 0,
+      "item_chars_sent": 3526,
+      "item_shortened": false
+    },
+    {
+      "anchor_id": "ADR-BDC-0005",
+      "source_type": "ADR",
+      "source_ref": "ADR-BDC-0005",
+      "statement": "When bd cannot be reached, beads-cache must keep answering reads from the cache and record an outage for the affected scopes.",
+      "quote": "When bd cannot be reached, beads-cache must keep answering reads from the cache and record an outage for the affected scopes.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "the outage tests show reads still answered and the scope's outage recorded on spawn failure, timeout and transport errors",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does)."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does).",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ADR-BDC-0009",
+      "source_type": "ADR",
+      "source_ref": "ADR-BDC-0009",
+      "statement": "The bdc CLI must offer two command surfaces: a beads surface shaped like the bd /v0 interface, and a separate cache-management surface.",
+      "quote": "The bdc CLI must offer two command surfaces: a beads surface shaped like the bd /v0 interface, and a separate cache-management surface.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 4,
+      "deterministic_check": "contract.md section 1 lists both groups; bdc --help shows the beads and cache command groups",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ADR-STORE-0001",
+      "source_type": "ADR",
+      "source_ref": "ADR-STORE-0001",
+      "statement": "The beads-cache store file must keep the v3 tables and indexes unchanged, adding only nullable columns and new tables.",
+      "quote": "The beads-cache store file must keep the v3 tables and indexes unchanged, adding only nullable columns and new tables.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 4,
+      "deterministic_check": "the format golden test matches the exact v3 DDL; PRAGMA user_version stays 3",
+      "kind": "prohibition",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-002",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "beads-cache must run its sync of bd, the beads issue-tracker CLI, at the times set in a SQLite cron table.",
+      "quote": "beads-cache needs to handle the synchronization of bd on a cron tick. [...] long term sync would be done by beads-cache at a time scheduled in the cron scheduler in sqlite cron table.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "a test runs the built-in sync from an sc-cron schedule row in the cache file",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-003",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "beads-cache must let a consumer-registered Python sync method replace its hard-coded bd sync.",
+      "quote": "In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer [the first consumer, whose name is a prohibited word]. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 4,
+      "deterministic_check": "an end-to-end test disables the built-in sync row and a registered Python sync ingests a scope",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron stays generic; the consumer-registered Python sync that replaces the built-in bd sync is planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron stays generic; the consumer-registered Python sync that replaces the built-in bd sync is planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-004",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "beads-cache must support an optional consumer-registered post-sync hook that receives the bd sync results and errors.",
+      "quote": "there can also be hooks necessary to report/escelate based on [the first consumer's] requirements [...] We would also likely want a 'post-sync' hook that could contain sync results and errors and allow consumer [the first consumer] to do custom things at that point (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 5,
+      "deterministic_check": "an end-to-end test asserts the post-sync hook request carries each scope's result and error",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 only builds the generic sc-cron hook runner; the bd sync job and the consumer post-sync hook are planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 only builds the generic sc-cron hook runner; the bd sync job and the consumer post-sync hook are planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-008",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "Each repository must have at most one built-in beads-cache bd sync schedule in sc-cron, the SQLite cron job scheduler.",
+      "quote": "I expect 'sc-cron' to be a general tool that can be used for scheduling jobs.  limiting 'builtin' sync to one per repo makes sense.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 5,
+      "deterministic_check": "a test shows a second built-in sync row is refused while other rows are allowed",
+      "kind": "prohibition",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-009",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "beads-cache sync scopes must be defined as bd filters, such as labels or --all, instead of as phases.",
+      "quote": "0702 Active phases - would NEED to be defined w/ filters.  'phase' is a concept of [the first consumer and its messaging tool, whose names are prohibited words].  other applications would have different scopes including --all. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 5,
+      "deterministic_check": "tests sync a label-filter scope and an --all scope; grep finds no phase-file reading in crates/",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron has no bd scopes or filters; the sync scopes are planned in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron has no bd scopes or filters; the sync scopes are planned in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "ANC-010",
+      "source_type": "ANC",
+      "source_ref": null,
+      "statement": "The no-consumer lint (`scripts/lint_no_atm.py`) must not report docs/team-protocol.md as a violation.",
+      "quote": "team-protocol stays as it is and is exempting from lint.",
+      "stated_by": "Rand",
+      "stated_at": "2026-10-25",
+      "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
+      "anchor_version": 5,
+      "deterministic_check": "grep -n 'docs/team-protocol.md' scripts/lint_no_atm.py shows it in EXEMPT_FILES; git diff <phase base>..HEAD -- docs/team-protocol.md is empty",
+      "kind": "structural",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "NFR-BDC-0004",
+      "source_type": "REQ",
+      "source_ref": "NFR-BDC-0004",
+      "statement": "Each bd call, Python sync method and post-sync hook started by beads-cache must be killed at its timeout, capped by the time left before the run's deadline.",
+      "quote": "Each bd call, Python sync method and post-sync hook started by beads-cache must be killed at its timeout, capped by the time left before the run's deadline.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "a test with a hanging fake bd and a hanging hook shows each is killed at its timeout and the run ends by its deadline",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "NFR-BDC-0005",
+      "source_type": "REQ",
+      "source_ref": "NFR-BDC-0005",
+      "statement": "Unit tests for beads-cache must run with no bd and no Dolt, using the deterministic fake bd.",
+      "quote": "Unit tests for beads-cache must run with no bd and no Dolt, using the deterministic fake bd.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "CI unit jobs run with no bd on PATH; new tests use fake-bd",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8)."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8).",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0001",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0001",
+      "statement": "A read of a cached bead must be answered from the local SQLite file without starting a bd process.",
+      "quote": "A read of a cached bead must be answered from the local SQLite file without starting a bd process.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 3,
+      "deterministic_check": "test_miss_fetches_once_then_serves_from_cache passes; a read during a running sync or hook test starts no bd process",
+      "kind": "prohibition",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron has no bd dependency and no cache read path."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron has no bd dependency and no cache read path.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0006",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0006",
+      "statement": "beads-cache must reach the beads backend only through bd and must never read Dolt tables directly.",
+      "quote": "beads-cache must reach the beads backend only through bd and must never read Dolt tables directly.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "grep finds no dolt or mysql client dependency or SQL against Dolt tables in crates/",
+      "kind": "prohibition",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0007",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0007",
+      "statement": "Every bead row stored by beads-cache, including rows ingested from a consumer sync, must pass the strict row decoder generated from bd schema.",
+      "quote": "Every bead row stored by beads-cache, including rows ingested from a consumer sync, must pass the strict row decoder generated from bd schema.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0008",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0008",
+      "statement": "A sync, fetch or ingest whose result contains one row that fails validation must store no row from that result.",
+      "quote": "A sync, fetch or ingest whose result contains one row that fails validation must store no row from that result.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "test_contract_violation_is_typed_and_sync_stores_nothing passes; an ingest_scope test with one bad row leaves the stored scope unchanged",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0502",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0502",
+      "statement": "A sync or ingest must not replace a stored bead row whose updated_at is newer than the incoming row.",
+      "quote": "A sync or ingest must not replace a stored bead row whose updated_at is newer than the incoming row.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "test_sync_is_incremental_and_never_replaces_a_newer_row passes; an ingest_scope test with an older row keeps the newer stored row",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0703",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0703",
+      "statement": "A beads-cache sync run must finish within its schedule's time budget, draining first with an earlier deadline and deferring any scope not started before the end.",
+      "quote": "A beads-cache sync run must finish within its schedule's time budget, draining first with an earlier deadline and deferring any scope not started before the end.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "test_tick_budget_defers_drain_entries passes; a test with a slow hook shows the run ends within the row's timeout",
+      "kind": "directive",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7.",
+      "attempts": 0
+    },
+    {
+      "anchor_id": "REQ-BDC-0812",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0812",
+      "statement": "New Python binding methods must leave every 0.1 verb, argument and returned dict unchanged and must not issue a DeprecationWarning.",
+      "quote": "New Python binding methods must leave every 0.1 verb, argument and returned dict unchanged and must not issue a DeprecationWarning.",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "anchor_version": 2,
+      "deterministic_check": "pytest -W error::DeprecationWarning passes and the 0.1 call corpus test is unchanged",
+      "kind": "prohibition",
+      "leaning": null,
+      "verdict": "excluded",
+      "answers": null,
+      "min_confidence": null,
+      "exclusion": {
+        "item": "b-6",
+        "reason": "b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method."
+      },
+      "explanation": "Excluded from this bead by the anchor's exclude list: b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method.",
+      "attempts": 0
+    }
+  ],
+  "summary": {
+    "counts": {
+      "satisfied": 3,
+      "deterministic_only": 2,
+      "excluded": 18
+    },
+    "failing": [],
+    "leaning_counts": {
+      "satisfied": 3
+    },
+    "unstable": [],
+    "errors": [],
+    "excluded": [
+      {
+        "anchor_id": "ADR-BDC-0005",
+        "reason": "b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does)."
+      },
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "reason": "b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7."
+      },
+      {
+        "anchor_id": "ADR-STORE-0001",
+        "reason": "b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule."
+      },
+      {
+        "anchor_id": "ANC-002",
+        "reason": "sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7."
+      },
+      {
+        "anchor_id": "ANC-003",
+        "reason": "sc-cron stays generic; the consumer-registered Python sync that replaces the built-in bd sync is planned in b-7."
+      },
+      {
+        "anchor_id": "ANC-004",
+        "reason": "b-6 only builds the generic sc-cron hook runner; the bd sync job and the consumer post-sync hook are planned in b-7."
+      },
+      {
+        "anchor_id": "ANC-008",
+        "reason": "b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7."
+      },
+      {
+        "anchor_id": "ANC-009",
+        "reason": "sc-cron has no bd scopes or filters; the sync scopes are planned in b-7."
+      },
+      {
+        "anchor_id": "ANC-010",
+        "reason": "b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md."
+      },
+      {
+        "anchor_id": "NFR-BDC-0004",
+        "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it."
+      },
+      {
+        "anchor_id": "NFR-BDC-0005",
+        "reason": "sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8)."
+      },
+      {
+        "anchor_id": "REQ-BDC-0001",
+        "reason": "sc-cron has no bd dependency and no cache read path."
+      },
+      {
+        "anchor_id": "REQ-BDC-0006",
+        "reason": "sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all."
+      },
+      {
+        "anchor_id": "REQ-BDC-0007",
+        "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows."
+      },
+      {
+        "anchor_id": "REQ-BDC-0008",
+        "reason": "sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path."
+      },
+      {
+        "anchor_id": "REQ-BDC-0502",
+        "reason": "sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path."
+      },
+      {
+        "anchor_id": "REQ-BDC-0703",
+        "reason": "sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7."
+      },
+      {
+        "anchor_id": "REQ-BDC-0812",
+        "reason": "b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method."
+      }
+    ],
+    "shortened": [],
+    "pass": true
+  }
+}

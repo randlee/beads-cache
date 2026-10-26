@@ -7,7 +7,7 @@ refining [`../requirements.md`](../requirements.md) and
 
 ## REQ-API-0001: One decoder, nothing ignored
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015
 
 `decode(command, json)` is the only path from a JSON request to a typed
 request. An unknown member is `BAD_ARGS` with `details.member`; a `/v0`
@@ -23,6 +23,8 @@ requests are `#[non_exhaustive]`, and the per-command operations are
 crate-private, so no front end can build or alter a request the decoder did
 not check (QA RCR-001). Operation-level `UNSUPPORTED` is left to the front
 end, which builds it with `ApiError::unsupported(Unsupported::Operation, name)`.
+
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): the phase-B verbs' requests, reply data and errors are this crate's types, decoded by the one decoder; this crate still depends on neither `bd-cache-sync` nor `sc-cron`, and the front ends execute the verbs that need them.*
 
 **Refines:** REQ-BDC-0807
 **Acceptance evidence:** `decode_refusals` (`tests/fixtures.rs`, fixture `decode_refusals.json`); the `compile_fail` doctests in `src/lib.rs` (a literal `IssuesUpdate`, a field changed after decoding, `ops::issues_update`); `an_operation_the_cache_does_not_serve_is_unsupported_operation` (`tests/error_table.rs`).
@@ -73,7 +75,7 @@ was last evicted, or ever, is not served: `issues list` and `ready` return
 
 ## REQ-API-0005: The error table and the CacheError mapping
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015
 
 `ERROR_TABLE` equals the contract §4 table (code, kind, exit, retryable,
 `v0_code`); every `CacheError` code is in it. `From<CacheError>` maps
@@ -82,6 +84,8 @@ was last evicted, or ever, is not served: `issues list` and `ready` return
 label form, and the other payload fields to `details` under their names.
 `ApiError::config_invalid` and `ApiError::tick_refusal` map the store's,
 sync's and the tick's codes without depending on those crates.
+
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): `ERROR_TABLE` gains `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` with REQ-BDC-0729's kinds and exits; `ApiError::tick_refusal` and its kind table are removed (sprint b-8).*
 
 **Refines:** REQ-BDC-0803
 **Acceptance evidence:** `the_error_table_equals_the_contract`,

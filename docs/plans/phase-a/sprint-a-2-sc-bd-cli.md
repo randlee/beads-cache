@@ -65,7 +65,7 @@ a-1.
 4. Patch to argv (REQ-BDC-0303): labels, `--set-metadata` with bools as
    `true`/`false`, `--unset-metadata`, `--append-notes`.
 5. Live probes (NFR-BDC-0006): `#[ignore]` unless `SC_BD_LIVE=1`, run by the
-   team-lead on the `m5-atmbench` testbed account in a scratch `bd init`
+   coordinating agent on the `m5-atmbench` testbed account in a scratch `bd init`
    workspace, never a shared database. They check that `bd close` and `bd reopen` bump the bead's own
    `updated_at`, and that `bd list --id` returns a closed bead only with the
    status list. They repeat the P-6 manual probe (`docs/research/bd-blocked-state-probe.md`)

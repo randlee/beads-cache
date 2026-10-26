@@ -27,9 +27,9 @@ an invalid config file or scope is `ValueError` with attributes `kind` (`parse`,
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
 **Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`, `test_a_zero_timeout_is_refused_*`, `test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd`, `test_a_beads_dir_that_cannot_be_made_absolute_is_no_database`); Rust `compose::tests` (`the_beads_dir_override_locates_the_store`, `an_unresolvable_beads_dir_is_no_database_before_the_config_is_read`); for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
 
-## REQ-PY-0002: The verbs atm-bd uses
+## REQ-PY-0002: The verbs the first consumer uses
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 The handle has exactly these verbs: `get(bead, miss_timeout=None)`,
 `refresh(ids, timeout)`, `write(bead, op, args, precondition, idem_key,
@@ -43,6 +43,8 @@ name with or without the `phase-` prefix; `args` and `precondition` are JSON
 text or any object `json.dumps` accepts (`precondition` may be `None`). A verb
 adds no cache rule: it calls the `Cache` method of the same name.
 
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): the 0.1 verbs and their arguments are unchanged; `phase` keeps its 0.1 rule, a bare name getting the legacy prefix, as the compatibility rule of ADR-BDC-0013, and also names any configured scope by its name. The phase-B methods (`ingest_scope`, `scope_announce`, `scopes_*`, `schedule_*`, `sync_use_python`, `sync_use_builtin`, `tick`) are added beside them and take scope names as written; `dir(Cache)` still lists exactly the 0.1 set (REQ-BDC-0812).*
+
 **Refines:** REQ-BDC-0910, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909
 **Acceptance evidence:** `test_verbs.py` (one test per verb, every reply field
 checked, the argv `bd` saw), `test_reads.py`.
@@ -55,7 +57,7 @@ Every reply is the `bd-cache-model` reply type serialized and converted to
 `dict`, `list`, `str`, `int`, `float`, `bool` and `None` (timestamps are
 RFC 3339 `str`). The shapes are the tables in `architecture.md`, Reply shapes;
 they change only with a new wheel version (`bd_cache_rs.__version__`). Where
-they differ from `bd_cache.py`'s JSON, the Mapping table records it. This does
+they differ from the baseline Python implementation's JSON, the Mapping table records it. This does
 not close REQ-BDC-0806 (the CLI drop-in).
 
 **Refines:** REQ-BDC-0910
@@ -84,7 +86,7 @@ failure is chained as its `__cause__`.
 
 ## REQ-PY-0005: A bad argument is a Python error, not a cache error
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 A value that is not a valid bead id, actor, idempotency key, phase name, `op`
 (not one of `bd_cache_model::OPS`: `close`, `update`, `dep_add`) or timeout
@@ -95,6 +97,8 @@ to open a new `Cache`. None of them touches the store. `list`'s `status` must be
 one of bd's seven statuses (`sc_bd_cli::argv::ALL_STATUSES`: `open`,
 `in_progress`, `blocked`, `deferred`, `closed`, `pinned`, `hooked`); any other
 text is a `ValueError` naming them, so a typo cannot read as "no rows".
+
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): a phase name is valid when it is a valid `ScopeName` (ADR-BDC-0013) after the 0.1 prefix rule; the new methods validate through the `bd-cache-model` and `bd-cache-api` types and raise `CacheError` (`BAD_ARGS`, `INGEST_INVALID`, `SCHEDULE_INVALID`) for a value those types refuse.*
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** `test_arguments_that_are_not_valid_values_raise_value_error`,
@@ -133,7 +137,7 @@ threads continue while a verb waits on `bd` or SQLite.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 After a dev close journaled through `write`, `ready` for its sanity bead is
-true with the backend unreachable and no `bd` call (the `atm task open` path).
+true with the backend unreachable and no `bd` call (the first consumer's task-open hook path).
 `ready(phase, fresh_within=s)` against a `bd` that answers late returns the
 cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
@@ -142,24 +146,29 @@ cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
 ## REQ-PY-0008: Announcement state for an external sender
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 `unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert` and
-`open_work` let atm-bd's own cron announce through its own sender: an escalated
+`open_work` let a consumer's own cron announce through its own sender: an escalated
 entry is announced once (marked, not re-sent), an undelivered one stays
 unannounced, and a sync-failure cause is announced once per cause.
+
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): REQ-BDC-0704 and 0705 are superseded, so these 0.1 verbs stay only for 0.1 callers, unchanged; the post-sync hook marks through `journal_announce` and `scope_announce` (REQ-BDC-0727, 0728).*
 
 **Refines:** REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705
 **Acceptance evidence:** `test_announce.py`.
 
-## REQ-PY-0009: The mapping covers every call atm-bd makes
+## REQ-PY-0009: The mapping covers every call the first consumer makes
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-PY-0006 (Rand, 2026-10-26) when sprint b-9 deletes the vendored call log and `test_mapping_doc.py`
 
-`architecture.md`, Mapping, lists every `bd_cache.py` name that the atm-bd
-hooks and `bd_cache_cron.py` call at atm-core `05831df`, with the binding that
+`architecture.md`, Mapping, lists every name of the baseline Python
+implementation that the first consumer's hooks and its cron module call at
+the baseline at `05831df`, with the binding that
 replaces it or the reason none is needed. Every binding named in the table
 exists on the handle.
+
+*Superseded by ADR-PY-0006 (Rand, 2026-10-26): the mapping from another implementation leaves the binding's docs with the vendored call log (S84, sprint b-9); `docs/bd-cache-py/` documents the binding's own API, and the neutral 0.1 call corpus (`tests/corpus/`, sprint b-9) proves every 0.1 verb and reply shape instead.*
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** `test_mapping_doc.py`.
@@ -174,7 +183,7 @@ builds it on macOS arm64 and Linux x86_64, runs the pytest suite against the
 installed wheel on Python 3.9, 3.11 and 3.13, and runs the crate's clippy and
 tests on macOS, Linux and Windows (lead ruling R4: the Rust crate must compile
 and pass its tests on Windows like every other crate; the wheel and pytest stay
-macOS and Linux because the atm-bd hooks run on POSIX only). Nothing in phase a publishes the wheel; the release step uses the
+macOS and Linux because the first consumer's hooks run on POSIX only). Nothing in phase a publishes the wheel; the release step uses the
 `pypi` and `testpypi` environments later.
 
 **Refines:** REQ-BDC-0910

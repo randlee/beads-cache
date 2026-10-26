@@ -2,8 +2,8 @@
 
 A local SQLite read/write cache in front of the beads `bd` CLI.
 
-beads-cache was extracted from atm-core, where the cache runs today as part of
-the `atm-bd-orchestration` skill (`bd_cache.py`, contract `BD-CACHE.md`). It
+beads-cache was extracted from its first consumer, where the cache runs today
+as the baseline Python implementation of the baseline design. It
 is a **filtered local replica**: it holds only the beads in its configured
 sync scopes (`phase-<x>` labels today), because bd databases are too large to
 copy whole.
@@ -247,7 +247,7 @@ Linux x86_64 on every push, kept as a workflow artifact.
 - **Python:** CPython 3.9 or later (`requires-python = ">=3.9"`, abi3 wheel).
 - **Platforms:** the Rust crates are tested on Linux, macOS and Windows. The
   Python wheel is built and tested on macOS arm64 and Linux x86_64 (Python
-  3.9, 3.11 and 3.13), since atm-bd's hooks run on POSIX only.
+  3.9, 3.11 and 3.13), since the first consumer's hooks run on POSIX only.
 
 ## Versioning and file formats
 
@@ -255,7 +255,7 @@ Linux x86_64 on every push, kept as a workflow artifact.
   taken up in `sc-beads` and `sc-bd-cli` and released as a semver-major
   version of both.
 - The cache file is the BD-CACHE v3 file (`PRAGMA user_version` 3), shared
-  with atm-core's `bd_cache.py`; extensions are additive tables and nullable
+  with the baseline Python implementation; extensions are additive tables and nullable
   columns only. A file at another nonzero version is refused
   (`BD_CACHE.SCHEMA_VERSION`), and the version is never changed on open.
 - `sc-cron`'s schedule store has its own file at `user_version` 1.
@@ -265,7 +265,7 @@ Linux x86_64 on every push, kept as a workflow artifact.
 ## Status
 
 0.2.0, pre-release. Nothing is published yet. The design baseline is
-atm-core's BD-CACHE contract; where beads-cache departs from it, an ADR in
+the baseline design (the BD-CACHE contract); where beads-cache departs from it, an ADR in
 [`docs/architecture.md`](docs/architecture.md) records why.
 
 Not yet:

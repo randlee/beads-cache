@@ -290,7 +290,7 @@ gated on sc-beads' `LOGGING_ENABLED` switch: the subscriber decides.
 
 ## ADR-CORE-0204: Read shapes and answer checks
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (sprint b-7: `ScopeId::from_labels` finds the first legacy-prefixed label through `LEGACY_SCOPE_PREFIX` and returns the phase-a scope stored under the bare name; the rest holds)
 
 Decision:
 
