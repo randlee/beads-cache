@@ -19,7 +19,7 @@ external scheduler (the first consumer's cron module through the later
 `bdc tick`) can call it. Only one ticker may run per cache file. The `[tick]` keys come from
 `RepoConfig.tick` (`load_repo_config`, bd-cache-store).
 
-*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the built-in run is a library function that takes the cache, the row's `TickBudget` and a held `TickLease`, and returns a reply recording each step (lease, drain, each scope's result, hook) with no `refused` or `pass-through`; there is no sender and no `[tick]` key. `cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()` call it (REQ-BDC-0720).*
+*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the built-in run is a library function that takes the cache, the row's payload (which holds its `TickBudget`) and the run context, takes the `TickLease` itself, passes `&TickLease` to each step (drain, scopes, hook), and returns a reply recording each step (lease, drain, each scope's result, hook) with no `refused` or `pass-through`; there is no sender and no `[tick]` key. `cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()` call it (REQ-BDC-0720).*
 
 **Refines:** REQ-BDC-0701, 0703
 **Acceptance evidence:** `test_missing_team_is_refused`,

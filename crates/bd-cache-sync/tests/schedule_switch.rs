@@ -940,6 +940,75 @@ async fn a_run_aborted_while_it_takes_the_lease_releases_it() {
     );
 }
 
+/// Takes the mode lock file as a mode command inside its read-decide-write
+/// window does (an exclusive `flock` on `<cache file stem>.mode.lock`), until
+/// the returned handle drops.
+fn hold_mode_lock(repo: &Repo) -> std::fs::File {
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(repo.cache_path.with_extension("mode.lock"))
+        .unwrap();
+    file.lock().unwrap();
+    file
+}
+
+/// Every mode command goes through the mode lock (REQ-BDC-0720, 0724,
+/// B8Q1-005): while another holder is inside its read-decide-write window
+/// (here the test, holding the lock file), the command neither finishes nor
+/// writes; once the holder leaves, it completes. This is the window the
+/// lock closes, forced open deterministically. Planted negative: with
+/// `ModeLock::hold` a no-op, each command finishes (and `use-python` writes
+/// the Python row) while the window is held, and the test fails.
+#[tokio::test(flavor = "multi_thread")]
+async fn every_mode_command_waits_while_another_holds_its_read_decide_write_window() {
+    const HELD: std::time::Duration = std::time::Duration::from_millis(500);
+    let repo = Repo::new(vec![]);
+    schedule_set(&repo, &set("*/30 * * * * *")).await.unwrap();
+    let stub = PyStub::new();
+    let names = [
+        "schedule set",
+        "schedule enable",
+        "sync use-python",
+        "sync use-builtin",
+        "schedule enable (again)",
+        "schedule clear",
+    ];
+    for (op, name) in names.into_iter().enumerate() {
+        let flags = repo.flags();
+        let window = hold_mode_lock(&repo);
+        let schedules = repo.schedules();
+        let req = use_python(&stub);
+        let task = tokio::spawn(async move {
+            match op {
+                0 => schedules.set(&set("*/20 * * * * *")).await.map(|_| ()),
+                1 => schedules.enable(false).await.map(|_| ()),
+                2 => schedules
+                    .use_python(&req, StopFlag::new())
+                    .await
+                    .map(|_| ()),
+                3 => schedules.use_builtin().await.map(|_| ()),
+                4 => schedules.enable(true).await.map(|_| ()),
+                _ => schedules.clear().await.map(|_| ()),
+            }
+        });
+        tokio::time::sleep(HELD).await;
+        assert!(
+            !task.is_finished(),
+            "{name} finished inside another command's window"
+        );
+        assert_eq!(repo.flags(), flags, "{name} wrote inside the window");
+        drop(window);
+        tokio::time::timeout(std::time::Duration::from_secs(30), task)
+            .await
+            .unwrap_or_else(|_| panic!("{name} never took the lock after the window closed"))
+            .unwrap()
+            .unwrap();
+    }
+}
+
 /// No interleaving of `schedule set`, `schedule enable`, `use-python` and
 /// `use-builtin` leaves both rows enabled, as a second connection polling the
 /// file sees it (REQ-BDC-0720, 0724, B8Q1-005): four commands race from

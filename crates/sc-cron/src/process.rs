@@ -11,16 +11,18 @@
 //! - when the [`supervise`] future is dropped before the child is reaped, for
 //!   instance because the run that awaited it was aborted at its deadline.
 //!
-//! The child is done when every member of its group or job has exited and
-//! its pipes are closed, not when the leader alone exits: a child that
-//! starts a background process in its group and exits 0 is waited for until
-//! that process ends too, or killed with it at `expiry`. So no member of the
-//! group or job outlives a supervised run. A descendant that leaves the group
-//! on its own (`setsid` on Unix; Windows jobs are not left once joined) is out
-//! of reach, which is a documented limit. After a kill, the reap of the
-//! group is bounded by [`REAP_AFTER_KILL`]; one that does not finish (a member
-//! stuck in the kernel) is logged and left, and the group is killed again
-//! when the supervisor drops.
+//! The child is done when its pipes are closed and it has exited: a child
+//! that starts a background process in its group and exits 0 is waited for
+//! while that process still holds the pipes, or killed with it at `expiry`.
+//! When the child exits on its own, the rest of its group or job is then
+//! killed too (best effort), so a member that let go of the pipes does not
+//! outlive the run either: no member of the group or job outlives a
+//! supervised run. A descendant that leaves the group on its own (`setsid`
+//! on Unix; Windows jobs are not left once joined) is out of reach, which is
+//! a documented limit. After a kill at `expiry`, the reap of the group is
+//! bounded by [`REAP_AFTER_KILL`]; one that does not finish (a member stuck
+//! in the kernel) is logged and left, and the group is killed again when the
+//! supervisor drops.
 //!
 //! Standard output and standard error are each kept up to a cap; the rest is
 //! read and discarded, so a child that floods a pipe is never blocked on it
@@ -263,6 +265,13 @@ pub async fn supervise(
     let status = if let Some(status) = finished {
         let status = status?;
         tree.reaped = true;
+        // The leader is gone and the pipes are closed, but a member of its
+        // group or job may be left, having let go of the pipes: end it, so
+        // nothing outlives the run. An empty group is fine (nothing to kill).
+        if let Err(error) = tree.child.start_kill() {
+            tracing::debug!(subsystem = "sc_cron", action = "child_kill", %error,
+                "kill after exit found nothing left to kill: {error}");
+        }
         Some(status)
     } else {
         if let Err(error) = tree.child.start_kill() {
@@ -518,6 +527,38 @@ wait
                 .await
                 .expect("supervise");
             assert_eq!(done.status.and_then(|s| s.code()), Some(0));
+        }
+
+        /// A child that starts a member of its group which lets go of the
+        /// pipes and exits 0 ends the run at once, and the member is killed
+        /// with the rest of the group before `supervise` returns. The member
+        /// holds the write end of the named pipe `life`, so the pipe reaches
+        /// its end only when the member is gone.
+        /// Planted negative: without the kill after the child's exit the
+        /// member sleeps on and the test times out.
+        #[tokio::test]
+        async fn a_member_that_let_go_of_the_pipes_is_killed_when_the_child_exits() {
+            let tree = Tree::new();
+            let life = tree.read("life");
+            let script = tree.dir.path().join("detached.sh");
+            fs::write(
+                &script,
+                "#!/bin/sh\ncd \"$1\"\nexec 3> life\n( exec 0</dev/null >/dev/null 2>&1; exec sleep 3600 ) &\nexit 0\n",
+            )
+            .expect("script");
+            fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).expect("chmod");
+            let spec = ChildSpec {
+                program: &script,
+                args: vec![tree.dir.path().into()],
+                cwd: tree.dir.path(),
+                input: b"",
+                env: ChildEnv::Inherit,
+            };
+            let captured = supervise(&spec, 1024, std::future::pending())
+                .await
+                .expect("supervise");
+            assert_eq!(captured.status.and_then(|s| s.code()), Some(0));
+            wait(life, "the detached member to die with the group").await;
         }
 
         #[tokio::test]
