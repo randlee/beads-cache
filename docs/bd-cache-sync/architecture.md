@@ -4,8 +4,8 @@ Status: Approved (lead ruling, bc-lead, 2026-10-24), with the corrections of QA 
 Repo-level context: [`../architecture.md`](../architecture.md). Requirements:
 [`requirements.md`](requirements.md). Created by sprint a-7.
 
-`bd-cache-sync` is the BD-CACHE cron module (`bd_cache_cron.py`, ADR-069 in
-atm-core) in Rust, scheduled on `sc-cron` (ADR-BDC-0006). It composes the
+`bd-cache-sync` is the baseline design's cron module (the baseline Python
+implementation's cron script and the first consumer's ADR-069) in Rust, scheduled on `sc-cron` (ADR-BDC-0006). It composes the
 core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 (`sc-bd-cli`) and the scheduler (`sc-cron`). Its only inbound contract is
 `EscalationSender` and `RepoConfig.tick`, both defined in a-1 and amended only by lead ruling (the ports by ADR-MODEL-0003's a-7 amendment).
@@ -19,7 +19,7 @@ core (`bd-cache`), the store (`bd-cache-store`), the `bd` CLI backend
 | `reply` | `TickReply`, `TickOutcome`, `Announcement`, `Refusal` and `RefusalCode` (a stable code, the detail and the fix) |
 | `control` | `StopFlag` and the tick's time budget for messages |
 | `job` | `SyncJob` (the `sc-cron` `Job`; `with_recompose`, `join_idle`), `TickRun`, `CacheLost`, `JobCacheError`, `schedule_spec`, `TICK_EXPR` |
-| `atm` | `AtmSender`: `atm send` with the body on stdin, bounded, the whole process tree killed on timeout or stop |
+| messaging module (the `src/` file whose path the lint flags) | the consumer's message sender: the consumer's send command with the body on stdin, bounded, the whole process tree killed on timeout or stop |
 | `compose` | `compose` / `compose_with`: the real `SqliteStore` + `FlockDrainLock` + `BdCli` cache of a repository; `compose` builds every `BdCli` over one process-wide `ProjectLocks` (a `OnceLock` static, as `bd-cache-py` keeps its own; S54, PE-RSH-003) and `compose_with` takes the lock set as an `Arc<ProjectLocks>` and the backend as a function of it, so a host shares its own set; a repository root that is not UTF-8 is `ComposeError::RepoRootNotUtf8` (`sync_repo_root_not_utf8`), never a lossy `ProjectRef`; `compose_with` takes the `$BEADS_DIR` value explicitly (`None` = unset; S36, over `SqliteStore::open_with`), rebinds the backend to its clock and gives every `bd` child that same `$BEADS_DIR` (S40, `BdCli::with_child_var`), normalized once for both into one `bd_cache_store::BeadsDirOverride` (empty is unset, relative is absolute against the process's working directory; S44, S49), failing closed with `ComposeError::BeadsDir(BeadsDirError)` (`sync_beads_dir_unresolvable`; the store's error whole, its `Display` and `source`, the `io::Error`, delegated: RBP-F050) before the store opens when a relative value cannot be made absolute (S48), and `ComposeError::code` maps each `ConfigLoadError` variant to this crate's stable `sync_config_unreadable` / `sync_config_invalid_toml` / `sync_config_bad_scope` (S34) in an exhaustive match with no wildcard arm (S38; the store's own codes are `store_config_*`, S37), the fix text still the loader's |
 
 Dependencies: ADR-SYNC-0006.
@@ -28,9 +28,9 @@ Dependencies: ADR-SYNC-0006.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-Context: atm-bd keeps its own scheduling (`bd_cache_cron.py` under ATM cron,
-through the Python bindings), and the later `bdc tick` will be driven by the
-ATM cron module; `sc-cron` is the prototype scheduler of phase a.
+Context: the first consumer keeps its own scheduling (its cron script under its
+own cron scheduler, through the Python bindings), and the later `bdc tick` will
+be driven by that cron scheduler; `sc-cron` is the prototype scheduler of phase a.
 
 Decision: the work of a tick is `tick(&mut Cache, &TickConfig, &dyn
 EscalationSender, end: Deadline)`, as the sprint's deliverable 2 gives it;
@@ -68,7 +68,7 @@ bounds how long a left-over task can hold the mutex. The stop check has its
 own small bound (`STOP_CHECK_BUDGET`, 3 s) because it runs before every run
 and shares the schedule's budget with it. A cooperative `StopFlag` ends a
 running tick between phases and before each message and, given to the
-`AtmSender`, kills its child; the shutdown order is: set the flag, await the
+consumer's message sender, kills its child; the shutdown order is: set the flag, await the
 worker's shutdown, drop the job. `SyncJob::new` validates the `[tick]` table,
 so a job that could never run is not built.
 
@@ -142,15 +142,16 @@ send goes through `EscalationSender::send_within` with the time left before
 `T` less the 1.5 s send reserve (REQ-SYNC-0011, S27); with less than half a second left, or the stop flag set, the message is
 not started, is counted in `TickReply::unsent`, stays unmarked and is sent by
 the next tick (a deferral, not a refusal). Text embedded from errors is
-clipped at 2 KiB. One message goes to each distinct lead for an outage,
-covering that lead's scopes; the outage targets are the active phases and the
+clipped at 2 KiB. One message goes to each distinct recipient for an outage,
+covering that recipient's scopes; the outage targets are the active phases and the
 phases whose root could not be read, never a phase known to be closed. A
-phase without a lead uses `fallback_lead` for alerts about the backend
-(REQ-BDC-0704); an escalated entry whose phase has no lead is refused
-(REQ-BDC-0706), and one with no scope goes to the fallback lead (requirements
+phase without a recipient uses the fallback recipient setting for alerts about
+the backend (REQ-BDC-0704); an escalated entry whose phase has no recipient is
+refused (REQ-BDC-0706), and one with no scope goes to the fallback recipient
+(requirements
 amended by lead ruling S3, bc-lead, 2026-10-24).
 
-Consequences: a lead hears of an outage once per outage, however many ticks
+Consequences: a recipient hears of an outage once per outage, however many ticks
 it lasts; a sender that is down for hours is retried every tick without
 losing anything; a slow sender cannot push a tick past `T`.
 
@@ -181,7 +182,7 @@ fail the tick; the alert stays set and the next tick clears it. The end of an
 outage clears each scope once (a stored scope and a phase file of the same
 phase are one scope), so a failed clear is the next tick's to retry
 (fix-a-7-12, QA8-001). A marker write that fails after a delivered send logs a
-structured warning (announcement kind, lead, `seq` or scope, error code) and
+structured warning (announcement kind, recipient, `seq` or scope, error code) and
 then fails the tick as above, keeping the at-least-once delivery. The
 announcement and its marked item are one value, `Unmarked` (`SyncFailure`,
 `Outage` with the scope, `Escalation` with the `seq`), and the reason of a
@@ -229,8 +230,9 @@ with no time left. Evidence:
 clears) and `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
 (`src/announce.rs`).
 
-Note (fix-a-7-3, lead ruling S21): `bd_cache.py`'s cron stores `sync_alert` as
-`"<code>: <detail>"` (verified at atm-core `05831df`), where this crate stores
+Note (fix-a-7-3, lead ruling S21): the baseline Python implementation's cron
+stores `sync_alert` as `"<code>: <detail>"` (verified in the baseline at
+`05831df`), where this crate stores
 the bare key. The tick reads the code before the first `": "` with
 `AlertCause::from_key` (through `AlertCause::from_stored`), so an alert written
 in the Python form does not make it announce the same cause again. Python
@@ -271,7 +273,7 @@ and found closed. `tests/stop_rule.rs`
 
 Note (fix-a-7-5, RBP-F039; S23 semantics unchanged): a root bd answered
 without is also refused with its own `Refusal`, code `phase_root_not_returned`,
-fix "check root in phase-<x>.toml names an existing bead", since its `root`
+fix "check that the phase file's root names an existing bead", since its `root`
 likely names no bead. A read of the roots that failed is transient and is not
 refused; it is only reported in `TickReply::unreadable_roots`. Either way the
 root stays unknown and the schedule continues. `tests/tick_phases.rs` (same
@@ -335,8 +337,8 @@ schedule payload), `toml` (the phase files; the `[tick]` table is parsed by
 `criterion` (the informational bench), `chrono` (`sc-cron`'s `ManualClock`
 takes a `chrono::Duration`), `rusqlite` (tests seed and inspect the cache file),
 `tokio`'s `test-util` feature (the scheduler tests), and the `testing`, `test-support` and
-`test-utils` features of the crates above. The process tree of `atm` is killed
-with the platform's `kill`/`taskkill` programs rather than a `windows-sys`
+`test-utils` features of the crates above. The process tree of the consumer's send command
+is killed with the platform's `kill`/`taskkill` programs rather than a `windows-sys`
 dependency, so the crate has no `unsafe`.
 
 Amendment (fix-a-7-3, RSH-024; **Status:** Approved (lead ruling S22, bc-lead, 2026-10-24)):
@@ -351,66 +353,68 @@ ARCH-301.
 
 Consequences: a new dependency is a change to this ADR.
 
-## ADR-SYNC-0007: The phase-file schema and the `atm send` contract
+## ADR-SYNC-0007: The phase-file schema and the consumer's send contract
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-Context: both are defined by atm-bd's `bd_cache_cron.py` at atm-core
-`05831dfe866d389feed138add3c29cb93cd6c82b` (the BD-CACHE baseline); the Rust
+Context: both are defined by the baseline Python implementation's cron script
+at `05831dfe866d389feed138add3c29cb93cd6c82b` (the baseline); the Rust
 side must read the same files and talk to the same program.
 
-Decision (confirmed against that commit with `gh api`; ported fixtures
-`tests/fixtures/phase-bd.toml` and `phase-bk.toml`, see their `PROVENANCE.md`):
+Decision (confirmed against that commit with `gh api`; two ported
+phase-file fixtures under `tests/fixtures/`, see their `PROVENANCE.md`):
 
-- **Phase file.** `<phases_dir>/phase-<x>.toml`, default `<repo>/.atm-bd/`.
-  A string `root` (the phase's root bead) and a string `lead`; every other key
+- **Phase file.** One TOML file per phase in the configured phases directory,
+  by default the first consumer's own directory under `<repo>`. A string `root`
+  (the phase's root bead) and a string naming the phase's recipient; every other key
   (`plan`, `integration_branch`, `[templates]`) is ignored. The name is the
   file name after `phase-`; a configured phase list names phases without the
   prefix (the `phase-` prefix is accepted too). Differences from the reference,
   each deliberate: the reference silently skips a file without `root` or
-  `lead`, and a missing directory is no phases; this crate keeps a file
-  without `lead` (its alerts go to `fallback_lead`, lead ruling S3), reports an
+  a recipient, and a missing directory is no phases; this crate keeps a file
+  without a recipient (its alerts go to the fallback recipient, lead ruling S3), reports an
   unusable file as a typed `PhaseFileProblem`, treats an unreadable
   directory as "do not stop" and refuses an empty phase list. A phase file is
   read up to 64 KiB, and at most 256 are read. With `[tick] phases` set the
-  directory is not scanned: each configured `phase-<x>.toml` is looked up by
+  directory is not scanned: each configured phase's file is looked up by
   name, so no cap can hide one; without it the scan visits at most
   `MAX_PHASES_DIR_ENTRIES` (1024) entries of any kind (`TooManyEntries`,
   `phase_files_too_many`; PE-RSH-010).
-- **`atm send`.** `atm send <lead>@<team> --team tool --stdin --json` with
-  `ATM_IDENTITY=cron` and `ATM_TEAM=tool` in the environment and the message on
-  stdin, as the reference runs it; the reference's time limit is 10 s and so is
-  this crate's, reduced to the time the tick has left. `lead` and `team` are
-  `MemberName`s: nonempty, no whitespace, no `@`, no leading `-`. The message
+- **The consumer's send command.** The first consumer's send command, addressed
+  to the recipient under the consumer's cron principal and sender identity (set
+  in the arguments and the environment), with the message on stdin, as the
+  reference runs it (the exact command line is in git history); the reference's time limit is 10 s and so is
+  this crate's, reduced to the time the tick has left. The recipient's names
+  are `MemberName`s: nonempty, no whitespace, no `@`, no leading `-`. The message
   texts differ (the resolve command is `bd-cache resolve`, the Rust CLI's
-  name); everything else a lead needs is the same (the entry, the error, the
+  name); everything else a recipient needs is the same (the entry, the error, the
   recovery).
 
 Amendment (fix-a-7-3, RSH-023; **Status:** Approved (lead ruling S22, bc-lead, 2026-10-24)):
-the output of `atm` is read by threads
-bounded as `atm.rs` documents. Each send starts at most three threads (the
+the output of the consumer's send command is read by threads
+bounded as the messaging module documents. Each send starts at most three threads (the
 message writer and one reader per output stream), named and started with
 `thread::Builder` (PE-RSH-011): a thread that cannot be started is a
 `SendError` (`other`) and the child's tree is killed and reaped, never left
 running (`a_helper_thread_that_cannot_start_fails_the_send_and_kills_the_child`,
-`src/atm.rs`). A reader keeps at most
+the messaging module). A reader keeps at most
 `CAPTURE_LIMIT` (4096 bytes) and drops the rest, and the error says so; the
 threads are waited for no longer than the time left in the tick's budget. They
-end when the pipes close, so a descendant of `atm` that outlives a failed send
+end when the pipes close, so a descendant of the send command that outlives a failed send
 and holds a pipe keeps its reader thread until it exits; the process tree is
 killed on a timeout or a stop, but a descendant that escapes the group is not
 the tick's to reap. After a successful send nothing is killed or waited for.
 This closes ARCH-302.
 
 Amendment (fix-a-7-5, RSH-027, REQ-QA-501; **Status:** Approved (lead ruling S27, bc-lead, 2026-10-24)):
-the `atm send` stays inside the tick's send reserve. The tree kill and the
+the consumer's send stays inside the tick's send reserve. The tree kill and the
 reaping of the child share one kill deadline, `KILL_BOUND` (1 s) from the start
 of the kill; the tick keeps `SEND_RESERVE` (1.5 s) before `T`, which covers
-`READ_GRACE` (250 ms) plus `KILL_BOUND`. Const assertions in `atm.rs` and
+`READ_GRACE` (250 ms) plus `KILL_BOUND`. Const assertions in the messaging module and
 `control.rs` tie the constants together and to `HARD_MARGIN`.
 Two tests split the evidence (fix-a-7-10, FTQ-025):
 `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
-(`src/atm.rs`) runs the real group kill on a child and descendant that ignore
+(the messaging module) runs the real group kill on a child and descendant that ignore
 TERM, under a generous deadline, and shows the child reaped and the descendant
 gone; `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` gives a tree
 kill that only hangs an injected deadline and shows it given up and reaped. No
@@ -442,12 +446,12 @@ jitter. The send reserve is not sized for that run time.
 
 Amendment (fix-a-7-5, RSH-028; **Status:** Approved (lead ruling S28, bc-lead, 2026-10-24)):
 a child or tree-kill program still running at the kill deadline is killed and
-handed to one detached reaper thread (`bd-cache-atm-reaper`, started on first
-use, for the life of the host). It polls what it holds every 200 ms and drops
+handed to one detached reaper thread (named after the messaging module,
+started on first use, for the life of the host). It polls what it holds every 200 ms and drops
 each process once it has exited, so a given-up process is not left a zombie;
 one that never exits is held without blocking the others.
 `a_child_that_is_not_reaped_in_time_is_reaped_by_the_reaper` and
-`a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (`src/atm.rs`)
+`a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (the messaging module)
 check the pid is gone.
 
 Consequences: the Python cron module and this crate can read the same phase

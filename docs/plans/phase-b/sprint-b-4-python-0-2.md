@@ -30,7 +30,7 @@ owned_paths:
 
 Wheel `bd-cache-rs` 0.2.0 adds `cache.beads.*` and `cache.manage.*` over
 `bd-cache-api` (contract §10). Every 0.1 verb and every 0.1 dict is
-unchanged, and 0.2 issues no `DeprecationWarning`. fenix builds against 0.1,
+unchanged, and 0.2 issues no `DeprecationWarning`. The first consumer's maintainer builds against 0.1,
 so this sprint is additive only.
 
 ## Deliverables

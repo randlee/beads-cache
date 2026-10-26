@@ -4,20 +4,19 @@ Status: phase a in progress (see the Phases and Sprints tables).
 
 ## Context
 
-beads-cache extracts the beads SQLite cache in use today in atm-core's
-`atm-bd-orchestration` skill into its own project, baselined on that
+beads-cache extracts the beads SQLite cache in use today in its first
+consumer into its own project, baselined on that
 implementation and delivered first as an MVP. It is built against
 sc-runtime, which is being specified in parallel, so phases here may wait
 on sc-runtime milestones; record each such dependency in the phase row.
 
-- Baseline (the contract): `.claude/skills/atm-bd-orchestration/scripts/BD-CACHE.md`
-  in atm-core, introduced by https://github.com/randlee/atm-core/pull/2219.
-  Reference implementation: `bd_cache.py`, `bd_models.py` and `bd_cache_cron.py`
-  in the same directory. Acceptance suite: `tests/test_bd_cache.py` (44 tests)
-  and `tests/test_bd_cache_cron.py` (13), with fixtures in
-  `tests/fixtures/bd-1.3.1/`. Design tracker:
-  https://github.com/randlee/atm-bd-orchestration/issues/557. Where BD-CACHE.md
-  and the Python code disagree, report it on that issue.
+- Baseline (the contract): the baseline design, the first consumer's design
+  document for the cache. Reference implementation: the baseline Python
+  implementation (the cache, its models and its cron module). Acceptance
+  suite: the baseline acceptance suite (44 tests) and the baseline cron suite
+  (13), with fixtures for bd 1.3.1. Where the baseline design and the Python
+  code disagree, the disagreement is reported to the first consumer's design
+  tracker. Their locations are recorded in git history.
 - Upstream dependency: sc-runtime (https://github.com/randlee/sc-runtime).
 
 ## Conventions

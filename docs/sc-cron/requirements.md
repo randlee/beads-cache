@@ -6,7 +6,7 @@ Domain code: `CRON`. Owned by sprint a-3 (`requirements.owns` in
 [sprint-a-3-sc-cron.md](../plans/phase-a/sprint-a-3-sc-cron.md)).
 `sc-cron` is the prototype cron scheduler of
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime),
-extracted from atm-core's `atm-cron` (ADR-069 there). It owns no repo-level
+extracted from the first consumer's cron scheduler (its ADR-069). It owns no repo-level
 requirement. It is constrained by
 [REQ-BDC-0703](../requirements.md#req-bdc-0703-tick-budget) and
 [NFR-BDC-0004](../requirements.md#nfr-bdc-0004-bd-calls-bounded-by-the-deadline),
@@ -159,11 +159,11 @@ moving monotonic time.
 
 **Refines:** ADR-BDC-0006
 
-## REQ-CRON-0011: No ATM or bd-cache types
+## REQ-CRON-0011: No consumer or bd-cache types
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2)
 
-`sc-cron` depends on no bd-cache, sc-beads or ATM crate, and no such type
+`sc-cron` depends on no bd-cache, sc-beads or consumer crate, and no such type
 appears in its API. A schedule's input is an opaque `serde_json::Value`, and
 every failure is a `CronError` with a stable `code()` (`BAD_EXPRESSION`,
 `INVALID_SPEC`, `ALREADY_ACTIVE`, `STORE_FAILED`, `FENCED`) and `recovery()`

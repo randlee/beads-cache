@@ -8,12 +8,11 @@ Created by sprint a-3, which lists ADR-CRON-0001..0006 in its `adrs`.
 ## Purpose
 
 `sc-cron` is a generic SQLite-backed cron scheduler, extracted from
-atm-core's `atm-cron` (`crates/atm-cron`, store port
-`crates/atm-storage/src/cron_schedule_store.rs`, rusqlite store
-`crates/atm-storage-rusqlite/src/cron_schedule_store.rs`, ADR-069 there). It
-carries over atm-cron's scheduling behaviour and leaves out everything that
-is ATM's: hooks, teams, phases, the sealed `CronScheduler` boundary and
-`AtmError`. It depends on no workspace crate, so it can move to sc-runtime
+the first consumer's cron scheduler (the source scheduler below: its cron
+crate, store port and rusqlite store, and its ADR-069). It carries over the
+source scheduler's behaviour and leaves out everything that is the
+consumer's: hooks, teams, phases, the sealed `CronScheduler` boundary and
+the consumer's error type. It depends on no workspace crate, so it can move to sc-runtime
 unchanged. `bd-cache-sync` (a-7) builds the bd-cache sync schedule on it.
 
 ## Module layout
@@ -180,17 +179,17 @@ tokio's blocking pool.
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: atm-cron runs ATM hooks: a schedule carries `TeamName`, `PhaseId`,
+Context: the source scheduler runs the consumer's hooks: a schedule carries `TeamName`, `PhaseId`,
 module path, cwd, args and `custom`, a tick is a `HookRequest`, a reply's
-actions go to a `HookActionDispatcher`, and every failure is an `AtmError`.
+actions go to a `HookActionDispatcher`, and every failure is the consumer's error type.
 ADR-BDC-0006 requires `sc-cron` to carry none of that.
 
 Decision: a schedule's input is one opaque `serde_json::Value` payload
 (at most `MAX_PAYLOAD_BYTES`), handed to a caller-supplied `Job` (`run`
-with a deadline, `should_stop`) on every tick. atm-cron's two stop
+with a deadline, `should_stop`) on every tick. the source scheduler's two stop
 conditions (`Until` and the stop hook) become `Job::should_stop`, so a time
 limit is a payload field the job checks. Outcomes are
-`RunOutcome { Ok, Refused, Failed, TimedOut }`. atm-cron's `Actions`,
+`RunOutcome { Ok, Refused, Failed, TimedOut }`. the source scheduler's `Actions`,
 `Malformed`, `ActionErr` and `Exit` are hook-specific and fold into `Ok` or
 `Failed`. Failures are one `#[non_exhaustive] enum CronError` with a stable
 `code()` (`BAD_EXPRESSION`, `INVALID_SPEC`, `ALREADY_ACTIVE`,
@@ -215,7 +214,7 @@ job's `Instant` deadline needs a monotonic timeline that a manual clock also
 controls.
 
 Decision: `Clock` also has `monotonic_now()` (default `Instant::now()`) and
-`async fn sleep_until(target)`, as atm-cron's `Clock` does. `SystemClock`
+`async fn sleep_until(target)`, as the source scheduler's `Clock` does. `SystemClock`
 sleeps in slices of at most 30 s and re-reads the wall clock between them.
 `ManualClock` moves both timelines together and never moves monotonic time
 back. `jump_wall` steps wall time alone, to model an NTP step. Each park is
@@ -229,7 +228,7 @@ Consequences: the trait uses `async-trait`. A job compares its deadline with
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: atm-cron recomputes every next run from now at startup, so a tick
+Context: the source scheduler recomputes every next run from now at startup, so a tick
 missed across a restart is never replayed (ADR-069 D2), while a tick missed
 during a suspend fires once. ADR-BDC-0006 asks for missed-tick replay.
 
@@ -248,9 +247,9 @@ its next run was stored before launch.
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: atm-cron stores a whole-second jitter per schedule and spreads it
-over offsets not held by other schedules with the same expression (an ATM
-product ruling). The contract's `JitterSource::jitter(max)` returns a
+Context: the source scheduler stores a whole-second jitter per schedule and
+spreads it over offsets not held by other schedules with the same expression
+(a product ruling of the first consumer). The contract's `JitterSource::jitter(max)` returns a
 `Duration`.
 
 Decision: `start` draws one jitter in `[0, max)` with

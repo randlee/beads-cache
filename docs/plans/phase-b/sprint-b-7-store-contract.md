@@ -56,8 +56,8 @@ need, as additive v3 extensions (ADR-STORE-0006, ADR-STORE-0001). The design is
 6. **Registration** (REQ-BDC-0724). Read and write of the `registration` table.
 7. **Codes and outage** (REQ-BDC-0729, ADR-BDC-0005). The four new codes and `details.outage`
    in the model's error table.
-8. **Removals** (ADR-BDC-0010). `bd-cache-model/src/sender.rs`; the `[tick] team`,
-   `fallback_lead`, `phases_dir` and `phases` config; the consumer wording in store comments.
+8. **Removals** (ADR-BDC-0010). `bd-cache-model/src/sender.rs`; the `[tick]` table's message-routing and
+   phase-file settings; the consumer wording in store comments.
 
 ## Acceptance
 

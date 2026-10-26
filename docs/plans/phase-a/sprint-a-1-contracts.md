@@ -279,7 +279,7 @@ pub trait DrainGuard: Send {}
 pub mod testing { pub struct FakeStore; pub struct FakeDrainLock; }
 
 pub struct SendError { pub detail: String }
-/// Escalation delivery port; a-7 implements it with `atm send`.
+/// Escalation delivery port; a-7 implements it with the first consumer's messaging command.
 pub trait EscalationSender: Send + Sync { fn send(&self, lead: &str, team: &str, body: &str) -> Result<(), SendError>; }
 
 /// The `.beads/bd-cache.toml` schema; a-4 owns the one loader (bd_cache_store::load_repo_config).
@@ -289,7 +289,7 @@ pub struct RepoConfig { pub cache_path: Option<PathBuf>, pub scopes: Vec<String>
     pub tick: Option<TickConfig> }
 // toml is a private parsing dependency (ADR-MODEL-0004): no toml type in the API.
 pub struct SchemaPackageRef(/* private */);
-pub struct TickConfig { pub team: Option<String>, pub fallback_lead: Option<String>, pub phases_dir: Option<PathBuf>, pub phases: Option<Vec<String>> }
+pub struct TickConfig { pub team: Option<String>, /* the fallback recipient, Option<String>; field name in git history */ pub phases_dir: Option<PathBuf>, pub phases: Option<Vec<String>> }
 pub struct ConfigError { pub detail: String }
 impl RepoConfig { pub fn from_toml(text: &str) -> Result<RepoConfig, ConfigError>; pub fn cache_config(&self, project: ProjectRef) -> CacheConfig; }
 pub struct CacheConfig {
@@ -377,7 +377,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     pub fn resolve(&mut self, seq: Seq, note: &str, actor: Actor) -> Result<(), CacheError>;                     // a-6
     pub fn prune(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError>;                                     // a-6
         pub fn status(&self) -> Result<StatusReply, CacheError>;                                                     // a-6
-    // Announcement state, so an external scheduler (atm-bd's bd_cache_cron.py) can announce
+    // Announcement state, so an external scheduler (the first consumer's cron script) can announce
     // through its own sender. One-line passthroughs to the store, implemented by a-1 in lib.rs
     // (ADR-CORE-0002):
     pub fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;

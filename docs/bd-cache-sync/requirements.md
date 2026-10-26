@@ -15,8 +15,8 @@ Test files are under `crates/bd-cache-sync/tests/`. The ported cases of
 runs one tick that must finish by the deadline `T`, on the cache's own clock, and returns a `TickReply`:
 `pass-through`, or `refused` with the list of what was refused. It is
 independent of the scheduler: `sc-cron` drives it through `SyncJob`, and an
-external scheduler (the ATM cron module through the later `bdc tick`) can
-call it. Only one ticker may run per cache file. The `[tick]` keys come from
+external scheduler (the first consumer's cron module through the later
+`bdc tick`) can call it. Only one ticker may run per cache file. The `[tick]` keys come from
 `RepoConfig.tick` (`load_repo_config`, bd-cache-store).
 
 **Refines:** REQ-BDC-0701, 0703
@@ -28,10 +28,11 @@ the doctests of `tick` and `schedule_spec`.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-A phase is `phase-<x>.toml` in `[tick] phases_dir` (default `.atm-bd/`, relative
-to the working directory; `compose` resolves it against the repository root) with a `root` bead and an
-optional `lead`; other keys are ignored. `[tick] phases` limits the phases
-(names with or without the `phase-` prefix). The schema was confirmed against `bd_cache_cron.py` at atm-core `05831df` and a real `phase-bd.toml` / `phase-bk.toml` is a test fixture (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
+A phase is a phase file, named for its phase, in `[tick] phases_dir` (default:
+the first consumer's own directory, relative to the working directory;
+`compose` resolves it against the repository root) with a `root` bead and an
+optional recipient key; other keys are ignored. `[tick] phases` limits the phases
+(names with or without the `phase-` prefix). The schema was confirmed against the baseline Python implementation's cron module at the baseline at `05831df`, and two real phase files of the first consumer are test fixtures (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
 tick before any work; an unusable file, an unreadable directory or a
 configured phase with no file is listed as refused while the phases that are
 usable still run. A phase is active while its root is not closed: a root the
@@ -54,7 +55,7 @@ reported as unreadable roots, and neither counts as closed for the stop rule
 Amendment (phase-end fix, PE-RSH-010): the caps on the phases directory
 cannot hide a configured phase. With `[tick] phases` set, the directory is
 opened (so a missing one is the same `phases_dir_unreadable`) but not scanned:
-each configured `phase-<x>.toml` is looked up by name, however many files the
+each configured phase's file is looked up by name, however many files the
 directory holds. Without it, the scan visits at most `MAX_PHASES_DIR_ENTRIES`
 (1024) entries of any kind and reads at most `MAX_PHASE_FILES` (256) phase
 files; past the entry cap it reports `PhaseFileProblem::TooManyEntries`
@@ -64,13 +65,14 @@ files, all configured, all read),
 `the_scan_of_the_phases_directory_visits_a_bounded_number_of_entries`
 (`tests/tick_phases.rs`).
 
-## REQ-SYNC-0003: One schedule per repository, with a team and a fallback lead
+## REQ-SYNC-0003: One schedule per repository, with its message-routing settings
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 `schedule_spec` builds the repository's one schedule (`bd-cache:<cache file>`,
-every 30 s, 25 s budget). `[tick] team` and `[tick] fallback_lead` are both
-required, non-blank and addressable (no whitespace, no `@`, no leading `-`);
+every 30 s, 25 s budget). The consumer's two message-routing settings in `[tick]`
+(its recipient group and its fallback recipient) are both required, non-blank
+and addressable (no whitespace, no `@`, no leading `-`);
 without them `schedule_spec` and `tick` refuse, and a refused tick makes no
 `bd` call and sends nothing.
 
@@ -132,12 +134,12 @@ Evidence: `a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_reco
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 Every message goes through `EscalationSender`. A sync failure whose cause
-differs from the phase's `sync_alert` is sent to the phase's lead (the
-fallback lead when the phase has none) and recorded; a success clears the
+differs from the phase's `sync_alert` is sent to the phase's recipient (the
+fallback recipient when the phase has none) and recorded; a success clears the
 alert; a cause that is unreachability is the outage's to announce. Every
-escalated entry with no `announced_at` is sent to its phase's lead with the
+escalated entry with no `announced_at` is sent to its phase's recipient with the
 `resolve` command, then marked; an entry with no scope goes to the fallback
-lead; an entry whose phase has no lead is refused. A message not delivered
+recipient; an entry whose phase has no recipient is refused. A message not delivered
 leaves its marker unset, makes the reply `refused` with the list, and is sent
 again on the next tick.
 
@@ -145,7 +147,7 @@ again on the next tick.
 **Acceptance evidence:** `test_sync_failure_is_announced_once_per_cause`,
 `test_escalation_is_sent_once_to_the_phase_lead`,
 `test_undelivered_escalation_is_retried_and_the_tick_refuses`,
-`an_escalation_with_no_scope_goes_to_the_fallback_lead_and_the_stop_rule_still_fires`,
+the no-scope escalation case (an entry with no scope goes to the fallback recipient and the stop rule still fires; its test name is in git history),
 `an_entry_whose_phase_has_no_lead_is_refused_every_tick_until_it_has_one`,
 `an_undelivered_sync_failure_is_refused_and_retried_not_recorded` (`tests/announce.rs`).
 
@@ -154,10 +156,10 @@ again on the next tick.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
 While the cache records an outage, each active scope whose alert does not
-read `backend_unavailable` has its lead told once (one message per distinct
-lead, covering that lead's scopes) and the alert set. When no phase is known
+read `backend_unavailable` has its recipient told once (one message per distinct
+recipient, covering that recipient's scopes) and the alert set. When no phase is known
 active (an uncached root that cannot be read), every configured phase is
-told. A scope without a lead uses the fallback lead. When the outage ends the
+told. A scope without a recipient uses the fallback recipient. When the outage ends the
 alerts that read `backend_unavailable` are reset and no message is sent. An
 undelivered message sets no alert and is retried. The outage is cleared only
 by a list that answers (a-1's `call`), never by the backend check.
@@ -167,7 +169,7 @@ by a list that answers (a-1's `call`), never by the backend check.
 `test_outage_with_uncached_roots_still_tells_every_configured_lead`,
 `test_outage_is_not_cleared_while_only_the_backend_check_answers`,
 `test_undelivered_outage_announcement_is_retried`,
-`a_scope_without_a_lead_uses_the_fallback_lead_and_one_lead_hears_once`,
+the no-recipient outage case (a scope without a recipient uses the fallback recipient, and one recipient hears once; its test name is in git history),
 `during_an_outage_of_several_ticks_reads_report_it_writes_wait_and_recovery_drains`,
 `an_outage_alert_in_bd_cache_pys_form_is_not_announced_again`
 (`tests/outage.rs`); `an_outage_of_several_ticks_through_the_real_store_and_cli` (`tests/e2e.rs`).
@@ -188,22 +190,23 @@ store fails.
 `configuration_the_tick_would_refuse_never_ends_the_schedule`,
 `a_root_bd_does_not_return_never_ends_the_schedule` (`tests/stop_rule.rs`).
 
-## REQ-SYNC-0009: `atm send` is bounded and carries the message on stdin
+## REQ-SYNC-0009: The consumer's send command is bounded and carries the message on stdin
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-`AtmSender` runs `atm send <lead>@<team> --team tool --stdin --json` with
-`ATM_IDENTITY=cron` and `ATM_TEAM=tool` (the reference's invocation,
-ADR-SYNC-0007) and writes the message to stdin. An address that could be read as an option, or
+The sender runs the first consumer's send command, addressed to a
+recipient in the configured group, sending as the consumer's cron identity
+(the reference's invocation, ADR-SYNC-0007; the exact command line is in git
+history), and writes the message to stdin. An address that could be read as an option, or
 split in two, is refused before a process starts. A child still running after
 the timeout (10 s) is killed and the send fails; a nonzero exit fails with the
 child's stderr.
 
 **Refines:** REQ-BDC-0704..0706
-**Acceptance evidence:** `tests/atm_process.rs` (its own fake `atm`, 13 cases):
+**Acceptance evidence:** the sender's process tests (their own fake send command, 13 cases; the file name is in git history):
 `delivers_the_body_on_stdin_with_the_reference_invocation`,
 `a_large_message_is_not_limited_by_the_argument_list`,
-`a_failing_atm_is_a_send_error_that_says_why`,
+the failing-send-command case (a send command that fails is a send error that says why),
 `output_beyond_the_limit_is_dropped_and_the_error_says_so`,
 `an_address_that_could_be_read_as_an_option_is_refused_before_any_process_starts`,
 `a_missing_binary_is_a_send_error_and_does_not_resolve`,
@@ -333,16 +336,16 @@ sender takes 9 s per message ends within 25 s.
 Amendment (fix-a-7-5, RSH-027, REQ-QA-501; **Status:** Approved (lead ruling S27, bc-lead, 2026-10-24)):
 "the time left" is the time before `T` less the send reserve `SEND_RESERVE`,
 1.5 s, so a message is not started with less than 2 s before `T`. The reserve
-covers the most an `atm send` can run past its deadline: the read grace
+covers the most a send can run past its deadline: the read grace
 (250 ms) plus one shared kill bound (1 s) in which the tree kill and the
 reaping of the child are both done or given up on. Const assertions in
-`atm.rs` and `control.rs` tie `SEND_RESERVE` to `READ_GRACE`, `READ_FLOOR`,
+the sender module and `control.rs` tie `SEND_RESERVE` to `READ_GRACE`, `READ_FLOOR`,
 `KILL_BOUND` and the poll intervals, and keep `MIN_SEND_BUDGET + SEND_RESERVE`
 within the sync step's `HARD_MARGIN` (2 s). Evidence:
 `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
 (the group kill, generous deadline; fix-a-7-10, FTQ-025) and
 `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (the deadline)
-(`src/atm.rs`),
+(the sender module),
 `a_send_is_given_the_time_left_minus_the_reserve_and_nothing_below_the_floor`
 (`src/control.rs`).
 
@@ -416,8 +419,8 @@ the S45 outage-over clears: `an_outage_over_clear_is_not_started_after_t_and_the
 
 A `StopFlag` ends a running tick after the drain, before the one
 `bd list --id` of the uncached phase roots, between phases and before every message;
-given to the `AtmSender` it kills the child and its whole process tree. An
-`atm` that outlives its timeout takes its descendants with it.
+given to the sender it kills the child and its whole process tree. A
+send command that outlives its timeout takes its descendants with it.
 
 Amendment (phase-end fix, PE-RSH-004): the host waits for the tick in flight
 before it drops the job: set the flag, await `WorkerHandle::shutdown`, then
@@ -430,15 +433,15 @@ cache at the deadline), then drop the job. Evidence:
 **Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`
 (`tests/job_threading.rs`); `a_set_stop_flag_skips_the_root_refresh` (`src/active.rs`);
 `the_stop_flag_kills_the_child_and_its_descendants`,
-`an_atm_that_hangs_is_killed_and_reaped` (kill and reap, stop-flag form: the
+the hanging-send-command case (kill and reap, stop-flag form: the
 stop comes once the fakes' pid files are written) and
 `the_time_a_tick_passes_bounds_the_send` (the one timer-driven kill: `TimedOut`
-and its detail only) (`tests/atm_process.rs`; fix-a-7-10, FTQ-026, FTQ-027).
+and its detail only) (the sender's process tests; fix-a-7-10, FTQ-026, FTQ-027).
 The stop-flag tree test asserts the child reaped, not the descendant gone
 (fix-a-7-12, FTQ-030): its tree kill runs under the production 1 s
 `KILL_BOUND`, which a stalled host can exceed; the descendant's death is
 `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
-(`src/atm.rs`, injected 30 s deadline).
+(the sender module, injected 30 s deadline).
 
 ## REQ-SYNC-0013: A cached `get` costs the same at any scope size
 

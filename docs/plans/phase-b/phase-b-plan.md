@@ -38,7 +38,7 @@ the lead, who changes the contract. Sprints never decide it locally.
 | P-3 | sc-publish#133: a crates-only release with no assets completes. Open. | nothing in b-5 directly | b-5 declares binaries, so every GitHub Release has assets and does not take the empty-asset path. b-5 stays on the current pin `16457e0` unless P-4 needs a bump. |
 | P-4 | sc-publish staging bug: real releases upload the consumer's `release/` config as release assets. No issue filed yet; b-5 files it on randlee/sc-publish. | the first stable `release.yml` run with binaries (an immutable release cannot be corrected) | b-5 closes on the prerelease (`prerelease-archive.yml`) plus a clean `install.py --dry-run` and `validate-manifest` with the channels declared. The first stable release and its channel dispatches wait for a kit pin that contains the fix. |
 | P-5 | sc-runtime request (non-blocking, contract §2 and Q7): an sc-config file source with an explicit path, where a missing file is allowed. | nothing | bdc applies the `BD_CACHE__*` env overrides itself (contract §2). |
-| P-6 | External channel setup, by Rand: enable immutable releases on randlee/beads-cache; add repository secrets `HOMEBREW_TAP_TOKEN` (randlee/homebrew-tap, the tap atm already uses), `SCOOP_BUCKET_TOKEN` (randlee/scoop-bucket) and `WINGET_GITHUB_TOKEN` (classic token with `public_repo`, from the owner of the winget-pkgs fork); fork microsoft/winget-pkgs and get the first version of the WinGet package merged by hand (`wingetcreate new`). | b-5's channel dispatches | b-5 declares the channels and proves them with the dry run; a channel whose setup is missing is dispatched later by tag, with no code change. |
+| P-6 | External channel setup, by Rand: enable immutable releases on randlee/beads-cache; add repository secrets `HOMEBREW_TAP_TOKEN` (randlee/homebrew-tap, the tap the first consumer already uses), `SCOOP_BUCKET_TOKEN` (randlee/scoop-bucket) and `WINGET_GITHUB_TOKEN` (classic token with `public_repo`, from the owner of the winget-pkgs fork); fork microsoft/winget-pkgs and get the first version of the WinGet package merged by hand (`wingetcreate new`). | b-5's channel dispatches | b-5 declares the channels and proves them with the dry run; a channel whose setup is missing is dispatched later by tag, with no code change. |
 | P-7 | sc-command at sc-runtime tag `prerelease/v0.1.0` (`ba971c1`) builds on all three CI OSes. | b-3a | b-3a checks this first. On a failure, pin by `rev` and raise the issue with the sc-runtime team; no local fork. |
 
 ## Boundary map
@@ -50,7 +50,7 @@ the lead, who changes the contract. Sprints never decide it locally.
 | `bd-cache-api` | b-2 | contract §4, §5, §6, §9; b-2's shared fixtures | b-3, b-4, the later MCP server |
 | `bd-cache-cli` skeleton and `fake-bd` | b-3a | contract §8 Testing | b-3 |
 | `bd-cache-cli` | b-3 | contract §2, §3, §8 | b-5, hooks, agents |
-| `bd-cache-py` 0.2 | b-4 | contract §10 | atm-bd (fenix) |
+| `bd-cache-py` 0.2 | b-4 | contract §10 | the first consumer (its maintainer) |
 
 The crate edges are the Boundaries table in `docs/architecture.md`. PR #69
 adds the rows for `bd-cache-api` and `bd-cache-cli`, and CI's boundary check

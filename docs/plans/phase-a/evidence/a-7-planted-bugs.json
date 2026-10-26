@@ -411,7 +411,7 @@
   ]
  },
  {
-  "bug": "atm address not validated",
+  "bug": "sender address not validated",
   "file": "crates/bd-cache-sync/src/phases.rs",
   "exit": 101,
   "compile_error": false,
@@ -424,7 +424,7 @@
   ]
  },
  {
-  "bug": "atm message not on stdin",
+  "bug": "sender message not on stdin",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -479,7 +479,7 @@
   ]
  },
  {
-  "bug": "atm kills only the direct child",
+  "bug": "sender kills only the direct child",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -490,7 +490,7 @@
   ]
  },
  {
-  "bug": "atm ignores the time the tick passes",
+  "bug": "sender ignores the time the tick passes",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -501,7 +501,7 @@
   ]
  },
  {
-  "bug": "atm ignores the stop flag",
+  "bug": "sender ignores the stop flag",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -514,7 +514,7 @@
   ]
  },
  {
-  "bug": "atm invocation without the reference environment",
+  "bug": "sender invocation without the reference environment",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -525,7 +525,7 @@
   ]
  },
  {
-  "bug": "atm truncated output not marked",
+  "bug": "sender truncated output not marked",
   "file": "crates/bd-cache-sync/src/atm.rs",
   "exit": 101,
   "compile_error": false,
@@ -764,7 +764,7 @@
   ]
  },
  {
-  "bug": "entries bd_cache.py applied are not counted by has_entries_since (S18)",
+  "bug": "entries the baseline Python implementation applied are not counted by has_entries_since (S18)",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
@@ -810,7 +810,7 @@
   ]
  },
  {
-  "bug": "applied_since misses entries bd_cache.py applied (S18)",
+  "bug": "applied_since misses entries the baseline Python implementation applied (S18)",
   "file": "crates/bd-cache-store/src/schema.rs",
   "exit": 101,
   "compile_error": false,
@@ -835,7 +835,7 @@
   ]
  },
  {
-  "bug": "open does not date the entries bd_cache.py applied",
+  "bug": "open does not date the entries the baseline Python implementation applied",
   "file": "crates/bd-cache-store/src/store.rs",
   "exit": 101,
   "compile_error": false,

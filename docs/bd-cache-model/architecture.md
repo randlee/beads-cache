@@ -70,7 +70,7 @@ Context: `CacheStore` methods may fail for the store's own reasons (SQLite
 errors, file I/O, a stored value that does not decode), but `CacheError` had
 no code for them. `bd-cache-store` reported them as `NO_DATABASE`, with the
 source chain flattened into the detail text. The baseline
-(`docs/baseline/BD-CACHE.md`, CLI table) has no v3 code for store or SQLite
+design (CLI table) has no v3 code for store or SQLite
 failures, so none could be reused.
 
 Decision: add the additive code `BD_CACHE.STORE_FAILED`,
@@ -117,7 +117,7 @@ Decision (additive; no change to the wire format):
    runs on every push.
 3. **The unreachable set.** `UNREACHABLE_CODES` is `BD_UNAVAILABLE`,
    `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED`: the set of
-   ADR-CORE-0101 (the drain's stop policy) and `bd_cache.py`'s `UNREACHABLE`.
+   ADR-CORE-0101 (the drain's stop policy) and the baseline Python implementation's `UNREACHABLE`.
    `is_unreachable` is that set by variant, a test keeps the constant and the
    method equal, and the drain (`bd-cache/src/drain.rs`) now calls the method
    instead of its own copy (R11).
@@ -302,7 +302,7 @@ Decision:
 - `CacheStore::has_entries_since(at) -> bool`: "something is pending, or was
   applied at or after `at`". The provided body loads both lists; an
   implementation answers from indexes. An entry's applied time is its
-  `applied_at`, else, for an entry applied by `bd_cache.py` (which sets only
+  `applied_at`, else, for an entry applied by the baseline Python implementation (which sets only
   `updated_at`), its `updated_at`; an entry whose time cannot be read counts as
   applied since (conservative). `applied_since` follows the same rule (ADR-STORE-0004). Contract rule `has_entries_since_rules`.
   Port rule (lead rulings S25/S26, bc-lead, 2026-10-24): though both take `&self`, an
@@ -310,11 +310,11 @@ Decision:
   time; it must not wait for the write lock to do so, and must give the same answer
   whether or not the write runs. `SqliteStore` does it only above a threshold of
   undated entries (ADR-STORE-0004).
-- `EscalationSender::send_within(lead, team, body, timeout)`: a provided method
+- `EscalationSender::send_within(<recipient>, body, timeout)`: a provided method
   that ignores `timeout` and calls `send`; a sender that can bound its work
   overrides it. The caller checks its own budget after every send, so a sender
-  that ignores the timeout costs at most the send in flight. `lead` and `team`
-  stay `&str`: callers pass names they validated, and a sender that builds a
+  that ignores the timeout costs at most the send in flight. The two recipient
+  arguments stay `&str`: callers pass names they validated, and a sender that builds a
   command line keeps a defensive guard (S15).
 - `SendError` gains `kind: SendErrorKind` (`InvalidAddress`, `NotStartable`,
   `TimedOut`, `Cancelled`, `Exited`, `Other`; `as_str`, `fix`, `Serialize`) and
@@ -345,8 +345,8 @@ model's public contract.
 Decision: no toml type appears in the API. `schema_packages` is
 `Vec<SchemaPackageRef>`, an opaque entry the later schema-package phase will
 open up (`docs/architecture.md`, Repository configuration). `tick` is a
-typed `TickConfig` (`team`, `fallback_lead`, `phases_dir`, `phases`;
-unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
+typed `TickConfig` (the consumer's message-routing and phase-file
+settings; unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
 toml stays a normal dependency, used only inside `config.rs`; the
 `bd-cache-model -> toml` edge is listed in the Crate Layout of
 `docs/architecture.md`.

@@ -80,7 +80,7 @@ another path (a symlink) that resolves to it.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-The v3 tables and indexes are created with `bd_cache.py`'s DDL; the
+The v3 tables and indexes are created with the baseline Python implementation's DDL; the
 extensions are the tables `scope`, `scope_member`, `ready_base` and
 `ready_base_blocked`, nullable columns only (including `ready_base.indexed` and `journal.applied_epoch`) and
 the plain indexes `scope_member_bead` (`scope_member(bead)`), `beads_membership_unknown`,
@@ -88,7 +88,7 @@ the plain indexes `scope_member_bead` (`scope_member(bead)`), `beads_membership_
 holds a function (ADR-STORE-0001, as amended by ADR-STORE-0004, has the DDL). Stored rows are normalized and `row_json` is
 Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
 
-*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; `bd_cache.py` never reads them, and none uses a function, so a `bd_cache.py` on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*
+*Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; the baseline Python implementation never reads them, and none uses a function, so the baseline Python implementation on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*
 
 **Refines:** REQ-BDC-0107, 0108, 0804; ADR-BDC-0001, 0002, 0004
 **Acceptance evidence:** `v3_tables_are_unchanged_and_extensions_are_additive`
@@ -144,14 +144,14 @@ the process ending, releases it.
 `drain_lock_is_exclusive` (contract suite),
 `the_python_and_rust_drain_locks_exclude_each_other` (`compat.rs`, Unix).
 
-## REQ-STORE-0006: The file is shared with bd_cache.py both ways
+## REQ-STORE-0006: The file is shared with the baseline Python implementation both ways
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-A v3 file `bd_cache.py` wrote opens, and its rows, edges, journal, sync
-state, alert and outage read back equal; `bd_cache.py`'s `get` and `status`
-read a file this store wrote, extension tables present and intact
-afterwards; after `bd_cache.py`'s `prune` and a forced rebuild on an
+A v3 file the baseline Python implementation wrote opens, and its rows,
+edges, journal, sync state, alert and outage read back equal; its `get` and
+`status` read a file this store wrote, extension tables present and intact
+afterwards; after its `prune` and a forced rebuild on an
 extended file, the store reads consistent rows and memberships
 (ADR-STORE-0002).
 
@@ -196,7 +196,7 @@ code), `zero_timeouts_and_attempts_are_refused_at_load_each_with_its_own_message
 index, in one read snapshot, and falls back to reading the whole base when it
 was not stored with the index (stored before it existed, or replaced by another
 writer). `has_entries_since` is three index lookups (pending, applied with an epoch, applied without one), whatever the journal's
-history; an entry `bd_cache.py` applied is dated by `updated_at`, and one with an unreadable time counts as touched. Neither changes what a reader sees.
+history; an entry the baseline Python implementation applied is dated by `updated_at`, and one with an unreadable time counts as touched. Neither changes what a reader sees.
 
 **Refines:** NFR-BDC-0001; ADR-STORE-0004
 **Acceptance evidence:** `base_entry_rules`, `has_entries_since_rules` (the store

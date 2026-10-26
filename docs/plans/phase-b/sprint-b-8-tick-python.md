@@ -74,9 +74,11 @@ decision D1.
    `scopes_*`, `schedule_*`, `hooks_*` and `tick()`, and the four new codes in the exports. The
    0.1 verbs, arguments and dicts are unchanged.
 10. **Removals** (ADR-BDC-0010; REQ-BDC-0701, 0702, 0704..0707 superseded). In
-    `crates/bd-cache-sync/src`: `atm.rs`, `phases.rs`, the consumer parts of `announce.rs` and
-    `active.rs`, and the stop rule; `tests/{atm_process.rs,stop_rule.rs}`; the `refused` /
-    `pass-through` replies; the `.atm-bd/` refusal in `bd-cache-cli/src/config.rs`; and
+    `crates/bd-cache-sync/src`: the consumer messaging module, `phases.rs`, the consumer parts of
+    `announce.rs` and `active.rs`, and the stop rule; the sender's process test and
+    `tests/stop_rule.rs` (the messaging module and the process test are the files there whose
+    paths the lint flags); the `refused` / `pass-through` replies; the refusal of the first
+    consumer's own directory in `bd-cache-cli/src/config.rs`; and
     sc-cron's `StopDecision::Stop` alias kept by b-6 for the old stop rule. `.beads/bd-cache.toml`
     keys `[tick.hooks]` and `[tick.sync]` are `CONFIG_INVALID`.
 

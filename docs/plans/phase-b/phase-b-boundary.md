@@ -9,18 +9,19 @@ does not close, and PR #82 (integrate/phase-b → develop) does not merge, until
 
 ## Why
 
-The consumer's phase-B review (fenix, for atm-bd) found the cron and cutover path
-blocking. While answering it, Rand ruled, verbatim:
+The consumer's phase-B review (by the first consumer's maintainer) found the cron and
+cutover path blocking. While answering it, Rand ruled:
 
-- "this is a strict boundary. there should be no atm concerns or patterns that
-  exactly match atm."
+- The boundary is strict: beads-cache has no concerns or patterns that match the first
+  consumer (Rand, 2026-10-25, paraphrased).
 - "beads-cache is a cache w/ cli for configuration. it also exposes python api
   through py03 for you to use."
-- "the beads-cache cron must support running a registered python script that is
-  part of the atm-bd package. atm-bd would include beads-cache as a dependency for
-  the plug-in and it would be consumed both by phthon hooks and by direct reads
-  from tui."
-- "blocking 'cron@tool' and other atm strings from source or tests".
+- The beads-cache cron must support running a registered Python script that is part of
+  the consumer's package. The consumer would include beads-cache as a dependency for the
+  plug-in, and it would be consumed both by Python hooks and by direct reads from a TUI
+  (Rand, 2026-10-25, paraphrased).
+- The consumer's principal names and its other strings are blocked from source and tests
+  (Rand, 2026-10-25, paraphrased).
 
 Phases a and b ported the consumer's cron into `bd-cache-sync`. The tick sends
 messages, reads the consumer's team and lead configuration and its phase files,
@@ -29,14 +30,11 @@ mirrors the consumer scheduler's stop rule and reply shape, and syncs only
 consumer's lint, at its handoff, reports 899 hits in 112 files.
 
 
-Rand later restated the goals (2026-10-25), verbatim:
-
-> long term sync would be done by beads-cache at a time scheduled in the cron
-> scheduler in sqlite cron table. In the event of the 'hard-coded sync' not
-> working, the hard-coded sync could be disabled and replaced w/ a python method
-> registered by consumer (atm-bd). We would also likely want a 'post-sync' hook
-> that could contain sync results and errors and allow consumer (atm-bd) to do
-> custom things at that point i.e. atm send for escellation.
+Rand later restated the goals (Rand, 2026-10-25, paraphrased): long term, beads-cache
+does the sync at a time scheduled in the sqlite cron table. If the hard-coded sync does
+not work, it can be disabled and replaced with a Python method the consumer registers.
+A post-sync hook would likely receive the sync results and errors and let the consumer
+do its own things at that point, such as sending an escalation.
 
 This revision (r3) follows those goals and the critical plan reviews of r1 and r2
 (r1: 4 blocking, 12 important; r2: 4 blocking, 9 important). Every item is answered in
@@ -46,8 +44,8 @@ This revision (r3) follows those goals and the critical plan reviews of r1 and r
 
 | Ruling | Decision |
 |---|---|
-| S82 | ADR-BDC-0010 (fenix's draft on `lint/no-atm-boundary` @ 33a2b07) is approved, with the lint adjustments L2–L5 below (L1 is withdrawn). The lint script and its tests, including `--paths`, merge into `integrate/phase-b` with this plan (PR #87, bc-lead owns the merge), before WP-6a, WP-7 and WP-8 start, so every sprint gates on AC-0. The CI step lands in WP-10, once the tree is clean. It is never merged red. |
-| S83 | beads-cache owns the bd sync. The schedule is a job in the `sc-cron` sqlite cron table (`SqliteScheduleStore`), stored in the cache file and set with `bdc cache schedule set`. A due job runs one tick in this order: drain, then sync each managed scope, then the post-sync hook. The cache itself sends nothing, and there is no consumer-specific stop rule. atm-bd is the first consumer, not the only one. |
+| S82 | ADR-BDC-0010 (the first consumer's maintainer's draft @ 33a2b07) is approved, with the lint adjustments L2–L5 below (L1 is withdrawn). The lint script and its tests, including `--paths`, merge into `integrate/phase-b` with this plan (PR #87, bc-lead owns the merge), before WP-6a, WP-7 and WP-8 start, so every sprint gates on AC-0. The CI step lands in WP-10, once the tree is clean. It is never merged red. |
+| S83 | beads-cache owns the bd sync. The schedule is a job in the `sc-cron` sqlite cron table (`SqliteScheduleStore`), stored in the cache file and set with `bdc cache schedule set`. A due job runs one tick in this order: drain, then sync each managed scope, then the post-sync hook. The cache itself sends nothing, and there is no consumer-specific stop rule. The first consumer is not the only one. |
 | S84 | The store format is frozen as v3 plus the additive extensions listed in ADR-STORE-0006 and WP-6a's format golden. Extensions are added only by ruling, through the existing extension mechanism: `PRAGMA table_info` / `CREATE TABLE IF NOT EXISTS` under `BEGIN IMMEDIATE`; `user_version` stays 3. Existing names stay (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`), and the API names them neutrally. The full extension list for this phase is in [Store extensions](#store-extensions). A reader that does not know an extension still reads the file. Cross-implementation compatibility is the consumer's own test, run against a CI-built wheel artifact before Rand's 0.2.0 go. |
 | S85 | PR #86 (health, `refresh scopes --timeout-ms`) is kept, and becomes WP-8's branch. Its cutover runbook and the consumer-specific contract text are removed. |
 | S86 | The stopped layers `fix/fen-tick` and `fix/fen-py` are abandoned unmerged. Their neutral parts are redone in WP-6, WP-7 and WP-9. |
@@ -67,7 +65,7 @@ Rand's rulings after r3 (2026-10-25), quoted. Where one changes r3, the text is 
 | A2 | "I expect 'sc-cron' to be a general tool that can be used for scheduling jobs." and "should retain that general purpose shape for porting (copying) to sc-runtime. NOTE: cron table should have an 'enable' bool flag so scheduled tasks can be enabled/disabled w/out needing to rewrite the entire row." and the stop hook returns "'disable', 'delete', 'continue'". | Sprint b-6 (merged, #92): sc-cron gains a Python hook target (`<interpreter> -I -m <module>`, JSON on stdin, process-group or job-object kill, output caps), an `enabled` column, `continue`/`disable`/`delete` stop decisions and five-field expressions. r3's "sc-cron itself is not changed" no longer holds; the tick lease is still the tick's own. WP-6b and WP-9 run every registered method through sc-cron's Python runner, with module `bd_cache_rs.run`. |
 | A3 | "limiting 'builtin' sync to one per repo makes sense." | At most one tick row per repository in the cache file's cron table; `schedule set` replaces it, and other sc-cron rows are allowed. |
 | A4 | "sync row's hook target switches - can't this be handled through cron scheduling? i.e. built-in is disabled, python hook is enabled. (nothing for you to do outside basic sc-cron design)" | `bdc cache schedule enable` / `disable` flip only the tick row's `enabled` flag. A consumer moves scopes to its Python method with `scopes set <scope> --method python` (§Scopes). Decision D1 records the choice. |
-| A5 | "Active phases - would NEED to be defined w/ filters. 'phase' is an atm/atm-bd concept. other applications would have different scopes including --all." | A scope is a name plus a bd filter: labels (all or any), status, type, assignee, or `--all` (§Scopes). |
+| A5 | Active phases would need to be defined with filters: 'phase' is the first consumer's concept, and other applications would have different scopes, including --all (Rand, 2026-10-25, paraphrased). | A scope is a name plus a bd filter: labels (all or any), status, type, assignee, or `--all` (§Scopes). |
 | A6 | "Add an anchor for only allowing code that is justified by req/adr to keep project tight." | Each sprint deliverable cites its REQ or ADR (anchor ANC-011). |
 
 **D1 (lead default; Rand may overrule).** r3's design stays: one tick runs the built-in sync
@@ -86,20 +84,20 @@ Adjustments, made on this plan branch:
 
 - **L1.** (Withdrawn by Rand.) `docs/team-protocol.md` stays where it is, and
   stays exempt: it is the protocol for the team working on this repo.
-- **L2.** Add a narrow rule for hard-coded scope prefixes: a `"phase-"` literal or a
-  `phase-{` format string. Test a hit, and test a non-hit for the frozen column
+- **L2.** Add a narrow rule for hard-coded scope prefixes: a string literal that is the
+  phase prefix with its dash, or a format string that appends a value to it. Test a hit, and test a non-hit for the frozen column
   name `phase`, `DEFAULT 'phase'` and `phase-b` in prose.
 - **L3.** Fix `sc-beads`, `sc-bd-cli` and `sc-cron` like any other crate. Their edits
   are to comments, provenance and tests. They take no version bump (the lockstep
   0.2.0 is already set, S61).
-- **L4.** Scan tracked file paths as well as file contents. `atm_core_05831df_*`,
-  `atm_process.rs` and `.atm-bd/` are path hits.
+- **L4.** Scan tracked file paths as well as file contents. The vendored call-log tests,
+  the sender's process test and the first consumer's own directory are path hits.
 - **L5.** Add `cron[@_-]tool` variants to `tool-principal`. Add `--paths <prefix>...`,
   so a sprint can lint its own fence. State in the ADR that strings built at
   runtime cannot be caught; review guards against those.
 
 `.claude/` and the other agent tooling are deliberately out of scope: the repo's
-own agents coordinate over ATM. *Amended (A1):* `cron.tick` and `cron.stop` are not
+own agents use it to coordinate. *Amended (A1):* `cron.tick` and `cron.stop` are not
 flagged. If a legitimate neutral term hits, narrow the
 regex and add a test. Never add an exemption.
 
@@ -375,8 +373,8 @@ Common acceptance for every sprint:
 
 ADR: ADR-STORE-0006 (*Amended (planning PR):* written there as Proposed; this work package
 implements it and it is marked Approved when the sprint merges) (the extensions). It deletes the consumer parts of
-`bd-cache-model` (`sender.rs` and the `[tick] team`, `fallback_lead`, `phases_dir` and
-`phases` config) and the neutralised comments in the store.
+`bd-cache-model` (`sender.rs` and the `[tick]` table's message-routing and phase-file
+settings) and the neutralised comments in the store.
 
 Acceptance:
 1. Every extension in the table exists. The golden has the exact v3 DDL plus the
@@ -406,11 +404,12 @@ runner seam and the trust model, and recording the rejected alternatives. It
 supersedes ADR-SYNC-0007 and its a-7-3 and a-7-5 amendments.
 
 Deletes:
-- in `crates/bd-cache-sync/src`: `atm.rs`, `phases.rs`, and the consumer parts of
-  `announce.rs` and `active.rs`, plus the stop rule;
-- `tests/{atm_process.rs,stop_rule.rs}`;
+- in `crates/bd-cache-sync/src`: the consumer messaging module, `phases.rs`, and the
+  consumer parts of `announce.rs` and `active.rs`, plus the stop rule;
+- the sender's process test and `tests/stop_rule.rs` (the messaging module and the
+  process test are the files there whose paths the lint flags);
 - the `refused` / `pass-through` replies;
-- the `.atm-bd/` refusal in `bd-cache-cli/src/config.rs`.
+- the refusal of the first consumer's own directory in `bd-cache-cli/src/config.rs`.
 
 Acceptance:
 1. `grep -rn` of the delete list finds nothing, and AC-0 passes.
@@ -452,7 +451,8 @@ This sprint does not close the real-interpreter behaviour, the
 ### WP-7 neutral tests and crates
 
 Deletes: `crates/bd-cache-store/tests/compat/`, `tests/compat.rs`,
-`crates/bd-cache-py/tests/atm_core_05831df_*`, and the compat jobs in the workflows
+the vendored call-log tests in `crates/bd-cache-py/tests/` (the files whose paths the
+lint flags), and the compat jobs in the workflows
 it owns.
 
 Acceptance:
@@ -471,8 +471,8 @@ Acceptance:
 
 Acceptance:
 1. #86's health and `--timeout-ms` work are kept. AC-0 passes on its crates.
-   `docs/bd-cache-cli/cutover-runbook.md` and `docs/baseline/BD-CACHE.md` are
-   deleted.
+   `docs/bd-cache-cli/cutover-runbook.md` is deleted (the baseline design document was
+   deleted by the planning PR).
 2. Contract:
    - §10 becomes "0.1 → 0.2 API differences", naming no consumer. It covers
      `outage` on Ok, the `issues_list` default exclusions, optional `changed` /
