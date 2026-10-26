@@ -16,8 +16,9 @@
 //!    so every front end returns the same code for the same input.
 //! 3. The configuration (flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` >
 //!    default; no upward search) is opened through
-//!    `bd_cache_sync::compose_with_config`, and `bd_cache_api::execute` runs
-//!    the request. The phase-B verbs a front end runs (`cache schedule *`,
+//!    `bd_cache_sync::compose_with_config`, and `bd_cache_sync::execute_api`
+//!    runs the request (ADR-BDC-0015 Amendment 1: every front end calls it,
+//!    so `cache health` is never answered without the sync rows). The phase-B verbs a front end runs (`cache schedule *`,
 //!    `cache cron run`, `cache tick`, `cache sync *`) run over
 //!    `bd-cache-sync` (ADR-BDC-0015). Every new command is on the `cache`
 //!    management surface; none joins the `/v0`-shaped beads surface
@@ -40,7 +41,9 @@
 //! new run and waits for the runs in flight up to `--shutdown-timeout-ms`
 //! (REQ-BDC-0730), the command's envelope is still written, and the process
 //! exits `128 + signal` (143 for `SIGTERM`) whatever the envelope says. A
-//! second signal changes neither the wait nor the exit code.
+//! second signal never changes the exit code; during `cache cron run`'s wait it
+//! means "stop now" (Ctrl-C twice): the `bd` calls are stopped and the runs'
+//! process trees killed at once, as when `--shutdown-timeout-ms` expires.
 //!
 //! # `--help`
 //!
@@ -97,7 +100,7 @@ pub mod scenario;
 /// so the name is the canonical one and never `argv[0]`.
 pub const NAME: &str = "bd-cache";
 
-/// The contract version this build implements (contract header, `1.0.0`).
+/// The contract version this build implements (contract header, `0.2.0`).
 pub const CONTRACT_VERSION: &str = bd_cache_api::CONTRACT_VERSION;
 
 /// The exit code of a `BD_CACHE.USAGE` reply (contract §3).

@@ -26,13 +26,14 @@
 //!   out;
 //! - [`StopFlag`], the flag a signal sets.
 //!
-//! Inside: [`run_builtin`] (the built-in row's run: lease, drain, every scope
-//! by its filter, post-sync hook, reply), [`TickLease`] (one sync at a time
-//! across processes, REQ-BDC-0722), [`sync_resolver`] (sc-cron's per-row
+//! Inside: `run_builtin` (the built-in row's run: lease, drain, every scope
+//! by its filter, post-sync hook, reply), `TickLease` (one sync at a time
+//! across processes, REQ-BDC-0722), `sync_resolver` (sc-cron's per-row
 //! target, REQ-CRON-0016, returning the built-in or the Python row's job,
-//! REQ-BDC-0725) and [`TrustedCacheFile`] (the trust check before any row's
-//! or hook's code runs, REQ-BDC-0723). They are public for this crate's
-//! integration tests and hidden from its documentation.
+//! REQ-BDC-0725) and `TrustedCacheFile` (the trust check before any row's
+//! or hook's code runs, REQ-BDC-0723). They are public only with the
+//! `testing` feature, which this crate's own dev-dependency on itself
+//! enables, for its integration tests, and hidden from its documentation.
 //!
 //! The sync reaches the backend only through bd (REQ-BDC-0006); every bd
 //! call, hook and script run is bounded by its deadline (NFR-BDC-0004).
@@ -114,7 +115,7 @@ pub use job::SyncFiles;
 #[doc(inline)]
 pub use payload::{BUILTIN_ROW, PYTHON_ROW, SyncRow};
 #[doc(inline)]
-pub use run::{BuiltinReply, HolderView, HookReport, HookStep, RunStatus};
+pub use run::{BuiltinReply, HolderView, HookReport, HookStep, RunStatus, SharedCache};
 #[doc(inline)]
 pub use schedule::{
     HookView, PayloadView, RowView, RowsView, ScheduleClearReply, ScheduleEnableReply, ScheduleSet,
@@ -122,33 +123,46 @@ pub use schedule::{
     SystemSchedules, UseBuiltinReply, UsePython, UsePythonReply,
 };
 
-// The parts the integration tests drive directly (module docs).
+// The parts the integration tests drive directly (module docs): behind the
+// `testing` feature, which this crate's own dev-dependency on itself enables,
+// so no dependent crate reaches them (PE1-RBQA-F007).
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use control::Budget;
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use hook::{
     DrainSummary, HOOK_BACKOFF_CAP, HOOK_BACKOFF_FROM, HookSuccess, MAX_ESCALATIONS_OFFERED,
     MAX_HOOK_PIPE_BYTES, MAX_HOOK_REQUEST_BYTES, RUN_PROTOCOL, next_attempt,
 };
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use job::{BuiltinSyncJob, SyncContext, join_idle, sync_resolver};
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use lease::{LEASE_MARGIN, LeaseTaken, TickLease, new_run_id};
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use mode_lock::MODE_LOCK_WAIT;
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use payload::{
     BuiltinPayload, DEFAULT_PYTHON_TIMEOUT_MS, EnvNames, IMPORT_CHECK_TIMEOUT, MAX_ENV_NAMES,
     MAX_PYTHON_TIMEOUT_MS, MIN_PYTHON_TIMEOUT_MS, PostSyncHook, PythonPayload, SyncPayload,
     TrustedInterpreter,
 };
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use python_job::{PythonRun, PythonSyncJob};
+#[cfg(feature = "testing")]
 #[doc(hidden)]
-pub use run::{RunContext, SharedCache, run_builtin};
+pub use run::{RunContext, run_builtin};
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use schedule::Rows;
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use text::MAX_KEPT_STDERR_BYTES;
+#[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use trust::{TrustedCacheFile, Untrusted};

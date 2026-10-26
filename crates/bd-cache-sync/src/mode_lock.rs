@@ -122,6 +122,10 @@ mod tests {
             Some("BD_CACHE.STORE_FAILED")
         );
         drop(first);
-        assert!(hold_within(&lock.path, Duration::ZERO).is_ok());
+        // A bounded wait, not zero: a child another test forks in this
+        // process shares the lock's open file until it execs, and holds the
+        // lock that long (macos-latest CI, run 40403439087). Released on drop
+        // still means taken well inside the wait.
+        assert!(hold_within(&lock.path, Duration::from_secs(5)).is_ok());
     }
 }

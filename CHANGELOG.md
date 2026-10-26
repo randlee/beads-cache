@@ -11,7 +11,7 @@ All crates in the workspace share one version.
 ## [0.2.0] - unreleased
 
 The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
-(phase b; contract `docs/bd-cache-cli/contract.md`, version 1.0.0).
+(phase b; contract `docs/bd-cache-cli/contract.md`, version 0.2.0, pre-stable).
 
 ### Added
 
@@ -20,7 +20,9 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   - Two command groups. Beads: `issues get|list|update|close`, `ready`,
     `dependencies list|add`, `context`. Cache management: `cache
     status|health|scopes|refresh scopes|refresh issues|flush|evict|journal
-    get|list|resolve|announce|tick`.
+    get|list|resolve|announce`; `cache scopes add|set|remove|list|ingest|announce`;
+    `cache schedule set|show|enable|disable|clear`; `cache cron run`;
+    `cache tick`; `cache sync use-python|use-builtin` (contract section 1).
   - Beads commands match bd serve `/v0` in vocabulary only, not in behaviour.
     Every reply carries `x_cache`; a write reply says it is journaled, not
     applied.
@@ -39,7 +41,7 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   vocabulary shared by every front end. One decoder (`UNSUPPORTED` and
   `BAD_ARGS` come from it), the operation layer, the error table and schemars
   schemas. It depends on neither sc-command nor clap. `CONTRACT_VERSION` is
-  `1.0.0`.
+  `0.2.0` (pre-stable until a successful test with a real consumer).
 - **Python 0.2** (`bd-cache-rs` 0.2.0): `cache.beads.*` and `cache.manage.*`
   over `bd-cache-api`, with milliseconds for timeouts. Additive: nothing in
   0.1 changes and 0.2 issues no `DeprecationWarning`.
@@ -54,7 +56,7 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   the v3 Python writer still reads the file. `WriteOutcome.changed` is
   `Option<bool>`, `None` when unknown, never guessed (S62, S68).
 - **Release channels**: `bd-cache` and `bdc` binaries for Linux, macOS (arm and
-  intel) and Windows on GitHub Releases, plus Homebrew (`randlee/tap`), Scoop
+  intel) and Windows on GitHub Releases, plus Homebrew (`randlee/homebrew-tap`), Scoop
   (`randlee/scoop-bucket`) and WinGet (`randlee.bd-cache`). The stable channels
   go live with the first stable release, which waits for
   randlee/sc-publish#135.
@@ -152,6 +154,56 @@ Phase-end fixes to the 0.1.0 code described below.
 - `sc-cron`: an undecodable schedule row is skipped with a warning instead of
   stopping every schedule.
 
+### Boundary extension: scopes, the sync on cron rows, the Python replacement (sprints b-6 to b-8)
+
+beads-cache names no consumer concern (ADR-BDC-0010, ADR-BDC-0012). The sync is now rows in
+the cache file's own cron table; the first consumer replaces it with a Python script instead of
+configuring messages in beads-cache.
+
+- **Scopes are bd filters** (REQ-BDC-0721, ADR-BDC-0013): a scope is a validated name plus a
+  filter, `All` or criteria over labels (all of, any of), type and assignee. `.beads/bd-cache.toml`
+  defines scopes with `[[scope]]` tables and the `scopes` list; a scope it defines cannot be
+  changed with `scopes set` or `scopes remove` (`CONFIG_INVALID`, `details.source: config_scope`).
+  Others are managed with `bdc cache scopes add|set|remove|list`. A 0.1 verb's bare name still
+  gets the legacy prefix first (the 0.1 compatibility rule); a 0.2 read never derives a scope from
+  a label.
+- **The sync on cron rows** (REQ-BDC-0720, 0722, ADR-BDC-0011, ADR-BDC-0014, ADR-SYNC-0008):
+  `bdc cache schedule set|show|enable|disable|clear` configures one built-in sync row and, beside
+  it, at most one Python sync row, at most one enabled. `schedule show` reports both rows, the
+  mode (`builtin`, `python`, `none`), the hook and the lease (REQ-BDC-0731). One run at a time,
+  under a lease in the cache file: a run that finds it live replies `skipped: "in_flight"`.
+- **`bdc cache cron run [--once]`** (REQ-BDC-0730): runs the schedule until `SIGINT` or `SIGTERM`
+  (Ctrl-C or Ctrl-Break on Windows), gives runs in flight `--shutdown-timeout-ms` (default
+  10000), then kills them with their process trees, and exits 130 or 143. `bdc cache tick` runs
+  the built-in sync once.
+- **`bdc cache sync use-python|use-builtin`** (REQ-BDC-0724, 0725): switches the sync to a
+  consumer's Python script, which fills the cache through `scopes ingest` (`ingest_scope`: the
+  strict row decoder, declared membership, one transaction, at most 50 000 rows and 64 MiB,
+  REQ-BDC-0726), and back. `use-python` writes the new row and disables the other in one
+  transaction, then runs the script once.
+- **The post-sync hook** (REQ-BDC-0723, 0727, 0728): the built-in sync calls an optional Python
+  hook (`bd_cache_rs.run post_sync <module:function>`, isolated: its own process tree, a cleared
+  environment, capped input and output) with the drain result, each scope's result and error and
+  the escalated entries not yet notified. The cache sends nothing. The hook marks what it handled
+  through `scopes announce <scope> --since <token>` (compare-and-set on the scope's
+  `failing_since`) or `journal announce`; delivery is at least once.
+- **New error codes** (REQ-BDC-0729): `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and
+  `TICK_IN_FLIGHT`. An error that can come from bd carries `details.outage`, true only when bd
+  could not be reached.
+- **Python 0.2 methods**: `tick()`, `schedule_*`, `sync_use_python` / `sync_use_builtin`,
+  `ingest_scope`, `scope_announce` and `scopes_*` on the handle, `bd_cache_rs.run` and
+  `bd_cache_rs.sync`, and `CODES` (ADR-PY-0006). The 0.1 verbs are unchanged.
+- **`sc-cron`** (REQ-CRON-0013 to 0018, ADR-CRON-0009): a schedule runs a Rust job or a Python
+  module (`<interpreter> -I -m <module>`, one JSON object on stdin, `cron.tick` and `cron.stop`);
+  an `enabled` flag per schedule (`set_enabled`, `set_enabled_many`, `replace_and_set_enabled`);
+  standard five-field crontab expressions, read with crontab's day-of-week meaning; a per-row
+  target resolver; and the child-process supervisor `sc_cron::process`, public.
+- **Removed** (pre-release edits of the unreleased 0.2.0 and its contract, ADR-BDC-0010): the
+  `[tick]` configuration keys, the message sender and its port, phase-file discovery, the
+  `refused` / `pass-through` tick replies and the `TICK_<REFUSAL>` error code, sc-cron's `Stop`
+  decision, the legacy-directory refusal, and the vendored compat tests with their call
+  log. `bdc cache tick` and `Cache.tick()` now run the built-in sync once.
+
 ### Boundary extension: health, the neutral tests and the lint gate (sprint b-9)
 
 - **`cache health`** (REQ-BDC-0732, #86): `reasons[]` for every degraded cause; the oldest
@@ -173,7 +225,7 @@ Phase-end fixes to the 0.1.0 code described below.
 - **The contract** (`docs/bd-cache-cli/contract.md`) states what the phase-B extension built:
   the scope filters, the sync rows, the switch, the post-sync hook and the new verbs (§2, §4,
   §6), the 0.1 → 0.2 API differences (§10) and the classification of the extension's changes as
-  pre-release edits of the unreleased 1.0.0 (§11).
+  pre-release edits of the unreleased contract (§11).
 - **Tests are neutral** (REQ-BDC-0812, ADR-STORE-0006, ADR-PY-0006): the vendored compat
   implementation, its call log and the mapping test are removed; a 0.1 call corpus generated in
   this repository against the fake bd (`crates/bd-cache-py/tests/corpus/`) pins every 0.1 verb,
@@ -190,6 +242,10 @@ Phase-end fixes to the 0.1.0 code described below.
   assert that no `bd` or `dolt` is on `PATH` (NFR-BDC-0005), and the lint job that no crate
   depends on a Dolt or MySQL client (REQ-BDC-0006), both through `scripts/check_no_backend.py`.
   The compat test's `uv` setup is gone.
+- **Phase-end review fixes (CI)**: the lint job runs `cargo deny check advisories` against a
+  committed `deny.toml` (advisories only), and the `ci` clippy and test steps pass `--locked`.
+  The lint's file-name rules no longer miss a `test_`-prefixed baseline name and cover the
+  consumer's schema and close-field modules.
 
 ## [0.1.0] - unreleased
 

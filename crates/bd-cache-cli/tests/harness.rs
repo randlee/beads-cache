@@ -198,24 +198,21 @@ fn the_same_scenario_without_the_fault_answers() {
     assert_eq!(rows, vec![labelled("b-1"), labelled("b-2")]);
 }
 
-/// The call timeout of [`a_blocked_bd_times_out_while_it_is_still_blocked`]:
-/// long enough for the warmed `fake-bd` to start and reach its gate, so its
-/// `started` marker is there; the assertion itself is causal, not timed.
+/// The call timeout of [`a_blocked_bd_times_out_while_it_is_still_blocked`].
+/// Whether `fake-bd` started inside it is the host's timing and is not
+/// asserted; the assertions hold however slow the start is.
 const GATED_TIMEOUT: Duration = Duration::from_secs(1);
 
 #[test]
 fn a_blocked_bd_times_out_while_it_is_still_blocked() {
-    // Start the binary once beforehand (a scenario without the fault), so the
-    // first execution of a fresh binary does not use up the timeout.
-    assert_eq!(TestRepo::new(&two_beads()).fake_bd(&["version"]).exit, 0);
     let repo = TestRepo::new(&two_beads());
     let gate = repo.gate_file();
     repo.edit(|s| s.faults.gate_file = Some(gate.clone()));
     let result = list(&repo.process_backend(), &repo.project(), GATED_TIMEOUT);
-    // Causal, on every OS (QA FTQ-001): bd reached its gate, and the gate is
-    // released only below, so the caller gave up while bd was still blocked;
-    // it did not wait for bd to answer.
-    assert!(gate_started(&gate).exists(), "bd was never called");
+    // Causal, on every OS (QA FTQ-001): the gate is released only below, so
+    // bd never passed it; the caller gave up while bd was blocked (or not yet
+    // started) and did not wait for bd to answer. That bd reached its gate is
+    // proven by `a_gated_bd_answers_once_released`, under a long deadline.
     assert!(
         !gate_passed(&gate).exists(),
         "the call returned only after bd passed its gate: {result:?}"

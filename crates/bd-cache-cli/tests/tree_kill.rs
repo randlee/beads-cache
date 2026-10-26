@@ -95,18 +95,45 @@ fn cleanup(pids: &[u32]) {
     }
 }
 
-/// `bdc` with `FAKE_PY_DIR` set, so `--env FAKE_PY_DIR` hands it to the child.
-fn bdc(repo: &TestRepo, dir: &Path, args: &[&str]) -> (i32, serde_json::Value) {
+/// `bdc` started with `FAKE_PY_DIR` set, so `--env FAKE_PY_DIR` hands it to
+/// the child; [`finish`] collects its answer.
+fn bdc_spawn(repo: &TestRepo, dir: &Path, args: &[&str]) -> std::process::Child {
     let root = repo.root();
     let mut full = vec!["--repo", path_str(&root), "--bd", support::FAKE_BD];
     full.extend_from_slice(args);
-    let ran = support::hermetic(support::BDC)
+    support::hermetic(support::BDC)
         .args(&full)
         .env("FAKE_BD_SCENARIO", repo.scenario_path())
         .env("FAKE_PY_DIR", dir)
-        .output()
-        .expect("bdc starts");
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("bdc starts")
+}
+
+/// The exit code and the JSON answer of a [`bdc_spawn`]ed `bdc`.
+fn finish(child: std::process::Child) -> (i32, serde_json::Value) {
+    let ran = child.wait_with_output().expect("bdc ends");
     envelope_json(&ran.into())
+}
+
+/// `bdc` run to its end.
+fn bdc(repo: &TestRepo, dir: &Path, args: &[&str]) -> (i32, serde_json::Value) {
+    finish(bdc_spawn(repo, dir, args))
+}
+
+/// The pids of the child and the grandchild, once both wrote their files:
+/// the readiness handshake. No clock but `wait_for`'s 60 s ceiling decides
+/// when they started, and both are still alive here, so the deadline's kill
+/// that follows is what ends them.
+fn started_pids(dir: &Path) -> [u32; 2] {
+    let pids = [pid_in(&dir.join("gc.pid")), pid_in(&dir.join("child.pid"))];
+    assert!(
+        pids.iter().all(|p| runs(*p)),
+        "the tree ended before the test saw it start: {pids:?}"
+    );
+    pids
 }
 
 /// A hook whose child started a grandchild is killed with it at the hook's
@@ -125,9 +152,9 @@ fn a_hooks_child_and_grandchild_are_killed_at_its_deadline() {
             "set",
             "0 0 1 1 *",
             "--budget-ms",
-            "6000",
+            "20000",
             "--hook-reserve-ms",
-            "3000",
+            "10000",
             "--post-sync",
             "consumer.hooks:after",
             "--python",
@@ -138,11 +165,11 @@ fn a_hooks_child_and_grandchild_are_killed_at_its_deadline() {
     );
     assert_eq!(exit, 0, "{v}");
     std::fs::write(dir.path().join("hook.mode"), "grandchild").unwrap();
-    let (exit, v) = bdc(&repo, dir.path(), &["cache", "tick"]);
-    let pids = [
-        pid_in(&dir.path().join("gc.pid")),
-        pid_in(&dir.path().join("child.pid")),
-    ];
+    // The budget is no race for the tree's start: the test sees both pids
+    // first, and the hook's deadline (20 s) then kills the tree.
+    let tick = bdc_spawn(&repo, dir.path(), &["cache", "tick"]);
+    let pids = started_pids(dir.path());
+    let (exit, v) = finish(tick);
     let alive = gone(&pids);
     cleanup(&alive);
     assert_eq!(exit, 0, "{v}");
@@ -190,15 +217,15 @@ fn a_python_rows_child_and_grandchild_are_killed_at_its_timeout() {
         "--module",
         "consumer.sync",
         "--timeout-ms",
-        "2000",
+        "20000",
         "--env",
         "FAKE_PY_DIR",
     ];
-    let (exit, v) = bdc(&repo, dir.path(), &use_python);
-    let pids = [
-        pid_in(&dir.path().join("gc.pid")),
-        pid_in(&dir.path().join("child.pid")),
-    ];
+    // The timeout is no race for the tree's start: the test sees both pids
+    // first, and the row's timeout (20 s) then kills the tree.
+    let switch = bdc_spawn(&repo, dir.path(), &use_python);
+    let pids = started_pids(dir.path());
+    let (exit, v) = finish(switch);
     let alive = gone(&pids);
     cleanup(&alive);
     assert_eq!(

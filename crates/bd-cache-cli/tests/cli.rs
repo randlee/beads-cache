@@ -28,7 +28,7 @@ fn version_is_one_envelope_with_ok_true_and_a_name() {
     let data = envelope.data().expect("data on success");
     assert_eq!(data["name"], "bd-cache");
     assert_eq!(data["version"], env!("CARGO_PKG_VERSION"));
-    assert_eq!(data["contract_version"], "1.0.0");
+    assert_eq!(data["contract_version"], "0.2.0");
 }
 
 /// The planted negative of acceptance 1: `--version` as plain text is not an envelope.

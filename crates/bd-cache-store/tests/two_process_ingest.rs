@@ -19,7 +19,7 @@ use std::process::Command;
 
 use bd_cache_model::{CacheStore, FilterParts, IngestSnapshot, Scope, ScopeFilter, ScopeId};
 use bd_cache_store::SqliteStore;
-use common::{TempDir, identity};
+use common::{CHILD_TIMEOUT, TempDir, identity, run_bounded};
 use sc_beads::{Clock, SystemClock};
 
 /// Where the child finds the cache file.
@@ -43,16 +43,23 @@ fn a_second_process_ingests_while_a_first_holds_a_handle() {
     let mut first = SqliteStore::open_at(&path, &identity()).unwrap();
     first.ensure_scope(&lane()).unwrap();
     // The first handle stays open, with no transaction open, while the child runs.
-    let out = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "child_ingests", "--ignored", "--nocapture"])
-        .env(CHILD_FILE, &path)
-        .output()
-        .unwrap();
+    let out = run_bounded(
+        Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "child_ingests", "--ignored", "--nocapture"])
+            .env(CHILD_FILE, &path),
+        CHILD_TIMEOUT,
+    );
+    let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
         out.status.success(),
-        "child failed: {}\n{}",
-        String::from_utf8_lossy(&out.stdout),
+        "child failed: {stdout}\n{}",
         String::from_utf8_lossy(&out.stderr)
+    );
+    // The filter matched the one case: a filter that matches nothing also
+    // exits 0.
+    assert!(
+        stdout.contains("1 passed"),
+        "the child did not run: {stdout}"
     );
     let ids: Vec<String> = first
         .rows_in_scope(&lane().id)

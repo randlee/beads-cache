@@ -106,6 +106,9 @@ pub struct SyncContext<S: CacheStore, L: DrainLock, B: CacheBackend, C: CronCloc
     /// Set to kill the hook's and the script's trees at once (see
     /// [`RunContext::kill`]).
     pub kill: StopFlag,
+    /// Test seam, never set in production (see [`RunContext::expire`]).
+    #[doc(hidden)]
+    pub expire: StopFlag,
     pub(crate) failures: FailureLog,
 }
 
@@ -125,6 +128,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend, C: CronClock> SyncContext<S, 
             files,
             stop,
             kill,
+            expire: StopFlag::new(),
             failures: FailureLog::default(),
         }
     }
@@ -206,6 +210,7 @@ where
                     repo_root: ctx.files.repo_root.clone(),
                     stop: ctx.stop.clone(),
                     kill: ctx.kill.clone(),
+                    expire: ctx.expire.clone(),
                 },
                 record: RunRecord::new(Arc::clone(&ctx.cache), sync_row, run_id),
                 failures: Arc::clone(&ctx.failures),

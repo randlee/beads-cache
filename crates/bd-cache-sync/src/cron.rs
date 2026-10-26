@@ -12,7 +12,9 @@
 //! bounded bd call stop), then wait, for at most `T` again, for the killed
 //! blocking steps to leave the cache and the lease to be released. A stop
 //! therefore takes at most `2 × T` (`--shutdown-timeout-ms 0` kills at once;
-//! a lease whose release then has no time left is left to expiry).
+//! a lease whose release then has no time left is left to expiry). A second
+//! stop request during the wait ([`Schedules::cron_run_hurried`]) does what the
+//! expiry does, at once.
 //! [`Schedules::cron_run_once`] runs what is due once and waits for each run
 //! to its own deadline.
 
@@ -135,6 +137,26 @@ where
         shutdown_timeout: Duration,
         on_expiry: impl FnOnce() + Send,
     ) -> CronStopped {
+        self.cron_run_hurried(stop, StopFlag::new(), shutdown_timeout, on_expiry)
+            .await
+    }
+
+    /// As [`cron_run`](Self::cron_run), and `hurry` ends the grace period
+    /// early: once it is set while the runs in flight are being waited for,
+    /// they are killed and `on_expiry` is called at once, as when
+    /// `shutdown_timeout` expires (bdc sets it on a second signal). The
+    /// bound of the rest of the stop is unchanged.
+    ///
+    /// # Panics
+    ///
+    /// As [`cron_run`](Self::cron_run).
+    pub async fn cron_run_hurried(
+        &self,
+        stop: StopFlag,
+        hurry: StopFlag,
+        shutdown_timeout: Duration,
+        on_expiry: impl FnOnce() + Send,
+    ) -> CronStopped {
         let kill = StopFlag::new();
         let ctx = Arc::new(SyncContext::new(
             Arc::clone(&self.cache),
@@ -171,17 +193,38 @@ where
                 "stopping: no new run; waiting for the runs in flight"
             );
         }
-        let drained = worker
-            .shutdown(tokio::time::Instant::now() + shutdown_timeout)
-            .await;
-        if !drained {
+        let mut on_expiry = Some(on_expiry);
+        let shutdown = worker.shutdown(tokio::time::Instant::now() + shutdown_timeout);
+        tokio::pin!(shutdown);
+        let mut hurried = false;
+        let mut drained = tokio::select! {
+            drained = &mut shutdown => drained,
+            () = hurry.wait() => {
+                tracing::warn!(
+                    action = "cron_run",
+                    "stop requested again: the runs in flight are killed with their process trees now"
+                );
+                hurried = true;
+                kill.stop();
+                if let Some(on_expiry) = on_expiry.take() {
+                    on_expiry();
+                }
+                // The wait for them to end stays bounded by the shutdown timeout.
+                (&mut shutdown).await
+            }
+        };
+        if !drained && !hurried {
             tracing::warn!(
                 action = "cron_run",
                 "runs still going at the shutdown timeout were killed with their process trees"
             );
             kill.stop();
-            on_expiry();
+            if let Some(on_expiry) = on_expiry.take() {
+                on_expiry();
+            }
         }
+        // Runs killed on a second signal were not drained, whenever they ended.
+        drained &= !hurried;
         let finish_by = Instant::now()
             .checked_add(shutdown_timeout)
             .unwrap_or_else(Instant::now);
@@ -255,13 +298,32 @@ where
     /// `STORE_FAILED` when the table cannot be read. A failed run is in
     /// [`CronOnce::error`].
     pub async fn cron_run_once(&self, stop: StopFlag) -> Result<CronOnce, CacheError> {
-        let ctx = Arc::new(SyncContext::new(
+        self.cron_run_once_expiring(stop, StopFlag::new()).await
+    }
+
+    /// [`cron_run_once`](Self::cron_run_once) with a test seam: setting
+    /// `expire` cuts a running built-in hook as if its deadline had come
+    /// ([`RunContext::expire`](crate::RunContext::expire)). Never used in
+    /// production.
+    ///
+    /// # Errors
+    ///
+    /// As [`cron_run_once`](Self::cron_run_once).
+    #[doc(hidden)]
+    pub async fn cron_run_once_expiring(
+        &self,
+        stop: StopFlag,
+        expire: StopFlag,
+    ) -> Result<CronOnce, CacheError> {
+        let mut ctx = SyncContext::new(
             Arc::clone(&self.cache),
             Arc::clone(&self.clock),
             self.files.clone(),
             stop.clone(),
             stop,
-        ));
+        );
+        ctx.expire = expire;
+        let ctx = Arc::new(ctx);
         let runs = self
             .scheduler
             .run_due_with(sync_resolver(Arc::clone(&ctx)))

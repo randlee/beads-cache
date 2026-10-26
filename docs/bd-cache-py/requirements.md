@@ -138,8 +138,8 @@ threads continue while a verb waits on `bd` or SQLite.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-After a dev close journaled through `write`, `ready` for its sanity bead is
-true with the backend unreachable and no `bd` call (the first consumer's task-open hook path).
+After a close journaled through `write`, `ready` for the bead it releases is
+true with the backend unreachable and no `bd` call (the first consumer's hook path).
 `ready(phase, fresh_within=s)` against a `bd` that answers late returns the
 cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
@@ -249,7 +249,7 @@ Every 0.1 verb, its arguments, its units (seconds) and its dict key sets are unc
 and 0.2 issues no `DeprecationWarning` (the suite runs under `-W
 error::DeprecationWarning`). `bd_cache_rs.CONTRACT_VERSION` is `bd_cache_api::CONTRACT_VERSION`,
 the contract version `context` and `cache status` report; wheel 0.2.x implements
-contract 1.0.x.
+contract 0.2.x (pre-stable, contract §11).
 
 **Refines:** REQ-BDC-0811, REQ-BDC-0812
 **Acceptance evidence:** the unedited 0.1 test files (`test_verbs.py`, `test_key_sets.py`,

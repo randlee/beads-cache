@@ -155,7 +155,7 @@ where
             .payload
             .interpreter()
             .python_hook(self.payload.env().child_env(set));
-        let name = crate::payload::schedule_name(SyncRow::Python)?;
+        let name = crate::payload::schedule_name(SyncRow::Python);
         let payload = self
             .payload
             .run_payload(run_id, trusted.path(), &self.files.repo_root);

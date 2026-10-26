@@ -16,6 +16,8 @@ use crate::CronExpr;
 pub(crate) const MAX_JITTER: Duration = Duration::from_mins(30);
 
 /// Source of the random offset drawn when a schedule starts.
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 pub trait JitterSource: Send + Sync {
     /// Returns an offset in `[0, max)`, or zero when `max` is zero.
     ///

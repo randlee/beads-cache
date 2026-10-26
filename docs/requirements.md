@@ -581,9 +581,9 @@ Each code is one row of `ERROR_TABLE` and of the contract's §4 error table, wit
 
 ## REQ-BDC-0730: `cron run` stops cleanly
 
-**Status:** Approved (Rand, 2026-10-26)
+**Status:** Approved (Rand, 2026-10-26); amended at the phase-end review (lead ruling, PE1-RSH-007: a second signal ends the wait)
 
-`bdc cache cron run` handles `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on Windows): it starts no new run, waits for the runs in flight up to `--shutdown-timeout-ms` (default 10000, 0–600000), then kills every run still going together with its process tree (the hook's and the Python row's), releases the lease on every exit path, and exits 130 for `SIGINT`, 143 for `SIGTERM`, and 130 for Ctrl-C or Ctrl-Break on Windows. `SIGHUP` is handled as `SIGTERM` (exit 129), and a second signal during the wait is ignored. A `kill -9` is covered only by lease expiry. `cron run --once` waits for each run it started up to that run's own deadline, then exits 0, or 3 with `TICK_RUN_FAILED` naming each failed row. `cron run` logs to stderr through a process-wide subscriber at the `-v`/`-q` levels, one structured event per run step (lease, drain, each scope, hook, reply) with the row, the run id and the outcome, and sc-cron's own events.
+`bdc cache cron run` handles `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on Windows): it starts no new run, waits for the runs in flight up to `--shutdown-timeout-ms` (default 10000, 0–600000), then kills every run still going together with its process tree (the hook's and the Python row's), releases the lease on every exit path, and exits 130 for `SIGINT`, 143 for `SIGTERM`, and 130 for Ctrl-C or Ctrl-Break on Windows. `SIGHUP` is handled as `SIGTERM` (exit 129). A second signal during the wait ends it at once: the bd calls stop and every run still going is killed with its process tree, as when the timeout expires, and the exit code stays the first signal's (*amended at the phase-end review; it was ignored before*). A `kill -9` is covered only by lease expiry. `cron run --once` waits for each run it started up to that run's own deadline, then exits 0, or 3 with `TICK_RUN_FAILED` naming each failed row. `cron run` logs to stderr through a process-wide subscriber at the `-v`/`-q` levels, one structured event per run step (lease, drain, each scope, hook, reply) with the row, the run id and the outcome, and sc-cron's own events.
 
 **Source:** Rand, 2026-10-26 (ruling 5); ADR-SYNC-0008
 
@@ -728,9 +728,9 @@ Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, 
 
 ## REQ-BDC-0813: Binary distribution
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25); amended (Rand, 2026-10-26: phase B closes without the binaries prerelease)
 
-`bd-cache` and `bdc` are released as binaries for Linux, macOS (arm and intel) and Windows: on the GitHub Release and through Homebrew, Scoop and WinGet. A GitHub prerelease carries them.
+`bd-cache` and `bdc` are released as binaries for Linux, macOS (arm and intel) and Windows: on the GitHub Release and through Homebrew, Scoop and WinGet. A GitHub prerelease carries them. Phase B closes without that prerelease (Rand, 2026-10-26): the channels are declared and dry-run verified in phase B, and the binaries are cut later from `develop` or `main`.
 
 **Source:** phase-b plan; sc-publish getting-started; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
@@ -780,7 +780,7 @@ Cached blocked state and `ready` stay correct when a blocker inside or outside t
 
 A caller can read beads fresh from the backend, bypassing cached rows: one `bd list --id` of the requested beads (all statuses), stored with force, with pending journal entries replayed on top, under a caller-supplied timeout.
 
-**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field handling and its sanity hook's batched refresh; a cached row can lag a direct `bd update`)
+**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field handling and its hook's batched refresh; a cached row can lag a direct `bd update`)
 
 ## REQ-BDC-0908: Journal entry by seq
 
@@ -798,7 +798,7 @@ Syncing a phase that is not configured registers it as an on-demand scope, so a 
 
 *Amended by ADR-BDC-0013 (Rand, 2026-10-26): a scope registered on demand is a label scope with that one label; a 0.1 verb's bare name gets the legacy prefix first (REQ-BDC-0812).*
 
-**Source:** the first consumer's maintainer, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
+**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field backfill syncs then lists arbitrary phases)
 
 ## REQ-BDC-0910: Python bindings
 
@@ -812,9 +812,9 @@ The cache is callable in process from Python (maturin / PyO3), with the verbs th
 
 **Status:** Approved
 
-After a write journaled through the cache that releases or blocks a bead (for example a dev close releasing its sanity bead), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
+After a write journaled through the cache that releases or blocks a bead (for example a close releasing a bead that was blocked by it), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
 
-**Source:** user, 2026-10-24 (the first consumer's task-open hook, run by its sanity agent, checks ready through the cache one or two turns after assignment and escalates if not ready)
+**Source:** user, 2026-10-24 (the first consumer's hook checks ready through the cache one or two turns after assignment and escalates if not ready)
 
 ## REQ-BDC-0912: Bounded fresh ready
 
@@ -822,7 +822,7 @@ After a write journaled through the cache that releases or blocks a bead (for ex
 
 A caller can ask `ready` for a fresh answer within a time limit it gives (for example 500 ms, inside a hook's 2.5 s budget). If bd answers in time, the reply uses bd's answer and refreshes the stored base; if not, it returns the cached, locally adjusted answer by the limit, naming the fallback error. The call never exceeds the limit.
 
-**Source:** user, 2026-10-24 (the first consumer's task hook: 2.5 s budget shared by several bd calls); same pattern as the sanity hook's capped refresh with `read_fallback` in the baseline design
+**Source:** user, 2026-10-24 (the first consumer's task hook: 2.5 s budget shared by several bd calls); same pattern as the hook's capped refresh with `read_fallback` in the baseline design
 
 ## REQ-BDC-0905: bd release compatibility check
 

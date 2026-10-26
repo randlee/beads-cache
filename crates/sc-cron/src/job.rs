@@ -33,6 +33,8 @@ use crate::{RunOutcome, StopDecision};
 ///
 /// A panic in either method is caught and recorded as
 /// [`RunOutcome::Failed`]; the schedule keeps ticking.
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 #[async_trait]
 pub trait Job: Send + Sync {
     /// Runs one tick; must finish its work by `deadline`.

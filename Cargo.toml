@@ -1,4 +1,4 @@
-# beads-cache workspace (phase a). Every third-party crate the phase uses is
+# beads-cache workspace. Every third-party crate the workspace uses is
 # declared here once; member crates use `workspace = true` and edit only their
 # own Cargo.toml (docs/plans/phase-a/phase-a-plan.md, Shared files). A missing
 # workspace dependency is an amendment to sprint a-1.
@@ -49,7 +49,7 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", 
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 cron = "0.17"
-libc = "0.2"                                               # O_NONBLOCK for opening phase files (bd-cache-sync, a-7)
+libc = "0.2"                                               # sc-bd-cli's non-reaping waitid (Unix); its only user; the root entry stays (ADR-SYNC-0008)
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
 tempfile = "3.20"                                          # runtime in sc-cron (a Python hook's working directory); dev-dependency (tests) in the other crates

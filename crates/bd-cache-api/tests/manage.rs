@@ -130,7 +130,7 @@ fn an_escalation_is_listed_announced_and_resolved_with_its_note_apart() {
     assert_eq!(status["escalated"], json!([]));
     assert_eq!(status["journal"]["applied"], 1);
     assert_eq!(status["journal"]["resolved"], 1);
-    assert_eq!(status["contract_version"], "1.0.0");
+    assert_eq!(status["contract_version"], "0.2.0");
     assert_eq!(
         status["project"],
         json!({"database": "beads", "project_id": "proj-1"})

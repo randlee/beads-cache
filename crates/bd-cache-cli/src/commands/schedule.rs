@@ -31,7 +31,11 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
                 Int,
                 false,
                 "budget_ms",
-                "The run's budget (default 25000, 1000-600000).",
+                concat!(
+                    "The run's budget (default 25000, 1000-",
+                    bd_cache_model::max_timeout_ms!(),
+                    ")."
+                ),
             ),
             ArgSpec::flag(
                 "hook-reserve-ms",

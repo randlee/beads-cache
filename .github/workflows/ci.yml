@@ -42,6 +42,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # PE1-RSH-001: the supply-chain gate. deny.toml configures advisories
+      # only; the tool comes from the repository's lint-toolchain action.
+      - uses: ./.github/actions/setup-lint-toolchain
+
       - name: Format
         run: cargo fmt --all --check
 
@@ -49,6 +53,11 @@ jobs:
         run: cargo doc --workspace $EXCLUDE --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
+
+      # A RUSTSEC advisory against any locked crate (bundled SQLite, tokio,
+      # process-wrap, the git-pinned sc-command) fails here (deny.toml).
+      - name: Advisories (cargo deny, deny.toml)
+        run: cargo deny check advisories
 
       - name: Publish dry run (sc-beads, sc-bd-cli, sc-cron)
         run: cargo publish --dry-run -p sc-beads -p sc-bd-cli -p sc-cron
@@ -188,19 +197,19 @@ jobs:
         run: python -I scripts/lint_no_atm.py
 
       - name: Clippy
-        run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --workspace $EXCLUDE --all-targets --all-features -- -D warnings
 
       # Default features: the libraries must be warning-free without their
       # `testing` features (helpers are crate-private until a-5/a-6 call them).
       - name: Clippy (libraries, default features)
-        run: cargo clippy --workspace $EXCLUDE --lib -- -D warnings
+        run: cargo clippy --locked --workspace $EXCLUDE --lib -- -D warnings
 
       - name: Test
-        run: cargo test --workspace $EXCLUDE --all-features
+        run: cargo test --locked --workspace $EXCLUDE --all-features
 
       # NFR-BDC-0002 (sprint b-3): a new-process `bdc issues get` cache hit is
       # under 50 ms, measured in a release build: the median of 50 is gated on
       # Unix and the p95 reported (lead ruling S80); Windows reports both (S79).
       # The log also reports the ungated pending-write case.
       - name: Latency (NFR-BDC-0002, release profile)
-        run: cargo test --release -p bd-cache-cli --test latency -- --ignored --nocapture
+        run: cargo test --locked --release -p bd-cache-cli --test latency -- --ignored --nocapture

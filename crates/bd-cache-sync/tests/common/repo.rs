@@ -174,9 +174,10 @@ impl Repo {
 /// request, records it as `<event>.<n>.json` with its environment, and acts
 /// on `stop` (the stop answer, default `{"action": "continue"}`) and `tick`
 /// (`exit:<n>`, `sleep`, `stderr:<text>`, `grandchild`, `leak`: `$HOME`
-/// over more than 8 KiB of stderr, then exit 1). With the named pipe
-/// `stopgate`, `cron.stop` waits until the test writes it (touching
-/// `stop.started` first); with the file `vanish`, `cron.stop` deletes the
+/// over more than 8 KiB of stderr, then exit 1). With the file `stopgate`
+/// (see [`PyStub::arm_stop_gate`]), `cron.stop` touches `stop.started`, then
+/// polls until the test writes something into `stopgate`, for at most 30 s
+/// (a plain file, so neither side can block forever); with the file `vanish`, `cron.stop` deletes the
 /// interpreter itself, so the run's next launch cannot start.
 #[cfg(unix)]
 pub struct PyStub {
@@ -203,7 +204,10 @@ printf '%s' "$input" > "$d/$ev.$n.json"
 env > "$d/$ev.env"
 printf '%s\n' "$@" > "$d/$ev.argv"
 if [ "$ev" = stop ]; then
-  if [ -p "$d/stopgate" ]; then : > "$d/stop.started"; cat "$d/stopgate" > /dev/null; fi
+  if [ -f "$d/stopgate" ]; then
+    : > "$d/stop.started"; i=0
+    while [ ! -s "$d/stopgate" ] && [ $i -lt 600 ]; do sleep 0.05; i=$((i+1)); done
+  fi
   [ -f "$d/vanish" ] && rm -f "$0"
   if [ -f "$d/stop" ]; then cat "$d/stop"; else echo '{"action": "continue"}'; fi
   exit 0
@@ -226,6 +230,16 @@ exit 0
     /// Writes `name` in its directory (`stop`, `tick`, `noimport`).
     pub fn set(&self, name: &str, text: &str) {
         std::fs::write(self.dir.path().join(name), text).unwrap();
+    }
+
+    /// Arms the `cron.stop` gate: an empty `stopgate` file. The next
+    /// `cron.stop` touches `stop.started` and waits (30 s at most) until the
+    /// returned path holds something; release it by writing "go" there.
+    #[must_use]
+    pub fn arm_stop_gate(&self) -> PathBuf {
+        let gate = self.dir.path().join("stopgate");
+        std::fs::write(&gate, "").unwrap();
+        gate
     }
 
     /// Removes `name`.

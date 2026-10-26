@@ -89,7 +89,7 @@
       "name": "the journal counts",
       "command": "cache status",
       "request": {},
-      "expect": {"ok": true, "data": {"contract_version": "1.0.0", "journal": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0,
+      "expect": {"ok": true, "data": {"contract_version": "0.2.0", "journal": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0,
         "by_scope": {"x": {"pending": 4, "applied": 0, "escalated": 0, "resolved": 0}},
         "unscoped": {"pending": 0, "applied": 0, "escalated": 0, "resolved": 0}}}}
     }

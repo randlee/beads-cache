@@ -115,7 +115,7 @@ pub use v0::{entry_args, patch_args};
 
 /// The version of `docs/bd-cache-cli/contract.md` this crate implements
 /// (REQ-BDC-0811); `context` and `cache status` report it.
-pub const CONTRACT_VERSION: &str = "1.0.0";
+pub const CONTRACT_VERSION: &str = "0.2.0";
 
 /// The `/v0` capability tokens the cache serves (`context.capabilities`, contract §5.2).
 pub const CAPABILITIES: [&str; 7] = [

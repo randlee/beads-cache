@@ -645,7 +645,7 @@ Decision:
   supervisors and kills the hook's and the Python row's process trees (process group or job
   object); the built-in run's blocking part sees the `StopFlag`, its bd calls stop on the request,
   and it returns and drops its `TickLease`. Exit codes are REQ-BDC-0730's. `SIGHUP` is handled as
-  `SIGTERM` (exit 129), and a second signal during the wait is ignored, as for every bdc command. `cron run --once` runs
+  `SIGTERM` (exit 129). A second signal during the wait ends it at once, as the timeout's expiry does (`Schedules::cron_run_hurried`; *amended at the phase-end review, REQ-BDC-0730 as amended: it was ignored before*). `cron run --once` runs
   what is due, waits for each run it started to its own deadline, and exits 0, or 3 with
   `TICK_RUN_FAILED` listing each failed row.
 - **Logging.** `cron run` installs its stderr subscriber as the process default, so sc-cron's
