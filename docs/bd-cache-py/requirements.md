@@ -249,7 +249,7 @@ Every 0.1 verb, its arguments, its units (seconds) and its dict key sets are unc
 and 0.2 issues no `DeprecationWarning` (the suite runs under `-W
 error::DeprecationWarning`). `bd_cache_rs.CONTRACT_VERSION` is `bd_cache_api::CONTRACT_VERSION`,
 the contract version `context` and `cache status` report; wheel 0.2.x implements
-contract 1.0.x.
+contract 0.2.x (pre-stable, contract §11).
 
 **Refines:** REQ-BDC-0811, REQ-BDC-0812
 **Acceptance evidence:** the unedited 0.1 test files (`test_verbs.py`, `test_key_sets.py`,

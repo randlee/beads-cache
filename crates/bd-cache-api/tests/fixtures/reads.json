@@ -60,7 +60,7 @@
       "request": {},
       "expect": {"ok": true, "data": {"bd_version": "$any", "database": "beads", "project_id": "proj-1",
         "capabilities": ["issues.get", "issues.list", "ready.list", "dependencies.list", "issues.update", "issues.close", "dependencies.add"],
-        "x_cache": {"cache_path": "/repo/.bd-cache/beads.bd-cache.sqlite3", "contract_version": "1.0.0", "store_schema_version": 3,
+        "x_cache": {"cache_path": "/repo/.bd-cache/beads.bd-cache.sqlite3", "contract_version": "0.2.0", "store_schema_version": 3,
           "bd_schema_sha256": "$any", "bd_schema_version": "$any", "model_current": true}}}
     },
     {

@@ -27,7 +27,7 @@
       "expect": {"ok": true, "data": {"items": [{"issue_id": "s1", "depends_on_id": "b1", "type": "blocks"}], "missing": ["zz"]}}},
     {"name": "context", "command": "context", "argv": ["context"],
       "expect": {"ok": true, "data": {"database": "beads", "project_id": "proj-1", "repo_root": "/repo", "beads_dir": "/repo/.beads",
-        "x_cache": {"cache_path": "/repo/.bd-cache/beads.bd-cache.sqlite3", "contract_version": "1.0.0", "store_schema_version": 3}}}},
+        "x_cache": {"cache_path": "/repo/.bd-cache/beads.bd-cache.sqlite3", "contract_version": "0.2.0", "store_schema_version": 3}}}},
     {"name": "issues update", "command": "issues update",
       "argv": ["issues", "update", "b2", "--actor", "san", "--idempotency-key", "k1", "--status", "in_progress", "--add-label", "hot",
         "--set-metadata", "{\"lane\": \"a\"}", "--expected-status", "open"],

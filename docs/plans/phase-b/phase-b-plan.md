@@ -3,8 +3,9 @@
 Status: b-1..b-5 complete and merged into `integrate/phase-b` (b-1 #75, b-2 #76, b-3a #74,
 b-3 #78, b-4 #77, b-5 #80); b-6 complete and merged (#92); b-7 complete and merged (#99); b-8
 complete and merged (#100); b-9 complete and merged (#101, `fa05157`). b-1..b-9 merged;
-phase-end review fixes in review. Phase B is not closed: two Rand decisions are open (Open
-items). b-7, b-8 and b-9 are the sprints of the
+phase-end review fixes in review (#102). Rand, 2026-10-26: phase B closes without the
+binaries prerelease, and the contract is 0.2.0, not 1.0.0. Phase B closes when #82 merges into
+`develop`. b-7, b-8 and b-9 are the sprints of the
 boundary extension [phase-b-boundary.md](phase-b-boundary.md) (r3, lead ruling S82, with
 Rand's later Amendments A1–A8). The contract, ADR-BDC-0009 and the REQ-BDC-0801, 0802, 0803
 and 0806 amendments were approved by Rand (lead ruling S60, 2026-10-25). The phase-B extension's
@@ -24,7 +25,7 @@ reads one register. Sprints edit only the implementation rows and notes their fe
 
 Implement the bd-cache / bdc CLI contract,
 [`docs/bd-cache-cli/contract.md`](../../bd-cache-cli/contract.md), contract
-version 1.0.0, as approved at `8115a0a` and marked Approved on #69 at `6dec77e`. The contract is the source of truth. Sprint docs cite its
+version 0.2.0 (Rand, 2026-10-26; it was 1.0.0 when approved at `8115a0a`), as approved at `8115a0a` and marked Approved on #69 at `6dec77e`. The contract is the source of truth. Sprint docs cite its
 sections and do not restate them; a sprint that finds a gap raises it with
 the lead, who changes the contract. Sprints never decide it locally.
 
@@ -191,11 +192,11 @@ delivery of b-1..b-6 and are recorded in the requirements and ADRs they amend.
 - P-6: the external setup that Rand does: immutable releases, the three
   channel secrets, the winget-pkgs fork, and the first `randlee.bd-cache`
   submission made by hand.
-- The contract and wheel versions (b-9 deliverable 4): `CONTRACT_VERSION` stays 1.0.0 and the
-  wheel 0.2.0, because contract 1.0.0 is unreleased and its removals are pre-release edits.
-  Recommended; Rand's decision.
-- REQ-BDC-0813 / b-5 deliverable 4: the prerelease that carries `bd-cache` and `bdc` for the four
-  targets plus the 0.2.0 wheels is not cut. It waits on Rand's go.
+- Ruled (Rand, 2026-10-26): `CONTRACT_VERSION` is 0.2.0, not 1.0.0, with wheel 0.2.0: "we are
+  no-where near 1.0.0. we haven't done a single successful test w/ an actual consumer." The
+  contract is pre-stable until then (contract §11).
+- Ruled (Rand, 2026-10-26): phase B closes without the prerelease that carries `bd-cache` and
+  `bdc` (REQ-BDC-0813, b-5 deliverable 4); the binaries are cut later from `develop` or `main`.
 - This PR deleted `docs/plans/phase-a/evidence/a-7-planted-bugs.{json,py}` and
   the baseline design document (`docs/baseline/`) in applying A8's no-consumer-wording ruling; both stay in git
   history. Awaiting Rand's confirmation; neither is restored unless he says so.

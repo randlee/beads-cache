@@ -30,7 +30,7 @@ Naming follows the Plan Naming section of
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
 | `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | complete |
-| `b` | The `bdc` CLI contract, `bd-cache-api`, the `bdc` binaries, Python wheel 0.2 and the release channels; then the boundary extension: no consumer concern in beads-cache, the bd sync on sc-cron rows in the cache file with a Python replacement and a post-sync hook, scopes as bd filters, and the lint gate | [phase-b-plan](plans/phase-b/phase-b-plan.md), [phase-b-boundary](plans/phase-b/phase-b-boundary.md) | in progress (b-1..b-9 merged into `integrate/phase-b`; phase-end review fixes in review) |
+| `b` | The `bdc` CLI contract, `bd-cache-api`, the `bdc` binaries, Python wheel 0.2 and the release channels; then the boundary extension: no consumer concern in beads-cache, the bd sync on sc-cron rows in the cache file with a Python replacement and a post-sync hook, scopes as bd filters, and the lint gate | [phase-b-plan](plans/phase-b/phase-b-plan.md), [phase-b-boundary](plans/phase-b/phase-b-boundary.md) | in progress (b-1..b-9 merged into `integrate/phase-b`; phase-end review fixes in review; closes when PR #82 merges into `develop`, without the binaries prerelease) |
 
 ## Sprints
 

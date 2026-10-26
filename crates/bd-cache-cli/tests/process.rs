@@ -305,7 +305,7 @@ fn format_text_renders_the_data_for_a_person() {
     );
     assert!(ran.stdout.contains("database: beads"), "{}", ran.stdout);
     assert!(
-        ran.stdout.contains("  contract_version: 1.0.0"),
+        ran.stdout.contains("  contract_version: 0.2.0"),
         "{}",
         ran.stdout
     );
@@ -327,7 +327,7 @@ fn format_text_renders_the_data_for_a_person() {
     let ran = repo.bdc(&["--version", "--format", "text"]);
     assert_eq!(
         ran.stdout,
-        format!("bd-cache {} (contract 1.0.0)\n", env!("CARGO_PKG_VERSION"))
+        format!("bd-cache {} (contract 0.2.0)\n", env!("CARGO_PKG_VERSION"))
     );
 }
 

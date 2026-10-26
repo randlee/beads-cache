@@ -11,7 +11,7 @@ All crates in the workspace share one version.
 ## [0.2.0] - unreleased
 
 The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
-(phase b; contract `docs/bd-cache-cli/contract.md`, version 1.0.0).
+(phase b; contract `docs/bd-cache-cli/contract.md`, version 0.2.0, pre-stable).
 
 ### Added
 
@@ -41,7 +41,7 @@ The `bdc` CLI, the `bd-cache-api` crate, Python 0.2 and the release channels
   vocabulary shared by every front end. One decoder (`UNSUPPORTED` and
   `BAD_ARGS` come from it), the operation layer, the error table and schemars
   schemas. It depends on neither sc-command nor clap. `CONTRACT_VERSION` is
-  `1.0.0`.
+  `0.2.0` (pre-stable until a successful test with a real consumer).
 - **Python 0.2** (`bd-cache-rs` 0.2.0): `cache.beads.*` and `cache.manage.*`
   over `bd-cache-api`, with milliseconds for timeouts. Additive: nothing in
   0.1 changes and 0.2 issues no `DeprecationWarning`.
@@ -198,7 +198,7 @@ configuring messages in beads-cache.
   an `enabled` flag per schedule (`set_enabled`, `set_enabled_many`, `replace_and_set_enabled`);
   standard five-field crontab expressions, read with crontab's day-of-week meaning; a per-row
   target resolver; and the child-process supervisor `sc_cron::process`, public.
-- **Removed** (pre-release edits of the unreleased 0.2.0 and contract 1.0.0, ADR-BDC-0010): the
+- **Removed** (pre-release edits of the unreleased 0.2.0 and its contract, ADR-BDC-0010): the
   `[tick]` configuration keys, the message sender and its port, phase-file discovery, the
   `refused` / `pass-through` tick replies and the `TICK_<REFUSAL>` error code, sc-cron's `Stop`
   decision, the legacy-directory refusal, and the vendored compat tests with their call
@@ -225,7 +225,7 @@ configuring messages in beads-cache.
 - **The contract** (`docs/bd-cache-cli/contract.md`) states what the phase-B extension built:
   the scope filters, the sync rows, the switch, the post-sync hook and the new verbs (§2, §4,
   §6), the 0.1 → 0.2 API differences (§10) and the classification of the extension's changes as
-  pre-release edits of the unreleased 1.0.0 (§11).
+  pre-release edits of the unreleased contract (§11).
 - **Tests are neutral** (REQ-BDC-0812, ADR-STORE-0006, ADR-PY-0006): the vendored compat
   implementation, its call log and the mapping test are removed; a 0.1 call corpus generated in
   this repository against the fake bd (`crates/bd-cache-py/tests/corpus/`) pins every 0.1 verb,

@@ -3,7 +3,7 @@
 Status: Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed,
 2026-10-25; written in sprint b-2). Crate-local requirements (domain code `API`)
 refining [`../requirements.md`](../requirements.md) and
-[`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md) (contract 1.0.0).
+[`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md) (contract 0.2.0).
 
 ## REQ-API-0001: One decoder, nothing ignored
 
@@ -126,9 +126,9 @@ it is absent too.
 
 ## REQ-API-0008: Contract version and no front-end dependency
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended (Rand, 2026-10-26: the version is 0.2.0, pre-stable)
 
-`CONTRACT_VERSION` is `"1.0.0"` and is reported by `context` and
+`CONTRACT_VERSION` is `"0.2.0"` (pre-stable, contract §11) and is reported by `context` and
 `cache status`. The crate depends on `bd-cache`, `bd-cache-model`,
 `sc-beads`, serde, serde_json and schemars only: no sc-command, no clap, in
 any dependency kind, and none of its normal or build dependencies pulls

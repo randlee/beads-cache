@@ -3,8 +3,8 @@
 Status: **Approved** (lead ruling S60, bc-lead, 2026-10-25, at `8115a0a`).
 Implemented in phase B by `bd-cache-api`, the `bd-cache`/`bdc` binary (`bd-cache-cli`) and
 `bd_cache_rs` 0.2: sprints b-1 to b-5 (closed 2026-10-25) and the phase-B extension below,
-sprints b-6 to b-9; the MCP server comes later. Contract version: `1.0.0`, unreleased: the
-phase-B extension's edits below are pre-release edits of 1.0.0 (§11).
+sprints b-6 to b-9; the MCP server comes later. Contract version: `0.2.0`, unreleased and
+pre-stable (§11; Rand, 2026-10-26: not 1.0.0 before a successful test with a real consumer).
 
 Scope: the `bd-cache` binary (alias `bdc`, REQ-BDC-0805), the MCP server that
 comes later, and the Python binding `bd_cache_rs`. All three share one
@@ -200,7 +200,7 @@ rejects extra keys. Each field of today's `CacheError` maps as follows:
 | `seq`, `bead`, `field`, `cause`, `known`, `source` | `details.*` under the same names. `phase` becomes `details.scope`, the scope's name as written (ADR-BDC-0013). |
 
 This contract defines the following `details.*` keys. They are informative
-in 1.0, not covered by semver (§11):
+in 0.2, not covered by semver (§11):
 
 | Key | Meaning |
 |---|---|
@@ -217,7 +217,7 @@ The key `justification` is never used, because sc-command reserves it.
 
 ### Error table
 
-This table ships in 1.0. Its code, kind, exit and retryable columns are
+This table ships in 0.2. Its code, kind, exit and retryable columns are
 covered by semver (§11). Every code carries the `BD_CACHE.` prefix, which
 the table leaves out. † marks a new code.
 
@@ -415,7 +415,7 @@ differences are:
 
 The cache's output shapes are its own. They do not reference `/v0`.
 
-### 5.5 Proposed: beads `origin/main` @ `73f64fd` (not offered in 1.0)
+### 5.5 Proposed: beads `origin/main` @ `73f64fd` (not offered in 0.2)
 
 | On main | Spec on main | What the cache does once a beads release contains it |
 |---|---|---|
@@ -731,7 +731,7 @@ is configured. `details.known` lists the served scopes.
   - `USAGE` is always JSON. Its `details` carry `did_you_mean` and `valid`.
 - **`--version`** returns `{name, version, contract_version}` and follows
   `--format`.
-- **MCP design constraint (not a 1.0 deliverable).**
+- **MCP design constraint (not a 0.2 deliverable).**
   - There is one request model per command, and every front end calls the
     same `bd-cache-api` operation, which returns `Result<T, ApiError>`.
   - The later MCP server returns the same envelope as `structuredContent`
@@ -846,9 +846,10 @@ raises `TypeError`.
 |---|---|
 | `envelope.version` | The sc-command envelope format (`"1"`), not this contract's version. |
 | `contract_version` | Semver, reported by `context`, `cache status` and `--version`. |
-| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs its consumers' agreement. |
-| **Covered in 1.0** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
-| **Not covered in 1.0** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
+| Pre-stable | Until 1.0.0 the contract is pre-stable (Rand, 2026-10-26): a breaking change bumps the minor (0.2 → 0.3) and an additive one the patch, as Cargo reads a 0.y version. 1.0.0 follows a successful test with a real consumer; from then on the major and minor rules below apply. |
+| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 0.2.x: the wheel's minor is the contract's minor. A breaking contract change is a wheel release marked breaking, and needs its consumers' agreement. |
+| **Covered** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
+| **Not covered** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
 | Breaking (major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
 | Additive (minor) | A new command or flag; an optional request member; a new `data` member; a new code (clients must handle codes they do not know); a `/v0` operation newly offered after a beads release. |
 | Pin | Follows beads v1.3.2. Moving the pin is minor if the change is additive, and major otherwise. |
@@ -856,17 +857,18 @@ raises `TypeError`.
 **The phase-B extension, classified (REQ-BDC-0811).** Checked on 2026-10-26: no stable release
 exists. The only GitHub release is the prerelease `prerelease/v0.1.0`, built from `develop` at
 `577cca9`, before `bd-cache-api` and this contract existed, with wheel 0.1.0 assets; PyPI and
-TestPyPI have no `bd-cache-rs` project; `CONTRACT_VERSION` 1.0.0 exists only on
-`integrate/phase-b`. Contract 1.0.0 is therefore unreleased, and the extension's changes to it
+TestPyPI have no `bd-cache-rs` project; `CONTRACT_VERSION` exists only on
+`integrate/phase-b`. The contract is therefore unreleased, and the extension's changes to it
 are pre-release edits, not §11 changes:
 
 | Change | Class |
 |---|---|
 | the scopes, schedule, cron and sync verbs; `max_pending_age_s`, `timeout_ms` on `refresh scopes`; the health members `reasons`, `oldest_pending_age_s`, `last_drain_at`, `unresolved_escalations`, `sync`; `Scope.filter`; `details.outage`; the codes `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED`, `TICK_IN_FLIGHT` | additive |
-| removed: `cache tick`'s flag naming a send command; the `TICK_<REFUSAL>` codes and `TickReply.refused[]`; the `[tick]` table and its `BD_CACHE__TICK__*` names; the phase-shaped scope ids (scopes are named as written, §5.1); the §12 deferral of other scope kinds; the legacy-file rule and `bdc_legacy_cache_file` (§2) | pre-release edits of the unreleased 1.0.0 |
+| removed: `cache tick`'s flag naming a send command; the `TICK_<REFUSAL>` codes and `TickReply.refused[]`; the `[tick]` table and its `BD_CACHE__TICK__*` names; the phase-shaped scope ids (scopes are named as written, §5.1); the §12 deferral of other scope kinds; the legacy-file rule and `bdc_legacy_cache_file` (§2) | pre-release edits of the unreleased contract |
 
 The prerelease wheel 0.1.0 has none of the removed items, so its verbs are untouched (§10).
-`CONTRACT_VERSION` stays 1.0.0 and the wheel stays 0.2.0.
+`CONTRACT_VERSION` is 0.2.0 and the wheel is 0.2.0 (Rand, 2026-10-26: no 1.0.0 before a
+successful test with a real consumer).
 
 ## 12. Deferred
 
@@ -879,7 +881,7 @@ The prerelease wheel 0.1.0 has none of the removed items, so its verbs are untou
 
 ## 12a. Deferred with the MCP server
 
-None of these items is in 1.0. They ship, and become covered by semver, with
+None of these items is in 0.2. They ship, and become covered by semver, with
 the MCP server:
 
 | Item | Design (kept for then) |

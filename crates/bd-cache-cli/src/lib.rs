@@ -100,7 +100,7 @@ pub mod scenario;
 /// so the name is the canonical one and never `argv[0]`.
 pub const NAME: &str = "bd-cache";
 
-/// The contract version this build implements (contract header, `1.0.0`).
+/// The contract version this build implements (contract header, `0.2.0`).
 pub const CONTRACT_VERSION: &str = bd_cache_api::CONTRACT_VERSION;
 
 /// The exit code of a `BD_CACHE.USAGE` reply (contract §3).

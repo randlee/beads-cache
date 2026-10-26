@@ -730,7 +730,7 @@ Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, 
 
 **Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
-`bd-cache` and `bdc` are released as binaries for Linux, macOS (arm and intel) and Windows: on the GitHub Release and through Homebrew, Scoop and WinGet. A GitHub prerelease carries them.
+`bd-cache` and `bdc` are released as binaries for Linux, macOS (arm and intel) and Windows: on the GitHub Release and through Homebrew, Scoop and WinGet. A GitHub prerelease carries them. Phase B closes without that prerelease (Rand, 2026-10-26): the channels are declared and dry-run verified in phase B, and the binaries are cut later from `develop` or `main`.
 
 **Source:** phase-b plan; sc-publish getting-started; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
