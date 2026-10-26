@@ -1389,6 +1389,13 @@
           "item": "b-8",
           "reason": "b-8 adds or changes no store table, column or index: the store extensions and CacheScheduleStore's table are b-7's, and b-8 only uses them.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T04:22:56+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 adds or changes no store table, column or index: it only re-runs b-7's format golden, and the store extensions are b-7's.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -1403,6 +1410,10 @@
         {
           "item": "b-8",
           "reason": "b-8 adds or changes no store table, column or index: the store extensions and CacheScheduleStore's table are b-7's, and b-8 only uses them."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 adds or changes no store table, column or index: it only re-runs b-7's format golden, and the store extensions are b-7's."
         }
       ]
     },
