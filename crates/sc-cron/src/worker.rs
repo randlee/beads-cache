@@ -17,8 +17,11 @@
 //! the previous run is still in flight is skipped and logged. Every store
 //! write names `(id, generation)`; a fenced write makes the worker reload.
 //!
-//! A run is a Rust job or a Python module ([`HookTarget`], REQ-CRON-0013), and
-//! its stop check answers continue, disable or delete (REQ-CRON-0005,
+//! A run is a Rust job or a Python module ([`HookTarget`], REQ-CRON-0013),
+//! chosen per row by the worker's [`TargetResolver`] once per launch, before
+//! the stop check (REQ-CRON-0016); a resolver error is recorded
+//! [`RunOutcome::Failed`] and the schedule stays active and enabled. The stop
+//! check answers continue, disable or delete (REQ-CRON-0005,
 //! ADR-CRON-0007). A disabled schedule has no slot, so it never fires
 //! (REQ-CRON-0014).
 //!
@@ -45,7 +48,7 @@ use crate::clock::{sleep_until_monotonic, wall_after};
 use crate::hook::{Step, stop_step, tick_outcome};
 use crate::{
     Clock, CronError, HookCall, HookEvent, HookTarget, MissedTickPolicy, RunOutcome, Schedule,
-    ScheduleStore, StopDecision, StoreError, StoreErrorKind, Timestamp,
+    ScheduleStore, StopDecision, StoreError, StoreErrorKind, TargetResolver, Timestamp,
 };
 
 /// The longest a worker goes between reloads of the active schedules.
@@ -69,7 +72,7 @@ pub(crate) const EXHAUSTED: &str = "no future occurrence";
 
 /// What a run task reports back to the worker.
 #[derive(Debug)]
-enum Report {
+pub(crate) enum Report {
     /// The stop check asked to end the schedule; the job did not run.
     Delete(String),
     /// The stop check asked to disable the schedule; the job did not run.
@@ -137,7 +140,7 @@ impl ReloadRetry {
 pub(crate) struct Worker<S, C> {
     store: Arc<S>,
     clock: Arc<C>,
-    target: HookTarget,
+    resolver: TargetResolver,
     policy: MissedTickPolicy,
     shutdown: oneshot::Receiver<()>,
     stopping: bool,
@@ -161,6 +164,57 @@ pub(crate) struct Worker<S, C> {
     poll_due: Option<DateTime<Utc>>,
 }
 
+/// Resolves the target of one launch of `schedule` (REQ-CRON-0016).
+///
+/// An error is the outcome to record, [`RunOutcome::Failed`], with the
+/// schedule left active and enabled; it is logged as `resolve_failed`.
+pub(crate) fn resolve(
+    resolver: &TargetResolver,
+    schedule: &Schedule,
+) -> Result<HookTarget, RunOutcome> {
+    resolver(schedule).map_err(|error| {
+        tracing::warn!(subsystem = "sc_cron", action = "resolve_failed",
+            schedule = %schedule.id, name = %schedule.spec.name, code = error.code(), %error,
+            "no target for this run: {error}");
+        RunOutcome::Failed(format!("resolve: {error}"))
+    })
+}
+
+/// One run of `target` for `schedule`: the stop check, then the run, under
+/// `deadline` on `clock`'s monotonic timeline (REQ-CRON-0005, REQ-CRON-0013).
+pub(crate) async fn run_target<C: Clock + ?Sized>(
+    target: HookTarget,
+    clock: Arc<C>,
+    schedule: &Schedule,
+    deadline: Instant,
+) -> Report {
+    let payload = &schedule.spec.payload;
+    match target {
+        HookTarget::Rust(job) => match job.should_stop(payload).await {
+            StopDecision::Continue => Report::Ran(job.run(payload, deadline).await),
+            StopDecision::Disable(reason) => Report::Disable(reason),
+            StopDecision::Delete(reason) => Report::Delete(reason),
+        },
+        HookTarget::Python(hook) => {
+            let call = |event| HookCall {
+                event,
+                schedule: &schedule.spec.name,
+                payload,
+                timeout: schedule.spec.timeout,
+                deadline,
+            };
+            match stop_step(&hook, clock.as_ref(), &call(HookEvent::Stop)).await {
+                Step::Run => Report::Ran(
+                    tick_outcome(&hook, clock.as_ref(), &call(HookEvent::Tick)).await,
+                ),
+                Step::Skip(outcome) => Report::Ran(outcome),
+                Step::Disable(reason) => Report::Disable(reason),
+                Step::Delete(reason) => Report::Delete(reason),
+            }
+        }
+    }
+}
+
 impl<S, C> Worker<S, C>
 where
     S: ScheduleStore + 'static,
@@ -169,7 +223,7 @@ where
     pub(crate) fn new(
         store: Arc<S>,
         clock: Arc<C>,
-        target: HookTarget,
+        resolver: TargetResolver,
         policy: MissedTickPolicy,
         reload_poll: Duration,
         shutdown: oneshot::Receiver<()>,
@@ -177,7 +231,7 @@ where
         Self {
             store,
             clock,
-            target,
+            resolver,
             policy,
             shutdown,
             stopping: false,
@@ -528,42 +582,13 @@ where
         let timeout = slot.schedule.spec.timeout;
         // RunTimeout is at most 24 h, so this cannot overflow in practice.
         let deadline = monotonic.checked_add(timeout.get()).unwrap_or(monotonic);
-        let payload = slot.schedule.spec.payload.clone();
-        let handle = match &self.target {
-            HookTarget::Rust(job) => {
-                let job = Arc::clone(job);
-                tokio::spawn(async move {
-                    match job.should_stop(&payload).await {
-                        StopDecision::Continue => Report::Ran(job.run(&payload, deadline).await),
-                        StopDecision::Disable(reason) => Report::Disable(reason),
-                        StopDecision::Delete(reason) | StopDecision::Stop(reason) => {
-                            Report::Delete(reason)
-                        }
-                    }
-                })
-            }
-            HookTarget::Python(hook) => {
-                let hook = hook.clone();
+        let handle = match resolve(&self.resolver, &slot.schedule) {
+            Ok(target) => {
                 let clock = Arc::clone(&self.clock);
-                let name = slot.schedule.spec.name.clone();
-                tokio::spawn(async move {
-                    let call = |event| HookCall {
-                        event,
-                        schedule: &name,
-                        payload: &payload,
-                        timeout,
-                        deadline,
-                    };
-                    match stop_step(&hook, clock.as_ref(), &call(HookEvent::Stop)).await {
-                        Step::Run => Report::Ran(
-                            tick_outcome(&hook, clock.as_ref(), &call(HookEvent::Tick)).await,
-                        ),
-                        Step::Skip(outcome) => Report::Ran(outcome),
-                        Step::Disable(reason) => Report::Disable(reason),
-                        Step::Delete(reason) => Report::Delete(reason),
-                    }
-                })
+                let schedule = slot.schedule.clone();
+                tokio::spawn(async move { run_target(target, clock, &schedule, deadline).await })
             }
+            Err(outcome) => tokio::spawn(async move { Report::Ran(outcome) }),
         };
         log(&slot.schedule, "launched", "run started");
         slot.run = Some(InFlight { handle, deadline });

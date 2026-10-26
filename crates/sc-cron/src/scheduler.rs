@@ -21,10 +21,12 @@ use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::limits::encode_payload;
-use crate::worker::{DEFAULT_RELOAD_POLL, MIN_RELOAD_POLL, Worker};
+use crate::clock::sleep_until_monotonic;
+use crate::worker::{DEFAULT_RELOAD_POLL, EXHAUSTED, MIN_RELOAD_POLL, Report, Worker, resolve, run_target};
 use crate::{
-    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, Schedule, ScheduleId,
-    ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind, Timestamp, jitter,
+    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, RunOutcome,
+    Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind,
+    TargetResolver, Timestamp, jitter,
 };
 
 /// What the worker does with occurrences that came due while it could not run them.
@@ -459,6 +461,23 @@ where
     /// still running: two workers would run every schedule twice.
     #[must_use]
     pub fn spawn_worker_for(&self, target: HookTarget) -> WorkerHandle {
+        self.spawn_worker_with(Arc::new(move |_| Ok(target.clone())))
+    }
+
+    /// Spawns the worker that runs each row's own target (REQ-CRON-0016).
+    ///
+    /// As [`Scheduler::spawn_worker_for`], except that the worker calls
+    /// `resolver` once per launch, before the stop check, and runs the
+    /// [`HookTarget`] it returns: so one table can hold rows that run a Rust
+    /// [`Job`] and rows that run a Python module. A resolver error is
+    /// recorded as [`RunOutcome::Failed`] and logged (`resolve_failed`); the
+    /// schedule stays active and enabled and is tried again at its next run.
+    ///
+    /// # Panics
+    ///
+    /// As [`Scheduler::spawn_worker_for`].
+    #[must_use]
+    pub fn spawn_worker_with(&self, resolver: TargetResolver) -> WorkerHandle {
         let claimed = self
             .worker_live
             .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
@@ -473,7 +492,7 @@ where
         let worker = Worker::new(
             Arc::clone(&self.core.store),
             Arc::clone(&self.core.clock),
-            target,
+            resolver,
             self.policy,
             self.reload_poll,
             shutdown_rx,
@@ -485,6 +504,124 @@ where
         WorkerHandle {
             shutdown: Some(shutdown),
             task: Some(task),
+        }
+    }
+}
+
+/// One run started by [`Scheduler::run_due_with`] and how it ended.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DueRun {
+    /// The schedule that ran.
+    pub name: ScheduleName,
+    /// Its outcome; a stop check that disabled or ended the schedule is
+    /// [`RunOutcome::Refused`] with its reason.
+    pub outcome: RunOutcome,
+}
+
+impl<S, C, J> Scheduler<S, C, J>
+where
+    S: ScheduleStore + 'static,
+    C: Clock + 'static,
+    J: JitterSource + 'static,
+{
+    /// Runs every enabled schedule that is due now, once, and waits for them.
+    ///
+    /// A schedule is due when its stored next run is at or before the
+    /// clock's now. Each due run is resolved with `resolver`, stop-checked
+    /// and run exactly as the worker does, under its own deadline (its
+    /// timeout from its start, on the clock's monotonic timeline; a run past
+    /// it is [`RunOutcome::TimedOut`]). Every run is recorded with its
+    /// generation, its next run is stored, and a schedule with no further
+    /// occurrence is ended, as the worker does. A schedule that is not due
+    /// is left untouched. This is for a caller that drives the table from an
+    /// outside scheduler instead of a worker: never run it beside a worker on
+    /// the same rows.
+    ///
+    /// # Errors
+    ///
+    /// The store's errors on the first read; later store failures are logged
+    /// and do not stop the other runs.
+    pub async fn run_due_with(&self, resolver: TargetResolver) -> Result<Vec<DueRun>, CronError> {
+        let core = Arc::clone(&self.core);
+        let rows = blocking(move || core.store.list_active()).await?;
+        let now = self.core.clock.now();
+        let mut runs = Vec::new();
+        for row in rows {
+            if !row.enabled || row.next_run_at.is_none_or(|at| at.as_datetime() > now) {
+                continue;
+            }
+            let monotonic = self.core.clock.monotonic_now();
+            let deadline = monotonic
+                .checked_add(row.spec.timeout.get())
+                .unwrap_or(monotonic);
+            let clock = Arc::clone(&self.core.clock);
+            let target = resolve(&resolver, &row);
+            let schedule = row.clone();
+            tracing::info!(subsystem = "sc_cron", action = "launched", schedule = %row.id,
+                name = %row.spec.name, "run started");
+            let handle = tokio::spawn(async move {
+                let target = match target {
+                    Ok(target) => target,
+                    Err(outcome) => return Report::Ran(outcome),
+                };
+                let run = run_target(target, Arc::clone(&clock), &schedule, deadline);
+                tokio::select! {
+                    report = run => report,
+                    () = sleep_until_monotonic(clock.as_ref(), deadline) => Report::Ran(RunOutcome::TimedOut),
+                }
+            });
+            runs.push((row, handle));
+        }
+        let mut done = Vec::with_capacity(runs.len());
+        for (row, handle) in runs {
+            let report = handle.await.unwrap_or_else(|error| {
+                Report::Ran(RunOutcome::Failed(format!("job panicked or was cancelled: {error}")))
+            });
+            done.push(self.finish_due(&row, report).await);
+        }
+        Ok(done)
+    }
+
+    /// Records one run of [`Scheduler::run_due_with`] and stores its next run.
+    async fn finish_due(&self, row: &Schedule, report: Report) -> DueRun {
+        let (id, generation) = (row.id, row.generation);
+        let at = Timestamp::from_datetime(self.core.clock.now());
+        let next = row.spec.expr.next_run(row.jitter, at.as_datetime());
+        let core = Arc::clone(&self.core);
+        let outcome = match &report {
+            Report::Ran(outcome) => outcome.clone(),
+            Report::Disable(reason) | Report::Delete(reason) => RunOutcome::Refused(reason.clone()),
+        };
+        let recorded = outcome.clone();
+        let result = blocking(move || {
+            let written = match report {
+                Report::Ran(outcome) => core.store.record_run(id, generation, at, &outcome)?,
+                Report::Disable(reason) => core.store.disable(id, generation, at, &reason)?,
+                Report::Delete(reason) => {
+                    core.signal_reload();
+                    return core.store.stop(id, generation, at, &reason);
+                }
+            };
+            if !written {
+                return Ok(false);
+            }
+            match next {
+                Some(next) => core.store.set_next(id, generation, Timestamp::from_datetime(next)),
+                None => core.store.stop(id, generation, at, EXHAUSTED),
+            }
+        })
+        .await;
+        match result {
+            Ok(true) => tracing::info!(subsystem = "sc_cron", action = "recorded",
+                schedule = %id, name = %row.spec.name, outcome = %recorded, "run recorded"),
+            Ok(false) => tracing::warn!(subsystem = "sc_cron", action = "fenced",
+                schedule = %id, name = %row.spec.name, "the schedule changed during its run; nothing recorded"),
+            Err(error) => tracing::error!(subsystem = "sc_cron", action = "record_failed",
+                schedule = %id, code = error.code(), %error, "run outcome not recorded: {error}"),
+        }
+        DueRun {
+            name: row.spec.name.clone(),
+            outcome: recorded,
         }
     }
 }
