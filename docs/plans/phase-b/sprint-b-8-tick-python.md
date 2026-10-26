@@ -14,14 +14,15 @@ must_follow: [b-7]
 parallel_safe: [b-9]
 requirements:
   owns: [REQ-BDC-0720, REQ-BDC-0723, REQ-BDC-0725, REQ-BDC-0727, "REQ-BDC-0703 (amended)", "REQ-BDC-0701, 0702, 0704..0707 (superseded)"]
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0502, REQ-BDC-0812, NFR-BDC-0004, NFR-BDC-0005, REQ-CRON-0013, REQ-CRON-0014]
-adrs: [ADR-SYNC-0008, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0010]
+  constrained_by: [REQ-CRON-0016, REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0502, REQ-BDC-0812, NFR-BDC-0004, NFR-BDC-0005, REQ-CRON-0013, REQ-CRON-0014]
+adrs: [ADR-SYNC-0008, ADR-CRON-0009, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0010]
 owned_paths:
   - "crates/bd-cache-sync/**"
   - "crates/bd-cache-cli/src/{args.rs,config.rs,commands/tick.rs,commands/mod.rs}"
   - "crates/bd-cache-cli/src/commands/{schedule,cron,hooks,scopes}.rs and their tests"
   - "docs/bd-cache-sync/**"
-  - "crates/sc-cron/src/{hook.rs,process.rs} and their tests (the A2 runner fixes only)"
+  - "crates/sc-cron/** (the ADR-CRON-0009 changes and the Stop alias removal only; no change to
+    scheduling semantics)"
   - "crates/bd-cache-py/src/**"
   - "crates/bd-cache-py/{README.md,pyproject.toml,Cargo.toml,python/**}"
   - "the new pytest files"
@@ -52,18 +53,40 @@ decision D1.
    holds no write transaction and no drain lock while a method runs.
 4. **Scope methods** (REQ-BDC-0725, REQ-BDC-0721, decision D1). `builtin` scopes run `bd list`
    with the scope's filter and `bd blocked`; `python` scopes go to the registered `sync` method
-   once; `external` scopes are never synced. `bdc cache scopes add|set|remove|list|ingest|announce`.
+   once, instead of the built-in `bd list` sync for those scopes (ANC-003); a consumer switches a
+   scope with `bdc cache scopes set <scope> --method python`. `external` scopes are never synced. `bdc cache scopes add|set|remove|list|ingest|announce`.
+   - Both the built-in sync and a Python method's `ingest_scope` store rows only through b-7's
+     strict row decoder (REQ-BDC-0007), all or nothing per scope result: one invalid row stores
+     no row from that result and the scope's result is failed (REQ-BDC-0008). Neither replaces a
+     stored row whose `updated_at` is newer (REQ-BDC-0502).
+   - When bd cannot be reached, a `builtin` scope's result is `outage` (`details.outage: true`),
+     its rows stay as they were, reads keep answering from the cache, and the post-sync hook is
+     told (ADR-BDC-0005).
 5. **Registered methods** (REQ-BDC-0723, REQ-BDC-0724, S89). `bdc cache hooks register
    sync|post_sync --python <absolute interpreter> --function <module:function> [--env NAME]...`,
-   `hooks show`, `hooks clear`. Each method runs through sc-cron's Python runner as
-   `<interpreter> -I -m bd_cache_rs.run <kind> <module:function>` from a temp cwd. The tick
+   `hooks show`, `hooks clear`. Each method runs as
+   `<interpreter> -I -m bd_cache_rs.run <kind> <module:function>` from a temp cwd, through
+   sc-cron's protocol-free supervised-process call (deliverable 6, decision D2); the
+   `bd-cache.run.v1` request is built in bd-cache-sync. bd-cache checks that the interpreter is
+   absolute (`REGISTRATION_INVALID`). The tick
    refuses to run registered code from a cache file not owned by the current user, or group- or
    world-writable (`TICK_RUN_FAILED`); the Windows ACL check is a documented gap.
-6. **Runner fixes to b-6** (REQ-BDC-0723, REQ-CRON-0013, Amendment A2). sc-cron's Python runner
-   gains, generically: an environment allowlist (PATH, HOME, the locale, plus named variables;
-   the tick adds `BEADS_DIR` and `BD_CACHE_PATH`), absolute interpreters only for this caller,
-   and a configurable output cap (the tick uses 1 MiB, stderr kept to 8 KiB). Request bodies
-   are never logged.
+6. **sc-cron generality fixes to b-6** (REQ-CRON-0016, ADR-CRON-0009, ANC-005; the b-6 findings
+   of the sc-cron generality review). In sc-cron, with no beads-cache name, path, type or
+   requirement id:
+   - a public supervised-process call: program, arguments, an environment policy (inherit, or
+     an allowlist plus names set to values), a working directory (temporary by default), stdin
+     bytes, separate stdout and stderr caps, and an expiry, with the process-group / job-object
+     kill at the expiry and on drop;
+   - `HookTarget::Command` for any executable, with `PythonHook` as a constructor for it, and a
+     per-row target resolver for a worker;
+   - the `sc-cron.hook.v1` stdin adds the schedule's `id`, `generation` and scheduled time;
+   - sc-cron's rustdoc cites only its own requirements; test fixtures use neutral schedule
+     names and payloads.
+
+   bd-cache-sync sets its own policy on that call: it passes PATH, HOME, the locale and
+   `BEADS_DIR`, sets `BD_CACHE_PATH`, uses a 1 MiB output cap with stderr kept to 8 KiB, and
+   never logs request bodies.
 7. **`bd-cache.run.v1`** (REQ-BDC-0725, REQ-BDC-0727). `python -m bd_cache_rs.run` (maturin
    mixed layout) opens its own `Cache` on `BD_CACHE_PATH`, calls `func(cache, request)` and
    prints the result envelope of §Calling a Python method. `flush`, `drain`, `tick` and
@@ -73,13 +96,17 @@ decision D1.
 9. **PyO3 surface** (REQ-BDC-0812, REQ-BDC-0726). `ingest_scope`, `scope_announce`,
    `scopes_*`, `schedule_*`, `hooks_*` and `tick()`, and the four new codes in the exports. The
    0.1 verbs, arguments and dicts are unchanged.
-10. **Removals** (ADR-BDC-0010; REQ-BDC-0701, 0702, 0704..0707 superseded). In
+10. **Store** (ADR-STORE-0001). b-8 adds or changes no store table, column or index; it uses
+    b-7's extensions and creates the sc-cron schedule tables through sc-cron.
+11. **Removals** (ADR-BDC-0010; REQ-BDC-0701, 0702, 0704..0707 superseded). In
     `crates/bd-cache-sync/src`: the consumer messaging module, `phases.rs`, the consumer parts of
     `announce.rs` and `active.rs`, and the stop rule; the sender's process test and
     `tests/stop_rule.rs` (the messaging module and the process test are the files there whose
     paths the lint flags); the `refused` / `pass-through` replies; the refusal of the first
     consumer's own directory in `bd-cache-cli/src/config.rs`; and
-    sc-cron's `StopDecision::Stop` alias kept by b-6 for the old stop rule. `.beads/bd-cache.toml`
+    sc-cron's `StopDecision::Stop` alias kept by b-6 for the old stop rule. The stop hook itself,
+    returning continue, disable or delete, is b-6's (merged; REQ-CRON-0005, ANC-007) and stays
+    unchanged. `.beads/bd-cache.toml`
     keys `[tick.hooks]` and `[tick.sync]` are `CONFIG_INVALID`.
 
 ## Acceptance
@@ -94,7 +121,8 @@ killed at its timeout capped by the time left before the deadline (NFR-BDC-0004)
    ManualClock); two real `bdc` processes, the second replies `skipped: in_flight`; a holder
    killed with `kill -9` is taken over after expiry; an on-demand `tick` during a worker tick is
    skipped.
-3. Methods, through a Rust test-support runner that speaks `bd-cache.run.v1` and opens a real
+3. A `python` scope never runs `bd list` for that scope; its rows come only from the method's
+   `ingest_scope`. Methods, through a Rust test-support runner that speaks `bd-cache.run.v1` and opens a real
    second handle: `builtin` syncs as before, with a label scope and an `--all` scope; `python`
    ingested, failed and missing scopes are judged by `tick_id`; `external` is never synced and
    pushed rows survive a tick.
@@ -113,9 +141,15 @@ killed at its timeout capped by the time left before the deadline (NFR-BDC-0004)
    method ingests one scope and fails another; `post_sync` receives both and marks one
    escalation and the failed scope; on the next tick marked items are not offered again and the
    rest are, with `first_offered_at` unchanged.
-9. `tests/job_threading.rs` `join_idle` is causal. pytest passes with
+9. Rows: one invalid row among valid ones, in a built-in result and in a Python
+   `ingest_scope`, stores no row from that result and fails the scope; an older incoming row
+   never replaces a newer stored one, on both paths. An unreachable bd gives the scope an
+   `outage` result, cached reads still answer, and the hook receives it.
+10. sc-cron stays general: `cargo tree -p sc-cron` shows no bd-cache or sc-beads crate, and
+    `grep -ri 'bead\|bd_cache\|bd-cache' crates/sc-cron/src` finds nothing (ANC-005).
+11. `tests/job_threading.rs` `join_idle` is causal. pytest passes with
    `-W error::DeprecationWarning`, and the existing `import bd_cache_rs` tests pass unchanged.
-10. AC-0 on this fence, AC-Q.
+12. AC-0 on this fence, AC-Q.
 
 ## Reference
 

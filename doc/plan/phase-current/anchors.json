@@ -170,6 +170,13 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -188,6 +195,10 @@
         {
           "item": "b-6",
           "reason": "sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7."
+        },
+        {
+          "item": "b-7",
+          "reason": "b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's."
         }
       ]
     },
@@ -562,6 +573,19 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron."
         }
       ]
     },
@@ -642,6 +666,19 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's."
         }
       ]
     },
@@ -734,6 +771,19 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "b-7",
+          "reason": "b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged."
         }
       ]
     },
@@ -1409,12 +1459,23 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 changes no read path; it edits tests, docs, the contract text and CI.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron has no bd dependency and no cache read path."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 changes no read path; it edits tests, docs, the contract text and CI."
         }
       ]
     },
@@ -1567,12 +1628,23 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 adds or changes no path that stores bead rows.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 adds or changes no path that stores bead rows."
         }
       ]
     },
@@ -1658,12 +1730,23 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 adds or changes no sync, fetch or ingest path.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 adds or changes no sync, fetch or ingest path."
         }
       ]
     },
@@ -1749,12 +1832,23 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 adds or changes no sync or ingest write path.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 adds or changes no sync or ingest write path."
         }
       ]
     },
@@ -1840,12 +1934,34 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 builds no tick; the tick's budget, drain deadline and deferral are b-8's.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-26T00:27:34+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 builds no tick; refresh --timeout-ms is an on-demand refresh, not the scheduled tick.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7."
+        },
+        {
+          "item": "b-7",
+          "reason": "b-7 builds no tick; the tick's budget, drain deadline and deferral are b-8's."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 builds no tick; refresh --timeout-ms is an on-demand refresh, not the scheduled tick."
         }
       ]
     },
@@ -1997,12 +2113,23 @@
           "at": "2026-10-25T23:42:11+00:00",
           "event": "exclusion_removed",
           "item": "b-1"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 starts no bd call, Python method or hook; the tick and runner are b-8's.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it."
+        },
+        {
+          "item": "b-7",
+          "reason": "b-7 starts no bd call, Python method or hook; the tick and runner are b-8's."
         }
       ]
     },
@@ -2155,12 +2282,23 @@
           "at": "2026-10-26T00:24:16+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:34+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 changes no outage handling; health only reads the outage state b-7 records.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "b-6",
           "reason": "b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does)."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 changes no outage handling; health only reads the outage state b-7 records."
         }
       ]
     }

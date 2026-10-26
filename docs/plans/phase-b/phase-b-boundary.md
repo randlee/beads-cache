@@ -68,6 +68,13 @@ Rand's rulings after r3 (2026-10-25), quoted. Where one changes r3, the text is 
 | A5 | Active phases would need to be defined with filters: 'phase' is the first consumer's concept, and other applications would have different scopes, including --all (Rand, 2026-10-25, paraphrased). | A scope is a name plus a bd filter: labels (all or any), status, type, assignee, or `--all` (§Scopes). |
 | A6 | "Add an anchor for only allowing code that is justified by req/adr to keep project tight." | Each sprint deliverable cites its REQ or ADR (anchor ANC-011). |
 
+**D2 (lead default; Rand may overrule).** From the sc-cron generality review: registered
+methods do not run through sc-cron's schedule hook. sc-cron offers a protocol-free
+supervised-process call (REQ-CRON-0016, ADR-CRON-0009), and bd-cache-sync builds
+`bd-cache.run.v1`, the `bd_cache_rs.run` argv, the environment it passes and its caps on top of
+it. This amends A2's "WP-6b and WP-9 run every registered method through sc-cron's Python
+runner" and §Calling a Python method's runner note.
+
 **D1 (lead default; Rand may overrule).** r3's design stays: one tick runs the built-in sync
 for `builtin` scopes, calls the registered `sync` method once for the `python` scopes, then the
 `post_sync` method (S87–S90), all as sc-cron Python hooks. The alternative, a separate Python

@@ -42,20 +42,31 @@ need, as additive v3 extensions (ADR-STORE-0006, ADR-STORE-0001). The design is
    created on the first `schedule set`, by b-8.
 2. **Scope registry** (REQ-BDC-0721). `scope.method` (`builtin` by default) and
    `scope.revision`; a scope is a name plus a bd filter (Amendment A5). Removing a scope deletes
-   its membership rows, not bead rows another scope still holds.
+   its membership rows, not bead rows another scope still holds. `scope.method` and the
+   `registration` table are how a consumer's registered Python `sync` method replaces the
+   built-in sync for a scope (ANC-003); b-7 stores them, and b-8's tick dispatches on them.
 3. **`ingest_scope`** (REQ-BDC-0726, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0502). Every rule of
    §Ingest: strict decoder, declared membership, the built-in `blocked` rule, empty-snapshot
    refusal, the 50 000-row / 64 MiB limits, `INGEST_INVALID` with the stored scope untouched,
    one transaction, other memberships kept, the newer-row guard, opaque `revision`, and the
-   `tick_id` stamp.
+   `tick_id` stamp. One invalid row among valid ones stores no row from that call
+   (REQ-BDC-0008).
+   `ingest_scope` stores a snapshot the caller fetched through bd (`bd list`, `bd blocked`);
+   the store and core open no Dolt or MySQL connection and read no Dolt tables (REQ-BDC-0006).
 4. **Failure state and marking** (REQ-BDC-0728). The `failing_since` lifecycle,
    `notified_since`, `scope_announce(scope, since)` compare-and-set, and `first_offered_at` set
-   once. `journal_announce` is unchanged.
+   once. `journal_announce` is unchanged. These are what the optional post-sync hook receives
+   and marks (ANC-004). The hook is optional: a consumer registers it as the `post_sync` kind in
+   the `registration` table (deliverable 6), and b-8's tick calls it after each sync
+   with each scope's result, error, `failing_since` and notified state, and the escalated
+   entries not yet notified with `first_offered_at`.
 5. **Tick lease** (REQ-BDC-0722). `tick_lease` take, refusal of a live lease, and takeover of an
    expired one.
 6. **Registration** (REQ-BDC-0724). Read and write of the `registration` table.
 7. **Codes and outage** (REQ-BDC-0729, ADR-BDC-0005). The four new codes and `details.outage`
-   in the model's error table.
+   in the model's error table. An outage is recorded per affected scope in `sync_state` (its
+   result, error and `failing_since`); reads keep answering from the cache with no bd process
+   (REQ-BDC-0001).
 8. **Removals** (ADR-BDC-0010). `bd-cache-model/src/sender.rs`; the `[tick]` table's message-routing and
    phase-file settings; the consumer wording in store comments.
 
@@ -72,9 +83,12 @@ Dolt, against the store and the fakes (NFR-BDC-0005).
    once; lease take, refusal and expiry takeover; registration read and write.
 3. The outage truth table has one test per row: spawn failure, timeout, lock, transport, and an
    answered `BD_LIST_FAILED` with `outage: false`.
-4. A second process opens the same file and ingests while a first holds a handle with no
+4. With an outage recorded for a scope, a cached read of one of its beads still answers from
+   the store and starts no bd process; one invalid row among valid ones in an ingest stores
+   none of them.
+5. A second process opens the same file and ingests while a first holds a handle with no
    transaction open; the first then reads the result.
-5. AC-0: `python3 scripts/lint_no_atm.py --paths <this fence>` exits 0. AC-Q: S57 QA PASS and
+6. AC-0: `python3 scripts/lint_no_atm.py --paths <this fence>` exits 0. AC-Q: S57 QA PASS and
    green CI on the three OSes.
 
 ## Reference

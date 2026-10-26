@@ -1,19 +1,21 @@
 # sc-cron Architecture
 
-Status: approved. ADR-CRON-0001..0006 are Approved (lead ruling 2026-10-24, a-3 QA-1). Domain code: `CRON`. Requirements:
+Status: ADR-CRON-0001..0006 are Approved (lead ruling 2026-10-24, a-3 QA-1).
+ADR-CRON-0007 and 0008 are Approved (Rand's rulings, 2026-10-25), which also amends
+ADR-CRON-0006 (its amendment below). Domain code: `CRON`. Requirements:
 [requirements.md](requirements.md). Governing repo-level decision:
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime).
-Created by sprint a-3, which lists ADR-CRON-0001..0006 in its `adrs`.
+Created by sprint a-3, which lists ADR-CRON-0001..0006 in its `adrs`; extended
+by sprint b-6 (ADR-CRON-0007, ADR-CRON-0008).
 
 ## Purpose
 
-`sc-cron` is a generic SQLite-backed cron scheduler, extracted from
-the first consumer's cron scheduler (the source scheduler below: its cron
-crate, store port and rusqlite store, and its ADR-069). It carries over the
-source scheduler's behaviour and leaves out everything that is the
-consumer's: hooks, teams, phases, the sealed `CronScheduler` boundary and
-the consumer's error type. It depends on no workspace crate, so it can move to sc-runtime
-unchanged. `bd-cache-sync` (a-7) builds the bd-cache sync schedule on it.
+`sc-cron` is a generic SQLite-backed cron scheduler, extracted from an earlier
+in-house scheduler. It carries over that scheduler's scheduling behaviour and
+leaves out everything specific to its host: hooks, teams, phases, its sealed
+scheduler boundary and its error type. It depends on no workspace crate, so it
+can move to sc-runtime unchanged (REQ-CRON-0011). Its callers' designs are in their own
+docs (*Amended by ADR-CRON-0009 (phase-B planning PR, sc-cron generality review)*).
 
 ## Module layout
 
@@ -21,20 +23,24 @@ unchanged. `bd-cache-sync` (a-7) builds the bd-cache sync schedule on it.
 |---|---|
 | `clock` | `Clock`, `SystemClock`; `ManualClock` (feature `test-utils`); monotonic sleep helper |
 | `jitter` | `JitterSource`, `SystemJitter`; `SeqJitter` (feature `test-utils`); the jitter bound |
-| `expr` | `CronExpr`: parse (refuses five fields), future-occurrence check, `next_run` |
-| `types` | `ScheduleId`, `Generation`, `ScheduleName`, `RunTimeout`, `ScheduleSpec`, `NewSchedule`, `Schedule`, `RunOutcome`, `StopDecision` |
+| `expr` | `CronExpr`: parse (five-field crontab, six/seven fields, `@` macros), future-occurrence check, `next_run` |
+| `types` | `ScheduleId`, `Generation`, `ScheduleName`, `RunTimeout`, `ScheduleSpec`, `NewSchedule`, `Schedule` (with `enabled`), `RunOutcome`, `StopDecision` |
 | `timestamp` | `Timestamp`, the validated instant on the store port |
 | `limits` | `MAX_NAME_LEN`, `MAX_EXPR_LEN`, `MAX_PAYLOAD_BYTES`, `MAX_TIMEOUT`; the payload check |
 | `error` | `CronError`, `StoreError`, `StoreErrorKind` |
 | `store` | the `ScheduleStore` port |
 | `sqlite` | `SqliteScheduleStore`, `SCHEMA_VERSION` |
 | `job` | the `Job` trait |
+| `hook` | `HookTarget`, `PythonHook`, `HookEvent`, `HookCall`, `HookOutput`, `HookStatus`, `kill_budget`: the Python hook runner and its protocol |
+| `process` | the supervised child (crate-private): process group or job object, capped output |
 | `scheduler` | `Scheduler`, `MissedTickPolicy`, `WorkerHandle` |
 | `worker` | the worker task (crate-private) |
 
 Third-party dependencies: `async-trait`, `chrono`, `cron` 0.17, `getrandom`,
-`rusqlite` (bundled), `serde_json`, `tokio`, `tracing`, matching the
-`sc-cron` row of [docs/architecture.md](../architecture.md).
+`process-wrap` (hook process group and job object, ADR-CRON-0008),
+`rusqlite` (bundled), `serde_json`, `tempfile` (a hook's working directory),
+`tokio` (with `process` and `io-util`), `tracing`. The `sc-cron` row of
+[docs/architecture.md](../architecture.md) lists the same set.
 
 ## Public contract
 
@@ -60,7 +66,7 @@ pub struct SeqJitter;     // test-utils: new, push, calls
 // Validated values
 pub struct Timestamp;     // from_datetime, as_datetime, FromStr, Display (fixed-width RFC 3339)
 pub struct ScheduleName;  // new / FromStr, as_str
-pub struct CronExpr;      // parse / FromStr, as_str
+pub struct CronExpr;      // parse / FromStr, as_str; 5 fields (crontab), 6-7 fields, @macros
 pub struct RunTimeout;    // new(Duration), get
 pub const MAX_NAME_LEN: usize = 128;
 pub const MAX_EXPR_LEN: usize = 256;
@@ -75,9 +81,11 @@ pub struct NewSchedule { pub spec: ScheduleSpec, pub jitter: Duration, pub next_
 pub struct Schedule { pub id: ScheduleId, pub generation: Generation, pub spec: ScheduleSpec,
     pub jitter: Duration, pub created_at: Timestamp, pub next_run_at: Option<Timestamp>,
     pub last_run_at: Option<Timestamp>, pub last_outcome: Option<RunOutcome>,
-    pub ended_at: Option<Timestamp>, pub stop_reason: Option<String> }   // is_active()
+    pub ended_at: Option<Timestamp>, pub stop_reason: Option<String>,
+    pub enabled: bool }                             // is_active()
 pub enum RunOutcome { Ok, Refused(String), Failed(String), TimedOut }
-pub enum StopDecision { Continue, Stop(String) }
+pub enum StopDecision { Continue, Disable(String), Delete(String),
+    Stop(String) /* alias of Delete, ADR-CRON-0007 */ }
 
 // Store port: stores read no clock
 pub trait ScheduleStore: Send + Sync {
@@ -87,15 +95,32 @@ pub trait ScheduleStore: Send + Sync {
     fn record_run(&self, id: ScheduleId, generation: Generation, at: Timestamp, outcome: &RunOutcome) -> Result<bool, CronError>;
     fn set_next(&self, id: ScheduleId, generation: Generation, next_run_at: Timestamp) -> Result<bool, CronError>;
     fn stop(&self, id: ScheduleId, generation: Generation, at: Timestamp, reason: &str) -> Result<bool, CronError>;
+    // set_next also returns false for a disabled schedule (REQ-CRON-0014)
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError>; // only that column
+    fn disable(&self, id: ScheduleId, generation: Generation, at: Timestamp, reason: &str) -> Result<bool, CronError>;
 }
 pub struct SqliteScheduleStore;                     // open(path), open_in_memory()
-pub const SCHEMA_VERSION: i64 = 1;
+pub const SCHEMA_VERSION: i64 = 2;                  // a version 1 file gains `enabled` on open
 
 #[async_trait]
 pub trait Job: Send + Sync {
     async fn run(&self, payload: &serde_json::Value, deadline: Instant) -> RunOutcome;
     async fn should_stop(&self, payload: &serde_json::Value) -> StopDecision;
 }
+
+// Hook targets (REQ-CRON-0013, ADR-CRON-0008)
+pub enum HookTarget { Rust(Arc<dyn Job>), Python(PythonHook) }
+pub struct PythonHook;    // new(interpreter, module) -> Result, interpreter(), module(),
+                          // async invoke(&clock, &HookCall) -> Result<HookOutput, CronError>
+pub enum HookEvent { Tick, Stop }                   // as_str: "cron.tick", "cron.stop"
+pub struct HookCall<'a> { pub event: HookEvent, pub schedule: &'a ScheduleName,
+    pub payload: &'a serde_json::Value, pub timeout: RunTimeout, pub deadline: Instant }
+pub struct HookOutput { pub status: HookStatus, pub stdout: String, pub stderr: String,
+    pub stdout_truncated: bool, pub stderr_truncated: bool }
+pub enum HookStatus { Exited(ExitStatus), TimedOut }
+pub fn kill_budget(timeout: Duration, deadline: Instant, now: Instant) -> Duration;
+pub const HOOK_PROTOCOL: &str = "sc-cron.hook.v1";
+pub const MAX_HOOK_OUTPUT_BYTES: usize = 65536;
 
 pub enum MissedTickPolicy { Coalesce, Skip }        // default Coalesce
 impl<S: ScheduleStore, C: Clock, J: JitterSource> Scheduler<S, C, J> {
@@ -106,7 +131,10 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Scheduler<S, C, J> {
     pub async fn start_async(&self, spec: ScheduleSpec) -> Result<Schedule, CronError>;
     pub fn stop(&self, id: ScheduleId, generation: Generation, reason: &str) -> Result<(), CronError>;
     pub async fn stop_async(&self, id: ScheduleId, generation: Generation, reason: &str) -> Result<(), CronError>;
-    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle;
+    pub fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError>;
+    pub async fn set_enabled_async(&self, name: &ScheduleName, enabled: bool) -> Result<(), CronError>;
+    pub fn spawn_worker(&self, job: Arc<dyn Job>) -> WorkerHandle;       // HookTarget::Rust(job)
+    pub fn spawn_worker_for(&self, target: HookTarget) -> WorkerHandle;
 }
 impl WorkerHandle {
     pub async fn shutdown(self, deadline: tokio::time::Instant) -> bool;
@@ -116,6 +144,7 @@ impl WorkerHandle {
 // Errors
 #[non_exhaustive]
 pub enum CronError { BadExpression(String), InvalidSpec(String), AlreadyActive(ScheduleName),
+    NotFound(ScheduleName), HookFailed(String),
     Store(StoreError), Fenced { id: ScheduleId, generation: Generation } }   // code(), recovery(), source()
 pub struct StoreError;    // new(kind, context), with_source(e), kind(), context()
 #[non_exhaustive]
@@ -137,10 +166,21 @@ One table, `sc_cron_schedule`, in a database file of its own
 | `next_run_at` | set exactly while active (CHECK) |
 | `last_run_at`, `last_outcome` | last recorded run (`ok`, `refused: m`, `failed: m`, `timed_out`) |
 | `ended_at`, `stop_reason` | null exactly while active (CHECK) |
+| `enabled` | 1 or 0 (CHECK), default 1; a disabled active schedule never fires (REQ-CRON-0014) |
+
+`SCHEMA_VERSION` is 2. A version 1 file has no `enabled` column; opening it
+runs `ALTER TABLE ... ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1 CHECK
+(enabled IN (0, 1))` and sets version 2 in the same immediate transaction, so
+every existing schedule stays enabled.
 
 Timestamps are written as RFC 3339 UTC text with a fixed six-digit fraction
 (`Timestamp`'s `Display`), so they sort in time order. Run-state updates are
-guarded by `id = ? AND generation = ? AND ended_at IS NULL`. A value that
+guarded by `id = ? AND generation = ? AND ended_at IS NULL`; `set_next` adds
+`AND enabled = 1`, so a disabled row is refused its next run, which makes a
+worker that has not reloaded notice before it launches. `set_enabled` is
+guarded by `name = ? AND ended_at IS NULL` and sets only `enabled`; `disable`
+(the stop check's answer) is fenced like a run-state write and also stores the
+reason as the last outcome, `Refused(reason)`. A value that
 does not decode is a `StoreErrorKind::Corrupt` error naming the row.
 
 ## Worker
@@ -150,25 +190,63 @@ the row (with its parsed `CronExpr`), the next run, and at most one run in
 flight with its monotonic deadline. Each pass, checking for shutdown
 between slots:
 
-1. Reload from `list_active` if signalled (by `start`, `stop` or a fenced
-   write) or a retry is due. A slot whose `(id, generation)` is unchanged is
-   kept with its run in flight. Any other old slot is dropped, which cancels
+1. Reload from `list_active` if signalled (by `start`, `stop`,
+   `set_enabled` or a fenced write), a retry is due, or the reload poll
+   is due. A disabled row gets no
+   slot, so it never fires and a run in flight for it is cancelled. A slot
+   whose `(id, generation)` is unchanged and still enabled is kept with its
+   run in flight. Any other old slot is dropped, which cancels
    its run. If shutdown is requested mid-reload, no new slot is built but
    unchanged slots are still kept, so their runs reach the drain. A failed
    reload (including a corrupt row) is logged with its code and retried
    after 1 s, doubling to 60 s (the shift is capped, so it never
-   overflows).
+   overflows). A store error on a write that dropped a slot is never silent:
+   - A stop check's `Delete` or `Disable` whose `stop` or `disable` write
+     returns an error (not `false`): the slot is already dropped but the row is
+     still active and enabled, and its stored next run was advanced when the run
+     launched, so the worker schedules a reload and the slot comes back.
+   - An exhausted schedule (no occurrence after the one that just ran) whose
+     ending `stop` write returns an error: the row's stored next run is still
+     the occurrence that has run, so a slot rebuilt from it would run that
+     occurrence again, whether rebuilt by a retry or by the reload poll. The worker instead keeps the schedule on a pending-end
+     list: `new_slot` builds no slot for a pending schedule, so it cannot run
+     again, and the `stop` write itself is retried. A pending end is lost only
+     if the process exits first, when the final occurrence runs once more on
+     the next start.
+   - Both retries use one backoff, 1 s doubling to 60 s, that a successful
+     reload does not reset: only a stop or disable write that reaches the store
+     does. A store that keeps failing that write is therefore retried at 1 s,
+     2 s, 4 s ... 60 s, and the reload poll adds no stop attempts.
+   The reload poll: every successful reload sets the next reload due one
+   interval after the moment it began (`Scheduler::with_reload_poll`, default
+   30 s, minimum 1 s, on the injected clock), so the worker reloads at least
+   once per interval whatever the rows are, with no signal. A schedule
+   started, restarted, enabled, disabled or stopped by another process sends
+   no signal, and the worker holds no slot for a new, disabled or ended row,
+   so this poll is the only way it notices a start, restart or enable (and
+   the next tick's refused `set_next` is only a faster path for a disable or
+   stop). The change is noticed at most one interval after it is stored, while
+   the store can be read. The poll costs one `list_active` query per interval;
+   unchanged slots are kept with their runs in flight.
 2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,
    and record `TimedOut`.
 3. For each due slot: compute and store the next run (a fenced `set_next`
    skips the launch and reloads at once), then skip it if a run is in
    flight, skip it if missed under `Skip`, or launch it.
-4. Sleep on `Clock::sleep_until` until the earliest next run or run
-   deadline (converted from monotonic to wall time), unless a reload
-   signal, a finished run or shutdown comes first.
+4. Sleep on `Clock::sleep_until` until the earliest next run, run
+   deadline (converted from monotonic to wall time), reload retry or
+   reload poll, unless a reload signal, a finished run or shutdown comes
+   first.
 
-A launched run is its own task: `should_stop`, then `run` with the
-deadline. The worker records its result. The worker is the only caller of
+A launched run is its own task: the stop check, then `run` with the
+deadline, for a Rust target; for a Python target the `cron.stop` hook, then the
+`cron.tick` hook, each started with the run's deadline and killed at
+`kill_budget` (ADR-CRON-0008). The stop check's answer is acted on by the
+worker: `Continue` runs, `Disable` stores the flag and reason (fenced) and drops
+the slot, `Delete` ends the schedule (fenced) and drops the slot. A stop check
+that panics, times out or, for Python, fails or answers malformed, skips the run
+and records `Failed` or `TimedOut`; the slot stays. The worker records its
+result. The worker is the only caller of
 `sleep_until`, so `ManualClock`'s parks, each tagged with the time it saw,
 tell a test that the worker has settled at a given time. Store calls run on
 tokio's blocking pool.
@@ -179,25 +257,29 @@ tokio's blocking pool.
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: the source scheduler runs the consumer's hooks: a schedule carries `TeamName`, `PhaseId`,
-module path, cwd, args and `custom`, a tick is a `HookRequest`, a reply's
-actions go to a `HookActionDispatcher`, and every failure is the consumer's error type.
-ADR-BDC-0006 requires `sc-cron` to carry none of that.
+Context: the scheduler `sc-cron` was extracted from ran its host's hooks: a
+schedule carried a team name, a phase id, a module path, cwd, args and
+`custom` data, a tick was a hook request, a reply's actions went to an action
+dispatcher, and every failure was the host's error type. ADR-BDC-0006 requires
+`sc-cron` to carry none of that.
 
 Decision: a schedule's input is one opaque `serde_json::Value` payload
 (at most `MAX_PAYLOAD_BYTES`), handed to a caller-supplied `Job` (`run`
-with a deadline, `should_stop`) on every tick. the source scheduler's two stop
-conditions (`Until` and the stop hook) become `Job::should_stop`, so a time
-limit is a payload field the job checks. Outcomes are
-`RunOutcome { Ok, Refused, Failed, TimedOut }`. the source scheduler's `Actions`,
-`Malformed`, `ActionErr` and `Exit` are hook-specific and fold into `Ok` or
-`Failed`. Failures are one `#[non_exhaustive] enum CronError` with a stable
+with a deadline, `should_stop`) on every tick. The earlier scheduler's two
+stop conditions (`Until` and the stop hook) become `Job::should_stop`, so a
+time limit is a payload field the job checks. Outcomes are
+`RunOutcome { Ok, Refused, Failed, TimedOut }`. Its hook-specific `Actions`,
+`Malformed`, `ActionErr` and `Exit` fold into `Ok` or `Failed`. Failures are one `#[non_exhaustive] enum CronError` with a stable
 `code()` (`BAD_EXPRESSION`, `INVALID_SPEC`, `ALREADY_ACTIVE`,
 `STORE_FAILED`, `FENCED`) and `recovery()` text. A store failure is a
 `StoreError`: a `StoreErrorKind` (`Busy`, `Corrupt`, `SchemaMismatch`,
 `Unavailable`, `Other`), a context naming the operation and row, and the
 backend's error kept as `Error::source`. No backend type appears in the
 port. `Fenced` carries the id and generation it was refused for.
+
+Amendment (sprint b-6): `CronError` gains `NotFound` (`NOT_FOUND`) and
+`HookFailed` (`HOOK_FAILED`), and the payload can also be handed to a Python
+module (ADR-CRON-0008).
 
 Consequences: bd-cache-sync puts its scope and budget in the payload and
 implements `Job`. A caller can retry on `Busy` and alert on `Corrupt`
@@ -214,7 +296,7 @@ job's `Instant` deadline needs a monotonic timeline that a manual clock also
 controls.
 
 Decision: `Clock` also has `monotonic_now()` (default `Instant::now()`) and
-`async fn sleep_until(target)`, as the source scheduler's `Clock` does. `SystemClock`
+`async fn sleep_until(target)`, as the earlier scheduler's `Clock` does. `SystemClock`
 sleeps in slices of at most 30 s and re-reads the wall clock between them.
 `ManualClock` moves both timelines together and never moves monotonic time
 back. `jump_wall` steps wall time alone, to model an NTP step. Each park is
@@ -228,9 +310,9 @@ Consequences: the trait uses `async-trait`. A job compares its deadline with
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: the source scheduler recomputes every next run from now at startup, so a tick
-missed across a restart is never replayed (ADR-069 D2), while a tick missed
-during a suspend fires once. ADR-BDC-0006 asks for missed-tick replay.
+Context: the earlier scheduler recomputed every next run from now at startup,
+so a tick missed across a restart was never replayed, while a tick missed
+during a suspend fired once. ADR-BDC-0006 asks for missed-tick replay.
 
 Decision: the store keeps `next_run_at`, written before each launch. An
 occurrence is missed when the worker sees it only after the following
@@ -247,9 +329,9 @@ its next run was stored before launch.
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
 
-Context: the source scheduler stores a whole-second jitter per schedule and
-spreads it over offsets not held by other schedules with the same expression
-(a product ruling of the first consumer). The contract's `JitterSource::jitter(max)` returns a
+Context: the earlier scheduler stored a whole-second jitter per schedule and
+spread it over offsets not held by other schedules with the same expression (a
+product ruling there). The contract's `JitterSource::jitter(max)` returns a
 `Duration`.
 
 Decision: `start` draws one jitter in `[0, max)` with
@@ -324,6 +406,12 @@ Decision:
 Consequences: a-7 codes against the signatures above. The sprint doc's
 Public contract points here.
 
+Amendment (sprint b-6): the contract gains the `enabled` column and flag
+(`Schedule::enabled`, `ScheduleStore::set_enabled` and `disable`,
+`Scheduler::set_enabled`), `SCHEMA_VERSION` becomes 2 with an in-place upgrade
+of a version 1 file, and `CronError` gains `NotFound` and `HookFailed`. See
+REQ-CRON-0014, ADR-CRON-0007 and ADR-CRON-0008.
+
 Amendment (PE-RSH-007): `SqliteScheduleStore::list_active` decodes rows one
 at a time. A row that fails to decode (`Corrupt`: bad expression, payload
 that is not JSON, unknown outcome, bad timestamp) is skipped with a
@@ -332,6 +420,89 @@ instance, and the other schedules are returned and keep running. The row is
 left as is, not ended, so it can be repaired. `get(id)` still returns the
 `Corrupt` error for that row. Busy, I/O and other non-corrupt failures still
 fail the whole call.
+
+## ADR-CRON-0007: Stop decision is continue, disable or delete
+
+**Status:** Approved (Rand's rulings, 2026-10-25)
+
+Context: the stop check could only end a schedule (`Stop(reason)`), and a
+schedule could only be ended or left running. A scheduler user may want a check
+that pauses a schedule without losing it, an enabled flag so a task can be
+switched off without rewriting its row (REQ-CRON-0014), and a stop hook that
+answers `continue`, `disable` or `delete` (REQ-CRON-0005).
+
+Decision: `StopDecision` is `Continue`, `Disable(reason)` and `Delete(reason)`.
+`Disable` sets `enabled = 0` through the fenced `ScheduleStore::disable`, keeps
+the row active with its generation, expression and payload, and stores the
+reason as the last outcome, `Refused(reason)`. `Delete` is the old `Stop`: it
+ends the schedule with the reason (`ended_at`, `stop_reason`). The row is kept
+as the ended record rather than removed, because the id and generation it
+holds are what let a restart raise the generation and fence a stale run
+(ADR-CRON-0006); a removed row would let a restart start over at generation 1.
+A Python stop hook answers `{"action": "continue" | "disable" | "delete",
+"reason": "..."}`; `reason` is required for the last two, so a reply that
+lost its reason is refused, not acted on. A stop check that cannot answer
+(panic, timeout, and for Python a failed start, non-zero exit or malformed
+reply) is no decision: the run is skipped and the schedule left active and
+enabled, with `Failed` or `TimedOut` recorded.
+
+`StopDecision::Stop(reason)` was kept as an alias of `Delete(reason)` while a
+caller still used it. *Amended by ADR-CRON-0009 (phase-B planning PR, sc-cron generality review)*: the alias is removed (sprint b-8); sc-cron
+is an unpublished prototype, so the removal needs no deprecation period.
+
+Consequences: a disabled schedule is not asked its stop check again until it is
+enabled. A job that wants a time limit still checks it in the payload
+(ADR-CRON-0001) and answers `Delete`.
+
+## ADR-CRON-0008: Python hooks run as supervised child processes
+
+**Status:** Approved (Rand's rulings, 2026-10-25)
+
+Context: sc-cron must stay general (REQ-CRON-0011), yet a schedule should be
+able to run a child process instead of a Rust `Job`, with every call killed at
+its timeout (REQ-CRON-0005). `forbid(unsafe_code)` is set
+for the crate, and the kill must reach processes the hook starts.
+
+Decision:
+
+- `HookTarget` is `Rust(Arc<dyn Job>)` or `Python(PythonHook)`, where
+  `PythonHook` holds the interpreter and the module. `spawn_worker_for` takes a
+  target; `spawn_worker(job)` is `HookTarget::Rust(job)`. The target is held by
+  the worker, not stored in the row: a Rust closure cannot be stored, and the
+  row stays the opaque spec of ADR-CRON-0001. A caller that wants a row per
+  target keeps the choice in its payload.
+- A Python target runs `<interpreter> -I -m <module>` (`-I` makes Python ignore the `PYTHON*` variables, the user site directory and
+  the working directory on `sys.path`; it does not clear the environment, which
+  the child inherits until the environment policy of ADR-CRON-0009) from a new
+  temporary directory per call, with one JSON object on stdin
+  (`protocol`, `event`, `schedule`, `payload`, `deadline`) and the events
+  `cron.stop` and `cron.tick`. No name in the protocol is beads-specific. The
+  interpreter is an absolute path or a bare command name and the module a
+  dotted identifier path, validated once; a relative path with directories
+  would be resolved against the temporary directory.
+- Every hook is killed at `kill_budget(timeout, deadline, now)`, the row's timeout
+  capped by the time left before the run's deadline, on the clock's monotonic
+  timeline; the deadline on stdin is the same instant as a UTC time. The wait
+  uses the tokio timer. The same kill happens when the run is cancelled, since
+  the supervisor kills on drop. A deadline already passed starts nothing.
+- The kill takes the whole tree: the child is the leader of a Unix process
+  group (killed with `SIGKILL` to the group) or inside a Windows job object
+  (terminated, and killed when the job handle closes). `process-wrap` provides
+  both with the platform calls inside it, which keeps the crate free of
+  `unsafe`; the alternative, calling `libc` and `windows-sys` directly, would
+  need `forbid(unsafe_code)` relaxed.
+- stdout and stderr are each read to the end and kept up to
+  `MAX_HOOK_OUTPUT_BYTES`; stdin is written while they are read, so a hook that
+  ignores its input or floods its output cannot stall the supervisor.
+- A `cron.tick` hook succeeds by exit 0, otherwise `Failed`; a kill is
+  `TimedOut`.
+
+Consequences: a hook should write its answer to stdout and its diagnostics to
+stderr. A grandchild that leaves the group or job on purpose (a daemon calling
+`setsid`) escapes the kill; if it also keeps the hook's stdout open, the run
+lasts until its timeout. The tests use a stub interpreter (a script) on
+Unix; the Windows job-object path is checked by compiling it for
+`x86_64-pc-windows-msvc`.
 
 ## Build note
 
@@ -345,3 +516,33 @@ Test lint configuration (lead rulings R14 and R15, a-8 fix round 6 and QA-8): `c
 `allow-*-in-tests`; the src test-module `#[allow]` blocks are removed; the integration
 tests `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level
 `#![expect(..., reason)]`.
+
+## ADR-CRON-0009: A protocol-free supervised process under the hook targets
+
+**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8).
+Amends ADR-CRON-0007 (the `Stop` alias is removed) and ADR-CRON-0008 (the target is not
+Python-only, and the runner is usable without the hook protocol).
+
+Context: a review of sc-cron's phase-B changes for generality found the scheduler core
+general, but the hook runner shaped for one caller: the target is Python only, one target is
+held per worker, the temporary working directory cannot be changed, the environment is
+inherited in full, the output cap is fixed, and a caller that is not a schedule can reach the
+runner only through the cron request.
+
+Decision:
+- A public supervised-process call (REQ-CRON-0016) takes a program, arguments, an environment
+  policy (inherit, or an allowlist plus set values), a working directory (temporary by
+  default), stdin bytes, separate stdout and stderr caps and an expiry, and kills the child
+  with its process group or job object at the expiry or on drop.
+- `HookTarget` is `Rust(Arc<dyn Job>)` or `Command(CommandHook)`; `PythonHook` builds a
+  `CommandHook` for `<interpreter> -I -m <module>`. A worker can take a resolver from the
+  schedule row to its target, so rows in one table can run different commands.
+- The `sc-cron.hook.v1` request is the only protocol in sc-cron, built on the call above. Its
+  stdin also carries the schedule's `id`, `generation` and the occurrence's scheduled time.
+- Callers set their own policy: which variables to pass, whether an interpreter must be
+  absolute, and their caps. No caller's names or requirement ids appear in sc-cron.
+
+Consequences: a caller can run its own protocol over the same supervised call (beads-cache's
+`bd-cache.run.v1`, decision D2 of `docs/plans/phase-b/phase-b-boundary.md`); the scheduler
+core is unchanged.
+

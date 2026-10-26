@@ -50,7 +50,8 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    flags) and the compat jobs in the workflows. A neutral
    0.1 call corpus, generated in-repo against fake-bd, covers every 0.1 verb and reply shape,
    with the before and after verb lists compared in the PR. A format golden pins the v3 DDL
-   plus b-7's extensions. `tests/test_additive.py:82-88` is causal (a gate fake bd, no
+   plus b-7's extensions: the v3 tables and indexes are unchanged, only nullable columns and new
+   tables are added, and `PRAGMA user_version` stays 3 (ADR-STORE-0001); b-9 itself makes no schema change. `tests/test_additive.py:82-88` is causal (a gate fake bd, no
    wall-clock bound).
 2. **Neutral crates and docs** (WP-7; ADR-BDC-0010). Comments, provenance and tests in
    `sc-beads`, `sc-bd-cli` and `sc-cron` (no version bump). `docs/bd-cache-py/` covers no
@@ -61,7 +62,9 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    overviews, `Source:` lines and earlier amendment notes) was restated neutrally by the
    planning PR, with no change of meaning, as was the requirement and ADR text.
 3. **#86** (WP-8; REQ-BDC-0801, NFR-BDC-0004, REQ-BDC-0006). Health (oldest pending age, last
-   drain, unresolved escalations) and `refresh scopes --timeout-ms`, with the QA fixes already
+   drain, unresolved escalations) and `refresh scopes --timeout-ms`, whose every bd call is
+   killed at its timeout capped by the time left before that deadline (NFR-BDC-0004;
+   `refresh_scopes_timeout_ms_bounds_the_sync`), with the QA fixes already
    made on #91 (`last_drain_at` from the newest applied entry; the contract §10 test reads
    every name). Delete `docs/bd-cache-cli/cutover-runbook.md`; the baseline design document
    (`docs/baseline/`) was deleted by the planning PR.
@@ -69,7 +72,15 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    consumer: `outage` on Ok, the `issues_list` default exclusions, optional `changed` /
    `already_closed`, one handle per process, install, and `cache_path` for an existing file. It
    adds the scopes, schedule, cron, hooks and ingest verbs, the `bd-cache.run.v1` shapes and
-   the new-codes table, under b-8's merged names.
+   the new-codes table, under b-8's merged names. The contract keeps its two surfaces, a bd
+   /v0-shaped beads surface and the cache-management surface; every new verb joins the
+   cache-management surface (ADR-BDC-0009). The text states the behaviour b-8 built, as the
+   anchors require: the tick runs at the times in the cache file's sc-cron table, each repository has at most
+   one built-in beads-cache bd sync schedule in sc-cron (ANC-002, ANC-008); scopes are bd filters, including `--all` (ANC-009); a
+   registered Python `sync` method replaces the built-in sync for its scopes and a registered
+   post-sync hook receives the results and errors (ANC-003, ANC-004); `schedule enable` and
+   `disable` flip the row's `enabled` flag, and an sc-cron stop hook returns continue, disable
+   or delete (ANC-006, ANC-007).
 5. **Lint gate** (WP-10; ADR-BDC-0010). The CI step "Strict consumer boundary (ADR-BDC-0010)";
    `python3 scripts/lint_no_atm.py` exits 0 on the whole tree, and any residual fix is listed in
    the PR. The script's exemptions become only the lint script and its tests and
