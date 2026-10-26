@@ -780,7 +780,7 @@ Cached blocked state and `ready` stay correct when a blocker inside or outside t
 
 A caller can read beads fresh from the backend, bypassing cached rows: one `bd list --id` of the requested beads (all statuses), stored with force, with pending journal entries replayed on top, under a caller-supplied timeout.
 
-**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field handling and its sanity hook's batched refresh; a cached row can lag a direct `bd update`)
+**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field handling and its hook's batched refresh; a cached row can lag a direct `bd update`)
 
 ## REQ-BDC-0908: Journal entry by seq
 
@@ -798,7 +798,7 @@ Syncing a phase that is not configured registers it as an on-demand scope, so a 
 
 *Amended by ADR-BDC-0013 (Rand, 2026-10-26): a scope registered on demand is a label scope with that one label; a 0.1 verb's bare name gets the legacy prefix first (REQ-BDC-0812).*
 
-**Source:** the first consumer's maintainer, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
+**Source:** the first consumer's maintainer, 2026-10-24 (the first consumer's close-field backfill syncs then lists arbitrary phases)
 
 ## REQ-BDC-0910: Python bindings
 
@@ -812,9 +812,9 @@ The cache is callable in process from Python (maturin / PyO3), with the verbs th
 
 **Status:** Approved
 
-After a write journaled through the cache that releases or blocks a bead (for example a dev close releasing its sanity bead), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
+After a write journaled through the cache that releases or blocks a bead (for example a close releasing a bead that was blocked by it), `ready` read through the cache reflects it at once, with no `bd` call, even when the backend is unreachable.
 
-**Source:** user, 2026-10-24 (the first consumer's task-open hook, run by its sanity agent, checks ready through the cache one or two turns after assignment and escalates if not ready)
+**Source:** user, 2026-10-24 (the first consumer's hook checks ready through the cache one or two turns after assignment and escalates if not ready)
 
 ## REQ-BDC-0912: Bounded fresh ready
 
@@ -822,7 +822,7 @@ After a write journaled through the cache that releases or blocks a bead (for ex
 
 A caller can ask `ready` for a fresh answer within a time limit it gives (for example 500 ms, inside a hook's 2.5 s budget). If bd answers in time, the reply uses bd's answer and refreshes the stored base; if not, it returns the cached, locally adjusted answer by the limit, naming the fallback error. The call never exceeds the limit.
 
-**Source:** user, 2026-10-24 (the first consumer's task hook: 2.5 s budget shared by several bd calls); same pattern as the sanity hook's capped refresh with `read_fallback` in the baseline design
+**Source:** user, 2026-10-24 (the first consumer's task hook: 2.5 s budget shared by several bd calls); same pattern as the hook's capped refresh with `read_fallback` in the baseline design
 
 ## REQ-BDC-0905: bd release compatibility check
 

@@ -58,6 +58,15 @@ PLANTED: dict[str, tuple[str, ...]] = {
         "vendored bd_cache.py",
         "the bd_cache_cron script",
         "Source: BD-CACHE.md Cron module",
+        # A `test_` prefix does not hide the name (an underscore is a word character).
+        "ported cases of test_bd_cache_cron.py keep their names",
+        "see tests/test_bd_cache.py",
+    ),
+    "consumer-schema-file": (
+        "models in bead_schema.py",
+        "required at close (close_fields.py)",
+        "run close_fields_backfill",
+        "tests/test_close_fields.py",
     ),
     "maintainer-handle": (
         "reviewed by fenix",
@@ -81,6 +90,10 @@ NEGATIVES: tuple[str, ...] = (
     "register a script; the hook is called; notify the entries",
     "the BD-CACHE v3 file at user_version 3",
     "import bd_cache_rs",
+    # The consumer-file rules do not hit prose or lookalike words.
+    "a bead schema package and the fields set at close",
+    "closed_fields and enclose_fields and bead_schemas.json",
+    "the bd_cache package and bd_cache.pyi",
     "mail@toolbox.example",
     "lead-team and team leads",
     # L2: the frozen column name and its default, and phase names in prose.
