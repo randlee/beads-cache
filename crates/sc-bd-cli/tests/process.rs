@@ -396,6 +396,8 @@ fn outcome(r: &Result<sc_beads::CliOutput, BoundedError>) -> String {
 /// outcomes, one line each.
 ///
 /// - `call`: one `list` with a timeout of `SC_BD_CLI_HOST_TIMEOUT_MS`.
+/// - `call_at_overlap`: one `list` with a fail-safe deadline, cut by the host itself
+///   (the `expire` trigger) once the fake bd has recorded the `overlap` marker.
 /// - `nohelpers` (Unix): a `list` on a `spawner` whose timeout is triggered once the
 ///   grandchild runs and this process can start no program at all (RSH-002).
 /// - `shutdown`: a `list` on a `spawner`, stopped by [`sc_bd_cli::shutdown::request`]
@@ -424,6 +426,7 @@ fn host(mode: &str) -> ExitCode {
         }
         #[cfg(unix)]
         "nohelpers" => host_without_helpers(&exe, &wd),
+        "call_at_overlap" => host_call_at_overlap(&exe, &wd),
         "shutdown" => host_shutdown(&exe, &wd),
         _ => return ExitCode::from(92),
     };
@@ -459,6 +462,35 @@ fn spawner_call(
     });
     let grandchild = pid_in(&Path::new(wd).join("grandchild"));
     (call, grandchild)
+}
+
+/// A `list` with a fail-safe deadline that the host cuts itself once the fake bd
+/// wrote the `overlap` marker (FTQ-002): the cut waits for the child's start however
+/// long it takes, instead of racing a short wall-clock deadline against it. Prints the
+/// call's outcome, and `overlap:never` when the marker never appeared.
+fn host_call_at_overlap(exe: &str, wd: &str) -> Vec<String> {
+    let expire = Arc::new(AtomicBool::new(false));
+    let (exe, wd_owned, trigger) = (exe.to_owned(), wd.to_owned(), Arc::clone(&expire));
+    let call = std::thread::spawn(move || {
+        run_bounded_expiring(
+            &exe,
+            &ProjectLocks::new(),
+            &WorkingDir::new(&wd_owned),
+            &words(&["list"]),
+            FAIL_SAFE,
+            &trigger,
+        )
+    });
+    let overlap = pid_in(&Path::new(wd).join("overlap"));
+    expire.store(true, Ordering::SeqCst);
+    let result = call
+        .join()
+        .unwrap_or_else(|_| Err(BoundedError::Output(std::io::Error::other("panicked"))));
+    let mut lines = vec![outcome(&result)];
+    if overlap.is_err() {
+        lines.push("overlap:never".to_owned());
+    }
+    lines
 }
 
 /// RSH-002: once the grandchild runs, this process loses the right to start any
@@ -977,8 +1009,8 @@ fn two_processes_never_run_bd_on_one_project_at_once(env: &Env) -> TestResult {
 /// (`.beads/metadata.json` `dolt_mode: "server"`) takes no cross-process lock, as
 /// concurrent bd processes are bd's design there. The same two processes as in
 /// [`two_processes_never_run_bd_on_one_project_at_once`] now overlap: the second
-/// gets past the lock and runs its bd (which waits for `release`, so it times out in
-/// the child phase), and the overlap is recorded. Causal as that test is.
+/// gets past the lock and runs its bd (which waits for `release`, so the host cuts it in
+/// the child phase once the overlap is recorded). Causal as that test is.
 fn a_server_mode_project_takes_no_cross_process_lock(env: &Env) -> TestResult {
     let wd = env.dir("exclusive-server")?;
     let dir = Path::new(&wd).to_path_buf();
@@ -1003,7 +1035,7 @@ fn a_server_mode_project_takes_no_cross_process_lock(env: &Env) -> TestResult {
     let second = started
         .as_ref()
         .map_err(Clone::clone)
-        .and_then(|_| run_host(env, "call", &wd, &[(HOST_TIMEOUT_ENV, "1000")]));
+        .and_then(|_| run_host(env, "call_at_overlap", &wd, &[]));
     let _ = fs::write(dir.join("release"), "");
     let first = first
         .wait_with_output()
@@ -1070,7 +1102,7 @@ fn the_cross_process_lock_is_released_when_a_call_is_cut(env: &Env) -> TestResul
         &ProjectLocks::new(),
         &WorkingDir::new(&wd),
         &words(&["list"]),
-        Duration::from_secs(5),
+        FAIL_SAFE,
     );
     require(
         matches!(&next, Ok(out) if out.success),
