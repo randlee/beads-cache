@@ -47,7 +47,12 @@ decision D1.
    `disable` flip only sc-cron's `enabled` column (REQ-CRON-0014).
 2. **Entry points** (REQ-BDC-0720, S90). `bdc cache cron run` (sc-cron `Scheduler`,
    `MissedTickPolicy::Skip`), `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run
-   the same Rust tick; `Cache.tick()` releases the GIL.
+   the same Rust tick; `Cache.tick()` releases the GIL. The scheduled sync times come only from
+   the tick row in the cron table (ANC-002): `cron run` and `cron run --once` run the tick when
+   that row is due, and `bdc cache tick` and `Cache.tick()` are explicit on-demand runs of the
+   same tick that do not change the row's times.
+   Every new command (`schedule`, `cron`, `tick`, `hooks`, `scopes`) is on the `bdc cache`
+   cache-management surface; none is added to the bd /v0-shaped beads surface (ADR-BDC-0009).
 3. **One tick** (REQ-BDC-0703 amended, REQ-BDC-0722). Lease, drain, sync, post-sync hook and
    reply, in the order and budget of §One tick; the hook keeps `hook_reserve_ms`. The tick
    holds no write transaction and no drain lock while a method runs.
