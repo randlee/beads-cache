@@ -25,8 +25,8 @@
 //! `CacheError` (`PRECONDITION`, `details.reason: "inside_run"`): the run's
 //! own lease and schedule are the caller's (ADR-SYNC-0008).
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
 use std::time::Duration;
 
 use bd_cache_api::{ApiError, Command, Request, decode};
@@ -222,13 +222,12 @@ impl PyMethod {
             return cache.api_call(py, spec.command, &request);
         }
         let req = decode(spec.command, &request).map_err(|e| api_err(py, &e))?;
-        let interrupt = Mutex::new(None);
-        let value = cache.run_api(py, |inner| run_front_end(inner, &req, &interrupt));
+        // Written only by the polling loop of `run_front_end`, on the calling
+        // thread; read here once `run_api` has returned.
+        let mut interrupt = None;
+        let value = cache.run_api(py, |inner| run_front_end(inner, &req, &mut interrupt));
         // A Ctrl-C during the call stopped it; it is raised once the call ended.
-        if let Some(e) = interrupt
-            .into_inner()
-            .unwrap_or_else(PoisonError::into_inner)
-        {
+        if let Some(e) = interrupt {
             return Err(e);
         }
         to_py(py, &value?)
@@ -281,7 +280,7 @@ fn request_of_call(
 fn run_front_end(
     inner: &mut Inner,
     req: &Request,
-    interrupt: &Mutex<Option<PyErr>>,
+    interrupt: &mut Option<PyErr>,
 ) -> Result<Value, ApiError> {
     let store = inner
         .schedules
@@ -314,7 +313,7 @@ fn run_front_end(
             let signalled = Python::attach(|py| py.check_signals());
             if let Err(e) = signalled {
                 stop.stop();
-                *interrupt.lock().unwrap_or_else(PoisonError::into_inner) = Some(e);
+                *interrupt = Some(e);
             }
         }
         helper

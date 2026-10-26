@@ -91,7 +91,7 @@ impl StopFlag {
 /// let budget = Budget::new(&*clock, &TickBudget::new(Some(10_000), Some(4_000), true)?);
 /// assert_eq!(budget.sync_deadline().remaining(&*clock), Duration::from_secs(6));
 /// assert_eq!(budget.hook_deadline().remaining(&*clock), Duration::from_secs(10));
-/// # Ok::<(), sc_beads::InvalidValue>(())
+/// # Ok::<(), bd_cache_model::BudgetError>(())
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct Budget {

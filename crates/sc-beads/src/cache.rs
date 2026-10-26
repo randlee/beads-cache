@@ -1038,6 +1038,8 @@ impl From<BeadsError> for BeadsCacheError {
 /// for output that could not be read whole, `NotFound` for a bead the call
 /// needed and the backend does not have, `Failed` for any other failed
 /// command, `Btit` for errors of the shared transport.
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 #[expect(
     clippy::missing_errors_doc,
     reason = "failure modes are documented once on the trait and on BeadsCacheError"

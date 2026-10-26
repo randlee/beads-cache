@@ -23,29 +23,33 @@ use crate::text::cut;
 #[doc(inline)]
 pub use bd_cache_model::{BUILTIN_ROW, PYTHON_ROW, SyncRow};
 
-/// [`BUILTIN_ROW`] as sc-cron's name, validated once.
-static BUILTIN_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
-    LazyLock::new(|| ScheduleName::new(BUILTIN_ROW));
+/// A row's literal as sc-cron's [`ScheduleName`]: the one place the two row
+/// names are checked.
+#[expect(
+    clippy::expect_used,
+    reason = "the two row names are short literals without whitespace or control \
+              characters, so sc-cron cannot refuse them; the unit test below builds both"
+)]
+fn named(literal: &'static str) -> ScheduleName {
+    ScheduleName::new(literal).expect("a row name is a valid sc-cron schedule name")
+}
 
-/// [`PYTHON_ROW`] as sc-cron's name, validated once.
-static PYTHON_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
-    LazyLock::new(|| ScheduleName::new(PYTHON_ROW));
+/// [`BUILTIN_ROW`] as sc-cron's name, built once.
+static BUILTIN_NAME: LazyLock<ScheduleName> = LazyLock::new(|| named(BUILTIN_ROW));
+
+/// [`PYTHON_ROW`] as sc-cron's name, built once.
+static PYTHON_NAME: LazyLock<ScheduleName> = LazyLock::new(|| named(PYTHON_ROW));
 
 /// The row's name as sc-cron's [`ScheduleName`], built once ([`SyncRow`] is
 /// `bd-cache-model`'s, which knows no sc-cron).
 ///
-/// # Errors
-///
-/// Never for these two literals (a unit test checks both); a refusal
-/// would be `STORE_FAILED`, never a silently skipped write.
-pub(crate) fn schedule_name(row: SyncRow) -> Result<ScheduleName, CacheError> {
-    let built = match row {
+/// Infallible: the two names are literals sc-cron accepts (`named`).
+pub(crate) fn schedule_name(row: SyncRow) -> ScheduleName {
+    match row {
         SyncRow::Builtin => &*BUILTIN_NAME,
         SyncRow::Python => &*PYTHON_NAME,
-    };
-    built
-        .clone()
-        .map_err(crate::schedule::schedule_store_failed)
+    }
+    .clone()
 }
 
 /// The Python row's timeout when `--timeout-ms` is not given (REQ-BDC-0724).
@@ -54,8 +58,9 @@ pub const DEFAULT_PYTHON_TIMEOUT_MS: u64 = 60_000;
 /// The smallest `--timeout-ms` of the Python row (REQ-BDC-0724).
 pub const MIN_PYTHON_TIMEOUT_MS: u64 = 1_000;
 
-/// The largest `--timeout-ms` of the Python row (REQ-BDC-0724).
-pub const MAX_PYTHON_TIMEOUT_MS: u64 = 600_000;
+/// The largest `--timeout-ms` of the Python row (REQ-BDC-0724):
+/// [`bd_cache_model::MAX_TIMEOUT_MS`].
+pub const MAX_PYTHON_TIMEOUT_MS: u64 = bd_cache_model::MAX_TIMEOUT_MS;
 
 /// How long `-I -c 'import bd_cache_rs'` may take before the interpreter is
 /// refused (REQ-BDC-0724).
@@ -123,16 +128,6 @@ pub(crate) fn invalid(
         field: field.as_str(),
         reason,
     }
-}
-
-/// True for a portable identifier: ASCII letters, digits and `_`, not
-/// starting with a digit (an `--env` name, a hook's function name).
-pub(crate) fn is_identifier(text: &str) -> bool {
-    let mut chars = text.chars();
-    chars
-        .next()
-        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
 /// `path` as text, or `SCHEDULE_INVALID` naming `field`: a path that is not
@@ -295,7 +290,7 @@ fn is_executable_file(path: &Path) -> bool {
 pub struct EnvNames(Vec<String>);
 
 impl EnvNames {
-    /// Checks each name ([`is_identifier`]); at most [`MAX_ENV_NAMES`];
+    /// Checks each name ([`sc_cron::is_identifier`]); at most [`MAX_ENV_NAMES`];
     /// duplicates dropped.
     ///
     /// # Errors
@@ -304,7 +299,7 @@ impl EnvNames {
     pub fn new(names: impl IntoIterator<Item = String>) -> Result<Self, CacheError> {
         let mut out: Vec<String> = Vec::new();
         for name in names {
-            if !is_identifier(&name) {
+            if !sc_cron::is_identifier(&name) {
                 return Err(invalid(
                     Field::Env,
                     ScheduleReason::OutOfRange,
@@ -373,7 +368,7 @@ impl PostSyncHook {
             )
         };
         let (module, function) = target.split_once(':').ok_or_else(bad)?;
-        if !is_identifier(function) {
+        if !sc_cron::is_identifier(function) {
             return Err(bad());
         }
         let interpreter = TrustedInterpreter::checked(interpreter, module, Field::PostSync)?;
@@ -429,7 +424,7 @@ pub struct PythonPayload {
 }
 
 impl PythonPayload {
-    /// Checks the timeout (1000–600000 ms) and the paths (UTF-8), and builds the payload.
+    /// Checks the timeout ([`MIN_PYTHON_TIMEOUT_MS`] to [`MAX_PYTHON_TIMEOUT_MS`]) and the paths (UTF-8), and builds the payload.
     ///
     /// # Errors
     ///
@@ -657,10 +652,11 @@ impl SyncPayload {
 }
 
 /// A budget refusal as `SCHEDULE_INVALID` naming the field.
-pub(crate) fn budget_invalid(e: &sc_beads::InvalidValue) -> CacheError {
-    let field = match e.kind {
-        "budget_ms" => Field::BudgetMs,
-        _ => Field::HookReserveMs,
+pub(crate) fn budget_invalid(e: &bd_cache_model::BudgetError) -> CacheError {
+    // No wildcard: a new `BudgetField` is a compile error here.
+    let field = match e.field() {
+        bd_cache_model::BudgetField::BudgetMs => Field::BudgetMs,
+        bd_cache_model::BudgetField::HookReserveMs => Field::HookReserveMs,
     };
     invalid(field, ScheduleReason::OutOfRange, e.to_string())
 }
@@ -675,10 +671,8 @@ mod tests {
     fn both_row_names_are_valid_sc_cron_names() {
         for row in [super::SyncRow::Builtin, super::SyncRow::Python] {
             assert_eq!(
-                super::schedule_name(row)
-                    .ok()
-                    .map(|n| n.as_str().to_owned()),
-                Some(row.as_str().to_owned())
+                super::schedule_name(row).as_str().to_owned(),
+                row.as_str().to_owned()
             );
             assert_eq!(super::SyncRow::of(row.as_str()), Some(row));
             assert_eq!(row.other().other(), row);

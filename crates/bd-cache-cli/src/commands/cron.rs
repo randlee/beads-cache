@@ -45,7 +45,11 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[CommandSpec {
             Ty::Int,
             false,
             "shutdown_timeout_ms",
-            "On a signal, how long the runs in flight may finish (default 10000, 0-600000).",
+            concat!(
+                "On a signal, how long the runs in flight may finish (default 10000, 0-",
+                bd_cache_model::max_timeout_ms!(),
+                ")."
+            ),
         ),
     ],
     one_of: None,

@@ -141,6 +141,30 @@ pub struct PythonHook {
     env: ChildEnv,
 }
 
+/// True for a portable identifier: an ASCII letter or `_`, then ASCII
+/// letters, digits or `_`.
+///
+/// The one rule for a dotted module path's parts ([`PythonHook::new`]) and,
+/// for callers that name a hook's function or an environment variable, for
+/// those too, so every crate checks the same shape.
+///
+/// # Examples
+///
+/// ```
+/// assert!(sc_cron::is_identifier("_hook2"));
+/// assert!(!sc_cron::is_identifier("2hook"));
+/// assert!(!sc_cron::is_identifier(""));
+/// assert!(!sc_cron::is_identifier("a-b"));
+/// ```
+#[must_use]
+pub fn is_identifier(text: &str) -> bool {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 impl PythonHook {
     /// Validates the interpreter and the module, once, before anything runs.
     ///
@@ -163,14 +187,7 @@ impl PythonHook {
                 interpreter.display()
             )));
         }
-        let identifier = |part: &str| {
-            let mut chars = part.chars();
-            chars
-                .next()
-                .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
-                && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
-        };
-        if module.len() > MAX_MODULE_LEN || !module.split('.').all(identifier) {
+        if module.len() > MAX_MODULE_LEN || !module.split('.').all(is_identifier) {
             return Err(CronError::InvalidSpec(format!(
                 "module {module:?} is not a dotted path of identifiers of at most \
                  {MAX_MODULE_LEN} bytes"

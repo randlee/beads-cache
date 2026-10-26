@@ -63,10 +63,10 @@ pub struct CacheRefreshScopes {
 }
 
 impl CacheRefreshScopes {
-    /// The largest `timeout_ms`: ten minutes, far past any one scope's sync,
-    /// and the bound of a request that would otherwise hold the command for
-    /// any `u64` of milliseconds (contract §6).
-    pub const MAX_TIMEOUT_MS: u64 = 600_000;
+    /// The largest `timeout_ms`: [`bd_cache_model::MAX_TIMEOUT_MS`], far past
+    /// any one scope's sync, and the bound of a request that would otherwise
+    /// hold the command for any `u64` of milliseconds (contract §6).
+    pub const MAX_TIMEOUT_MS: u64 = bd_cache_model::MAX_TIMEOUT_MS;
 
     /// The scopes to sync, in request order; empty syncs every known scope.
     #[must_use]
@@ -93,9 +93,9 @@ pub struct CacheRefreshIssues {
 }
 
 impl CacheRefreshIssues {
-    /// The largest `timeout_ms`: ten minutes, the bound of one `bd list --id`
-    /// read (contract §6).
-    pub const MAX_TIMEOUT_MS: u64 = 600_000;
+    /// The largest `timeout_ms`: [`bd_cache_model::MAX_TIMEOUT_MS`], the bound
+    /// of one `bd list --id` read (contract §6).
+    pub const MAX_TIMEOUT_MS: u64 = bd_cache_model::MAX_TIMEOUT_MS;
 
     /// The beads to re-read from bd (nonempty).
     #[must_use]

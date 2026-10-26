@@ -31,6 +31,27 @@ pub const MAX_NOTE_BYTES: usize = 16 * 1024;
 /// `<bead>:<op>:<run>`; it is indexed, so it stays short.
 pub const MAX_IDEM_KEY_BYTES: usize = 1024;
 
+/// The literal of [`MAX_TIMEOUT_MS`], so a `concat!` (a refusal's range, a
+/// command's help line) states the ceiling from this one value; `concat!`
+/// takes literals only.
+#[macro_export]
+macro_rules! max_timeout_ms {
+    () => {
+        600000
+    };
+}
+
+/// The largest timeout or budget any command takes, in milliseconds: ten
+/// minutes.
+///
+/// One ceiling for the sync row's `budget_ms`, the Python row's
+/// `--timeout-ms`, `cache refresh --timeout-ms` and `cron run
+/// --shutdown-timeout-ms`. Past it a request would hold a command (and its
+/// locks) for any `u64` of milliseconds, and the sync lease the store accepts
+/// ([`MAX_LEASE_TTL`](crate::MAX_LEASE_TTL)) is sized from it. Raising it
+/// lengthens all of them together.
+pub const MAX_TIMEOUT_MS: u64 = max_timeout_ms!();
+
 fn too_large(what: &str, len: usize, max: usize) -> CacheError {
     CacheError::BadArgs {
         detail: format!("{what} is {len} bytes, over the {max}-byte limit; nothing journaled"),

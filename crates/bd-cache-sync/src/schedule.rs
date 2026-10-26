@@ -176,16 +176,12 @@ impl Rows {
     /// The flags a write of `row` with `enabled` sets on the other row:
     /// written enabled, the other row (when it exists) is disabled in the
     /// same call; written disabled, the other row is left as it is.
-    fn others(
-        &self,
-        row: SyncRow,
-        enabled: bool,
-    ) -> Result<Vec<(sc_cron::ScheduleName, bool)>, CacheError> {
+    fn others(&self, row: SyncRow, enabled: bool) -> Vec<(sc_cron::ScheduleName, bool)> {
         let other = row.other();
-        Ok(match self.get(other) {
-            Some(_) if enabled => vec![(schedule_name(other)?, false)],
+        match self.get(other) {
+            Some(_) if enabled => vec![(schedule_name(other), false)],
             _ => Vec::new(),
-        })
+        }
     }
 }
 
@@ -284,7 +280,7 @@ pub struct UsePython {
     pub module: String,
     /// `--cron <expr>`; default the built-in row's expression.
     pub cron: Option<String>,
-    /// `--timeout-ms N` (default 60000, 1000–600000).
+    /// `--timeout-ms N` (default 60000, 1000 to [`crate::MAX_PYTHON_TIMEOUT_MS`]).
     pub timeout_ms: Option<u64>,
     /// `--env NAME`, repeatable.
     pub env: Vec<String>,
@@ -689,7 +685,7 @@ where
         let rows = self.rows().await?;
         let python_enabled = rows.python.as_ref().is_some_and(|r| r.enabled);
         let enabled = rows.builtin.as_ref().map_or(!python_enabled, |r| r.enabled);
-        let flags = rows.others(SyncRow::Builtin, enabled)?;
+        let flags = rows.others(SyncRow::Builtin, enabled);
         let written = self
             .scheduler
             .replace_and_set_enabled_async(spec, enabled, flags)
@@ -729,7 +725,7 @@ where
             ));
         }
         self.scheduler
-            .set_enabled_async(&schedule_name(SyncRow::Builtin)?, enabled)
+            .set_enabled_async(&schedule_name(SyncRow::Builtin), enabled)
             .await
             .map_err(schedule_store_failed)?;
         let mode = self.rows().await?.mode();
@@ -978,7 +974,7 @@ where
             payload.timeout().get(),
             &SyncPayload::Python(payload.clone()),
         )?;
-        let flags = before.others(SyncRow::Python, true)?;
+        let flags = before.others(SyncRow::Python, true);
         let written = self
             .scheduler
             .replace_and_set_enabled_async(new_spec.clone(), true, flags)
@@ -1023,7 +1019,7 @@ where
                 return Ok(false);
             }
             let builtin_flag = match (&before.builtin, &now.builtin) {
-                (Some(row), Some(_)) => vec![(schedule_name(SyncRow::Builtin)?, row.enabled)],
+                (Some(row), Some(_)) => vec![(schedule_name(SyncRow::Builtin), row.enabled)],
                 _ => Vec::new(),
             };
             let (spec, enabled) = match &before.python {
@@ -1069,8 +1065,8 @@ where
         if rows.builtin.is_none() {
             return Err(no_builtin_row());
         }
-        let mut flags = vec![(schedule_name(SyncRow::Builtin)?, true)];
-        flags.extend(rows.others(SyncRow::Builtin, true)?);
+        let mut flags = vec![(schedule_name(SyncRow::Builtin), true)];
+        flags.extend(rows.others(SyncRow::Builtin, true));
         self.scheduler
             .set_enabled_many_async(flags)
             .await
@@ -1210,8 +1206,8 @@ mod tests {
             builtin: Some(row("* * * * * *", "2026-10-26T10:00:00Z")),
             python: None,
         };
-        assert_eq!(rows.others(SyncRow::Python, true).unwrap().len(), 1);
-        assert!(rows.others(SyncRow::Python, false).unwrap().is_empty());
-        assert!(rows.others(SyncRow::Builtin, true).unwrap().is_empty());
+        assert_eq!(rows.others(SyncRow::Python, true).len(), 1);
+        assert!(rows.others(SyncRow::Python, false).is_empty());
+        assert!(rows.others(SyncRow::Builtin, true).is_empty());
     }
 }
