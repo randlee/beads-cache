@@ -194,7 +194,9 @@ Decision:
   reports: a write already journaled is not hidden); the exit code is
   `128 + signal` (143 for SIGTERM), whatever the envelope says, with one line
   on stderr. A second signal changes nothing: the shutdown is bounded by the
-  calls' kill bound (1 s); SIGKILL remains. On Linux the `bd` child also has
+  calls' kill bound (1 s); SIGKILL remains. The exception is `cron run`
+  during its shutdown wait, where a second signal ends the wait at once
+  (REQ-BDC-0730 as amended at the phase-end review). On Linux the `bd` child also has
   `PR_SET_PDEATHSIG` (SIGKILL), for a bdc killed outright.
 - `run` and `run_with` (the in-process entry points) install nothing: the
   host process owns its signals.

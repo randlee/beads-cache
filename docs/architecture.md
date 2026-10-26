@@ -213,7 +213,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0009 | Approved | `bd-cache-api` (sprint b-2: the request vocabulary, decoder, operations and error table; ADR-API-0001..0003 in `docs/bd-cache-api/architecture.md`); `bd-cache-cli` (sprint b-3: both command groups of `docs/bd-cache-cli/contract.md` §1–§8, the exit codes, configuration and help; ADR-CLI-0001..0004 in `docs/bd-cache-cli/architecture.md`) |
 | ADR-BDC-0010 | Approved; amended by ADR-BDC-0012 | `scripts/lint_no_atm.py` and its tests, run per sprint with `--paths`; removals in sprints b-7 (the store's comments) and b-8 (the sync's messaging, phase files, stop rule and reply protocol, the `[tick]` keys and the sender port, the legacy-directory refusal); the exemption change and the CI lint gate in sprint b-9 (ADR-BDC-0012) |
 | ADR-BDC-0011 | Approved | `bd-cache-store` (ADR-STORE-0006, b-7; its b-8 QA-1 amendment: the `sync_run` table and the bounded hook reads), `bd-cache-sync` (ADR-SYNC-0008, b-8, with its QA-1 amendment: the mode lock, the trust check on the opened file, the redaction, the shutdown grace period, the typed run history, one front-end surface `Schedules` / `execute`; evidence `tests/{e2e,schedule_switch,cron_rows,hook_runner,builtin_run,cron_logging}.rs` and the testbed's `tests/live.rs`), `sc-cron` (ADR-CRON-0009, b-7 and b-8), `bd-cache-cli` and `bd-cache-py` (the new verbs over `bd_cache_sync::execute`, b-8; ADR-PY-0006's QA-1 amendment; the Windows job-object and Ctrl-Break tests in `crates/bd-cache-cli/tests/tree_kill.rs`) |
-| ADR-BDC-0012 | Approved | `scripts/lint_no_atm.py` exemptions and the CI step, sprint b-9 |
+| ADR-BDC-0012 | Approved; Amendments 2 and 3 | `scripts/lint_no_atm.py` exemptions and the CI step, sprint b-9; Amendment 3 at the phase-end review |
 | ADR-BDC-0013 | Approved | `bd-cache-model`, `sc-beads`, `sc-bd-cli`, `bd-cache-store`, the FakeBd harnesses and the callers, sprint b-7; the alert verbs' refusal of an unknown scope (amendment 1 ended), sprint b-8 |
 | ADR-BDC-0014 | Approved | `sc-cron` store trait and `bd-cache-store`'s `CacheScheduleStore`, sprint b-7 |
 | ADR-BDC-0015 | Approved | `bd-cache-api` models (`src/request/sync.rs`, `src/data/sync.rs`) and the store-only verbs (`src/ops/scopes.rs`); the others run over `bd-cache-sync` (`bd_cache_sync::execute` for both front ends, `src/front_end.rs`; `cache cron run` in `bd-cache-cli`'s `src/commands/cron.rs`), the CLI's rows in `src/commands/{scopes,schedule,cron,sync,tick}.rs` and the Python methods in `bd-cache-py`'s `src/phase_b.rs`; `TICK_<REFUSAL>` removed; sprint b-8 |
@@ -837,6 +837,19 @@ constant" applies to code that builds or strips a scope label. Tests in crates t
 - **Where it runs.** The CI step "Strict consumer boundary (ADR-BDC-0010)" and the
   scripts' unit tests run in the `ci` lint job and in the three-OS test matrix (b-9
   acceptance 1), not in the ubuntu lint job alone.
+
+### Amendment 3: consumer roles and file names (phase-end review)
+
+**Status:** Approved (lead ruling at the phase B phase-end review, PE1-RBQA-F001..F003, applying
+Rand's ruling 7: no consumer wording outside the lint's prohibited list)
+
+- **Neutral wording.** The register, the plans and the tests name no consumer-internal role,
+  hook or file (the consumer's schema and close-field files, its review roles, its task hooks
+  and commands). The sites that did were reworded neutrally at the phase-end review.
+- **The lint.** The consumer artifact rule matches a name preceded by `_` or another non-letter
+  (so `test_` prefixes no longer hide it), and a consumer-schema-file rule covers the schema
+  and close-field file names, each with hit and non-hit tests. Other role or hook phrases are
+  kept out by review, not by a phrase rule, because they collide with neutral words.
 
 ## ADR-BDC-0013: Scopes are named bd filters
 

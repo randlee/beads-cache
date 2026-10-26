@@ -406,10 +406,9 @@ fn reap(child: Child, pids: &[u32]) -> (std::process::Output, Vec<u32>) {
 }
 
 /// `cron run` with a hook whose child starts a grandchild that ignores
-/// SIGTERM: a SIGTERM stops new runs and waits up to `--shutdown-timeout-ms`
-/// (a second signal during the wait shortens nothing and changes no exit
-/// code), then kills both processes of the tree, releases the lease (the
-/// next `tick` is not `in_flight`) and exits 143 (acceptance 9, B8Q1-004).
+/// SIGTERM: a SIGTERM stops new runs and waits up to `--shutdown-timeout-ms`,
+/// then kills both processes of the tree, releases the lease (the next
+/// `tick` is not `in_flight`) and exits 143 (acceptance 9, B8Q1-004).
 #[test]
 fn cron_run_waits_then_kills_a_hooks_tree_and_releases_the_lease() {
     let repo = TestRepo::new(&two_beads());
@@ -436,8 +435,6 @@ fn cron_run_waits_then_kills_a_hooks_tree_and_releases_the_lease() {
     let hook_pid = pid_in(&stubs.path().join("hook.pid"));
     let signalled = Instant::now();
     signal("TERM", child.id());
-    std::thread::sleep(Duration::from_millis(200));
-    signal("INT", child.id());
     let (out, alive) = reap(child, &[gc, hook_pid]);
     let waited = signalled.elapsed();
     assert_eq!(
@@ -450,6 +447,61 @@ fn cron_run_waits_then_kills_a_hooks_tree_and_releases_the_lease() {
     assert!(
         waited >= Duration::from_millis(1500),
         "the wait was cut short: {waited:?}"
+    );
+    std::fs::write(stubs.path().join("hook.mode"), "ok").unwrap();
+    let (exit, v) = repo.json(&["cache", "tick"]);
+    assert_eq!(exit, 0, "{v}");
+    assert!(
+        v["data"]["skipped"].is_null(),
+        "the lease was released: {v}"
+    );
+}
+
+/// A second signal during the shutdown wait ends it at once (REQ-BDC-0730
+/// as amended at the phase-end review, PE1-RSH-007): the hook's tree is
+/// killed long before the 60 s `--shutdown-timeout-ms`, the exit code stays
+/// the first signal's (143) and the lease is released. Planted negative: a
+/// second signal that is ignored waits the full 60 s and fails the bound.
+#[test]
+fn a_second_signal_ends_cron_runs_shutdown_wait() {
+    let repo = TestRepo::new(&two_beads());
+    let stubs = tempfile::TempDir::new().unwrap();
+    let hook = hook_stub(stubs.path());
+    let (exit, v) = repo.json(&[
+        "cache",
+        "schedule",
+        "set",
+        "* * * * * *",
+        "--budget-ms",
+        "120000",
+        "--hook-reserve-ms",
+        "60000",
+        "--post-sync",
+        "consumer.hooks:after",
+        "--python",
+        path_str(&hook),
+    ]);
+    assert_eq!(exit, 0, "{v}");
+    std::fs::write(stubs.path().join("hook.mode"), "grandchild").unwrap();
+    let (child, _log) = cron_run(&repo, &["--shutdown-timeout-ms", "60000"]);
+    let gc = pid_in(&stubs.path().join("gc.pid"));
+    let hook_pid = pid_in(&stubs.path().join("hook.pid"));
+    let signalled = Instant::now();
+    signal("TERM", child.id());
+    std::thread::sleep(Duration::from_millis(200));
+    signal("INT", child.id());
+    let (out, alive) = reap(child, &[gc, hook_pid]);
+    let waited = signalled.elapsed();
+    assert_eq!(
+        out.status.code(),
+        Some(143),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(alive.is_empty(), "these survived cron run: {alive:?}");
+    assert!(
+        waited < Duration::from_secs(30),
+        "the second signal did not end the wait: {waited:?}"
     );
     std::fs::write(stubs.path().join("hook.mode"), "ok").unwrap();
     let (exit, v) = repo.json(&["cache", "tick"]);
@@ -489,8 +541,6 @@ fn cron_run_waits_then_kills_a_python_rows_tree_and_releases_the_lease() {
     let script = pid_in(&stubs.path().join("script.pid"));
     let signalled = Instant::now();
     signal("TERM", child.id());
-    std::thread::sleep(Duration::from_millis(200));
-    signal("HUP", child.id());
     let (out, alive) = reap(child, &[gc, script]);
     assert_eq!(
         out.status.code(),
