@@ -45,7 +45,9 @@ fn configured_cache_path_is_taken_from_the_repository_root() {
     let loc = CacheLocation::resolve_with(tmp.path(), &config, None).unwrap();
     assert_eq!(
         loc.cache_path,
-        tmp.path().join(".phases").join("testdb.bd-cache.sqlite3")
+        tmp.path()
+            .join(".cache-dir")
+            .join("testdb.bd-cache.sqlite3")
     );
 }
 
