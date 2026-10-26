@@ -1,31 +1,37 @@
 //! `cache cron run [--once] [--shutdown-timeout-ms N]` (REQ-BDC-0720, 0730; ADR-SYNC-0008).
 //!
-//! `cron run` runs sc-cron's `Scheduler` worker over the cache file's
-//! schedule table, with bd-cache-sync's resolver and `MissedTickPolicy::Skip`,
-//! on a multi-thread runtime, until `SIGINT`, `SIGTERM` or `SIGHUP` (Ctrl-C
-//! or Ctrl-Break on Windows): then it starts no new run, waits for the runs
-//! in flight up to `--shutdown-timeout-ms`, kills those still going with
-//! their process trees, releases the lease, and the process exits `128 +
-//! signal` (130 on Windows). Its stderr subscriber is the process default, so
-//! sc-cron's events from every thread are logged. `--once` runs what is due,
-//! waits for each run to its own deadline, and exits 0, or 3 with
-//! `TICK_RUN_FAILED` naming each failed row.
+//! `cron run` runs `bd_cache_sync`'s `Schedules::cron_run` (sc-cron's
+//! worker over the cache file's schedule table, with the sync resolver and
+//! `MissedTickPolicy::Skip`) on a multi-thread runtime until `SIGINT`,
+//! `SIGTERM` or `SIGHUP` (Ctrl-C or Ctrl-Break on Windows). On a signal it
+//! starts no new run and gives the runs in flight, their `bd` calls, hooks
+//! and scripts, up to `--shutdown-timeout-ms` (`T`); only then are the `bd`
+//! calls stopped and the trees still going killed, and the lease released;
+//! the process exits `128 + signal` (130 on Windows). A stop takes at most
+//! `2 × T`: the runtime, its blocking pool included, is shut down within the
+//! second `T` (`Runtime::shutdown_timeout`). Its stderr subscriber is the
+//! process default, at `INFO` unless `-v`, `-q` or `BD_CACHE__LOG` says
+//! otherwise, so sc-cron's events and each run's steps are logged from every
+//! thread. `--once` runs what is due, waits for each run to its own deadline,
+//! and exits 0, or 3 with `TICK_RUN_FAILED` naming each failed row
+//! (`details.rows`).
 
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use bd_cache_api::request::CronRun;
 use bd_cache_api::{ApiError, Command};
-use bd_cache_sync::{Composed, StopFlag, cron_run, cron_run_once};
+use bd_cache_sync::{FrontEnd, SystemSchedules};
 use serde_json::{Value, json};
 
-use crate::args::{ArgSpec, CommandSpec, Shape, Target, Ty};
-use crate::commands::runtime::{parts, runtime};
+use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
+use crate::commands::runtime::runtime;
+use crate::commands::signal::Signals;
 
 /// The `cache cron` commands.
 pub(crate) const COMMANDS: &[CommandSpec] = &[CommandSpec {
     path: "cache cron run",
     about: "Run the cache file's cron rows until a signal; --once runs what is due and exits.",
-    target: Target::Sync(Command::CronRun),
+    command: Command::CronRun,
     args: &[
         ArgSpec::switch(
             "once",
@@ -45,63 +51,38 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[CommandSpec {
     one_of: None,
 }];
 
-/// Runs `cron run` or `cron run --once`.
-pub(crate) fn run(composed: Composed, req: &CronRun, stop: &StopFlag) -> Result<Value, ApiError> {
-    let p = parts(composed)?;
+/// Runs `cron run` or `cron run --once` over `schedules`.
+pub(crate) fn run(
+    schedules: &SystemSchedules,
+    req: &CronRun,
+    signals: &Signals,
+) -> Result<Value, ApiError> {
     let rt = runtime()?;
     if req.once() {
-        let ctx = std::sync::Arc::new(p.sync_context(stop, stop.clone()));
-        let runs = rt
-            .block_on(cron_run_once(&p.scheduler(), ctx))
-            .map_err(|e| ApiError::from(&e))?;
-        let ran: Vec<Value> = runs
-            .iter()
-            .map(|r| json!({"row": r.name.as_str(), "outcome": r.outcome.to_string()}))
-            .collect();
-        return Ok(json!({"once": true, "ran": ran}));
+        let once = rt
+            .block_on(schedules.cron_run_once(signals.stop().clone()))
+            .map_err(|e| FrontEnd::Cli.api_error(&e))?;
+        return match once.error() {
+            Some(e) => Err(e),
+            None => Ok(once.data()),
+        };
     }
-    // The kill flag of `cron run` is its own: a run in flight is waited for
-    // up to the shutdown timeout, then aborted (REQ-BDC-0730).
-    let ctx = std::sync::Arc::new(p.sync_context(stop, StopFlag::new()));
+    // The runs in flight get the grace period with their bd calls running.
+    signals.defer_bd_kill();
     let timeout = Duration::from_millis(req.shutdown_timeout_ms());
-    let scheduler = p.scheduler();
-    let stopped = rt.block_on(async move {
+    let stopped = rt.block_on(async {
         #[cfg(windows)]
-        let _console = console_stop(ctx.stop.clone());
-        cron_run(scheduler, ctx, timeout).await
+        let _console = crate::commands::signal::console_stop(signals);
+        schedules
+            .cron_run(signals.stop().clone(), timeout, || signals.kill_bd())
+            .await
     });
-    drop(rt);
+    // The blocking pool (a killed step, a lease release) within the rest of the bound.
+    rt.shutdown_timeout(stopped.finish_by.saturating_duration_since(Instant::now()));
+    if stopped.worker_ended {
+        return Err(ApiError::internal(
+            "the cron worker ended without a signal (see the log); cron run stopped",
+        ));
+    }
     Ok(json!({"once": false, "stopped": true, "drained": stopped.drained, "idle": stopped.idle}))
-}
-
-/// Ctrl-C and Ctrl-Break stop `cron run` on Windows (exit 130, REQ-BDC-0730).
-#[cfg(windows)]
-fn console_stop(stop: StopFlag) -> tokio::task::JoinHandle<()> {
-    tokio::spawn(async move {
-        let mut c = tokio::signal::windows::ctrl_c().ok();
-        let mut b = tokio::signal::windows::ctrl_break().ok();
-        let ctrl_c = async {
-            match c.as_mut() {
-                Some(c) => {
-                    c.recv().await;
-                }
-                None => std::future::pending().await,
-            }
-        };
-        let ctrl_break = async {
-            match b.as_mut() {
-                Some(b) => {
-                    b.recv().await;
-                }
-                None => std::future::pending().await,
-            }
-        };
-        tokio::select! {
-            () = ctrl_c => {}
-            () = ctrl_break => {}
-        }
-        // SIGINT's number, so the exit is 130 as for Ctrl-C (REQ-BDC-0730).
-        sc_bd_cli::shutdown::request(2);
-        stop.stop();
-    })
 }

@@ -6,40 +6,87 @@
 //! under `BEGIN IMMEDIATE` (the store's `lease_take`), refused while a live
 //! lease is held, taken over once expired, and expires at the run's deadline
 //! plus [`LEASE_MARGIN`]. It is released on every exit path: explicitly by
-//! [`TickLease::release`], or, on a run aborted mid-await, by the guard's drop,
-//! which hands the release to `spawn_blocking` when a tokio runtime is
-//! current. A release that fails or does not run is logged and left to
-//! expiry; a `kill -9` is covered only by expiry.
+//! [`TickLease::release`], or by the guard's drop. [`TickLease::take`]
+//! installs that drop-release inside the blocking step that takes the lease,
+//! before the lease value exists, so no path ever holds a lease without it,
+//! not even a run aborted while it waits for the take. A release that fails
+//! or cannot run is logged and left to expiry; a `kill -9` is covered only by
+//! expiry.
+//!
+//! # The cache mutex
+//!
+//! Runs share the cache behind a `std::sync::Mutex` ([`SharedCache`]).
+//! Policy, stated once: a run that finds the mutex poisoned (a panic in an
+//! earlier step) fails with `STORE_FAILED` and trusts nothing it would read
+//! ([`hold`]); a lease release, the drop-release included, takes a poisoned
+//! mutex all the same, since it only frees the lease row and leaving the
+//! lease to expiry would block every later run; and [`join_idle`]
+//! (`crate::job`) treats a poisoned mutex as idle. A run waits for the mutex at
+//! most until its deadline ([`hold_within`]): one held by a step sc-cron
+//! timed out (its blocking thread is never aborted) makes the run skip as
+//! `in_flight`, so no blocking thread queues behind a hung step.
+//!
+//! The drop-release never waits for the mutex on the dropping thread: it
+//! releases inline when the mutex is free (the usual case: a run aborted
+//! while its hook or script ran, or a blocking step's result dropped after
+//! the step let go of the mutex), so it does not depend on a blocking pool
+//! that may be shutting down; when the mutex is held (perhaps by the
+//! dropping thread itself), it hands the release to the blocking pool if a
+//! tokio runtime is current, and otherwise logs it and leaves the lease to
+//! expiry. So it cannot deadlock. Every run of this crate releases
+//! explicitly while it holds the mutex.
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+use std::sync::{Mutex, MutexGuard, PoisonError, TryLockError};
+use std::time::{Duration, Instant};
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, CacheStore, DrainLock, LeaseHolder, LeaseTake, RunId};
+use bd_cache_model::{
+    CacheError, CacheStore, DrainLock, LeaseHolder, LeaseTake, ROW_TIMEOUT_MARGIN, RunId,
+};
 use sc_beads::{CacheBackend, Clock, Deadline, Timestamp};
 
-/// How long after a run's deadline its lease expires (REQ-BDC-0722).
-pub const LEASE_MARGIN: Duration = Duration::from_secs(10);
+use crate::run::SharedCache;
 
-/// A run id, `<unix-ms>-<pid>-<counter>` (ADR-SYNC-0008).
+/// How long after a run's deadline its lease expires (REQ-BDC-0722).
 ///
-/// The time is the cache's clock; the counter makes ids of one process
-/// unique within a millisecond.
-#[must_use]
-pub fn new_run_id(clock: &dyn Clock) -> RunId {
+/// The model's row-timeout margin: the built-in row's sc-cron timeout is its
+/// budget plus the same 10 s, so sc-cron never aborts a run before its lease
+/// release, and a lease taken for the longest run lasts exactly the most the
+/// store accepts (`MAX_LEASE_TTL`).
+pub const LEASE_MARGIN: Duration = ROW_TIMEOUT_MARGIN;
+
+/// How often [`hold_within`] tries the cache mutex again.
+const HOLD_RETRY: Duration = Duration::from_millis(5);
+
+/// A run id, `<unix-ms>-<pid>-<counter>` (ADR-SYNC-0008): the run's start in
+/// Unix milliseconds on the clock that starts it, this process's id, and a
+/// counter that makes the ids of one process unique.
+///
+/// A scheduled run's id is minted by the resolver on sc-cron's clock, which
+/// reads milliseconds; an on-demand run's on the cache's clock, which reads
+/// whole seconds (its milliseconds are then `000`).
+///
+/// # Errors
+///
+/// Never in practice: the text is never blank, which is all `RunId` refuses;
+/// the refusal is passed on rather than replaced.
+pub fn new_run_id(unix_ms: i64) -> Result<RunId, CacheError> {
     static COUNTER: AtomicU64 = AtomicU64::new(1);
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-    let ms = clock.now_utc().unix().saturating_mul(1000);
-    // Never empty, so `RunId::new` cannot refuse it; the fallback is unreachable in practice.
-    RunId::new(format!("{ms}-{}-{n}", std::process::id())).unwrap_or_else(|_| fallback_run_id(n))
+    RunId::new(format!("{unix_ms}-{}-{n}", std::process::id())).map_err(|e| CacheError::BadArgs {
+        detail: format!("run id: {e}"),
+    })
 }
 
-#[expect(
-    clippy::expect_used,
-    reason = "a fixed non-empty literal is always a valid run id"
-)]
-fn fallback_run_id(n: u64) -> RunId {
-    RunId::new(format!("run-{n}")).expect("non-empty")
+/// A run id on the cache's clock (an on-demand run).
+pub(crate) fn run_id_now(clock: &dyn Clock) -> Result<RunId, CacheError> {
+    new_run_id(clock.now_utc().unix().saturating_mul(1000))
+}
+
+/// A run id on sc-cron's clock (a scheduled run, minted by the resolver).
+pub(crate) fn run_id_on<C: sc_cron::Clock + ?Sized>(clock: &C) -> Result<RunId, CacheError> {
+    new_run_id(clock.now().timestamp_millis())
 }
 
 /// This host's name, for the lease row (`HOSTNAME`, `COMPUTERNAME`, or `localhost`).
@@ -49,6 +96,56 @@ fn host() -> String {
         .ok()
         .filter(|h| !h.trim().is_empty())
         .unwrap_or_else(|| "localhost".to_owned())
+}
+
+/// The cache's mutex, held.
+pub(crate) type Held<'a, S, L, B> = MutexGuard<'a, Cache<S, L, B>>;
+
+/// Takes the cache's mutex; a poisoned one is an error, never trusted.
+///
+/// # Errors
+///
+/// `STORE_FAILED` for a poisoned mutex.
+pub(crate) fn hold<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Mutex<Cache<S, L, B>>,
+) -> Result<MutexGuard<'_, Cache<S, L, B>>, CacheError> {
+    cache.lock().map_err(|e| poisoned(&e))
+}
+
+/// Takes the cache's mutex within `wait`; `None` when another step still
+/// holds it then (module docs).
+///
+/// # Errors
+///
+/// `STORE_FAILED` for a poisoned mutex.
+pub(crate) fn hold_within<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Mutex<Cache<S, L, B>>,
+    wait: Duration,
+) -> Result<Option<Held<'_, S, L, B>>, CacheError> {
+    let until = Instant::now()
+        .checked_add(wait)
+        .unwrap_or_else(Instant::now);
+    loop {
+        match cache.try_lock() {
+            Ok(guard) => return Ok(Some(guard)),
+            Err(TryLockError::Poisoned(e)) => return Err(poisoned(&e)),
+            Err(TryLockError::WouldBlock) => {}
+        }
+        let now = Instant::now();
+        if now >= until {
+            return Ok(None);
+        }
+        std::thread::sleep((until - now).min(HOLD_RETRY));
+    }
+}
+
+fn poisoned(e: &dyn std::fmt::Display) -> CacheError {
+    CacheError::StoreFailed {
+        detail: format!(
+            "the cache mutex was poisoned by a panic in an earlier run ({e}); restart the process"
+        ),
+        source: None,
+    }
 }
 
 /// What taking the lease gave.
@@ -66,8 +163,9 @@ type Fallback = Box<dyn FnOnce(RunId) + Send + Sync>;
 
 /// The held sync lease; release it with [`TickLease::release`].
 ///
-/// The run functions take `&TickLease`, so no sync work runs without one.
-#[must_use = "a lease is released by TickLease::release; dropping it leaves the release to its fallback or to expiry"]
+/// Built only by [`TickLease::take`], with its drop-release installed. The
+/// run functions take `&TickLease`, so no sync work runs without one.
+#[must_use = "a lease is released by TickLease::release; dropping it hands the release to its drop"]
 pub struct TickLease {
     holder: LeaseHolder,
     took_over: Option<LeaseHolder>,
@@ -86,16 +184,24 @@ impl std::fmt::Debug for TickLease {
 }
 
 impl TickLease {
-    /// Takes the lease for `run_id`, expiring [`LEASE_MARGIN`] after `deadline`.
+    /// Takes the lease for `run_id` on `cache` (the guard of `shared`),
+    /// expiring [`LEASE_MARGIN`] after `deadline`, with the drop-release
+    /// over `shared` installed before the lease is returned.
     ///
     /// # Errors
     ///
     /// The store's errors.
-    pub fn take<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    pub fn take<S, L, B>(
+        shared: &SharedCache<S, L, B>,
         cache: &mut Cache<S, L, B>,
         run_id: RunId,
         deadline: Deadline,
-    ) -> Result<LeaseTaken, CacheError> {
+    ) -> Result<LeaseTaken, CacheError>
+    where
+        S: CacheStore + 'static,
+        L: DrainLock + 'static,
+        B: CacheBackend + 'static,
+    {
         let clock = cache.clock();
         let now = clock.now_utc();
         let ttl = deadline.remaining(&*clock).saturating_add(LEASE_MARGIN);
@@ -111,20 +217,41 @@ impl TickLease {
             host: host(),
             expires_at,
         };
-        Ok(match cache.lease_take(&holder)? {
-            LeaseTake::Held(other) => LeaseTaken::Held(other),
-            LeaseTake::Taken => LeaseTaken::Taken(Self::new(holder, None)),
-            LeaseTake::TookOver(old) => LeaseTaken::Taken(Self::new(holder, Some(old))),
-        })
-    }
-
-    fn new(holder: LeaseHolder, took_over: Option<LeaseHolder>) -> Self {
-        Self {
+        let took_over = match cache.lease_take(&holder)? {
+            LeaseTake::Held(other) => return Ok(LeaseTaken::Held(other)),
+            LeaseTake::Taken => None,
+            LeaseTake::TookOver(old) => Some(old),
+        };
+        let fallback = std::sync::Arc::clone(shared);
+        Ok(LeaseTaken::Taken(Self {
             holder,
             took_over,
             released: false,
-            fallback: None,
-        }
+            fallback: Some(Box::new(move |run_id: RunId| {
+                let released = match fallback.try_lock() {
+                    Ok(mut guard) => Some(guard.lease_release(&run_id)),
+                    Err(TryLockError::Poisoned(p)) => Some(p.into_inner().lease_release(&run_id)),
+                    Err(TryLockError::WouldBlock) => None,
+                };
+                match released {
+                    Some(result) => {
+                        log_release(&run_id, result);
+                    }
+                    None => {
+                        if let Ok(handle) = tokio::runtime::Handle::try_current() {
+                            drop(handle.spawn_blocking(move || {
+                                let mut guard =
+                                    fallback.lock().unwrap_or_else(PoisonError::into_inner);
+                                log_release(&run_id, guard.lease_release(&run_id));
+                            }));
+                        } else {
+                            tracing::warn!(run_id = %run_id,
+                                "a lease dropped while its cache was held, outside a runtime; it is left to expiry");
+                        }
+                    }
+                }
+            })),
+        }))
     }
 
     /// The run that holds it.
@@ -145,14 +272,8 @@ impl TickLease {
         self.took_over.as_ref()
     }
 
-    /// Sets the release the guard runs if it drops unreleased (a run aborted
-    /// mid-await): on `spawn_blocking` when a tokio runtime is current, else inline.
-    pub fn with_fallback(mut self, release: impl FnOnce(RunId) + Send + Sync + 'static) -> Self {
-        self.fallback = Some(Box::new(release));
-        self
-    }
-
-    /// Releases the lease; `false` (logged) when the store did not free it.
+    /// Releases the lease on `cache` (held by the caller); `false` (logged)
+    /// when the store did not free it.
     pub fn release<S: CacheStore, L: DrainLock, B: CacheBackend>(
         mut self,
         cache: &mut Cache<S, L, B>,
@@ -184,14 +305,27 @@ impl Drop for TickLease {
             return;
         }
         let run_id = self.holder.run_id.clone();
-        let Some(release) = self.fallback.take() else {
-            tracing::warn!(run_id = %run_id, "a lease was dropped unreleased; it is left to expiry");
-            return;
-        };
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            drop(handle.spawn_blocking(move || release(run_id)));
-        } else {
-            release(run_id);
+        match self.fallback.take() {
+            Some(release) => release(run_id),
+            None => {
+                tracing::warn!(run_id = %run_id, "a lease was dropped unreleased; it is left to expiry");
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_run_id_is_unix_ms_pid_and_a_counter() {
+        let a = new_run_id(1_761_472_800_123).unwrap();
+        let b = new_run_id(1_761_472_800_123).unwrap();
+        let pid = std::process::id().to_string();
+        let parts: Vec<&str> = a.as_str().split('-').collect();
+        assert_eq!(parts.first(), Some(&"1761472800123"));
+        assert_eq!(parts.get(1), Some(&pid.as_str()));
+        assert_ne!(a, b, "the counter makes them unique");
     }
 }

@@ -1,23 +1,36 @@
 """What the two entry points share: opening the cache of a run (ADR-SYNC-0008)."""
 
-import os
+import contextlib
+import sys
 
 from . import _native
 
 
-def open_cache(cache_path, beads_dir):
-    """The ``Cache`` on ``cache_path``, in the repository whose beads directory is ``beads_dir``.
+def open_cache(cache_path, repo_root):
+    """The ``Cache`` on ``cache_path`` in the repository at ``repo_root``.
 
-    The repository root is the beads directory's parent; ``BEADS_DIR`` (set by
-    the runner) names where ``metadata.json`` is read.
+    Both come from the runner (the hook request's ``repo_root`` and
+    ``BD_CACHE_PATH``; the sync payload's ``repo_root`` and ``cache_path``),
+    so ``.beads/bd-cache.toml`` is read from the repository the runner
+    serves, whatever ``BEADS_DIR`` names; ``BEADS_DIR`` (set by the runner)
+    names where ``metadata.json`` is read.
     """
-    beads_dir = beads_dir or os.environ.get("BEADS_DIR")
-    if not beads_dir:
-        raise RuntimeError("no beads directory: the payload and BEADS_DIR are both empty")
-    root = os.path.dirname(os.path.abspath(beads_dir))
-    return _native.Cache(root, cache_path=cache_path)
+    if not cache_path:
+        raise RuntimeError("no cache file: the runner set neither BD_CACHE_PATH nor cache_path")
+    if not repo_root:
+        raise RuntimeError("no repository root: the runner's request carries no repo_root")
+    return _native.Cache(repo_root, cache_path=cache_path)
 
 
 def mark_inside_run():
-    """From here on, drain, manage.flush, tick and schedule_* raise PRECONDITION."""
+    """From here on, drain, manage.flush, tick, schedule_* and sync_use_* raise PRECONDITION."""
     _native._set_in_run(True)
+
+
+@contextlib.contextmanager
+def output_to_stderr():
+    """Sends what user code prints to stderr while it runs, so stdout holds
+    only the runner's own answer; yields the real stdout."""
+    real = sys.stdout
+    with contextlib.redirect_stdout(sys.stderr):
+        yield real

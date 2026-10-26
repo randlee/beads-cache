@@ -110,8 +110,7 @@ Runtime notes:
 ## Links
 
 - Repository: <https://github.com/randlee/beads-cache>
-- Architecture: [`docs/sc-cron/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/sc-cron/architecture.md),
-  and ADR-BDC-0006 in [`docs/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/architecture.md)
+- Architecture: [`docs/sc-cron/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/sc-cron/architecture.md)
 - Requirements: [`docs/sc-cron/requirements.md`](https://github.com/randlee/beads-cache/blob/develop/docs/sc-cron/requirements.md)
 
 MSRV: Rust 1.98.1 (edition 2024). License: MIT.

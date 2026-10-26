@@ -8,14 +8,14 @@ ADR-BDC-0009 and [`../bd-cache-cli/contract.md`](../bd-cache-cli/contract.md).
 
 | Module | Holds |
 |---|---|
-| `request/{beads,manage}.rs` | One typed request per command of contract §5.3 and §6 (not `cache tick`), with schemars schemas; `Command`, `Request` |
+| `request/{beads,manage,sync}.rs` | One typed request per command of contract §5.3 and §6, with schemars schemas; `Command`, `Request`. `request/sync.rs` (sprint b-8) holds the phase-B verbs: the store-only `cache scopes *` (executed here) and the front-end verbs `cache schedule *`, `cache cron run`, `cache tick`, `cache sync *` (`Command::is_front_end`: decoded here, executed by `bd_cache_sync::execute` or the CLI's `cron run`); `ScopesIngest::with_snapshot` for a snapshot decoded from a stream |
 | `decode.rs` | `decode(command, json)`: the one decoder and the only constructor of a `Request` (REQ-API-0001, 0002) |
-| `ops/{beads,manage}.rs` | One crate-private function per command over `&mut Cache<S, L, B>`, returning `Result<Data, ApiError>`; the public `execute`; `CacheFacts` |
+| `ops/{beads,manage,scopes}.rs` | One crate-private function per command over `&mut Cache<S, L, B>`, returning `Result<Data, ApiError>`; the public `execute`; `CacheFacts`. `ops/scopes.rs` (sprint b-8): the store-only `cache scopes *` verbs |
 | `filter.rs` | Scope selection and the list and ready filters (REQ-API-0004) |
 | `page.rs` | The two total orders and the keyset cursor (REQ-API-0003) |
 | `v0.rs` | `/v0` patch ↔ stored BD-CACHE args (REQ-API-0006) |
-| `data/{beads,manage,entry,x_cache}.rs` | The `data` of each command, `Entry`, `x_cache`, `OpError` |
-| `error.rs` | `ApiError`, `ErrorKind`, `ERROR_TABLE`, `From<CacheError>` (REQ-API-0005) |
+| `data/{beads,manage,entry,x_cache,sync}.rs` | The `data` of each command, `Entry`, `x_cache`, `OpError`; `data/sync.rs` (sprint b-8) the `cache scopes *` data |
+| `error.rs` | `ApiError`, `ErrorKind`, `ERROR_TABLE`, `From<CacheError>` (REQ-API-0005; a `PRECONDITION` of the sync's own reasons, `python_sync_enabled` or `inside_run`, carries it as `details.reason`) |
 | `tests/fixtures/*.json` | The shared fixtures b-3 and b-4 replay (format in its README) |
 
 ## ADR-API-0001: Decode by hand, not with serde

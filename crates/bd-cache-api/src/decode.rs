@@ -300,14 +300,15 @@ fn scopes_ingest(obj: &Map<String, Value>) -> Result<ScopesIngest, ApiError> {
         Unsupported::Member,
     )?;
     let scope = scope_of("scope", &m.required_str("scope")?)?;
-    let text = |name: &str| -> Result<String, ApiError> {
+    let list = |name: &str| -> Result<Option<&Value>, ApiError> {
         match m.get(name) {
-            None => Ok("[]".to_owned()),
-            Some(v @ Value::Array(_)) => Ok(v.to_string()),
+            None => Ok(None),
+            Some(v @ Value::Array(_)) => Ok(Some(v)),
             Some(_) => Err(m.wrong(name, "an array")),
         }
     };
-    let snapshot = IngestSnapshot::from_json(&scope, &text("rows")?, &text("blocked")?)?;
+    // Decoded from the parsed values in place: counted as they decode, never encoded again.
+    let snapshot = IngestSnapshot::from_values(&scope, list("rows")?, list("blocked")?)?;
     Ok(ScopesIngest {
         scope,
         snapshot,

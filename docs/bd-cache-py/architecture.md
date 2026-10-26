@@ -295,6 +295,35 @@ Consequences: the Boundaries and Crate Layout rows of `bd-cache-py` gain `bd-cac
 the "Mapping from the baseline Python implementation" section below is removed with its test in
 b-9 (REQ-PY-0009 superseded).
 
+### Amendment: the in-run flag and the one composition root (sprint b-8, QA-1)
+
+**Status:** Approved (lead ruling ARCH-002 of the b-8 QA-1 fix round, sprint b-8, 2026-10-26).
+Amends ADR-PY-0001 where it calls the `ProjectLocks` `OnceLock` the module's only static.
+
+- **A second process-wide static: the in-run flag.** `phase_b::IN_RUN` (an `AtomicBool`) is set
+  by `bd_cache_rs.run` and `bd_cache_rs.sync` (`_native._set_in_run`, through
+  `_common.mark_inside_run`) just before they call user code. While it is set, `drain`,
+  `manage.flush`, `tick`, `schedule_*` and `sync_use_*` raise `CacheError` (`PRECONDITION`,
+  `details.reason: "inside_run"`): the run's lease and schedule are its runner's, and a verb that
+  takes the lease or changes a row would race it or fence it. It is process state, not a
+  handle's, because user code opens handles of its own inside the run, and the runner is a
+  separate process whose whole life is that one call; a per-handle flag could not mark them.
+  Which methods are refused is one field of the method table (`Spec::refuse_in_run`), checked
+  against `Command::is_front_end` by a unit test.
+- **The `ProjectLocks` set is bd-cache-sync's.** The handle opens through
+  `bd_cache_sync::compose_tuned` (the one composition root, with the handle's
+  `project_dir`, `call_timeout_s` and `miss_fill_timeout_ms` as its `ComposeTuning`), so the
+  handles and every sync run of the process share bd-cache-sync's one process-wide
+  `ProjectLocks`; this crate keeps no lock set and no schedule-store error text of its own
+  (the `ScheduleTable` keeps the table's error with its source). `sc-bd-cli` keys the locks by
+  the canonical path, so the `project_dir` given is checked (UTF-8, an existing directory) and
+  used as written; `dunce` is dropped.
+- **The front-end verbs run through `bd_cache_sync::execute`** (`FrontEnd::Python`), so this
+  module and `bdc` give the same codes and details; only the suggested action is worded for
+  Python. While such a call runs with the GIL released, the calling thread checks for a Python
+  signal every 100 ms: a `KeyboardInterrupt` stops the run (a tick between steps, killing its
+  hook; `sync_use_python` killing its script and restoring) and is raised when the call returns.
+
 ## Reply shapes
 
 Versioned with the wheel (`0.1.0`). `ts` is an RFC 3339 UTC `str` with second

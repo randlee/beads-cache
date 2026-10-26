@@ -1,16 +1,14 @@
 //! The post-sync hook (REQ-BDC-0723, 0727, 0728; ADR-SYNC-0008) through the
 //! built-in run, with a stub interpreter (a shell script) in place of
-//! `python -I -m bd_cache_rs.run`. Unix: the stub is a shell script; the
-//! Windows job-object kill is sc-cron's (`crates/sc-cron/tests/process_api.rs`
-//! compiles it for Windows) and `windows_job_object` below.
+//! `python -I -m bd_cache_rs.run`. Unix: the stub is a shell script. The
+//! Windows job-object kill of a hook and of a Python row, and the
+//! Ctrl-Break stop of `cron run`, are real-process tests on Windows:
+//! `crates/bd-cache-cli/tests/windows.rs`, run by CI's windows-latest job.
 
 #![cfg(unix)]
-#![allow(
+#![expect(
     clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::panic,
-    clippy::indexing_slicing,
-    reason = "test code: a failed unwrap or index is a test failure"
+    reason = "test code: a failed unwrap is a test failure"
 )]
 
 mod common;
@@ -19,22 +17,24 @@ use std::os::unix::fs::PermissionsExt as _;
 use std::time::Duration;
 
 use bd_cache_model::{CacheStore, TickBudget, TickRunReason};
-use bd_cache_sync::{BuiltinPayload, EnvNames, HookStep, PostSyncHook, run_builtin};
-use common::{HookStub, World, escalate, gate_file, label_scope};
+use bd_cache_sync::{BuiltinPayload, EnvNames, HookStep, PostSyncHook};
+use common::{HookStub, World, escalate, escalate_with, gate_file, label_scope, run_builtin};
 use sc_beads::Timestamp;
 use sc_beads::testing::{FakeOp, Injection};
 
 fn with_hook(stub: &HookStub, budget_ms: u64, reserve_ms: u64) -> BuiltinPayload {
+    with_hook_env(stub, budget_ms, reserve_ms, EnvNames::default())
+}
+
+fn with_hook_env(
+    stub: &HookStub,
+    budget_ms: u64,
+    reserve_ms: u64,
+    env: EnvNames,
+) -> BuiltinPayload {
     BuiltinPayload {
         budget: TickBudget::new(Some(budget_ms), Some(reserve_ms), true).unwrap(),
-        hook: Some(
-            PostSyncHook::new(
-                &stub.python,
-                "consumer.hooks:after_sync",
-                EnvNames::default(),
-            )
-            .unwrap(),
-        ),
+        hook: Some(PostSyncHook::new(&stub.python, "consumer.hooks:after_sync", env).unwrap()),
     }
 }
 
@@ -298,4 +298,226 @@ async fn an_oversized_offer_is_capped_at_500_escalations() {
     );
     assert_eq!(reply.hook.offered, 500);
     assert!(serde_json::to_vec(&req).unwrap().len() <= bd_cache_sync::MAX_HOOK_REQUEST_BYTES);
+}
+
+/// A request larger than a pipe's buffer (hundreds of KiB) is written while
+/// the output is read, whether the hook reads it all or not at all: no
+/// deadlock (acceptance 7). Planted negative: the hook that reads it gets
+/// every byte the run built.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_request_larger_than_the_pipe_buffer_is_written_without_a_deadlock() {
+    let world = World::new();
+    escalate_with(&world, 300, &"e".repeat(2_000));
+    let stub = HookStub::new();
+    let cache = world.shared(vec![]);
+    let payload = with_hook(&stub, 20_000, 5_000);
+    let reply = run_builtin(&cache, &payload, &world.ctx()).await.unwrap();
+    assert_eq!(reply.hook.status, HookStep::Ok, "{:?}", reply.hook);
+    let read = std::fs::metadata(stub.dir.path().join("request.1.json"))
+        .unwrap()
+        .len();
+    assert!(read > 256 * 1024, "the request was {read} bytes");
+    stub.mode("noread");
+    let reply = tokio::time::timeout(
+        Duration::from_secs(30),
+        run_builtin(&cache, &payload, &world.ctx()),
+    )
+    .await
+    .expect("no deadlock")
+    .unwrap();
+    assert_eq!(
+        reply.hook.status,
+        HookStep::Ok,
+        "a hook that never reads its request still answers"
+    );
+}
+
+/// Escalations whose errors are large are dropped from the end until the
+/// whole request fits in 4 MiB, the rest counted (REQ-BDC-0727). Planted
+/// negative: small ones keep all 500 (the cap test above).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_request_over_4_mib_is_trimmed_to_fit() {
+    let world = World::new();
+    escalate_with(&world, 500, &"x".repeat(10_000));
+    let stub = HookStub::new();
+    let cache = world.shared(vec![]);
+    let reply = run_builtin(&cache, &with_hook(&stub, 20_000, 5_000), &world.ctx())
+        .await
+        .unwrap();
+    let size = std::fs::metadata(stub.dir.path().join("request.1.json"))
+        .unwrap()
+        .len();
+    let req = stub.request(1);
+    let kept = req["escalated"].as_array().unwrap().len();
+    assert!(kept < 500 && kept > 0, "kept {kept}");
+    assert!(
+        size <= bd_cache_sync::MAX_HOOK_REQUEST_BYTES as u64,
+        "{size} bytes"
+    );
+    assert_eq!(req["escalated_remaining"], 500 - kept as u64);
+    assert_eq!(req["escalated_truncated"], true);
+    assert_eq!(reply.hook.offered, kept);
+    // Only what was offered is marked offered.
+    let offered = world
+        .store
+        .unannounced_escalations()
+        .unwrap()
+        .iter()
+        .filter(|e| e.first_offered_at.is_some())
+        .count();
+    assert_eq!(offered, kept);
+}
+
+/// Over 1 MiB on stderr fails the hook as `oversize`, and the reply keeps
+/// at most 8 KiB of it (REQ-BDC-0723). Planted negative: stdout's cap is
+/// the flood test above; the default stub's stderr passes.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_hook_that_floods_stderr_fails_as_oversize_and_keeps_8_kib() {
+    let world = World::new();
+    let stub = HookStub::new();
+    stub.mode("errflood");
+    let cache = world.shared(vec![]);
+    let reply = run_builtin(&cache, &with_hook(&stub, 20_000, 5_000), &world.ctx())
+        .await
+        .unwrap();
+    let error = reply.hook.error.unwrap();
+    assert_eq!(error["details"]["reason"], "oversize");
+    let kept = reply.hook.stderr.unwrap();
+    assert_eq!(kept.len(), bd_cache_sync::MAX_KEPT_STDERR_BYTES);
+}
+
+/// The values of the hook's `--env` variables are redacted from every text
+/// the hook wrote that the run keeps: its stderr (cut to 8 KiB), its error
+/// message in `hook.error`, and `hook_state.last_error` (REQ-BDC-0724,
+/// acceptance 4). Planted negative: with no `--env` name, the value shows.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_hooks_env_values_are_redacted_from_the_reply_and_the_hook_state() {
+    let value = std::env::var("HOME").unwrap();
+    let world = World::new();
+    let stub = HookStub::new();
+    stub.mode("secret");
+    let cache = world.shared(vec![]);
+    let env = EnvNames::new(["HOME".to_owned()]).unwrap();
+    let reply = run_builtin(
+        &cache,
+        &with_hook_env(&stub, 20_000, 5_000, env),
+        &world.ctx(),
+    )
+    .await
+    .unwrap();
+    let stderr = reply.hook.stderr.clone().unwrap();
+    assert!(stderr.contains("<redacted:HOME>") && !stderr.contains(&value));
+    assert_eq!(
+        stderr.len(),
+        bd_cache_sync::MAX_KEPT_STDERR_BYTES,
+        "cut to 8 KiB"
+    );
+    let error = reply.hook.error.unwrap();
+    let message = error["message"].as_str().unwrap();
+    assert!(message.contains("<redacted:HOME>"), "{message}");
+    assert!(!error.to_string().contains(&value), "{error}");
+    let last = world.store.hook_state().unwrap().last_error.unwrap();
+    assert!(!last.contains(&value), "{last}");
+
+    let reply = run_builtin(&cache, &with_hook(&stub, 20_000, 5_000), &world.ctx())
+        .await
+        .unwrap();
+    assert!(
+        reply.hook.stderr.unwrap().contains(&value),
+        "no --env, no redaction"
+    );
+}
+
+/// A hook killed by the run's kill flag (a signal) fails as `signal`, not
+/// as a timeout (B8Q1-034); planted negative: one killed at its deadline is
+/// `timeout` (the deadline test above).
+#[tokio::test(flavor = "multi_thread")]
+async fn a_hook_killed_by_a_signal_is_reported_as_signal() {
+    let world = World::new();
+    let stub = HookStub::new();
+    stub.mode("hang");
+    let (ready, life) = (gate_file(stub.fifo("ready")), gate_file(stub.fifo("life")));
+    let cache = world.shared(vec![]);
+    let payload = with_hook(&stub, 20_000, 10_000);
+    let ctx = world.ctx();
+    let kill = ctx.kill.clone();
+    let run = tokio::spawn(async move { run_builtin(&cache, &payload, &ctx).await });
+    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(10)).unwrap())
+        .await
+        .unwrap();
+    kill.stop();
+    tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
+        .await
+        .unwrap();
+    let reply = run.await.unwrap().unwrap();
+    assert_eq!(reply.hook.error.unwrap()["details"]["reason"], "signal");
+    assert_eq!(world.store.lease().unwrap(), None);
+}
+
+/// A run stopped after its request was built and before its hook launched
+/// marks nothing offered: `first_offered_at` is set only for a hook that
+/// launches (B8Q1-030). Planted negative: the same run unstopped marks them.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_stopped_before_its_hook_marks_nothing_offered() {
+    use bd_cache::Cache;
+    use common::counting::Counting;
+    let world = World::new();
+    escalate(&world, 2);
+    let stub = HookStub::new();
+    let (store, _touched) = Counting::new(world.store.clone());
+    let ctx = world.ctx();
+    store.stop_on_pending_summary(ctx.stop.clone());
+    let cache = std::sync::Arc::new(std::sync::Mutex::new(
+        Cache::new(
+            bd_cache_model::CacheConfig::new(sc_beads::ProjectRef::local(None), vec![]),
+            store,
+            world.lock.clone(),
+            world.switch.clone(),
+            std::sync::Arc::clone(&world.clock) as std::sync::Arc<dyn sc_beads::Clock>,
+        )
+        .unwrap(),
+    ));
+    let reply = run_builtin(&cache, &with_hook(&stub, 20_000, 5_000), &ctx)
+        .await
+        .unwrap();
+    assert_eq!(reply.hook.status, HookStep::Skipped);
+    assert_eq!(stub.calls(), 0);
+    let entries = world.store.unannounced_escalations().unwrap();
+    assert!(
+        entries.iter().all(|e| e.first_offered_at.is_none()),
+        "{entries:?}"
+    );
+
+    let ctx = world.ctx();
+    let reply = run_builtin(&cache, &with_hook(&stub, 20_000, 5_000), &ctx)
+        .await
+        .unwrap();
+    assert_eq!(reply.hook.status, HookStep::Ok);
+    let entries = world.store.unannounced_escalations().unwrap();
+    assert!(entries.iter().all(|e| e.first_offered_at.is_some()));
+}
+
+/// A hook that marked some entries and then crashed keeps those marks; the
+/// next run offers only the rest, with `first_offered_at` unchanged
+/// (acceptance 8). Planted negative: an unmarked entry is offered again.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_crash_after_marking_keeps_the_marks_and_re_offers_the_rest() {
+    let world = World::new();
+    let seqs = escalate(&world, 2);
+    let stub = HookStub::new();
+    stub.mode("fail");
+    let cache = world.shared(vec![]);
+    let payload = with_hook(&stub, 20_000, 5_000);
+    run_builtin(&cache, &payload, &world.ctx()).await.unwrap();
+    let first = stub.request(1)["escalated"][1]["first_offered_at"].clone();
+    // What the hook did before it crashed: it marked the first entry.
+    cache.lock().unwrap().mark_announced(seqs[0]).unwrap();
+    world.clock.advance(Duration::from_secs(5));
+    stub.mode("ok");
+    run_builtin(&cache, &payload, &world.ctx()).await.unwrap();
+    let req = stub.request(2);
+    let offered = req["escalated"].as_array().unwrap();
+    assert_eq!(offered.len(), 1, "the marked entry is not offered again");
+    assert_eq!(offered[0]["seq"], seqs[1].get());
+    assert_eq!(offered[0]["first_offered_at"], first, "unchanged");
 }

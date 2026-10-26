@@ -3,22 +3,25 @@
 //! `Cache<SqliteStore, FlockDrainLock, BdCli>`, opened from a repository the way
 //! `docs/architecture.md` describes: `.beads/bd-cache.toml` through
 //! `bd_cache_store::load_repo_config`, with explicit arguments overriding the
-//! file's keys.
+//! file's keys. The cache itself is composed by `bd-cache-sync`'s one
+//! composition root (`compose_tuned`), so every `bd` child of the process, a
+//! handle's or a sync run's, shares one process-wide `ProjectLocks` (the lock
+//! that keeps two `bd` processes off one embedded Dolt database).
 
-use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use std::time::Duration;
 
 use bd_cache::Cache;
 use bd_cache_api::CacheFacts;
 use bd_cache_model::{CacheError, RepoConfig, ScopeId};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, DatabaseIdentity,
-    FlockDrainLock, SCHEMA_VERSION, SqliteStore, beads_dir as beads_dir_of, load_repo_config,
+    BeadsDirError, BeadsDirOverride, ConfigLoadError, DatabaseIdentity, FlockDrainLock,
+    SCHEMA_VERSION, SqliteStore, load_repo_config,
 };
-use sc_bd_cli::{BdCli, ProjectLocks};
-use sc_beads::{Clock, ProjectRef, SystemClock};
+use bd_cache_sync::{ComposeError, ComposeTuning, ScheduleTable, SyncFiles, compose_tuned};
+use sc_bd_cli::BdCli;
+use sc_beads::{Clock, SystemClock};
 
 /// The cache type every verb of the module runs on.
 pub(crate) type Composition = Cache<SqliteStore, FlockDrainLock, BdCli>;
@@ -149,9 +152,10 @@ impl From<ConfigLoadError> for OpenError {
 pub(crate) struct Opened {
     pub(crate) cache: Composition,
     /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014).
-    pub(crate) schedules: Result<Arc<bd_cache_store::CacheScheduleStore>, String>,
-    /// The beads directory `metadata.json` was read from.
-    pub(crate) beads_dir: PathBuf,
+    pub(crate) schedules: ScheduleTable,
+    /// The files a sync run of this cache uses (the cache file, the beads
+    /// directory `metadata.json` was read from, the repository root).
+    pub(crate) files: SyncFiles,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) path: PathBuf,
     /// What `context` and `cache status` report of the file and `metadata.json`.
@@ -173,20 +177,6 @@ pub(crate) fn phase_problem(phase: &str) -> String {
 /// [`phase_problem`] text.
 pub(crate) fn parse_phase(phase: &str) -> Result<ScopeId, String> {
     bd_cache_model::legacy_scope(phase).ok_or_else(|| phase_problem(phase))
-}
-
-/// Every `bd` call of every handle in the process goes through this one lock set.
-///
-/// `bd` on embedded Dolt crashes when two `bd` processes use one database at
-/// once, so `ProjectLocks` holds one mutex per project directory for the life of
-/// each child. Two handles on one project (different cache files) must share
-/// the set, or their children overlap: hence a process-wide static. This is
-/// correctness state, not a cache, and it lives in this module, not in the
-/// libraries (`sc-bd-cli` takes the set as an argument and owns no static).
-static LOCKS: OnceLock<Arc<ProjectLocks>> = OnceLock::new();
-
-fn project_locks() -> Arc<ProjectLocks> {
-    Arc::clone(LOCKS.get_or_init(|| Arc::new(ProjectLocks::new())))
 }
 
 fn refuse(text: String) -> OpenError {
@@ -217,25 +207,41 @@ fn check_repo_root(p: &Path) -> Result<(), OpenError> {
     }
 }
 
-/// The directory `bd` runs in, resolved to its one canonical spelling.
-///
-/// The lock key is the directory text, so `root`, `root/.`, `root/` and a symlink to
-/// `root` must all become one string, or two handles on one project would run `bd`
-/// at the same time. A directory that does not resolve is refused. `dunce`
-/// canonicalizes like `std::fs::canonicalize` but, on Windows, returns the plain
-/// `C:\...` form where it is valid, not the `\\?\` verbatim form (R12).
-fn project_dir_text(what: &str, p: &Path) -> Result<String, OpenError> {
-    p.to_str()
-        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", p.display())))?;
-    let canonical = dunce::canonicalize(p)
-        .map_err(|e| refuse(format!("{what} {} does not resolve: {e}", p.display())))?;
-    if !canonical.is_dir() {
-        return Err(refuse(format!("{what} {} is not a directory", p.display())));
-    }
-    canonical
+/// Checks the directory `bd` runs in: valid UTF-8 and an existing directory;
+/// returns its text. The lock key is `sc-bd-cli`'s (the canonical path, so
+/// every spelling of one directory shares one lock); this only refuses a
+/// directory that cannot be one.
+fn check_project_dir(p: &Path) -> Result<String, OpenError> {
+    let text = p
         .to_str()
-        .map(str::to_owned)
-        .ok_or_else(|| refuse(format!("{what} {} is not valid UTF-8", canonical.display())))
+        .ok_or_else(|| refuse(format!("project_dir {} is not valid UTF-8", p.display())))?;
+    match std::fs::metadata(p) {
+        Ok(m) if m.is_dir() => Ok(text.to_owned()),
+        Ok(_) => Err(refuse(format!(
+            "project_dir {} is not a directory",
+            p.display()
+        ))),
+        Err(e) => Err(refuse(format!(
+            "project_dir {} does not resolve: {e}",
+            p.display()
+        ))),
+    }
+}
+
+/// A composition failure as the handle's open error.
+fn open_error(e: ComposeError) -> OpenError {
+    match e {
+        ComposeError::Config(e) => OpenError::from(e),
+        ComposeError::Cache(e) => OpenError::Cache(e),
+        ComposeError::BeadsDir(e) => unresolvable_beads_dir(&e),
+        ComposeError::RepoRootNotUtf8(root) => {
+            refuse(format!("repo_root {} is not valid UTF-8", root.display()))
+        }
+        other => OpenError::Cache(CacheError::StoreFailed {
+            detail: format!("cannot open the cache ({}): {other}", other.code()),
+            source: None,
+        }),
+    }
 }
 
 /// Opens the cache of `repo_root`, running `bd_binary` in `project_dir`.
@@ -296,8 +302,7 @@ pub(crate) fn open_with(
     beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
 ) -> Result<Opened, OpenError> {
     check_repo_root(repo_root)?;
-    let (what, dir) = project_dir.map_or(("repo_root", repo_root), |d| ("project_dir", d));
-    let project = ProjectRef::local(Some(project_dir_text(what, dir)?));
+    let project_dir = project_dir.map(check_project_dir).transpose()?;
     let beads_dir = beads_dir.map_err(|e| unresolvable_beads_dir(&e))?;
     let mut config: RepoConfig = load_repo_config(repo_root)?;
     if let Some(p) = overrides.cache_path {
@@ -309,41 +314,35 @@ pub(crate) fn open_with(
     if overrides.max_attempts.is_some() {
         config.max_attempts = overrides.max_attempts;
     }
-    let store = SqliteStore::open_with(repo_root, &config, beads_dir.as_ref())?;
-    let path = store.path().to_path_buf();
-    let schedules = store
-        .schedule_store()
-        .map(Arc::new)
-        .map_err(|e| format!("schedule store (sc_cron_schedule): {e}"));
-    let beads = beads_dir_of(repo_root, beads_dir.as_ref());
-    let identity = DatabaseIdentity::read(&beads)?;
+    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
+    let composed = compose_tuned(
+        repo_root,
+        config,
+        bd_binary,
+        Arc::clone(&clock),
+        Ok(beads_dir),
+        &ComposeTuning {
+            project_dir,
+            call_timeout: overrides.call_timeout,
+            miss_fill_timeout: overrides.miss_fill_timeout,
+        },
+    )
+    .map_err(open_error)?;
+    let identity = DatabaseIdentity::read(&composed.beads_dir)?;
+    let path = composed.cache_path.clone();
     let facts = CacheFacts {
         cache_path: path.to_string_lossy().into_owned(),
         store_schema_version: i64::from(SCHEMA_VERSION),
         database: identity.dolt_database.as_str().to_owned(),
         project_id: identity.project_id.as_str().to_owned(),
-        beads_dir: Some(beads.to_string_lossy().into_owned()),
+        beads_dir: Some(composed.beads_dir.to_string_lossy().into_owned()),
         repo_root: Some(repo_root.to_string_lossy().into_owned()),
     };
-    let lock = store.drain_lock();
-    let clock: Arc<dyn Clock> = Arc::new(SystemClock);
-    let backend = BdCli::new_with_clock(bd_binary, project_locks(), Arc::clone(&clock))
-        .with_child_var(
-            OsStr::new(BEADS_DIR_ENV),
-            beads_dir.as_ref().map(BeadsDirOverride::as_os_str),
-        );
-    let mut cache_config = config.cache_config(project);
-    if let Some(d) = overrides.call_timeout {
-        cache_config.call_timeout = d;
-    }
-    if let Some(d) = overrides.miss_fill_timeout {
-        cache_config.miss_fill_timeout = d;
-    }
-    let cache = Cache::new(cache_config, store, lock, backend, Arc::clone(&clock))?;
+    let files = composed.files();
     Ok(Opened {
-        cache,
-        schedules,
-        beads_dir: beads,
+        cache: composed.cache,
+        schedules: composed.schedules,
+        files,
         clock,
         path,
         facts,
@@ -357,6 +356,8 @@ pub(crate) fn open_with(
     reason = "test code: a failed unwrap is a test failure"
 )]
 mod tests {
+    use std::ffi::OsStr;
+
     use super::*;
 
     /// [`open_with`] with `$BEADS_DIR` unset, whatever the environment of the test run.
@@ -443,11 +444,6 @@ mod tests {
     }
 
     #[test]
-    fn handles_share_one_lock_set() {
-        assert!(Arc::ptr_eq(&project_locks(), &project_locks()));
-    }
-
-    #[test]
     fn phase_names_parse_once_with_one_message() {
         assert_eq!(
             parse_phase("phase-bk").map(|s| s.name().to_owned()),
@@ -460,22 +456,28 @@ mod tests {
         );
     }
 
+    /// A project directory that does not resolve, or is a file, is refused
+    /// with the argument kind; planted negative: an existing one is taken.
+    /// (Its spellings share one lock in `sc-bd-cli`, which keys locks by the
+    /// canonical path; `tests/test_threading.py` checks that end to end.)
     #[test]
-    fn spellings_of_one_directory_become_one_lock_key_and_a_missing_one_is_refused() {
+    fn a_missing_project_dir_is_refused() {
         let tmp = tempfile::TempDir::new().unwrap();
         let dir = tmp.path().to_path_buf();
-        let plain = project_dir_text("project_dir", &dir).unwrap();
-        let dotted = project_dir_text("project_dir", &dir.join(".")).unwrap();
-        let slashed = project_dir_text("project_dir", &dir.join("")).unwrap();
-        assert_eq!(plain, dotted);
-        assert_eq!(plain, slashed);
-        assert!(matches!(
-            project_dir_text("project_dir", &dir.join("no-such-dir-bd-cache-py")),
-            Err(OpenError::Config {
-                kind: ConfigKind::Argument,
-                ..
-            })
-        ));
+        assert!(check_project_dir(&dir).is_ok());
+        for bad in [dir.join("no-such-dir-bd-cache-py"), {
+            let f = dir.join("a-file");
+            std::fs::write(&f, "x").unwrap();
+            f
+        }] {
+            assert!(matches!(
+                check_project_dir(&bad),
+                Err(OpenError::Config {
+                    kind: ConfigKind::Argument,
+                    ..
+                })
+            ));
+        }
     }
 
     #[cfg(unix)]

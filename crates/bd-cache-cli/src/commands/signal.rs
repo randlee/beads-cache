@@ -1,36 +1,43 @@
-//! bdc's handling of `SIGTERM`, `SIGINT` and `SIGHUP` (RSH-001, ADR-CLI-0005).
+//! bdc's handling of `SIGTERM`, `SIGINT` and `SIGHUP` (RSH-001, ADR-CLI-0005),
+//! and of Ctrl-C and Ctrl-Break for `cron run` on Windows (REQ-BDC-0730).
 //!
 //! Every `bd` child leads its own process group, so a signal sent to bdc (or to
 //! the terminal's foreground group) never reaches it. Left to the default
 //! action, bdc would die and leave the `bd` (and a `dolt` it started) running,
 //! with no project lock held. So on Unix [`install`] takes over the three
-//! signals before any command runs. A signal then:
+//! signals before any command runs. A signal is handled by [`Signals`]:
 //!
-//! 1. asks every bounded `bd` call to stop ([`sc_bd_cli::shutdown::request`]):
+//! 1. its number is recorded (the first one; a later one changes nothing);
+//! 2. the command's [`StopFlag`] is set: `cache tick` and `sync use-python`
+//!    stop between steps and kill a running hook's or script's process tree,
+//!    and `cache cron run` starts no new run;
+//! 3. every bounded `bd` call is asked to stop ([`sc_bd_cli::shutdown::request`]:
 //!    a running child's process group is killed and reaped exactly as on a
-//!    timeout, and the in-process and cross-process project locks are released
-//!    by the call's normal return;
-//! 2. sets the command's [`StopFlag`]: `cache tick` and `sync use-python` stop
-//!    between steps and kill a running hook's or script's process tree, and
-//!    `cache cron run` starts no new run and waits for the runs in flight up to
-//!    `--shutdown-timeout-ms` (REQ-BDC-0730);
-//! 3. leaves the command to unwind normally: it writes its envelope, and
+//!    timeout, and the project locks are released by the call's normal
+//!    return) — at once for every command but `cache cron run`, which defers
+//!    it ([`Signals::defer_bd_kill`]): its runs in flight, their bd calls
+//!    included, get up to `--shutdown-timeout-ms`, and only when that expires
+//!    are the bd calls stopped ([`Signals::kill_bd`]) and the trees killed
+//!    (Rand's ruling 5, REQ-BDC-0730);
+//! 4. the command unwinds normally: it writes its envelope, and
 //!    [`run_process`](crate::run_process) exits with `128 + signal` (143 for
 //!    `SIGTERM`), the shell's convention for a signal death.
 //!
 //! The signals are received by `signal-hook`'s iterator on a thread of its
-//! own, so no code of ours runs in signal context. A second signal while the
-//! first is being handled changes nothing: the shutdown is already bounded by
-//! the calls' kill bound, and `SIGKILL` remains for an impatient caller (on
-//! Linux the `bd` child also gets `PR_SET_PDEATHSIG`, see
-//! [`sc_bd_cli::bounded`]).
-//!
-//! On other platforms [`install`] does nothing: Windows has no such signals,
-//! and a console Ctrl-C there is out of this module's scope.
+//! own, so no code of ours runs in signal context. On Linux the `bd` child
+//! also gets `PR_SET_PDEATHSIG` (see [`sc_bd_cli::bounded`]). On Windows,
+//! where there are no such signals, `cron run` registers Ctrl-C and
+//! Ctrl-Break itself ([`console_stop`]), recorded as `SIGINT` (exit 130).
 
-use std::io;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use bd_cache_sync::StopFlag;
+#[cfg(windows)]
+use sc_beads::logging::tracing;
+
+/// `SIGTERM`'s number on every Unix: the default stop signal.
+const SIGTERM: i32 = 15;
 
 /// The exit code of a process stopped by `signal`: `128 + signal`.
 ///
@@ -38,10 +45,62 @@ use bd_cache_sync::StopFlag;
 /// reported as `SIGTERM`'s 143.
 #[must_use]
 pub(crate) fn exit_code(signal: i32) -> u8 {
-    /// `SIGTERM`, the default stop signal, on every Unix.
-    const SIGTERM: i32 = 15;
     let signal = if signal > 0 { signal } else { SIGTERM };
     u8::try_from(128 + signal).unwrap_or(128 + 15)
+}
+
+/// What the process's signals did: the flag the command watches, the first
+/// signal's number, and whether `bd` calls are stopped at once (module docs).
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Signals {
+    stop: StopFlag,
+    first: Arc<AtomicI32>,
+    defer: Arc<AtomicBool>,
+}
+
+impl Signals {
+    /// No signal yet.
+    #[must_use]
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    /// The flag a signal sets.
+    #[must_use]
+    pub(crate) fn stop(&self) -> &StopFlag {
+        &self.stop
+    }
+
+    /// The first signal received, if any.
+    #[must_use]
+    pub(crate) fn first(&self) -> Option<i32> {
+        match self.first.load(Ordering::SeqCst) {
+            0 => None,
+            n => Some(n),
+        }
+    }
+
+    /// Handles `signal` (module docs, steps 1 to 3).
+    pub(crate) fn received(&self, signal: i32) {
+        let _first =
+            self.first
+                .compare_exchange(0, signal.max(1), Ordering::SeqCst, Ordering::SeqCst);
+        self.stop.stop();
+        if !self.defer.load(Ordering::SeqCst) {
+            self.kill_bd();
+        }
+    }
+
+    /// From now on a signal leaves the `bd` calls running: `cron run` stops
+    /// them itself when its shutdown timeout expires ([`Signals::kill_bd`]).
+    pub(crate) fn defer_bd_kill(&self) {
+        self.defer.store(true, Ordering::SeqCst);
+    }
+
+    /// Asks every bounded `bd` call to stop, as the first signal would.
+    pub(crate) fn kill_bd(&self) {
+        sc_bd_cli::shutdown::request(self.first().unwrap_or(SIGTERM));
+    }
 }
 
 /// The signals bdc stops on.
@@ -52,41 +111,72 @@ pub(crate) const SIGNALS: [i32; 3] = [
     signal_hook::consts::SIGHUP,
 ];
 
-/// Takes over [`SIGNALS`] for the rest of the process: each one requests the
-/// shutdown of the bounded `bd` calls and sets `stop`.
+/// Takes over [`SIGNALS`] for the rest of the process: each one goes to
+/// [`Signals::received`]. Unix only: the caller is cfg-gated, so other
+/// platforms have no such function at all.
 ///
 /// # Errors
 ///
 /// The OS error when a handler cannot be registered or the receiving thread
 /// cannot be started; the signals then keep their default action.
 #[cfg(unix)]
-pub(crate) fn install(stop: &StopFlag) -> io::Result<()> {
-    let mut signals = signal_hook::iterator::Signals::new(SIGNALS)?;
-    let stop = stop.clone();
+pub(crate) fn install(signals: &Signals) -> std::io::Result<()> {
+    let mut iter = signal_hook::iterator::Signals::new(SIGNALS)?;
+    let signals = signals.clone();
     std::thread::Builder::new()
         .name("bdc-signals".to_owned())
         .spawn(move || {
-            for signal in signals.forever() {
-                sc_bd_cli::shutdown::request(signal);
-                stop.stop();
+            for signal in iter.forever() {
+                signals.received(signal);
             }
         })
         .map(drop)
 }
 
-/// Does nothing: this platform has no `SIGTERM`, `SIGINT` or `SIGHUP`.
-///
-/// # Errors
-///
-/// Never.
-#[cfg(not(unix))]
-#[expect(
-    clippy::unnecessary_wraps,
-    reason = "the Unix form can fail; one signature for both"
-)]
-pub(crate) fn install(stop: &StopFlag) -> io::Result<()> {
-    let _ = stop;
-    Ok(())
+/// `SIGINT`'s number: Ctrl-C and Ctrl-Break exit 130 as Ctrl-C does (REQ-BDC-0730).
+#[cfg(windows)]
+const SIGINT: i32 = 2;
+
+/// Ctrl-C and Ctrl-Break stop `cron run` on Windows (exit 130, REQ-BDC-0730):
+/// a task on the current runtime that hands the first of them to
+/// [`Signals::received`]. A handler that cannot be registered is logged at
+/// `WARN`: `cron run` then cannot be stopped gracefully that way.
+#[cfg(windows)]
+pub(crate) fn console_stop(signals: &Signals) -> tokio::task::JoinHandle<()> {
+    let signals = signals.clone();
+    tokio::spawn(async move {
+        let mut c = tokio::signal::windows::ctrl_c()
+            .inspect_err(|e| {
+                tracing::warn!(error = %e, "cannot handle Ctrl-C; cron run cannot be stopped with it");
+            })
+            .ok();
+        let mut b = tokio::signal::windows::ctrl_break()
+            .inspect_err(|e| {
+                tracing::warn!(error = %e, "cannot handle Ctrl-Break; cron run cannot be stopped with it");
+            })
+            .ok();
+        let ctrl_c = async {
+            match c.as_mut() {
+                Some(c) => {
+                    c.recv().await;
+                }
+                None => std::future::pending().await,
+            }
+        };
+        let ctrl_break = async {
+            match b.as_mut() {
+                Some(b) => {
+                    b.recv().await;
+                }
+                None => std::future::pending().await,
+            }
+        };
+        tokio::select! {
+            () = ctrl_c => {}
+            () = ctrl_break => {}
+        }
+        signals.received(SIGINT);
+    })
 }
 
 #[cfg(test)]
@@ -99,6 +189,25 @@ mod tests {
         assert_eq!(exit_code(2), 130);
         assert_eq!(exit_code(1), 129);
         assert_eq!(exit_code(-1), 143);
+    }
+
+    /// The first signal is the one recorded, and it sets the stop flag; a
+    /// deferred process leaves the bd calls running (cron run's grace).
+    /// Planted negative: a second signal does not replace the first.
+    #[test]
+    fn the_first_signal_is_recorded_and_sets_the_flag() {
+        let signals = Signals::new();
+        signals.defer_bd_kill();
+        assert_eq!(signals.first(), None);
+        signals.received(15);
+        signals.received(2);
+        assert_eq!(signals.first(), Some(15));
+        assert!(signals.stop().is_stopped());
+        assert_eq!(
+            sc_bd_cli::shutdown::requested(),
+            None,
+            "deferred: no bd kill yet"
+        );
     }
 }
 

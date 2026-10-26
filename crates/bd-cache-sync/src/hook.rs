@@ -7,23 +7,28 @@
 //! cwd, with the environment cleared except `PATH`, `HOME`, `LANG`, `LC_*`,
 //! `BEADS_DIR`, `BD_CACHE_PATH` and the row's `--env` names, stdout and stderr
 //! each capped at [`MAX_HOOK_PIPE_BYTES`], the request written while the
-//! output is read, and the tree killed at the hook deadline or on a stop. The
-//! trust check runs before every launch: the runner takes a
-//! [`TrustedCacheFile`] by value. The run marks nothing; the hook marks what
-//! it handled (`scope_announce`, `journal announce`) and must be idempotent.
+//! output is read, and the tree killed at the hook deadline or on a kill
+//! (reason `signal`). The trust check runs before every launch: the runner
+//! takes a [`TrustedCacheFile`] by value. Everything the hook wrote that
+//! reaches the reply, the hook state or a log line is redacted (the row's
+//! `--env` values) and cut. The run marks nothing; the hook marks what it
+//! handled (`scope_announce`, `journal announce`) and must be idempotent.
 
 use std::ffi::OsString;
 use std::path::Path;
 use std::time::Duration;
 
-use bd_cache_model::{CacheError, FailingSince, JournalEntry, RunId, ScopeId, Seq, TickRunReason};
+use bd_cache_model::{
+    CacheError, EscalationPage, FailingSince, JournalEntry, PendingSummary, RunId, ScopeId, Seq,
+    TickRunReason,
+};
 use sc_beads::Timestamp;
 use sc_cron::process::{ChildSpec, TempCwd, supervise};
 use serde::Serialize;
 use serde_json::{Value, json};
 
 use crate::payload::{BUILTIN_ROW, PostSyncHook};
-use crate::text::{MAX_KEPT_STDERR_BYTES, cut, redact_and_cut};
+use crate::text::{MAX_KEPT_STDERR_BYTES, Redactor, cut};
 use crate::trust::TrustedCacheFile;
 
 /// The `protocol` member of the hook's request and of `bd_cache_rs.run`'s answer.
@@ -75,15 +80,30 @@ pub enum ScopeOutcome {
     Skipped,
 }
 
-/// The error of a scope result.
+/// The error of a scope result: `{code, message, outage}`.
+///
+/// `outage` is REQ-BDC-0729's `details.outage` of the error, carried flat in
+/// this embedded object as ADR-SYNC-0008's request shows; it is true only
+/// when bd could not be reached.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScopeError {
     /// The `BD_CACHE.*` code.
-    pub code: String,
+    pub code: &'static str,
     /// What happened.
     pub message: String,
     /// True only when bd could not be reached (REQ-BDC-0729).
     pub outage: bool,
+}
+
+impl ScopeError {
+    /// The scope error of a cache error.
+    pub(crate) fn of(e: &CacheError) -> Self {
+        Self {
+            code: e.code(),
+            message: e.to_string(),
+            outage: e.outage().unwrap_or(false),
+        }
+    }
 }
 
 /// The drain's part of a hook request.
@@ -97,11 +117,13 @@ pub struct DrainSummary {
     pub error: Option<ScopeError>,
 }
 
-/// A request ready to write, with what it offered.
+/// A request ready to write, with what it offers.
 #[derive(Debug)]
 pub(crate) struct HookRequest {
     pub(crate) body: Vec<u8>,
     pub(crate) offered: Vec<Seq>,
+    /// Escalations left out of the request (the page's rest and any trimmed).
+    pub(crate) remaining: u64,
 }
 
 /// The inputs of a hook request besides the escalations.
@@ -110,9 +132,10 @@ pub(crate) struct RequestParts<'a> {
     pub(crate) now: &'a Timestamp,
     pub(crate) deadline: &'a Timestamp,
     pub(crate) cache_path: &'a Path,
+    pub(crate) repo_root: &'a Path,
     pub(crate) drain: &'a DrainSummary,
     pub(crate) scopes: &'a [ScopeResult],
-    pub(crate) pending: (u64, Option<i64>),
+    pub(crate) pending: &'a PendingSummary,
 }
 
 /// The JSON of one offered escalation.
@@ -129,20 +152,50 @@ fn escalation_json(e: &JournalEntry, now: &Timestamp) -> Value {
     })
 }
 
-/// Builds the request: at most [`MAX_ESCALATIONS_OFFERED`] escalations,
-/// oldest first, dropped from the end until the whole request fits in
-/// `cap` bytes, and counted in `escalated_remaining` (REQ-BDC-0727).
+/// Counts the bytes written to it.
+struct Measure(usize);
+
+impl std::io::Write for Measure {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.0 = self.0.saturating_add(buf.len());
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+/// The encoded size of `v`, measured without building the text.
+fn encoded_len(v: &Value) -> usize {
+    let mut m = Measure(0);
+    // Writing a `Value` into a counter cannot fail.
+    serde_json::to_writer(&mut m, v).map_or(usize::MAX, |()| m.0)
+}
+
+/// Builds the request: the page's escalations (at most
+/// [`MAX_ESCALATIONS_OFFERED`], oldest first), dropped from the end until the
+/// whole request fits in `cap` bytes, the rest counted in
+/// `escalated_remaining` (REQ-BDC-0727). Each escalation's JSON is built once.
 pub(crate) fn build_request(
     parts: &RequestParts<'_>,
-    escalated: &[JournalEntry],
+    page: &EscalationPage,
     cap: usize,
 ) -> HookRequest {
-    let entries: Vec<(Seq, String)> = escalated
+    let entries: Vec<(Seq, Value, usize)> = page
+        .entries
         .iter()
         .take(MAX_ESCALATIONS_OFFERED)
-        .map(|e| (e.seq, escalation_json(e, parts.now).to_string()))
+        .map(|e| {
+            let v = escalation_json(e, parts.now);
+            let len = encoded_len(&v);
+            (e.seq, v, len)
+        })
         .collect();
-    let envelope = |kept: usize, remaining: usize| {
+    let total = page
+        .total
+        .max(u64::try_from(page.entries.len()).unwrap_or(u64::MAX));
+    let envelope = |remaining: u64| {
         json!({
             "protocol": RUN_PROTOCOL,
             "kind": "post_sync",
@@ -150,41 +203,50 @@ pub(crate) fn build_request(
             "now": parts.now.as_str(),
             "deadline": parts.deadline.as_str(),
             "cache_path": parts.cache_path.display().to_string(),
+            "repo_root": parts.repo_root.display().to_string(),
             "drain": parts.drain,
             "scopes": parts.scopes,
             "escalated": [],
             "escalated_truncated": remaining > 0,
             "escalated_remaining": remaining,
-            "pending": {"count": parts.pending.0, "oldest_age_s": parts.pending.1},
-            "_kept": kept,
+            "pending": {
+                "count": parts.pending.count,
+                "oldest_age_s": parts.pending.oldest_created_at.as_ref()
+                    .map(|t| parts.now.unix().saturating_sub(t.unix())),
+            },
         })
     };
-    // The size of the request with `kept` entries: the envelope plus each
-    // entry and its comma. The counts' digits change the envelope by a few
-    // bytes, so it is measured with the final counts.
-    let total = escalated.len();
+    // The size with `kept` entries: the envelope plus each entry and its
+    // comma; the counts' digits change the envelope by a few bytes, so it is
+    // measured with the final counts.
     let mut kept = entries.len();
     loop {
-        let base = envelope(kept, total - kept).to_string().len();
-        let body: usize = entries.iter().take(kept).map(|(_, s)| s.len() + 1).sum();
+        let remaining = total.saturating_sub(u64::try_from(kept).unwrap_or(u64::MAX));
+        let base = encoded_len(&envelope(remaining));
+        let body: usize = entries.iter().take(kept).map(|(_, _, len)| len + 1).sum();
         if base + body <= cap || kept == 0 {
             break;
         }
         kept -= 1;
     }
-    let mut v = envelope(kept, total - kept);
+    let remaining = total.saturating_sub(u64::try_from(kept).unwrap_or(u64::MAX));
+    let mut v = envelope(remaining);
+    let mut offered = Vec::with_capacity(kept);
+    let list: Vec<Value> = entries
+        .into_iter()
+        .take(kept)
+        .map(|(seq, value, _)| {
+            offered.push(seq);
+            value
+        })
+        .collect();
     if let Value::Object(m) = &mut v {
-        m.remove("_kept");
-        let list: Vec<Value> = escalated
-            .iter()
-            .take(kept)
-            .map(|e| escalation_json(e, parts.now))
-            .collect();
         m.insert("escalated".to_owned(), Value::Array(list));
     }
     HookRequest {
         body: v.to_string().into_bytes(),
-        offered: entries.iter().take(kept).map(|(s, _)| *s).collect(),
+        offered,
+        remaining,
     }
 }
 
@@ -216,20 +278,32 @@ pub(crate) fn hook_failed(
     }
 }
 
-/// Runs the hook once with `request`, killed when `expiry` completes.
+/// Why a hook's run was cut.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Cut {
+    /// Its deadline came.
+    Deadline,
+    /// The run's kill flag was set (a signal).
+    Kill,
+}
+
+/// Runs the hook once with `request`; `expiry` completes when its run is
+/// cut, saying why.
 ///
 /// # Errors
 ///
 /// `TICK_RUN_FAILED` (row `bd-cache.sync.builtin`): `spawn` when it cannot
-/// start, `timeout` when killed at `expiry`, `oversize` when a pipe went over
-/// the cap, `exit` for a non-zero exit, malformed output or a wrong protocol.
+/// start, `timeout` when killed at its deadline, `signal` when killed by the
+/// run's kill flag, `oversize` when a pipe went over the cap, `exit` for a
+/// non-zero exit, malformed output or a wrong protocol. Every text the hook
+/// wrote is redacted ([`Redactor`]) and cut.
 pub(crate) async fn run_hook(
     hook: &PostSyncHook,
     trusted: TrustedCacheFile,
     beads_dir: Option<&Path>,
     run_id: &RunId,
     request: &[u8],
-    expiry: impl Future<Output = ()>,
+    expiry: impl Future<Output = Cut>,
 ) -> Result<HookSuccess, CacheError> {
     let mut set: Vec<(OsString, OsString)> = vec![(
         "BD_CACHE_PATH".into(),
@@ -239,7 +313,7 @@ pub(crate) async fn run_hook(
         set.push(("BEADS_DIR".into(), dir.as_os_str().to_owned()));
     }
     let env = hook.env().child_env(set);
-    let names = hook.env().names();
+    let redactor = Redactor::of(hook.env().names());
     let cwd = TempCwd::new().map_err(|e| {
         hook_failed(
             run_id,
@@ -263,6 +337,10 @@ pub(crate) async fn run_hook(
         input: request,
         env,
     };
+    let mut why = None;
+    let expiry = async {
+        why = Some(expiry.await);
+    };
     let captured = supervise(&spec, MAX_HOOK_PIPE_BYTES, expiry)
         .await
         .map_err(|e| {
@@ -276,25 +354,37 @@ pub(crate) async fn run_hook(
         })?;
     // Keep only what the run needs; the trust proof was for this launch.
     drop(trusted);
-    judge(&captured, names, run_id, &target)
+    judge(&captured, why, &redactor, run_id, &target)
 }
 
 /// What one finished (or killed) hook process means (REQ-BDC-0723, 0729).
 fn judge(
     captured: &sc_cron::process::Captured,
-    names: &[String],
+    cut_by: Option<Cut>,
+    redactor: &Redactor,
     run_id: &RunId,
     target: &str,
 ) -> Result<HookSuccess, CacheError> {
-    let stderr = redact_and_cut(&String::from_utf8_lossy(&captured.stderr.bytes), names);
+    let stderr = redactor.stderr(&String::from_utf8_lossy(&captured.stderr.bytes));
     let Some(status) = captured.status else {
-        return Err(hook_failed(
-            run_id,
-            TickRunReason::Timeout,
-            None,
-            stderr,
-            format!("the post-sync hook {target} was killed at its deadline"),
-        ));
+        return Err(match cut_by {
+            Some(Cut::Kill) => hook_failed(
+                run_id,
+                TickRunReason::Signal,
+                None,
+                stderr,
+                format!(
+                    "the post-sync hook {target} was stopped by a signal; its process tree was killed"
+                ),
+            ),
+            Some(Cut::Deadline) | None => hook_failed(
+                run_id,
+                TickRunReason::Timeout,
+                None,
+                stderr,
+                format!("the post-sync hook {target} was killed at its deadline"),
+            ),
+        });
     };
     if captured.stdout.truncated || captured.stderr.truncated {
         return Err(hook_failed(
@@ -318,12 +408,13 @@ fn judge(
     };
     let answer: Option<Value> = serde_json::from_slice(captured.stdout.bytes.trim_ascii()).ok();
     if !status.success() {
+        // The answer's message is the hook's own text: redacted and cut.
         let message = answer
             .as_ref()
             .and_then(|a| a.get("error"))
             .and_then(|e| e.get("message"))
             .and_then(Value::as_str)
-            .map(|m| format!(": {}", cut(m, 512)))
+            .map(|m| format!(": {}", redactor.message(m)))
             .unwrap_or_default();
         return Err(malformed(&format!("exited with {status}{message}"), stderr));
     }
@@ -343,9 +434,9 @@ fn judge(
         return Err(malformed("answered ok: false", stderr));
     }
     let result = answer.get("result").filter(|r| !r.is_null()).map(|r| {
-        let text = r.to_string();
+        let text = redactor.redact(&r.to_string()).into_owned();
         if text.len() <= MAX_KEPT_STDERR_BYTES {
-            r.clone()
+            serde_json::from_str(&text).unwrap_or(Value::String(text))
         } else {
             Value::String(cut(&text, MAX_KEPT_STDERR_BYTES).to_owned())
         }

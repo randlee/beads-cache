@@ -7,7 +7,7 @@
 
 use bd_cache_api::{ApiError, Command, Unsupported};
 
-use crate::args::{ArgSpec, CommandSpec, Shape, Target, Ty};
+use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
 
 use Shape::{List, Many, One};
 use Ty::{Int, Json, Str};
@@ -92,7 +92,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "issues get",
         about: "One bead: its row from the cache, with x_cache (getIssue).",
-        target: Target::Api(Command::IssuesGet),
+        command: Command::IssuesGet,
         args: &[
             ISSUE_ID,
             ArgSpec::flag(
@@ -110,7 +110,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "issues list",
         about: "The rows of one scope, filtered, ordered and paged (listIssues).",
-        target: Target::Api(Command::IssuesList),
+        command: Command::IssuesList,
         args: &[
             ArgSpec::flag(
                 "status",
@@ -172,7 +172,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "issues update",
         about: "Journal an update of one bead (updateIssue).",
-        target: Target::Api(Command::IssuesUpdate),
+        command: Command::IssuesUpdate,
         args: &[
             ISSUE_ID,
             ACTOR,
@@ -257,7 +257,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "issues close",
         about: "Journal the close of one bead (closeIssue).",
-        target: Target::Api(Command::IssuesClose),
+        command: Command::IssuesClose,
         args: &[
             ISSUE_ID,
             ACTOR,
@@ -279,7 +279,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "ready",
         about: "The ready beads of one scope, as the bd CLI counts them (listReadyWork).",
-        target: Target::Api(Command::Ready),
+        command: Command::Ready,
         args: &[
             LABELS[0],
             LABELS[1],
@@ -337,7 +337,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "dependencies list",
         about: "The cached dependency edges of some beads (listDependencies).",
-        target: Target::Api(Command::DependenciesList),
+        command: Command::DependenciesList,
         args: &[
             ArgSpec::flag(
                 "issue-id",
@@ -363,7 +363,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "dependencies add",
         about: "Journal one dependency edge (addDependencies).",
-        target: Target::Api(Command::DependenciesAdd),
+        command: Command::DependenciesAdd,
         args: &[
             ArgSpec::positional(
                 "issue_id",
@@ -398,7 +398,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "context",
         about: "The project, the cache file and the served capabilities (getContext).",
-        target: Target::Api(Command::Context),
+        command: Command::Context,
         args: &[],
         one_of: None,
     },

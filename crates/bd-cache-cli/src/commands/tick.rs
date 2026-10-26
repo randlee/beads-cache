@@ -7,31 +7,18 @@
 //! `PRECONDITION` (`details.reason: "python_sync_enabled"`) and starts no bd
 //! process. Another run in flight makes it reply `skipped: "in_flight"`
 //! (exit 0). Scheduled times are not changed. A signal stops it between
-//! steps and kills its hook's tree.
+//! steps and kills its hook's tree. Its argv row; it runs through
+//! `bd_cache_sync::execute` (`commands::run`).
 
-use bd_cache_api::{ApiError, Command};
-use bd_cache_sync::{Composed, StopFlag};
-use serde_json::Value;
+use bd_cache_api::Command;
 
-use crate::args::{CommandSpec, Target};
-use crate::commands::runtime::{json, parts, runtime, sync_error};
+use crate::args::CommandSpec;
 
 /// `cache tick`.
 pub(crate) const COMMAND: CommandSpec = CommandSpec {
     path: "cache tick",
     about: "Run the built-in sync once now: lease, drain, sync every scope, post-sync hook (PRECONDITION while the Python row is the sync).",
-    target: Target::Sync(Command::CacheTick),
+    command: Command::CacheTick,
     args: &[],
     one_of: None,
 };
-
-/// Runs one tick and returns its reply.
-pub(crate) fn run(composed: Composed, stop: &StopFlag) -> Result<Value, ApiError> {
-    let p = parts(composed)?;
-    let ctx = p.run_context(stop);
-    let rt = runtime()?;
-    let reply = rt
-        .block_on(bd_cache_sync::tick(&p.store, &p.cache, &ctx))
-        .map_err(|e| sync_error(&e))?;
-    json(&reply)
-}

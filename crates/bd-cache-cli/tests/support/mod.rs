@@ -337,3 +337,8 @@ pub fn copy_executable(from: &Path, to: &Path) {
         std::fs::copy(from, to).expect("the copy");
     }
 }
+
+/// Whether a gated fake-bd call passed its gate (`gate_passed`).
+pub fn gate_passed_exists(gate: &Path) -> bool {
+    bd_cache_cli::scenario::gate_passed(gate).exists()
+}

@@ -4,22 +4,91 @@
 //! per cache file. Their payload is [`SyncPayload`], one serde enum tagged by
 //! `target` and decoded by one constructor, [`SyncPayload::decode`], which
 //! validates every value it holds: the budget pair ([`TickBudget`]), the
-//! interpreter ([`TrustedInterpreter`]), the module and the `--env` names.
+//! interpreter ([`TrustedInterpreter`]), the module, the timeout and the
+//! `--env` names. Every path a payload holds is valid UTF-8 (checked when the
+//! value is built), so a payload can always be stored as JSON.
 
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use bd_cache_model::{CacheError, ScheduleReason, TickBudget};
-use sc_cron::PythonHook;
 use sc_cron::process::{ChildEnv, ChildSpec, TempCwd, supervise};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
+use sc_cron::{PythonHook, RunTimeout, ScheduleName};
+use serde::Deserialize;
+use serde_json::{Value, json};
+
+use crate::text::cut;
 
 /// The name of the built-in sync row (a Rust job).
 pub const BUILTIN_ROW: &str = "bd-cache.sync.builtin";
 
 /// The name of the Python sync row (a consumer's script).
 pub const PYTHON_ROW: &str = "bd-cache.sync.python";
+
+/// [`BUILTIN_ROW`] as sc-cron's name, validated once.
+static BUILTIN_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
+    LazyLock::new(|| ScheduleName::new(BUILTIN_ROW));
+
+/// [`PYTHON_ROW`] as sc-cron's name, validated once.
+static PYTHON_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
+    LazyLock::new(|| ScheduleName::new(PYTHON_ROW));
+
+/// One of the two sync rows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncRow {
+    /// [`BUILTIN_ROW`].
+    Builtin,
+    /// [`PYTHON_ROW`].
+    Python,
+}
+
+impl SyncRow {
+    /// The row's name in the table.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Builtin => BUILTIN_ROW,
+            Self::Python => PYTHON_ROW,
+        }
+    }
+
+    /// The sync row named `name`, if it is one.
+    #[must_use]
+    pub fn of(name: &str) -> Option<Self> {
+        match name {
+            BUILTIN_ROW => Some(Self::Builtin),
+            PYTHON_ROW => Some(Self::Python),
+            _ => None,
+        }
+    }
+
+    /// The other sync row.
+    #[must_use]
+    pub fn other(self) -> Self {
+        match self {
+            Self::Builtin => Self::Python,
+            Self::Python => Self::Builtin,
+        }
+    }
+
+    /// The row's name as sc-cron's [`ScheduleName`], built once.
+    ///
+    /// # Errors
+    ///
+    /// Never for these two literals (a unit test checks both); a refusal
+    /// would be `STORE_FAILED`, never a silently skipped write.
+    pub fn name(self) -> Result<ScheduleName, CacheError> {
+        let built = match self {
+            Self::Builtin => &*BUILTIN_NAME,
+            Self::Python => &*PYTHON_NAME,
+        };
+        built
+            .clone()
+            .map_err(crate::schedule::schedule_store_failed)
+    }
+}
 
 /// The Python row's timeout when `--timeout-ms` is not given (REQ-BDC-0724).
 pub const DEFAULT_PYTHON_TIMEOUT_MS: u64 = 60_000;
@@ -42,17 +111,85 @@ pub const MAX_ENV_NAMES: usize = 64;
 /// `LC_*` family and the row's `--env` names (REQ-BDC-0723).
 const BASE_ENV: [&str; 3] = ["PATH", "HOME", "LANG"];
 
+/// The option or payload member a `SCHEDULE_INVALID` names (its `field`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Field {
+    /// `--python`.
+    Python,
+    /// `--module`.
+    Module,
+    /// `--post-sync`.
+    PostSync,
+    /// `--env`.
+    Env,
+    /// `--timeout-ms`.
+    TimeoutMs,
+    /// `--budget-ms`.
+    BudgetMs,
+    /// `--hook-reserve-ms`.
+    HookReserveMs,
+    /// The cron expression.
+    Cron,
+    /// The stored payload, or a path in it.
+    Payload,
+    /// The schedule as a whole (a mode rule).
+    Schedule,
+}
+
+impl Field {
+    /// The `field` text.
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Python => "python",
+            Self::Module => "module",
+            Self::PostSync => "post_sync",
+            Self::Env => "env",
+            Self::TimeoutMs => "timeout_ms",
+            Self::BudgetMs => "budget_ms",
+            Self::HookReserveMs => "hook_reserve_ms",
+            Self::Cron => "cron",
+            Self::Payload => "payload",
+            Self::Schedule => "schedule",
+        }
+    }
+}
+
 /// A `SCHEDULE_INVALID` naming `field`.
 pub(crate) fn invalid(
-    field: &'static str,
+    field: Field,
     reason: ScheduleReason,
     detail: impl Into<String>,
 ) -> CacheError {
     CacheError::ScheduleInvalid {
         detail: detail.into(),
-        field,
+        field: field.as_str(),
         reason,
     }
+}
+
+/// True for a portable identifier: ASCII letters, digits and `_`, not
+/// starting with a digit (an `--env` name, a hook's function name).
+pub(crate) fn is_identifier(text: &str) -> bool {
+    let mut chars = text.chars();
+    chars
+        .next()
+        .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+/// `path` as text, or `SCHEDULE_INVALID` naming `field`: a path that is not
+/// valid UTF-8 cannot be stored in a row's JSON payload.
+fn utf8(field: Field, what: &str, path: &Path) -> Result<String, CacheError> {
+    path.to_str().map(str::to_owned).ok_or_else(|| {
+        invalid(
+            field,
+            ScheduleReason::OutOfRange,
+            format!(
+                "{what} {} is not valid UTF-8 and cannot be stored in the row",
+                path.display()
+            ),
+        )
+    })
 }
 
 /// An absolute path to a regular executable file, with the module it runs.
@@ -66,38 +203,39 @@ pub struct TrustedInterpreter {
 
 impl TrustedInterpreter {
     /// Checks `interpreter` and `module`; `module_field` names the option
-    /// that gave the module in a refusal (`module`, `post_sync`).
+    /// that gave the module in a refusal.
     ///
     /// # Errors
     ///
     /// `SCHEDULE_INVALID` with `field: "python"` and `not_absolute` for a
     /// relative path, `not_executable` for a path that is not a regular
-    /// executable file; with `field: module_field` and `bad_module` for a
-    /// module that is not a dotted name.
+    /// executable file, `out_of_range` for a path that is not valid UTF-8;
+    /// with the module's field and `bad_module` for a module that is not a
+    /// dotted name.
     ///
     /// # Examples
     ///
     /// ```
     /// use bd_cache_sync::TrustedInterpreter;
-    /// let e = TrustedInterpreter::new("python3", "pkg.sync", "module").unwrap_err();
+    /// let e = TrustedInterpreter::new("python3", "pkg.sync").unwrap_err();
     /// assert_eq!(e.code(), "BD_CACHE.SCHEDULE_INVALID");
     /// ```
-    pub fn new(
-        interpreter: impl Into<PathBuf>,
-        module: &str,
-        module_field: &'static str,
-    ) -> Result<Self, CacheError> {
-        let path = interpreter.into();
+    pub fn new(interpreter: impl Into<PathBuf>, module: &str) -> Result<Self, CacheError> {
+        Self::checked(&interpreter.into(), module, Field::Module)
+    }
+
+    fn checked(path: &Path, module: &str, module_field: Field) -> Result<Self, CacheError> {
         if !path.is_absolute() {
             return Err(invalid(
-                "python",
+                Field::Python,
                 ScheduleReason::NotAbsolute,
                 format!("--python {} is not an absolute path", path.display()),
             ));
         }
-        if !is_executable_file(&path) {
+        utf8(Field::Python, "--python", path)?;
+        if !is_executable_file(path) {
             return Err(invalid(
-                "python",
+                Field::Python,
                 ScheduleReason::NotExecutable,
                 format!(
                     "--python {} is not a regular executable file",
@@ -105,7 +243,7 @@ impl TrustedInterpreter {
                 ),
             ));
         }
-        let hook = PythonHook::new(&path, module).map_err(|e| {
+        let hook = PythonHook::new(path, module).map_err(|e| {
             invalid(
                 module_field,
                 ScheduleReason::BadModule,
@@ -144,7 +282,7 @@ impl TrustedInterpreter {
     pub async fn check_import(&self, env: ChildEnv) -> Result<(), CacheError> {
         let failed = |why: String| {
             invalid(
-                "python",
+                Field::Python,
                 ScheduleReason::ImportFailed,
                 format!(
                     "{} cannot import bd_cache_rs within {} s: {why}",
@@ -168,7 +306,7 @@ impl TrustedInterpreter {
             Some(status) if status.success() => Ok(()),
             Some(status) => Err(failed(format!(
                 "it exited with {status}: {}",
-                crate::text::cut(String::from_utf8_lossy(&captured.stderr.bytes).trim(), 512)
+                cut(String::from_utf8_lossy(&captured.stderr.bytes).trim(), 512)
             ))),
             None => Err(failed("it was killed at the timeout".to_owned())),
         }
@@ -195,13 +333,12 @@ fn is_executable_file(path: &Path) -> bool {
 }
 
 /// Validated `--env` names: each a portable variable name.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
-#[serde(transparent)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnvNames(Vec<String>);
 
 impl EnvNames {
-    /// Checks each name: ASCII letters, digits and `_`, not starting with a
-    /// digit; at most [`MAX_ENV_NAMES`]; duplicates dropped.
+    /// Checks each name ([`is_identifier`]); at most [`MAX_ENV_NAMES`];
+    /// duplicates dropped.
     ///
     /// # Errors
     ///
@@ -209,14 +346,9 @@ impl EnvNames {
     pub fn new(names: impl IntoIterator<Item = String>) -> Result<Self, CacheError> {
         let mut out: Vec<String> = Vec::new();
         for name in names {
-            let mut chars = name.chars();
-            let ok = chars
-                .next()
-                .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-                && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
-            if !ok {
+            if !is_identifier(&name) {
                 return Err(invalid(
-                    "env",
+                    Field::Env,
                     ScheduleReason::OutOfRange,
                     format!("--env {name:?} is not a variable name"),
                 ));
@@ -227,7 +359,7 @@ impl EnvNames {
         }
         if out.len() > MAX_ENV_NAMES {
             return Err(invalid(
-                "env",
+                Field::Env,
                 ScheduleReason::OutOfRange,
                 format!("at most {MAX_ENV_NAMES} --env names"),
             ));
@@ -277,21 +409,16 @@ impl PostSyncHook {
     pub fn new(interpreter: &Path, target: &str, env: EnvNames) -> Result<Self, CacheError> {
         let bad = || {
             invalid(
-                "post_sync",
+                Field::PostSync,
                 ScheduleReason::BadModule,
                 format!("--post-sync {target:?} is not module:function"),
             )
         };
         let (module, function) = target.split_once(':').ok_or_else(bad)?;
-        let mut chars = function.chars();
-        let identifier = chars
-            .next()
-            .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
-            && chars.all(|c| c.is_ascii_alphanumeric() || c == '_');
-        if !identifier {
+        if !is_identifier(function) {
             return Err(bad());
         }
-        let interpreter = TrustedInterpreter::new(interpreter, module, "post_sync")?;
+        let interpreter = TrustedInterpreter::checked(interpreter, module, Field::PostSync)?;
         Ok(Self {
             interpreter,
             function: function.to_owned(),
@@ -319,7 +446,10 @@ impl PostSyncHook {
 }
 
 /// The built-in row's payload: its budget and its optional hook.
-#[derive(Debug, Clone, PartialEq, Eq)]
+///
+/// The default is an on-demand tick's with no built-in row: the default
+/// budget (`budget_ms` 25000, `hook_reserve_ms` 5000) and no hook.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BuiltinPayload {
     /// The budget pair.
     pub budget: TickBudget,
@@ -327,43 +457,27 @@ pub struct BuiltinPayload {
     pub hook: Option<PostSyncHook>,
 }
 
-impl BuiltinPayload {
-    /// The payload of an on-demand tick with no built-in row: the default
-    /// budget (`budget_ms` 25000, `hook_reserve_ms` 5000) and no hook.
-    ///
-    /// # Errors
-    ///
-    /// Never in practice: the defaults are in range; a refusal is
-    /// `SCHEDULE_INVALID`.
-    pub fn defaults() -> Result<Self, CacheError> {
-        Ok(Self {
-            budget: TickBudget::new(None, None, false).map_err(|e| budget_invalid(&e))?,
-            hook: None,
-        })
-    }
-}
-
 /// The Python row's payload: the script and what it is given.
+///
+/// Its fields are checked once, by [`PythonPayload::new`], and read through
+/// the accessors, so a payload out of range cannot be held.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PythonPayload {
-    /// The interpreter and the module (`-I -m <module>`).
-    pub interpreter: TrustedInterpreter,
-    /// The cache file the script opens.
-    pub cache_path: PathBuf,
-    /// The beads directory, when one is set.
-    pub beads_dir: Option<PathBuf>,
-    /// The `--env` names.
-    pub env: EnvNames,
-    /// The row's timeout.
-    pub timeout: Duration,
+    interpreter: TrustedInterpreter,
+    cache_path: PathBuf,
+    beads_dir: Option<PathBuf>,
+    env: EnvNames,
+    timeout: RunTimeout,
 }
 
 impl PythonPayload {
-    /// Checks the timeout (1000–600000 ms) and builds the payload.
+    /// Checks the timeout (1000–600000 ms) and the paths (UTF-8), and builds the payload.
     ///
     /// # Errors
     ///
-    /// `SCHEDULE_INVALID` (`timeout_ms`, `out_of_range`).
+    /// `SCHEDULE_INVALID`: `timeout_ms` (`out_of_range`) for a timeout out
+    /// of range; `payload` (`out_of_range`) for a cache file or beads
+    /// directory whose path is not valid UTF-8.
     pub fn new(
         interpreter: TrustedInterpreter,
         cache_path: PathBuf,
@@ -372,32 +486,101 @@ impl PythonPayload {
         timeout_ms: Option<u64>,
     ) -> Result<Self, CacheError> {
         let ms = timeout_ms.unwrap_or(DEFAULT_PYTHON_TIMEOUT_MS);
-        if !(MIN_PYTHON_TIMEOUT_MS..=MAX_PYTHON_TIMEOUT_MS).contains(&ms) {
-            return Err(invalid(
-                "timeout_ms",
+        let out_of_range = || {
+            invalid(
+                Field::TimeoutMs,
                 ScheduleReason::OutOfRange,
                 format!(
                     "--timeout-ms {ms} is outside {MIN_PYTHON_TIMEOUT_MS}..={MAX_PYTHON_TIMEOUT_MS}"
                 ),
-            ));
+            )
+        };
+        if !(MIN_PYTHON_TIMEOUT_MS..=MAX_PYTHON_TIMEOUT_MS).contains(&ms) {
+            return Err(out_of_range());
+        }
+        let timeout = RunTimeout::new(Duration::from_millis(ms))
+            .map_err(|_in_range_already| out_of_range())?;
+        utf8(Field::Payload, "the cache file", &cache_path)?;
+        if let Some(dir) = &beads_dir {
+            utf8(Field::Payload, "the beads directory", dir)?;
         }
         Ok(Self {
             interpreter,
             cache_path,
             beads_dir,
             env,
-            timeout: Duration::from_millis(ms),
+            timeout,
         })
     }
 
-    /// The `payload` member a run of the script gets: the row's payload plus `run_id`.
+    /// The interpreter and the module (`-I -m <module>`).
     #[must_use]
-    pub fn run_payload(&self, run_id: &str) -> Value {
-        let mut v = SyncPayload::Python(self.clone()).to_json();
+    pub fn interpreter(&self) -> &TrustedInterpreter {
+        &self.interpreter
+    }
+
+    /// The cache file the row was written for. A run never trusts it: the
+    /// trust check and the script's `BD_CACHE_PATH` use the file the worker
+    /// actually opened (REQ-BDC-0723).
+    #[must_use]
+    pub fn cache_path(&self) -> &Path {
+        &self.cache_path
+    }
+
+    /// The beads directory, when one is set.
+    #[must_use]
+    pub fn beads_dir(&self) -> Option<&Path> {
+        self.beads_dir.as_deref()
+    }
+
+    /// The `--env` names.
+    #[must_use]
+    pub fn env(&self) -> &EnvNames {
+        &self.env
+    }
+
+    /// The row's timeout (also its sc-cron timeout).
+    #[must_use]
+    pub fn timeout(&self) -> RunTimeout {
+        self.timeout
+    }
+
+    /// The `payload` member a run of the script gets: the row's payload with
+    /// `cache_path` the file the run opened (`opened`, never the stored
+    /// one), plus `run_id` and `repo_root`.
+    #[must_use]
+    pub fn run_payload(
+        &self,
+        run_id: &bd_cache_model::RunId,
+        opened: &Path,
+        repo_root: &Path,
+    ) -> Value {
+        let mut v = self.to_json();
         if let Value::Object(m) = &mut v {
-            m.insert("run_id".to_owned(), Value::String(run_id.to_owned()));
+            m.insert(
+                "cache_path".to_owned(),
+                Value::String(opened.to_string_lossy().into_owned()),
+            );
+            m.insert("run_id".to_owned(), Value::String(run_id.to_string()));
+            m.insert(
+                "repo_root".to_owned(),
+                Value::String(repo_root.to_string_lossy().into_owned()),
+            );
         }
         v
+    }
+
+    fn to_json(&self) -> Value {
+        // Every path was checked to be UTF-8 when the payload was built.
+        json!({
+            "target": "python",
+            "interpreter": self.interpreter.path().to_string_lossy(),
+            "module": self.interpreter.module(),
+            "cache_path": self.cache_path.to_string_lossy(),
+            "beads_dir": self.beads_dir.as_ref().map(|d| d.to_string_lossy()),
+            "env": self.env.names(),
+            "timeout_ms": millis(self.timeout.get()),
+        })
     }
 }
 
@@ -411,7 +594,7 @@ pub enum SyncPayload {
 }
 
 /// The wire form; every value is checked again on decode.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(tag = "target", rename_all = "snake_case", deny_unknown_fields)]
 enum Wire {
     Builtin {
@@ -429,13 +612,10 @@ enum Wire {
         #[serde(default)]
         env: Vec<String>,
         timeout_ms: u64,
-        // Added to the run's copy of the payload only.
-        #[serde(default, skip_serializing)]
-        run_id: Option<String>,
     },
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct WireHook {
     interpreter: PathBuf,
@@ -445,16 +625,16 @@ struct WireHook {
 }
 
 impl SyncPayload {
-    /// Decodes and checks a stored payload.
+    /// Decodes and checks a stored payload; the value is read in place, never copied.
     ///
     /// # Errors
     ///
     /// `SCHEDULE_INVALID` naming the value at fault, or (`field: "payload"`)
     /// a payload that is not one of the two shapes.
     pub fn decode(v: &Value) -> Result<Self, CacheError> {
-        let wire: Wire = serde_json::from_value(v.clone()).map_err(|e| {
+        let wire = Wire::deserialize(v).map_err(|e| {
             invalid(
-                "payload",
+                Field::Payload,
                 ScheduleReason::OutOfRange,
                 format!("not a sync row payload: {e}"),
             )
@@ -480,9 +660,8 @@ impl SyncPayload {
                 beads_dir,
                 env,
                 timeout_ms,
-                run_id: _,
             } => Self::Python(PythonPayload::new(
-                TrustedInterpreter::new(interpreter, &module, "module")?,
+                TrustedInterpreter::new(interpreter, &module)?,
                 cache_path,
                 beads_dir,
                 EnvNames::new(env)?,
@@ -491,39 +670,39 @@ impl SyncPayload {
         })
     }
 
-    /// The stored JSON.
+    /// The stored JSON. Built from checked values only (every path UTF-8),
+    /// so it cannot fail and is never a placeholder.
     #[must_use]
     pub fn to_json(&self) -> Value {
-        let wire = match self {
-            Self::Builtin(b) => Wire::Builtin {
-                budget_ms: millis(b.budget.budget()),
-                hook_reserve_ms: millis(b.budget.hook_reserve()),
-                hook: b.hook.as_ref().map(|h| WireHook {
-                    interpreter: h.interpreter.path().to_path_buf(),
-                    function: h.target(),
-                    env: h.env.0.clone(),
-                }),
-            },
-            Self::Python(p) => Wire::Python {
-                interpreter: p.interpreter.path().to_path_buf(),
-                module: p.interpreter.module().to_owned(),
-                cache_path: p.cache_path.clone(),
-                beads_dir: p.beads_dir.clone(),
-                env: p.env.0.clone(),
-                timeout_ms: millis(p.timeout),
-                run_id: None,
-            },
-        };
-        serde_json::to_value(wire).unwrap_or(Value::Null)
+        match self {
+            Self::Builtin(b) => {
+                let mut v = json!({
+                    "target": "builtin",
+                    "budget_ms": millis(b.budget.budget()),
+                    "hook_reserve_ms": millis(b.budget.hook_reserve()),
+                });
+                if let (Some(h), Value::Object(m)) = (&b.hook, &mut v) {
+                    m.insert(
+                        "hook".to_owned(),
+                        json!({
+                            "interpreter": h.interpreter.path().to_string_lossy(),
+                            "function": h.target(),
+                            "env": h.env.names(),
+                        }),
+                    );
+                }
+                v
+            }
+            Self::Python(p) => p.to_json(),
+        }
     }
 }
 
 /// A budget refusal as `SCHEDULE_INVALID` naming the field.
 pub(crate) fn budget_invalid(e: &sc_beads::InvalidValue) -> CacheError {
-    let field = if e.kind == "budget_ms" {
-        "budget_ms"
-    } else {
-        "hook_reserve_ms"
+    let field = match e.kind {
+        "budget_ms" => Field::BudgetMs,
+        _ => Field::HookReserveMs,
     };
     invalid(field, ScheduleReason::OutOfRange, e.to_string())
 }
@@ -532,11 +711,26 @@ fn millis(d: Duration) -> u64 {
     u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
 
-#[cfg(all(test, unix))]
+#[cfg(test)]
 mod tests {
-    #![allow(
+    #[test]
+    fn both_row_names_are_valid_sc_cron_names() {
+        for row in [super::SyncRow::Builtin, super::SyncRow::Python] {
+            assert_eq!(
+                row.name().ok().map(|n| n.as_str().to_owned()),
+                Some(row.as_str().to_owned())
+            );
+            assert_eq!(super::SyncRow::of(row.as_str()), Some(row));
+            assert_eq!(row.other().other(), row);
+        }
+        assert_eq!(super::SyncRow::of("other"), None);
+    }
+}
+
+#[cfg(all(test, unix))]
+mod unix_tests {
+    #![expect(
         clippy::unwrap_used,
-        clippy::panic,
         reason = "test code: a failed unwrap is a test failure"
     )]
 
@@ -568,7 +762,7 @@ mod tests {
         assert_eq!(SyncPayload::decode(&builtin.to_json()).unwrap(), builtin);
         let py = SyncPayload::Python(
             PythonPayload::new(
-                TrustedInterpreter::new(&python, "pkg.sync", "module").unwrap(),
+                TrustedInterpreter::new(&python, "pkg.sync").unwrap(),
                 dir.path().join("c.sqlite3"),
                 None,
                 EnvNames::default(),
@@ -584,6 +778,55 @@ mod tests {
             "BD_CACHE.SCHEDULE_INVALID"
         );
         assert!(SyncPayload::decode(&serde_json::json!({"target": "other"})).is_err());
+        assert_eq!(BuiltinPayload::default().budget, TickBudget::default());
+    }
+
+    /// A path that is not UTF-8 cannot be held, so a payload always stores
+    /// as JSON (B8Q1-023); planted negative: the same file under a UTF-8
+    /// name is accepted.
+    #[test]
+    fn a_path_that_is_not_utf8_is_refused_before_it_can_be_stored() {
+        use std::os::unix::ffi::OsStrExt as _;
+        let dir = tempfile::tempdir().unwrap();
+        let python = interpreter(dir.path());
+        let t = TrustedInterpreter::new(&python, "pkg.sync").unwrap();
+        let bad = dir
+            .path()
+            .join(std::ffi::OsStr::from_bytes(b"cache-\xff.sqlite3"));
+        let e = PythonPayload::new(t.clone(), bad, None, EnvNames::default(), None).unwrap_err();
+        assert!(
+            matches!(
+                &e,
+                CacheError::ScheduleInvalid {
+                    field: "payload",
+                    ..
+                }
+            ),
+            "{e:?}"
+        );
+        // Refused before the file is looked at (macOS cannot even create it).
+        let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"py-\xff"));
+        let e = TrustedInterpreter::new(&odd, "pkg.sync").unwrap_err();
+        assert!(
+            matches!(
+                &e,
+                CacheError::ScheduleInvalid {
+                    field: "python",
+                    ..
+                }
+            ),
+            "{e:?}"
+        );
+        assert!(
+            PythonPayload::new(
+                t,
+                dir.path().join("c.sqlite3"),
+                None,
+                EnvNames::default(),
+                None
+            )
+            .is_ok()
+        );
     }
 
     #[test]
@@ -595,24 +838,24 @@ mod tests {
             other => panic!("{other:?}"),
         };
         assert_eq!(
-            field(TrustedInterpreter::new("python3", "m", "module").unwrap_err()),
+            field(TrustedInterpreter::new("python3", "m").unwrap_err()),
             ScheduleReason::NotAbsolute
         );
         assert_eq!(
-            field(TrustedInterpreter::new(dir.path(), "m", "module").unwrap_err()),
+            field(TrustedInterpreter::new(dir.path(), "m").unwrap_err()),
             ScheduleReason::NotExecutable
         );
         std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o644)).unwrap();
         assert_eq!(
-            field(TrustedInterpreter::new(&python, "m", "module").unwrap_err()),
+            field(TrustedInterpreter::new(&python, "m").unwrap_err()),
             ScheduleReason::NotExecutable
         );
         std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o755)).unwrap();
         assert_eq!(
-            field(TrustedInterpreter::new(&python, "-c", "module").unwrap_err()),
+            field(TrustedInterpreter::new(&python, "-c").unwrap_err()),
             ScheduleReason::BadModule
         );
-        assert!(TrustedInterpreter::new(&python, "pkg.mod", "module").is_ok());
+        assert!(TrustedInterpreter::new(&python, "pkg.mod").is_ok());
         for bad in ["pkg", "pkg:", "pkg:1x", ":f"] {
             assert!(
                 PostSyncHook::new(&python, bad, EnvNames::default()).is_err(),
@@ -626,9 +869,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let python = dir.path().join("python");
         // A fake interpreter that exits 1 on -c (acceptance 2).
-        std::fs::write(&python, "#!/bin/sh\n[ \"$2\" = -c ] && exit 1\nexit 0\n").unwrap();
-        std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o755)).unwrap();
-        let t = TrustedInterpreter::new(&python, "m", "module").unwrap();
+        crate::test_script::write(&python, "#!/bin/sh\n[ \"$2\" = -c ] && exit 1\nexit 0\n");
+        let t = TrustedInterpreter::new(&python, "m").unwrap();
         let e = t
             .check_import(EnvNames::default().child_env(vec![]))
             .await
@@ -644,7 +886,9 @@ mod tests {
             "{e:?}"
         );
         // Planted negative: one that exits 0 passes.
-        std::fs::write(&python, "#!/bin/sh\nexit 0\n").unwrap();
+        let ok = dir.path().join("python-ok");
+        crate::test_script::write(&ok, "#!/bin/sh\nexit 0\n");
+        let t = TrustedInterpreter::new(&ok, "m").unwrap();
         assert!(
             t.check_import(EnvNames::default().child_env(vec![]))
                 .await

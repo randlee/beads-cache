@@ -12,8 +12,9 @@ use crate::journal::{IdemKey, JournalEntry, NewEntry, Seq};
 use crate::reply::{JournalCounts, PruneReport};
 use crate::scope::{Scope, ScopeId};
 use crate::state::{
-    BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
-    OpenWork, Outage, ReadyBase, RunId, StoreStatus, SyncOutcome, SyncState, UpsertReport,
+    BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder,
+    LeaseTake, OpenWork, Outage, PendingSummary, ReadyBase, RunId, StoreStatus, SyncOutcome,
+    SyncRun, SyncRunEnd, SyncState, UpsertReport,
 };
 
 /// The cache's store; a-4 implements it over SQLite, `testing::FakeStore` in memory.
@@ -222,6 +223,27 @@ pub trait CacheStore: Send {
     ) -> Result<HookState, CacheError>;
     /// Resets the hook's failure count after a success.
     fn hook_succeeded(&mut self) -> Result<(), CacheError>;
+    /// The run record of the sync row named `row`, if it ever ran (REQ-BDC-0731).
+    fn sync_run(&self, row: &str) -> Result<Option<SyncRun>, CacheError>;
+    /// Records that run `run_id` of `row` started at `at`, in one
+    /// transaction with the read of the previous record ([`SyncRun::started`]);
+    /// returns the new record.
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<SyncRun, CacheError>;
+    /// Records that run `run_id` of `row` finished at `at` with `end`
+    /// ([`SyncRun::finished`]); `Ok(false)` and nothing written when the
+    /// row's record names another run.
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: SyncRunEnd,
+    ) -> Result<bool, CacheError>;
     /// The stored row and its freshness.
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError>;
     /// Rows the scope holds, by id.
@@ -282,6 +304,22 @@ pub trait CacheStore: Send {
     fn insert_entry(&mut self, e: NewEntry, at: &Timestamp) -> Result<Seq, CacheError>;
     /// Every pending entry, by seq.
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError>;
+    /// The pending entries' count and the oldest one's `created_at`
+    /// (REQ-BDC-0727), without holding every pending entry.
+    ///
+    /// The provided body reads [`CacheStore::pending_entries`]; `SqliteStore`
+    /// overrides it with a count and a one-row read, so a long outage's
+    /// backlog is never loaded to be counted.
+    fn pending_summary(&self) -> Result<PendingSummary, CacheError> {
+        let pending = self.pending_entries()?;
+        Ok(PendingSummary {
+            count: u64::try_from(pending.len()).unwrap_or(u64::MAX),
+            oldest_created_at: pending
+                .iter()
+                .map(|e| e.created_at.clone())
+                .min_by_key(Timestamp::unix),
+        })
+    }
     /// A bead's pending entries, by seq.
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError>;
     /// Entries applied at or after `at`, by seq.
@@ -312,6 +350,17 @@ pub trait CacheStore: Send {
     ) -> Result<(), CacheError>;
     /// Escalated entries not yet announced, by seq.
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError>;
+    /// At most `limit` escalated entries not yet announced, by seq, and how
+    /// many there are in all (REQ-BDC-0727's request offers at most 500).
+    ///
+    /// The provided body reads [`CacheStore::unannounced_escalations`];
+    /// `SqliteStore` overrides it with a `LIMIT` read and a count.
+    fn unannounced_escalations_first(&self, limit: usize) -> Result<EscalationPage, CacheError> {
+        let mut entries = self.unannounced_escalations()?;
+        let total = u64::try_from(entries.len()).unwrap_or(u64::MAX);
+        entries.truncate(limit);
+        Ok(EscalationPage { entries, total })
+    }
     /// Records that an escalation was announced.
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError>;
     /// [`CacheStore::mark_announced`], waiting at most `wait` for a write lock

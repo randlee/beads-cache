@@ -32,7 +32,7 @@ tracing.workspace = true
 # Spawns a hook in a Unix process group or a Windows job object so the kill
 # reaches grandchildren too (REQ-CRON-0013, ADR-CRON-0008); wraps the safe
 # parts of the platform calls so this crate keeps `forbid(unsafe_code)`.
-process-wrap = { version = "10", default-features = false, features = ["tokio1", "kill-on-drop", "process-group", "job-object"] }
+process-wrap.workspace = true
 
 [dev-dependencies]
 # Self-reference so a plain `cargo test` builds the integration tests with

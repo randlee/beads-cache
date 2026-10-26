@@ -609,3 +609,11 @@ trust check) wraps it in its own `Job` and the resolver.
 - `Schedule::next_run_after` and `Schedule::period_after` give a row's runs to a caller (the
   period of QA97R2-016).
 
+- QA-1 of sprint b-8: dropping `Scheduler::run_due_with`'s future aborts the runs it started,
+  as a stopped worker's are (`tests/run_due_abort.rs`). `supervise` waits for every member of
+  the group or job, not only the leader, so a member left behind by an exited child is killed
+  with the group at expiry (`process::tests::unix::a_member_left_behind_by_an_exited_child_is_killed_with_the_group`);
+  a descendant that leaves the group on its own (`setsid` on Unix) is out of reach, a
+  documented limit. The reap after a kill is bounded by `process::REAP_AFTER_KILL` (5 s of
+  wall-clock time, not the tokio timer), then logged and left to the supervisor's drop.
+- The `process-wrap` entry is the workspace's (`process-wrap.workspace = true`, B8Q1-036).

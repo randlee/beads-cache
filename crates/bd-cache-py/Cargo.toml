@@ -22,7 +22,6 @@ bd-cache-store.workspace = true
 bd-cache-sync.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true
-dunce.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 # The current-thread runtime a tick builds on its helper thread (ADR-PY-0006).

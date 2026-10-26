@@ -537,7 +537,9 @@ where
     /// occurrence is ended, as the worker does. A schedule that is not due
     /// is left untouched. This is for a caller that drives the table from an
     /// outside scheduler instead of a worker: never run it beside a worker on
-    /// the same rows.
+    /// the same rows. Dropping the returned future (a caller stopped by a
+    /// signal) aborts every run it started, as a stopped worker does, so no
+    /// run is left detached.
     ///
     /// # Errors
     ///
@@ -572,11 +574,11 @@ where
                     () = sleep_until_monotonic(clock.as_ref(), deadline) => Report::Ran(RunOutcome::TimedOut),
                 }
             });
-            runs.push((row, handle));
+            runs.push((row, DueTask(handle)));
         }
         let mut done = Vec::with_capacity(runs.len());
-        for (row, handle) in runs {
-            let report = handle.await.unwrap_or_else(|error| {
+        for (row, mut task) in runs {
+            let report = (&mut task.0).await.unwrap_or_else(|error| {
                 Report::Ran(RunOutcome::Failed(format!(
                     "job panicked or was cancelled: {error}"
                 )))
@@ -629,6 +631,17 @@ where
             name: row.spec.name.clone(),
             outcome: recorded,
         }
+    }
+}
+
+/// One run [`Scheduler::run_due_with`] started, aborted when dropped: as the
+/// worker's in-flight runs, a run is never left detached by a dropped caller.
+struct DueTask(tokio::task::JoinHandle<Report>);
+
+impl Drop for DueTask {
+    fn drop(&mut self) {
+        // Aborting a finished task is a no-op.
+        self.0.abort();
     }
 }
 

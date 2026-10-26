@@ -1,20 +1,23 @@
 //! `cache scopes add|set|remove|list|ingest|announce` (ADR-BDC-0013, ADR-BDC-0015,
-//! REQ-BDC-0721, 0726, 0728): their argv rows, and the bounded stdin of `ingest`.
+//! REQ-BDC-0721, 0726, 0728): their argv rows, and the streamed stdin of `ingest`.
 //!
 //! They are `bd-cache-api` operations, run like the other management verbs.
 //! `cache scopes` stays the read verb and is `scopes list`'s alias.
-//! `scopes ingest` reads its snapshot from stdin through a limit of
-//! [`MAX_INGEST_BYTES`] + 1 bytes, so an input over the limit is refused
-//! (`INGEST_INVALID`, `too_large`) before it is held whole; the rows are then
-//! counted as they decode (`bd-cache-model`'s `IngestSnapshot::from_json`).
+//! `scopes ingest` decodes its snapshot from stdin while it reads it
+//! (`IngestSnapshot::from_reader`): the bytes are counted against
+//! `MAX_INGEST_BYTES` and the rows against `MAX_INGEST_ROWS` as they
+//! decode, so an input over either is refused (`INGEST_INVALID`) before it
+//! is held whole, and nothing is encoded again. stdin holds a rows array or
+//! `{"rows": [...], "blocked": [...]}` and nothing else: the scope, the
+//! revision and `--allow-empty` come from the command line only (`BAD_ARGS`
+//! for any other member).
 
 use std::io::Read;
 
-use bd_cache_api::{ApiError, Command};
-use bd_cache_model::{CacheError, IngestReason, MAX_INGEST_BYTES, ScopeId};
-use serde_json::Value;
+use bd_cache_api::{ApiError, Command, Request};
+use bd_cache_model::IngestSnapshot;
 
-use crate::args::{ArgSpec, CommandSpec, Shape, Target, Ty};
+use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
 
 use Shape::{Many, One};
 use Ty::Str;
@@ -79,35 +82,35 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache scopes add",
         about: "Register a scope: a name and a bd filter (all, or labels, status, type, assignee).",
-        target: Target::Api(Command::ScopesAdd),
+        command: Command::ScopesAdd,
         args: &ADD_ARGS,
         one_of: None,
     },
     CommandSpec {
         path: "cache scopes set",
         about: "Change a registered scope's filter; its memberships start again.",
-        target: Target::Api(Command::ScopesSet),
+        command: Command::ScopesSet,
         args: &ADD_ARGS,
         one_of: None,
     },
     CommandSpec {
         path: "cache scopes remove",
         about: "cache evict, then remove the scope from the registry (PRUNE_BLOCKED as evict).",
-        target: Target::Api(Command::ScopesRemove),
+        command: Command::ScopesRemove,
         args: &[SCOPE],
         one_of: None,
     },
     CommandSpec {
         path: "cache scopes list",
         about: "Every scope with its filter and sync state; the same reply as cache scopes.",
-        target: Target::Api(Command::ScopesList),
+        command: Command::ScopesList,
         args: &[],
         one_of: None,
     },
     CommandSpec {
         path: "cache scopes ingest",
         about: "Store a snapshot of a registered scope from stdin: {\"rows\": [...], \"blocked\": [...]} or a rows array.",
-        target: Target::Api(Command::ScopesIngest),
+        command: Command::ScopesIngest,
         args: &[
             SCOPE,
             ArgSpec::flag(
@@ -130,7 +133,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache scopes announce",
         about: "Mark the scope's current failure notified when --since is its failing_since.",
-        target: Target::Api(Command::ScopesAnnounce),
+        command: Command::ScopesAnnounce,
         args: &[
             SCOPE,
             ArgSpec::flag(
@@ -147,82 +150,72 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     },
 ];
 
-/// Adds the snapshot read from `input` (stdin) to the `scopes ingest` request.
+/// `req` with the snapshot decoded from `input` (stdin) as it is read, when
+/// it is `scopes ingest`; any other request as it is.
 ///
 /// # Errors
 ///
-/// `INGEST_INVALID` (`too_large`) for more than [`MAX_INGEST_BYTES`] of
-/// input, before it is held whole; `BAD_ARGS` for input that cannot be read
-/// or is not JSON (`row_invalid` is decided by the decoder).
-pub(crate) fn merge_stdin(request: &mut Value, input: impl Read) -> Result<(), ApiError> {
-    let limit = u64::try_from(MAX_INGEST_BYTES)
-        .unwrap_or(u64::MAX)
-        .saturating_add(1);
-    let mut buf = Vec::new();
-    input
-        .take(limit)
-        .read_to_end(&mut buf)
-        .map_err(|e| ApiError::bad_args(format!("scopes ingest: cannot read stdin: {e}")))?;
-    if buf.len() > MAX_INGEST_BYTES {
-        let scope = request
-            .get("scope")
-            .and_then(Value::as_str)
-            .and_then(|s| ScopeId::new(s).ok())
-            .ok_or_else(|| ApiError::bad_member("scope", "scope is required"))?;
-        return Err(ApiError::from(&CacheError::IngestInvalid {
-            detail: format!(
-                "stdin holds more than {MAX_INGEST_BYTES} bytes; one ingest takes at most that"
-            ),
-            scope,
-            reason: IngestReason::TooLarge,
-            index: None,
-        }));
-    }
-    let body: Value = serde_json::from_slice(&buf)
-        .map_err(|e| ApiError::bad_args(format!("scopes ingest: stdin is not JSON: {e}")))?;
-    let Value::Object(req) = request else {
-        return Err(ApiError::bad_args("the request must be a JSON object"));
+/// `INGEST_INVALID` (`too_large`, `too_many_rows`, `row_invalid`,
+/// `membership`) and `BAD_ARGS` (a member other than `rows` and `blocked`, a
+/// read that fails), as `IngestSnapshot::from_reader` gives them.
+pub(crate) fn with_stdin_snapshot(req: Request, input: impl Read) -> Result<Request, ApiError> {
+    let Request::ScopesIngest(ingest) = req else {
+        return Ok(req);
     };
-    match body {
-        rows @ Value::Array(_) => {
-            req.insert("rows".to_owned(), rows);
-        }
-        Value::Object(snapshot) => {
-            for (k, v) in snapshot {
-                req.insert(k, v);
-            }
-        }
-        _ => {
-            return Err(ApiError::bad_args(
-                "scopes ingest: stdin must be a rows array or an object",
-            ));
-        }
-    }
-    Ok(())
+    let snapshot =
+        IngestSnapshot::from_reader(ingest.scope(), input).map_err(|e| ApiError::from(&e))?;
+    Ok(Request::ScopesIngest(Box::new(
+        (*ingest).with_snapshot(snapshot),
+    )))
 }
 
 #[cfg(test)]
 mod tests {
-    #![allow(clippy::indexing_slicing, reason = "test code: JSON indexing")]
+    use bd_cache_model::MAX_INGEST_BYTES;
 
     use super::*;
     use serde_json::json;
 
+    #[expect(clippy::panic, reason = "test code: a failed decode is a test failure")]
+    fn ingest() -> Request {
+        bd_cache_api::decode(Command::ScopesIngest, &json!({"scope": "mine"}))
+            .unwrap_or_else(|e| panic!("{e}"))
+    }
+
+    fn code(r: Result<Request, ApiError>) -> Option<(String, serde_json::Value)> {
+        r.err().map(|e| {
+            (
+                e.code().to_owned(),
+                e.details().get("reason").cloned().unwrap_or_default(),
+            )
+        })
+    }
+
     /// Over 64 MiB of stdin is refused as `too_large` without holding it all
-    /// (the read stops at the limit + 1); planted negative: a small body is merged.
+    /// (the read stops at the limit); a snapshot object that names another
+    /// scope is `BAD_ARGS`, never ingested there (B8Q1-031). Planted
+    /// negative: a small body is decoded into the request.
     #[test]
-    fn stdin_over_the_limit_is_refused_before_it_is_held_whole() {
-        let huge = std::io::repeat(b' ').take(u64::try_from(MAX_INGEST_BYTES).unwrap_or(0) * 2);
-        let mut req = json!({"scope": "mine"});
-        let e = merge_stdin(&mut req, huge)
-            .err()
-            .map(|e| (e.code().to_owned(), e.details()["reason"].clone()));
+    #[expect(clippy::panic, reason = "test code: a failed decode is a test failure")]
+    fn stdin_is_streamed_and_takes_only_rows_and_blocked() {
+        let limit = u64::try_from(MAX_INGEST_BYTES).unwrap_or(0);
+        let huge = std::io::repeat(b' ').take(limit * 2);
         assert_eq!(
-            e,
+            code(with_stdin_snapshot(ingest(), huge)),
             Some(("BD_CACHE.INGEST_INVALID".to_owned(), json!("too_large")))
         );
-        let mut req = json!({"scope": "mine"});
-        assert!(merge_stdin(&mut req, &b"{\"rows\": [], \"blocked\": []}"[..]).is_ok());
-        assert_eq!(req["rows"], json!([]));
+        let other = &br#"{"scope": "other", "rows": []}"#[..];
+        assert_eq!(
+            code(with_stdin_snapshot(ingest(), other)).map(|(c, _)| c),
+            Some("BD_CACHE.BAD_ARGS".to_owned())
+        );
+        let ok = with_stdin_snapshot(ingest(), &b"{\"rows\": [], \"blocked\": []}"[..]);
+        match ok {
+            Ok(Request::ScopesIngest(r)) => {
+                assert_eq!(r.scope().name(), "mine");
+                assert!(r.snapshot().is_empty());
+            }
+            other => panic!("{other:?}"),
+        }
     }
 }

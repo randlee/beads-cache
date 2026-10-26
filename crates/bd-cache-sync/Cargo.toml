@@ -11,6 +11,10 @@ publish = false
 
 [dependencies]
 bd-cache.workspace = true
+# The contract's requests and errors: bd-cache-sync runs the front-end verbs
+# for every front end (`execute`) and maps their errors once (ADR-SYNC-0008
+# as amended by sprint b-8; the Boundaries edge bd-cache-sync -> bd-cache-api).
+bd-cache-api.workspace = true
 bd-cache-model.workspace = true
 sc-beads.workspace = true
 bd-cache-store.workspace = true
@@ -26,8 +30,9 @@ tracing.workspace = true
 # The effective uid of the trust check (TrustedCacheFile, REQ-BDC-0723,
 # QA97R2-014): `rustix::process::geteuid` is a safe call, so this crate keeps
 # no `unsafe`. Already in Cargo.lock (through tempfile); only the `process`
-# module is turned on. Named in ADR-SYNC-0008's dependency bullet.
-rustix = { version = "1.1", default-features = false, features = ["std", "process"] }
+# module is turned on (the workspace entry, B8Q1-036). Named in ADR-SYNC-0008's
+# dependency bullet.
+rustix = { workspace = true, features = ["std", "process"] }
 
 [dev-dependencies]
 # `bd_cache::testing::backend`: the S40 test reaches the composed backend.

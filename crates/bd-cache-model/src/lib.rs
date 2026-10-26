@@ -58,7 +58,8 @@ pub mod testing;
 
 #[doc(inline)]
 pub use budget::{
-    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, TickBudget, check_lease_expiry,
+    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, ROW_TIMEOUT_MARGIN, TickBudget,
+    check_lease_expiry,
 };
 #[doc(inline)]
 pub use call::{CallFailure, CallKind};
@@ -107,9 +108,10 @@ pub use scope::{
 };
 #[doc(inline)]
 pub use state::{
-    BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
-    MAX_HOOK_ERROR_BYTES, OpenWork, Outage, ReadyBase, RunId, ScopeStatus, StoreStatus,
-    SyncOutcome, SyncState, UpsertReport, clip_hook_error,
+    BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder,
+    LeaseTake, MAX_HOOK_ERROR_BYTES, OpenWork, Outage, PendingSummary, ReadyBase, RunId,
+    ScopeStatus, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd, SyncState, UpsertReport,
+    clip_hook_error,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

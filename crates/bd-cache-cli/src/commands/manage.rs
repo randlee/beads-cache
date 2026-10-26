@@ -5,7 +5,7 @@
 
 use bd_cache_api::Command;
 
-use crate::args::{ArgSpec, CommandSpec, Shape, Target, Ty};
+use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
 
 use Shape::{Many, One};
 use Ty::{Int, Str};
@@ -17,14 +17,14 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache status",
         about: "The cache file, project, backend fingerprint, journal counts and scopes.",
-        target: Target::Api(Command::CacheStatus),
+        command: Command::CacheStatus,
         args: &[],
         one_of: None,
     },
     CommandSpec {
         path: "cache health",
         about: "ok, degraded or down; with --probe, the backend check (may rebuild).",
-        target: Target::Api(Command::CacheHealth),
+        command: Command::CacheHealth,
         args: &[ArgSpec::switch(
             "probe",
             "probe",
@@ -35,14 +35,14 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache scopes",
         about: "Every scope the cache knows, with its sync state (no bd call).",
-        target: Target::Api(Command::CacheScopes),
+        command: Command::CacheScopes,
         args: &[],
         one_of: None,
     },
     CommandSpec {
         path: "cache refresh scopes",
         about: "Sync scopes from bd; with none named, every known scope.",
-        target: Target::Api(Command::CacheRefreshScopes),
+        command: Command::CacheRefreshScopes,
         args: &[
             ArgSpec::positional(
                 "scopes",
@@ -67,7 +67,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache refresh issues",
         about: "Re-read beads from bd (REQ-BDC-0907).",
-        target: Target::Api(Command::CacheRefreshIssues),
+        command: Command::CacheRefreshIssues,
         args: &[
             ArgSpec::positional("ids", Many, Str, true, "ids", "The beads to re-read."),
             ArgSpec::flag(
@@ -85,7 +85,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache flush",
         about: "Apply journaled writes to bd, in seq order.",
-        target: Target::Api(Command::CacheFlush),
+        command: Command::CacheFlush,
         args: &[
             ArgSpec::flag(
                 "start-gate-ms",
@@ -111,7 +111,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache evict",
         about: "Drop a scope's rows and sync state (prune).",
-        target: Target::Api(Command::CacheEvict),
+        command: Command::CacheEvict,
         args: &[ArgSpec::flag(
             "scope",
             "S",
@@ -126,7 +126,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache journal get",
         about: "One journal entry, by seq or by idempotency key.",
-        target: Target::Api(Command::JournalGet),
+        command: Command::JournalGet,
         args: &[
             ArgSpec::positional("seq", One, Int, false, "seq", "The entry's seq."),
             ArgSpec::flag(
@@ -144,7 +144,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache journal list",
         about: "Journal entries in one state (default escalated), by seq.",
-        target: Target::Api(Command::JournalList),
+        command: Command::JournalList,
         args: &[
             ArgSpec::flag(
                 "state",
@@ -166,7 +166,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache journal resolve",
         about: "Resolve an escalated entry with a note.",
-        target: Target::Api(Command::JournalResolve),
+        command: Command::JournalResolve,
         args: &[
             SEQ,
             ArgSpec::flag("note", "T", One, Str, true, "note", "The resolution note."),
@@ -177,7 +177,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache journal announce",
         about: "Mark an escalated entry as announced.",
-        target: Target::Api(Command::JournalAnnounce),
+        command: Command::JournalAnnounce,
         args: &[SEQ],
         one_of: None,
     },

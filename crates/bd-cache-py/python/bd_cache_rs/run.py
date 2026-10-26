@@ -3,15 +3,16 @@
 bd-cache-sync runs it after each built-in sync (REQ-BDC-0723, 0727,
 ADR-SYNC-0008), from a private temp cwd with a cleared environment, with one
 ``bd-cache.run.v1`` request on stdin. It opens its own ``Cache`` on
-``BD_CACHE_PATH``, imports the function, calls ``func(cache, request)`` and
-prints one JSON object::
+``BD_CACHE_PATH`` in the request's ``repo_root``, imports the function, calls
+``func(cache, request)`` (what it prints goes to stderr, so stdout holds the
+answer alone) and prints one JSON object::
 
     {"protocol": "bd-cache.run.v1", "ok": true, "result": ...}
     {"protocol": "bd-cache.run.v1", "ok": false, "error": {"type": ..., "message": ...}}
 
 then exits 0, or 1 on error. The message is cut to 4 KiB and holds no
-request data. Inside the call, ``drain``, ``manage.flush``, ``tick`` and
-``schedule_*`` raise ``CacheError`` (``PRECONDITION``). The hook must be
+request data. Inside the call, ``drain``, ``manage.flush``, ``tick``,
+``schedule_*`` and ``sync_use_*`` raise ``CacheError`` (``PRECONDITION``). The hook must be
 idempotent: anything it does not mark is offered again on a later run.
 """
 
@@ -20,14 +21,15 @@ import json
 import os
 import sys
 
-from ._common import mark_inside_run, open_cache
+from ._common import mark_inside_run, open_cache, output_to_stderr
 
 PROTOCOL = "bd-cache.run.v1"
 MAX_MESSAGE = 4096
 
 
-def _answer(ok, **fields):
-    print(json.dumps(dict({"protocol": PROTOCOL, "ok": ok}, **fields)))
+def _answer(out, ok, **fields):
+    out.write(json.dumps(dict({"protocol": PROTOCOL, "ok": ok}, **fields)) + "\n")
+    out.flush()
 
 
 def _function(target):
@@ -46,19 +48,22 @@ def main(argv=None):
     if len(argv) != 2 or argv[0] != "post_sync":
         print("usage: python -I -m bd_cache_rs.run post_sync <module:function>", file=sys.stderr)
         return 2
+    out = sys.stdout
     try:
         request = json.load(sys.stdin)
+        if not isinstance(request, dict):
+            raise ValueError(f"not a {PROTOCOL} post_sync request: not a JSON object")
         if request.get("protocol") != PROTOCOL or request.get("kind") != "post_sync":
             raise ValueError(f"not a {PROTOCOL} post_sync request")
         func = _function(argv[1])
-        cache_path = os.environ.get("BD_CACHE_PATH") or request.get("cache_path")
         mark_inside_run()
-        with open_cache(cache_path, os.environ.get("BEADS_DIR")) as cache:
-            result = func(cache, request)
-        _answer(True, result=result)
+        with output_to_stderr() as out:
+            with open_cache(os.environ.get("BD_CACHE_PATH"), request.get("repo_root")) as cache:
+                result = func(cache, request)
+        _answer(out, True, result=result)
         return 0
     except Exception as e:  # noqa: BLE001 - every failure is the hook's answer
-        _answer(False, error={"type": type(e).__name__, "message": str(e)[:MAX_MESSAGE]})
+        _answer(out, False, error={"type": type(e).__name__, "message": str(e)[:MAX_MESSAGE]})
         return 1
 
 

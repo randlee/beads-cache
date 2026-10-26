@@ -18,17 +18,6 @@ use bd_cache_api::Command;
 use crate::NAME;
 use crate::commands::{beads, cron, manage, schedule, scopes, sync, tick};
 
-/// What a command runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Target {
-    /// A `bd-cache-api` command: decode, then execute.
-    Api(Command),
-    /// A phase-B verb `bd-cache-api` decodes and this crate runs over
-    /// `bd-cache-sync` (ADR-BDC-0015): `cache schedule *`, `cron run`,
-    /// `tick`, `sync *`.
-    Sync(Command),
-}
-
 /// How many values an argument takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Shape {
@@ -171,8 +160,10 @@ pub(crate) struct CommandSpec {
     pub(crate) path: &'static str,
     /// One line for the help.
     pub(crate) about: &'static str,
-    /// What it runs.
-    pub(crate) target: Target,
+    /// The `bd-cache-api` command it runs: decoded there, then executed by
+    /// `bd-cache-api`, or over `bd-cache-sync` when
+    /// [`Command::is_front_end`] says so (ADR-BDC-0015); the one decision.
+    pub(crate) command: Command,
     /// Its arguments.
     pub(crate) args: &'static [ArgSpec],
     /// Arguments of which exactly one must be given.

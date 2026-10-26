@@ -22,6 +22,7 @@
 
 pub mod blocking;
 pub mod counting;
+pub mod real;
 pub mod repo;
 
 use std::path::{Path, PathBuf};
@@ -162,10 +163,26 @@ impl World {
             period: None,
             cache_path: self.cache_file(),
             beads_dir: Some(self.dir.path().to_path_buf()),
+            repo_root: self.dir.path().to_path_buf(),
             kill: stop.clone(),
             stop,
         }
     }
+}
+
+/// [`bd_cache_sync::run_builtin`] as a fresh run (its id minted here).
+pub async fn run_builtin<S, L, B>(
+    cache: &SharedCache<S, L, B>,
+    payload: &bd_cache_sync::BuiltinPayload,
+    ctx: &RunContext,
+) -> Result<bd_cache_sync::BuiltinReply, bd_cache_model::CacheError>
+where
+    S: bd_cache_model::CacheStore + 'static,
+    L: bd_cache_model::DrainLock + 'static,
+    B: sc_beads::CacheBackend + 'static,
+{
+    let run_id = bd_cache_sync::new_run_id(1_761_213_600_000).unwrap();
+    bd_cache_sync::run_builtin(cache, payload, ctx, run_id).await
 }
 
 /// Makes `path` private to this user (mode 0600 on Unix).
@@ -198,6 +215,11 @@ pub fn script(path: &Path, contents: &str) {
 /// Journals `n` closes in `store` and escalates them, as a drain that gave
 /// up on them would; returns their seqs, oldest first.
 pub fn escalate(world: &World, n: usize) -> Vec<bd_cache_model::Seq> {
+    escalate_with(world, n, "refused")
+}
+
+/// [`escalate`] with each entry's error `BD_CACHE.BD_FAILED: <why>`.
+pub fn escalate_with(world: &World, n: usize, why: &str) -> Vec<bd_cache_model::Seq> {
     use bd_cache_model::{CacheStore as _, IdemKey, NewEntry, Op};
     let mut store = world.store.clone();
     let at = world.clock.now_utc();
@@ -218,7 +240,7 @@ pub fn escalate(world: &World, n: usize) -> Vec<bd_cache_model::Seq> {
                 )
                 .unwrap();
             store
-                .escalate(seq, "BD_CACHE.BD_FAILED: refused", &at)
+                .escalate(seq, &format!("BD_CACHE.BD_FAILED: {why}"), &at)
                 .unwrap();
             seq
         })
@@ -231,7 +253,10 @@ pub fn escalate(world: &World, n: usize) -> Vec<bd_cache_model::Seq> {
 /// (`request.<n>.json`) in its directory, then acts on the file `mode`:
 /// absent prints a valid answer; `fail` exits 1; `hang` starts a grandchild
 /// that holds the named pipe `life`, says `ready` on the named pipe `ready`
-/// and sleeps; `flood` writes 2 MiB to stdout; `wrong` answers another protocol.
+/// and sleeps; `flood` writes 2 MiB to stdout, `errflood` to stderr; `wrong`
+/// answers another protocol; `secret` writes `$HOME` (an `--env` value)
+/// all over more than 8 KiB of stderr and in its error message, and exits 1;
+/// `noread` never reads its request.
 #[cfg(unix)]
 pub struct HookStub {
     /// Its directory.
@@ -261,6 +286,8 @@ case "$mode" in
 esac
 case "$mode" in
   fail) echo "boom from the hook" >&2; echo '{"protocol":"bd-cache.run.v1","ok":false,"error":{"type":"RuntimeError","message":"boom"}}'; exit 1 ;;
+  secret) i=0; while [ $i -lt 400 ]; do printf 'leak %s ' "$HOME" >&2; i=$((i+1)); done; printf '{"protocol":"bd-cache.run.v1","ok":false,"error":{"type":"RuntimeError","message":"token %s"}}\n' "$HOME"; exit 1 ;;
+  errflood) head -c 2100000 /dev/zero | tr '\0' x >&2; exit 0 ;;
   hang) exec 3> "$d/life"; ( echo up > "$d/ready"; exec sleep 3600 ) & wait; exit 0 ;;
   flood) head -c 2100000 /dev/zero | tr '\0' x; exit 0 ;;
   wrong) echo '{"protocol":"other","ok":true}'; exit 0 ;;
@@ -321,4 +348,16 @@ pub fn gate_file(path: PathBuf) -> std::sync::mpsc::Receiver<()> {
         let _ = tx.send(());
     });
     rx
+}
+
+/// Waits, polling, until `cond` holds (at most 30 s).
+pub fn wait_until(what: &str, mut cond: impl FnMut() -> bool) {
+    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    while !cond() {
+        assert!(
+            std::time::Instant::now() < until,
+            "timed out waiting for {what}"
+        );
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
 }

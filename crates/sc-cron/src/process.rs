@@ -11,6 +11,17 @@
 //! - when the [`supervise`] future is dropped before the child is reaped, for
 //!   instance because the run that awaited it was aborted at its deadline.
 //!
+//! The child is done when every member of its group or job has exited and
+//! its pipes are closed, not when the leader alone exits: a child that
+//! starts a background process in its group and exits 0 is waited for until
+//! that process ends too, or killed with it at `expiry`. So no member of the
+//! group or job outlives a supervised run. A descendant that leaves the group
+//! on its own (`setsid` on Unix; Windows jobs are not left once joined) is out
+//! of reach, which is a documented limit. After a kill, the reap of the
+//! group is bounded by [`REAP_AFTER_KILL`]; one that does not finish (a member
+//! stuck in the kernel) is logged and left, and the group is killed again
+//! when the supervisor drops.
+//!
 //! Standard output and standard error are each kept up to a cap; the rest is
 //! read and discarded, so a child that floods a pipe is never blocked on it
 //! and never grows this process's memory. Input is written concurrently with
@@ -64,6 +75,11 @@ use process_wrap::tokio::ProcessGroup;
 
 /// How much of a pipe is read per call.
 const READ_CHUNK: usize = 8 * 1024;
+
+/// How long the reap of a killed group or job may take before it is logged
+/// and left: a SIGKILL'd member exits at once unless it is stuck in the
+/// kernel, so this only bounds that case.
+pub const REAP_AFTER_KILL: std::time::Duration = std::time::Duration::from_secs(5);
 
 /// The environment a supervised child starts with.
 ///
@@ -253,9 +269,32 @@ pub async fn supervise(
             tracing::debug!(subsystem = "sc_cron", action = "child_kill", %error,
                 "kill at expiry found nothing to kill: {error}");
         }
-        // The group is dead; this reaps it.
-        let _ = tree.child.wait().await;
-        tree.reaped = true;
+        // The group is dead; this reaps it, for at most REAP_AFTER_KILL of
+        // wall-clock time (a thread's timer, not tokio's: a paused or
+        // manual tokio clock must not cut the reap short).
+        let (bound, bounded) = tokio::sync::oneshot::channel::<()>();
+        let timer = std::thread::Builder::new()
+            .name("sc-cron-reap-bound".to_owned())
+            .spawn(move || {
+                std::thread::sleep(REAP_AFTER_KILL);
+                let _ = bound.send(());
+            });
+        let bounded = async {
+            if timer.is_ok() {
+                let _ = bounded.await;
+            } else {
+                std::future::pending::<()>().await;
+            }
+        };
+        tokio::select! {
+            biased;
+            _ = tree.child.wait() => tree.reaped = true,
+            () = bounded => {
+                tracing::warn!(subsystem = "sc_cron", action = "child_reap",
+                    after_ms = u64::try_from(REAP_AFTER_KILL.as_millis()).unwrap_or(u64::MAX),
+                    "a killed child's group was not reaped in time; it is left (killed again on drop)");
+            }
+        }
         None
     };
     Ok(Captured {
@@ -429,6 +468,56 @@ wait
             }
             // `run` is dropped; the group dies with it.
             wait(life, "the whole tree to die").await;
+        }
+
+        /// A child that starts a background member of its group and exits 0
+        /// is not done until that member ends: at `expiry` the whole group is
+        /// killed, so nothing it started outlives the run (REQ-CRON-0018).
+        /// Planted negative: without the background member the child's exit
+        /// ends the run with its status.
+        #[tokio::test]
+        async fn a_member_left_behind_by_an_exited_child_is_killed_with_the_group() {
+            let tree = Tree::new();
+            let (ready, life) = (tree.read("ready"), tree.read("life"));
+            let script = tree.dir.path().join("leaves.sh");
+            fs::write(
+                &script,
+                "#!/bin/sh\ncd \"$1\"\nexec 3> life\n( echo up > ready; exec sleep 3600 ) &\nexit 0\n",
+            )
+            .expect("script");
+            fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).expect("chmod");
+            let spec = ChildSpec {
+                program: &script,
+                args: vec![tree.dir.path().into()],
+                cwd: tree.dir.path(),
+                input: b"",
+                env: ChildEnv::Inherit,
+            };
+            let (expire, expired) = tokio::sync::oneshot::channel::<()>();
+            let run = supervise(&spec, 1024, async {
+                let _ = expired.await;
+            });
+            let drive = async {
+                wait(ready, "the background member to start").await;
+                expire.send(()).expect("supervisor is waiting");
+                wait(life, "the member to die with the group").await;
+            };
+            let (captured, ()) = tokio::join!(run, drive);
+            assert!(
+                captured.expect("supervise").status.is_none(),
+                "killed at expiry"
+            );
+            let alone = ChildSpec {
+                program: Path::new("/bin/sh"),
+                args: vec!["-c".into(), "exit 0".into()],
+                cwd: tree.dir.path(),
+                input: b"",
+                env: ChildEnv::Inherit,
+            };
+            let done = supervise(&alone, 64, std::future::pending())
+                .await
+                .expect("supervise");
+            assert_eq!(done.status.and_then(|s| s.code()), Some(0));
         }
 
         #[tokio::test]

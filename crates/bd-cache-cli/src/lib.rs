@@ -72,8 +72,7 @@ use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::process::ExitCode;
 use std::sync::Arc;
 
-use bd_cache_api::ApiError;
-use bd_cache_sync::StopFlag;
+use bd_cache_api::{ApiError, Command};
 use clap::ArgMatches;
 use clap::error::{ContextKind, ContextValue};
 use sc_bd_cli::CliInvoker;
@@ -165,21 +164,29 @@ pub fn run_with(
     clock: Arc<dyn Clock>,
     stdout: Stdout,
 ) -> (i32, String) {
-    run_stoppable(argv, env, invoker, clock, stdout, &StopFlag::new())
+    run_stoppable(
+        argv,
+        env,
+        invoker,
+        clock,
+        stdout,
+        &commands::signal::Signals::new(),
+    )
 }
 
-/// As [`run_with`], with the flag a signal sets (`cron run`, `tick` and `sync use-python` stop on it).
+/// As [`run_with`], with what the process's signals do (`cron run`, `tick`
+/// and `sync use-python` stop on them).
 fn run_stoppable(
     argv: &[String],
     env: &BTreeMap<String, String>,
     invoker: Option<Box<dyn CliInvoker>>,
     clock: Arc<dyn Clock>,
     stdout: Stdout,
-    stop: &StopFlag,
+    signals: &commands::signal::Signals,
 ) -> (i32, String) {
     let text = args::format_flag(argv) == Some("text");
     match catch_unwind(AssertUnwindSafe(|| {
-        dispatch(argv, env, invoker, clock, stdout, stop)
+        dispatch(argv, env, invoker, clock, stdout, signals)
     })) {
         Ok(reply) => reply,
         Err(payload) => {
@@ -206,9 +213,10 @@ fn run_stoppable(
 /// is still written, and the exit code is then `128 + signal`.
 #[must_use]
 pub fn run_process() -> ExitCode {
-    let stop = StopFlag::new();
+    let signals = commands::signal::Signals::new();
     // Before anything can start a `bd`: from here a signal stops the calls.
-    if let Err(e) = commands::signal::install(&stop) {
+    #[cfg(unix)]
+    if let Err(e) = commands::signal::install(&signals) {
         // No log is set up yet; stderr is the log's destination anyway.
         let _written = writeln!(
             std::io::stderr(),
@@ -240,17 +248,14 @@ pub fn run_process() -> ExitCode {
         None,
         Arc::new(sc_beads::SystemClock),
         stdout,
-        &stop,
+        &signals,
     );
     // A closed stdout leaves nobody to tell; the exit code still reports the outcome.
     let _written = std::io::stdout().write_all(reply.as_bytes());
     let _flushed = std::io::stdout().flush();
-    match sc_bd_cli::shutdown::requested() {
+    match signals.first() {
         Some(signal) => {
-            let _written = writeln!(
-                std::io::stderr(),
-                "bdc: stopped by signal {signal}; its bd calls were killed"
-            );
+            let _written = writeln!(std::io::stderr(), "bdc: stopped by signal {signal}");
             ExitCode::from(commands::signal::exit_code(signal))
         }
         None => ExitCode::from(u8::try_from(code).unwrap_or(3)),
@@ -281,7 +286,7 @@ fn dispatch(
     invoker: Option<Box<dyn CliInvoker>>,
     clock: Arc<dyn Clock>,
     stdout: Stdout,
-    stop: &StopFlag,
+    signals: &commands::signal::Signals,
 ) -> (i32, String) {
     let format = args::format_flag(argv);
     if args::has_flag(argv, "--help") {
@@ -320,6 +325,7 @@ fn dispatch(
         return finish(&Err(e), false);
     };
     let text = leaf.get_one::<String>("format").map(String::as_str) == Some("text");
+    let from_input = leaf.get_one::<String>("input").is_some();
     let request = match leaf.get_one::<String>("input") {
         Some(_) if request::has_request_args(spec, leaf) => {
             let e = ApiError::usage(
@@ -330,13 +336,7 @@ fn dispatch(
             return finish(&Err(e), false);
         }
         Some(source) => request::from_input(source),
-        None => request::from_matches(spec, leaf).and_then(|mut r| {
-            // `scopes ingest` takes its snapshot on stdin (REQ-BDC-0726).
-            if spec.path == "cache scopes ingest" {
-                commands::scopes::merge_stdin(&mut r, std::io::stdin().lock())?;
-            }
-            Ok(r)
-        }),
+        None => request::from_matches(spec, leaf),
     };
     let request = match request {
         Ok(r) => r,
@@ -351,15 +351,18 @@ fn dispatch(
         leaf.get_count("verbose"),
         leaf.get_flag("quiet"),
         config::env_value(env, "LOG"),
+        log::default_for(spec.command),
     );
     let ctx = commands::Context {
         flags,
         env,
         invoker,
         clock,
-        stop,
+        signals,
+        // `scopes ingest` streams its snapshot from stdin (REQ-BDC-0726).
+        ingest_stdin: spec.command == Command::ScopesIngest && !from_input,
     };
-    if spec.path == "cache cron run" {
+    if spec.command == Command::CronRun {
         // sc-cron's events come from runtime and signal threads: the stderr
         // log is the process default for `cron run` (REQ-BDC-0730). A second
         // default in one process (in-process tests) keeps the first.
@@ -374,7 +377,7 @@ fn dispatch(
             );
         }
         test_panic(env);
-        commands::run(spec.target, &request, ctx)
+        commands::run(spec.command, &request, ctx)
     });
     finish(&result, text)
 }

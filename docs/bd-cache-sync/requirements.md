@@ -238,9 +238,15 @@ readiness in the same tick's sync.
 **Acceptance evidence:**
 `a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain`,
 `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
-`test_e2e_blocker_close_and_reopen_update_ready` (`tests/e2e.rs`); `tests/live.rs`
-(testbed, composed with `compose_with(..., None)` like `tests/common/real.rs`,
-ARCH-807).
+`test_e2e_blocker_close_and_reopen_update_ready`,
+`an_outage_of_several_runs_through_the_real_store_and_cli`,
+`a_scheduled_run_with_a_slow_bd_ends_within_its_budget` (`tests/e2e.rs`, the built-in
+row's scheduled run through `Schedules::cron_run_once` over the real composition,
+`tests/common/real.rs`); `a_journaled_write_lands_in_a_real_bd_through_cron_run_once`
+and `an_incremental_sync_of_a_1000_bead_scope_is_incremental_and_its_time_is_reported`
+(`tests/live.rs`, testbed through `tests/run-live.sh`, composed with
+`compose_with(..., None)`, ARCH-807); the Python row by `cron run --once` in
+`tests/cron_rows.rs` and `crates/bd-cache-py/tests/test_cli_e2e.py` (sprint b-8).
 
 Amendment (fix-a-7-10 and fix-a-7-12, S34, S37, S38, RBP-F044, QA8-003, REQ-QA-709; **Status:** Approved (lead rulings S34, S37 and S38, bc-lead, 2026-10-24)):
 a `.beads/bd-cache.toml` that cannot be loaded is a `ComposeError::Config`

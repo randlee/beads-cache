@@ -52,5 +52,5 @@ Naming follows the Plan Naming section of
 | [b-5](plans/phase-b/sprint-b-5-release-channels.md) | b | release manifest and channels | `sprint/b-5-release-channels` | complete (#80) |
 | [b-6](plans/phase-b/sprint-b-6-sc-cron.md) | b | sc-cron: Python hook target, enabled flag, stop decisions | `sprint/b-6-sc-cron` | complete (#92) |
 | [b-7](plans/phase-b/sprint-b-7-store-contract.md) | b | store extensions, scope filters, schedule store | `sprint/b-7-store-contract` | complete (merged as PR #99 into `integrate/phase-b`) |
-| [b-8](plans/phase-b/sprint-b-8-tick-python.md) | b | the sync rows, the switch, the Python surface, end to end | `sprint/b-8-tick-python` | complete (PR to `integrate/phase-b`) |
+| [b-8](plans/phase-b/sprint-b-8-tick-python.md) | b | the sync rows, the switch, the Python surface, end to end | `sprint/b-8-tick-python` | in review (PR #100 to `integrate/phase-b`; QA round 1 fixes) |
 | [b-9](plans/phase-b/sprint-b-9-boundary-lint.md) | b | neutral tests, contract text, health, lint gate | `sprint/b-9-boundary-lint` | planned |

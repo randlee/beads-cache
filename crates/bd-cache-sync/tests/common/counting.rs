@@ -35,6 +35,7 @@ pub struct Counting<S> {
     touched: Arc<AtomicU64>,
     waits: Arc<Mutex<Vec<Duration>>>,
     fail_next: Arc<AtomicBool>,
+    stop_on_pending: Arc<Mutex<Option<bd_cache_sync::StopFlag>>>,
 }
 
 impl<S> Counting<S> {
@@ -47,9 +48,17 @@ impl<S> Counting<S> {
                 touched: Arc::clone(&touched),
                 waits: Arc::default(),
                 fail_next: Arc::default(),
+                stop_on_pending: Arc::default(),
             },
             touched,
         )
+    }
+
+    /// Sets `flag` when the run reads the pending summary: after its last
+    /// stop check and before it builds the hook's request (a signal that
+    /// arrives in that window).
+    pub fn stop_on_pending_summary(&self, flag: bd_cache_sync::StopFlag) {
+        *self.stop_on_pending.lock().unwrap() = Some(flag);
     }
 
     /// The `wait` of every bounded marker write so far, in order (shared handle).
@@ -156,6 +165,44 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn hook_succeeded(&mut self) -> Result<(), CacheError> {
         self.inner.hook_succeeded()
+    }
+    fn sync_run(&self, row: &str) -> Result<Option<bd_cache_model::SyncRun>, CacheError> {
+        self.inner.sync_run(row)
+    }
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<bd_cache_model::SyncRun, CacheError> {
+        self.inner.sync_run_started(row, run_id, at)
+    }
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: bd_cache_model::SyncRunEnd,
+    ) -> Result<bool, CacheError> {
+        self.inner.sync_run_finished(row, run_id, at, end)
+    }
+    fn pending_summary(&self) -> Result<bd_cache_model::PendingSummary, CacheError> {
+        if let Some(flag) = self.stop_on_pending.lock().unwrap().as_ref() {
+            flag.stop();
+        }
+        let r = self.inner.pending_summary();
+        self.add(1);
+        r
+    }
+    fn unannounced_escalations_first(
+        &self,
+        limit: usize,
+    ) -> Result<bd_cache_model::EscalationPage, CacheError> {
+        let r = self.inner.unannounced_escalations_first(limit);
+        if let Ok(page) = &r {
+            self.add(page.entries.len());
+        }
+        r
     }
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
         let r = self.inner.get_row(id);

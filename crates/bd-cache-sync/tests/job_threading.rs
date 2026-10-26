@@ -2,8 +2,6 @@
 //! cache, up to a deadline. Causal: the step holds the cache's mutex until
 //! the test releases it through a channel; no sleep decides the outcome.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, reason = "test code")]
-
 mod common;
 
 use std::sync::mpsc;

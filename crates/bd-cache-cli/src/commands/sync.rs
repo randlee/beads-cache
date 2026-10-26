@@ -1,19 +1,14 @@
 //! `cache sync use-python|use-builtin`: the switch between the sync rows
 //! (REQ-BDC-0724; ADR-SYNC-0008), run over `bd-cache-sync`.
 //!
-//! A signal to `use-python` during its immediate run kills the script's tree,
-//! restores the state held before the command, and the process exits
-//! `128 + signal` (the `StopFlag` is the run's kill flag here).
+//! Their argv rows; they run through `bd_cache_sync::execute`
+//! (`commands::run`). A signal to `use-python` during its immediate run
+//! kills the script's tree, restores the state held before the command, and
+//! the process exits `128 + signal` (the stop flag is the run's kill flag).
 
-use std::path::PathBuf;
+use bd_cache_api::Command;
 
-use bd_cache_api::request::SyncUsePython;
-use bd_cache_api::{ApiError, Command};
-use bd_cache_sync::{Composed, StopFlag, UsePython};
-use serde_json::Value;
-
-use crate::args::{ArgSpec, CommandSpec, Shape, Target, Ty};
-use crate::commands::runtime::{parts, runtime};
+use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
 
 use Shape::{Many, One};
 use Ty::{Int, Str};
@@ -23,7 +18,7 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache sync use-python",
         about: "Make a consumer's Python script the sync: write its row enabled, run it at once, roll back on failure.",
-        target: Target::Sync(Command::SyncUsePython),
+        command: Command::SyncUsePython,
         args: &[
             ArgSpec::flag(
                 "python",
@@ -76,36 +71,8 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
     CommandSpec {
         path: "cache sync use-builtin",
         about: "Make the built-in row the sync again (takes no lease; always works when a built-in row exists).",
-        target: Target::Sync(Command::SyncUseBuiltin),
+        command: Command::SyncUseBuiltin,
         args: &[],
         one_of: None,
     },
 ];
-
-/// `sync use-python`.
-pub(crate) fn use_python(
-    composed: Composed,
-    req: &SyncUsePython,
-    stop: &StopFlag,
-) -> Result<Value, ApiError> {
-    let p = parts(composed)?;
-    let input = UsePython {
-        python: PathBuf::from(req.python()),
-        module: req.module().to_owned(),
-        cron: req.cron().map(str::to_owned),
-        timeout_ms: req.timeout_ms(),
-        env: req.env().to_vec(),
-    };
-    let ctx = p.sync_context(stop, stop.clone());
-    let rt = runtime()?;
-    rt.block_on(bd_cache_sync::sync_use_python(&p.scheduler(), &ctx, &input))
-        .map_err(|e| ApiError::from(&e))
-}
-
-/// `sync use-builtin`.
-pub(crate) fn use_builtin(composed: Composed) -> Result<Value, ApiError> {
-    let p = parts(composed)?;
-    let rt = runtime()?;
-    rt.block_on(bd_cache_sync::sync_use_builtin(&p.scheduler()))
-        .map_err(|e| ApiError::from(&e))
-}

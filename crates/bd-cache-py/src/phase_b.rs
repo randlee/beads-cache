@@ -9,26 +9,29 @@
 //! arguments take scope names as written (ADR-BDC-0013).
 //!
 //! Every method runs on the handle's own `Cache` and connection, under its
-//! mutex and with the GIL released (ADR-PY-0003); `schedule_*` and
-//! `sync_use_*` use the handle's `CacheScheduleStore` (ADR-BDC-0014), so the
-//! process opens no second connection. `tick()` and `sync_use_python()` build
-//! a current-thread tokio runtime on a helper thread the call spawns and
+//! mutex and with the GIL released (ADR-PY-0003). `tick()`, `schedule_*` and
+//! `sync_use_*` run through `bd_cache_sync::execute` over the handle's
+//! `CacheScheduleStore` (ADR-BDC-0014), so the process opens no second
+//! connection and the CLI and this module give the same codes and details
+//! (only the suggested action is worded for Python). They build a
+//! current-thread tokio runtime on a helper thread the call spawns and
 //! joins, and drop it before returning: no runtime outlives the call, and a
 //! caller on an asyncio loop or inside a tokio runtime of its own never has
-//! one nested in its context.
+//! one nested in its context. A Ctrl-C during the call stops it and is
+//! raised when it returns.
 //!
 //! Inside a run (`python -m bd_cache_rs.run`, `bd_cache_rs.sync.main`),
-//! `drain`, `manage.flush`, `tick` and `schedule_*` raise `CacheError`
-//! (`PRECONDITION`, `details.reason: "inside_run"`): the run's own lease and
-//! schedule are the caller's (ADR-SYNC-0008).
+//! `drain`, `manage.flush`, `tick`, `schedule_*` and `sync_use_*` raise
+//! `CacheError` (`PRECONDITION`, `details.reason: "inside_run"`): the run's
+//! own lease and schedule are the caller's (ADR-SYNC-0008).
 
-use std::path::PathBuf;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, PoisonError};
+use std::time::Duration;
 
 use bd_cache_api::{ApiError, Command, Request, decode};
 use bd_cache_model::{CacheError as ModelError, PreconditionReason};
-use bd_cache_sync::{RunContext, ScheduleSet, StopFlag, SyncError, SystemSchedules, UsePython};
+use bd_cache_sync::{FrontEnd, StopFlag, SystemSchedules};
 use pyo3::prelude::*;
 use pyo3::types::{PyDict, PyTuple};
 use serde_json::{Map, Value};
@@ -39,6 +42,13 @@ use crate::error::api_err;
 use crate::handle::{Inner, PyCache};
 
 /// Set by `bd_cache_rs.run` and `bd_cache_rs.sync` while a run's code is called.
+///
+/// The module's second process-wide static (ADR-PY-0006's sprint b-8
+/// amendment; ADR-PY-0001's `ProjectLocks` set moved to `bd-cache-sync`): a
+/// run's code reaches the cache through handles it opens itself, so the mark
+/// cannot live on one handle; it is the process's "a sync run or a
+/// post-sync hook is calling user code now", set and cleared by the two
+/// entry points around that call only.
 static IN_RUN: AtomicBool = AtomicBool::new(false);
 
 /// `bd_cache_rs._native._set_in_run(flag)`: marks the process as inside a run.
@@ -53,27 +63,30 @@ pub(crate) fn refuse_in_run(py: Python<'_>, verb: &str) -> PyResult<()> {
     if !IN_RUN.load(Ordering::SeqCst) {
         return Ok(());
     }
-    let e = ApiError::from(&precondition(format!(
-        "{verb} cannot be called inside a sync run or a post-sync hook: the run's lease and schedule are the caller's"
-    )))
-    .with_detail("reason", "inside_run");
-    Err(api_err(py, &e))
-}
-
-fn precondition(detail: String) -> ModelError {
-    ModelError::Precondition {
-        detail,
+    let e = ModelError::Precondition {
+        detail: format!(
+            "{verb} cannot be called inside a sync run or a post-sync hook: the run's lease and schedule are the caller's"
+        ),
         unmet: std::collections::BTreeMap::new(),
-        reason: PreconditionReason::PreconditionFailed,
+        reason: PreconditionReason::InsideRun,
         source: None,
-    }
+    };
+    Err(api_err(py, &FrontEnd::Python.api_error(&e)))
 }
 
-/// One phase-B method: its name, the command it runs and its positional parameters.
+/// How often a front-end verb's caller checks for a Python signal
+/// (`KeyboardInterrupt`) while the verb runs with the GIL released.
+const SIGNAL_POLL: Duration = Duration::from_millis(100);
+
+/// One phase-B method: its name, the command it runs, its positional
+/// parameters, and whether a run's code may call it (`refuse_in_run`).
 struct Spec {
     name: &'static str,
     command: Command,
     positional: &'static [&'static str],
+    /// Refused inside a run (ADR-SYNC-0008): the run's lease and schedule
+    /// are the caller's, so the verbs that take the lease or change a row are.
+    refuse_in_run: bool,
 }
 
 const SPECS: &[Spec] = &[
@@ -81,77 +94,91 @@ const SPECS: &[Spec] = &[
         name: "tick",
         command: Command::CacheTick,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "schedule_set",
         command: Command::ScheduleSet,
         positional: &["cron"],
+        refuse_in_run: true,
     },
     Spec {
         name: "schedule_show",
         command: Command::ScheduleShow,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "schedule_enable",
         command: Command::ScheduleEnable,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "schedule_disable",
         command: Command::ScheduleDisable,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "schedule_clear",
         command: Command::ScheduleClear,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "sync_use_python",
         command: Command::SyncUsePython,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "sync_use_builtin",
         command: Command::SyncUseBuiltin,
         positional: &[],
+        refuse_in_run: true,
     },
     Spec {
         name: "ingest_scope",
         command: Command::ScopesIngest,
         positional: &["scope", "rows", "blocked", "revision", "allow_empty"],
+        refuse_in_run: false,
     },
     Spec {
         name: "scope_announce",
         command: Command::ScopesAnnounce,
         positional: &["scope", "since"],
+        refuse_in_run: false,
     },
     Spec {
         name: "scopes_add",
         command: Command::ScopesAdd,
         positional: &["scope"],
+        refuse_in_run: false,
     },
     Spec {
         name: "scopes_set",
         command: Command::ScopesSet,
         positional: &["scope"],
+        refuse_in_run: false,
     },
     Spec {
         name: "scopes_remove",
         command: Command::ScopesRemove,
         positional: &["scope"],
+        refuse_in_run: false,
     },
     Spec {
         name: "scopes_list",
         command: Command::ScopesList,
         positional: &[],
+        refuse_in_run: false,
     },
 ];
 
 /// The bound method `cache.<name>` when `name` is a phase-B method.
 pub(crate) fn method(cache: &Bound<'_, PyCache>, name: &str) -> PyResult<Option<Py<PyAny>>> {
-    let Some(spec) = SPECS.iter().position(|s| s.name == name) else {
+    let Some(spec) = SPECS.iter().find(|s| s.name == name) else {
         return Ok(None);
     };
     let py = cache.py();
@@ -167,7 +194,7 @@ pub(crate) fn method(cache: &Bound<'_, PyCache>, name: &str) -> PyResult<Option<
 #[derive(Debug)]
 pub(crate) struct PyMethod {
     cache: Py<PyCache>,
-    spec: usize,
+    spec: &'static Spec,
 }
 
 impl std::fmt::Debug for Spec {
@@ -185,33 +212,30 @@ impl PyMethod {
         args: &Bound<'py, PyTuple>,
         kwargs: Option<&Bound<'py, PyDict>>,
     ) -> PyResult<Bound<'py, PyAny>> {
-        let spec = SPECS
-            .get(self.spec)
-            .ok_or_else(|| pyo3::exceptions::PyAttributeError::new_err("no such method"))?;
+        let spec = self.spec;
         let request = request_of_call(spec, args, kwargs)?;
         let cache = self.cache.bind(py).borrow();
+        if spec.refuse_in_run {
+            refuse_in_run(py, spec.name)?;
+        }
         if !spec.command.is_front_end() {
             return cache.api_call(py, spec.command, &request);
         }
-        if matches!(
-            spec.name,
-            "tick"
-                | "schedule_set"
-                | "schedule_enable"
-                | "schedule_disable"
-                | "schedule_clear"
-                | "schedule_show"
-        ) {
-            refuse_in_run(py, spec.name)?;
-        }
         let req = decode(spec.command, &request).map_err(|e| api_err(py, &e))?;
-        let value = cache.run_api(py, move |inner| run_front_end(inner, &req))?;
-        to_py(py, &value)
+        let interrupt = Mutex::new(None);
+        let value = cache.run_api(py, |inner| run_front_end(inner, &req, &interrupt));
+        // A Ctrl-C during the call stopped it; it is raised once the call ended.
+        if let Some(e) = interrupt
+            .into_inner()
+            .unwrap_or_else(PoisonError::into_inner)
+        {
+            return Err(e);
+        }
+        to_py(py, &value?)
     }
 
     fn __repr__(&self) -> String {
-        let name = SPECS.get(self.spec).map_or("?", |s| s.name);
-        format!("<bound method Cache.{name}>")
+        format!("<bound method Cache.{}>", self.spec.name)
     }
 }
 
@@ -245,113 +269,58 @@ fn request_of_call(
     Ok(Value::Object(map))
 }
 
-/// Runs a front-end verb on a helper thread with its own current-thread runtime.
-fn run_front_end(inner: &mut Inner, req: &Request) -> Result<Value, ApiError> {
-    let store = inner.schedules.clone().map_err(|e| {
-        ApiError::from(&ModelError::StoreFailed {
-            detail: e,
-            source: None,
-        })
-    })?;
-    let schedules = SystemSchedules::new(store);
-    let cache = Arc::clone(&inner.cache);
-    let cache_path = inner.cache_path.clone();
-    let beads_dir = inner.beads_dir.clone();
+/// Runs a front-end verb through `bd_cache_sync::execute` on a helper thread
+/// with its own current-thread runtime, dropped before the call returns.
+///
+/// The calling thread (the GIL released) waits for it, checking for a
+/// Python signal every [`SIGNAL_POLL`]: a `KeyboardInterrupt` sets the run's
+/// stop flag (a tick stops between steps and kills its hook; `use-python`
+/// kills its script and restores) and is kept in `interrupt`, raised once
+/// the call has ended. A call is otherwise bounded by its run's budget or
+/// timeout (at most 610 s), while the handle's mutex is held (ADR-PY-0003).
+fn run_front_end(
+    inner: &mut Inner,
+    req: &Request,
+    interrupt: &Mutex<Option<PyErr>>,
+) -> Result<Value, ApiError> {
+    let store = inner
+        .schedules
+        .store()
+        .map_err(|e| FrontEnd::Python.api_error(&e))?;
+    let schedules = SystemSchedules::system(store, Arc::clone(&inner.cache), inner.files.clone());
+    let stop = StopFlag::new();
     std::thread::scope(|s| {
-        s.spawn(|| {
+        let helper = s.spawn(|| {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
                 .map_err(|e| ApiError::internal(format!("cannot start a tokio runtime: {e}")))?;
-            let out = rt.block_on(front_end(&schedules, &cache, cache_path, beads_dir, req));
+            let out = rt.block_on(bd_cache_sync::execute(
+                &schedules,
+                req,
+                &stop,
+                FrontEnd::Python,
+            ));
             drop(rt);
             out
-        })
-        .join()
-        .unwrap_or_else(|_| Err(ApiError::internal("the run's helper thread panicked")))
-    })
-}
-
-async fn front_end(
-    schedules: &SystemSchedules,
-    cache: &bd_cache_sync::SharedCache<
-        bd_cache_store::SqliteStore,
-        bd_cache_store::FlockDrainLock,
-        sc_bd_cli::BdCli,
-    >,
-    cache_path: PathBuf,
-    beads_dir: PathBuf,
-    req: &Request,
-) -> Result<Value, ApiError> {
-    let cache_err = |e: &ModelError| ApiError::from(e);
-    match req {
-        Request::ScheduleSet(r) => schedules
-            .set(&ScheduleSet {
-                expr: r.cron().to_owned(),
-                budget_ms: r.budget_ms(),
-                hook_reserve_ms: r.hook_reserve_ms(),
-                post_sync: r.post_sync().map(str::to_owned),
-                python: r.python().map(PathBuf::from),
-                env: r.env().to_vec(),
-            })
-            .await
-            .map_err(|e| cache_err(&e)),
-        Request::ScheduleShow(_) => schedules.show(cache).await.map_err(|e| cache_err(&e)),
-        Request::ScheduleEnable(_) => schedules.enable(true).await.map_err(|e| cache_err(&e)),
-        Request::ScheduleDisable(_) => schedules.enable(false).await.map_err(|e| cache_err(&e)),
-        Request::ScheduleClear(_) => schedules.clear().await.map_err(|e| cache_err(&e)),
-        Request::SyncUseBuiltin(_) => schedules.use_builtin().await.map_err(|e| cache_err(&e)),
-        Request::SyncUsePython(r) => schedules
-            .use_python(
-                cache,
-                cache_path,
-                Some(beads_dir),
-                StopFlag::new(),
-                &UsePython {
-                    python: PathBuf::from(r.python()),
-                    module: r.module().to_owned(),
-                    cron: r.cron().map(str::to_owned),
-                    timeout_ms: r.timeout_ms(),
-                    env: r.env().to_vec(),
-                },
-            )
-            .await
-            .map_err(|e| cache_err(&e)),
-        Request::CacheTick(_) => {
-            let stop = StopFlag::new();
-            let ctx = RunContext {
-                row: bd_cache_sync::BUILTIN_ROW.to_owned(),
-                period: None,
-                cache_path,
-                beads_dir: Some(beads_dir),
-                kill: stop.clone(),
-                stop,
-            };
-            let reply = schedules
-                .tick(cache, &ctx)
-                .await
-                .map_err(|e| sync_error(&e))?;
-            serde_json::to_value(reply)
-                .map_err(|e| ApiError::internal(format!("the reply does not serialize: {e}")))
+        });
+        while !helper.is_finished() {
+            std::thread::sleep(SIGNAL_POLL);
+            // A closure: the method path is not general over `Python`'s lifetime.
+            #[expect(
+                clippy::redundant_closure_for_method_calls,
+                reason = "the method path is not general over the GIL token's lifetime"
+            )]
+            let signalled = Python::attach(|py| py.check_signals());
+            if let Err(e) = signalled {
+                stop.stop();
+                *interrupt.lock().unwrap_or_else(PoisonError::into_inner) = Some(e);
+            }
         }
-        other => Err(ApiError::internal(format!(
-            "{} is not a front-end verb",
-            other.command().path()
-        ))),
-    }
-}
-
-/// A sync error as the contract's error (REQ-BDC-0720, 0729).
-fn sync_error(e: &SyncError) -> ApiError {
-    match e {
-        SyncError::Cache(c) => ApiError::from(c),
-        SyncError::PythonSyncEnabled(detail) => ApiError::from(&precondition(detail.clone()))
-            .with_detail("reason", "python_sync_enabled")
-            .with_suggested_action(
-                "cache.sync_use_builtin() makes the built-in row the sync again",
-            ),
-        _ => ApiError::internal(format!("unexpected sync error: {e}")),
-    }
+        helper
+            .join()
+            .unwrap_or_else(|_| Err(ApiError::internal("the run's helper thread panicked")))
+    })
 }
 
 #[cfg(test)]
@@ -409,6 +378,27 @@ mod tests {
             phase_b,
             SPECS.len(),
             "every phase-B verb but cron run has a method"
+        );
+    }
+
+    /// The verbs that take the lease or change a row are refused inside a
+    /// run, and exactly those (B8Q1-025): `tick`, every `schedule_*` and
+    /// both `sync_use_*`; the store-only verbs a run's code calls are not.
+    #[test]
+    fn exactly_the_lease_and_row_verbs_are_refused_inside_a_run() {
+        for spec in SPECS {
+            let changes_the_sync = spec.command.is_front_end();
+            assert_eq!(spec.refuse_in_run, changes_the_sync, "{}", spec.name);
+        }
+        assert!(
+            SPECS
+                .iter()
+                .any(|s| s.name == "sync_use_builtin" && s.refuse_in_run)
+        );
+        assert!(
+            SPECS
+                .iter()
+                .any(|s| s.name == "ingest_scope" && !s.refuse_in_run)
         );
     }
 }

@@ -452,7 +452,7 @@ impl ApiError {
     ///
     /// `source` is the underlying code: `store_config_*`, `sync_config_*`,
     /// `sync_beads_dir_unresolvable` or `sync_repo_root_not_utf8`. `details`
-    /// adds keys such as `key` and `legacy_path` (contract §2).
+    /// adds keys such as `key` (contract §2).
     ///
     /// # Examples
     ///
@@ -518,6 +518,10 @@ impl From<&CacheError> for ApiError {
             out = out.with_detail("v0_code", v0);
         }
         match e {
+            CacheError::Precondition { reason, .. } if reason.is_sync() => {
+                // The sync's own reasons (REQ-BDC-0720, ADR-SYNC-0008).
+                out = out.with_detail("reason", reason.as_str());
+            }
             CacheError::Precondition { unmet, .. } if !unmet.is_empty() => {
                 out = out.with_detail("unmet", json!(unmet));
             }

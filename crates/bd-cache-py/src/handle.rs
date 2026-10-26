@@ -63,12 +63,12 @@ pub(crate) struct Inner {
     pub(crate) clock: Arc<dyn Clock>,
     /// The cache file and `metadata.json` facts the api reports.
     pub(crate) facts: CacheFacts,
-    /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014).
-    pub(crate) schedules: Result<Arc<bd_cache_store::CacheScheduleStore>, String>,
-    /// The cache file.
-    pub(crate) cache_path: PathBuf,
-    /// The beads directory.
-    pub(crate) beads_dir: PathBuf,
+    /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014),
+    /// the real error kept with its source.
+    pub(crate) schedules: bd_cache_sync::ScheduleTable,
+    /// The files a sync run of this cache uses: the cache file, the beads
+    /// directory and the repository root.
+    pub(crate) files: bd_cache_sync::SyncFiles,
 }
 
 impl Inner {
@@ -80,8 +80,7 @@ impl Inner {
                 clock: opened.clock,
                 facts: opened.facts,
                 schedules: opened.schedules,
-                cache_path: opened.path.clone(),
-                beads_dir: opened.beads_dir,
+                files: opened.files,
             },
             opened.path,
         )

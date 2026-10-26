@@ -2,9 +2,8 @@
 //! model for every front end, the store-only verbs executed here, and the
 //! front-end verbs decoded here but run elsewhere. Each rule has a planted
 //! negative.
-#![allow(
+#![expect(
     clippy::unwrap_used,
-    clippy::panic,
     clippy::indexing_slicing,
     reason = "test code: a failed unwrap or index is a test failure"
 )]

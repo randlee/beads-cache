@@ -83,6 +83,16 @@ impl ScopesIngest {
         &self.snapshot
     }
 
+    /// This request with `snapshot` in place of the one it was decoded with:
+    /// for a front end that decodes the snapshot from a stream as it reads it
+    /// (`bdc cache scopes ingest`'s stdin, `IngestSnapshot::from_reader`,
+    /// REQ-BDC-0726), after the rest of the request was decoded here.
+    #[must_use]
+    pub fn with_snapshot(mut self, snapshot: IngestSnapshot) -> Self {
+        self.snapshot = snapshot;
+        self
+    }
+
     /// The opaque revision stored with it.
     #[must_use]
     pub fn revision(&self) -> Option<&str> {

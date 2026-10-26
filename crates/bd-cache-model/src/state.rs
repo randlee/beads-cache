@@ -297,6 +297,135 @@ pub struct HookState {
     pub next_attempt_at: Option<Timestamp>,
 }
 
+/// The journal's pending entries in brief: how many, and when the oldest was
+/// journaled (the post-sync hook request's `pending`, REQ-BDC-0727).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+pub struct PendingSummary {
+    /// Pending entries.
+    pub count: u64,
+    /// The oldest pending entry's `created_at`; `None` with none pending.
+    pub oldest_created_at: Option<Timestamp>,
+}
+
+/// The first unannounced escalations, oldest first, and how many there are
+/// in all (the post-sync hook request's `escalated`, REQ-BDC-0727).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct EscalationPage {
+    /// At most the page size, oldest first.
+    pub entries: Vec<crate::journal::JournalEntry>,
+    /// Every unannounced escalation.
+    pub total: u64,
+}
+
+/// How a sync row's run ended, for its run record ([`SyncRun`], REQ-BDC-0731).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SyncRunEnd {
+    /// It ran and succeeded: the failure count is reset.
+    Ok,
+    /// It failed: counted as one more consecutive failure.
+    Failed,
+    /// It did nothing (another run held the lease, or its stop check said
+    /// to skip it): the failure count is left as it is.
+    Skipped,
+}
+
+impl SyncRunEnd {
+    /// The stored text: `ok`, `failed` or `skipped`.
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Ok => "ok",
+            Self::Failed => "failed",
+            Self::Skipped => "skipped",
+        }
+    }
+
+    /// The end named by [`SyncRunEnd::as_str`]; `None` for any other text.
+    #[must_use]
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "ok" => Some(Self::Ok),
+            "failed" => Some(Self::Failed),
+            "skipped" => Some(Self::Skipped),
+            _ => None,
+        }
+    }
+}
+
+/// The run record of one sync row (`sync_run`, REQ-BDC-0731, ADR-STORE-0006
+/// as amended by sprint b-8).
+///
+/// sc-cron keeps one last outcome per row and no run id or counter, so the
+/// sync keeps its own record per row name: the latest run's id and times,
+/// and the consecutive failures with the first one's time. A run is started
+/// ([`CacheStore::sync_run_started`](crate::CacheStore::sync_run_started))
+/// before it does anything and finished
+/// ([`CacheStore::sync_run_finished`](crate::CacheStore::sync_run_finished))
+/// when it returns; a run that never finished (timed out, aborted or
+/// killed) is counted as a failure when the next run starts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SyncRun {
+    /// The latest run, finished or not.
+    pub run_id: RunId,
+    /// When it started.
+    pub started_at: Timestamp,
+    /// When it finished; `None` while it runs, or when it never finished.
+    pub finished_at: Option<Timestamp>,
+    /// How it ended, once it finished.
+    pub end: Option<SyncRunEnd>,
+    /// Consecutive failed runs up to the latest finished one; 0 after a success.
+    pub consecutive_failures: u32,
+    /// When the first of those failures happened.
+    pub first_failure_at: Option<Timestamp>,
+}
+
+impl SyncRun {
+    /// The record after a run `run_id` starts at `at`, from the `previous`
+    /// record: a previous run that never finished counts as one failure,
+    /// from its start. Both stores apply this one rule.
+    #[must_use]
+    pub fn started(previous: Option<&Self>, run_id: &RunId, at: &Timestamp) -> Self {
+        let (mut failures, mut first) = previous.map_or((0, None), |p| {
+            (p.consecutive_failures, p.first_failure_at.clone())
+        });
+        if let Some(p) = previous.filter(|p| p.finished_at.is_none()) {
+            failures = failures.saturating_add(1);
+            first = first.or_else(|| Some(p.started_at.clone()));
+        }
+        Self {
+            run_id: run_id.clone(),
+            started_at: at.clone(),
+            finished_at: None,
+            end: None,
+            consecutive_failures: failures,
+            first_failure_at: first,
+        }
+    }
+
+    /// The record after the run it names finished at `at` with `end`.
+    /// Both stores apply this one rule.
+    #[must_use]
+    pub fn finished(&self, at: &Timestamp, end: SyncRunEnd) -> Self {
+        let (failures, first) = match end {
+            SyncRunEnd::Ok => (0, None),
+            SyncRunEnd::Failed => (
+                self.consecutive_failures.saturating_add(1),
+                self.first_failure_at.clone().or_else(|| Some(at.clone())),
+            ),
+            SyncRunEnd::Skipped => (self.consecutive_failures, self.first_failure_at.clone()),
+        };
+        Self {
+            run_id: self.run_id.clone(),
+            started_at: self.started_at.clone(),
+            finished_at: Some(at.clone()),
+            end: Some(end),
+            consecutive_failures: failures,
+            first_failure_at: first,
+        }
+    }
+}
+
 /// The backend outage record (ADR-BDC-0005).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Outage {

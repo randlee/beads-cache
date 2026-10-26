@@ -3,19 +3,17 @@
 //! sc-cron's `ManualClock` for the schedule rows, and a stub Python
 //! interpreter that speaks sc-cron's hook protocol (Unix).
 
-#![allow(
-    clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::panic,
-    reason = "test code"
-)]
+#![expect(clippy::unwrap_used, reason = "test code")]
 
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
 use bd_cache_model::{RepoConfig, Scope};
 use bd_cache_store::{CacheScheduleStore, FlockDrainLock, SqliteStore};
-use bd_cache_sync::{SharedCache, StopFlag, SyncContext, compose_with_config_and_backend};
+use bd_cache_sync::{
+    Schedules, SharedCache, StopFlag, SyncContext, SyncFiles, compose_with_config_and_backend,
+};
 use sc_bd_cli::testing::FakeBd;
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::Clock;
@@ -29,6 +27,10 @@ pub type RealShared = SharedCache<SqliteStore, FlockDrainLock, BdCli>;
 
 /// The scheduler over the cache file's schedule table.
 pub type RealScheduler = Scheduler<CacheScheduleStore, CronClock, SeqJitter>;
+
+/// The operations over the real composition on sc-cron's manual clock.
+pub type RealSchedules =
+    Schedules<CacheScheduleStore, SqliteStore, FlockDrainLock, BdCli, CronClock, SeqJitter>;
 
 /// A repository and its open cache.
 pub struct Repo {
@@ -50,6 +52,8 @@ pub struct Repo {
     pub cache_path: PathBuf,
     /// The beads directory.
     pub beads_dir: PathBuf,
+    /// Set: every bounded `bd` call answers as an unreachable Dolt server.
+    pub down: Arc<AtomicBool>,
 }
 
 impl Repo {
@@ -66,10 +70,11 @@ impl Repo {
         let clock = Arc::new(ManualClock::new(super::START));
         let fake = FakeBd::new(Arc::clone(&clock));
         let bd = fake.backend().clone();
+        let (switched, down) = super::real::Switched::new(fake);
         let composed = compose_with_config_and_backend(
             dir.path(),
             RepoConfig::default(),
-            |_| BdCli::with_invoker(Box::new(fake)),
+            |_| BdCli::with_invoker(Box::new(switched)),
             Arc::new(ProjectLocks::new()),
             Arc::clone(&clock) as Arc<dyn Clock>,
             None,
@@ -98,34 +103,55 @@ impl Repo {
             scheduler,
             cache_path,
             beads_dir,
+            down,
+        }
+    }
+
+    /// The files the runs use.
+    #[must_use]
+    pub fn files(&self) -> SyncFiles {
+        SyncFiles {
+            cache_path: self.cache_path.clone(),
+            beads_dir: Some(self.beads_dir.clone()),
+            repo_root: self.dir.path().to_path_buf(),
         }
     }
 
     /// The sync context of this repository, with fresh flags.
     #[must_use]
     pub fn ctx(&self) -> SyncContext<SqliteStore, FlockDrainLock, BdCli, CronClock> {
-        SyncContext {
-            cache: Arc::clone(&self.cache),
-            clock: Arc::clone(&self.cron_clock),
-            cache_path: self.cache_path.clone(),
-            beads_dir: Some(self.beads_dir.clone()),
-            stop: StopFlag::new(),
-            kill: StopFlag::new(),
-        }
+        SyncContext::new(
+            Arc::clone(&self.cache),
+            Arc::clone(&self.cron_clock),
+            self.files(),
+            StopFlag::new(),
+            StopFlag::new(),
+        )
+    }
+
+    /// The operations over this repository (its own scheduler on the same
+    /// table and clocks).
+    #[must_use]
+    pub fn schedules(&self) -> RealSchedules {
+        Schedules::new(
+            Arc::clone(&self.store),
+            Arc::clone(&self.cron_clock),
+            Arc::new(SeqJitter::default()),
+            Arc::clone(&self.cache),
+            self.files(),
+        )
     }
 
     /// The run context of an on-demand tick.
     #[must_use]
     pub fn run_ctx(&self) -> bd_cache_sync::RunContext {
-        let stop = StopFlag::new();
-        bd_cache_sync::RunContext {
-            row: bd_cache_sync::BUILTIN_ROW.to_owned(),
-            period: None,
-            cache_path: self.cache_path.clone(),
-            beads_dir: Some(self.beads_dir.clone()),
-            kill: stop.clone(),
-            stop,
-        }
+        bd_cache_sync::RunContext::on_demand(&self.files(), StopFlag::new())
+    }
+
+    /// The two rows now.
+    #[must_use]
+    pub fn rows(&self) -> bd_cache_sync::Rows {
+        bd_cache_sync::Rows::read(self.store.as_ref()).unwrap()
     }
 
     /// The (enabled flag) of each active sync row, `(builtin, python)`.
@@ -143,7 +169,11 @@ impl Repo {
 /// exits 0 (1 when the file `noimport` exists); `-I -m <module>` reads one
 /// request, records it as `<event>.<n>.json` with its environment, and acts
 /// on `stop` (the stop answer, default `{"action": "continue"}`) and `tick`
-/// (`exit:<n>`, `sleep`, `stderr:<text>`, `grandchild`).
+/// (`exit:<n>`, `sleep`, `stderr:<text>`, `grandchild`, `leak`: `$HOME`
+/// over more than 8 KiB of stderr, then exit 1). With the named pipe
+/// `stopgate`, `cron.stop` waits until the test writes it (touching
+/// `stop.started` first); with the file `vanish`, `cron.stop` deletes the
+/// interpreter itself, so the run's next launch cannot start.
 #[cfg(unix)]
 pub struct PyStub {
     /// Its directory.
@@ -169,6 +199,8 @@ printf '%s' "$input" > "$d/$ev.$n.json"
 env > "$d/$ev.env"
 printf '%s\n' "$@" > "$d/$ev.argv"
 if [ "$ev" = stop ]; then
+  if [ -p "$d/stopgate" ]; then : > "$d/stop.started"; cat "$d/stopgate" > /dev/null; fi
+  [ -f "$d/vanish" ] && rm -f "$0"
   if [ -f "$d/stop" ]; then cat "$d/stop"; else echo '{"action": "continue"}'; fi
   exit 0
 fi
@@ -177,6 +209,7 @@ case "$mode" in
   exit:*) echo "script failed: ${mode#exit:}" >&2; exit "${mode#exit:}" ;;
   sleep) exec sleep 3600 ;;
   stderr:*) printf '%s' "${mode#stderr:}" >&2; exit 0 ;;
+  leak) i=0; while [ $i -lt 400 ]; do printf 'leak %s ' "$HOME" >&2; i=$((i+1)); done; exit 1 ;;
   grandchild) exec 3> "$d/life"; ( trap '' TERM; echo up > "$d/ready"; exec sleep 3600 ) & wait; exit 0 ;;
 esac
 exit 0

@@ -8,12 +8,13 @@ use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
 
 use bd_cache_model::{
-    BaseEntry, CacheError, CacheStore, FailingSince, FingerprintOutcome, Freshness, HookState,
-    IdemKey, IngestSnapshot, JournalCounts, JournalEntry, JournalState, LeaseHolder, LeaseTake,
-    MAX_REGISTERED_SCOPES, NewEntry, OpenWork, Outage, PreconditionReason, PruneReport, ReadyBase,
-    RepoConfig, RunId, Scope, ScopeId, ScopeStatus, Seq, StoreStatus, SyncOutcome, SyncState,
-    UpsertReport, check_lease_expiry, clip_hook_error, error_code_prefix, phase_of,
-    precondition_json, resolve_note,
+    BaseEntry, CacheError, CacheStore, EscalationPage, FailingSince, FingerprintOutcome, Freshness,
+    HookState, IdemKey, IngestSnapshot, JournalCounts, JournalEntry, JournalState, LeaseHolder,
+    LeaseTake, MAX_REGISTERED_SCOPES, NewEntry, OpenWork, Outage, PendingSummary,
+    PreconditionReason, PruneReport, ReadyBase, RepoConfig, RunId, Scope, ScopeId, ScopeStatus,
+    Seq, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd, SyncState, UpsertReport,
+    check_lease_expiry, clip_hook_error, error_code_prefix, phase_of, precondition_json,
+    resolve_note,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use sc_beads::logging::tracing;
@@ -779,6 +780,24 @@ impl Session<'_> {
         rows.into_iter().map(|r| r.decode(at)).collect()
     }
 
+    /// The first `limit` entries matching `filter`, by seq.
+    fn entries_first(
+        &self,
+        at: Step<'_>,
+        filter: &str,
+        limit: usize,
+    ) -> Result<Vec<JournalEntry>, CacheError> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let rows = self
+            .conn
+            .prepare_cached(&format!(
+                "SELECT {JOURNAL_COLUMNS} FROM journal WHERE {filter} ORDER BY seq LIMIT ?1"
+            ))
+            .and_then(|mut stmt| Self::journal_rows(&mut stmt, [limit]))
+            .at(at)?;
+        rows.into_iter().map(|r| r.decode(at)).collect()
+    }
+
     /// The [`JOURNAL_COLUMNS`] rows a prepared journal query returns.
     fn journal_rows(
         stmt: &mut rusqlite::Statement<'_>,
@@ -1222,6 +1241,91 @@ type LeaseColumns = (Option<String>, Option<i64>, Option<String>, Option<String>
 
 /// The `hook_state` columns a read decodes.
 type HookColumns = (i64, Option<String>, Option<String>, Option<String>);
+
+/// The `sync_run` columns a read decodes: `run_id`, `started_at`,
+/// `finished_at`, `run_end`, `consecutive_failures`, `first_failure_at`.
+type SyncRunColumns = (
+    String,
+    String,
+    Option<String>,
+    Option<String>,
+    i64,
+    Option<String>,
+);
+
+/// One sync row's run record (ADR-STORE-0006 as amended by sprint b-8);
+/// `None` before its first run.
+fn read_sync_run(
+    conn: &Connection,
+    at: Step<'_>,
+    row: &str,
+) -> Result<Option<SyncRun>, CacheError> {
+    let found: Option<SyncRunColumns> = conn
+        .prepare_cached(
+            "SELECT run_id, started_at, finished_at, run_end, consecutive_failures, \
+             first_failure_at FROM sync_run WHERE row = ?1",
+        )
+        .at(at)?
+        .query_row([row], |r| {
+            Ok((
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+            ))
+        })
+        .optional()
+        .at(at)?;
+    let Some((run_id, started, finished, end, failures, first)) = found else {
+        return Ok(None);
+    };
+    let end = end
+        .map(|e| {
+            SyncRunEnd::parse(&e).ok_or_else(|| corrupt(at, format_args!("sync_run run_end {e:?}")))
+        })
+        .transpose()?;
+    Ok(Some(SyncRun {
+        run_id: RunId::new(run_id)
+            .map_err(|e| corrupt(at, format_args!("sync_run run_id: {e}")))?,
+        started_at: timestamp(at, "sync_run started_at", &started)?,
+        finished_at: opt_timestamp(at, "sync_run finished_at", finished.as_deref())?,
+        end,
+        consecutive_failures: u32::try_from(failures)
+            .map_err(|e| corrupt(at, format_args!("sync_run consecutive_failures: {e}")))?,
+        first_failure_at: opt_timestamp(at, "sync_run first_failure_at", first.as_deref())?,
+    }))
+}
+
+/// Writes one sync row's run record inside `tx`.
+fn write_sync_run(
+    tx: &Transaction<'_>,
+    at: Step<'_>,
+    row: &str,
+    run: &SyncRun,
+) -> Result<(), CacheError> {
+    tx.prepare_cached(
+        "INSERT INTO sync_run(row, run_id, started_at, finished_at, run_end, \
+         consecutive_failures, first_failure_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7) \
+         ON CONFLICT(row) DO UPDATE SET run_id = excluded.run_id, \
+         started_at = excluded.started_at, finished_at = excluded.finished_at, \
+         run_end = excluded.run_end, consecutive_failures = excluded.consecutive_failures, \
+         first_failure_at = excluded.first_failure_at",
+    )
+    .at(at)?
+    .execute(params![
+        row,
+        run.run_id.as_str(),
+        run.started_at.as_str(),
+        run.finished_at.as_ref().map(Timestamp::as_str),
+        run.end.map(SyncRunEnd::as_str),
+        i64::from(run.consecutive_failures),
+        run.first_failure_at.as_ref().map(Timestamp::as_str),
+    ])
+    .at(at)?;
+    Ok(())
+}
 
 /// The lease row, live or expired; `Corrupt` for a row that does not decode
 /// (a NULL column, a bad time): `lease_take` replaces such a row.
@@ -1697,6 +1801,42 @@ impl Session<'_> {
         })
     }
 
+    fn sync_run(&self, row: &str) -> Result<Option<SyncRun>, CacheError> {
+        read_sync_run(self.conn, self.at("read a sync row's run record"), row)
+    }
+
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<SyncRun, CacheError> {
+        self.write("record a sync run's start", |tx, st| {
+            let previous = read_sync_run(tx, st, row)?;
+            let record = SyncRun::started(previous.as_ref(), run_id, at);
+            write_sync_run(tx, st, row, &record)?;
+            Ok(record)
+        })
+    }
+
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: SyncRunEnd,
+    ) -> Result<bool, CacheError> {
+        self.write("record a sync run's end", |tx, st| {
+            match read_sync_run(tx, st, row)? {
+                Some(record) if record.run_id == *run_id => {
+                    write_sync_run(tx, st, row, &record.finished(at, end))?;
+                    Ok(true)
+                }
+                _ => Ok(false),
+            }
+        })
+    }
+
     fn upsert_rows(
         &mut self,
         s: Option<&Scope>,
@@ -1936,6 +2076,22 @@ impl Session<'_> {
         self.entries(self.at("read pending entries"), "state = 'pending'", [])
     }
 
+    fn pending_summary(&self) -> Result<PendingSummary, CacheError> {
+        let at = self.at("summarize pending entries");
+        let n: i64 = self
+            .conn
+            .prepare_cached("SELECT COUNT(*) FROM journal WHERE state = 'pending'")
+            .at(at)?
+            .query_row([], |r| r.get(0))
+            .at(at)?;
+        // The oldest by seq: entries are journaled in time order.
+        let oldest = self.entries_first(at, "state = 'pending'", 1)?;
+        Ok(PendingSummary {
+            count: count(n),
+            oldest_created_at: oldest.into_iter().next().map(|e| e.created_at),
+        })
+    }
+
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError> {
         self.entries(
             self.at("read pending entries"),
@@ -2102,6 +2258,21 @@ impl Session<'_> {
             "state = 'escalated' AND announced_at IS NULL",
             [],
         )
+    }
+
+    fn unannounced_escalations_first(&self, limit: usize) -> Result<EscalationPage, CacheError> {
+        let at = self.at("read unannounced escalations");
+        let filter = "state = 'escalated' AND announced_at IS NULL";
+        let n: i64 = self
+            .conn
+            .prepare_cached(&format!("SELECT COUNT(*) FROM journal WHERE {filter}"))
+            .at(at)?
+            .query_row([], |r| r.get(0))
+            .at(at)?;
+        Ok(EscalationPage {
+            entries: self.entries_first(at, filter, limit)?,
+            total: count(n),
+        })
     }
 
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
@@ -2432,6 +2603,26 @@ impl CacheStore for SqliteStore {
         )]
         self.session(|x| x.hook_succeeded())
     }
+    fn sync_run(&self, row: &str) -> Result<Option<SyncRun>, CacheError> {
+        self.session(|x| x.sync_run(row))
+    }
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<SyncRun, CacheError> {
+        self.session(|x| x.sync_run_started(row, run_id, at))
+    }
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: SyncRunEnd,
+    ) -> Result<bool, CacheError> {
+        self.session(|x| x.sync_run_finished(row, run_id, at, end))
+    }
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
         self.session(|x| x.get_row(id))
     }
@@ -2485,6 +2676,9 @@ impl CacheStore for SqliteStore {
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError> {
         self.session(|x| x.pending_entries())
     }
+    fn pending_summary(&self) -> Result<PendingSummary, CacheError> {
+        self.session(|x| x.pending_summary())
+    }
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError> {
         self.session(|x| x.pending_for(id))
     }
@@ -2517,6 +2711,9 @@ impl CacheStore for SqliteStore {
     }
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError> {
         self.session(|x| x.unannounced_escalations())
+    }
+    fn unannounced_escalations_first(&self, limit: usize) -> Result<EscalationPage, CacheError> {
+        self.session(|x| x.unannounced_escalations_first(limit))
     }
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
         self.session(|x| x.mark_announced(seq, at))

@@ -3,12 +3,9 @@
 //! `tests/hook_runner.rs`. Each behaviour has its positive test and a
 //! planted negative (AC-N).
 
-#![allow(
+#![expect(
     clippy::unwrap_used,
-    clippy::expect_used,
-    clippy::panic,
-    clippy::indexing_slicing,
-    reason = "test code: a failed unwrap or index is a test failure"
+    reason = "test code: a failed unwrap is a test failure"
 )]
 
 mod common;
@@ -17,8 +14,8 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 use bd_cache_model::{CacheStore, LeaseHolder, RunId, TickBudget};
-use bd_cache_sync::{BuiltinPayload, RunStatus, ScopeOutcome, run_builtin};
-use common::{World, all_scope, id, label_scope, scope};
+use bd_cache_sync::{BuiltinPayload, RunStatus, ScopeOutcome};
+use common::{World, all_scope, id, label_scope, run_builtin, scope};
 use sc_beads::{Clock, Timestamp};
 
 fn payload() -> BuiltinPayload {
@@ -105,7 +102,7 @@ async fn a_live_lease_skips_the_run_and_an_expired_one_is_taken_over() {
         (reply.outcome, reply.skipped),
         (RunStatus::Skipped, Some("in_flight"))
     );
-    assert_eq!(reply.holder.as_ref().unwrap()["pid"], 999);
+    assert_eq!(reply.holder.as_ref().unwrap().pid, 999);
     assert!(
         reply.drain.is_none() && reply.scopes.is_empty(),
         "nothing ran"
@@ -115,7 +112,56 @@ async fn a_live_lease_skips_the_run_and_an_expired_one_is_taken_over() {
     world.clock.advance(Duration::from_secs(31));
     let reply = run_builtin(&cache, &payload(), &world.ctx()).await.unwrap();
     assert_eq!(reply.outcome, RunStatus::Ok);
-    assert_eq!(reply.took_over.as_ref().unwrap()["pid"], 999);
+    assert_eq!(reply.took_over.as_ref().unwrap().pid, 999);
+    assert_eq!(members(&world, "lbl"), set(&["b1"]));
+}
+
+/// A step sc-cron timed out may still hold the cache's mutex on its
+/// blocking thread: the next run waits at most its budget for it, then
+/// replies `skipped: "in_flight"` instead of queueing a pool thread behind
+/// the hung step (B8Q1-059). Planted negative: once the mutex is free, the
+/// run syncs.
+#[tokio::test(flavor = "multi_thread")]
+async fn a_run_skips_as_in_flight_when_a_hung_step_keeps_the_cache_mutex() {
+    let world = World::new();
+    world.add("b1", &["area"], |_| {});
+    let cache = world.shared(vec![label_scope("lbl", "area")]);
+    let short = BuiltinPayload {
+        budget: TickBudget::new(Some(1_000), Some(0), false).unwrap(),
+        hook: None,
+    };
+    let (locked_tx, locked_rx) = std::sync::mpsc::channel();
+    let (free_tx, free_rx) = std::sync::mpsc::channel::<()>();
+    let hung = std::thread::spawn({
+        let cache = std::sync::Arc::clone(&cache);
+        move || {
+            let _guard = cache.lock().unwrap();
+            locked_tx.send(()).unwrap();
+            let _ = free_rx.recv();
+        }
+    });
+    locked_rx.recv().unwrap();
+    let started = std::time::Instant::now();
+    let reply = run_builtin(&cache, &short, &world.ctx()).await.unwrap();
+    let waited = started.elapsed();
+    free_tx.send(()).unwrap();
+    hung.join().unwrap();
+    assert_eq!(
+        (reply.outcome, reply.skipped),
+        (RunStatus::Skipped, Some("in_flight"))
+    );
+    assert!(
+        reply.holder.is_none(),
+        "no lease holder: the mutex was busy"
+    );
+    assert!(
+        waited < Duration::from_secs(10),
+        "bounded by the budget: {waited:?}"
+    );
+    assert!(members(&world, "lbl").is_empty(), "nothing ran");
+
+    let reply = run_builtin(&cache, &short, &world.ctx()).await.unwrap();
+    assert_eq!(reply.outcome, RunStatus::Ok);
     assert_eq!(members(&world, "lbl"), set(&["b1"]));
 }
 

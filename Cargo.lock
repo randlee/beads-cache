@@ -90,10 +90,10 @@ dependencies = [
  "bd-cache-store",
  "bd-cache-sync",
  "clap",
+ "rusqlite",
  "sc-bd-cli",
  "sc-beads",
  "sc-command",
- "sc-cron",
  "sc-observability-types",
  "serde",
  "serde_json",
@@ -123,7 +123,6 @@ dependencies = [
  "bd-cache-model",
  "bd-cache-store",
  "bd-cache-sync",
- "dunce",
  "pyo3",
  "sc-bd-cli",
  "sc-beads",
@@ -152,6 +151,7 @@ version = "0.2.0"
 dependencies = [
  "async-trait",
  "bd-cache",
+ "bd-cache-api",
  "bd-cache-model",
  "bd-cache-store",
  "chrono",
@@ -414,12 +414,6 @@ dependencies = [
  "const-oid",
  "crypto-common",
 ]
-
-[[package]]
-name = "dunce"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dyn-clone"

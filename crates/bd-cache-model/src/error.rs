@@ -109,7 +109,9 @@ pub struct Unmet {
     pub actual: String,
 }
 
-/// `/v0` refusal reason carried by a `PRECONDITION` error (ADR-BDC-0003).
+/// The reason carried by a `PRECONDITION` error: a `/v0` refusal
+/// (ADR-BDC-0003), or one of the sync's own preconditions (REQ-BDC-0720,
+/// ADR-SYNC-0008).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PreconditionReason {
     /// `precondition_failed`: a guard no longer holds.
@@ -118,17 +120,44 @@ pub enum PreconditionReason {
     NotClosable,
     /// `already_claimed`: the bead is claimed by someone else.
     AlreadyClaimed,
+    /// `python_sync_enabled`: an on-demand tick while the Python sync row is
+    /// enabled (REQ-BDC-0720); its `/v0` reason is `precondition_failed`.
+    PythonSyncEnabled,
+    /// `inside_run`: a verb a sync run or a post-sync hook may not call from
+    /// inside the run (ADR-SYNC-0008); its `/v0` reason is `precondition_failed`.
+    InsideRun,
 }
 
 impl PreconditionReason {
-    /// The `/v0` name.
+    /// The reason's name: the `/v0` name of a refusal, or the sync's own
+    /// (`python_sync_enabled`, `inside_run`), which front ends report as
+    /// `details.reason`.
     #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             Self::PreconditionFailed => "precondition_failed",
             Self::NotClosable => "not_closable",
             Self::AlreadyClaimed => "already_claimed",
+            Self::PythonSyncEnabled => "python_sync_enabled",
+            Self::InsideRun => "inside_run",
         }
+    }
+
+    /// The `/v0` refusal reason: the sync's own reasons are `precondition_failed` there.
+    #[must_use]
+    pub fn v0(self) -> &'static str {
+        match self {
+            Self::NotClosable | Self::AlreadyClaimed => self.as_str(),
+            Self::PreconditionFailed | Self::PythonSyncEnabled | Self::InsideRun => {
+                "precondition_failed"
+            }
+        }
+    }
+
+    /// True for the sync's own reasons, which front ends report as `details.reason`.
+    #[must_use]
+    pub fn is_sync(self) -> bool {
+        matches!(self, Self::PythonSyncEnabled | Self::InsideRun)
     }
 }
 
@@ -720,7 +749,15 @@ impl CacheError {
             }
             Self::BdWriteFailed { .. } => "transient: retried by the next drain",
             Self::SyncFailed { .. } => "retried by the next sync; see cause",
-            Self::Precondition { .. } => "re-read the bead and decide again",
+            Self::Precondition { reason, .. } => match reason {
+                PreconditionReason::PythonSyncEnabled => {
+                    "the Python sync row is the sync: switch to the built-in row first"
+                }
+                PreconditionReason::InsideRun => "call it outside the sync run or post-sync hook",
+                PreconditionReason::PreconditionFailed
+                | PreconditionReason::NotClosable
+                | PreconditionReason::AlreadyClaimed => "re-read the bead and decide again",
+            },
             Self::IdemConflict { .. } => "use a key derived from the whole operation",
             Self::BadOp { .. } => "use one of close, update, dep_add",
             Self::BadArgs { .. } => "fix the args named in detail",
@@ -929,7 +966,7 @@ impl CacheError {
     #[must_use]
     pub fn reason(&self) -> Option<&'static str> {
         match self {
-            Self::Precondition { reason, .. } => Some(reason.as_str()),
+            Self::Precondition { reason, .. } => Some(reason.v0()),
             _ => None,
         }
     }
@@ -1010,7 +1047,7 @@ impl CacheError {
         let extra = match self {
             Self::BdContract { bead, field, .. } => json!({"bead": bead, "field": field}),
             Self::Precondition { unmet, reason, .. } => {
-                json!({"unmet": unmet, "reason": reason.as_str()})
+                json!({"unmet": unmet, "reason": reason.v0()})
             }
             Self::IdemConflict { seq, .. } => json!({"seq": seq}),
             Self::SyncFailed { scope, cause, .. } => json!({

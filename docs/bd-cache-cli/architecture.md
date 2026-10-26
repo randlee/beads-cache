@@ -16,13 +16,14 @@ harness. Sprint b-3a shipped the skeleton; sprint b-3 adds the commands over
 | `args` | The one table of commands (`CommandSpec`, `ArgSpec`, `GLOBALS`), the clap tree built from it, the word pre-scan |
 | `request` | argv matches to the JSON request at each argument's member path; `--input FILE\|-` |
 | `config` | flag > env > TOML > default, the `bd` and legacy-file rules, `metadata.json` from `$BEADS_DIR` |
-| `commands` | decode, open (`compose_with_config`), `execute`; `beads` and `manage` hold their surface's rows (and `beads` the unserved operations); `tick` decodes and runs `cache tick`; `signal` takes over SIGTERM / SIGINT / SIGHUP (ADR-CLI-0005) |
+| `commands` | decode, open (`compose_with_config`), `execute`; `beads`, `manage`, `scopes`, `schedule`, `cron`, `tick` and `sync` hold their rows (and `beads` the unserved operations); the front-end verbs run over `bd-cache-sync` (`cron` runs `cache cron run`); `signal` takes over SIGTERM / SIGINT / SIGHUP (ADR-CLI-0005) |
 | `render` | `json`: the sc-command envelope; `text`: `--format text` |
 | `help` | `--help` as `{command, synopsis, arguments}` or text |
 | `log` | the stderr `tracing` subscriber and the level rule |
 | `scenario` (feature `fake-bd`) | `Scenario`, `Faults`, `RefuseWrite`, `serve`: the scenario file and one `fake-bd` invocation |
 | `bin/bd-cache`, `bin/bdc` | `fn main() -> ExitCode { run_process() }`, identical |
 | `bin/fake-bd` (feature `fake-bd`) | reads `$FAKE_BD_SCENARIO`, calls `serve`, prints, exits |
+| `bin/fake-python` (feature `fake-bd`) | a stand-in interpreter for the hook and the Python row (sprint b-8) |
 | `tests/support` | `TestRepo` (temp repo with `.beads/metadata.json` and a scenario), `parse_envelope`, process and in-process `BdCli` constructors |
 
 ## ADR-CLI-0001: sc-command is a git dependency, so the crate is `publish = false`
@@ -250,18 +251,32 @@ Example:
 
 ## Implementation notes (sprint b-8)
 
-- The phase-B verbs are rows of the one command table: `src/commands/scopes.rs` (`Target::Api`,
-  run by `bd_cache_api::execute`) and `src/commands/{schedule,cron,tick,sync}.rs`
-  (`Target::Sync`: decoded by `bd_cache_api::decode`, then run over `bd-cache-sync`,
-  ADR-BDC-0015). `cache scopes` is a command and a group at once (its own reply, and `cache
-  scopes list` … below it). `src/commands/runtime.rs` holds the runtime, the schedule table and
-  the error mapping (`PRECONDITION` with `details.reason: "python_sync_enabled"`).
-- `scopes ingest` reads its snapshot from stdin through a limit of 64 MiB + 1 byte
-  (`merge_stdin`), so an input over the limit is `INGEST_INVALID` (`too_large`) before it is
-  held whole (REQ-BDC-0726).
-- `cron run` installs its stderr log as the process default and stops on the signal thread's
-  `StopFlag` (Unix) or `tokio::signal::windows` Ctrl-C / Ctrl-Break; the first signal decides
-  the exit code (REQ-BDC-0730).
+- The phase-B verbs are rows of the one command table: `src/commands/scopes.rs` (run by
+  `bd_cache_api::execute`) and `src/commands/{schedule,cron,tick,sync}.rs`. Each row names its
+  `bd_cache_api::Command`, and `Command::is_front_end` alone decides where it runs (QA-1,
+  RBQA-F008): `bd_cache_api::execute`, or over `bd-cache-sync` (ADR-BDC-0015): `cache cron run`
+  in `commands/cron.rs` (`SystemSchedules::cron_run` / `cron_run_once`), every other one
+  through `bd_cache_sync::execute` with `FrontEnd::Cli`, which maps the request to its inputs
+  and each error to the contract's once. `cache scopes` is a command and a group at once (its
+  own reply, and `cache scopes list` … below it). `src/commands/runtime.rs` holds the tokio
+  runtime (two worker threads: sc-cron's worker task and the runs' async halves; the blocking
+  parts run on the blocking pool). The crate has no `sc-cron` edge.
+- `scopes ingest` decodes its snapshot from stdin while it reads it
+  (`IngestSnapshot::from_reader`): the bytes are counted against 64 MiB and the rows against
+  50 000 as they decode, so an oversized input is `INGEST_INVALID` (`too_large`,
+  `too_many_rows`) before it is held whole, and nothing is encoded again; stdin holds `rows`
+  and `blocked` only (the scope, the revision and `--allow-empty` are the command line's;
+  any other member is `BAD_ARGS`) (REQ-BDC-0726).
+- Signals (`commands::signal::Signals`): the first signal's number decides the exit code; the
+  stop flag is set; and every bounded `bd` call is stopped at once, except for `cron run`, which
+  defers that to its shutdown timeout (`Signals::defer_bd_kill`, then `kill_bd`), so its runs
+  in flight finish their bd calls in the grace period (Rand's ruling 5, REQ-BDC-0730). On
+  Windows `cron run` registers Ctrl-C and Ctrl-Break (`console_stop`, a registration failure
+  logged at `WARN`); `install` exists on Unix only. `cron run` logs at `INFO` by default (a
+  service unit can add `-q`, `-v` or `BD_CACHE__LOG`), its subscriber the process default, and
+  escapes control characters in every value it writes.
 - The legacy-directory refusal and the `[tick]` env keys are removed (ADR-BDC-0015 amends
   ADR-CLI-0004).
-
+- `bin/fake-python` (feature `fake-bd`): a stand-in interpreter for the hook and the Python row
+  in real-process tests on every OS (`tests/tree_kill.rs`: the process-group and job-object
+  kills, and the Windows Ctrl-Break stop).
