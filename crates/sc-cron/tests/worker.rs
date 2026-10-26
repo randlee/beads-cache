@@ -570,7 +570,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
     fixture.job.stop_with(StopDecision::Continue);
     fixture
         .job
-        .stop_with(StopDecision::Stop("phase closed".into()));
+        .stop_with(StopDecision::Delete("work finished".into()));
     let worker = fixture.worker().await;
     for expected in 1..=2 {
         fixture.step(60).await;
@@ -584,7 +584,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
     assert_eq!(fixture.job.runs(), 2);
     assert_eq!(fixture.job.stop_checks(), 3);
     let row = fixture.row(&schedule);
-    assert_eq!(row.stop_reason.as_deref(), Some("phase closed"));
+    assert_eq!(row.stop_reason.as_deref(), Some("work finished"));
     assert_eq!(row.ended_at, Some(ts("2026-10-19T00:03:00Z")));
     assert_eq!(row.next_run_at, None);
     assert!(fixture.store.list_active().expect("list").is_empty());

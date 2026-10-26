@@ -55,6 +55,13 @@ getrandom = "0.4"                                          # sc-cron jitter (a-3
 criterion = "0.8"
 tempfile = "3.20"                                          # runtime in sc-cron (a Python hook's working directory); dev-dependency (tests) in the other crates
 pyo3 = "0.30"
+# sc-cron's child supervision: a process group or a job object, so a kill
+# reaches grandchildren too (REQ-CRON-0013, ADR-CRON-0008). Declared here
+# by sprint b-8 (B8Q1-036; it was inline in sc-cron's manifest).
+process-wrap = { version = "10", default-features = false, features = ["tokio1", "kill-on-drop", "process-group", "job-object"] }
+# bd-cache-sync's effective uid for the trust check (Unix, REQ-BDC-0723,
+# QA97R2-014): a safe call, no `unsafe`; already in Cargo.lock through tempfile.
+rustix = { version = "1.1", default-features = false }
 
 # phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:
 # it is not published to crates.io, so bd-cache-cli stays `publish = false`

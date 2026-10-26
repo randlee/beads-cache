@@ -90,6 +90,7 @@ dependencies = [
  "bd-cache-store",
  "bd-cache-sync",
  "clap",
+ "rusqlite",
  "sc-bd-cli",
  "sc-beads",
  "sc-command",
@@ -98,6 +99,7 @@ dependencies = [
  "serde_json",
  "signal-hook",
  "tempfile",
+ "tokio",
  "toml",
 ]
 
@@ -120,13 +122,14 @@ dependencies = [
  "bd-cache-api",
  "bd-cache-model",
  "bd-cache-store",
- "dunce",
+ "bd-cache-sync",
  "pyo3",
  "sc-bd-cli",
  "sc-beads",
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]
@@ -148,12 +151,13 @@ version = "0.2.0"
 dependencies = [
  "async-trait",
  "bd-cache",
+ "bd-cache-api",
  "bd-cache-model",
  "bd-cache-store",
  "chrono",
  "criterion",
- "libc",
  "rusqlite",
+ "rustix",
  "sc-bd-cli",
  "sc-beads",
  "sc-cron",
@@ -161,7 +165,6 @@ dependencies = [
  "serde_json",
  "tempfile",
  "tokio",
- "toml",
  "tracing",
 ]
 
@@ -411,12 +414,6 @@ dependencies = [
  "const-oid",
  "crypto-common",
 ]
-
-[[package]]
-name = "dunce"
-version = "1.0.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813"
 
 [[package]]
 name = "dyn-clone"

@@ -287,6 +287,45 @@ impl Schedule {
     pub fn is_active(&self) -> bool {
         self.ended_at.is_none()
     }
+
+    /// The first jittered run strictly after `after`, as the worker computes
+    /// it (REQ-CRON-0002); `None` when the expression has no further occurrence.
+    #[must_use]
+    pub fn next_run_after(&self, after: Timestamp) -> Option<Timestamp> {
+        self.spec
+            .expr
+            .next_run(self.jitter, after.as_datetime())
+            .map(Timestamp::from_datetime)
+    }
+
+    /// The gap between the schedule's first two runs strictly after `after`.
+    ///
+    /// For a regular expression this is its interval; for an irregular one
+    /// (`0 0,5 * * * *`) it is the gap that follows `after`, so it varies with
+    /// `after`. `None` when fewer than two runs follow.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::time::Duration;
+    /// # use sc_cron::{Generation, Schedule, ScheduleId, ScheduleSpec, Timestamp};
+    /// let spec = ScheduleSpec::new("s", "0 0,5 * * * *", Duration::from_secs(1), serde_json::json!({}))?;
+    /// let at: Timestamp = "2026-10-26T10:01:00Z".parse()?;
+    /// let row = Schedule {
+    ///     id: ScheduleId::new(1), generation: Generation::FIRST, spec, jitter: Duration::ZERO,
+    ///     created_at: at, next_run_at: None, last_run_at: None, last_outcome: None,
+    ///     ended_at: None, stop_reason: None, enabled: true,
+    /// };
+    /// // The runs after 10:01 are 10:05 and 11:00: a 55-minute gap.
+    /// assert_eq!(row.period_after(at), Some(Duration::from_secs(55 * 60)));
+    /// # Ok::<(), sc_cron::CronError>(())
+    /// ```
+    #[must_use]
+    pub fn period_after(&self, after: Timestamp) -> Option<Duration> {
+        let first = self.next_run_after(after)?;
+        let second = self.next_run_after(first)?;
+        (second.as_datetime() - first.as_datetime()).to_std().ok()
+    }
 }
 
 /// The result of one run, as recorded by the store.
@@ -330,10 +369,6 @@ pub enum StopDecision {
     /// End the schedule with this reason (ADR-CRON-0007). Its row is kept as
     /// the ended record, and the name can be started again.
     Delete(String),
-    /// The same as [`StopDecision::Delete`]. Kept so a job written against the
-    /// earlier contract, which had this one stopping variant, still builds
-    /// (ADR-CRON-0007); new code returns `Delete`.
-    Stop(String),
 }
 
 #[cfg(test)]

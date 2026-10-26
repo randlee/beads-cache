@@ -124,6 +124,7 @@ fn the_golden_names_every_extension_and_the_v3_tables() {
     }
     assert!(table("tick_lease").contains("id INTEGER PRIMARY KEY CHECK (id = 1)"));
     assert!(table("hook_state").contains("consecutive_failures INTEGER NOT NULL DEFAULT 0"));
+    assert!(table("sync_run").contains("row TEXT PRIMARY KEY, run_id TEXT NOT NULL"));
     assert!(table("sc_cron_schedule").contains("enabled INTEGER NOT NULL DEFAULT 1"));
     assert!(want.contains(&format!("meta {SC_CRON_SCHEDULE_VERSION_KEY}: 2\n")));
     assert!(want.contains(&format!("pragma user_version: {SCHEMA_VERSION}\n")));

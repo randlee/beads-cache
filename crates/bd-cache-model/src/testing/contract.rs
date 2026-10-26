@@ -1514,6 +1514,42 @@ pub fn first_offered_at_is_set_once(fx: &mut impl StoreFixture) {
     );
 }
 
+/// The pending summary and the first unannounced escalations (REQ-BDC-0727):
+/// a count and the oldest pending entry's time, and a page of the oldest
+/// escalations with the total, each without reading the whole backlog.
+pub fn pending_summary_and_the_escalation_page(fx: &mut impl StoreFixture) {
+    let mut s = fx.open();
+    assert_eq!(
+        ok(s.pending_summary(), "empty"),
+        crate::state::PendingSummary::default()
+    );
+    let a = ok(s.insert_entry(entry("k1", "b1", None), &ts(T0)), "a");
+    let b = ok(s.insert_entry(entry("k2", "b2", None), &ts(T1)), "b");
+    let c = ok(s.insert_entry(entry("k3", "b3", None), &ts(T2)), "c");
+    let summary = ok(s.pending_summary(), "three");
+    assert_eq!(
+        (summary.count, summary.oldest_created_at),
+        (3, Some(ts(T0)))
+    );
+    for seq in [a, b, c] {
+        ok(
+            s.escalate(seq, "BD_CACHE.BD_FAILED: refused", &ts(T2)),
+            "escalate",
+        );
+    }
+    let page = ok(s.unannounced_escalations_first(2), "page");
+    assert_eq!(page.total, 3);
+    assert_eq!(
+        page.entries.iter().map(|e| e.seq).collect::<Vec<_>>(),
+        [a, b],
+        "the oldest first, at most the page"
+    );
+    assert_eq!(ok(s.pending_summary(), "none pending").count, 0);
+    ok(s.mark_announced(a, &ts(T2)), "announce");
+    let page = ok(s.unannounced_escalations_first(10), "rest");
+    assert_eq!((page.total, page.entries.len()), (2, 2));
+}
+
 #[expect(clippy::panic, reason = "an invalid fixture is a contract-suite bug")]
 fn run(id: &str) -> RunId {
     RunId::new(id).unwrap_or_else(|e| panic!("{e}"))
@@ -1569,6 +1605,76 @@ pub fn hook_state_counts_and_resets(fx: &mut impl StoreFixture) {
         ok(s.hook_state(), "reset"),
         crate::state::HookState::default()
     );
+}
+
+/// A sync row's run record (REQ-BDC-0731): the run id kept on success too,
+/// failures counted from the first one's time, a run that never finished
+/// counted when the next one starts, a skipped run counting nothing, and a
+/// finish naming another run changing nothing; the record persists.
+#[expect(
+    clippy::panic,
+    reason = "a contract rule reports a failure by panicking, as assert! does"
+)]
+pub fn sync_run_records_count_failures_across_unfinished_runs(fx: &mut impl StoreFixture) {
+    use crate::state::SyncRunEnd;
+    let mut s = fx.open();
+    let row = "sync.row";
+    assert_eq!(ok(s.sync_run(row), "empty"), None);
+    ok(s.sync_run_started(row, &run("r1"), &ts(T0)), "start r1");
+    assert!(ok(
+        s.sync_run_finished(row, &run("r1"), &ts(T0), SyncRunEnd::Ok),
+        "finish r1"
+    ));
+    let first = ok(s.sync_run(row), "read").unwrap_or_else(|| panic!("no record"));
+    assert_eq!(
+        (first.run_id.as_str(), first.end, first.consecutive_failures),
+        ("r1", Some(SyncRunEnd::Ok), 0),
+        "an ok run keeps its id"
+    );
+    // r2 never finishes (a timeout): r3's start counts it, from r2's start.
+    ok(s.sync_run_started(row, &run("r2"), &ts(T1)), "start r2");
+    let third = ok(s.sync_run_started(row, &run("r3"), &ts(T2)), "start r3");
+    assert_eq!(
+        (third.consecutive_failures, third.first_failure_at.clone()),
+        (1, Some(ts(T1)))
+    );
+    assert!(ok(
+        s.sync_run_finished(row, &run("r3"), &ts(T2), SyncRunEnd::Failed),
+        "finish r3"
+    ));
+    // Planted negative: a finish naming another run writes nothing.
+    assert!(!ok(
+        s.sync_run_finished(row, &run("r2"), &ts(T2), SyncRunEnd::Ok),
+        "stale finish"
+    ));
+    ok(s.sync_run_started(row, &run("r4"), &ts(T2)), "start r4");
+    assert!(ok(
+        s.sync_run_finished(row, &run("r4"), &ts(T2), SyncRunEnd::Skipped),
+        "skip r4"
+    ));
+    let s = fx.reopen(s);
+    let mut s = s;
+    let kept = ok(s.sync_run(row), "persists").unwrap_or_else(|| panic!("no record"));
+    assert_eq!(
+        (
+            kept.run_id.as_str(),
+            kept.consecutive_failures,
+            kept.first_failure_at
+        ),
+        ("r4", 2, Some(ts(T1))),
+        "a skipped run counts nothing"
+    );
+    ok(s.sync_run_started(row, &run("r5"), &ts(T2)), "start r5");
+    assert!(ok(
+        s.sync_run_finished(row, &run("r5"), &ts(T2), SyncRunEnd::Ok),
+        "finish r5"
+    ));
+    let reset = ok(s.sync_run(row), "reset").unwrap_or_else(|| panic!("no record"));
+    assert_eq!(
+        (reset.consecutive_failures, reset.first_failure_at),
+        (0, None)
+    );
+    assert_eq!(ok(s.sync_run("other.row"), "another row"), None);
 }
 
 /// An ingest of an unregistered scope is `SCOPE_UNKNOWN`, read in its own
@@ -1816,6 +1922,8 @@ macro_rules! store_contract_tests {
             first_offered_at_is_set_once,
             lease_rules,
             hook_state_counts_and_resets,
+            sync_run_records_count_failures_across_unfinished_runs,
+            pending_summary_and_the_escalation_page,
             ingest_refuses_an_unregistered_scope,
             record_sync_result_applies_the_failing_since_lifecycle,
             lease_take_bounds_the_expiry,

@@ -18,8 +18,8 @@ use crate::reply::{JournalCounts, PruneReport};
 use crate::scope::{MAX_REGISTERED_SCOPES, Scope, ScopeFilter, ScopeId};
 use crate::state::{
     FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake, OpenWork,
-    Outage, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncOutcome, SyncState, UpsertReport,
-    clip_hook_error,
+    Outage, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd,
+    SyncState, UpsertReport, clip_hook_error,
 };
 use crate::store::{CacheStore, DrainGuard, DrainLock};
 
@@ -55,6 +55,8 @@ struct State {
     scopes: BTreeMap<ScopeId, (Option<ScopeFilter>, Option<String>)>,
     lease: Option<LeaseHolder>,
     hook: HookState,
+    /// Each sync row's run record, by row name.
+    sync_runs: BTreeMap<String, SyncRun>,
     /// Normalized rows without `dependencies` (those live in `edges`) and their stale flag.
     rows: BTreeMap<BeadId, (Bead, bool)>,
     edges: BTreeSet<Edge>,
@@ -546,6 +548,39 @@ impl CacheStore for FakeStore {
     fn hook_succeeded(&mut self) -> Result<(), CacheError> {
         lock(&self.state).hook = HookState::default();
         Ok(())
+    }
+
+    fn sync_run(&self, row: &str) -> Result<Option<SyncRun>, CacheError> {
+        Ok(lock(&self.state).sync_runs.get(row).cloned())
+    }
+
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<SyncRun, CacheError> {
+        let mut st = lock(&self.state);
+        let record = SyncRun::started(st.sync_runs.get(row), run_id, at);
+        st.sync_runs.insert(row.to_owned(), record.clone());
+        Ok(record)
+    }
+
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: SyncRunEnd,
+    ) -> Result<bool, CacheError> {
+        let mut st = lock(&self.state);
+        match st.sync_runs.get_mut(row) {
+            Some(record) if record.run_id == *run_id => {
+                *record = record.finished(at, end);
+                Ok(true)
+            }
+            _ => Ok(false),
+        }
     }
 
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {

@@ -108,23 +108,6 @@ async fn stop_hook_delete() {
     assert_eq!(again.generation.get(), 2);
 }
 
-/// `StopDecision::Stop` is the earlier contract's one stopping variant.
-#[tokio::test]
-async fn the_earlier_stop_variant_still_ends_the_schedule() {
-    let fixture = Fixture::new();
-    let job = Arc::new(ScriptedJob::new());
-    job.then_stop(StopScript::Decide(StopDecision::Stop(
-        "phase closed".into(),
-    )));
-    let schedule = fixture.start(fixture.spec("legacy"));
-    let worker = fixture.worker(rust(&job)).await;
-    fixture.step(60).await;
-    fixture.store.wait_stopped(&schedule, "phase closed").await;
-    shutdown(worker).await;
-    assert!(!fixture.row(&schedule).is_active());
-    assert_eq!(job.runs(), 0);
-}
-
 /// A stop check that never answers uses up the run's timeout: the run is
 /// skipped and recorded timed out, and the schedule goes on.
 #[tokio::test]

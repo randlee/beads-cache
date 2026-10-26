@@ -81,7 +81,7 @@ async fn a_python_hook_runs_isolated_from_a_temp_dir_with_one_json_object() {
         recorded
             .cwd
             .file_name()
-            .is_some_and(|dir| dir.to_string_lossy().starts_with("sc-cron-hook-"))
+            .is_some_and(|dir| dir.to_string_lossy().starts_with("sc-cron-child-"))
     );
     assert!(!recorded.cwd.exists(), "the temporary directory is removed");
 }

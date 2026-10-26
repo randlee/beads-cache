@@ -657,3 +657,24 @@ Implementation notes (sprint b-7):
   one write transaction, and replaces a row that does not decode (with a warning) instead
   of failing every later take. `hook_failed` keeps at most `MAX_HOOK_ERROR_BYTES` of the
   error.
+
+### Amendment: the sync rows' run record and the bounded hook reads (sprint b-8, QA-1)
+
+**Status:** Approved (lead ruling of the b-8 QA-1 fix round, 2026-10-26: "a small table in the
+cache file is acceptable if ADR-STORE-0006 gets an Approved inline amendment naming it").
+
+| Kind | Name | Meaning |
+|---|---|---|
+| table | `sync_run` (`row` TEXT PRIMARY KEY, `run_id` TEXT NOT NULL, `started_at` TEXT NOT NULL, `finished_at` TEXT, `run_end` TEXT CHECK (`run_end` IN ('ok','failed','skipped')), `consecutive_failures` INTEGER NOT NULL DEFAULT 0, `first_failure_at` TEXT) | each sync row's run record (REQ-BDC-0731): its latest run's id and times, and its consecutive failures with the first one's time, as typed data; sc-cron keeps only a last outcome per row |
+
+The table is additive (`CREATE TABLE IF NOT EXISTS`, `user_version` stays 3) and in the format
+golden. The port gains `CacheStore::sync_run`, `sync_run_started` (in one transaction with the
+read of the previous record: a run that never finished counts as one failure from its start,
+`SyncRun::started`) and `sync_run_finished` (only for the run the record names,
+`SyncRun::finished`); the rule is the model's, so both stores apply one. It also gains two
+reads with provided bodies that `SqliteStore` overrides with bounded SQL, so the post-sync
+hook's request never loads a backlog to count it (REQ-BDC-0727): `pending_summary` (a count and
+the oldest pending entry's `created_at`) and `unannounced_escalations_first(limit)` (at most
+`limit` escalations by seq, and their total). Contract tests:
+`sync_run_records_count_failures_across_unfinished_runs`,
+`pending_summary_and_the_escalation_page`.

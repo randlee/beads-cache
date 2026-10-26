@@ -83,10 +83,20 @@ jobs:
           python -m pip install "maturin>=1.7,<2"
           maturin build --release --manifest-path crates/bd-cache-py/Cargo.toml --out dist
 
+      # The bdc end-to-end pytest (tests/test_cli_e2e.py, sprint b-8) runs
+      # these against the installed wheel with a real interpreter.
+      - name: Build bdc and fake-bd for the end-to-end pytest
+        run: |
+          cargo build --release -p bd-cache-cli --features fake-bd --bin bdc --bin fake-bd
+          mkdir -p dist/bin
+          cp target/release/bdc target/release/fake-bd dist/bin/
+
       - uses: actions/upload-artifact@v4
         with:
           name: wheel-${{ matrix.os }}
-          path: dist/*.whl
+          path: |
+            dist/*.whl
+            dist/bin/*
           if-no-files-found: error
 
   test:
@@ -118,5 +128,9 @@ jobs:
 
       # The tests import the installed wheel; run from outside the crate so the
       # source tree cannot shadow it. -rP prints the recorded cached-get numbers.
+      # Artifacts drop the execute bit, so the binaries get it back first.
       - name: pytest
-        run: python -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider
+        run: |
+          chmod +x dist/bin/bdc dist/bin/fake-bd
+          export BD_CACHE_BDC="$PWD/dist/bin/bdc" BD_CACHE_FAKE_BD="$PWD/dist/bin/fake-bd"
+          python -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider

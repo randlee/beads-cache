@@ -43,7 +43,16 @@ pub(crate) const MIN_HOOK_RESERVE_MS_WITH_HOOK: u64 = min_hook_reserve_ms_with_h
 pub(crate) const MIN_WORK_MS: u64 = min_work_ms!();
 /// How far past the budget the built-in row's sc-cron timeout sits, so
 /// sc-cron never aborts a run before its hook and its lease release.
-pub(crate) const ROW_TIMEOUT_MARGIN: Duration = Duration::from_secs(10);
+///
+/// It is also how long after a run's deadline its sync lease expires
+/// (bd-cache-sync's `LEASE_MARGIN` is this value): a lease taken for the
+/// longest run, `budget_ms` at its most, then lasts exactly
+/// [`MAX_LEASE_TTL`], the most the store accepts.
+pub const ROW_TIMEOUT_MARGIN: Duration = Duration::from_secs(10);
+
+// The defaults are in range, so `TickBudget::default` needs no check.
+const _: () = assert!(DEFAULT_BUDGET_MS >= MIN_BUDGET_MS && DEFAULT_BUDGET_MS <= MAX_BUDGET_MS);
+const _: () = assert!(DEFAULT_HOOK_RESERVE_MS <= DEFAULT_BUDGET_MS - MIN_WORK_MS);
 
 /// The longest a sync lease may be taken for: the largest row timeout
 /// (`budget_ms` at its most, 600 s, plus the 10 s row-timeout margin).
@@ -190,5 +199,38 @@ impl TickBudget {
     #[must_use]
     pub fn row_timeout(&self) -> Duration {
         self.budget.saturating_add(ROW_TIMEOUT_MARGIN)
+    }
+}
+
+impl Default for TickBudget {
+    /// The defaults, [`DEFAULT_BUDGET_MS`] with [`DEFAULT_HOOK_RESERVE_MS`]
+    /// and no hook named: the budget of an on-demand tick with no built-in
+    /// row. Both are in range (checked when this crate compiles), so this is
+    /// `TickBudget::new(None, None, false)` with no refusal to handle.
+    fn default() -> Self {
+        Self {
+            budget: Duration::from_millis(DEFAULT_BUDGET_MS),
+            hook_reserve: Duration::from_millis(DEFAULT_HOOK_RESERVE_MS),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The default is exactly `new(None, None, false)`; planted negative: a
+    /// budget with a hook named is not the default one (its reserve check differs).
+    #[test]
+    fn the_default_budget_is_the_unchecked_new() {
+        assert_eq!(
+            Ok(TickBudget::default()),
+            TickBudget::new(None, None, false)
+        );
+        assert_eq!(TickBudget::default().row_timeout(), Duration::from_secs(35));
+        assert_ne!(
+            Ok(TickBudget::default()),
+            TickBudget::new(Some(DEFAULT_BUDGET_MS + 1), None, false)
+        );
     }
 }

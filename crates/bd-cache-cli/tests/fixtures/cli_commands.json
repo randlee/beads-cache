@@ -79,7 +79,13 @@
       "expect": {"ok": true, "data": {"scope": "x", "beads_deleted": 4, "out_of_scope_swept": "$any"}}},
     {"name": "an evicted scope is not served", "command": "issues list", "argv": ["issues", "list", "--scope", "x"],
       "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "kind": "conflict"}}},
-    {"name": "cache tick without a team is refused, as data", "command": "cache tick", "argv": ["cache", "tick", "--budget-ms", "1000"],
-      "expect": {"ok": true, "data": {"outcome": "refused", "refused": [{"code": "BD_CACHE.TICK_MISSING_TEAM", "message": "$any"}]}}}
+    {"name": "cache schedule show with no sync row is mode none", "command": "cache schedule show", "argv": ["cache", "schedule", "show"],
+      "expect": {"ok": true, "data": {"mode": "none", "lease": null}}},
+    {"name": "cache tick runs the built-in sync once, with no row", "command": "cache tick", "argv": ["cache", "tick"],
+      "expect": {"ok": true, "data": {"outcome": "ok", "row": "bd-cache.sync.builtin", "run_id": "$any", "skipped": null}}},
+    {"name": "cache scopes list is the cache scopes reply", "command": "cache scopes list", "argv": ["cache", "scopes", "list"],
+      "expect": {"ok": true, "data": {"scopes": "$any"}}},
+    {"name": "cache sync use-builtin with no built-in row is SCHEDULE_INVALID", "command": "cache sync use-builtin", "argv": ["cache", "sync", "use-builtin"],
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCHEDULE_INVALID", "kind": "invalid_input"}}}
   ]
 }

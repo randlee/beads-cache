@@ -10,20 +10,27 @@
 //! one row is at fault: one invalid row among valid ones refuses the whole
 //! snapshot, so no row of it is stored (REQ-BDC-0008).
 //!
-//! The snapshot is the one owner of both limits, for both constructors: the
+//! The snapshot is the one owner of both limits, for every constructor: the
 //! store trusts a built snapshot and checks neither again. Rows are counted
-//! as they decode ([`IngestSnapshot::from_json`] reads the array one row at a
-//! time), so an input with too many rows is refused at the first row over the
-//! limit, and at most one undecoded row is held at a time. The memory a
-//! successful call holds is the decoded rows (about the size of their JSON)
-//! plus the caller's input text, which is at most [`MAX_INGEST_BYTES`].
+//! as they decode ([`IngestSnapshot::from_json`], [`IngestSnapshot::from_values`]
+//! and [`IngestSnapshot::from_reader`] read the array one row at a time), so
+//! an input with too many rows is refused at the first row over the limit,
+//! and at most one undecoded row is held at a time. [`IngestSnapshot::from_reader`]
+//! reads a stream (`bdc cache scopes ingest`'s stdin) as it decodes it,
+//! counting its bytes, so an input over [`MAX_INGEST_BYTES`] is refused before
+//! it is held whole and nothing is encoded again; the memory a call holds is
+//! then the decoded rows. [`IngestSnapshot::from_values`] decodes values a
+//! caller already parsed (a `PyO3` list, a `--input` request) without
+//! re-encoding them.
 
+use std::cell::Cell;
 use std::collections::BTreeSet;
 use std::fmt;
 use std::io;
+use std::rc::Rc;
 
 use sc_beads::{Bead, BeadId, BlockedRow, parse_bd_row, parse_blocked_rows};
-use serde::de::{self, DeserializeSeed, SeqAccess, Visitor};
+use serde::de::{self, DeserializeSeed, MapAccess, SeqAccess, Visitor};
 use serde_json::Value;
 
 use crate::error::{CacheError, IngestReason};
@@ -120,6 +127,143 @@ impl IngestSnapshot {
         let beads = decode_rows(scope, rows_json)?;
         let blocked = decode_blocked(scope, blocked_json)?;
         Self::new(scope, beads, blocked)
+    }
+
+    /// Decodes a snapshot from values a caller already parsed: `rows` as
+    /// `bd list --json` rows and `blocked` as `bd blocked --json` rows, each a
+    /// JSON array, `null` or absent (`None`) for none.
+    ///
+    /// Nothing is encoded again: the rows are counted and decoded one at a
+    /// time from `rows`, as [`IngestSnapshot::from_json`] reads them, so a
+    /// row past [`MAX_INGEST_ROWS`] stops the decode.
+    ///
+    /// # Errors
+    ///
+    /// As [`IngestSnapshot::from_json`], except that the input size is the
+    /// caller's (`too_large` is then the rows' encoded size only).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{IngestSnapshot, ScopeId};
+    /// let x = ScopeId::new("x").unwrap();
+    /// let rows = serde_json::json!([{"id": "b1", "title": "t", "priority": 2, "status": "open",
+    ///   "created_at": "2026-10-23T09:00:00Z", "updated_at": "2026-10-23T09:00:00Z"}]);
+    /// let snap = IngestSnapshot::from_values(&x, Some(&rows), None).unwrap();
+    /// assert_eq!(snap.rows().len(), 1);
+    /// ```
+    pub fn from_values(
+        scope: &ScopeId,
+        rows: Option<&Value>,
+        blocked: Option<&Value>,
+    ) -> Result<Self, CacheError> {
+        let mut fault = None;
+        let beads = match rows {
+            None => Vec::new(),
+            Some(value) => {
+                let decoded = RowsSeed {
+                    scope,
+                    fault: &mut fault,
+                }
+                .deserialize(value);
+                match (decoded, fault) {
+                    (_, Some(e)) => return Err(e),
+                    (Ok(rows), None) => rows,
+                    (Err(e), None) => {
+                        return Err(invalid(
+                            scope,
+                            IngestReason::RowInvalid,
+                            None,
+                            &format!("rows is not a JSON array of rows: {e}"),
+                        ));
+                    }
+                }
+            }
+        };
+        let blocked = match blocked {
+            None | Some(Value::Null) => Vec::new(),
+            Some(Value::Array(values)) => decode_blocked_values(scope, values.iter())?,
+            Some(other) => {
+                return Err(invalid(
+                    scope,
+                    IngestReason::RowInvalid,
+                    None,
+                    &format!("blocked is a JSON {}, not an array", kind(other)),
+                ));
+            }
+        };
+        Self::new(scope, beads, blocked)
+    }
+
+    /// Decodes a snapshot while `reader` is read (REQ-BDC-0726): a JSON
+    /// array of rows, or an object with at most the members `rows` and
+    /// `blocked` (each an array or `null`).
+    ///
+    /// The bytes are counted as they are read and the rows as they decode,
+    /// so input over [`MAX_INGEST_BYTES`] or with more than
+    /// [`MAX_INGEST_ROWS`] rows is refused before it is held whole; nothing
+    /// is encoded again. The read stops at the first refusal.
+    ///
+    /// # Errors
+    ///
+    /// `INGEST_INVALID` with reason `too_large` (more than
+    /// [`MAX_INGEST_BYTES`] read), `too_many_rows`, `row_invalid` (not JSON,
+    /// not an array or object, or a row the strict decoder refuses, with its
+    /// `index`) or `membership`; `BAD_ARGS` for an object member other than
+    /// `rows` and `blocked` (the scope and the other arguments come from the
+    /// command, never from the snapshot), or a read that fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{IngestSnapshot, ScopeId};
+    /// let x = ScopeId::new("x").unwrap();
+    /// let input = br#"{"rows": [], "blocked": null}"#;
+    /// assert!(IngestSnapshot::from_reader(&x, &input[..]).unwrap().is_empty());
+    /// let other = br#"{"rows": [], "scope": "y"}"#;
+    /// assert_eq!(
+    ///     IngestSnapshot::from_reader(&x, &other[..]).unwrap_err().code(),
+    ///     "BD_CACHE.BAD_ARGS"
+    /// );
+    /// ```
+    pub fn from_reader(scope: &ScopeId, reader: impl io::Read) -> Result<Self, CacheError> {
+        let over = Rc::new(Cell::new(false));
+        let counted = Counted {
+            inner: reader,
+            read: 0,
+            over: Rc::clone(&over),
+        };
+        let mut fault = None;
+        let mut de = serde_json::Deserializer::from_reader(counted);
+        let decoded = SnapshotSeed {
+            scope,
+            fault: &mut fault,
+        }
+        .deserialize(&mut de)
+        .and_then(|parts| de.end().map(|()| parts));
+        if over.get() {
+            return Err(invalid(
+                scope,
+                IngestReason::TooLarge,
+                None,
+                &format!(
+                    "the input is over {MAX_INGEST_BYTES} bytes; one ingest takes at most that"
+                ),
+            ));
+        }
+        match (decoded, fault) {
+            (_, Some(e)) => Err(e),
+            (Ok((rows, blocked)), None) => Self::new(scope, rows, blocked),
+            (Err(e), None) if e.is_io() => Err(CacheError::BadArgs {
+                detail: format!("ingest of scope {scope}: the input cannot be read: {e}"),
+            }),
+            (Err(e), None) => Err(invalid(
+                scope,
+                IngestReason::RowInvalid,
+                None,
+                &format!("the input is not a JSON rows array or snapshot object: {e}"),
+            )),
+        }
     }
 
     /// The rows, as given.
@@ -256,6 +400,181 @@ impl<'de> Visitor<'de> for RowsSeed<'_> {
         }
         Ok(beads)
     }
+}
+
+/// A reader that counts its bytes and fails once past [`MAX_INGEST_BYTES`],
+/// setting `over`, so a stream is never read past the limit.
+struct Counted<R> {
+    inner: R,
+    read: usize,
+    over: Rc<Cell<bool>>,
+}
+
+impl<R: io::Read> io::Read for Counted<R> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.read = self.read.saturating_add(n);
+        if self.read > MAX_INGEST_BYTES {
+            self.over.set(true);
+            return Err(io::Error::other("over the ingest byte limit"));
+        }
+        Ok(n)
+    }
+}
+
+/// The streaming reader of a whole snapshot: a rows array, or an object
+/// with `rows` and `blocked` and no other member.
+struct SnapshotSeed<'a> {
+    scope: &'a ScopeId,
+    fault: &'a mut Option<CacheError>,
+}
+
+impl<'de> DeserializeSeed<'de> for SnapshotSeed<'_> {
+    type Value = (Vec<Bead>, Vec<BlockedRow>);
+
+    fn deserialize<D: de::Deserializer<'de>>(self, d: D) -> Result<Self::Value, D::Error> {
+        d.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for SnapshotSeed<'_> {
+    type Value = (Vec<Bead>, Vec<BlockedRow>);
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a JSON array of rows, or an object with rows and blocked")
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, seq: A) -> Result<Self::Value, A::Error> {
+        let rows = RowsSeed {
+            scope: self.scope,
+            fault: self.fault,
+        }
+        .visit_seq(seq)?;
+        Ok((rows, Vec::new()))
+    }
+
+    fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+        let (mut rows, mut blocked) = (None, None);
+        while let Some(key) = map.next_key::<String>()? {
+            match key.as_str() {
+                "rows" if rows.is_none() => {
+                    rows = Some(map.next_value_seed(RowsSeed {
+                        scope: self.scope,
+                        fault: &mut *self.fault,
+                    })?);
+                }
+                "blocked" if blocked.is_none() => {
+                    blocked = Some(map.next_value_seed(BlockedSeed {
+                        scope: self.scope,
+                        fault: &mut *self.fault,
+                    })?);
+                }
+                "rows" | "blocked" => {
+                    *self.fault = Some(CacheError::BadArgs {
+                        detail: format!(
+                            "ingest of scope {}: the snapshot names {key} twice",
+                            self.scope
+                        ),
+                    });
+                    return Err(de::Error::custom("a member twice"));
+                }
+                _ => {
+                    *self.fault = Some(CacheError::BadArgs {
+                        detail: format!(
+                            "ingest of scope {}: the snapshot object has the member {key:?};                              it may hold only rows and blocked (the scope and the other                              arguments are the command's)",
+                            self.scope
+                        ),
+                    });
+                    return Err(de::Error::custom("an unknown member"));
+                }
+            }
+        }
+        Ok((rows.unwrap_or_default(), blocked.unwrap_or_default()))
+    }
+}
+
+/// The streaming reader of the blocked rows: counted as they decode, each
+/// decoded alone with the strict `bd blocked` decoder; `null` is none.
+struct BlockedSeed<'a> {
+    scope: &'a ScopeId,
+    fault: &'a mut Option<CacheError>,
+}
+
+impl<'de> DeserializeSeed<'de> for BlockedSeed<'_> {
+    type Value = Vec<BlockedRow>;
+
+    fn deserialize<D: de::Deserializer<'de>>(self, d: D) -> Result<Vec<BlockedRow>, D::Error> {
+        d.deserialize_any(self)
+    }
+}
+
+impl<'de> Visitor<'de> for BlockedSeed<'_> {
+    type Value = Vec<BlockedRow>;
+
+    fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("a JSON array of blocked rows, or null")
+    }
+
+    fn visit_unit<E: de::Error>(self) -> Result<Vec<BlockedRow>, E> {
+        Ok(Vec::new())
+    }
+
+    fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Vec<BlockedRow>, A::Error> {
+        let mut out = Vec::with_capacity(seq.size_hint().unwrap_or(0).min(1024));
+        while let Some(value) = seq.next_element::<Value>()? {
+            let index = out.len();
+            if index == MAX_INGEST_ROWS {
+                *self.fault = Some(too_many_rows(self.scope, index + 1));
+                return Err(de::Error::custom("too many blocked rows"));
+            }
+            match blocked_row(self.scope, index, &value) {
+                Ok(row) => out.push(row),
+                Err(e) => {
+                    *self.fault = Some(e);
+                    return Err(de::Error::custom("invalid blocked row"));
+                }
+            }
+        }
+        Ok(out)
+    }
+}
+
+/// One blocked row, decoded alone by the strict `bd blocked` decoder.
+fn blocked_row(scope: &ScopeId, index: usize, value: &Value) -> Result<BlockedRow, CacheError> {
+    // The decoder takes `bd blocked --json` text; one row at a time keeps
+    // at most one row's text alive, never the list's.
+    let text = format!("[{value}]");
+    let mut rows = parse_blocked_rows(&text).map_err(|e| {
+        invalid(
+            scope,
+            IngestReason::RowInvalid,
+            Some(index),
+            &format!("blocked row {index}: {e}"),
+        )
+    })?;
+    rows.pop().ok_or_else(|| {
+        invalid(
+            scope,
+            IngestReason::RowInvalid,
+            Some(index),
+            &format!("blocked row {index} decoded to nothing"),
+        )
+    })
+}
+
+/// Blocked rows a caller already parsed, counted and decoded one at a time.
+fn decode_blocked_values<'a>(
+    scope: &ScopeId,
+    values: impl Iterator<Item = &'a Value>,
+) -> Result<Vec<BlockedRow>, CacheError> {
+    let mut out = Vec::new();
+    for (index, value) in values.enumerate() {
+        if index == MAX_INGEST_ROWS {
+            return Err(too_many_rows(scope, index + 1));
+        }
+        out.push(blocked_row(scope, index, value)?);
+    }
+    Ok(out)
 }
 
 /// The blocked rows of `json`, decoded once with the strict `bd blocked`
@@ -419,5 +738,108 @@ mod tests {
         assert_eq!(reason(&e), (IngestReason::TooLarge, None));
         let small = sc_beads::testing::bead("b2");
         assert!(encoded_rows_within_limit(&[small]));
+    }
+
+    /// An endless-looking stream of minimal valid rows, `limit` bytes long,
+    /// produced as it is read; `read` counts what the decoder took.
+    struct RowStream {
+        row: Vec<u8>,
+        limit: usize,
+        sent: usize,
+        read: std::rc::Rc<std::cell::Cell<usize>>,
+    }
+
+    impl io::Read for RowStream {
+        fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+            let mut n = 0;
+            while n < buf.len() && self.sent < self.limit {
+                let byte = if self.sent == 0 {
+                    b'['
+                } else {
+                    // Each row followed by a comma, from offset 1.
+                    let i = (self.sent - 1) % (self.row.len() + 1);
+                    self.row.get(i).copied().unwrap_or(b',')
+                };
+                if let Some(slot) = buf.get_mut(n) {
+                    *slot = byte;
+                }
+                n += 1;
+                self.sent += 1;
+            }
+            self.read.set(self.read.get() + n);
+            Ok(n)
+        }
+    }
+
+    fn stream(limit: usize) -> (RowStream, std::rc::Rc<std::cell::Cell<usize>>) {
+        let read = std::rc::Rc::new(std::cell::Cell::new(0));
+        let row = serde_json::json!({"id": "b1", "title": "t", "priority": 2, "status": "open",
+            "created_at": "2026-10-23T09:00:00Z", "updated_at": "2026-10-23T09:00:00Z"})
+        .to_string()
+        .into_bytes();
+        (
+            RowStream {
+                row,
+                limit,
+                sent: 0,
+                read: std::rc::Rc::clone(&read),
+            },
+            read,
+        )
+    }
+
+    /// 64 MiB of minimal rows on a stream is refused as `too_many_rows` at
+    /// the row past the limit, having read only that far: the input is never
+    /// held whole (REQ-BDC-0726, B8Q1-013). Planted negative: a stream that
+    /// keeps going past 64 MiB of anything is `too_large`, not read on.
+    #[test]
+    fn a_stream_of_too_many_rows_is_refused_before_it_is_read_whole() {
+        let (input, read) = stream(MAX_INGEST_BYTES);
+        let e = IngestSnapshot::from_reader(&x(), input).unwrap_err();
+        assert_eq!(reason(&e), (IngestReason::TooManyRows, None));
+        assert!(
+            read.get() < MAX_INGEST_BYTES / 4,
+            "read {} bytes of {MAX_INGEST_BYTES}",
+            read.get()
+        );
+        let spaces = io::Read::take(io::repeat(b' '), (MAX_INGEST_BYTES as u64) * 2);
+        let e = IngestSnapshot::from_reader(&x(), spaces).unwrap_err();
+        assert_eq!(reason(&e), (IngestReason::TooLarge, None));
+    }
+
+    /// A stream holds a rows array or `{rows, blocked}`; any other member is
+    /// `BAD_ARGS`, so a snapshot can never name another scope (B8Q1-031).
+    /// `from_values` decodes the same values without encoding them again.
+    #[test]
+    fn a_stream_takes_only_rows_and_blocked_and_from_values_agrees() {
+        let rows = serde_json::Value::Array(vec![row_json(0), row_json(1)]);
+        let blocked = serde_json::json!([{"id": "b1", "title": "t", "priority": 2,
+            "status": "open", "created_at": "2026-10-23T09:00:00Z",
+            "updated_at": "2026-10-23T09:00:00Z", "blocked_by": ["b0"]}]);
+        let object = serde_json::json!({"rows": rows, "blocked": blocked}).to_string();
+        let streamed = IngestSnapshot::from_reader(&x(), object.as_bytes()).unwrap();
+        let parsed = IngestSnapshot::from_values(&x(), Some(&rows), Some(&blocked)).unwrap();
+        let text =
+            IngestSnapshot::from_json(&x(), &rows.to_string(), &blocked.to_string()).unwrap();
+        assert_eq!(streamed, parsed);
+        assert_eq!(streamed, text);
+        assert_eq!(streamed.blocked().len(), 1);
+        let array = IngestSnapshot::from_reader(&x(), rows.to_string().as_bytes()).unwrap();
+        assert_eq!(array.rows(), streamed.rows());
+        for bad in [
+            r#"{"rows": [], "scope": "other"}"#,
+            r#"{"rows": [], "rows": []}"#,
+            r#"{"allow_empty": true}"#,
+        ] {
+            let e = IngestSnapshot::from_reader(&x(), bad.as_bytes()).unwrap_err();
+            assert_eq!(e.code(), "BD_CACHE.BAD_ARGS", "{bad}");
+        }
+        for bad in ["3", "\"x\"", "[1]", "{} trailing"] {
+            let e = IngestSnapshot::from_reader(&x(), bad.as_bytes()).unwrap_err();
+            assert_eq!(reason(&e).0, IngestReason::RowInvalid, "{bad}");
+        }
+        let bad_blocked = serde_json::json!([{"id": "b0", "surprise": 1}]);
+        let e = IngestSnapshot::from_values(&x(), Some(&rows), Some(&bad_blocked)).unwrap_err();
+        assert_eq!(reason(&e), (IngestReason::RowInvalid, Some(0)));
     }
 }

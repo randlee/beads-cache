@@ -1,11 +1,12 @@
 //! Typed requests: one model per command of contract §5.3 and §6.
 //!
 //! [`decode`](crate::decode) builds them from JSON; every value in them has
-//! been validated. `cache tick` has no model here: its request and reply
-//! belong to `bd-cache-sync`.
+//! been validated. The phase-B verbs (ADR-BDC-0015) are here too, `cache
+//! tick` included: [`Command::is_front_end`] names those a front end runs.
 
 mod beads;
 mod manage;
+mod sync;
 
 #[doc(inline)]
 pub use beads::{
@@ -17,6 +18,11 @@ pub use manage::{
     CacheEvict, CacheFlush, CacheHealth, CacheRefreshIssues, CacheRefreshScopes, CacheScopes,
     CacheStatus, JournalAnnounce, JournalGet, JournalKey, JournalList, JournalListState,
     JournalResolve,
+};
+#[doc(inline)]
+pub use sync::{
+    CronRun, ScheduleNoArgs, ScheduleSet, ScopesAdd, ScopesAnnounce, ScopesIngest, ScopesList,
+    ScopesRemove, ScopesSet, SyncUsePython,
 };
 
 /// A command of the contract, by its path (`issues get`, `cache journal list`, …).
@@ -60,11 +66,42 @@ pub enum Command {
     JournalResolve,
     /// `cache journal announce`.
     JournalAnnounce,
+    /// `cache scopes add`.
+    ScopesAdd,
+    /// `cache scopes set`.
+    ScopesSet,
+    /// `cache scopes remove`.
+    ScopesRemove,
+    /// `cache scopes list`.
+    ScopesList,
+    /// `cache scopes ingest`.
+    ScopesIngest,
+    /// `cache scopes announce`.
+    ScopesAnnounce,
+    /// `cache schedule set`.
+    ScheduleSet,
+    /// `cache schedule show`.
+    ScheduleShow,
+    /// `cache schedule enable`.
+    ScheduleEnable,
+    /// `cache schedule disable`.
+    ScheduleDisable,
+    /// `cache schedule clear`.
+    ScheduleClear,
+    /// `cache cron run`.
+    CronRun,
+    /// `cache tick`.
+    CacheTick,
+    /// `cache sync use-python`.
+    SyncUsePython,
+    /// `cache sync use-builtin`.
+    SyncUseBuiltin,
 }
 
 impl Command {
-    /// Every command, surface (a) first, in contract order.
-    pub const ALL: [Command; 19] = [
+    /// Every command, surface (a) first, in contract order, then the
+    /// phase-B verbs (ADR-BDC-0015).
+    pub const ALL: [Command; 34] = [
         Self::IssuesGet,
         Self::IssuesList,
         Self::Ready,
@@ -84,6 +121,21 @@ impl Command {
         Self::JournalList,
         Self::JournalResolve,
         Self::JournalAnnounce,
+        Self::ScopesAdd,
+        Self::ScopesSet,
+        Self::ScopesRemove,
+        Self::ScopesList,
+        Self::ScopesIngest,
+        Self::ScopesAnnounce,
+        Self::ScheduleSet,
+        Self::ScheduleShow,
+        Self::ScheduleEnable,
+        Self::ScheduleDisable,
+        Self::ScheduleClear,
+        Self::CronRun,
+        Self::CacheTick,
+        Self::SyncUsePython,
+        Self::SyncUseBuiltin,
     ];
 
     /// The command path, words joined by one space (e.g. `cache journal get`).
@@ -109,6 +161,21 @@ impl Command {
             Self::JournalList => "cache journal list",
             Self::JournalResolve => "cache journal resolve",
             Self::JournalAnnounce => "cache journal announce",
+            Self::ScopesAdd => "cache scopes add",
+            Self::ScopesSet => "cache scopes set",
+            Self::ScopesRemove => "cache scopes remove",
+            Self::ScopesList => "cache scopes list",
+            Self::ScopesIngest => "cache scopes ingest",
+            Self::ScopesAnnounce => "cache scopes announce",
+            Self::ScheduleSet => "cache schedule set",
+            Self::ScheduleShow => "cache schedule show",
+            Self::ScheduleEnable => "cache schedule enable",
+            Self::ScheduleDisable => "cache schedule disable",
+            Self::ScheduleClear => "cache schedule clear",
+            Self::CronRun => "cache cron run",
+            Self::CacheTick => "cache tick",
+            Self::SyncUsePython => "cache sync use-python",
+            Self::SyncUseBuiltin => "cache sync use-builtin",
         }
     }
 
@@ -119,7 +186,8 @@ impl Command {
     /// ```
     /// use bd_cache_api::Command;
     /// assert_eq!(Command::parse("cache journal get"), Some(Command::JournalGet));
-    /// assert_eq!(Command::parse("cache tick"), None);
+    /// assert_eq!(Command::parse("cache tick"), Some(Command::CacheTick));
+    /// assert_eq!(Command::parse("cache frobnicate"), None);
     /// ```
     #[must_use]
     pub fn parse(path: &str) -> Option<Self> {
@@ -132,6 +200,24 @@ impl Command {
         matches!(
             self,
             Self::IssuesUpdate | Self::IssuesClose | Self::DependenciesAdd
+        )
+    }
+
+    /// True for the verbs a front end executes over `bd-cache-sync`
+    /// (ADR-BDC-0015): [`execute`](crate::execute) refuses them with `INTERNAL`.
+    #[must_use]
+    pub fn is_front_end(self) -> bool {
+        matches!(
+            self,
+            Self::ScheduleSet
+                | Self::ScheduleShow
+                | Self::ScheduleEnable
+                | Self::ScheduleDisable
+                | Self::ScheduleClear
+                | Self::CronRun
+                | Self::CacheTick
+                | Self::SyncUsePython
+                | Self::SyncUseBuiltin
         )
     }
 }
@@ -177,6 +263,36 @@ pub enum Request {
     JournalResolve(JournalResolve),
     /// `cache journal announce`.
     JournalAnnounce(JournalAnnounce),
+    /// `cache scopes add`.
+    ScopesAdd(ScopesAdd),
+    /// `cache scopes set`.
+    ScopesSet(ScopesSet),
+    /// `cache scopes remove`.
+    ScopesRemove(ScopesRemove),
+    /// `cache scopes list`.
+    ScopesList(ScopesList),
+    /// `cache scopes ingest`.
+    ScopesIngest(Box<ScopesIngest>),
+    /// `cache scopes announce`.
+    ScopesAnnounce(ScopesAnnounce),
+    /// `cache schedule set`.
+    ScheduleSet(ScheduleSet),
+    /// `cache schedule show`.
+    ScheduleShow(ScheduleNoArgs),
+    /// `cache schedule enable`.
+    ScheduleEnable(ScheduleNoArgs),
+    /// `cache schedule disable`.
+    ScheduleDisable(ScheduleNoArgs),
+    /// `cache schedule clear`.
+    ScheduleClear(ScheduleNoArgs),
+    /// `cache cron run`.
+    CronRun(CronRun),
+    /// `cache tick`.
+    CacheTick(ScheduleNoArgs),
+    /// `cache sync use-python`.
+    SyncUsePython(SyncUsePython),
+    /// `cache sync use-builtin`.
+    SyncUseBuiltin(ScheduleNoArgs),
 }
 
 impl Request {
@@ -203,6 +319,21 @@ impl Request {
             Self::JournalList(_) => Command::JournalList,
             Self::JournalResolve(_) => Command::JournalResolve,
             Self::JournalAnnounce(_) => Command::JournalAnnounce,
+            Self::ScopesAdd(_) => Command::ScopesAdd,
+            Self::ScopesSet(_) => Command::ScopesSet,
+            Self::ScopesRemove(_) => Command::ScopesRemove,
+            Self::ScopesList(_) => Command::ScopesList,
+            Self::ScopesIngest(_) => Command::ScopesIngest,
+            Self::ScopesAnnounce(_) => Command::ScopesAnnounce,
+            Self::ScheduleSet(_) => Command::ScheduleSet,
+            Self::ScheduleShow(_) => Command::ScheduleShow,
+            Self::ScheduleEnable(_) => Command::ScheduleEnable,
+            Self::ScheduleDisable(_) => Command::ScheduleDisable,
+            Self::ScheduleClear(_) => Command::ScheduleClear,
+            Self::CronRun(_) => Command::CronRun,
+            Self::CacheTick(_) => Command::CacheTick,
+            Self::SyncUsePython(_) => Command::SyncUsePython,
+            Self::SyncUseBuiltin(_) => Command::SyncUseBuiltin,
         }
     }
 }

@@ -64,18 +64,22 @@ fn fake_bd_is_gated(metadata: &Value) -> Result<(), String> {
         let name = target["name"].as_str().ok_or("unnamed bin")?;
         let required = &target["required-features"];
         let gated = *required == json!(["fake-bd"]);
+        // The test-support bins (fake-bd, and fake-python since sprint b-8)
+        // build only with the feature; the release bins never need it.
         match (name, gated) {
-            ("fake-bd", true) | ("bd-cache" | "bdc", false) => seen.push(name.to_owned()),
-            ("fake-bd", false) => {
+            ("fake-bd" | "fake-python", true) | ("bd-cache" | "bdc", false) => {
+                seen.push(name.to_owned());
+            }
+            ("fake-bd" | "fake-python", false) => {
                 return Err(format!(
-                    "fake-bd is a bin without required-features: {required}"
+                    "{name} is a bin without required-features: {required}"
                 ));
             }
             _ => return Err(format!("bin {name} has required-features {required}")),
         }
     }
     seen.sort();
-    if seen == ["bd-cache", "bdc", "fake-bd"] {
+    if seen == ["bd-cache", "bdc", "fake-bd", "fake-python"] {
         Ok(())
     } else {
         Err(format!("the bins are {seen:?}"))
@@ -118,6 +122,16 @@ fn an_ungated_fake_bd_fails_the_metadata_check() {
     let err = fake_bd_is_gated(&ungated).expect_err("an unconditional fake-bd");
     assert!(
         err.contains("fake-bd is a bin without required-features"),
+        "{err}"
+    );
+
+    let ungated_python = mutate(&|p| {
+        let i = target(p, "fake-python");
+        p["targets"][i]["required-features"] = json!([]);
+    });
+    let err = fake_bd_is_gated(&ungated_python).expect_err("an unconditional fake-python");
+    assert!(
+        err.contains("fake-python is a bin without required-features"),
         "{err}"
     );
 

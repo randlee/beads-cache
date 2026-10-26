@@ -213,6 +213,7 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
         "ready_base_blocked",
         "tick_lease",
         "hook_state",
+        "sync_run",
         "sc_cron_schedule",
     ] {
         assert!(!names(table).is_empty(), "{table} exists");

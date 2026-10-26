@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS sync_state (
 ";
 
 /// Additive tables (ADR-BDC-0001, 0002; ADR-STORE-0006 adds `tick_lease`
-/// and `hook_state`). The v3 tables are untouched.
+/// and `hook_state`, and its sprint b-8 amendment `sync_run`). The v3 tables
+/// are untouched.
 pub(crate) const EXTENSION_TABLES: &str = "
 CREATE TABLE IF NOT EXISTS scope (
   name TEXT PRIMARY KEY, kind TEXT NOT NULL DEFAULT 'phase');
@@ -46,6 +47,10 @@ CREATE TABLE IF NOT EXISTS tick_lease (
 CREATE TABLE IF NOT EXISTS hook_state (
   id INTEGER PRIMARY KEY CHECK (id = 1), consecutive_failures INTEGER NOT NULL DEFAULT 0,
   first_failure_at TEXT, last_error TEXT, next_attempt_at TEXT);
+CREATE TABLE IF NOT EXISTS sync_run (
+  row TEXT PRIMARY KEY, run_id TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT,
+  run_end TEXT CHECK (run_end IN ('ok','failed','skipped')),
+  consecutive_failures INTEGER NOT NULL DEFAULT 0, first_failure_at TEXT);
 ";
 
 /// The `meta` key holding the version of sc-cron's columns in this file

@@ -51,12 +51,24 @@ pub(crate) struct PyCache {
     path: PathBuf,
 }
 
-struct Inner {
-    cache: Composition,
+pub(crate) struct Inner {
+    /// The cache, behind the mutex the sync runs share (`bd_cache_sync::SharedCache`):
+    /// the slot already serializes every verb, so this lock is never contended.
+    pub(crate) cache: bd_cache_sync::SharedCache<
+        bd_cache_store::SqliteStore,
+        bd_cache_store::FlockDrainLock,
+        sc_bd_cli::BdCli,
+    >,
     /// The clock the cache and its backend share; every deadline is minted from it.
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
     /// The cache file and `metadata.json` facts the api reports.
-    facts: CacheFacts,
+    pub(crate) facts: CacheFacts,
+    /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014),
+    /// the real error kept with its source.
+    pub(crate) schedules: bd_cache_sync::ScheduleTable,
+    /// The files a sync run of this cache uses: the cache file, the beads
+    /// directory and the repository root.
+    pub(crate) files: bd_cache_sync::SyncFiles,
 }
 
 impl Inner {
@@ -64,12 +76,22 @@ impl Inner {
     fn from_opened(opened: Opened) -> (Self, PathBuf) {
         (
             Self {
-                cache: opened.cache,
+                cache: Arc::new(std::sync::Mutex::new(opened.cache)),
                 clock: opened.clock,
                 facts: opened.facts,
+                schedules: opened.schedules,
+                files: opened.files,
             },
             opened.path,
         )
+    }
+
+    /// The cache; a lock a panicking verb poisoned is taken all the same,
+    /// since the slot closes the handle on a panic (ADR-PY-0003).
+    pub(crate) fn cache(&self) -> std::sync::MutexGuard<'_, Composition> {
+        self.cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
@@ -242,7 +264,7 @@ impl PyCache {
         let timeout = miss_timeout
             .map(|t| seconds("miss_timeout", t))
             .transpose()?;
-        self.call(py, move |c| c.cache.get(&id, timeout))
+        self.call(py, move |c| c.cache().get(&id, timeout))
     }
 
     /// A fresh read of `ids` (one `bd list --id`, all statuses) under `timeout` seconds.
@@ -261,7 +283,7 @@ impl PyCache {
             .map(|i| bead_id(i))
             .collect::<PyResult<Vec<_>>>()?;
         let timeout = seconds("timeout", timeout)?;
-        self.call(py, move |c| c.cache.refresh(&ids, timeout))
+        self.call(py, move |c| c.cache().refresh(&ids, timeout))
     }
 
     /// Journals one write after validating it and checking its precondition.
@@ -303,7 +325,7 @@ impl PyCache {
         };
         let op = op.to_owned();
         self.call(py, move |c| {
-            c.cache.write(&id, &op, &args_json, pre, key, who)
+            c.cache().write(&id, &op, &args_json, pre, key, who)
         })
     }
 
@@ -329,8 +351,8 @@ impl PyCache {
             ));
         }
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(&s)?;
-            c.cache.list(&s, status.as_deref(), label.as_deref())
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().list(&s, status.as_deref(), label.as_deref())
         })
     }
 
@@ -352,8 +374,8 @@ impl PyCache {
             .map(|t| seconds("fresh_within", t))
             .transpose()?;
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(&s)?;
-            c.cache.ready(&s, within)
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().ready(&s, within)
         })
     }
 
@@ -365,7 +387,7 @@ impl PyCache {
         let after = seconds("timeout", timeout)?;
         self.call(py, move |c| {
             let d = Deadline::after(c.clock.as_ref(), after);
-            c.cache.sync_legacy(&s, d)
+            c.cache().sync_legacy(&s, d)
         })
     }
 
@@ -380,6 +402,7 @@ impl PyCache {
         start_gate_s: f64,
         hard_s: f64,
     ) -> PyResult<Bound<'py, PyAny>> {
+        crate::phase_b::refuse_in_run(py, "drain")?;
         let gate = seconds("start_gate_s", start_gate_s)?;
         let hard = seconds("hard_s", hard_s)?;
         self.call(py, move |c| {
@@ -387,61 +410,61 @@ impl PyCache {
                 start_gate: Deadline::after(c.clock.as_ref(), gate),
                 hard: Deadline::after(c.clock.as_ref(), hard),
             };
-            c.cache.drain(&budget)
+            c.cache().drain(&budget)
         })
     }
 
     /// One journal entry by `seq`, in any state (REQ-BDC-0908).
     fn entry<'py>(&self, py: Python<'py>, seq: i64) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, move |c| c.cache.entry(Seq::new(seq)))
+        self.call(py, move |c| c.cache().entry(Seq::new(seq)))
     }
 
     /// Settles an escalated entry with the lead's `note`; returns `None`.
     fn resolve(&self, py: Python<'_>, seq: i64, note: &str, actor: &str) -> PyResult<()> {
         let who = parse_actor(actor)?;
         let note = note.to_owned();
-        self.run(py, move |c| c.cache.resolve(Seq::new(seq), &note, who))
+        self.run(py, move |c| c.cache().resolve(Seq::new(seq), &note, who))
     }
 
     /// Prunes a phase; returns `{scope, beads_deleted, out_of_scope_swept}`.
     fn prune<'py>(&self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(&s)?;
-            c.cache.prune(&s)
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().prune(&s)
         })
     }
 
     /// The store's status: `{meta, journal, phases, escalated, outage, stale}`.
     fn status<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.status())
+        self.call(py, |c| c.cache().status())
     }
 
     /// Escalated entries not yet announced, as journal-entry dicts.
     fn unannounced_escalations<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.unannounced_escalations())
+        self.call(py, |c| c.cache().unannounced_escalations())
     }
 
     /// Records that the escalation `seq` was announced; returns `None`.
     fn mark_announced(&self, py: Python<'_>, seq: i64) -> PyResult<()> {
-        self.run(py, move |c| c.cache.mark_announced(Seq::new(seq)))
+        self.run(py, move |c| c.cache().mark_announced(Seq::new(seq)))
     }
 
     /// The phase's last announced sync-failure cause, or `None`.
     fn sync_alert(&self, py: Python<'_>, phase: &str) -> PyResult<Option<String>> {
         let s = scope(phase)?;
-        self.run(py, move |c| c.cache.sync_alert(&s))
+        self.run(py, move |c| c.cache().sync_alert(&s))
     }
 
     /// Sets the phase's sync-failure cause; `None` clears it. Returns `None`.
     fn set_sync_alert(&self, py: Python<'_>, phase: &str, cause: Option<String>) -> PyResult<()> {
         let s = scope(phase)?;
-        self.run(py, move |c| c.cache.set_sync_alert(&s, cause.as_deref()))
+        self.run(py, move |c| c.cache().set_sync_alert(&s, cause.as_deref()))
     }
 
     /// Open work for the stop rule: `{pending, escalated_unannounced}`.
     fn open_work<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.open_work())
+        self.call(py, |c| c.cache().open_work())
     }
 
     /// The 0.2 namespaces: `cache.beads` and `cache.manage` (`api.rs`).
@@ -450,7 +473,10 @@ impl PyCache {
     /// exactly the 0.1 set (`dir(Cache)`); `cache.beads` and `cache.manage` work as
     /// ordinary attributes all the same.
     fn __getattr__(slf: &Bound<'_, Self>, name: &str) -> PyResult<Py<PyAny>> {
-        crate::api::namespace(slf, name)
+        match crate::phase_b::method(slf, name)? {
+            Some(method) => Ok(method),
+            None => crate::api::namespace(slf, name),
+        }
     }
 }
 
@@ -513,13 +539,30 @@ impl PyCache {
         command: Command,
         request: &serde_json::Value,
     ) -> PyResult<Bound<'py, PyAny>> {
+        if command == Command::CacheFlush {
+            crate::phase_b::refuse_in_run(py, "manage.flush")?;
+        }
         let request = decode(command, request).map_err(|e| api_err(py, &e))?;
         let outcome = py.detach(|| {
             self.inner
-                .with(|i| execute(&mut i.cache, &request, &i.facts).and_then(|d| d.to_json()))
+                .with(|i| execute(&mut i.cache(), &request, &i.facts).and_then(|d| d.to_json()))
         });
         match outcome {
             Ok(Ok(data)) => to_py(py, &data),
+            Ok(Err(e)) => Err(api_err(py, &e)),
+            Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
+        }
+    }
+
+    /// Runs `f` on the handle's own cache with the GIL released; an
+    /// [`ApiError`](bd_cache_api::ApiError) raises `CacheError` (the phase-B
+    /// methods, `phase_b.rs`).
+    pub(crate) fn run_api<F>(&self, py: Python<'_>, f: F) -> PyResult<serde_json::Value>
+    where
+        F: FnOnce(&mut Inner) -> Result<serde_json::Value, bd_cache_api::ApiError> + Send,
+    {
+        match py.detach(|| self.inner.with(f)) {
+            Ok(Ok(v)) => Ok(v),
             Ok(Err(e)) => Err(api_err(py, &e)),
             Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
         }
@@ -529,7 +572,7 @@ impl PyCache {
     ///
     /// The lock is taken inside the detached section, so a thread waiting for
     /// another thread's verb does not hold the GIL.
-    fn run<T, F>(&self, py: Python<'_>, f: F) -> PyResult<T>
+    pub(crate) fn run<T, F>(&self, py: Python<'_>, f: F) -> PyResult<T>
     where
         T: Send,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
@@ -541,7 +584,7 @@ impl PyCache {
     }
 
     /// As [`run`](Self::run), then converts the reply to Python objects.
-    fn call<'py, T, F>(&self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
+    pub(crate) fn call<'py, T, F>(&self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
     where
         T: Send + Serialize,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,

@@ -3,28 +3,36 @@
 //! Every surface (a) and (b) command is a `bd-cache-api` [`Command`]: its
 //! request goes through [`bd_cache_api::decode`], then
 //! [`bd_cache_api::execute`] over the composed cache, and the `data` comes
-//! back unreshaped (contract §8, MCP design constraint). `cache tick` runs
-//! bd-cache-sync's tick ([`tick`]). The request is decoded **before** the
-//! cache is opened, so a bad request never touches the store.
-//!
-//! [`Command`]: bd_cache_api::Command
+//! back unreshaped (contract §8, MCP design constraint). The phase-B verbs
+//! a front end runs ([`Command::is_front_end`]: `cache schedule *`, `cron
+//! run`, `tick`, `sync *`) are decoded by the same decoder, then run over
+//! `bd-cache-sync`: `cron run` here ([`cron`]), the others through
+//! [`bd_cache_sync::execute`] (ADR-BDC-0015). The request is decoded
+//! **before** the cache is opened, so a bad request never touches the store.
+//! `scopes ingest` decodes its snapshot from stdin as it reads it
+//! (REQ-BDC-0726), once the rest of its request has decoded.
 
 pub(crate) mod beads;
+pub(crate) mod cron;
 pub(crate) mod manage;
+pub(crate) mod runtime;
+pub(crate) mod schedule;
+pub(crate) mod scopes;
 pub(crate) mod signal;
+pub(crate) mod sync;
 pub(crate) mod tick;
 
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use bd_cache_api::{ApiError, CacheFacts, Request, decode, execute};
+use bd_cache_api::{ApiError, CacheFacts, Command, Request, decode, execute};
 use bd_cache_store::SCHEMA_VERSION;
-use bd_cache_sync::{ComposeError, Composed, StopFlag, compose_with_config};
+use bd_cache_sync::{ComposeError, Composed, FrontEnd, compose_with_config};
 use sc_bd_cli::CliInvoker;
 use sc_beads::Clock;
 use serde_json::{Map, Value};
 
-use crate::args::Target;
+use crate::commands::signal::Signals;
 use crate::config::{self, Flags, Settings};
 
 /// What a command runs with, besides its request.
@@ -37,8 +45,11 @@ pub(crate) struct Context<'a> {
     pub(crate) invoker: Option<Box<dyn CliInvoker>>,
     /// The command's clock.
     pub(crate) clock: Arc<dyn Clock>,
-    /// Set by a signal (RSH-001): `cache tick` and its `atm` sender stop on it.
-    pub(crate) stop: &'a StopFlag,
+    /// What a signal did (RSH-001, REQ-BDC-0730): `cron run`, `tick` and
+    /// `sync use-python` stop on its flag.
+    pub(crate) signals: &'a Signals,
+    /// `scopes ingest` reads its snapshot from stdin (no `--input`).
+    pub(crate) ingest_stdin: bool,
 }
 
 impl std::fmt::Debug for Context<'_> {
@@ -50,30 +61,42 @@ impl std::fmt::Debug for Context<'_> {
     }
 }
 
-/// A request that has passed its decoder.
-enum Decoded {
-    Api(Box<Request>),
-    Tick(tick::TickRequest),
-}
-
-/// Runs `target` with `request` and returns its `data`.
+/// Runs `command` with `request` and returns its `data`.
 ///
 /// # Errors
 ///
 /// The decoder's errors, then the configuration and open-time errors
 /// (`CONFIG_INVALID`, `NO_DATABASE`, `WRONG_DATABASE`, `SCHEMA_VERSION`,
 /// `STORE_FAILED`), then the command's own.
-pub(crate) fn run(target: Target, request: &Value, ctx: Context<'_>) -> Result<Value, ApiError> {
-    let decoded = match target {
-        Target::Api(command) => Decoded::Api(Box::new(decode(command, request)?)),
-        Target::Tick => Decoded::Tick(tick::decode(request)?),
-    };
+pub(crate) fn run(command: Command, request: &Value, ctx: Context<'_>) -> Result<Value, ApiError> {
+    let mut decoded = decode(command, request)?;
+    if ctx.ingest_stdin {
+        decoded = scopes::with_stdin_snapshot(decoded, std::io::stdin().lock())?;
+    }
     let settings = config::resolve(&ctx.flags, ctx.env)?;
     let mut composed = open(&settings, ctx.invoker, Arc::clone(&ctx.clock))?;
-    match decoded {
-        Decoded::Api(req) => execute(&mut composed.cache, &req, &facts(&settings))?.to_json(),
-        Decoded::Tick(req) => tick::run(&mut composed, &req, &*ctx.clock, ctx.stop),
+    if !command.is_front_end() {
+        return execute(&mut composed.cache, &decoded, &facts(&settings))?.to_json();
     }
+    run_front_end(composed, &decoded, ctx.signals)
+}
+
+/// Runs a phase-B verb over `bd-cache-sync` (ADR-BDC-0015): `cron run`
+/// here, every other one through [`bd_cache_sync::execute`].
+fn run_front_end(composed: Composed, req: &Request, signals: &Signals) -> Result<Value, ApiError> {
+    let schedules = composed
+        .into_schedules()
+        .map_err(|e| FrontEnd::Cli.api_error(&e))?;
+    if let Request::CronRun(r) = req {
+        return cron::run(&schedules, r, signals);
+    }
+    let rt = runtime::runtime()?;
+    rt.block_on(bd_cache_sync::execute(
+        &schedules,
+        req,
+        signals.stop(),
+        FrontEnd::Cli,
+    ))
 }
 
 /// The facts of the cache file and `metadata.json` that `context` and

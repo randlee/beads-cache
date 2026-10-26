@@ -8,8 +8,8 @@
 //! functions make the system call directly, so the kill needs no program, no `PATH`
 //! and no new process.
 //!
-//! They are public so that another crate that leads a process group (the `atm`
-//! sender of `bd-cache-sync`) kills it the same way without `unsafe` of its own.
+//! They are public so that another crate that leads a process group kills it
+//! the same way without `unsafe` of its own.
 //! Unix only; on Windows a process tree is a job object or `taskkill /T`.
 //!
 //! # Which groups may be named

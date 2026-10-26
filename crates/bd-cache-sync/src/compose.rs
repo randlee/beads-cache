@@ -4,34 +4,116 @@
 use std::ffi::OsStr;
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Duration;
 
 use bd_cache::Cache;
-use bd_cache_model::{CacheError, RepoConfig, TickConfig};
+use bd_cache_model::{CacheError, RepoConfig};
 use bd_cache_store::{
-    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, ConfigLoadError, FlockDrainLock, SqliteStore,
-    load_repo_config,
+    BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheScheduleStore, ConfigLoadError,
+    FlockDrainLock, SqliteStore, beads_dir as beads_dir_of, load_repo_config,
 };
+
+use crate::job::SyncFiles;
+use crate::schedule::SystemSchedules;
 use sc_bd_cli::{BdCli, ProjectLocks};
 use sc_beads::{Clock, ProjectRef};
-
-use crate::phases::rooted_phases_dir;
 
 /// The cache over the real store, drain lock and `bd`.
 pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 
-/// A repository's cache with its `[tick]` table.
+/// A repository's cache, with its schedule table and the facts its sync rows need.
 #[derive(Debug)]
 pub struct Composed {
     /// The cache of the repository's file.
     pub cache: RealCache,
-    /// The `[tick]` table of `.beads/bd-cache.toml` (empty when the file has
-    /// none), with `phases_dir` resolved against the repository root: a
-    /// relative directory, or the default `.atm-bd`, names the same place
-    /// whatever the working directory is.
-    pub tick: TickConfig,
-    /// The cache file's name, for naming the schedule.
+    /// The cache file's name.
     pub name: String,
+    /// The cache file.
+    pub cache_path: PathBuf,
+    /// The beads directory: `$BEADS_DIR` when set, else `<repo>/.beads`
+    /// (`bd_cache_store::beads_dir`, the store's one rule).
+    pub beads_dir: PathBuf,
+    /// The repository root the cache was composed for (the Python row's
+    /// payload `repo_root`, ADR-SYNC-0008).
+    pub repo_root: PathBuf,
+    /// The cache file's schedule table, or why it cannot serve.
+    pub schedules: ScheduleTable,
+}
+
+/// sc-cron's store over the cache's one connection, or why it cannot serve
+/// (a `sc_cron_schedule_version` row of another version, ADR-BDC-0014): the
+/// real error, kept with its source, so every use reports it whole.
+#[derive(Debug, Clone)]
+pub struct ScheduleTable(Result<Arc<CacheScheduleStore>, sc_cron::CronError>);
+
+impl ScheduleTable {
+    /// The schedule table of the cache file (ADR-BDC-0014).
+    ///
+    /// # Errors
+    ///
+    /// `STORE_FAILED` naming the schedule-table check (its source the
+    /// table's own error) when the file's `sc_cron_schedule_version` row
+    /// names another version, or the table could not be read when the cache
+    /// opened: `schedule *`, `sync *`, `tick` and `cron run` call this before
+    /// serving any work.
+    pub fn store(&self) -> Result<Arc<CacheScheduleStore>, CacheError> {
+        match &self.0 {
+            Ok(store) => Ok(Arc::clone(store)),
+            Err(e) => Err(crate::schedule::schedule_store_failed(e.clone())),
+        }
+    }
+}
+
+impl Composed {
+    /// The schedule table of the cache file ([`ScheduleTable::store`]).
+    ///
+    /// # Errors
+    ///
+    /// As [`ScheduleTable::store`].
+    pub fn schedule_store(&self) -> Result<Arc<CacheScheduleStore>, CacheError> {
+        self.schedules.store()
+    }
+
+    /// The files a sync run of this cache uses.
+    #[must_use]
+    pub fn files(&self) -> SyncFiles {
+        SyncFiles {
+            cache_path: self.cache_path.clone(),
+            beads_dir: Some(self.beads_dir.clone()),
+            repo_root: self.repo_root.clone(),
+        }
+    }
+
+    /// The schedule, switch, tick and cron operations over this cache, on
+    /// the system clock: the cache moves behind the mutex the runs share.
+    ///
+    /// # Errors
+    ///
+    /// `STORE_FAILED` from [`Composed::schedule_store`], before any work.
+    pub fn into_schedules(self) -> Result<SystemSchedules, CacheError> {
+        let store = self.schedule_store()?;
+        let files = self.files();
+        Ok(SystemSchedules::system(
+            store,
+            Arc::new(Mutex::new(self.cache)),
+            files,
+        ))
+    }
+}
+
+/// What a front end may set besides the configuration: the directory `bd`
+/// runs in and the cache's two timeouts at a finer grain than the file's
+/// keys (`bd-cache-py`'s keyword arguments, ADR-PY-0001).
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct ComposeTuning {
+    /// The directory `bd` runs in (the cache's project), when it is not the
+    /// repository root; already checked by the caller (UTF-8, a directory).
+    pub project_dir: Option<String>,
+    /// Replaces the configuration's per-call timeout.
+    pub call_timeout: Option<Duration>,
+    /// Replaces the configuration's miss-fill timeout.
+    pub miss_fill_timeout: Option<Duration>,
 }
 
 /// The composition could not be built.
@@ -157,8 +239,9 @@ impl std::error::Error for ComposeError {
 /// once, so [`ProjectLocks`] holds one mutex per project directory for the
 /// life of each child. Two compositions of one project (a recomposed cache,
 /// or a host that composes twice) must share the set, or their children
-/// overlap: hence one process-wide set, as `bd-cache-py` keeps its own. It is
-/// correctness state, not a cache. A host with its own set passes it to
+/// overlap: hence one process-wide set, which `bd-cache-py`'s handles share
+/// too (they open through [`compose_tuned`]). It is correctness state, not a
+/// cache. A host with its own set passes it to
 /// [`compose_with`] instead; `sc-bd-cli` normalizes the key, so every
 /// spelling of a directory shares one lock.
 static LOCKS: OnceLock<Arc<ProjectLocks>> = OnceLock::new();
@@ -213,7 +296,7 @@ pub fn compose(
 /// again; everything else is as [`compose`]: the cache file `config` names
 /// (with `.beads/metadata.json` and `beads_dir_env`, validated as
 /// [`compose_with`] validates it), the process-wide lock set, one clock, and
-/// `[tick]` from `config` with `phases_dir` resolved against `repo_root`.
+/// the cache file's schedule table.
 ///
 /// `config` is used as given: a caller that merged overrides into it
 /// validates the result first ([`RepoConfig::validate`]).
@@ -347,6 +430,35 @@ pub fn compose_with_config_and_backend(
     )
 }
 
+/// As [`compose_with_config`], with the `$BEADS_DIR` already validated by
+/// the caller (`BeadsDirOverride::from_env`, or a test's value) and the
+/// front end's [`ComposeTuning`]: one composition root for every front end
+/// (`bd-cache-py` opens its handle through it), over the process-wide lock
+/// set, so every `bd` child of the process shares one [`ProjectLocks`].
+///
+/// # Errors
+///
+/// As [`compose_with_config`]; [`ComposeError::BeadsDir`] for a `beads_dir`
+/// that could not be validated, before anything is opened.
+pub fn compose_tuned(
+    repo_root: &Path,
+    config: RepoConfig,
+    bd_binary: &str,
+    clock: Arc<dyn Clock>,
+    beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
+    tuning: &ComposeTuning,
+) -> Result<Composed, ComposeError> {
+    compose_inner(
+        repo_root,
+        Config::Given(Box::new(config)),
+        |locks| BdCli::new(bd_binary, locks),
+        project_locks(),
+        clock,
+        beads_dir,
+        tuning,
+    )
+}
+
 /// [`compose_with`] from the result of validating `$BEADS_DIR`, so a test can
 /// give it a value that could not be made absolute (lead ruling S48): that
 /// error fails the composition before the configuration is read or the store
@@ -358,6 +470,27 @@ fn compose_with_override(
     locks: Arc<ProjectLocks>,
     clock: Arc<dyn Clock>,
     beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
+) -> Result<Composed, ComposeError> {
+    compose_inner(
+        repo_root,
+        config,
+        backend,
+        locks,
+        clock,
+        beads_dir,
+        &ComposeTuning::default(),
+    )
+}
+
+/// The one composition: every public form above ends here.
+fn compose_inner(
+    repo_root: &Path,
+    config: Config,
+    backend: impl FnOnce(Arc<ProjectLocks>) -> BdCli,
+    locks: Arc<ProjectLocks>,
+    clock: Arc<dyn Clock>,
+    beads_dir: Result<Option<BeadsDirOverride>, BeadsDirError>,
+    tuning: &ComposeTuning,
 ) -> Result<Composed, ComposeError> {
     // The project's text is the root as it is, never a lossy copy (S54).
     let root_text = repo_root
@@ -375,26 +508,44 @@ fn compose_with_override(
         .file_name()
         .map_or_else(|| "cache".to_owned(), |n| n.to_string_lossy().into_owned());
     let lock = store.drain_lock();
-    let project = ProjectRef::local(Some(root_text.to_owned()));
+    let cache_path = store.path().to_path_buf();
+    let schedules = ScheduleTable(store.schedule_store().map(Arc::new));
+    let beads_path = beads_dir_of(repo_root, beads_dir.as_ref());
+    let project = ProjectRef::local(Some(
+        tuning
+            .project_dir
+            .clone()
+            .unwrap_or_else(|| root_text.to_owned()),
+    ));
     let backend = backend(locks)
         .with_clock(Arc::clone(&clock))
         .with_child_var(
             OsStr::new(BEADS_DIR_ENV),
             beads_dir.as_ref().map(BeadsDirOverride::as_os_str),
         );
-    let cache = Cache::new(repo.cache_config(project), store, lock, backend, clock)
-        .map_err(ComposeError::Cache)?;
-    let mut tick = repo.tick.unwrap_or_default();
-    tick.phases_dir = Some(rooted_phases_dir(tick.phases_dir.as_deref(), repo_root));
-    Ok(Composed { cache, tick, name })
+    let mut cache_config = repo.cache_config(project);
+    if let Some(d) = tuning.call_timeout {
+        cache_config.call_timeout = d;
+    }
+    if let Some(d) = tuning.miss_fill_timeout {
+        cache_config.miss_fill_timeout = d;
+    }
+    let cache =
+        Cache::new(cache_config, store, lock, backend, clock).map_err(ComposeError::Cache)?;
+    Ok(Composed {
+        cache,
+        name,
+        cache_path,
+        beads_dir: beads_path,
+        repo_root: repo_root.to_path_buf(),
+        schedules,
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use std::error::Error as _;
     use std::io;
-    #[cfg(unix)]
-    use std::time::Duration;
 
     use super::*;
     use sc_beads::SystemClock;
@@ -408,7 +559,7 @@ mod tests {
         std::fs::create_dir_all(&beads).unwrap();
         std::fs::write(
             beads.join("metadata.json"),
-            r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+            r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
         )
         .unwrap();
         root
@@ -495,8 +646,7 @@ mod tests {
 
     /// `compose_with_config` uses the configuration it is given and never
     /// reads `.beads/bd-cache.toml`: here a file that does not parse, and
-    /// names another cache file and scope, is ignored; `[tick]` comes from
-    /// the given configuration, rooted at the repository.
+    /// names another cache file and scope, is ignored.
     #[test]
     fn compose_with_config_uses_the_given_configuration_not_the_file() {
         let root = repo();
@@ -514,11 +664,7 @@ mod tests {
         );
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
-            tick: Some(TickConfig {
-                phases_dir: Some("phases".into()),
-                ..TickConfig::default()
-            }),
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let composed =
@@ -532,10 +678,7 @@ mod tests {
                 bd_cache_model::ScopeId::new("bk").unwrap()
             )]
         );
-        assert_eq!(
-            composed.tick.phases_dir.as_deref(),
-            Some(root.path().join("phases").as_path())
-        );
+        assert!(composed.schedule_store().is_ok());
     }
 
     /// `compose_with_config_and_backend` uses the configuration it is given,
@@ -551,7 +694,7 @@ mod tests {
         .unwrap();
         let config = RepoConfig {
             cache_path: Some(".bd-cache/merged.sqlite3".into()),
-            scopes: vec!["phase-bk".into()],
+            scopes: vec!["bk".into()],
             ..RepoConfig::default()
         };
         let locks = Arc::new(ProjectLocks::new());

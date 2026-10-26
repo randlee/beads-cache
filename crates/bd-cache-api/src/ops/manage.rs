@@ -28,7 +28,7 @@ use crate::request::{
 
 /// The stored alert of the outage (bd-cache-sync's `OUTAGE_CAUSE`).
 const OUTAGE_ALERT: &str = "backend_unavailable";
-/// The generic stored alert `bd_cache.py` records for every sync failure.
+/// The generic stored alert the baseline Python implementation records for every sync failure.
 const SYNC_FAILED_ALERT: &str = "BD_CACHE.SYNC_FAILED";
 
 /// How far past the per-call cap the `cache health --probe` deadline lies.
@@ -41,8 +41,8 @@ const SYNC_FAILED_ALERT: &str = "BD_CACHE.SYNC_FAILED";
 /// the bd child; a larger value only lengthens a probe that is cut anyway.
 const PROBE_GRACE: Duration = Duration::from_secs(1);
 
-/// A stored sync alert, in either writer's format (the bare key, or
-/// `bd_cache.py`'s `CODE: detail`): `backend_unavailable`, `sync_failed`, a
+/// A stored sync alert, in either writer's format (the bare key, or the
+/// baseline Python implementation's `CODE: detail`): `backend_unavailable`, `sync_failed`, a
 /// `BD_CACHE` code, or `None` for text with none of these.
 fn alert_of(stored: &str) -> Option<String> {
     let key = stored.split_once(": ").map_or(stored, |(k, _)| k).trim();

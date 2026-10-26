@@ -174,15 +174,13 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     let file = tmp.path().join(".beads").join("bd-cache.toml");
     std::fs::write(
         &file,
-        "cache_path = \".cache-dir/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n\
-         [tick]\nteam = \"dev-team\"\n",
+        "cache_path = \".cache-dir/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n",
     )
     .unwrap();
     let cfg = load_repo_config(tmp.path()).unwrap();
     assert_eq!(cfg.scopes, ["bk", "phase-bj"]);
     assert_eq!(cfg.max_attempts, Some(3));
     assert_eq!(cfg.cache_path, Some(PathBuf::from(".cache-dir/x.sqlite3")));
-    assert_eq!(cfg.tick.and_then(|t| t.team).as_deref(), Some("dev-team"));
 
     std::fs::write(&file, "surprise = 1\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();

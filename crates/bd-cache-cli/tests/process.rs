@@ -751,35 +751,40 @@ fn a_subdirectory_does_not_find_the_parent_beads() {
     assert_eq!(exit, 0);
 }
 
-/// The legacy `.atm-bd/` file, with no `cache_path` and no default file, is
-/// `CONFIG_INVALID` naming `cache_path` and the legacy path.
+/// No consumer path is known to beads-cache (ADR-BDC-0015 amends
+/// ADR-CLI-0004): a cache file of the same name in another directory of the
+/// repository changes nothing, and the cache opens at the store's default.
+/// Planted negative: `cache_path` naming that file opens it.
 #[test]
-fn the_legacy_cache_file_is_config_invalid() {
+fn a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_opens_as_any_other() {
     let repo = TestRepo::new(&two_beads());
-    let legacy = repo.root().join(".atm-bd").join("beads.bd-cache.sqlite3");
-    std::fs::create_dir_all(legacy.parent().unwrap()).unwrap();
-    std::fs::write(&legacy, b"").unwrap();
+    let other = repo
+        .root()
+        .join(".old-cache")
+        .join("beads.bd-cache.sqlite3");
+    std::fs::create_dir_all(other.parent().unwrap()).unwrap();
+    std::fs::write(&other, b"").unwrap();
     let (exit, v) = repo.json(&["context"]);
-    assert_eq!((exit, code(&v)), (3, "BD_CACHE.CONFIG_INVALID"), "{v}");
-    let details = &v["error"]["details"];
-    assert_eq!(details["key"], "cache_path");
-    assert_eq!(Path::new(details["legacy_path"].as_str().unwrap()), legacy);
-    assert!(
-        v["error"]["suggested_action"]
-            .as_str()
-            .unwrap()
-            .contains("cache_path = \".atm-bd/beads.bd-cache.sqlite3\"")
-    );
-    assert!(
-        !repo.root().join(".bd-cache").exists(),
-        "nothing was created"
-    );
-    // A configured cache_path lifts the rule.
+    assert_eq!(exit, 0, "{v}");
+    let path = v["data"]["x_cache"]["cache_path"]
+        .as_str()
+        .unwrap()
+        .replace('\\', "/");
+    assert!(path.ends_with(".bd-cache/beads.bd-cache.sqlite3"), "{path}");
     write_toml(
         &repo,
-        "scopes = [\"x\"]\ncache_path = \".bd-cache/beads.bd-cache.sqlite3\"\n",
+        "scopes = [\"x\"]\ncache_path = \".old-cache/beads.bd-cache.sqlite3\"\n",
     );
-    assert_eq!(repo.json(&["context"]).0, 0);
+    let (exit, v) = repo.json(&["context"]);
+    assert_eq!(exit, 0, "{v}");
+    let path = v["data"]["x_cache"]["cache_path"]
+        .as_str()
+        .unwrap()
+        .replace('\\', "/");
+    assert!(
+        path.ends_with(".old-cache/beads.bd-cache.sqlite3"),
+        "{path}"
+    );
 }
 
 /// `metadata.json` is read from `$BEADS_DIR` when it is set.

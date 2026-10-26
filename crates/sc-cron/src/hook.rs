@@ -25,7 +25,7 @@
 //!
 //! Every hook is killed, with everything it started, at the schedule's
 //! timeout capped by the time left before the run's deadline
-//! (NFR-BDC-0004); see [`kill_budget`]. Its stdout and stderr are each kept up
+//! (REQ-CRON-0013); see [`kill_budget`]. Its stdout and stderr are each kept up
 //! to [`MAX_HOOK_OUTPUT_BYTES`] and the rest is discarded.
 
 use std::fmt;
@@ -37,7 +37,7 @@ use std::time::{Duration, Instant};
 use serde_json::{Value, json};
 
 use crate::clock::wall_after;
-use crate::process::{Capped, ChildSpec, supervise};
+use crate::process::{Capped, ChildEnv, ChildSpec, TempCwd, supervise};
 use crate::{Clock, CronError, Job, RunOutcome, RunTimeout, ScheduleName, StopDecision, Timestamp};
 
 /// The `protocol` member of every hook request.
@@ -58,6 +58,30 @@ const MAX_MODULE_LEN: usize = 256;
 /// A failure message is stored as the schedule's last outcome; the whole of
 /// stderr is available from [`HookOutput`] to a caller that wants it.
 const STDERR_IN_MESSAGE: usize = 512;
+
+/// Maps a schedule row to the target its run executes (REQ-CRON-0016, ADR-CRON-0009).
+///
+/// An object-safe, synchronous, open extension point: any caller closure
+/// maps a row to a [`HookTarget`]. The worker of
+/// [`Scheduler::spawn_worker_with`](crate::Scheduler::spawn_worker_with)
+/// calls it once per launch, before the stop check, so a resolver may
+/// re-check anything per run. An `Err` is recorded as
+/// [`RunOutcome::Failed`], with the schedule left active and enabled.
+///
+/// # Examples
+///
+/// ```
+/// use std::sync::Arc;
+/// use sc_cron::{CronError, HookTarget, PythonHook, TargetResolver};
+///
+/// let resolver: TargetResolver = Arc::new(|row| match row.spec.payload.get("module") {
+///     Some(serde_json::Value::String(m)) => Ok(HookTarget::Python(PythonHook::new("python3", m)?)),
+///     _ => Err(CronError::InvalidSpec(format!("row {} names no module", row.spec.name))),
+/// });
+/// # let _ = resolver;
+/// ```
+pub type TargetResolver =
+    Arc<dyn Fn(&crate::Schedule) -> Result<HookTarget, CronError> + Send + Sync>;
 
 /// What a schedule's worker runs on each tick.
 #[derive(Clone)]
@@ -114,6 +138,7 @@ impl HookEvent {
 pub struct PythonHook {
     interpreter: PathBuf,
     module: String,
+    env: ChildEnv,
 }
 
 impl PythonHook {
@@ -154,7 +179,37 @@ impl PythonHook {
         Ok(Self {
             interpreter,
             module: module.to_owned(),
+            env: ChildEnv::Inherit,
         })
+    }
+
+    /// The same hook, started with `env` (REQ-CRON-0018).
+    ///
+    /// The default is [`ChildEnv::Inherit`]. `-I` does not clear the
+    /// environment, so a caller that must not pass its own variables on sets
+    /// [`ChildEnv::Only`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sc_cron::PythonHook;
+    /// use sc_cron::process::ChildEnv;
+    ///
+    /// let hook = PythonHook::new("python3", "pkg.hook")?
+    ///     .with_env(ChildEnv::Only { keep: vec!["PATH".into()], set: vec![] });
+    /// assert!(matches!(hook.env(), ChildEnv::Only { .. }));
+    /// # Ok::<(), sc_cron::CronError>(())
+    /// ```
+    #[must_use]
+    pub fn with_env(mut self, env: ChildEnv) -> Self {
+        self.env = env;
+        self
+    }
+
+    /// Returns the environment the hook starts with.
+    #[must_use]
+    pub fn env(&self) -> &ChildEnv {
+        &self.env
     }
 
     /// Returns the interpreter.
@@ -204,15 +259,14 @@ impl PythonHook {
         expiry: impl Future<Output = ()>,
     ) -> Result<HookOutput, CronError> {
         let input = request(call, deadline).to_string();
-        let cwd = tempfile::Builder::new()
-            .prefix("sc-cron-hook-")
-            .tempdir()
+        let cwd = TempCwd::new()
             .map_err(|error| CronError::HookFailed(format!("no temporary directory: {error}")))?;
         let spec = ChildSpec {
             program: &self.interpreter,
             args: vec!["-I".into(), "-m".into(), self.module.clone().into()],
             cwd: cwd.path(),
             input: input.as_bytes(),
+            env: self.env.clone(),
         };
         let captured = supervise(&spec, MAX_HOOK_OUTPUT_BYTES, expiry)
             .await
@@ -284,6 +338,41 @@ impl HookOutput {
         }
     }
 
+    /// What this output of a `cron.stop` hook decides (REQ-CRON-0005, REQ-CRON-0018).
+    ///
+    /// `Ok` with the decision when the hook exited 0 and printed one of the
+    /// three actions; otherwise `Err` with the outcome to record for a run
+    /// that is skipped: [`RunOutcome::TimedOut`] for a hook killed at its
+    /// timeout, [`RunOutcome::Failed`] for a non-zero exit or a reply that is
+    /// not one of the actions. A caller that runs a [`PythonHook`] inside its
+    /// own [`Job`] applies the protocol's rules with this, without copying them.
+    ///
+    /// # Errors
+    ///
+    /// The outcome of a stop check that did not decide, as above.
+    pub fn stop_decision(&self) -> Result<StopDecision, RunOutcome> {
+        if self.status == HookStatus::TimedOut {
+            return Err(RunOutcome::TimedOut);
+        }
+        if let Some(failure) = self.failure() {
+            return Err(RunOutcome::Failed(format!("stop check: {failure}")));
+        }
+        parse_reply(self).map_err(|why| RunOutcome::Failed(format!("stop check: {why}")))
+    }
+
+    /// The outcome of this output of a `cron.tick` hook (REQ-CRON-0013, REQ-CRON-0018).
+    ///
+    /// Exit 0 is [`RunOutcome::Ok`], a kill at the timeout
+    /// [`RunOutcome::TimedOut`], any other exit [`RunOutcome::Failed`] with
+    /// the start of its stderr.
+    #[must_use]
+    pub fn run_outcome(&self) -> RunOutcome {
+        if self.status == HookStatus::TimedOut {
+            return RunOutcome::TimedOut;
+        }
+        self.failure().map_or(RunOutcome::Ok, RunOutcome::Failed)
+    }
+
     /// Describes how the hook failed, or `None` if it exited 0.
     fn failure(&self) -> Option<String> {
         match &self.status {
@@ -314,7 +403,7 @@ pub enum HookStatus {
 
 /// The kill time for a hook: `timeout`, capped by the time left before `deadline`.
 ///
-/// Every hook a schedule starts gets this (NFR-BDC-0004), so the hook for the
+/// Every hook a schedule starts gets this (REQ-CRON-0013), so the hook for the
 /// stop check and the hook for the run both end by the run's deadline.
 /// `now` is on the same timeline as `deadline`; a deadline already passed
 /// gives zero.
@@ -366,17 +455,11 @@ fn stop_outcome(result: Result<HookOutput, CronError>) -> Step {
         Ok(output) => output,
         Err(error) => return Step::Skip(RunOutcome::Failed(format!("stop check: {error}"))),
     };
-    if output.status == HookStatus::TimedOut {
-        return Step::Skip(RunOutcome::TimedOut);
-    }
-    if let Some(failure) = output.failure() {
-        return Step::Skip(RunOutcome::Failed(format!("stop check: {failure}")));
-    }
-    match parse_reply(&output) {
+    match output.stop_decision() {
         Ok(StopDecision::Continue) => Step::Run,
         Ok(StopDecision::Disable(reason)) => Step::Disable(reason),
-        Ok(StopDecision::Delete(reason) | StopDecision::Stop(reason)) => Step::Delete(reason),
-        Err(why) => Step::Skip(RunOutcome::Failed(format!("stop check: {why}"))),
+        Ok(StopDecision::Delete(reason)) => Step::Delete(reason),
+        Err(outcome) => Step::Skip(outcome),
     }
 }
 
@@ -393,8 +476,7 @@ pub(crate) async fn tick_outcome<C: Clock + ?Sized>(
 fn tick_result(result: Result<HookOutput, CronError>) -> RunOutcome {
     match result {
         Err(error) => RunOutcome::Failed(error.to_string()),
-        Ok(output) if output.status == HookStatus::TimedOut => RunOutcome::TimedOut,
-        Ok(output) => output.failure().map_or(RunOutcome::Ok, RunOutcome::Failed),
+        Ok(output) => output.run_outcome(),
     }
 }
 

@@ -380,11 +380,10 @@ stale rows (`StoreStatus.stale`, filled by the store from
 nothing (ADR-BDC-0013: every verb that names a scope refuses an unknown one
 and registers nothing); `cache evict` and the 0.1 Python `prune` go through
 it. The alert verbs (`sync_alert`, `set_sync_alert`,
-`set_sync_alert_within`) are the one exception: they are keyed by the tick's
-phase names (its phase files, and the v3 cron's `sync_alert:<phase>` keys),
-which need not be registered scopes, so they take any valid name, until
-sprint b-8 replaces the tick and makes them refuse unknown names.
-ADR-BDC-0013 in `docs/architecture.md` records the same exception.
+`set_sync_alert_within`) refuse an unknown name the same way: sprint b-8
+removed the tick's phase files, which their earlier exception served
+(`the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope`,
+`crates/bd-cache/tests/ingest.rs`).
 
 ## ADR-CORE-0206: `get` reads the bead's own entry of the ready base (a-7 amendment)
 

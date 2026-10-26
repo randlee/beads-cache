@@ -15,7 +15,7 @@
 //!   ([`LEGACY_SCOPE_PREFIX`], [`legacy_scope`]);
 //! - the phase-B sync's store-side types (ADR-STORE-0006): [`IngestSnapshot`],
 //!   [`FailingSince`], [`LeaseHolder`], [`HookState`] and [`TickBudget`];
-//! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
+//! - the ports: [`CacheStore`] with [`DrainLock`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
 //! - reply and report shapes, [`CallKind`] / [`CallFailure`];
 //! - [`CacheError`] with every `BD_CACHE.*` code and the backend mapping
@@ -50,7 +50,6 @@ mod op;
 mod pyjson;
 mod reply;
 mod scope;
-mod sender;
 mod state;
 mod store;
 
@@ -59,7 +58,8 @@ pub mod testing;
 
 #[doc(inline)]
 pub use budget::{
-    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, TickBudget, check_lease_expiry,
+    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, ROW_TIMEOUT_MARGIN, TickBudget,
+    check_lease_expiry,
 };
 #[doc(inline)]
 pub use call::{CallFailure, CallKind};
@@ -70,7 +70,7 @@ pub use config::{
     CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
     DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, MAX_CALL_TIMEOUT_S, MAX_CONFIGURED_SCOPES,
     MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS, RepoConfig, START_GATE_MARGIN, SchemaPackageRef,
-    ScopeConfigError, ScopeTable, TickConfig,
+    ScopeConfigError, ScopeTable,
 };
 #[doc(inline)]
 pub use error::{
@@ -107,12 +107,11 @@ pub use scope::{
     MAX_SCOPE_NAME_LEN, Scope, ScopeFilter, ScopeId, ScopeName,
 };
 #[doc(inline)]
-pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
-#[doc(inline)]
 pub use state::{
-    BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
-    MAX_HOOK_ERROR_BYTES, OpenWork, Outage, ReadyBase, RunId, ScopeStatus, StoreStatus,
-    SyncOutcome, SyncState, UpsertReport, clip_hook_error,
+    BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder,
+    LeaseTake, MAX_HOOK_ERROR_BYTES, OpenWork, Outage, PendingSummary, ReadyBase, RunId,
+    ScopeStatus, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd, SyncState, UpsertReport,
+    clip_hook_error,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

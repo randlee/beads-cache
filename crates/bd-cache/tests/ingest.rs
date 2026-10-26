@@ -349,28 +349,40 @@ fn a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing() {
     assert!(r.out_of_scope_swept >= 1, "{r:?}");
 }
 
-/// The alert verbs are the one exception to ADR-BDC-0013's refusal of an
-/// unknown scope (Approved, lead ruling, sprint b-7; until b-8 makes them
-/// refuse unknown names): on an unregistered valid name they succeed and
-/// register no scope (B7Q1-009).
+/// The alert verbs refuse an unregistered name with `SCOPE_UNKNOWN` and
+/// register nothing, like every verb that names a scope (ADR-BDC-0013; the
+/// b-7 exception ended with the tick's phase files in b-8). Planted
+/// negative: a registered scope's alert is set and read.
 #[test]
-fn the_alert_verbs_accept_an_unregistered_name_and_register_no_scope() {
+fn the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope() {
     let w = World::new();
     let mut c = w.cache();
     let ghost = ScopeId::new("ghost").unwrap();
     let known = c.scopes().unwrap();
-    assert_eq!(c.sync_alert(&ghost).unwrap(), None);
-    c.set_sync_alert(&ghost, Some("backend_unavailable"))
-        .unwrap();
+    let code = |e: CacheError| e.code();
     assert_eq!(
-        c.sync_alert(&ghost).unwrap().as_deref(),
-        Some("backend_unavailable")
+        c.sync_alert(&ghost).map_err(code),
+        Err("BD_CACHE.SCOPE_UNKNOWN")
     );
-    c.set_sync_alert_within(&ghost, None, Duration::from_millis(50))
-        .unwrap();
-    assert_eq!(c.sync_alert(&ghost).unwrap(), None);
+    assert_eq!(
+        c.set_sync_alert(&ghost, Some("backend_unavailable"))
+            .map_err(code),
+        Err("BD_CACHE.SCOPE_UNKNOWN")
+    );
+    assert_eq!(
+        c.set_sync_alert_within(&ghost, None, Duration::from_millis(50))
+            .map_err(code),
+        Err("BD_CACHE.SCOPE_UNKNOWN")
+    );
     assert_eq!(c.scope(&ghost).unwrap(), None, "no scope registered");
     assert_eq!(c.scopes().unwrap(), known, "the registry is unchanged");
+    let registered = known.first().map(|s| s.id.clone()).unwrap();
+    c.set_sync_alert(&registered, Some("backend_unavailable"))
+        .unwrap();
+    assert_eq!(
+        c.sync_alert(&registered).unwrap().as_deref(),
+        Some("backend_unavailable")
+    );
 }
 
 /// Rows over the limit are refused as they decode, before the store is

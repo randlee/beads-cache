@@ -16,16 +16,7 @@ use clap::{Arg, ArgAction, ArgGroup, Command as Clap};
 use bd_cache_api::Command;
 
 use crate::NAME;
-use crate::commands::{beads, manage, tick};
-
-/// What a command runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Target {
-    /// A `bd-cache-api` command: decode, then execute.
-    Api(Command),
-    /// `cache tick`: bd-cache-sync's tick (its request is decoded here).
-    Tick,
-}
+use crate::commands::{beads, cron, manage, schedule, scopes, sync, tick};
 
 /// How many values an argument takes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -169,8 +160,10 @@ pub(crate) struct CommandSpec {
     pub(crate) path: &'static str,
     /// One line for the help.
     pub(crate) about: &'static str,
-    /// What it runs.
-    pub(crate) target: Target,
+    /// The `bd-cache-api` command it runs: decoded there, then executed by
+    /// `bd-cache-api`, or over `bd-cache-sync` when
+    /// [`Command::is_front_end`] says so (ADR-BDC-0015); the one decision.
+    pub(crate) command: Command,
     /// Its arguments.
     pub(crate) args: &'static [ArgSpec],
     /// Arguments of which exactly one must be given.
@@ -182,7 +175,11 @@ pub(crate) fn commands() -> impl Iterator<Item = &'static CommandSpec> {
     beads::COMMANDS
         .iter()
         .chain(manage::COMMANDS)
+        .chain(scopes::COMMANDS)
+        .chain(schedule::COMMANDS)
+        .chain(cron::COMMANDS)
         .chain(std::iter::once(&tick::COMMAND))
+        .chain(sync::COMMANDS)
 }
 
 /// The command with this path.
@@ -384,6 +381,16 @@ fn group(mut parent: Clap, prefix: &str, relaxed: bool) -> Clap {
             format!("{prefix} {word}")
         };
         let sub = match command(&path) {
+            // A command that is also a group (`cache scopes` and `cache
+            // scopes list` …): its own arguments, and its subcommands.
+            Some(spec) if !children(&path).is_empty() => group(
+                leaf(spec, relaxed)
+                    .subcommand_required(false)
+                    .args_conflicts_with_subcommands(true)
+                    .disable_help_subcommand(true),
+                &path,
+                relaxed,
+            ),
             Some(spec) => leaf(spec, relaxed),
             None => group(
                 Clap::new(word)

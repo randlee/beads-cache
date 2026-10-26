@@ -55,22 +55,14 @@ fn ticked(cell: &str) -> Vec<String> {
         .collect()
 }
 
-/// The contract's table as `code -> row`, and its `TICK_*` row's kind cell.
-fn parse_contract() -> (BTreeMap<String, Row>, String) {
+/// The contract's table as `code -> row`.
+fn parse_contract() -> BTreeMap<String, Row> {
     let mut table = BTreeMap::new();
-    let mut tick = None;
     for cells in contract_rows() {
         let [code, kind, exit, retryable, v0, ..] = cells.as_slice() else {
             panic!("short row {cells:?}");
         };
         let codes = ticked(code);
-        // The `TICK_<REFUSAL>` family is matched by that literal code, not by
-        // the `TICK_` prefix: `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` are rows
-        // (REQ-BDC-0729). Sprint b-8 removes this row and its expectation.
-        if codes.iter().any(|c| c == "TICK_<REFUSAL>") {
-            tick = Some(kind.clone());
-            continue;
-        }
         let kind = kind.replace("**", "");
         let exit = match exit.as_str() {
             "—" => None,
@@ -90,7 +82,7 @@ fn parse_contract() -> (BTreeMap<String, Row>, String) {
             assert!(prev.is_none(), "{c} is listed twice");
         }
     }
-    (table, tick.expect("the contract has a TICK_<REFUSAL> row"))
+    table
 }
 
 fn ours() -> BTreeMap<String, Row> {
@@ -112,7 +104,7 @@ fn ours() -> BTreeMap<String, Row> {
 
 #[test]
 fn the_error_table_equals_the_contract() {
-    let (contract, _) = parse_contract();
+    let contract = parse_contract();
     assert!(contract.len() >= 25, "parsed only {} codes", contract.len());
     let ours = ours();
     assert_eq!(ours.len(), ERROR_TABLE.len(), "a code is listed twice");
@@ -128,30 +120,22 @@ fn the_error_table_equals_the_contract() {
     }
 }
 
+/// The `TICK_<REFUSAL>` family is gone from both tables (ADR-BDC-0015,
+/// sprint b-8): no row of the contract and no `ERROR_TABLE` code names it.
 #[test]
-fn tick_refusals_take_the_kinds_the_contract_names() {
-    let (_, tick_kinds) = parse_contract();
-    let cases = [
-        ("missing_team", ErrorKind::InvalidInput),
-        ("phase_file_invalid", ErrorKind::InvalidInput),
-        ("escalation_undelivered", ErrorKind::Unavailable),
-        ("escalation_no_lead", ErrorKind::Unavailable),
-        ("busy", ErrorKind::Conflict),
-    ];
-    for (refusal, kind) in cases {
-        assert!(
-            tick_kinds.contains(kind.as_str()),
-            "the contract names {kind}"
-        );
-        let e = ApiError::tick_refusal(refusal, "m");
-        assert_eq!(e.kind(), kind, "{refusal}");
-        assert_eq!(
-            e.code(),
-            format!("BD_CACHE.TICK_{}", refusal.to_uppercase())
-        );
-        assert_eq!(e.exit_code(), None);
-        assert_eq!(e.retryable(), kind == ErrorKind::Unavailable);
-    }
+fn no_tick_refusal_family_is_left() {
+    let table = parse_contract();
+    assert!(
+        table.keys().all(|c| c != "TICK_<REFUSAL>"),
+        "the contract still lists TICK_<REFUSAL>"
+    );
+    let tick: Vec<_> = table
+        .keys()
+        .filter(|c| c.starts_with("TICK_"))
+        .cloned()
+        .collect();
+    assert_eq!(tick, ["TICK_IN_FLIGHT", "TICK_RUN_FAILED"]);
+    assert!(ERROR_TABLE.iter().all(|s| !s.code.contains('<')));
 }
 
 fn backend_unavailable(timed_out: bool) -> BackendCause {
