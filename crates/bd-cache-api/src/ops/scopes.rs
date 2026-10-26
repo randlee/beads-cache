@@ -79,7 +79,12 @@ pub(crate) fn scopes_ingest<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &ScopesIngest,
 ) -> Result<ScopesIngestData, ApiError> {
-    let r = cache.ingest_scope(&req.scope, &req.snapshot, req.revision.as_deref(), req.allow_empty)?;
+    let r = cache.ingest_scope(
+        &req.scope,
+        &req.snapshot,
+        req.revision.as_deref(),
+        req.allow_empty,
+    )?;
     Ok(ScopesIngestData {
         scope: req.scope.name().to_owned(),
         rows: req.snapshot.rows().len(),

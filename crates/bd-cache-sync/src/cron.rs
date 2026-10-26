@@ -15,7 +15,10 @@ use std::time::{Duration, Instant};
 
 use bd_cache_model::{CacheError, CacheStore, DrainLock, RunId, TickRunReason};
 use sc_beads::CacheBackend;
-use sc_cron::{Clock as CronClock, DueRun, JitterSource, MissedTickPolicy, RunOutcome, ScheduleStore, Scheduler};
+use sc_cron::{
+    Clock as CronClock, DueRun, JitterSource, MissedTickPolicy, RunOutcome, ScheduleStore,
+    Scheduler,
+};
 
 use crate::history::RowHistory;
 use crate::job::{SyncContext, join_idle, sync_resolver};
@@ -59,13 +62,19 @@ where
     let worker = scheduler.spawn_worker_with(sync_resolver(Arc::clone(&ctx)));
     tracing::info!(action = "cron_run", "worker started");
     ctx.stop.wait().await;
-    tracing::info!(action = "cron_run", shutdown_timeout_ms = u64::try_from(shutdown_timeout.as_millis()).unwrap_or(u64::MAX),
-        "stopping: no new run; waiting for the runs in flight");
+    tracing::info!(
+        action = "cron_run",
+        shutdown_timeout_ms = u64::try_from(shutdown_timeout.as_millis()).unwrap_or(u64::MAX),
+        "stopping: no new run; waiting for the runs in flight"
+    );
     let drained = worker
         .shutdown(tokio::time::Instant::now() + shutdown_timeout)
         .await;
     if !drained {
-        tracing::warn!(action = "cron_run", "runs still going at the shutdown timeout were killed with their process trees");
+        tracing::warn!(
+            action = "cron_run",
+            "runs still going at the shutdown timeout were killed with their process trees"
+        );
         ctx.kill.stop();
     }
     let cache = Arc::clone(&ctx.cache);
@@ -115,7 +124,13 @@ where
     let rows: Vec<String> = failed.iter().map(|r| r.name.to_string()).collect();
     let detail = failed
         .iter()
-        .map(|r| format!("{}: {}", r.name, crate::text::cut(&r.outcome.to_string(), 1024)))
+        .map(|r| {
+            format!(
+                "{}: {}",
+                r.name,
+                crate::text::cut(&r.outcome.to_string(), 1024)
+            )
+        })
         .collect::<Vec<_>>()
         .join("; ");
     Err(CacheError::TickRunFailed {

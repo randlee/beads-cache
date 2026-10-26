@@ -71,12 +71,20 @@ mod tests {
         let run = RunId::new("1-2-3").unwrap();
         let first = RowHistory::default().failed(&run, "2026-10-26T00:00:00Z", "exit 1");
         let h = RowHistory::of(Some(&first));
-        assert_eq!((h.failures, h.since.as_deref(), h.run_id.as_deref()),
-            (1, Some("2026-10-26T00:00:00Z"), Some("1-2-3")));
+        assert_eq!(
+            (h.failures, h.since.as_deref(), h.run_id.as_deref()),
+            (1, Some("2026-10-26T00:00:00Z"), Some("1-2-3"))
+        );
         let second = h.failed(&run, "2026-10-26T00:01:00Z", "exit 1");
         let h = RowHistory::of(Some(&second));
-        assert_eq!((h.failures, h.since.as_deref()), (2, Some("2026-10-26T00:00:00Z")));
+        assert_eq!(
+            (h.failures, h.since.as_deref()),
+            (2, Some("2026-10-26T00:00:00Z"))
+        );
         assert_eq!(RowHistory::of(Some(&RunOutcome::Ok)), RowHistory::default());
-        assert_eq!(RowHistory::of(Some(&RunOutcome::Failed("plain".into()))).failures, 1);
+        assert_eq!(
+            RowHistory::of(Some(&RunOutcome::Failed("plain".into()))).failures,
+            1
+        );
     }
 }

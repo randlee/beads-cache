@@ -31,11 +31,13 @@ pub fn new_run_id(clock: &dyn Clock) -> RunId {
     let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let ms = clock.now_utc().unix().saturating_mul(1000);
     // Never empty, so `RunId::new` cannot refuse it; the fallback is unreachable in practice.
-    RunId::new(format!("{ms}-{}-{n}", std::process::id()))
-        .unwrap_or_else(|_| fallback_run_id(n))
+    RunId::new(format!("{ms}-{}-{n}", std::process::id())).unwrap_or_else(|_| fallback_run_id(n))
 }
 
-#[expect(clippy::expect_used, reason = "a fixed non-empty literal is always a valid run id")]
+#[expect(
+    clippy::expect_used,
+    reason = "a fixed non-empty literal is always a valid run id"
+)]
 fn fallback_run_id(n: u64) -> RunId {
     RunId::new(format!("run-{n}")).expect("non-empty")
 }

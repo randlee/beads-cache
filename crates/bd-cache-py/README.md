@@ -77,6 +77,32 @@ Errors:
 Threading: the handle may be shared between threads. Verbs on one handle run
 one at a time, and the GIL is released while a verb waits on `bd` or SQLite.
 
+## The sync (0.2, ADR-PY-0006)
+
+The package is maturin's mixed layout: the native module is
+`bd_cache_rs._native`, re-exported whole by `bd_cache_rs`, beside two entry
+points. The cache syncs bd itself, on rows of the sc-cron table in the cache
+file; these methods run on the handle's own connection (`dir(Cache)` is still
+the 0.1 set):
+
+- `cache.tick()`: the built-in sync once now (lease, drain, every scope, the
+  post-sync hook); `PRECONDITION` while a Python sync row is enabled.
+- `cache.schedule_set(cron, budget_ms=..., hook_reserve_ms=..., post_sync="module:function",
+  python="/abs/python", env=[...])`, `schedule_show()`, `schedule_enable()`,
+  `schedule_disable()`, `schedule_clear()`: the built-in sync row.
+- `cache.sync_use_python(python=..., module=...)` / `cache.sync_use_builtin()`:
+  switch to a script of your own (run at once, rolled back on failure) and back.
+- `cache.scopes_add(name, all=True)` (or `labels_all`, `labels_any`, `status`,
+  `type`, `assignee`), `scopes_set`, `scopes_remove`, `scopes_list()`,
+  `cache.ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)`
+  and `cache.scope_announce(scope, since)`.
+- `python -I -m bd_cache_rs.run post_sync <module:function>` runs a post-sync
+  hook, `func(cache, request)`, in a child with a cleared environment;
+  `bd_cache_rs.sync.main(func)` is the harness of a sync script,
+  `func(cache, payload)`. Inside either, `drain`, `manage.flush`, `tick()` and
+  `schedule_*` raise `CacheError` (`PRECONDITION`).
+- `bd_cache_rs.CODES` lists every error code.
+
 ## Install
 
 Once it is published to PyPI:
@@ -98,15 +124,16 @@ pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=cra
 - One process holds one connection per cache file. A second handle on the
   same file in the same process is `BD_CACHE.STORE_IN_USE` until the first is
   closed; separate processes are fine.
-- Never let two implementations drain the same journal at the same time. Stop
-  the Python `bd_cache.py` cron before this module's `drain` runs.
+- Never let two implementations drain the same journal at the same time: run
+  one sync (the cache file's sync rows, or `tick()`), not a second scheduler of
+  your own beside it.
 - Wheels are built and tested on macOS arm64 and Linux x86_64 only. The Rust
   crate's own tests also run on Windows.
 
 ## Links
 
 - Requirements: [`docs/bd-cache-py/requirements.md`](https://github.com/randlee/beads-cache/blob/develop/docs/bd-cache-py/requirements.md)
-- Architecture, reply shapes and the mapping from each `bd_cache.py` call:
+- Architecture and reply shapes:
   [`docs/bd-cache-py/architecture.md`](https://github.com/randlee/beads-cache/blob/develop/docs/bd-cache-py/architecture.md)
 
 License: MIT.

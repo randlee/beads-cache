@@ -27,8 +27,8 @@ use std::time::Duration;
 use bd_cache_model::{CacheError, CacheStore, DrainLock, ScheduleReason, TickBudget};
 use sc_beads::CacheBackend;
 use sc_cron::{
-    Clock as CronClock, CronError, JitterSource, RunOutcome, Schedule, ScheduleName,
-    ScheduleSpec, ScheduleStore, Scheduler,
+    Clock as CronClock, CronError, JitterSource, RunOutcome, Schedule, ScheduleName, ScheduleSpec,
+    ScheduleStore, Scheduler,
 };
 use serde::Serialize;
 use serde_json::{Value, json};
@@ -152,7 +152,12 @@ fn name(row: &str) -> Result<ScheduleName, CacheError> {
     ScheduleName::new(row).map_err(schedule_store_failed)
 }
 
-fn spec(row: &str, expr: &str, timeout: Duration, payload: Value) -> Result<ScheduleSpec, CacheError> {
+fn spec(
+    row: &str,
+    expr: &str,
+    timeout: Duration,
+    payload: Value,
+) -> Result<ScheduleSpec, CacheError> {
     ScheduleSpec::new(row, expr, timeout, payload).map_err(|e| match e {
         CronError::BadExpression(why) => invalid(
             "cron",
@@ -185,16 +190,24 @@ pub struct ScheduleSet {
 /// # Errors
 ///
 /// `SCHEDULE_INVALID` naming the field.
-pub async fn check_schedule_set(req: &ScheduleSet) -> Result<(BuiltinPayload, ScheduleSpec), CacheError> {
+pub async fn check_schedule_set(
+    req: &ScheduleSet,
+) -> Result<(BuiltinPayload, ScheduleSpec), CacheError> {
     let hook = match (&req.post_sync, &req.python) {
         (None, None) if req.env.is_empty() => None,
         (None, _) => {
-            return Err(invalid("post_sync", ScheduleReason::BadModule,
-                "--python and --env name the post-sync hook's interpreter; give --post-sync too"));
+            return Err(invalid(
+                "post_sync",
+                ScheduleReason::BadModule,
+                "--python and --env name the post-sync hook's interpreter; give --post-sync too",
+            ));
         }
         (Some(_), None) => {
-            return Err(invalid("python", ScheduleReason::NotAbsolute,
-                "--post-sync needs --python <absolute interpreter>"));
+            return Err(invalid(
+                "python",
+                ScheduleReason::NotAbsolute,
+                "--post-sync needs --python <absolute interpreter>",
+            ));
         }
         (Some(target), Some(python)) => {
             let hook = PostSyncHook::new(python, target, EnvNames::new(req.env.clone())?)?;
@@ -279,8 +292,11 @@ where
         return Err(no_builtin_row());
     }
     if enabled && rows.python.as_ref().is_some_and(|r| r.enabled) {
-        return Err(invalid("schedule", ScheduleReason::PythonSyncEnabled,
-            "the Python sync row is enabled; switch with bdc cache sync use-builtin"));
+        return Err(invalid(
+            "schedule",
+            ScheduleReason::PythonSyncEnabled,
+            "the Python sync row is enabled; switch with bdc cache sync use-builtin",
+        ));
     }
     scheduler
         .set_enabled_async(&name(BUILTIN_ROW)?, enabled)
@@ -305,7 +321,11 @@ where
     let cleared = match &rows.builtin {
         Some(row) => {
             scheduler
-                .stop_async(row.id, row.generation, "cleared by bdc cache schedule clear")
+                .stop_async(
+                    row.id,
+                    row.generation,
+                    "cleared by bdc cache schedule clear",
+                )
                 .await
                 .map_err(schedule_store_failed)?;
             true
@@ -317,8 +337,11 @@ where
 }
 
 fn no_builtin_row() -> CacheError {
-    invalid("schedule", ScheduleReason::NoBuiltinRow,
-        "there is no built-in sync row; create it with bdc cache schedule set <cron-expr>")
+    invalid(
+        "schedule",
+        ScheduleReason::NoBuiltinRow,
+        "there is no built-in sync row; create it with bdc cache schedule set <cron-expr>",
+    )
 }
 
 /// One row in `schedule show`.
@@ -329,7 +352,9 @@ fn row_json(row: Option<&Schedule>, kind: &str) -> Value {
     let history = RowHistory::of(row.last_outcome.as_ref());
     let outcome = row.last_outcome.as_ref().map(|o| match o {
         RunOutcome::Ok => "ok".to_owned(),
-        other => crate::text::cut(&other.to_string(), crate::text::MAX_KEPT_STDERR_BYTES).to_owned(),
+        other => {
+            crate::text::cut(&other.to_string(), crate::text::MAX_KEPT_STDERR_BYTES).to_owned()
+        }
     });
     let mut v = json!({
         "kind": kind,
@@ -349,12 +374,24 @@ fn row_json(row: Option<&Schedule>, kind: &str) -> Value {
         match payload {
             SyncPayload::Python(p) => {
                 m.insert("module".into(), json!(p.interpreter.module()));
-                m.insert("python".into(), json!(p.interpreter.path().display().to_string()));
-                m.insert("timeout_ms".into(), json!(u64::try_from(p.timeout.as_millis()).unwrap_or(u64::MAX)));
+                m.insert(
+                    "python".into(),
+                    json!(p.interpreter.path().display().to_string()),
+                );
+                m.insert(
+                    "timeout_ms".into(),
+                    json!(u64::try_from(p.timeout.as_millis()).unwrap_or(u64::MAX)),
+                );
             }
             SyncPayload::Builtin(b) => {
-                m.insert("budget_ms".into(), json!(u64::try_from(b.budget.budget().as_millis()).unwrap_or(u64::MAX)));
-                m.insert("hook_reserve_ms".into(), json!(u64::try_from(b.budget.hook_reserve().as_millis()).unwrap_or(u64::MAX)));
+                m.insert(
+                    "budget_ms".into(),
+                    json!(u64::try_from(b.budget.budget().as_millis()).unwrap_or(u64::MAX)),
+                );
+                m.insert(
+                    "hook_reserve_ms".into(),
+                    json!(u64::try_from(b.budget.hook_reserve().as_millis()).unwrap_or(u64::MAX)),
+                );
             }
         }
     } else if let Value::Object(m) = &mut v {
@@ -382,13 +419,13 @@ where
         let store = Arc::clone(store);
         blocking(move || Rows::read(store.as_ref())).await?
     };
-    let hook_module = rows
-        .builtin
-        .as_ref()
-        .and_then(|r| match SyncPayload::decode(&r.spec.payload) {
-            Ok(SyncPayload::Builtin(b)) => b.hook.map(|h| h.target()),
-            _ => None,
-        });
+    let hook_module =
+        rows.builtin
+            .as_ref()
+            .and_then(|r| match SyncPayload::decode(&r.spec.payload) {
+                Ok(SyncPayload::Builtin(b)) => b.hook.map(|h| h.target()),
+                _ => None,
+            });
     let cache = Arc::clone(cache);
     let (lease, hook, scopes) = blocking(move || {
         let guard = hold(&cache)?;
@@ -408,7 +445,11 @@ where
     .await?;
     let mode = rows.mode();
     let mut flags = Vec::new();
-    if rows.python.as_ref().is_some_and(|r| r.last_run_at.is_none()) {
+    if rows
+        .python
+        .as_ref()
+        .is_some_and(|r| r.last_run_at.is_none())
+    {
         flags.push("python_never_run");
     }
     let both_disabled = rows.builtin.as_ref().is_none_or(|r| !r.enabled)
@@ -419,7 +460,11 @@ where
     }
     for row in [&rows.builtin, &rows.python].into_iter().flatten() {
         if SyncPayload::decode(&row.spec.payload).is_err() {
-            flags.push(if row.spec.name.as_str() == BUILTIN_ROW { "builtin_payload_invalid" } else { "python_payload_invalid" });
+            flags.push(if row.spec.name.as_str() == BUILTIN_ROW {
+                "builtin_payload_invalid"
+            } else {
+                "python_payload_invalid"
+            });
         }
     }
     Ok(json!({
@@ -492,11 +537,19 @@ where
         (Some(expr), _) => expr.clone(),
         (None, Some(builtin)) => builtin.spec.expr.as_str().to_owned(),
         (None, None) => {
-            return Err(invalid("cron", ScheduleReason::CronRequired,
-                "--cron is required when there is no built-in row to take the expression from"));
+            return Err(invalid(
+                "cron",
+                ScheduleReason::CronRequired,
+                "--cron is required when there is no built-in row to take the expression from",
+            ));
         }
     };
-    let new_spec = spec(PYTHON_ROW, &expr, payload.timeout, SyncPayload::Python(payload.clone()).to_json())?;
+    let new_spec = spec(
+        PYTHON_ROW,
+        &expr,
+        payload.timeout,
+        SyncPayload::Python(payload.clone()).to_json(),
+    )?;
     // The lease, before the mode commit (REQ-BDC-0722).
     let lease = {
         let cache = Arc::clone(&ctx.cache);
@@ -505,7 +558,11 @@ where
             let mut guard = hold(&cache)?;
             let clock = guard.clock();
             let run_id = new_run_id(&*clock);
-            TickLease::take(&mut guard, run_id, sc_beads::Deadline::after(&*clock, timeout))
+            TickLease::take(
+                &mut guard,
+                run_id,
+                sc_beads::Deadline::after(&*clock, timeout),
+            )
         })
         .await?
     };
@@ -560,7 +617,11 @@ where
 }
 
 /// Restores the state held before `use-python`, in one store call.
-async fn restore<St, C, J>(scheduler: &Scheduler<St, C, J>, before: &Rows, new_spec: ScheduleSpec) -> bool
+async fn restore<St, C, J>(
+    scheduler: &Scheduler<St, C, J>,
+    before: &Rows,
+    new_spec: ScheduleSpec,
+) -> bool
 where
     St: ScheduleStore + 'static,
     C: CronClock + 'static,
@@ -574,7 +635,10 @@ where
         Some(row) => (row.spec.clone(), row.enabled),
         None => (new_spec, false),
     };
-    match scheduler.replace_and_set_enabled_async(spec, enabled, builtin_flag).await {
+    match scheduler
+        .replace_and_set_enabled_async(spec, enabled, builtin_flag)
+        .await
+    {
         Ok(_) => true,
         Err(e) => {
             tracing::error!(code = e.code(), error = %e,
@@ -586,13 +650,31 @@ where
 
 fn with_restored(e: CacheError, ok: bool) -> CacheError {
     match e {
-        CacheError::TickRunFailed { detail, row, run_id, reason, exit_status, stderr, .. } => {
+        CacheError::TickRunFailed {
+            detail,
+            row,
+            run_id,
+            reason,
+            exit_status,
+            stderr,
+            ..
+        } => {
             let detail = if ok {
                 format!("{detail}; the state before the command was restored")
             } else {
-                format!("{detail}; the state before the command could NOT be restored: run bdc cache sync use-builtin")
+                format!(
+                    "{detail}; the state before the command could NOT be restored: run bdc cache sync use-builtin"
+                )
             };
-            CacheError::TickRunFailed { detail, row, run_id, reason, exit_status, stderr, restored: Some(ok) }
+            CacheError::TickRunFailed {
+                detail,
+                row,
+                run_id,
+                reason,
+                exit_status,
+                stderr,
+                restored: Some(ok),
+            }
         }
         other => other,
     }
@@ -618,7 +700,9 @@ where
 /// # Errors
 ///
 /// `SCHEDULE_INVALID` (`no_builtin_row`) with no built-in row; `STORE_FAILED`.
-pub async fn sync_use_builtin<St, C, J>(scheduler: &Scheduler<St, C, J>) -> Result<Value, CacheError>
+pub async fn sync_use_builtin<St, C, J>(
+    scheduler: &Scheduler<St, C, J>,
+) -> Result<Value, CacheError>
 where
     St: ScheduleStore + 'static,
     C: CronClock + 'static,
@@ -672,12 +756,21 @@ where
     let (payload, period) = match &rows.builtin {
         Some(row) => match SyncPayload::decode(&row.spec.payload)? {
             SyncPayload::Builtin(p) => (p, row_period(row)),
-            SyncPayload::Python(_) => return Err(invalid("payload", ScheduleReason::OutOfRange,
-                "the built-in row holds a Python payload").into()),
+            SyncPayload::Python(_) => {
+                return Err(invalid(
+                    "payload",
+                    ScheduleReason::OutOfRange,
+                    "the built-in row holds a Python payload",
+                )
+                .into());
+            }
         },
         None => (BuiltinPayload::defaults()?, None),
     };
-    let ctx = RunContext { period, ..ctx.clone() };
+    let ctx = RunContext {
+        period,
+        ..ctx.clone()
+    };
     Ok(run_builtin(cache, &payload, &ctx).await?)
 }
 
@@ -690,4 +783,182 @@ pub fn row_period(row: &Schedule) -> Option<Duration> {
     let next = row.next_run_at?;
     let after = row.next_run_after(next)?;
     (after.as_datetime() - next.as_datetime()).to_std().ok()
+}
+
+/// The schedule and switch operations over the cache file's table on the
+/// system clock, for a front end with no sc-cron edge of its own
+/// (`bd-cache-py`, ADR-PY-0006): it holds sc-cron's `Scheduler` here, so
+/// bd-cache-sync re-exports none of sc-cron's API.
+pub struct SystemSchedules {
+    store: Arc<bd_cache_store::CacheScheduleStore>,
+    scheduler:
+        Scheduler<bd_cache_store::CacheScheduleStore, sc_cron::SystemClock, sc_cron::SystemJitter>,
+}
+
+impl std::fmt::Debug for SystemSchedules {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SystemSchedules").finish_non_exhaustive()
+    }
+}
+
+impl SystemSchedules {
+    /// The operations over `store` (from [`crate::Composed::schedule_store`]).
+    #[must_use]
+    pub fn new(store: Arc<bd_cache_store::CacheScheduleStore>) -> Self {
+        let scheduler = Scheduler::new(
+            Arc::clone(&store),
+            Arc::new(sc_cron::SystemClock),
+            Arc::new(sc_cron::SystemJitter),
+        );
+        Self { store, scheduler }
+    }
+
+    /// [`schedule_set`].
+    ///
+    /// # Errors
+    ///
+    /// As [`schedule_set`].
+    pub async fn set(&self, req: &ScheduleSet) -> Result<Value, CacheError> {
+        schedule_set(&self.scheduler, req).await
+    }
+
+    /// [`schedule_show`].
+    ///
+    /// # Errors
+    ///
+    /// As [`schedule_show`].
+    pub async fn show<S, L, B>(&self, cache: &SharedCache<S, L, B>) -> Result<Value, CacheError>
+    where
+        S: CacheStore + 'static,
+        L: DrainLock + 'static,
+        B: CacheBackend + 'static,
+    {
+        schedule_show(&self.store, cache).await
+    }
+
+    /// [`schedule_enable`].
+    ///
+    /// # Errors
+    ///
+    /// As [`schedule_enable`].
+    pub async fn enable(&self, enabled: bool) -> Result<Value, CacheError> {
+        schedule_enable(&self.scheduler, enabled).await
+    }
+
+    /// [`schedule_clear`].
+    ///
+    /// # Errors
+    ///
+    /// As [`schedule_clear`].
+    pub async fn clear(&self) -> Result<Value, CacheError> {
+        schedule_clear(&self.scheduler).await
+    }
+
+    /// [`sync_use_python`], its immediate run killed when `kill` is set.
+    ///
+    /// # Errors
+    ///
+    /// As [`sync_use_python`].
+    pub async fn use_python<S, L, B>(
+        &self,
+        cache: &SharedCache<S, L, B>,
+        cache_path: PathBuf,
+        beads_dir: Option<PathBuf>,
+        kill: crate::StopFlag,
+        req: &UsePython,
+    ) -> Result<Value, CacheError>
+    where
+        S: CacheStore + 'static,
+        L: DrainLock + 'static,
+        B: CacheBackend + 'static,
+    {
+        let ctx = SyncContext {
+            cache: Arc::clone(cache),
+            clock: Arc::new(sc_cron::SystemClock),
+            cache_path,
+            beads_dir,
+            stop: kill.clone(),
+            kill,
+        };
+        sync_use_python(&self.scheduler, &ctx, req).await
+    }
+
+    /// [`sync_use_builtin`].
+    ///
+    /// # Errors
+    ///
+    /// As [`sync_use_builtin`].
+    pub async fn use_builtin(&self) -> Result<Value, CacheError> {
+        sync_use_builtin(&self.scheduler).await
+    }
+
+    /// [`tick`].
+    ///
+    /// # Errors
+    ///
+    /// As [`tick`].
+    pub async fn tick<S, L, B>(
+        &self,
+        cache: &SharedCache<S, L, B>,
+        ctx: &RunContext,
+    ) -> Result<BuiltinReply, SyncError>
+    where
+        S: CacheStore + 'static,
+        L: DrainLock + 'static,
+        B: CacheBackend + 'static,
+    {
+        tick(&self.store, cache, ctx).await
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(
+        clippy::unwrap_used,
+        reason = "test code: a failed unwrap is a test failure"
+    )]
+
+    use super::*;
+
+    fn row(expr: &str, next: &str) -> Schedule {
+        let spec = ScheduleSpec::new("s", expr, Duration::from_secs(5), json!({})).unwrap();
+        let at: sc_cron::Timestamp = next.parse().unwrap();
+        Schedule {
+            id: sc_cron::ScheduleId::new(1),
+            generation: sc_cron::Generation::FIRST,
+            spec,
+            jitter: Duration::ZERO,
+            created_at: at,
+            next_run_at: Some(at),
+            last_run_at: None,
+            last_outcome: None,
+            ended_at: None,
+            stop_reason: None,
+            enabled: true,
+        }
+    }
+
+    /// The period of a row is the gap between its next two scheduled times
+    /// at evaluation (QA97R2-016): constant for a regular expression, and
+    /// for an irregular one it follows the next run. Planted negative: a row
+    /// with no next run has none.
+    #[test]
+    fn the_period_of_a_row_is_the_gap_between_its_next_two_runs() {
+        assert_eq!(
+            row_period(&row("*/30 * * * * *", "2026-10-26T10:00:30Z")),
+            Some(Duration::from_secs(30))
+        );
+        let irregular = "0 0,5 * * * *";
+        assert_eq!(
+            row_period(&row(irregular, "2026-10-26T10:00:00Z")),
+            Some(Duration::from_mins(5))
+        );
+        assert_eq!(
+            row_period(&row(irregular, "2026-10-26T10:05:00Z")),
+            Some(Duration::from_mins(55))
+        );
+        let mut none = row(irregular, "2026-10-26T10:05:00Z");
+        none.next_run_at = None;
+        assert_eq!(row_period(&none), None);
+    }
 }

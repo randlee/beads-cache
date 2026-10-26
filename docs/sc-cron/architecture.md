@@ -446,10 +446,10 @@ lost its reason is refused, not acted on. A stop check that cannot answer
 reply) is no decision: the run is skipped and the schedule left active and
 enabled, with `Failed` or `TimedOut` recorded.
 
-`StopDecision::Stop(reason)` is kept as an alias of `Delete(reason)`. Its one
-caller outside this crate, `bd-cache-sync`'s stop rule, is owned by sprint b-7,
-which removes that rule; keeping the alias lets the workspace build between b-6
-and b-7. It is to be deleted when no caller is left.
+`StopDecision::Stop(reason)` was kept as an alias of `Delete(reason)` while its
+one caller outside this crate, `bd-cache-sync`'s stop rule, existed. That rule
+and the alias were removed together by sprint b-8 (the rule was never b-7's to
+remove); keeping the alias let the workspace build until then.
 
 *Amended by ADR-CRON-0009:* the last caller moved to sprint b-8, which removes
 the alias together with it; sc-cron is an unpublished prototype, so the removal
@@ -596,3 +596,16 @@ Consequences: a caller with its own protocol for a child process runs it through
 `sc_cron::process` and adds no supervision code or dependency of its own (beads-cache does, for
 its post-sync hook, ADR-SYNC-0008); a caller that needs more around a Python row (a lease, a
 trust check) wraps it in its own `Job` and the resolver.
+
+### Implementation notes (sprint b-8)
+
+- `TargetResolver` is in `src/hook.rs`; the worker resolves a row in `launch` and runs it with
+  `run_target`, which `Scheduler::run_due_with` shares (an outside scheduler's one-shot run of
+  what is due, each run under its own deadline, its outcome and next run recorded).
+- `sc_cron::process` is public (`ChildSpec`, `ChildEnv`, `TempCwd`, `Capped`, `Captured`,
+  `supervise`); `TempCwd` is mode `0700` on Unix. Evidence: `tests/process_api.rs` (a grandchild
+  killed at expiry and on drop, the environment allowlist) and `tests/target_resolver.rs` (one
+  table with a Rust row and a Python row, an unresolvable row recorded `Failed` and active).
+- `Schedule::next_run_after` and `Schedule::period_after` give a row's runs to a caller (the
+  period of QA97R2-016).
+

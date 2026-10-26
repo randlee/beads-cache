@@ -296,7 +296,15 @@ async fn call_hook(
             () = stop.wait() => {}
         }
     };
-    run_hook(hook, trusted, ctx.beads_dir.as_deref(), run_id, request, expiry).await
+    run_hook(
+        hook,
+        trusted,
+        ctx.beads_dir.as_deref(),
+        run_id,
+        request,
+        expiry,
+    )
+    .await
 }
 
 /// Steps 1 to 3 and the hook's request, with the cache's mutex held.
@@ -310,7 +318,10 @@ fn prepare<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let clock = cache.clock();
     let budget = Budget::new(&*clock, &payload.budget);
     let run_id = new_run_id(&*clock);
-    let module = payload.hook.as_ref().map(crate::payload::PostSyncHook::target);
+    let module = payload
+        .hook
+        .as_ref()
+        .map(crate::payload::PostSyncHook::target);
     let mut reply = BuiltinReply {
         run_id: run_id.clone(),
         row: ctx.row.clone(),
@@ -334,7 +345,16 @@ fn prepare<S: CacheStore, L: DrainLock, B: CacheBackend>(
         LeaseTaken::Taken(lease) => lease,
     };
     reply.took_over = lease.took_over().map(holder_json);
-    step(&ctx.row, &reply.run_id, "lease", if reply.took_over.is_some() { "took_over" } else { "taken" });
+    step(
+        &ctx.row,
+        &reply.run_id,
+        "lease",
+        if reply.took_over.is_some() {
+            "took_over"
+        } else {
+            "taken"
+        },
+    );
     match steps(cache, payload, ctx, &budget, &mut reply) {
         Ok(request) => Ok(Ok(Prepared {
             lease,
@@ -366,11 +386,19 @@ fn steps<S: CacheStore, L: DrainLock, B: CacheBackend>(
     } else {
         let margin = HARD_MARGIN.min(sync.remaining(&*clock) / 2);
         let gate = Deadline::at(sync.instant().checked_sub(margin).unwrap_or(sync.instant()));
-        match cache.drain(&DrainBudget { start_gate: gate, hard: sync }) {
+        match cache.drain(&DrainBudget {
+            start_gate: gate,
+            hard: sync,
+        }) {
             Ok(report) => {
                 drain.applied = report.applied.len();
                 drain.escalated = report.escalated.len();
-                step(&ctx.row, &reply.run_id, "drain", if report.busy { "busy" } else { "ok" });
+                step(
+                    &ctx.row,
+                    &reply.run_id,
+                    "drain",
+                    if report.busy { "busy" } else { "ok" },
+                );
                 reply.drain = Some(report);
             }
             Err(e) => {
@@ -401,7 +429,11 @@ fn steps<S: CacheStore, L: DrainLock, B: CacheBackend>(
     }
     let now = clock.now_utc();
     let state = cache.hook_state()?;
-    if let Some(next) = state.next_attempt_at.as_ref().filter(|n| n.unix() > now.unix()) {
+    if let Some(next) = state
+        .next_attempt_at
+        .as_ref()
+        .filter(|n| n.unix() > now.unix())
+    {
         step(&ctx.row, &reply.run_id, "hook", "backed_off");
         reply.hook.status = HookStep::BackedOff;
         reply.hook.next_attempt_at = Some(next.clone());
@@ -508,7 +540,16 @@ fn finish<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let cache = &mut *guard;
     let recorded = record_hook(cache, &mut reply, outcome, period, row);
     let released = lease.release(cache);
-    step(row, &reply.run_id, "reply", if released { "lease_released" } else { "lease_left_to_expiry" });
+    step(
+        row,
+        &reply.run_id,
+        "reply",
+        if released {
+            "lease_released"
+        } else {
+            "lease_left_to_expiry"
+        },
+    );
     recorded.map(|()| reply)
 }
 

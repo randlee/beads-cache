@@ -76,7 +76,13 @@ fn the_composition_names_the_cache_file_the_beads_dir_and_its_schedule_table() {
     let root = repo("");
     let clock: Arc<dyn Clock> = Arc::new(sc_beads::SystemClock);
     let composed = compose(root.path(), &clock).unwrap();
-    assert!(composed.cache_path.ends_with(".bd-cache/dev.bd-cache.sqlite3"), "{:?}", composed.cache_path);
+    assert!(
+        composed
+            .cache_path
+            .ends_with(".bd-cache/dev.bd-cache.sqlite3"),
+        "{:?}",
+        composed.cache_path
+    );
     assert!(composed.schedule_store().is_ok());
     assert!(composed.beads_dir.is_absolute());
 }

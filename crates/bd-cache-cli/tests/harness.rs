@@ -20,7 +20,7 @@ use sc_beads::{
     Bead, BeadsCacheError, CacheBackend, Clock, Deadline, Guards, Patch, ProjectRef, Refusal,
     ScopeFilter, SystemClock, schema_sha256,
 };
-use support::{LABEL, TestRepo, in_process_backend, labelled, two_beads};
+use support::{TestRepo, in_process_backend, label, labelled, two_beads};
 
 /// A generous deadline for calls that must succeed.
 const LONG: Duration = Duration::from_secs(30);
@@ -32,7 +32,7 @@ fn deadline(timeout: Duration) -> Deadline {
 fn list(bd: &BdCli, project: &ProjectRef, timeout: Duration) -> Result<Vec<Bead>, BeadsCacheError> {
     bd.list_scope(
         project,
-        &ScopeFilter::label(LABEL.to_owned()),
+        &ScopeFilter::label(label()),
         None,
         deadline(timeout),
     )
@@ -142,7 +142,7 @@ fn version_schema_and_the_blocked_set_come_from_the_scenario() {
         .process_backend()
         .list_blocked(
             &repo.project(),
-            &ScopeFilter::label(LABEL.to_owned()),
+            &ScopeFilter::label(label()),
             deadline(LONG),
         )
         .expect("the blocked set");

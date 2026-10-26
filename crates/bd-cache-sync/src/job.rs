@@ -90,7 +90,10 @@ where
     Arc::new(move |row: &Schedule| resolve(&ctx, row))
 }
 
-fn resolve<S, L, B, C>(ctx: &Arc<SyncContext<S, L, B, C>>, row: &Schedule) -> Result<HookTarget, CronError>
+fn resolve<S, L, B, C>(
+    ctx: &Arc<SyncContext<S, L, B, C>>,
+    row: &Schedule,
+) -> Result<HookTarget, CronError>
 where
     S: CacheStore + 'static,
     L: DrainLock + 'static,

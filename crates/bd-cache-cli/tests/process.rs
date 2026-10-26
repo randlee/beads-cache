@@ -758,12 +758,18 @@ fn a_subdirectory_does_not_find_the_parent_beads() {
 #[test]
 fn a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_opens_as_any_other() {
     let repo = TestRepo::new(&two_beads());
-    let other = repo.root().join(".old-cache").join("beads.bd-cache.sqlite3");
+    let other = repo
+        .root()
+        .join(".old-cache")
+        .join("beads.bd-cache.sqlite3");
     std::fs::create_dir_all(other.parent().unwrap()).unwrap();
     std::fs::write(&other, b"").unwrap();
     let (exit, v) = repo.json(&["context"]);
     assert_eq!(exit, 0, "{v}");
-    let path = v["data"]["x_cache"]["cache_path"].as_str().unwrap().to_owned();
+    let path = v["data"]["x_cache"]["cache_path"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(path.ends_with(".bd-cache/beads.bd-cache.sqlite3"), "{path}");
     write_toml(
         &repo,
@@ -771,8 +777,14 @@ fn a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_op
     );
     let (exit, v) = repo.json(&["context"]);
     assert_eq!(exit, 0, "{v}");
-    let path = v["data"]["x_cache"]["cache_path"].as_str().unwrap().to_owned();
-    assert!(path.ends_with(".old-cache/beads.bd-cache.sqlite3"), "{path}");
+    let path = v["data"]["x_cache"]["cache_path"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(
+        path.ends_with(".old-cache/beads.bd-cache.sqlite3"),
+        "{path}"
+    );
 }
 
 /// `metadata.json` is read from `$BEADS_DIR` when it is set.

@@ -1,7 +1,7 @@
 ---
 id: b-7
 phase: b
-status: in-review
+status: complete
 closure_type: boundary
 target_boundary: bd-cache-store, bd-cache, bd-cache-model, the scope filters (sc-beads, sc-bd-cli), sc-cron's store trait
 track: core

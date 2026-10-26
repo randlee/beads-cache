@@ -148,6 +148,10 @@ impl From<ConfigLoadError> for OpenError {
 /// The handle's parts: the cache, the clock it shares with its backend, and its file.
 pub(crate) struct Opened {
     pub(crate) cache: Composition,
+    /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014).
+    pub(crate) schedules: Result<Arc<bd_cache_store::CacheScheduleStore>, String>,
+    /// The beads directory `metadata.json` was read from.
+    pub(crate) beads_dir: PathBuf,
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) path: PathBuf,
     /// What `context` and `cache status` report of the file and `metadata.json`.
@@ -307,6 +311,10 @@ pub(crate) fn open_with(
     }
     let store = SqliteStore::open_with(repo_root, &config, beads_dir.as_ref())?;
     let path = store.path().to_path_buf();
+    let schedules = store
+        .schedule_store()
+        .map(Arc::new)
+        .map_err(|e| format!("schedule store (sc_cron_schedule): {e}"));
     let beads = beads_dir_of(repo_root, beads_dir.as_ref());
     let identity = DatabaseIdentity::read(&beads)?;
     let facts = CacheFacts {
@@ -334,6 +342,8 @@ pub(crate) fn open_with(
     let cache = Cache::new(cache_config, store, lock, backend, Arc::clone(&clock))?;
     Ok(Opened {
         cache,
+        schedules,
+        beads_dir: beads,
         clock,
         path,
         facts,
@@ -387,7 +397,7 @@ mod tests {
     /// reported) and before any cache file is created.
     #[test]
     fn an_unresolvable_beads_dir_is_no_database_before_the_config_is_read() {
-        let root = repo_named("atm-dev");
+        let root = repo_named("dev");
         std::fs::write(
             root.path().join(".beads").join("bd-cache.toml"),
             "not toml [",

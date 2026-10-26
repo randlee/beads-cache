@@ -125,8 +125,15 @@ fn the_error_table_equals_the_contract() {
 #[test]
 fn no_tick_refusal_family_is_left() {
     let table = parse_contract();
-    assert!(table.keys().all(|c| c != "TICK_<REFUSAL>"), "the contract still lists TICK_<REFUSAL>");
-    let tick: Vec<_> = table.keys().filter(|c| c.starts_with("TICK_")).cloned().collect();
+    assert!(
+        table.keys().all(|c| c != "TICK_<REFUSAL>"),
+        "the contract still lists TICK_<REFUSAL>"
+    );
+    let tick: Vec<_> = table
+        .keys()
+        .filter(|c| c.starts_with("TICK_"))
+        .cloned()
+        .collect();
     assert_eq!(tick, ["TICK_IN_FLIGHT", "TICK_RUN_FAILED"]);
     assert!(ERROR_TABLE.iter().all(|s| !s.code.contains('<')));
 }

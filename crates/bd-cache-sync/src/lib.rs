@@ -60,7 +60,10 @@ mod test_script {
     /// Writes an executable test script through a `sh` child, so this
     /// multi-threaded test process never holds a write fd on it that a fork in
     /// a concurrent test could inherit and turn the exec into ETXTBSY.
-    #[expect(clippy::unwrap_used, reason = "test-only helper; a failure fails the test")]
+    #[expect(
+        clippy::unwrap_used,
+        reason = "test-only helper; a failure fails the test"
+    )]
     pub(crate) fn write(path: &Path, contents: &str) {
         let status = std::process::Command::new("/bin/sh")
             .arg("-c")
@@ -111,8 +114,8 @@ pub use run::{
 };
 #[doc(inline)]
 pub use schedule::{
-    Rows, ScheduleSet, SyncError, SyncMode, UsePython, check_schedule_set, row_period,
-    schedule_clear, schedule_enable, schedule_set, schedule_show, sync_use_builtin,
+    Rows, ScheduleSet, SyncError, SyncMode, SystemSchedules, UsePython, check_schedule_set,
+    row_period, schedule_clear, schedule_enable, schedule_set, schedule_show, sync_use_builtin,
     sync_use_python, tick,
 };
 #[doc(inline)]

@@ -27,7 +27,7 @@ use bd_cache_cli::scenario::{Faults, RefuseWrite, gate_passed};
 use serde_json::{Value, json};
 use support::{DATABASE, TestRepo, envelope_json, labelled, metadata, path_str, two_beads};
 
-/// A repository whose scope `phase-x` has been synced once.
+/// A repository whose scope `x` has been synced once.
 fn synced() -> TestRepo {
     let repo = TestRepo::new(&two_beads());
     ok(&repo, &["cache", "refresh", "scopes", "x"]);
@@ -340,7 +340,7 @@ fn a_partial_refresh_scopes() {
             "{data}"
         );
         if failing == 1 {
-            // The first sync of phase-x stores both its rows; the second is incremental.
+            // The first sync of scope x stores both its rows; the second is incremental.
             assert_eq!(good["report"]["stored"], 2, "{data}");
         }
     }

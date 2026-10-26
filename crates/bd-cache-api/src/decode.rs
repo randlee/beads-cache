@@ -160,69 +160,95 @@ fn decode_phase_b(command: Command, obj: &Map<String, Value>) -> Result<Request,
             let since = m.required_str("since")?;
             Request::ScopesAnnounce(ScopesAnnounce {
                 scope: scope_of("scope", &m.required_str("scope")?)?,
-                since: FailingSince::parse(since)
-                    .map_err(|e| ApiError::bad_member("since", format!("since is not a token: {e}")))?,
+                since: FailingSince::parse(since).map_err(|e| {
+                    ApiError::bad_member("since", format!("since is not a token: {e}"))
+                })?,
             })
         }
-        Command::ScheduleSet => {
-            let m = Members::check(
-                obj,
-                "",
-                &["cron", "budget_ms", "hook_reserve_ms", "post_sync", "python", "env"],
-                &[],
-                Unsupported::Member,
-            )?;
-            Request::ScheduleSet(ScheduleSet {
-                cron: m.required_str("cron")?,
-                budget_ms: m.uint("budget_ms")?,
-                hook_reserve_ms: m.uint("hook_reserve_ms")?,
-                post_sync: m.str("post_sync")?,
-                python: m.str("python")?,
-                env: m.strings("env")?,
-            })
-        }
+        Command::ScheduleSet => schedule_set(obj)?,
         Command::ScheduleShow => Request::ScheduleShow(no_args(obj)?),
         Command::ScheduleEnable => Request::ScheduleEnable(no_args(obj)?),
         Command::ScheduleDisable => Request::ScheduleDisable(no_args(obj)?),
         Command::ScheduleClear => Request::ScheduleClear(no_args(obj)?),
         Command::CacheTick => Request::CacheTick(no_args(obj)?),
         Command::SyncUseBuiltin => Request::SyncUseBuiltin(no_args(obj)?),
-        Command::CronRun => {
-            let m = Members::check(obj, "", &["once", "shutdown_timeout_ms"], &[], Unsupported::Member)?;
-            let timeout = m
-                .uint("shutdown_timeout_ms")?
-                .unwrap_or(CronRun::DEFAULT_SHUTDOWN_TIMEOUT_MS);
-            if timeout > CronRun::MAX_SHUTDOWN_TIMEOUT_MS {
-                return Err(ApiError::bad_member(
-                    "shutdown_timeout_ms",
-                    format!("shutdown_timeout_ms is 0 to {}", CronRun::MAX_SHUTDOWN_TIMEOUT_MS),
-                ));
-            }
-            Request::CronRun(CronRun {
-                once: m.flag("once")?,
-                shutdown_timeout_ms: timeout,
-            })
-        }
-        Command::SyncUsePython => {
-            let m = Members::check(
-                obj,
-                "",
-                &["python", "module", "cron", "timeout_ms", "env"],
-                &[],
-                Unsupported::Member,
-            )?;
-            Request::SyncUsePython(SyncUsePython {
-                python: m.required_str("python")?,
-                module: m.required_str("module")?,
-                cron: m.str("cron")?,
-                timeout_ms: m.uint("timeout_ms")?,
-                env: m.strings("env")?,
-            })
-        }
+        Command::CronRun => cron_run(obj)?,
+        Command::SyncUsePython => sync_use_python(obj)?,
         other => {
-            return Err(ApiError::internal(format!("{} is decoded by decode", other.path())));
+            return Err(ApiError::internal(format!(
+                "{} is decoded by decode",
+                other.path()
+            )));
         }
     })
+}
+
+fn schedule_set(obj: &Map<String, Value>) -> Result<Request, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &[
+            "cron",
+            "budget_ms",
+            "hook_reserve_ms",
+            "post_sync",
+            "python",
+            "env",
+        ],
+        &[],
+        Unsupported::Member,
+    )?;
+    Ok(Request::ScheduleSet(ScheduleSet {
+        cron: m.required_str("cron")?,
+        budget_ms: m.uint("budget_ms")?,
+        hook_reserve_ms: m.uint("hook_reserve_ms")?,
+        post_sync: m.str("post_sync")?,
+        python: m.str("python")?,
+        env: m.strings("env")?,
+    }))
+}
+
+fn cron_run(obj: &Map<String, Value>) -> Result<Request, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &["once", "shutdown_timeout_ms"],
+        &[],
+        Unsupported::Member,
+    )?;
+    let timeout = m
+        .uint("shutdown_timeout_ms")?
+        .unwrap_or(CronRun::DEFAULT_SHUTDOWN_TIMEOUT_MS);
+    if timeout > CronRun::MAX_SHUTDOWN_TIMEOUT_MS {
+        return Err(ApiError::bad_member(
+            "shutdown_timeout_ms",
+            format!(
+                "shutdown_timeout_ms is 0 to {}",
+                CronRun::MAX_SHUTDOWN_TIMEOUT_MS
+            ),
+        ));
+    }
+    Ok(Request::CronRun(CronRun {
+        once: m.flag("once")?,
+        shutdown_timeout_ms: timeout,
+    }))
+}
+
+fn sync_use_python(obj: &Map<String, Value>) -> Result<Request, ApiError> {
+    let m = Members::check(
+        obj,
+        "",
+        &["python", "module", "cron", "timeout_ms", "env"],
+        &[],
+        Unsupported::Member,
+    )?;
+    Ok(Request::SyncUsePython(SyncUsePython {
+        python: m.required_str("python")?,
+        module: m.required_str("module")?,
+        cron: m.str("cron")?,
+        timeout_ms: m.uint("timeout_ms")?,
+        env: m.strings("env")?,
+    }))
 }
 
 /// A request with no member.
@@ -238,7 +264,15 @@ fn scope_with_filter(obj: &Map<String, Value>) -> Result<Scope, ApiError> {
     let m = Members::check(
         obj,
         "",
-        &["scope", "all", "labels_all", "labels_any", "status", "type", "assignee"],
+        &[
+            "scope",
+            "all",
+            "labels_all",
+            "labels_any",
+            "status",
+            "type",
+            "assignee",
+        ],
         &[],
         Unsupported::Member,
     )?;

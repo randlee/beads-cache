@@ -247,3 +247,21 @@ Example:
   "faults": {"slow_ms": 500}
 }
 ```
+
+## Implementation notes (sprint b-8)
+
+- The phase-B verbs are rows of the one command table: `src/commands/scopes.rs` (`Target::Api`,
+  run by `bd_cache_api::execute`) and `src/commands/{schedule,cron,tick,sync}.rs`
+  (`Target::Sync`: decoded by `bd_cache_api::decode`, then run over `bd-cache-sync`,
+  ADR-BDC-0015). `cache scopes` is a command and a group at once (its own reply, and `cache
+  scopes list` … below it). `src/commands/runtime.rs` holds the runtime, the schedule table and
+  the error mapping (`PRECONDITION` with `details.reason: "python_sync_enabled"`).
+- `scopes ingest` reads its snapshot from stdin through a limit of 64 MiB + 1 byte
+  (`merge_stdin`), so an input over the limit is `INGEST_INVALID` (`too_large`) before it is
+  held whole (REQ-BDC-0726).
+- `cron run` installs its stderr log as the process default and stops on the signal thread's
+  `StopFlag` (Unix) or `tokio::signal::windows` Ctrl-C / Ctrl-Break; the first signal decides
+  the exit code (REQ-BDC-0730).
+- The legacy-directory refusal and the `[tick]` env keys are removed (ADR-BDC-0015 amends
+  ADR-CLI-0004).
+

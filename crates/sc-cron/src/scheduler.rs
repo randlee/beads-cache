@@ -20,12 +20,14 @@ use chrono::{DateTime, Utc};
 use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
-use crate::limits::encode_payload;
 use crate::clock::sleep_until_monotonic;
-use crate::worker::{DEFAULT_RELOAD_POLL, EXHAUSTED, MIN_RELOAD_POLL, Report, Worker, resolve, run_target};
+use crate::limits::encode_payload;
+use crate::worker::{
+    DEFAULT_RELOAD_POLL, EXHAUSTED, MIN_RELOAD_POLL, Report, Worker, resolve, run_target,
+};
 use crate::{
-    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, RunOutcome,
-    Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind,
+    Clock, CronError, Generation, HookTarget, JitterSource, Job, NewSchedule, RunOutcome, Schedule,
+    ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind,
     TargetResolver, Timestamp, jitter,
 };
 
@@ -575,7 +577,9 @@ where
         let mut done = Vec::with_capacity(runs.len());
         for (row, handle) in runs {
             let report = handle.await.unwrap_or_else(|error| {
-                Report::Ran(RunOutcome::Failed(format!("job panicked or was cancelled: {error}")))
+                Report::Ran(RunOutcome::Failed(format!(
+                    "job panicked or was cancelled: {error}"
+                )))
             });
             done.push(self.finish_due(&row, report).await);
         }
@@ -606,7 +610,9 @@ where
                 return Ok(false);
             }
             match next {
-                Some(next) => core.store.set_next(id, generation, Timestamp::from_datetime(next)),
+                Some(next) => core
+                    .store
+                    .set_next(id, generation, Timestamp::from_datetime(next)),
                 None => core.store.stop(id, generation, at, EXHAUSTED),
             }
         })

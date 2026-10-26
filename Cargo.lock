@@ -93,11 +93,13 @@ dependencies = [
  "sc-bd-cli",
  "sc-beads",
  "sc-command",
+ "sc-cron",
  "sc-observability-types",
  "serde",
  "serde_json",
  "signal-hook",
  "tempfile",
+ "tokio",
  "toml",
 ]
 
@@ -120,6 +122,7 @@ dependencies = [
  "bd-cache-api",
  "bd-cache-model",
  "bd-cache-store",
+ "bd-cache-sync",
  "dunce",
  "pyo3",
  "sc-bd-cli",
@@ -127,6 +130,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tempfile",
+ "tokio",
 ]
 
 [[package]]

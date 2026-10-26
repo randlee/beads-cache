@@ -5,7 +5,10 @@
 //! The Python rows use the stub interpreter of `common`, a shell script, so
 //! the tests that need one run on Unix.
 
-#![expect(clippy::clone_on_ref_ptr, reason = "test code: the Arcs are cloned for each closure")]
+#![expect(
+    clippy::clone_on_ref_ptr,
+    reason = "test code: the Arcs are cloned for each closure"
+)]
 
 mod common;
 
@@ -20,8 +23,12 @@ use sc_cron::{CronError, HookTarget, RunOutcome, TargetResolver};
 async fn an_unresolvable_row_is_recorded_failed_and_stays_active_and_enabled() {
     let fixture = Fixture::new();
     let schedule = fixture.start(fixture.spec("unresolvable"));
-    let resolver: TargetResolver =
-        Arc::new(|row| Err(CronError::InvalidSpec(format!("no target for {}", row.spec.name))));
+    let resolver: TargetResolver = Arc::new(|row| {
+        Err(CronError::InvalidSpec(format!(
+            "no target for {}",
+            row.spec.name
+        )))
+    });
     let parks = fixture.clock.parks();
     let worker = fixture.scheduler.spawn_worker_with(resolver);
     fixture.clock.wait_parks_above(parks).await;
@@ -37,7 +44,10 @@ async fn an_unresolvable_row_is_recorded_failed_and_stays_active_and_enabled() {
     shutdown(worker).await;
     let row = fixture.row(&schedule);
     assert!(row.is_active() && row.enabled, "{row:?}");
-    assert!(matches!(row.last_outcome, Some(RunOutcome::Failed(_))), "{row:?}");
+    assert!(
+        matches!(row.last_outcome, Some(RunOutcome::Failed(_))),
+        "{row:?}"
+    );
 }
 
 /// Planted negative of the above: a resolver that answers runs the job.
@@ -119,7 +129,10 @@ mod python {
         fixture.clock.wait_parks_above(parks).await;
         fixture.step(60).await;
         fixture.store.wait_recorded(&rust_row, RunOutcome::Ok).await;
-        fixture.store.wait_recorded(&python_row, RunOutcome::Ok).await;
+        fixture
+            .store
+            .wait_recorded(&python_row, RunOutcome::Ok)
+            .await;
         shutdown(worker).await;
         assert_eq!(job.runs(), 1, "the Rust row ran its job once");
         let events: Vec<String> = stub
@@ -130,6 +143,10 @@ mod python {
                 v["event"].as_str().unwrap_or_default().to_owned()
             })
             .collect();
-        assert_eq!(events, ["cron.stop", "cron.tick"], "the Python row ran its module");
+        assert_eq!(
+            events,
+            ["cron.stop", "cron.tick"],
+            "the Python row ran its module"
+        );
     }
 }

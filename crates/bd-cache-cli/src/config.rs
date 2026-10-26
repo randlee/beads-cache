@@ -299,12 +299,7 @@ mod tests {
             call_timeout_s: Some(9),
             ..RepoConfig::default()
         };
-        let applied = apply_env(
-            &mut c,
-            &env(&[
-                ("BD_CACHE__SCOPES", "x, y,"),
-            ]),
-        );
+        let applied = apply_env(&mut c, &env(&[("BD_CACHE__SCOPES", "x, y,")]));
         assert!(applied.is_ok(), "{applied:?}");
         assert_eq!(c.scopes, ["x", "y"]);
         assert_eq!(

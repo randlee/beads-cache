@@ -2,7 +2,7 @@
 //!
 //! [`TestRepo`] is a temporary repository with a `.beads/metadata.json`
 //! (database [`DATABASE`], project [`PROJECT`]), a `.beads/bd-cache.toml`
-//! naming the scope [`LABEL`], and a scenario file. It runs
+//! naming the scope [`label`], and a scenario file. It runs
 //! `bdc --repo <repo> --bd <fake-bd>` as a real process in a [`hermetic`]
 //! environment, hands `BdCli` the
 //! same `fake-bd` binary, and parses what comes back.
@@ -37,7 +37,9 @@ pub const BD_CACHE: &str = env!("CARGO_BIN_EXE_bd-cache");
 pub const FAKE_BD: &str = env!("CARGO_BIN_EXE_fake-bd");
 
 /// A bead label the scenarios use for their scope.
-pub const LABEL: &str = "phase-x";
+pub fn label() -> String {
+    bd_cache_model::legacy_label(&bd_cache_model::ScopeId::new("x").expect("a scope name"))
+}
 
 /// The `dolt_database` of every test repository's `metadata.json`.
 pub const DATABASE: &str = "beads";
@@ -131,14 +133,14 @@ pub fn parse_envelope(stdout: &str) -> Result<Envelope<Value>, String> {
     serde_json::from_str(line).map_err(|e| format!("stdout is not an envelope ({e}): {stdout:?}"))
 }
 
-/// A bead in the scenarios' scope: `id`, labelled [`LABEL`].
+/// A bead in the scenarios' scope: `id`, labelled [`label`].
 pub fn labelled(id: &str) -> sc_beads::Bead {
     let mut bead = sc_beads::testing::bead(id);
-    bead.labels = vec![LABEL.to_owned()];
+    bead.labels = vec![label()];
     bead
 }
 
-/// A scenario with two open beads, `b-1` and `b-2`, in the scope [`LABEL`].
+/// A scenario with two open beads, `b-1` and `b-2`, in the scope [`label`].
 pub fn two_beads() -> Scenario {
     let mut scenario = Scenario::new("2026-10-23T10:00:00Z");
     scenario.rows = vec![labelled("b-1"), labelled("b-2")];

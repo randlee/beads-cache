@@ -204,9 +204,9 @@ pub(crate) async fn run_target<C: Clock + ?Sized>(
                 deadline,
             };
             match stop_step(&hook, clock.as_ref(), &call(HookEvent::Stop)).await {
-                Step::Run => Report::Ran(
-                    tick_outcome(&hook, clock.as_ref(), &call(HookEvent::Tick)).await,
-                ),
+                Step::Run => {
+                    Report::Ran(tick_outcome(&hook, clock.as_ref(), &call(HookEvent::Tick)).await)
+                }
                 Step::Skip(outcome) => Report::Ran(outcome),
                 Step::Disable(reason) => Report::Disable(reason),
                 Step::Delete(reason) => Report::Delete(reason),

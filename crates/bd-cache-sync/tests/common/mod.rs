@@ -29,7 +29,7 @@ use std::sync::{Arc, Mutex};
 
 use bd_cache::Cache;
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
-use bd_cache_model::{CacheConfig, Scope, ScopeFilter, ScopeId, FilterParts};
+use bd_cache_model::{CacheConfig, FilterParts, Scope, ScopeFilter, ScopeId};
 use bd_cache_sync::{RunContext, SharedCache, StopFlag};
 use blocking::Controlled;
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
@@ -217,7 +217,9 @@ pub fn escalate(world: &World, n: usize) -> Vec<bd_cache_model::Seq> {
                     &at,
                 )
                 .unwrap();
-            store.escalate(seq, "BD_CACHE.BD_FAILED: refused", &at).unwrap();
+            store
+                .escalate(seq, "BD_CACHE.BD_FAILED: refused", &at)
+                .unwrap();
             seq
         })
         .collect()
@@ -285,7 +287,8 @@ echo '{"protocol":"bd-cache.run.v1","ok":true,"result":{"handled":true}}'
     /// The request of call `n` (from 1).
     #[must_use]
     pub fn request(&self, n: usize) -> serde_json::Value {
-        let text = std::fs::read_to_string(self.dir.path().join(format!("request.{n}.json"))).unwrap();
+        let text =
+            std::fs::read_to_string(self.dir.path().join(format!("request.{n}.json"))).unwrap();
         serde_json::from_str(&text).unwrap()
     }
 
@@ -298,7 +301,10 @@ echo '{"protocol":"bd-cache.run.v1","ok":true,"result":{"handled":true}}'
     /// Makes the named pipe `name` in its directory.
     pub fn fifo(&self, name: &str) -> PathBuf {
         let path = self.dir.path().join(name);
-        let ok = std::process::Command::new("mkfifo").arg(&path).status().unwrap();
+        let ok = std::process::Command::new("mkfifo")
+            .arg(&path)
+            .status()
+            .unwrap();
         assert!(ok.success());
         path
     }

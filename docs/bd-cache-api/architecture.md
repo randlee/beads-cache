@@ -74,3 +74,15 @@ contract and need a lead decision: a facade read of the pending entries
 **Consequences.** Until then a write reply is not built in one store
 transaction, and a duplicate's `changed` is recomputed (equal to the stored
 value while earlier entries are pending).
+
+## Implementation notes (sprint b-8, ADR-BDC-0015)
+
+- `src/request/sync.rs` holds the phase-B requests; `Command::ALL` lists them (34 commands) and
+  `Command::is_front_end` names the ones a front end runs over `bd-cache-sync` (`cache schedule
+  *`, `cron run`, `tick`, `sync *`); `execute` refuses those with `INTERNAL`.
+- `src/ops/scopes.rs` runs the store-only verbs; `cache scopes` and `cache scopes list` return
+  the same `CacheScopesData`; `cache scopes remove` is `scopes_remove` (prune and the registry
+  removal in one store transaction).
+- `ApiError::tick_refusal`, its kind table and the contract's §4 `TICK_<REFUSAL>` row are
+  removed; `tests/error_table.rs` checks that no row names the family.
+

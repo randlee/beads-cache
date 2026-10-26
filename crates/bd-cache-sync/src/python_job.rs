@@ -119,7 +119,8 @@ where
             .payload
             .interpreter
             .python_hook(self.payload.env.child_env(set));
-        let name = ScheduleName::new(PYTHON_ROW).map_err(|e| fail(TickRunReason::Spawn, e.to_string()))?;
+        let name =
+            ScheduleName::new(PYTHON_ROW).map_err(|e| fail(TickRunReason::Spawn, e.to_string()))?;
         let payload = self.payload.run_payload(run_id.as_str());
         let call = HookCall {
             event,
@@ -156,9 +157,13 @@ where
         match stop.stop_decision() {
             Ok(StopDecision::Continue) => {}
             Ok(other) => {
-                return Err(run_failed(run_id, TickRunReason::StopAnswer, code(&stop),
+                return Err(run_failed(
+                    run_id,
+                    TickRunReason::StopAnswer,
+                    code(&stop),
                     redact_and_cut(&stop.stderr, names),
-                    format!("cron.stop answered {other:?}, not continue")));
+                    format!("cron.stop answered {other:?}, not continue"),
+                ));
             }
             Err(outcome) => {
                 return Err(output_failed(run_id, &stop, &outcome, names, "cron.stop"));
@@ -227,8 +232,13 @@ fn output_failed(
     } else {
         TickRunReason::Exit
     };
-    run_failed(run_id, reason, code(output), redact_and_cut(&output.stderr, names),
-        format!("{event}: {outcome}"))
+    run_failed(
+        run_id,
+        reason,
+        code(output),
+        redact_and_cut(&output.stderr, names),
+        format!("{event}: {outcome}"),
+    )
 }
 
 #[async_trait]
@@ -250,14 +260,22 @@ where
         match decided {
             Ok(decision) => decision,
             Err(outcome) => {
-                *self.undecided.lock().unwrap_or_else(PoisonError::into_inner) = Some(outcome);
+                *self
+                    .undecided
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner) = Some(outcome);
                 StopDecision::Continue
             }
         }
     }
 
     async fn run(&self, _payload: &Value, deadline: Instant) -> RunOutcome {
-        if let Some(outcome) = self.undecided.lock().unwrap_or_else(PoisonError::into_inner).take() {
+        if let Some(outcome) = self
+            .undecided
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner)
+            .take()
+        {
             return outcome;
         }
         let cache = Arc::clone(&self.cache);

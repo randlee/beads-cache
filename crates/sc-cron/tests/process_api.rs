@@ -42,7 +42,10 @@ async fn expiry_kills_the_child_and_its_grandchild() {
         wait_pipe(life, "the whole tree to die").await;
     };
     let (captured, ()) = tokio::join!(run, drive);
-    assert!(captured.expect("supervise").status.is_none(), "killed: no status");
+    assert!(
+        captured.expect("supervise").status.is_none(),
+        "killed: no status"
+    );
 }
 
 #[tokio::test]

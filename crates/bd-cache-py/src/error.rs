@@ -135,6 +135,18 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     Ok(())
 }
 
+/// Every code of the contract's error table as a Python `frozenset`
+/// (`bd_cache_rs.CODES`): the phase-B codes `INGEST_INVALID`,
+/// `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` included
+/// (REQ-BDC-0729).
+pub(crate) fn codes(py: Python<'_>) -> PyResult<Bound<'_, pyo3::types::PyFrozenSet>> {
+    let all: Vec<String> = bd_cache_api::ERROR_TABLE
+        .iter()
+        .map(|s| format!("{}{}", bd_cache_api::CODE_PREFIX, s.code))
+        .collect();
+    pyo3::types::PyFrozenSet::new(py, &all)
+}
+
 /// The model's [`UNREACHABLE_CODES`] as a Python `frozenset`.
 pub(crate) fn unreachable(py: Python<'_>) -> PyResult<Bound<'_, pyo3::types::PyFrozenSet>> {
     pyo3::types::PyFrozenSet::new(py, UNREACHABLE_CODES)

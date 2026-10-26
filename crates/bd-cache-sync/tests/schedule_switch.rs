@@ -50,7 +50,9 @@ fn reason(e: &CacheError) -> (&'static str, ScheduleReason) {
 
 fn run_reason(e: &CacheError) -> (TickRunReason, Option<bool>) {
     match e {
-        CacheError::TickRunFailed { reason, restored, .. } => (*reason, *restored),
+        CacheError::TickRunFailed {
+            reason, restored, ..
+        } => (*reason, *restored),
         other => panic!("not TICK_RUN_FAILED: {other:?}"),
     }
 }
@@ -61,28 +63,62 @@ fn run_reason(e: &CacheError) -> (TickRunReason, Option<bool>) {
 #[tokio::test(flavor = "multi_thread")]
 async fn schedule_set_show_enable_disable_clear_round_trip() {
     let repo = Repo::new(vec![]);
-    let first = schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
-    assert_eq!((first["enabled"].clone(), first["mode"].clone()), (true.into(), "builtin".into()));
+    let first = schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
+    assert_eq!(
+        (first["enabled"].clone(), first["mode"].clone()),
+        (true.into(), "builtin".into())
+    );
     assert_eq!(first["timeout_ms"], 35_000);
-    let again = schedule_set(&repo.scheduler, &ScheduleSet { budget_ms: Some(30_000), ..set("0 * * * * *") }).await.unwrap();
-    assert_eq!(again["generation"], first["generation"].as_u64().unwrap() + 1, "replaced in place");
+    let again = schedule_set(
+        &repo.scheduler,
+        &ScheduleSet {
+            budget_ms: Some(30_000),
+            ..set("0 * * * * *")
+        },
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        again["generation"],
+        first["generation"].as_u64().unwrap() + 1,
+        "replaced in place"
+    );
     assert_eq!(again["timeout_ms"], 40_000);
     let show = schedule_show(&repo.store, &repo.cache).await.unwrap();
     assert_eq!(show["mode"], "builtin");
     assert_eq!(show["rows"]["builtin"]["expr"], "0 * * * * *");
     assert!(show["rows"]["python"].is_null());
     let active = sc_cron::ScheduleStore::list_active(repo.store.as_ref()).unwrap();
-    assert_eq!(active.iter().filter(|r| r.spec.name.as_str() == BUILTIN_ROW).count(), 1, "one built-in row");
+    assert_eq!(
+        active
+            .iter()
+            .filter(|r| r.spec.name.as_str() == BUILTIN_ROW)
+            .count(),
+        1,
+        "one built-in row"
+    );
     schedule_enable(&repo.scheduler, false).await.unwrap();
     assert_eq!(repo.flags(), (Some(false), None));
     // `schedule set` keeps a disabled row disabled.
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     assert_eq!(repo.flags(), (Some(false), None));
     let show = schedule_show(&repo.store, &repo.cache).await.unwrap();
-    assert!(show["flags"].as_array().unwrap().contains(&"both_disabled".into()));
+    assert!(
+        show["flags"]
+            .as_array()
+            .unwrap()
+            .contains(&"both_disabled".into())
+    );
     schedule_enable(&repo.scheduler, true).await.unwrap();
     assert_eq!(repo.flags(), (Some(true), None));
-    assert_eq!(schedule_clear(&repo.scheduler).await.unwrap()["cleared"], true);
+    assert_eq!(
+        schedule_clear(&repo.scheduler).await.unwrap()["cleared"],
+        true
+    );
     assert_eq!(repo.flags(), (None, None));
 }
 
@@ -99,25 +135,73 @@ async fn each_schedule_set_refusal_names_its_field_and_writes_nothing() {
     };
     let cases: Vec<(ScheduleSet, &str, ScheduleReason)> = vec![
         (set("not cron"), "cron", ScheduleReason::OutOfRange),
-        (ScheduleSet { budget_ms: Some(999), ..set("*/30 * * * * *") }, "budget_ms", ScheduleReason::OutOfRange),
-        (ScheduleSet { hook_reserve_ms: Some(24_500), ..set("*/30 * * * * *") }, "hook_reserve_ms", ScheduleReason::OutOfRange),
-        (ScheduleSet { hook_reserve_ms: Some(500), ..hook(&stub.python, "m:f") }, "hook_reserve_ms", ScheduleReason::OutOfRange),
-        (ScheduleSet { post_sync: Some("m:f".into()), ..set("*/30 * * * * *") }, "python", ScheduleReason::NotAbsolute),
-        (hook(std::path::Path::new("python3"), "m:f"), "python", ScheduleReason::NotAbsolute),
-        (hook(repo.dir.path(), "m:f"), "python", ScheduleReason::NotExecutable),
-        (hook(&stub.python, "not-a-module:f"), "post_sync", ScheduleReason::BadModule),
-        (hook(&stub.python, "m"), "post_sync", ScheduleReason::BadModule),
+        (
+            ScheduleSet {
+                budget_ms: Some(999),
+                ..set("*/30 * * * * *")
+            },
+            "budget_ms",
+            ScheduleReason::OutOfRange,
+        ),
+        (
+            ScheduleSet {
+                hook_reserve_ms: Some(24_500),
+                ..set("*/30 * * * * *")
+            },
+            "hook_reserve_ms",
+            ScheduleReason::OutOfRange,
+        ),
+        (
+            ScheduleSet {
+                hook_reserve_ms: Some(500),
+                ..hook(&stub.python, "m:f")
+            },
+            "hook_reserve_ms",
+            ScheduleReason::OutOfRange,
+        ),
+        (
+            ScheduleSet {
+                post_sync: Some("m:f".into()),
+                ..set("*/30 * * * * *")
+            },
+            "python",
+            ScheduleReason::NotAbsolute,
+        ),
+        (
+            hook(std::path::Path::new("python3"), "m:f"),
+            "python",
+            ScheduleReason::NotAbsolute,
+        ),
+        (
+            hook(repo.dir.path(), "m:f"),
+            "python",
+            ScheduleReason::NotExecutable,
+        ),
+        (
+            hook(&stub.python, "not-a-module:f"),
+            "post_sync",
+            ScheduleReason::BadModule,
+        ),
+        (
+            hook(&stub.python, "m"),
+            "post_sync",
+            ScheduleReason::BadModule,
+        ),
     ];
     for (req, field, why) in cases {
         let e = schedule_set(&repo.scheduler, &req).await.unwrap_err();
         assert_eq!(reason(&e), (field, why), "{req:?}");
     }
     stub.set("noimport", "");
-    let e = schedule_set(&repo.scheduler, &hook(&stub.python, "m:f")).await.unwrap_err();
+    let e = schedule_set(&repo.scheduler, &hook(&stub.python, "m:f"))
+        .await
+        .unwrap_err();
     assert_eq!(reason(&e), ("python", ScheduleReason::ImportFailed));
     assert_eq!(repo.flags(), (None, None), "nothing written");
     stub.unset("noimport");
-    schedule_set(&repo.scheduler, &hook(&stub.python, "m:f")).await.unwrap();
+    schedule_set(&repo.scheduler, &hook(&stub.python, "m:f"))
+        .await
+        .unwrap();
     assert_eq!(repo.flags(), (Some(true), None));
 }
 
@@ -130,31 +214,65 @@ async fn each_schedule_set_refusal_names_its_field_and_writes_nothing() {
 #[tokio::test(flavor = "multi_thread")]
 async fn use_python_switches_and_runs_at_once_and_use_builtin_reverses_it() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
     stub.set("tick", "stderr:hello from the script");
-    let reply = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap();
+    let reply = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap();
     assert_eq!(repo.flags(), (Some(false), Some(true)));
     assert_eq!(reply["exit_status"], 0);
     assert_eq!(reply["stderr"], "hello from the script");
     let run_id = reply["run_id"].as_str().unwrap();
-    assert_eq!((stub.count("stop"), stub.count("tick")), (1, 1), "cron.stop then cron.tick");
+    assert_eq!(
+        (stub.count("stop"), stub.count("tick")),
+        (1, 1),
+        "cron.stop then cron.tick"
+    );
     let req = stub.request("tick", 1);
     assert_eq!(req["protocol"], "sc-cron.hook.v1");
     assert_eq!(req["payload"]["run_id"], run_id);
-    assert_eq!(req["payload"]["cache_path"], repo.cache_path.display().to_string());
-    assert_eq!(req["payload"]["beads_dir"], repo.beads_dir.display().to_string());
+    assert_eq!(
+        req["payload"]["cache_path"],
+        repo.cache_path.display().to_string()
+    );
+    assert_eq!(
+        req["payload"]["beads_dir"],
+        repo.beads_dir.display().to_string()
+    );
     for line in stub.env("tick").lines() {
         let name = line.split('=').next().unwrap();
-        assert!(["PATH", "HOME", "LANG", "BEADS_DIR", "BD_CACHE_PATH", "PWD", "SHLVL", "_", "OLDPWD"].contains(&name)
-            || name.starts_with("LC_"), "{name} leaked into the script");
+        assert!(
+            [
+                "PATH",
+                "HOME",
+                "LANG",
+                "BEADS_DIR",
+                "BD_CACHE_PATH",
+                "PWD",
+                "SHLVL",
+                "_",
+                "OLDPWD"
+            ]
+            .contains(&name)
+                || name.starts_with("LC_"),
+            "{name} leaked into the script"
+        );
     }
     assert!(repo.store_lease_free());
 
     let e = schedule_enable(&repo.scheduler, true).await.unwrap_err();
     assert_eq!(reason(&e), ("schedule", ScheduleReason::PythonSyncEnabled));
-    schedule_set(&repo.scheduler, &set("0 * * * * *")).await.unwrap();
-    assert_eq!(repo.flags(), (Some(false), Some(true)), "kept disabled while mode is Python");
+    schedule_set(&repo.scheduler, &set("0 * * * * *"))
+        .await
+        .unwrap();
+    assert_eq!(
+        repo.flags(),
+        (Some(false), Some(true)),
+        "kept disabled while mode is Python"
+    );
 
     let show = schedule_show(&repo.store, &repo.cache).await.unwrap();
     assert_eq!(show["mode"], "python");
@@ -179,24 +297,41 @@ impl LeaseFree for Repo {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_failed_immediate_run_restores_the_mode_before_the_command() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
     let cases: Vec<(&str, &str, TickRunReason)> = vec![
         ("tick", "exit:1", TickRunReason::Exit),
         ("tick", "sleep", TickRunReason::Timeout),
-        ("stop", r#"{"action": "disable", "reason": "not today"}"#, TickRunReason::StopAnswer),
+        (
+            "stop",
+            r#"{"action": "disable", "reason": "not today"}"#,
+            TickRunReason::StopAnswer,
+        ),
     ];
     for (file, text, why) in cases {
         stub.set(file, text);
-        let req = UsePython { timeout_ms: Some(1_000), ..use_python(&stub) };
-        let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req).await.unwrap_err();
+        let req = UsePython {
+            timeout_ms: Some(1_000),
+            ..use_python(&stub)
+        };
+        let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req)
+            .await
+            .unwrap_err();
         assert_eq!(run_reason(&e), (why, Some(true)), "{text}");
-        assert_eq!(repo.flags(), (Some(true), Some(false)), "back to builtin after {text}");
+        assert_eq!(
+            repo.flags(),
+            (Some(true), Some(false)),
+            "back to builtin after {text}"
+        );
         assert!(repo.store_lease_free());
         stub.unset(file);
     }
     std::fs::set_permissions(&repo.cache_path, std::fs::Permissions::from_mode(0o664)).unwrap();
-    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap_err();
+    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap_err();
     assert_eq!(run_reason(&e).0, TickRunReason::Untrusted);
     assert_eq!(repo.flags(), (Some(true), Some(false)));
     std::fs::set_permissions(&repo.cache_path, std::fs::Permissions::from_mode(0o644)).unwrap();
@@ -208,13 +343,17 @@ async fn a_failed_immediate_run_restores_the_mode_before_the_command() {
         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
         kill.stop();
     });
-    let e = sync_use_python(&repo.scheduler, &ctx, &use_python(&stub)).await.unwrap_err();
+    let e = sync_use_python(&repo.scheduler, &ctx, &use_python(&stub))
+        .await
+        .unwrap_err();
     stopper.await.unwrap();
     assert_eq!(run_reason(&e), (TickRunReason::Signal, Some(true)));
     assert_eq!(repo.flags(), (Some(true), Some(false)));
     // Planted negative: a script that succeeds keeps the Python row.
     stub.unset("tick");
-    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap();
+    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap();
     assert_eq!(repo.flags(), (Some(false), Some(true)));
 }
 
@@ -224,11 +363,18 @@ async fn a_failed_immediate_run_restores_the_mode_before_the_command() {
 async fn with_no_builtin_row_a_failure_leaves_mode_none() {
     let repo = Repo::new(vec![]);
     let stub = PyStub::new();
-    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap_err();
+    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap_err();
     assert_eq!(reason(&e), ("cron", ScheduleReason::CronRequired));
     stub.set("tick", "exit:1");
-    let req = UsePython { cron: Some("*/30 * * * * *".into()), ..use_python(&stub) };
-    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req).await.unwrap_err();
+    let req = UsePython {
+        cron: Some("*/30 * * * * *".into()),
+        ..use_python(&stub)
+    };
+    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req)
+        .await
+        .unwrap_err();
     assert_eq!(run_reason(&e), (TickRunReason::Exit, Some(true)));
     assert_eq!(repo.flags(), (None, Some(false)), "mode none");
     let e = sync_use_builtin(&repo.scheduler).await.unwrap_err();
@@ -241,22 +387,47 @@ async fn with_no_builtin_row_a_failure_leaves_mode_none() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_re_run_replaces_the_python_row_in_place_and_a_failed_one_restores_the_old_script() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
-    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap();
-    let python_row = |repo: &Repo| bd_cache_sync::Rows::read(repo.store.as_ref()).unwrap().python.unwrap();
+    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap();
+    let python_row = |repo: &Repo| {
+        bd_cache_sync::Rows::read(repo.store.as_ref())
+            .unwrap()
+            .python
+            .unwrap()
+    };
     let first = python_row(&repo);
-    let req = UsePython { module: "consumer.sync_v2".into(), ..use_python(&stub) };
-    sync_use_python(&repo.scheduler, &repo.ctx(), &req).await.unwrap();
+    let req = UsePython {
+        module: "consumer.sync_v2".into(),
+        ..use_python(&stub)
+    };
+    sync_use_python(&repo.scheduler, &repo.ctx(), &req)
+        .await
+        .unwrap();
     let second = python_row(&repo);
     assert_eq!(second.id, first.id, "the same row");
-    assert!(second.generation > first.generation, "a run of the old one is fenced");
+    assert!(
+        second.generation > first.generation,
+        "a run of the old one is fenced"
+    );
     stub.set("tick", "exit:3");
-    let req = UsePython { module: "consumer.broken".into(), ..use_python(&stub) };
-    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req).await.unwrap_err();
+    let req = UsePython {
+        module: "consumer.broken".into(),
+        ..use_python(&stub)
+    };
+    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &req)
+        .await
+        .unwrap_err();
     assert_eq!(run_reason(&e).1, Some(true));
     let show = schedule_show(&repo.store, &repo.cache).await.unwrap();
-    assert_eq!(show["rows"]["python"]["module"], "consumer.sync_v2", "the old script is back");
+    assert_eq!(
+        show["rows"]["python"]["module"], "consumer.sync_v2",
+        "the old script is back"
+    );
     assert_eq!(show["mode"], "python");
 }
 
@@ -265,14 +436,17 @@ async fn a_re_run_replaces_the_python_row_in_place_and_a_failed_one_restores_the
 #[tokio::test(flavor = "multi_thread")]
 async fn a_second_connection_never_sees_both_rows_enabled() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
     let done = Arc::new(AtomicBool::new(false));
     let path = repo.cache_path.clone();
     let poll_done = Arc::clone(&done);
     let poller = std::thread::spawn(move || {
         let conn = rusqlite::Connection::open(path).unwrap();
-        conn.busy_timeout(std::time::Duration::from_secs(5)).unwrap();
+        conn.busy_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
         let mut seen = 0_u64;
         while !poll_done.load(Ordering::SeqCst) {
             let both: i64 = conn
@@ -289,7 +463,9 @@ async fn a_second_connection_never_sees_both_rows_enabled() {
         seen
     });
     for _ in 0..3 {
-        sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap();
+        sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+            .await
+            .unwrap();
         sync_use_builtin(&repo.scheduler).await.unwrap();
     }
     done.store(true, Ordering::SeqCst);
@@ -301,7 +477,9 @@ async fn a_second_connection_never_sees_both_rows_enabled() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_python_row_that_never_ran_is_flagged() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
     let payload = bd_cache_sync::PythonPayload::new(
         bd_cache_sync::TrustedInterpreter::new(&stub.python, "consumer.sync", "module").unwrap(),
@@ -311,15 +489,30 @@ async fn a_python_row_that_never_ran_is_flagged() {
         None,
     )
     .unwrap();
-    let spec = sc_cron::ScheduleSpec::new(PYTHON_ROW, "*/30 * * * * *", std::time::Duration::from_secs(60),
-        bd_cache_sync::SyncPayload::Python(payload).to_json()).unwrap();
+    let spec = sc_cron::ScheduleSpec::new(
+        PYTHON_ROW,
+        "*/30 * * * * *",
+        std::time::Duration::from_secs(60),
+        bd_cache_sync::SyncPayload::Python(payload).to_json(),
+    )
+    .unwrap();
     // The commit alone, as a crash after it would leave it.
     repo.scheduler
-        .replace_and_set_enabled(spec, true, &[(sc_cron::ScheduleName::new(BUILTIN_ROW).unwrap(), false)])
+        .replace_and_set_enabled(
+            spec,
+            true,
+            &[(sc_cron::ScheduleName::new(BUILTIN_ROW).unwrap(), false)],
+        )
         .unwrap();
     assert_eq!(repo.flags(), (Some(false), Some(true)), "one row enabled");
     let show = schedule_show(&repo.store, &repo.cache).await.unwrap();
-    assert!(show["flags"].as_array().unwrap().contains(&"python_never_run".into()), "{show}");
+    assert!(
+        show["flags"]
+            .as_array()
+            .unwrap()
+            .contains(&"python_never_run".into()),
+        "{show}"
+    );
 }
 
 /// While the Python row is enabled an on-demand tick is `PRECONDITION` and
@@ -327,16 +520,24 @@ async fn a_python_row_that_never_ran_is_flagged() {
 #[tokio::test(flavor = "multi_thread")]
 async fn a_tick_while_the_python_row_is_enabled_is_refused_and_starts_no_bd() {
     let repo = Repo::new(vec![common::label_scope("lbl", "area")]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
-    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap();
+    sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap();
     repo.bd.clear_calls();
-    let e = tick(&repo.store, &repo.cache, &repo.run_ctx()).await.unwrap_err();
+    let e = tick(&repo.store, &repo.cache, &repo.run_ctx())
+        .await
+        .unwrap_err();
     assert!(matches!(e, SyncError::PythonSyncEnabled(_)), "{e:?}");
     assert_eq!(e.code(), "BD_CACHE.PRECONDITION");
     assert!(repo.bd.calls().is_empty(), "no bd process");
     sync_use_builtin(&repo.scheduler).await.unwrap();
-    let reply = tick(&repo.store, &repo.cache, &repo.run_ctx()).await.unwrap();
+    let reply = tick(&repo.store, &repo.cache, &repo.run_ctx())
+        .await
+        .unwrap();
     assert_eq!(reply.scopes.len(), 1);
     assert!(!repo.bd.calls().is_empty());
 }
@@ -346,17 +547,28 @@ async fn a_tick_while_the_python_row_is_enabled_is_refused_and_starts_no_bd() {
 #[tokio::test(flavor = "multi_thread")]
 async fn use_python_during_a_run_in_flight_is_tick_in_flight() {
     let repo = Repo::new(vec![]);
-    schedule_set(&repo.scheduler, &set("*/30 * * * * *")).await.unwrap();
+    schedule_set(&repo.scheduler, &set("*/30 * * * * *"))
+        .await
+        .unwrap();
     let stub = PyStub::new();
     {
         let mut cache = repo.cache.lock().unwrap();
         let clock = cache.clock();
         let run_id = bd_cache_sync::new_run_id(&*clock);
-        let taken = bd_cache_sync::TickLease::take(&mut cache, run_id, sc_beads::Deadline::after(&*clock, std::time::Duration::from_secs(30))).unwrap();
-        let bd_cache_sync::LeaseTaken::Taken(lease) = taken else { panic!() };
+        let taken = bd_cache_sync::TickLease::take(
+            &mut cache,
+            run_id,
+            sc_beads::Deadline::after(&*clock, std::time::Duration::from_secs(30)),
+        )
+        .unwrap();
+        let bd_cache_sync::LeaseTaken::Taken(lease) = taken else {
+            panic!()
+        };
         std::mem::forget(lease);
     }
-    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub)).await.unwrap_err();
+    let e = sync_use_python(&repo.scheduler, &repo.ctx(), &use_python(&stub))
+        .await
+        .unwrap_err();
     assert_eq!(e.code(), "BD_CACHE.TICK_IN_FLIGHT");
     assert_eq!(repo.flags(), (Some(true), None));
     let _ = SyncMode::None;
@@ -366,12 +578,25 @@ async fn use_python_during_a_run_in_flight_is_tick_in_flight() {
 /// fails with a typed `STORE_FAILED` before any schedule is served (ADR-BDC-0014).
 #[test]
 fn a_schedule_table_of_another_version_is_store_failed() {
-    let Repo { dir, bd, clock, cron_clock, cache, store, scheduler, cache_path: path, beads_dir: _ } =
-        Repo::new(vec![]);
+    let Repo {
+        dir,
+        bd,
+        clock,
+        cron_clock,
+        cache,
+        store,
+        scheduler,
+        cache_path: path,
+        beads_dir: _,
+    } = Repo::new(vec![]);
     let root = dir.path().to_path_buf();
     drop((bd, clock, cron_clock, cache, store, scheduler));
     let conn = rusqlite::Connection::open(&path).unwrap();
-    conn.execute("UPDATE meta SET value = '99' WHERE key = 'sc_cron_schedule_version'", []).unwrap();
+    conn.execute(
+        "UPDATE meta SET value = '99' WHERE key = 'sc_cron_schedule_version'",
+        [],
+    )
+    .unwrap();
     drop(conn);
     let clock = Arc::new(sc_beads::testing::ManualClock::new(common::START));
     let fake = sc_bd_cli::testing::FakeBd::new(Arc::clone(&clock));

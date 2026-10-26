@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "bd-cache-rs"
-description = "bd-cache in process: the Rust cache of a beads repository, for atm-bd (maturin / PyO3)."
+description = "bd-cache in process: the Rust cache of a beads repository (maturin / PyO3)."
 readme = "README.md"
 license = { text = "MIT" }
 authors = [{ name = "Rand Lee", email = "rand@randlee.com" }]
@@ -26,8 +26,11 @@ Changelog = "https://github.com/randlee/beads-cache/blob/develop/CHANGELOG.md"
 test = ["pytest>=7"]
 
 [tool.maturin]
-module-name = "bd_cache_rs"
-# The module is the cdylib of this crate; no Python sources ship with it.
+# The mixed layout (ADR-PY-0006): the native module is bd_cache_rs._native,
+# and python/bd_cache_rs/ holds __init__.py (re-exporting every name), run.py
+# (python -m bd_cache_rs.run) and sync.py (bd_cache_rs.sync.main).
+module-name = "bd_cache_rs._native"
+python-source = "python"
 strip = true
 
 [tool.pytest.ini_options]

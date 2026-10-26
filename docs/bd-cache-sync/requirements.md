@@ -26,6 +26,8 @@ external scheduler (the first consumer's cron module through the later
 `test_tick_syncs_only_phases_with_an_open_root` (`tests/tick_phases.rs`);
 the doctests of `tick` and `schedule_spec`.
 
+*Implementation note (sprint b-8):* `run_builtin` (`src/run.rs`); evidence `a_run_syncs_a_label_scope_and_an_all_scope_by_their_filters_and_frees_the_lease`, `a_live_lease_skips_the_run_and_an_expired_one_is_taken_over` (`tests/builtin_run.rs`). The phase-a evidence above was removed with the tick.*
+
 ## REQ-SYNC-0002: Phases come from phase files and the configured list
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0721 (scopes are configured bd filters; no phase files are read) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
@@ -102,6 +104,8 @@ out, no tick takes longer than 25 s.
 **Acceptance evidence:** `test_tick_budget_defers_drain_entries`,
 `no_tick_exceeds_25_s_with_every_bd_call_timing_out`,
 `the_drain_runs_before_the_sync` (`tests/tick_budget.rs`).
+
+*Implementation note (sprint b-8):* `Budget` (`src/control.rs`); evidence `a_sync_that_uses_its_whole_share_leaves_the_hook_its_reserve`, `a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes` (`tests/hook_runner.rs`).*
 
 ## REQ-SYNC-0005: Threading of the job
 
@@ -329,6 +333,8 @@ overlap when another holds its directory), `compose_hands_out_one_lock_set`
 (`Arc::ptr_eq`), `a_repository_root_that_is_not_utf8_is_refused`
 (`src/compose.rs`).
 
+*Implementation note (sprint b-8):* the real composition with `CacheScheduleStore` and sc-cron's `ManualClock` (`tests/common/repo.rs`): `tests/schedule_switch.rs`, `tests/cron_rows.rs`; with a real interpreter, `crates/bd-cache-py/tests/test_run.py` and `test_switch.py`.*
+
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0727 (no messages; the hook keeps `hook_reserve_ms`) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
@@ -450,6 +456,8 @@ The stop-flag tree test asserts the child reaped, not the descendant gone
 `KILL_BOUND`, which a stalled host can exceed; the descendant's death is
 `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
 (the sender module, injected 30 s deadline).
+
+*Implementation note (sprint b-8):* `StopFlag` (with `wait`) and the run's `stop` / `kill` flags; evidence `a_stopped_run_syncs_no_scope_and_frees_the_lease` (`tests/builtin_run.rs`), `cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease` (`tests/cron_rows.rs`), `join_idle_is_false_while_a_step_holds_the_cache_and_true_once_it_returns` (`tests/job_threading.rs`).*
 
 ## REQ-SYNC-0013: A cached `get` costs the same at any scope size
 

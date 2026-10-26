@@ -3,7 +3,12 @@
 //! every thread (the subscriber is the process default, as `cron run`
 //! installs it). One test per binary: the default can be set once.
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, reason = "test code")]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "test code"
+)]
 
 mod common;
 
@@ -20,7 +25,10 @@ struct Fields(Vec<(String, String)>);
 
 impl Visit for Fields {
     fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
-        self.0.push((field.name().to_owned(), format!("{value:?}").trim_matches('"').to_owned()));
+        self.0.push((
+            field.name().to_owned(),
+            format!("{value:?}").trim_matches('"').to_owned(),
+        ));
     }
     fn record_str(&mut self, field: &Field, value: &str) {
         self.0.push((field.name().to_owned(), value.to_owned()));
@@ -60,14 +68,35 @@ async fn a_run_logs_sc_crons_events_and_one_event_per_step_with_the_row_and_run_
     let capture = Capture::default();
     tracing::subscriber::set_global_default(capture.clone()).unwrap();
     let repo = Repo::new(vec![common::label_scope("lbl", "area")]);
-    schedule_set(&repo.scheduler, &ScheduleSet { expr: "0 * * * * *".into(), ..ScheduleSet::default() }).await.unwrap();
+    schedule_set(
+        &repo.scheduler,
+        &ScheduleSet {
+            expr: "0 * * * * *".into(),
+            ..ScheduleSet::default()
+        },
+    )
+    .await
+    .unwrap();
     repo.cron_clock.advance(chrono::Duration::seconds(60));
-    cron_run_once(&repo.scheduler, Arc::new(repo.ctx())).await.unwrap();
+    cron_run_once(&repo.scheduler, Arc::new(repo.ctx()))
+        .await
+        .unwrap();
     let events = capture.0.lock().unwrap().clone();
     let action = |a: &str| events.iter().any(|e| get(e, "action") == Some(a));
-    assert!(action("launched") && action("recorded"), "sc-cron's events: {events:?}");
-    let steps: Vec<&str> = events.iter().filter(|e| get(e, "row") == Some(BUILTIN_ROW)).filter_map(|e| get(e, "step")).collect();
+    assert!(
+        action("launched") && action("recorded"),
+        "sc-cron's events: {events:?}"
+    );
+    let steps: Vec<&str> = events
+        .iter()
+        .filter(|e| get(e, "row") == Some(BUILTIN_ROW))
+        .filter_map(|e| get(e, "step"))
+        .collect();
     assert_eq!(steps, ["lease", "drain", "scope", "reply"], "{events:?}");
-    let ids: std::collections::BTreeSet<&str> = events.iter().filter(|e| get(e, "step").is_some()).filter_map(|e| get(e, "run_id")).collect();
+    let ids: std::collections::BTreeSet<&str> = events
+        .iter()
+        .filter(|e| get(e, "step").is_some())
+        .filter_map(|e| get(e, "run_id"))
+        .collect();
     assert_eq!(ids.len(), 1, "one run id on every step: {ids:?}");
 }

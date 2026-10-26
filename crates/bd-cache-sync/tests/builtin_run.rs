@@ -52,8 +52,18 @@ async fn a_run_syncs_a_label_scope_and_an_all_scope_by_their_filters_and_frees_t
     let cache = world.shared(vec![label_scope("lbl", "area"), all_scope("every")]);
     let reply = run_builtin(&cache, &payload(), &world.ctx()).await.unwrap();
     assert_eq!(reply.outcome, RunStatus::Ok);
-    let results: Vec<_> = reply.scopes.iter().map(|s| (s.scope.to_string(), s.result)).collect();
-    assert_eq!(results, [("every".to_owned(), ScopeOutcome::Ok), ("lbl".to_owned(), ScopeOutcome::Ok)]);
+    let results: Vec<_> = reply
+        .scopes
+        .iter()
+        .map(|s| (s.scope.to_string(), s.result))
+        .collect();
+    assert_eq!(
+        results,
+        [
+            ("every".to_owned(), ScopeOutcome::Ok),
+            ("lbl".to_owned(), ScopeOutcome::Ok)
+        ]
+    );
     assert_eq!(members(&world, "lbl"), set(&["b1"]));
     assert_eq!(members(&world, "every"), set(&["b1", "b2"]));
     assert!(reply.drain.is_some(), "the run drains first");
@@ -91,9 +101,15 @@ async fn a_live_lease_skips_the_run_and_an_expired_one_is_taken_over() {
     store.lease_take(&other_holder(&world, 30), &now).unwrap();
     let cache = world.shared(vec![label_scope("lbl", "area")]);
     let reply = run_builtin(&cache, &payload(), &world.ctx()).await.unwrap();
-    assert_eq!((reply.outcome, reply.skipped), (RunStatus::Skipped, Some("in_flight")));
+    assert_eq!(
+        (reply.outcome, reply.skipped),
+        (RunStatus::Skipped, Some("in_flight"))
+    );
     assert_eq!(reply.holder.as_ref().unwrap()["pid"], 999);
-    assert!(reply.drain.is_none() && reply.scopes.is_empty(), "nothing ran");
+    assert!(
+        reply.drain.is_none() && reply.scopes.is_empty(),
+        "nothing ran"
+    );
     assert!(members(&world, "lbl").is_empty());
 
     world.clock.advance(Duration::from_secs(31));
@@ -119,8 +135,15 @@ async fn an_unreachable_bd_is_an_outage_result_and_the_rows_stay() {
     assert_eq!(r.result, ScopeOutcome::Outage, "{r:?}");
     assert!(r.error.as_ref().unwrap().outage);
     assert!(r.failing_since.is_some(), "an outage is a non-ok result");
-    assert_eq!(members(&world, "lbl"), set(&["b1"]), "rows stay as they were");
-    assert!(cache.lock().unwrap().cached(&id("b1")).unwrap().is_some(), "reads answer");
+    assert_eq!(
+        members(&world, "lbl"),
+        set(&["b1"]),
+        "rows stay as they were"
+    );
+    assert!(
+        cache.lock().unwrap().cached(&id("b1")).unwrap().is_some(),
+        "reads answer"
+    );
 
     world.switch.set_lists_down(false);
     world.clock.advance(Duration::from_secs(60));
@@ -145,8 +168,14 @@ async fn one_invalid_row_fails_the_scope_and_stores_no_row_of_its_answer() {
     let r = &reply.scopes[0];
     assert_eq!(r.result, ScopeOutcome::Failed, "{r:?}");
     assert_eq!(r.error.as_ref().unwrap().code, "BD_CACHE.SYNC_FAILED");
-    assert!(!r.error.as_ref().unwrap().outage, "bd answered: outage false");
-    assert!(members(&world, "lbl").is_empty(), "no row of the answer stored");
+    assert!(
+        !r.error.as_ref().unwrap().outage,
+        "bd answered: outage false"
+    );
+    assert!(
+        members(&world, "lbl").is_empty(),
+        "no row of the answer stored"
+    );
     assert!(world.store.get_row(&id("b1")).unwrap().is_none());
 
     world.switch.set_extra_scope_rows(vec![]);
@@ -164,11 +193,16 @@ async fn an_older_incoming_row_never_replaces_a_newer_stored_one() {
     let cache = world.shared(vec![label_scope("lbl", "area")]);
     let mut newer = old.clone();
     newer.title = "newer".into();
-    newer.updated_at = Timestamp::from_unix(Timestamp::parse(&old.updated_at).unwrap().unix() + 3600)
-        .unwrap()
-        .as_str()
-        .to_owned();
-    world.store.clone().upsert_rows(None, &[newer], true).unwrap();
+    newer.updated_at =
+        Timestamp::from_unix(Timestamp::parse(&old.updated_at).unwrap().unix() + 3600)
+            .unwrap()
+            .as_str()
+            .to_owned();
+    world
+        .store
+        .clone()
+        .upsert_rows(None, &[newer], true)
+        .unwrap();
     run_builtin(&cache, &payload(), &world.ctx()).await.unwrap();
     let (row, _) = world.store.get_row(&id("b1")).unwrap().unwrap();
     assert_eq!(row.title, "newer", "the newer stored row stays");

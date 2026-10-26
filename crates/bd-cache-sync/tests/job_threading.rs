@@ -28,8 +28,14 @@ fn join_idle_is_false_while_a_step_holds_the_cache_and_true_once_it_returns() {
         })
     };
     held_rx.recv().unwrap();
-    assert!(!join_idle(&cache, Instant::now() + Duration::from_millis(20)), "the step is inside");
+    assert!(
+        !join_idle(&cache, Instant::now() + Duration::from_millis(20)),
+        "the step is inside"
+    );
     release_tx.send(()).unwrap();
     holder.join().unwrap();
-    assert!(join_idle(&cache, Instant::now()), "free once the step returned");
+    assert!(
+        join_idle(&cache, Instant::now()),
+        "free once the step returned"
+    );
 }

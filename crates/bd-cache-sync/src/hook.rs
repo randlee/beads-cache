@@ -16,9 +16,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::time::Duration;
 
-use bd_cache_model::{
-    CacheError, FailingSince, JournalEntry, RunId, ScopeId, Seq, TickRunReason,
-};
+use bd_cache_model::{CacheError, FailingSince, JournalEntry, RunId, ScopeId, Seq, TickRunReason};
 use sc_beads::Timestamp;
 use sc_cron::process::{ChildSpec, TempCwd, supervise};
 use serde::Serialize;
@@ -233,15 +231,23 @@ pub(crate) async fn run_hook(
     request: &[u8],
     expiry: impl Future<Output = ()>,
 ) -> Result<HookSuccess, CacheError> {
-    let mut set: Vec<(OsString, OsString)> =
-        vec![("BD_CACHE_PATH".into(), trusted.path().as_os_str().to_owned())];
+    let mut set: Vec<(OsString, OsString)> = vec![(
+        "BD_CACHE_PATH".into(),
+        trusted.path().as_os_str().to_owned(),
+    )];
     if let Some(dir) = beads_dir {
         set.push(("BEADS_DIR".into(), dir.as_os_str().to_owned()));
     }
     let env = hook.env().child_env(set);
     let names = hook.env().names();
     let cwd = TempCwd::new().map_err(|e| {
-        hook_failed(run_id, TickRunReason::Spawn, None, String::new(), format!("no temporary directory: {e}"))
+        hook_failed(
+            run_id,
+            TickRunReason::Spawn,
+            None,
+            String::new(),
+            format!("no temporary directory: {e}"),
+        )
     })?;
     let target = hook.target();
     let spec = ChildSpec {
@@ -257,29 +263,58 @@ pub(crate) async fn run_hook(
         input: request,
         env,
     };
-    let captured = supervise(&spec, MAX_HOOK_PIPE_BYTES, expiry).await.map_err(|e| {
-        hook_failed(
-            run_id,
-            TickRunReason::Spawn,
-            None,
-            String::new(),
-            format!("the post-sync hook {target} could not start: {e}"),
-        )
-    })?;
+    let captured = supervise(&spec, MAX_HOOK_PIPE_BYTES, expiry)
+        .await
+        .map_err(|e| {
+            hook_failed(
+                run_id,
+                TickRunReason::Spawn,
+                None,
+                String::new(),
+                format!("the post-sync hook {target} could not start: {e}"),
+            )
+        })?;
     // Keep only what the run needs; the trust proof was for this launch.
     drop(trusted);
+    judge(&captured, names, run_id, &target)
+}
+
+/// What one finished (or killed) hook process means (REQ-BDC-0723, 0729).
+fn judge(
+    captured: &sc_cron::process::Captured,
+    names: &[String],
+    run_id: &RunId,
+    target: &str,
+) -> Result<HookSuccess, CacheError> {
     let stderr = redact_and_cut(&String::from_utf8_lossy(&captured.stderr.bytes), names);
     let Some(status) = captured.status else {
-        return Err(hook_failed(run_id, TickRunReason::Timeout, None, stderr,
-            format!("the post-sync hook {target} was killed at its deadline")));
+        return Err(hook_failed(
+            run_id,
+            TickRunReason::Timeout,
+            None,
+            stderr,
+            format!("the post-sync hook {target} was killed at its deadline"),
+        ));
     };
     if captured.stdout.truncated || captured.stderr.truncated {
-        return Err(hook_failed(run_id, TickRunReason::Oversize, status.code(), stderr,
-            format!("the post-sync hook {target} wrote more than {MAX_HOOK_PIPE_BYTES} bytes to a pipe")));
+        return Err(hook_failed(
+            run_id,
+            TickRunReason::Oversize,
+            status.code(),
+            stderr,
+            format!(
+                "the post-sync hook {target} wrote more than {MAX_HOOK_PIPE_BYTES} bytes to a pipe"
+            ),
+        ));
     }
     let malformed = |why: &str, stderr: String| {
-        hook_failed(run_id, TickRunReason::Exit, status.code(), stderr,
-            format!("the post-sync hook {target} {why}"))
+        hook_failed(
+            run_id,
+            TickRunReason::Exit,
+            status.code(),
+            stderr,
+            format!("the post-sync hook {target} {why}"),
+        )
     };
     let answer: Option<Value> = serde_json::from_slice(captured.stdout.bytes.trim_ascii()).ok();
     if !status.success() {
@@ -293,10 +328,16 @@ pub(crate) async fn run_hook(
         return Err(malformed(&format!("exited with {status}{message}"), stderr));
     }
     let Some(answer) = answer else {
-        return Err(malformed("exited 0 but did not print one JSON object", stderr));
+        return Err(malformed(
+            "exited 0 but did not print one JSON object",
+            stderr,
+        ));
     };
     if answer.get("protocol").and_then(Value::as_str) != Some(RUN_PROTOCOL) {
-        return Err(malformed(&format!("answered without protocol {RUN_PROTOCOL}"), stderr));
+        return Err(malformed(
+            &format!("answered without protocol {RUN_PROTOCOL}"),
+            stderr,
+        ));
     }
     if answer.get("ok") != Some(&Value::Bool(true)) {
         return Err(malformed("answered ok: false", stderr));
@@ -344,6 +385,9 @@ mod tests {
         assert_eq!(at(4), Some(120));
         assert_eq!(at(5), Some(240));
         assert_eq!(at(30), Some(3600));
-        assert_eq!(next_attempt(3, None, &now).map(|t| t.unix() - now.unix()), Some(3600));
+        assert_eq!(
+            next_attempt(3, None, &now).map(|t| t.unix() - now.unix()),
+            Some(3600)
+        );
     }
 }

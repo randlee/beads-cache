@@ -51,7 +51,7 @@ pub(crate) fn namespace(cache: &Bound<'_, PyCache>, name: &str) -> PyResult<Py<P
 }
 
 /// The request object of keyword arguments, as the JSON the decoder reads.
-fn request_of(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Value> {
+pub(crate) fn request_of(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Value> {
     let mut map = Map::new();
     if let Some(kwargs) = kwargs {
         for (key, value) in kwargs.iter() {
@@ -70,7 +70,7 @@ fn request_of(kwargs: Option<&Bound<'_, PyDict>>) -> PyResult<Value> {
 /// `TypeError` for any other type or a non-`str` key; `ValueError` for an `int` outside
 /// 64 bits, a non-finite `float`, or nesting deeper than [`MAX_DEPTH`] (which includes a
 /// container that contains itself).
-fn json_of(v: &Bound<'_, PyAny>, depth: usize) -> PyResult<Value> {
+pub(crate) fn json_of(v: &Bound<'_, PyAny>, depth: usize) -> PyResult<Value> {
     if v.is_none() {
         return Ok(Value::Null);
     }
@@ -228,7 +228,9 @@ mod tests {
     use super::*;
 
     /// A method's name is the command path joined with `_`, without the surface-(b)
-    /// `cache_` prefix; together the two classes cover every command but `cache tick`.
+    /// `cache_` prefix; together the two classes cover every 0.2 command. The
+    /// phase-B verbs are the handle's own methods (`phase_b.rs`), and `cache cron
+    /// run` is the CLI's alone.
     #[test]
     fn method_names_follow_the_command_paths_and_cover_every_command() {
         let mut seen = Vec::new();
@@ -238,7 +240,11 @@ mod tests {
             seen.push(*command);
         }
         seen.sort_by_key(|c| c.path());
-        let mut all = Command::ALL.to_vec();
+        let phase_b = |c: &Command| {
+            c.is_front_end()
+                || (c.path().starts_with("cache scopes ") && *c != Command::CacheScopes)
+        };
+        let mut all: Vec<Command> = Command::ALL.into_iter().filter(|c| !phase_b(c)).collect();
         all.sort_by_key(|c| c.path());
         assert_eq!(seen, all);
     }

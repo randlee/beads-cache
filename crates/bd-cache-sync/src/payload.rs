@@ -465,8 +465,9 @@ impl SyncPayload {
                 hook_reserve_ms,
                 hook,
             } => {
-                let budget = TickBudget::new(Some(budget_ms), Some(hook_reserve_ms), hook.is_some())
-                    .map_err(|e| budget_invalid(&e))?;
+                let budget =
+                    TickBudget::new(Some(budget_ms), Some(hook_reserve_ms), hook.is_some())
+                        .map_err(|e| budget_invalid(&e))?;
                 let hook = hook
                     .map(|h| PostSyncHook::new(&h.interpreter, &h.function, EnvNames::new(h.env)?))
                     .transpose()?;
@@ -533,7 +534,11 @@ fn millis(d: Duration) -> u64 {
 
 #[cfg(all(test, unix))]
 mod tests {
-    #![allow(clippy::unwrap_used, clippy::panic, reason = "test code: a failed unwrap is a test failure")]
+    #![allow(
+        clippy::unwrap_used,
+        clippy::panic,
+        reason = "test code: a failed unwrap is a test failure"
+    )]
 
     use std::os::unix::fs::PermissionsExt as _;
 
@@ -550,7 +555,12 @@ mod tests {
     fn a_payload_round_trips_and_every_value_is_checked_on_decode() {
         let dir = tempfile::tempdir().unwrap();
         let python = interpreter(dir.path());
-        let hook = PostSyncHook::new(&python, "pkg.hooks:after", EnvNames::new(["TOKEN".to_owned()]).unwrap()).unwrap();
+        let hook = PostSyncHook::new(
+            &python,
+            "pkg.hooks:after",
+            EnvNames::new(["TOKEN".to_owned()]).unwrap(),
+        )
+        .unwrap();
         let builtin = SyncPayload::Builtin(BuiltinPayload {
             budget: TickBudget::new(Some(20_000), Some(4_000), true).unwrap(),
             hook: Some(hook),
@@ -569,7 +579,10 @@ mod tests {
         assert_eq!(SyncPayload::decode(&py.to_json()).unwrap(), py);
         let mut bad = builtin.to_json();
         bad["hook_reserve_ms"] = 500.into();
-        assert_eq!(SyncPayload::decode(&bad).unwrap_err().code(), "BD_CACHE.SCHEDULE_INVALID");
+        assert_eq!(
+            SyncPayload::decode(&bad).unwrap_err().code(),
+            "BD_CACHE.SCHEDULE_INVALID"
+        );
         assert!(SyncPayload::decode(&serde_json::json!({"target": "other"})).is_err());
     }
 
@@ -581,15 +594,30 @@ mod tests {
             CacheError::ScheduleInvalid { reason, .. } => reason,
             other => panic!("{other:?}"),
         };
-        assert_eq!(field(TrustedInterpreter::new("python3", "m", "module").unwrap_err()), ScheduleReason::NotAbsolute);
-        assert_eq!(field(TrustedInterpreter::new(dir.path(), "m", "module").unwrap_err()), ScheduleReason::NotExecutable);
+        assert_eq!(
+            field(TrustedInterpreter::new("python3", "m", "module").unwrap_err()),
+            ScheduleReason::NotAbsolute
+        );
+        assert_eq!(
+            field(TrustedInterpreter::new(dir.path(), "m", "module").unwrap_err()),
+            ScheduleReason::NotExecutable
+        );
         std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o644)).unwrap();
-        assert_eq!(field(TrustedInterpreter::new(&python, "m", "module").unwrap_err()), ScheduleReason::NotExecutable);
+        assert_eq!(
+            field(TrustedInterpreter::new(&python, "m", "module").unwrap_err()),
+            ScheduleReason::NotExecutable
+        );
         std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o755)).unwrap();
-        assert_eq!(field(TrustedInterpreter::new(&python, "-c", "module").unwrap_err()), ScheduleReason::BadModule);
+        assert_eq!(
+            field(TrustedInterpreter::new(&python, "-c", "module").unwrap_err()),
+            ScheduleReason::BadModule
+        );
         assert!(TrustedInterpreter::new(&python, "pkg.mod", "module").is_ok());
         for bad in ["pkg", "pkg:", "pkg:1x", ":f"] {
-            assert!(PostSyncHook::new(&python, bad, EnvNames::default()).is_err(), "{bad}");
+            assert!(
+                PostSyncHook::new(&python, bad, EnvNames::default()).is_err(),
+                "{bad}"
+            );
         }
     }
 
@@ -601,10 +629,26 @@ mod tests {
         std::fs::write(&python, "#!/bin/sh\n[ \"$2\" = -c ] && exit 1\nexit 0\n").unwrap();
         std::fs::set_permissions(&python, std::fs::Permissions::from_mode(0o755)).unwrap();
         let t = TrustedInterpreter::new(&python, "m", "module").unwrap();
-        let e = t.check_import(EnvNames::default().child_env(vec![])).await.unwrap_err();
-        assert!(matches!(e, CacheError::ScheduleInvalid { reason: ScheduleReason::ImportFailed, .. }), "{e:?}");
+        let e = t
+            .check_import(EnvNames::default().child_env(vec![]))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                e,
+                CacheError::ScheduleInvalid {
+                    reason: ScheduleReason::ImportFailed,
+                    ..
+                }
+            ),
+            "{e:?}"
+        );
         // Planted negative: one that exits 0 passes.
         std::fs::write(&python, "#!/bin/sh\nexit 0\n").unwrap();
-        assert!(t.check_import(EnvNames::default().child_env(vec![])).await.is_ok());
+        assert!(
+            t.check_import(EnvNames::default().child_env(vec![]))
+                .await
+                .is_ok()
+        );
     }
 }

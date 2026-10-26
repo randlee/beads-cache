@@ -27,7 +27,11 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[CommandSpec {
     about: "Run the cache file's cron rows until a signal; --once runs what is due and exits.",
     target: Target::Sync(Command::CronRun),
     args: &[
-        ArgSpec::switch("once", "once", "Run what is due now, wait for it, and exit."),
+        ArgSpec::switch(
+            "once",
+            "once",
+            "Run what is due now, wait for it, and exit.",
+        ),
         ArgSpec::flag(
             "shutdown-timeout-ms",
             "N",

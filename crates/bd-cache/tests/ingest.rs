@@ -360,20 +360,29 @@ fn the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope() {
     let ghost = ScopeId::new("ghost").unwrap();
     let known = c.scopes().unwrap();
     let code = |e: CacheError| e.code();
-    assert_eq!(c.sync_alert(&ghost).map_err(code), Err("BD_CACHE.SCOPE_UNKNOWN"));
     assert_eq!(
-        c.set_sync_alert(&ghost, Some("backend_unavailable")).map_err(code),
+        c.sync_alert(&ghost).map_err(code),
         Err("BD_CACHE.SCOPE_UNKNOWN")
     );
     assert_eq!(
-        c.set_sync_alert_within(&ghost, None, Duration::from_millis(50)).map_err(code),
+        c.set_sync_alert(&ghost, Some("backend_unavailable"))
+            .map_err(code),
+        Err("BD_CACHE.SCOPE_UNKNOWN")
+    );
+    assert_eq!(
+        c.set_sync_alert_within(&ghost, None, Duration::from_millis(50))
+            .map_err(code),
         Err("BD_CACHE.SCOPE_UNKNOWN")
     );
     assert_eq!(c.scope(&ghost).unwrap(), None, "no scope registered");
     assert_eq!(c.scopes().unwrap(), known, "the registry is unchanged");
     let registered = known.first().map(|s| s.id.clone()).unwrap();
-    c.set_sync_alert(&registered, Some("backend_unavailable")).unwrap();
-    assert_eq!(c.sync_alert(&registered).unwrap().as_deref(), Some("backend_unavailable"));
+    c.set_sync_alert(&registered, Some("backend_unavailable"))
+        .unwrap();
+    assert_eq!(
+        c.sync_alert(&registered).unwrap().as_deref(),
+        Some("backend_unavailable")
+    );
 }
 
 /// Rows over the limit are refused as they decode, before the store is

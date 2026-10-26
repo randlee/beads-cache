@@ -3,7 +3,12 @@
 //! sc-cron's `ManualClock` for the schedule rows, and a stub Python
 //! interpreter that speaks sc-cron's hook protocol (Unix).
 
-#![allow(clippy::unwrap_used, clippy::expect_used, clippy::panic, reason = "test code")]
+#![allow(
+    clippy::unwrap_used,
+    clippy::expect_used,
+    clippy::panic,
+    reason = "test code"
+)]
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -13,8 +18,8 @@ use bd_cache_store::{CacheScheduleStore, FlockDrainLock, SqliteStore};
 use bd_cache_sync::{SharedCache, StopFlag, SyncContext, compose_with_config_and_backend};
 use sc_bd_cli::testing::FakeBd;
 use sc_bd_cli::{BdCli, ProjectLocks};
-use sc_beads::testing::{FakeBackend, ManualClock};
 use sc_beads::Clock;
+use sc_beads::testing::{FakeBackend, ManualClock};
 use sc_cron::{ManualClock as CronClock, Scheduler, SeqJitter};
 
 use super::TempDir;
@@ -78,7 +83,11 @@ impl Repo {
             cache.scopes_add(&scope).unwrap();
         }
         let cron_clock = Arc::new(CronClock::new(super::START.parse().unwrap()));
-        let scheduler = Scheduler::new(Arc::clone(&store), Arc::clone(&cron_clock), Arc::new(SeqJitter::default()));
+        let scheduler = Scheduler::new(
+            Arc::clone(&store),
+            Arc::clone(&cron_clock),
+            Arc::new(SeqJitter::default()),
+        );
         Self {
             dir,
             bd,
@@ -123,7 +132,10 @@ impl Repo {
     #[must_use]
     pub fn flags(&self) -> (Option<bool>, Option<bool>) {
         let rows = bd_cache_sync::Rows::read(self.store.as_ref()).unwrap();
-        (rows.builtin.map(|r| r.enabled), rows.python.map(|r| r.enabled))
+        (
+            rows.builtin.map(|r| r.enabled),
+            rows.python.map(|r| r.enabled),
+        )
     }
 }
 
@@ -194,7 +206,8 @@ exit 0
     /// The `n`th request of `event`.
     #[must_use]
     pub fn request(&self, event: &str, n: usize) -> serde_json::Value {
-        let text = std::fs::read_to_string(self.dir.path().join(format!("{event}.{n}.json"))).unwrap();
+        let text =
+            std::fs::read_to_string(self.dir.path().join(format!("{event}.{n}.json"))).unwrap();
         serde_json::from_str(&text).unwrap()
     }
 

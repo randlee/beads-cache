@@ -25,11 +25,51 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
         about: "Make a consumer's Python script the sync: write its row enabled, run it at once, roll back on failure.",
         target: Target::Sync(Command::SyncUsePython),
         args: &[
-            ArgSpec::flag("python", "INTERPRETER", One, Str, true, "python", "The absolute interpreter."),
-            ArgSpec::flag("module", "MODULE", One, Str, true, "module", "The script's module, run as -I -m <module>."),
-            ArgSpec::flag("cron", "EXPR", One, Str, false, "cron", "The row's expression (default: the built-in row's)."),
-            ArgSpec::flag("timeout-ms", "N", One, Int, false, "timeout_ms", "The script's timeout (default 60000, 1000-600000)."),
-            ArgSpec::flag("env", "NAME", Many, Str, false, "env", "A variable the script gets (repeat)."),
+            ArgSpec::flag(
+                "python",
+                "INTERPRETER",
+                One,
+                Str,
+                true,
+                "python",
+                "The absolute interpreter.",
+            ),
+            ArgSpec::flag(
+                "module",
+                "MODULE",
+                One,
+                Str,
+                true,
+                "module",
+                "The script's module, run as -I -m <module>.",
+            ),
+            ArgSpec::flag(
+                "cron",
+                "EXPR",
+                One,
+                Str,
+                false,
+                "cron",
+                "The row's expression (default: the built-in row's).",
+            ),
+            ArgSpec::flag(
+                "timeout-ms",
+                "N",
+                One,
+                Int,
+                false,
+                "timeout_ms",
+                "The script's timeout (default 60000, 1000-600000).",
+            ),
+            ArgSpec::flag(
+                "env",
+                "NAME",
+                Many,
+                Str,
+                false,
+                "env",
+                "A variable the script gets (repeat).",
+            ),
         ],
         one_of: None,
     },
@@ -43,7 +83,11 @@ pub(crate) const COMMANDS: &[CommandSpec] = &[
 ];
 
 /// `sync use-python`.
-pub(crate) fn use_python(composed: Composed, req: &SyncUsePython, stop: &StopFlag) -> Result<Value, ApiError> {
+pub(crate) fn use_python(
+    composed: Composed,
+    req: &SyncUsePython,
+    stop: &StopFlag,
+) -> Result<Value, ApiError> {
     let p = parts(composed)?;
     let input = UsePython {
         python: PathBuf::from(req.python()),

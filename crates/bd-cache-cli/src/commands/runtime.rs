@@ -14,7 +14,8 @@ use serde_json::Value;
 pub(crate) type CliScheduler = Scheduler<CacheScheduleStore, SystemClock, SystemJitter>;
 
 /// The real cache, shared by a run's steps.
-pub(crate) type CliCache = SharedCache<bd_cache_store::SqliteStore, bd_cache_store::FlockDrainLock, sc_bd_cli::BdCli>;
+pub(crate) type CliCache =
+    SharedCache<bd_cache_store::SqliteStore, bd_cache_store::FlockDrainLock, sc_bd_cli::BdCli>;
 
 /// A multi-thread runtime for one command; dropped when the command ends.
 pub(crate) fn runtime() -> Result<tokio::runtime::Runtime, ApiError> {
@@ -48,11 +49,19 @@ pub(crate) fn parts(composed: Composed) -> Result<Parts, ApiError> {
 impl Parts {
     /// The scheduler over the table.
     pub(crate) fn scheduler(&self) -> CliScheduler {
-        Scheduler::new(Arc::clone(&self.store), Arc::new(SystemClock), Arc::new(SystemJitter))
+        Scheduler::new(
+            Arc::clone(&self.store),
+            Arc::new(SystemClock),
+            Arc::new(SystemJitter),
+        )
     }
 
     /// The sync context; `kill` kills a running hook or script at once.
-    pub(crate) fn sync_context(&self, stop: &StopFlag, kill: StopFlag) -> SyncContext<
+    pub(crate) fn sync_context(
+        &self,
+        stop: &StopFlag,
+        kill: StopFlag,
+    ) -> SyncContext<
         bd_cache_store::SqliteStore,
         bd_cache_store::FlockDrainLock,
         sc_bd_cli::BdCli,
@@ -101,5 +110,6 @@ pub(crate) fn sync_error(e: &SyncError) -> ApiError {
 
 /// A reply as JSON.
 pub(crate) fn json<T: serde::Serialize>(v: &T) -> Result<Value, ApiError> {
-    serde_json::to_value(v).map_err(|e| ApiError::internal(format!("the reply does not serialize: {e}")))
+    serde_json::to_value(v)
+        .map_err(|e| ApiError::internal(format!("the reply does not serialize: {e}")))
 }
