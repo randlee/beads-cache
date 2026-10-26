@@ -1,12 +1,12 @@
-# Anchors - phase-current
+# Anchors - phase-b
 
 Constraints captured during planning. Each anchor is a testable statement written by the orchestrator and approved by the user; the user's verbatim words are kept beneath it as provenance. Every anchor is judged at the planning gate and again at the development gate. Edit `anchors.json`, not this file; this file is rendered.
 
-Intent: `doc/plan/phase-current/intent.md`
+Intent: `docs/plans/phase-b/anchors/intent.md`
 
 | ID | Status | Summary | Stated |
 | --- | --- | --- | --- |
-| ANC-001 | locked | No ATM strings in product files | 2026-10-25 |
+| ANC-001 | locked | No prohibited word in the repository; the no-consumer lint passes | 2026-10-25 |
 | ANC-002 | locked | bd sync runs from the SQLite cron table | 2026-10-25 |
 | ANC-003 | locked | Consumer Python sync can replace the built-in sync | 2026-10-25 |
 | ANC-004 | locked | Optional post-sync hook gets results and errors | 2026-10-25 |
@@ -32,23 +32,23 @@ Intent: `doc/plan/phase-current/intent.md`
 
 ## ANC-001
 
-Anchor: beads-cache source and test files must not contain ATM strings such as cron@tool, where ATM is the agent-team messaging tool.
+Anchor: Words on the prohibited list of the repository's no-consumer lint (`scripts/lint_no_atm.py`) must not appear in this repository outside that lint, its tests and `docs/team-protocol.md`; the lint passes on the whole tree.
 
-> blocking 'cron@tool' and other atm strings from source or tests
+> blocking [a prohibited word: the consumer's cron principal] and the other words on the lint's prohibited list from source or tests (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)
 
-Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 3.
+Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 4.
 
-Summary: No ATM strings in product files
+Summary: No prohibited word in the repository; the no-consumer lint passes
 
 Scope: any bead that adds or edits source, test, script or doc files in beads-cache
 
-Deterministic check to pair with the development gate: python3 scripts/lint_no_atm.py exits 0 on the tree (CI step 'Strict consumer boundary (ADR-BDC-0010)'); per sprint: python3 scripts/lint_no_atm.py --paths <sprint owned paths> exits 0
+Deterministic check to pair with the development gate: `python3 scripts/lint_no_atm.py` exits 0 on the whole tree; per sprint, `python3 scripts/lint_no_atm.py --paths <sprint fence>` exits 0
 
 Beads: anchor `bdc-nrp`, plan questions `bdc-nrp.1`, dev questions `bdc-nrp.2`
 
 Fixtures:
-- pass: This sprint deletes crates/bd-cache-sync/src/atm.rs and its tests, and python3 scripts/lint_no_atm.py exits 0 on the tree.
-- fail: This sprint keeps the cron@tool sender in crates/bd-cache-sync/src/atm.rs and adds an atm send retry test.
+- pass: The sprint's files pass the no-consumer lint: `python3 scripts/lint_no_atm.py --paths <fence>` exits 0.
+- fail: The sprint adds a consumer-specific name to a source file, and the no-consumer lint flags it.
 
 ## ANC-002
 
@@ -69,7 +69,7 @@ Excluded from (not judged; the cell passes as `excluded`):
 - `b-2`: b-2 defines the bd-cache-api request vocabulary; sync scheduling is not in it.
 - `b-3a`: b-3a builds the CLI skeleton and fake-bd harness; it does not schedule, run or configure the bd sync.
 - `b-6`: sc-cron only gains the Python hook target, enabled flag and stop-hook action; the bd sync schedule row is planned in b-7.
-- `b-8`: b-8 adds only a refresh deadline flag and a health read; the cron-table schedule that runs the sync is b-7's.
+- `b-7`: b-7 builds the store and core only; the cron-timed tick and its schedule are b-8's.
 
 Beads: anchor `bdc-g4s`, plan questions `bdc-g4s.1`, dev questions `bdc-g4s.2`
 
@@ -81,7 +81,7 @@ Fixtures:
 
 Anchor: beads-cache must let a consumer-registered Python sync method replace its hard-coded bd sync.
 
-> In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer (atm-bd).
+> In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer [the first consumer, whose name is a prohibited word]. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)
 
 Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 4.
 
@@ -96,7 +96,6 @@ Excluded from (not judged; the cell passes as `excluded`):
 - `b-3`: b-3 only invokes the sync from the CLI; it neither registers nor replaces a sync method.
 - `b-4`: b-4 adds the cache.beads and cache.manage Python namespaces; it does not touch registering a sync method.
 - `b-6`: sc-cron stays generic; the consumer-registered Python sync that replaces the built-in bd sync is planned in b-7.
-- `b-8`: The consumer-registered Python sync that replaces the built-in bd sync is planned in b-7; b-8 only cleans the boundary and adds the lint gate.
 
 Beads: anchor `bdc-iid`, plan questions `bdc-iid.1`, dev questions `bdc-iid.2`
 
@@ -108,7 +107,7 @@ Fixtures:
 
 Anchor: beads-cache must support an optional consumer-registered post-sync hook that receives the bd sync results and errors.
 
-> there can also be hooks necessary to report/escelate based on atm-bd requirements [...] We would also likely want a 'post-sync' hook that could contain sync results and errors and allow consumer (atm-bd) to do custom things at that point
+> there can also be hooks necessary to report/escelate based on [the first consumer's] requirements [...] We would also likely want a 'post-sync' hook that could contain sync results and errors and allow consumer [the first consumer] to do custom things at that point (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)
 
 Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 5.
 
@@ -123,7 +122,6 @@ Excluded from (not judged; the cell passes as `excluded`):
 - `b-2`: b-2 does not touch the sync job or post-sync behaviour.
 - `b-3`: b-3 only invokes the sync from the CLI (cache tick); it does not build the sync job or a post-sync hook.
 - `b-4`: b-4 does not touch the sync job or a post-sync hook.
-- `b-8`: b-8 adds health and a refresh timeout flag only; it builds no sync job, hook or sync-failure reporting.
 - `b-6`: b-6 only builds the generic sc-cron hook runner; the bd sync job and the consumer post-sync hook are planned in b-7.
 
 Beads: anchor `bdc-3df`, plan questions `bdc-3df.1`, dev questions `bdc-3df.2`
@@ -147,8 +145,7 @@ Scope: any bead that edits crates/sc-cron
 Deterministic check to pair with the development gate: cargo tree -p sc-cron shows no bd-cache-* or sc-beads dependency; grep finds no beads or cache types in crates/sc-cron/src
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-7`: b-7 uses sc-cron through its public Job and Python-runner interfaces; crates/sc-cron is b-6's, not in b-7's owned_paths.
-- `b-8`: b-8 edits nothing under crates/sc-cron; its lint hits there are b-6's.
+- `b-7`: b-7 edits nothing in crates/sc-cron.
 
 Beads: anchor `bdc-3ku`, plan questions `bdc-3ku.1`, dev questions `bdc-3ku.2`
 
@@ -171,7 +168,7 @@ Scope: any bead that edits crates/sc-cron's schedule table or scheduler API
 Deterministic check to pair with the development gate: a test toggles enabled and asserts the row's generation, expression and payload are unchanged
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 edits nothing in sc-cron's schedule table or scheduler API.
+- `b-7`: b-7 edits nothing in crates/sc-cron; the tick row and its enabled flag are b-8's.
 
 Beads: anchor `bdc-mvv`, plan questions `bdc-mvv.1`, dev questions `bdc-mvv.2`
 
@@ -194,8 +191,7 @@ Scope: any bead that edits sc-cron's hooks, Job trait or run loop
 Deterministic check to pair with the development gate: tests cover each of continue, disable and delete for a Rust and a Python stop hook
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-7`: b-7 uses sc-cron's stop hook through its interface; the stop hook itself is built in b-6, and crates/sc-cron is not in b-7's owned_paths.
-- `b-8`: b-8 edits nothing in sc-cron's hooks, Job trait or run loop.
+- `b-7`: b-7 edits nothing in crates/sc-cron; stop hooks are b-6's, unchanged.
 
 Beads: anchor `bdc-7of`, plan questions `bdc-7of.1`, dev questions `bdc-7of.2`
 
@@ -219,7 +215,8 @@ Deterministic check to pair with the development gate: a test shows a second bui
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-1`: b-1 creates and manages no sync schedule rows.
-- `b-8`: b-8 creates and manages no sync schedule rows.
+- `b-6`: b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7.
+- `b-9`: b-9 creates and manages no sync schedule rows; it only documents b-8's one-row limit in the contract text.
 
 Beads: anchor `bdc-i61`, plan questions `bdc-i61.1`, dev questions `bdc-i61.2`
 
@@ -231,9 +228,9 @@ Fixtures:
 
 Anchor: beads-cache sync scopes must be defined as bd filters, such as labels or --all, instead of as phases.
 
-> 0702 Active phases - would NEED to be defined w/ filters.  'phase' is an atm/atm-bd concept.  other applications would have different scopes including --all.
+> 0702 Active phases - would NEED to be defined w/ filters.  'phase' is a concept of [the first consumer and its messaging tool, whose names are prohibited words].  other applications would have different scopes including --all. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)
 
-Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 4.
+Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 5.
 
 Summary: Sync scopes are bd filters, not phases
 
@@ -242,27 +239,30 @@ Scope: any bead that defines, parses or syncs scopes
 Deterministic check to pair with the development gate: tests sync a label-filter scope and an --all scope; grep finds no phase-file reading in crates/
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 adds only a refresh deadline flag; how scopes are defined is b-7's.
+- `b-6`: sc-cron has no bd scopes or filters; the sync scopes are planned in b-7.
 
 Beads: anchor `bdc-6e7`, plan questions `bdc-6e7.1`, dev questions `bdc-6e7.2`
 
 Fixtures:
 - pass: A scope is a name plus a bd filter and the built-in sync runs bd list with it; tests sync_label_filter_scope and sync_all_scope in crates/bd-cache-sync/tests/scopes.rs pass in CI (run 1234).
-- fail: Scopes are read from .atm-bd/phase-*.toml files, and a scope is active while its phase root bead is open.
+- fail: Scopes are read from a consumer's phase files, and a scope is active while its phase root bead is open.
 
 ## ANC-010
 
-Anchor: The no-ATM lint (script scripts/lint_no_atm.py; ATM is the agent-team messaging tool) must not report docs/team-protocol.md as a violation.
+Anchor: The no-consumer lint (`scripts/lint_no_atm.py`) must not report docs/team-protocol.md as a violation.
 
 > team-protocol stays as it is and is exempting from lint.
 
-Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 4.
+Said by Rand, phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, 2026-10-25. Status: locked. Version 5.
 
 Summary: team-protocol stays exempt from the lint
 
 Scope: any bead that edits scripts/lint_no_atm.py or docs/team-protocol.md
 
 Deterministic check to pair with the development gate: grep -n 'docs/team-protocol.md' scripts/lint_no_atm.py shows it in EXEMPT_FILES; git diff <phase base>..HEAD -- docs/team-protocol.md is empty
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-6`: b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md.
 
 Beads: anchor `bdc-7qk`, plan questions `bdc-7qk.1`, dev questions `bdc-7qk.2`
 
@@ -286,6 +286,7 @@ Deterministic check to pair with the development gate: contract.md section 1 lis
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-5`: b-5 changes release packaging and channels only; it adds or renames no bdc command or bd-cache-api request.
+- `b-6`: b-6 adds no bdc command or contract section; the bdc cache schedule commands are planned in b-7.
 
 Beads: anchor `bdc-hvp`, plan questions `bdc-hvp.1`, dev questions `bdc-hvp.2`
 
@@ -309,7 +310,7 @@ Deterministic check to pair with the development gate: the format golden test ma
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-3`: b-3 is the bdc CLI; it edits neither crates/bd-cache-store/src/schema.rs nor any store column or table.
-- `b-8`: b-8 asserts the v3 format through a golden test but edits no schema.rs, store table, column or index.
+- `b-6`: b-6 changes only sc-cron's own schedule store; it touches no beads-cache store table, column, index or v3 file-format rule.
 
 Beads: anchor `bdc-2rd`, plan questions `bdc-2rd.1`, dev questions `bdc-2rd.2`
 
@@ -352,8 +353,8 @@ Scope: any bead that changes the read path, the sync job, a post-sync hook or a 
 Deterministic check to pair with the development gate: test_miss_fetches_once_then_serves_from_cache passes; a read during a running sync or hook test starts no bd process
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 does not change the read path, the sync job, a post-sync hook or a Python sync method.
 - `b-6`: sc-cron has no bd dependency and no cache read path.
+- `b-9`: b-9 changes no read path; it edits tests, docs, the contract text and CI.
 
 Beads: anchor `bdc-vq2`, plan questions `bdc-vq2.1`, dev questions `bdc-vq2.2`
 
@@ -374,6 +375,9 @@ Summary: Backend access only through bd
 Scope: any bead that adds or changes how beads-cache fetches or writes backend data
 
 Deterministic check to pair with the development gate: grep finds no dolt or mysql client dependency or SQL against Dolt tables in crates/
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-6`: sc-cron has no bd or Dolt dependency, so it cannot reach the backend at all.
 
 Beads: anchor `bdc-8d2`, plan questions `bdc-8d2.1`, dev questions `bdc-8d2.2`
 
@@ -396,7 +400,8 @@ Scope: any bead that adds or changes a path that stores bead rows, such as sync,
 Deterministic check to pair with the development gate: test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 adds or changes no path that stores bead rows.
+- `b-6`: b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows.
+- `b-9`: b-9 adds or changes no path that stores bead rows.
 
 Beads: anchor `bdc-svf`, plan questions `bdc-svf.1`, dev questions `bdc-svf.2`
 
@@ -420,7 +425,7 @@ Deterministic check to pair with the development gate: test_contract_violation_i
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: sc-cron stores no bead rows; b-6 adds or changes no sync, fetch or ingest path.
-- `b-8`: b-8 adds or changes no path that stores bead rows.
+- `b-9`: b-9 adds or changes no sync, fetch or ingest path.
 
 Beads: anchor `bdc-w37`, plan questions `bdc-w37.1`, dev questions `bdc-w37.2`
 
@@ -443,8 +448,8 @@ Scope: any bead that adds or changes a path that upserts bead rows, such as sync
 Deterministic check to pair with the development gate: test_sync_is_incremental_and_never_replaces_a_newer_row passes; an ingest_scope test with an older row keeps the newer stored row
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 adds or changes no path that upserts bead rows.
 - `b-6`: sc-cron upserts no bead rows; b-6 adds or changes no sync or ingest path.
+- `b-9`: b-9 adds or changes no sync or ingest write path.
 
 Beads: anchor `bdc-a40`, plan questions `bdc-a40.1`, dev questions `bdc-a40.2`
 
@@ -468,7 +473,8 @@ Deterministic check to pair with the development gate: test_tick_budget_defers_d
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: sc-cron is a general scheduler with no bd dependency; the sync run's budget, early drain deadline and deferral belong to the sync job in b-7.
-- `b-8`: b-8 does not change the sync job, its schedule timeout, a post-sync hook or a Python sync run.
+- `b-7`: b-7 builds no tick; the tick's budget, drain deadline and deferral are b-8's.
+- `b-9`: b-9 builds no tick; refresh --timeout-ms is an on-demand refresh, not the scheduled tick.
 
 Beads: anchor `bdc-4jy`, plan questions `bdc-4jy.1`, dev questions `bdc-4jy.2`
 
@@ -492,6 +498,8 @@ Deterministic check to pair with the development gate: pytest -W error::Deprecat
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `b-6`: b-6 changes only sc-cron and its own hook protocol; it adds or changes no bd-cache-rs Python binding method.
+- `b-5`: b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding.
+- `b-7`: b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding.
 
 Beads: anchor `bdc-hqn`, plan questions `bdc-hqn.1`, dev questions `bdc-hqn.2`
 
@@ -513,6 +521,10 @@ Scope: any bead that adds or changes a bd call, a Python sync method run or a po
 
 Deterministic check to pair with the development gate: a test with a hanging fake bd and a hanging hook shows each is killed at its timeout and the run ends by its deadline
 
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-6`: b-6 adds no bd call, Python sync method run or post-sync hook run; it builds the generic sc-cron hook runner (with its own kill tests), and b-7 starts those runs on it.
+- `b-7`: b-7 starts no bd call, Python method or hook; the tick and runner are b-8's.
+
 Beads: anchor `bdc-vkg`, plan questions `bdc-vkg.1`, dev questions `bdc-vkg.2`
 
 Fixtures:
@@ -532,6 +544,9 @@ Summary: Unit tests run without bd
 Scope: any bead that adds or changes tests for the sync job, hooks, ingest or the CLI
 
 Deterministic check to pair with the development gate: CI unit jobs run with no bd on PATH; new tests use fake-bd
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `b-6`: sc-cron is a general scheduler with no bd dependency, so no b-6 test can need bd or Dolt; the fake-bd requirement governs beads-cache's sync job, post-sync hook, ingest and CLI tests (b-7, b-8).
 
 Beads: anchor `bdc-vof`, plan questions `bdc-vof.1`, dev questions `bdc-vof.2`
 
@@ -554,7 +569,8 @@ Scope: any bead that adds or changes sync failure handling, outage state, or wha
 Deterministic check to pair with the development gate: the outage tests show reads still answered and the scope's outage recorded on spawn failure, timeout and transport errors
 
 Excluded from (not judged; the cell passes as `excluded`):
-- `b-8`: b-8 adds only a refresh deadline flag and a health read; sync failure and outage handling are b-7's.
+- `b-6`: b-6 builds the generic sc-cron scheduler and hook runner; it adds no bd sync failure handling, outage state or failure report (b-7 does).
+- `b-9`: b-9 changes no outage handling; health only reads the outage state b-7 records.
 
 Beads: anchor `bdc-a5u`, plan questions `bdc-a5u.1`, dev questions `bdc-a5u.2`
 

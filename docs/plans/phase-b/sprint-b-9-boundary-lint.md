@@ -91,6 +91,10 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    `docs/team-protocol.md`: the `docs/plans/` directory exemption (`EXEMPT_DIRS`) and the
    ADR-BDC-0010 section exemption (`EXEMPT_SECTIONS`) are removed, with their tests and
    docstring text (ADR-BDC-0010).
+   The lint's prohibited list is the one place the words are written. Every plan, anchor,
+   requirement and doc names them only as 'a prohibited word', so the whole tree, including
+   `docs/plans/` and the anchor record (`docs/plans/phase-b/anchors/`), passes the lint with no
+   exemption beyond the lint itself, its tests and `docs/team-protocol.md`.
    CI also asserts, in the unit-test jobs, that `bd` and `dolt` are not on PATH (NFR-BDC-0005),
    and that no crate depends on a Dolt or MySQL client (REQ-BDC-0006).
 

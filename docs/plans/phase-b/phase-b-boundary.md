@@ -99,6 +99,15 @@ Rand's rulings after r3 (2026-10-25), quoted. Where one changes r3, the text is 
   stay for the post-sync hook. The lease, the budget with the hook reserve, `ingest_scope`,
   failure state and marking, and the trust check on the cache file stay.
 
+### The lint's prohibited list (Rand, 2026-10-26)
+
+No consumer wording appears anywhere in the repository except in the lint that fails when a
+prohibited word is used (`scripts/lint_no_atm.py`; anchor ANC-001). The lint's prohibited list is
+the one place the words are written. Every plan, anchor, requirement and doc names them only as 'a
+prohibited word', so the whole tree, including `docs/plans/` and the anchor record
+(`docs/plans/phase-b/anchors/`), passes the lint with no exemption beyond the lint itself, its tests
+and `docs/team-protocol.md`.
+
 ## Lint review (S82 adjustments)
 
 The draft is sound. The rules are case-insensitive, there are no inline pragmas,

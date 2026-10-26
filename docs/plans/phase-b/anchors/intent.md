@@ -8,8 +8,9 @@ document.
 ## What this plan is for
 
 beads-cache is a cache for the beads issue tracker (`bd`), with a CLI (`bdc`) for configuring and
-managing it and a Python API exposed through PyO3. Phase B delivers that tool to its consumers. The
-first consumer is atm-bd, but nothing in beads-cache is built for it in particular. The original
+managing it and a Python API exposed through PyO3. Phase B delivers that tool to its consumers. There
+is a first consumer, but nothing in beads-cache is built for it in particular, and its name is a
+prohibited word (on the no-consumer lint's prohibited list, `scripts/lint_no_atm.py`). The original
 phase-B scope is built and merged:
 - the `bdc` contract, whose two surfaces are a beads surface shaped like bd's own interface and a
   cache-management surface;
@@ -27,8 +28,10 @@ beads-cache general:
 
 ## What success looks like
 
-- No ATM concern remains in beads-cache source, tests, scripts or product docs, and the no-ATM lint
-  enforces this in CI.
+- No consumer concern remains in beads-cache source, tests, scripts or product docs, and no
+  prohibited word appears in the repository outside the lint, its tests and `docs/team-protocol.md`:
+  the no-consumer lint, whose prohibited list is the one place those words are written, enforces
+  this in CI on the whole tree.
 - The built-in bd sync runs from a schedule row in `sc-cron`, with at most one such row per
   repository. Its scopes are bd filters, not phases.
 - A consumer can switch from the built-in sync row to its own Python sync row with one command,

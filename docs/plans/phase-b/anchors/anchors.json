@@ -1,31 +1,31 @@
 {
   "schema": "plan-anchoring/anchors/1",
-  "plan": "phase-current",
-  "intent_ref": "doc/plan/phase-current/intent.md",
+  "plan": "phase-b",
+  "intent_ref": "docs/plans/phase-b/anchors/intent.md",
   "anchors": [
     {
       "id": "ANC-001",
       "source_type": "ANC",
       "source_ref": null,
-      "statement": "beads-cache source and test files must not contain ATM strings such as cron@tool, where ATM is the agent-team messaging tool.",
-      "quote": "blocking 'cron@tool' and other atm strings from source or tests",
+      "statement": "Words on the prohibited list of the repository's no-consumer lint (`scripts/lint_no_atm.py`) must not appear in this repository outside that lint, its tests and `docs/team-protocol.md`; the lint passes on the whole tree.",
+      "quote": "blocking [a prohibited word: the consumer's cron principal] and the other words on the lint's prohibited list from source or tests (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
       "kind": "structural",
       "stated_by": "Rand",
       "stated_at": "2026-10-25",
       "context": "phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement",
-      "summary": "No ATM strings in product files",
+      "summary": "No prohibited word in the repository; the no-consumer lint passes",
       "scope": "any bead that adds or edits source, test, script or doc files in beads-cache",
-      "deterministic_check": "python3 scripts/lint_no_atm.py exits 0 on the tree (CI step 'Strict consumer boundary (ADR-BDC-0010)'); per sprint: python3 scripts/lint_no_atm.py --paths <sprint owned paths> exits 0",
+      "deterministic_check": "`python3 scripts/lint_no_atm.py` exits 0 on the whole tree; per sprint, `python3 scripts/lint_no_atm.py --paths <sprint fence>` exits 0",
       "fixtures": {
         "pass": [
-          "This sprint deletes crates/bd-cache-sync/src/atm.rs and its tests, and python3 scripts/lint_no_atm.py exits 0 on the tree."
+          "The sprint's files pass the no-consumer lint: `python3 scripts/lint_no_atm.py --paths <fence>` exits 0."
         ],
         "fail": [
-          "This sprint keeps the cron@tool sender in crates/bd-cache-sync/src/atm.rs and adds an atm send retry test."
+          "The sprint adds a consumer-specific name to a source file, and the no-consumer lint flags it."
         ]
       },
       "question_overrides": {},
-      "version": 3,
+      "version": 4,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -62,6 +62,26 @@
             "deterministic_check",
             "kind"
           ]
+        },
+        {
+          "at": "2026-10-26T01:30:26+00:00",
+          "event": "updated",
+          "fields": [
+            "statement",
+            "summary",
+            "deterministic_check",
+            "fixtures"
+          ],
+          "previous_statement": "beads-cache source and test files must not contain [consumer] strings such as [a prohibited word], where [the consumer's tool, a prohibited word] is the agent-team messaging tool. (paraphrased; the verbatim text is in git history)"
+        },
+        {
+          "at": "2026-10-26T01:30:46+00:00",
+          "event": "paraphrased",
+          "fields": [
+            "quote",
+            "history.previous_statement"
+          ],
+          "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
         }
       ]
     },
@@ -207,7 +227,7 @@
       "source_type": "ANC",
       "source_ref": null,
       "statement": "beads-cache must let a consumer-registered Python sync method replace its hard-coded bd sync.",
-      "quote": "In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer (atm-bd).",
+      "quote": "In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer [the first consumer, whose name is a prohibited word]. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
       "kind": "directive",
       "stated_by": "Rand",
       "stated_at": "2026-10-25",
@@ -319,6 +339,14 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T01:30:46+00:00",
+          "event": "paraphrased",
+          "fields": [
+            "quote"
+          ],
+          "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
         }
       ],
       "exclude": [
@@ -345,7 +373,7 @@
       "source_type": "ANC",
       "source_ref": null,
       "statement": "beads-cache must support an optional consumer-registered post-sync hook that receives the bd sync results and errors.",
-      "quote": "there can also be hooks necessary to report/escelate based on atm-bd requirements [...] We would also likely want a 'post-sync' hook that could contain sync results and errors and allow consumer (atm-bd) to do custom things at that point",
+      "quote": "there can also be hooks necessary to report/escelate based on [the first consumer's] requirements [...] We would also likely want a 'post-sync' hook that could contain sync results and errors and allow consumer [the first consumer] to do custom things at that point (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
       "kind": "directive",
       "stated_by": "Rand",
       "stated_at": "2026-10-25",
@@ -459,6 +487,14 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T01:30:46+00:00",
+          "event": "paraphrased",
+          "fields": [
+            "quote"
+          ],
+          "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
         }
       ],
       "exclude": [
@@ -914,7 +950,7 @@
       "source_type": "ANC",
       "source_ref": null,
       "statement": "beads-cache sync scopes must be defined as bd filters, such as labels or --all, instead of as phases.",
-      "quote": "0702 Active phases - would NEED to be defined w/ filters.  'phase' is an atm/atm-bd concept.  other applications would have different scopes including --all.",
+      "quote": "0702 Active phases - would NEED to be defined w/ filters.  'phase' is a concept of [the first consumer and its messaging tool, whose names are prohibited words].  other applications would have different scopes including --all. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history)",
       "kind": "directive",
       "stated_by": "Rand",
       "stated_at": "2026-10-25",
@@ -927,11 +963,11 @@
           "A scope is a name plus a bd filter and the built-in sync runs bd list with it; tests sync_label_filter_scope and sync_all_scope in crates/bd-cache-sync/tests/scopes.rs pass in CI (run 1234)."
         ],
         "fail": [
-          "Scopes are read from .atm-bd/phase-*.toml files, and a scope is active while its phase root bead is open."
+          "Scopes are read from a consumer's phase files, and a scope is active while its phase root bead is open."
         ]
       },
       "question_overrides": {},
-      "version": 4,
+      "version": 5,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -1005,6 +1041,21 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T01:30:27+00:00",
+          "event": "updated",
+          "fields": [
+            "fixtures"
+          ]
+        },
+        {
+          "at": "2026-10-26T01:30:46+00:00",
+          "event": "paraphrased",
+          "fields": [
+            "quote"
+          ],
+          "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
         }
       ],
       "exclude": [
@@ -1018,7 +1069,7 @@
       "id": "ANC-010",
       "source_type": "ANC",
       "source_ref": null,
-      "statement": "The no-ATM lint (script scripts/lint_no_atm.py; ATM is the agent-team messaging tool) must not report docs/team-protocol.md as a violation.",
+      "statement": "The no-consumer lint (`scripts/lint_no_atm.py`) must not report docs/team-protocol.md as a violation.",
       "quote": "team-protocol stays as it is and is exempting from lint.",
       "kind": "structural",
       "stated_by": "Rand",
@@ -1036,7 +1087,7 @@
         ]
       },
       "question_overrides": {},
-      "version": 4,
+      "version": 5,
       "status": "locked",
       "promoted_to": null,
       "beads": {
@@ -1087,6 +1138,22 @@
           "item": "b-6",
           "reason": "b-6 edits neither scripts/lint_no_atm.py nor docs/team-protocol.md.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T01:30:27+00:00",
+          "event": "updated",
+          "fields": [
+            "statement"
+          ],
+          "previous_statement": "The no-[consumer] lint (script scripts/lint_no_atm.py; [the consumer's tool, a prohibited word] is the agent-team messaging tool) must not report docs/team-protocol.md as a violation. (paraphrased; the verbatim text is in git history)"
+        },
+        {
+          "at": "2026-10-26T01:30:46+00:00",
+          "event": "paraphrased",
+          "fields": [
+            "history.previous_statement"
+          ],
+          "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
         }
       ],
       "exclude": [
