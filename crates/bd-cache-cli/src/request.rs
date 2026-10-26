@@ -11,6 +11,7 @@
 use std::io::Read as _;
 
 use bd_cache_api::ApiError;
+use bd_cache_model::MAX_INGEST_BYTES;
 use clap::ArgMatches;
 use clap::parser::ValueSource;
 use serde_json::{Map, Value};
@@ -40,24 +41,68 @@ pub(crate) fn has_request_args(spec: &CommandSpec, m: &ArgMatches) -> bool {
         .any(|a| m.value_source(a.id) == Some(ValueSource::CommandLine))
 }
 
+/// The most `--input` reads: twice [`MAX_INGEST_BYTES`], the largest legal
+/// payload a request carries (one ingest snapshot), with room for the
+/// request's other members and for indentation.
+///
+/// Every other ingress is bounded (ingest at 64 MiB, write args at 256 KiB, a
+/// `bd` stream at 64 MiB); a whole-request read with no cap would grow with
+/// a multi-GB file or a stdin that never ends until the process is killed.
+const MAX_REQUEST_BYTES: usize = 2 * MAX_INGEST_BYTES;
+
 /// The request in `--input FILE|-` (`-` is stdin), as given.
 ///
 /// # Errors
 ///
-/// `BAD_ARGS` for a file that cannot be read or text that is not JSON.
+/// `BAD_ARGS` for a file that cannot be read, input over [`MAX_REQUEST_BYTES`],
+/// or text that is not JSON.
 pub(crate) fn from_input(source: &str) -> Result<Value, ApiError> {
     let text = if source == "-" {
-        let mut text = String::new();
-        std::io::stdin()
-            .read_to_string(&mut text)
-            .map_err(|e| ApiError::bad_args(format!("--input -: cannot read stdin: {e}")))?;
-        text
+        read_capped(std::io::stdin().lock(), MAX_REQUEST_BYTES)
+            .map_err(|e| ApiError::bad_args(format!("--input -: {}", e.describe("stdin"))))?
     } else {
-        std::fs::read_to_string(source)
-            .map_err(|e| ApiError::bad_args(format!("--input {source}: cannot read it: {e}")))?
+        let file = std::fs::File::open(source)
+            .map_err(|e| ApiError::bad_args(format!("--input {source}: cannot read it: {e}")))?;
+        read_capped(file, MAX_REQUEST_BYTES)
+            .map_err(|e| ApiError::bad_args(format!("--input {source}: {}", e.describe("it"))))?
     };
     serde_json::from_str(&text)
         .map_err(|e| ApiError::bad_args(format!("--input {source}: invalid JSON: {e}")))
+}
+
+/// Why [`read_capped`] stopped.
+#[derive(Debug)]
+enum ReadFault {
+    /// More than the cap was available.
+    TooLarge(usize),
+    /// The reader failed, or its bytes were not UTF-8.
+    Io(std::io::Error),
+}
+
+impl ReadFault {
+    fn describe(&self, what: &str) -> String {
+        match self {
+            Self::TooLarge(cap) => {
+                format!("{what} is over {cap} bytes; a request is at most that")
+            }
+            Self::Io(e) => format!("cannot read {what}: {e}"),
+        }
+    }
+}
+
+/// Reads `reader` to the end as UTF-8 text, refusing more than `cap` bytes
+/// (read through `Read::take(cap + 1)`, so memory stays bounded).
+fn read_capped(reader: impl std::io::Read, cap: usize) -> Result<String, ReadFault> {
+    let mut bytes = Vec::new();
+    reader
+        .take(u64::try_from(cap).unwrap_or(u64::MAX).saturating_add(1))
+        .read_to_end(&mut bytes)
+        .map_err(ReadFault::Io)?;
+    if bytes.len() > cap {
+        return Err(ReadFault::TooLarge(cap));
+    }
+    String::from_utf8(bytes)
+        .map_err(|e| ReadFault::Io(std::io::Error::new(std::io::ErrorKind::InvalidData, e)))
 }
 
 fn scalar(a: &ArgSpec, text: &str) -> Result<Value, ApiError> {
@@ -306,5 +351,35 @@ mod tests {
             r.err().as_ref().map(ApiError::code),
             Some("BD_CACHE.BAD_ARGS")
         );
+    }
+
+    /// `--input` reads at most the cap and refuses more as `BAD_ARGS`, never
+    /// reading past `cap + 1` bytes (PE1-RSH-005). Planted negative: reading
+    /// without `take` would return the oversized text.
+    #[test]
+    fn input_over_the_cap_is_refused_and_not_read_whole() {
+        assert_eq!(
+            read_capped(&b"12345678"[..], 8).ok().as_deref(),
+            Some("12345678")
+        );
+        assert!(
+            matches!(
+                read_capped(&b"123456789"[..], 8),
+                Err(ReadFault::TooLarge(8))
+            ),
+            "one byte over the cap"
+        );
+        // An endless stream is cut at cap + 1 bytes instead of read forever.
+        assert!(
+            matches!(
+                read_capped(std::io::repeat(b'x'), 8),
+                Err(ReadFault::TooLarge(8))
+            ),
+            "an endless stream"
+        );
+        assert!(matches!(
+            read_capped(&[0xff_u8, 0xfe][..], 8),
+            Err(ReadFault::Io(_))
+        ));
     }
 }

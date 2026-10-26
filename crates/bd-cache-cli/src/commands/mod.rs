@@ -99,12 +99,14 @@ fn run_front_end(composed: Composed, req: &Request, signals: &Signals) -> Result
         return cron::run(&schedules, r, signals);
     }
     let rt = runtime::runtime()?;
-    rt.block_on(bd_cache_sync::execute(
+    let out = rt.block_on(bd_cache_sync::execute(
         &schedules,
         req,
         signals.stop(),
         FrontEnd::Cli,
-    ))
+    ));
+    rt.shutdown_timeout(runtime::ONE_SHOT_TEARDOWN);
+    out
 }
 
 /// The facts of the cache file and `metadata.json` that `context` and

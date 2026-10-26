@@ -9,7 +9,11 @@
 //! calls stopped and the trees still going killed, and the lease released;
 //! the process exits `128 + signal` (130 on Windows). A stop takes at most
 //! `2 × T`: the runtime, its blocking pool included, is shut down within the
-//! second `T` (`Runtime::shutdown_timeout`). Its stderr subscriber is the
+//! second `T` (`Runtime::shutdown_timeout`); a second signal ends the wait
+//! for the runs in flight at once, as the expiry does
+//! (`Schedules::cron_run_hurried`). `--once` and the one-shot verbs shut their
+//! runtime down within one fixed bound (`runtime::ONE_SHOT_TEARDOWN`).
+//! Its stderr subscriber is the
 //! process default, at `INFO` unless `-v`, `-q` or `BD_CACHE__LOG` says
 //! otherwise, so sc-cron's events and each run's steps are logged from every
 //! thread. `--once` runs what is due, waits for each run to its own deadline,
@@ -24,7 +28,7 @@ use bd_cache_sync::{FrontEnd, SystemSchedules};
 use serde_json::{Value, json};
 
 use crate::args::{ArgSpec, CommandSpec, Shape, Ty};
-use crate::commands::runtime::runtime;
+use crate::commands::runtime::{self, runtime};
 use crate::commands::signal::Signals;
 
 /// The `cache cron` commands.
@@ -63,9 +67,9 @@ pub(crate) fn run(
 ) -> Result<Value, ApiError> {
     let rt = runtime()?;
     if req.once() {
-        let once = rt
-            .block_on(schedules.cron_run_once(signals.stop().clone()))
-            .map_err(|e| FrontEnd::Cli.api_error(&e))?;
+        let once = rt.block_on(schedules.cron_run_once(signals.stop().clone()));
+        rt.shutdown_timeout(runtime::ONE_SHOT_TEARDOWN);
+        let once = once.map_err(|e| FrontEnd::Cli.api_error(&e))?;
         return match once.error() {
             Some(e) => Err(e),
             None => Ok(once.data()),
@@ -78,7 +82,12 @@ pub(crate) fn run(
         #[cfg(windows)]
         let _console = crate::commands::signal::console_stop(signals);
         schedules
-            .cron_run(signals.stop().clone(), timeout, || signals.kill_bd())
+            .cron_run_hurried(
+                signals.stop().clone(),
+                signals.hurry().clone(),
+                timeout,
+                || signals.kill_bd(),
+            )
             .await
     });
     // The blocking pool (a killed step, a lease release) within the rest of the bound.
