@@ -25,8 +25,10 @@ Phase-B extension (Rand, 2026-10-26): the scope filters, the sync rows, the swit
 post-sync hook, the new `cache scopes`, `schedule`, `cron` and `sync` verbs and the codes
 `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` are decided by
 ADR-BDC-0011..0015 and REQ-BDC-0720..0732 (`docs/architecture.md`, `docs/requirements.md`).
-Sprint b-9 writes them into §2, §4, §6, §10, §11 and §12 of this contract from that register, with
-no change of meaning; until then the register governs where this text is silent or older.
+Sprint b-7 adds the four codes' rows to the §4 error table (with `ERROR_TABLE`, so the
+error-table test stays green), sprint b-8 removes the `TICK_<REFUSAL>` row, and sprint b-9 writes
+the rest into §2, §4, §6, §10, §11 and §12 of this contract from that register, with no change of
+meaning; until then the register governs where this text is silent or older.
 
 ## 1. Shape
 

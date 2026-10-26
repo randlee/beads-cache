@@ -372,7 +372,7 @@ cancelled; that limit is documented rather than worked around.
 
 ## ADR-CRON-0006: Implemented contract and store
 
-**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1); amended by ADR-BDC-0014 (`SqliteScheduleStore` is the standalone default; a caller may supply its own `ScheduleStore`) and ADR-CRON-0009 (`set_enabled_many`)
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1); amended by ADR-BDC-0014 (`SqliteScheduleStore` is the standalone default; a caller may supply its own `ScheduleStore`) and ADR-CRON-0009 (`set_enabled_many` and `replace_and_set_enabled`)
 
 Context: the contract sketch's `create(spec, created_at)` and `Schedule`
 fields left nowhere to keep the jitter or first run, to read a run's outcome
@@ -524,8 +524,8 @@ tests `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-l
 
 ## ADR-CRON-0009: The hook target is chosen per schedule row
 
-**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-7 (the store method) and b-8
-(the rest). Amends ADR-CRON-0006 (a store method), ADR-CRON-0007 (the `Stop` alias is removed)
+**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-7 (the store methods) and b-8
+(the rest). Amends ADR-CRON-0006 (two store methods), ADR-CRON-0007 (the `Stop` alias is removed)
 and ADR-CRON-0008 (the target is resolved per row; the supervisor is exported).
 
 Context: a review of sc-cron's phase-B changes for generality found the scheduler core general,
@@ -550,20 +550,42 @@ Decision:
 - **Several rows at once.** `ScheduleStore::set_enabled_many(&[(ScheduleName, bool)]) ->
   Result<bool, CronError>` sets every named active row's flag in one transaction and changes
   nothing (`Ok(false)`) if any name has no active row; `Scheduler::set_enabled_many` (and its
-  async form) wraps it. `SqliteScheduleStore` implements it in one `BEGIN IMMEDIATE`; a caller's
-  store implements it the same way (ADR-BDC-0014).
+  async form) wraps it.
+- **A row written with its flag, and other flags, at once.** `ScheduleStore::replace_and_set_enabled(
+  &NewSchedule, enabled: bool, created_at: Timestamp, flags: &[(ScheduleName, bool)]) ->
+  Result<Option<Schedule>, CronError>` writes the named schedule with the given `enabled` flag
+  and sets each listed other row's flag, in one transaction. The written row: a new name gets a
+  new id at `Generation::FIRST`; an ended name is restarted in place, as `create` does; an
+  active name is replaced in place, with the same id, generation + 1 (so a run in flight of the
+  old row is fenced, REQ-CRON-0007), every field from the argument and its run and end state
+  cleared. It never passes through an enabled state it was not given. A listed name with no
+  active row changes nothing (`Ok(None)`); a list that names the written row is
+  `CronError::InvalidSpec`; the payload limit is `create`'s. `Scheduler::replace_and_set_enabled`
+  (and its async form) fills the jitter, the next run and `created_at` from its injected sources,
+  as `start` does, and notifies the worker as `set_enabled` does. This lets a caller keep "at
+  most one of these rows enabled" across a create or an update, which `create` (always enabled,
+  `AlreadyActive` for an active name) and `set_enabled_many` alone cannot.
+- **Both are required trait methods, with no default body:** a default made of separate calls
+  would not be one transaction and would hide a store that breaks the guarantee. Every
+  implementation provides them: `SqliteScheduleStore` in one `BEGIN IMMEDIATE`, `bd-cache-store`'s
+  `CacheScheduleStore` the same way (ADR-BDC-0014), and the two `RecordingStore` test doubles
+  (`tests/worker.rs`, `tests/common/mod.rs`) by delegating to the store they wrap. These four are
+  every implementation in the workspace (sprint b-7).
 - **Exported supervisor.** `sc_cron::process` is public: `ChildSpec { program, args, cwd, input,
   env }`, `ChildEnv` (`Inherit`, the default, or `Only { keep, set }`: the environment cleared
-  except the named variables, plus the given ones), `TempCwd` (a fresh private directory, removed
+  except the named variables, plus the given ones; `keep` holds exact names, so a caller that
+  keeps a family such as `LC_*` lists the matching names of its own environment), `TempCwd` (a fresh private directory, removed
   on drop), and `supervise(&ChildSpec, cap, expiry) -> io::Result<Captured>` with the process-group
   / job-object kill at expiry and on drop and the per-pipe cap it has today. `PythonHook` gains
   `with_env(ChildEnv)`, and `HookOutput` gains `stop_decision()` and `run_outcome()`, which apply
   the protocol's rules to an output, so a caller that runs a `PythonHook` inside its own `Job`
   keeps sc-cron's protocol without copying it. Nothing here names a caller.
 - **`StopDecision::Stop` is removed;** `Delete` replaces it. The worker's and the hook runner's
-  matches on `StopDecision` lose the `Stop` arm; `StopDecision` stays `#[non_exhaustive]`, so a
-  caller's match keeps its wildcard arm. sc-cron is an unpublished prototype, so the removal
-  needs no deprecation period.
+  matches on `StopDecision` lose the `Stop` arm. `StopDecision` is not `#[non_exhaustive]`
+  (`types.rs`), so removing `Stop` breaks only an exhaustive match outside sc-cron; the
+  workspace has one use, `bd-cache-sync`'s stop rule (`job.rs`), which sprint b-8 removes with
+  the alias. sc-cron is an unpublished prototype, so the removal needs no deprecation period,
+  and no attribute is added.
 - sc-cron's docs and rustdoc cite only sc-cron requirements, and its test fixtures use neutral
   names. A child inherits the caller's environment unless the caller sets `ChildEnv::Only`; `-I`
   only makes Python ignore the `PYTHON*` variables, the user site and the working directory on

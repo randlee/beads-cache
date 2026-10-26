@@ -242,6 +242,8 @@ for it.
 | `CacheError` | adds `kind`, `message`, `details`, `suggested_action`, `retryable` | additive |
 
 Every method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope id.
+*Amended by ADR-PY-0006:* only the 0.1 verbs keep this rule (ADR-BDC-0013's 0.1 compatibility);
+the 0.2 namespaces and the phase-B methods take a scope name as written.
 
 ## ADR-PY-0006: The phase-B methods, the mixed layout and the bd-cache-sync edge
 
@@ -259,7 +261,9 @@ hold Python submodules; and S84 removes the vendored call log the mapping test r
 
 Decision:
 - **Edge.** `bd-cache-py` depends on `bd-cache-sync` (a new Boundaries row edge, made by b-8 with
-  the code). `Cache.tick()`, `schedule_*` and `sync_use_*` call `bd-cache-sync`; the store-only
+  the code) and on `tokio`, the workspace entry, whose `rt` feature builds the current-thread
+  runtime below; b-8 names it in the crate's Crate Layout row. It needs no `sc-cron` edge: the
+  schedule and switch calls go through `bd-cache-sync`. `Cache.tick()`, `schedule_*` and `sync_use_*` call `bd-cache-sync`; the store-only
   methods go through `bd-cache-api` like the 0.2 namespaces (ADR-BDC-0015).
 - **One connection.** Every new method runs on the handle's own `Cache` and connection, under its
   mutex and inside `Python::detach` (ADR-PY-0003); `schedule_*` and `sync_use_*` use the handle's
@@ -270,7 +274,9 @@ Decision:
   inside a tokio runtime of its own never has a runtime nested in its context. An asyncio caller
   that does not want to block its loop calls them through `loop.run_in_executor`, as for every
   other verb. Both run the post-sync hook and the Python row as subprocesses (S90); nothing runs
-  user code in process.
+  user code in process. Like the 0.1 `sync` verb, they hold the handle's mutex (and its one
+  connection) for the whole call, so another thread on the same `Cache` waits until the run's
+  deadline at most, and the call cannot be interrupted from Python.
 - **Layout.** maturin's mixed layout: the native module is `bd_cache_rs._native` (`module-name =
   "bd_cache_rs._native"`, `#[pymodule] fn _native`), and `crates/bd-cache-py/python/bd_cache_rs/`
   holds `__init__.py` (re-exporting every 0.1 and 0.2 name from `_native`, with the same

@@ -473,8 +473,10 @@ files; a change of either contract changes this ADR.
 **Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8. Supersedes ADR-SYNC-0003,
 ADR-SYNC-0004, ADR-SYNC-0005 and ADR-SYNC-0007 (with its fix-a-7-3 and fix-a-7-5 amendments),
 whose consumer announcements, stop rule, phase discovery and send contract REQ-BDC-0702 and
-0704..0707 no longer require. Amends ADR-SYNC-0001 (the run function's inputs and reply) and
-ADR-SYNC-0006 (the dependency list).
+0704..0707 no longer require. Amends ADR-SYNC-0001 (the run function's inputs and reply),
+ADR-SYNC-0006 (the dependency list) and ADR-MODEL-0003's a-7 amendment (`EscalationSender`,
+`send_within`, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` are removed with
+`bd-cache-model`'s `sender.rs` in sprint b-8).
 
 Context: ADR-BDC-0010 removes every consumer concern from the sync; ADR-BDC-0011 places the
 sync on sc-cron rows in the cache file, with a consumer's Python sync replacing the built-in
@@ -506,27 +508,54 @@ Decision:
   owned by the current user and is neither group- nor world-writable (Unix; the Windows ACL check
   is a documented gap). The hook runner and `PythonSyncJob` take it by value, so no code of a row
   or hook runs without a check made for that launch; `cron run`, `cron run --once`,
-  `sync use-python` and `tick` all go through it.
-- **Mode switch.** The sync mode (`Builtin`, `Python`, or `None` when both rows are disabled) is
-  set by one store call that flips both rows' `enabled` flags in one `BEGIN IMMEDIATE`
-  transaction (`ScheduleStore::set_enabled_many`, REQ-CRON-0017), so at most one row is ever
-  enabled. `sync use-python`: check the inputs (`TrustedInterpreter`, `-I -c 'import
-  bd_cache_rs'` within 5 s, the module, the timeout), take the lease, create or update the Python
-  row and set mode `Python` in one transaction, run the row at once (below), and on any failure
-  set mode `Builtin` in one transaction and fail with `TICK_RUN_FAILED`; a failed restore is
-  reported (`details.restored: false`) with `sync use-builtin` as the recovery. A crash after the
-  mode commit and before the run ends leaves the Python row enabled and the built-in row
-  disabled, which keeps the invariant; `schedule show` flags a Python row that has never run, and
-  `sync use-builtin`, which takes no lease, always restores the built-in row. A signal to
-  `use-python` during the run kills the script's tree, restores mode `Builtin`, then exits
-  `128 + signal`. `schedule enable` of the built-in row while mode is `Python` is
-  `SCHEDULE_INVALID`.
+  `sync use-python` and `tick` all go through it. The check runs, and builds a fresh proof, per
+  launch, so the `cron.stop` and `cron.tick` launches of one run each get their own; the proof
+  is neither `Clone` nor `Copy`.
+- **Mode switch.** The sync mode is `Builtin` (the built-in row enabled), `Python` (the Python row
+  enabled) or `None` (neither). Every write of a row or of the rows' flags is one sc-cron store
+  call in one `BEGIN IMMEDIATE` transaction (`replace_and_set_enabled` or `set_enabled_many`,
+  REQ-CRON-0017), so no connection ever sees both rows enabled, not even while a row is
+  created:
+  - `schedule set` writes the built-in row with `replace_and_set_enabled`. An existing row keeps
+    its `enabled` flag, so `schedule set` after `schedule disable` leaves it disabled; a new row
+    is enabled unless the Python row is enabled, and is written disabled while it is. A row
+    written enabled also disables the Python row, if one exists, in the same call, so of two
+    racing writers the last to commit decides the mode and the invariant holds. An active row is
+    replaced in place (generation + 1), so a run of the old row still in flight is fenced and
+    records nothing (REQ-CRON-0007); the update never re-enables a disabled row.
+  - `sync use-python`: check the inputs (`TrustedInterpreter`, `-I -c 'import bd_cache_rs'`
+    within 5 s, the module, the timeout), take the lease, read both rows, then one
+    `replace_and_set_enabled` writes the Python row enabled (a new row, or the one Python row
+    replaced in place with the new interpreter, module, expression, timeout and `--env` names)
+    and disables the built-in row if there is one; then run the row at once under that lease
+    (below). On any failure, one transaction restores the state held before the command: the
+    Python row's previous contents and flag (or, when there was none, the new row disabled) and
+    the built-in row's previous flag. So a failure from mode `Builtin` returns to `Builtin`, a
+    failed re-run from mode `Python` returns to `Python` with the previous script, and a failure
+    with no built-in row leaves both rows disabled, mode `None`. The command then fails with
+    `TICK_RUN_FAILED`; a failed restore is reported (`details.restored: false`) with `sync
+    use-builtin` as the recovery. A re-run of `use-python` replaces the one Python row and never
+    adds a second; a Python sync payload on any other row is refused by the resolver.
+  - `sync use-builtin` takes no lease and calls `set_enabled_many` to enable the built-in row and
+    disable the Python row (if one exists); with no built-in row it is `SCHEDULE_INVALID`
+    (`details.reason: "no_builtin_row"`), naming `bdc cache schedule set`. Otherwise it always
+    works, which makes it the recovery.
+  - `schedule enable` of the built-in row while mode is `Python` is `SCHEDULE_INVALID`.
+  - A crash after the mode commit and before the run ends leaves the Python row enabled and the
+    built-in row disabled, which keeps the invariant; `schedule show` flags a Python row that has
+    never run. A signal to `use-python` during the run kills the script's tree, restores the
+    state held before the command, then exits `128 + signal`.
 - **One sync at a time.** `TickLease` is an RAII guard over the `tick_lease` row: taken under
   `BEGIN IMMEDIATE` (refused while a live lease is held, taken over once expired), with expiry
   at the run's deadline plus 10 s, released when the guard drops (a failed release is logged and
   left to expiry; a `kill -9` is covered only by expiry). Every run takes it first, the built-in
   row's, the Python row's (`PythonSyncJob::run`), an on-demand `tick` and the immediate run of
   `use-python`, and the run functions take `&TickLease`, so no sync work runs without it.
+  `sync use-python` passes its `&TickLease` to `PythonSyncJob`'s inner run function, so its
+  immediate run never takes the lease again; a scheduled run that finds a live lease returns
+  `RunOutcome::Refused("in_flight")`. On a run aborted mid-await, the guard's drop hands the
+  release to `spawn_blocking` when a tokio runtime is current; one that does not finish is left
+  to expiry.
 - **The built-in run.** `Budget` is made from the run's start and its `TickBudget` and hands out
   two deadlines only: the sync deadline (start + `budget_ms` − `hook_reserve_ms`), which the drain
   and the scope syncs get, and the hook deadline (start + `budget_ms`). Steps: lease; drain;
@@ -537,8 +566,9 @@ Decision:
   mode is `Python`, an on-demand `tick` is `PRECONDITION`.
 - **Post-sync hook.** Run through sc-cron's exported supervisor (REQ-CRON-0018) as `<absolute
   interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private temp cwd, with
-  the environment cleared except `PATH`, `HOME`, `LANG`, `LC_*`, `BEADS_DIR`, `BD_CACHE_PATH` and
-  the row's `--env` names, stdout and stderr each capped at 1 MiB, the request written while the
+  the environment cleared except `PATH`, `HOME`, `LANG`, `LC_*` (expanded by bd-cache-sync to
+  the `LC_` names in its own environment at each launch), `BEADS_DIR`, `BD_CACHE_PATH` and the
+  row's `--env` names, stdout and stderr each capped at 1 MiB, the request written while the
   output is read, and the tree killed at the hook deadline. Request (`bd-cache.run.v1`):
 
   ```json
@@ -576,6 +606,9 @@ Decision:
   lease), each from a fresh temp cwd with one JSON object on stdin, `{"protocol":
   "sc-cron.hook.v1", "event", "schedule", "payload", "deadline"}`, where `payload` is the row's
   payload plus the run's `run_id`. The immediate run of `use-python` is the same two calls. The
+  stop check runs before the lease is taken, so two workers may each launch `cron.stop`; that
+  duplicate is accepted (a `cron.stop` answer has no side effects), and only the lease holder
+  launches `cron.tick`. The
   script answers `cron.stop` with `{"action": "continue"}`; `bd_cache_rs.sync.main(func)` is the
   harness that does so and, on `cron.tick`, opens `Cache(payload["cache_path"],
   beads_dir=payload["beads_dir"])` and calls `func(cache, payload)`, exiting 0 on return and 1
@@ -588,13 +621,17 @@ Decision:
   `ingest_scope` outcome, and returned in the replies and `schedule show`.
 - **`cron run` and shutdown.** `cron run` runs sc-cron's `Scheduler` worker on a multi-thread
   tokio runtime (`bd-cache-cli` gains `tokio` with `rt-multi-thread` and `signal`, from the
-  workspace entry) with `MissedTickPolicy::Skip`. `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on
+  workspace entry) with `MissedTickPolicy::Skip`. `bd-cache-cli` depends on `sc-cron` directly, a
+  new Boundaries edge `bd-cache-cli` → `sc-cron` that sprint b-8 adds with the code: the CLI
+  constructs the `Scheduler` over `CacheScheduleStore` with bd-cache-sync's resolver, and
+  bd-cache-sync does not re-export sc-cron's API. `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on
   Windows, through `tokio::signal::windows`) set the `StopFlag` and `sc_bd_cli::shutdown::request`,
   then call `WorkerHandle::shutdown(now + --shutdown-timeout-ms)`: no run is launched, runs in
   flight are awaited to that deadline, and those still going are aborted, which drops their
   supervisors and kills the hook's and the Python row's process trees (process group or job
   object); the built-in run's blocking part sees the `StopFlag`, its bd calls stop on the request,
-  and it returns and drops its `TickLease`. Exit codes are REQ-BDC-0730's. `cron run --once` runs
+  and it returns and drops its `TickLease`. Exit codes are REQ-BDC-0730's. `SIGHUP` is handled as
+  `SIGTERM` (exit 129), and a second signal during the wait is ignored, as for every bdc command. `cron run --once` runs
   what is due, waits for each run it started to its own deadline, and exits 0, or 3 with
   `TICK_RUN_FAILED` listing each failed row.
 - **Logging.** `cron run` installs its stderr subscriber as the process default, so sc-cron's
@@ -604,7 +641,10 @@ Decision:
 - **`schedule set` and `schedule show`.** `schedule set` validates the expression, the budget
   pair and, with `--post-sync`, the interpreter (`TrustedInterpreter`, then `-I -c 'import
   bd_cache_rs'` within 5 s) and the `module:function`, all before writing; each refusal is
-  `SCHEDULE_INVALID` naming the field. `schedule show` reports what REQ-BDC-0731 lists.
+  `SCHEDULE_INVALID` naming the field. The import check runs through sc-cron's exported
+  supervisor with the row's environment allowlist and is killed with its tree at 5 s. The row is
+  then written as the mode switch says, its `enabled` flag kept. `schedule show` reports what
+  REQ-BDC-0731 lists.
 - **Dependencies (amends ADR-SYNC-0006).** After b-8: `bd-cache`, `bd-cache-model`,
   `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`; `tokio`, `async-trait`, `serde`,
   `serde_json`, `tracing`. `toml` and `libc`, which served the phase files, are removed with them.

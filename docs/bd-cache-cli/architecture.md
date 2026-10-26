@@ -186,6 +186,9 @@ Decision:
   normal return. It also sets the command's `StopFlag`: `cache tick` runs
   `tick_with` and the consumer's message sender's `with_stop` on it, so the
   tick ends early and the sender's child is killed with its group.
+  *Amended by ADR-SYNC-0008 (sprint b-8):* the message sender is removed; the
+  `StopFlag` stops `cache tick` and `cron run`, whose shutdown waits for runs in
+  flight up to `--shutdown-timeout-ms` (REQ-BDC-0730).
 - The command then unwinds normally and writes its envelope (whatever it
   reports: a write already journaled is not hidden); the exit code is
   `128 + signal` (143 for SIGTERM), whatever the envelope says, with one line
@@ -195,7 +198,9 @@ Decision:
 - `run` and `run_with` (the in-process entry points) install nothing: the
   host process owns its signals.
 - Windows: nothing is installed (no such signals); a console Ctrl-C is out
-  of scope.
+  of scope. *Amended by ADR-SYNC-0008 and REQ-BDC-0730 (sprint b-8):* `cron run`
+  handles Ctrl-C and Ctrl-Break through `tokio::signal::windows`; every other
+  command still installs nothing on Windows.
 
 Consequences: the exit codes of contract §3 gain the shell's signal
 convention, `128 + N`, for a bdc stopped by a signal (listed there). Test:

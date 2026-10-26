@@ -254,14 +254,10 @@ path of ASCII identifiers of at most 256 bytes, both checked once when
 `CronError::HookFailed` (`HOOK_FAILED`) from `PythonHook::invoke`, and a
 `Failed` outcome from the worker.
 
-This runner is also the one `bd-cache-sync` (b-7) uses for the consumer's
-Python sync method and the post-sync hook, so the kill here is what enforces
-NFR-BDC-0004 for both.
-
-*Amended by ADR-CRON-0009:* `bd-cache-sync` (sprint b-8) runs the consumer's
-Python sync row through `PythonHook` and its post-sync hook through this crate's
-exported supervisor (REQ-CRON-0018); the kill described here still enforces
-NFR-BDC-0004 for both.
+This runner is also the one `bd-cache-sync` (sprint b-8) uses for the
+consumer's Python sync row (`PythonHook`), and its post-sync hook runs through
+this crate's exported supervisor (REQ-CRON-0018), so the kill described here
+enforces NFR-BDC-0004 for both (*amended by ADR-CRON-0009*).
 
 **Refines:** ADR-CRON-0001, ADR-CRON-0008; **constrained by:** NFR-BDC-0004,
 REQ-CRON-0010 (time is injected), REQ-CRON-0011
@@ -282,7 +278,7 @@ moves to sc-runtime, not in this phase.
 **Acceptance evidence:** one table holding a Rust row and a Python row, each run with its own
 target; an unresolvable row recorded `Failed` and still active.
 
-## REQ-CRON-0017: Several rows' enabled flags in one transaction
+## REQ-CRON-0017: Several rows' enabled flags, and a row written with its flag, in one transaction
 
 **Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7
 
@@ -291,9 +287,22 @@ active schedule in one transaction, touching no other column, and changes nothin
 `Ok(false)`, when any name has no active schedule. `Scheduler::set_enabled_many` and
 `set_enabled_many_async` wrap it and notify the worker as `set_enabled` does (REQ-CRON-0014).
 
-**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0008, REQ-CRON-0014
-**Acceptance evidence:** a two-row flip seen whole by a second connection; a flip naming a
-missing row changes neither row.
+`ScheduleStore::replace_and_set_enabled(schedule, enabled, created_at, flags)` writes one
+schedule with the given `enabled` flag (a new name at generation 1, an ended name restarted in
+place, an active name replaced in place with generation + 1 and its run state cleared) and sets
+each listed other schedule's flag, all in one transaction; it changes nothing, returning
+`Ok(None)`, when a listed name has no active schedule, and a list naming the written schedule is
+`InvalidSpec`. `Scheduler::replace_and_set_enabled` and its async form fill the jitter, next run
+and creation time from the injected sources and notify the worker. Both methods are required:
+the trait gives neither a default body, and every store implements both.
+
+**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0007, REQ-CRON-0008, REQ-CRON-0014
+**Acceptance evidence:** on `SqliteScheduleStore` and on every other store: a two-row flip seen
+whole by a second connection; a flip naming a missing row changes neither row; a
+`replace_and_set_enabled` that creates a disabled row while enabling another, polled by a second
+connection, never shows both enabled; a replace of an active row keeps its id, raises its
+generation, keeps the given flag and fences a run of the old generation; a call naming a missing
+row changes nothing.
 
 ## REQ-CRON-0018: The child-process supervisor is public
 

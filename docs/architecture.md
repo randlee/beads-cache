@@ -95,8 +95,9 @@ values. Phase a loads it with `bd-cache-store`'s `load_repo_config`
 (`RepoConfig`, including the `[tick]` table the sync task reads). Its relation
 to the first consumer's phase configuration files is settled in ADR-SYNC-0007
 (`bd-cache-sync/architecture.md`): the phase files stay the consumer's, and the
-sync task reads their root and recipient. Moving the loader to sc-config is the
-later step.
+sync task reads their root and recipient. *Superseded by ADR-SYNC-0008 (ADR-SYNC-0007 is
+Superseded):* the sync reads no consumer file; its scopes come from `.beads/bd-cache.toml` and
+the store's registry (ADR-BDC-0013). Moving the loader to sc-config is the later step.
 
 ### Data flow
 
@@ -118,8 +119,8 @@ later step.
 
 ### Open questions
 
-- Which scope kinds besides `phase-<x>` come first (label set, assignee,
-  status).
+- ~~Which scope kinds besides `phase-<x>` come first (label set, assignee,
+  status).~~ *Answered by ADR-BDC-0013:* a scope is a named bd filter.
 - Whether rows are stored in full or as `--brief` rows with full text fetched
   on demand. Needs measurement; full rows are the BD-CACHE baseline.
 - MCP auth model (bearer token file like `bd serve`, or OAuth) and which MCP
@@ -202,7 +203,7 @@ Where each ADR is implemented and decided in detail, from the crate docs
 | ADR-BDC-0002 | Approved | `bd-cache` (ADR-CORE-0201, 0203: the ready adjustment, bounded fresh ready; ADR-CORE-0206: `get` reads the bead's own entry), `bd-cache-store` (ready base; ADR-STORE-0004: its per-bead index), `bd-cache-sync` (the base is refreshed by each sync; end-to-end in `tests/e2e.rs`) |
 | ADR-BDC-0003 | Approved | `bd-cache-model` (ADR-MODEL-0001, 0002: ops, patch shapes, error reasons) |
 | ADR-BDC-0004 | Approved | `sc-beads` (`CacheBackend`, ADR-BEADS-0002), `sc-bd-cli` (ADR-BDCLI-0001, 0002, amended by 0004) |
-| ADR-BDC-0005 | Approved | `bd-cache` (REQ-CORE-0001, 0002; ADR-CORE-0101, 0202), `bd-cache-sync` (ADR-SYNC-0003: the outage announcement; ADR-SYNC-0002: the threading it runs under) |
+| ADR-BDC-0005 | Approved | `bd-cache` (REQ-CORE-0001, 0002; ADR-CORE-0101, 0202), `bd-cache-sync` (ADR-SYNC-0003: the outage announcement, *superseded by ADR-SYNC-0008: the outage is a scope result given to the post-sync hook*; ADR-SYNC-0002: the threading it runs under) |
 | ADR-BDC-0006 | Approved | `sc-cron` (ADR-CRON-0001..0006), `bd-cache-sync` (dependencies listed in the Crate Layout) |
 | ADR-BDC-0007 | Approved | `sc-beads` (ADR-BEADS-0001..0004), `sc-bd-cli` (ADR-BDCLI-0001..0004) |
 | ADR-BDC-0008 | Draft | not in phase a |
@@ -802,8 +803,11 @@ neutral term that hits is handled by narrowing a rule with a test, never by an e
 ## ADR-BDC-0013: Scopes are named bd filters
 
 **Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0001 (the scope kinds), ADR-BDC-0002
-(how the ready and blocked base is fetched), ADR-BDC-0007 (`sc-beads`' `ScopeFilter`) and
-ADR-BDCLI-0001 (the scope argv); referenced from ADR-STORE-0006.
+(how the ready and blocked base is fetched), ADR-BDC-0007 (`sc-beads`' `ScopeFilter`),
+ADR-BDCLI-0001 (the scope argv), ADR-MODEL-0003 (its fix-a-1-1 amendment's `ScopeId::Phase(PhaseName)`
+and its a-7 amendment's `PhaseName::RULE`), ADR-CORE-0204 (`ScopeId::from_labels`), ADR-STORE-0003's
+a-7 amendment (S34: a `scopes` entry that is not a phase name) and REQ-STORE-0007 (the same
+rule in the loader); referenced from ADR-STORE-0006. Sprint b-7 makes each of these changes.
 
 Context: Rand ruled (2026-10-25, Amendment A5) that a scope is defined by a filter, not by the
 first consumer's phase naming, and that `--all` is a scope. Today `ScopeId` is
@@ -812,16 +816,29 @@ builds only `-l <label>` argv for `bd list`, `bd blocked` and `bd ready`, the `s
 `(name, kind)`, and the fakes answer only a label.
 
 Decision:
-- **Types, validated once in `bd-cache-model`.** `ScopeName`: 1 to 64 bytes of ASCII letters,
-  digits, `.`, `_` and `-`, not starting with `-`. `ScopeFilter`: `All`, or
-  `Criteria { labels_all, labels_any, status, issue_type, assignee }`, where `labels_*` are
-  sets of labels, `status` a set of bd statuses, `issue_type` and `assignee` optional strings.
-  A `Criteria` with every field empty and any request that sets `all` together with a criterion
-  are refused at construction (`InvalidValue`; `BAD_ARGS` in `bd-cache-api`, `CONFIG_INVALID`
-  in the configuration). `ScopeId` becomes the scope's name (`ScopeId(ScopeName)`, with
-  `name()`); `ScopeId::Phase`, `PhaseName` as a scope kind and `ScopeId::label()` go. A `Scope`
-  is `{ id: ScopeId, filter: ScopeFilter }`. `bd-cache-api`, `bd-cache-cli` and `bd-cache-py`
-  take these types and never re-validate.
+- **Types, validated once in `bd-cache-model`.** `ScopeName` keeps `PhaseName`'s rule: a
+  non-empty string of ASCII letters, digits, `.`, `_` and `-`, with no length cap. That rule
+  admitted every name a v3 file holds, so every stored scope stays valid and none is refused or
+  renamed; no stricter rule is added, because a scope's name is never passed to bd (its filter's
+  labels are). `ScopeName::RULE` replaces `PhaseName::RULE` as the one text of the rule.
+  `ScopeFilter`: `All`, or `Criteria { labels_all, labels_any, status, issue_type, assignee }`,
+  where `labels_*` are sets of labels, `status` a set of bd statuses, `issue_type` and
+  `assignee` optional strings. A `Criteria` with every field empty and any request that sets
+  `all` together with a criterion are refused at construction (`InvalidValue`; `BAD_ARGS` in
+  `bd-cache-api`, `CONFIG_INVALID` in the configuration). `ScopeId` becomes the scope's name
+  (`ScopeId(ScopeName)`, with `name()`); `ScopeId::Phase`, `PhaseName` as a scope kind and
+  `ScopeId::label()` go. A `Scope` is `{ id: ScopeId, filter: Option<ScopeFilter> }`, where
+  `None` is a phase-a scope (below). `bd-cache-api`, `bd-cache-cli` and `bd-cache-py` take these
+  types and never re-validate.
+- **Two filter types, one conversion.** `bd_cache_model::ScopeFilter` is the validated scope
+  filter, `status` included; `sc_beads::ScopeFilter` is the backend's and has no `status`,
+  because bd is never sent one. They are distinct types joined by one conversion,
+  `bd_cache_model::ScopeFilter::backend(&self) -> sc_beads::ScopeFilter`, which drops `status`
+  and turns a `Criteria` whose only criterion is `status` into `All`; `bd-cache-model` no longer
+  uses the sc-beads type as its own. The two refusals above are made once, in the model's
+  constructor; sc-beads takes its variants as given, and `sc-bd-cli` and `FakeBackend` refuse
+  an empty sc-beads `Criteria` (`InvalidValue`, before any bd call), which the conversion never
+  produces.
 - **`sc-beads`.** `ScopeFilter` (already `#[non_exhaustive]`) gains `All` and
   `Criteria { labels_all, labels_any, issue_type, assignee }`; `Label(l)` stays and means
   `labels_all = [l]`. `CacheBackend`'s scope calls keep their signatures. `FakeBackend` answers
@@ -849,26 +866,45 @@ Decision:
 - **Base (amends ADR-BDC-0002 item 1).** A scope's ready and blocked base is the `bd blocked`
   and `bd ready` answer of the table above, intersected with the scope's members, stored with
   its fetch time; the local adjustment and the bounded fresh answer are unchanged.
-- **Store.** A nullable `scope.filter` column holds the filter as JSON; NULL keeps the phase-a
-  meaning (a label scope whose label is the name, the `kind = 'phase'` rows). It is in
-  ADR-STORE-0006's list and the format golden.
+- **Store.** Stored scope names stay as written: phase a stores the bare name (`scope(name, kind
+  = 'phase')`, `sync_state.phase`, `scope_member.scope`, `journal.phase`), and nothing is
+  renamed. A nullable `scope.filter` column holds the filter as JSON. NULL, on every
+  `kind = 'phase'` row, keeps the phase-a meaning: a label scope whose label is
+  `LEGACY_SCOPE_PREFIX` followed by the name (a stored `x` syncs the label `<prefix>x`). The JSON
+  is written only for a scope created in phase B with a filter. The v3 `beads.phase` column
+  keeps its phase-a meaning, the first legacy-prefixed label of the row, and is NULL for a row
+  with no such label: a filter scope never writes its name there, so a row only a filter scope
+  holds has `phase` NULL. The column is in ADR-STORE-0006's list and the format golden.
 - **Source of truth.** `.beads/bd-cache.toml` defines scopes with `[[scope]]` tables (`name`
   plus the filter keys `labels_all`, `labels_any`, `status`, `type`, `assignee`, or `all =
-  true`) and with the existing `scopes` string list (each string a label scope). A scope the
+  true`) and with the existing `scopes` string list (each string a phase-a scope, by the 0.1
+  rule below). A scope the
   file defines is created or updated in the store's registry when the cache opens, and
   `scopes set` or `scopes remove` of it is `CONFIG_INVALID` (`details.source:
   "config_scope"`): the file wins. Any other scope lives in the registry only and is managed
   with `bdc cache scopes add|set|remove`. Syncing a name that is neither registers it on demand
-  as a label scope with that one label (REQ-BDC-0909).
+  as a label scope with that one label (REQ-BDC-0909). Only a sync registers on demand (`cache
+  refresh scopes <name>` and the 0.1 `sync(phase)`); every other verb that names a scope refuses
+  an unknown name with `SCOPE_UNKNOWN` and registers nothing.
 - **0.1 compatibility (Rand, 2026-10-26).** Where a 0.1 interface took a phase (the `scopes`
-  string list and the 0.1 Python verbs), a bare name `x` that does not start with the legacy
-  prefix means the label scope `<prefix>x`, the 0.1 meaning; the prefix is the one constant
-  `LEGACY_SCOPE_PREFIX` (ADR-BDC-0012). Every other interface (the `[[scope]]` tables, the
-  CLI, the 0.2 Python namespaces and the new methods) takes a scope name as written.
+  string list and the 0.1 Python verbs), `x` and `<prefix>x` both mean the phase-a scope stored
+  as `x`, whose label is `<prefix>x`: the 0.1 meaning, with the prefix the one constant
+  `LEGACY_SCOPE_PREFIX` (ADR-BDC-0012). Every other interface (the `[[scope]]` tables, the CLI,
+  the 0.2 Python namespaces and the new methods) takes a scope name as written: `x` names the
+  scope stored as `x`, and `<prefix>x` names a scope stored under that longer name. The prefix
+  rule is applied on the 0.1 paths only.
 - **Callers.** The `ScopeId` change ripples into `bd-cache`, `bd-cache-store`, `bd-cache-api`,
   `bd-cache-cli` (with the `fake-bd` binary), `bd-cache-py` and `bd-cache-sync`; sprint b-7
   makes those edits mechanically, so the workspace builds green, and the semantic removals stay
   with b-8.
+- **Register text this changes.** ADR-MODEL-0003's fix-a-1-1 amendment (scopes are
+  `ScopeId::Phase(PhaseName)`) now reads `ScopeId(ScopeName)`, and `PhaseName::RULE` in its a-7
+  amendment is `ScopeName::RULE`. ADR-CORE-0204's `ScopeId::from_labels` finds the first
+  legacy-prefixed label through `LEGACY_SCOPE_PREFIX` and returns the phase-a scope it names; the
+  rest of that ADR holds. ADR-STORE-0003's S34 amendment and REQ-STORE-0007: `store_config_bad_scope`
+  is a `scopes` entry or a `[[scope]]` name that is not a valid `ScopeName`, or a `[[scope]]`
+  filter refused above, and its fix states `ScopeName::RULE`; a valid name in the `scopes` list
+  is a phase-a scope, never a `ConfigLoadError`.
 
 Consequences: REQ-BDC-0501, 0602, 0603, 0901, 0909 and 0721 are amended; the contract's scope
 text (§5, §6, §12) is rewritten by b-9 from this ADR. Tests `sync_label_filter_scope` and
@@ -892,24 +928,30 @@ Decision (Rand's ruling, 2026-10-26):
   stays sc-cron's standalone default, unchanged.
 - `bd-cache-store` implements `sc_cron::ScheduleStore` as `CacheScheduleStore`, over the cache's
   single SQLite connection: `SqliteStore`'s connection moves behind a mutex shared by the store
-  handle and `SqliteStore::schedule_store()`, so the process opens no second connection and the
-  per-process claim (`STORE_IN_USE`) is unchanged. The schedule table, `sc_cron_schedule`, with
-  sc-cron's version-2 columns and checks, is an additive table in the cache file, created
+  handle and `SqliteStore::schedule_store()`, so the process opens no second connection. The
+  shared, mutex-guarded object owns both the connection and the per-process claim (`Registration`,
+  `STORE_IN_USE`), the claim after the connection so the connection closes first, as today: the
+  claim is released only when the last holder of the connection drops. A `CacheScheduleStore`
+  that sc-cron's `Scheduler` holds after the `SqliteStore` handle is dropped therefore keeps the
+  claim, and a second `SqliteStore` open in the process is still `STORE_IN_USE`. The schedule
+  table, `sc_cron_schedule`, with sc-cron's version-2 columns and checks, is an additive table in the cache file, created
   through the extension mechanism (ADR-STORE-0006).
 - The cache file stays `PRAGMA user_version` 3. The version of sc-cron's columns in the cache
   file is the `meta` row `sc_cron_schedule_version` (2), written and checked by
   `CacheScheduleStore`, never `user_version`; a cache file whose row names another version is
   refused with `StoreErrorKind::SchemaMismatch` before any schedule is served.
-- A general store change sc-cron needs (several rows' enabled flags in one transaction,
-  REQ-CRON-0017) is a `ScheduleStore` method that both implementations provide.
+- A general store change sc-cron needs (several rows' enabled flags in one transaction, and a
+  row written with its flag together with other rows' flags, REQ-CRON-0017) is a required
+  `ScheduleStore` method that both implementations provide in one `BEGIN IMMEDIATE`.
 - `bd-cache-store` gains the workspace edge `bd-cache-store` → `sc-cron`; `sc-cron` still depends
   on no bd-cache crate.
 
 Consequences: `schedule set` and `cron run` open the schedule store at startup and fail with a
 typed error (`STORE_FAILED` with `details.source` naming the check) before serving any work.
 Sprint b-7 implements the trait change and `CacheScheduleStore`, with an acceptance test that a
-v3 cache file with scopes gains the schedule table and stays `user_version` 3, and that the
-process holds one connection to the cache file.
+v3 cache file with scopes gains the schedule table and stays `user_version` 3, that the process
+holds one connection to the cache file, and that the claim outlives a dropped `SqliteStore`
+while the schedule store is alive.
 
 ## ADR-BDC-0015: The new verbs are modelled in bd-cache-api and run by the front ends
 
@@ -927,7 +969,10 @@ would collide with `cache scopes`, and `scopes remove` with `cache evict`.
 
 Decision:
 - **Models in `bd-cache-api`.** Every new verb's request, its reply data and its errors are
-  `bd-cache-api` types (pure data: no `bd-cache-sync`, no `sc-cron`), decoded by the one decoder.
+  `bd-cache-api` types (pure data: no `bd-cache-sync`, no `sc-cron`), decoded by the one decoder
+  (`src/decode.rs`) and listed in `Command::ALL`; `cache tick` becomes a `Command` too, so the
+  `request/mod.rs` doctest that `Command::parse("cache tick")` is `None` is reversed, and
+  `src/ops/mod.rs` declares the new ops module and its `execute` arms.
   The store-only verbs (`scopes add|set|remove|list|ingest|announce`) also execute in
   `bd-cache-api` over `bd-cache`, like the other management verbs.
 - **Execution in the front ends.** `schedule *`, `cron run`, `tick` and `sync use-python|use-builtin`

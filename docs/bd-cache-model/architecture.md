@@ -11,8 +11,8 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 |---|---|
 | `op` | `Op`, `replay`, `normalize`, `phase_of`, precondition parse / canonical JSON / `unmet` |
 | `pyjson` | `python_json`: Python `json.dumps(sort_keys=True)` text |
-| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus` |
-| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text) |
+| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus`. *From sprint b-7 (ADR-BDC-0013):* `ScopeId(ScopeName)` with `ScopeName::RULE`, `ScopeFilter`, `Scope`, and `LEGACY_SCOPE_PREFIX` in the compatibility module; `PhaseName` goes |
+| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text). *From sprint b-8 (ADR-SYNC-0008):* `sender` and everything in it are removed |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
 | `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8) |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
@@ -177,7 +177,7 @@ are additive to the v3 CLI contract (ADR-BDC-0003). A consumer that matched
 
 ## ADR-MODEL-0003: Store rule clarifications
 
-**Status:** Approved (lead ruling, 2026-10-23)
+**Status:** Approved (lead ruling, 2026-10-23); its fix-a-1-1 amendment's `ScopeId::Phase(PhaseName)` amended by ADR-BDC-0013 (sprint b-7: `ScopeId(ScopeName)`); its a-7 amendment amended by ADR-BDC-0013 (`PhaseName::RULE` becomes `ScopeName::RULE`, b-7) and ADR-SYNC-0008 (the sender port, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` removed with `sender.rs`, b-8)
 
 Decision: these points, not fixed by the sprint contract, are stated in the
 `CacheStore` doc comment and checked by the suite: `escalate` does not
@@ -238,7 +238,7 @@ Consequences: every `CacheStore` (FakeStore, a-4's SqliteStore) must report
 
 ### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
 
-**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`)
+**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`); scopes amended by ADR-BDC-0013 (sprint b-7: `ScopeId(ScopeName)` replaces `ScopeId::Phase(PhaseName)`)
 
 Context: QA-1 found raw strings for keys, scopes and instants, and a call
 result with a dead success variant.
@@ -316,7 +316,7 @@ replies is left for the bdc sprint (REQ-BDC-0806) to settle.
 
 ### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since`, `send_within`, `mark_announced_within` and `set_sync_alert_within`
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24); `set_sync_alert_within` also used for the alert clears that send no message by lead ruling S35 (bc-lead, 2026-10-24, fix-a-7-10)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24); `set_sync_alert_within` also used for the alert clears that send no message by lead ruling S35 (bc-lead, 2026-10-24, fix-a-7-10); amended by ADR-BDC-0013 (`PhaseName::RULE` becomes `ScopeName::RULE`, sprint b-7) and ADR-SYNC-0008 (`EscalationSender`, `send_within`, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` removed with `sender.rs`, sprint b-8)
 
 Context: the ports are a-1's contract, and a-4, a-5, a-6 and a-8 build on them.
 Sprint a-7 changed them, by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24) and

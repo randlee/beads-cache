@@ -174,7 +174,7 @@ Amendment b-1): `python_resolves_a_rust_written_entry_and_the_rust_store_splits_
 
 ## REQ-STORE-0007: The one repository configuration loader
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (sprint b-7: the loader also reads the `[[scope]]` tables, and a `scopes` entry is a `ConfigLoadError` only when it is not a valid `ScopeName`; a valid entry is a phase-a scope)
 
 `load_repo_config(repo_root)` reads `<repo_root>/.beads/bd-cache.toml` into
 a-1's `RepoConfig`: a missing file is the default; an unreadable file,

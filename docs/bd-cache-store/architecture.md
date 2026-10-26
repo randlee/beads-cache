@@ -257,7 +257,10 @@ with `Error::source`.
 
 **Status:** Approved (lead ruling S34, bc-lead, 2026-10-24); codes moved out of the
 `BD_CACHE.` namespace by lead ruling S37 (ARCH-801) and `#[non_exhaustive]` removed by
-lead ruling S38 (RBP-F044, QA8-003, ARCH-808), bc-lead, 2026-10-24, fix-a-7-12
+lead ruling S38 (RBP-F044, QA8-003, ARCH-808), bc-lead, 2026-10-24, fix-a-7-12;
+amended by ADR-BDC-0013 (sprint b-7): `store_config_bad_scope` is a `scopes` entry or a
+`[[scope]]` name that is not a valid `ScopeName`, or a `[[scope]]` filter that is refused, and
+its fix states `ScopeName::RULE`; a valid `scopes` entry is a phase-a scope, never an error
 
 Context: `bd-cache-sync`'s `ComposeError` kept its own copy of the code and fix of
 each way `.beads/bd-cache.toml` fails to load (RBP-F040). Moving them next to the type
