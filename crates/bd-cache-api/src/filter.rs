@@ -4,24 +4,21 @@
 //! The core lists a scope and filters nothing else (`Cache::list(scope)`);
 //! every filter here runs on the overlaid view, so a list agrees with `get`.
 //!
-//! - **Scope.** `scope` when given, else the first `phase-<x>` label. Every
-//!   label is still applied as an AND filter.
+//! - **Scope.** `scope`, by its name as written (ADR-BDC-0013, contract
+//!   §5.1); a read that names none is `SCOPE_UNKNOWN`. No scope is derived
+//!   from a label: the prefix rule is the 0.1 compatibility rule's alone.
+//!   Every label is applied as an AND filter.
 //! - **Default exclusions** of `issues list`: closed rows, templates and
 //!   `gate` rows, unless `status` or `all` is set. Infra types are unknown to
 //!   the cache, so they are not excluded.
 
-use bd_cache_model::{CLOSED_STATUS, ScopeId};
+use bd_cache_model::CLOSED_STATUS;
 use sc_beads::Bead;
 
 use crate::request::{IssuesList, Ready};
 
 /// The issue type bd gives gate rows.
 const GATE_TYPE: &str = "gate";
-
-/// The scope a list-like read names: `scope`, else the first `phase-<x>` label.
-pub(crate) fn select_scope(scope: Option<&ScopeId>, labels: &[String]) -> Option<ScopeId> {
-    scope.cloned().or_else(|| ScopeId::from_labels(labels))
-}
 
 /// True for a row `issues list` leaves out unless `status` or `all` is set.
 fn excluded_by_default(view: &Bead) -> bool {
@@ -69,7 +66,6 @@ mod tests {
 
     use super::*;
     use crate::page::ListSort;
-    use bd_cache_model::LEGACY_SCOPE_PREFIX;
 
     fn list() -> IssuesList {
         IssuesList {
@@ -84,19 +80,6 @@ mod tests {
             cursor: None,
             scope: None,
         }
-    }
-
-    #[test]
-    fn the_first_phase_label_selects_the_scope_unless_scope_is_given() {
-        let labels = vec![
-            "x".to_owned(),
-            format!("{LEGACY_SCOPE_PREFIX}a"),
-            format!("{LEGACY_SCOPE_PREFIX}b"),
-        ];
-        assert_eq!(select_scope(None, &labels), ScopeId::new("a").ok());
-        let b = ScopeId::new("b").unwrap();
-        assert_eq!(select_scope(Some(&b), &labels), Some(b));
-        assert_eq!(select_scope(None, &["x".to_owned()]), None);
     }
 
     #[test]

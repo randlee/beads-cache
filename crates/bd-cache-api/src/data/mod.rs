@@ -8,20 +8,25 @@ mod x_cache;
 
 use serde::Serialize;
 
+/// The sync mode and the sync row of `cache health`'s `sync` member: the
+/// one enum of each, `bd-cache-model`'s, which `bd-cache-sync`'s `schedule
+/// show` serializes too.
+#[doc(inline)]
+pub use bd_cache_model::{SyncMode, SyncRow};
 #[doc(inline)]
 pub use beads::{
     ContextData, DependenciesAddData, DependenciesListData, IssuesCloseData, IssuesGetData,
     IssuesListData, IssuesUpdateData, ReadyData,
 };
 #[doc(inline)]
-pub use entry::Entry;
+pub use entry::{Entry, EntryOp, EntryState};
 #[doc(inline)]
 pub use manage::{
     BackendData, CacheEvictData, CacheFlushData, CacheHealthData, CacheRefreshIssuesData,
-    CacheRefreshScopesData, CacheScopesData, CacheStatusData, EscalatedData, HealthState,
-    JournalAnnounceData, JournalCountsData, JournalGetData, JournalListData, JournalResolveData,
-    OpenWorkData, ProbeData, ProjectData, RefreshError, RefreshScopeResult, ScopeData,
-    StateCountsData, SyncReportData,
+    CacheRefreshScopesData, CacheScopesData, CacheStatusData, EscalatedData, HealthReason,
+    HealthReasonCode, HealthState, JournalAnnounceData, JournalCountsData, JournalGetData,
+    JournalListData, JournalResolveData, LastRunData, OpenWorkData, ProbeData, ProjectData,
+    RefreshError, RefreshScopeResult, ScopeData, StateCountsData, SyncHealthData, SyncReportData,
 };
 #[doc(inline)]
 pub use sync::{ScopesAnnounceData, ScopesChangeData, ScopesIngestData, ScopesRemoveData};
@@ -88,12 +93,17 @@ pub enum Data {
 impl Data {
     /// The `data` as JSON.
     ///
-    /// # Errors
+    /// # Panics
     ///
-    /// Never in practice: every member is a JSON-safe value. A serializer
-    /// error is returned as `INTERNAL`.
-    pub fn to_json(&self) -> Result<serde_json::Value, crate::ApiError> {
-        serde_json::to_value(self)
-            .map_err(|e| crate::ApiError::internal(format!("data does not serialize: {e}")))
+    /// Never: every member is a JSON-safe value (string-keyed maps, no
+    /// non-finite float is ever built), so `serde_json` cannot fail on it; a
+    /// failure would be a programming error of this crate (M-PANIC-ON-BUG).
+    #[must_use]
+    #[expect(
+        clippy::expect_used,
+        reason = "invariant: every Data member serializes (string keys, JSON-safe values)"
+    )]
+    pub fn to_json(&self) -> serde_json::Value {
+        serde_json::to_value(self).expect("bd-cache-api data always serializes to JSON")
     }
 }

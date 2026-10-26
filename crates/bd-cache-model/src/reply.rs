@@ -95,13 +95,27 @@ pub struct ReadyReply {
     pub ready: Vec<RowView>,
     /// Why a requested fresh answer fell back to the cached one.
     pub read_fallback: Option<String>,
-    /// Whether the fallback's error is an outage, bd not reached
-    /// ([`CacheError::outage`](crate::CacheError::outage), REQ-BDC-0729);
-    /// `false` with no fallback. Not part of the 0.1 dict.
+    /// The fallback's cause as data: a cut, bd not reached
+    /// ([`CacheError::outage`](crate::CacheError::outage), REQ-BDC-0729), or
+    /// an answered failure; `None` with no fallback. A front end classifies
+    /// the fallback by this, never by `read_fallback`'s wording. Not part of
+    /// the 0.1 dict.
     #[serde(skip)]
-    pub read_fallback_outage: bool,
+    pub read_fallback_cause: Option<FallbackCause>,
     /// Ready per bd but no cached row yet; omitted from `ready`.
     pub missing_rows: Vec<BeadId>,
+}
+
+/// Why a requested fresh `ready` fell back to the cached answer
+/// ([`ReadyReply::read_fallback_cause`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum FallbackCause {
+    /// The caller's `fresh_within` ran out before bd answered (a cut).
+    Cut,
+    /// bd could not be reached (an outage error).
+    Unreachable,
+    /// bd answered with a failure.
+    Answered,
 }
 
 /// `write`.

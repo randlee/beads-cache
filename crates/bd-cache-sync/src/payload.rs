@@ -20,11 +20,8 @@ use serde_json::{Value, json};
 
 use crate::text::cut;
 
-/// The name of the built-in sync row (a Rust job).
-pub const BUILTIN_ROW: &str = "bd-cache.sync.builtin";
-
-/// The name of the Python sync row (a consumer's script).
-pub const PYTHON_ROW: &str = "bd-cache.sync.python";
+#[doc(inline)]
+pub use bd_cache_model::{BUILTIN_ROW, PYTHON_ROW, SyncRow};
 
 /// [`BUILTIN_ROW`] as sc-cron's name, validated once.
 static BUILTIN_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
@@ -34,60 +31,21 @@ static BUILTIN_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
 static PYTHON_NAME: LazyLock<Result<ScheduleName, sc_cron::CronError>> =
     LazyLock::new(|| ScheduleName::new(PYTHON_ROW));
 
-/// One of the two sync rows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SyncRow {
-    /// [`BUILTIN_ROW`].
-    Builtin,
-    /// [`PYTHON_ROW`].
-    Python,
-}
-
-impl SyncRow {
-    /// The row's name in the table.
-    #[must_use]
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Builtin => BUILTIN_ROW,
-            Self::Python => PYTHON_ROW,
-        }
-    }
-
-    /// The sync row named `name`, if it is one.
-    #[must_use]
-    pub fn of(name: &str) -> Option<Self> {
-        match name {
-            BUILTIN_ROW => Some(Self::Builtin),
-            PYTHON_ROW => Some(Self::Python),
-            _ => None,
-        }
-    }
-
-    /// The other sync row.
-    #[must_use]
-    pub fn other(self) -> Self {
-        match self {
-            Self::Builtin => Self::Python,
-            Self::Python => Self::Builtin,
-        }
-    }
-
-    /// The row's name as sc-cron's [`ScheduleName`], built once.
-    ///
-    /// # Errors
-    ///
-    /// Never for these two literals (a unit test checks both); a refusal
-    /// would be `STORE_FAILED`, never a silently skipped write.
-    pub fn name(self) -> Result<ScheduleName, CacheError> {
-        let built = match self {
-            Self::Builtin => &*BUILTIN_NAME,
-            Self::Python => &*PYTHON_NAME,
-        };
-        built
-            .clone()
-            .map_err(crate::schedule::schedule_store_failed)
-    }
+/// The row's name as sc-cron's [`ScheduleName`], built once ([`SyncRow`] is
+/// `bd-cache-model`'s, which knows no sc-cron).
+///
+/// # Errors
+///
+/// Never for these two literals (a unit test checks both); a refusal
+/// would be `STORE_FAILED`, never a silently skipped write.
+pub(crate) fn schedule_name(row: SyncRow) -> Result<ScheduleName, CacheError> {
+    let built = match row {
+        SyncRow::Builtin => &*BUILTIN_NAME,
+        SyncRow::Python => &*PYTHON_NAME,
+    };
+    built
+        .clone()
+        .map_err(crate::schedule::schedule_store_failed)
 }
 
 /// The Python row's timeout when `--timeout-ms` is not given (REQ-BDC-0724).
@@ -717,7 +675,9 @@ mod tests {
     fn both_row_names_are_valid_sc_cron_names() {
         for row in [super::SyncRow::Builtin, super::SyncRow::Python] {
             assert_eq!(
-                row.name().ok().map(|n| n.as_str().to_owned()),
+                super::schedule_name(row)
+                    .ok()
+                    .map(|n| n.as_str().to_owned()),
                 Some(row.as_str().to_owned())
             );
             assert_eq!(super::SyncRow::of(row.as_str()), Some(row));

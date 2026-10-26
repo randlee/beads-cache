@@ -599,11 +599,15 @@ fn bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outa
     );
     assert!(matches!(r.basis, ReadyBasis::Cached { .. }));
     assert!(store(&c).outage().unwrap().is_some());
-    assert!(r.read_fallback_outage, "bd was not reached");
+    assert_eq!(
+        r.read_fallback_cause,
+        Some(bd_cache_model::FallbackCause::Unreachable),
+        "bd was not reached"
+    );
 }
 
-/// An answered `bd ready` failure falls back with `read_fallback_outage`
-/// false: the error's `outage()` (REQ-BDC-0729), not the v3 `UNREACHABLE`
+/// An answered `bd ready` failure falls back with `read_fallback_cause`
+/// `Answered`: the error's `outage()` (REQ-BDC-0729), not the v3 `UNREACHABLE`
 /// set, which holds `BD_LIST_FAILED` (B7Q1-015).
 #[test]
 fn bounded_fresh_ready_on_an_answered_failure_is_not_an_outage() {
@@ -618,7 +622,11 @@ fn bounded_fresh_ready_on_an_answered_failure_is_not_an_outage() {
         "{:?}",
         r.read_fallback
     );
-    assert!(!r.read_fallback_outage, "bd answered");
+    assert_eq!(
+        r.read_fallback_cause,
+        Some(bd_cache_model::FallbackCause::Answered),
+        "bd answered"
+    );
 }
 
 #[test]

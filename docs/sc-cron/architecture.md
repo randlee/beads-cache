@@ -617,3 +617,12 @@ trust check) wraps it in its own `Job` and the resolver.
   documented limit. The reap after a kill is bounded by `process::REAP_AFTER_KILL` (5 s of
   wall-clock time, not the tokio timer), then logged and left to the supervisor's drop.
 - The `process-wrap` entry is the workspace's (`process-wrap.workspace = true`, B8Q1-036).
+- QA-2 of sprint b-8 (B8Q1-056), the post-exit group kill: the child is done when its pipes are
+  closed and it has exited; when it exits on its own, `supervise` then kills the rest of its
+  group or job (best effort; an empty group is nothing to kill), so a member that let go of the
+  pipes does not outlive the run either. This replaces the "waits for every member" wording of
+  the QA-1 note above: a member that still holds the pipes is waited for, or killed with the
+  group at expiry, as before. Evidence:
+  `process::tests::unix::a_member_that_let_go_of_the_pipes_is_killed_when_the_child_exits`
+  (planted negative: without the kill after the exit, the member sleeps on and the test times
+  out).

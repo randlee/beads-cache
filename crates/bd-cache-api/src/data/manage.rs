@@ -1,11 +1,11 @@
 //! Surface (b) `data`: the `cache` commands (contract §6).
 //!
 //! Every member is always present, and `null` means unknown (contract §1
-//! rule 3). Scopes appear in label form (`phase-<x>`).
+//! rule 3). A scope appears by its name, as written (ADR-BDC-0013).
 
 use std::collections::BTreeMap;
 
-use bd_cache_model::FilterParts;
+use bd_cache_model::{FilterParts, SyncMode, SyncRow};
 use sc_beads::{Bead, BeadId};
 use serde::Serialize;
 use serde_json::{Map, Value};
@@ -141,17 +141,87 @@ pub enum HealthState {
     Down,
 }
 
+/// The stable key of a [`HealthReason`] (contract §6), serialized in
+/// snake case: the closed set `cache health` reports.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum HealthReasonCode {
+    /// Rows failed their read-back and are stale (#86).
+    StaleRows,
+    /// Escalated journal entries are unresolved (#86).
+    UnresolvedEscalations,
+    /// The oldest pending entry is older than the limit (#86).
+    PendingTooOld,
+    /// No sync row is enabled, or none exists (REQ-BDC-0732).
+    NoSyncRowEnabled,
+    /// A registered scope's last successful sync is older than three
+    /// periods of the enabled row (REQ-BDC-0732).
+    SyncStale,
+    /// The enabled row's last three runs failed (REQ-BDC-0732).
+    SyncFailing,
+    /// The post-sync hook failed three times in a row (REQ-BDC-0732).
+    HookFailing,
+    /// The sync rows' state could not be read, so the sync is not judged
+    /// (REQ-BDC-0732, B9Q1-034).
+    SyncStateUnreadable,
+}
+
+/// One reason `cache health` is not `ok`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct HealthReason {
+    /// The stable key.
+    pub code: HealthReasonCode,
+    /// What is wrong and what to do.
+    pub message: String,
+}
+
+/// `cache health` `sync.last_run`: the enabled row's last run (REQ-BDC-0732).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct LastRunData {
+    /// Which row: `builtin` or `python`.
+    pub row: SyncRow,
+    /// When its last recorded run finished; `null` before the first.
+    pub last_run_at: Option<String>,
+    /// That run's outcome: `ok`, or the failure's text; `null` before the first.
+    pub outcome: Option<String>,
+    /// The latest run's id, finished or not; `null` before the first.
+    pub run_id: Option<String>,
+    /// Consecutive failed runs, the latest included (0 after an ok run).
+    pub consecutive_failures: u32,
+}
+
+/// `cache health` `sync` (REQ-BDC-0732).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct SyncHealthData {
+    /// The sync mode.
+    pub mode: SyncMode,
+    /// The enabled row's last run; `null` when no row is enabled.
+    pub last_run: Option<LastRunData>,
+}
+
 /// `cache health`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct CacheHealthData {
     /// The summary.
     pub state: HealthState,
+    /// Why the state is not `ok`, besides an outage (which is `outage`); empty when none.
+    pub reasons: Vec<HealthReason>,
     /// The outage, while one holds.
     pub outage: Option<OutageData>,
     /// Open work.
     pub open_work: OpenWorkData,
     /// How many rows are stale.
     pub stale_rows: u64,
+    /// Seconds since the oldest pending entry was journaled; `null` with none pending.
+    pub oldest_pending_age_s: Option<u64>,
+    /// When the journal last applied an entry (the newest applied time of the
+    /// entries it holds); `null` when none was applied.
+    pub last_drain_at: Option<String>,
+    /// Escalated entries nobody has resolved, announced or not.
+    pub unresolved_escalations: u64,
+    /// The sync rows' state (REQ-BDC-0732); `null` only when it could not be
+    /// read (reason `sync_state_unreadable`).
+    pub sync: Option<SyncHealthData>,
     /// The backend check, with `probe`; `null` without.
     pub probe: Option<ProbeData>,
 }

@@ -15,7 +15,7 @@
 //!
 //! After validation the row is shaped for the cache: `dependencies` keep only
 //! the edge triple, `labels` and `dependencies` default to `[]`, and a missing
-//! or non-object `metadata` becomes `{}` (BD-CACHE.md, Bead shape). The
+//! or non-object `metadata` becomes `{}` (the v3 bead shape). The
 //! derived counts are kept; the store drops them when it normalizes a row.
 
 use serde_json::Value;

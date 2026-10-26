@@ -1,6 +1,6 @@
 //! Journal operations: [`Op`] with parse, canonical args, overlay and achieved; [`replay`].
 //!
-//! The op table (the BD-CACHE baseline design, Journal operations; REQ-BDC-0301):
+//! The op table (the v3 journal operations; REQ-BDC-0301):
 //!
 //! | op | args | overlay | achieved when |
 //! |---|---|---|---|

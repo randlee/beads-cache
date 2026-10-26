@@ -50,23 +50,14 @@ use crate::lease::{LeaseTaken, TickLease, hold, run_id_now, run_id_on};
 use crate::mode_lock::ModeLock;
 use crate::payload::{
     BuiltinPayload, EnvNames, Field, PostSyncHook, PythonPayload, SyncPayload, SyncRow,
-    TrustedInterpreter, budget_invalid, invalid,
+    TrustedInterpreter, budget_invalid, invalid, schedule_name,
 };
 use crate::python_job::{PythonRun, PythonSyncJob, RunFiles, outcome_of};
 use crate::run::{BuiltinReply, HolderView, RunContext, SharedCache, blocking, run_builtin};
 use crate::text::{MAX_KEPT_STDERR_BYTES, cut};
 
-/// The sync mode (REQ-BDC-0731).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub enum SyncMode {
-    /// The built-in row is enabled.
-    Builtin,
-    /// The Python row is enabled.
-    Python,
-    /// Neither is.
-    None,
-}
+#[doc(inline)]
+pub use bd_cache_model::SyncMode;
 
 /// An error of the on-demand tick.
 #[derive(Debug)]
@@ -192,7 +183,7 @@ impl Rows {
     ) -> Result<Vec<(sc_cron::ScheduleName, bool)>, CacheError> {
         let other = row.other();
         Ok(match self.get(other) {
-            Some(_) if enabled => vec![(other.name()?, false)],
+            Some(_) if enabled => vec![(schedule_name(other)?, false)],
             _ => Vec::new(),
         })
     }
@@ -502,11 +493,17 @@ fn millis(d: Duration) -> u64 {
     u64::try_from(d.as_millis()).unwrap_or(u64::MAX)
 }
 
-fn row_view(row: &Schedule, kind: SyncRow, history: RowHistory) -> RowView {
-    let outcome = row.last_outcome.as_ref().map(|o| match o {
+/// A row's last outcome as `schedule show` and `cache health` report it:
+/// `ok`, or the failure's redacted text, cut to 8 KiB.
+pub(crate) fn outcome_text(outcome: &RunOutcome) -> String {
+    match outcome {
         RunOutcome::Ok => "ok".to_owned(),
         other => cut(&other.to_string(), MAX_KEPT_STDERR_BYTES).to_owned(),
-    });
+    }
+}
+
+fn row_view(row: &Schedule, kind: SyncRow, history: RowHistory) -> RowView {
+    let outcome = row.last_outcome.as_ref().map(outcome_text);
     let payload = match SyncPayload::decode(&row.spec.payload) {
         Ok(SyncPayload::Python(p)) => PayloadView::Python {
             module: p.interpreter().module().to_owned(),
@@ -540,7 +537,7 @@ fn row_view(row: &Schedule, kind: SyncRow, history: RowHistory) -> RowView {
 /// and the run after it. For an irregular expression the period changes with
 /// the next run; `None` for a row with no next run or no run after it.
 #[must_use]
-pub fn row_period(row: &Schedule) -> Option<Duration> {
+pub(crate) fn row_period(row: &Schedule) -> Option<Duration> {
     let next = row.next_run_at?;
     let after = row.next_run_after(next)?;
     (after.as_datetime() - next.as_datetime()).to_std().ok()
@@ -732,7 +729,7 @@ where
             ));
         }
         self.scheduler
-            .set_enabled_async(&SyncRow::Builtin.name()?, enabled)
+            .set_enabled_async(&schedule_name(SyncRow::Builtin)?, enabled)
             .await
             .map_err(schedule_store_failed)?;
         let mode = self.rows().await?.mode();
@@ -1026,7 +1023,7 @@ where
                 return Ok(false);
             }
             let builtin_flag = match (&before.builtin, &now.builtin) {
-                (Some(row), Some(_)) => vec![(SyncRow::Builtin.name()?, row.enabled)],
+                (Some(row), Some(_)) => vec![(schedule_name(SyncRow::Builtin)?, row.enabled)],
                 _ => Vec::new(),
             };
             let (spec, enabled) = match &before.python {
@@ -1072,7 +1069,7 @@ where
         if rows.builtin.is_none() {
             return Err(no_builtin_row());
         }
-        let mut flags = vec![(SyncRow::Builtin.name()?, true)];
+        let mut flags = vec![(schedule_name(SyncRow::Builtin)?, true)];
         flags.extend(rows.others(SyncRow::Builtin, true)?);
         self.scheduler
             .set_enabled_many_async(flags)

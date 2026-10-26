@@ -74,7 +74,8 @@
 //! The filters, paging and orders of `issues list` and `ready` run here, on
 //! top of `Cache::list(scope)` and `Cache::ready` (REQ-BDC-0808). The api
 //! never opens a file: `context` and `cache status` take the facts of the
-//! cache file and `metadata.json` as a [`CacheFacts`].
+//! cache file and `metadata.json` as a [`CacheFacts`], and `cache health`
+//! runs through [`execute_health`] with the sync rows' state ([`SyncFacts`]).
 //!
 //! # Example
 //!
@@ -104,7 +105,7 @@ pub use decode::decode;
 #[doc(inline)]
 pub use error::{ApiError, CODE_PREFIX, ERROR_TABLE, ErrorKind, ErrorSpec, Unsupported, spec};
 #[doc(inline)]
-pub use ops::{CacheFacts, execute};
+pub use ops::{CacheFacts, SyncFacts, SyncRowFacts, SyncRows, execute, execute_health};
 #[doc(inline)]
 pub use page::{Cursor, ListSort};
 #[doc(inline)]

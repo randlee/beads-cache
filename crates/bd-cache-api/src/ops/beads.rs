@@ -13,7 +13,7 @@ use crate::data::{
     ReadFallback, ReadXCache, ReadyData, ReadyXCache, WriteXCache,
 };
 use crate::error::ApiError;
-use crate::filter::{list_keeps, ready_keeps, select_scope};
+use crate::filter::{list_keeps, ready_keeps};
 use crate::ops::{CacheFacts, known_scopes};
 use crate::page::{ListSort, page, sort_rows};
 use crate::request::{
@@ -38,17 +38,16 @@ fn served_scopes<S: CacheStore, L: DrainLock, B: CacheBackend>(
 
 /// The scope a list-like read names, if the cache serves it.
 ///
-/// `SCOPE_UNKNOWN` naming the served scopes when the read names none, or
-/// names one with no completed sync since it was last evicted, or ever
-/// (S67): such a scope is never answered with an empty list. A prune
-/// deletes the scope's sync state, so an evicted scope is unsynced until
-/// its next sync.
+/// `SCOPE_UNKNOWN` naming the served scopes when the read names none (no
+/// scope is derived from a label, ADR-BDC-0013, contract §5.1), or names
+/// one with no completed sync since it was last evicted, or ever (S67):
+/// such a scope is never answered with an empty list. A prune deletes the
+/// scope's sync state, so an evicted scope is unsynced until its next sync.
 fn required_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     scope: Option<&ScopeId>,
-    labels: &[String],
 ) -> Result<ScopeId, ApiError> {
-    let Some(s) = select_scope(scope, labels) else {
+    let Some(s) = scope.cloned() else {
         return Err(ApiError::scope_required(&served_scopes(cache)?));
     };
     if cache.scope_synced(&s)? {
@@ -102,7 +101,7 @@ pub(crate) fn issues_list<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &IssuesList,
 ) -> Result<IssuesListData, ApiError> {
-    let scope = required_scope(cache, req.scope.as_ref(), &req.label)?;
+    let scope = required_scope(cache, req.scope.as_ref())?;
     let reply = cache.list(&scope, None, None)?;
     let mut rows: Vec<RowView> = reply
         .rows
@@ -135,7 +134,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     req: &Ready,
 ) -> Result<ReadyData, ApiError> {
-    let scope = required_scope(cache, req.scope.as_ref(), &req.label)?;
+    let scope = required_scope(cache, req.scope.as_ref())?;
     let reply = cache.ready(&scope, req.fresh_within_ms.map(Duration::from_millis))?;
     let outage = cache.status()?.store.outage;
     let mut rows: Vec<RowView> = reply
@@ -147,7 +146,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let p = page(ListSort::Priority, rows, req.limit, None);
     let (read_fallback, read_fallback_error) = match reply.read_fallback.as_deref() {
         Some(text) => {
-            let (kind, error) = ReadFallback::of(text, reply.read_fallback_outage);
+            let (kind, error) = ReadFallback::of(text, reply.read_fallback_cause);
             (Some(kind), Some(error))
         }
         None => (None, None),
@@ -242,7 +241,7 @@ fn write<S: CacheStore, L: DrainLock, B: CacheBackend>(
 fn write_x_cache(o: &WriteOutcome) -> WriteXCache {
     WriteXCache {
         seq: o.entry.seq.get(),
-        state: o.entry.state.as_str(),
+        state: o.entry.state.into(),
         duplicate: o.duplicate,
         idempotency_key: o.entry.idem_key.as_str().to_owned(),
     }

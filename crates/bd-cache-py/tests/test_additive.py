@@ -8,11 +8,13 @@ the contract's fields, and `CONTRACT_VERSION` is the contract's.
 
 import re
 import warnings
+from pathlib import Path
 
 import pytest
 
 import bd_cache_rs
-from conftest import Stopwatch
+
+CONTRACT = Path(__file__).resolve().parents[3] / "docs" / "bd-cache-cli" / "contract.md"
 
 VERBS_01 = {"get", "refresh", "write", "list", "ready", "sync", "drain", "entry", "resolve", "prune",
             "status", "unannounced_escalations", "mark_announced", "sync_alert", "set_sync_alert",
@@ -70,6 +72,47 @@ def test_no_verb_old_or_new_issues_a_deprecation_warning(cache):
         cache.manage.journal_list()
 
 
+def codes(health):
+    return [reason["code"] for reason in health["reasons"]]
+
+
+def test_manage_health_reads_the_sync_rows_as_bdc_cache_health_does(cache):
+    """REQ-BDC-0732 through the binding (`bd_cache_sync::execute_api`, as the CLI runs it).
+
+    A cache with no sync row at all is degraded with `no_sync_row_enabled` (lead ruling 2 of
+    sprint b-9); the built-in row enabled gives mode `builtin`, its last run and `ok`; both rows
+    disabled is degraded again. The journal facts come with every reply.
+    """
+    health = cache.manage.health()
+    assert health["state"] == "degraded" and codes(health) == ["no_sync_row_enabled"], health
+    assert health["sync"] == {"mode": "none", "last_run": None}, health
+    assert health["last_drain_at"] is None and health["oldest_pending_age_s"] is None, health
+
+    cache.schedule_set("0 * * * * *")
+    health = cache.manage.health()
+    assert health["state"] == "ok" and codes(health) == [], health
+    assert health["sync"]["mode"] == "builtin", health
+    assert health["sync"]["last_run"]["row"] == "builtin", health
+    assert health["sync"]["last_run"]["consecutive_failures"] == 0, health
+
+    cache.schedule_disable()
+    health = cache.manage.health()
+    assert health["state"] == "degraded" and codes(health) == ["no_sync_row_enabled"], health
+    assert health["sync"]["last_run"] is None, health
+
+
+def test_manage_health_reports_the_last_drain_and_the_pending_age(cache):
+    cache.schedule_set("0 * * * * *")
+    cache.write("b1", "close", {"reason": "PASS"}, None, "k-health", "dev-1")
+    pending = cache.manage.health()
+    assert pending["open_work"]["pending"] == 1 and pending["oldest_pending_age_s"] is not None
+    assert pending["last_drain_at"] is None, pending
+    cache.manage.flush()
+    drained = cache.manage.health()
+    assert drained["oldest_pending_age_s"] is None and drained["last_drain_at"] is not None, drained
+    assert drained["state"] == "ok", drained
+
+
 def test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_behaviour(cache, repo):
     calls = len(repo.bd.calls())
     err = raised(cache.beads.issues_get, id="zz-9", miss_timeout_ms=0)
@@ -81,13 +124,18 @@ def test_a_zero_miss_timeout_is_not_cached_and_retryable_while_0_1_keeps_its_beh
 
 
 def test_miss_timeout_ms_is_milliseconds(cache, repo):
+    """Causal (NFR-BDC-0005): bd is gated, so only the 300 ms timeout can end the first call.
+
+    Read as seconds the call would wait for the gate's own deadline and then return the row,
+    not raise; no wall-clock bound is asserted.
+    """
     repo.bd.add({**repo.bd.get("b1"), "id": "late-1", "title": "late-1"})
-    repo.bd.delay("list", 4)
-    with Stopwatch() as watch:
-        err = raised(cache.beads.issues_get, id="late-1", miss_timeout_ms=300)
+    release = repo.bd.block("list", deadline=10)
+    err = raised(cache.beads.issues_get, id="late-1", miss_timeout_ms=300)
+    assert release.started(), "the miss reached bd"
+    assert not release.is_set(), "the call gave up while bd was still gated: the timeout cut it"
     assert err.code == "BD_CACHE.BD_UNAVAILABLE" and err.retryable is True
-    assert watch.elapsed < 3, f"300 ms waited {watch.elapsed:.1f} s: read as seconds?"
-    repo.bd.delay("list", 0)
+    release.set()
     assert cache.beads.issues_get(id="late-1", miss_timeout_ms=20000)["id"] == "late-1"
 
 
@@ -162,3 +210,83 @@ def test_namespaces_on_a_closed_handle_raise_closed_error(cache):
         beads.context()
     with pytest.raises(bd_cache_rs.ClosedError):
         cache.manage.status()
+
+
+# Spans in the section 10 table that name neither a 0.1 verb nor a 0.2 method: `None` (what the 0.1
+# `resolve` returns) and the `CacheError` row, which lists the error class and the members it gains.
+# Listed here so any other unknown span fails.
+TABLE_LITERALS = {"None", "CacheError", "kind", "message", "details", "suggested_action", "retryable"}
+NAMESPACES = ("beads", "manage")
+# Every name the table must be seen to check: the rows a reader could think the test skips.
+MUST_BE_CHECKED = {
+    "dependencies_list", "context", "issues_close", "dependencies_add", "journal_list",
+    "journal_announce", "health", "scopes", "sync_alert", "set_sync_alert", "issues_update",
+    "journal_get", "journal_resolve", "refresh_scopes", "flush", "evict",
+}
+SPAN = re.compile(r"^(\w+(?:\.\w+)*)\s*(?:\(.*\))?$")
+
+
+def contract_table_rows(section):
+    """The cells of each body row of the section 10 verb table (header and rule excluded)."""
+    lines = section.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.startswith("| 0.1 verb"))
+    rows = []
+    for line in lines[start + 2:]:  # past the header and the `|---|` rule
+        if not line.startswith("|"):
+            break
+        rows.append([c.strip() for c in re.split(r"(?<!\\)\|", line.strip()[1:-1])])
+    return rows
+
+
+def test_the_contract_table_names_real_0_1_verbs_and_real_0_2_methods(cache):
+    """Contract section 10 (b-9 deliverable 4): every backtick span of the verb table is a 0.1 verb,
+    a 0.2 method or a listed literal.
+
+    Both cells of every row are read, the em-dash rows too. A 0.2 name is `cache.<ns>.<method>`,
+    `<ns>.<method>`, or a bare method of the namespace named earlier in the cell.
+    """
+    section = CONTRACT.read_text(encoding="utf-8").split("## 10. 0.1 → 0.2 API differences", 1)[1]
+    section = section.split("\n## ", 1)[0]
+    handle = {name for name in dir(bd_cache_rs.Cache) if not name.startswith("_")}
+    rows = contract_table_rows(section)
+    assert len(rows) >= 13, f"the table was not read: {len(rows)} rows"
+    checked = set()
+    for cells in rows:
+        assert len(cells) == 3, f"not a three-cell row: {cells}"
+        for span in re.findall(r"`([^`]*)`", cells[0]):
+            shape = SPAN.match(span)
+            assert shape, f"{span!r}: not a name or call in the 0.1 cell"
+            name = shape.group(1)
+            assert name in handle or name in TABLE_LITERALS, f"{name}: not a Cache member"
+            checked.add(name)
+        namespace = None
+        for span in re.findall(r"`([^`]*)`", cells[1]):
+            shape = SPAN.match(span)
+            assert shape, f"{span!r}: not a name or call in the 0.2 cell"
+            parts = shape.group(1).split(".")
+            if parts[0] == "cache" and len(parts) == 3:
+                parts = parts[1:]
+            assert len(parts) <= 2, f"{span}: more than namespace.method"
+            if len(parts) == 2:
+                namespace, method = parts
+                assert namespace in NAMESPACES, f"{span}: {namespace} is not a namespace"
+            elif namespace is not None:
+                method = parts[0]
+            else:
+                assert parts[0] in TABLE_LITERALS, f"{span}: neither a 0.2 method nor a listed literal"
+                checked.add(parts[0])
+                continue
+            assert hasattr(getattr(cache, namespace), method), f"cache.{namespace}.{method} does not exist"
+            checked.add(method)
+    assert MUST_BE_CHECKED <= checked, f"never read: {sorted(MUST_BE_CHECKED - checked)}"
+
+
+def test_the_contract_names_the_sync_methods_the_handle_has(cache):
+    """Contract section 10: the sync's verbs it lists are the handle's methods (ADR-PY-0006)."""
+    section = CONTRACT.read_text(encoding="utf-8").split("## 10. 0.1 → 0.2 API differences", 1)[1]
+    listed = section.split("the sync's verbs are methods of the handle itself", 1)[1]
+    listed = listed.split("`cache cron run`", 1)[0]
+    names = re.findall(r"`(\w+)(?:\(\))?`", listed)
+    assert len(names) == 14, names
+    missing = [name for name in names if not callable(getattr(cache, name, None))]
+    assert not missing, f"listed in contract section 10 but not on the handle: {missing}"

@@ -5,7 +5,8 @@ use crate::codec::journal_columns;
 /// `PRAGMA user_version` of the shared file (REQ-BDC-0103); never changed on open.
 pub const SCHEMA_VERSION: i32 = 3;
 
-/// The BD-CACHE v3 DDL, byte for byte as the v3 Python writer (baseline `05831df`) runs it.
+/// The BD-CACHE v3 DDL, byte for byte as the v3 Python writer runs it (pinned by the
+/// format golden, `tests/format_golden.rs`).
 pub(crate) const V3_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS beads (
@@ -283,6 +284,34 @@ pub const APPLIED_SINCE_SQL: &str = concat!(
      AND COALESCE(unixepoch(COALESCE(applied_at, updated_at)) >= ?1, 1) \
      ORDER BY seq"
 );
+
+/// `CacheStore::last_applied_at`, the dated half: the newest `applied_epoch`
+/// of an applied entry (Unix seconds). One descending read of the
+/// `journal_applied_epoch` index to its first row, so it does not walk the
+/// applied history (`store.rs`' unit tests assert the plan and the step count).
+pub(crate) const NEWEST_APPLIED_EPOCH_SQL: &str = "SELECT applied_epoch \
+    FROM journal INDEXED BY journal_applied_epoch \
+    WHERE state = 'applied' AND applied_epoch IS NOT NULL \
+    ORDER BY applied_epoch DESC LIMIT 1";
+
+/// [`NEWEST_APPLIED_EPOCH_SQL`] without the index hint.
+pub(crate) const NEWEST_APPLIED_EPOCH_UNHINTED_SQL: &str = "SELECT applied_epoch \
+    FROM journal WHERE state = 'applied' AND applied_epoch IS NOT NULL \
+    ORDER BY applied_epoch DESC LIMIT 1";
+
+/// `CacheStore::last_applied_at`, the undated half: the newest readable time
+/// (`applied_at` else `updated_at`) among entries applied without an epoch
+/// (another writer's). Walks `journal_applied_unknown`, which holds only those
+/// entries; one with an unreadable time yields `NULL` and is skipped.
+pub(crate) const NEWEST_UNDATED_APPLIED_SQL: &str = "SELECT \
+    MAX(unixepoch(COALESCE(applied_at, updated_at))) \
+    FROM journal INDEXED BY journal_applied_unknown \
+    WHERE state = 'applied' AND applied_epoch IS NULL";
+
+/// [`NEWEST_UNDATED_APPLIED_SQL`] without the index hint.
+pub(crate) const NEWEST_UNDATED_APPLIED_UNHINTED_SQL: &str = "SELECT \
+    MAX(unixepoch(COALESCE(applied_at, updated_at))) \
+    FROM journal WHERE state = 'applied' AND applied_epoch IS NULL";
 
 /// [`APPLIED_SINCE_SQL`] without the index hints.
 pub const APPLIED_SINCE_UNHINTED_SQL: &str = concat!(

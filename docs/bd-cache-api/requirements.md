@@ -69,6 +69,11 @@ was last evicted, or ever, is not served: `issues list` and `ready` return
 `SCOPE_UNKNOWN` with `suggested_action` `bdc cache refresh scopes --scope
 <s>`, never an empty list (lead ruling S67, contract §7).
 
+*Amended by ADR-BDC-0013 and lead ruling 1 of the b-9 QA-1 fix round (sprint b-9): a
+list-like read names its scope with `scope` only, by its name as written; no scope is derived
+from a label, so a read without `scope` is `SCOPE_UNKNOWN` whatever its labels. Every label is
+still an AND filter (fixture `a label-only read names no scope`).*
+
 **Refines:** REQ-BDC-0902, contract §5.1, §5.3, §7
 **Acceptance evidence:** `issues_list_filters` (`tests/fixtures.rs`);
 `evict_is_blocked_by_pending_writes`, `a_configured_scope_never_synced_is_not_served` (`tests/manage.rs`).

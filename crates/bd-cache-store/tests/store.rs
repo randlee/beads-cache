@@ -171,6 +171,29 @@ fn test_sync_alert_round_trip() {
     assert_eq!(store.sync_alert(&x()).unwrap(), None);
 }
 
+/// REQ-STORE-0006 (B9Q1-027): the sync alert another writer of the shared v3
+/// file stored, in its `CODE: detail` format under the v3 meta key, reads
+/// back as written, so `cache status` can decode it (`bd-cache-api`'s
+/// `alert_of`, which `alerts_decode_from_either_writer` tests).
+#[test]
+fn an_alert_another_implementation_wrote_reads_back_as_written() {
+    let (open, mut store) = fresh("foreign-alert");
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    drop(store);
+    Connection::open(&open.path)
+        .unwrap()
+        .execute(
+            "INSERT OR REPLACE INTO meta(key, value) VALUES ('sync_alert:x', ?1)",
+            ["BD_CACHE.SYNC_FAILED: bd list failed"],
+        )
+        .unwrap();
+    let store = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    assert_eq!(
+        store.sync_alert(&x()).unwrap().as_deref(),
+        Some("BD_CACHE.SYNC_FAILED: bd list failed")
+    );
+}
+
 #[test]
 fn test_pending_work_counts_as_open() {
     let (_open, mut store) = fresh("open-work");
@@ -1148,7 +1171,7 @@ fn the_expression_index_of_an_earlier_build_is_dropped_on_open() {
     assert_eq!(left, 0);
 }
 
-/// the v3 Python writer (baseline `05831df`) never creates, reads or writes `ready_base`,
+/// the v3 Python writer never creates, reads or writes `ready_base`,
 /// `ready_base_blocked` or `scope_member`: its rebuild deletes `edges`, `beads`
 /// and `sync_state`, and its prune deletes a phase's `edges`, `beads`,
 /// `journal` and `sync_state` rows. Neither touches a stored base or its index
@@ -1611,4 +1634,59 @@ fn a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes() {
         };
         assert_eq!(patch.set_metadata.len(), 1);
     }
+}
+
+/// `last_applied_at` answers from the applied times, not from the history or
+/// the seqs (RCR-001 of #91): thousands of old applied entries leave the
+/// newest time the answer, and the answer does not depend on how many rows
+/// the journal has or on the seqs they carry. The plans of its two index
+/// reads, and the one read snapshot they share (ADR-STORE-0002), are
+/// asserted by `store.rs`' unit tests, where the SQL is.
+#[test]
+fn last_applied_at_ignores_history_and_seqs() {
+    let (open, mut store) = fresh("last-applied-at");
+    {
+        let mut c = Connection::open(&open.path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-01T00:00:00Z")),
+        "the seeded history is the newest applied time"
+    );
+
+    // A newer one wins whatever its seq, and a python-applied entry (no
+    // epoch) counts by its `updated_at`.
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    let mine = store
+        .insert_entry(entry("mine", "b2", Some(x())), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    store
+        .apply_with_readback(mine, None, None, &ts("2026-10-24T00:00:00Z"))
+        .unwrap();
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-24T00:00:00Z"))
+    );
+    seed_python_applied(&open.path, 1, "2026-10-25T00:00:00Z", "py-new");
+    seed_python_applied(&open.path, 1, "garbage", "py-bad");
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-25T00:00:00Z")),
+        "undated entries count by updated_at; an unreadable one is skipped"
+    );
 }

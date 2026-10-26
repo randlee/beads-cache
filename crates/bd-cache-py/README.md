@@ -17,7 +17,7 @@ import bd_cache_rs
 
 # Reads .beads/metadata.json and .beads/bd-cache.toml; opening starts no bd process.
 with bd_cache_rs.Cache("/path/to/repo", scopes=["x"]) as cache:
-    cache.sync("x", 30)                        # refresh phase-x from bd, 30 s budget
+    cache.sync("x", 30)                        # refresh scope x from bd, 30 s budget
 
     reply = cache.get("bk-12", miss_timeout=1.5)
     print(reply["row"]["bead"]["status"], reply["row"]["stale"])
@@ -39,8 +39,11 @@ with bd_cache_rs.Cache("/path/to/repo", scopes=["x"]) as cache:
 `Cache(repo_root, *, bd_binary="bd", project_dir=None, scopes=None,
 cache_path=None, call_timeout_s=None, miss_fill_timeout_ms=None,
 max_attempts=None)`: each keyword that is not `None` overrides the same key
-of `.beads/bd-cache.toml`. A scope is a phase name: `"x"` selects the beads
-labelled `phase-x`.
+of `.beads/bd-cache.toml`. A scope is a name plus a bd filter (the `[[scope]]`
+tables, or `cache.scopes_add`). The 0.1 verbs keep the 0.1 scope rule: `"x"` (or
+the legacy-prefixed `"x"`) names the label scope whose label is the legacy prefix
+followed by `x`. The 0.2 namespaces and the phase-B methods take a scope name as
+written (contract §10).
 
 The verbs are `get`, `refresh`, `write`, `list`, `ready`, `sync`, `drain`,
 `entry`, `resolve`, `prune` and `status`, plus the announcement state
@@ -59,7 +62,7 @@ Every 0.1 verb is unchanged.
 
 ```python
 cache.beads.issues_get(id="bk-12", miss_timeout_ms=0)   # NOT_CACHED if absent
-cache.beads.issues_list(scope="bk")                      # or scope="phase-bk"
+cache.beads.issues_list(scope="bk")                      # the scope's name, as written
 cache.manage.journal_list(unannounced=True)
 ```
 
@@ -124,7 +127,7 @@ pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=cra
 - One process holds one connection per cache file. A second handle on the
   same file in the same process is `BD_CACHE.STORE_IN_USE` until the first is
   closed; separate processes are fine.
-- Never let two implementations drain the same journal at the same time: run
+- Never let two writers drain the same journal at the same time: run
   one sync (the cache file's sync rows, or `tick()`), not a second scheduler of
   your own beside it.
 - Wheels are built and tested on macOS arm64 and Linux x86_64 only. The Rust

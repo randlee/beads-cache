@@ -18,7 +18,7 @@
 //! ([`DoltMode::Server`](crate::DoltMode::Server), by bd's own rule:
 //! `dolt_mode: "server"`, or a non-local `dolt_server_host`), many `bd` processes are
 //! concurrent by design and the lock would only queue every call behind a long
-//! sync (atm-bd runs bd that way). A missing or unreadable `metadata.json`, and every
+//! sync (a shared server runs bd that way). A missing or unreadable `metadata.json`, and every
 //! other mode, count as embedded: the lock is taken. The protection is partial in
 //! embedded mode too: agents and bd's git hooks run `bd` directly, without this lock.
 //!
@@ -147,7 +147,7 @@ impl std::error::Error for NonUtf8WorkingDir {}
 /// on projects the cache does not serve.
 #[derive(Debug, Default)]
 pub struct ProjectLocks {
-    locks: Mutex<HashMap<String, Arc<Mutex<()>>>>,
+    locks: Mutex<HashMap<LockKey, Arc<Mutex<()>>>>,
 }
 
 impl ProjectLocks {
@@ -174,7 +174,7 @@ impl ProjectLocks {
     /// (this signature cannot fail). The crate's own spawns use `try_guard_dir`.
     #[must_use]
     pub fn guard_dir(&self, working_dir: &WorkingDir) -> Arc<Mutex<()>> {
-        let key = lock_key(working_dir).unwrap_or_else(|_| working_dir.as_str().to_owned());
+        let key = lock_key(working_dir).unwrap_or_else(|_| LockKey::lexical(working_dir));
         self.entry(key)
     }
 
@@ -212,7 +212,7 @@ impl ProjectLocks {
     }
 
     /// The mutex stored under `key`, created on first use.
-    fn entry(&self, key: String) -> Arc<Mutex<()>> {
+    fn entry(&self, key: LockKey) -> Arc<Mutex<()>> {
         let mut locks = self.locks.lock().unwrap_or_else(PoisonError::into_inner);
         Arc::clone(locks.entry(key).or_insert_with(|| Arc::new(Mutex::new(()))))
     }
@@ -241,18 +241,18 @@ pub(crate) struct FileGuard {
 impl ProjectFileLock {
     /// The cross-process lock the project whose canonical key is `key` needs: `None`
     /// for a Dolt server-mode project (module docs), the lock otherwise.
-    pub(crate) fn for_project(key: &str) -> Option<Self> {
-        let server = !key.is_empty()
-            && crate::dolt::project_dolt_mode(&Path::new(key).join(".beads"))
-                == Some(crate::DoltMode::Server);
+    fn for_project(key: &LockKey) -> Option<Self> {
+        let server = key.dir().is_some_and(|dir| {
+            crate::dolt::project_dolt_mode(&dir.join(".beads")) == Some(crate::DoltMode::Server)
+        });
         (!server).then(|| Self::for_key(key))
     }
 
     /// The lock of the project whose canonical key is `key`.
-    pub(crate) fn for_key(key: &str) -> Self {
-        let in_project =
-            (!key.is_empty()).then(|| Path::new(key).join(".beads").join(LOCK_FILE_NAME));
-        let in_temp = std::env::temp_dir().join(format!("sc-bd-cli-{:016x}.lock", fnv1a(key)));
+    fn for_key(key: &LockKey) -> Self {
+        let in_project = key.dir().map(|dir| dir.join(".beads").join(LOCK_FILE_NAME));
+        let in_temp =
+            std::env::temp_dir().join(format!("sc-bd-cli-{:016x}.lock", fnv1a(key.hash_text())));
         Self {
             in_project,
             in_temp,
@@ -327,22 +327,63 @@ fn fnv1a(text: &str) -> u64 {
     })
 }
 
+/// The canonical lock key of a working directory (PE-RBP-F010, RBP-F008):
+/// built only by [`lock_key`] (or, where that cannot fail, [`LockKey::lexical`]),
+/// so a raw string never keys a lock.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+enum LockKey {
+    /// The empty working directory (the process's own): it names no project
+    /// directory, so its lock file lives only in the temp directory.
+    Current,
+    /// A directory's canonical path, or its lexical form when it cannot be
+    /// canonicalized (it does not exist).
+    Dir(String),
+}
+
+impl LockKey {
+    /// The lexical key of `dir`: [`LockKey::Current`] for the empty directory.
+    fn lexical(dir: &WorkingDir) -> Self {
+        if dir.as_str().is_empty() {
+            Self::Current
+        } else {
+            Self::Dir(dir.as_str().to_owned())
+        }
+    }
+
+    /// The project directory the key names, if any.
+    fn dir(&self) -> Option<&Path> {
+        match self {
+            Self::Current => None,
+            Self::Dir(d) => Some(Path::new(d)),
+        }
+    }
+
+    /// The text the temp-directory file name hashes: the directory, or the
+    /// empty text for [`LockKey::Current`] (the name earlier builds used).
+    fn hash_text(&self) -> &str {
+        match self {
+            Self::Current => "",
+            Self::Dir(d) => d,
+        }
+    }
+}
+
 /// The lock key of `dir`: its canonical path, or its lexical form when it cannot be
-/// canonicalized (it does not exist).
-fn lock_key(dir: &WorkingDir) -> Result<String, NonUtf8WorkingDir> {
+/// canonicalized (it does not exist); [`LockKey::Current`] for the empty directory.
+fn lock_key(dir: &WorkingDir) -> Result<LockKey, NonUtf8WorkingDir> {
     if dir.as_str().is_empty() {
         // `canonicalize("")` fails on every platform; say so instead of asking.
-        return Ok(String::new());
+        return Ok(LockKey::Current);
     }
     match std::fs::canonicalize(dir.as_str()) {
         Ok(path) => path
             .into_os_string()
             .into_string()
-            .map(strip_verbatim)
+            .map(|p| LockKey::Dir(strip_verbatim(p)))
             .map_err(|os| NonUtf8WorkingDir {
                 canonical: PathBuf::from(os),
             }),
-        Err(_) => Ok(dir.as_str().to_owned()),
+        Err(_) => Ok(LockKey::lexical(dir)),
     }
 }
 
@@ -461,7 +502,7 @@ mod tests {
         let lock = ProjectFileLock::for_key(&key);
         assert_eq!(
             lock.path(),
-            Path::new(&key).join(".beads").join(LOCK_FILE_NAME)
+            key.dir().unwrap().join(".beads").join(LOCK_FILE_NAME)
         );
         let held = lock.try_acquire().unwrap();
         assert!(held.is_some());
@@ -522,10 +563,27 @@ mod tests {
     fn the_temp_name_is_a_stable_hash_of_the_key() {
         assert_eq!(fnv1a(""), 0xcbf2_9ce4_8422_2325);
         assert_eq!(fnv1a("a"), 0xaf63_dc4c_8601_ec8c);
-        let lock = ProjectFileLock::for_key("/p");
+        let lock = ProjectFileLock::for_key(&LockKey::Dir("/p".to_owned()));
         assert!(lock
             .in_temp
             .ends_with(format!("sc-bd-cli-{:016x}.lock", fnv1a("/p"))));
+        let current = ProjectFileLock::for_key(&LockKey::Current);
+        assert_eq!(
+            current.in_project, None,
+            "the empty directory names no project"
+        );
+        assert!(current
+            .in_temp
+            .ends_with(format!("sc-bd-cli-{:016x}.lock", fnv1a(""))));
+    }
+
+    /// The empty working directory is [`LockKey::Current`], not an empty
+    /// string standing in for one (RBP-F008), and takes the temp-directory lock.
+    #[test]
+    fn the_empty_working_directory_is_its_own_key() {
+        assert_eq!(lock_key(&WorkingDir::new("")).unwrap(), LockKey::Current);
+        let lock = ProjectFileLock::for_project(&LockKey::Current).unwrap();
+        assert_eq!(lock.path(), lock.in_temp);
     }
 
     /// A directory that does not exist keys on its lexical form.
@@ -535,7 +593,7 @@ mod tests {
         let missing = "/definitely/not/a/real/sc-bd-cli/dir";
         assert_eq!(
             lock_key(&WorkingDir::new(&format!("{missing}/"))).unwrap(),
-            missing
+            LockKey::Dir(missing.to_owned())
         );
         assert!(Arc::ptr_eq(
             &locks.guard(missing),

@@ -1,7 +1,7 @@
 //! The argv of every cache call: pure builders, one per `bd` command form.
 //!
-//! These are the command forms of the BD-CACHE baseline ("Bead shape", "Journal
-//! operations") and REQ-BDC-0201; the tests at the foot of this file pin each one as
+//! These are the v3 command forms (the bead shape and the journal operations,
+//! REQ-BDC-0201, REQ-BDC-0301); the tests at the foot of this file pin each one as
 //! a literal vector. The builders hold no state and spawn nothing, so
 //! [`BdCli`](crate::BdCli) and the recorded-argv tests use exactly the same code.
 //!

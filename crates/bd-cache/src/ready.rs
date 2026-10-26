@@ -28,8 +28,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::time::Duration;
 
 use bd_cache_model::{
-    CacheError, CacheStore, CallFailure, CallKind, DrainLock, Freshness, JournalEntry,
-    JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, Scope, ScopeId, replay,
+    CacheError, CacheStore, CallFailure, CallKind, DrainLock, FallbackCause, Freshness,
+    JournalEntry, JournalState, Op, ReadyBase, ReadyBasis, ReadyReply, RowView, Scope, ScopeId,
+    replay,
 };
 use sc_beads::{
     Bead, BeadId, BlockedRow, CacheBackend, Deadline, DepType, Edge, Timestamp, rfc3339_to_unix,
@@ -284,7 +285,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     // The fetch instant of bd's answer, when one came in time.
     let mut fresh: Option<Timestamp> = None;
     let mut read_fallback = None;
-    let mut read_fallback_outage = false;
+    let mut read_fallback_cause = None;
     if let Some(limit) = fresh_within {
         // One deadline for both calls: the caller's limit expiring is a cut,
         // never an outage, and the reply never waits past it.
@@ -295,10 +296,13 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
                 fresh = Some(base.at);
             }
             Err(failure) => {
-                read_fallback_outage = match &failure {
-                    CallFailure::Cut => true,
-                    CallFailure::Outage(e) | CallFailure::Error(e) => e.outage() == Some(true),
-                };
+                read_fallback_cause = Some(match &failure {
+                    CallFailure::Cut => FallbackCause::Cut,
+                    CallFailure::Outage(e) | CallFailure::Error(e) if e.outage() == Some(true) => {
+                        FallbackCause::Unreachable
+                    }
+                    CallFailure::Outage(_) | CallFailure::Error(_) => FallbackCause::Answered,
+                });
                 read_fallback = Some(fallback_reason(failure, limit));
             }
         }
@@ -312,7 +316,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
             locally_adjusted: false,
             ready: Vec::new(),
             read_fallback,
-            read_fallback_outage,
+            read_fallback_cause,
             missing_rows: Vec::new(),
         });
     };
@@ -340,7 +344,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
         locally_adjusted: adj.changed,
         ready,
         read_fallback,
-        read_fallback_outage,
+        read_fallback_cause,
         missing_rows,
     })
 }

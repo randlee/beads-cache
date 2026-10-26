@@ -20,7 +20,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bd_cache::Cache;
-use bd_cache_api::{ApiError, CacheFacts, Command, decode, execute};
+use bd_cache_api::{
+    ApiError, CacheFacts, Command, Request, SyncFacts, SyncRowFacts, SyncRows, decode, execute,
+    execute_health,
+};
 use bd_cache_model::testing::{FakeDrainLock, FakeStore};
 use bd_cache_model::{CacheConfig, LEGACY_SCOPE_PREFIX, Scope, ScopeId};
 use sc_beads::testing::{FakeBackend, ManualClock, bead};
@@ -44,6 +47,25 @@ pub fn default_facts() -> CacheFacts {
         project_id: "proj-1".into(),
         beads_dir: Some("/repo/.beads".into()),
         repo_root: Some("/repo".into()),
+    }
+}
+
+/// The sync facts `run` gives `cache health` unless a test gives its own: an
+/// enabled built-in row with no period (never judged stale), no failed run
+/// and no hook, so health judges the journal alone (REQ-BDC-0732).
+#[must_use]
+pub fn quiet_sync() -> SyncFacts {
+    SyncFacts {
+        rows: SyncRows::Enabled(SyncRowFacts {
+            row: bd_cache_model::SyncRow::Builtin,
+            created_at: sc_beads::Timestamp::parse(START).unwrap(),
+            period: None,
+            last_run_at: None,
+            outcome: None,
+            run_id: None,
+            consecutive_failures: 0,
+        }),
+        hook_failures: None,
     }
 }
 
@@ -122,12 +144,16 @@ impl Default for World {
 }
 
 /// Decodes and runs one request; the result as the envelope's `ok` / `data`
-/// / `error` members.
+/// / `error` members. `cache health` runs through `execute_health` with
+/// [`quiet_sync`], as a front end runs it through `bd-cache-sync`.
 pub fn run(cache: &mut TestCache, command: &str, request: &Value, facts: &CacheFacts) -> Value {
     let command = Command::parse(command).unwrap_or_else(|| panic!("no command {command:?}"));
     let result: Result<Value, ApiError> = decode(command, request)
-        .and_then(|req| execute(cache, &req, facts))
-        .and_then(|data| data.to_json());
+        .and_then(|req| match req {
+            Request::CacheHealth(r) => execute_health(cache, r, Ok(quiet_sync())),
+            req => execute(cache, &req, facts),
+        })
+        .map(|data| data.to_json());
     match result {
         Ok(data) => json!({"ok": true, "data": data}),
         Err(e) => json!({"ok": false, "error": e.to_json()}),

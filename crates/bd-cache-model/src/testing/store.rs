@@ -18,8 +18,8 @@ use crate::reply::{JournalCounts, PruneReport};
 use crate::scope::{MAX_REGISTERED_SCOPES, Scope, ScopeFilter, ScopeId};
 use crate::state::{
     FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake, OpenWork,
-    Outage, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd,
-    SyncState, UpsertReport, clip_hook_error,
+    Outage, PendingSummary, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncOutcome, SyncRun,
+    SyncRunEnd, SyncState, UpsertReport, clip_hook_error,
 };
 use crate::store::{CacheStore, DrainGuard, DrainLock};
 
@@ -66,6 +66,8 @@ struct State {
     last_seq: i64,
     meta: BTreeMap<String, String>,
     sync: BTreeMap<ScopeId, SyncState>,
+    /// How many times the whole pending backlog was loaded (`pending_entries`).
+    pending_loads: u64,
 }
 
 impl State {
@@ -310,6 +312,14 @@ impl FakeStore {
     #[must_use]
     pub fn row_ids(&self) -> Vec<BeadId> {
         lock(&self.state).rows.keys().cloned().collect()
+    }
+
+    /// How many times [`CacheStore::pending_entries`] loaded the whole
+    /// pending backlog (for assertions that a read stays bounded, as
+    /// `SqliteStore`'s [`CacheStore::pending_summary`] does).
+    #[must_use]
+    pub fn pending_loads(&self) -> u64 {
+        lock(&self.state).pending_loads
     }
 
     /// The scopes holding a bead (for assertions).
@@ -730,7 +740,24 @@ impl CacheStore for FakeStore {
     }
 
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError> {
-        Ok(lock(&self.state).entries(|e| e.state == JournalState::Pending))
+        let mut st = lock(&self.state);
+        st.pending_loads = st.pending_loads.saturating_add(1);
+        Ok(st.entries(|e| e.state == JournalState::Pending))
+    }
+
+    fn pending_summary(&self) -> Result<PendingSummary, CacheError> {
+        // Bounded like `SqliteStore`'s: counted in place, the backlog not loaded.
+        let st = lock(&self.state);
+        let pending = st
+            .journal
+            .values()
+            .filter(|e| e.state == JournalState::Pending);
+        Ok(PendingSummary {
+            count: u64::try_from(pending.clone().count()).unwrap_or(u64::MAX),
+            oldest_created_at: pending
+                .map(|e| e.created_at.clone())
+                .min_by_key(Timestamp::unix),
+        })
     }
 
     fn pending_for(&self, id: &BeadId) -> Result<Vec<JournalEntry>, CacheError> {
@@ -962,6 +989,7 @@ impl CacheStore for FakeStore {
             .map(|s| ScopeStatus {
                 beads: st.members.values().filter(|m| m.contains(&s)).count() as u64,
                 filter: st.scopes.get(&s).and_then(|(f, _)| f.clone()),
+                registered: st.scopes.contains_key(&s),
                 sync: st
                     .sync
                     .get(&s)

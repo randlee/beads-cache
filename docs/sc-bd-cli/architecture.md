@@ -29,7 +29,7 @@ dev-dependencies too).
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (the scope argv for `All` and `Criteria` filters)
 
 Context: the cache calls of `sc_beads::CacheBackend` must map to `bd` command
-lines that match the BD-CACHE baseline (REQ-BDC-0201), and every way a `bd`
+lines that match the v3 command forms (REQ-BDC-0201), and every way a `bd`
 process can end must map to one `BeadsCacheError` the cache classifies
 (`bd-cache`'s `call` helper, ADR-BDC-0005).
 

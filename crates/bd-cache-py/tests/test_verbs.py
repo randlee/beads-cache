@@ -211,7 +211,7 @@ def test_status_reports_meta_journal_phases_escalations_and_outage(cache):
     cache.write("b1", "close", {}, None, "k1", "dev-1")
     status = cache.status()
     assert set(status) == {"meta", "journal", "phases", "escalated", "outage", "stale"}
-    assert status["meta"]["dolt_database"] == "atm-dev" and status["meta"]["bd_version"] == "1.3.1"
+    assert status["meta"]["dolt_database"] == "dev-db" and status["meta"]["bd_version"] == "1.3.1"
     assert status["journal"] == {"x:pending": 1}
     assert [p["phase"] for p in status["phases"]] == ["x"] and status["phases"][0]["beads"] == 3
     assert status["escalated"] == [] and status["outage"] is None and status["stale"] == []

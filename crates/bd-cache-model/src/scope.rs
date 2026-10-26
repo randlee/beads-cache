@@ -27,7 +27,7 @@ use sc_beads::cache::check_filter_word;
 use sc_beads::{Bead, InvalidValue};
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::compat::{LEGACY_SCOPE_PREFIX, legacy_label};
+use crate::compat::legacy_label;
 
 /// The text of [`SCOPE_NAME_RULE`], as a literal: `concat!` builds every
 /// message of this crate that states the rule from this one text (RBP-F037).
@@ -222,26 +222,6 @@ impl ScopeId {
     #[must_use]
     pub fn name(&self) -> &str {
         self.0.as_str()
-    }
-
-    /// The phase-a scope a row's labels name: its first label that is
-    /// [`LEGACY_SCOPE_PREFIX`] followed by a valid name (the v3 `phase` column,
-    /// ADR-CORE-0204 as amended by ADR-BDC-0013).
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bd_cache_model::{LEGACY_SCOPE_PREFIX, ScopeId};
-    /// let labels = vec!["area".to_owned(), format!("{LEGACY_SCOPE_PREFIX}bk")];
-    /// assert_eq!(ScopeId::from_labels(&labels), ScopeId::new("bk").ok());
-    /// assert_eq!(ScopeId::from_labels(&["bk".to_owned()]), None);
-    /// ```
-    #[must_use]
-    pub fn from_labels(labels: &[String]) -> Option<ScopeId> {
-        labels
-            .iter()
-            .filter_map(|l| l.strip_prefix(LEGACY_SCOPE_PREFIX))
-            .find_map(|x| Self::new(x).ok())
     }
 }
 
@@ -612,7 +592,7 @@ impl Serialize for ScopeFilter {
 /// One scope of the registry: its name and its filter (ADR-BDC-0013).
 ///
 /// `filter: None` is a phase-a scope: the beads carrying the label
-/// [`LEGACY_SCOPE_PREFIX`] followed by the name (a stored `x` syncs the label
+/// [`LEGACY_SCOPE_PREFIX`](crate::LEGACY_SCOPE_PREFIX) followed by the name (a stored `x` syncs the label
 /// `<prefix>x`); `Some` is a scope created in phase B with a filter.
 ///
 /// # Examples
@@ -645,7 +625,7 @@ impl Scope {
         }
     }
 
-    /// A phase-a scope: the label [`LEGACY_SCOPE_PREFIX`] followed by the name.
+    /// A phase-a scope: the label [`LEGACY_SCOPE_PREFIX`](crate::LEGACY_SCOPE_PREFIX) followed by the name.
     #[must_use]
     pub fn legacy(id: ScopeId) -> Self {
         Self { id, filter: None }
@@ -789,6 +769,7 @@ impl Serialize for Scope {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::LEGACY_SCOPE_PREFIX;
 
     /// The validator states the one rule (RBP-F037).
     #[test]

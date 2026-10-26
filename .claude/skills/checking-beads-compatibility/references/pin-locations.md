@@ -28,7 +28,6 @@ SC_BEADS_REGENERATE=1 cargo test -p sc-beads --test strict_rows_generated
 | `crates/sc-beads/tests/fixtures/bd-1.3.1/` (`bd-schema.json`, `list-rows.json`, `PROVENANCE.md`) | `fingerprint-check.sh` reads `bd-<pinned>/bd-schema.json`, so the new directory must exist |
 | `crates/sc-bd-cli/tests/fixtures/bd-schema-1.3.1.json` | byte copy of the schema; `schema_copy_is_the_pinned_schema` checks it |
 | `crates/bd-cache-py/tests/fixtures/bd-schema-1.3.1.json` | Python test copy |
-| `crates/bd-cache-store/tests/compat/fixtures/bd-1.3.1/` | vendored from the atm-core reference implementation (see its `PROVENANCE.md`). TODO: confirm whether a pin bump touches it; by default leave it unchanged |
 
 ## Code that names the pinned version or fixture path
 
@@ -51,7 +50,7 @@ SC_BEADS_REGENERATE=1 cargo test -p sc-beads --test strict_rows_generated
 `crates/sc-beads/src/row.rs:4`, `docs/architecture.md:24`, `docs/project-plan.md:18`,
 `docs/requirements.md:33`, `docs/sc-bd-cli/architecture.md:163`,
 `docs/sc-beads/requirements.md:44`. Historical records (sprint docs, evidence,
-`docs/baseline/`, `docs/research/`) stay as they are.
+`docs/research/`) stay as they are.
 
 ## Fixture capture
 

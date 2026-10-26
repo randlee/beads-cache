@@ -11,7 +11,7 @@ fake `bd` program (`tests/fake_bd_main.py`), which logs every argv.
 
 ## REQ-PY-0001: The module and its handle
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the `config` error kind is reserved (nothing produces it while `ConfigLoadError` has no further variants)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the `config` error kind is reserved (nothing produces it while `ConfigLoadError` has no further variants); amended by the b-9 fix round 1 (lead ruling, B9Q1-040/041, ADR-PY-0002 amendment): the reserved `config` kind is removed, and the `OSError` of an unreadable config file carries `errno` and `filename`
 
 `bd_cache_rs.Cache(repo_root, *, bd_binary="bd", project_dir=None, scopes=None,
 cache_path=None, call_timeout_s=None, miss_fill_timeout_ms=None,
@@ -22,10 +22,10 @@ is not `None` overrides the file's key (`call_timeout_s` and `miss_fill_timeout_
 second open of the same cache file in one process is `BD_CACHE.STORE_IN_USE`
 until the first handle is closed (`close()`, or leaving a `with` block). A
 repository without readable `.beads/metadata.json` is `BD_CACHE.NO_DATABASE`;
-an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`, `config`) and `path` (`config` is reserved; not produced while ConfigLoadError has no further variants (S38/S42); `path` may be `None`); an unreadable config file is `OSError` with `kind` `read` and `path`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
+an invalid config file or scope is `ValueError` with attributes `kind` (`parse`, `scope`, `argument`) and `path` (`path` may be `None`); an unreadable config file is `OSError` with `kind` `read`, `path`, and the OS error's `errno` and `filename`; a `repo_root` or `project_dir` that is not valid UTF-8, or that does not resolve to a directory, is refused as a `ValueError` (never converted lossily); the directory `bd` runs in is canonicalized, so every spelling of one project shares one `bd` lock.
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0101, REQ-BDC-0104
-**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`, `test_a_zero_timeout_is_refused_*`, `test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd`, `test_a_beads_dir_that_cannot_be_made_absolute_is_no_database`); Rust `compose::tests` (`the_beads_dir_override_locates_the_store`, `an_unresolvable_beads_dir_is_no_database_before_the_config_is_read`); for the reserved `config` kind (S38/S42): the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read`.
+**Acceptance evidence:** `test_open.py` (`test_a_repo_root_that_is_missing_*`, `test_a_repo_root_that_is_a_file_*`, `test_a_zero_timeout_is_refused_*`, `test_a_relative_beads_dir_names_one_directory_for_the_store_and_for_bd`, `test_a_beads_dir_that_cannot_be_made_absolute_is_no_database`); Rust `compose::tests` (`the_beads_dir_override_locates_the_store`, `an_unresolvable_beads_dir_is_no_database_before_the_config_is_read`); the exhaustive `From<ConfigLoadError>` match in `crates/bd-cache-py/src/compose.rs` (compile-time) and the kind-text test `the_kind_texts_are_exactly_parse_scope_argument_config_and_read` (its set is now `parse`, `scope`, `argument`, `read`); `test_an_unreadable_config_file_is_an_os_error_with_kind_and_path` (`errno`, `filename`).
 
 ## REQ-PY-0002: The verbs the first consumer uses
 
@@ -57,7 +57,9 @@ Every reply is the `bd-cache-model` reply type serialized and converted to
 `dict`, `list`, `str`, `int`, `float`, `bool` and `None` (timestamps are
 RFC 3339 `str`). The shapes are the tables in `architecture.md`, Reply shapes;
 they change only with a new wheel version (`bd_cache_rs.__version__`). Where
-they differ from the baseline Python implementation's JSON, the Mapping table records it. This does
+they differ from the baseline Python implementation's JSON, the Mapping table recorded it
+until sprint b-9 removed it (ADR-PY-0006); the neutral 0.1 call corpus
+(`tests/corpus/corpus_0_1.json`) now records every shape. This does
 not close REQ-BDC-0806 (the CLI drop-in).
 
 **Refines:** REQ-BDC-0910
@@ -163,15 +165,15 @@ unannounced, and a sync-failure cause is announced once per cause.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-PY-0006 (Rand, 2026-10-26) when sprint b-9 deletes the vendored call log and `test_mapping_doc.py`
 
 `architecture.md`, Mapping, lists every name of the baseline Python
-implementation that the first consumer's hooks and its cron module call at
-the baseline at `05831df`, with the binding that
+implementation that the first consumer's hooks and its cron module call, with the binding that
 replaces it or the reason none is needed. Every binding named in the table
 exists on the handle.
 
 *Superseded by ADR-PY-0006 (Rand, 2026-10-26): the mapping from another implementation leaves the binding's docs with the vendored call log (S84, sprint b-9); `docs/bd-cache-py/` documents the binding's own API, and the neutral 0.1 call corpus (`tests/corpus/`, sprint b-9) proves every 0.1 verb and reply shape instead.*
 
 **Refines:** REQ-BDC-0910
-**Acceptance evidence:** `test_mapping_doc.py`.
+**Acceptance evidence:** none since sprint b-9: `test_mapping_doc.py` was removed with the
+requirement (superseded above); its replacement is `test_corpus.py` (ADR-PY-0006).
 
 ## REQ-PY-0010: Packaging
 
@@ -251,7 +253,8 @@ contract 1.0.x.
 
 **Refines:** REQ-BDC-0811, REQ-BDC-0812
 **Acceptance evidence:** the unedited 0.1 test files (`test_verbs.py`, `test_key_sets.py`,
-`test_mapping_doc.py`, ...); `test_additive.py`
+...); the neutral 0.1 call corpus, `test_corpus.py` (every 0.1 verb and reply shape, sprint
+b-9; it replaces the removed `test_mapping_doc.py`); `test_additive.py`
 (`test_0_1_dicts_keep_their_key_sets_next_to_the_0_2_calls`,
 `test_no_verb_old_or_new_issues_a_deprecation_warning`,
 `test_contract_version_is_the_one_context_reports`).

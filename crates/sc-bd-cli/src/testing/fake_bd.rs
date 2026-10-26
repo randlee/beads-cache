@@ -184,8 +184,8 @@ fn usage(message: &str) -> CliOutput {
 /// bd parses the text as JSON: a number, `true`/`false` or `null` is stored as that
 /// type (a whole number as an integer, whatever its spelling: `5`, `5.0`, `1e3`,
 /// ` 7`); anything else, including text that is JSON of another kind (`"5"`, `[1]`,
-/// `{"x":1}`) and `True`, is stored as the string it was given (BD-CACHE baseline,
-/// probed live against bd 1.3.1).
+/// `{"x":1}`) and `True`, is stored as the string it was given (probed live against
+/// bd 1.3.1).
 #[must_use]
 pub fn coerce_metadata(value: &str) -> Value {
     match serde_json::from_str::<Value>(value) {
@@ -601,7 +601,7 @@ mod tests {
 
     #[test]
     fn coercion_matches_what_bd_stores() {
-        // The cases of the BD-CACHE baseline ("Metadata values must survive bd's coercion").
+        // The cases that pin bd's metadata coercion (probed live against bd 1.3.1).
         assert_eq!(coerce_metadata("5"), json!(5));
         assert_eq!(coerce_metadata("5.0"), json!(5));
         assert_eq!(coerce_metadata("1e3"), json!(1000));

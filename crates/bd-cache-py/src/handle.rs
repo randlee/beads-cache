@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
-use bd_cache_api::{CacheFacts, Command, decode, execute};
+use bd_cache_api::{CacheFacts, Command, decode};
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
 use pyo3::exceptions::{PyBaseException, PyOSError, PyValueError};
 use pyo3::prelude::*;
@@ -110,7 +110,7 @@ pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// refuse, inside the call, a registered filter scope of that name
 /// ([`bd_cache::Cache::legacy_scope`], which strips nothing again).
 fn scope(phase: &str) -> PyResult<ScopeId> {
-    compose::parse_phase(phase).map_err(|text| PyValueError::new_err(format!("phase: {text}")))
+    compose::parse_phase(phase).map_err(|e| PyValueError::new_err(format!("phase: {e}")))
 }
 
 /// A number of attempts from 1 to `MAX_MAX_ATTEMPTS`.
@@ -179,7 +179,7 @@ impl PyCache {
                     .iter()
                     .map(|n| compose::parse_phase(n))
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|text| PyValueError::new_err(format!("scopes: {text}")))
+                    .map_err(|e| PyValueError::new_err(format!("scopes: {e}")))
             })
             .transpose()?;
         let overrides = Overrides {
@@ -502,8 +502,14 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
             kind.into(),
             path.as_ref(),
         ),
-        OpenError::Read { path, text } => {
-            decorate(PyOSError::new_err(text), OpenKind::Read, Some(&path))
+        OpenError::Read { path, text, source } => {
+            // `OSError(errno, strerror, filename)` sets `errno` and `filename`
+            // from the typed error; an error with no OS code keeps the text.
+            let err = match source.raw_os_error() {
+                Some(code) => PyOSError::new_err((code, text, path.clone())),
+                None => PyOSError::new_err(text),
+            };
+            decorate(err, OpenKind::Read, Some(&path))
         }
         OpenError::Cache(e) => cache_err(py, &e),
     }
@@ -543,9 +549,13 @@ impl PyCache {
             crate::phase_b::refuse_in_run(py, "manage.flush")?;
         }
         let request = decode(command, request).map_err(|e| api_err(py, &e))?;
+        // `bd_cache_sync::execute_api`, as the CLI runs it: `manage.health()`
+        // gets the sync rows' state read now (ADR-BDC-0015 amendment 1).
         let outcome = py.detach(|| {
-            self.inner
-                .with(|i| execute(&mut i.cache(), &request, &i.facts).and_then(|d| d.to_json()))
+            self.inner.with(|i| {
+                bd_cache_sync::execute_api(&i.schedules, &mut i.cache(), &request, &i.facts)
+                    .map(|d| d.to_json())
+            })
         });
         match outcome {
             Ok(Ok(data)) => to_py(py, &data),

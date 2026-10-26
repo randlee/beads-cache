@@ -1,15 +1,18 @@
 # bd 1.3.1 contract fixtures
 
-Copied byte for byte from randlee/atm-core at
-`05831dfe866d389feed138add3c29cb93cd6c82b`,
-`.claude/skills/atm-bd-orchestration/scripts/tests/fixtures/bd-1.3.1/`
-(the BD-CACHE v3 acceptance fixtures, PR randlee/atm-core#2219).
+Recorded output of bd 1.3.1, the acceptance fixtures of the v3 file format
+(REQ-BDC-0804, ADR-STORE-0001).
 
 | File | What | Check |
 |---|---|---|
 | `bd-schema.json` | full `bd schema` stdout of bd 1.3.1 | sha256 `caf8fe18e1117c067ff7bbd824484b24849677e2cbf86d793ddf6b64069a31a2` equals `BD_SCHEMA_SHA256` (`test_pinned_model_matches_recorded_schema`) |
 | `list-rows.json` | three rows recorded from `bd list --json` (bd 1.3.1, database `ct`) | every row validates (`test_recorded_bd_rows_validate`) |
 
+`list-rows.json` differs from the recording in one value only: the recorded
+author's handle in `created_by` is replaced with the neutral `recorder`
+(ADR-BDC-0010 as amended by ADR-BDC-0012; sprint b-9). `created_by` is an
+optional string, so every row still validates the same way.
+
 The strict model `src/row/generated.rs` is generated from `bd-schema.json`
 (`SC_BEADS_REGENERATE=1 cargo test -p sc-beads --test strict_rows_generated`).
-Do not edit these files; re-vendor them for a new bd release.
+Do not edit these files otherwise; re-record them for a new bd release.

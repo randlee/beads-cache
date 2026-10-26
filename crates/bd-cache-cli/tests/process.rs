@@ -687,6 +687,9 @@ fn an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo() {
             Some(p) => cmd.env("PATH", p),
         };
         if let Some(h) = home {
+            // Unix only (`#[cfg(unix)]`): the case under test is the bd
+            // fallback directories under a relative `HOME` (S77), which
+            // Windows does not resolve from `HOME` (QA-008).
             cmd.env("HOME", h);
         }
         let (exit, v) = envelope_json(&cmd.output().unwrap().into());

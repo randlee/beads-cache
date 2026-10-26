@@ -307,6 +307,12 @@ the cached adjusted answer, basis `Cached`, with `read_fallback` =
 `BD_CACHE.*` code, and `BD_CACHE.BD_UNAVAILABLE` for a cut, whose detail is
 `"bd blocked / bd ready: no answer within <limit>ms"` (fix-a-6-1, RBP-F002). An unreachable backend is still an outage and recorded (REQ-CORE-0001).
 
+*Amendment (sprint b-9, B9Q1-016; Status: Approved, lead ruling).* The reply also carries the
+fallback's cause as typed data, `bd_cache_model::FallbackCause` (`Cut`, `Unreachable` or
+`Answered`) in `ReadyReply::read_fallback_cause`, set where the fallback is chosen. Callers
+classify the fallback from it, never from the `read_fallback` text, so rewording the message
+cannot change a machine-readable field (REQ-BDC-0912).
+
 When a sync's base fetch fails (any `CallFailure`, ADR-CORE-0202), the
 sync emits one `tracing` warning with fields `scope` (named `phase` before
 ADR-BDC-0013 renamed scopes; sprint b-7), `code` and `detail`

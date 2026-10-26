@@ -43,8 +43,10 @@ pub const MAX_ESCALATIONS_OFFERED: usize = 500;
 /// The most bytes of the hook's stdout, and of its stderr, read (REQ-BDC-0723).
 pub const MAX_HOOK_PIPE_BYTES: usize = 1024 * 1024;
 
-/// The consecutive failure from which the hook is backed off (REQ-BDC-0727).
-pub const HOOK_BACKOFF_FROM: u32 = 3;
+/// The consecutive failure from which the hook is backed off (REQ-BDC-0727):
+/// `bd-cache-model`'s, the one owner, which `cache health`'s `hook_failing`
+/// reads too.
+pub use bd_cache_model::HOOK_BACKOFF_FROM;
 
 /// The longest wait of the backoff (REQ-BDC-0727).
 pub const HOOK_BACKOFF_CAP: Duration = Duration::from_secs(3600);

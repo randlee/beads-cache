@@ -98,8 +98,9 @@ pub use op::{
 pub use pyjson::python_json;
 #[doc(inline)]
 pub use reply::{
-    DrainReport, EscalatedItem, GetReply, JournalCounts, ListReply, PruneReport, ReadyBasis,
-    ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome, WriteReply,
+    DrainReport, EscalatedItem, FallbackCause, GetReply, JournalCounts, ListReply, PruneReport,
+    ReadyBasis, ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome,
+    WriteReply,
 };
 #[doc(inline)]
 pub use scope::{
@@ -108,10 +109,10 @@ pub use scope::{
 };
 #[doc(inline)]
 pub use state::{
-    BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder,
-    LeaseTake, MAX_HOOK_ERROR_BYTES, OpenWork, Outage, PendingSummary, ReadyBase, RunId,
-    ScopeStatus, StoreStatus, SyncOutcome, SyncRun, SyncRunEnd, SyncState, UpsertReport,
-    clip_hook_error,
+    BUILTIN_ROW, BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness,
+    HOOK_BACKOFF_FROM, HookState, LeaseHolder, LeaseTake, MAX_HOOK_ERROR_BYTES, OpenWork, Outage,
+    PYTHON_ROW, PendingSummary, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncMode, SyncOutcome,
+    SyncRow, SyncRun, SyncRunEnd, SyncState, UpsertReport, clip_hook_error,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

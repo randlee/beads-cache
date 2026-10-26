@@ -113,7 +113,7 @@ text is unchanged; the baseline Python implementation reading an entry this stor
 Consequences: the baseline Python implementation's column-named `INSERT` leaves `changed` NULL
 and its `_mark` leaves `last_error_code` stale, which the read rules cover;
 `tests/compat.rs` (`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`)
-runs both directions.
+ran both directions until sprint b-9 removed it (below).
 
 *Amended by ADR-STORE-0006:* `tests/compat.rs` is removed with the vendored implementation
 (sprint b-9); the read rules above stay, pinned by the store's own tests and the format golden,
@@ -201,7 +201,9 @@ Decision:
   is a plain column (ADR-STORE-0004) so that plain partial indexes serve the query.
 
 Consequences: rows and memberships stay consistent across a prune,
-rebuild or sync of the same file by the baseline Python implementation (tests `compat.rs`, `store.rs`).
+rebuild or sync of the same file by the baseline Python implementation (tests `store.rs`; the
+vendored `compat.rs` run was removed in sprint b-9, ADR-STORE-0006, and the format golden pins
+the file).
 Baseline Python implementation journal args that a-1's `Op::parse` refuses (for example
 `{"add_labels": []}`, ADR-MODEL-0001) read as `BAD_ARGS` naming the entry.
 
@@ -501,8 +503,8 @@ Decision:
   the same question, correct, slower on a long history. The hints are not tried again
   until the next open, which recreates the indexes. Tests assert the plans of the hinted
   queries, their SQL work in VM steps, and that the fallback is not retried.
-- **Baseline Python implementation compatibility** (read at the baseline
-  commit `05831dfe866d389feed138add3c29cb93cd6c82b`): it never creates,
+- **Baseline Python implementation compatibility** (read in the v3
+  baseline): it never creates,
   reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
   rebuild deletes `edges`, `beads` and `sync_state` (lines 359-361); its prune
   deletes a phase's `edges`, `beads`, `journal` and `sync_state` rows (611-614);
@@ -678,3 +680,25 @@ the oldest pending entry's `created_at`) and `unannounced_escalations_first(limi
 `limit` escalations by seq, and their total). Contract tests:
 `sync_run_records_count_failures_across_unfinished_runs`,
 `pending_summary_and_the_escalation_page`.
+
+### Amendment 2: `CacheStore::last_applied_at` and the registered flag (sprint b-9, QA-1)
+
+**Status:** Approved (lead ruling 9 of the b-9 QA-1 fix round: "record
+`CacheStore::last_applied_at` in an Approved inline ADR-STORE-0006 amendment").
+
+The port gains a read with a provided body, for `cache health`'s `last_drain_at`
+(REQ-BDC-0732, contract §6): `last_applied_at`, when the journal last applied an entry, the
+newest applied time of any entry the journal still holds, `None` when none was applied. It
+is judged on the entries' applied times, never on their seqs, so the gaps a prune or `cache
+evict` leaves do not matter. The provided body reads the applied entries through
+`applied_since` from the earliest instant; `SqliteStore` overrides it with two read-only index
+reads, no write, in one read transaction (`SqliteStore::read`, ADR-STORE-0002: a drainer that
+commits between them cannot mix two points in time): the newest `applied_epoch`
+(`journal_applied_epoch`, descending, first row) and the newest readable
+`COALESCE(applied_at, updated_at)` among entries another writer applied without an epoch
+(`journal_applied_unknown`). The SQL is crate-private. Each `StoreStatus` scope also carries
+`registered` (it has a registry row), read in the status snapshot, so health judges the
+registered scopes and their sync state at one point in time. No schema change. Tests:
+`last_applied_at_rules` (contract suite), `last_applied_at_reads_one_snapshot` and
+`last_applied_at_queries_use_the_applied_indexes` (`store.rs` unit tests: the statement trace
+and the plans), `last_applied_at_ignores_history_and_seqs` (`tests/store.rs`).

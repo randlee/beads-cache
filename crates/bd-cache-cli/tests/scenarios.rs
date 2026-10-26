@@ -7,7 +7,9 @@
 //! | an escalation at flush (a guard miss; a refused close, `PRECONDITION` over the bd CLI, S69) | [`a_guard_miss_escalates_at_flush`], [`bd_refuses_a_guard_that_misses_at_flush`], [`a_refused_close_escalates_at_flush`] |
 //! | a partial `refresh scopes` | [`a_partial_refresh_scopes`] |
 //! | a hung bd under `refresh scopes` (QA RCR-001) | [`a_hung_bd_fails_refresh_scopes`] |
+//! | `refresh scopes --timeout-ms` against a gated bd (I10) | [`refresh_scopes_timeout_ms_bounds_the_sync`] |
 //! | `health --probe` with bd unreachable (QA ARCH-001) | [`a_probe_that_cannot_reach_bd_is_down`] |
+//! | health with both sync rows disabled (REQ-BDC-0732) | [`health_reports_the_sync_mode_and_no_sync_row_enabled`] |
 //! | `fresh_within` running out | [`fresh_within_runs_out`] |
 //! | a schema change (rebuild) | [`a_schema_change_rebuilds`] |
 //! | `WRONG_DATABASE` | [`a_cache_file_of_another_project_is_wrong_database`] |
@@ -386,6 +388,16 @@ fn one_second_call_timeout(repo: &TestRepo) {
     .unwrap();
 }
 
+/// Takes the one-second cap off again, so a control run that expects bd to
+/// answer is not bound by a cap a slow process start on a CI runner can miss.
+fn default_call_timeout(repo: &TestRepo) {
+    std::fs::write(
+        repo.root().join(".beads").join("bd-cache.toml"),
+        "scopes = [\"x\"]\n",
+    )
+    .unwrap();
+}
+
 /// Far past the one-second cap: the parent kills fake-bd long before.
 const HUNG_MS: u64 = 60_000;
 
@@ -414,6 +426,7 @@ fn a_hung_bd_fails_refresh_scopes() {
 
     // The control: the same repository with bd answering refreshes and serves.
     repo.edit(|s| s.faults.slow_ms = 0);
+    default_call_timeout(&repo);
     let data = ok(&repo, &["cache", "refresh", "scopes", "x"]);
     assert_eq!(data["failed"], 0, "{data}");
     let listed = ok(&repo, &["issues", "list", "--scope", "x"]);
@@ -424,18 +437,133 @@ fn a_hung_bd_fails_refresh_scopes() {
     );
 }
 
+/// I10: `cache refresh scopes --timeout-ms N` bounds each scope's sync. Bd
+/// is blocked at its gate (the `gate_file` fault), so the 300 ms deadline is
+/// the only thing that can end the command, and it ends it with bd's
+/// `passed` marker absent: a failed `BD_UNAVAILABLE` result whose message
+/// names the 300 ms. The control, with the gate open and no `--timeout-ms`,
+/// refreshes.
+#[test]
+fn refresh_scopes_timeout_ms_bounds_the_sync() {
+    let repo = synced();
+    // Warm the binaries, so the first execution of a fresh file does not use
+    // up the budget.
+    ok(&repo, &["cache", "refresh", "scopes", "x"]);
+    let gate = repo.gate_file();
+    repo.edit(|s| s.faults.gate_file = Some(gate.clone()));
+
+    let (exit, v) = repo.json(&["cache", "refresh", "scopes", "x", "--timeout-ms", "300"]);
+    assert!(
+        !gate_passed(&gate).exists(),
+        "bdc returned only after bd passed its gate: {v}"
+    );
+    repo.release_gate();
+    assert_eq!(exit, 0, "{v}");
+    assert_eq!(v["data"]["failed"], 1, "{v}");
+    let result = &v["data"]["results"][0];
+    assert_eq!(result["report"]["deferred"], true, "{v}");
+    let e = &result["error"];
+    assert_eq!(e["code"], "BD_CACHE.BD_UNAVAILABLE", "{v}");
+    assert_eq!(e["details"]["timed_out"], true, "{v}");
+    assert!(e["message"].as_str().unwrap().contains("300 ms"), "{v}");
+
+    // The control: the gate is open, and with no --timeout-ms the sync runs.
+    let data = ok(&repo, &["cache", "refresh", "scopes", "x"]);
+    assert_eq!(data["failed"], 0, "{data}");
+}
+
+/// I7: `cache health` reports the pending age and drain time, and
+/// `--max-pending-age-s` reaches the api (a bad value is `BAD_ARGS`, not
+/// ignored). The age limit itself is tested on a fake clock in bd-cache-api.
+#[test]
+fn health_reports_the_pending_age_and_takes_the_age_limit() {
+    let repo = synced();
+    repo.edit(|s| s.faults.unavailable = true);
+    ok(
+        &repo,
+        &[
+            "issues",
+            "update",
+            "b-1",
+            "--actor",
+            "dev",
+            "--idempotency-key",
+            "age-1",
+            "--status",
+            "in_progress",
+        ],
+    );
+    let health = ok(&repo, &["cache", "health", "--max-pending-age-s", "86400"]);
+    // The entry is younger than the limit: the only reason is that no sync
+    // row exists (REQ-BDC-0732, lead ruling 2 of sprint b-9).
+    assert_eq!(health["state"], "degraded", "{health}");
+    assert_eq!(
+        health["reasons"],
+        json!([{"code": "no_sync_row_enabled", "message": health["reasons"][0]["message"]}]),
+        "{health}"
+    );
+    assert!(health["oldest_pending_age_s"].is_u64(), "{health}");
+    assert_eq!(health["last_drain_at"], Value::Null, "{health}");
+    assert_eq!(health["unresolved_escalations"], 0, "{health}");
+    let (exit, v) = repo.json(&["cache", "health", "--max-pending-age-s", "soon"]);
+    assert_ne!(exit, 0, "{v}");
+}
+
+/// REQ-BDC-0732: `bdc cache health` reads the sync rows of the cache file:
+/// no row at all is mode `none` and `degraded` with `no_sync_row_enabled`
+/// (lead ruling 2 of sprint b-9); the built-in row is mode `builtin` with
+/// its last run; both rows disabled is `degraded` with `no_sync_row_enabled`
+/// (planted negative: enabled again, `ok`).
+#[test]
+fn health_reports_the_sync_mode_and_no_sync_row_enabled() {
+    let repo = synced();
+    let health = ok(&repo, &["cache", "health"]);
+    assert_eq!(health["state"], "degraded", "{health}");
+    assert_eq!(health["sync"]["mode"], "none", "{health}");
+    assert_eq!(
+        health["reasons"][0]["code"], "no_sync_row_enabled",
+        "{health}"
+    );
+
+    ok(&repo, &["cache", "schedule", "set", "0 * * * * *"]);
+    let health = ok(&repo, &["cache", "health"]);
+    assert_eq!(health["state"], "ok", "{health}");
+    assert_eq!(health["sync"]["mode"], "builtin", "{health}");
+    assert_eq!(health["sync"]["last_run"]["row"], "builtin", "{health}");
+    assert_eq!(
+        health["sync"]["last_run"]["last_run_at"],
+        Value::Null,
+        "{health}"
+    );
+
+    ok(&repo, &["cache", "schedule", "disable"]);
+    let health = ok(&repo, &["cache", "health"]);
+    assert_eq!(health["state"], "degraded", "{health}");
+    assert_eq!(
+        health["reasons"][0]["code"], "no_sync_row_enabled",
+        "{health}"
+    );
+    assert_eq!(health["sync"]["last_run"], Value::Null, "{health}");
+
+    ok(&repo, &["cache", "schedule", "enable"]);
+    assert_eq!(ok(&repo, &["cache", "health"])["state"], "ok");
+}
+
 /// QA ARCH-001: `cache health --probe` with bd unreachable on its
 /// fingerprint call (`bd version` hangs, or bd cannot start) is exit 0 with
 /// `state: "down"`, the outage and `probe: null` (contract §3, §6).
 #[test]
 fn a_probe_that_cannot_reach_bd_is_down() {
     let repo = synced();
-    one_second_call_timeout(&repo);
-    // The control: bd answers, so the probe runs and the cache is ok.
+    // A sync row, so only the probe decides (REQ-BDC-0732).
+    ok(&repo, &["cache", "schedule", "set", "0 * * * * *"]);
+    // The control: bd answers, so the probe runs and the cache is ok. It
+    // runs before the one-second cap, which a slow process start can miss.
     let health = ok(&repo, &["cache", "health", "--probe"]);
     assert_eq!(health["state"], "ok", "{health}");
     assert!(health["probe"].is_object(), "{health}");
 
+    one_second_call_timeout(&repo);
     repo.edit(|s| s.faults.slow_ms = HUNG_MS);
     let health = ok(&repo, &["cache", "health", "--probe"]);
     assert_eq!(health["state"], "down", "{health}");

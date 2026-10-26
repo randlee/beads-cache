@@ -424,10 +424,10 @@ impl ApiError {
     pub fn scope_required(known: &[ScopeId]) -> Self {
         Self::table(
             "SCOPE_UNKNOWN",
-            "a list-like read must name a known scope, with scope or a phase-<x> label",
+            "a list-like read must name a known scope with scope, by its name as written",
         )
         .with_detail("known", labels(known))
-        .with_suggested_action("pass scope, or a phase-<x> label of one of the known scopes")
+        .with_suggested_action("pass scope, one of the known scopes")
     }
 
     /// `SCOPE_UNKNOWN` for a scope with no completed sync since it was last

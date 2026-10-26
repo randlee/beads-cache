@@ -239,8 +239,8 @@ clears) and `a_stopped_tick_clears_no_outage_alert_and_the_next_tick_does`
 (`src/announce.rs`).
 
 Note (fix-a-7-3, lead ruling S21): the baseline Python implementation's cron
-stores `sync_alert` as `"<code>: <detail>"` (verified in the baseline at
-`05831df`), where this crate stores
+stores `sync_alert` as `"<code>: <detail>"` (verified in the v3
+baseline), where this crate stores
 the bare key. The tick reads the code before the first `": "` with
 `AlertCause::from_key` (through `AlertCause::from_stored`), so an alert written
 in the Python form does not make it announce the same cause again. Python
@@ -377,7 +377,7 @@ Consequences: a new dependency is a change to this ADR.
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Context: both are defined by the baseline Python implementation's cron script
-at `05831dfe866d389feed138add3c29cb93cd6c82b` (the baseline); the Rust
+in the v3 baseline; the Rust
 side must read the same files and talk to the same program.
 
 Decision (confirmed against that commit with `gh api`; two ported
@@ -620,7 +620,8 @@ Decision:
   launches `cron.tick`. The
   script answers `cron.stop` with `{"action": "continue"}`; `bd_cache_rs.sync.main(func)` is the
   harness that does so and, on `cron.tick`, opens `Cache(payload["cache_path"],
-  beads_dir=payload["beads_dir"])` and calls `func(cache, payload)`, exiting 0 on return and 1
+  beads_dir=payload["beads_dir"])` *(superseded by the implementation notes below: it opens
+  `Cache(payload["repo_root"], cache_path=payload["cache_path"])`)* and calls `func(cache, payload)`, exiting 0 on return and 1
   with the exception's type and message on stderr. sc-cron keeps up to 64 KiB of each pipe;
   replies and `schedule show` keep stderr truncated to 8 KiB with the values of the row's `--env`
   variables replaced by `<redacted:NAME>`. The run is judged by its exit status; its timeout is
@@ -633,8 +634,12 @@ Decision:
   workspace entry) with `MissedTickPolicy::Skip`. `bd-cache-cli` depends on `sc-cron` directly, a
   new Boundaries edge `bd-cache-cli` → `sc-cron` that sprint b-8 adds with the code: the CLI
   constructs the `Scheduler` over `CacheScheduleStore` with bd-cache-sync's resolver, and
-  bd-cache-sync does not re-export sc-cron's API. `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on
-  Windows, through `tokio::signal::windows`) set the `StopFlag` and `sc_bd_cli::shutdown::request`,
+  bd-cache-sync does not re-export sc-cron's API. *(Superseded by the QA-1 amendment below
+  ("One surface"): `bd-cache-cli` no longer depends on `sc-cron`; `cron run` is
+  `Schedules::cron_run` in bd-cache-sync.)* `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on
+  Windows, through `tokio::signal::windows`) set the `StopFlag` and `sc_bd_cli::shutdown::request`
+  *(superseded by the QA-1 amendment below ("Shutdown"): on a signal only the stop flag is set;
+  the bd calls are stopped only when the shutdown timeout expires)*,
   then call `WorkerHandle::shutdown(now + --shutdown-timeout-ms)`: no run is launched, runs in
   flight are awaited to that deadline, and those still going are aborted, which drops their
   supervisors and kills the hook's and the Python row's process trees (process group or job
@@ -660,7 +665,10 @@ Decision:
   `TrustedCacheFile` compares the cache file's owner with the process's effective uid, and
   `rustix::process::geteuid` is a safe call: this crate keeps no `unsafe` and adds no crate to
   `Cargo.lock` (rustix is already there through `tempfile`; only its `process` feature is turned
-  on), named directly in this crate's manifest, so the root `Cargo.toml` is not edited. `toml`
+  on), named directly in this crate's manifest, so the root `Cargo.toml` is not edited
+  *(superseded by sprint b-8's QA-1 fix round, B8Q1-036: `rustix` and `process-wrap` are
+  `[workspace.dependencies]` entries of the root `Cargo.toml`, each with its reason there, and
+  this crate takes `rustix` with `workspace = true`)*. `toml`
   and `libc`, which served the phase files, are removed with them. No other dependency is added:
   the child-process supervision and the temp cwd are sc-cron's exported API, so there is no
   `process-wrap`, `windows-sys` or runtime `tempfile` here; the root `libc` entry stays until a

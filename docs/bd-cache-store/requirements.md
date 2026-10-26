@@ -145,10 +145,14 @@ the process ending, releases it.
 
 **Refines:** REQ-BDC-0401
 **Acceptance evidence:** `two_processes_contend_for_the_drain_lock`
-(`drain_lock.rs`), `a_guard_dropped_on_another_thread_releases_the_lock`
+(`drain_lock.rs`: two processes exclude each other on the lock file, and the
+file has the v3 name `<name>.bd-cache.drain.lock`, which is what makes another
+writer's drain exclude this one), `a_guard_dropped_on_another_thread_releases_the_lock`
 (`store.rs`),
-`drain_lock_is_exclusive` (contract suite),
-`the_python_and_rust_drain_locks_exclude_each_other` (`compat.rs`, Unix).
+`drain_lock_is_exclusive` (contract suite). *The cross-implementation run
+`the_python_and_rust_drain_locks_exclude_each_other` (`compat.rs`) was removed with the
+vendored implementation in sprint b-9 (ADR-STORE-0006); `drain_lock.rs` covers the exclusion
+and the shared name.*
 
 ## REQ-STORE-0006: The file is shared with the baseline Python implementation both ways
 
@@ -164,13 +168,19 @@ extended file, the store reads consistent rows and memberships
 *Amended by ADR-STORE-0006 (Rand, 2026-10-26): the baseline implementation is no longer vendored (S84). From sprint b-9 the cross-implementation run is the consumer's own test against the published wheel; in this repository the format golden (`format_golden.rs`, sprint b-7) pins the file, and the read rules for rows and journal columns another implementation wrote keep their store tests (`rows_another_implementation_wrote_belong_to_their_phase`, `a_python_row_written_while_open_is_read_by_its_phase`). The `compat.rs` tests below are removed in b-9.*
 
 **Refines:** REQ-BDC-0804
-**Acceptance evidence:** `a_python_written_v3_file_opens_and_reads_back_equal`,
-`the_python_get_and_status_read_a_file_the_rust_store_wrote`,
-`after_python_prune_and_rebuild_the_rust_store_reads_consistent_rows`
-(`compat.rs`); b-1's three journal columns both ways (ADR-STORE-0001,
-Amendment b-1): `python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`
-(`compat.rs`); `rows_another_implementation_wrote_belong_to_their_phase`,
-`a_python_row_written_while_open_is_read_by_its_phase` (`store.rs`).
+**Acceptance evidence (since sprint b-9, ADR-STORE-0006):** the format golden
+(`format_golden.rs`: `a_fresh_file_matches_the_format_golden`,
+`a_v3_only_file_gains_the_extensions_and_stays_at_version_3`,
+`a_v3_reader_still_reads_and_writes_an_extended_file`); the read rules for what another
+implementation wrote (`store.rs`): `rows_another_implementation_wrote_belong_to_their_phase`,
+`a_python_row_written_while_open_is_read_by_its_phase`,
+`an_alert_another_implementation_wrote_reads_back_as_written`,
+`a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement`,
+`entries_python_applies_while_open_are_dated_by_the_next_check`; and b-1's journal columns
+(ADR-STORE-0001, Amendment b-1): the split rule `resolve_notes_split_and_error_codes_parse`
+(`bd-cache-model/tests/ops.rs`), which the store's row decoder applies. *The four `compat.rs`
+runs against the vendored implementation were removed in sprint b-9; the cross-implementation
+run is the consumer's own test against the published wheel.*
 
 ## REQ-STORE-0007: The one repository configuration loader
 

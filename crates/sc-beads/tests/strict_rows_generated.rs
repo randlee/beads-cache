@@ -28,7 +28,7 @@ const PINNED_BD_VERSION: &str = "1.3.1";
 const FIXTURE: &str = "tests/fixtures/bd-1.3.1/bd-schema.json";
 const OUTPUT: &str = "src/row/generated.rs";
 
-/// The keys `bd list --json` emits that `bd schema` does not declare (BD-CACHE.md, Bead shape).
+/// The keys `bd list --json` emits that `bd schema` does not declare (the v3 bead shape).
 const JSON_EXTRAS: &[(&str, &str)] = &[
     ("comment_count", "integer"),
     ("dependency_count", "integer"),

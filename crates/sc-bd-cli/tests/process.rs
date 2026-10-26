@@ -973,7 +973,7 @@ fn two_processes_never_run_bd_on_one_project_at_once(env: &Env) -> TestResult {
     )
 }
 
-/// RSH-004 with fenix's input on S81: a Dolt server-mode project
+/// RSH-004 with the review input on S81: a Dolt server-mode project
 /// (`.beads/metadata.json` `dolt_mode: "server"`) takes no cross-process lock, as
 /// concurrent bd processes are bd's design there. The same two processes as in
 /// [`two_processes_never_run_bd_on_one_project_at_once`] now overlap: the second

@@ -144,9 +144,9 @@ Decision:
   store's `store_config_*` codes), except that a top-level `bd` key is
   dropped with a warning: a checked-in file cannot choose an executable.
 - Env overrides use sc-config's naming rule; a value that does not parse is
-  `CONFIG_INVALID` with `details.source: "bdc_env_invalid"`; the legacy file
-  is `CONFIG_INVALID` with `details.source: "bdc_legacy_cache_file"`. The
-  merged configuration is validated (`RepoConfig::validate`, scopes) and
+  `CONFIG_INVALID` with `details.source: "bdc_env_invalid"`. *(The refusal of
+  a legacy cache file is removed by ADR-BDC-0015, amending ADR-CLI-0004, sprint b-8; contract
+  §2.)* The merged configuration is validated (`RepoConfig::validate`, scopes) and
   opened through `compose_with_config` with `$BEADS_DIR` from the given
   environment. `ComposeError` maps through `ApiError::config_invalid` (or the
   cache error's own code).
