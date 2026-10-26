@@ -429,7 +429,7 @@ An escalated entry stays unannounced until it is marked announced; marking recor
 
 **Status:** Superseded (when the phase-B planning PR merges)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0720. The tick is a row in the cache file's sc-cron table, at most one per repository (A3), with no consumer team or lead configuration.*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0720. The built-in sync is a row in the cache file's sc-cron table, at most one per repository (A3), with no consumer team or lead configuration.*
 
 The superseded text is in git history (before the phase-B planning PR).
 
@@ -484,21 +484,21 @@ The superseded text is in git history (before the phase-B planning PR).
 
 The superseded text is in git history (before the phase-B planning PR).
 
-## REQ-BDC-0720: The tick on the cache's cron table
+## REQ-BDC-0720: The sync on the cache's cron table
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-beads-cache syncs bd on a tick scheduled in the sc-cron tables of the cache file, at most one tick row per repository (A3), set with `bdc cache schedule set|show|enable|disable|clear`; `enable` and `disable` flip only the row's `enabled` flag (A4). `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run the same Rust tick: lease, drain, sync, post-sync hook, reply (S83, S90).
+beads-cache syncs bd on rows in the sc-cron tables of the cache file: at most one built-in sync row per repository (A3) and at most one Python sync row running a consumer's script (A7); at most one of them is enabled. `bdc cache schedule set|show|enable|disable|clear` manages the built-in row; `enable` and `disable` flip only a row's `enabled` flag (A4). The built-in row's run takes the lease, drains, syncs every configured scope and calls the post-sync hook; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run that same Rust code (S90).
 
-**Source:** phase-b-boundary.md §Scheduling, §One tick; S83, S90, A3, A4
+**Source:** phase-b-boundary.md §Scheduling, §One tick, §A7; S83, S90, A3, A4, A7
 
 ## REQ-BDC-0721: Scopes are configured bd filters
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-A scope is a name plus a bd filter (labels all or any, status, type, assignee, or `--all`) with a method, `builtin` by default, `python` or `external`, managed with `bdc cache scopes add|set|remove|list`. Removing a scope deletes its membership rows, not bead rows another scope still holds. A tick with no scopes still drains and runs the hook.
+A scope is a name plus a bd filter (labels all or any, status, type, assignee, or `--all`), managed with `bdc cache scopes add|set|remove|list`. The built-in row syncs every configured scope. Removing a scope deletes its membership rows, not bead rows another scope still holds. A run with no scopes still drains and runs the hook.
 
-**Source:** phase-b-boundary.md §Scopes; A5
+**Source:** phase-b-boundary.md §Scopes; A5, A7
 
 ## REQ-BDC-0722: One tick at a time
 
@@ -508,29 +508,29 @@ Ticks are single-flight across processes through a `tick_lease` row taken under 
 
 **Source:** phase-b-boundary.md §Single flight; S90
 
-## REQ-BDC-0723: Registered methods run isolated
+## REQ-BDC-0723: The post-sync hook runs isolated
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-A registered method runs through sc-cron's Python runner as `<absolute interpreter> -I -m bd_cache_rs.run <kind> <module:function>`, from a private temp cwd, with only the allowlisted environment, its output capped, and killed with its process group or job object at its deadline (NFR-BDC-0004). There is no in-process call. The tick refuses to run registered code from a cache file not owned by the current user, or group- or world-writable.
+bd-cache-sync runs the post-sync hook named in the built-in row's payload as `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private temp cwd, with only an allowlisted environment, its output capped, and killed with everything it started at its deadline (NFR-BDC-0004), with its own process supervision. There is no in-process call. The run refuses to execute any row's or hook's code from a cache file not owned by the current user, or group- or world-writable.
 
-**Source:** phase-b-boundary.md §Calling a Python method; S89, S90, A2
+**Source:** phase-b-boundary.md §Calling a Python method, §A7; S89, S90, A7
 
-## REQ-BDC-0724: Registration lives in the cache file
-
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
-
-The `sync` and `post_sync` methods are registered in the cache file's `registration` table (`bdc cache hooks register|show|clear`, PyO3 `Cache.hooks_*`) with an absolute interpreter and a `module:function`; `.beads/bd-cache.toml` cannot register code (`CONFIG_INVALID`). A relative interpreter or a function that does not import is `REGISTRATION_INVALID`.
-
-**Source:** phase-b-boundary.md §Registration; S89
-
-## REQ-BDC-0725: A consumer's Python sync replaces the built-in one per scope
+## REQ-BDC-0724: Switching to a consumer's Python sync
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-`builtin` scopes are synced with `bd list` and `bd blocked`; `python` scopes go to the registered `sync` method once per tick; `external` scopes are never synced. A python scope counts as ingested only when an `ingest_scope` call stamped with the tick's `tick_id` committed for it; one neither ingested nor reported failed is `TICK_SYNC_MISSING`.
+`bdc cache sync use-python --python <absolute interpreter> --module <module> [--cron <expr>]` disables the built-in row, creates or updates the Python sync row, enables it and runs it at once, replying with the run's exit status and stderr; a failed run makes the command fail and restores the built-in row as enabled. `bdc cache sync use-builtin` reverses it. Neither leaves both rows enabled. A relative interpreter or a module that is not a dotted name is `SCHEDULE_INVALID`. `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
 
-**Source:** phase-b-boundary.md §One tick, §Request and result shapes; S87, decision D1
+**Source:** phase-b-boundary.md §A7, §Registration; S89, A7
+
+## REQ-BDC-0725: A consumer's Python sync replaces the built-in one
+
+**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+
+With the Python sync row enabled and the built-in row disabled, the consumer's script is the only sync: it fills the cache through `ingest_scope`, and no `bd list` runs for the built-in scopes. The row's run is judged by its exit status, as any sc-cron row.
+
+**Source:** phase-b-boundary.md §A7; S87, A7
 
 ## REQ-BDC-0726: Ingest is as strict as the built-in sync
 
@@ -538,13 +538,13 @@ The `sync` and `post_sync` methods are registered in the cache file's `registrat
 
 `ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)` (Rust, `bdc cache scopes ingest`, PyO3) applies the strict row decoder, declared membership, the built-in `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless allowed; at most 50 000 rows and 64 MiB; any violation is `INGEST_INVALID` with the stored scope untouched.
 
-**Source:** phase-b-boundary.md §Ingest; S87
+**Source:** phase-b-boundary.md §Ingest; S87, A7
 
 ## REQ-BDC-0727: The post-sync hook gets every result, and delivery is at-least-once
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-After the sync, a registered `post_sync` method gets the drain result, each scope's result and error with `failing_since` and `notified`, the escalated entries not yet notified with `first_offered_at`, and the pending count, with at least `hook_reserve_ms` left. The tick marks nothing; anything the hook does not mark is offered again on the next tick. The cache sends nothing (ADR-BDC-0010).
+After the built-in sync, the post-sync hook named in its row's payload gets the drain result, each scope's result and error with `failing_since` and `notified`, the escalated entries not yet notified with `first_offered_at`, and the pending count, with at least `hook_reserve_ms` left. The tick marks nothing; anything the hook does not mark is offered again on the next tick. The cache sends nothing (ADR-BDC-0010).
 
 **Source:** phase-b-boundary.md §Request and result shapes, §Failure state and marking; S88
 
@@ -560,9 +560,9 @@ After the sync, a registered `post_sync` method gets the drain result, each scop
 
 **Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
 
-Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The codes `TICK_SYNC_MISSING`, `TICK_RUN_FAILED`, `INGEST_INVALID` and `REGISTRATION_INVALID` have the kinds and exits of the codes table (REQ-BDC-0803).
+Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The codes `TICK_RUN_FAILED`, `INGEST_INVALID` and `SCHEDULE_INVALID` have the kinds and exits of the codes table (REQ-BDC-0803).
 
-**Source:** phase-b-boundary.md §New codes; ADR-BDC-0005
+**Source:** phase-b-boundary.md §New codes; ADR-BDC-0005, A7
 
 ## REQ-BDC-0801: CLI commands
 

@@ -473,7 +473,7 @@ Decision:
   target keeps the choice in its payload.
 - A Python target runs `<interpreter> -I -m <module>` (`-I` makes Python ignore the `PYTHON*` variables, the user site directory and
   the working directory on `sys.path`; it does not clear the environment, which
-  the child inherits until the environment policy of ADR-CRON-0009) from a new
+  the child inherits) from a new
   temporary directory per call, with one JSON object on stdin
   (`protocol`, `event`, `schedule`, `payload`, `deadline`) and the events
   `cron.stop` and `cron.tick`. No name in the protocol is beads-specific. The
@@ -517,32 +517,27 @@ Test lint configuration (lead rulings R14 and R15, a-8 fix round 6 and QA-8): `c
 tests `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-level
 `#![expect(..., reason)]`.
 
-## ADR-CRON-0009: A protocol-free supervised process under the hook targets
+## ADR-CRON-0009: The hook target is chosen per schedule row
 
 **Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8).
-Amends ADR-CRON-0007 (the `Stop` alias is removed) and ADR-CRON-0008 (the target is not
-Python-only, and the runner is usable without the hook protocol).
+Amends ADR-CRON-0007 (the `Stop` alias is removed) and ADR-CRON-0008 (the target is held per
+row, not per worker).
 
-Context: a review of sc-cron's phase-B changes for generality found the scheduler core
-general, but the hook runner shaped for one caller: the target is Python only, one target is
-held per worker, the temporary working directory cannot be changed, the environment is
-inherited in full, the output cap is fixed, and a caller that is not a schedule can reach the
-runner only through the cron request.
+Context: a review of sc-cron's phase-B changes for generality found the scheduler core general,
+but one hook target held per worker, so one table could not mix a Rust job and a Python module;
+caller requirement ids and caller purpose in its docs and rustdoc; and a `Stop` alias kept for
+one caller. Rand ruled (2026-10-26) that sc-cron stays a general-purpose cron assembly, that a
+target is Rust or Python, and that maturin / PyO3 bindings for sc-cron come when it moves to
+sc-runtime.
 
 Decision:
-- A public supervised-process call (REQ-CRON-0016) takes a program, arguments, an environment
-  policy (inherit, or an allowlist plus set values), a working directory (temporary by
-  default), stdin bytes, separate stdout and stderr caps and an expiry, and kills the child
-  with its process group or job object at the expiry or on drop.
-- `HookTarget` is `Rust(Arc<dyn Job>)` or `Command(CommandHook)`; `PythonHook` builds a
-  `CommandHook` for `<interpreter> -I -m <module>`. A worker can take a resolver from the
-  schedule row to its target, so rows in one table can run different commands.
-- The `sc-cron.hook.v1` request is the only protocol in sc-cron, built on the call above. Its
-  stdin also carries the schedule's `id`, `generation` and the occurrence's scheduled time.
-- Callers set their own policy: which variables to pass, whether an interpreter must be
-  absolute, and their caps. No caller's names or requirement ids appear in sc-cron.
+- A worker takes a resolver from a schedule row to its `HookTarget` (`Rust(Arc<dyn Job>)` or
+  `Python(PythonHook)`), so one table can hold rows of both kinds.
+- `StopDecision::Stop` is removed; `Delete` replaces it.
+- sc-cron's docs and rustdoc cite only sc-cron requirements, and its test fixtures use neutral
+  names. A child inherits the caller's environment; `-I` only makes Python ignore the
+  `PYTHON*` variables, the user site and the working directory on `sys.path`.
+- No caller-specific protocol, option or name is added.
 
-Consequences: a caller can run its own protocol over the same supervised call (beads-cache's
-`bd-cache.run.v1`, decision D2 of `docs/plans/phase-b/phase-b-boundary.md`); the scheduler
-core is unchanged.
-
+Consequences: a caller that needs its own protocol or environment policy for a child process
+runs that process itself (beads-cache does, for its post-sync hook).

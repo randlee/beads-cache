@@ -73,16 +73,16 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
 4. **Contract** (WP-8; ADR-BDC-0009). §10 becomes "0.1 → 0.2 API differences", naming no
    consumer: `outage` on Ok, the `issues_list` default exclusions, optional `changed` /
    `already_closed`, one handle per process, install, and `cache_path` for an existing file. It
-   adds the scopes, schedule, cron, hooks and ingest verbs, the `bd-cache.run.v1` shapes and
+   adds the scopes, schedule, cron, sync and ingest verbs, the `bd-cache.run.v1` shapes and
    the new-codes table, under b-8's merged names. The contract keeps its two surfaces, a bd
    /v0-shaped beads surface and the cache-management surface; every new verb joins the
    cache-management surface (ADR-BDC-0009); the Python namespaces map to them, `cache.beads` to
    the beads surface and `cache.manage` to the cache-management surface. Scopes are named as bd
    filters throughout the contract and `bd-cache-api`, with no prefix rule (ANC-009). The text states the behaviour b-8 built, as the
    anchors require: the tick runs at the times in the cache file's sc-cron table, each repository has at most
-   one built-in beads-cache bd sync schedule in sc-cron (ANC-002, ANC-008); scopes are bd filters, including `--all` (ANC-009); a
-   registered Python `sync` method replaces the built-in sync for its scopes and a registered
-   post-sync hook receives the results and errors (ANC-003, ANC-004); `schedule enable` and
+   one built-in beads-cache bd sync schedule in sc-cron (ANC-002, ANC-008); scopes are bd filters, including `--all` (ANC-009); a consumer's Python sync
+   row replaces the built-in row, switched with `bdc cache sync use-python` / `use-builtin`,
+   and the built-in row's post-sync hook receives the results and errors (ANC-003, ANC-004); `schedule enable` and
    `disable` flip the row's `enabled` flag, and an sc-cron stop hook returns continue, disable
    or delete (ANC-006, ANC-007).
 5. **Lint gate** (WP-10; ADR-BDC-0010). The CI step "Strict consumer boundary (ADR-BDC-0010)";

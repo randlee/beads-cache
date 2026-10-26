@@ -31,12 +31,13 @@ beads-cache general:
   enforces this in CI.
 - The built-in bd sync runs from a schedule row in `sc-cron`, with at most one such row per
   repository. Its scopes are bd filters, not phases.
-- A consumer can hand scopes to its own registered Python sync method, which feeds the cache
-  through the same validation, act on the sync results and errors in a post-sync hook, and pause
-  the tick with the cron row's `enabled` flag. One tick runs at a time, and registered code runs
-  only as an isolated subprocess from a cache file the user owns.
-- `sc-cron` supports Rust and Python hook targets, an `enabled` flag per row, and a stop hook that
-  returns continue, disable or delete.
+- A consumer can switch from the built-in sync row to its own Python sync row with one command,
+  which runs the script at once so any error is seen; the script feeds the cache through the
+  same validation. The built-in sync gives a post-sync hook the results and errors. One sync
+  runs at a time, and the consumer's code runs only as an isolated subprocess from a cache file
+  the user owns.
+- `sc-cron` supports Rust and Python hook targets chosen per row, an `enabled` flag per row, and a
+  stop hook that returns continue, disable or delete; it stays a general-purpose cron assembly.
 - The bd-cache-rs wheel and the `bdc` binaries ship for the consumer through the release channels.
 
 ## What is deliberately out of scope

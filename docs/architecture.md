@@ -638,11 +638,13 @@ Decision:
   cron string, a timeout, a JSON payload, an `enabled` flag and a hook target:
   `Rust` (an in-process `Job`) or `Python` (an interpreter and a module, run
   as a subprocess with one JSON object on stdin, for the `cron.tick` and
-  `cron.stop` events). The bd sync is one tick row per repository. The tick
-  syncs each configured scope by its method: the built-in sync, or a
-  consumer's registered Python `sync` method, which feeds the cache through
-  `ingest_scope`. It then calls an optional registered `post_sync` method with
-  the sync results, errors and unnotified escalations. The hook marks what it
+  `cron.stop` events). The bd sync is at most one built-in row per
+  repository, which syncs every configured scope and then calls an optional
+  post-sync hook, named in its payload, with the sync results, errors and
+  unnotified escalations. A consumer can replace it with its own Python sync
+  row, which feeds the cache through `ingest_scope`; `bdc cache sync
+  use-python` / `use-builtin` switch between the two, and at most one is
+  enabled. The hook marks what it
   handled through the cache API. The cache sends nothing and knows nothing
   about what the hook does (plan: `docs/plans/phase-b/phase-b-boundary.md`,
   r3 with its Amendments; ADR-BDC-0011).
@@ -706,18 +708,20 @@ Consequences:
 
 Context: ADR-BDC-0010 removes every consumer concern from the sync. Rand ruled (2026-10-25) that
 beads-cache syncs bd itself on a tick scheduled in the sqlite cron table, that a consumer can
-replace the built-in sync with a registered Python method, and that a post-sync hook gets the
-results and errors; and that sc-cron is a general tool with an `enabled` flag and a stop hook
-returning continue, disable or delete.
+replace the built-in sync with its own Python method, and that a post-sync hook gets the
+results and errors; that sc-cron is a general tool with an `enabled` flag and a stop hook
+returning continue, disable or delete; and (2026-10-26) that the switch is two cron rows, with a
+CLI command as an app-level convenience, while sc-cron stays a general-purpose cron assembly.
 
 Decision:
-- The tick, its schedule, the lease, the methods, the runner seam and the trust model are
+- The two sync rows, the switch, the lease, the post-sync hook and the trust model are
   ADR-SYNC-0008 (`docs/bd-cache-sync/architecture.md`).
 - The store extensions are ADR-STORE-0006 (`docs/bd-cache-store/architecture.md`): v3 plus
   additive columns and tables, `user_version` 3 (ADR-STORE-0001).
 - Amends ADR-BDC-0006: sc-cron's provenance is stated neutrally; sc-cron runs a Rust `Job` or a
-  Python hook (`<interpreter> -I -m <module>`, JSON on stdin, process-group or job-object kill,
-  capped output); its dependency list adds tokio's `process` and `io-util`, process-wrap and
+  Python hook (`<interpreter> -I -m <module>`, JSON on stdin, process-group or job-object
+  kill, capped output), chosen per schedule row; its dependency
+  list adds tokio's `process` and `io-util`, process-wrap and
   tempfile.
 
 Consequences: REQ-BDC-0701, 0702 and 0704..0707 are superseded by REQ-BDC-0720..0729, and

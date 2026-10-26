@@ -252,20 +252,16 @@ path of ASCII identifiers of at most 256 bytes, both checked once when
 **Refines:** ADR-CRON-0001, ADR-CRON-0008, ADR-CRON-0009; **constrained by:** REQ-CRON-0005,
 REQ-CRON-0010 (time is injected), REQ-CRON-0011
 
-## REQ-CRON-0016: A protocol-free supervised process
+## REQ-CRON-0016: A hook target per schedule row
 
 **Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8)
 
-`sc-cron` offers a public supervised-process call, independent of any schedule: a program,
-its arguments, an environment policy (inherit, or an allowlist of names plus names set to
-values), a working directory (a fresh temporary directory by default), stdin bytes, separate
-stdout and stderr caps, and an expiry. The child is killed with everything it started at the
-expiry or when the call is dropped. The hook target is `Rust(Job)` or `Command` (any
-executable with its arguments); `PythonHook` is a constructor for a `Command` that runs
-`<interpreter> -I -m <module>`. A worker can resolve the target per schedule row. The
-`sc-cron.hook.v1` request is built on top of this call; no other protocol lives in sc-cron.
+A worker resolves each schedule row's hook target from the row, so rows in one table can run
+different targets: a Rust `Job`, or a Python module (`<interpreter> -I -m <module>`, as
+REQ-CRON-0013). The target stays Rust or Python (Rand, 2026-10-26); maturin / PyO3 bindings for
+sc-cron itself come when it moves to sc-runtime, not in this phase.
 
-**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0005, REQ-CRON-0011
+**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0011
 
 ## REQ-CRON-0014: Enabled flag
 

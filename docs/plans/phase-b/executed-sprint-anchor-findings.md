@@ -34,7 +34,8 @@ changed; each failing cell is recorded here with where its fix lands. Run files 
 | REQ-BDC-0001 reads start no bd | b-2 | b-2 changes no read path. | No fix needed. |
 
 b-6's doc passes the gate. The separate sc-cron generality review found that its hook runner and docs carry
-caller-specific shape (Python-only target, one target per worker, fixed working directory and
-caps, inherited environment, the `Stop` alias, caller requirement ids in rustdoc and docs).
-Fixed by REQ-CRON-0016 and ADR-CRON-0009 (this PR), b-8 deliverable 6, and decision D2 in
-`phase-b-boundary.md`.
+caller-specific shape (one target per worker, the `Stop` alias, caller requirement ids in rustdoc and docs, and an
+overstated isolation claim).
+Fixed by REQ-CRON-0016 and ADR-CRON-0009 (this PR: a per-row Rust-or-Python target, no
+caller-shaped API) and b-8 deliverable 6; Amendment A7 in `phase-b-boundary.md` records Rand's
+ruling.

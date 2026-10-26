@@ -62,24 +62,42 @@ Rand's rulings after r3 (2026-10-25), quoted. Where one changes r3, the text is 
 | Id | Ruling (verbatim) | Effect on r3 |
 |---|---|---|
 | A1 | "cron.tick and cron.stop are not banned." | The lint does not flag `cron.tick` or `cron.stop`. |
-| A2 | "I expect 'sc-cron' to be a general tool that can be used for scheduling jobs." and "should retain that general purpose shape for porting (copying) to sc-runtime. NOTE: cron table should have an 'enable' bool flag so scheduled tasks can be enabled/disabled w/out needing to rewrite the entire row." and the stop hook returns "'disable', 'delete', 'continue'". | Sprint b-6 (merged, #92): sc-cron gains a Python hook target (`<interpreter> -I -m <module>`, JSON on stdin, process-group or job-object kill, output caps), an `enabled` column, `continue`/`disable`/`delete` stop decisions and five-field expressions. r3's "sc-cron itself is not changed" no longer holds; the tick lease is still the tick's own. WP-6b and WP-9 run every registered method through sc-cron's Python runner, with module `bd_cache_rs.run`. |
+| A2 | "I expect 'sc-cron' to be a general tool that can be used for scheduling jobs." and "should retain that general purpose shape for porting (copying) to sc-runtime. NOTE: cron table should have an 'enable' bool flag so scheduled tasks can be enabled/disabled w/out needing to rewrite the entire row." and the stop hook returns "'disable', 'delete', 'continue'". | Sprint b-6 (merged, #92): sc-cron gains a Python hook target (`<interpreter> -I -m <module>`, JSON on stdin, process-group or job-object kill, output caps), an `enabled` column, `continue`/`disable`/`delete` stop decisions and five-field expressions. r3's "sc-cron itself is not changed" no longer holds; the tick lease is still the tick's own. Superseded by A7: bd-cache-sync runs the post-sync hook itself; the Python sync is its own sc-cron row. |
 | A3 | "limiting 'builtin' sync to one per repo makes sense." | At most one tick row per repository in the cache file's cron table; `schedule set` replaces it, and other sc-cron rows are allowed. |
-| A4 | "sync row's hook target switches - can't this be handled through cron scheduling? i.e. built-in is disabled, python hook is enabled. (nothing for you to do outside basic sc-cron design)" | `bdc cache schedule enable` / `disable` flip only the tick row's `enabled` flag. A consumer moves scopes to its Python method with `scopes set <scope> --method python` (§Scopes). Decision D1 records the choice. |
+| A4 | "sync row's hook target switches - can't this be handled through cron scheduling? i.e. built-in is disabled, python hook is enabled. (nothing for you to do outside basic sc-cron design)" | `bdc cache schedule enable` / `disable` flip only the tick row's `enabled` flag. Superseded by A7: the switch is between two rows. |
 | A5 | Active phases would need to be defined with filters: 'phase' is the first consumer's concept, and other applications would have different scopes, including --all (Rand, 2026-10-25, paraphrased). | A scope is a name plus a bd filter: labels (all or any), status, type, assignee, or `--all` (§Scopes). |
 | A6 | "Add an anchor for only allowing code that is justified by req/adr to keep project tight." | Each sprint deliverable cites its REQ or ADR (anchor ANC-011). |
 
-**D2 (lead default; Rand may overrule).** From the sc-cron generality review: registered
-methods do not run through sc-cron's schedule hook. sc-cron offers a protocol-free
-supervised-process call (REQ-CRON-0016, ADR-CRON-0009), and bd-cache-sync builds
-`bd-cache.run.v1`, the `bd_cache_rs.run` argv, the environment it passes and its caps on top of
-it. This amends A2's "WP-6b and WP-9 run every registered method through sc-cron's Python
-runner" and §Calling a Python method's runner note.
+| A7 | Rand, 2026-10-26, on the sync switch: two cron rows is how it should work, with a CLI command as an app-level convenience that disables the built-in sync, schedules the consumer's Python script and starts it; sc-cron stays nothing other than a general-purpose cron assembly (paraphrased). Agreed details: the switch runs the Python row at once, so the caller sees any error; sc-cron gets a per-row hook target. Hook targets stay Python or Rust, and maturin / PyO3 bindings for sc-cron come when it moves to sc-runtime (Rand, 2026-10-26). | Replaces r3's per-scope methods, the registration table and the in-tick Python `sync` call. See §A7 below. |
 
-**D1 (lead default; Rand may overrule).** r3's design stays: one tick runs the built-in sync
-for `builtin` scopes, calls the registered `sync` method once for the `python` scopes, then the
-`post_sync` method (S87–S90), all as sc-cron Python hooks. The alternative, a separate Python
-sc-cron row replacing the tick, is not taken: it would lose the per-scope choice, the shared
-budget with the hook reserve and the single lease.
+### A7: two rows, a switch command, and a general sc-cron
+
+- **Two rows.** The cache file's cron table holds at most one built-in sync row per repository
+  (a Rust job: lease, drain, `bd list` for each configured scope, then the optional post-sync
+  hook) and at most one Python sync row, which runs the consumer's script. The script fills the
+  cache through `ingest_scope`, with the same validation as the built-in sync. At most one of
+  the two rows is enabled.
+- **The switch.** `bdc cache sync use-python --python <absolute interpreter> --module <module>
+  [--cron <expr>]` disables the built-in row, creates or updates the Python row, enables it and
+  runs it once at once. The run is immediate so the caller (often an agent) sees any error the
+  script emits: the reply carries the run's exit status and captured stderr, and a failed run
+  makes the command exit with an error and restores the built-in row as the enabled one
+  (lead default). `bdc cache sync use-builtin` reverses it. Neither leaves both rows
+  enabled. `schedule enable` / `disable` still flip one row's `enabled` flag.
+- **Post-sync hook.** It belongs to the built-in row: its payload names the hook (interpreter
+  and module), and bd-cache-sync runs it after the sync with its own process supervision,
+  killed with everything it started at its deadline. A Python sync script does its own
+  post-sync work.
+- **sc-cron.** It stays a general-purpose cron assembly. It gains only a general feature: a hook target per schedule row (Rust or Python). Its own maturin / PyO3
+  bindings come when it moves to sc-runtime, not in this phase. It gets
+  no protocol, option or name shaped for beads-cache.
+- **Superseded r3 text** (each marked *Superseded (A7)* below): the per-scope `method`
+  (`builtin` / `python` / `external`); the `registration` table and `bdc cache hooks`; the
+  registered `sync` method and its `bd-cache.run.v1` sync request and result; the `tick_id`
+  stamp on ingest and `TICK_SYNC_MISSING`; `REGISTRATION_INVALID` (a bad interpreter or module
+  given to the switch is `SCHEDULE_INVALID`). `bd_cache_rs.run` and the `post_sync` request
+  stay for the post-sync hook. The lease, the budget with the hook reserve, `ingest_scope`,
+  failure state and marking, and the trust check on the cache file stay.
 
 ## Lint review (S82 adjustments)
 
@@ -111,6 +129,10 @@ regex and add a test. Never add an exemption.
 ## Tick, sync and post-sync hook (S83, S87, S88, S90)
 
 ### Scopes
+
+*Superseded (A7) in part:* scopes have no `method`; the built-in row syncs every configured
+scope, and the Python row's script decides what it ingests.
+
 
 - The scope registry is the existing `scope` table, with a new `method` column
   (`builtin` by default) and a per-scope `revision`.
@@ -149,6 +171,10 @@ regex and add a test. Never add an exemption.
 
 ### One tick (deadline = start + budget_ms)
 
+*Amended (A7):* this is the built-in row's run. Step 3 syncs every scope with `bd list` /
+`bd blocked`; there are no `python` or `external` scopes and no in-tick `sync` method.
+
+
 1. **Lease.** Taken, or the tick is skipped.
 2. **Drain** the journal, bounded by the remaining budget minus the hook reserve.
    The drain lock is released when the drain ends.
@@ -169,6 +195,10 @@ handle in the same process, `STORE_IN_USE`), so the method's own `Cache` handle
 reads and writes normally.
 
 ### Calling a Python method (S89, S90)
+
+*Amended (A7):* only the post-sync hook is called this way, by bd-cache-sync with its own
+process supervision (not through sc-cron). The consumer's Python sync is its own sc-cron row.
+
 
 - **The command.** The method runs as `<absolute interpreter> -I -m bd_cache_rs.run
   <kind> <module:function>`, with the cwd set to a fresh private temp dir.
@@ -196,6 +226,10 @@ A method may call the read, ingest and announce APIs. It must not flush, drain,
 tick or schedule. Those calls raise `PRECONDITION` inside a run.
 
 ### Request and result shapes (`bd-cache.run.v1`)
+
+*Superseded (A7) in part:* the `sync` request and result are removed; the `post_sync` request
+and result stay.
+
 
 Every request carries `protocol`, `kind`, `tick_id`, `now`, `deadline` and
 `cache_path`.
@@ -266,6 +300,10 @@ idempotent.
 
 ### Ingest (S87)
 
+*Amended (A7):* there is no `tick_id` stamp; a Python sync row's run is judged by its own
+exit status, as any sc-cron row.
+
+
 `Cache.ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)` and
 `bdc cache scopes ingest <scope>` (JSON on stdin). A call made inside a run is
 stamped with the run's `tick_id`.
@@ -290,6 +328,10 @@ stamped with the run's `tick_id`.
 
 ### Store extensions
 
+*Amended (A7):* `scope.method`, `journal.ingest_tick_id`, `scope.last_ingest_tick_id` and the
+`registration` table are not added.
+
+
 *Amended (planning PR):* r3 named this ADR ADR-STORE-0005, which already exists (the
 store's dependencies); it is ADR-STORE-0006 throughout.
 
@@ -310,6 +352,10 @@ golden):
 
 ### New codes
 
+*Amended (A7):* `TICK_SYNC_MISSING` and `REGISTRATION_INVALID` are not added;
+`SCHEDULE_INVALID` covers a bad interpreter or module given to the switch.
+
+
 | Code | Kind | CLI exit | Raised by |
 |---|---|---|---|
 | `TICK_SYNC_MISSING` | per-scope result in the reply | 0 | the tick |
@@ -324,6 +370,11 @@ existing constants are unchanged; the four new codes are added to its exports in
 WP-9.
 
 ### Registration (S89)
+
+*Superseded (A7):* the Python sync is registered as its own cron row by `bdc cache sync
+use-python`; the post-sync hook is named in the built-in row's payload; both live in the cache
+file, never in `.beads/bd-cache.toml`.
+
 
 - `bdc cache hooks register sync|post_sync --python <absolute interpreter> --function <module:function> [--env NAME]...`,
   plus `hooks show` and `hooks clear`. PyO3 mirrors them as `Cache.hooks_*`.
@@ -340,7 +391,7 @@ deliverables with the REQ or ADR behind each (A6).
 |---|---|---|---|---|---|
 | [b-6](sprint-b-6-sc-cron.md) | A2 (sc-cron) | `sprint/b-6-sc-cron` | boundary | — | merged, #92 |
 | [b-7](sprint-b-7-store-contract.md) | WP-6a | `sprint/b-7-store-contract` | boundary | b-6 | #93 (stopped b-7 WIP) |
-| [b-8](sprint-b-8-tick-python.md) | WP-6b, WP-9, and the b-6 runner fixes A2 needs | `sprint/b-8-tick-python` | integration | b-7 | #93, #94, #95 |
+| [b-8](sprint-b-8-tick-python.md) | WP-6b, WP-9 as amended by A7, and the b-6 sc-cron fixes (per-row target) | `sprint/b-8-tick-python` | integration | b-7 | #93, #94, #95 |
 | [b-9](sprint-b-9-boundary-lint.md) | WP-7, WP-8, WP-10 | `sprint/b-9-boundary-lint` | integration | b-8 (merges last) | #91, #86, #96 |
 
 The critical path is b-7 → b-8 → b-9. b-9's code and test work (WP-7, the #86 part of WP-8)
@@ -404,6 +455,10 @@ Acceptance:
    handles).
 
 ### WP-6b tick
+
+*Amended (A7):* items about per-scope methods, the `registration` table, `hooks register`,
+the in-tick `sync` method, `tick_id` judging, `TICK_SYNC_MISSING` and `REGISTRATION_INVALID`
+are replaced by the two rows and the switch; b-8's sprint doc is the binding list.
 
 ADR: ADR-SYNC-0008 (*Amended (planning PR):* written there as Proposed; this work package
 implements it and it is marked Approved when the sprint merges), covering the tick, the schedule, the lease, the methods, the
@@ -501,6 +556,10 @@ those two files (overviews, `Source:` lines, earlier amendment notes) is restate
 WP-8, with no change of meaning.
 
 ### WP-9 Python surface and end to end
+
+*Amended (A7):* items about per-scope methods, the `registration` table, `hooks register`,
+the in-tick `sync` method, `tick_id` judging, `TICK_SYNC_MISSING` and `REGISTRATION_INVALID`
+are replaced by the two rows and the switch; b-8's sprint doc is the binding list.
 
 Acceptance:
 1. PyO3:

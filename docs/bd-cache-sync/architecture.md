@@ -457,36 +457,40 @@ check the pid is gone.
 Consequences: the Python cron module and this crate can read the same phase
 files; a change of either contract changes this ADR.
 
-## ADR-SYNC-0008: The tick on sc-cron, registered Python methods and their trust model
+## ADR-SYNC-0008: The sync on sc-cron rows, the switch, the post-sync hook and its trust model
 
 **Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8).
 Supersedes ADR-SYNC-0007 with its fix-a-7-3 and fix-a-7-5 amendments, and ADR-SYNC-0003,
 ADR-SYNC-0004 and ADR-SYNC-0005, whose consumer announcements, stop rule and phase discovery
 REQ-BDC-0704..0707 and 0702 no longer require.
 
-Context: ADR-BDC-0010 removes every consumer concern from the sync; ADR-BDC-0011 places the
-tick on the sc-cron table of the cache file, with a consumer's Python `sync` method and a
-`post_sync` hook.
+Context: ADR-BDC-0010 removes every consumer concern from the sync; ADR-BDC-0011 places the sync
+on the sc-cron table of the cache file, with a consumer's Python sync replacing it when needed
+and a post-sync hook. Rand ruled (2026-10-26) that the switch is two cron rows with a CLI
+convenience, and that sc-cron stays a general-purpose cron assembly.
 
 Decision: the design of `docs/plans/phase-b/phase-b-boundary.md` §Scheduling, §Single flight,
-§One tick, §Calling a Python method, §Request and result shapes and §Registration, with its
-Amendments A2–A5 and decision D1:
-- one tick row per repository; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and
-  `Cache.tick()` run the same Rust tick, single-flight through the `tick_lease` row;
-- the tick drains, syncs each scope by its method (`builtin`, `python` through the registered
-  `sync` method, or `external`), then calls the registered `post_sync` method with at least
-  `hook_reserve_ms` left, and marks nothing itself;
-- registered methods run only as subprocesses, through sc-cron's Python runner, as
-  `<absolute interpreter> -I -m bd_cache_rs.run <kind> <module:function>`, from a private temp
-  cwd with an allowlisted environment and capped output, killed at their deadline; the tick
-  refuses to run them from a cache file that is not the current user's or is group- or
-  world-writable (Unix; the Windows ACL check is a documented gap);
-- the runner seam lets tests drive the tick with a Rust runner that speaks `bd-cache.run.v1`.
+§One tick, §Calling a Python method and §Request and result shapes, with its Amendments A2–A5
+and A7:
+- at most one built-in sync row (a Rust job) and one Python sync row (the consumer's script, an
+  sc-cron hook row) per repository, at most one enabled; `bdc cache sync use-python` /
+  `use-builtin` switch them, and `use-python` runs the Python row at once and reports its exit
+  status and stderr, restoring the built-in row if that run fails;
+- the built-in row's run takes the `tick_lease`, drains, syncs every configured scope, then runs
+  the post-sync hook named in its payload with at least `hook_reserve_ms` left, and marks
+  nothing itself; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()`
+  run that same code;
+- bd-cache-sync runs the post-sync hook with its own process supervision, as
+  `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private
+  temp cwd with an allowlisted environment and capped output, killed with everything it started
+  at its deadline; no row's or hook's code runs from a cache file that is not the current user's
+  or is group- or world-writable (Unix; the Windows ACL check is a documented gap);
+- sc-cron gets no beads-cache-shaped API; its hook runner is used only for the Python sync row,
+  as any sc-cron row.
 
 Rejected alternatives: an in-process Python call (it would hold the GIL and the store across
-user code); registration in `.beads/bd-cache.toml` (it may be checked in); a separate Python
-sc-cron row replacing the tick (it loses the per-scope choice, the hook reserve and the single
-lease; decision D1).
+user code); code named in `.beads/bd-cache.toml` (it may be checked in); r3's per-scope methods
+with a registered `sync` method called inside the tick (superseded by Rand's two-row ruling).
 
 Consequences: the sync reaches the backend only through bd (REQ-BDC-0006); every bd call and
-method run is bounded by the deadline (NFR-BDC-0004).
+hook run is bounded by the deadline (NFR-BDC-0004).
