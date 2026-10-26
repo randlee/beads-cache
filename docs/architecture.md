@@ -176,9 +176,9 @@ workspace crates (third-party edges are in the Crate Layout table):
 | `bd-cache-store` | `bd-cache-model`, `sc-beads`, `sc-cron` (ADR-BDC-0014, sprint b-7) |
 | `bd-cache` | `bd-cache-model`, `sc-beads` (never the store or `sc-bd-cli`) |
 | `bd-cache-sync` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-cron`, `sc-beads` |
-| `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads`, `bd-cache-api` (ADR-BDC-0009), `bd-cache-sync` (ADR-PY-0006, sprint b-8) |
+| `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads`, `bd-cache-api`, `bd-cache-sync` (`bd-cache-api`: ADR-BDC-0009; `bd-cache-sync`: ADR-PY-0006, sprint b-8) |
 | `bd-cache-api` | `bd-cache`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009) |
-| `bd-cache-cli` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009), `sc-cron` (ADR-SYNC-0008, sprint b-8) |
+| `bd-cache-cli` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads`, `sc-cron` (ADR-BDC-0009; `sc-cron`: ADR-SYNC-0008, sprint b-8) |
 
 `bd-cache-model` does no I/O. `sc-beads`, `sc-bd-cli` and `sc-cron` depend on
 no bd-cache crate, so they can move or be published on their own; the edge

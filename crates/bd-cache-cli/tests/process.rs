@@ -769,7 +769,7 @@ fn a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_op
     let path = v["data"]["x_cache"]["cache_path"]
         .as_str()
         .unwrap()
-        .to_owned();
+        .replace('\\', "/");
     assert!(path.ends_with(".bd-cache/beads.bd-cache.sqlite3"), "{path}");
     write_toml(
         &repo,
@@ -780,7 +780,7 @@ fn a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_op
     let path = v["data"]["x_cache"]["cache_path"]
         .as_str()
         .unwrap()
-        .to_owned();
+        .replace('\\', "/");
     assert!(
         path.ends_with(".old-cache/beads.bd-cache.sqlite3"),
         "{path}"
