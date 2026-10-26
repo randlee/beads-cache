@@ -245,7 +245,7 @@ fn a_file_scope_is_written_on_open_and_cannot_be_changed_through_the_registry() 
             matches!(
                 &e,
                 CacheError::ConfigInvalid {
-                    origin: "config_scope",
+                    origin: bd_cache_model::ConfigOrigin::ConfigScope,
                     ..
                 }
             ),
@@ -302,8 +302,9 @@ fn a_bare_name_on_the_legacy_path_means_the_phase_a_scope_only() {
     let w = World::new();
     let mut c = w.cache();
     let prefixed = format!("{LEGACY_SCOPE_PREFIX}x");
-    assert_eq!(c.legacy_scope("x").unwrap(), x());
-    assert_eq!(c.legacy_scope(&prefixed).unwrap(), x());
+    let once = |arg: &str| bd_cache_model::legacy_scope(arg).unwrap();
+    assert_eq!(c.legacy_scope(&once("x")).unwrap(), x());
+    assert_eq!(c.legacy_scope(&once(&prefixed)).unwrap(), x());
     c.sync_legacy(&x(), w.after(T30)).unwrap();
     assert_eq!(c.list(&x(), None, None).unwrap().rows.len(), 3);
     assert_eq!(c.scope(&x()).unwrap(), Some(sx()));
@@ -317,7 +318,7 @@ fn a_bare_name_on_the_legacy_path_means_the_phase_a_scope_only() {
     );
     c.scopes_add(&lane).unwrap();
     for e in [
-        c.legacy_scope("lane").unwrap_err(),
+        c.legacy_scope(&once("lane")).unwrap_err(),
         c.sync_legacy(&lane.id, w.after(T30)).unwrap_err(),
     ] {
         assert!(matches!(e, CacheError::ScopeUnknown { .. }), "{e:?}");
@@ -327,4 +328,60 @@ fn a_bare_name_on_the_legacy_path_means_the_phase_a_scope_only() {
         Some(lane),
         "nothing re-registered"
     );
+}
+
+/// The 0.1 prefix rule is applied once (B7Q1-012): `Cache::legacy_scope`
+/// takes the name the rule already gave and strips nothing, so the 0.1 name
+/// `<prefix><prefix>z` reads, prunes and syncs the one scope `<prefix>z`.
+#[test]
+fn the_legacy_prefix_rule_is_applied_once() {
+    let w = World::new();
+    let mut c = w.cache();
+    let arg = format!("{LEGACY_SCOPE_PREFIX}{LEGACY_SCOPE_PREFIX}z");
+    let once = bd_cache_model::legacy_scope(&arg).unwrap();
+    assert_eq!(once.name(), format!("{LEGACY_SCOPE_PREFIX}z"));
+    c.sync_legacy(&once, w.after(T30)).unwrap();
+    assert_eq!(c.legacy_scope(&once).unwrap(), once, "not stripped again");
+    assert!(c.list(&c.legacy_scope(&once).unwrap(), None, None).is_ok());
+    assert!(c.ready(&c.legacy_scope(&once).unwrap(), None).is_ok());
+    // Planted negative: a second strip reads another scope, never synced.
+    let twice = bd_cache_model::legacy_scope(once.name()).unwrap();
+    assert_eq!(twice.name(), "z");
+    assert!(matches!(
+        c.list(&twice, None, None).unwrap_err(),
+        CacheError::ScopeUnknown { .. }
+    ));
+    c.prune(&c.legacy_scope(&once).unwrap()).unwrap();
+}
+
+/// A new scope is held to the registration limits on every path that
+/// registers one (ADR-BDC-0013, B7Q1-045): `scopes add` and `set`, and a
+/// sync of an unregistered name; nothing is registered.
+#[test]
+fn a_new_scope_over_the_limits_is_refused_on_every_registration_path() {
+    let w = World::new();
+    let mut c = w.cache();
+    let long = "n".repeat(bd_cache_model::MAX_SCOPE_NAME_LEN + 1);
+    let id = ScopeId::new(long).unwrap();
+    let wide = Scope::new(id.clone(), ScopeFilter::label("area").unwrap());
+    for e in [
+        c.scopes_add(&wide).unwrap_err(),
+        c.sync(&id, w.after(T30)).unwrap_err(),
+        c.sync_legacy(&id, w.after(T30)).unwrap_err(),
+    ] {
+        assert!(matches!(e, CacheError::BadArgs { .. }), "{e:?}");
+    }
+    assert_eq!(c.scope(&id).unwrap(), None, "nothing registered");
+    let ok = ScopeId::new("ok").unwrap();
+    c.scopes_add(&Scope::new(ok.clone(), ScopeFilter::label("ok").unwrap()))
+        .unwrap();
+    let many = ScopeFilter::from_parts(FilterParts {
+        labels_any: (0..=bd_cache_model::MAX_FILTER_WORDS)
+            .map(|i| format!("l{i}"))
+            .collect(),
+        ..FilterParts::default()
+    })
+    .unwrap();
+    let e = c.scopes_set(&Scope::new(ok, many)).unwrap_err();
+    assert!(matches!(e, CacheError::BadArgs { .. }), "{e:?}");
 }

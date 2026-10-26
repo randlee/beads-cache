@@ -30,13 +30,14 @@ fn recorded_argv() -> BTreeMap<String, Vec<String>> {
 }
 
 fn built(name: &str, filter: &ScopeFilter) -> Vec<String> {
-    if name.starts_with("blocked") {
+    let argv = if name.starts_with("blocked") {
         argv::blocked(filter)
     } else if name.starts_with("ready") {
         argv::ready(filter)
     } else {
         argv::list_scope(filter, None)
-    }
+    };
+    argv.expect("a recorded filter validates")
 }
 
 /// Each variant's argv equals the argv bd 1.3.1 was recorded with (AC3).

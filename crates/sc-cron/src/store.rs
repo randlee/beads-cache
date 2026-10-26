@@ -24,6 +24,13 @@ use crate::{
 };
 
 /// Durable storage for schedules and their run state.
+///
+/// An open extension point: any crate may implement it (sc-cron's
+/// [`SqliteScheduleStore`](crate::SqliteScheduleStore) is its standalone
+/// default). It is not sealed, so adding a required method is a breaking
+/// change for every implementor and bumps sc-cron's version; a new method
+/// either gets a default body that keeps the contract, or ships in a breaking
+/// release.
 pub trait ScheduleStore: Send + Sync {
     /// Creates a schedule, or restarts an ended one with the same name.
     ///

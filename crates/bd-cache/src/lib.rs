@@ -317,16 +317,19 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
         sync::sync_legacy(self, s, d)
     }
 
-    /// The phase-a scope a 0.1 argument names: `x` or the legacy-prefixed `x`
-    /// (REQ-BDC-0812 as amended, ADR-BDC-0013). For the 0.1 verbs only; every
-    /// other interface takes a scope name as written ([`ScopeId::new`]).
+    /// The phase-a scope a 0.1 name resolved to: `id` is what the 0.1 prefix
+    /// rule ([`bd_cache_model::legacy_scope`]) gave for the argument, applied
+    /// once where the argument was parsed; this checks only that the name is
+    /// not a registered filter scope (REQ-BDC-0812 as amended, ADR-BDC-0013).
+    /// It strips nothing, so a 0.1 name is never resolved twice. For the 0.1
+    /// verbs only; every other interface takes a scope name as written
+    /// ([`ScopeId::new`]).
     ///
     /// # Errors
     ///
-    /// `SCOPE_UNKNOWN` for an argument that names no valid scope, or one
-    /// whose registered scope has a filter.
-    pub fn legacy_scope(&self, arg: &str) -> Result<ScopeId, CacheError> {
-        scopes::legacy(self, arg)
+    /// `SCOPE_UNKNOWN` when `id`'s registered scope has a filter.
+    pub fn legacy_scope(&self, id: &ScopeId) -> Result<ScopeId, CacheError> {
+        scopes::legacy(self, id)
     }
 
     /// Every registered scope with its filter, by name (`scopes list`).
@@ -445,7 +448,8 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// The store's failure.
+    /// `BAD_ARGS` for an `expires_at` not after now or more than
+    /// [`MAX_LEASE_TTL`](bd_cache_model::MAX_LEASE_TTL) past it; the store's failure.
     pub fn lease_take(&mut self, holder: &LeaseHolder) -> Result<LeaseTake, CacheError> {
         let now = self.clock.now_utc();
         self.store.lease_take(holder, &now)
@@ -456,7 +460,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     /// # Errors
     ///
     /// The store's failure.
-    pub fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+    pub fn lease_release(&mut self, run_id: &bd_cache_model::RunId) -> Result<bool, CacheError> {
         self.store.lease_release(run_id)
     }
 
@@ -516,7 +520,8 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
     ///
     /// # Errors
     ///
-    /// `PRUNE_BLOCKED`; store errors.
+    /// `SCOPE_UNKNOWN` for an unregistered scope (nothing is pruned or
+    /// swept); `PRUNE_BLOCKED`; store errors.
     pub fn prune(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
         prune::prune(self, s)
     }
@@ -592,6 +597,13 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
 
     /// The scope's last announced sync-failure cause.
     ///
+    /// The alert verbs take any valid name, registered or not: they are
+    /// keyed by the tick's phase names (its phase files and the v3 cron's
+    /// `sync_alert:<phase>` keys), which need not be registered scopes. They
+    /// are the recorded exception to ADR-BDC-0013's refusal of an unknown
+    /// scope (ADR-CORE-0205 amendment 1, `docs/bd-cache/read-path.md`), until
+    /// b-8 replaces the tick.
+    ///
     /// # Errors
     ///
     /// Store errors.
@@ -657,7 +669,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Cache<S, L, B> {
             .map_err(|f| f.into_error("bd version / bd schema: no answer before the deadline"))
     }
 
-    /// Pending and unannounced-escalated counts (the stop rule).
+    /// Pending and unannounced-escalated counts (`cache health` `open_work`).
     ///
     /// # Errors
     ///

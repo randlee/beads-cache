@@ -83,7 +83,7 @@ impl Live {
     }
 
     fn scope(&self) -> ScopeFilter {
-        ScopeFilter::Label(self.label.clone())
+        ScopeFilter::label(self.label.clone())
     }
 
     fn actor() -> Result<Actor, String> {

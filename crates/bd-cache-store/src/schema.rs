@@ -55,7 +55,7 @@ pub const SC_CRON_SCHEDULE_VERSION_KEY: &str = "sc_cron_schedule_version";
 
 /// The version of sc-cron's `sc_cron_schedule` columns this store creates
 /// and serves (sc-cron's `SCHEMA_VERSION`, 2).
-pub const SC_CRON_SCHEDULE_VERSION: i64 = sc_cron::SCHEMA_VERSION;
+pub(crate) const SC_CRON_SCHEDULE_VERSION: i64 = sc_cron::SCHEMA_VERSION;
 
 /// The schedule table (ADR-BDC-0014, ADR-STORE-0006): sc-cron's version-2
 /// columns and checks, with sc-cron's own size limits, created when absent.
@@ -308,8 +308,14 @@ DELETE FROM scope_member WHERE bead NOT IN (SELECT id FROM beads);
 
 /// SQL predicate: bead `b` is in the scope bound to `?1`, whoever wrote it
 /// last. A row another writer left reads its v3 `phase` as a phase-a
-/// scope's membership, never a filter scope's (ADR-BDC-0013).
-pub(crate) const IN_SCOPE: &str = "((b.membership_known IS NOT NULL AND EXISTS \
-    (SELECT 1 FROM scope_member m WHERE m.scope = ?1 AND m.bead = b.id)) \
-    OR (b.membership_known IS NULL AND b.phase = ?1 AND NOT EXISTS \
-    (SELECT 1 FROM scope s WHERE s.name = ?1 AND s.filter IS NOT NULL)))";
+/// scope's membership, never a filter scope's (ADR-BDC-0013). A literal
+/// macro, so the statements built from it are `&'static str` (`concat!`).
+macro_rules! in_scope {
+    () => {
+        "((b.membership_known IS NOT NULL AND EXISTS \
+         (SELECT 1 FROM scope_member m WHERE m.scope = ?1 AND m.bead = b.id)) \
+         OR (b.membership_known IS NULL AND b.phase = ?1 AND NOT EXISTS \
+         (SELECT 1 FROM scope s WHERE s.name = ?1 AND s.filter IS NOT NULL)))"
+    };
+}
+pub(crate) use in_scope;

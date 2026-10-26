@@ -19,9 +19,11 @@
 //! name is kept for format compatibility (ADR-STORE-0001) and says nothing
 //! about what a scope is.
 
+use std::borrow::Borrow;
 use std::collections::BTreeSet;
 use std::fmt;
 
+use sc_beads::cache::check_filter_word;
 use sc_beads::{Bead, InvalidValue};
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -35,6 +37,56 @@ macro_rules! scope_name_rule {
     };
 }
 
+/// The literal of [`MAX_SCOPE_NAME_LEN`], for the messages that state it.
+macro_rules! max_scope_name_len {
+    () => {
+        64
+    };
+}
+
+/// The literal of [`MAX_FILTER_WORDS`], for the messages that state it.
+macro_rules! max_filter_words {
+    () => {
+        32
+    };
+}
+
+/// The literal of [`MAX_FILTER_WORD_BYTES`], for the messages that state it.
+macro_rules! max_filter_word_bytes {
+    () => {
+        256
+    };
+}
+
+/// The longest name a newly registered scope may have, in bytes.
+///
+/// A scope's name is part of a file name (the tick's per-scope files), a
+/// `meta` key (`sync_alert:<name>`) and part of every log line
+/// about the scope; 64 bytes stays far under every platform's file-name limit
+/// (255) with the prefix and suffix added. Names already stored are read as
+/// they are (ADR-BDC-0013): the cap applies only when a scope is registered.
+pub const MAX_SCOPE_NAME_LEN: usize = max_scope_name_len!();
+
+/// The most filter words (labels, statuses, type, assignee) a newly
+/// registered scope's filter may have.
+///
+/// Each word becomes part of one bd argv; 32 is far more than any scope
+/// needs and keeps an argv well inside Windows' 32 767-character command
+/// line with [`MAX_FILTER_WORD_BYTES`] words.
+pub const MAX_FILTER_WORDS: usize = max_filter_words!();
+
+/// The most scopes the registry holds.
+///
+/// Every registration (a sync of a new name, `scopes add`, a configured
+/// scope) adds a registry row, a `sync_state` row and an alert key, and each
+/// tick and `cache status` reads them all; 1024 is far past any repository's
+/// scopes and bounds a stream of on-demand syncs of new names. A registration
+/// past it is `BAD_ARGS` ([`CacheError::registry_full`](crate::CacheError::registry_full)).
+pub const MAX_REGISTERED_SCOPES: usize = 1024;
+
+/// The longest filter word of a newly registered scope, in bytes.
+pub const MAX_FILTER_WORD_BYTES: usize = max_filter_word_bytes!();
+
 /// The rule a scope name follows, in words: the one text the validator and
 /// every fix that states the rule use (RBP-F037). Other crates read it as
 /// [`ScopeName::RULE`].
@@ -44,7 +96,9 @@ pub(crate) const SCOPE_NAME_RULE: &str = scope_name_rule!();
 ///
 /// Nonempty ASCII letters, digits, `-`, `_` and `.`, with no length cap: the
 /// phase-a rule, so every name a v3 file holds stays valid and none is
-/// refused or renamed (ADR-BDC-0013). The name is safe in meta keys.
+/// refused or renamed (ADR-BDC-0013). The name is safe in meta keys. A
+/// scope registered from now on is also held to [`MAX_SCOPE_NAME_LEN`]
+/// ([`Scope::check_new`]); a stored name is read as it is.
 ///
 /// # Examples
 ///
@@ -102,6 +156,19 @@ impl ScopeName {
 impl fmt::Display for ScopeName {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.0)
+    }
+}
+
+impl AsRef<str> for ScopeName {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// `Hash` and `Eq` are the name's, so a map keyed by `ScopeName` is looked up by `&str`.
+impl Borrow<str> for ScopeName {
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }
 
@@ -181,6 +248,12 @@ impl ScopeId {
 impl fmt::Display for ScopeId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
+    }
+}
+
+impl AsRef<str> for ScopeId {
+    fn as_ref(&self) -> &str {
+        self.name()
     }
 }
 
@@ -308,7 +381,8 @@ impl ScopeFilter {
     /// Validates `parts` into a filter: the one constructor.
     ///
     /// Each label, status, type and assignee value must be one bd word
-    /// (nonempty, no leading `-`, no `,`, no control character).
+    /// (nonempty, no leading `-`, no `,`, no control character:
+    /// [`sc_beads::cache::check_filter_word`], the one statement of the rule).
     ///
     /// # Errors
     ///
@@ -348,16 +422,16 @@ impl ScopeFilter {
             });
         }
         for l in labels_all.iter().chain(&labels_any) {
-            check_word("scope label", l)?;
+            check_filter_word("scope label", l)?;
         }
         for s in &status {
-            check_word("scope status", s)?;
+            check_filter_word("scope status", s)?;
         }
         if let Some(t) = &issue_type {
-            check_word("scope type", t)?;
+            check_filter_word("scope type", t)?;
         }
         if let Some(a) = &assignee {
-            check_word("scope assignee", a)?;
+            check_filter_word("scope assignee", a)?;
         }
         Ok(Self::Criteria(Criteria {
             labels_all: labels_all.into_iter().collect(),
@@ -430,9 +504,84 @@ impl ScopeFilter {
 
     /// True when bd's list of the filter returns `row`, in any status
     /// (labels, type and assignee).
+    ///
+    /// Equal to `self.backend().selects(row)`, read over the criteria in
+    /// place, so a membership test allocates nothing (a unit test keeps the
+    /// two equal).
     #[must_use]
     pub fn selects(&self, row: &Bead) -> bool {
-        self.backend().selects(row)
+        match self {
+            Self::All => true,
+            Self::Criteria(c) => {
+                c.labels_all.iter().all(|l| row.has_label(l))
+                    && (c.labels_any.is_empty() || c.labels_any.iter().any(|l| row.has_label(l)))
+                    && c.issue_type
+                        .as_deref()
+                        .is_none_or(|t| row.issue_type.as_deref() == Some(t))
+                    && c.assignee
+                        .as_deref()
+                        .is_none_or(|a| row.assignee.as_deref() == Some(a))
+            }
+        }
+    }
+
+    /// The criterion `row` fails, when bd's list of the filter would not
+    /// return it: `labels`, `type` or `assignee` (a `BD_CONTRACT` field).
+    #[must_use]
+    pub fn unselected_by(&self, row: &Bead) -> Option<&'static str> {
+        let Self::Criteria(c) = self else {
+            return None;
+        };
+        let labels = c.labels_all.iter().all(|l| row.has_label(l))
+            && (c.labels_any.is_empty() || c.labels_any.iter().any(|l| row.has_label(l)));
+        if !labels {
+            return Some("labels");
+        }
+        if c.issue_type
+            .as_deref()
+            .is_some_and(|t| row.issue_type.as_deref() != Some(t))
+        {
+            return Some("type");
+        }
+        if c.assignee
+            .as_deref()
+            .is_some_and(|a| row.assignee.as_deref() != Some(a))
+        {
+            return Some("assignee");
+        }
+        None
+    }
+
+    /// How many filter words the filter holds: its labels, statuses, type and assignee.
+    #[must_use]
+    pub fn word_count(&self) -> usize {
+        match self {
+            Self::All => 0,
+            Self::Criteria(c) => {
+                c.labels_all.len()
+                    + c.labels_any.len()
+                    + c.status.len()
+                    + usize::from(c.issue_type.is_some())
+                    + usize::from(c.assignee.is_some())
+            }
+        }
+    }
+
+    /// Every filter word, in no particular order.
+    fn words(&self) -> impl Iterator<Item = &str> {
+        let c = match self {
+            Self::All => None,
+            Self::Criteria(c) => Some(c),
+        };
+        c.into_iter().flat_map(|c| {
+            c.labels_all
+                .iter()
+                .chain(&c.labels_any)
+                .chain(&c.status)
+                .map(String::as_str)
+                .chain(c.issue_type.as_deref())
+                .chain(c.assignee.as_deref())
+        })
     }
 
     /// True when `row`'s status is in the status criterion, or there is none.
@@ -457,29 +606,6 @@ impl ScopeFilter {
 impl Serialize for ScopeFilter {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         self.parts().serialize(s)
-    }
-}
-
-/// `InvalidValue` for one filter value that cannot be one bd argument.
-fn check_word(kind: &'static str, value: &str) -> Result<(), InvalidValue> {
-    let bad = if value.trim().is_empty() {
-        Some("is empty")
-    } else if value.starts_with('-') {
-        Some("starts with '-'")
-    } else if value.contains(',') {
-        Some("contains ',' (bd splits a list on it)")
-    } else if value.chars().any(char::is_control) {
-        Some("contains a control character")
-    } else {
-        None
-    };
-    match bad {
-        Some(reason) => Err(InvalidValue {
-            kind,
-            value: value.to_owned(),
-            reason,
-        }),
-        None => Ok(()),
     }
 }
 
@@ -547,16 +673,19 @@ impl Scope {
     #[must_use]
     pub fn backend_filter(&self) -> sc_beads::ScopeFilter {
         match &self.filter {
-            None => sc_beads::ScopeFilter::Label(legacy_label(&self.id)),
+            None => sc_beads::ScopeFilter::label(legacy_label(&self.id)),
             Some(f) => f.backend(),
         }
     }
 
     /// True when `row` is a member (a scoped upsert's membership rule).
+    ///
+    /// A phase-a scope's rule is its backend filter's (the one label); a
+    /// filter scope's is its filter with the status criterion.
     #[must_use]
     pub fn holds(&self, row: &Bead) -> bool {
         match &self.filter {
-            None => row.has_label(&legacy_label(&self.id)),
+            None => self.backend_filter().selects(row),
             Some(f) => f.holds(row),
         }
     }
@@ -573,8 +702,70 @@ impl Scope {
     #[must_use]
     pub fn selects(&self, row: &Bead) -> bool {
         match &self.filter {
-            None => row.has_label(&legacy_label(&self.id)),
+            None => self.backend_filter().selects(row),
             Some(f) => f.selects(row),
+        }
+    }
+
+    /// The criterion `row` fails when bd's list of the scope would not
+    /// return it (`labels`, `type` or `assignee`); `None` when it is selected.
+    #[must_use]
+    pub fn unselected_by(&self, row: &Bead) -> Option<&'static str> {
+        match &self.filter {
+            None => (!self.selects(row)).then_some("labels"),
+            Some(f) => f.unselected_by(row),
+        }
+    }
+
+    /// Checks the limits a newly registered scope is held to (ADR-BDC-0013,
+    /// B7Q1-045): a name of at most [`MAX_SCOPE_NAME_LEN`] bytes, at most
+    /// [`MAX_FILTER_WORDS`] filter words, each at most
+    /// [`MAX_FILTER_WORD_BYTES`]. `scopes add` and `set`, the configuration's
+    /// `[[scope]]` tables and `scopes` list, and on-demand registration call
+    /// it; a scope already stored is read as it is.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::{MAX_SCOPE_NAME_LEN, Scope, ScopeId};
+    /// assert!(Scope::legacy(ScopeId::new("bk")?).check_new().is_ok());
+    /// let long = ScopeId::new("x".repeat(MAX_SCOPE_NAME_LEN + 1))?;
+    /// assert!(Scope::legacy(long).check_new().is_err());
+    /// # Ok::<(), sc_beads::InvalidValue>(())
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] naming the limit the scope is over.
+    pub fn check_new(&self) -> Result<(), InvalidValue> {
+        if self.id.name().len() > MAX_SCOPE_NAME_LEN {
+            return Err(InvalidValue {
+                kind: "scope name",
+                value: self.id.name().to_owned(),
+                reason: concat!(
+                    "is longer than ",
+                    max_scope_name_len!(),
+                    " bytes, the limit for a new scope"
+                ),
+            });
+        }
+        let Some(filter) = &self.filter else {
+            return Ok(());
+        };
+        if filter.word_count() > MAX_FILTER_WORDS {
+            return Err(InvalidValue {
+                kind: "scope filter",
+                value: format!("{} words", filter.word_count()),
+                reason: concat!("has more than ", max_filter_words!(), " words"),
+            });
+        }
+        match filter.words().find(|w| w.len() > MAX_FILTER_WORD_BYTES) {
+            Some(word) => Err(InvalidValue {
+                kind: "scope filter word",
+                value: word.to_owned(),
+                reason: concat!("is longer than ", max_filter_word_bytes!(), " bytes"),
+            }),
+            None => Ok(()),
         }
     }
 }
@@ -712,12 +903,73 @@ mod tests {
         let x = ScopeId::new("x").unwrap();
         assert_eq!(
             Scope::legacy(x.clone()).backend_filter(),
-            sc_beads::ScopeFilter::Label(format!("{LEGACY_SCOPE_PREFIX}x"))
+            sc_beads::ScopeFilter::label(format!("{LEGACY_SCOPE_PREFIX}x"))
         );
         assert_eq!(
             Scope::on_demand(x).unwrap().backend_filter().labels_all(),
             vec!["x"]
         );
         assert!(Scope::on_demand(ScopeId::new("-x").unwrap()).is_err());
+    }
+
+    /// One case of the selection test: labels, type, assignee, and the
+    /// criterion the row fails.
+    type Case<'a> = (
+        &'a [&'a str],
+        Option<&'a str>,
+        Option<&'a str>,
+        Option<&'a str>,
+    );
+
+    /// `selects` reads the criteria in place and equals the backend
+    /// filter's answer; `unselected_by` names the criterion a row fails.
+    #[test]
+    fn selects_equals_the_backend_filter_and_names_the_failed_criterion() {
+        let f = ScopeFilter::from_parts(FilterParts {
+            labels_all: vec!["a".into()],
+            labels_any: vec!["b".into(), "c".into()],
+            issue_type: Some("bug".into()),
+            assignee: Some("dev".into()),
+            ..FilterParts::default()
+        })
+        .unwrap();
+        let mut row = sc_beads::testing::bead("b1");
+        let cases: [Case<'_>; 5] = [
+            (&["a", "c"], Some("bug"), Some("dev"), None),
+            (&["a"], Some("bug"), Some("dev"), Some("labels")),
+            (&["c"], Some("bug"), Some("dev"), Some("labels")),
+            (&["a", "b"], Some("task"), Some("dev"), Some("type")),
+            (&["a", "b"], Some("bug"), None, Some("assignee")),
+        ];
+        for (labels, t, a, failed) in cases {
+            row.labels = labels.iter().map(|l| (*l).to_owned()).collect();
+            row.issue_type = t.map(str::to_owned);
+            row.assignee = a.map(str::to_owned);
+            assert_eq!(f.selects(&row), f.backend().selects(&row), "{labels:?}");
+            assert_eq!(f.unselected_by(&row), failed, "{labels:?}");
+        }
+        assert!(ScopeFilter::All.selects(&row));
+        assert_eq!(ScopeFilter::All.unselected_by(&row), None);
+    }
+
+    /// A new scope is held to the name, word-count and word-length caps;
+    /// a stored name of any length still validates (ADR-BDC-0013).
+    #[test]
+    fn a_new_scope_over_the_caps_is_refused_and_a_stored_name_still_reads() {
+        let long = "x".repeat(MAX_SCOPE_NAME_LEN + 1);
+        let id = ScopeId::new(long.clone()).expect("a stored name of any length reads");
+        assert!(Scope::legacy(id).check_new().is_err());
+        let ok = ScopeId::new("x".repeat(MAX_SCOPE_NAME_LEN)).unwrap();
+        assert!(Scope::legacy(ok.clone()).check_new().is_ok());
+        let many = ScopeFilter::from_parts(FilterParts {
+            labels_all: (0..=MAX_FILTER_WORDS).map(|i| format!("l{i}")).collect(),
+            ..FilterParts::default()
+        })
+        .unwrap();
+        assert!(Scope::new(ok.clone(), many).check_new().is_err());
+        let wide = ScopeFilter::label("w".repeat(MAX_FILTER_WORD_BYTES + 1)).unwrap();
+        assert!(Scope::new(ok.clone(), wide).check_new().is_err());
+        let fits = ScopeFilter::label("w".repeat(MAX_FILTER_WORD_BYTES)).unwrap();
+        assert!(Scope::new(ok, fits).check_new().is_ok());
     }
 }

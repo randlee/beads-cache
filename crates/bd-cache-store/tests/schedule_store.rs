@@ -465,3 +465,328 @@ fn another_schedule_table_version_is_refused_before_any_schedule_is_served() {
         .unwrap();
     assert_eq!(kept, "3");
 }
+
+// --- sc-cron's SqliteScheduleStore contract cases, ported (B7Q1-010) ---
+
+/// The fixed-width text the store writes for `stamp(day)`.
+fn stamp_text(day: u32) -> String {
+    format!("2026-10-{day:02}T12:00:00.000000Z")
+}
+
+/// The DDL of `sc_cron_schedule` in the file at `path`, whitespace collapsed.
+fn schedule_ddl(c: &Connection) -> String {
+    let sql: String = c
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'sc_cron_schedule'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    sql.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
+/// The cache file's `sc_cron_schedule` is sc-cron's own table: its DDL equals
+/// the one `SqliteScheduleStore` creates, after whitespace normalisation, so
+/// the hand-kept copy cannot drift from sc-cron's (ADR-BDC-0014).
+#[test]
+fn the_cache_files_schedule_table_is_sc_crons_own_ddl() {
+    let h = Harness::new();
+    let tmp = TempDir::new("sc-cron-own");
+    let own = tmp.path().join("cron.db");
+    drop(sc_cron::SqliteScheduleStore::open(&own).unwrap());
+    assert_eq!(
+        schedule_ddl(&other(&h.path)),
+        schedule_ddl(&Connection::open(&own).unwrap())
+    );
+}
+
+#[test]
+fn list_active_survives_reopen_and_orders_by_created_at() {
+    let tmp = TempDir::new("schedule-reopen");
+    let path = file(&tmp);
+    let before = {
+        let store = SqliteStore::open_at(&path, &identity()).unwrap();
+        let view = store.schedule_store().unwrap();
+        view.create(&new_schedule("later"), stamp(5)).unwrap();
+        let ended = view.create(&new_schedule("ended"), stamp(2)).unwrap();
+        view.create(&new_schedule("earlier"), stamp(3)).unwrap();
+        assert!(
+            view.stop(ended.id, ended.generation, stamp(6), "done")
+                .unwrap()
+        );
+        let before = view.list_active().unwrap();
+        let names: Vec<_> = before.iter().map(|r| r.spec.name.as_str()).collect();
+        assert_eq!(names, ["earlier", "later"]);
+        before
+    };
+    let store = SqliteStore::open_at(&path, &identity()).unwrap();
+    assert_eq!(
+        store.schedule_store().unwrap().list_active().unwrap(),
+        before
+    );
+}
+
+#[test]
+fn create_after_stop_restarts_in_place_with_every_field_from_the_new_row() {
+    let h = Harness::new();
+    let first = h.create("nightly", 3);
+    assert!(
+        h.view
+            .record_run(first.id, first.generation, stamp(4), &RunOutcome::Ok)
+            .unwrap()
+    );
+    assert!(
+        h.view
+            .stop(first.id, first.generation, stamp(4), "closed")
+            .unwrap()
+    );
+    let replacement = NewSchedule {
+        spec: ScheduleSpec::new(
+            "nightly",
+            "0 15 * * * *",
+            Duration::from_secs(12),
+            serde_json::json!({"replacement": true}),
+        )
+        .unwrap(),
+        jitter: Duration::from_secs(31),
+        next_run_at: stamp(7),
+    };
+    let restarted = h.view.create(&replacement, stamp(6)).unwrap();
+    assert_eq!((restarted.id, restarted.generation.get()), (first.id, 2));
+    assert_eq!(restarted.spec, replacement.spec);
+    assert_eq!(restarted.jitter, Duration::from_secs(31));
+    assert_eq!(
+        (restarted.created_at, restarted.next_run_at),
+        (stamp(6), Some(stamp(7)))
+    );
+    assert_eq!(
+        (restarted.last_run_at, restarted.last_outcome),
+        (None, None)
+    );
+    assert_eq!((restarted.ended_at, restarted.stop_reason), (None, None));
+    assert!(restarted.enabled, "a restarted name is enabled again");
+}
+
+#[test]
+fn run_state_writes_on_an_ended_row_change_nothing() {
+    let h = Harness::new();
+    let row = h.create("nightly", 3);
+    assert!(
+        h.view
+            .stop(row.id, row.generation, stamp(4), "end")
+            .unwrap()
+    );
+    assert!(
+        !h.view
+            .record_run(row.id, row.generation, stamp(5), &RunOutcome::Ok)
+            .unwrap()
+    );
+    assert!(!h.view.set_next(row.id, row.generation, stamp(6)).unwrap());
+    assert!(
+        !h.view
+            .stop(row.id, row.generation, stamp(7), "again")
+            .unwrap()
+    );
+    let ended = h.view.get(row.id).unwrap().unwrap();
+    assert_eq!((ended.last_outcome, ended.next_run_at), (None, None));
+    assert_eq!(ended.stop_reason.as_deref(), Some("end"));
+}
+
+#[test]
+fn set_next_stores_the_given_instant() {
+    let h = Harness::new();
+    let row = h.create("nightly", 3);
+    assert!(h.view.set_next(row.id, row.generation, stamp(9)).unwrap());
+    assert_eq!(
+        h.view.get(row.id).unwrap().unwrap().next_run_at,
+        Some(stamp(9))
+    );
+}
+
+#[test]
+fn every_outcome_class_round_trips() {
+    let h = Harness::new();
+    let row = h.create("nightly", 3);
+    for outcome in [
+        RunOutcome::Ok,
+        RunOutcome::Refused("quota: full".into()),
+        RunOutcome::Failed("job panicked: boom".into()),
+        RunOutcome::TimedOut,
+    ] {
+        assert!(
+            h.view
+                .record_run(row.id, row.generation, stamp(4), &outcome)
+                .unwrap()
+        );
+        assert_eq!(
+            h.view.get(row.id).unwrap().unwrap().last_outcome,
+            Some(outcome)
+        );
+    }
+}
+
+#[test]
+fn an_unstorable_id_changes_nothing_and_reads_as_absent() {
+    let h = Harness::new();
+    let id = sc_cron::ScheduleId::new(u64::MAX);
+    assert!(
+        !h.view
+            .record_run(id, Generation::FIRST, stamp(4), &RunOutcome::Ok)
+            .unwrap()
+    );
+    assert_eq!(h.view.get(id).unwrap(), None);
+}
+
+/// Inserts a row by SQL with explicit end-state columns, for the CHECK tests.
+fn sql_insert(
+    c: &Connection,
+    name: &str,
+    next_run_at: Option<&str>,
+    ended_at: Option<&str>,
+    stop_reason: Option<&str>,
+) -> rusqlite::Result<usize> {
+    c.execute(
+        "INSERT INTO sc_cron_schedule
+            (generation, name, expr, timeout_ms, jitter_ms, payload, created_at,
+             next_run_at, ended_at, stop_reason)
+         VALUES (1, ?1, '@hourly', 1000, 0, '{}', ?2, ?3, ?4, ?5)",
+        rusqlite::params![name, stamp_text(1), next_run_at, ended_at, stop_reason],
+    )
+}
+
+#[test]
+fn table_checks_refuse_contradictory_and_over_size_rows() {
+    let h = Harness::new();
+    let c = other(&h.path);
+    let next = stamp_text(2);
+    sql_insert(&c, "ok-active", Some(&next), None, None).unwrap();
+    sql_insert(&c, "ok-ended", None, Some(&next), Some("done")).unwrap();
+    let long = "n".repeat(sc_cron::MAX_NAME_LEN + 1);
+    for (case, r) in [
+        (
+            "ended with a next run",
+            sql_insert(&c, "a", Some(&next), Some(&next), Some("done")),
+        ),
+        (
+            "active without a next run",
+            sql_insert(&c, "b", None, None, None),
+        ),
+        (
+            "ended without a reason",
+            sql_insert(&c, "c", None, Some(&next), None),
+        ),
+        (
+            "over-long name",
+            sql_insert(&c, &long, Some(&next), None, None),
+        ),
+    ] {
+        let message = r.expect_err(case).to_string();
+        assert!(
+            message.contains("CHECK constraint failed"),
+            "{case}: {message}"
+        );
+    }
+    let enabled = c.execute("UPDATE sc_cron_schedule SET enabled = 2", []);
+    assert!(enabled.is_err(), "enabled accepts only 0 or 1");
+}
+
+/// A row that does not decode is named by `get` and skipped by
+/// `list_active`, whose good rows still list (schedule.rs's skip path).
+#[test]
+fn a_corrupt_row_is_named_by_get_and_skipped_by_list_active() {
+    for (column, value) in [
+        ("payload", "'not json'"),
+        ("last_outcome", "'exit'"),
+        ("next_run_at", "'soon'"),
+        ("expr", "'* * * *'"),
+        ("payload", "x'00ff'"),
+    ] {
+        let h = Harness::new();
+        let bad = h.create("bad", 3);
+        let good = h.create("good", 4);
+        other(&h.path)
+            .execute(
+                &format!("UPDATE sc_cron_schedule SET {column} = {value} WHERE id = ?1"),
+                [i64::try_from(bad.id.get()).unwrap()],
+            )
+            .unwrap();
+        let e = h.view.get(bad.id).unwrap_err();
+        assert!(
+            matches!(&e, CronError::Store(s) if s.kind() == StoreErrorKind::Corrupt),
+            "{column}: {e}"
+        );
+        // Twice: the second reload skips the same row again.
+        for _ in 0..2 {
+            assert_eq!(
+                h.view.list_active().unwrap(),
+                vec![good.clone()],
+                "{column}"
+            );
+        }
+    }
+}
+
+/// A storage failure is a store error that keeps its rusqlite source.
+#[test]
+fn store_errors_expose_their_rusqlite_source() {
+    use std::error::Error as _;
+    let h = Harness::new();
+    other(&h.path)
+        .execute_batch("DROP TABLE sc_cron_schedule;")
+        .unwrap();
+    let e = h.view.list_active().unwrap_err();
+    assert!(matches!(&e, CronError::Store(_)), "{e}");
+    let store = e.source().expect("the store error");
+    assert!(store.source().is_some(), "the rusqlite error is preserved");
+}
+
+// --- REQ-CRON-0017: one transaction, checked deterministically (B7Q1-027) ---
+
+/// A planted failure on the second row's flag update rolls the first row's
+/// back too: `set_enabled_many` is one transaction (the polling test above
+/// can only make a split write likely to be seen; this one always sees it).
+#[test]
+fn set_enabled_many_rolls_back_whole_when_the_second_row_fails() {
+    let h = Harness::new();
+    let a = h.create("a", 1);
+    let b = h.create("b", 2);
+    other(&h.path)
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'b' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .unwrap();
+    assert!(
+        h.view
+            .set_enabled_many(&[(name("a"), false), (name("b"), false)])
+            .is_err()
+    );
+    assert!(h.view.get(a.id).unwrap().unwrap().enabled, "a rolled back");
+    assert!(h.view.get(b.id).unwrap().unwrap().enabled);
+}
+
+/// A planted failure on the other row's flag rolls the written row back:
+/// `replace_and_set_enabled` is one transaction.
+#[test]
+fn replace_and_set_enabled_rolls_back_whole_when_the_other_flag_fails() {
+    let h = Harness::new();
+    let builtin = h.create("builtin", 1);
+    other(&h.path)
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'builtin' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .unwrap();
+    let r = h.view.replace_and_set_enabled(
+        &new_schedule("python"),
+        true,
+        stamp(2),
+        &[(name("builtin"), false)],
+    );
+    assert!(r.is_err(), "{r:?}");
+    assert_eq!(
+        h.view.list_active().unwrap(),
+        vec![builtin],
+        "no python row"
+    );
+}

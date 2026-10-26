@@ -1,7 +1,8 @@
 """Wheel 0.2 is additive over 0.1 (REQ-BDC-0812, contract section 10).
 
 The 0.1 verbs and their dicts stay as they were, 0.2 issues no `DeprecationWarning`, the
-0.2 namespaces take millisecond timeouts and both scope-id spellings, `CacheError` gains
+0.2 namespaces take millisecond timeouts and a scope name as written (a legacy-prefixed
+name there is another, unknown scope: `SCOPE_UNKNOWN`, ADR-BDC-0013), `CacheError` gains
 the contract's fields, and `CONTRACT_VERSION` is the contract's.
 """
 

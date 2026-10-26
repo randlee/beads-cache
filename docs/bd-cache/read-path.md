@@ -231,7 +231,8 @@ unreachable (REQ-BDC-0911); a bead the rules cannot settle stays out of
 ## ADR-CORE-0202: Sync failure outcomes
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24). Refines ADR-BDC-0005 for
-`sync`.
+`sync`. Amended by amendment 1 below (sprint b-7, REQ-BDC-0729 and REQ-BDC-0728):
+an outage is recorded per scope.
 
 Context: ADR-BDC-0005 says a sync that meets an outage records the outage
 instead of a `SYNC_FAILED`, and a call cut by the caller's deadline is
@@ -262,6 +263,31 @@ and fields alone. A base fetch failure is not in `SyncReport` (lead ruling,
 bc-lead, 2026-10-24: no a-1 change); it is visible as the stale mark, as
 `ready`'s basis, and as a `tracing` warning (ADR-CORE-0203).
 
+### Amendment 1: an outage is the scope's result (sprint b-7)
+
+**Status:** Approved (lead ruling, sprint b-7 fix round 1, B7Q1-005), as
+REQ-BDC-0729 (Approved, Rand, 2026-10-26) requires: "an outage is recorded per
+affected scope in `sync_state` (its result, error and `failing_since`)". The
+code (`crates/bd-cache/src/sync.rs`) already does this; this amendment brings
+the decision in line with it.
+
+The table's `sync_state` column becomes, with the `failing_since` lifecycle of
+REQ-BDC-0728 applied by the store in one write transaction
+(`CacheStore::record_sync_result`):
+
+| Failure in the check, scope list or stale re-read | `sync_state` |
+|---|---|
+| reachable backend (`CallFailure::Error`, `SYNC_FAILED`) | `last_started_at`; `last_error` = the error; `failing_since` set to the sync's start when unset |
+| unreachable (`CallFailure::Outage`) | `last_started_at`; `last_error` = the outage's error; `failing_since` set to the sync's start when unset |
+| cut by `d` (`CallFailure::Cut`) | `last_started_at` only |
+| a sync that completes | `last_started_at` = `last_ok_at` = the start; `last_error`, `failing_since` and `notified_since` cleared |
+
+The sentence "`last_ok_at` and `last_error` are only changed by a sync that
+completes or by `SYNC_FAILED`" is replaced by: `last_ok_at` is only changed by
+a sync that completes; `last_error` is changed by a sync that completes (it is
+cleared), by `SYNC_FAILED`, and by an outage met by the sync (the outage's
+error). The reply column is unchanged.
+
 ## ADR-CORE-0203: Bounded fresh ready
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24). Refines ADR-BDC-0002,
@@ -282,7 +308,8 @@ the cached adjusted answer, basis `Cached`, with `read_fallback` =
 `"bd blocked / bd ready: no answer within <limit>ms"` (fix-a-6-1, RBP-F002). An unreachable backend is still an outage and recorded (REQ-CORE-0001).
 
 When a sync's base fetch fails (any `CallFailure`, ADR-CORE-0202), the
-sync emits one `tracing` warning with fields `phase`, `code` and `detail`
+sync emits one `tracing` warning with fields `scope` (named `phase` before
+ADR-BDC-0013 renamed scopes; sprint b-7), `code` and `detail`
 (a cut is reported as `BD_CACHE.BD_UNAVAILABLE`) before marking the base
 stale. It goes through `sc_beads::logging::tracing` (sc-beads re-exports
 `tracing`; ADR-BDC-0007), so `bd-cache` gains no dependency, and it is not
@@ -298,10 +325,19 @@ Decision:
   entries replayed), so a pending close leaves `--status open` at once and
   agrees with `get`.
 - A bead's scope for `get` and `refresh` is its v3 phase
-  (`ScopeId::from_labels`, the first `phase-<x>` label) when that scope is
-  registered, else the first registered scope that holds the view
-  (`ScopeId::holds`). A bead with none (out of scope) has no
-  `scope_last_ok_at` and `blocked: None`.
+  (`ScopeId::from_labels`, the first legacy-prefixed label) when that scope
+  is registered as a phase-a scope, else the first scope, by name, whose
+  stored membership holds the bead (`CacheStore::scopes_of`) and that the
+  view is in. A bead with none (out of scope) has no `scope_last_ok_at` and
+  `blocked: None`. *Amended in sprint b-7 fix round 1 (B7Q1-008, B7Q1-024):
+  the scope is found through the bead's membership rows, never by reading the
+  whole registry, and a bead is in a scope when the scope holds its view or
+  it is a stored member whose stored row the filter does not hold (a member
+  an ingest declared, REQ-BDC-0726); a pending write that moves the view out
+  of a scope still takes the bead out. Before, a non-member filter scope that
+  held the view also counted; a miss-filled row is now in no filter scope
+  until a sync or ingest makes it a member. The same rule decides `list`,
+  `ready` and the blocked state, so the four reads agree.*
 - `refresh` returns rows in request order without repeats; ids bd does not
   know are absent (not an error), and the rows are stored with membership
   unchanged, like a miss fill.
@@ -328,6 +364,18 @@ Consequences: `status` reports what `StoreStatus` holds, including the
 stale rows (`StoreStatus.stale`, filled by the store from
 `CacheStore::stale_rows`; a-1 amendment 1, lead ruling, bc-lead,
 2026-10-24), tested by `status_reports_stale_rows_until_a_sync_rereads_them`.
+
+### Amendment 1: unknown scopes (sprint b-7 fix round 1, B7Q1-009)
+
+`prune` of an unregistered scope is `SCOPE_UNKNOWN` and prunes and sweeps
+nothing (ADR-BDC-0013: every verb that names a scope refuses an unknown one
+and registers nothing); `cache evict` and the 0.1 Python `prune` go through
+it. The alert verbs (`sync_alert`, `set_sync_alert`,
+`set_sync_alert_within`) are the one exception: they are keyed by the tick's
+phase names (its phase files, and the v3 cron's `sync_alert:<phase>` keys),
+which need not be registered scopes, so they take any valid name, until
+sprint b-8 replaces the tick. ADR-BDC-0013's text in `docs/architecture.md`
+should name this exception; that edit is the plan branch's.
 
 ## ADR-CORE-0206: `get` reads the bead's own entry of the ready base (a-7 amendment)
 

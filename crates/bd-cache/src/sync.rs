@@ -27,10 +27,16 @@
 //! 7. `sync_state`: `last_ok_at` is the sync's start time (REQ-BDC-0504),
 //!    and `failing_since` is cleared (REQ-BDC-0728).
 //!
-//! Failures of steps 2 to 5 (ADR-BDC-0005, ADR-CORE-0202). A failure or an
-//! outage is a non-ok result: `failing_since` is set to the sync's start on
-//! the first one after an ok, and kept across later ones (REQ-BDC-0728); the
-//! outage is recorded per scope, its error in `last_error` (REQ-BDC-0729):
+//! Every result is written by one store call,
+//! [`CacheStore::record_sync_result`], which applies the `failing_since`
+//! lifecycle to the stored state in one write transaction, so a mark another
+//! process made meanwhile (`scope_announce`) is never overwritten.
+//!
+//! Failures of steps 2 to 5 (ADR-BDC-0005, ADR-CORE-0202 as amended in
+//! `docs/bd-cache/read-path.md`, amendment 1). A failure or an outage is a
+//! non-ok result: `failing_since` is set to the sync's start on the first one
+//! after an ok, and kept across later ones (REQ-BDC-0728); the outage is
+//! recorded per scope, its error in `last_error` (REQ-BDC-0729):
 //!
 //! | Failure | Reply | `sync_state` |
 //! |---|---|---|
@@ -44,7 +50,7 @@ use std::time::Duration;
 
 use bd_cache_model::{
     CacheError, CacheStore, CallFailure, CallKind, DrainLock, FingerprintOutcome, Scope, ScopeId,
-    SyncCause, SyncReport,
+    SyncCause, SyncOutcome, SyncReport,
 };
 use sc_beads::{Bead, CacheBackend, Deadline, SyncCursor, Timestamp};
 
@@ -118,19 +124,25 @@ pub(crate) fn not_legacy<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     s: &ScopeId,
 ) -> Result<CacheError, CacheError> {
-    Ok(CacheError::ScopeUnknown {
-        detail: format!("scope {s} is a filter scope, not the phase-a scope a 0.1 name means"),
-        known: cache.store.scopes()?.into_iter().map(|k| k.id).collect(),
-    })
+    Ok(CacheError::scope_unknown(
+        format!("scope {s} is a filter scope, not the phase-a scope a 0.1 name means"),
+        cache.store.scopes()?.into_iter().map(|k| k.id).collect(),
+    ))
 }
 
-/// `sync` of `scope`, registered first when its name is absent; a
-/// registered scope of the name keeps its own filter.
+/// `sync` of `scope`, registered first when its name is absent (held to the
+/// limits of a new scope, [`Scope::check_new`]); a registered scope of the
+/// name keeps its own filter.
 pub(crate) fn sync_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &mut Cache<S, L, B>,
     scope: &Scope,
     d: Deadline,
 ) -> Result<SyncReport, CacheError> {
+    if cache.store.scope(&scope.id)?.is_none() {
+        scope.check_new().map_err(|e| CacheError::BadArgs {
+            detail: format!("scope {} cannot be registered: {e}", scope.id),
+        })?;
+    }
     let scope = cache.store.ensure_scope(scope)?;
     let s = &scope.id;
     let mut report = SyncReport {
@@ -166,12 +178,9 @@ pub(crate) fn sync_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
             cache.store.mark_ready_base_stale(s)?;
         }
     }
-    let mut state = cache.store.sync_state(s)?;
-    state.last_started_at = Some(started.clone());
-    state.last_ok_at = Some(started.clone());
-    state.last_error = None;
-    state.record_result(true, &started);
-    cache.store.record_sync(&state)?;
+    cache
+        .store
+        .record_sync_result(s, &SyncOutcome::Ok, &started)?;
     report.outage = cache.store.outage()?;
     Ok(report)
 }
@@ -211,16 +220,19 @@ fn sync_rows<S: CacheStore, L: DrainLock, B: CacheBackend>(
     Ok(())
 }
 
-/// `BD_CONTRACT` when a scope list returned a row its filter does not select
-/// (labels, type or assignee); checked before any row of the list is stored
-/// (REQ-BDC-0008).
+/// `BD_CONTRACT` when a scope list returned a row its filter does not select,
+/// naming the criterion the row broke as the field (`labels`, `type` or
+/// `assignee`); checked before any row of the list is stored (REQ-BDC-0008).
 fn check_scope_rows(s: &Scope, rows: &[Bead]) -> Result<(), CacheError> {
-    match rows.iter().find(|r| !s.selects(r)) {
-        Some(row) => Err(CacheError::BdContract {
+    match rows
+        .iter()
+        .find_map(|r| s.unselected_by(r).map(|field| (r, field)))
+    {
+        Some((row, field)) => Err(CacheError::BdContract {
             bead: Some(row.id.clone()),
-            field: "labels".into(),
+            field: field.into(),
             detail: format!(
-                "bd list for scope {} returned {}, which its filter does not select",
+                "bd list for scope {} returned {}, whose {field} its filter does not select",
                 s.id, row.id
             ),
             source: None,
@@ -241,28 +253,26 @@ fn finish_stopped<S: CacheStore, L: DrainLock, B: CacheBackend>(
         Stop::Store(e) => return Err(e),
         Stop::Backend(f) => f,
     };
-    let mut state = cache.store.sync_state(s)?;
-    state.last_started_at = Some(started.clone());
     match failure {
         CallFailure::Cut => {
-            cache.store.record_sync(&state)?;
+            cache
+                .store
+                .record_sync_result(s, &SyncOutcome::Deferred, started)?;
             report.deferred = true;
             Ok(report)
         }
-        // The outage is this scope's result too (REQ-BDC-0729): its error
-        // and the failure state are recorded per scope.
+        // The outage is this scope's result too (REQ-BDC-0729, ADR-CORE-0202
+        // amendment 1): its error and the failure state are recorded per scope.
         CallFailure::Outage(e) => {
-            state.last_error = Some(e.to_string());
-            state.record_result(false, started);
-            cache.store.record_sync(&state)?;
+            let outcome = SyncOutcome::Failed(e.to_string());
+            cache.store.record_sync_result(s, &outcome, started)?;
             report.outage = cache.store.outage()?;
             Ok(report)
         }
         CallFailure::Error(e) => {
             let e = sync_failed(s, e)?;
-            state.last_error = Some(e.to_string());
-            state.record_result(false, started);
-            cache.store.record_sync(&state)?;
+            let outcome = SyncOutcome::Failed(e.to_string());
+            cache.store.record_sync_result(s, &outcome, started)?;
             Err(e)
         }
     }

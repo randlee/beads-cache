@@ -6,7 +6,7 @@
 
 use std::collections::BTreeMap;
 
-use bd_cache_model::{CacheError, Outage, ReadyBasis, RowView, ScopeId, UNREACHABLE_CODES};
+use bd_cache_model::{CacheError, Outage, ReadyBasis, RowView, ScopeId};
 use sc_beads::{BeadId, Timestamp};
 use serde::Serialize;
 
@@ -246,13 +246,15 @@ pub enum ReadFallback {
 const CUT_MARK: &str = "no answer within";
 
 impl ReadFallback {
-    /// Classifies the core's `read_fallback` text, `CODE: detail; hint`.
-    pub(crate) fn of(text: &str) -> (Self, OpError) {
+    /// Classifies the core's `read_fallback` text, `CODE: detail; hint`, by
+    /// whether its error was an outage (`outage`, the core's
+    /// [`CacheError::outage`] of it, REQ-BDC-0729): an answered
+    /// `BD_LIST_FAILED` is `failed`, next to `details.outage: false`.
+    pub(crate) fn of(text: &str, outage: bool) -> (Self, OpError) {
         let error = OpError::from_stored(text);
-        let unreachable = UNREACHABLE_CODES.contains(&error.code.as_str());
-        let kind = if unreachable && error.message.contains(CUT_MARK) {
+        let kind = if outage && error.message.contains(CUT_MARK) {
             Self::TimedOut
-        } else if unreachable {
+        } else if outage {
             Self::Unavailable
         } else {
             Self::Failed
@@ -323,4 +325,26 @@ pub struct ContextXCache {
     pub bd_schema_version: Option<String>,
     /// The recorded schema equals the pinned model's; `null` before the first fingerprint.
     pub model_current: Option<bool>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `read_fallback` follows the core's outage flag, not the code: an
+    /// answered `BD_LIST_FAILED` is `failed` (B7Q1-015).
+    #[test]
+    fn the_fallback_kind_follows_the_outage_flag() {
+        let cut = "BD_CACHE.BD_UNAVAILABLE: bd blocked / bd ready: no answer within 5ms; retry";
+        assert_eq!(ReadFallback::of(cut, true).0, ReadFallback::TimedOut);
+        let down = "BD_CACHE.BD_UNAVAILABLE: refused; retry";
+        assert_eq!(ReadFallback::of(down, true).0, ReadFallback::Unavailable);
+        let answered = "BD_CACHE.BD_LIST_FAILED: exit 1; retry";
+        assert_eq!(ReadFallback::of(answered, false).0, ReadFallback::Failed);
+        let transport = "BD_CACHE.BD_LIST_FAILED: stdout exceeded; retry";
+        assert_eq!(
+            ReadFallback::of(transport, true).0,
+            ReadFallback::Unavailable
+        );
+    }
 }

@@ -147,7 +147,7 @@ pub(crate) fn ready<S: CacheStore, L: DrainLock, B: CacheBackend>(
     let p = page(ListSort::Priority, rows, req.limit, None);
     let (read_fallback, read_fallback_error) = match reply.read_fallback.as_deref() {
         Some(text) => {
-            let (kind, error) = ReadFallback::of(text);
+            let (kind, error) = ReadFallback::of(text, reply.read_fallback_outage);
             (Some(kind), Some(error))
         }
         None => (None, None),

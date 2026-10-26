@@ -103,10 +103,11 @@ impl World {
         w
     }
 
-    /// Adds a `phase-x` bead to bd, stamped with the clock's time, then moves the clock 1 s.
+    /// Adds a bead of the phase-a scope `x` to bd (its label built from
+    /// `LEGACY_SCOPE_PREFIX`), stamped with the clock's time, then moves the clock 1 s.
     pub fn add(&self, name: &str, f: impl FnOnce(&mut Bead)) -> Bead {
         let mut b = bead(name);
-        b.labels = vec!["phase-x".into()];
+        b.labels = vec![bd_cache_model::legacy_label(&x())];
         b.updated_at = self.clock.now_utc().into();
         f(&mut b);
         self.bd.insert(b.clone());

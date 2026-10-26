@@ -218,7 +218,7 @@ fn unreadable_check_output_is_a_contract_error() {
 
 #[test]
 fn recorded_argv_of_every_read_matches_the_baseline_forms() {
-    let scope = ScopeFilter::Label(P6_LABEL.into());
+    let scope = ScopeFilter::label(P6_LABEL);
     let rig = Rig::new(
         RecordingInvoker::new(None)
             .reply_bounded(ok("[]"))
@@ -395,7 +395,7 @@ fn rows_and_blocked_rows_come_back_typed() {
             .reply_bounded(ok(rows_json(&[labelled("r-1", "x"), labelled("r-2", "x")])))
             .reply_bounded(ok(P6_INITIAL_BLOCKED)),
     );
-    let scope = ScopeFilter::Label("x".into());
+    let scope = ScopeFilter::label("x");
     let ready = rig.cli.list_ready(&p(), &scope, rig.deadline()).unwrap();
     assert_eq!(ready, [id("r-1"), id("r-2")]);
     let blocked: Vec<BlockedRow> = rig.cli.list_blocked(&p(), &scope, rig.deadline()).unwrap();
@@ -409,7 +409,7 @@ fn a_row_that_breaks_the_contract_fails_the_whole_call_naming_bead_and_field() {
     let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(ok(rows.to_string())));
     let e = rig
         .cli
-        .list_scope(&p(), &ScopeFilter::Label("x".into()), None, rig.deadline())
+        .list_scope(&p(), &ScopeFilter::label("x"), None, rig.deadline())
         .unwrap_err();
     let BeadsCacheError::Contract { bead, field, .. } = &e else {
         panic!("{e:?}");
@@ -662,7 +662,7 @@ fn exit_13_is_a_precondition_refusal() {
 #[test]
 fn a_refused_connection_is_unavailable_and_not_a_timeout() {
     let stderr = "Error: failed to open database: Dolt server unreachable at 127.0.0.1:1: dial tcp 127.0.0.1:1: connect: connection refused\n\nThe Dolt server may not be running.";
-    let scope = ScopeFilter::Label("x".into());
+    let scope = ScopeFilter::label("x");
     let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(exits(1, stderr)));
     let e = rig
         .cli
@@ -691,7 +691,7 @@ fn a_timeout_is_unavailable_with_timed_out_set() {
         );
         let e = rig
             .cli
-            .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+            .list_ready(&p(), &ScopeFilter::label("x"), rig.deadline())
             .unwrap_err();
         assert!(
             matches!(&e, BeadsCacheError::Unavailable { timed_out: true, reason } if reason.contains(phase.as_str())),
@@ -710,7 +710,7 @@ fn unreadable_output_is_a_transport_error_not_a_contract_or_spawn_failure() {
     );
     let e = rig
         .cli
-        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .list_ready(&p(), &ScopeFilter::label("x"), rig.deadline())
         .unwrap_err();
     assert!(
         matches!(&e, BeadsCacheError::Transport { what, .. } if what == "bd ready"),
@@ -733,7 +733,7 @@ fn oversized_output_is_transport_naming_the_stream_and_the_cap() {
     )));
     let e = rig
         .cli
-        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .list_ready(&p(), &ScopeFilter::label("x"), rig.deadline())
         .unwrap_err();
     let BeadsCacheError::Transport { what, source } = &e else {
         panic!("expected Transport, got {e:?}");
@@ -761,7 +761,7 @@ fn a_wait_failure_is_transport_not_a_spawn_failure() {
     );
     let e = rig
         .cli
-        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .list_ready(&p(), &ScopeFilter::label("x"), rig.deadline())
         .unwrap_err();
     assert!(
         matches!(&e, BeadsCacheError::Transport { what, .. } if what == "bd ready"),
@@ -790,7 +790,7 @@ fn a_bd_that_cannot_start_keeps_its_cause() {
     let rig = Rig::new(RecordingInvoker::new(None).reply_bounded(Err(BoundedError::Failed(spawn))));
     let e = rig
         .cli
-        .list_ready(&p(), &ScopeFilter::Label("x".into()), rig.deadline())
+        .list_ready(&p(), &ScopeFilter::label("x"), rig.deadline())
         .unwrap_err();
     assert!(e.is_unavailable() && !e.is_timeout(), "{e:?}");
     let cause = std::error::Error::source(&e).expect("BeadsError");
@@ -828,7 +828,7 @@ fn every_call_stops_at_the_deadline_it_is_handed() {
     let d = Deadline::after(&*rig.clock, Duration::ZERO);
     let a = actor("san");
     let g = Guards::default();
-    let scope = ScopeFilter::Label("x".into());
+    let scope = ScopeFilter::label("x");
     let one = id("b-1");
     let results = [
         rig.cli.fingerprint(&p(), d).map(drop),
@@ -884,7 +884,7 @@ fn fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for() {
     let backend = fake.backend().clone();
     let cli = BdCli::with_invoker(Box::new(fake)).with_clock(Arc::clone(&clock) as Arc<dyn Clock>);
     let d = || Deadline::after(&*clock, Duration::from_secs(30));
-    let scope = ScopeFilter::Label("x".into());
+    let scope = ScopeFilter::label("x");
 
     backend.inject(
         FakeOp::ListScope,

@@ -210,7 +210,7 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     std::fs::write(&file, "scopes = [\"bad name\"]\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
     assert!(
-        matches!(&err, ConfigLoadError::Scope { value, .. } if value == "bad name"),
+        matches!(&err, ConfigLoadError::Scope { source, .. } if source.value == "bad name"),
         "{err:?}"
     );
     assert_eq!(err.code(), "store_config_bad_scope");

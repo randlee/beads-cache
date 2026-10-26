@@ -51,7 +51,12 @@ transactions keep each write atomic. The backend and the cache share one
 
 Consequences: no `Cache` is ever shared between threads by reference; a
 second process (a hook) opens its own `Cache` on the same file and contends
-only for the drain lock.
+only for the drain lock. *Sprint b-7 note (B7Q1-025):* since ADR-BDC-0014
+`SqliteStore` is `Send + Sync` (its connection is behind the mutex it shares
+with `CacheScheduleStore`); the guarantee is the `Cache`'s marker alone, pinned
+by `crates/bd-cache/tests/threading.rs` (`Cache` is `Send` and not `Sync` over
+a `Sync` store) and `crates/bd-cache-store/tests/phase_b_store.rs` (the store
+and its view are `Send + Sync`).
 
 ## ADR-CORE-0002: Skeleton by delegation
 

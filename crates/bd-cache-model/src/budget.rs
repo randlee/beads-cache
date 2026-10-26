@@ -5,22 +5,83 @@ use std::time::Duration;
 
 use sc_beads::InvalidValue;
 
+/// The literals of the range constants, so each refusal states the range it
+/// checks from the one value (`concat!` takes literals only).
+macro_rules! min_budget_ms {
+    () => {
+        1000
+    };
+}
+macro_rules! max_budget_ms {
+    () => {
+        600000
+    };
+}
+macro_rules! min_work_ms {
+    () => {
+        1000
+    };
+}
+macro_rules! min_hook_reserve_ms_with_hook {
+    () => {
+        1000
+    };
+}
+
 /// The default `budget_ms` of the built-in row.
 pub const DEFAULT_BUDGET_MS: u64 = 25_000;
 /// The smallest `budget_ms`.
-pub const MIN_BUDGET_MS: u64 = 1_000;
+pub(crate) const MIN_BUDGET_MS: u64 = min_budget_ms!();
 /// The largest `budget_ms`.
-pub const MAX_BUDGET_MS: u64 = 600_000;
+pub(crate) const MAX_BUDGET_MS: u64 = max_budget_ms!();
 /// The default `hook_reserve_ms`.
 pub const DEFAULT_HOOK_RESERVE_MS: u64 = 5_000;
 /// The smallest `hook_reserve_ms` when a post-sync hook is named.
-pub const MIN_HOOK_RESERVE_MS_WITH_HOOK: u64 = 1_000;
+pub(crate) const MIN_HOOK_RESERVE_MS_WITH_HOOK: u64 = min_hook_reserve_ms_with_hook!();
 /// How much of the budget the drain and sync always leave: the reserve is at
 /// most `budget_ms` minus this.
-pub const MIN_WORK_MS: u64 = 1_000;
+pub(crate) const MIN_WORK_MS: u64 = min_work_ms!();
 /// How far past the budget the built-in row's sc-cron timeout sits, so
 /// sc-cron never aborts a run before its hook and its lease release.
-pub const ROW_TIMEOUT_MARGIN: Duration = Duration::from_secs(10);
+pub(crate) const ROW_TIMEOUT_MARGIN: Duration = Duration::from_secs(10);
+
+/// The longest a sync lease may be taken for: the largest row timeout
+/// (`budget_ms` at its most, 600 s, plus the 10 s row-timeout margin).
+///
+/// A run holds the lease at most its row's timeout; a holder that asks for
+/// longer and dies would block every later run until the file is edited by
+/// hand, so the store refuses a lease past `now` plus this
+/// ([`check_lease_expiry`]).
+pub const MAX_LEASE_TTL: Duration =
+    Duration::from_millis(MAX_BUDGET_MS).saturating_add(ROW_TIMEOUT_MARGIN);
+
+/// Checks a lease's `expires_at` against `now` (REQ-BDC-0722): it must be
+/// after `now` and at most [`MAX_LEASE_TTL`] past it. Both stores call it in
+/// `lease_take` before anything is written.
+///
+/// # Errors
+///
+/// `BAD_ARGS` naming the bound the expiry breaks.
+pub fn check_lease_expiry(
+    expires_at: &sc_beads::Timestamp,
+    now: &sc_beads::Timestamp,
+) -> Result<(), crate::CacheError> {
+    let ttl = expires_at.unix().saturating_sub(now.unix());
+    let most = i64::try_from(MAX_LEASE_TTL.as_secs()).unwrap_or(i64::MAX);
+    if ttl <= 0 {
+        return Err(crate::CacheError::BadArgs {
+            detail: format!("lease expires_at {expires_at} is not after now ({now})"),
+        });
+    }
+    if ttl > most {
+        return Err(crate::CacheError::BadArgs {
+            detail: format!(
+                "lease expires_at {expires_at} is {ttl}s after now; a lease lasts at most {most}s"
+            ),
+        });
+    }
+    Ok(())
+}
 
 /// The built-in row's budget and the part of it kept for the post-sync hook.
 ///
@@ -51,11 +112,10 @@ pub struct TickBudget {
 }
 
 impl TickBudget {
-    /// The budget of `budget_ms` (default [`DEFAULT_BUDGET_MS`], range
-    /// [`MIN_BUDGET_MS`]–[`MAX_BUDGET_MS`]) with a hook reserve of
-    /// `hook_reserve_ms` (default [`DEFAULT_HOOK_RESERVE_MS`], range 0 to
-    /// `budget_ms` − [`MIN_WORK_MS`], and at least
-    /// [`MIN_HOOK_RESERVE_MS_WITH_HOOK`] when `hook_named`).
+    /// The budget of `budget_ms` (default [`DEFAULT_BUDGET_MS`], range 1000
+    /// to 600000) with a hook reserve of `hook_reserve_ms` (default
+    /// [`DEFAULT_HOOK_RESERVE_MS`], range 0 to `budget_ms` − 1000, and at
+    /// least 1000 when `hook_named`). Each refusal states its range.
     ///
     /// # Errors
     ///
@@ -71,7 +131,12 @@ impl TickBudget {
             return Err(InvalidValue {
                 kind: "budget_ms",
                 value: budget.to_string(),
-                reason: "out of range: budget_ms is 1000 to 600000",
+                reason: concat!(
+                    "out of range: budget_ms is ",
+                    min_budget_ms!(),
+                    " to ",
+                    max_budget_ms!()
+                ),
             });
         }
         let reserve = hook_reserve_ms.unwrap_or(DEFAULT_HOOK_RESERVE_MS);
@@ -79,14 +144,21 @@ impl TickBudget {
             return Err(InvalidValue {
                 kind: "hook_reserve_ms",
                 value: reserve.to_string(),
-                reason: "out of range: hook_reserve_ms is 0 to budget_ms - 1000",
+                reason: concat!(
+                    "out of range: hook_reserve_ms is 0 to budget_ms - ",
+                    min_work_ms!()
+                ),
             });
         }
         if hook_named && reserve < MIN_HOOK_RESERVE_MS_WITH_HOOK {
             return Err(InvalidValue {
                 kind: "hook_reserve_ms",
                 value: reserve.to_string(),
-                reason: "out of range: hook_reserve_ms is at least 1000 when a hook is named",
+                reason: concat!(
+                    "out of range: hook_reserve_ms is at least ",
+                    min_hook_reserve_ms_with_hook!(),
+                    " when a hook is named"
+                ),
             });
         }
         Ok(Self {
@@ -113,7 +185,8 @@ impl TickBudget {
         self.budget.saturating_sub(self.hook_reserve)
     }
 
-    /// The built-in row's sc-cron timeout: the budget plus [`ROW_TIMEOUT_MARGIN`].
+    /// The built-in row's sc-cron timeout: the budget plus 10 s, so sc-cron
+    /// never aborts a run before its hook and its lease release.
     #[must_use]
     pub fn row_timeout(&self) -> Duration {
         self.budget.saturating_add(ROW_TIMEOUT_MARGIN)

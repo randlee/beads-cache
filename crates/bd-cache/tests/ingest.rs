@@ -279,3 +279,97 @@ fn an_unregistered_scope_is_scope_unknown() {
     assert!(matches!(e, CacheError::ScopeUnknown { .. }), "{e:?}");
     assert_eq!(c.scope(&lane.id).unwrap(), None);
 }
+
+/// Ingest declares membership (REQ-BDC-0726): a row the scope's filter does
+/// not select, ingested into a label-filter scope, is a member everywhere:
+/// `list`, `ready`, `get` and its blocked state agree (B7Q1-008).
+#[test]
+fn an_ingested_row_the_filter_does_not_select_is_a_member_on_every_read() {
+    let w = World::new();
+    let area = Scope::new(
+        ScopeId::new("area").unwrap(),
+        ScopeFilter::label("area").unwrap(),
+    );
+    let mut c = w.cache_with(CacheConfig::new(
+        ProjectRef::local(None),
+        vec![area.clone()],
+    ));
+    // No `area` label: the filter does not select it, the snapshot declares it.
+    let stray = w.add("stray", |b| b.labels = vec!["other".into()]);
+    assert!(!area.selects(&stray));
+    let snap = IngestSnapshot::new(&area.id, vec![stray.clone()], vec![]).unwrap();
+    c.ingest_scope(&area.id, &snap, None, false).unwrap();
+    let listed = c.list(&area.id, None, None).unwrap();
+    assert_eq!(listed.rows.len(), 1);
+    assert_eq!(listed.rows[0].blocked, Some(vec![]), "list: in the base");
+    let ready = c.ready(&area.id, None).unwrap();
+    assert_eq!(
+        ready
+            .ready
+            .iter()
+            .map(|r| r.bead.id.clone())
+            .collect::<Vec<_>>(),
+        vec![stray.id.clone()],
+        "ready: an open, unblocked member"
+    );
+    assert_eq!(ready.ready[0].blocked, Some(vec![]));
+    let got = c.get(&stray.id, None).unwrap();
+    assert_eq!(
+        got.scope,
+        Some(area.id.clone()),
+        "get: the scope it is a member of"
+    );
+    assert_eq!(got.row.blocked, Some(vec![]), "get: the same blocked state");
+    // Planted negative: a bead that is no member is in no scope.
+    let outside = w.add("outside", |b| b.labels = vec!["other".into()]);
+    let got = c.get(&outside.id, None).unwrap();
+    assert_eq!((got.scope, got.row.blocked), (None, None));
+}
+
+/// `prune` of an unregistered scope is `SCOPE_UNKNOWN` and sweeps nothing:
+/// an out-of-scope row stays (ADR-BDC-0013, B7Q1-009).
+#[test]
+fn a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing() {
+    let w = World::new();
+    let mut c = w.cache();
+    w.add("loose", |b| b.labels.clear());
+    c.get(&id("loose"), None).unwrap();
+    let ghost = ScopeId::new("ghost").unwrap();
+    let e = c.prune(&ghost).unwrap_err();
+    assert!(matches!(e, CacheError::ScopeUnknown { .. }), "{e:?}");
+    assert!(
+        store(&c).get_row(&id("loose")).unwrap().is_some(),
+        "no out-of-scope sweep ran"
+    );
+    assert_eq!(c.scope(&ghost).unwrap(), None, "nothing registered");
+    // A registered scope still prunes, sweeping the loose row.
+    let r = c.prune(&x()).unwrap();
+    assert!(r.out_of_scope_swept >= 1, "{r:?}");
+}
+
+/// Rows over the limit are refused as they decode, before the store is
+/// asked (REQ-BDC-0726, B7Q1-017).
+#[test]
+fn rows_over_the_limit_are_refused_while_they_decode() {
+    let w = World::new();
+    let row = serde_json::to_value(lane_bead(&w, "l1")).unwrap();
+    let rows: Vec<serde_json::Value> = (0..=MAX_INGEST_ROWS)
+        .map(|i| {
+            let mut r = row.clone();
+            r["id"] = serde_json::json!(format!("l{i}"));
+            r
+        })
+        .collect();
+    let json = serde_json::Value::Array(rows).to_string();
+    let e = IngestSnapshot::from_json(&lane().id, &json, "[]").unwrap_err();
+    assert!(
+        matches!(
+            e,
+            CacheError::IngestInvalid {
+                reason: IngestReason::TooManyRows,
+                ..
+            }
+        ),
+        "{e:?}"
+    );
+}

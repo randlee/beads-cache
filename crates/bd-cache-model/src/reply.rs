@@ -95,6 +95,11 @@ pub struct ReadyReply {
     pub ready: Vec<RowView>,
     /// Why a requested fresh answer fell back to the cached one.
     pub read_fallback: Option<String>,
+    /// Whether the fallback's error is an outage, bd not reached
+    /// ([`CacheError::outage`](crate::CacheError::outage), REQ-BDC-0729);
+    /// `false` with no fallback. Not part of the 0.1 dict.
+    #[serde(skip)]
+    pub read_fallback_outage: bool,
     /// Ready per bd but no cached row yet; omitted from `ready`.
     pub missing_rows: Vec<BeadId>,
 }

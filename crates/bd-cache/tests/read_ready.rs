@@ -597,6 +597,26 @@ fn bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outa
     );
     assert!(matches!(r.basis, ReadyBasis::Cached { .. }));
     assert!(store(&c).outage().unwrap().is_some());
+    assert!(r.read_fallback_outage, "bd was not reached");
+}
+
+/// An answered `bd ready` failure falls back with `read_fallback_outage`
+/// false: the error's `outage()` (REQ-BDC-0729), not the v3 `UNREACHABLE`
+/// set, which holds `BD_LIST_FAILED` (B7Q1-015).
+#[test]
+fn bounded_fresh_ready_on_an_answered_failure_is_not_an_outage() {
+    let w = World::new();
+    let mut c = synced(&w);
+    w.bd.inject(FakeOp::ListReady, Injection::Failed(1));
+    let r = c.ready(&x(), Some(LIMIT)).unwrap();
+    assert!(
+        r.read_fallback
+            .as_deref()
+            .is_some_and(|t| t.starts_with("BD_CACHE.BD_LIST_FAILED")),
+        "{:?}",
+        r.read_fallback
+    );
+    assert!(!r.read_fallback_outage, "bd answered");
 }
 
 #[test]

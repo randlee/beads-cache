@@ -215,6 +215,12 @@ fn refresh_scopes_names_each_scope_and_counts_failures() {
         scopes["scopes"][0]["last_error"]["code"],
         "BD_CACHE.SYNC_FAILED"
     );
+    // Each scope names its filter (REQ-BDC-0603 as amended, B7Q1-003): the
+    // phase-a scope `x` has none, the on-demand `y` its one label.
+    assert_eq!(scopes["scopes"][0]["filter"], Value::Null);
+    assert_eq!(y["filter"], json!({"labels_all": ["y"]}));
+    let status = ok(&mut cache, "cache status", &json!({}));
+    assert_eq!(status["scopes"][1]["filter"], json!({"labels_all": ["y"]}));
 }
 
 #[test]

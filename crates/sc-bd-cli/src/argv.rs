@@ -11,7 +11,7 @@
 //! a value is never re-split: `--assignee ""` is the two words `--assignee` and an
 //! empty string.
 
-use sc_beads::{Actor, BeadId, DepType, MetaValue, Patch, ScopeFilter, SyncCursor};
+use sc_beads::{Actor, BeadId, DepType, InvalidValue, MetaValue, Patch, ScopeFilter, SyncCursor};
 
 /// The seven statuses a list must name, because `bd list --id` and `bd list -l`
 /// omit closed beads unless the status list is explicit (P-6, REQ-BDC-0201).
@@ -59,13 +59,20 @@ pub fn list_by_ids(ids: &[&BeadId]) -> Vec<String> {
 /// `bd list <filter> --status <all seven> -n 0 [--updated-after <cursor>] --json`.
 ///
 /// The filter words are ADR-BDC-0013's table: `--all` for
-/// [`ScopeFilter::All`]; for a label or criteria filter `-l a,b` (all of),
+/// [`ScopeFilter::All`]; for a criteria filter `-l a,b` (all of),
 /// `--label-any c,d`, `-t <type>` and `-a <assignee>`, each only when set.
 /// Every status is named, so closed beads are listed too (REQ-BDC-0501).
-/// The caller checks the filter first ([`ScopeFilter::validate`]); an empty
-/// criteria filter would list every bead.
-#[must_use]
-pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<String> {
+///
+/// # Errors
+///
+/// [`InvalidValue`] when the filter fails [`ScopeFilter::validate`]: an empty
+/// criteria filter, which would list every bead, or a value bd would
+/// misread. No argv is built for it.
+pub fn list_scope(
+    filter: &ScopeFilter,
+    since: Option<&SyncCursor>,
+) -> Result<Vec<String>, InvalidValue> {
+    filter.validate()?;
     let mut argv = words(&["list"]);
     if *filter == ScopeFilter::All {
         argv.push("--all".to_owned());
@@ -79,7 +86,7 @@ pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<Strin
         argv.push(cursor.as_str().to_owned());
     }
     argv.push("--json".to_owned());
-    argv
+    Ok(argv)
 }
 
 /// `bd blocked [-l a,b] [--label-any c,d] --json`.
@@ -87,22 +94,30 @@ pub fn list_scope(filter: &ScopeFilter, since: Option<&SyncCursor>) -> Vec<Strin
 /// `bd blocked` takes no type or assignee flag (ADR-BDC-0013), so only the
 /// label criteria are passed; the cache intersects the answer with the
 /// scope's members. [`ScopeFilter::All`] passes no filter word.
-#[must_use]
-pub fn blocked(filter: &ScopeFilter) -> Vec<String> {
+///
+/// # Errors
+///
+/// As [`list_scope`]: a filter that fails [`ScopeFilter::validate`].
+pub fn blocked(filter: &ScopeFilter) -> Result<Vec<String>, InvalidValue> {
+    filter.validate()?;
     let mut argv = words(&["blocked"]);
     push_labels(&mut argv, filter);
     argv.push("--json".to_owned());
-    argv
+    Ok(argv)
 }
 
 /// `bd ready [-l a,b] [--label-any c,d] [-t <type>] [-a <assignee>] -n 0 --json`.
-#[must_use]
-pub fn ready(filter: &ScopeFilter) -> Vec<String> {
+///
+/// # Errors
+///
+/// As [`list_scope`]: a filter that fails [`ScopeFilter::validate`].
+pub fn ready(filter: &ScopeFilter) -> Result<Vec<String>, InvalidValue> {
+    filter.validate()?;
     let mut argv = words(&["ready"]);
     push_labels(&mut argv, filter);
     push_type_and_assignee(&mut argv, filter);
     argv.extend(words(&["-n", "0", "--json"]));
-    argv
+    Ok(argv)
 }
 
 /// `-l a,b` and `--label-any c,d`, each when the filter has such labels.
@@ -255,9 +270,9 @@ mod tests {
                 "--json"
             ])
         );
-        let scope = ScopeFilter::Label("phase-x".into());
+        let scope = ScopeFilter::label("phase-x");
         assert_eq!(
-            list_scope(&scope, None),
+            list_scope(&scope, None).unwrap(),
             strings(&[
                 "list",
                 "-l",
@@ -270,7 +285,7 @@ mod tests {
             ])
         );
         assert_eq!(
-            list_scope(&scope, Some(&SyncCursor::new("2026-10-23T09:05:00Z"))),
+            list_scope(&scope, Some(&SyncCursor::new("2026-10-23T09:05:00Z"))).unwrap(),
             strings(&[
                 "list",
                 "-l",
@@ -285,11 +300,11 @@ mod tests {
             ])
         );
         assert_eq!(
-            blocked(&scope),
+            blocked(&scope).unwrap(),
             strings(&["blocked", "-l", "phase-x", "--json"])
         );
         assert_eq!(
-            ready(&scope),
+            ready(&scope).unwrap(),
             strings(&["ready", "-l", "phase-x", "-n", "0", "--json"])
         );
     }
@@ -299,7 +314,7 @@ mod tests {
     fn every_filter_variant_has_the_table_argv() {
         let all = ScopeFilter::All;
         assert_eq!(
-            list_scope(&all, Some(&SyncCursor::new("c"))),
+            list_scope(&all, Some(&SyncCursor::new("c"))).unwrap(),
             strings(&[
                 "list",
                 "--all",
@@ -312,8 +327,11 @@ mod tests {
                 "--json"
             ])
         );
-        assert_eq!(blocked(&all), strings(&["blocked", "--json"]));
-        assert_eq!(ready(&all), strings(&["ready", "-n", "0", "--json"]));
+        assert_eq!(blocked(&all).unwrap(), strings(&["blocked", "--json"]));
+        assert_eq!(
+            ready(&all).unwrap(),
+            strings(&["ready", "-n", "0", "--json"])
+        );
         let criteria = ScopeFilter::Criteria {
             labels_all: vec!["a".into(), "b".into()],
             labels_any: vec!["c".into(), "d".into()],
@@ -321,7 +339,7 @@ mod tests {
             assignee: Some("who".into()),
         };
         assert_eq!(
-            list_scope(&criteria, None),
+            list_scope(&criteria, None).unwrap(),
             strings(&[
                 "list",
                 "-l",
@@ -340,11 +358,11 @@ mod tests {
             ])
         );
         assert_eq!(
-            blocked(&criteria),
+            blocked(&criteria).unwrap(),
             strings(&["blocked", "-l", "a,b", "--label-any", "c,d", "--json"])
         );
         assert_eq!(
-            ready(&criteria),
+            ready(&criteria).unwrap(),
             strings(&[
                 "ready",
                 "-l",
@@ -367,15 +385,33 @@ mod tests {
             assignee: None,
         };
         assert_eq!(
-            blocked(&any_only),
+            blocked(&any_only).unwrap(),
             strings(&["blocked", "--label-any", "c", "--json"])
         );
         for argv in [
-            list_scope(&criteria, None),
-            blocked(&criteria),
-            ready(&criteria),
+            list_scope(&criteria, None).unwrap(),
+            blocked(&criteria).unwrap(),
+            ready(&criteria).unwrap(),
         ] {
             assert!(!argv.iter().any(|w| w == "-s"), "{argv:?}");
+        }
+    }
+
+    /// The builders refuse a filter that fails `ScopeFilter::validate`, so no
+    /// argv lists every bead by mistake or hands bd a value it would misread
+    /// (B7Q1-014, B7Q1-034).
+    #[test]
+    fn the_builders_refuse_an_unfiltered_or_misread_filter() {
+        let empty = ScopeFilter::Criteria {
+            labels_all: Vec::new(),
+            labels_any: Vec::new(),
+            issue_type: None,
+            assignee: None,
+        };
+        for bad in [empty, ScopeFilter::label("-x"), ScopeFilter::label("a,b")] {
+            assert!(list_scope(&bad, None).is_err(), "{bad:?}");
+            assert!(blocked(&bad).is_err(), "{bad:?}");
+            assert!(ready(&bad).is_err(), "{bad:?}");
         }
     }
 

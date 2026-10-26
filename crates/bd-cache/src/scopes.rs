@@ -11,13 +11,12 @@
 //! These operations surface as the `bdc cache scopes` verbs (b-8,
 //! ADR-BDC-0009); the beads commands keep their names, flags and replies.
 
-use bd_cache_model::{CacheError, CacheStore, DrainLock, PruneReport, Scope, ScopeId};
+use bd_cache_model::{
+    CacheError, CacheStore, ConfigOrigin, DrainLock, PruneReport, Scope, ScopeId,
+};
 use sc_beads::CacheBackend;
 
 use crate::Cache;
-
-/// `details.source` of the `CONFIG_INVALID` for a file scope.
-pub(crate) const CONFIG_SCOPE: &str = "config_scope";
 
 /// `CONFIG_INVALID` when the configuration file defines `s`.
 fn refuse_file_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
@@ -30,10 +29,18 @@ fn refuse_file_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
             detail: format!(
                 "scopes {verb} {s}: .beads/bd-cache.toml defines this scope, and the file wins"
             ),
-            origin: CONFIG_SCOPE,
+            origin: ConfigOrigin::ConfigScope,
         });
     }
     Ok(())
+}
+
+/// `BAD_ARGS` for a scope over the limits of a new registration
+/// ([`Scope::check_new`], ADR-BDC-0013).
+fn check_new(scope: &Scope, verb: &str) -> Result<(), CacheError> {
+    scope.check_new().map_err(|e| CacheError::BadArgs {
+        detail: format!("scopes {verb} {}: {e}", scope.id),
+    })
 }
 
 /// `scopes add`: a new registry scope.
@@ -42,6 +49,7 @@ pub(crate) fn add<S: CacheStore, L: DrainLock, B: CacheBackend>(
     scope: &Scope,
 ) -> Result<(), CacheError> {
     refuse_file_scope(cache, &scope.id, "add")?;
+    check_new(scope, "add")?;
     cache.store.scope_add(scope)
 }
 
@@ -51,6 +59,7 @@ pub(crate) fn set<S: CacheStore, L: DrainLock, B: CacheBackend>(
     scope: &Scope,
 ) -> Result<(), CacheError> {
     refuse_file_scope(cache, &scope.id, "set")?;
+    check_new(scope, "set")?;
     cache.store.scope_set(scope)
 }
 
@@ -63,23 +72,18 @@ pub(crate) fn remove<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache.store.scope_remove(s)
 }
 
-/// The phase-a scope a 0.1 argument names (REQ-BDC-0812 as amended): `x` or
-/// the legacy-prefixed `x`, read as the scope stored as `x`. A registered
-/// scope of that name with a filter is never what a 0.1 name means:
-/// `SCOPE_UNKNOWN`. An unregistered name is returned as is; a read of it is
-/// then `SCOPE_UNKNOWN` and registers nothing.
+/// The phase-a scope a 0.1 name resolved to (REQ-BDC-0812 as amended):
+/// `id` is the name the 0.1 prefix rule already gave (applied once, where
+/// the argument was parsed), never stripped again. A registered scope of
+/// that name with a filter is never what a 0.1 name means: `SCOPE_UNKNOWN`.
+/// An unregistered name is returned as is; a read of it is then
+/// `SCOPE_UNKNOWN` and registers nothing.
 pub(crate) fn legacy<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
-    arg: &str,
+    id: &ScopeId,
 ) -> Result<ScopeId, CacheError> {
-    let Some(id) = bd_cache_model::legacy_scope(arg) else {
-        return Err(CacheError::ScopeUnknown {
-            detail: format!("{arg:?} is not a scope name"),
-            known: cache.store.scopes()?.into_iter().map(|k| k.id).collect(),
-        });
-    };
-    match cache.store.scope(&id)? {
-        Some(scope) if !scope.is_legacy() => Err(crate::sync::not_legacy(cache, &id)?),
-        _ => Ok(id),
+    match cache.store.scope(id)? {
+        Some(scope) if !scope.is_legacy() => Err(crate::sync::not_legacy(cache, id)?),
+        _ => Ok(id.clone()),
     }
 }

@@ -13,7 +13,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, RepoConfig, ScopeName, StoreCause};
+use bd_cache_model::{
+    CacheError, ConfigError, RepoConfig, ScopeConfigError, ScopeName, StoreCause,
+};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -179,7 +181,7 @@ impl DatabaseIdentity {
             detail: detail(&why),
             source: None,
         };
-        let text = std::fs::read_to_string(&path).map_err(|e| {
+        let text = read_bounded(&path).map_err(|e| {
             let detail = if e.kind() == io::ErrorKind::PermissionDenied {
                 format!(
                     "permission denied reading {}: {e}; the file exists, so bd init will not \
@@ -499,10 +501,8 @@ pub enum ConfigLoadError {
     Scope {
         /// The file.
         path: PathBuf,
-        /// The `scopes` entry, or the `[[scope]]` table's name, as written.
-        value: String,
-        /// Why it is refused.
-        reason: String,
+        /// The refused entry (`value`, as written) and why (`reason`).
+        source: ScopeConfigError,
     },
 }
 
@@ -574,13 +574,9 @@ impl fmt::Display for ConfigLoadError {
             Self::Parse { path, .. } => {
                 write!(f, "invalid {}; fix: {}", path.display(), self.fix())
             }
-            Self::Scope {
-                path,
-                value,
-                reason,
-            } => write!(
+            Self::Scope { path, source } => write!(
                 f,
-                "invalid {}: scope {value:?}: {reason}; fix: {}",
+                "invalid {}: {source}; fix: {}",
                 path.display(),
                 self.fix()
             ),
@@ -593,7 +589,7 @@ impl std::error::Error for ConfigLoadError {
         match self {
             Self::Read { source, .. } => Some(source),
             Self::Parse { source, .. } => Some(source),
-            Self::Scope { .. } => None,
+            Self::Scope { source, .. } => Some(source),
         }
     }
 }
@@ -627,7 +623,7 @@ impl std::error::Error for ConfigLoadError {
 /// ```
 pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError> {
     let path = repo_config_path(repo_root);
-    let text = match std::fs::read_to_string(&path) {
+    let text = match read_bounded(&path) {
         Ok(text) => text,
         Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(RepoConfig::default()),
         Err(source) => return Err(ConfigLoadError::Read { path, source }),
@@ -636,14 +632,60 @@ pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError>
         path: path.clone(),
         source,
     })?;
-    if let Err(bad) = config.configured_scopes() {
-        return Err(ConfigLoadError::Scope {
-            path,
-            value: bad.value,
-            reason: bad.reason,
-        });
+    if let Err(source) = config.configured_scopes() {
+        return Err(ConfigLoadError::Scope { path, source });
     }
     Ok(config)
+}
+
+/// The most bytes [`read_bounded`] reads: 1 MiB.
+///
+/// `.beads/bd-cache.toml` and `.beads/metadata.json` are a few hundred bytes;
+/// even hundreds of `[[scope]]` tables fit in a few tens of KiB. A file past
+/// this is refused rather than read whole into memory.
+pub const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
+
+/// Reads a small configuration file as UTF-8 text, refusing one over
+/// [`MAX_CONFIG_BYTES`]: the one reader of `.beads/bd-cache.toml` (here and in
+/// `bd-cache-cli`'s loader) and `.beads/metadata.json`.
+///
+/// # Errors
+///
+/// The file's own I/O error (`NotFound` for a missing file), or an
+/// [`io::ErrorKind::InvalidData`] error naming the limit for a file over it
+/// or one that is not UTF-8.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use bd_cache_store::{MAX_CONFIG_BYTES, read_bounded};
+/// let dir = tempfile::TempDir::new()?;
+/// let small = dir.path().join("small.toml");
+/// std::fs::write(&small, "scopes = []\n")?;
+/// assert_eq!(read_bounded(&small)?, "scopes = []\n");
+/// let big = dir.path().join("big.toml");
+/// std::fs::write(&big, vec![b'#'; usize::try_from(MAX_CONFIG_BYTES)? + 1])?;
+/// assert_eq!(read_bounded(&big).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+/// # Ok(())
+/// # }
+/// ```
+pub fn read_bounded(path: &Path) -> io::Result<String> {
+    use std::io::Read as _;
+    let mut text = String::new();
+    std::fs::File::open(path)?
+        .take(MAX_CONFIG_BYTES + 1)
+        .read_to_string(&mut text)?;
+    if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_CONFIG_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "{} is larger than {MAX_CONFIG_BYTES} bytes, the most a configuration file may be",
+                path.display()
+            ),
+        ));
+    }
+    Ok(text)
 }
 
 #[cfg(test)]

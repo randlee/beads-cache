@@ -603,7 +603,7 @@ impl From<&CacheError> for ApiError {
                 out = out.with_detail("timed_out", timed_out);
             }
             CacheError::ConfigInvalid { origin, .. } => {
-                out = out.with_detail("source", *origin);
+                out = out.with_detail("source", origin.as_str());
             }
             CacheError::IngestInvalid {
                 scope,
@@ -620,7 +620,7 @@ impl From<&CacheError> for ApiError {
             }
             CacheError::ScheduleInvalid { field, reason, .. } => {
                 out = out
-                    .with_detail("field", field.as_str())
+                    .with_detail("field", *field)
                     .with_detail("reason", reason.as_str());
             }
             CacheError::TickRunFailed {

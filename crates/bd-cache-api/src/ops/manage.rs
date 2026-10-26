@@ -6,7 +6,7 @@ use std::time::Duration;
 use bd_cache::Cache;
 use bd_cache_model::{
     CacheError, CacheStore, DrainBudget, DrainLock, FingerprintOutcome, JournalState, Outage,
-    ScopeId, ScopeStatus, StateCounts, SyncReport,
+    ScopeFilter, ScopeId, ScopeStatus, StateCounts, SyncReport,
 };
 use sc_beads::{BeadId, CacheBackend, Deadline};
 
@@ -69,6 +69,7 @@ fn scope_data<S: CacheStore, L: DrainLock, B: CacheBackend>(
         last_error: s.sync.last_error.as_deref().map(OpError::from_stored),
         alert: cache.sync_alert(id)?.as_deref().and_then(alert_of),
         beads: s.beads,
+        filter: s.filter.as_ref().map(ScopeFilter::parts),
     })
 }
 

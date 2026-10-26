@@ -27,6 +27,7 @@
 //! phases = ["bk"]
 //! ```
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -138,6 +139,41 @@ pub struct ScopeConfigError {
     pub reason: String,
 }
 
+impl fmt::Display for ScopeConfigError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "scope {:?}: {}", self.value, self.reason)
+    }
+}
+
+impl std::error::Error for ScopeConfigError {}
+
+/// The most scopes `.beads/bd-cache.toml` may define (the `scopes` entries
+/// and the `[[scope]]` tables together).
+///
+/// Every configured scope is written to the registry when the cache opens and
+/// synced by each tick; 256 is far past any repository's need and keeps the
+/// open and the tick bounded.
+pub const MAX_CONFIGURED_SCOPES: usize = 256;
+
+/// The largest `call_timeout_s`: one hour.
+///
+/// The cap exists so every bd call ends; an hour is far past any list or
+/// write bd answers, and a larger value would leave a hung bd holding the
+/// project's lock for longer than any tick.
+pub const MAX_CALL_TIMEOUT_S: u64 = 3_600;
+
+/// The largest `miss_fill_timeout_ms`: one minute.
+///
+/// A cache miss blocks a reader; a minute is far past the 2 s default and any
+/// one-bead `bd list --id`.
+pub const MAX_MISS_FILL_TIMEOUT_MS: u64 = 60_000;
+
+/// The largest `max_attempts`: 100.
+///
+/// Each attempt is a drain pass over a reachable backend; a write still
+/// failing after 100 needs the lead, not another retry.
+pub const MAX_MAX_ATTEMPTS: u32 = 100;
+
 /// One `schema_packages` entry, kept opaque in phase a.
 ///
 /// The package format is decided in a later phase (`docs/architecture.md`,
@@ -212,12 +248,43 @@ impl RepoConfig {
     /// A zero `call_timeout_s` or `miss_fill_timeout_ms` would give every `bd`
     /// call (or every cache-miss fill) a deadline that has already passed, so
     /// bd would never be asked; a zero `max_attempts` would escalate a write
-    /// before its first attempt. Each is refused with its own message.
+    /// before its first attempt. Each is refused with its own message. Values
+    /// over [`MAX_CALL_TIMEOUT_S`], [`MAX_MISS_FILL_TIMEOUT_MS`] or
+    /// [`MAX_MAX_ATTEMPTS`] are refused too: they would remove the bound the
+    /// key exists for.
     ///
     /// # Errors
     ///
-    /// [`ConfigError`] naming the key and the smallest value it takes.
+    /// [`ConfigError`] naming the key and the range it takes.
     pub fn validate(&self) -> Result<(), ConfigError> {
+        let over = |key: &str, value: u64, most: u64, unit: &str| ConfigError {
+            detail: format!(
+                "{key} = {value} is out of range: it is at most {most} {unit}, so every bd call \
+                 and every write stays bounded"
+            ),
+        };
+        if let Some(t) = self.call_timeout_s.filter(|t| *t > MAX_CALL_TIMEOUT_S) {
+            return Err(over("call_timeout_s", t, MAX_CALL_TIMEOUT_S, "seconds"));
+        }
+        if let Some(t) = self
+            .miss_fill_timeout_ms
+            .filter(|t| *t > MAX_MISS_FILL_TIMEOUT_MS)
+        {
+            return Err(over(
+                "miss_fill_timeout_ms",
+                t,
+                MAX_MISS_FILL_TIMEOUT_MS,
+                "milliseconds",
+            ));
+        }
+        if let Some(n) = self.max_attempts.filter(|n| *n > MAX_MAX_ATTEMPTS) {
+            return Err(over(
+                "max_attempts",
+                u64::from(n),
+                u64::from(MAX_MAX_ATTEMPTS),
+                "attempts",
+            ));
+        }
         let zero = |key: &str, least: &str, why: &str| ConfigError {
             detail: format!("{key} = 0 is out of range: it must be at least {least} ({why})"),
         };
@@ -245,15 +312,42 @@ impl RepoConfig {
         Ok(())
     }
 
+    /// Every scope the file defines, each with the text it was written as:
+    /// the `scopes` entries as phase-a scopes (by the 0.1 rule, applied here
+    /// once), then the `[[scope]]` tables. Each is validated and held to the
+    /// limits of a new scope ([`Scope::check_new`]): the one rule
+    /// [`RepoConfig::configured_scopes`] (strict) and
+    /// [`RepoConfig::cache_config`] (lenient) both read.
+    fn scope_entries(&self) -> impl Iterator<Item = (&str, Result<Scope, String>)> {
+        let legacy = self.scopes.iter().map(|entry| {
+            let scope = legacy_scope(entry)
+                .map(Scope::legacy)
+                .ok_or_else(|| format!("not a scope name ({})", crate::ScopeName::RULE));
+            (entry.as_str(), scope)
+        });
+        let tables = self.scope_tables.iter().map(|table| {
+            (
+                table.name.as_str(),
+                table.scope().map_err(|e| e.to_string()),
+            )
+        });
+        legacy.chain(tables).map(|(value, scope)| {
+            let checked = scope.and_then(|s| s.check_new().map(|()| s).map_err(|e| e.to_string()));
+            (value, checked)
+        })
+    }
+
     /// Every scope the file defines, validated: the `scopes` entries as
     /// phase-a scopes (by the 0.1 rule), then the `[[scope]]` tables.
     ///
     /// # Errors
     ///
     /// The first [`ScopeConfigError`]: a `scopes` entry or a `[[scope]]` name
-    /// that is not a valid scope name, a `[[scope]]` filter that is refused,
-    /// or a name defined twice (ADR-STORE-0003 amendment as amended by
-    /// ADR-BDC-0013).
+    /// that is not a valid scope name, a scope over the limits of a new scope
+    /// ([`Scope::check_new`]), a `[[scope]]` filter that is refused, a name
+    /// defined twice (ADR-STORE-0003 amendment as amended by ADR-BDC-0013), or
+    /// more than [`MAX_CONFIGURED_SCOPES`] scopes. `x` and the prefixed `x` in
+    /// `scopes` name one phase-a scope, kept once.
     ///
     /// # Examples
     ///
@@ -268,57 +362,53 @@ impl RepoConfig {
     /// assert!(twice.configured_scopes().is_err());
     /// ```
     pub fn configured_scopes(&self) -> Result<Vec<Scope>, ScopeConfigError> {
-        fn add(scopes: &mut Vec<Scope>, scope: Scope, value: &str) -> Result<(), ScopeConfigError> {
-            if scopes.iter().any(|s| s.id == scope.id) {
-                return Err(ScopeConfigError {
-                    value: value.to_owned(),
-                    reason: format!("scope {} is defined twice", scope.id),
-                });
-            }
-            scopes.push(scope);
-            Ok(())
-        }
+        let refused = |value: &str, reason: String| ScopeConfigError {
+            value: value.to_owned(),
+            reason,
+        };
+        let mut seen: BTreeMap<ScopeId, Scope> = BTreeMap::new();
         let mut scopes: Vec<Scope> = Vec::new();
-        for entry in &self.scopes {
-            let id = legacy_scope(entry).ok_or_else(|| ScopeConfigError {
-                value: entry.clone(),
-                reason: format!("not a scope name ({})", crate::ScopeName::RULE),
-            })?;
-            // `x` and the prefixed `x` name one phase-a scope: kept once.
-            let scope = Scope::legacy(id);
-            if !scopes.contains(&scope) {
-                add(&mut scopes, scope, entry)?;
+        for (value, scope) in self.scope_entries() {
+            let scope = scope.map_err(|reason| refused(value, reason))?;
+            match seen.get(&scope.id) {
+                Some(known) if *known == scope => continue,
+                Some(_) => {
+                    return Err(refused(
+                        value,
+                        format!("scope {} is defined twice", scope.id),
+                    ));
+                }
+                None => {}
             }
-        }
-        for table in &self.scope_tables {
-            let scope = table.scope().map_err(|e| ScopeConfigError {
-                value: table.name.clone(),
-                reason: e.to_string(),
-            })?;
-            add(&mut scopes, scope, &table.name)?;
+            if scopes.len() == MAX_CONFIGURED_SCOPES {
+                return Err(refused(
+                    value,
+                    format!("more than {MAX_CONFIGURED_SCOPES} scopes are configured"),
+                ));
+            }
+            seen.insert(scope.id.clone(), scope.clone());
+            scopes.push(scope);
         }
         Ok(scopes)
     }
 
     /// The cache configuration for `project`, with defaults for unset keys.
     ///
-    /// Invalid scopes are skipped (the loader reports them,
-    /// [`RepoConfig::configured_scopes`]); a name is kept once, the first
-    /// definition winning.
+    /// Takes a configuration the loader accepted: `load_repo_config`
+    /// (`bd-cache-store`) refuses a file whose [`RepoConfig::configured_scopes`]
+    /// fails, so every scope of such a file is kept. Given a configuration
+    /// that was not checked, the scopes `configured_scopes` would refuse are
+    /// skipped, by the same rule and in the same order, and a name
+    /// is kept once, the first definition winning.
     #[must_use]
     pub fn cache_config(&self, project: ProjectRef) -> CacheConfig {
-        let mut scopes: Vec<Scope> = Vec::new();
-        let legacy = self
-            .scopes
-            .iter()
-            .filter_map(|s| legacy_scope(s))
-            .map(Scope::legacy);
-        let tables = self.scope_tables.iter().filter_map(|t| t.scope().ok());
-        for s in legacy.chain(tables) {
-            if !scopes.iter().any(|known| known.id == s.id) {
-                scopes.push(s);
-            }
-        }
+        let mut seen: BTreeSet<ScopeId> = BTreeSet::new();
+        let scopes = self
+            .scope_entries()
+            .filter_map(|(_, scope)| scope.ok())
+            .filter(|s| seen.insert(s.id.clone()))
+            .take(MAX_CONFIGURED_SCOPES)
+            .collect();
         CacheConfig {
             project,
             scopes,

@@ -59,8 +59,7 @@ pub mod testing;
 
 #[doc(inline)]
 pub use budget::{
-    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_BUDGET_MS, MIN_BUDGET_MS,
-    MIN_HOOK_RESERVE_MS_WITH_HOOK, MIN_WORK_MS, ROW_TIMEOUT_MARGIN, TickBudget,
+    DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL, TickBudget, check_lease_expiry,
 };
 #[doc(inline)]
 pub use call::{CallFailure, CallKind};
@@ -69,16 +68,18 @@ pub use compat::{LEGACY_SCOPE_PREFIX, legacy_label, legacy_scope};
 #[doc(inline)]
 pub use config::{
     CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
-    DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
-    SchemaPackageRef, ScopeConfigError, ScopeTable, TickConfig,
+    DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, MAX_CALL_TIMEOUT_S, MAX_CONFIGURED_SCOPES,
+    MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS, RepoConfig, START_GATE_MARGIN, SchemaPackageRef,
+    ScopeConfigError, ScopeTable, TickConfig,
 };
 #[doc(inline)]
 pub use error::{
-    BackendCause, CacheError, ENVELOPE_KEYS, GuardKey, IngestReason, PreconditionReason,
-    StoreCause, SyncCause, TYPED_ERROR_EXIT, TickRunReason, UNREACHABLE_CODES, Unmet,
+    BackendCause, CacheError, ConfigOrigin, ENVELOPE_KEYS, GuardKey, IngestReason,
+    MAX_KNOWN_SCOPES_LISTED, PreconditionReason, ScheduleReason, StoreCause, SyncCause,
+    TYPED_ERROR_EXIT, TickRunReason, UNREACHABLE_CODES, Unmet,
 };
 #[doc(inline)]
-pub use ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS};
+pub use ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS, encoded_rows_within_limit};
 #[doc(inline)]
 pub use journal::{
     IdemKey, JournalEntry, JournalState, NewEntry, RESOLVE_SEPARATOR, Seq, error_code_prefix,
@@ -101,13 +102,17 @@ pub use reply::{
     ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome, WriteReply,
 };
 #[doc(inline)]
-pub use scope::{Criteria, FilterParts, Scope, ScopeFilter, ScopeId, ScopeName};
+pub use scope::{
+    Criteria, FilterParts, MAX_FILTER_WORD_BYTES, MAX_FILTER_WORDS, MAX_REGISTERED_SCOPES,
+    MAX_SCOPE_NAME_LEN, Scope, ScopeFilter, ScopeId, ScopeName,
+};
 #[doc(inline)]
 pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
 #[doc(inline)]
 pub use state::{
     BaseEntry, FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake,
-    OpenWork, Outage, ReadyBase, ScopeStatus, StoreStatus, SyncState, UpsertReport,
+    MAX_HOOK_ERROR_BYTES, OpenWork, Outage, ReadyBase, RunId, ScopeStatus, StoreStatus,
+    SyncOutcome, SyncState, UpsertReport, clip_hook_error,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

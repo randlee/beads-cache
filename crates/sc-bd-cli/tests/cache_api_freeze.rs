@@ -15,8 +15,8 @@ use sc_bd_cli::{BdCli, BoundedError, CliInvoker, ProjectLocks, TimeoutPhase, Wor
 use sc_beads::error::BeadsError;
 use sc_beads::testing::{FakeBackend, ManualClock};
 use sc_beads::{
-    Actor, BeadId, CacheBackend, CliOutput, Clock, DepType, Guards, Patch, ProjectRef, ScopeFilter,
-    SyncCursor,
+    Actor, BeadId, CacheBackend, CliOutput, Clock, DepType, Guards, InvalidValue, Patch,
+    ProjectRef, ScopeFilter, SyncCursor,
 };
 
 fn assert_send_sync<T: ?Sized + Send + Sync>() {}
@@ -123,9 +123,10 @@ fn argv_signatures_and_constants() {
     let _: fn() -> Vec<String> = argv::version;
     let _: fn() -> Vec<String> = argv::schema;
     let _: fn(&[&BeadId]) -> Vec<String> = argv::list_by_ids;
-    let _: fn(&ScopeFilter, Option<&SyncCursor>) -> Vec<String> = argv::list_scope;
-    let _: fn(&ScopeFilter) -> Vec<String> = argv::blocked;
-    let _: fn(&ScopeFilter) -> Vec<String> = argv::ready;
+    let _: fn(&ScopeFilter, Option<&SyncCursor>) -> Result<Vec<String>, InvalidValue> =
+        argv::list_scope;
+    let _: fn(&ScopeFilter) -> Result<Vec<String>, InvalidValue> = argv::blocked;
+    let _: fn(&ScopeFilter) -> Result<Vec<String>, InvalidValue> = argv::ready;
     let _: fn(&BeadId, Option<&str>, &Actor) -> Vec<String> = argv::close;
     let _: fn(&BeadId, &Patch, &Guards, &Actor) -> Vec<String> = argv::update;
     let _: fn(&BeadId, &BeadId, DepType, &Actor) -> Vec<String> = argv::dep_add;

@@ -190,7 +190,7 @@ fn load_error(e: &ConfigLoadError) -> ApiError {
 /// except that a top-level `bd` key is dropped (never read from TOML).
 fn read_toml(repo: &Path) -> Result<RepoConfig, ApiError> {
     let path = repo.join(REPO_CONFIG_FILE);
-    let text = match std::fs::read_to_string(&path) {
+    let text = match bd_cache_store::read_bounded(&path) {
         Ok(t) => t,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(RepoConfig::default()),
         Err(source) => return Err(load_error(&ConfigLoadError::Read { path, source })),
@@ -214,12 +214,8 @@ fn read_toml(repo: &Path) -> Result<RepoConfig, ApiError> {
         .try_into()
         .map_err(|e: toml::de::Error| parse(e.to_string()))?;
     config.validate().map_err(|e| parse(e.detail))?;
-    if let Err(bad) = config.configured_scopes() {
-        return Err(load_error(&ConfigLoadError::Scope {
-            path,
-            value: bad.value,
-            reason: bad.reason,
-        }));
+    if let Err(source) = config.configured_scopes() {
+        return Err(load_error(&ConfigLoadError::Scope { path, source }));
     }
     Ok(config)
 }
@@ -301,8 +297,9 @@ fn apply_env(config: &mut RepoConfig, env: &BTreeMap<String, String>) -> Result<
 /// The merged configuration's values must work, wherever they came from.
 fn validate(config: &RepoConfig) -> Result<(), ApiError> {
     config.validate().map_err(|e| {
-        ApiError::config_invalid(SOURCE_ENV, e.to_string(), Map::new())
-            .with_suggested_action("give each timeout and max_attempts a value of at least 1")
+        ApiError::config_invalid(SOURCE_ENV, e.to_string(), Map::new()).with_suggested_action(
+            "give each timeout and max_attempts a value in its range (the detail names it)",
+        )
     })?;
     if let Err(bad) = config.configured_scopes() {
         return Err(ApiError::config_invalid(

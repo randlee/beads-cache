@@ -207,7 +207,7 @@ Baseline Python implementation journal args that a-1's `Op::parse` refuses (for 
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`, behind one mutex, so `SqliteStore` is `Send + Sync`; the `Cache` that owns it stays `!Sync` by its own marker, ADR-CORE-0001; B7Q1-025)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -280,7 +280,7 @@ Decision:
 - The codes are store-owned and lowercase (S37): `store_config_unreadable` (`Read`:
   the file exists but cannot be read), `store_config_invalid` (`Parse`: bad TOML, an
   unknown key or a wrong type) and `store_config_bad_scope` (`Scope`: a `scopes` entry
-  is not a phase name; its fix states `PhaseName::RULE`). They are **not `CacheError`
+  is not a phase name; its fix states `PhaseName::RULE` [now `ScopeName::RULE`, ADR-BDC-0013]). They are **not `CacheError`
   codes** (the `BD_CACHE.*` namespace belongs to `CacheError` alone) and **not
   CLI-contract codes**: no CLI reply carries them; a consumer that reports a
   configuration failure reports its own code.
@@ -544,7 +544,7 @@ dating, the plans and SQL work (VM steps), the undatable-entry warning and the h
 
 ## ADR-STORE-0005: Dependencies and test-only features
 
-**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10). Amended by ADR-BDC-0014 (sprint b-7): the runtime dependency `sc-cron`.
+**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10). Amended by ADR-BDC-0014 (sprint b-7): the runtime dependency `sc-cron`. Amended in sprint b-7 (fix round 1, B7Q1-006): the dev-dependency feature rusqlite `trace`.
 
 Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
 crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),
@@ -572,6 +572,9 @@ Decision:
     thread (rusqlite issue 643); the probe uses it for one read on the thread running
     the statement and drops it before the function returns, so it neither outlives the
     call nor leaves the thread;
+  - rusqlite with `trace` (sprint b-7): `journal_counts_is_one_query_and_its_buckets_sum_to_the_total`
+    (`store.rs` unit tests) counts the statements `journal_counts` runs through
+    `Connection::trace_v2`, so "one grouped query, never a scan" is checked, not assumed;
   - `tempfile`: the unit tests' cache files live in a `TempDir`, removed on drop after
     the store closes, also when a test fails (QA6-002); the doctests' workspaces too
     (QA7-005);
@@ -632,14 +635,25 @@ Implementation notes (sprint b-7):
   (`tests/fixtures/format-golden.txt`) and checks that a v3-only file
   (`tests/fixtures/v3-schema.sql`) gains every extension at `user_version` 3 and that a v3
   reader still reads and writes the extended file.
-- `scope.kind` is `phase` for a phase-a scope (`filter` NULL) and `filter` for a scope with a
-  stored filter; any other pairing does not decode. A v3 `phase` column is read as a
-  phase-a scope's membership only, never a filter scope's of the same name (`IN_SCOPE`,
-  `RECONCILE_MEMBERSHIP`).
-- `ingest_scope` encodes and size-checks every row before its one `BEGIN IMMEDIATE`, so an
-  oversized snapshot writes nothing; in the transaction it registers the scope if absent,
-  replaces the scope's memberships with the snapshot's rows the status criterion admits,
-  stores rows unforced, writes the ready base restricted to the members, records an ok sync
-  state and the revision.
-- The lease and the hook state are one-row tables (`id = 1`); `lease_take` decides free, live
-  or expired inside one write transaction.
+- `scope.kind` stays `phase` for every row (existing names stay); `scope.filter` alone tells
+  a filter scope (the filter's JSON) from a phase-a scope (NULL), so a v3 reader that knows
+  only `kind = 'phase'` reads every row this build writes; a row of another kind does not
+  decode (`tests/phase_b_store.rs`, the data-level check, B7Q1-007). A v3 `phase` column is
+  read as a phase-a scope's membership only, never a filter scope's of the same name
+  (`in_scope!`, `RECONCILE_MEMBERSHIP`).
+- The four registry calls share one registration body (`register`, with an add-or-set,
+  if-absent, add or set mode) and `scope_remove` and `prune_scope` one prune body; a
+  registration past `MAX_REGISTERED_SCOPES` is `BAD_ARGS`.
+- `ingest_scope` trusts the snapshot's limits (the snapshot owns them, B7Q1-018); it encodes
+  every row before its one `BEGIN IMMEDIATE`; in the transaction it refuses an unregistered
+  scope (`SCOPE_UNKNOWN`) and reads the registered filter, replaces the scope's memberships
+  with the snapshot's rows the status criterion admits, stores rows unforced, writes the
+  ready base restricted to the members, records an ok sync state and the revision. A failure
+  half way rolls back whole (`tests/phase_b_store.rs`).
+- `record_sync_result` applies the `failing_since` lifecycle to the stored sync state in one
+  write transaction; `record_sync` never writes `notified_since`.
+- The lease and the hook state are one-row tables (`id = 1`); `lease_take` refuses an
+  `expires_at` not after now or past `MAX_LEASE_TTL`, decides free, live or expired inside
+  one write transaction, and replaces a row that does not decode (with a warning) instead
+  of failing every later take. `hook_failed` keeps at most `MAX_HOOK_ERROR_BYTES` of the
+  error.

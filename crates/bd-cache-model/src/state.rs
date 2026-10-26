@@ -6,7 +6,7 @@ use sc_beads::{BeadId, BlockedRow, InvalidValue, Timestamp};
 use serde::Serialize;
 
 use crate::journal::JournalEntry;
-use crate::scope::ScopeId;
+use crate::scope::{ScopeFilter, ScopeId};
 
 /// Whether a stored row is current.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
@@ -92,6 +92,19 @@ impl SyncState {
     }
 }
 
+/// One sync's result, as [`CacheStore::record_sync_result`](crate::CacheStore::record_sync_result)
+/// applies it to the scope's sync state (REQ-BDC-0728, ADR-CORE-0202 as amended).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SyncOutcome {
+    /// The sync stored the scope: `last_ok_at` is its start; the failure state clears.
+    Ok,
+    /// The sync failed, or bd could not be reached: `last_error` is this
+    /// text (`CODE: detail`); `failing_since` is set on the first one.
+    Failed(String),
+    /// The deadline cut the sync: only `last_started_at` is set.
+    Deferred,
+}
+
 /// When a scope's results stopped being ok: an opaque token (REQ-BDC-0728).
 ///
 /// Callers round-trip it (to `scope_announce`) and never parse it; equality
@@ -148,11 +161,79 @@ impl std::fmt::Display for FailingSince {
     }
 }
 
+impl AsRef<str> for FailingSince {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+/// `Hash` and `Eq` are the token's text's, so a map keyed by it is looked up by `&str`.
+impl std::borrow::Borrow<str> for FailingSince {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
+/// One run of a sync row: the id a lease holder, a `TICK_RUN_FAILED` and a
+/// lease release name it by (REQ-BDC-0722, 0729).
+///
+/// Opaque to the store and the core: they compare it and never parse it.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_model::RunId;
+/// let id = RunId::new("run-1")?;
+/// assert_eq!(id.as_str(), "run-1");
+/// assert!(RunId::new(" ").is_err());
+/// # Ok::<(), sc_beads::InvalidValue>(())
+/// ```
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
+#[serde(transparent)]
+pub struct RunId(String);
+
+impl RunId {
+    /// A run id.
+    ///
+    /// # Errors
+    ///
+    /// [`InvalidValue`] for an empty or blank id.
+    pub fn new(id: impl Into<String>) -> Result<Self, InvalidValue> {
+        let id = id.into();
+        if id.trim().is_empty() {
+            return Err(InvalidValue {
+                kind: "run id",
+                value: id,
+                reason: "empty",
+            });
+        }
+        Ok(Self(id))
+    }
+
+    /// The id's text.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl std::fmt::Display for RunId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl AsRef<str> for RunId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Who holds the one sync lease (`tick_lease`, REQ-BDC-0722).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct LeaseHolder {
     /// The run holding it.
-    pub run_id: String,
+    pub run_id: RunId,
     /// The holder's process id.
     pub pid: u32,
     /// The holder's host name.
@@ -171,6 +252,36 @@ pub enum LeaseTake {
     TookOver(LeaseHolder),
     /// A live lease is held by another run: nothing changed.
     Held(LeaseHolder),
+}
+
+/// The most bytes of a failed hook's error the hook state keeps (2 KiB).
+///
+/// The text is a consumer's hook output, rewritten on every failure and read
+/// back into `status` and replies; 2 KiB keeps the cause readable, as the
+/// tick's announcement text limit does.
+pub const MAX_HOOK_ERROR_BYTES: usize = 2048;
+
+/// `err` clipped to at most [`MAX_HOOK_ERROR_BYTES`] at a character
+/// boundary: what both stores keep as `hook_state.last_error`.
+///
+/// # Examples
+///
+/// ```
+/// use bd_cache_model::{MAX_HOOK_ERROR_BYTES, clip_hook_error};
+/// assert_eq!(clip_hook_error("short"), "short");
+/// let long = "é".repeat(MAX_HOOK_ERROR_BYTES);
+/// assert!(clip_hook_error(&long).len() <= MAX_HOOK_ERROR_BYTES);
+/// ```
+#[must_use]
+pub fn clip_hook_error(err: &str) -> &str {
+    if err.len() <= MAX_HOOK_ERROR_BYTES {
+        return err;
+    }
+    let mut end = MAX_HOOK_ERROR_BYTES;
+    while !err.is_char_boundary(end) {
+        end -= 1;
+    }
+    &err[..end]
 }
 
 /// The built-in row's post-sync hook backoff state (`hook_state`, REQ-BDC-0727).
@@ -265,7 +376,8 @@ impl BaseEntry {
     }
 }
 
-/// Open work for the stop rule (REQ-BDC-0707).
+/// Open work: pending entries and unannounced escalations (`cache health`
+/// `open_work`, the tick's report).
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct OpenWork {
     /// Pending entries.
@@ -282,12 +394,18 @@ impl OpenWork {
     }
 }
 
-/// One scope in [`StoreStatus`].
+/// One scope in [`StoreStatus`]: its name (in `sync`), its filter, its sync
+/// state and its bead count (REQ-BDC-0603 as amended by ADR-BDC-0013).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ScopeStatus {
     /// Sync state.
     #[serde(flatten)]
     pub sync: SyncState,
+    /// The scope's filter: `None` for a phase-a scope (its label is the
+    /// legacy prefix followed by its name) or a name with sync state but no
+    /// registry row. Not part of the 0.1 status dict, whose shape is frozen.
+    #[serde(skip)]
+    pub filter: Option<ScopeFilter>,
     /// Beads held by the scope.
     pub beads: u64,
 }

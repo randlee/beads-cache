@@ -16,6 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use tokio::sync::{oneshot, watch};
 use tokio::task::JoinHandle;
 
@@ -53,7 +54,10 @@ struct Core<S, C, J> {
 }
 
 impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
-    fn start(&self, spec: ScheduleSpec) -> Result<Schedule, CronError> {
+    /// The row `spec` describes, as of the clock's now: the payload checked,
+    /// a future occurrence required, the jitter drawn and the next run
+    /// computed. `start` and `replace_and_set_enabled` share it.
+    fn new_schedule(&self, spec: ScheduleSpec) -> Result<(NewSchedule, DateTime<Utc>), CronError> {
         encode_payload(&spec.payload)?;
         let now = self.clock.now();
         spec.expr.require_future(now)?;
@@ -66,6 +70,11 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
             jitter,
             next_run_at: Timestamp::from_datetime(next),
         };
+        Ok((schedule, now))
+    }
+
+    fn start(&self, spec: ScheduleSpec) -> Result<Schedule, CronError> {
+        let (schedule, now) = self.new_schedule(spec)?;
         let created = self
             .store
             .create(&schedule, Timestamp::from_datetime(now))?;
@@ -104,18 +113,7 @@ impl<S: ScheduleStore, C: Clock, J: JitterSource> Core<S, C, J> {
         enabled: bool,
         flags: &[(ScheduleName, bool)],
     ) -> Result<Schedule, CronError> {
-        encode_payload(&spec.payload)?;
-        let now = self.clock.now();
-        spec.expr.require_future(now)?;
-        let jitter = jitter::draw(&spec.expr, now, self.jitter.as_ref());
-        let next = spec.expr.next_run(jitter, now).ok_or_else(|| {
-            CronError::BadExpression("expression has no future occurrence".into())
-        })?;
-        let schedule = NewSchedule {
-            spec,
-            jitter,
-            next_run_at: Timestamp::from_datetime(next),
-        };
+        let (schedule, now) = self.new_schedule(spec)?;
         let Some(written) = self.store.replace_and_set_enabled(
             &schedule,
             enabled,

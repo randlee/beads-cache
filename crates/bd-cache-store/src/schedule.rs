@@ -45,7 +45,10 @@ const COLUMNS: &str = "id, generation, name, expr, timeout_ms, jitter_ms, payloa
 /// Made by [`SqliteStore::schedule_store`](crate::SqliteStore::schedule_store);
 /// `Send + Sync`, so a `sc_cron::Scheduler` can hold it in an `Arc` and call
 /// it from its worker. Each call locks the shared connection for its one
-/// statement or transaction, as every `SqliteStore` call does.
+/// statement or transaction, as every `SqliteStore` call does. The longest
+/// such hold is a full-size `ingest_scope` (about 1.3 s for 50 000 rows on a
+/// debug build, `tests/phase_b_store.rs`); a schedule call waits for it on the
+/// mutex, which sc-cron's worker runs on its blocking pool.
 ///
 /// # Examples
 ///

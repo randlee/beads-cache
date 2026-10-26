@@ -435,6 +435,7 @@ fn reply_goldens() {
         locally_adjusted: true,
         ready: vec![],
         read_fallback: None,
+        read_fallback_outage: false,
         missing_rows: vec![id("b9")],
     };
     assert_eq!(

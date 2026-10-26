@@ -12,6 +12,7 @@
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
 use bd_cache_api::{CacheFacts, Command, decode, execute};
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
@@ -82,21 +83,28 @@ impl fmt::Debug for Inner {
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The phase-a scope a 0.1 verb's `phase` names: `x` or the legacy-prefixed
-/// `x` (REQ-BDC-0812 as amended, ADR-BDC-0013); `ValueError` for a name that
-/// is not a scope name. The verbs then refuse, inside the call, a registered
-/// filter scope of that name ([`bd_cache::Cache::legacy_scope`]).
+/// `x` (REQ-BDC-0812 as amended, ADR-BDC-0013), the prefix rule applied here
+/// once; `ValueError` for a name that is not a scope name. The verbs then
+/// refuse, inside the call, a registered filter scope of that name
+/// ([`bd_cache::Cache::legacy_scope`], which strips nothing again).
 fn scope(phase: &str) -> PyResult<ScopeId> {
     compose::parse_phase(phase).map_err(|text| PyValueError::new_err(format!("phase: {text}")))
 }
 
-/// A positive number of attempts.
+/// A number of attempts from 1 to `MAX_MAX_ATTEMPTS`.
 fn attempts(n: i64) -> PyResult<u32> {
-    u32::try_from(n).ok().filter(|n| *n >= 1).ok_or_else(|| {
-        bad_argument(
-            "max_attempts",
-            format!("{n} is not a whole number of attempts, at least 1"),
-        )
-    })
+    u32::try_from(n)
+        .ok()
+        .filter(|n| (1..=bd_cache_model::MAX_MAX_ATTEMPTS).contains(n))
+        .ok_or_else(|| {
+            bad_argument(
+                "max_attempts",
+                format!(
+                    "{n} is not a whole number of attempts from 1 to {}",
+                    bd_cache_model::MAX_MAX_ATTEMPTS
+                ),
+            )
+        })
 }
 
 fn bead_id(bead: &str) -> PyResult<BeadId> {
@@ -156,10 +164,22 @@ impl PyCache {
             cache_path,
             scopes,
             call_timeout: call_timeout_s
-                .map(|t| positive_seconds("call_timeout_s", t))
+                .map(|t| {
+                    positive_seconds(
+                        "call_timeout_s",
+                        t,
+                        Duration::from_secs(bd_cache_model::MAX_CALL_TIMEOUT_S),
+                    )
+                })
                 .transpose()?,
             miss_fill_timeout: miss_fill_timeout_ms
-                .map(|ms| positive_seconds("miss_fill_timeout_ms", ms / 1000.0))
+                .map(|ms| {
+                    positive_seconds(
+                        "miss_fill_timeout_ms",
+                        ms / 1000.0,
+                        Duration::from_millis(bd_cache_model::MAX_MISS_FILL_TIMEOUT_MS),
+                    )
+                })
                 .transpose()?,
             max_attempts: max_attempts.map(attempts).transpose()?,
         };
@@ -309,7 +329,7 @@ impl PyCache {
             ));
         }
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(s.name())?;
+            let s = c.cache.legacy_scope(&s)?;
             c.cache.list(&s, status.as_deref(), label.as_deref())
         })
     }
@@ -332,7 +352,7 @@ impl PyCache {
             .map(|t| seconds("fresh_within", t))
             .transpose()?;
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(s.name())?;
+            let s = c.cache.legacy_scope(&s)?;
             c.cache.ready(&s, within)
         })
     }
@@ -387,7 +407,7 @@ impl PyCache {
     fn prune<'py>(&self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
         self.call(py, move |c| {
-            let s = c.cache.legacy_scope(s.name())?;
+            let s = c.cache.legacy_scope(&s)?;
             c.cache.prune(&s)
         })
     }

@@ -9,13 +9,16 @@
 )]
 
 use bd_cache_api::{ApiError, ErrorKind, spec};
-use bd_cache_model::{CacheError, CallKind, IngestReason, LeaseHolder, ScopeId, TickRunReason};
+use bd_cache_model::{
+    CacheError, CallKind, ConfigOrigin, IngestReason, LeaseHolder, RunId, ScheduleReason, ScopeId,
+    TickRunReason,
+};
 use sc_beads::{BeadsCacheError, Timestamp};
 use serde_json::json;
 
 fn holder() -> LeaseHolder {
     LeaseHolder {
-        run_id: "r0".into(),
+        run_id: RunId::new("r0").unwrap(),
         pid: 7,
         host: "h".into(),
         expires_at: Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
@@ -39,8 +42,8 @@ fn the_four_codes_take_their_rows_and_details() {
         (
             CacheError::ScheduleInvalid {
                 detail: "d".into(),
-                field: "python".into(),
-                reason: "not_absolute".into(),
+                field: "python",
+                reason: ScheduleReason::NotAbsolute,
             },
             ErrorKind::InvalidInput,
             false,
@@ -50,7 +53,7 @@ fn the_four_codes_take_their_rows_and_details() {
             CacheError::TickRunFailed {
                 detail: "d".into(),
                 row: "python".into(),
-                run_id: "r1".into(),
+                run_id: RunId::new("r1").unwrap(),
                 reason: TickRunReason::Exit,
                 exit_status: Some(1),
                 stderr: "boom".into(),
@@ -89,7 +92,7 @@ fn the_four_codes_take_their_rows_and_details() {
     }
     let config = ApiError::from(&CacheError::ConfigInvalid {
         detail: "d".into(),
-        origin: "config_scope",
+        origin: ConfigOrigin::ConfigScope,
     });
     assert_eq!(config.code(), "BD_CACHE.CONFIG_INVALID");
     assert_eq!(config.details()["source"], "config_scope");

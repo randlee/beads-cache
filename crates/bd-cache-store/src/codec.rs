@@ -94,14 +94,15 @@ pub(crate) fn scope(step: Step<'_>, name: &str) -> Result<ScopeId, CacheError> {
     ScopeId::new(name).map_err(|e| corrupt(step, format_args!("stored scope name: {e}")))
 }
 
-/// The `scope.kind` of a phase-a scope (`filter` NULL).
+/// The `scope.kind` of every registry row (ADR-STORE-0006: existing names
+/// stay, `kind DEFAULT 'phase'`). A scope's filter is the `scope.filter`
+/// column alone: NULL is a phase-a scope (ADR-BDC-0013), so a v3 reader that
+/// knows only `kind = 'phase'` still reads every row.
 pub(crate) const KIND_PHASE: &str = "phase";
-/// The `scope.kind` of a scope with a stored filter (ADR-BDC-0013).
-pub(crate) const KIND_FILTER: &str = "filter";
 
-/// A registry row (`scope.name`, `kind`, `filter`) as a [`Scope`]: `kind`
-/// `phase` with no filter is a phase-a scope, `kind` `filter` with the filter
-/// JSON a filter scope; any other pairing does not decode.
+/// A registry row (`scope.name`, `kind`, `filter`) as a [`Scope`]: `filter`
+/// NULL is a phase-a scope, the filter JSON a filter scope; a `kind` other
+/// than `phase` does not decode.
 pub(crate) fn decode_scope(
     step: Step<'_>,
     name: &str,
@@ -109,40 +110,33 @@ pub(crate) fn decode_scope(
     filter: Option<&str>,
 ) -> Result<Scope, CacheError> {
     let id = scope(step, name)?;
-    match (kind, filter) {
-        (KIND_PHASE, None) => Ok(Scope::legacy(id)),
-        (KIND_FILTER, Some(json)) => {
-            let parts: FilterParts = serde_json::from_str(json).map_err(|e| {
-                corrupt(
-                    step,
-                    format_args!("scope {name}: filter is not a filter: {e}"),
-                )
-            })?;
-            let filter = ScopeFilter::from_parts(parts)
-                .map_err(|e| corrupt(step, format_args!("scope {name}: filter: {e}")))?;
-            Ok(Scope::new(id, filter))
-        }
-        (kind, filter) => Err(corrupt(
+    if kind != KIND_PHASE {
+        return Err(corrupt(
             step,
-            format_args!(
-                "scope {name} has kind {kind:?} with {} filter",
-                if filter.is_some() { "a" } else { "no" }
-            ),
-        )),
+            format_args!("scope {name} has unknown kind {kind:?}"),
+        ));
     }
+    let Some(json) = filter else {
+        return Ok(Scope::legacy(id));
+    };
+    let parts: FilterParts = serde_json::from_str(json).map_err(|e| {
+        corrupt(
+            step,
+            format_args!("scope {name}: filter is not a filter: {e}"),
+        )
+    })?;
+    let filter = ScopeFilter::from_parts(parts)
+        .map_err(|e| corrupt(step, format_args!("scope {name}: filter: {e}")))?;
+    Ok(Scope::new(id, filter))
 }
 
-/// The `kind` and `filter` columns of a scope.
-pub(crate) fn encode_scope(
-    step: Step<'_>,
-    s: &Scope,
-) -> Result<(&'static str, Option<String>), CacheError> {
-    match &s.filter {
-        None => Ok((KIND_PHASE, None)),
-        Some(f) => serde_json::to_string(f)
-            .map(|json| (KIND_FILTER, Some(json)))
-            .map_err(|e| failed(step, e)),
-    }
+/// The `filter` column of a scope: `None` for a phase-a scope, else its
+/// filter as JSON. `kind` is always [`KIND_PHASE`].
+pub(crate) fn encode_scope(step: Step<'_>, s: &Scope) -> Result<Option<String>, CacheError> {
+    s.filter
+        .as_ref()
+        .map(|f| serde_json::to_string(f).map_err(|e| failed(step, e)))
+        .transpose()
 }
 
 /// True when `stored` is a later instant than `incoming` (second precision).

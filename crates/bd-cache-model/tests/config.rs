@@ -116,3 +116,51 @@ fn zero_call_timeout_miss_fill_timeout_and_max_attempts_are_refused() {
         (Duration::from_secs(1), Duration::from_millis(1), 1)
     );
 }
+
+/// The bounds of `validate` (B7Q1-046): zero and values past the documented
+/// maximum are refused; the maximum itself is accepted.
+#[test]
+fn timeouts_and_attempts_have_documented_maximums() {
+    use bd_cache_model::{MAX_CALL_TIMEOUT_S, MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS};
+    for (key, most) in [
+        ("call_timeout_s", MAX_CALL_TIMEOUT_S),
+        ("miss_fill_timeout_ms", MAX_MISS_FILL_TIMEOUT_MS),
+        ("max_attempts", u64::from(MAX_MAX_ATTEMPTS)),
+    ] {
+        assert!(
+            RepoConfig::from_toml(&format!("{key} = {most}\n")).is_ok(),
+            "{key}"
+        );
+        let e = RepoConfig::from_toml(&format!("{key} = {}\n", most + 1)).unwrap_err();
+        assert!(
+            e.detail.contains(key) && e.detail.contains("at most"),
+            "{e}"
+        );
+    }
+}
+
+/// Configured scopes are held to the registration limits and their count is
+/// capped; a name is defined once (B7Q1-045).
+#[test]
+fn configured_scopes_are_held_to_the_registration_limits() {
+    let long = "n".repeat(bd_cache_model::MAX_SCOPE_NAME_LEN + 1);
+    let cfg = RepoConfig::from_toml(&format!("scopes = [\"{long}\"]\n")).unwrap();
+    assert!(cfg.configured_scopes().is_err());
+    assert!(cfg.cache_config(ProjectRef::local(None)).scopes.is_empty());
+    let names: Vec<String> = (0..=bd_cache_model::MAX_CONFIGURED_SCOPES)
+        .map(|i| format!("\"s{i}\""))
+        .collect();
+    let cfg = RepoConfig::from_toml(&format!("scopes = [{}]\n", names.join(", "))).unwrap();
+    let e = cfg.configured_scopes().unwrap_err();
+    assert!(e.reason.contains("more than"), "{e}");
+    assert!(e.to_string().contains(&e.value), "Display names the entry");
+    let fits = RepoConfig::from_toml(&format!(
+        "scopes = [{}]\n",
+        names[..bd_cache_model::MAX_CONFIGURED_SCOPES].join(", ")
+    ))
+    .unwrap();
+    assert_eq!(
+        fits.configured_scopes().unwrap().len(),
+        bd_cache_model::MAX_CONFIGURED_SCOPES
+    );
+}

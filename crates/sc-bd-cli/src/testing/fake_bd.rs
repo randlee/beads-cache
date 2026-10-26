@@ -437,9 +437,9 @@ impl FakeBd {
 }
 
 /// The scope filter a list, blocked or ready argv names (ADR-BDC-0013): `All`
-/// for `--all` (when `all_flag` is allowed), `Label(l)` for a lone `-l l`,
-/// else the criteria of `-l a,b`, `--label-any c,d`, `-t` and `-a`; `None`
-/// when the argv names no filter at all.
+/// for `--all` (when `all_flag` is allowed), else the criteria of `-l a,b`,
+/// `--label-any c,d`, `-t` and `-a` (a lone `-l l` is
+/// [`ScopeFilter::label`]); `None` when the argv names no filter at all.
 fn filter_of(args: &Args, all_flag: bool) -> Option<ScopeFilter> {
     if all_flag && args.one("--all").is_some() {
         return Some(ScopeFilter::All);
@@ -453,21 +453,16 @@ fn filter_of(args: &Args, all_flag: bool) -> Option<ScopeFilter> {
     let labels_any = split("--label-any");
     let issue_type = args.one("-t").map(str::to_owned);
     let assignee = args.one("-a").map(str::to_owned);
-    match (
-        labels_all.as_slice(),
-        labels_any.as_slice(),
-        &issue_type,
-        &assignee,
-    ) {
-        ([], [], None, None) => None,
-        ([one], [], None, None) => Some(ScopeFilter::Label(one.clone())),
-        _ => Some(ScopeFilter::Criteria {
-            labels_all,
-            labels_any,
-            issue_type,
-            assignee,
-        }),
-    }
+    let none = labels_all.is_empty()
+        && labels_any.is_empty()
+        && issue_type.is_none()
+        && assignee.is_none();
+    (!none).then_some(ScopeFilter::Criteria {
+        labels_all,
+        labels_any,
+        issue_type,
+        assignee,
+    })
 }
 
 /// The `want` positional bead ids and the required `--actor`.

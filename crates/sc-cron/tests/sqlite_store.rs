@@ -664,7 +664,7 @@ fn a_file_with_other_tables_is_refused() {
     let path = root.path().join("cache.db");
     Connection::open(&path)
         .expect("connection")
-        .execute_batch("CREATE TABLE beads (id TEXT);")
+        .execute_batch("CREATE TABLE other_table (id TEXT);")
         .expect("foreign table");
     assert_eq!(
         store_kind(SqliteScheduleStore::open(&path)),
@@ -914,4 +914,49 @@ fn replace_and_set_enabled_naming_a_missing_row_changes_nothing() {
         matches!(named_itself, Err(CronError::InvalidSpec(_))),
         "{named_itself:?}"
     );
+}
+
+/// A planted failure on the second row's flag update rolls the first row's
+/// back too: `set_enabled_many` is one transaction, checked deterministically
+/// (the polling test can only make a split write likely to be seen).
+#[test]
+fn set_enabled_many_rolls_back_whole_when_the_second_row_fails() {
+    let h = Harness::new();
+    let a = h.create("a", 1);
+    let b = h.create("b", 2);
+    h.sql()
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'b' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .expect("trigger");
+    assert!(
+        h.store
+            .set_enabled_many(&[(name("a"), false), (name("b"), false)])
+            .is_err()
+    );
+    assert!(h.store.get(a.id).expect("get").expect("a").enabled);
+    assert!(h.store.get(b.id).expect("get").expect("b").enabled);
+}
+
+/// A planted failure on the other row's flag rolls the written row back:
+/// `replace_and_set_enabled` is one transaction.
+#[test]
+fn replace_and_set_enabled_rolls_back_whole_when_the_other_flag_fails() {
+    let h = Harness::new();
+    let builtin = h.create("builtin", 1);
+    h.sql()
+        .execute_batch(
+            "CREATE TRIGGER planted BEFORE UPDATE OF enabled ON sc_cron_schedule \
+             WHEN NEW.name = 'builtin' BEGIN SELECT RAISE(ABORT, 'planted failure'); END;",
+        )
+        .expect("trigger");
+    let r = h.store.replace_and_set_enabled(
+        &new_schedule("python"),
+        true,
+        stamp(2),
+        &[(name("builtin"), false)],
+    );
+    assert!(r.is_err(), "{r:?}");
+    assert_eq!(h.store.list_active().expect("list"), vec![builtin]);
 }

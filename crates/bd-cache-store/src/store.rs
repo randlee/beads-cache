@@ -9,30 +9,32 @@ use std::time::Duration;
 
 use bd_cache_model::{
     BaseEntry, CacheError, CacheStore, FailingSince, FingerprintOutcome, Freshness, HookState,
-    IdemKey, IngestReason, IngestSnapshot, JournalCounts, JournalEntry, JournalState, LeaseHolder,
-    LeaseTake, MAX_INGEST_BYTES, MAX_INGEST_ROWS, NewEntry, OpenWork, Outage, PreconditionReason,
-    PruneReport, ReadyBase, RepoConfig, Scope, ScopeId, ScopeStatus, Seq, StoreStatus, SyncState,
-    UpsertReport, error_code_prefix, phase_of, precondition_json, resolve_note,
+    IdemKey, IngestSnapshot, JournalCounts, JournalEntry, JournalState, LeaseHolder, LeaseTake,
+    MAX_REGISTERED_SCOPES, NewEntry, OpenWork, Outage, PreconditionReason, PruneReport, ReadyBase,
+    RepoConfig, RunId, Scope, ScopeId, ScopeStatus, Seq, StoreStatus, SyncOutcome, SyncState,
+    UpsertReport, check_lease_expiry, clip_hook_error, error_code_prefix, phase_of,
+    precondition_json, resolve_note,
 };
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
 use sc_beads::logging::tracing;
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
 use crate::codec::{
-    JOURNAL_COLUMNS, JournalRow, bead_id, decode_edge, decode_ready, decode_row, decode_scope,
-    encode_ready, encode_row, encode_scope, index_blocked, is_newer, opt_timestamp, scope,
-    timestamp,
+    JOURNAL_COLUMNS, JournalRow, KIND_PHASE, bead_id, decode_edge, decode_ready, decode_row,
+    decode_scope, encode_ready, encode_row, encode_scope, index_blocked, is_newer, opt_timestamp,
+    scope, timestamp,
 };
 use crate::error::{Step, corrupt, failed};
 use crate::location::{BeadsDirOverride, CacheLocation, DatabaseIdentity, env_beads_dir};
 use crate::lock::FlockDrainLock;
 use crate::registry::Registration;
 use crate::schedule::CacheScheduleStore;
+use crate::schema::in_scope;
 use crate::schema::{
     APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, BACKFILL_APPLIED_EPOCH,
     BACKFILL_APPLIED_EPOCH_UNHINTED, EXTENSION_COLUMNS, EXTENSION_INDEXES, EXTENSION_TABLES,
     FIRST_DATEABLE_ABOVE_SQL, FIRST_DATEABLE_ABOVE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,
-    HAS_ENTRIES_SINCE_UNHINTED_SQL, IN_SCOPE, LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL,
+    HAS_ENTRIES_SINCE_UNHINTED_SQL, LAST_UNDATED_SQL, LAST_UNDATED_UNHINTED_SQL,
     RECONCILE_MEMBERSHIP, SC_CRON_SCHEDULE_VERSION, SC_CRON_SCHEDULE_VERSION_KEY, SCHEMA_VERSION,
     UNDATABLE_BETWEEN_SQL, UNDATABLE_BETWEEN_UNHINTED_SQL, UNDATED_ABOVE_SQL,
     UNDATED_ABOVE_UNHINTED_SQL, UNDATED_SEQS, V3_SCHEMA, sc_cron_schedule_table,
@@ -63,10 +65,21 @@ const META_OUTAGE_ERROR: &str = "outage_error";
 /// Written by the v3 cron script when it announces an outage; cleared with the outage.
 const META_OUTAGE_ANNOUNCED: &str = "outage_announced_at";
 
+/// SQL predicate: bead `?1` has a pending or escalated entry.
+macro_rules! has_open_entry {
+    () => {
+        "EXISTS (SELECT 1 FROM journal j WHERE j.bead = ?1 AND j.state IN ('pending', 'escalated'))"
+    };
+}
+
 /// `synced_at` (v3, NOT NULL, never read by either implementation): the
 /// SQLite clock at the store, as the v3 Python writer writes its own clock
 /// (ADR-STORE-0002). No value the port returns depends on it.
-const SYNCED_AT: &str = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
+macro_rules! synced_at {
+    () => {
+        "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')"
+    };
+}
 
 fn alert_key(s: &ScopeId) -> String {
     format!("sync_alert:{}", s.name())
@@ -116,8 +129,12 @@ const UNDATED_SEQS_LOGGED: usize = 20;
 ///
 /// One `SqliteStore` is the process's one connection to its cache file
 /// (NFR-BDC-0007): opening the same file again in the same process, while a
-/// store on it is alive, is refused. The store is `Send` but not `Sync`, as
-/// the `Cache` that owns it (ADR-CORE-0001). Every mutating method runs in one
+/// store on it is alive, is refused. The store is `Send + Sync`: its one
+/// connection sits behind the mutex it shares with its schedule view
+/// ([`CacheScheduleStore`](crate::CacheScheduleStore), ADR-BDC-0014), and each
+/// call locks it for one statement or transaction. The `Cache` that owns it
+/// stays `!Sync` by its own marker (ADR-CORE-0001), whatever the store is; a
+/// test pins both. Every mutating method runs in one
 /// `BEGIN IMMEDIATE` transaction, so a concurrent writer in another process
 /// (a hook, the Python implementation) waits up to [`BUSY_TIMEOUT`]. The
 /// journal reads `has_entries_since` and `applied_since` may also write: when
@@ -187,6 +204,14 @@ impl Shared {
 }
 
 /// The connection and the read path's dating state, behind [`Shared`]'s mutex.
+///
+/// The three dating fields are `Cell`s although the mutex already gives
+/// exclusive access: the port's journal reads (`has_entries_since`,
+/// `applied_since`) take `&self`, as every read of [`CacheStore`] does, yet
+/// may date entries and raise the floor (ADR-STORE-0004). The `Session` those
+/// reads run on hands out `&` to its helpers, so the state they update is
+/// interior-mutable; `Cell` is enough because a `Session` lives inside one
+/// lock of the mutex on one thread (`Inner` is never shared without it).
 #[derive(Debug)]
 pub(crate) struct Inner {
     pub(crate) conn: Connection,
@@ -378,7 +403,7 @@ impl SqliteStore {
     ///
     /// [`sc_cron::CronError::Store`] with [`sc_cron::StoreErrorKind::SchemaMismatch`]
     /// when the file's `sc_cron_schedule_version` row names another version
-    /// than [`SC_CRON_SCHEDULE_VERSION`](crate::SC_CRON_SCHEDULE_VERSION), or
+    /// than `sc_cron::SCHEMA_VERSION`, or
     /// another store error when the row cannot be read.
     pub fn schedule_store(&self) -> Result<CacheScheduleStore, sc_cron::CronError> {
         CacheScheduleStore::over(Arc::clone(&self.shared))
@@ -657,9 +682,11 @@ impl Session<'_> {
             Some(_) => {}
         }
         let phase = phase_of(stored);
-        tx.prepare_cached(&format!(
+        tx.prepare_cached(concat!(
             "INSERT OR REPLACE INTO beads(id, phase, status, updated_at, row_json, synced_at, \
-             stale, membership_known) VALUES (?1, ?2, ?3, ?4, ?5, {SYNCED_AT}, 0, 1)"
+             stale, membership_known) VALUES (?1, ?2, ?3, ?4, ?5, ",
+            synced_at!(),
+            ", 0, 1)"
         ))
         .at(at)?
         .execute(params![
@@ -772,7 +799,7 @@ impl Session<'_> {
     fn scope_beads(&self, at: Step<'_>, s: &ScopeId) -> Result<u64, CacheError> {
         let n: i64 = self
             .conn
-            .prepare_cached(&format!("SELECT COUNT(*) FROM beads b WHERE {IN_SCOPE}"))
+            .prepare_cached(concat!("SELECT COUNT(*) FROM beads b WHERE ", in_scope!()))
             .at(at)?
             .query_row([s.name()], |r| r.get(0))
             .at(at)?;
@@ -999,11 +1026,12 @@ fn prune_in(tx: &Transaction<'_>, at: Step<'_>, s: &ScopeId) -> Result<PruneRepo
     };
     tx.execute("DELETE FROM scope_member WHERE scope = ?1", [s.name()])
         .at(at)?;
-    let kept =
-        format!("SELECT EXISTS (SELECT 1 FROM scope_member WHERE bead = ?1) OR {HAS_OPEN_ENTRY}");
     for id in &held {
         let keep: bool = tx
-            .prepare_cached(&kept)
+            .prepare_cached(concat!(
+                "SELECT EXISTS (SELECT 1 FROM scope_member WHERE bead = ?1) OR ",
+                has_open_entry!()
+            ))
             .at(at)?
             .query_row([id], |r| r.get(0))
             .at(at)?;
@@ -1073,6 +1101,17 @@ fn write_ready_base(
     Ok(())
 }
 
+/// The registered scopes whose stored membership holds bead `?1`, by name:
+/// the `scope_member` rows of a bead this store wrote, else the v3 `phase`
+/// of a row another writer left, as a phase-a scope ([`in_scope!`]'s rule),
+/// both through an index.
+const SCOPES_OF_SQL: &str = "SELECT s.name, s.kind, s.filter FROM scope_member m \
+    JOIN beads b ON b.id = m.bead JOIN scope s ON s.name = m.scope \
+    WHERE m.bead = ?1 AND b.membership_known IS NOT NULL \
+    UNION SELECT s.name, s.kind, s.filter FROM beads b JOIN scope s ON s.name = b.phase \
+    WHERE b.id = ?1 AND b.membership_known IS NULL AND s.filter IS NULL \
+    ORDER BY 1";
+
 /// The registered scope of a name, read on `conn`.
 fn registered(conn: &Connection, at: Step<'_>, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
     let row: Option<(String, Option<String>)> = conn
@@ -1085,7 +1124,8 @@ fn registered(conn: &Connection, at: Step<'_>, s: &ScopeId) -> Result<Option<Sco
         .transpose()
 }
 
-/// `SCOPE_UNKNOWN` for an unregistered name, listing the registered ones.
+/// `SCOPE_UNKNOWN` for an unregistered name, listing (some of) the
+/// registered ones ([`CacheError::scope_unknown`]).
 fn unknown_scope(conn: &Connection, at: Step<'_>, s: &ScopeId) -> Result<CacheError, CacheError> {
     let mut stmt = conn
         .prepare_cached("SELECT name FROM scope ORDER BY name")
@@ -1095,24 +1135,74 @@ fn unknown_scope(conn: &Connection, at: Step<'_>, s: &ScopeId) -> Result<CacheEr
     for r in rows {
         known.push(scope(at, &r.at(at)?)?);
     }
-    Ok(CacheError::ScopeUnknown {
-        detail: format!("scope {s} is not registered"),
+    Ok(CacheError::scope_unknown(
+        format!("scope {s} is not registered"),
         known,
-    })
+    ))
+}
+
+/// How a registration treats a name that is (or is not) registered.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Register {
+    /// `ensure_scope`: register when absent; a registered scope is kept.
+    IfAbsent,
+    /// `put_scope`: add or set.
+    Put,
+    /// `scope_add`: refuse a registered name.
+    Add,
+    /// `scope_set`: refuse an absent name.
+    Set,
+}
+
+/// The one registration body of the four registry calls, inside `tx`:
+/// returns the scope registered afterwards (the `CacheStore` rules).
+fn register(
+    tx: &Transaction<'_>,
+    at: Step<'_>,
+    s: &Scope,
+    mode: Register,
+) -> Result<Scope, CacheError> {
+    let known = registered(tx, at, &s.id)?;
+    match (&known, mode) {
+        (Some(k), Register::IfAbsent) => return Ok(k.clone()),
+        (Some(_), Register::Add) => {
+            return Err(CacheError::BadArgs {
+                detail: format!("scope {} is already registered; use scopes set", s.id),
+            });
+        }
+        (None, Register::Set) => return Err(unknown_scope(tx, at, &s.id)?),
+        (None, _) => {
+            let n: i64 = tx
+                .prepare_cached("SELECT COUNT(*) FROM scope")
+                .at(at)?
+                .query_row([], |r| r.get(0))
+                .at(at)?;
+            if usize::try_from(n).unwrap_or(usize::MAX) >= MAX_REGISTERED_SCOPES {
+                return Err(CacheError::registry_full(&s.id));
+            }
+        }
+        (Some(_), Register::Put | Register::Set) => {}
+    }
+    write_scope(tx, at, s, known.as_ref())?;
+    Ok(s.clone())
 }
 
 /// Creates or updates a scope inside `tx`. A changed filter drops what the
 /// old one derived: the scope's memberships, sync state and ready base; the
 /// rows stay (the `CacheStore` rules).
-fn write_scope(tx: &Transaction<'_>, at: Step<'_>, s: &Scope) -> Result<(), CacheError> {
-    let before = registered(tx, at, &s.id)?;
-    let (kind, filter) = encode_scope(at, s)?;
+fn write_scope(
+    tx: &Transaction<'_>,
+    at: Step<'_>,
+    s: &Scope,
+    before: Option<&Scope>,
+) -> Result<(), CacheError> {
+    let filter = encode_scope(at, s)?;
     tx.prepare_cached(
         "INSERT INTO scope(name, kind, filter) VALUES (?1, ?2, ?3) \
-         ON CONFLICT(name) DO UPDATE SET kind = excluded.kind, filter = excluded.filter",
+         ON CONFLICT(name) DO UPDATE SET filter = excluded.filter",
     )
     .at(at)?
-    .execute(params![s.id.name(), kind, filter])
+    .execute(params![s.id.name(), KIND_PHASE, filter])
     .at(at)?;
     if before.is_some_and(|b| b.filter != s.filter) {
         for sql in [
@@ -1127,23 +1217,14 @@ fn write_scope(tx: &Transaction<'_>, at: Step<'_>, s: &Scope) -> Result<(), Cach
     Ok(())
 }
 
-/// `INGEST_INVALID` from the store's own limit check (nothing written).
-fn ingest_refused(s: &ScopeId, reason: IngestReason, detail: &str) -> CacheError {
-    CacheError::IngestInvalid {
-        detail: format!("ingest of scope {s}: {detail}"),
-        scope: s.clone(),
-        reason,
-        index: None,
-    }
-}
-
 /// The `tick_lease` columns a read decodes: `run_id`, `pid`, `host`, `expires_at`.
 type LeaseColumns = (Option<String>, Option<i64>, Option<String>, Option<String>);
 
 /// The `hook_state` columns a read decodes.
 type HookColumns = (i64, Option<String>, Option<String>, Option<String>);
 
-/// The lease row, live or expired.
+/// The lease row, live or expired; `Corrupt` for a row that does not decode
+/// (a NULL column, a bad time): `lease_take` replaces such a row.
 fn read_lease(conn: &Connection, at: Step<'_>) -> Result<Option<LeaseHolder>, CacheError> {
     let row: Option<LeaseColumns> = conn
         .prepare_cached("SELECT run_id, pid, host, expires_at FROM tick_lease WHERE id = 1")
@@ -1159,11 +1240,65 @@ fn read_lease(conn: &Connection, at: Step<'_>) -> Result<Option<LeaseHolder>, Ca
         return Err(corrupt(at, "tick_lease row has a NULL column"));
     };
     Ok(Some(LeaseHolder {
-        run_id,
+        run_id: RunId::new(run_id)
+            .map_err(|e| corrupt(at, format_args!("tick_lease run_id: {e}")))?,
         pid: u32::try_from(pid).map_err(|e| corrupt(at, format_args!("tick_lease pid: {e}")))?,
         host,
         expires_at: timestamp(at, "tick_lease expires_at", &expires_at)?,
     }))
+}
+
+/// A scope's sync state, read on `conn` (all `None` before its first sync).
+fn read_sync_state(conn: &Connection, at: Step<'_>, s: &ScopeId) -> Result<SyncState, CacheError> {
+    let found: Option<SyncColumns> = conn
+        .prepare_cached(
+            "SELECT last_started_at, last_ok_at, last_error, failing_since, notified_since \
+             FROM sync_state WHERE phase = ?1",
+        )
+        .at(at)?
+        .query_row([s.name()], |r| {
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
+        })
+        .optional()
+        .at(at)?;
+    let Some((started, ok, last_error, failing, notified)) = found else {
+        return Ok(SyncState::new(s.clone()));
+    };
+    let token = |what: &str, v: Option<String>| {
+        v.map(FailingSince::parse)
+            .transpose()
+            .map_err(|e| corrupt(at, format_args!("stored {what}: {e}")))
+    };
+    Ok(SyncState {
+        scope: s.clone(),
+        last_started_at: opt_timestamp(at, "last_started_at", started.as_deref())?,
+        last_ok_at: opt_timestamp(at, "last_ok_at", ok.as_deref())?,
+        last_error,
+        failing_since: token("failing_since", failing)?,
+        notified_since: token("notified_since", notified)?,
+    })
+}
+
+/// Writes a scope's sync state inside `tx`, every column but
+/// `notified_since`, which only `scope_announce` sets (a new row has none).
+fn write_sync_state(tx: &Transaction<'_>, at: Step<'_>, st: &SyncState) -> Result<(), CacheError> {
+    tx.prepare_cached(
+        "INSERT INTO sync_state(phase, last_started_at, last_ok_at, last_error, \
+         failing_since, notified_since) VALUES (?1, ?2, ?3, ?4, ?5, NULL) \
+         ON CONFLICT(phase) DO UPDATE SET \
+         last_started_at = excluded.last_started_at, last_ok_at = excluded.last_ok_at, \
+         last_error = excluded.last_error, failing_since = excluded.failing_since",
+    )
+    .at(at)?
+    .execute(params![
+        st.scope.name(),
+        st.last_started_at.as_ref().map(Timestamp::as_str),
+        st.last_ok_at.as_ref().map(Timestamp::as_str),
+        st.last_error,
+        st.failing_since.as_ref().map(FailingSince::as_str),
+    ])
+    .at(at)?;
+    Ok(())
 }
 
 /// The hook backoff row; the default when there is none.
@@ -1201,60 +1336,50 @@ fn delete_bead(tx: &Transaction<'_>, at: Step<'_>, id: &str) -> Result<(), Cache
     Ok(())
 }
 
-/// SQL predicate: bead `?1` has a pending or escalated entry.
-const HAS_OPEN_ENTRY: &str =
-    "EXISTS (SELECT 1 FROM journal j WHERE j.bead = ?1 AND j.state IN ('pending', 'escalated'))";
-
 impl Session<'_> {
+    fn register(&mut self, s: &Scope, mode: Register, what: &str) -> Result<Scope, CacheError> {
+        self.write(what, |tx, at| register(tx, at, s, mode))
+    }
+
     fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
-        let (kind, filter) = encode_scope(self.at("ensure scope"), s)?;
-        self.write("ensure scope", |tx, at| {
-            tx.prepare_cached(
-                "INSERT OR IGNORE INTO scope(name, kind, filter) VALUES (?1, ?2, ?3)",
-            )
-            .at(at)?
-            .execute(params![s.id.name(), kind, filter])
-            .at(at)?;
-            registered(tx, at, &s.id)?
-                .ok_or_else(|| corrupt(at, "the scope just registered is absent"))
-        })
+        self.register(s, Register::IfAbsent, "ensure scope")
     }
 
     fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
-        self.write("write a scope", |tx, at| write_scope(tx, at, s))
+        self.register(s, Register::Put, "write a scope").map(drop)
     }
 
     fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
-        self.write("add a scope", |tx, at| {
-            if registered(tx, at, &s.id)?.is_some() {
-                return Err(CacheError::BadArgs {
-                    detail: format!("scope {} is already registered; use scopes set", s.id),
-                });
-            }
-            write_scope(tx, at, s)
-        })
+        self.register(s, Register::Add, "add a scope").map(drop)
     }
 
     fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
-        self.write("set a scope", |tx, at| {
-            if registered(tx, at, &s.id)?.is_none() {
-                return Err(unknown_scope(tx, at, &s.id)?);
+        self.register(s, Register::Set, "set a scope").map(drop)
+    }
+
+    /// The one body of `prune_scope` and `scope_remove`: a prune, then, for
+    /// a removal, the registry row, in one transaction.
+    fn prune(&mut self, s: &ScopeId, remove: bool) -> Result<PruneReport, CacheError> {
+        let what = if remove {
+            "remove a scope"
+        } else {
+            "prune a scope"
+        };
+        self.write(what, |tx, at| {
+            if remove && registered(tx, at, s)?.is_none() {
+                return Err(unknown_scope(tx, at, s)?);
             }
-            write_scope(tx, at, s)
+            let report = prune_in(tx, at, s)?;
+            if remove {
+                tx.execute("DELETE FROM scope WHERE name = ?1", [s.name()])
+                    .at(at)?;
+            }
+            Ok(report)
         })
     }
 
     fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
-        let at = step(self.path, "remove a scope");
-        let tx = begin(self.conn, at)?;
-        if registered(&tx, at, s)?.is_none() {
-            return Err(unknown_scope(&tx, at, s)?);
-        }
-        let report = prune_in(&tx, at, s)?;
-        tx.execute("DELETE FROM scope WHERE name = ?1", [s.name()])
-            .at(at)?;
-        tx.commit().at(at)?;
-        Ok(report)
+        self.prune(s, true)
     }
 
     fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
@@ -1300,7 +1425,7 @@ impl Session<'_> {
         let at = self.at("read a scope's members");
         let mut stmt = self
             .conn
-            .prepare_cached(&format!("SELECT b.id FROM beads b WHERE {IN_SCOPE}"))
+            .prepare_cached(concat!("SELECT b.id FROM beads b WHERE ", in_scope!()))
             .at(at)?;
         let rows = stmt
             .query_map([s.name()], |r| r.get::<_, String>(0))
@@ -1312,9 +1437,43 @@ impl Session<'_> {
         Ok(out)
     }
 
+    fn scopes_of(&self, id: &BeadId) -> Result<Vec<Scope>, CacheError> {
+        let at = self.at("read a bead's scopes");
+        let mut stmt = self.conn.prepare_cached(SCOPES_OF_SQL).at(at)?;
+        let rows = stmt
+            .query_map([id.as_str()], |r| {
+                Ok((
+                    r.get::<_, String>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, Option<String>>(2)?,
+                ))
+            })
+            .at(at)?;
+        let mut out = Vec::new();
+        for r in rows {
+            let (name, kind, filter) = r.at(at)?;
+            out.push(decode_scope(at, &name, &kind, filter.as_deref())?);
+        }
+        Ok(out)
+    }
+
+    /// The snapshot's limits are its own ([`IngestSnapshot`]): the store
+    /// trusts it. The scope is read, and refused when unregistered, inside
+    /// the write transaction, so another process's `scopes remove` or
+    /// `scopes set` between the core's call and this one is seen: an ingest
+    /// never re-registers a scope or applies a stale status criterion.
+    ///
+    /// The transaction holds the connection's mutex and the file's write lock
+    /// for the whole snapshot: up to [`MAX_INGEST_ROWS`](bd_cache_model::MAX_INGEST_ROWS) row upserts, their
+    /// memberships and the ready base. `tests/phase_b_store.rs` measures a
+    /// 50 000-row ingest: about 1.3 s on a debug build (macOS, Apple silicon,
+    /// 2026), and it checks a release build stays under half of
+    /// [`BUSY_TIMEOUT`], the most other writers (another process,
+    /// `CacheScheduleStore` on this connection) wait, so the default busy
+    /// wait suffices and no longer one is set for this call.
     fn ingest_scope(
         &mut self,
-        s: &Scope,
+        s: &ScopeId,
         snapshot: &IngestSnapshot,
         ready: &[BeadId],
         at: &Timestamp,
@@ -1322,31 +1481,14 @@ impl Session<'_> {
     ) -> Result<UpsertReport, CacheError> {
         let st = step(self.path, "ingest a scope");
         let rows = snapshot.rows();
-        if rows.len() > MAX_INGEST_ROWS {
-            return Err(ingest_refused(
-                &s.id,
-                IngestReason::TooManyRows,
-                &format!(
-                    "{} rows; one ingest takes at most {MAX_INGEST_ROWS}",
-                    rows.len()
-                ),
-            ));
-        }
-        // Encoded before the transaction, so an oversized snapshot writes nothing.
-        let mut encoded = Vec::with_capacity(rows.len());
-        let mut bytes = 0usize;
-        for row in rows {
-            let (stored, json) = encode_row(st, row)?;
-            bytes = bytes.saturating_add(json.len());
-            encoded.push((stored, json));
-        }
-        if bytes > MAX_INGEST_BYTES {
-            return Err(ingest_refused(
-                &s.id,
-                IngestReason::TooLarge,
-                &format!("{bytes} bytes of rows; one ingest takes at most {MAX_INGEST_BYTES}"),
-            ));
-        }
+        let encoded = rows
+            .iter()
+            .map(|row| encode_row(st, row))
+            .collect::<Result<Vec<_>, _>>()?;
+        let tx = begin(self.conn, st)?;
+        let Some(s) = registered(&tx, st, s)? else {
+            return Err(unknown_scope(&tx, st, s)?);
+        };
         let (blocked_json, ready_json, index) = {
             let members: BTreeSet<&BeadId> =
                 rows.iter().filter(|r| s.admits(r)).map(|r| &r.id).collect();
@@ -1364,12 +1506,6 @@ impl Session<'_> {
             let (b, r) = encode_ready(st, &blocked, &ready)?;
             (b, r, index_blocked(st, &blocked)?)
         };
-        let tx = begin(self.conn, st)?;
-        let (kind, filter) = encode_scope(st, s)?;
-        tx.prepare_cached("INSERT OR IGNORE INTO scope(name, kind, filter) VALUES (?1, ?2, ?3)")
-            .at(st)?
-            .execute(params![s.id.name(), kind, filter])
-            .at(st)?;
         tx.prepare_cached("DELETE FROM scope_member WHERE scope = ?1")
             .at(st)?
             .execute([s.id.name()])
@@ -1472,13 +1608,24 @@ impl Session<'_> {
         holder: &LeaseHolder,
         now: &Timestamp,
     ) -> Result<LeaseTake, CacheError> {
+        check_lease_expiry(&holder.expires_at, now)?;
         self.write("take the sync lease", |tx, at| {
-            let took = match read_lease(tx, at)? {
-                None => LeaseTake::Taken,
-                Some(live) if live.expires_at.unix() > now.unix() => {
+            let took = match read_lease(tx, at) {
+                Ok(None) => LeaseTake::Taken,
+                Ok(Some(live)) if live.expires_at.unix() > now.unix() => {
                     return Ok(LeaseTake::Held(live));
                 }
-                Some(expired) => LeaseTake::TookOver(expired),
+                Ok(Some(expired)) => LeaseTake::TookOver(expired),
+                // A row that does not decode holds no one: it is replaced,
+                // so it cannot refuse every later run (B7Q1-048).
+                Err(e) => {
+                    tracing::warn!(
+                        step = %at,
+                        error = %e,
+                        "tick_lease row does not decode; it is treated as expired and replaced"
+                    );
+                    LeaseTake::Taken
+                }
             };
             tx.prepare_cached(
                 "INSERT OR REPLACE INTO tick_lease(id, run_id, pid, host, expires_at) \
@@ -1486,7 +1633,7 @@ impl Session<'_> {
             )
             .at(at)?
             .execute(params![
-                holder.run_id,
+                holder.run_id.as_str(),
                 holder.pid,
                 holder.host,
                 holder.expires_at.as_str()
@@ -1496,12 +1643,12 @@ impl Session<'_> {
         })
     }
 
-    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+    fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
         self.write("release the sync lease", |tx, at| {
             let n = tx
                 .prepare_cached("DELETE FROM tick_lease WHERE id = 1 AND run_id = ?1")
                 .at(at)?
-                .execute([run_id])
+                .execute([run_id.as_str()])
                 .at(at)?;
             Ok(n == 1)
         })
@@ -1532,7 +1679,7 @@ impl Session<'_> {
             .at(st)?
             .execute(params![
                 at.as_str(),
-                err,
+                clip_hook_error(err),
                 next_attempt_at.map(Timestamp::as_str)
             ])
             .at(st)?;
@@ -2023,58 +2170,44 @@ impl Session<'_> {
     }
 
     fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError> {
-        let at = self.at("read sync state");
-        let found: Option<SyncColumns> = self
-            .conn
-            .prepare_cached(
-                "SELECT last_started_at, last_ok_at, last_error, failing_since, notified_since \
-                 FROM sync_state WHERE phase = ?1",
-            )
-            .at(at)?
-            .query_row([s.name()], |r| {
-                Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
-            })
-            .optional()
-            .at(at)?;
-        let Some((started, ok, last_error, failing, notified)) = found else {
-            return Ok(SyncState::new(s.clone()));
-        };
-        let token = |what: &str, v: Option<String>| {
-            v.map(FailingSince::parse)
-                .transpose()
-                .map_err(|e| corrupt(at, format_args!("stored {what}: {e}")))
-        };
-        Ok(SyncState {
-            scope: s.clone(),
-            last_started_at: opt_timestamp(at, "last_started_at", started.as_deref())?,
-            last_ok_at: opt_timestamp(at, "last_ok_at", ok.as_deref())?,
-            last_error,
-            failing_since: token("failing_since", failing)?,
-            notified_since: token("notified_since", notified)?,
-        })
+        read_sync_state(self.conn, self.at("read sync state"), s)
     }
 
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
-        self.write("record sync state", |tx, at| {
-            tx.prepare_cached(
-                "INSERT INTO sync_state(phase, last_started_at, last_ok_at, last_error, \
-                 failing_since, notified_since) VALUES (?1, ?2, ?3, ?4, ?5, ?6) \
-                 ON CONFLICT(phase) DO UPDATE SET \
-                 last_started_at = excluded.last_started_at, last_ok_at = excluded.last_ok_at, \
-                 last_error = excluded.last_error, failing_since = excluded.failing_since, \
-                 notified_since = excluded.notified_since",
-            )
-            .at(at)?
-            .execute(params![
-                st.scope.name(),
-                st.last_started_at.as_ref().map(Timestamp::as_str),
-                st.last_ok_at.as_ref().map(Timestamp::as_str),
-                st.last_error,
-                st.failing_since.as_ref().map(FailingSince::as_str),
-                st.notified_since.as_ref().map(FailingSince::as_str),
-            ])
-            .at(at)?;
-            Ok(())
+        self.write("record sync state", |tx, at| write_sync_state(tx, at, st))
+    }
+
+    fn record_sync_result(
+        &mut self,
+        s: &ScopeId,
+        outcome: &SyncOutcome,
+        started: &Timestamp,
+    ) -> Result<SyncState, CacheError> {
+        self.write("record a sync result", |tx, at| {
+            let mut st = read_sync_state(tx, at, s)?;
+            st.last_started_at = Some(started.clone());
+            match outcome {
+                SyncOutcome::Ok => {
+                    st.last_ok_at = Some(started.clone());
+                    st.last_error = None;
+                    st.record_result(true, started);
+                }
+                SyncOutcome::Failed(err) => {
+                    st.last_error = Some(err.clone());
+                    st.record_result(false, started);
+                }
+                SyncOutcome::Deferred => {}
+            }
+            write_sync_state(tx, at, &st)?;
+            // An ok result clears the mark with the failure; `record_sync`
+            // never writes it.
+            if st.notified_since.is_none() {
+                tx.prepare_cached("UPDATE sync_state SET notified_since = NULL WHERE phase = ?1")
+                    .at(at)?
+                    .execute([s.name()])
+                    .at(at)?;
+            }
+            Ok(st)
         })
     }
 
@@ -2160,11 +2293,7 @@ impl Session<'_> {
     }
 
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
-        let at = step(self.path, "prune a scope");
-        let tx = begin(self.conn, at)?;
-        let report = prune_in(&tx, at, s)?;
-        tx.commit().at(at)?;
-        Ok(report)
+        self.prune(s, false)
     }
 
     fn open_work(&self) -> Result<OpenWork, CacheError> {
@@ -2252,9 +2381,12 @@ impl CacheStore for SqliteStore {
     fn members(&self, s: &ScopeId) -> Result<BTreeSet<BeadId>, CacheError> {
         self.session(|x| x.members(s))
     }
+    fn scopes_of(&self, id: &BeadId) -> Result<Vec<Scope>, CacheError> {
+        self.session(|x| x.scopes_of(id))
+    }
     fn ingest_scope(
         &mut self,
-        s: &Scope,
+        s: &ScopeId,
         snapshot: &IngestSnapshot,
         ready: &[BeadId],
         at: &Timestamp,
@@ -2275,7 +2407,7 @@ impl CacheStore for SqliteStore {
     ) -> Result<LeaseTake, CacheError> {
         self.session(|x| x.lease_take(holder, now))
     }
-    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+    fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
         self.session(|x| x.lease_release(run_id))
     }
     fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
@@ -2406,6 +2538,14 @@ impl CacheStore for SqliteStore {
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
         self.session(|x| x.record_sync(st))
     }
+    fn record_sync_result(
+        &mut self,
+        s: &ScopeId,
+        outcome: &SyncOutcome,
+        started: &Timestamp,
+    ) -> Result<SyncState, CacheError> {
+        self.session(|x| x.record_sync_result(s, outcome, started))
+    }
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         self.session(|x| x.sync_alert(s))
     }
@@ -2477,8 +2617,10 @@ impl Session<'_> {
         let at = self.at("read a scope's rows");
         let mut stmt = self
             .conn
-            .prepare_cached(&format!(
-                "SELECT b.id, b.row_json, b.stale FROM beads b WHERE {IN_SCOPE} ORDER BY b.id"
+            .prepare_cached(concat!(
+                "SELECT b.id, b.row_json, b.stale FROM beads b WHERE ",
+                in_scope!(),
+                " ORDER BY b.id"
             ))
             .at(at)?;
         let rows = stmt
@@ -2536,7 +2678,12 @@ impl Session<'_> {
                 journal.insert(format!("{phase}:{state}"), count(n));
             }
         }
-        let mut names: BTreeSet<ScopeId> = self.scopes()?.into_iter().map(|s| s.id).collect();
+        let registry: BTreeMap<ScopeId, Scope> = self
+            .scopes()?
+            .into_iter()
+            .map(|s| (s.id.clone(), s))
+            .collect();
+        let mut names: BTreeSet<ScopeId> = registry.keys().cloned().collect();
         {
             let mut stmt = self
                 .conn
@@ -2551,6 +2698,7 @@ impl Session<'_> {
         for s in names {
             scopes.push(ScopeStatus {
                 beads: self.scope_beads(at, &s)?,
+                filter: registry.get(&s).and_then(|r| r.filter.clone()),
                 sync: self.sync_state(&s)?,
             });
         }

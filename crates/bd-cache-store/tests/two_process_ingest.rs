@@ -91,6 +91,6 @@ fn child_ingests() {
     let snapshot = IngestSnapshot::new(&lane().id, rows, vec![]).unwrap();
     let at = SystemClock.now_utc();
     second
-        .ingest_scope(&lane(), &snapshot, &[], &at, Some("from-child"))
+        .ingest_scope(&lane().id, &snapshot, &[], &at, Some("from-child"))
         .unwrap();
 }

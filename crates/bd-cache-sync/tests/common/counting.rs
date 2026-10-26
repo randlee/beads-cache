@@ -24,7 +24,8 @@ use std::time::Duration;
 use bd_cache_model::{
     BaseEntry, CacheError, CacheStore, FailingSince, FingerprintOutcome, Freshness, HookState,
     IdemKey, IngestSnapshot, JournalEntry, LeaseHolder, LeaseTake, NewEntry, OpenWork, Outage,
-    PruneReport, ReadyBase, Scope, ScopeId, Seq, StoreStatus, SyncState, UpsertReport,
+    PruneReport, ReadyBase, RunId, Scope, ScopeId, Seq, StoreStatus, SyncOutcome, SyncState,
+    UpsertReport,
 };
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
 
@@ -111,12 +112,15 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     fn scopes(&self) -> Result<Vec<Scope>, CacheError> {
         self.counted(self.inner.scopes())
     }
+    fn scopes_of(&self, id: &BeadId) -> Result<Vec<Scope>, CacheError> {
+        self.counted(self.inner.scopes_of(id))
+    }
     fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         self.inner.scope_revision(s)
     }
     fn ingest_scope(
         &mut self,
-        s: &Scope,
+        s: &ScopeId,
         snapshot: &IngestSnapshot,
         ready: &[BeadId],
         at: &Timestamp,
@@ -133,7 +137,7 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     fn lease_take(&mut self, h: &LeaseHolder, now: &Timestamp) -> Result<LeaseTake, CacheError> {
         self.inner.lease_take(h, now)
     }
-    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+    fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
         self.inner.lease_release(run_id)
     }
     fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
@@ -275,6 +279,14 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
         self.inner.record_sync(st)
+    }
+    fn record_sync_result(
+        &mut self,
+        s: &ScopeId,
+        outcome: &SyncOutcome,
+        started: &Timestamp,
+    ) -> Result<SyncState, CacheError> {
+        self.inner.record_sync_result(s, outcome, started)
     }
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         self.inner.sync_alert(s)

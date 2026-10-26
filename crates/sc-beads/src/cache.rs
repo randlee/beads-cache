@@ -431,15 +431,19 @@ pub struct Fingerprint {
 ///
 /// The backend's filter: it has no status criterion, because bd is never
 /// sent one (a scope list names all seven statuses, REQ-BDC-0501). The
-/// cache's validated scope filter converts into this one; this type takes
-/// its variants as given, and the backends refuse only an empty
-/// [`ScopeFilter::Criteria`] ([`ScopeFilter::validate`]), before any bd call.
+/// cache's validated scope filter converts into this one. A one-label filter
+/// is [`ScopeFilter::label`], the criteria filter with `labels_all = [label]`.
+/// [`ScopeFilter::validate`] is the one check of a filter's values: no empty
+/// [`ScopeFilter::Criteria`], and every value one bd word
+/// ([`check_filter_word`]); `sc-bd-cli`'s argv builders refuse a filter that
+/// fails it, so no argv lists every bead by mistake or hands bd a value it
+/// would misread.
 ///
 /// # Examples
 ///
 /// ```
 /// use sc_beads::ScopeFilter;
-/// let label = ScopeFilter::Label("area".into());
+/// let label = ScopeFilter::label("area");
 /// assert_eq!(label.labels_all(), vec!["area"]);
 /// let any = ScopeFilter::Criteria {
 ///     labels_all: vec![],
@@ -455,14 +459,13 @@ pub struct Fingerprint {
 ///     assignee: None,
 /// };
 /// assert!(empty.validate().is_err());
+/// assert!(ScopeFilter::label("-x").validate().is_err());
+/// assert!(ScopeFilter::label("a,b").validate().is_err());
 /// assert!(ScopeFilter::All.validate().is_ok());
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[non_exhaustive]
 pub enum ScopeFilter {
-    /// Beads carrying this label (`bd list -l <label>`): the same as
-    /// [`ScopeFilter::Criteria`] with `labels_all = [label]`.
-    Label(String),
     /// Every bead (`bd list --all`).
     All,
     /// Beads matching every given criterion (`bd list -l .. --label-any ..
@@ -479,12 +482,96 @@ pub enum ScopeFilter {
     },
 }
 
+/// Checks that `value` can be one bd filter argument: nonempty, no leading
+/// `-`, no `,` (bd splits a list on it), no control character.
+///
+/// The one statement of the rule: the cache's filter validator and
+/// [`ScopeFilter::validate`] both call it. `kind` names the value in the
+/// error (e.g. `scope label`).
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::cache::check_filter_word;
+/// assert!(check_filter_word("scope label", "area-x").is_ok());
+/// for bad in ["", " ", "-l", "a,b", "a\nb"] {
+///     assert!(check_filter_word("scope label", bad).is_err(), "{bad:?}");
+/// }
+/// ```
+///
+/// # Errors
+///
+/// [`InvalidValue`] of `kind` naming the broken rule.
+pub fn check_filter_word(kind: &'static str, value: &str) -> Result<(), InvalidValue> {
+    let bad = if value.trim().is_empty() {
+        Some("is empty")
+    } else if value.starts_with('-') {
+        Some("starts with '-'")
+    } else if value.contains(',') {
+        Some("contains ',' (bd splits a list on it)")
+    } else if value.chars().any(char::is_control) {
+        Some("contains a control character")
+    } else {
+        None
+    };
+    match bad {
+        Some(reason) => Err(InvalidValue {
+            kind,
+            value: value.to_owned(),
+            reason,
+        }),
+        None => Ok(()),
+    }
+}
+
+/// True when `bd ready` lists `row`: open, not blocked, and not deferred past
+/// `now_unix` (bd 1.3.1's rule, ADR-BDC-0002).
+///
+/// The one statement of the rule above the port: `FakeBackend::list_ready`
+/// answers with it, and the cache's `ingest_scope` derives a snapshot's ready
+/// set with it. `blocked` is whether `bd blocked` lists the row with a
+/// blocker. A fixture test keeps it equal to recorded `bd ready` answers.
+///
+/// # Examples
+///
+/// ```
+/// use sc_beads::cache::is_bd_ready;
+/// let mut row = sc_beads::testing::bead("b1");
+/// assert!(is_bd_ready(&row, false, 0));
+/// assert!(!is_bd_ready(&row, true, 0));
+/// row.defer_until = Some("2030-01-01T00:00:00Z".into());
+/// assert!(!is_bd_ready(&row, false, 0));
+/// row.status = Some("closed".into());
+/// assert!(!is_bd_ready(&row, false, i64::MAX));
+/// ```
+#[must_use]
+pub fn is_bd_ready(row: &Bead, blocked: bool, now_unix: i64) -> bool {
+    row.status.as_deref() == Some("open")
+        && !blocked
+        && row
+            .defer_until
+            .as_deref()
+            .and_then(crate::clock::rfc3339_to_unix)
+            .is_none_or(|t| t <= now_unix)
+}
+
 impl ScopeFilter {
-    /// The labels a bead must all carry: `[l]` for `Label(l)`, empty for `All`.
+    /// The filter of one label: [`ScopeFilter::Criteria`] with
+    /// `labels_all = [label]` (`bd list -l <label>`).
+    #[must_use]
+    pub fn label(label: impl Into<String>) -> Self {
+        Self::Criteria {
+            labels_all: vec![label.into()],
+            labels_any: Vec::new(),
+            issue_type: None,
+            assignee: None,
+        }
+    }
+
+    /// The labels a bead must all carry; empty for `All`.
     #[must_use]
     pub fn labels_all(&self) -> Vec<&str> {
         match self {
-            Self::Label(l) => vec![l.as_str()],
             Self::All => Vec::new(),
             Self::Criteria { labels_all, .. } => labels_all.iter().map(String::as_str).collect(),
         }
@@ -495,7 +582,7 @@ impl ScopeFilter {
     pub fn labels_any(&self) -> Vec<&str> {
         match self {
             Self::Criteria { labels_any, .. } => labels_any.iter().map(String::as_str).collect(),
-            Self::Label(_) | Self::All => Vec::new(),
+            Self::All => Vec::new(),
         }
     }
 
@@ -504,7 +591,7 @@ impl ScopeFilter {
     pub fn issue_type(&self) -> Option<&str> {
         match self {
             Self::Criteria { issue_type, .. } => issue_type.as_deref(),
-            Self::Label(_) | Self::All => None,
+            Self::All => None,
         }
     }
 
@@ -513,31 +600,50 @@ impl ScopeFilter {
     pub fn assignee(&self) -> Option<&str> {
         match self {
             Self::Criteria { assignee, .. } => assignee.as_deref(),
-            Self::Label(_) | Self::All => None,
+            Self::All => None,
         }
     }
 
-    /// Refuses a [`ScopeFilter::Criteria`] that sets no criterion, which bd
-    /// would answer with every bead (ADR-BDC-0013); every other value is
-    /// taken as given. Backends call it before any bd call.
+    /// The one check of a filter (ADR-BDC-0013): refuses a
+    /// [`ScopeFilter::Criteria`] that sets no criterion, which bd would answer
+    /// with every bead, and any value that is not one bd word
+    /// ([`check_filter_word`]). `sc-bd-cli`'s argv builders and the fake
+    /// backends call it before any bd call.
     ///
     /// # Errors
     ///
-    /// [`InvalidValue`] for an empty `Criteria`.
+    /// [`InvalidValue`] for an empty `Criteria` or a value bd would misread.
     pub fn validate(&self) -> Result<(), InvalidValue> {
-        match self {
-            Self::Criteria {
-                labels_all,
-                labels_any,
-                issue_type: None,
-                assignee: None,
-            } if labels_all.is_empty() && labels_any.is_empty() => Err(InvalidValue {
+        let Self::Criteria {
+            labels_all,
+            labels_any,
+            issue_type,
+            assignee,
+        } = self
+        else {
+            return Ok(());
+        };
+        if labels_all.is_empty()
+            && labels_any.is_empty()
+            && issue_type.is_none()
+            && assignee.is_none()
+        {
+            return Err(InvalidValue {
                 kind: "scope filter",
                 value: String::new(),
                 reason: "a criteria filter sets no criterion",
-            }),
-            _ => Ok(()),
+            });
         }
+        for l in labels_all.iter().chain(labels_any) {
+            check_filter_word("scope label", l)?;
+        }
+        if let Some(t) = issue_type {
+            check_filter_word("scope type", t)?;
+        }
+        if let Some(a) = assignee {
+            check_filter_word("scope assignee", a)?;
+        }
+        Ok(())
     }
 
     /// True when bd's list for this filter returns `row`, in any status: the
@@ -557,9 +663,17 @@ impl ScopeFilter {
     /// criteria only, since `bd blocked` takes no type or assignee flag.
     #[must_use]
     pub fn selects_blocked(&self, row: &Bead) -> bool {
-        let all = self.labels_all().iter().all(|l| row.has_label(l));
-        let any = self.labels_any();
-        all && (any.is_empty() || any.iter().any(|l| row.has_label(l)))
+        match self {
+            Self::All => true,
+            Self::Criteria {
+                labels_all,
+                labels_any,
+                ..
+            } => {
+                labels_all.iter().all(|l| row.has_label(l))
+                    && (labels_any.is_empty() || labels_any.iter().any(|l| row.has_label(l)))
+            }
+        }
     }
 }
 

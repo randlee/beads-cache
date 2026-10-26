@@ -105,11 +105,14 @@ fn a_status_criterion_is_never_passed_to_bd() {
     })
     .unwrap();
     let backend = open_lane.backend();
-    let list = argv::list_scope(&backend, None);
+    let list = argv::list_scope(&backend, None).unwrap();
     let at = list.iter().position(|w| w == "--status").unwrap();
     assert_eq!(list[at + 1], ALL_STATUSES, "{list:?}");
     assert_eq!(list.iter().filter(|w| *w == "--status").count(), 1);
-    for argv in [argv::blocked(&backend), argv::ready(&backend)] {
+    for argv in [
+        argv::blocked(&backend).unwrap(),
+        argv::ready(&backend).unwrap(),
+    ] {
         assert!(
             !argv
                 .iter()
@@ -124,7 +127,7 @@ fn a_status_criterion_is_never_passed_to_bd() {
     })
     .unwrap();
     assert_eq!(
-        argv::list_scope(&status_only.backend(), None),
+        argv::list_scope(&status_only.backend(), None).unwrap(),
         [
             "list",
             "--all",

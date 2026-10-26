@@ -7,8 +7,8 @@ use std::time::Duration;
 use super::{lock, ManualClock};
 use crate::backend::BeadsBackend;
 use crate::cache::{
-    Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep, Edge,
-    Fingerprint, Guards, MetaValue, Patch, Refusal, ScopeFilter, SyncCursor,
+    is_bd_ready, Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep,
+    Edge, Fingerprint, Guards, MetaValue, Patch, Refusal, ScopeFilter, SyncCursor,
 };
 use crate::clock::{rfc3339_to_unix, Clock, Deadline};
 use crate::error::BeadsError;
@@ -237,7 +237,7 @@ struct State {
 /// fake.insert(b);
 /// let p = ProjectRef::local(None);
 /// let d = Deadline::after(&*clock, Duration::from_secs(30));
-/// let scope = ScopeFilter::Label("phase-x".into());
+/// let scope = ScopeFilter::label("phase-x");
 /// assert_eq!(fake.list_scope(&p, &scope, None, d).unwrap().len(), 1);
 ///
 /// fake.inject(FakeOp::ListScope, Injection::Unavailable { timed_out: false });
@@ -696,14 +696,7 @@ impl CacheBackend for FakeBackend {
         let blocked = blocked_map(&s.rows);
         Ok(s.rows
             .values()
-            .filter(|r| f.selects(r) && r.status.as_deref() == Some("open"))
-            .filter(|r| !blocked.contains_key(&r.id))
-            .filter(|r| {
-                r.defer_until
-                    .as_deref()
-                    .and_then(rfc3339_to_unix)
-                    .is_none_or(|t| t <= now)
-            })
+            .filter(|r| f.selects(r) && is_bd_ready(r, blocked.contains_key(&r.id), now))
             .map(|r| r.id.clone())
             .collect())
     }

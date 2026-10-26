@@ -130,7 +130,7 @@ pub fn recorded_filter(name: &str) -> Option<ScopeFilter> {
             Some("dev"),
         ),
         "list-label-any" => criteria(&[], &["team-y", "area-z"], None, None),
-        "list-label" => ScopeFilter::Label("area-x".to_owned()),
+        "list-label" => ScopeFilter::label("area-x".to_owned()),
         "blocked-criteria" | "ready-criteria" => criteria(
             &["area-x"],
             &["area-x", "team-y"],
@@ -323,7 +323,7 @@ pub fn list_scope_filters_by_label_and_cursor(fx: &mut impl BackendFixture) {
         labelled("y1", "phase-y"),
     ]);
     let b = fx.backend(&world, Arc::clone(&clock));
-    let scope = ScopeFilter::Label("phase-x".into());
+    let scope = ScopeFilter::label("phase-x");
     let all = ok(
         b.list_scope(&project(), &scope, None, generous(&clock)),
         "list_scope",
@@ -427,7 +427,7 @@ fn recorded_ids(name: &str, stdout: &str) -> BTreeSet<String> {
 pub fn blocked_and_ready_match_the_p6_probe(fx: &mut impl BackendFixture) {
     let clock = Arc::new(ManualClock::new("2026-10-24T04:41:30Z"));
     let b = fx.backend(&World::p6(), Arc::clone(&clock));
-    let scope = ScopeFilter::Label(P6_LABEL.into());
+    let scope = ScopeFilter::label(P6_LABEL);
     let check = |blocked: &str, ready: &str, state: &str| {
         let got = ok(
             b.list_blocked(&project(), &scope, generous(&clock)),
@@ -718,7 +718,7 @@ pub fn every_call_stops_at_its_deadline(fx: &mut impl BackendFixture) {
     let id = bead_id("b1");
     let a = super::actor("contract");
     let g = Guards::default();
-    let scope = ScopeFilter::Label("phase-x".into());
+    let scope = ScopeFilter::label("phase-x");
     let timed_out = |r: Result<(), BeadsCacheError>, what: &str| {
         assert!(
             matches!(

@@ -10,7 +10,7 @@
 mod common;
 
 use bd_cache_model::{
-    CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, Scope, ScopeId, normalize,
+    CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, Scope, ScopeId, legacy_label, normalize,
 };
 use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
@@ -24,6 +24,16 @@ fn x() -> ScopeId {
 
 fn y() -> ScopeId {
     ScopeId::new("y").unwrap()
+}
+
+/// The label of the phase-a scope `x`, built from `LEGACY_SCOPE_PREFIX` (ADR-BDC-0012).
+fn px() -> String {
+    legacy_label(&x())
+}
+
+/// The label of the phase-a scope `y`.
+fn py() -> String {
+    legacy_label(&y())
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -63,14 +73,14 @@ fn fresh(tag: &str) -> (Open, SqliteStore) {
 #[test]
 fn test_dependents_use_the_edge_index() {
     let (open, mut store) = fresh("edges");
-    let mut s1 = row("s1", &["phase-x"]);
+    let mut s1 = row("s1", &[&px()]);
     s1.dependencies = vec![edge("s1", "b1", DepType::Blocks)];
-    let mut s2 = row("s2", &["phase-x"]);
+    let mut s2 = row("s2", &[&px()]);
     s2.dependencies = vec![edge("s2", "b1", DepType::Related)];
     store
         .upsert_rows(
             Some(&Scope::legacy(x())),
-            &[row("b1", &["phase-x"]), s1, s2],
+            &[row("b1", &[&px()]), s1, s2],
             false,
         )
         .unwrap();
@@ -176,8 +186,8 @@ fn test_pending_work_counts_as_open() {
 #[test]
 fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
     let (_open, mut store) = fresh("prune");
-    let both = row("both", &["phase-x", "phase-y"]);
-    let mut only = row("only-x", &["phase-x"]);
+    let both = row("both", &[&px(), &py()]);
+    let mut only = row("only-x", &[&px()]);
     only.dependencies = vec![edge("only-x", "both", DepType::Blocks)];
     store
         .upsert_rows(Some(&Scope::legacy(x())), &[only, both.clone()], false)
@@ -205,7 +215,7 @@ fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
 #[test]
 fn stored_rows_are_normalized_and_written_for_python() {
     let (open, mut store) = fresh("normalize");
-    let mut b = row("b1", &["phase-x", "other"]);
+    let mut b = row("b1", &[&px(), "other"]);
     b.dependency_count = Some(3);
     b.dependent_count = Some(1);
     b.comment_count = Some(2);
@@ -253,16 +263,12 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     store
         .upsert_rows(
             Some(&Scope::legacy(x())),
-            &[row("kept", &["phase-x"]), row("gone", &["phase-x"])],
+            &[row("kept", &[&px()]), row("gone", &[&px()])],
             false,
         )
         .unwrap();
     store
-        .upsert_rows(
-            Some(&Scope::legacy(y())),
-            &[row("moved", &["phase-y"])],
-            false,
-        )
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("moved", &[&py()])], false)
         .unwrap();
     drop(store);
     {
@@ -294,7 +300,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     assert!(ids(&store, &y()).is_empty());
     // A bead deleted elsewhere and stored again unscoped is a new, out-of-scope row.
     store
-        .upsert_rows(None, &[row("gone", &["phase-x"])], false)
+        .upsert_rows(None, &[row("gone", &[&px()])], false)
         .unwrap();
     assert_eq!(ids(&store, &x()), ["kept", "moved"]);
     let x_status = store
@@ -311,7 +317,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
 fn a_python_row_written_while_open_is_read_by_its_phase() {
     let (open, mut store) = fresh("live");
     store
-        .upsert_rows(Some(&Scope::legacy(y())), &[row("b1", &["phase-y"])], false)
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("b1", &[&py()])], false)
         .unwrap();
     let json: String = Connection::open(&open.path)
         .unwrap()
@@ -332,7 +338,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
     // An unscoped store keeps that membership.
     store
-        .upsert_rows(None, &[row("b1", &["phase-y"])], true)
+        .upsert_rows(None, &[row("b1", &[&py()])], true)
         .unwrap();
     assert_eq!(store.rows_in_scope(&x()).unwrap().len(), 1);
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
@@ -342,7 +348,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
 fn undecodable_stored_values_are_errors_not_skipped() {
     let (open, mut store) = fresh("corrupt");
     store
-        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -377,7 +383,7 @@ fn a_guard_dropped_on_another_thread_releases_the_lock() {
 fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let (_open, mut store) = fresh("readback-id");
     store
-        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     let seq = store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -385,7 +391,7 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let err = store
         .apply_with_readback(
             seq,
-            Some(&row("b2", &["phase-x"])),
+            Some(&row("b2", &[&px()])),
             None,
             &ts("2026-10-23T10:00:01Z"),
         )

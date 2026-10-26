@@ -245,7 +245,7 @@ Context: QA-1 found raw strings for keys, scopes and instants, and a call
 result with a dead success variant.
 
 Decision: `IdemKey::new` rejects an empty key; scopes are
-`ScopeId::Phase(PhaseName)` with a validated name (also in
+`ScopeId::Phase(PhaseName)` [now `ScopeId(ScopeName)`, ADR-BDC-0013] with a validated name (also in
 `ScopeUnknown.known`, `EscalatedItem.phase` and `phase_of`); journal,
 sync-state, outage and ready-base instants are `Timestamp`s. `CallOutcome`
 is replaced by the failure-only `CallFailure { Cut, Outage(CacheError),
@@ -353,7 +353,7 @@ Decision:
   the constructors `SendError::new` and `with_kind`. **This is a breaking change
   to the struct literal** `SendError { detail }`; no other crate in the workspace
   or on the a-8 branch built one. `SendErrorKind` is `#[non_exhaustive]`.
-- `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
+- `MEMBER_NAME_RULE` (`sender.rs`) and `PhaseName::RULE` [now `ScopeName::RULE`, ADR-BDC-0013] (`scope.rs`) state the name rules once; the sync task's refusals and the validators quote them (S32, fix-a-7-8).
 - `CacheStore::mark_announced_within(seq, at, wait)` and `CacheStore::set_sync_alert_within(scope, cause, wait)` (lead ruling S33, bc-lead, 2026-10-24): the post-send markers and the alert clears that send no message (S35), bounded by the tick's remaining time. Their provided bodies ignore the wait and call `mark_announced` and `set_sync_alert`, so `FakeStore` is unaffected; `SqliteStore` bounds the busy timeout by `wait` (never above its own `BUSY_TIMEOUT`).
 
 Consequences: every `CacheStore` passes the new contract rules (FakeStore

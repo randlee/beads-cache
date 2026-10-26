@@ -29,7 +29,7 @@ pub(crate) fn list<S: CacheStore, L: DrainLock, B: CacheBackend>(
         if label.is_some_and(|want| !view.has_label(want)) {
             continue;
         }
-        rows.push(row_view(view, freshness, adj.as_ref()));
+        rows.push(row_view(Some(&row), view, freshness, adj.as_ref()));
     }
     Ok(ListReply {
         scope: s.clone(),

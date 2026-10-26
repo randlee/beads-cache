@@ -7,17 +7,19 @@ use std::sync::{Arc, Mutex};
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp, rfc3339_to_unix};
 
 use super::lock;
-use crate::error::{CacheError, IngestReason, PreconditionReason};
-use crate::ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS};
+use crate::budget::check_lease_expiry;
+use crate::error::{CacheError, PreconditionReason};
+use crate::ingest::IngestSnapshot;
 use crate::journal::{
     IdemKey, JournalEntry, JournalState, NewEntry, Seq, error_code_prefix, resolve_note,
 };
 use crate::op::normalize;
 use crate::reply::{JournalCounts, PruneReport};
-use crate::scope::{Scope, ScopeFilter, ScopeId};
+use crate::scope::{MAX_REGISTERED_SCOPES, Scope, ScopeFilter, ScopeId};
 use crate::state::{
     FailingSince, FingerprintOutcome, Freshness, HookState, LeaseHolder, LeaseTake, OpenWork,
-    Outage, ReadyBase, ScopeStatus, StoreStatus, SyncState, UpsertReport,
+    Outage, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncOutcome, SyncState, UpsertReport,
+    clip_hook_error,
 };
 use crate::store::{CacheStore, DrainGuard, DrainLock};
 
@@ -220,13 +222,47 @@ impl State {
     }
 }
 
-/// `INGEST_INVALID` from the store's own limit check.
-fn too_big(s: &ScopeId, reason: IngestReason, detail: &str) -> CacheError {
-    CacheError::IngestInvalid {
-        detail: format!("ingest of scope {s}: {detail}"),
-        scope: s.clone(),
-        reason,
-        index: None,
+/// How a registration treats a name that is (or is not) registered: the
+/// one registration body the four registry calls share.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Register {
+    /// `ensure_scope`: register when absent; a registered scope is kept.
+    IfAbsent,
+    /// `put_scope`: add or set.
+    Put,
+    /// `scope_add`: refuse a registered name.
+    Add,
+    /// `scope_set`: refuse an absent name.
+    Set,
+}
+
+impl State {
+    /// `SCOPE_UNKNOWN` for `s`, listing the registered scopes.
+    fn unknown(&self, s: &ScopeId) -> CacheError {
+        CacheError::scope_unknown(
+            format!("scope {s} is not registered"),
+            self.scopes.keys().cloned().collect(),
+        )
+    }
+
+    /// The one registration rule; returns the scope registered afterwards.
+    fn register(&mut self, s: &Scope, mode: Register) -> Result<Scope, CacheError> {
+        let known = self.scope(&s.id);
+        match (&known, mode) {
+            (Some(k), Register::IfAbsent) => return Ok(k.clone()),
+            (Some(_), Register::Add) => {
+                return Err(CacheError::BadArgs {
+                    detail: format!("scope {} is already registered; use scopes set", s.id),
+                });
+            }
+            (None, Register::Set) => return Err(self.unknown(&s.id)),
+            (None, _) if self.scopes.len() >= MAX_REGISTERED_SCOPES => {
+                return Err(CacheError::registry_full(&s.id));
+            }
+            _ => {}
+        }
+        self.write_scope(s);
+        Ok(s.clone())
     }
 }
 
@@ -287,49 +323,25 @@ impl FakeStore {
 
 impl CacheStore for FakeStore {
     fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
-        let mut st = lock(&self.state);
-        if let Some(known) = st.scope(&s.id) {
-            return Ok(known);
-        }
-        st.scopes.insert(s.id.clone(), (s.filter.clone(), None));
-        Ok(s.clone())
+        lock(&self.state).register(s, Register::IfAbsent)
     }
 
     fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
-        lock(&self.state).write_scope(s);
-        Ok(())
+        lock(&self.state).register(s, Register::Put).map(drop)
     }
 
     fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
-        let mut st = lock(&self.state);
-        if st.scopes.contains_key(&s.id) {
-            return Err(CacheError::BadArgs {
-                detail: format!("scope {} is already registered; use scopes set", s.id),
-            });
-        }
-        st.scopes.insert(s.id.clone(), (s.filter.clone(), None));
-        Ok(())
+        lock(&self.state).register(s, Register::Add).map(drop)
     }
 
     fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
-        let mut st = lock(&self.state);
-        if !st.scopes.contains_key(&s.id) {
-            return Err(CacheError::ScopeUnknown {
-                detail: format!("scope {} is not registered", s.id),
-                known: st.scopes.keys().cloned().collect(),
-            });
-        }
-        st.write_scope(s);
-        Ok(())
+        lock(&self.state).register(s, Register::Set).map(drop)
     }
 
     fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
         let mut st = lock(&self.state);
         if !st.scopes.contains_key(s) {
-            return Err(CacheError::ScopeUnknown {
-                detail: format!("scope {s} is not registered"),
-                known: st.scopes.keys().cloned().collect(),
-            });
+            return Err(st.unknown(s));
         }
         let report = st.prune(s)?;
         st.scopes.remove(s);
@@ -345,6 +357,17 @@ impl CacheStore for FakeStore {
         Ok(st.scopes.keys().filter_map(|id| st.scope(id)).collect())
     }
 
+    fn scopes_of(&self, id: &BeadId) -> Result<Vec<Scope>, CacheError> {
+        let st = lock(&self.state);
+        Ok(st
+            .members
+            .get(id)
+            .into_iter()
+            .flatten()
+            .filter_map(|s| st.scope(s))
+            .collect())
+    }
+
     fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         Ok(lock(&self.state)
             .scopes
@@ -354,32 +377,18 @@ impl CacheStore for FakeStore {
 
     fn ingest_scope(
         &mut self,
-        s: &Scope,
+        s: &ScopeId,
         snapshot: &IngestSnapshot,
         ready: &[BeadId],
         at: &Timestamp,
         revision: Option<&str>,
     ) -> Result<UpsertReport, CacheError> {
         let rows = snapshot.rows();
-        if rows.len() > MAX_INGEST_ROWS {
-            return Err(too_big(
-                &s.id,
-                IngestReason::TooManyRows,
-                &format!("{} rows", rows.len()),
-            ));
-        }
-        let bytes: usize = rows
-            .iter()
-            .map(|r| serde_json::to_vec(r).map_or(0, |v| v.len()))
-            .sum();
-        if bytes > MAX_INGEST_BYTES {
-            return Err(too_big(
-                &s.id,
-                IngestReason::TooLarge,
-                &format!("{bytes} bytes of rows"),
-            ));
-        }
+        // One guard: the registration check and the write are one step.
         let mut st = lock(&self.state);
+        let Some(s) = st.scope(s) else {
+            return Err(st.unknown(s));
+        };
         let mut report = UpsertReport::default();
         let mut members = BTreeSet::new();
         for row in rows {
@@ -446,12 +455,10 @@ impl CacheStore for FakeStore {
                 notified_since: None,
             },
         );
-        let filter = st
-            .scopes
-            .get(&s.id)
-            .map_or(s.filter.clone(), |(f, _)| f.clone());
-        st.scopes
-            .insert(s.id.clone(), (filter, revision.map(str::to_owned)));
+        st.scopes.insert(
+            s.id.clone(),
+            (s.filter.clone(), revision.map(str::to_owned)),
+        );
         Ok(report)
     }
 
@@ -487,6 +494,7 @@ impl CacheStore for FakeStore {
         holder: &LeaseHolder,
         now: &Timestamp,
     ) -> Result<LeaseTake, CacheError> {
+        check_lease_expiry(&holder.expires_at, now)?;
         let mut st = lock(&self.state);
         let took = match st.lease.take() {
             None => LeaseTake::Taken,
@@ -501,9 +509,9 @@ impl CacheStore for FakeStore {
         Ok(took)
     }
 
-    fn lease_release(&mut self, run_id: &str) -> Result<bool, CacheError> {
+    fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
         let mut st = lock(&self.state);
-        if st.lease.as_ref().is_some_and(|l| l.run_id == run_id) {
+        if st.lease.as_ref().is_some_and(|l| l.run_id == *run_id) {
             st.lease = None;
             return Ok(true);
         }
@@ -530,7 +538,7 @@ impl CacheStore for FakeStore {
         if h.first_failure_at.is_none() {
             h.first_failure_at = Some(at.clone());
         }
-        h.last_error = Some(err.to_owned());
+        h.last_error = Some(clip_hook_error(err).to_owned());
         h.next_attempt_at = next_attempt_at.cloned();
         Ok(h.clone())
     }
@@ -806,8 +814,47 @@ impl CacheStore for FakeStore {
     }
 
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
-        lock(&self.state).sync.insert(st.scope.clone(), st.clone());
+        let mut state = lock(&self.state);
+        let notified = state
+            .sync
+            .get(&st.scope)
+            .and_then(|k| k.notified_since.clone());
+        state.sync.insert(
+            st.scope.clone(),
+            SyncState {
+                notified_since: notified,
+                ..st.clone()
+            },
+        );
         Ok(())
+    }
+
+    fn record_sync_result(
+        &mut self,
+        s: &ScopeId,
+        outcome: &SyncOutcome,
+        started: &Timestamp,
+    ) -> Result<SyncState, CacheError> {
+        // One guard: the read and the write are one step.
+        let mut st = lock(&self.state);
+        let state = st
+            .sync
+            .entry(s.clone())
+            .or_insert_with(|| SyncState::new(s.clone()));
+        state.last_started_at = Some(started.clone());
+        match outcome {
+            SyncOutcome::Ok => {
+                state.last_ok_at = Some(started.clone());
+                state.last_error = None;
+                state.record_result(true, started);
+            }
+            SyncOutcome::Failed(err) => {
+                state.last_error = Some(err.clone());
+                state.record_result(false, started);
+            }
+            SyncOutcome::Deferred => {}
+        }
+        Ok(state.clone())
     }
 
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
@@ -879,6 +926,7 @@ impl CacheStore for FakeStore {
             .into_iter()
             .map(|s| ScopeStatus {
                 beads: st.members.values().filter(|m| m.contains(&s)).count() as u64,
+                filter: st.scopes.get(&s).and_then(|(f, _)| f.clone()),
                 sync: st
                     .sync
                     .get(&s)

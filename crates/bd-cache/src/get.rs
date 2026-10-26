@@ -10,9 +10,11 @@
 //! with its `last_ok_at`, and the outage (ADR-BDC-0005).
 //!
 //! The scope is the one the blocked state is read in ([`scope_for`]): the
-//! view's phase when that scope is known, else the first known scope that
-//! holds the view; asking it reads the scope registry, never the scope's
-//! members, so a cached `get` stays within NFR-BDC-0001.
+//! view's phase when that scope is a registered phase-a scope, else the first
+//! scope whose stored membership holds the bead and that the view is in;
+//! asking it reads one registry row and the bead's membership rows, never the
+//! whole registry or a scope's members, so a cached `get` stays within
+//! NFR-BDC-0001.
 
 use std::time::Duration;
 

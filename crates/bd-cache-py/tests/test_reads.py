@@ -123,3 +123,20 @@ def test_a_bare_0_1_name_never_means_a_configured_filter_scope_of_that_name(repo
         cache.sync("lane", 30)
     assert caught.value.code == "BD_CACHE.SCOPE_UNKNOWN"
     assert [r["id"] for r in cache.beads.issues_list(scope="lane")["items"]] == ["l1"], "unchanged"
+
+
+def test_the_0_1_prefix_rule_is_applied_once(repo):
+    # `phase-phase-z` names the phase-a scope stored as `phase-z` (label
+    # `phase-phase-z`); stripping twice would read `z`, another scope (B7Q1-012).
+    repo.bd.add(bead("pz1", labels=["phase-phase-z"]), bead("z1", labels=["phase-z"]))
+    cache = repo.open()
+    report = cache.sync("phase-phase-z", 30)
+    assert report["scope"] == "phase-z" and report["stored"] == 1
+    listed = cache.list("phase-phase-z")
+    assert listed["scope"] == "phase-z"
+    assert [r["bead"]["id"] for r in listed["rows"]] == ["pz1"]
+    assert cache.ready("phase-phase-z")["scope"] == "phase-z"
+    with pytest.raises(bd_cache_rs.CacheError) as caught:
+        cache.list("z")
+    assert caught.value.code == "BD_CACHE.SCOPE_UNKNOWN", "z was never synced or configured"
+    assert cache.prune("phase-phase-z")["scope"] == "phase-z"
