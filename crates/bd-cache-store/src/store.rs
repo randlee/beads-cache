@@ -2223,7 +2223,7 @@ impl Session<'_> {
 }
 
 /// Each port method locks the shared connection for its one call
-/// ([`SqliteStore::session`]) and runs on it.
+/// and runs on it.
 impl CacheStore for SqliteStore {
     fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
         self.session(|x| x.ensure_scope(s))
