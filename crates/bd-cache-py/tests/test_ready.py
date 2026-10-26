@@ -7,8 +7,8 @@ def ready_ids(reply):
     return [row["bead"]["id"] for row in reply["ready"]]
 
 
-def sanity_world(repo):
-    """A sanity bead blocked by the dev bead."""
+def blocked_world(repo):
+    """A bead blocked by another bead that is in progress."""
     repo.config('scopes = ["x"]\n')
     repo.bd.add(
         bead("dev-1", status="in_progress", assignee="dev-1"),
@@ -19,8 +19,8 @@ def sanity_world(repo):
     return cache
 
 
-def test_task_open_path_ready_after_a_dev_close_with_the_backend_unreachable(repo):
-    cache = sanity_world(repo)
+def test_ready_after_a_close_with_the_backend_unreachable(repo):
+    cache = blocked_world(repo)
     assert "san-1" not in ready_ids(cache.ready("x"))
     assert cache.get("san-1")["row"]["blocked"] == ["dev-1"]
 
@@ -39,7 +39,7 @@ def test_task_open_path_ready_after_a_dev_close_with_the_backend_unreachable(rep
 
 
 def test_the_journal_lands_when_bd_returns_and_fresh_ready_agrees(repo):
-    cache = sanity_world(repo)
+    cache = blocked_world(repo)
     repo.bd.down()
     cache.write("dev-1", "close", {"reason": "PASS"}, {"status": "in_progress"}, "close:dev-1:1", "dev-1")
     down = cache.drain(10, 20)
@@ -62,7 +62,7 @@ def test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still
     # `bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage`).
     # Here the proof is causal: bd is blocked for up to 20 s and nothing releases it, yet the
     # reply arrives, so the binding did not wait for bd. The time bound is a loose sanity check.
-    cache = sanity_world(repo)
+    cache = blocked_world(repo)
     cache.write("dev-1", "close", {"reason": "PASS"}, {"status": "in_progress"}, "close:dev-1:1", "dev-1")
     release = repo.bd.block("*")
 
@@ -80,7 +80,7 @@ def test_ready_with_a_limit_returns_the_cached_adjusted_answer_while_bd_is_still
 
 
 def test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_limit(repo):
-    cache = sanity_world(repo)
+    cache = blocked_world(repo)
     release = repo.bd.block("blocked")
     repo.bd.edit("dev-1", status="closed")
     seen = {}
@@ -104,7 +104,7 @@ def test_ready_with_a_limit_uses_bd_when_it_answers_after_a_release_inside_the_l
 
 
 def test_ready_with_a_limit_and_bd_down_falls_back_and_records_the_outage(repo):
-    cache = sanity_world(repo)
+    cache = blocked_world(repo)
     repo.bd.down()
     # A down bd fails at once, so a 10 s budget is always met by the failure rather than by the
     # clock: the fallback and the outage record do not depend on how fast this machine is.

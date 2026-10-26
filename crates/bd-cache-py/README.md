@@ -79,6 +79,8 @@ Errors:
 
 Threading: the handle may be shared between threads. Verbs on one handle run
 one at a time, and the GIL is released while a verb waits on `bd` or SQLite.
+A sync verb (`tick()`, `sync_use_python`) holds the handle for its whole run, so another
+thread on the same handle can wait up to 610 s, with no timeout.
 
 ## The sync (0.2, ADR-PY-0006)
 

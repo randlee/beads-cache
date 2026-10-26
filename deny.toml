@@ -1,0 +1,16 @@
+# cargo-deny configuration: advisories only (PE1-RSH-001).
+#
+# CI runs `cargo deny check advisories` in the lint job. The workspace ships
+# bundled SQLite (rusqlite `bundled`), process-wrap, tokio and a git-pinned
+# sc-command, and the three published crates (sc-beads, sc-bd-cli, sc-cron)
+# carry the same exposure, so a RUSTSEC advisory against any of them must
+# fail a gate. Licences, bans and sources are deliberately not configured.
+#
+# To accept an advisory that has no fixed release yet, add its id to `ignore`
+# with a one-line reason: ignore = [{ id = "RUSTSEC-0000-0000", reason = "..." }]
+
+[graph]
+all-features = true
+
+[advisories]
+ignore = []

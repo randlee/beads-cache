@@ -1,7 +1,7 @@
 ---
 id: b-9
 phase: b
-status: in-review
+status: complete
 closure_type: integration
 target_boundary: repository
 track: docs
@@ -67,9 +67,10 @@ adrs:
   - "ADR-BEADS-0001..0004"
   - "ADR-BDCLI-0001..0006"
   - "ADR-CRON-0001..0009"
-  - "ADR-API-0001..0003"
+  - "ADR-API-0001, 0002"
   - "ADR-CLI-0001..0005"
   - "ADR-PY-0001..0006"
+adrs_superseded: "ADR-API-0003 is superseded (b-3); it does not bind this sprint"
 owned_paths:
   - "crates/bd-cache-store/tests/compat* (removal)"
   - "every existing file of crates/bd-cache-py/tests/ (the two vendored call-log files and test_mapping_doc.py removed), the new crates/bd-cache-py/tests/corpus/** and crates/bd-cache-py/tests/test_corpus.py"
@@ -186,10 +187,10 @@ the approved register. It merges last.
    requirement and doc names the words only as "a prohibited word", so the whole tree, including
    `docs/plans/` and the anchor record, passes. CI also asserts, in the unit-test jobs, that `bd`
    and `dolt` are not on PATH (NFR-BDC-0005), and that no crate depends on a Dolt or MySQL client
-   (REQ-BDC-0006). No supply-chain gate (`cargo deny` / `cargo audit`) is added in phase B: the
-   phase adds no third-party crate beyond those already in the lock (`process-wrap` and `tempfile`
-   came with b-6), no dependency incident is open, and the kit's toolchain step that installs
-   `cargo-deny` stays unused until a later phase decides on a committed config.
+   (REQ-BDC-0006). This sprint added no supply-chain gate. The gate was added at phase end
+   (phase-end review finding PE1-RSH-001): `cargo deny check advisories` in the `ci` lint job,
+   installed by the kit's `setup-lint-toolchain` action, with a minimal committed `deny.toml`
+   (advisories only).
 
 ## Acceptance
 

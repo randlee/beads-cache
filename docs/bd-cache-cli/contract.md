@@ -13,8 +13,8 @@ request, data and error vocabulary, owned by the new `bd-cache-api` crate
 
 Governing inputs:
 
-- REQ-BDC-0004, 0801..0805, 0901..0912 and NFR-BDC-0002.
-- ADR-BDC-0002, 0003, 0005 and 0008 (Draft).
+- REQ-BDC-0004, 0720..0732, 0801..0805, 0901..0912 and NFR-BDC-0002.
+- ADR-BDC-0002, 0003, 0005, 0011..0015 and 0008 (Draft; reserved).
 - Lead ruling S59: REQ-BDC-0806 is superseded; parity with the baseline Python
   implementation is behavioural; the CLI follows sc-command and `/v0`.
 

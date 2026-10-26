@@ -90,8 +90,21 @@ RULES: tuple[tuple[str, str], ...] = (
     # atm-bd's BD-CACHE baseline by file name: its implementation
     # (`bd_cache.py`), its cron script (`bd_cache_cron.py`) and its contract
     # (`BD-CACHE.md`). The shared store format name "BD-CACHE" alone is not a
-    # hit; the consumer's files are.
-    ("atm-bd-artifact", r"\bbd_cache\.py\b|\bbd_cache_cron\b|\bBD-CACHE\.md\b"),
+    # hit; the consumer's files are. The name is not anchored with `\b`, because
+    # an underscore is a word character and would hide it behind a `test_`
+    # prefix (`test_bd_cache_cron.py`); only a letter before it rules it out.
+    (
+        "atm-bd-artifact",
+        r"(?<![a-z])bd_cache\.py\b|(?<![a-z])bd_cache_cron\b|(?<![a-z])BD-CACHE\.md\b",
+    ),
+    # The first consumer's bead-schema and close-field modules by file name:
+    # `bead_schema.py` and the `close_fields` family (`close_fields.py`, the
+    # backfill script). Same anchoring as above. Not a hit: the words in prose
+    # ("a bead schema", "the fields set at close"), `closed_fields`, `enclose_fields`.
+    (
+        "consumer-schema-file",
+        r"(?<![a-z])bead_schema\.py\b|(?<![a-z])close_fields",
+    ),
     # A hard-coded scope prefix: a `"phase-"` / `'phase-'` string literal, or
     # the prefix followed by a format or interpolation marker in any spelling:
     # `phase-{` (`format!("phase-{}", x)`, `f"phase-{x}"`), `phase-%`

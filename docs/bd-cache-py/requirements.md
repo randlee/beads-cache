@@ -138,8 +138,8 @@ threads continue while a verb waits on `bd` or SQLite.
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24)
 
-After a dev close journaled through `write`, `ready` for its sanity bead is
-true with the backend unreachable and no `bd` call (the first consumer's task-open hook path).
+After a close journaled through `write`, `ready` for the bead it releases is
+true with the backend unreachable and no `bd` call (the first consumer's hook path).
 `ready(phase, fresh_within=s)` against a `bd` that answers late returns the
 cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
