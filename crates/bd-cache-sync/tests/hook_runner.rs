@@ -142,7 +142,9 @@ async fn a_sync_that_uses_its_whole_share_leaves_the_hook_its_reserve() {
 /// A hook that outlives its deadline is killed with everything it started
 /// (causal: the grandchild's pipe closes), the run finishes and the lease is
 /// free; the failure is `TICK_RUN_FAILED` (`timeout`) in `hook.error` while
-/// the run itself is ok.
+/// the run itself is ok. The deadline is fired by the test after the stub's
+/// `ready` handshake (`RunContext::expire`), over a budget no start time can
+/// use up, so the real timer never races the stub's start.
 #[tokio::test(flavor = "multi_thread")]
 async fn a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes() {
     let world = World::new();
@@ -150,12 +152,14 @@ async fn a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes()
     stub.mode("hang");
     let (ready, life) = (gate_file(stub.fifo("ready")), gate_file(stub.fifo("life")));
     let cache = world.shared(vec![]);
-    let payload = with_hook(&stub, 2_000, 1_000);
+    let payload = with_hook(&stub, 20_000, 10_000);
     let ctx = world.ctx();
+    let expire = ctx.expire.clone();
     let run = tokio::spawn(async move { run_builtin(&cache, &payload, &ctx).await });
     tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(10)).unwrap())
         .await
         .unwrap();
+    expire.stop();
     tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
         .await
         .unwrap();

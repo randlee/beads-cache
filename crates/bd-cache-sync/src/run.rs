@@ -74,6 +74,12 @@ pub struct RunContext {
     /// `stop` flag here; `cron run` passes a flag of its own, set only when
     /// the shutdown timeout expires (REQ-BDC-0730).
     pub kill: StopFlag,
+    /// Test seam, never set in production: set to cut a running hook as if
+    /// its deadline had come (the same cut as the real timer), so a test
+    /// fires the deadline after a readiness handshake instead of racing a
+    /// short wall-clock budget against the hook's start.
+    #[doc(hidden)]
+    pub expire: StopFlag,
 }
 
 impl RunContext {
@@ -90,6 +96,7 @@ impl RunContext {
             repo_root: files.repo_root.clone(),
             kill: stop.clone(),
             stop,
+            expire: StopFlag::new(),
         }
     }
 }
@@ -323,9 +330,11 @@ where
     }
     let left = prepared.budget.hook_deadline().remaining(&*prepared.clock);
     let kill = ctx.kill.clone();
+    let test_cut = ctx.expire.clone();
     let expiry = async move {
         tokio::select! {
             () = tokio::time::sleep(left) => Cut::Deadline,
+            () = test_cut.wait() => Cut::Deadline,
             () = kill.wait() => Cut::Kill,
         }
     };

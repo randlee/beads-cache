@@ -255,13 +255,32 @@ where
     /// `STORE_FAILED` when the table cannot be read. A failed run is in
     /// [`CronOnce::error`].
     pub async fn cron_run_once(&self, stop: StopFlag) -> Result<CronOnce, CacheError> {
-        let ctx = Arc::new(SyncContext::new(
+        self.cron_run_once_expiring(stop, StopFlag::new()).await
+    }
+
+    /// [`cron_run_once`](Self::cron_run_once) with a test seam: setting
+    /// `expire` cuts a running built-in hook as if its deadline had come
+    /// ([`RunContext::expire`](crate::RunContext::expire)). Never used in
+    /// production.
+    ///
+    /// # Errors
+    ///
+    /// As [`cron_run_once`](Self::cron_run_once).
+    #[doc(hidden)]
+    pub async fn cron_run_once_expiring(
+        &self,
+        stop: StopFlag,
+        expire: StopFlag,
+    ) -> Result<CronOnce, CacheError> {
+        let mut ctx = SyncContext::new(
             Arc::clone(&self.cache),
             Arc::clone(&self.clock),
             self.files.clone(),
             stop.clone(),
             stop,
-        ));
+        );
+        ctx.expire = expire;
+        let ctx = Arc::new(ctx);
         let runs = self
             .scheduler
             .run_due_with(sync_resolver(Arc::clone(&ctx)))

@@ -290,14 +290,14 @@ async fn cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease() {
         .await
         .unwrap();
     // The lease guard's drop released the lease on the blocking pool.
-    for _ in 0..200 {
-        if repo.cache.lock().unwrap().lease().unwrap().is_none() {
-            return;
-        }
-        tokio::task::yield_now().await;
-        std::thread::sleep(Duration::from_millis(10));
-    }
-    panic!("the lease was not released");
+    let cache = Arc::clone(&repo.cache);
+    tokio::task::spawn_blocking(move || {
+        common::wait_until("the lease to be released", || {
+            cache.lock().unwrap().lease().unwrap().is_none()
+        });
+    })
+    .await
+    .unwrap();
 }
 
 /// A Python row whose stored `cache_path` names another, private file runs
@@ -523,8 +523,10 @@ async fn cron_run_ends_when_its_worker_dies() {
 /// A built-in run whose hook overruns is ended by the run itself at the
 /// hook's deadline, its lease released, before sc-cron's own timeout for the
 /// row (`budget_ms + 10000`, on the injected clock) can kill it: sc-cron
-/// records the run `Ok`, not `TimedOut` (acceptance 8, B8Q1-015). Planted
-/// negative: the row's timeout is the budget plus the full 10 s margin.
+/// records the run `Ok`, not `TimedOut` (acceptance 8, B8Q1-015). The hook's
+/// deadline is fired by the test after the stub's `ready` handshake
+/// (`cron_run_once_expiring`), over a budget no start time can use up.
+/// Planted negative: the row's timeout is the budget plus the full 10 s margin.
 #[tokio::test(flavor = "multi_thread")]
 async fn an_overrunning_hook_ends_its_run_before_sc_crons_timeout() {
     let repo = Repo::new(vec![]);
@@ -532,22 +534,30 @@ async fn an_overrunning_hook_ends_its_run_before_sc_crons_timeout() {
     hook.mode("hang");
     let (ready, _life) = (gate_file(hook.fifo("ready")), gate_file(hook.fifo("life")));
     let set = ScheduleSet {
-        budget_ms: Some(2_000),
-        hook_reserve_ms: Some(1_000),
+        budget_ms: Some(20_000),
+        hook_reserve_ms: Some(10_000),
         post_sync: Some("consumer.hooks:after".into()),
         python: Some(hook.python.clone()),
         ..every_minute()
     };
     let reply = repo.schedules().set(&set).await.unwrap();
-    assert_eq!(reply.timeout_ms, 12_000, "budget_ms + 10000");
+    assert_eq!(reply.timeout_ms, 30_000, "budget_ms + 10000");
     step(&repo, 60);
     let schedules = repo.schedules();
-    let run = tokio::spawn(async move { schedules.cron_run_once(StopFlag::new()).await });
+    let expire = StopFlag::new();
+    let fire = expire.clone();
+    let run = tokio::spawn(async move {
+        schedules
+            .cron_run_once_expiring(StopFlag::new(), fire)
+            .await
+    });
     tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(20)).unwrap())
         .await
         .unwrap();
-    // Most of sc-cron's timeout passes on its clock while the hook hangs.
-    step(&repo, 9);
+    // Most of sc-cron's timeout passes on its clock while the hook hangs,
+    // then the hook's own deadline comes.
+    step(&repo, 29);
+    expire.stop();
     let once = run.await.unwrap().unwrap();
     assert_eq!(once.ran[0].outcome, "ok", "{:?}", once.ran);
     assert!(once.error().is_none());
