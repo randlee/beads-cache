@@ -11,14 +11,9 @@ extended by sprint b-6
 `sc-cron` is the prototype cron scheduler of
 [ADR-BDC-0006](../architecture.md#adr-bdc-0006-prototype-a-sqlite-backed-cron-crate-here-for-sc-runtime),
 extracted from an earlier in-house scheduler. It owns no repo-level
-requirement. It is constrained by
-[REQ-BDC-0703](../requirements.md#req-bdc-0703-tick-budget) and
-[NFR-BDC-0004](../requirements.md#nfr-bdc-0004-bd-calls-bounded-by-the-deadline),
-which a-7 (`bd-cache-sync`) meets on top of REQ-CRON-0005: the sync
-schedule's timeout is the tick budget, and the deadline the job receives is
-the one its `bd` calls are capped at. The Python hooks of REQ-CRON-0013 carry
-NFR-BDC-0004 to the consumer's Python sync method and post-sync hook, which
-`bd-cache-sync` (b-7) runs through this crate's runner. It is also constrained by
+requirement, and names no caller's requirement: how a caller meets its own
+deadlines on top of REQ-CRON-0005 is in that caller's docs (for beads-cache,
+`docs/bd-cache-sync/`). *Amended by ADR-CRON-0009 (phase-B planning PR, sc-cron generality review)*. It is constrained by
 [NFR-BDC-0007](../requirements.md#nfr-bdc-0007-bundled-sqlite) (bundled
 SQLite; its schedule store uses its own file and connection), which
 REQ-CRON-0009 meets.
@@ -87,7 +82,7 @@ from its next future occurrence.
 ## REQ-CRON-0005: Stop check and per-run timeout
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2); amended by b-6 (the
-three-way answer, ADR-CRON-0007)
+three-way answer, ADR-CRON-0007); amended by ADR-CRON-0009 (the `Stop` alias is removed)
 
 Before every run the worker asks the stop check: `Job::should_stop`, or for a
 Python target the `cron.stop` hook (REQ-CRON-0013). It answers
@@ -109,6 +104,8 @@ the deadline on the monotonic timeline, so a wall-clock jump never times a
 run out early. Cancellation is cooperative, at the run's next `.await`; the
 hard timeout guarantee needs a multi-thread runtime and a job that never
 blocks a runtime thread (documented on `Job`).
+
+*Amended by ADR-CRON-0009 (Rand, 2026-10-26): `StopDecision::Stop` is removed in sprint b-8; `Delete(reason)` is the only way to end a schedule from its stop check.*
 
 **Refines:** ADR-BDC-0006 (stop check before every run), ADR-CRON-0007;
 constrained by REQ-BDC-0703, NFR-BDC-0004
@@ -156,7 +153,7 @@ that does not parse is a `Corrupt` store error, never silently replaced.
 ## REQ-CRON-0009: SQLite store
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2); amended by b-6
-(`SCHEMA_VERSION` 2, the `enabled` column)
+(`SCHEMA_VERSION` 2, the `enabled` column); amended by ADR-BDC-0014 (the store is a seam)
 
 `SqliteScheduleStore` implements `ScheduleStore` over bundled SQLite, in one
 `sc_cron_schedule` table on its own database file and its own connection.
@@ -168,6 +165,8 @@ every schedule enabled (REQ-CRON-0014); a file at any other version, or one
 holding other tables, is refused with `StoreErrorKind::SchemaMismatch`. Creating a schedule is one immediate
 transaction. Table CHECKs refuse rows whose end state contradicts itself or
 that exceed the REQ-CRON-0001 limits. Schedules survive reopening the file.
+
+*Amended by ADR-BDC-0014 (Rand, 2026-10-26): `SqliteScheduleStore` is sc-cron's standalone default `ScheduleStore`, unchanged; `Scheduler::new` takes any `ScheduleStore`, and a caller may supply one over its own database (bd-cache keeps its rows in the cache file). Both implement `set_enabled_many` (REQ-CRON-0017).*
 
 **Constrained by:** NFR-BDC-0007
 
@@ -193,7 +192,8 @@ moving monotonic time.
 codes added; the Python hook protocol is generic)
 
 `sc-cron` depends on no bd-cache or sc-beads crate, and no beads, bd or
-bd-cache type appears in its API. A schedule's input is an opaque `serde_json::Value`, and
+bd-cache type appears in its API. *Amended by ADR-CRON-0009:* it depends on no
+consumer crate at all, and no consumer type appears in its API. A schedule's input is an opaque `serde_json::Value`, and
 every failure is a `CronError` with a stable `code()` (`BAD_EXPRESSION`,
 `INVALID_SPEC`, `ALREADY_ACTIVE`, `NOT_FOUND`, `HOOK_FAILED`, `STORE_FAILED`,
 `FENCED`) and `recovery()` text. The Python hook protocol (REQ-CRON-0013)
@@ -254,12 +254,71 @@ path of ASCII identifiers of at most 256 bytes, both checked once when
 `CronError::HookFailed` (`HOOK_FAILED`) from `PythonHook::invoke`, and a
 `Failed` outcome from the worker.
 
-This runner is also the one `bd-cache-sync` (b-7) uses for the consumer's
-Python sync method and the post-sync hook, so the kill here is what enforces
-NFR-BDC-0004 for both.
+This runner is also the one `bd-cache-sync` (sprint b-8) uses for the
+consumer's Python sync row (`PythonHook`), and its post-sync hook runs through
+this crate's exported supervisor (REQ-CRON-0018), so the kill described here
+enforces NFR-BDC-0004 for both (*amended by ADR-CRON-0009*).
 
 **Refines:** ADR-CRON-0001, ADR-CRON-0008; **constrained by:** NFR-BDC-0004,
 REQ-CRON-0010 (time is injected), REQ-CRON-0011
+
+## REQ-CRON-0016: A hook target per schedule row
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8
+
+`Scheduler::spawn_worker_with(resolver)` takes a `TargetResolver` (ADR-CRON-0009) that maps each
+schedule row to its `HookTarget`, a Rust `Job` or a Python module (`<interpreter> -I -m
+<module>`, as REQ-CRON-0013), so rows in one table run different targets. The worker calls the
+resolver once per launch, before the stop check; an error is recorded `RunOutcome::Failed` and
+leaves the schedule active and enabled. `spawn_worker_for` and `spawn_worker` stay. The target
+stays Rust or Python (Rand, 2026-10-26); maturin / PyO3 bindings for sc-cron itself come when it
+moves to sc-runtime, not in this phase.
+
+**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0011
+**Acceptance evidence:** one table holding a Rust row and a Python row, each run with its own
+target; an unresolvable row recorded `Failed` and still active.
+
+## REQ-CRON-0017: Several rows' enabled flags, and a row written with its flag, in one transaction
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7
+
+`ScheduleStore::set_enabled_many(&[(name, enabled)])` sets the `enabled` flag of every named
+active schedule in one transaction, touching no other column, and changes nothing, returning
+`Ok(false)`, when any name has no active schedule. `Scheduler::set_enabled_many` and
+`set_enabled_many_async` wrap it and notify the worker as `set_enabled` does (REQ-CRON-0014).
+
+`ScheduleStore::replace_and_set_enabled(schedule, enabled, created_at, flags)` writes one
+schedule with the given `enabled` flag (a new name at generation 1, an ended name restarted in
+place, an active name replaced in place with generation + 1 and its run state cleared) and sets
+each listed other schedule's flag, all in one transaction; it changes nothing, returning
+`Ok(None)`, when a listed name has no active schedule, and a list naming the written schedule is
+`InvalidSpec`. `Scheduler::replace_and_set_enabled` and its async form fill the jitter, next run
+and creation time from the injected sources and notify the worker. Both methods are required:
+the trait gives neither a default body, and every store implements both.
+
+**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0007, REQ-CRON-0008, REQ-CRON-0014
+**Acceptance evidence:** on `SqliteScheduleStore` and on every other store: a two-row flip seen
+whole by a second connection; a flip naming a missing row changes neither row; a
+`replace_and_set_enabled` that creates a disabled row while enabling another, polled by a second
+connection, never shows both enabled; a replace of an active row keeps its id, raises its
+generation, keeps the given flag and fences a run of the old generation; a call naming a missing
+row changes nothing.
+
+## REQ-CRON-0018: The child-process supervisor is public
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8
+
+`sc_cron::process` exports `ChildSpec`, `ChildEnv`, `TempCwd`, `Captured` and `supervise`: a
+caller's child runs in its own process group (Unix) or job object (Windows), killed with
+everything it started at the caller's expiry or when the future is dropped, from a working
+directory the caller names or a fresh private one, with the environment inherited or cleared to
+the named variables, its input written while its output is read, and each pipe kept up to a
+cap. `PythonHook::with_env(ChildEnv)` sets a Python target's environment, and
+`HookOutput::stop_decision()` / `run_outcome()` apply the hook protocol's rules to an output.
+
+**Refines:** ADR-CRON-0008, ADR-CRON-0009; **constrained by:** REQ-CRON-0011, NFR-BDC-0004
+**Acceptance evidence:** a grandchild killed at expiry and on drop through the public API; a
+child that sees only the allowlisted variables under `ChildEnv::Only`.
 
 ## REQ-CRON-0014: Enabled flag
 

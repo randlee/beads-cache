@@ -14,12 +14,21 @@ Governing inputs:
 
 - REQ-BDC-0004, 0801..0805, 0901..0912 and NFR-BDC-0002.
 - ADR-BDC-0002, 0003, 0005 and 0008 (Draft).
-- Lead ruling S59: REQ-BDC-0806 is superseded; parity with `bd_cache.py` is
-  behavioural; the CLI follows sc-command and `/v0`.
+- Lead ruling S59: REQ-BDC-0806 is superseded; parity with the baseline Python
+  implementation is behavioural; the CLI follows sc-command and `/v0`.
 
 This contract replaces the command-structure clause of ADR-BDC-0003 through
 **ADR-BDC-0009** (Approved, S60, in `docs/architecture.md`). The requirement
 amendments it needs are applied in `docs/requirements.md` (Appendix A).
+
+Phase-B extension (Rand, 2026-10-26): the scope filters, the sync rows, the switch, the
+post-sync hook, the new `cache scopes`, `schedule`, `cron` and `sync` verbs and the codes
+`INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` are decided by
+ADR-BDC-0011..0015 and REQ-BDC-0720..0732 (`docs/architecture.md`, `docs/requirements.md`).
+Sprint b-7 adds the four codes' rows to the §4 error table (with `ERROR_TABLE`, so the
+error-table test stays green), sprint b-8 removes the `TICK_<REFUSAL>` row, and sprint b-9 writes
+the rest into §2, §4, §6, §10, §11 and §12 of this contract from that register, with no change of
+meaning; until then the register governs where this text is silent or older.
 
 ## 1. Shape
 
@@ -91,8 +100,8 @@ be spelled out in full; abbreviations are refused.
 The TOML keys `scopes`, `call_timeout_s`, `miss_fill_timeout_ms`,
 `max_attempts` and `[tick]` are unchanged. Each one can be overridden from
 the env under the same name, for example `BD_CACHE__CALL_TIMEOUT_S`.
-`BD_CACHE__SCOPES` is comma-separated. Nested keys use `__`:
-`BD_CACHE__TICK__TEAM`, `…__TICK__FALLBACK_LEAD`, `…__TICK__PHASES_DIR` and
+`BD_CACHE__SCOPES` is comma-separated. Nested keys use `__`, so every
+`[tick]` key has an env name, for example `BD_CACHE__TICK__PHASES_DIR` and
 `…__TICK__PHASES` (comma-separated). Precedence is flag > env > TOML >
 default.
 
@@ -119,10 +128,11 @@ default.
   "cache_path", legacy_path}`) when all three of these hold:
   - no `cache_path` is configured;
   - the default file does not exist;
-  - `<repo>/.atm-bd/<db>.bd-cache.sqlite3` does exist.
+  - the legacy file `<db>.bd-cache.sqlite3` in the first consumer's own
+    directory under `<repo>` does exist.
 
-  The suggested action is to set
-  `cache_path = ".atm-bd/<db>.bd-cache.sqlite3"`. This check is bdc's only;
+  The suggested action is to set `cache_path` to that legacy file's
+  repo-relative path. This check is bdc's only;
   how the binding opens a file in 0.1 is unchanged.
 - **sc-config.** Phase a keeps bd-cache-store's `load_repo_config`, so a
   missing TOML is still valid. bdc applies env overrides itself, using
@@ -222,7 +232,7 @@ the table leaves out. † marks a new code.
 | `BD_UNAVAILABLE`, `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED`, `BD_LIST_FAILED`, `SYNC_FAILED` | unavailable | 3 | yes | `db_unavailable` | `SYNC_FAILED` only appears inside `refresh scopes` results. |
 | `BD_WRITE_FAILED` | unavailable | — | yes | — | Only appears inside `Entry.last_error`. |
 | `BD_CONTRACT`, `STORE_FAILED`, `INTERNAL` † | internal | 3 | no | `internal` | |
-| `TICK_<REFUSAL>` † | invalid_input for config and phase-file refusals; unavailable for an undelivered message or a missing lead; conflict for `BUSY` | — | per kind | — | Only appears inside `cache tick` `refused[]`. `<REFUSAL>` is bd-cache-sync's `RefusalCode`, upper-cased. |
+| `TICK_<REFUSAL>` † | invalid_input for config and phase-file refusals; unavailable for an undelivered message or a missing recipient; conflict for `BUSY` | — | per kind | — | Only appears inside `cache tick` `refused[]`. `<REFUSAL>` is bd-cache-sync's `RefusalCode`, upper-cased. |
 
 **Why `SCOPE_UNKNOWN` is a conflict, not a 404.** The request is valid, and
 bd may well hold those beads. What refuses is the replica, which does not
@@ -310,8 +320,8 @@ Notes by command:
     unless `status` or `all` is set. The workspace's configured infra types
     are unknown to the cache, so they are **not** excluded.
   - Default limit: inside a known scope there is **no limit**, because a
-    scope is already bounded; atm-bd's phase views and agents expect the
-    whole phase. An explicit `limit` pages, with `has_more` and
+    scope is already bounded; the first consumer's phase views and agents
+    expect the whole phase. An explicit `limit` pages, with `has_more` and
     `next_cursor`. If a call without a scope is ever allowed, it will take
     `/v0`'s defaults.
   - The cursor is opaque. It is currently `v1.` followed by base64url of
@@ -414,7 +424,7 @@ reason ready parity is stated against the released CLI.
 | `cache journal list [--state pending\|escalated] [--unannounced]` | `pending_entries`, `status().escalated`, `unannounced_escalations` | (in `status`) | no |
 | `cache journal resolve <seq> --note T --actor A` | `resolve` | `resolve` | store |
 | `cache journal announce <seq>` | `mark_announced` | (cron) | store |
-| `cache tick [--budget-ms N] [--atm PATH]` | bd-cache-sync `tick` | (`bd_cache_cron.py`) | bd, store, atm |
+| `cache tick [--budget-ms N]`, plus a flag naming the consumer's send command | bd-cache-sync `tick` | (the baseline cron module) | bd, store, the consumer's send command |
 
 **Refresh that cannot reach bd (lead ruling S75).** A `cache refresh scopes`
 result for a scope whose sync could not reach bd is a failed result: `error`
@@ -555,9 +565,9 @@ Lead rulings on the core work (bc-lead, 2026-10-25, recorded with sprint b-1):
   concurrent drain.
 - **S65.** `Entry.note` is `resolved by <actor>: <note>`: the journal keeps
   the resolver in the note, and the 0.1 `last_error` is the error, `" | "`,
-  then the note, as `bd_cache.py` writes it.
+  then the note, as the baseline Python implementation writes it.
 - **S68.** `WriteOutcome.changed` is `Option<bool>`: `Some(stored)` when the
-  entry stores it; for an entry stored without it (by `bd_cache.py`, or
+  entry stores it; for an entry stored without it (by the baseline Python implementation, or
   before the column existed), `Some(predicted)` only while the entry is
   pending; `None` (unknown) in any other state. It is never guessed.
 
@@ -567,7 +577,7 @@ ADR-BDC-0009) is the whole CI change.
 
 ## 10. Python binding
 
-Fenix designs against the wheel 0.1.0 dicts, so every change here is
+The first consumer's maintainer designs against the wheel 0.1.0 dicts, so every change here is
 **additive**:
 
 - nothing that exists changes;
@@ -604,7 +614,7 @@ Python-level type mistake still raises `TypeError`.
 |---|---|
 | `envelope.version` | The sc-command envelope format (`"1"`), not this contract's version. |
 | `contract_version` | Semver, reported by `context`, `cache status` and `--version`. |
-| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs fenix's agreement. |
+| Wheel | Exposes `bd_cache_rs.CONTRACT_VERSION`. Wheel 0.2.x implements contract 1.0.x. A contract minor bumps the wheel minor. A contract major is a wheel release marked breaking, and needs the agreement of the first consumer's maintainer. |
 | **Covered in 1.0** | Commands, positional arguments and flags; the `data` members documented in §5–§6, with their defaults (path, limits, exclusions) and orders; the envelope; the error table's code, kind, exit and retryable; exit codes. |
 | **Not covered in 1.0** | The contents of `details` (informative); the cursor encoding (opaque); `--format text` and the help shapes; everything in §12a, which becomes covered when the MCP server ships. |
 | Breaking (major) | Removing or renaming a covered item; changing its type or meaning; making a member required; changing a code's kind, exit or retryable; changing a default or an order. |
@@ -638,13 +648,13 @@ the MCP server:
 
 | # | Question | Position |
 |---|---|---|
-| Q1 | Which beads reference? | **Approved (S60; agreed with fenix):** pin v1.3.2 @ 9b65b9e for vocabulary. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. The pin fixes names, not behaviour. |
-| Q2 | Required `/v0` fields the cache cannot fill | **Approved (S60; agreed with fenix):** they stay absent. Surface (a) shares `/v0`'s vocabulary, not its behaviour, so no client can switch between the cache and bd serve without code changes. §5.4 lists the divergences, and the output shapes are the cache's own. |
-| Q3 | Idempotency key | **Approved (S60; agreed with fenix):** required on every front end, never derived (REQ-BDC-0004). |
-| Q4 | Partial success | **Approved (S60; agreed with fenix):** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
-| Q5 | Name of the extra member | **Approved (S60; agreed with fenix):** `x_cache`. |
-| Q6 | Default cache path | **Approved (S60; agreed with fenix):** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy `.atm-bd/` file exists and the default does not. |
-| Q7 | Request to sc-runtime | **Approved (S60; agreed with fenix):** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
+| Q1 | Which beads reference? | **Approved (S60; agreed with the first consumer's maintainer):** pin v1.3.2 @ 9b65b9e for vocabulary. Track main 73f64fd only as the proposed table. Offer an operation that exists only on main once a beads release contains it. The pin fixes names, not behaviour. |
+| Q2 | Required `/v0` fields the cache cannot fill | **Approved (S60; agreed with the first consumer's maintainer):** they stay absent. Surface (a) shares `/v0`'s vocabulary, not its behaviour, so no client can switch between the cache and bd serve without code changes. §5.4 lists the divergences, and the output shapes are the cache's own. |
+| Q3 | Idempotency key | **Approved (S60; agreed with the first consumer's maintainer):** required on every front end, never derived (REQ-BDC-0004). |
+| Q4 | Partial success | **Approved (S60; agreed with the first consumer's maintainer):** no exit 4. Exit 0 with `data.failed`, and `results[]` always. |
+| Q5 | Name of the extra member | **Approved (S60; agreed with the first consumer's maintainer):** `x_cache`. |
+| Q6 | Default cache path | **Approved (S60; agreed with the first consumer's maintainer):** `.bd-cache/`, with a `CONFIG_INVALID` naming `cache_path` when the legacy file in the first consumer's own directory exists and the default does not. |
+| Q7 | Request to sc-runtime | **Approved (S60; agreed with the first consumer's maintainer):** one ask, a file source with an explicit path where a missing file is allowed. The env overlay is optional, TOML is a nice-to-have, and bdc is not blocked on it. |
 | Q8 | Approve ADR-BDC-0009 and the Appendix A amendments? | **Approved (S60).** |
 
 ## Appendix A. Requirement amendments

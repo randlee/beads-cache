@@ -6,7 +6,7 @@ fixes landed on `integrate/phase-a` after QA and CI were green, then on
 `61c7ee7` and #67 at `39c8e25`). The final planted-bug run caught 119 of 121
 mutants; the two survivors, S27 and S28, are the justified pair.
 Prerequisites: P-1, P-3, P-5 and P-6 are done. P-2 still waits on Rand's
-decision on the v3 extensions (fenix agreed to all four).
+decision on the v3 extensions (the first consumer's maintainer agreed to all four).
 
 Phase id: `a`. Plan branch: `plan/phase-a` (PR to `develop`). Phase branch:
 `integrate/phase-a`, cut from `develop`. Sprint branches
@@ -20,10 +20,10 @@ parallel), so the most deliverables are done before integration: the cache
 model, the shared beads backend crates (`sc-beads` traits, `sc-bd-cli`
 implementation; ADR-BDC-0007), the SQLite store, the core library, a cron
 prototype `sc-cron` (ADR-BDC-0006), the sync task on it, and Python
-bindings (`bd-cache-py`) so atm-bd can adopt the Rust cache in process.
+bindings (`bd-cache-py`) so the first consumer can adopt the Rust cache in process.
 
-Baseline contract: [`docs/baseline/BD-CACHE.md`](../../baseline/BD-CACHE.md),
-vendored from randlee/atm-core#2219 at `05831df`. Requirements are drawn from
+Baseline contract: the baseline design, vendored from the first consumer at `05831df`
+(no longer in the tree; see git history). Requirements are drawn from
 it into [`docs/requirements.md`](../../requirements.md); sprint docs cite
 requirement ids, not the baseline.
 
@@ -42,11 +42,11 @@ requirement ids, not the baseline.
 | Id | Prerequisite | Blocks | Fallback if open at dispatch |
 |---|---|---|---|
 | P-1 | Done: requirement ids drawn from the baseline and planning. | — | — |
-| P-2 | Agreement on randlee/atm-bd-orchestration#557 for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). fenix (2026-10-24): fine with all four; proposes the ADR-BDC-0005 outage rule for v3 and would move the Python schema to match once 0001 and 0005 are agreed. Rand decides. | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
+| P-2 | Agreement with the first consumer, upstream, for the additive v3 extensions (ADR-BDC-0001, 0002, 0003, 0005). The first consumer's maintainer (2026-10-24): fine with all four; proposes the ADR-BDC-0005 outage rule for v3 and would move the Python schema to match once 0001 and 0005 are agreed. Rand decides. | a-4 schema freeze | a-4 ships the extensions as additive tables at `user_version` 3 anyway and tolerates rows the Python implementation leaves in them; no version bump (it would break REQ-BDC-0804). |
 | P-3 | Resolved for errors (user, 2026-10-24): btit's `BeadsError` stays unchanged; cache errors are a separate `BeadsCacheError` in `sc-beads` (wraps `BeadsError`). The tolerant/strict row split stands as planned. | — | — |
 | P-4 | sc-runtime team told about `sc-cron` (name, eventual home). | nothing | — |
 | P-6 | Done 2026-10-24 (`docs/research/bd-blocked-state-probe.md`): list rows carry no `is_blocked`; `bd blocked -l` gives the blocked set; `--id` ∩ `--updated-after` works; closed beads need the status list. Set ADR-BDC-0002. | — | — |
-| P-5 | Owner: grecon@hermes, who monitors gastownhall/beads for releases (Rand, 2026-10-24; notified through ATM). Until there is a permanent trigger, a beads release is checked with the `checking-beads-compatibility` skill. The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
+| P-5 | Owner: grecon@hermes, who monitors gastownhall/beads for releases (Rand, 2026-10-24; notified by agent message). Until there is a permanent trigger, a beads release is checked with the `checking-beads-compatibility` skill. The beads-release trigger that drives the hermes team's fork maintenance also sends `repository_dispatch` (`beads-release`, `{"version": ...}`) to randlee/beads-cache. | proving a-2's workflow with a real release | a-2 proved the workflow on a push-triggered proof branch (runs 40073075092, 40073178515); the real `workflow_dispatch` / `repository_dispatch` runs belong to a-7 / close-out once the file is on `main` (lead ruling, bc-lead, 2026-10-24). |
 
 ## Boundary map
 
@@ -62,7 +62,7 @@ declared, so boundaries are reviewed against `docs/architecture.md`.
 | `sc-cron` | a-3 | scheduler, schedule-store port, rusqlite store | a-7 |
 | `bd-cache-store` | a-4 | implements `CacheStore` over SQLite | a-7 |
 | `bd-cache-sync` | a-7 | sync task | later `bdc` and daemon |
-| `bd-cache-py` | a-8 | Python module over the real composition | atm-bd |
+| `bd-cache-py` | a-8 | Python module over the real composition | the first consumer |
 
 Normative signatures: [a-1](sprint-a-1-contracts.md#public-contract) and,
 for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
@@ -72,7 +72,7 @@ for `sc-cron`, [a-3](sprint-a-3-sc-cron.md#public-contract).
 | File | Owner | Rule |
 |---|---|---|
 | `Cargo.toml` (workspace, `members = ["crates/*"]`, `[workspace.dependencies]` for every third-party crate the phase uses) | a-1 | Wave-2 sprints use `workspace = true` and edit only their own crate's `Cargo.toml`. A missing workspace dependency is an amendment to a-1, merged before the sprint that needs it. Amended (lead ruling S7, bc-lead, 2026-10-24, a-7): the sibling crates `bd-cache-store`, `sc-bd-cli` and `sc-cron` are in the table (a-7), in alphabetical position; a-8 adds identical lines for the first two, so whichever branch merges second resolves a trivial conflict. Lead-approved amendment (bc-lead, 2026-10-24, a-8 fix round 1): `bd-cache-store` and `sc-bd-cli` (path plus version 0.1.0) were added to `[workspace.dependencies]` for `bd-cache-py`, which uses `workspace = true` for them. Further lead-approved amendment (bc-lead, 2026-10-24, R12, a-8 fix round 3): `dunce = "1"` for the same crate's canonical project directory. |
-| `Cargo.lock` | phase close-out (team-lead, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
+| `Cargo.lock` | phase close-out (the coordinating agent, on `integrate/phase-a` after a-7 and a-8 merge) | a-1 adds `/Cargo.lock` to `.gitignore`; no sprint commits the lock; close-out removes that line and commits it. |
 | `.gitignore`, `rust-toolchain.toml` | a-1 | Close-out edits `.gitignore` once (the lock line). a-7 amendment by lead ruling S43 (bc-lead, 2026-10-24): `__pycache__/` and `*.pyc` lines, and the committed `.pyc` under `docs/plans/phase-a/evidence/` removed. |
 | `docs/architecture.md` | a-1 (wave 1), a-7 (wave 3) | Wave-2 sprints never edit it. Crate-local decisions go in the crate's own `docs/<crate>/architecture.md` (policy: per-crate docs); a-7 updates ADR-BDC statuses and Crate Layout from them. Lead-approved amendment (bc-lead, 2026-10-24, R3/R12, a-8): the `bd-cache-py` row of the Crate Layout table only (third-party list: pyo3, serde, serde_json, dunce). |
 | `docs/<crate>/**` | the sprint that creates the crate | a-1 owns `docs/bd-cache/requirements.md` and `architecture.md` (index); a-5 owns `docs/bd-cache/write-path.md`, a-6 owns `docs/bd-cache/read-path.md`, each carrying that path's REQ-CORE and ADR-CORE entries. Lead-approved amendments (bc-lead, 2026-10-24, a-8): R11, one sentence of `docs/bd-cache/write-path.md` (the drain's unreachable set is `CacheError::is_unreachable`); R9/R11, `docs/bd-cache-model/architecture.md`: the ADR-MODEL-0002 a-8 amendment section and the `error.rs` module-table row only. |
@@ -211,15 +211,15 @@ owning sprint.
 | prune ignores escalated; resolve accepts any state | a-6 |
 | unannounced filter dropped; open-work ignores announcement; refusal dropped; team check dropped; closed roots active; stop ignores open work | a-7 |
 
-## atm-bd adoption and cutover
+## First-consumer adoption and cutover
 
-From fenix's review (2026-10-24):
+From the first consumer's maintainer's review (2026-10-24):
 
-- atm-bd uses the cache in process (it imports `bd_cache.py`), so it adopts
-  the Rust cache through the Python bindings (a-8), in phase A. atm-bd keeps
-  its own scheduling: `bd_cache_cron.py` under ATM cron calls `drain` and
+- The first consumer uses the cache in process (it imports the baseline Python implementation), so it adopts
+  the Rust cache through the Python bindings (a-8), in phase A. The first consumer keeps
+  its own scheduling: its cron script under its own cron scheduler calls `drain` and
   `sync` through the bindings, so `sc-cron` and `bd-cache-sync` are not on
-  atm-bd's path. The verbs it needs are on `Cache` (a-1) and exposed by a-8:
+  the first consumer's path. The verbs it needs are on `Cache` (a-1) and exposed by a-8:
   `get` with a caller miss timeout, `refresh`, `write`, `list`, `ready`,
   `sync`, `entry(seq)`, `drain`, and the announcement state
   (`unannounced_escalations`, `mark_announced`, `sync_alert`,
@@ -227,32 +227,32 @@ From fenix's review (2026-10-24):
   own sender against the Rust-written store. The Python dict shapes are
   versioned with the wheel (`docs/bd-cache-py/`); REQ-BDC-0806 stays
   deferred.
-- Cutover is one step: stop the ATM cron registration, switch the consumers,
+- Cutover is one step: stop the first consumer's cron registration, switch the consumers,
   then let the Rust side drain. The file stays at `user_version` 3 with
   additive tables (REQ-BDC-0103), so the Python hooks can still open it;
-  fenix offers to make v3 accept the extended shape. The two implementations
+  the first consumer's maintainer offers to make v3 accept the extended shape. The two implementations
   must never drain the same journal at the same time.
-- One ticker per cache file: either `sc-cron` runs `bd-cache-sync`, or atm-bd's
-  `bd_cache_cron.py` under ATM cron drives `drain`, `sync` and the
-  announcement verbs through the bindings, with its own lead lookup and
-  `atm send`.
+- One ticker per cache file: either `sc-cron` runs `bd-cache-sync`, or the first consumer's
+  cron script under its own cron scheduler drives `drain`, `sync` and the
+  announcement verbs through the bindings, with its own recipient lookup and
+  messaging.
 
-## Items to raise on #557
+## Items to raise with the first consumer
 
-Collected for one comment on randlee/atm-bd-orchestration#557 (not posted),
-updated with fenix's replies of 2026-10-24:
+Collected for one comment on the first consumer's upstream tracker (not posted),
+updated with its maintainer's replies of 2026-10-24:
 
-- Gap 2 (outage spends attempts): fixed in v3 at atm-core 05831df, Rand
+- Gap 2 (outage spends attempts): fixed in v3 at the baseline 05831df, Rand
   approved; this plan now follows the same rules (ADR-BDC-0005).
 - Blocked state: v3 is not affected; this cache uses `bd blocked` per scope
-  (ADR-BDC-0002). fenix agrees.
+  (ADR-BDC-0002). The first consumer's maintainer agrees.
 - The additive schema extensions (ADR-BDC-0001, 0004) at `user_version` 3,
-  and whether v3 should accept them (fenix offered).
+  and whether v3 should accept them (the maintainer offered).
 - Two-deadline drain (REQ-BDC-0402): v3 now documents its 25 s deadline as a
   start gate; the hard deadline is Rust-only so far.
 - Cache file location (decided, user 2026-10-24): the cache is not
-  atm-bd-specific, so it defaults to `.bd-cache/` and its path is set by
-  `cache_path` in `.beads/bd-cache.toml`. atm-bd can keep its `.atm-bd/` file
+  specific to any consumer, so it defaults to `.bd-cache/` and its path is set by
+  `cache_path` in `.beads/bd-cache.toml`. The first consumer can keep its file in its own directory
   by pointing `cache_path` at it until v3 follows.
 - New additive error code `BD_CACHE.STORE_FAILED` for store-internal
   failures (ADR-MODEL-0002 amendment, a-1 amendment 1); v3 has no such code.

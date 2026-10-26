@@ -25,10 +25,9 @@ owned_paths:
 
 ## Outcome and closure
 
-A SQLite-backed cron crate with no ATM or bd-cache types, extracted from
-atm-core's `atm-cron` (`crates/atm-cron`; store port
-`crates/atm-storage/src/cron_schedule_store.rs`; rusqlite store
-`crates/atm-storage-rusqlite/src/cron_schedule_store.rs`; ADR-069 there).
+A SQLite-backed cron crate with no consumer or bd-cache types, extracted from
+the first consumer's cron scheduler (its scheduler crate, store port and
+rusqlite store, and its ADR-069; the source paths are in git history).
 It owns no repo-level bd-cache requirement: it is a generic scheduler
 governed by ADR-BDC-0006, and a-7 meets the tick-budget requirements on top
 of it. It owns the crate-level requirements REQ-CRON-0001..0012
@@ -41,10 +40,10 @@ wave 1.
 
 ## Decision prerequisites
 
-- Generic job payload and an `sc-cron` error type in place of atm-cron's
-  `HookRequest`, `TeamName`, `PhaseId`, `AtmError`. The choice is ADR-CRON-0001
+- Generic job payload and an `sc-cron` error type in place of the first consumer's
+  scheduler types (`HookRequest`, `TeamName`, `PhaseId` and its error type). The choice is ADR-CRON-0001
   in `docs/sc-cron/architecture.md`.
-- Runtime: tokio, as atm-cron. A job receives its run deadline and must
+- Runtime: tokio, as the first consumer's scheduler. A job receives its run deadline and must
   honour it: blocking work runs under `spawn_blocking` with the same deadline
   passed down, so a timed-out run never keeps working past it.
 
@@ -147,12 +146,12 @@ pub enum StoreErrorKind { Busy, Corrupt, SchemaMismatch, Unavailable, Other }   
    version) (REQ-CRON-0009; NFR-BDC-0007; ADR-CRON-0006).
 4. `Clock` and `JitterSource` with system and test implementations
    (REQ-CRON-0010; ADR-CRON-0002).
-5. Generic payload and `CronError` with stable codes; no ATM or bd-cache
+5. Generic payload and `CronError` with stable codes; no consumer or bd-cache
    types (REQ-CRON-0011; ADR-CRON-0001).
 6. Per-crate docs `docs/sc-cron/requirements.md` (REQ-CRON-0001..0012) and
    `architecture.md` (ADR-CRON-0001..0006, approved by the lead).
-7. Tests ported from atm-cron's `tests/expr.rs`, `tests/worker.rs` and the
-   store tests, where they apply without ATM types (REQ-CRON-0001..0012).
+7. Tests ported from the first consumer's scheduler (`tests/expr.rs`, `tests/worker.rs` and the
+   store tests), where they apply without the consumer's types (REQ-CRON-0001..0012).
 
 ## Acceptance criteria
 
@@ -163,7 +162,7 @@ pub enum StoreErrorKind { Busy, Corrupt, SchemaMismatch, Unavailable, Other }   
 | A run from an older generation cannot record its result (`record_run` returns false) | REQ-CRON-0007 | ADR-BDC-0006 |
 | A run that exceeds its timeout is recorded as `TimedOut`, the job saw the deadline, and the next tick is not delayed | REQ-CRON-0005 | ADR-BDC-0006, ADR-CRON-0005 |
 | The schedule store uses its own SQLite file and connection | REQ-CRON-0009 | NFR-BDC-0007, ADR-CRON-0006 |
-| `cargo tree -p sc-cron` shows no bd-cache, sc-beads or ATM crate | REQ-CRON-0011 | ADR-BDC-0006 |
+| `cargo tree -p sc-cron` shows no bd-cache, sc-beads or consumer crate | REQ-CRON-0011 | ADR-BDC-0006 |
 
 ## This sprint does not close
 

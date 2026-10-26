@@ -74,8 +74,8 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
    holds.
 5. `DrainLock` with `flock` on `<cache file>.drain.lock`
    (cross-process; REQ-BDC-0401 constraint).
-6. Compatibility both ways (REQ-BDC-0804): the reference `bd_cache.py`,
-   `bd_models.py` and a v3 fixture, vendored at atm-core `05831df` under
+6. Compatibility both ways (REQ-BDC-0804): the baseline Python implementation
+   (cache and model modules) and a v3 fixture, vendored at the baseline `05831df` under
    `crates/bd-cache-store/tests/compat/`, run with `uv` (installed by a-1's CI) to read a file the Rust store wrote;
    and the Rust store reads a Python-written one.
 7. `load_repo_config(repo_root)`: the one loader of `.beads/bd-cache.toml`
@@ -191,7 +191,7 @@ are this crate's (Approved, lead ruling bc-lead 2026-10-24).
 Rulings needed:
 
 1. **Crate ADRs and REQs.** ADR-STORE-0001 (schema), ADR-STORE-0002
-   (sharing with `bd_cache.py`), ADR-STORE-0003 (one connection per process,
+   (sharing with the baseline Python implementation), ADR-STORE-0003 (one connection per process,
    store failures) and REQ-STORE-0001..0007 were Draft. Ruled: Approved
    (lead ruling, bc-lead, 2026-10-24).
 2. **Store failures.** Ruled (R2) and done with a-1 amendment 1
@@ -210,19 +210,19 @@ Interpretations (no contract change):
 
 - **Drain lock file.** "`<cache file>.drain.lock`" is implemented as v3
   names it: the cache file's extension replaced, `testdb.bd-cache.drain.lock`
-  (BD-CACHE.md; `bd_cache.py` uses `path.with_suffix(".drain.lock")`), so the
+  (the baseline design; the baseline Python implementation uses `path.with_suffix(".drain.lock")`), so the
   two drains exclude each other (`the_python_and_rust_drain_locks_exclude_each_other`).
-- **"A v3 fixture".** No v3 SQLite file exists at atm-core `05831df`; the
+- **"A v3 fixture".** No v3 SQLite file exists at the baseline `05831df`; the
   vendored v3 fixtures are the bd-1.3.1 `bd-schema.json` and
   `list-rows.json` the reference syncs, and the v3 file is written by the
-  vendored `bd_cache.py` at test time (`tests/compat/PROVENANCE.md`).
+  vendored baseline Python implementation at test time (`tests/compat/PROVENANCE.md`).
 - **`synced_at`.** `upsert_rows` takes no time, and the v3 column is
   `NOT NULL` but never read; it is SQLite's current UTC time
   (ADR-STORE-0002). No port value depends on it.
 - **`load_repo_config`** reads `<repo_root>/.beads/bd-cache.toml` (not
   `$BEADS_DIR`), and refuses a `scopes` entry that is not a phase name,
   which `RepoConfig::cache_config` would otherwise skip.
-- **Windows.** `bd_cache.py` imports `fcntl`; the compat driver stubs it on
+- **Windows.** The baseline Python implementation imports `fcntl`; the compat driver stubs it on
   Windows (its drain lock is never taken there) and the cross-implementation
   lock test is Unix-only.
 
@@ -268,7 +268,7 @@ The mutations, in the order above (paths under `crates/bd-cache-store/`):
 5. `set_sync_alert(Some)` writes nothing.
 6. `set_sync_alert(None)` deletes nothing.
 7. `is_newer` orders the stored and incoming text.
-8. `RECONCILE_MEMBERSHIP` marks `bd_cache.py` rows known without taking
+8. `RECONCILE_MEMBERSHIP` marks the baseline Python implementation's rows known without taking
    their `phase` membership over.
 9. `apply_with_readback` stores a row whose id is not the entry's bead.
 10. `open_at` claims the path as given, not its canonical form.

@@ -17,7 +17,7 @@ EVIDENCE = json.loads((HERE / "atm_core_05831df_calls.json").read_text(encoding=
 
 def mapping_rows():
     text = DOC.read_text(encoding="utf-8")
-    section = text.split("## Mapping from `bd_cache.py`", 1)[1].split("\n## ", 1)[0]
+    section = text.split("## Mapping from the baseline Python implementation", 1)[1].split("\n## ", 1)[0]
     rows = []
     for line in section.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split(" | ")]
