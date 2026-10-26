@@ -885,6 +885,13 @@
           "at": "2026-10-26T00:24:15+00:00",
           "event": "exclusion_removed",
           "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:46:24+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 creates and manages no sync schedule rows; it only documents b-8's one-row limit in the contract text.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -895,6 +902,10 @@
         {
           "item": "b-6",
           "reason": "b-6 adds no bd sync schedule; the built-in bd sync schedule row (one per repository) is planned in b-7."
+        },
+        {
+          "item": "b-9",
+          "reason": "b-9 creates and manages no sync schedule rows; it only documents b-8's one-row limit in the contract text."
         }
       ]
     },

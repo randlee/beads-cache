@@ -41,7 +41,8 @@ need, as additive v3 extensions (ADR-STORE-0006, ADR-STORE-0001). The design is
    EXISTS` under `BEGIN IMMEDIATE`); `user_version` stays 3. The `sc-cron` schedule tables are
    created on the first `schedule set`, by b-8.
 2. **Scope registry** (REQ-BDC-0721). `scope.method` (`builtin` by default) and
-   `scope.revision`; a scope is a name plus a bd filter (Amendment A5). Removing a scope deletes
+   `scope.revision`; a scope is a name plus a bd filter (Amendment A5, ANC-009), and the
+   hard-coded scope prefix in `ScopeId` is removed (the b-1, b-2 and b-4 ANC-009 findings). Removing a scope deletes
    its membership rows, not bead rows another scope still holds. `scope.method` and the
    `registration` table are how a consumer's registered Python `sync` method replaces the
    built-in sync for a scope (ANC-003); b-7 stores them, and b-8's tick dispatches on them.

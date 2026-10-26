@@ -68,13 +68,17 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    made on #91 (`last_drain_at` from the newest applied entry; the contract §10 test reads
    every name). Delete `docs/bd-cache-cli/cutover-runbook.md`; the baseline design document
    (`docs/baseline/`) was deleted by the planning PR.
+   A CLI scenario: with bd unavailable, `issues get` answers from the cache and the outage is
+   recorded for the scope (ADR-BDC-0005; the b-3 finding).
 4. **Contract** (WP-8; ADR-BDC-0009). §10 becomes "0.1 → 0.2 API differences", naming no
    consumer: `outage` on Ok, the `issues_list` default exclusions, optional `changed` /
    `already_closed`, one handle per process, install, and `cache_path` for an existing file. It
    adds the scopes, schedule, cron, hooks and ingest verbs, the `bd-cache.run.v1` shapes and
    the new-codes table, under b-8's merged names. The contract keeps its two surfaces, a bd
    /v0-shaped beads surface and the cache-management surface; every new verb joins the
-   cache-management surface (ADR-BDC-0009). The text states the behaviour b-8 built, as the
+   cache-management surface (ADR-BDC-0009); the Python namespaces map to them, `cache.beads` to
+   the beads surface and `cache.manage` to the cache-management surface. Scopes are named as bd
+   filters throughout the contract and `bd-cache-api`, with no prefix rule (ANC-009). The text states the behaviour b-8 built, as the
    anchors require: the tick runs at the times in the cache file's sc-cron table, each repository has at most
    one built-in beads-cache bd sync schedule in sc-cron (ANC-002, ANC-008); scopes are bd filters, including `--all` (ANC-009); a
    registered Python `sync` method replaces the built-in sync for its scopes and a registered
@@ -87,6 +91,8 @@ boundary lint (`scripts/lint_no_atm.py`) runs in CI on the whole tree (ADR-BDC-0
    `docs/team-protocol.md`: the `docs/plans/` directory exemption (`EXEMPT_DIRS`) and the
    ADR-BDC-0010 section exemption (`EXEMPT_SECTIONS`) are removed, with their tests and
    docstring text (ADR-BDC-0010).
+   CI also asserts, in the unit-test jobs, that `bd` and `dolt` are not on PATH (NFR-BDC-0005),
+   and that no crate depends on a Dolt or MySQL client (REQ-BDC-0006).
 
 ## Acceptance
 

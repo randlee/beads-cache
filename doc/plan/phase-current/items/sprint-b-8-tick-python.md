@@ -94,7 +94,8 @@ decision D1.
 8. **Post-sync hook** (REQ-BDC-0727, REQ-BDC-0728). The request and result shapes of §Request
    and result shapes; the tick itself marks nothing; delivery is at-least-once.
 9. **PyO3 surface** (REQ-BDC-0812, REQ-BDC-0726). `ingest_scope`, `scope_announce`,
-   `scopes_*`, `schedule_*`, `hooks_*` and `tick()`, and the four new codes in the exports. The
+   `scopes_*`, `schedule_*`, `hooks_*` and `tick()`, and the four new codes in the exports.
+   Every scope argument takes any configured scope name, with no prefix rule (ANC-009). The
    0.1 verbs, arguments and dicts are unchanged.
 10. **Store** (ADR-STORE-0001). b-8 adds or changes no store table, column or index; it uses
     b-7's extensions and creates the sc-cron schedule tables through sc-cron.
