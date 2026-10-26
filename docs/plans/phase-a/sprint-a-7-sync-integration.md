@@ -293,7 +293,7 @@ can unblock any bead), so `get` costs the old amount until the next sync; ADR-CO
 ## Evidence: planted bugs (NFR-BDC-0005)
 
 The first 65 mutants were run on `9e45418` (the 94-mutant re-run at the merge `7702b67` is under "Re-run at the final code commit" below); the two that survived (a stop arriving between phases, and the outcome clip checked against its own constant) got tests and were re-run on `bc1e4ab` (historical, round 5: it was then the last commit that changed code; code changed again later, and the last code-changing commit is recorded in Validation); the source of the others is identical at both commits. The script
-and its raw results are committed: `docs/plans/phase-a/evidence/a-7-planted-bugs.py` and `.json`. It applies each
+and its raw results were committed as `docs/plans/phase-a/evidence/a-7-planted-bugs.py` and `.json` (removed by the phase-B planning PR; in git history at `7e0b659`). It applies each
 mutation to the working tree (one literal replacement, checked to match exactly once), runs the whole crate suite,
 and restores the file:
 
@@ -543,7 +543,7 @@ Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`): PR #33 at `8f4f0
 | REQ-QA-006 | REQ-BDC-0701, 0704, 0706 amended (S3) | docs/requirements.md |
 | REQ-QA-007 | REQ-BDC-0707 and 0702 amended (S5) | docs/requirements.md |
 | REQ-QA-010 | project-plan row set to in review | docs/project-plan.md |
-| REQ-QA-012 | Mutation script and results committed; sender rows name their cases | docs/plans/phase-a/evidence/a-7-planted-bugs.py, .json |
+| REQ-QA-012 | Mutation script and results committed; sender rows name their cases | docs/plans/phase-a/evidence/a-7-planted-bugs.py, .json (git history, `7e0b659`) |
 | REQ-QA-013 | Validation table is the quality-policy command | sprint doc, Validation |
 | RSH-001, RSH-002, QA-001 | Messages are sent inside the tick budget with `send_within(min(timeout, time left))`; unsent ones stay unmarked; sender doc claim now true | `many_escalations_and_a_slow_sender_stay_within_the_tick_budget`; planted 'announcements ignore the tick budget' |
 | RSH-003 | `StopFlag` checked between phases and before each message, kills the sender's child; shutdown order documented | `the_stop_flag_ends_a_tick_between_phases`, `a_stop_that_arrives_mid_tick_ends_it_between_phases`, `the_stop_flag_kills_the_child_and_its_descendants`, `a_stopped_tick_does_nothing_and_the_next_tick_does_it_all` |
@@ -587,7 +587,7 @@ Historical CI evidence (fix-a-7-8, rounds 5/6, head `8f4f07b`): PR #33 at `8f4f0
 | ARCH-108 | read-path.md header and file table updated (`cached`, `blocked_state`); bd-cache architecture lists `clock()` | docs/bd-cache/ |
 | ARCH-109, REQ-QA-103 | One smoke record at the final code commit; testbed due 2026-10-31, owner bc-lead (S16) | a-7-testbed.md |
 | REQ-QA-102 | Deliverable 4 and its acceptance row amended by ruling S13; gate = row count + large-journal check + plan assertion | sprint doc; `perf.rs`; `the_entries_since_check_uses_indexes_and_ignores_a_long_history` |
-| REQ-QA-104 | The seven sender planted rows carry case names: the process test now reports each failing case (catch_unwind) | a-7-planted-bugs.json |
+| REQ-QA-104 | The seven sender planted rows carry case names: the process test now reports each failing case (catch_unwind) | a-7-planted-bugs.json (git history, `7e0b659`) |
 | QA2-001 | `has_entries_since`: two EXISTS lookups through `journal_pending` and the `applied_epoch` column with plain partial indexes `journal_applied_epoch` and `journal_applied_unknown` (ADR-STORE-0004); get no longer lists the journal | `has_entries_since_rules`, `a_cached_get_reads_the_same_with_thousands_of_old_applied_entries`, plan test |
 | QA2-003 | Pre-index file migration test committed | `a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace` |
 | QA2-004 | The sender spawns the resolved program | the sender module (`resolve` then `Command::new(program)`) |
