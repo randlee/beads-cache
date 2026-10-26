@@ -33,8 +33,14 @@ pending entries replayed and starts no backend call. A miss makes one
 `miss::fill` under `miss_timeout` (else `miss_fill_timeout`) and stores the
 row with no scope membership; a bead bd does not know is `NOT_FOUND`. The
 reply carries `stale`, `blocked` from the bead's scope's adjusted base, the
-scope's `last_ok_at`, the number of pending entries and the outage.
-`entry(seq)` returns the entry in any state, `NOT_FOUND` for an unknown seq.
+scope's `last_ok_at`, the number of pending entries and the outage, and
+`GetReply.scope` (sprint b-1): the scope the blocked state is read in, that is
+the view's phase when that scope is known, else the first known scope that
+holds the view, and `None` outside every scope. It reads the scope registry,
+never the scope's members, so a cached `get` stays within NFR-BDC-0001; it is
+not serialized, so the 0.1 `get` dict keeps its keys (REQ-BDC-0910).
+`entry(seq)` returns the entry in any state, `NOT_FOUND` for an unknown seq;
+`entry_by_key(key)` (sprint b-1) the same by idempotency key.
 
 **Refines:** REQ-BDC-0001, 0202, 0908, 0902; ADR-BDC-0005
 **Acceptance evidence:** `test_miss_fetches_once_then_serves_from_cache`,
@@ -43,7 +49,11 @@ scope's `last_ok_at`, the number of pending entries and the outage.
 `ready_replies_carry_the_scopes_last_ok_at`,
 `get_replays_pending_entries_and_counts_them`,
 `replies_carry_the_outage_while_one_holds`,
-`entry_returns_an_entry_in_any_state` (`tests/read_get.rs`).
+`entry_returns_an_entry_in_any_state`,
+`get_reply_scope_is_the_beads_scope_and_none_outside_every_scope`
+(`tests/read_get.rs`);
+`entry_by_key_answers_every_state_and_not_found_for_an_unknown_key`
+(`tests/write_returning.rs`).
 
 ### REQ-CORE-0202: list
 
@@ -137,10 +147,16 @@ it returns by the limit. An expired limit is a cut and records no outage.
 
 `resolve`, `prune` and `status` apply the store's rules at the clock's
 time (ADR-CORE-0205); the announcement passthroughs on `Cache` (a-1's
-`lib.rs`) reach the store unchanged.
+`lib.rs`) reach the store unchanged. `resolve` stores the note in the entry's
+`note` (`resolved by <actor>: <note>`) and leaves `last_error` as it was
+(sprint b-1); the 0.1 `entry` dict still shows the note appended to
+`last_error`. `journal_counts` (sprint b-1, contract §6) is the store's one
+grouped query: the journal by state, in total, per scope and unscoped.
 
 **Refines:** REQ-BDC-0601, 0602, 0603, 0902
 **Acceptance evidence:** `tests/read_journal.rs`;
+`journal_counts_equal_a_hand_count_with_unscoped_entries`
+(`tests/write_returning.rs`);
 `a_get_miss_outside_every_scope_is_stored_with_no_membership_and_swept_by_prune_once_it_has_no_open_entry`.
 
 ## ADR-CORE-0201: Ready adjustment rules
@@ -274,7 +290,7 @@ gated on sc-beads' `LOGGING_ENABLED` switch: the subscriber decides.
 
 ## ADR-CORE-0204: Read shapes and answer checks
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (sprint b-7: `ScopeId::from_labels` finds the first legacy-prefixed label through `LEGACY_SCOPE_PREFIX` and returns the phase-a scope stored under the bare name; the rest holds)
 
 Decision:
 

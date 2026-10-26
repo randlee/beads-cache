@@ -1,7 +1,7 @@
 ---
 id: b-1
 phase: b
-status: ready
+status: complete
 closure_type: boundary
 target_boundary: bd-cache, bd-cache-model, bd-cache-store
 track: core
@@ -47,7 +47,7 @@ pub struct WriteOutcome {
     pub before: RowView,       // the view before the write
     pub after: RowView,        // the view after the write (contract §5.3 "issue")
     pub duplicate: bool,
-    pub changed: bool,         // stored with the entry; on a duplicate, the stored value
+    pub changed: Option<bool>, // S68: Some(stored); Some(predicted) only for a Pending pre-b-1 entry with a stored row; None (unknown) otherwise
 }
 pub struct StateCounts { pub pending: u64, pub applied: u64, pub escalated: u64, pub resolved: u64 }
 pub struct JournalCounts {
@@ -115,7 +115,7 @@ reply, and becomes a thin wrapper over `write_returning`.
 | 3 | REQ-BDC-0908 | `entry_by_key` returns the entry in any state; an unknown key returns `NOT_FOUND`. | Return `Ok` with a default entry for an unknown key → the test fails. |
 | 4 | contract §6 `journal` | Counts over a seeded journal (four states, two scopes, unscoped entries) equal a hand count, and the store issues one query (the store's query counter is 1). | Drop the `unscoped` bucket → totals ≠ the sum of the buckets, and the test fails. |
 | 5 | contract §5.3 `issues get` | `GetReply.scope` is set for a scoped bead and `None` for an out-of-scope row. | Always return the first configured scope → the out-of-scope case fails. |
-| 6 | REQ-BDC-0804 | The vendored Python `bd_cache.py` opens a file the Rust store wrote with the new columns, and resolves an entry. The Rust store reads that entry back with `note` and `last_error_code` split out. | Put `note` back into `last_error` only → the Rust split test fails; or bump `user_version` → the Python open fails. |
+| 6 | REQ-BDC-0804 | The vendored baseline Python implementation opens a file the Rust store wrote with the new columns, and resolves an entry. The Rust store reads that entry back with `note` and `last_error_code` split out. | Put `note` back into `last_error` only → the Rust split test fails; or bump `user_version` → the Python open fails. |
 | 7 | REQ-BDC-0910 | bd-cache-py's 0.1 tests pass unchanged. A new key-set assertion pins the 0.1 `get` and `entry` dicts. | Serialize `GetReply.scope` → the key-set assertion fails. |
 | 8 | NFR-BDC-0001 | The existing in-process `get` latency test stays green, with the scope lookup for `GetReply.scope` included. | Resolve the scope by scanning the scope's members → the 1 ms bound fails on the 1,000-row fixture. |
 

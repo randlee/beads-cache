@@ -6,7 +6,7 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 
 `bd-cache-store` implements a-1's `CacheStore` and `DrainLock` ports
 (`bd-cache-model`) over one SQLite file per dolt database, the file
-BD-CACHE v3's `bd_cache.py` uses. It depends on `bd-cache-model`, `sc-beads`
+the baseline Python implementation of BD-CACHE v3 uses. It depends on `bd-cache-model`, `sc-beads`
 (also its logging, `sc_beads::logging::tracing`), rusqlite (bundled,
 NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the `row_json` and
 ready-base text), as the Crate Layout of [`../architecture.md`](../architecture.md)
@@ -15,7 +15,7 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 | Module | Contents |
 |---|---|
 | `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `BeadsDirOverride` and `BeadsDirError` (the one validated `$BEADS_DIR`, S49), `CacheLocation`, `beads_dir`, `load_repo_config` and `ConfigLoadError` |
-| `schema` | the v3 DDL as `bd_cache.py` runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
+| `schema` | the v3 DDL as the baseline Python implementation runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
 | `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method |
 | `codec` | encoding and validated decoding of stored rows, edges, journal entries, ready bases and timestamps |
 | `lock` | `FlockDrainLock` and its guard |
@@ -24,16 +24,16 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped; amended by sprint b-1 (contract §9, lead ruling S62: `journal.last_error_code`, `journal.note`, `journal.changed`; see "Amendment b-1" below); amended by ADR-STORE-0006 (the phase-B extensions; the in-repo evidence of the b-1 amendment becomes the format golden)
 
-Context: the file is shared with `bd_cache.py` (REQ-BDC-0804) at
+Context: the file is shared with the baseline Python implementation (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
 (ADR-BDC-0001), a per-scope ready base (ADR-BDC-0002), `applied_at` for the
 ready adjustment, and room for an HTTP backend (ADR-BDC-0004). P-2 (agreement
-on atm-bd-orchestration#557) is open; its fallback is additive tables and
+with the first consumer) is open; its fallback is additive tables and
 nullable columns only, with no version change.
 
-Decision: the v3 tables and indexes are created with `bd_cache.py`'s DDL
+Decision: the v3 tables and indexes are created with the baseline Python implementation's DDL
 text, unchanged (`meta`, `beads`, `edges`, `journal`, `sync_state`;
 `beads_phase`, `edges_target`, `journal_pending`). The extensions, created on
 open when absent, are:
@@ -51,6 +51,9 @@ ALTER TABLE beads ADD COLUMN membership_known INTEGER;   -- ADR-STORE-0002
 ALTER TABLE beads ADD COLUMN revision TEXT;              -- ADR-BDC-0004
 ALTER TABLE journal ADD COLUMN applied_at TEXT;          -- set by apply_with_readback
 ALTER TABLE journal ADD COLUMN applied_epoch INTEGER;    -- ADR-STORE-0004: Unix seconds of applied_at
+ALTER TABLE journal ADD COLUMN last_error_code TEXT;     -- b-1: the CODE of last_error
+ALTER TABLE journal ADD COLUMN note TEXT;                -- b-1: the resolve note
+ALTER TABLE journal ADD COLUMN changed INTEGER;          -- b-1 (S62): 1 / 0, stored with the entry
 ALTER TABLE sync_state ADD COLUMN backend_kind TEXT;     -- ADR-BDC-0004
 ALTER TABLE sync_state ADD COLUMN endpoint TEXT;
 ALTER TABLE sync_state ADD COLUMN replica_id TEXT;
@@ -69,25 +72,56 @@ are. `row_json` is the normalized row (REQ-BDC-0108) with its outgoing edges
 as `{issue_id, depends_on_id, type}`, rendered as Python's
 `json.dumps(sort_keys=True)`; the `phase` column is the first valid
 `phase-<x>` label. On read, `dependencies` comes from `edges` (the authority;
-`bd_cache.py` keeps bd's full dependency objects in `row_json`), and the rest
+the baseline Python implementation keeps bd's full dependency objects in `row_json`), and the rest
 of `row_json` is decoded with the row model's serde shape (unknown keys
 refused, ids validated), the exact inverse of the encoding. The ready base's
 lists are JSON arrays of `BlockedRow` and bead ids. The outage and sync
 alerts are the v3 `meta` keys (`outage_since`, `outage_error`,
 `sync_alert:<phase>`); clearing the outage also clears
-`outage_announced_at`, as `bd_cache.py` does. `user_version` stays 3: 0 is
+`outage_announced_at`, as the baseline Python implementation does. `user_version` stays 3: 0 is
 initialized, 3 opened, any other value refused and left unchanged.
 
-Consequences: `bd_cache.py` opens the extended file (its `CREATE ... IF NOT
+Consequences: the baseline Python implementation opens the extended file (its `CREATE ... IF NOT
 EXISTS` and column-named inserts ignore the additions) and its `status`
 shows the extra `sync_state` columns. A later version change is an explicit
 migration command, never done on open.
 
-## ADR-STORE-0002: Sharing the file with bd_cache.py
+### Amendment b-1: `last_error_code`, `note`, `changed`
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24)
+Context: the contract's front ends (contract §5.3, §6, §9) answer a write
+with `changed` and an entry with `last_error` as an error object and the
+resolve note apart, and a duplicate must answer the `changed` of the
+original write (REQ-BDC-0809, lead ruling S62).
 
-Context: `bd_cache.py` writes the same file and knows nothing of the
+Decision: three nullable journal columns, created on open when absent;
+`user_version` stays 3 and no v3 column changes meaning for the baseline Python implementation.
+
+| Column | Written by this store | When NULL (or stale) on read |
+|---|---|---|
+| `changed` | `insert_entry`, in the same `INSERT` as the entry (one transaction): 1 / 0 | `None` (an entry the baseline Python implementation journaled) |
+| `last_error_code` | with every `last_error` it writes (`record_attempt`, `escalate`, `apply_with_readback`): the text's `CODE: ` prefix, NULL when it has none | the code of `last_error`'s `CODE: ` prefix. A stored code is used only while `last_error` still starts with `<code>: `, since the baseline Python implementation rewrites `last_error` without it |
+| `note` | `resolve`: `resolved by <actor>: <note>`; `last_error` is left as it was (it no longer gets the note appended) | on a resolved entry, a trailing `" \| resolved by <actor>: <note>"` of `last_error` (what the baseline Python implementation's resolve appends) is split out into `note`, and the rest is `last_error` (`None` when empty) |
+
+The split is on read only: the stored text the baseline Python implementation wrote is never
+rewritten. The 0.1 Python `entry` dict renders `last_error` as before, the
+error then `" | "` and the note (`JournalEntry::legacy_last_error`), so its
+text is unchanged; the baseline Python implementation reading an entry this store resolved sees
+`last_error` without the note.
+
+Consequences: the baseline Python implementation's column-named `INSERT` leaves `changed` NULL
+and its `_mark` leaves `last_error_code` stale, which the read rules cover;
+`tests/compat.rs` (`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`)
+runs both directions.
+
+*Amended by ADR-STORE-0006:* `tests/compat.rs` is removed with the vendored implementation
+(sprint b-9); the read rules above stay, pinned by the store's own tests and the format golden,
+and the cross-implementation run is the consumer's test against the published wheel.
+
+## ADR-STORE-0002: Sharing the file with the baseline Python implementation
+
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24); amended by ADR-STORE-0006 (cross-implementation evidence moves to the consumer's own test against the published wheel; the in-repo evidence is the format golden)
+
+Context: the baseline Python implementation writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
 columns of the rows it stores; its `prune` deletes beads by the `phase`
 column; its rebuild deletes `beads`, `edges` and `sync_state`. Either may run
@@ -96,29 +130,29 @@ while the other has the file open.
 Decision:
 - **Membership.** `beads.membership_known` is 1 on every row this store
   writes. A row with `membership_known IS NULL` was last written by
-  `bd_cache.py`; its membership is its v3 `phase` column, which is how
-  `bd_cache.py` itself lists a phase. Reads apply that rule directly
-  (`rows_in_scope`, `status`), so a row `bd_cache.py` writes while this store
+  the baseline Python implementation; its membership is its v3 `phase` column, which is how
+  the baseline Python implementation itself lists a phase. Reads apply that rule directly
+  (`rows_in_scope`, `status`), so a row the baseline Python implementation writes while this store
   is open reads correctly at once. Open and `prune_scope` take such rows
   over (membership from `phase`, `membership_known = 1`) and drop
   `scope_member` rows whose bead no longer exists; an upsert takes over the
-  row it stores. A bead deleted by `bd_cache.py` and stored again unscoped is
+  row it stores. A bead deleted by the baseline Python implementation and stored again unscoped is
   a new row with no membership, so stale memberships never revive.
-- **Ready bases** that `bd_cache.py`'s rebuild or prune leaves behind are
+- **Ready bases** that the baseline Python implementation's rebuild or prune leaves behind are
   kept; the next sync of the scope replaces them (a-6), and their rows are
   read as absent until then.
 - **Drain lock.** The lock file is named as v3 names it (the cache file's
   extension replaced by `drain.lock`), so the two drains exclude each other.
 - **`synced_at`.** The v3 column is `NOT NULL` but neither implementation
   reads it; `upsert_rows` takes no time, so the store writes SQLite's
-  current UTC time, as `bd_cache.py` writes its own clock. No value the port
+  current UTC time, as the baseline Python implementation writes its own clock. No value the port
   returns depends on it; every other timestamp comes from the caller.
 - **Concurrency.** Every mutating method is one `BEGIN IMMEDIATE`
-  transaction under the 5 s busy timeout, as `bd_cache.py`'s writes are,
+  transaction under the 5 s busy timeout, as the baseline Python implementation's writes are,
   single-statement ones included (`SqliteStore::write`). **Exception**
   (ADR-STORE-0004, lead rulings S25/S26): the journal reads `has_entries_since`
   and `applied_since` may run one autocommit `UPDATE` that dates entries
-  `bd_cache.py` applied while the store is open, only when more than
+  the baseline Python implementation applied while the store is open, only when more than
   `READ_DATING_THRESHOLD` (2000) such entries wait, and with the busy timeout
   set to zero, so they never wait for the write lock; the answer is the same
   whether or not the `UPDATE` runs. **Bounded marker writes** (lead ruling S33,
@@ -128,7 +162,7 @@ Decision:
   `outage` (both meta keys) and `open_work` (both counts) are one statement
   each. Open checks `user_version` and `project_id` (and creates the
   schema) before it sets WAL, so a refused file keeps its journal mode;
-  `bd_cache.py`'s own order (WAL first) does not constrain ours.
+  the baseline Python implementation's own order (WAL first) does not constrain ours.
 - **Bounded marker writes (S33).**
   **Status:** Approved (lead ruling S33, bc-lead, 2026-10-24).
   `mark_announced_within` and `set_sync_alert_within` (port methods whose
@@ -147,12 +181,12 @@ Decision:
   `a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait`
   (`tests/store.rs`; a lock held by another connection until both writes have
   returned).
-- **Database names.** `DoltDatabase` is stricter than `bd_cache.py` (which
+- **Database names.** `DoltDatabase` is stricter than the baseline Python implementation (which
   refuses only `/`): the name becomes a file name on every supported
   platform, so `\`, `: * ? " < > |`, control characters, a trailing dot or
   space and the Windows device names (`CON`, `PRN`, `AUX`, `NUL`,
   `COM1`-`COM9`, `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, any extension) are
-  `NO_DATABASE`. A database `bd_cache.py` accepts with such a name cannot be
+  `NO_DATABASE`. A database the baseline Python implementation accepts with such a name cannot be
   shared until it is renamed.
 - **`applied_since`** is bounded in SQL by an instant, never text (ADR-STORE-0004):
   `applied_epoch >= ?`, or, for an applied entry with no epoch, its time
@@ -160,18 +194,18 @@ Decision:
   separate index range reads joined by `UNION ALL` (`APPLIED_SINCE_SQL`, ADR-STORE-0004).
   **No expression index.** No index holds a
   function, `unixepoch()` included: an index on `unixepoch(..)` would make the
-  file's schema unreadable, and every journal write fail, for a `bd_cache.py`
-  linked against SQLite older than 3.38 (Ubuntu 22.04 ships 3.37.2). The epoch
+  file's schema unreadable, and every journal write fail, for a baseline Python
+  implementation linked against SQLite older than 3.38 (Ubuntu 22.04 ships 3.37.2). The epoch
   is a plain column (ADR-STORE-0004) so that plain partial indexes serve the query.
 
-Consequences: rows and memberships stay consistent across a `bd_cache.py`
-prune, rebuild or sync of the same file (tests `compat.rs`, `store.rs`).
-`bd_cache.py` journal args that a-1's `Op::parse` refuses (for example
+Consequences: rows and memberships stay consistent across a prune,
+rebuild or sync of the same file by the baseline Python implementation (tests `compat.rs`, `store.rs`).
+Baseline Python implementation journal args that a-1's `Op::parse` refuses (for example
 `{"add_labels": []}`, ADR-MODEL-0001) read as `BAD_ARGS` naming the entry.
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -223,7 +257,10 @@ with `Error::source`.
 
 **Status:** Approved (lead ruling S34, bc-lead, 2026-10-24); codes moved out of the
 `BD_CACHE.` namespace by lead ruling S37 (ARCH-801) and `#[non_exhaustive]` removed by
-lead ruling S38 (RBP-F044, QA8-003, ARCH-808), bc-lead, 2026-10-24, fix-a-7-12
+lead ruling S38 (RBP-F044, QA8-003, ARCH-808), bc-lead, 2026-10-24, fix-a-7-12;
+amended by ADR-BDC-0013 (sprint b-7): `store_config_bad_scope` is a `scopes` entry or a
+`[[scope]]` name that is not a valid `ScopeName`, or a `[[scope]]` filter that is refused, and
+its fix states `ScopeName::RULE`; a valid `scopes` entry is a phase-a scope, never an error
 
 Context: `bd-cache-sync`'s `ComposeError` kept its own copy of the code and fix of
 each way `.beads/bd-cache.toml` fails to load (RBP-F040). Moving them next to the type
@@ -335,7 +372,7 @@ Decision:
 - `base_entry` runs in one read transaction (`SqliteStore::read`), so the head
   and the bead's row are one snapshot even while another process replaces the
   base. A base with `indexed` NULL is read whole, inside the same transaction.
-- **No function in any index.** `bd_cache.py` may be linked against an SQLite older
+- **No function in any index.** The baseline Python implementation may be linked against an SQLite older
   than 3.38 (Ubuntu 22.04 ships 3.37.2), which has no `unixepoch()`. Such a build
   cannot evaluate an index whose key uses it: it would fail to use the file's schema
   and every `journal` write of that writer would fail. The a-7 build that added
@@ -351,13 +388,13 @@ Decision:
 - **Backfill** (`BACKFILL_APPLIED_EPOCH`, an `UPDATE` through `journal_applied_unknown`):
   for each applied row with no epoch, `applied_epoch = unixepoch(COALESCE(applied_at, updated_at))`,
   where SQLite can read that time. This process's bundled SQLite evaluates
-  `unixepoch()`; no index mentions it. `bd_cache.py` writes `%Y-%m-%dT%H:%M:%SZ`,
+  `unixepoch()`; no index mentions it. The baseline Python implementation writes `%Y-%m-%dT%H:%M:%SZ`,
   which SQLite reads. Open always runs it, in the open transaction.
 - **Read-path dating (S25, S26).**
   **Status:** Approved (lead ruling S25/S26, bc-lead, 2026-10-24).
   S25 had `has_entries_since` and `applied_since` date on every read that found an
   entry to date; S26 replaces that with a threshold, so a small burst of entries
-  `bd_cache.py` applies while the store is open never puts a WAL commit on the `get`
+  the baseline Python implementation applies while the store is open never puts a WAL commit on the `get`
   path. Before answering, each of the two reads counts the undated entries above the
   floor of known unreadable ones (`UNDATED_ABOVE_SQL`, a `journal_applied_unknown`
   range read that evaluates no function, capped at the threshold + 1; one index probe
@@ -401,7 +438,7 @@ Decision:
   for each new highest undatable seq (the open warns about all of them and starts both
   marks there).
   **Entries applied below the floor (QA6-001).** An entry still pending when the floor
-  rose above its seq, which `bd_cache.py` applies later without an epoch, sits below
+  rose above its seq, which the baseline Python implementation applies later without an epoch, sits below
   the floor: it is not in the threshold count and is not examined for a warning, and a
   later rise (one driven by a warning alone included) does not examine it either. It is
   answered correctly, as every undated entry is (the journal reads do not use the
@@ -430,7 +467,7 @@ Decision:
   of the applied set) or delete it (`DELETE FROM journal WHERE seq = <seq>`); an applied
   entry is history only, so neither loses a pending write. Setting its `updated_at` to a
   real time works too; the next read dates it.
-- **The pre-existing miss, fixed.** `bd_cache.py`'s `_mark` sets only `state` and
+- **The pre-existing miss, fixed.** The baseline Python implementation's `_mark` sets only `state` and
   `updated_at`, so an entry it applied has `applied_at` NULL. Before this fix
   `applied_since` and `has_entries_since` compared `applied_at` alone and so missed
   every Python-applied entry. Its time is now `COALESCE(applied_at, updated_at)`
@@ -462,8 +499,8 @@ Decision:
   the same question, correct, slower on a long history. The hints are not tried again
   until the next open, which recreates the indexes. Tests assert the plans of the hinted
   queries, their SQL work in VM steps, and that the fallback is not retried.
-- **`bd_cache.py` compatibility** (read at atm-core
-  `05831dfe866d389feed138add3c29cb93cd6c82b`, `bd_cache.py`): it never creates,
+- **Baseline Python implementation compatibility** (read at the baseline
+  commit `05831dfe866d389feed138add3c29cb93cd6c82b`): it never creates,
   reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
   rebuild deletes `edges`, `beads` and `sync_state` (lines 359-361); its prune
   deletes a phase's `edges`, `beads`, `journal` and `sync_state` rows (611-614);
@@ -518,7 +555,7 @@ Decision:
   the store has no direct `tracing` dependency.
 - Dev-dependencies, test builds only:
   - rusqlite with `functions`: a test registers its own `unixepoch` that fails, standing
-    in for a `bd_cache.py` on SQLite older than 3.38
+    in for a baseline Python implementation on SQLite older than 3.38
     (`no_index_holds_a_function_and_journal_writes_work_without_unixepoch`); and the
     busy-timeout probe tests (`store.rs` unit tests,
     `the_dating_update_runs_with_no_busy_timeout_and_restores_it`, QA5-003, and
@@ -538,3 +575,45 @@ Decision:
 
 Consequences: no feature reaches a non-test build; adding a dependency or feature to
 `crates/bd-cache-store/Cargo.toml` amends this ADR and the Crate Layout row.
+
+## ADR-STORE-0006: The phase-B extensions for the sync rows, ingest and marking
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7. Amends ADR-STORE-0001 (the
+extension list) and ADR-STORE-0002 (where cross-implementation evidence lives).
+
+Context: the sync on sc-cron rows, the consumer's Python sync and the post-sync hook
+(ADR-BDC-0011, REQ-BDC-0720..0732) need per-scope state, scope filters, failure state, a lease
+and the schedule rows in the cache file. ADR-STORE-0001 freezes the file as v3 plus additive
+extensions; lead ruling S84 forbids vendoring any consumer code, so the compat tests that ran
+the baseline Python implementation against this store leave the repository.
+
+Decision: add, through the existing mechanism (`PRAGMA table_info` / `CREATE TABLE IF NOT
+EXISTS` under `BEGIN IMMEDIATE`), exactly these extensions, all nullable or new tables;
+`user_version` stays 3 and no v3 table, column or index changes:
+
+| Kind | Name | Default and meaning |
+|---|---|---|
+| column | `scope.revision` TEXT | NULL; opaque, stored per scope by `ingest_scope` |
+| column | `scope.filter` TEXT | NULL = the phase-a label scope; otherwise the scope's filter as JSON (ADR-BDC-0013) |
+| column | `sync_state.failing_since` TEXT | NULL = not failing |
+| column | `sync_state.notified_since` TEXT | NULL |
+| column | `journal.first_offered_at` TEXT | NULL = never offered to a hook (`attempts` already exists) |
+| table | `tick_lease` (`id` INTEGER PRIMARY KEY CHECK (`id` = 1), `run_id` TEXT, `pid` INTEGER, `host` TEXT, `expires_at` TEXT) | the one sync lease (REQ-BDC-0722) |
+| table | `hook_state` (`id` INTEGER PRIMARY KEY CHECK (`id` = 1), `consecutive_failures` INTEGER NOT NULL DEFAULT 0, `first_failure_at` TEXT, `last_error` TEXT, `next_attempt_at` TEXT) | the built-in row's hook backoff (REQ-BDC-0727) |
+| table | `sc_cron_schedule`, with sc-cron's version-2 columns and checks | the schedule rows, served by `CacheScheduleStore` (ADR-BDC-0014) |
+| `meta` row | `sc_cron_schedule_version` = `2` | the version of sc-cron's columns in this file, checked by `CacheScheduleStore`; never `user_version` |
+
+Existing names stay (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`); the API names them
+neutrally. The format golden (`crates/bd-cache-store/tests/format_golden.rs` with its DDL
+fixture, owned by sprint b-7) pins the exact v3 DDL plus every row above, and is the in-repo
+evidence of ADR-STORE-0001 and ADR-STORE-0002 once the vendored compat tests go (sprint b-9).
+Cross-implementation compatibility is the consumer's own test, run against a CI-built wheel
+before the 0.2.0 release (S84).
+
+Rejected: the r3 per-scope `scope.method`, the `journal.ingest_tick_id` and
+`scope.last_ingest_tick_id` stamps and the `registration` table (superseded by the two-row
+switch, Amendment A7); sc-cron's own file beside the cache file (two files to keep in step, and
+the schedule would not move with the cache).
+
+Consequences: a v3 reader that does not know an extension still reads and writes the file.
+Further extensions need a later ADR.

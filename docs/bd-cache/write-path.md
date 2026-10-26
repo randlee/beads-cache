@@ -23,7 +23,9 @@ and decisions (domain code `CORE`) for the write path, indexed from
 3. `view::current_view`, or on a miss one `miss::fill` under
    `miss_fill_timeout` (`NOT_FOUND`, `BD_UNAVAILABLE`).
 4. The precondition against that view (`PRECONDITION` with `unmet`).
-5. `insert_entry`, with the scope taken from the view's first `phase-<x>` label.
+5. `changed` against that view (`Op::changes`; sprint b-1).
+6. `insert_entry`, with the scope taken from the view's first `phase-<x>` label
+   and `changed`, stored in the same transaction as the entry.
 
 An invalid write therefore starts no bd call. A write to a cached bead makes
 no bd call at all. A retry of a write that is already journaled or applied
@@ -40,6 +42,51 @@ the first attempt changed.
 `invalid_writes_are_refused_before_any_bd_call`,
 `oversized_args_or_keys_are_bad_args_and_nothing_is_journaled`,
 `a_bad_metadata_key_is_refused_at_write_time_not_retried_by_the_drain`.
+
+## REQ-CORE-0104: `write_returning` answers the entry and the views (sprint b-1)
+
+**Status:** Approved with the phase-b plan (sprint b-1, REQ-BDC-0809)
+
+`write_returning` runs the steps of REQ-CORE-0101 and answers a
+`WriteOutcome`: the entry as stored after the call, `before` (the row step 3's
+view gives, with its blocked state, read before step 6), `after` (the row a
+`get` answers right after the write), `duplicate` and `changed`. `changed` is
+whether the write changes the view; for a close it is `!already_closed`,
+where `already_closed` describes the view before the write (contract §5.3).
+It is stored with the entry in one store transaction, so no reader sees the
+entry without it.
+
+A retry with the same key and the same `(bead, op)` is a duplicate whatever
+its guards and actor (contract §5.1): it journals nothing, and answers the
+stored entry and its stored `changed`, never a recomputed one (the original
+overlay is already in the view, so a recomputation is `false`); `before` and
+`after` are both the current view. `WriteOutcome.changed` is an
+`Option<bool>` (lead ruling S68, bc-lead, 2026-10-25): `Some(stored)` when the
+entry stores it; for an entry journaled without it (by the baseline Python implementation, or
+before the column existed), `Some(predicted)` only while the entry is
+`Pending`, predicted against the stored row with only the pending entries
+before it replayed; and `None` (unknown) in any other state. An applied,
+escalated or resolved entry's effect may already be in the stored row (an
+applied close leaves the row closed), so a prediction would be a guess.
+
+`write` is the same journaling without the views, and keeps its signature and
+reply (`WriteReply {seq, duplicate}`): a duplicate still needs no row, so a
+retry after a rebuild stays answerable while bd is down.
+
+The views are read in the store's own read snapshots just before and just
+after the insert transaction, as the precondition is; the entry and its
+`changed` are the one transaction (lead ruling S64), so `after` may already
+reflect a concurrent drain. `Entry.note` is `resolved by <actor>: <note>`
+(lead ruling S65).
+
+**Refines:** REQ-BDC-0809, 0004
+**Acceptance evidence:** `tests/write_returning.rs`:
+`write_returning_answers_the_stored_entry_and_both_views`,
+`changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise`,
+`a_retry_with_another_actor_and_guard_returns_the_stored_changed`,
+`a_duplicate_of_an_entry_without_changed_predicts_it`,
+`a_duplicate_of_an_applied_entry_without_changed_is_unknown` (S68); the store side,
+`a_reader_never_sees_an_entry_without_its_changed` (bd-cache-store `store.rs`).
 
 ## REQ-CORE-0102: One drain pass and its report
 

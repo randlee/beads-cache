@@ -36,7 +36,7 @@ its own Dolt configuration, runs `bd init` in a new directory, runs
 `cargo test -p bd-cache-sync --all-features --test live -- --ignored
 --test-threads=1 --nocapture`, and tears everything down. No shared database
 is read or written (`tests/live.rs` refuses a workspace without the
-`.beads/sc-bd-live-scratch` marker), and no `atm` message is sent (the sender
+`.beads/sc-bd-live-scratch` marker), and no consumer message is sent (the sender
 is a recorder). Set `SC_BD_BIN` for a `bd` other than the one on `PATH`, and
 `SC_BD_PINNED_ANY=1` when it is not the pinned release.
 

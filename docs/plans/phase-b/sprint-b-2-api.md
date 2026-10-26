@@ -1,7 +1,7 @@
 ---
 id: b-2
 phase: b
-status: ready
+status: complete
 closure_type: boundary
 target_boundary: bd-cache-api
 track: api

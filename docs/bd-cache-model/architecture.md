@@ -11,8 +11,8 @@ The crate is pure (no I/O, no clock): timestamps are passed in as
 |---|---|
 | `op` | `Op`, `replay`, `normalize`, `phase_of`, precondition parse / canonical JSON / `unmet` |
 | `pyjson` | `python_json`: Python `json.dumps(sort_keys=True)` text |
-| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus` |
-| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text) |
+| `journal`, `scope`, `state` | journal types, `ScopeId`, `PhaseName` (with `PhaseName::RULE`, the phase-name rule text), store-side state, `BaseEntry` and `StoreStatus`. *From sprint b-7 (ADR-BDC-0013):* `ScopeId(ScopeName)` with `ScopeName::RULE`, `ScopeFilter`, `Scope`, and `LEGACY_SCOPE_PREFIX` in the compatibility module; `PhaseName` goes |
+| `store`, `sender` | `CacheStore` (with `base_entry`, `has_entries_since`, `mark_announced_within`, `set_sync_alert_within`), `DrainLock` / `DrainGuard`, `EscalationSender` (with `send_within`), `SendError` and `SendErrorKind`, `MEMBER_NAME_RULE` (the member-name rule text). *From sprint b-8 (ADR-SYNC-0008):* `sender` and everything in it are removed |
 | `config` | `RepoConfig`, `CacheConfig`, `DrainBudget` and the default constants |
 | `reply`, `call`, `error` | reply shapes (provisional, REQ-BDC-0806 deferred), `CallKind` / `CallFailure`, `CacheError` with its code classification (`UNREACHABLE_CODES`, `ENVELOPE_KEYS`, `is_unreachable`; ADR-MODEL-0002 amendment, a-8) |
 | `testing` (feature) | `FakeStore`, `FakeDrainLock`, the store contract suite and `store_contract_tests!` |
@@ -70,7 +70,7 @@ Context: `CacheStore` methods may fail for the store's own reasons (SQLite
 errors, file I/O, a stored value that does not decode), but `CacheError` had
 no code for them. `bd-cache-store` reported them as `NO_DATABASE`, with the
 source chain flattened into the detail text. The baseline
-(`docs/baseline/BD-CACHE.md`, CLI table) has no v3 code for store or SQLite
+design (CLI table) has no v3 code for store or SQLite
 failures, so none could be reused.
 
 Decision: add the additive code `BD_CACHE.STORE_FAILED`,
@@ -117,7 +117,7 @@ Decision (additive; no change to the wire format):
    runs on every push.
 3. **The unreachable set.** `UNREACHABLE_CODES` is `BD_UNAVAILABLE`,
    `BD_VERSION_FAILED`, `BD_SCHEMA_FAILED` and `BD_LIST_FAILED`: the set of
-   ADR-CORE-0101 (the drain's stop policy) and `bd_cache.py`'s `UNREACHABLE`.
+   ADR-CORE-0101 (the drain's stop policy) and the baseline Python implementation's `UNREACHABLE`.
    `is_unreachable` is that set by variant, a test keeps the constant and the
    method equal, and the drain (`bd-cache/src/drain.rs`) now calls the method
    instead of its own copy (R11).
@@ -177,7 +177,7 @@ are additive to the v3 CLI contract (ADR-BDC-0003). A consumer that matched
 
 ## ADR-MODEL-0003: Store rule clarifications
 
-**Status:** Approved (lead ruling, 2026-10-23)
+**Status:** Approved (lead ruling, 2026-10-23); its fix-a-1-1 amendment's `ScopeId::Phase(PhaseName)` amended by ADR-BDC-0013 (sprint b-7: `ScopeId(ScopeName)`); its a-7 amendment amended by ADR-BDC-0013 (`PhaseName::RULE` becomes `ScopeName::RULE`, b-7) and ADR-SYNC-0008 (the sender port, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` removed with `sender.rs`, b-8)
 
 Decision: these points, not fixed by the sprint contract, are stated in the
 `CacheStore` doc comment and checked by the suite: `escalate` does not
@@ -189,6 +189,37 @@ outage; prune keeps the scope registered and never deletes a bead with an
 open entry; `status` keys journal counts `<phase>:<state>` with `None` for
 entries without a phase, as v3 prints them. `FakeStore` stores the outage
 and alerts as v3 `meta` keys, and its clones share one store.
+
+### ADR-MODEL-0003 amendment (sprint b-1): the journal fields, `journal_counts`, the 0.1 wire
+
+**Status:** Approved with the phase-b plan (contract §9, lead ruling S62, bc-lead, 2026-10-25)
+
+Decision:
+- `JournalEntry` gains `last_error_code` (the `CODE` of `last_error`,
+  `error_code_prefix`), `note` (the resolve note, `resolve_note`:
+  `resolved by <actor>: <note>`, which keeps the resolver, as the journal has
+  no column for it) and `changed` (`None` for an entry journaled without it).
+  `NewEntry` gains `changed`, stored by `insert_entry` in the same
+  transaction as the entry.
+- `resolve` stores `note` and leaves `last_error` as it was; it no longer
+  appends `" | resolved by <actor>: <note>"`.
+- `CacheStore::journal_counts` returns `JournalCounts {total, by_scope,
+  unscoped}` of `StateCounts`, one snapshot; its provided body derives the
+  counts from `status()`'s `phase:state` keys (so a scope named `None` reads
+  as unscoped there), and `FakeStore` and `SqliteStore` override it.
+- `GetReply.scope` is the bead's scope.
+- `WriteOutcome.changed` is `Option<bool>` (lead ruling S68): stored, else
+  predicted only for a pending entry, else `None`. `note` is `resolved by
+  <actor>: <note>` (S65).
+- The 0.1 wire is unchanged: `GetReply.scope` is `#[serde(skip)]`, and
+  `JournalEntry` serializes the same fourteen keys, with `last_error` as
+  `legacy_last_error()` (the error, `" | "`, the note), byte-identical to
+  what the baseline Python implementation stores. `WriteOutcome` is not serialized: `bd-cache-api`
+  has its own data model.
+
+Consequences: the 0.1 Python dicts keep their key sets
+(`the_new_fields_stay_out_of_the_0_1_wire_shapes`, `tests/goldens.rs`;
+`tests/test_key_sets.py` in bd-cache-py).
 
 ### ADR-MODEL-0003 amendment (a-1 amendment 1): status reports stale rows
 
@@ -207,7 +238,7 @@ Consequences: every `CacheStore` (FakeStore, a-4's SqliteStore) must report
 
 ### ADR-MODEL-0003 amendment (fix-a-1-1): checked model values and a failure-only call result
 
-**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`)
+**Status:** Approved (lead ruling, 2026-10-23; ruling L5 for `CallFailure`); scopes amended by ADR-BDC-0013 (sprint b-7: `ScopeId(ScopeName)` replaces `ScopeId::Phase(PhaseName)`)
 
 Context: QA-1 found raw strings for keys, scopes and instants, and a call
 result with a dead success variant.
@@ -285,7 +316,7 @@ replies is left for the bdc sprint (REQ-BDC-0806) to settle.
 
 ### ADR-MODEL-0003 amendment (a-7): ports gain `base_entry`, `has_entries_since`, `send_within`, `mark_announced_within` and `set_sync_alert_within`
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24); `set_sync_alert_within` also used for the alert clears that send no message by lead ruling S35 (bc-lead, 2026-10-24, fix-a-7-10)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2); the name rules added by lead ruling S32 (bc-lead, 2026-10-24, fix-a-7-8); `mark_announced_within` and `set_sync_alert_within` added by lead ruling S33 (bc-lead, 2026-10-24); `set_sync_alert_within` also used for the alert clears that send no message by lead ruling S35 (bc-lead, 2026-10-24, fix-a-7-10); amended by ADR-BDC-0013 (`PhaseName::RULE` becomes `ScopeName::RULE`, sprint b-7) and ADR-SYNC-0008 (`EscalationSender`, `send_within`, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` removed with `sender.rs`, sprint b-8)
 
 Context: the ports are a-1's contract, and a-4, a-5, a-6 and a-8 build on them.
 Sprint a-7 changed them, by lead rulings S2, S4 and S11 (bc-lead, 2026-10-24) and
@@ -302,7 +333,7 @@ Decision:
 - `CacheStore::has_entries_since(at) -> bool`: "something is pending, or was
   applied at or after `at`". The provided body loads both lists; an
   implementation answers from indexes. An entry's applied time is its
-  `applied_at`, else, for an entry applied by `bd_cache.py` (which sets only
+  `applied_at`, else, for an entry applied by the baseline Python implementation (which sets only
   `updated_at`), its `updated_at`; an entry whose time cannot be read counts as
   applied since (conservative). `applied_since` follows the same rule (ADR-STORE-0004). Contract rule `has_entries_since_rules`.
   Port rule (lead rulings S25/S26, bc-lead, 2026-10-24): though both take `&self`, an
@@ -310,11 +341,11 @@ Decision:
   time; it must not wait for the write lock to do so, and must give the same answer
   whether or not the write runs. `SqliteStore` does it only above a threshold of
   undated entries (ADR-STORE-0004).
-- `EscalationSender::send_within(lead, team, body, timeout)`: a provided method
+- `EscalationSender::send_within(<recipient>, body, timeout)`: a provided method
   that ignores `timeout` and calls `send`; a sender that can bound its work
   overrides it. The caller checks its own budget after every send, so a sender
-  that ignores the timeout costs at most the send in flight. `lead` and `team`
-  stay `&str`: callers pass names they validated, and a sender that builds a
+  that ignores the timeout costs at most the send in flight. The two recipient
+  arguments stay `&str`: callers pass names they validated, and a sender that builds a
   command line keeps a defensive guard (S15).
 - `SendError` gains `kind: SendErrorKind` (`InvalidAddress`, `NotStartable`,
   `TimedOut`, `Cancelled`, `Exited`, `Other`; `as_str`, `fix`, `Serialize`) and
@@ -345,8 +376,8 @@ model's public contract.
 Decision: no toml type appears in the API. `schema_packages` is
 `Vec<SchemaPackageRef>`, an opaque entry the later schema-package phase will
 open up (`docs/architecture.md`, Repository configuration). `tick` is a
-typed `TickConfig` (`team`, `fallback_lead`, `phases_dir`, `phases`;
-unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
+typed `TickConfig` (the consumer's message-routing and phase-file
+settings; unknown keys refused), and `from_toml` returns the crate's `ConfigError`.
 toml stays a normal dependency, used only inside `config.rs`; the
 `bd-cache-model -> toml` edge is listed in the Crate Layout of
 `docs/architecture.md`.

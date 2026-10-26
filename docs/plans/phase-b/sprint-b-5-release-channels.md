@@ -1,7 +1,7 @@
 ---
 id: b-5
 phase: b
-status: ready
+status: complete
 closure_type: integration
 target_boundary: release manifest and publish channels
 track: release
@@ -96,6 +96,26 @@ The sprint closes on deliverables 1 to 5 and criteria 1 to 4. No stable
 `release.yml` run starts until the kit pin contains the P-4 fix. The PR says
 which legs ran (the prerelease and the dry run) and which wait (the stable
 release and the channel dispatches).
+
+**Recorded at implementation (b-5).**
+
+- The P-4 issue is filed as randlee/sc-publish#135. `release.yml` stages the
+  release in the consumer's `release/` directory and uploads `release/*`, so a
+  real release would also upload our `release/` config files. The fix is a
+  separate staging directory.
+- **The stable 0.2.0 release waits for #135.** No `release.yml` run and no
+  Homebrew, Scoop or WinGet dispatch starts until
+  `release/sc-publish-pin.toml` names a kit revision that contains the fix.
+- Lead instruction overrides deliverable 2: the pin moves from `16457e0` to
+  sc-publish develop `66d11b2e34d638f9e9239c23621744cb971cee3d`. That
+  revision contains #130 (wheel prereleases) and #133 (a release with no
+  artifacts completes).
+- What ran: install.py, then `--dry-run`, validate-manifest,
+  verify-version-lockstep, preflight-secret-plan,
+  `prerelease.py --publish --dry-run`, and a local host-target release build
+  packaged the way the kit does it.
+- What waits: the real prerelease cut (deliverable 4, which needs Rand's go),
+  the stable release, and the channel dispatches.
 
 ## Dependencies
 
