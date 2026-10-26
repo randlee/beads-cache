@@ -73,6 +73,9 @@ every result and error; the cache sends nothing (ADR-BDC-0010). The design is
    - With the Python row enabled, no `bd list` runs for the configured scopes; the script fills
      the cache through `ingest_scope`, with the same rules as the built-in sync
      (REQ-BDC-0007, 0008, 0502), and its run is judged by its exit status.
+   - beads-cache itself reaches the backend only through bd on both paths and reads no Dolt
+     table (REQ-BDC-0006); with the Python row enabled it starts no bd process of its own, and
+     the rows it stores are the ones the script hands to `ingest_scope`.
    - A relative interpreter or a module that is not a dotted name is `SCHEDULE_INVALID`.
      `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
    - `bdc cache scopes add|set|remove|list|ingest|announce`.
@@ -99,8 +102,9 @@ every result and error; the cache sends nothing (ADR-BDC-0010). The design is
    `scopes_*`, `schedule_*`, `sync_use_python` / `sync_use_builtin` and `tick()`, and the new
    codes in the exports. Every scope argument takes any configured scope name, with no prefix
    rule (ANC-009). The 0.1 verbs, arguments and dicts are unchanged.
-9. **Store** (ADR-STORE-0001). b-8 adds or changes no store table, column or index; it uses
-   b-7's extensions and creates the sc-cron schedule tables through sc-cron.
+9. **Store** (ADR-STORE-0001, ADR-STORE-0006). The only store change b-8 makes is creating the
+   sc-cron schedule tables, through sc-cron, as new tables already listed in ADR-STORE-0006; the
+   v3 tables and indexes are unchanged and no NOT NULL column is added.
 10. **Removals** (ADR-BDC-0010; REQ-BDC-0701, 0702, 0704..0707 superseded). In
     `crates/bd-cache-sync/src`: the consumer messaging module, `phases.rs`, the consumer parts
     of `announce.rs` and `active.rs`, and the stop rule; the sender's process test and

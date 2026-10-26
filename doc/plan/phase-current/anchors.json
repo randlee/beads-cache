@@ -2041,6 +2041,13 @@
           "item": "b-5",
           "reason": "b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding.",
           "replaced": false
+        },
+        {
+          "at": "2026-10-26T01:11:12+00:00",
+          "event": "excluded",
+          "item": "b-7",
+          "reason": "b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding.",
+          "replaced": false
         }
       ],
       "exclude": [
@@ -2051,6 +2058,10 @@
         {
           "item": "b-5",
           "reason": "b-5 changes release packaging and channels only; it adds or changes no method, argument or return value of the Python binding."
+        },
+        {
+          "item": "b-7",
+          "reason": "b-7 is Rust-only (bd-cache-store, bd-cache, bd-cache-model) and adds or changes no bd-cache-rs Python binding method, argument or return value; b-8 owns the binding."
         }
       ]
     },

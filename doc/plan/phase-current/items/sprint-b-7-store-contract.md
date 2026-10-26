@@ -14,7 +14,7 @@ must_follow: [b-6]
 parallel_safe: [b-9]
 requirements:
   owns: [REQ-BDC-0721, REQ-BDC-0722, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, "REQ-BDC-0804 (amended)"]
-  constrained_by: [REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0502, REQ-BDC-0812, NFR-BDC-0005]
+  constrained_by: [REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0502, NFR-BDC-0005]
 adrs: [ADR-STORE-0006, ADR-STORE-0001, ADR-BDC-0005, ADR-BDC-0010]
 owned_paths:
   - "crates/bd-cache-store/** (except tests/compat*)"
