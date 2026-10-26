@@ -357,6 +357,8 @@ The drain report lists `applied`, `retrying`, `escalated` (`seq, bead, op, actor
 
 `sync(phase)` runs the backend check, then `bd list -l phase-<x> -n 0 --status <all seven> --json`, with `--updated-after (last_ok_at - 2 min)` once a sync has succeeded; every row is validated before any is stored.
 
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): `sync(scope)` lists the scope's filter: `bd list` with the scope's bd criteria (`-l`, `--label-any`, `-t`, `-a`, or `--all` for an `All` scope) and all seven statuses, with the same `--updated-after` rule; the status criterion is applied to membership by the store. A phase-a scope (no stored filter) keeps `-l <name>`.*
+
 **Source:** baseline design, Algorithms (sync)
 **Acceptance evidence:** `test_sync_is_incremental_and_never_replaces_a_newer_row`
 
@@ -402,6 +404,8 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 
 `prune(phase)` is refused (`BD_CACHE.PRUNE_BLOCKED`) while the phase has pending or escalated entries; otherwise it deletes the phase's beads, edges, journal and sync state.
 
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): `prune(scope)` (`cache evict <scope>`) applies to any scope, under the same refusal, and deletes only the beads no other scope holds; `scopes remove <scope>` is the same prune followed by removing the scope from the registry.*
+
 **Source:** baseline design, Algorithms (prune)
 **Acceptance evidence:** `test_prune_refuses_with_unapplied_writes`
 
@@ -412,6 +416,8 @@ After the phase list, sync re-reads `stale` rows with one `bd list --id`.
 `status` returns the `meta` table, journal counts per `phase:state`, per-phase sync state and bead counts, and every escalated entry until it is resolved.
 
 *Amended (lead ruling, bc-lead, 2026-10-24): `status` also lists the stale rows (beads whose read-back failed, REQ-BDC-0405) until they are re-read; carried by `StoreStatus.stale` (a-1 amendment 1).*
+
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): the per-scope entries name each scope and its filter; the `<phase>:<state>` keys of the 0.1 binding are unchanged.*
 
 **Source:** baseline design, CLI, Failure handling
 **Acceptance evidence:** a-6 status tests
@@ -427,17 +433,17 @@ An escalated entry stays unannounced until it is marked announced; marking recor
 
 ## REQ-BDC-0701: One schedule per repository
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0720. The built-in sync is a row in the cache file's sc-cron table, at most one per repository (A3), with no consumer team or lead configuration.*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): replaced by REQ-BDC-0720. The built-in sync is a row in the cache file's sc-cron table, at most one per repository (A3), with no consumer team or lead configuration.*
 
 The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0702: Active phases
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0721. Scopes are configured in the cache as a name plus a bd filter (A5); no phase files are read.*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): replaced by REQ-BDC-0721. Scopes are configured in the cache as a name plus a bd filter (A5); no phase files are read.*
 
 The superseded text is in git history (before the phase-B planning PR).
 
@@ -447,122 +453,156 @@ The superseded text is in git history (before the phase-B planning PR).
 
 A tick runs within a 25 s budget: drain with a deadline 5 s before the budget ends, then sync each active phase, deferring any not started 2 s before it.
 
-*Amended (phase-B boundary extension; takes effect when the planning PR merges): the budget is the tick row's `budget_ms` (default 25000, range 1000–600000), with a `hook_reserve_ms` (default 5000) the drain and sync cannot use, so the post-sync hook always runs. The tick drains, then syncs each configured scope, deferring any not started in time (REQ-BDC-0720).*
+*Amended (phase-B boundary extension; Rand, 2026-10-26): the budget is the built-in row's `budget_ms` (default 25000, range 1000–600000), with a `hook_reserve_ms` (default 5000) the drain and sync cannot use, so the post-sync hook always runs. The tick drains, then syncs each configured scope, deferring any not started in time (REQ-BDC-0720, ADR-SYNC-0008).*
 
 **Source:** baseline design, Cron module
 **Acceptance evidence:** `test_tick_budget_defers_drain_entries`
 
 ## REQ-BDC-0704: Sync failures announced once per cause
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727 and REQ-BDC-0728. The cache records failure state; a registered post-sync hook decides what to tell anyone. The cache sends nothing (ADR-BDC-0010).*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): replaced by REQ-BDC-0727 and REQ-BDC-0728. The cache records failure state; the post-sync hook named in the built-in row decides what to tell anyone. The cache sends nothing (ADR-BDC-0010).*
 
 The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0705: Escalations announced once
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727. Unnotified escalations are offered to the post-sync hook, which marks them with `journal announce`.*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): replaced by REQ-BDC-0727. Unnotified escalations are offered to the post-sync hook, which marks them with `journal announce`.*
 
 The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0706: Undelivered messages retried
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): replaced by REQ-BDC-0727. Anything the hook does not mark is offered again on the next tick; there is no `refused` or `pass-through` reply.*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): replaced by REQ-BDC-0727. Anything the hook does not mark is offered again on the next tick; there is no `refused` or `pass-through` reply.*
 
 The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0707: Stop rule
 
-**Status:** Superseded (when the phase-B planning PR merges)
+**Status:** Superseded (Rand, 2026-10-26)
 
-*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25; takes effect when the planning PR merges): removed. There is no consumer stop rule; a schedule is paused with sc-cron's `enabled` flag, and an sc-cron stop hook may continue, disable or delete it (A2).*
+*Superseded (phase-B boundary extension, `docs/plans/phase-b/phase-b-boundary.md`; lead ruling S82, Rand's rulings of 2026-10-25 and 2026-10-26): removed. There is no consumer stop rule; a schedule is paused with sc-cron's `enabled` flag, and an sc-cron stop hook may continue, disable or delete it (A2).*
 
 The superseded text is in git history (before the phase-B planning PR).
 
 ## REQ-BDC-0720: The sync on the cache's cron table
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-beads-cache syncs bd on rows in the sc-cron tables of the cache file: at most one built-in sync row per repository (A3) and at most one Python sync row running a consumer's script (A7); at most one of them is enabled. `bdc cache schedule set|show|enable|disable|clear` manages the built-in row; `enable` and `disable` flip only a row's `enabled` flag (A4). The built-in row's run takes the lease, drains, syncs every configured scope and calls the post-sync hook; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run that same Rust code (S90).
+beads-cache syncs bd on rows of the sc-cron table inside the cache file (ADR-BDC-0014): at most one built-in sync row per repository (a Rust job) and at most one Python sync row running a consumer's script; at most one of them is enabled at any time. `bdc cache schedule set <cron-expr> [--budget-ms N] [--hook-reserve-ms N] [--post-sync <module:function> --python <interpreter> [--env NAME]...]`, `schedule show`, `schedule enable`, `schedule disable` and `schedule clear` manage the built-in row; `enable` and `disable` flip only its `enabled` flag, and `schedule enable` while the Python row is enabled is `SCHEDULE_INVALID` (`details.reason: "python_sync_enabled"`). `--budget-ms` defaults to 25000 (1000–600000); `--hook-reserve-ms` defaults to 5000 (0 to budget − 1000, and at least 1000 when a hook is named). The built-in row's sc-cron timeout is `budget_ms + 10000`, so sc-cron never aborts a run before its hook and its lease release. The built-in row's run takes the lease, drains, syncs every configured scope and calls the post-sync hook; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run that same Rust code. While the Python row is enabled, `bdc cache tick` and `Cache.tick()` are refused with `PRECONDITION` (`details.reason: "python_sync_enabled"`) and start no bd process. Scheduled times come only from the rows; an on-demand tick does not change them.
 
-**Source:** phase-b-boundary.md §Scheduling, §One tick, §A7; S83, S90, A3, A4, A7
+**Source:** S83, S90, A3, A4, A7; Rand, 2026-10-26
 
 ## REQ-BDC-0721: Scopes are configured bd filters
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-A scope is a name plus a bd filter (labels all or any, status, type, assignee, or `--all`), managed with `bdc cache scopes add|set|remove|list`. The built-in row syncs every configured scope. Removing a scope deletes its membership rows, not bead rows another scope still holds. A run with no scopes still drains and runs the hook.
+A scope is a validated name plus a bd filter: `All`, or criteria over labels (all of, any of), status, type and assignee (ADR-BDC-0013). `.beads/bd-cache.toml` defines scopes with `[[scope]]` tables and the `scopes` string list; a scope it defines is created or updated in the store's registry on open, and `scopes set` or `scopes remove` of it is `CONFIG_INVALID`. Other scopes are managed with `bdc cache scopes add|set|remove|list` (and PyO3 `scopes_*`). The built-in row syncs every configured scope. Removing a scope deletes its membership rows, not bead rows another scope still holds. A run with no scopes still drains and runs the hook.
 
-**Source:** phase-b-boundary.md §Scopes; A5, A7
+**Source:** A5, A7; ADR-BDC-0013
 
-## REQ-BDC-0722: One tick at a time
+## REQ-BDC-0722: One sync at a time
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-Ticks are single-flight across processes through a `tick_lease` row taken under `BEGIN IMMEDIATE`, expiring at the deadline plus 10 s. A tick that finds a live lease replies `skipped: in_flight`; an expired lease is taken over.
+Every sync run, built-in or Python, scheduled, on demand or the immediate run of `sync use-python`, takes the one `tick_lease` row of the cache file under `BEGIN IMMEDIATE` before it starts, expiring at its deadline plus 10 s, and releases it on every exit path. A run that finds a live lease does nothing: a scheduled or on-demand run replies `skipped: "in_flight"` (exit 0), and `sync use-python` fails with `TICK_IN_FLIGHT` (retryable). `sync use-builtin` takes no lease, so it always works; a Python run already in flight keeps the lease until it ends or its worker cancels it on seeing the change (REQ-CRON-0014), and the built-in row's next run waits for it. An expired lease, such as one left by a holder killed with `kill -9`, is taken over; lease expiry is the only cover for a holder that is killed outright.
 
-**Source:** phase-b-boundary.md §Single flight; S90
+**Source:** S90, A7; ADR-SYNC-0008
 
 ## REQ-BDC-0723: The post-sync hook runs isolated
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-bd-cache-sync runs the post-sync hook named in the built-in row's payload as `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private temp cwd, with only an allowlisted environment, its output capped, and killed with everything it started at its deadline (NFR-BDC-0004), with its own process supervision. There is no in-process call. The run refuses to execute any row's or hook's code from a cache file not owned by the current user, or group- or world-writable.
+bd-cache-sync runs the post-sync hook named in the built-in row's payload as `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>` through sc-cron's exported child-process supervisor (REQ-CRON-0018): from a private temp cwd, with the environment cleared except `PATH`, `HOME`, the locale variables, `BEADS_DIR`, `BD_CACHE_PATH` (the cache file) and the row's `--env` names, stdout and stderr each capped at 1 MiB and stderr kept in the reply truncated to 8 KiB, killed with everything it started at its deadline (NFR-BDC-0004). There is no in-process call. No row's or hook's code runs from a cache file that is not owned by the current user, or that is group- or world-writable (Unix; the Windows ACL check is a documented gap): the check runs before every launch, for the hook and for the Python sync row alike.
 
-**Source:** phase-b-boundary.md §Calling a Python method, §A7; S89, S90, A7
+**Source:** S89, S90, A7; ADR-SYNC-0008
 
 ## REQ-BDC-0724: Switching to a consumer's Python sync
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-`bdc cache sync use-python --python <absolute interpreter> --module <module> [--cron <expr>]` disables the built-in row, creates or updates the Python sync row, enables it and runs it at once, replying with the run's exit status and stderr; a failed run makes the command fail and restores the built-in row as enabled. `bdc cache sync use-builtin` reverses it. Neither leaves both rows enabled. A relative interpreter or a module that is not a dotted name is `SCHEDULE_INVALID`. `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
+`bdc cache sync use-python --python <absolute interpreter> --module <module> [--cron <expr>] [--timeout-ms N] [--env NAME]...` checks its inputs, takes the lease, then in one store transaction creates or updates the one Python sync row and makes it the enabled row (the built-in row disabled), then runs it at once with the events of a scheduled run, so the caller sees any error the script emits. The reply carries the run id, the exit status and the script's stderr (truncated to 8 KiB, with the values of the row's `--env` variables redacted). A failed run (non-zero exit, timeout, spawn failure, oversize output, a stop answer other than `continue`, an untrusted cache file, or a signal to the command) makes the command fail with `TICK_RUN_FAILED` after restoring, in one transaction, the built-in row as the enabled one; if that restore fails the error says so (`details.restored: false`) and names `bdc cache sync use-builtin` as the recovery, which always works. `bdc cache sync use-builtin` makes the built-in row the enabled one in one transaction. Neither leaves both rows enabled. A relative or missing interpreter, one that is not a regular executable file, one that cannot `import bd_cache_rs` within 5 s, a module that is not a dotted name, a timeout outside 1000–600000 ms (default 60000) or a second Python sync row is `SCHEDULE_INVALID`. `--cron` defaults to the built-in row's expression and is required when there is none. `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
 
-**Source:** phase-b-boundary.md §A7, §Registration; S89, A7
+**Source:** S89, A7; Rand, 2026-10-26 (ruling 9); ADR-SYNC-0008
 
 ## REQ-BDC-0725: A consumer's Python sync replaces the built-in one
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-With the Python sync row enabled and the built-in row disabled, the consumer's script is the only sync: it fills the cache through `ingest_scope`, and no `bd list` runs for the built-in scopes. The row's run is judged by its exit status, as any sc-cron row.
+With the Python sync row enabled, the consumer's script is the only sync: no `bd list` runs for the configured scopes, and the script fills the cache through `ingest_scope`. The script is run with sc-cron's Python hook protocol: `cron.stop` before every run (answered `{"action": "continue"}` to go on), then `cron.tick`, each with one JSON object on stdin whose `payload` carries `cache_path`, `beads_dir` and the run's `run_id`; its environment is the allowlist of REQ-BDC-0723. `bd_cache_rs.sync.main(func)` is the harness a script calls: it answers `cron.stop` with `continue` and, on `cron.tick`, opens `Cache` on the payload's cache file and calls `func(cache, payload)`. The row's run is judged by its exit status, as any sc-cron row, and its timeout is the row's `--timeout-ms`.
 
-**Source:** phase-b-boundary.md §A7; S87, A7
+**Source:** S87, A7; Rand, 2026-10-26 (ruling 9); ADR-SYNC-0008
 
 ## REQ-BDC-0726: Ingest is as strict as the built-in sync
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-`ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)` (Rust, `bdc cache scopes ingest`, PyO3) applies the strict row decoder, declared membership, the built-in `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless allowed; at most 50 000 rows and 64 MiB; any violation is `INGEST_INVALID` with the stored scope untouched.
+`ingest_scope(scope, rows, blocked, revision=None, allow_empty=False)` (Rust, `bdc cache scopes ingest` with JSON on stdin, PyO3) applies the strict row decoder, declared membership, the built-in `blocked` rule, the newer-row guard and one transaction; an empty snapshot is refused unless allowed; at most 50 000 rows and 64 MiB per call, enforced while the input is read (stdin is read through a 64 MiB + 1 byte limit and rows are counted as they decode, so an oversized input is refused before it is held whole); any violation is `INGEST_INVALID` with the stored scope untouched.
 
-**Source:** phase-b-boundary.md §Ingest; S87, A7
+**Source:** S87, A7
 
 ## REQ-BDC-0727: The post-sync hook gets every result, and delivery is at-least-once
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-After the built-in sync, the post-sync hook named in its row's payload gets the drain result, each scope's result and error with `failing_since` and `notified`, the escalated entries not yet notified with `first_offered_at`, and the pending count, with at least `hook_reserve_ms` left. The tick marks nothing; anything the hook does not mark is offered again on the next tick. The cache sends nothing (ADR-BDC-0010).
+After the built-in sync, the post-sync hook named in its row's payload gets the drain result, each scope's result and error with `failing_since` and `notified`, the escalated entries not yet notified (oldest first, at most 500, with `escalated_truncated` and `escalated_remaining`), and the pending count, in a request of at most 4 MiB, with at least `hook_reserve_ms` left. The run marks nothing; anything the hook does not mark is offered again on a later run, with `first_offered_at` unchanged; the hook must be idempotent. Consecutive hook failures are counted (`hook_state`). From the third, the hook is backed off: it is next called after a wait that starts at one period of the row and doubles with each further failure, capped at one hour, and the first success clears the count; the count, the last error and the next attempt show in `schedule show` and health. The cache sends nothing (ADR-BDC-0010).
 
-**Source:** phase-b-boundary.md §Request and result shapes, §Failure state and marking; S88
+**Source:** S88; ADR-SYNC-0008
 
 ## REQ-BDC-0728: Failure state and compare-and-set marking
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
 `failing_since` is set on the first non-ok result after an ok, kept across consecutive failures, cleared on ok, and opaque to callers. `scope_announce(scope, since)` / `bdc cache scopes announce <scope> --since <token>` marks only when `since` equals the current `failing_since`, otherwise `PRECONDITION`. `journal_announce` is unchanged.
 
-**Source:** phase-b-boundary.md §Failure state and marking; S88
+**Source:** S88
 
 ## REQ-BDC-0729: Outage is classified, and the new codes are typed
 
-**Status:** Proposed (phase-B boundary extension; approved when the planning PR merges)
+**Status:** Approved (Rand, 2026-10-26)
 
-Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The codes `TICK_RUN_FAILED`, `INGEST_INVALID` and `SCHEDULE_INVALID` have the kinds and exits of the codes table (REQ-BDC-0803).
+Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The new codes:
 
-**Source:** phase-b-boundary.md §New codes; ADR-BDC-0005, A7
+| Code | Kind | CLI exit | Retryable | Raised by | `details` keys | `suggested_action` |
+|---|---|---|---|---|---|---|
+| `INGEST_INVALID` | invalid_input | 3 | no | `ingest_scope`, `scopes ingest` | `scope`, `reason` (`row_invalid`, `empty`, `too_many_rows`, `too_large`, `membership`), `index` for a row | fix the named row or limit and resend the whole snapshot |
+| `SCHEDULE_INVALID` | invalid_input | 3 | no | `schedule set|enable`, `sync use-python` | `field`, `reason` | fix the named option; switch rows with `bdc cache sync use-python|use-builtin` |
+| `TICK_RUN_FAILED` (command) | unavailable | 3 | no | `sync use-python`, `cron run --once` | `row`, `run_id`, `reason` (`exit`, `timeout`, `spawn`, `oversize`, `stop_answer`, `untrusted`, `signal`), `exit_status`, `stderr`, `restored` | read `stderr`; `bdc cache sync use-builtin` restores the built-in sync |
+| `TICK_RUN_FAILED` (in a reply) | unavailable | 0 (the run's reply is `ok: true`) | no | the built-in run's hook step | as above, in `hook.error` | as above |
+| `TICK_IN_FLIGHT` | conflict | 3 for `sync use-python`; 0 as the `skipped: "in_flight"` reply of a run | yes | the lease | `holder` (`pid`, `host`, `expires_at`) | retry after `expires_at` |
+
+The `TICK_<REFUSAL>` family is removed with the refusals it reported (ADR-BDC-0015).
+
+**Source:** ADR-BDC-0005, ADR-BDC-0015, A7
+
+## REQ-BDC-0730: `cron run` stops cleanly
+
+**Status:** Approved (Rand, 2026-10-26)
+
+`bdc cache cron run` handles `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on Windows): it starts no new run, waits for the runs in flight up to `--shutdown-timeout-ms` (default 10000, 0–600000), then kills every run still going together with its process tree (the hook's and the Python row's), releases the lease on every exit path, and exits 130 for `SIGINT`, 143 for `SIGTERM`, and 130 for Ctrl-C or Ctrl-Break on Windows. A `kill -9` is covered only by lease expiry. `cron run --once` waits for each run it started up to that run's own deadline, then exits 0, or 3 with `TICK_RUN_FAILED` naming each failed row. `cron run` logs to stderr through a process-wide subscriber at the `-v`/`-q` levels, one structured event per run step (lease, drain, each scope, hook, reply) with the row, the run id and the outcome, and sc-cron's own events.
+
+**Source:** Rand, 2026-10-26 (ruling 5); ADR-SYNC-0008
+
+## REQ-BDC-0731: `schedule show` reports the sync state
+
+**Status:** Approved (Rand, 2026-10-26)
+
+`bdc cache schedule show` (and PyO3 `schedule_show()`) reports both sync rows, each with its kind, `enabled`, expression, next due time, last run time, outcome and run id, consecutive failures and the first failure's time; the sync mode (`builtin`, `python` or `none`); for the built-in row its hook (module, consecutive failures, last error, next attempt); the lease (holder pid, host, expiry, or free); and each scope's `last_ok_at` and `failing_since`. A Python row that has never run, or rows that are both disabled, are flagged.
+
+**Source:** A7; ADR-SYNC-0008
+
+## REQ-BDC-0732: Health reports a degraded sync
+
+**Status:** Approved (Rand, 2026-10-26)
+
+`bdc cache health` reports, beside #86's oldest pending age, last drain and unresolved escalations, the sync mode and the enabled row's last run, and is `degraded` with a reason when no sync row is enabled (`no_sync_row_enabled`), when the last successful sync of any scope is older than three periods of the enabled row (`sync_stale`, which also covers a worker or OS scheduler that is not running), when the enabled row's last three runs failed (`sync_failing`), or when the hook has failed three times in a row (`hook_failing`).
+
+**Source:** S85, A7; ADR-SYNC-0008
 
 ## REQ-BDC-0801: CLI commands
 
@@ -594,6 +634,8 @@ The error codes are those of the baseline design, plus the additive `SCOPE_UNKNO
 
 *Amended by lead ruling S60 (bc-lead, 2026-10-25) and ADR-BDC-0009: adds the codes after `SCOPE_UNKNOWN` and one fixed kind per code; the CLI contract is `docs/bd-cache-cli/contract.md`.*
 
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): adds `INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT`, with the kinds, exits and details of REQ-BDC-0729; the `TICK_<REFUSAL>` family is removed.*
+
 **Source:** baseline design, CLI
 **Acceptance evidence:** `test_bad_ops_are_typed`
 
@@ -603,7 +645,7 @@ The error codes are those of the baseline design, plus the additive `SCOPE_UNKNO
 
 The SQLite file is shared with the Python implementation: a file written by either is read by the other. The Rust store writes the v3 tables unchanged plus only additive tables and nullable columns.
 
-*Amended (phase-B boundary extension, S84; takes effect when the planning PR merges): the store file stays readable and writable by any v3 reader; the format is v3 plus the additive extensions of ADR-STORE-0006, with `user_version` 3. Compatibility with a consumer's own implementation is the consumer's test, run against the published wheel; beads-cache vendors no consumer code.*
+*Amended (phase-B boundary extension, S84; Rand, 2026-10-26): the store file stays readable and writable by any v3 reader; the format is v3 plus the additive extensions of ADR-STORE-0006, with `user_version` 3. Compatibility with a consumer's own implementation is the consumer's test, run against the published wheel; beads-cache vendors no consumer code.*
 
 *Amended in planning (ADR or review): split from the CLI half, now REQ-BDC-0806 (review PLAN-CRIT-003).*
 
@@ -655,13 +697,15 @@ A journaled write returns its entry (`seq`, `state`, `duplicate`, idempotency ke
 
 **Amendment (lead ruling S65, bc-lead, 2026-10-25):** an entry's `note` is `resolved by <actor>: <note>`.
 
-**Amendment (lead ruling S68, bc-lead, 2026-10-25):** `changed` is unknown (`None`) for an entry stored without it (by `bd_cache.py`, or before the column existed) unless the entry is still pending, when it is predicted against the stored row with the earlier pending entries replayed. It is never guessed: `WriteOutcome.changed` is `Option<bool>`.
+**Amendment (lead ruling S68, bc-lead, 2026-10-25):** `changed` is unknown (`None`) for an entry stored without it (by the baseline Python implementation, or before the column existed) unless the entry is still pending, when it is predicted against the stored row with the earlier pending entries replayed. It is never guessed: `WriteOutcome.changed` is `Option<bool>`.
 
 ## REQ-BDC-0810: CLI configuration
 
 **Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 Each setting is resolved as flag, then `BD_CACHE__*` env, then `.beads/bd-cache.toml`, then the default. The bd binary is never read from TOML, `--format` is read from the flag only, there is no upward search, and the legacy cache file in the first consumer's own directory is refused as the contract states.
+
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): the refusal of the legacy cache file in the first consumer's own directory is removed; beads-cache knows no consumer path, and a consumer that keeps its file elsewhere passes `cache_path`.*
 
 **Source:** contract §2; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
@@ -679,6 +723,8 @@ Each setting is resolved as flag, then `BD_CACHE__*` env, then `.beads/bd-cache.
 
 Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, argument and dict is unchanged, and 0.2.x issues no `DeprecationWarning`.
 
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): the 0.1 verbs keep the 0.1 scope rule, a bare name `x` meaning the label scope with the legacy prefix, as a compatibility rule only; every new scope argument takes a configured scope name as written.*
+
 **Source:** contract §10; the first consumer's maintainer designs against 0.1; phase-b plan, from `docs/bd-cache-cli/contract.md` (approved, lead ruling S60, 2026-10-25)
 
 ## REQ-BDC-0813: Binary distribution
@@ -694,6 +740,8 @@ Wheel 0.2 adds the `cache.beads` and `cache.manage` namespaces. Every 0.1 verb, 
 **Status:** Approved
 
 One cache file holds several `phase-*` scopes at once.
+
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): the scopes are named bd filters (labels, status, type, assignee, or all); phase-a's label scopes are one kind of them.*
 
 **Source:** user, 2026-10-23 planning discussion; baseline design, Scope
 
@@ -748,6 +796,8 @@ A caller can read one journal entry by `seq`, in any state.
 **Status:** Approved
 
 Syncing a phase that is not configured registers it as an on-demand scope, so a later `list` of it works; only a scope that has never been synced or configured is refused.
+
+*Amended by ADR-BDC-0013 (Rand, 2026-10-26): a scope registered on demand is a label scope with that one label; a 0.1 verb's bare name gets the legacy prefix first (REQ-BDC-0812).*
 
 **Source:** the first consumer's maintainer, 2026-10-24 (close_fields_backfill syncs then lists arbitrary phases)
 
@@ -850,6 +900,8 @@ Live integration tests run only on the testbed or in the release-triggered bd co
 SQLite is bundled (`rusqlite` with `bundled`). The cache file has one connection per process. Other stores in the same process (for example `sc-cron`'s schedule store) use their own database file and their own connection, never a second connection to the cache file.
 
 *Amended in planning: scoped to the cache file (a-3 QA-1, REQ-QA-002).*
+
+*Amended by ADR-BDC-0014 (Rand, 2026-10-26): sc-cron's schedule store is a seam. Its standalone default (`SqliteScheduleStore`) still uses its own file and connection; beads-cache's sync rows use `bd-cache-store`'s `CacheScheduleStore`, which keeps the schedule table inside the cache file over the cache's one connection, so the process still holds one connection to the cache file and `user_version` stays 3.*
 
 **Source:** baseline design, Rust shape
 

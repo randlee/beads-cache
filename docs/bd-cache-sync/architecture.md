@@ -26,7 +26,7 @@ Dependencies: ADR-SYNC-0006.
 
 ## ADR-SYNC-0001: The tick is a scheduler-independent library function
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008 (the run takes the lease and the budget, not a sender or the `[tick]` keys, and replies without `refused` / `pass-through`)
 
 Context: the first consumer keeps its own scheduling (its cron script under its
 own cron scheduler, through the Python bindings), and the later `bdc tick` will
@@ -126,7 +126,7 @@ when it returns, within the miss-fill timeout. `active.rs` implements this and
 
 ## ADR-SYNC-0003: Announcements record their marker only after delivery, inside the tick's budget
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Context: REQ-BDC-0706 requires an undelivered message to be retried; a tick
 has a 25 s budget.
@@ -242,7 +242,7 @@ cause is announced. `tests/announce.rs` pins both cases.
 
 ## ADR-SYNC-0004: The stop rule requires positive knowledge
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Context: BD-CACHE's `cron.stop` ends the schedule when no phase is active and
 no entry is open; the cron treats an uncached root that cannot be read during
@@ -282,7 +282,7 @@ test) and `tests/outage.rs`
 
 ## ADR-SYNC-0005: Phases are discovered from files, roots from the cache first
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Decision: phase files are read on every tick (they are small and operators
 edit them); a root the cache holds in the phase's scope comes from
@@ -321,7 +321,7 @@ tests it.
 
 ## ADR-SYNC-0006: Third-party and dev dependencies of bd-cache-sync
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008 (the dependency list after b-8)
 
 Context: ADR-BDC-0006 lists `sc-cron`'s third-party crates; this crate has
 its own. Every one is already in `[workspace.dependencies]` (a-1), and the
@@ -352,22 +352,21 @@ Crate Layout row of `docs/architecture.md` lists it (ARCH-303). This closes
 ARCH-301.
 
 Amendment (phase-end fixes RSH-002, RSH-003; **Status:** Approved (bc-lead,
-2026-10-25)): on Unix the `atm` process group is killed with
+2026-10-25)): on Unix the sender's process group is killed with
 `sc_bd_cli::process_group::kill` (`kill(-pgid, SIGKILL)` in sc-bd-cli's safe
 wrapper) instead of the `kill` program, which a minimal image may lack or be
 unable to start; Windows keeps `taskkill /T`. The `unsafe` stays in sc-bd-cli,
-so this crate still has none. `AtmSender::resolve` searches the absolute
+so this crate still has none. The sender's `resolve` searches the absolute
 directories of `PATH` only (`sc_bd_cli::path::absolute_path_entries`, lead
-rulings S76 and S77): an empty or relative segment would find an `atm`
-committed in the working directory. Tests (`tests/atm_process.rs`):
-`the_tree_kill_needs_no_kill_program`,
-`a_relative_path_segment_never_runs_an_atm_in_the_cwd`.
+rulings S76 and S77): an empty or relative segment would find a sender binary
+committed in the working directory. Tests: `the_tree_kill_needs_no_kill_program` and the relative-segment test,
+in the sender's process test (the file whose path the lint flags).
 
 Consequences: a new dependency is a change to this ADR.
 
 ## ADR-SYNC-0007: The phase-file schema and the consumer's send contract
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8
 
 Context: both are defined by the baseline Python implementation's cron script
 at `05831dfe866d389feed138add3c29cb93cd6c82b` (the baseline); the Rust
@@ -471,38 +470,156 @@ files; a change of either contract changes this ADR.
 
 ## ADR-SYNC-0008: The sync on sc-cron rows, the switch, the post-sync hook and its trust model
 
-**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8).
-Supersedes ADR-SYNC-0007 with its fix-a-7-3 and fix-a-7-5 amendments, and ADR-SYNC-0003,
-ADR-SYNC-0004 and ADR-SYNC-0005, whose consumer announcements, stop rule and phase discovery
-REQ-BDC-0704..0707 and 0702 no longer require.
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8. Supersedes ADR-SYNC-0003,
+ADR-SYNC-0004, ADR-SYNC-0005 and ADR-SYNC-0007 (with its fix-a-7-3 and fix-a-7-5 amendments),
+whose consumer announcements, stop rule, phase discovery and send contract REQ-BDC-0702 and
+0704..0707 no longer require. Amends ADR-SYNC-0001 (the run function's inputs and reply) and
+ADR-SYNC-0006 (the dependency list).
 
-Context: ADR-BDC-0010 removes every consumer concern from the sync; ADR-BDC-0011 places the sync
-on the sc-cron table of the cache file, with a consumer's Python sync replacing it when needed
-and a post-sync hook. Rand ruled (2026-10-26) that the switch is two cron rows with a CLI
-convenience, and that sc-cron stays a general-purpose cron assembly.
+Context: ADR-BDC-0010 removes every consumer concern from the sync; ADR-BDC-0011 places the
+sync on sc-cron rows in the cache file, with a consumer's Python sync replacing the built-in
+one when needed and a post-sync hook. Rand ruled (2026-10-26) that the switch is two cron rows
+with a CLI convenience that runs the Python row at once and rolls back on failure; that sc-cron
+stays a general-purpose cron assembly with a Rust or Python target per row; and that `cron run`
+stops new triggers on a signal, waits for runs in flight up to a timeout, kills hanging process
+trees and releases the lease.
 
-Decision: the design of `docs/plans/phase-b/phase-b-boundary.md` §Scheduling, §Single flight,
-§One tick, §Calling a Python method and §Request and result shapes, with its Amendments A2–A5
-and A7:
-- at most one built-in sync row (a Rust job) and one Python sync row (the consumer's script, an
-  sc-cron hook row) per repository, at most one enabled; `bdc cache sync use-python` /
-  `use-builtin` switch them, and `use-python` runs the Python row at once and reports its exit
-  status and stderr, restoring the built-in row if that run fails;
-- the built-in row's run takes the `tick_lease`, drains, syncs every configured scope, then runs
-  the post-sync hook named in its payload with at least `hook_reserve_ms` left, and marks
-  nothing itself; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()`
-  run that same code;
-- bd-cache-sync runs the post-sync hook with its own process supervision, as
-  `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private
-  temp cwd with an allowlisted environment and capped output, killed with everything it started
-  at its deadline; no row's or hook's code runs from a cache file that is not the current user's
-  or is group- or world-writable (Unix; the Windows ACL check is a documented gap);
-- sc-cron gets no beads-cache-shaped API; its hook runner is used only for the Python sync row,
-  as any sc-cron row.
+Decision:
+
+- **Rows and payloads.** Two sc-cron rows, named `bd-cache.sync.builtin` and
+  `bd-cache.sync.python`, at most one of each per cache file; other sc-cron rows are allowed. The
+  payload is `SyncPayload`, one serde enum tagged by `target`, decoded by one constructor:
+  `Builtin { budget: TickBudget, hook: Option<PostSyncHook> }` (`PostSyncHook` is the
+  interpreter, the `module:function` and the `--env` names) and `Python { interpreter, module,
+  cache_path, beads_dir, env, timeout_ms }`. `TickBudget` (`budget_ms` 1000–600000,
+  `hook_reserve_ms` 0 to `budget_ms − 1000`, at least 1000 with a hook) and `FailingSince` (an
+  opaque token) are `bd-cache-model` types; `SyncPayload` and `TrustedInterpreter` are
+  `bd-cache-sync`'s. `TrustedInterpreter::new` requires an absolute path to a regular
+  executable file and then calls `sc_cron::PythonHook::new`, so the module rule has one parser.
+- **Resolver.** bd-cache-sync passes sc-cron a resolver (ADR-CRON-0009) that sc-cron calls before
+  every launch. It decodes the payload, runs the trust check, and returns
+  `HookTarget::Rust(BuiltinSyncJob)` or `HookTarget::Rust(PythonSyncJob)`. A payload it cannot
+  decode, a Python sync payload on any row other than `bd-cache.sync.python`, or a failed trust
+  check is an error: sc-cron records `RunOutcome::Failed` and leaves the row active, and
+  `schedule show` flags the row.
+- **Trust.** `TrustedCacheFile` is a proof value only the trust check builds: the cache file is
+  owned by the current user and is neither group- nor world-writable (Unix; the Windows ACL check
+  is a documented gap). The hook runner and `PythonSyncJob` take it by value, so no code of a row
+  or hook runs without a check made for that launch; `cron run`, `cron run --once`,
+  `sync use-python` and `tick` all go through it.
+- **Mode switch.** The sync mode (`Builtin`, `Python`, or `None` when both rows are disabled) is
+  set by one store call that flips both rows' `enabled` flags in one `BEGIN IMMEDIATE`
+  transaction (`ScheduleStore::set_enabled_many`, REQ-CRON-0017), so at most one row is ever
+  enabled. `sync use-python`: check the inputs (`TrustedInterpreter`, `-I -c 'import
+  bd_cache_rs'` within 5 s, the module, the timeout), take the lease, create or update the Python
+  row and set mode `Python` in one transaction, run the row at once (below), and on any failure
+  set mode `Builtin` in one transaction and fail with `TICK_RUN_FAILED`; a failed restore is
+  reported (`details.restored: false`) with `sync use-builtin` as the recovery. A crash after the
+  mode commit and before the run ends leaves the Python row enabled and the built-in row
+  disabled, which keeps the invariant; `schedule show` flags a Python row that has never run, and
+  `sync use-builtin`, which takes no lease, always restores the built-in row. A signal to
+  `use-python` during the run kills the script's tree, restores mode `Builtin`, then exits
+  `128 + signal`. `schedule enable` of the built-in row while mode is `Python` is
+  `SCHEDULE_INVALID`.
+- **One sync at a time.** `TickLease` is an RAII guard over the `tick_lease` row: taken under
+  `BEGIN IMMEDIATE` (refused while a live lease is held, taken over once expired), with expiry
+  at the run's deadline plus 10 s, released when the guard drops (a failed release is logged and
+  left to expiry; a `kill -9` is covered only by expiry). Every run takes it first, the built-in
+  row's, the Python row's (`PythonSyncJob::run`), an on-demand `tick` and the immediate run of
+  `use-python`, and the run functions take `&TickLease`, so no sync work runs without it.
+- **The built-in run.** `Budget` is made from the run's start and its `TickBudget` and hands out
+  two deadlines only: the sync deadline (start + `budget_ms` − `hook_reserve_ms`), which the drain
+  and the scope syncs get, and the hook deadline (start + `budget_ms`). Steps: lease; drain;
+  sync each configured scope by its filter (ADR-BDC-0013), rows stored through the strict decoder,
+  all or nothing per scope, the newer-row guard kept, an unreachable bd recorded as an `outage`
+  result; the post-sync hook, if named and not backed off; the reply. No write transaction and no
+  drain lock is held while the hook runs. The row's sc-cron timeout is `budget_ms + 10000`. While
+  mode is `Python`, an on-demand `tick` is `PRECONDITION`.
+- **Post-sync hook.** Run through sc-cron's exported supervisor (REQ-CRON-0018) as `<absolute
+  interpreter> -I -m bd_cache_rs.run post_sync <module:function>`, from a private temp cwd, with
+  the environment cleared except `PATH`, `HOME`, `LANG`, `LC_*`, `BEADS_DIR`, `BD_CACHE_PATH` and
+  the row's `--env` names, stdout and stderr each capped at 1 MiB, the request written while the
+  output is read, and the tree killed at the hook deadline. Request (`bd-cache.run.v1`):
+
+  ```json
+  {"protocol": "bd-cache.run.v1", "kind": "post_sync", "run_id": "...", "now": "...",
+   "deadline": "...", "cache_path": "...",
+   "drain": {"applied": 0, "escalated": 0, "error": null},
+   "scopes": [{"scope": "...", "result": "ok|failed|outage|skipped",
+               "error": {"code": "...", "message": "...", "outage": true},
+               "failing_since": "<opaque token or null>", "notified": false}],
+   "escalated": [{"seq": 1, "bead": "...", "op": "...", "actor": "...", "attempts": 3,
+                  "error": {"code": "...", "message": "..."}, "created_at": "...",
+                  "first_offered_at": "..."}],
+   "escalated_truncated": false, "escalated_remaining": 0,
+   "pending": {"count": 0, "oldest_age_s": null}}
+  ```
+
+  `escalated` holds the escalated, unnotified entries, oldest first, at most 500, and the whole
+  request at most 4 MiB (entries are dropped from the end until it fits, and counted in
+  `escalated_remaining`); `first_offered_at` is set the first time an entry is offered and never
+  changes. The result is optional JSON, kept truncated to 8 KiB; stderr is kept truncated to
+  8 KiB. Request bodies are never logged. A failure (spawn failure, timeout, non-zero exit,
+  oversize or malformed output, wrong protocol, untrusted cache file) is `TICK_RUN_FAILED` in the
+  run's `hook` step, and the run itself marks nothing. Consecutive failures are counted in
+  `hook_state` and backed off (REQ-BDC-0727); the hook must be idempotent. The hook reads its
+  own configuration; any variable it needs is named with `--env`, and the error's
+  `suggested_action` says so.
+- **`bd_cache_rs.run`.** Opens its own `Cache` on `BD_CACHE_PATH`, imports the function, calls
+  `func(cache, request)` and prints `{"protocol": "bd-cache.run.v1", "ok": true, "result": …}`,
+  or `{"ok": false, "error": {"type", "message"}}` with the message truncated to 4 KiB and no
+  request data, then exits 0, or 1 on error. `flush`, `drain`, `tick` and `schedule_*` raise
+  `PRECONDITION` inside a run.
+- **The Python sync row.** `PythonSyncJob` runs the consumer's module with sc-cron's Python hook
+  protocol (`sc-cron.hook.v1`) through `PythonHook`, configured with the environment allowlist
+  above: `cron.stop` (its `should_stop`), then, on `continue`, `cron.tick` (its `run`, under the
+  lease), each from a fresh temp cwd with one JSON object on stdin, `{"protocol":
+  "sc-cron.hook.v1", "event", "schedule", "payload", "deadline"}`, where `payload` is the row's
+  payload plus the run's `run_id`. The immediate run of `use-python` is the same two calls. The
+  script answers `cron.stop` with `{"action": "continue"}`; `bd_cache_rs.sync.main(func)` is the
+  harness that does so and, on `cron.tick`, opens `Cache(payload["cache_path"],
+  beads_dir=payload["beads_dir"])` and calls `func(cache, payload)`, exiting 0 on return and 1
+  with the exception's type and message on stderr. sc-cron keeps up to 64 KiB of each pipe;
+  replies and `schedule show` keep stderr truncated to 8 KiB with the values of the row's `--env`
+  variables replaced by `<redacted:NAME>`. The run is judged by its exit status; its timeout is
+  the row's `timeout_ms` (default 60000, 1000–600000), the immediate run's too.
+- **Run id.** Every run gets a `run_id` (`<unix-ms>-<pid>-<counter>`), stored in the lease row,
+  passed in the Python payload and the hook request, logged with every step and every
+  `ingest_scope` outcome, and returned in the replies and `schedule show`.
+- **`cron run` and shutdown.** `cron run` runs sc-cron's `Scheduler` worker on a multi-thread
+  tokio runtime (`bd-cache-cli` gains `tokio` with `rt-multi-thread` and `signal`, from the
+  workspace entry) with `MissedTickPolicy::Skip`. `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on
+  Windows, through `tokio::signal::windows`) set the `StopFlag` and `sc_bd_cli::shutdown::request`,
+  then call `WorkerHandle::shutdown(now + --shutdown-timeout-ms)`: no run is launched, runs in
+  flight are awaited to that deadline, and those still going are aborted, which drops their
+  supervisors and kills the hook's and the Python row's process trees (process group or job
+  object); the built-in run's blocking part sees the `StopFlag`, its bd calls stop on the request,
+  and it returns and drops its `TickLease`. Exit codes are REQ-BDC-0730's. `cron run --once` runs
+  what is due, waits for each run it started to its own deadline, and exits 0, or 3 with
+  `TICK_RUN_FAILED` listing each failed row.
+- **Logging.** `cron run` installs its stderr subscriber as the process default, so sc-cron's
+  events (`launched`, `timed_out`, `recorded`, `fenced`, `reload_failed`) from runtime threads
+  and the signal thread are kept, at the `-v` / `-q` levels; each run logs one structured event
+  per step (lease, drain, each scope, hook, reply) with the row, the `run_id` and the outcome.
+- **`schedule set` and `schedule show`.** `schedule set` validates the expression, the budget
+  pair and, with `--post-sync`, the interpreter (`TrustedInterpreter`, then `-I -c 'import
+  bd_cache_rs'` within 5 s) and the `module:function`, all before writing; each refusal is
+  `SCHEDULE_INVALID` naming the field. `schedule show` reports what REQ-BDC-0731 lists.
+- **Dependencies (amends ADR-SYNC-0006).** After b-8: `bd-cache`, `bd-cache-model`,
+  `bd-cache-store`, `sc-bd-cli`, `sc-cron`, `sc-beads`; `tokio`, `async-trait`, `serde`,
+  `serde_json`, `tracing`. `toml` and `libc`, which served the phase files, are removed with them.
+  No dependency is added: the child-process supervision and the temp cwd are sc-cron's exported
+  API, so there is no `process-wrap`, `windows-sys` or runtime `tempfile` here and no root
+  `Cargo.toml` edit; the root `libc` entry stays until a later root-manifest change.
 
 Rejected alternatives: an in-process Python call (it would hold the GIL and the store across
 user code); code named in `.beads/bd-cache.toml` (it may be checked in); r3's per-scope methods
-with a registered `sync` method called inside the tick (superseded by Rand's two-row ruling).
+with a registered `sync` method called inside the tick (superseded by the two-row ruling); a
+third hand-rolled child supervisor in this crate (new dependencies, and a third copy beside
+sc-cron's and sc-bd-cli's that could diverge); the Python row as a bare `HookTarget::Python` with
+a per-row run lock in sc-cron (a schema change to sc-cron's own store, and a lock that would not
+exclude the built-in row or the immediate run).
 
-Consequences: the sync reaches the backend only through bd (REQ-BDC-0006); every bd call and
-hook run is bounded by the deadline (NFR-BDC-0004).
+Consequences: the sync reaches the backend only through bd (REQ-BDC-0006); every bd call, hook
+and script run is bounded by its deadline (NFR-BDC-0004); the register (REQ-BDC-0720..0732)
+states the behaviour, and b-9's contract text follows it.

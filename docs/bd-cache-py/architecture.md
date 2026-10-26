@@ -104,7 +104,7 @@ Consequences: `error.extra` of the baseline Python implementation is
 
 ## ADR-PY-0003: Threading
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); the one-connection rule is restated for the phase-B methods by ADR-PY-0006
 
 Context: ADR-CORE-0001: a `Cache` is `Send`, `!Sync`, owns one connection,
 and every verb is synchronous. A verb can wait on `bd` for up to its deadline.
@@ -142,7 +142,7 @@ Python code).
 
 ## ADR-PY-0004: Packaging, naming and test strategy
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006 (mixed layout, the native module's name, the test strategy)
 
 Decision:
 
@@ -184,10 +184,10 @@ Decision:
 
 ## ADR-PY-0005: The namespaces, the error mapping and the 0.1 to 0.2 table
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4
+**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4; amended by ADR-PY-0006 (a `bd-cache-sync` dependency for the phase-B methods; the scope rule)
 
 Context: contract section 10 adds the commands of `bd-cache-api` to the wheel
-without touching a 0.1 verb, because fenix builds against the 0.1 dicts.
+without touching a 0.1 verb, because the first consumer builds against the 0.1 dicts.
 
 Decision:
 
@@ -242,6 +242,52 @@ for it.
 | `CacheError` | adds `kind`, `message`, `details`, `suggested_action`, `retryable` | additive |
 
 Every method, old and new, accepts a bare (`bk`) or label (`phase-bk`) scope id.
+
+## ADR-PY-0006: The phase-B methods, the mixed layout and the bd-cache-sync edge
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-8 (layout, methods, edge) and
+b-9 (the test strategy). Amends ADR-PY-0004 (packaging and tests) and ADR-PY-0005 (its "No tick"
+and "Boundaries" bullets and its scope sentence); restates ADR-PY-0003's one-connection rule for
+the new methods; supersedes REQ-PY-0009 with the vendored call log.
+
+Context: phase B adds `Cache.tick()`, `schedule_*`, `sync_use_python` / `sync_use_builtin`,
+`ingest_scope`, `scope_announce` and `scopes_*` (REQ-BDC-0720..0731), and two Python entry points
+run as `-m` modules: `bd_cache_rs.run` for the post-sync hook and `bd_cache_rs.sync` for a
+consumer's sync script (ADR-SYNC-0008). ADR-PY-0005 says the crate does not depend on
+`bd-cache-sync`; the pyproject builds one extension module named `bd_cache_rs`, which cannot also
+hold Python submodules; and S84 removes the vendored call log the mapping test reads.
+
+Decision:
+- **Edge.** `bd-cache-py` depends on `bd-cache-sync` (a new Boundaries row edge, made by b-8 with
+  the code). `Cache.tick()`, `schedule_*` and `sync_use_*` call `bd-cache-sync`; the store-only
+  methods go through `bd-cache-api` like the 0.2 namespaces (ADR-BDC-0015).
+- **One connection.** Every new method runs on the handle's own `Cache` and connection, under its
+  mutex and inside `Python::detach` (ADR-PY-0003); `schedule_*` and `sync_use_*` use the handle's
+  `CacheScheduleStore` (ADR-BDC-0014), so the process opens no second connection.
+- **Runtime.** `Cache.tick()` and `sync_use_python()` release the GIL (`Python::detach`), then
+  build a current-thread tokio runtime on a helper thread the call spawns and joins, and drop it
+  before returning: no runtime outlives the call, and a caller on an asyncio event loop thread or
+  inside a tokio runtime of its own never has a runtime nested in its context. An asyncio caller
+  that does not want to block its loop calls them through `loop.run_in_executor`, as for every
+  other verb. Both run the post-sync hook and the Python row as subprocesses (S90); nothing runs
+  user code in process.
+- **Layout.** maturin's mixed layout: the native module is `bd_cache_rs._native` (`module-name =
+  "bd_cache_rs._native"`, `#[pymodule] fn _native`), and `crates/bd-cache-py/python/bd_cache_rs/`
+  holds `__init__.py` (re-exporting every 0.1 and 0.2 name from `_native`, with the same
+  `__all__`, `__version__` and `CONTRACT_VERSION`), `run.py` (`python -m bd_cache_rs.run`) and
+  `sync.py` (`bd_cache_rs.sync.main`). `import bd_cache_rs`, `bd_cache_rs.Cache` and every
+  exported name keep working unchanged, which the existing import tests pin. The pyproject
+  description loses its consumer wording in the same change.
+- **Scopes.** The 0.1 verbs keep the bare-name rule of ADR-BDC-0013; every other scope argument,
+  0.2 namespaces included, takes a scope name as written.
+- **Tests (amends ADR-PY-0004).** The mapping test and its vendored call log are deleted (b-9);
+  a neutral 0.1 call corpus generated in-repo against the fake bd (`tests/corpus/`) covers every
+  0.1 verb and reply shape, and the real-interpreter tests of the hook runner, `bd_cache_rs.run`,
+  `bd_cache_rs.sync` and the switch run against `fake_bd_main.py`.
+
+Consequences: the Boundaries and Crate Layout rows of `bd-cache-py` gain `bd-cache-sync` in b-8;
+the "Mapping from the baseline Python implementation" section below is removed with its test in
+b-9 (REQ-PY-0009 superseded).
 
 ## Reply shapes
 

@@ -24,7 +24,7 @@ lists them; ADR-STORE-0005 records them with the test-only features.
 
 ## ADR-STORE-0001: The file schema: v3 unchanged plus additive extensions
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped; amended by sprint b-1 (contract §9, lead ruling S62: `journal.last_error_code`, `journal.note`, `journal.changed`; see "Amendment b-1" below)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped; amended by sprint b-1 (contract §9, lead ruling S62: `journal.last_error_code`, `journal.note`, `journal.changed`; see "Amendment b-1" below); amended by ADR-STORE-0006 (the phase-B extensions; the in-repo evidence of the b-1 amendment becomes the format golden)
 
 Context: the file is shared with the baseline Python implementation (REQ-BDC-0804) at
 `user_version` 3 (REQ-BDC-0103). Phase a needs scopes with membership
@@ -94,28 +94,32 @@ resolve note apart, and a duplicate must answer the `changed` of the
 original write (REQ-BDC-0809, lead ruling S62).
 
 Decision: three nullable journal columns, created on open when absent;
-`user_version` stays 3 and no v3 column changes meaning for `bd_cache.py`.
+`user_version` stays 3 and no v3 column changes meaning for the baseline Python implementation.
 
 | Column | Written by this store | When NULL (or stale) on read |
 |---|---|---|
-| `changed` | `insert_entry`, in the same `INSERT` as the entry (one transaction): 1 / 0 | `None` (an entry `bd_cache.py` journaled) |
-| `last_error_code` | with every `last_error` it writes (`record_attempt`, `escalate`, `apply_with_readback`): the text's `CODE: ` prefix, NULL when it has none | the code of `last_error`'s `CODE: ` prefix. A stored code is used only while `last_error` still starts with `<code>: `, since `bd_cache.py` rewrites `last_error` without it |
-| `note` | `resolve`: `resolved by <actor>: <note>`; `last_error` is left as it was (it no longer gets the note appended) | on a resolved entry, a trailing `" \| resolved by <actor>: <note>"` of `last_error` (what `bd_cache.py`'s resolve appends) is split out into `note`, and the rest is `last_error` (`None` when empty) |
+| `changed` | `insert_entry`, in the same `INSERT` as the entry (one transaction): 1 / 0 | `None` (an entry the baseline Python implementation journaled) |
+| `last_error_code` | with every `last_error` it writes (`record_attempt`, `escalate`, `apply_with_readback`): the text's `CODE: ` prefix, NULL when it has none | the code of `last_error`'s `CODE: ` prefix. A stored code is used only while `last_error` still starts with `<code>: `, since the baseline Python implementation rewrites `last_error` without it |
+| `note` | `resolve`: `resolved by <actor>: <note>`; `last_error` is left as it was (it no longer gets the note appended) | on a resolved entry, a trailing `" \| resolved by <actor>: <note>"` of `last_error` (what the baseline Python implementation's resolve appends) is split out into `note`, and the rest is `last_error` (`None` when empty) |
 
-The split is on read only: the stored text `bd_cache.py` wrote is never
+The split is on read only: the stored text the baseline Python implementation wrote is never
 rewritten. The 0.1 Python `entry` dict renders `last_error` as before, the
 error then `" | "` and the note (`JournalEntry::legacy_last_error`), so its
-text is unchanged; `bd_cache.py` reading an entry this store resolved sees
+text is unchanged; the baseline Python implementation reading an entry this store resolved sees
 `last_error` without the note.
 
-Consequences: `bd_cache.py`'s column-named `INSERT` leaves `changed` NULL
+Consequences: the baseline Python implementation's column-named `INSERT` leaves `changed` NULL
 and its `_mark` leaves `last_error_code` stale, which the read rules cover;
 `tests/compat.rs` (`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`)
 runs both directions.
 
+*Amended by ADR-STORE-0006:* `tests/compat.rs` is removed with the vendored implementation
+(sprint b-9); the read rules above stay, pinned by the store's own tests and the format golden,
+and the cross-implementation run is the consumer's test against the published wheel.
+
 ## ADR-STORE-0002: Sharing the file with the baseline Python implementation
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24); amended by ADR-STORE-0006 (cross-implementation evidence moves to the consumer's own test against the published wheel; the in-repo evidence is the format golden)
 
 Context: the baseline Python implementation writes the same file and knows nothing of the
 extensions. Its `INSERT OR REPLACE INTO beads(...)` resets the extension
@@ -201,7 +205,7 @@ Baseline Python implementation journal args that a-1's `Op::parse` refuses (for 
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -569,22 +573,44 @@ Decision:
 Consequences: no feature reaches a non-test build; adding a dependency or feature to
 `crates/bd-cache-store/Cargo.toml` amends this ADR and the Crate Layout row.
 
-## ADR-STORE-0006: The phase-B extensions for the tick, ingest and marking
+## ADR-STORE-0006: The phase-B extensions for the sync rows, ingest and marking
 
-**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-7)
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7. Amends ADR-STORE-0001 (the
+extension list) and ADR-STORE-0002 (where cross-implementation evidence lives).
 
-Context: the tick on the sc-cron table, the consumer's Python sync and the post-sync hook
-(ADR-BDC-0011, REQ-BDC-0720..0729) need per-scope state, failure state and a tick lease in the cache
-file. ADR-STORE-0001 freezes the file as v3 plus
-additive extensions.
+Context: the sync on sc-cron rows, the consumer's Python sync and the post-sync hook
+(ADR-BDC-0011, REQ-BDC-0720..0732) need per-scope state, scope filters, failure state, a lease
+and the schedule rows in the cache file. ADR-STORE-0001 freezes the file as v3 plus additive
+extensions; lead ruling S84 forbids vendoring any consumer code, so the compat tests that ran
+the baseline Python implementation against this store leave the repository.
 
 Decision: add, through the existing mechanism (`PRAGMA table_info` / `CREATE TABLE IF NOT
-EXISTS` under `BEGIN IMMEDIATE`, `user_version` 3), exactly the extensions listed in
-`docs/plans/phase-b/phase-b-boundary.md` §Store extensions: the columns `scope.revision`,
-`sync_state.failing_since`, `sync_state.notified_since` and `journal.first_offered_at`; the
-table `tick_lease`; and the sc-cron schedule tables, created on the first
-`schedule set`. Existing names stay (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`); the
-API names them neutrally.
+EXISTS` under `BEGIN IMMEDIATE`), exactly these extensions, all nullable or new tables;
+`user_version` stays 3 and no v3 table, column or index changes:
 
-Consequences: a v3 reader that does not know an extension still reads and writes the file. The
-format golden pins the v3 DDL plus these extensions. Further extensions need a later ADR.
+| Kind | Name | Default and meaning |
+|---|---|---|
+| column | `scope.revision` TEXT | NULL; opaque, stored per scope by `ingest_scope` |
+| column | `scope.filter` TEXT | NULL = the phase-a label scope; otherwise the scope's filter as JSON (ADR-BDC-0013) |
+| column | `sync_state.failing_since` TEXT | NULL = not failing |
+| column | `sync_state.notified_since` TEXT | NULL |
+| column | `journal.first_offered_at` TEXT | NULL = never offered to a hook (`attempts` already exists) |
+| table | `tick_lease` (`id` INTEGER PRIMARY KEY CHECK (`id` = 1), `run_id` TEXT, `pid` INTEGER, `host` TEXT, `expires_at` TEXT) | the one sync lease (REQ-BDC-0722) |
+| table | `hook_state` (`id` INTEGER PRIMARY KEY CHECK (`id` = 1), `consecutive_failures` INTEGER NOT NULL DEFAULT 0, `first_failure_at` TEXT, `last_error` TEXT, `next_attempt_at` TEXT) | the built-in row's hook backoff (REQ-BDC-0727) |
+| table | `sc_cron_schedule`, with sc-cron's version-2 columns and checks | the schedule rows, served by `CacheScheduleStore` (ADR-BDC-0014) |
+| `meta` row | `sc_cron_schedule_version` = `2` | the version of sc-cron's columns in this file, checked by `CacheScheduleStore`; never `user_version` |
+
+Existing names stay (`phase`, `announced_at`, `scope.kind DEFAULT 'phase'`); the API names them
+neutrally. The format golden (`crates/bd-cache-store/tests/format_golden.rs` with its DDL
+fixture, owned by sprint b-7) pins the exact v3 DDL plus every row above, and is the in-repo
+evidence of ADR-STORE-0001 and ADR-STORE-0002 once the vendored compat tests go (sprint b-9).
+Cross-implementation compatibility is the consumer's own test, run against a CI-built wheel
+before the 0.2.0 release (S84).
+
+Rejected: the r3 per-scope `scope.method`, the `journal.ingest_tick_id` and
+`scope.last_ingest_tick_id` stamps and the `registration` table (superseded by the two-row
+switch, Amendment A7); sc-cron's own file beside the cache file (two files to keep in step, and
+the schedule would not move with the cache).
+
+Consequences: a v3 reader that does not know an extension still reads and writes the file.
+Further extensions need a later ADR.

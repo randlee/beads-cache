@@ -9,7 +9,7 @@ Test files are under `crates/bd-cache-sync/tests/`. The ported cases of
 
 ## REQ-SYNC-0001: The tick is a library entry point
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008
 
 `tick(&mut Cache, &TickConfig, &dyn EscalationSender, Deadline)`
 runs one tick that must finish by the deadline `T`, on the cache's own clock, and returns a `TickReply`:
@@ -19,6 +19,8 @@ external scheduler (the first consumer's cron module through the later
 `bdc tick`) can call it. Only one ticker may run per cache file. The `[tick]` keys come from
 `RepoConfig.tick` (`load_repo_config`, bd-cache-store).
 
+*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the built-in run is a library function that takes the cache, the row's `TickBudget` and a held `TickLease`, and returns a reply recording each step (lease, drain, each scope's result, hook) with no `refused` or `pass-through`; there is no sender and no `[tick]` key. `cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()` call it (REQ-BDC-0720).*
+
 **Refines:** REQ-BDC-0701, 0703
 **Acceptance evidence:** `test_missing_team_is_refused`,
 `test_tick_syncs_only_phases_with_an_open_root` (`tests/tick_phases.rs`);
@@ -26,7 +28,7 @@ the doctests of `tick` and `schedule_spec`.
 
 ## REQ-SYNC-0002: Phases come from phase files and the configured list
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0721 (scopes are configured bd filters; no phase files are read) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 A phase is a phase file, named for its phase, in `[tick] phases_dir` (default:
 the first consumer's own directory, relative to the working directory;
@@ -67,7 +69,7 @@ files, all configured, all read),
 
 ## REQ-SYNC-0003: One schedule per repository, with its message-routing settings
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0720 (the built-in sync row; no message-routing settings) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 `schedule_spec` builds the repository's one schedule (`bd-cache:<cache file>`,
 every 30 s, 25 s budget). The consumer's two message-routing settings in `[tick]`
@@ -87,12 +89,14 @@ Evidence: `a_missing_phases_directory_has_one_code_for_the_schedule_and_the_tick
 
 ## REQ-SYNC-0004: The tick budget
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by REQ-BDC-0703's phase-B amendment
 
 A tick drains with `DrainBudget { start_gate: T - 5 s, hard: T - 2 s }`, then
 syncs each active phase with deadline `T`. A phase whose sync has not started
 by `T - 2 s` is deferred, which is not a refusal. With every `bd` call timing
 out, no tick takes longer than 25 s.
+
+*Amended (Rand, 2026-10-26): the budget is the built-in row's `TickBudget`; the drain and the scope syncs get the sync deadline and the hook keeps `hook_reserve_ms` (ADR-SYNC-0008, `Budget`).*
 
 **Refines:** REQ-BDC-0703, NFR-BDC-0004 (constraint)
 **Acceptance evidence:** `test_tick_budget_defers_drain_entries`,
@@ -131,7 +135,7 @@ Evidence: `a_tick_that_panics_in_the_backend_is_not_reused_and_the_next_run_reco
 
 ## REQ-SYNC-0006: Announcements are sent through the sender port and retried until delivered
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0727 (the cache sends nothing; the post-sync hook gets the results and marks what it handled) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 Every message goes through `EscalationSender`. A sync failure whose cause
 differs from the phase's `sync_alert` is sent to the phase's recipient (the
@@ -153,7 +157,7 @@ the no-scope escalation case (an entry with no scope goes to the fallback recipi
 
 ## REQ-SYNC-0007: An outage is announced once per scope through the sync alert
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0727 and REQ-BDC-0728 (an outage is recorded per scope and given to the hook) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 While the cache records an outage, each active scope whose alert does not
 read `backend_unavailable` has its recipient told once (one message per distinct
@@ -176,7 +180,7 @@ the no-recipient outage case (a scope without a recipient uses the fallback reci
 
 ## REQ-SYNC-0008: The stop rule never stops on uncertainty
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-CRON-0005 (no consumer stop rule; sc-cron's stop hook and `enabled` flag) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 `stop_reason` stops the schedule when no phase is active and no journal entry
 is pending or escalated-and-unannounced. It answers "keep going" when the
@@ -192,7 +196,7 @@ store fails.
 
 ## REQ-SYNC-0009: The consumer's send command is bounded and carries the message on stdin
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0723 (no send command; the hook runs isolated) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 The sender runs the first consumer's send command, addressed to a
 recipient in the configured group, sending as the consumer's cron identity
@@ -214,7 +218,7 @@ the failing-send-command case (a send command that fails is a send error that sa
 
 ## REQ-SYNC-0010: The end-to-end flow runs through the real composition
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008
 
 A write journaled through the core lands in `bd` via the drain a scheduler
 runs, verified by read-back, through `SyncJob`, `Cache`, `SqliteStore`,
@@ -223,6 +227,8 @@ a scratch `bd` workspace on the testbed). A failed read-back marks the entry
 applied and the row stale and holds the bead until a sync. A journaled close or
 reopen of a blocker, inside or outside every scope, changes its depender's
 readiness in the same tick's sync.
+
+*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the scheduler runs the built-in row through the per-row resolver, and the end-to-end flow also covers the Python row run by `cron run --once` (sprint b-8).*
 
 **Refines:** REQ-BDC-0003, 0903, 0904
 **Acceptance evidence:**
@@ -325,7 +331,7 @@ overlap when another holds its directory), `compose_hands_out_one_lock_set`
 
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by REQ-BDC-0727 (no messages; the hook keeps `hook_reserve_ms`) (Rand, 2026-10-26); its code and tests are removed by sprint b-8
 
 Before each message the tick checks its stop flag and the time left before
 `T`; the sender is given that time (`send_within`) and never runs longer. With
@@ -415,7 +421,7 @@ the S45 outage-over clears: `an_outage_over_clear_is_not_started_after_t_and_the
 
 ## REQ-SYNC-0012: Cooperative shutdown
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by REQ-BDC-0730
 
 A `StopFlag` ends a running tick after the drain, before the one
 `bd list --id` of the uncached phase roots, between phases and before every message;
@@ -428,6 +434,8 @@ before it drops the job: set the flag, await `WorkerHandle::shutdown`, then
 cache at the deadline), then drop the job. Evidence:
 `join_idle_waits_for_the_tick_in_flight_up_to_its_deadline`
 (`tests/job_threading.rs`).
+
+*Amended (Rand, 2026-10-26): `cron run` stops on `SIGINT` / `SIGTERM` (Ctrl-C and Ctrl-Break on Windows) through the `StopFlag`, waits up to `--shutdown-timeout-ms` and then kills the runs still going with their process trees (REQ-BDC-0730, ADR-SYNC-0008).*
 
 **Refines:** REQ-BDC-0703
 **Acceptance evidence:** `the_stop_flag_ends_a_tick_between_phases`

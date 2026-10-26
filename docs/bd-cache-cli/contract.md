@@ -21,6 +21,13 @@ This contract replaces the command-structure clause of ADR-BDC-0003 through
 **ADR-BDC-0009** (Approved, S60, in `docs/architecture.md`). The requirement
 amendments it needs are applied in `docs/requirements.md` (Appendix A).
 
+Phase-B extension (Rand, 2026-10-26): the scope filters, the sync rows, the switch, the
+post-sync hook, the new `cache scopes`, `schedule`, `cron` and `sync` verbs and the codes
+`INGEST_INVALID`, `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` are decided by
+ADR-BDC-0011..0015 and REQ-BDC-0720..0732 (`docs/architecture.md`, `docs/requirements.md`).
+Sprint b-9 writes them into §2, §4, §6, §10, §11 and §12 of this contract from that register, with
+no change of meaning; until then the register governs where this text is silent or older.
+
 ## 1. Shape
 
 | Surface | Commands | Vocabulary |
@@ -556,9 +563,9 @@ Lead rulings on the core work (bc-lead, 2026-10-25, recorded with sprint b-1):
   concurrent drain.
 - **S65.** `Entry.note` is `resolved by <actor>: <note>`: the journal keeps
   the resolver in the note, and the 0.1 `last_error` is the error, `" | "`,
-  then the note, as `bd_cache.py` writes it.
+  then the note, as the baseline Python implementation writes it.
 - **S68.** `WriteOutcome.changed` is `Option<bool>`: `Some(stored)` when the
-  entry stores it; for an entry stored without it (by `bd_cache.py`, or
+  entry stores it; for an entry stored without it (by the baseline Python implementation, or
   before the column existed), `Some(predicted)` only while the entry is
   pending; `None` (unknown) in any other state. It is never guessed.
 

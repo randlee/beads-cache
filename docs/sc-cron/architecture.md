@@ -372,7 +372,7 @@ cancelled; that limit is documented rather than worked around.
 
 ## ADR-CRON-0006: Implemented contract and store
 
-**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)
+**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1); amended by ADR-BDC-0014 (`SqliteScheduleStore` is the standalone default; a caller may supply its own `ScheduleStore`) and ADR-CRON-0009 (`set_enabled_many`)
 
 Context: the contract sketch's `create(spec, created_at)` and `Schedule`
 fields left nowhere to keep the jitter or first run, to read a run's outcome
@@ -423,7 +423,7 @@ fail the whole call.
 
 ## ADR-CRON-0007: Stop decision is continue, disable or delete
 
-**Status:** Approved (Rand's rulings, 2026-10-25)
+**Status:** Approved (Rand's rulings, 2026-10-25); amended by ADR-CRON-0009 (the `Stop` alias is removed)
 
 Context: the stop check could only end a schedule (`Stop(reason)`), and a
 schedule could only be ended or left running. A consumer wants a check that
@@ -461,7 +461,7 @@ enabled. A job that wants a time limit still checks it in the payload
 
 ## ADR-CRON-0008: Python hooks run as supervised child processes
 
-**Status:** Approved (Rand's rulings, 2026-10-25)
+**Status:** Approved (Rand's rulings, 2026-10-25); amended by ADR-CRON-0009 (the target is resolved per row; the supervisor is exported with an environment policy; `-I` does not clear the environment)
 
 Context: sc-cron must stay general (ANC-005, REQ-CRON-0011), yet a schedule
 should be able to run a Python module instead of a Rust `Job`, and b-7 needs
@@ -524,25 +524,53 @@ tests `tests/expr.rs`, `tests/sqlite_store.rs` and `tests/worker.rs` use crate-l
 
 ## ADR-CRON-0009: The hook target is chosen per schedule row
 
-**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8).
-Amends ADR-CRON-0007 (the `Stop` alias is removed) and ADR-CRON-0008 (the target is held per
-row, not per worker).
+**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-7 (the store method) and b-8
+(the rest). Amends ADR-CRON-0006 (a store method), ADR-CRON-0007 (the `Stop` alias is removed)
+and ADR-CRON-0008 (the target is resolved per row; the supervisor is exported).
 
 Context: a review of sc-cron's phase-B changes for generality found the scheduler core general,
 but one hook target held per worker, so one table could not mix a Rust job and a Python module;
-caller requirement ids and caller purpose in its docs and rustdoc; and a `Stop` alias kept for
-one caller. Rand ruled (2026-10-26) that sc-cron stays a general-purpose cron assembly, that a
-target is Rust or Python, and that maturin / PyO3 bindings for sc-cron come when it moves to
-sc-runtime.
+no way to flip several rows' `enabled` flags together, so a caller keeping "at most one of these
+enabled" had to do it in steps; a child-process supervisor that a caller running its own child
+would have to copy; caller requirement ids and caller purpose in its docs and rustdoc; and a
+`Stop` alias kept for one caller. Rand ruled (2026-10-26) that sc-cron stays a general-purpose
+cron assembly, that a target is Rust or Python, that general features (such as a multi-row
+enable, or exporting the supervisor) are welcome and caller names, paths, types or protocols are
+not, and that maturin / PyO3 bindings for sc-cron come when it moves to sc-runtime.
 
 Decision:
-- A worker takes a resolver from a schedule row to its `HookTarget` (`Rust(Arc<dyn Job>)` or
-  `Python(PythonHook)`), so one table can hold rows of both kinds.
-- `StopDecision::Stop` is removed; `Delete` replaces it.
+- **Resolver.** `pub type TargetResolver = Arc<dyn Fn(&Schedule) -> Result<HookTarget, CronError>
+  + Send + Sync>`, an object-safe, synchronous, open extension point: any caller closure maps a
+  row to `HookTarget::Rust(Arc<dyn Job>)` or `HookTarget::Python(PythonHook)`.
+  `Scheduler::spawn_worker_with(resolver)` spawns a worker that calls it once per launch, before
+  the stop check, so a resolver may re-check anything per run. An `Err` is recorded as
+  `RunOutcome::Failed(message)` with the schedule left active and enabled, and logged
+  (`resolve_failed`). `spawn_worker_for(target)` and `spawn_worker(job)` stay, as resolvers that
+  return one target for every row; they are not deprecated.
+- **Several rows at once.** `ScheduleStore::set_enabled_many(&[(ScheduleName, bool)]) ->
+  Result<bool, CronError>` sets every named active row's flag in one transaction and changes
+  nothing (`Ok(false)`) if any name has no active row; `Scheduler::set_enabled_many` (and its
+  async form) wraps it. `SqliteScheduleStore` implements it in one `BEGIN IMMEDIATE`; a caller's
+  store implements it the same way (ADR-BDC-0014).
+- **Exported supervisor.** `sc_cron::process` is public: `ChildSpec { program, args, cwd, input,
+  env }`, `ChildEnv` (`Inherit`, the default, or `Only { keep, set }`: the environment cleared
+  except the named variables, plus the given ones), `TempCwd` (a fresh private directory, removed
+  on drop), and `supervise(&ChildSpec, cap, expiry) -> io::Result<Captured>` with the process-group
+  / job-object kill at expiry and on drop and the per-pipe cap it has today. `PythonHook` gains
+  `with_env(ChildEnv)`, and `HookOutput` gains `stop_decision()` and `run_outcome()`, which apply
+  the protocol's rules to an output, so a caller that runs a `PythonHook` inside its own `Job`
+  keeps sc-cron's protocol without copying it. Nothing here names a caller.
+- **`StopDecision::Stop` is removed;** `Delete` replaces it. The worker's and the hook runner's
+  matches on `StopDecision` lose the `Stop` arm; `StopDecision` stays `#[non_exhaustive]`, so a
+  caller's match keeps its wildcard arm. sc-cron is an unpublished prototype, so the removal
+  needs no deprecation period.
 - sc-cron's docs and rustdoc cite only sc-cron requirements, and its test fixtures use neutral
-  names. A child inherits the caller's environment; `-I` only makes Python ignore the
-  `PYTHON*` variables, the user site and the working directory on `sys.path`.
+  names. A child inherits the caller's environment unless the caller sets `ChildEnv::Only`; `-I`
+  only makes Python ignore the `PYTHON*` variables, the user site and the working directory on
+  `sys.path`.
 - No caller-specific protocol, option or name is added.
 
-Consequences: a caller that needs its own protocol or environment policy for a child process
-runs that process itself (beads-cache does, for its post-sync hook).
+Consequences: a caller with its own protocol for a child process runs it through
+`sc_cron::process` and adds no supervision code or dependency of its own (beads-cache does, for
+its post-sync hook, ADR-SYNC-0008); a caller that needs more around a Python row (a lease, a
+trust check) wraps it in its own `Job` and the resolver.

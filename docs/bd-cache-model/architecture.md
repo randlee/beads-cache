@@ -214,7 +214,7 @@ Decision:
 - The 0.1 wire is unchanged: `GetReply.scope` is `#[serde(skip)]`, and
   `JournalEntry` serializes the same fourteen keys, with `last_error` as
   `legacy_last_error()` (the error, `" | "`, the note), byte-identical to
-  what `bd_cache.py` stores. `WriteOutcome` is not serialized: `bd-cache-api`
+  what the baseline Python implementation stores. `WriteOutcome` is not serialized: `bd-cache-api`
   has its own data model.
 
 Consequences: the 0.1 Python dicts keep their key sets

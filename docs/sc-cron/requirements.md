@@ -82,7 +82,7 @@ from its next future occurrence.
 ## REQ-CRON-0005: Stop check and per-run timeout
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2); amended by b-6 (the
-three-way answer, ADR-CRON-0007)
+three-way answer, ADR-CRON-0007); amended by ADR-CRON-0009 (the `Stop` alias is removed)
 
 Before every run the worker asks the stop check: `Job::should_stop`, or for a
 Python target the `cron.stop` hook (REQ-CRON-0013). It answers
@@ -104,6 +104,8 @@ the deadline on the monotonic timeline, so a wall-clock jump never times a
 run out early. Cancellation is cooperative, at the run's next `.await`; the
 hard timeout guarantee needs a multi-thread runtime and a job that never
 blocks a runtime thread (documented on `Job`).
+
+*Amended by ADR-CRON-0009 (Rand, 2026-10-26): `StopDecision::Stop` is removed in sprint b-8; `Delete(reason)` is the only way to end a schedule from its stop check.*
 
 **Refines:** ADR-BDC-0006 (stop check before every run), ADR-CRON-0007;
 constrained by REQ-BDC-0703, NFR-BDC-0004
@@ -151,7 +153,7 @@ that does not parse is a `Corrupt` store error, never silently replaced.
 ## REQ-CRON-0009: SQLite store
 
 **Status:** Approved (lead ruling 2026-10-24, a-3 QA-2); amended by b-6
-(`SCHEMA_VERSION` 2, the `enabled` column)
+(`SCHEMA_VERSION` 2, the `enabled` column); amended by ADR-BDC-0014 (the store is a seam)
 
 `SqliteScheduleStore` implements `ScheduleStore` over bundled SQLite, in one
 `sc_cron_schedule` table on its own database file and its own connection.
@@ -163,6 +165,8 @@ every schedule enabled (REQ-CRON-0014); a file at any other version, or one
 holding other tables, is refused with `StoreErrorKind::SchemaMismatch`. Creating a schedule is one immediate
 transaction. Table CHECKs refuse rows whose end state contradicts itself or
 that exceed the REQ-CRON-0001 limits. Schedules survive reopening the file.
+
+*Amended by ADR-BDC-0014 (Rand, 2026-10-26): `SqliteScheduleStore` is sc-cron's standalone default `ScheduleStore`, unchanged; `Scheduler::new` takes any `ScheduleStore`, and a caller may supply one over its own database (bd-cache keeps its rows in the cache file). Both implement `set_enabled_many` (REQ-CRON-0017).*
 
 **Constrained by:** NFR-BDC-0007
 
@@ -264,14 +268,48 @@ REQ-CRON-0010 (time is injected), REQ-CRON-0011
 
 ## REQ-CRON-0016: A hook target per schedule row
 
-**Status:** Proposed (approved when the phase-B planning PR merges; implemented by sprint b-8)
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8
 
-A worker resolves each schedule row's hook target from the row, so rows in one table can run
-different targets: a Rust `Job`, or a Python module (`<interpreter> -I -m <module>`, as
-REQ-CRON-0013). The target stays Rust or Python (Rand, 2026-10-26); maturin / PyO3 bindings for
-sc-cron itself come when it moves to sc-runtime, not in this phase.
+`Scheduler::spawn_worker_with(resolver)` takes a `TargetResolver` (ADR-CRON-0009) that maps each
+schedule row to its `HookTarget`, a Rust `Job` or a Python module (`<interpreter> -I -m
+<module>`, as REQ-CRON-0013), so rows in one table run different targets. The worker calls the
+resolver once per launch, before the stop check; an error is recorded `RunOutcome::Failed` and
+leaves the schedule active and enabled. `spawn_worker_for` and `spawn_worker` stay. The target
+stays Rust or Python (Rand, 2026-10-26); maturin / PyO3 bindings for sc-cron itself come when it
+moves to sc-runtime, not in this phase.
 
 **Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0011
+**Acceptance evidence:** one table holding a Rust row and a Python row, each run with its own
+target; an unresolvable row recorded `Failed` and still active.
+
+## REQ-CRON-0017: Several rows' enabled flags in one transaction
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7
+
+`ScheduleStore::set_enabled_many(&[(name, enabled)])` sets the `enabled` flag of every named
+active schedule in one transaction, touching no other column, and changes nothing, returning
+`Ok(false)`, when any name has no active schedule. `Scheduler::set_enabled_many` and
+`set_enabled_many_async` wrap it and notify the worker as `set_enabled` does (REQ-CRON-0014).
+
+**Refines:** ADR-CRON-0009; **constrained by:** REQ-CRON-0008, REQ-CRON-0014
+**Acceptance evidence:** a two-row flip seen whole by a second connection; a flip naming a
+missing row changes neither row.
+
+## REQ-CRON-0018: The child-process supervisor is public
+
+**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8
+
+`sc_cron::process` exports `ChildSpec`, `ChildEnv`, `TempCwd`, `Captured` and `supervise`: a
+caller's child runs in its own process group (Unix) or job object (Windows), killed with
+everything it started at the caller's expiry or when the future is dropped, from a working
+directory the caller names or a fresh private one, with the environment inherited or cleared to
+the named variables, its input written while its output is read, and each pipe kept up to a
+cap. `PythonHook::with_env(ChildEnv)` sets a Python target's environment, and
+`HookOutput::stop_decision()` / `run_outcome()` apply the hook protocol's rules to an output.
+
+**Refines:** ADR-CRON-0008, ADR-CRON-0009; **constrained by:** REQ-CRON-0011, NFR-BDC-0004
+**Acceptance evidence:** a grandchild killed at expiry and on drop through the public API; a
+child that sees only the allowlisted variables under `ChildEnv::Only`.
 
 ## REQ-CRON-0014: Enabled flag
 

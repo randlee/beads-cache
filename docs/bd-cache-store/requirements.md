@@ -90,6 +90,8 @@ Python's `json.dumps(sort_keys=True)` of the row with its edge triples.
 
 *Amended (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; revised by S18): the sprint a-7 extensions `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch` and `journal_applied_unknown` are additive in the same way; the baseline Python implementation never reads them, and none uses a function, so the baseline Python implementation on SQLite older than 3.38 still reads and writes the file. Open drops the earlier `journal_applied_at` expression index and fills `applied_epoch` for applied entries without one.*
 
+*Amended by ADR-STORE-0006 (Rand, 2026-10-26): the phase-B extensions (`scope.revision`, `scope.filter`, `sync_state.failing_since`, `sync_state.notified_since`, `journal.first_offered_at`, the tables `tick_lease`, `hook_state` and `sc_cron_schedule`, and the `meta` row `sc_cron_schedule_version`) are additive in the same way; acceptance evidence: the format golden (`format_golden.rs`).*
+
 **Refines:** REQ-BDC-0107, 0108, 0804; ADR-BDC-0001, 0002, 0004
 **Acceptance evidence:** `v3_tables_are_unchanged_and_extensions_are_additive`
 (`open.rs`), `stored_rows_are_normalized_and_written_for_python`
@@ -158,6 +160,8 @@ edges, journal, sync state, alert and outage read back equal; its `get` and
 afterwards; after its `prune` and a forced rebuild on an
 extended file, the store reads consistent rows and memberships
 (ADR-STORE-0002).
+
+*Amended by ADR-STORE-0006 (Rand, 2026-10-26): the baseline implementation is no longer vendored (S84). From sprint b-9 the cross-implementation run is the consumer's own test against the published wheel; in this repository the format golden (`format_golden.rs`, sprint b-7) pins the file, and the read rules for rows and journal columns another implementation wrote keep their store tests (`rows_another_implementation_wrote_belong_to_their_phase`, `a_python_row_written_while_open_is_read_by_its_phase`). The `compat.rs` tests below are removed in b-9.*
 
 **Refines:** REQ-BDC-0804
 **Acceptance evidence:** `a_python_written_v3_file_opens_and_reads_back_equal`,

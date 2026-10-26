@@ -26,7 +26,7 @@ dev-dependencies too).
 
 ## ADR-BDCLI-0001: Argv mapping and error classification
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (the scope argv for `All` and `Criteria` filters)
 
 Context: the cache calls of `sc_beads::CacheBackend` must map to `bd` command
 lines that match the BD-CACHE baseline (REQ-BDC-0201), and every way a `bd`
@@ -295,7 +295,7 @@ Windows `Command` would deliver the same environment without it (QA10-004),
 
 ## ADR-BDCLI-0005: The extended `PATH`: absolute entries, the user's first
 
-**Status:** Accepted (lead rulings S76 and S77, QA RCR-002)
+**Status:** Approved (lead rulings S76 and S77, bc-lead, 2026-10-25; QA RCR-002; binding)
 
 Context: every `bd` child gets `PATH` = `path::get_extended_path()` and runs
 in the repository root. btit's version put fixed install directories
@@ -362,11 +362,11 @@ Decision:
   deleted. btit's unbounded calls keep the mutex only. A lock file that can
   be neither opened nor locked fails the call as a spawn failure (nothing
   started).
-- **Server mode takes no file lock** (fenix's input on S81, atm-bd owner): when
+- **Server mode takes no file lock** (the first consumer's maintainer's input on S81): when
   the project's `.beads/metadata.json` resolves to `DoltMode::Server` by bd's
   own rule (`dolt_mode: "server"`, or a non-local `dolt_server_host` with no
   mode), many `bd` processes are concurrent by bd's design, and the lock would
-  only make every miss fill wait behind a long sync; atm-bd runs bd that way.
+  only make every miss fill wait behind a long sync; the first consumer runs bd that way.
   A missing or unreadable `metadata.json`, `embedded`, `proxied-server` and any
   other value take the lock. The in-process mutex is unchanged in every mode.
   The protection is partial in embedded mode: agents and bd's git hooks call
@@ -379,7 +379,7 @@ Decision:
   probe are `kill(-pgid, SIGKILL)` and `kill(-pgid, 0)` (`process_group::kill`,
   `process_group::exists`, safe wrappers that refuse the pgids 0 and 1). No
   program is started. Windows keeps the job object and `taskkill /T`.
-  `bd-cache-sync`'s `atm` sender uses the same wrappers, so it stays free of
+  `bd-cache-sync`'s message sender uses the same wrappers, so it stays free of
   `unsafe`.
 - **Shutdown.** `shutdown::request(signal)` (a process-wide atomic; signals are
   process-wide) makes every bounded call stop as on a timeout, with
@@ -391,7 +391,7 @@ Decision:
 - `PATH` (finding 5): the inherited `PATH` is read with `var_os` and
   `split_paths`, so one non-UTF-8 segment no longer drops the rest; the
   child's `PATH` is an `OsString`. `path::absolute_path_entries` is the
-  S76/S77 rule for another crate's own `PATH` search (the `atm` lookup,
+  S76/S77 rule for another crate's own `PATH` search (the message sender's lookup,
   RSH-003).
 
 Consequences: on an embedded-Dolt project a `bd` call waits for another

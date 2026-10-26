@@ -104,7 +104,7 @@ two artifacts contain no `test-support` code. The crate is `publish = false`.
 
 ## REQ-CLI-0006: Every command of both surfaces runs its bd-cache-api operation
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015
 
 Every command of contract §5.2 and §6 turns its argv into the command's JSON
 request, which goes to `bd_cache_api::decode` and then `execute`; `--input
@@ -113,6 +113,8 @@ FILE|-` gives the request whole. `cache tick` runs `bd_cache_sync::tick`, each
 operation the cache does not serve (contract §5.4) is `UNSUPPORTED`
 (`details.unsupported: "operation"`), exit 3. b-2's shared fixtures replay
 through `run()` with the envelopes they expect.
+
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): the phase-B verbs (`cache scopes add|set|remove|list|ingest|announce`, `cache schedule *`, `cache cron run [--once]`, `cache sync use-python|use-builtin`) decode through `bd_cache_api::decode` like every other command; the store-only ones execute in `bd-cache-api`, and `schedule`, `cron`, `tick` and `sync` execute here over `bd-cache-sync` (`src/request.rs`). `cache tick` replies with the built-in run's steps; `ApiError::tick_refusal` and the `refused[]` items are removed (sprint b-8). `cache scopes` is `scopes list`'s alias.*
 
 **Refines:** REQ-BDC-0801, contract §1 rule 6
 **Acceptance evidence:** `tests/fixtures.rs` (b-2's five files via `--input`;
@@ -137,16 +139,18 @@ given; `USAGE` is JSON even then. A caught panic is `BD_CACHE.INTERNAL`.
 
 ## REQ-CLI-0008: Configuration precedence and file locations
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015
 
 flag > `BD_CACHE__*` env > `.beads/bd-cache.toml` > default. `--bd` is never
 read from TOML (a `bd` key there is ignored with a warning); `--format` comes
 from the flag only. `.beads/bd-cache.toml` is read from `<repo>/.beads/`,
 `metadata.json` from `$BEADS_DIR` when set. There is no upward search. The
-legacy `.atm-bd/<db>.bd-cache.sqlite3` with no `cache_path` and no default
+legacy cache file in the first consumer's own directory with no `cache_path` and no default
 file is `CONFIG_INVALID` with `details.key: "cache_path"` and
 `details.legacy_path`. The merged configuration is opened through
 `bd_cache_sync::compose_with_config`.
+
+*Amended by ADR-BDC-0015 (Rand, 2026-10-26): the legacy-file refusal is removed in sprint b-8, with `the_legacy_cache_file_is_config_invalid`; a missing cache file with no `cache_path` is found or created by the store's rules as for any repository.*
 
 **Refines:** REQ-BDC-0810, contract §2
 **Acceptance evidence:** `flag_beats_env_beats_toml_beats_default`,

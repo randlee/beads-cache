@@ -100,7 +100,7 @@ does not serve is exit 2, as a usage error.
 
 ## ADR-CLI-0003: One command table; argv becomes the request the decoder reads
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015 (the phase-B verbs)
 
 Context: contract §1 rule 6 puts validation in `bd-cache-api`'s decoder, so
 every front end returns the same code for the same input; contract §3 keeps
@@ -128,7 +128,7 @@ Consequences: a request member the decoder learns is a flag with one row;
 
 ## ADR-CLI-0004: Configuration is merged here and opened by bd-cache-sync
 
-**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
+**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015 (the legacy-directory refusal is removed)
 
 Context: contract §2 needs `BD_CACHE__*` env overrides and flags over
 `.beads/bd-cache.toml`, never reads `bd` from the file, and refuses the
@@ -164,7 +164,7 @@ are also recorded in the contract (S69 in §5.4, S70 in §2, S71 in §4).
 
 ## ADR-CLI-0005: SIGTERM, SIGINT and SIGHUP stop the bd calls, then bdc exits 128 + signal
 
-**Status:** Approved (phase-end fix RSH-001, bc-lead, 2026-10-25)
+**Status:** Approved (phase-end fix RSH-001, bc-lead, 2026-10-25); extended by ADR-SYNC-0008 and REQ-BDC-0730 for the long-running `cron run` (shutdown timeout, process-wide log, Ctrl-C and Ctrl-Break on Windows)
 
 Context: every bounded `bd` child leads its own process group (PE-RSH-001), so
 a signal sent to bdc, or a terminal's Ctrl-C to its foreground group, never
@@ -184,8 +184,8 @@ Decision:
   timeout, a waiting call starts nothing, and both project locks (the mutex
   and the cross-process file, ADR-BDCLI-0006) are released by the call's
   normal return. It also sets the command's `StopFlag`: `cache tick` runs
-  `tick_with` and an `AtmSender::with_stop` on it, so the tick ends early and
-  an `atm` child is killed with its group.
+  `tick_with` and the consumer's message sender's `with_stop` on it, so the
+  tick ends early and the sender's child is killed with its group.
 - The command then unwinds normally and writes its envelope (whatever it
   reports: a write already journaled is not hidden); the exit code is
   `128 + signal` (143 for SIGTERM), whatever the envelope says, with one line

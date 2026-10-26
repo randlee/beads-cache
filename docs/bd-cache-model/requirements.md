@@ -72,7 +72,7 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 
 ## REQ-MODEL-0005: Repository configuration
 
-**Status:** Approved (lead ruling, 2026-10-23)
+**Status:** Approved (lead ruling, 2026-10-23); amended by ADR-BDC-0013 and ADR-BDC-0012
 
 `RepoConfig` is the `.beads/bd-cache.toml` schema (unknown keys refused; a zero
 `call_timeout_s`, `miss_fill_timeout_ms` or `max_attempts` refused by
@@ -80,6 +80,8 @@ backend errors by `CallKind` per the table in `src/error.rs`.
 `cache_config` derives `CacheConfig` with defaults (30 s call cap, 2 s miss
 fill, 5 attempts); `DrainBudget::before_tick_end` places the start gate 5 s
 and the hard deadline 2 s before a tick end.
+
+*Amended (Rand, 2026-10-26): `RepoConfig` gains `[[scope]]` tables (a name and a filter, validated into `ScopeName` and `ScopeFilter`, ADR-BDC-0013, sprint b-7), and the `scopes` string list keeps its 0.1 meaning through the one compatibility constant (ADR-BDC-0012). The `[tick]` table's message-routing and phase-file keys (the team, the fallback recipient, the phase-file directory and the phase list) are removed with their users in sprint b-8, after which they are unknown keys (`CONFIG_INVALID`), as are `[tick.hooks]` and `[tick.sync]` (REQ-BDC-0724).*
 
 **Refines:** REQ-BDC-0101 (constraint), 0402 (constraint), 0909 (constraint)
 **Acceptance evidence:** `tests/config.rs`.

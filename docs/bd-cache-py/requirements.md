@@ -29,7 +29,7 @@ an invalid config file or scope is `ValueError` with attributes `kind` (`parse`,
 
 ## REQ-PY-0002: The verbs the first consumer uses
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 The handle has exactly these verbs: `get(bead, miss_timeout=None)`,
 `refresh(ids, timeout)`, `write(bead, op, args, precondition, idem_key,
@@ -42,6 +42,8 @@ properties and `close()`. Times are seconds as `float`. `phase` is a phase
 name with or without the `phase-` prefix; `args` and `precondition` are JSON
 text or any object `json.dumps` accepts (`precondition` may be `None`). A verb
 adds no cache rule: it calls the `Cache` method of the same name.
+
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): the 0.1 verbs and their arguments are unchanged; `phase` keeps its 0.1 rule, a bare name getting the legacy prefix, as the compatibility rule of ADR-BDC-0013, and also names any configured scope by its name. The phase-B methods (`ingest_scope`, `scope_announce`, `scopes_*`, `schedule_*`, `sync_use_python`, `sync_use_builtin`, `tick`) are added beside them and take scope names as written; `dir(Cache)` still lists exactly the 0.1 set (REQ-BDC-0812).*
 
 **Refines:** REQ-BDC-0910, REQ-BDC-0907, REQ-BDC-0908, REQ-BDC-0909
 **Acceptance evidence:** `test_verbs.py` (one test per verb, every reply field
@@ -84,7 +86,7 @@ failure is chained as its `__cause__`.
 
 ## REQ-PY-0005: A bad argument is a Python error, not a cache error
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 A value that is not a valid bead id, actor, idempotency key, phase name, `op`
 (not one of `bd_cache_model::OPS`: `close`, `update`, `dep_add`) or timeout
@@ -95,6 +97,8 @@ to open a new `Cache`. None of them touches the store. `list`'s `status` must be
 one of bd's seven statuses (`sc_bd_cli::argv::ALL_STATUSES`: `open`,
 `in_progress`, `blocked`, `deferred`, `closed`, `pinned`, `hooked`); any other
 text is a `ValueError` naming them, so a typo cannot read as "no rows".
+
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): a phase name is valid when it is a valid `ScopeName` (ADR-BDC-0013) after the 0.1 prefix rule; the new methods validate through the `bd-cache-model` and `bd-cache-api` types and raise `CacheError` (`BAD_ARGS`, `INGEST_INVALID`, `SCHEDULE_INVALID`) for a value those types refuse.*
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** `test_arguments_that_are_not_valid_values_raise_value_error`,
@@ -142,25 +146,29 @@ cached, journal-adjusted answer with `read_fallback` set, within `s` seconds.
 
 ## REQ-PY-0008: Announcement state for an external sender
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006
 
 `unannounced_escalations`, `mark_announced`, `sync_alert`, `set_sync_alert` and
 `open_work` let a consumer's own cron announce through its own sender: an escalated
 entry is announced once (marked, not re-sent), an undelivered one stays
 unannounced, and a sync-failure cause is announced once per cause.
 
+*Amended by ADR-PY-0006 (Rand, 2026-10-26): REQ-BDC-0704 and 0705 are superseded, so these 0.1 verbs stay only for 0.1 callers, unchanged; the post-sync hook marks through `journal_announce` and `scope_announce` (REQ-BDC-0727, 0728).*
+
 **Refines:** REQ-BDC-0604, REQ-BDC-0704, REQ-BDC-0705
 **Acceptance evidence:** `test_announce.py`.
 
 ## REQ-PY-0009: The mapping covers every call the first consumer makes
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-PY-0006 (Rand, 2026-10-26) when sprint b-9 deletes the vendored call log and `test_mapping_doc.py`
 
 `architecture.md`, Mapping, lists every name of the baseline Python
 implementation that the first consumer's hooks and its cron module call at
 the baseline at `05831df`, with the binding that
 replaces it or the reason none is needed. Every binding named in the table
 exists on the handle.
+
+*Superseded by ADR-PY-0006 (Rand, 2026-10-26): the mapping from another implementation leaves the binding's docs with the vendored call log (S84, sprint b-9); `docs/bd-cache-py/` documents the binding's own API, and the neutral 0.1 call corpus (`tests/corpus/`, sprint b-9) proves every 0.1 verb and reply shape instead.*
 
 **Refines:** REQ-BDC-0910
 **Acceptance evidence:** `test_mapping_doc.py`.
