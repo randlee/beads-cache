@@ -8,8 +8,8 @@
 )]
 
 use bd_cache_model::{
-    GuardKey, IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, normalize, parse_precondition,
-    precondition_json, replay, unmet,
+    GuardKey, IdemKey, JournalEntry, JournalState, LEGACY_SCOPE_PREFIX, Op, ScopeId, Seq,
+    normalize, parse_precondition, precondition_json, replay, unmet,
 };
 use sc_beads::testing::{bead, edge, id};
 use sc_beads::{Bead, DepType, Guards, MetaValue, Patch};
@@ -40,7 +40,7 @@ fn empty_or_equals_metadata_keys_are_bad_args_for_a_new_write_only() {
         // so a journal from an earlier build drains instead of wedging.
         assert!(Op::parse("update", args).is_ok(), "{args}");
     }
-    for key in ["k", "a.b", "team-lead", "ns:key", "with space"] {
+    for key in ["k", "a.b", "lead-1", "ns:key", "with space"] {
         let args = serde_json::json!({"set_metadata": {key: "x"}}).to_string();
         assert_eq!(code("update", &args), "ok", "{key:?}");
     }
@@ -216,7 +216,7 @@ fn row() -> Bead {
     let mut b = bead("b1");
     b.status = Some("in_progress".into());
     b.assignee = Some("dev".into());
-    b.labels = vec!["phase-x".into(), "r1".into()];
+    b.labels = vec![format!("{LEGACY_SCOPE_PREFIX}x"), "r1".into()];
     b.notes = Some("first".into());
     b.metadata.insert("old".into(), serde_json::json!(1));
     b
@@ -250,10 +250,11 @@ fn update_overlay_applies_fields_in_order_and_achieved_checks_each() {
     );
     let r = row();
     let v = op.overlay(&r);
+    let phase_x = format!("{LEGACY_SCOPE_PREFIX}x");
     assert_eq!(v.status.as_deref(), Some("open"));
     assert_eq!(v.assignee, None, "unassigned, as bd stores it");
     // remove then add: r1 removed, then re-added by add_labels (Python order).
-    assert_eq!(v.labels, ["phase-x", "r2", "r1"]);
+    assert_eq!(v.labels, [phase_x.as_str(), "r2", "r1"]);
     assert_eq!(
         serde_json::Value::Object(v.metadata.clone()),
         serde_json::json!({"n": 5, "ok": true})
@@ -317,7 +318,7 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
     JournalEntry {
         seq: Seq::new(seq),
         idem_key: IdemKey::new(format!("k{seq}")).unwrap(),
-        scope: Some(ScopeId::phase("x").unwrap()),
+        scope: Some(ScopeId::new("x").unwrap()),
         bead: id("b1"),
         op,
         precondition: Guards::default(),
@@ -325,9 +326,13 @@ fn entry(seq: i64, state: JournalState, op: Op) -> JournalEntry {
         state,
         attempts: 0,
         last_error: None,
+        last_error_code: None,
+        note: None,
+        changed: None,
         announced_at: None,
         created_at: sc_beads::Timestamp::parse("2026-10-23T10:00:00Z").unwrap(),
         applied_at: None,
+        first_offered_at: None,
     }
 }
 
@@ -458,4 +463,59 @@ fn patch_args_value_omits_empty_fields() {
         ..Patch::default()
     });
     assert_eq!(op.to_args_json(), r#"{"status": "open"}"#);
+}
+
+/// The resolve-note split and the error-code prefix (ADR-STORE-0001, sprint b-1).
+#[test]
+fn resolve_notes_split_and_error_codes_parse() {
+    use bd_cache_model::{error_code_prefix, resolve_note, split_resolve_note};
+    let lead = sc_beads::testing::actor("lead");
+    let note = resolve_note(&lead, "set by hand");
+    assert_eq!(note, "resolved by lead: set by hand");
+    // the v3 Python writer's text, with and without an earlier error: the round trip.
+    for error in ["BD_CACHE.PRECONDITION: status is open", ""] {
+        let text = format!("{error} | {note}");
+        let (got_error, got_note) = split_resolve_note(&text).unwrap();
+        assert_eq!(got_note, note);
+        assert_eq!(got_error, (!error.is_empty()).then_some(error));
+    }
+    assert_eq!(split_resolve_note("BD_CACHE.X: no"), None, "no note");
+    assert_eq!(
+        split_resolve_note("x | resolved by : n"),
+        None,
+        "a note names its actor"
+    );
+    assert_eq!(
+        split_resolve_note("x | resolved by lead"),
+        None,
+        "and is `<actor>: <note>`"
+    );
+    assert_eq!(
+        error_code_prefix("BD_CACHE.BD_WRITE_FAILED: exit 1"),
+        Some("BD_CACHE.BD_WRITE_FAILED")
+    );
+    assert_eq!(error_code_prefix("bd failed: exit 1"), None, "not a code");
+    assert_eq!(error_code_prefix("BD_CACHE.X"), None, "no detail");
+    assert_eq!(error_code_prefix(": x"), None);
+}
+
+/// `Op::changes`: a close changes a view that is not closed and not a closed one; an
+/// update or `dep_add` changes the view when its overlay does.
+#[test]
+fn changes_is_not_already_closed_or_the_overlay() {
+    let live = row();
+    let close = Op::Close { reason: None };
+    assert!(close.changes(&live));
+    let closed = close.overlay(&live);
+    assert!(!close.changes(&closed));
+    let reasoned = Op::Close {
+        reason: Some("other".into()),
+    };
+    assert!(
+        !reasoned.changes(&closed),
+        "a close of a closed bead is not a change, whatever its reason"
+    );
+    let label = Op::parse("update", r#"{"add_labels": ["new"]}"#).unwrap();
+    assert!(label.changes(&live));
+    assert!(!label.changes(&label.overlay(&live)));
 }

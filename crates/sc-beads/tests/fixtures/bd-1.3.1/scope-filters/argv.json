@@ -1,0 +1,11 @@
+{
+  "list-all": ["list", "--all", "--status", "open,in_progress,blocked,deferred,closed,pinned,hooked", "-n", "0", "--json"],
+  "list-criteria": ["list", "-l", "area-x,team-y", "--label-any", "team-y,area-z", "-t", "task", "-a", "dev", "--status", "open,in_progress,blocked,deferred,closed,pinned,hooked", "-n", "0", "--json"],
+  "list-label-any": ["list", "--label-any", "team-y,area-z", "--status", "open,in_progress,blocked,deferred,closed,pinned,hooked", "-n", "0", "--json"],
+  "list-label": ["list", "-l", "area-x", "--status", "open,in_progress,blocked,deferred,closed,pinned,hooked", "-n", "0", "--json"],
+  "blocked-all": ["blocked", "--json"],
+  "blocked-criteria": ["blocked", "-l", "area-x", "--label-any", "area-x,team-y", "--json"],
+  "ready-all": ["ready", "-n", "0", "--json"],
+  "ready-criteria": ["ready", "-l", "area-x", "--label-any", "area-x,team-y", "-t", "task", "-a", "dev", "-n", "0", "--json"],
+  "ready-label-any": ["ready", "--label-any", "area-x,team-y", "-n", "0", "--json"]
+}

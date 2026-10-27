@@ -12,8 +12,8 @@ use crate::error::{Step, failed};
 ///
 /// The lock file sits next to the cache file and is named as BD-CACHE v3
 /// names it: the cache file's last extension replaced by `drain.lock`
-/// (`atm-dev.bd-cache.sqlite3` → `atm-dev.bd-cache.drain.lock`), so the Rust
-/// drain and `bd_cache.py`'s drain exclude each other. Every
+/// (`dev.bd-cache.sqlite3` → `dev.bd-cache.drain.lock`), so the Rust
+/// drain and the v3 Python writer's drain exclude each other. Every
 /// [`try_acquire`](DrainLock::try_acquire) opens its own file handle, so two
 /// handles on one path contend even inside one process, and the lock is not
 /// reentrant. The guard holds the open file; dropping it closes the file,
@@ -33,9 +33,9 @@ impl FlockDrainLock {
     ///
     /// ```
     /// use bd_cache_store::FlockDrainLock;
-    /// let cache = std::path::Path::new("repo").join(".bd-cache").join("atm-dev.bd-cache.sqlite3");
+    /// let cache = std::path::Path::new("repo").join(".bd-cache").join("dev.bd-cache.sqlite3");
     /// let lock = FlockDrainLock::for_cache_file(&cache);
-    /// assert!(lock.path().ends_with("atm-dev.bd-cache.drain.lock"));
+    /// assert!(lock.path().ends_with("dev.bd-cache.drain.lock"));
     /// ```
     #[must_use]
     pub fn for_cache_file(cache_file: &Path) -> Self {

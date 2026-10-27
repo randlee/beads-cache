@@ -16,6 +16,8 @@ use crate::CronExpr;
 pub(crate) const MAX_JITTER: Duration = Duration::from_mins(30);
 
 /// Source of the random offset drawn when a schedule starts.
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 pub trait JitterSource: Send + Sync {
     /// Returns an offset in `[0, max)`, or zero when `max` is zero.
     ///
@@ -126,7 +128,7 @@ mod seq {
 /// The jitter bound for `expr` as of `now`: half the gap between its next
 /// two occurrences, capped at [`MAX_JITTER`]; zero with fewer than two.
 pub(crate) fn bound(expr: &CronExpr, now: DateTime<Utc>) -> Duration {
-    let mut occurrences = expr.schedule().after(&now);
+    let mut occurrences = expr.occurrences_after(&now);
     match (occurrences.next(), occurrences.next()) {
         (Some(first), Some(second)) => ((second - first) / 2)
             .to_std()

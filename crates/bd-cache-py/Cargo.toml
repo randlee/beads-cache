@@ -15,13 +15,17 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 bd-cache.workspace = true
+bd-cache-api.workspace = true
 bd-cache-model.workspace = true
 bd-cache-store.workspace = true
+# Cache.tick(), schedule_* and sync_use_* run over bd-cache-sync (ADR-PY-0006).
+bd-cache-sync.workspace = true
 sc-bd-cli.workspace = true
 sc-beads.workspace = true
-dunce.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+# The current-thread runtime a tick builds on its helper thread (ADR-PY-0006).
+tokio.workspace = true
 pyo3 = { workspace = true, features = ["abi3-py39"] }
 
 [dev-dependencies]

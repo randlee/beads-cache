@@ -5,9 +5,10 @@
 //! 3.12, so the class is a plain exception and the typed fields are
 //! attributes set on each raised instance.
 
+use bd_cache_api::ApiError;
 use bd_cache_model::{CacheError as ModelError, ENVELOPE_KEYS, UNREACHABLE_CODES};
 use pyo3::create_exception;
-use pyo3::exceptions::{PyException, PyRuntimeError};
+use pyo3::exceptions::{PyBaseException, PyException, PyRuntimeError};
 use pyo3::prelude::*;
 use serde_json::Value;
 
@@ -22,7 +23,11 @@ create_exception!(
      `reason` (the `/v0` refusal reason of a `PRECONDITION`, else `None`), \
      `payload` (the code's extra fields: `unmet`, `seq`, `known`, `bead`, `field`, \
      `phase`, `cause`, `source`), `body` (the whole BD-CACHE JSON reply as a dict) \
-     and `exit_code` (always 3)."
+     and `exit_code` (always 3).\n\n\
+     Since 0.2 every instance also carries the contract's error fields: `kind` \
+     (`invalid_input`, `not_found`, `unavailable`, `conflict` or `internal`), \
+     `message`, `details` (a dict), `suggested_action` (`str` or `None`) and \
+     `retryable` (`bool`, from the contract's error table)."
 );
 
 create_exception!(
@@ -58,7 +63,50 @@ fn decorate(py: Python<'_>, err: &PyErr, e: &ModelError) -> PyResult<()> {
     value.setattr("payload", to_py(py, &Value::Object(payload))?)?;
     value.setattr("body", to_py(py, &body)?)?;
     value.setattr("exit_code", e.exit_code())?;
+    set_contract_fields(py, value, &ApiError::from(e))
+}
+
+/// Sets `kind`, `message`, `details`, `suggested_action` and `retryable` (0.2).
+fn set_contract_fields(
+    py: Python<'_>,
+    value: &Bound<'_, PyBaseException>,
+    e: &ApiError,
+) -> PyResult<()> {
+    value.setattr("kind", e.kind().as_str())?;
+    value.setattr("message", e.message())?;
+    value.setattr("details", to_py(py, &Value::Object(e.details().clone()))?)?;
+    value.setattr("suggested_action", e.suggested_action())?;
+    value.setattr("retryable", e.retryable())?;
     Ok(())
+}
+
+/// Builds the raised exception for an error of `bd-cache-api` (the 0.2 namespaces).
+///
+/// A [`CacheError`] with the contract's fields and, so a caller can handle both
+/// generations alike, the 0.1 ones: `detail` is the message, `fix` the suggested
+/// action (`""` when there is none), `reason` is `None`, `payload` is empty, `body` is
+/// the error object and `exit_code` the table's exit.
+pub(crate) fn api_err(py: Python<'_>, e: &ApiError) -> PyErr {
+    let err = CacheError::new_err(format!("{}: {}", e.code(), e.message()));
+    if let Err(cause) = decorate_api(py, &err, e) {
+        err.set_cause(py, Some(cause));
+    }
+    err
+}
+
+fn decorate_api(py: Python<'_>, err: &PyErr, e: &ApiError) -> PyResult<()> {
+    let value = err.value(py);
+    value.setattr("code", e.code())?;
+    value.setattr("detail", e.message())?;
+    value.setattr("fix", e.suggested_action().unwrap_or_default())?;
+    value.setattr("reason", py.None())?;
+    value.setattr(
+        "payload",
+        to_py(py, &Value::Object(serde_json::Map::new()))?,
+    )?;
+    value.setattr("body", to_py(py, &e.to_json())?)?;
+    value.setattr("exit_code", e.exit_code().unwrap_or(3))?;
+    set_contract_fields(py, value, e)
 }
 
 /// The extra fields of an error object: everything but the fixed keys.
@@ -85,6 +133,18 @@ pub(crate) fn register(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("CacheError", py.get_type::<CacheError>())?;
     m.add("ClosedError", py.get_type::<ClosedError>())?;
     Ok(())
+}
+
+/// Every code of the contract's error table as a Python `frozenset`
+/// (`bd_cache_rs.CODES`): the phase-B codes `INGEST_INVALID`,
+/// `SCHEDULE_INVALID`, `TICK_RUN_FAILED` and `TICK_IN_FLIGHT` included
+/// (REQ-BDC-0729).
+pub(crate) fn codes(py: Python<'_>) -> PyResult<Bound<'_, pyo3::types::PyFrozenSet>> {
+    let all: Vec<String> = bd_cache_api::ERROR_TABLE
+        .iter()
+        .map(|s| format!("{}{}", bd_cache_api::CODE_PREFIX, s.code))
+        .collect();
+    pyo3::types::PyFrozenSet::new(py, &all)
 }
 
 /// The model's [`UNREACHABLE_CODES`] as a Python `frozenset`.

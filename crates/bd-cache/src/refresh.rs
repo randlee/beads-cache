@@ -61,21 +61,21 @@ pub(crate) fn refresh<S: CacheStore, L: DrainLock, B: CacheBackend>(
         if out.iter().any(|v| v.bead.id == *id) || !rows.iter().any(|r| r.id == *id) {
             continue;
         }
-        let (view, freshness) =
-            crate::view::current_view(cache, id)?.ok_or_else(|| CacheError::NotFound {
+        let (row, view, freshness) =
+            crate::view::current_row(cache, id)?.ok_or_else(|| CacheError::NotFound {
                 detail: format!("bead {id} was stored by refresh but the store does not return it"),
             })?;
         let adj = match scope_for(cache, &view)? {
             Some(s) => {
-                if !bases.contains_key(&s) {
+                if !bases.contains_key(&s.id) {
                     let a = adjusted(cache, &s)?;
-                    bases.insert(s.clone(), a);
+                    bases.insert(s.id.clone(), a);
                 }
-                bases.get(&s).and_then(Option::as_ref)
+                bases.get(&s.id).and_then(Option::as_ref)
             }
             None => None,
         };
-        out.push(row_view(view, freshness, adj));
+        out.push(row_view(Some(&row), view, freshness, adj));
     }
     Ok(out)
 }

@@ -7,8 +7,8 @@ use std::time::Duration;
 use super::{lock, ManualClock};
 use crate::backend::BeadsBackend;
 use crate::cache::{
-    Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep, Edge,
-    Fingerprint, Guards, MetaValue, Patch, Refusal, ScopeFilter, SyncCursor,
+    is_bd_ready, Actor, Assignee, BeadId, BeadsCacheError, BlockedRow, CacheBackend, CheckStep,
+    Edge, Fingerprint, Guards, MetaValue, Patch, Refusal, ScopeFilter, SyncCursor,
 };
 use crate::clock::{rfc3339_to_unix, Clock, Deadline};
 use crate::error::BeadsError;
@@ -66,22 +66,22 @@ pub enum FakeCall {
     Fingerprint,
     /// `bd list --id <ids> --status <all seven>`.
     ListByIds(Vec<BeadId>),
-    /// `bd list -l <label> [--updated-after <since>]`.
+    /// `bd list <filter> [--updated-after <since>]`.
     ListScope {
-        /// The label.
-        label: String,
+        /// The filter.
+        filter: ScopeFilter,
         /// The cursor, when given.
         since: Option<String>,
     },
-    /// `bd blocked -l <label>`.
+    /// `bd blocked <filter>`.
     ListBlocked {
-        /// The label.
-        label: String,
+        /// The filter.
+        filter: ScopeFilter,
     },
-    /// `bd ready -l <label> -n 0`.
+    /// `bd ready <filter> -n 0`.
     ListReady {
-        /// The label.
-        label: String,
+        /// The filter.
+        filter: ScopeFilter,
     },
     /// `bd close`.
     Close {
@@ -194,15 +194,21 @@ struct State {
 /// - `list_by_ids` returns closed beads too, as an implementation passing
 ///   bd's full status list does (bd omits them without it); absent ids are
 ///   missing from the result.
-/// - `list_scope` filters by label and, with a cursor, `updated_at > since`
-///   compared as instants (a value that does not parse is listed).
+/// - `list_scope` filters as bd does for each [`ScopeFilter`] variant
+///   ([`ScopeFilter::selects`]: labels, type, assignee; every bead for
+///   `All`) and, with a cursor, `updated_at > since` compared as instants (a
+///   value that does not parse is listed). An empty `Criteria` is refused
+///   with [`BeadsCacheError::Invalid`] before the call is recorded, as
+///   `sc-bd-cli` refuses it before any bd call (ADR-BDC-0013).
 /// - `list_blocked` computes the blocked set as bd does: a non-closed bead is
 ///   blocked by each non-closed target of a `blocks`, `conditional-blocks` or
 ///   `waits-for` edge, and a child (`parent-child` edge) of a blocked parent
 ///   is blocked by the parent; `related` and the other types do not block.
-///   Blockers outside the label are included; only labelled beads are rows.
-/// - `list_ready` returns labelled beads that are `open`, not blocked and
-///   not deferred into the future (`bd ready -l <label> -n 0`).
+///   Blockers outside the filter are included; only beads the filter's label
+///   criteria select are rows ([`ScopeFilter::selects_blocked`]: `bd blocked`
+///   takes no type or assignee flag).
+/// - `list_ready` returns the beads the filter selects that are `open`, not
+///   blocked and not deferred into the future (`bd ready <filter> -n 0`).
 /// - Writes check the guards (`""` = unassigned) and refuse with
 ///   [`Refusal::Precondition`] (bd exit 13); an unknown bead is
 ///   `Failed(1)`. Close and reopen bump only the bead's own `updated_at`
@@ -231,7 +237,7 @@ struct State {
 /// fake.insert(b);
 /// let p = ProjectRef::local(None);
 /// let d = Deadline::after(&*clock, Duration::from_secs(30));
-/// let scope = ScopeFilter::Label("phase-x".into());
+/// let scope = ScopeFilter::label("phase-x");
 /// assert_eq!(fake.list_scope(&p, &scope, None, d).unwrap().len(), 1);
 ///
 /// fake.inject(FakeOp::ListScope, Injection::Unavailable { timed_out: false });
@@ -635,10 +641,10 @@ impl CacheBackend for FakeBackend {
         since: Option<&SyncCursor>,
         d: Deadline,
     ) -> Result<Vec<Bead>, BeadsCacheError> {
-        let label = f.label().to_owned();
+        f.validate().map_err(BeadsCacheError::Invalid)?;
         self.begin(
             FakeCall::ListScope {
-                label: label.clone(),
+                filter: f.clone(),
                 since: since.map(|c| c.as_str().to_owned()),
             },
             d,
@@ -646,7 +652,7 @@ impl CacheBackend for FakeBackend {
         let s = lock(&self.state);
         Ok(s.rows
             .values()
-            .filter(|r| r.has_label(&label))
+            .filter(|r| f.selects(r))
             .filter(|r| {
                 since.is_none_or(|c| {
                     match (rfc3339_to_unix(&r.updated_at), rfc3339_to_unix(c.as_str())) {
@@ -667,17 +673,12 @@ impl CacheBackend for FakeBackend {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BlockedRow>, BeadsCacheError> {
-        let label = f.label().to_owned();
-        self.begin(
-            FakeCall::ListBlocked {
-                label: label.clone(),
-            },
-            d,
-        )?;
+        f.validate().map_err(BeadsCacheError::Invalid)?;
+        self.begin(FakeCall::ListBlocked { filter: f.clone() }, d)?;
         let s = lock(&self.state);
         Ok(blocked_map(&s.rows)
             .into_iter()
-            .filter(|(id, _)| s.rows.get(id).is_some_and(|r| r.has_label(&label)))
+            .filter(|(id, _)| s.rows.get(id).is_some_and(|r| f.selects_blocked(r)))
             .map(|(id, blocked_by)| BlockedRow { id, blocked_by })
             .collect())
     }
@@ -688,26 +689,14 @@ impl CacheBackend for FakeBackend {
         f: &ScopeFilter,
         d: Deadline,
     ) -> Result<Vec<BeadId>, BeadsCacheError> {
-        let label = f.label().to_owned();
-        self.begin(
-            FakeCall::ListReady {
-                label: label.clone(),
-            },
-            d,
-        )?;
+        f.validate().map_err(BeadsCacheError::Invalid)?;
+        self.begin(FakeCall::ListReady { filter: f.clone() }, d)?;
         let now = self.clock.now_utc().unix();
         let s = lock(&self.state);
         let blocked = blocked_map(&s.rows);
         Ok(s.rows
             .values()
-            .filter(|r| r.has_label(&label) && r.status.as_deref() == Some("open"))
-            .filter(|r| !blocked.contains_key(&r.id))
-            .filter(|r| {
-                r.defer_until
-                    .as_deref()
-                    .and_then(rfc3339_to_unix)
-                    .is_none_or(|t| t <= now)
-            })
+            .filter(|r| f.selects(r) && is_bd_ready(r, blocked.contains_key(&r.id), now))
             .map(|r| r.id.clone())
             .collect())
     }

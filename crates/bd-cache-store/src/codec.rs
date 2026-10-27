@@ -7,8 +7,8 @@
 //! another implementation wrote is read the same way.
 
 use bd_cache_model::{
-    CacheError, IdemKey, JournalEntry, JournalState, Op, ScopeId, Seq, normalize,
-    parse_precondition, python_json,
+    CacheError, FilterParts, IdemKey, JournalEntry, JournalState, Op, Scope, ScopeFilter, ScopeId,
+    Seq, error_code_prefix, normalize, parse_precondition, python_json, split_resolve_note,
 };
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, DepType, Edge, Timestamp};
 use serde_json::Value;
@@ -19,7 +19,7 @@ use crate::error::{Step, corrupt, failed};
 ///
 /// `row_json` is the normalized row (REQ-BDC-0108) with its outgoing edges as
 /// `{issue_id, depends_on_id, type}`, rendered as Python's
-/// `json.dumps(row, sort_keys=True)`, so `bd_cache.py` reads it unchanged.
+/// `json.dumps(row, sort_keys=True)`, so the v3 Python writer reads it unchanged.
 pub(crate) fn encode_row(step: Step<'_>, row: &Bead) -> Result<(Bead, String), CacheError> {
     let stored = normalize(row);
     let value = serde_json::to_value(&stored).map_err(|e| failed(step, e))?;
@@ -31,7 +31,7 @@ pub(crate) fn encode_row(step: Step<'_>, row: &Bead) -> Result<(Bead, String), C
 /// The decoding is the exact inverse of [`encode_row`]: the row model's serde
 /// shape (unknown keys refused, types and ids checked), so every row an
 /// upsert stored reads back. `dependencies` is ignored: the `edges` table is
-/// the authority, and `bd_cache.py` keeps bd's full dependency objects there.
+/// the authority, and the v3 Python writer keeps bd's full dependency objects there.
 pub(crate) fn decode_row(step: Step<'_>, id: &str, row_json: &str) -> Result<Bead, CacheError> {
     let mut value: Value = serde_json::from_str(row_json)
         .map_err(|e| corrupt(step, format_args!("row_json of {id} is not JSON: {e}")))?;
@@ -89,9 +89,54 @@ pub(crate) fn opt_timestamp(
     s.map(|s| timestamp(step, what, s)).transpose()
 }
 
-/// A stored phase name as a scope.
+/// A stored scope name (the v3 `phase` columns, `scope.name`).
 pub(crate) fn scope(step: Step<'_>, name: &str) -> Result<ScopeId, CacheError> {
-    ScopeId::phase(name).map_err(|e| corrupt(step, format_args!("stored phase: {e}")))
+    ScopeId::new(name).map_err(|e| corrupt(step, format_args!("stored scope name: {e}")))
+}
+
+/// The `scope.kind` of every registry row (ADR-STORE-0006: existing names
+/// stay, `kind DEFAULT 'phase'`). A scope's filter is the `scope.filter`
+/// column alone: NULL is a phase-a scope (ADR-BDC-0013), so a v3 reader that
+/// knows only `kind = 'phase'` still reads every row.
+pub(crate) const KIND_PHASE: &str = "phase";
+
+/// A registry row (`scope.name`, `kind`, `filter`) as a [`Scope`]: `filter`
+/// NULL is a phase-a scope, the filter JSON a filter scope; a `kind` other
+/// than `phase` does not decode.
+pub(crate) fn decode_scope(
+    step: Step<'_>,
+    name: &str,
+    kind: &str,
+    filter: Option<&str>,
+) -> Result<Scope, CacheError> {
+    let id = scope(step, name)?;
+    if kind != KIND_PHASE {
+        return Err(corrupt(
+            step,
+            format_args!("scope {name} has unknown kind {kind:?}"),
+        ));
+    }
+    let Some(json) = filter else {
+        return Ok(Scope::legacy(id));
+    };
+    let parts: FilterParts = serde_json::from_str(json).map_err(|e| {
+        corrupt(
+            step,
+            format_args!("scope {name}: filter is not a filter: {e}"),
+        )
+    })?;
+    let filter = ScopeFilter::from_parts(parts)
+        .map_err(|e| corrupt(step, format_args!("scope {name}: filter: {e}")))?;
+    Ok(Scope::new(id, filter))
+}
+
+/// The `filter` column of a scope: `None` for a phase-a scope, else its
+/// filter as JSON. `kind` is always [`KIND_PHASE`].
+pub(crate) fn encode_scope(step: Step<'_>, s: &Scope) -> Result<Option<String>, CacheError> {
+    s.filter
+        .as_ref()
+        .map(|f| serde_json::to_string(f).map_err(|e| failed(step, e)))
+        .transpose()
 }
 
 /// True when `stored` is a later instant than `incoming` (second precision).
@@ -125,13 +170,18 @@ pub(crate) struct JournalRow {
     pub(crate) announced_at: Option<String>,
     pub(crate) created_at: String,
     pub(crate) applied_at: Option<String>,
+    pub(crate) last_error_code: Option<String>,
+    pub(crate) note: Option<String>,
+    pub(crate) changed: Option<i64>,
+    pub(crate) first_offered_at: Option<String>,
 }
 
 /// The `journal` columns [`JournalRow`] reads, in order, as a literal (for `concat!`).
 macro_rules! journal_columns {
     () => {
         "seq, idem_key, phase, bead, op, args_json, precondition_json, actor, state, \
-         attempts, last_error, announced_at, created_at, applied_at"
+         attempts, last_error, announced_at, created_at, applied_at, last_error_code, note, changed, \
+         first_offered_at"
     };
 }
 pub(crate) use journal_columns;
@@ -157,12 +207,51 @@ impl JournalRow {
             announced_at: r.get(11)?,
             created_at: r.get(12)?,
             applied_at: r.get(13)?,
+            last_error_code: r.get(14)?,
+            note: r.get(15)?,
+            changed: r.get(16)?,
+            first_offered_at: r.get(17)?,
         })
     }
 
     /// Validates the row into a [`JournalEntry`].
+    ///
+    /// An entry the v3 Python writer wrote has the extension columns NULL, or stale
+    /// where it rewrote `last_error` after this store did, and is read as this
+    /// store would have written it (ADR-STORE-0001):
+    ///
+    /// - `note` NULL on a resolved entry: a trailing `" | resolved by <actor>:
+    ///   <note>"` of `last_error` is split out into `note`;
+    /// - `last_error_code`: the stored code while `last_error` still starts
+    ///   with `<code>: `, else the code of the text's `CODE: ` prefix;
+    /// - `changed`: `None` when NULL.
     pub(crate) fn decode(self, step: Step<'_>) -> Result<JournalEntry, CacheError> {
         let seq = self.seq;
+        let state = JournalState::parse(&self.state).ok_or_else(|| {
+            corrupt(
+                step,
+                format_args!("journal entry {seq}: state: unknown state {:?}", self.state),
+            )
+        })?;
+        let (last_error, note) = match (self.note, self.last_error) {
+            (None, Some(text)) if state == JournalState::Resolved => {
+                match split_resolve_note(&text) {
+                    Some((error, note)) => (error.map(str::to_owned), Some(note.to_owned())),
+                    None => (Some(text), None),
+                }
+            }
+            (note, last_error) => (last_error, note),
+        };
+        let last_error_code = match (self.last_error_code, last_error.as_deref()) {
+            (Some(code), Some(text))
+                if text
+                    .strip_prefix(code.as_str())
+                    .is_some_and(|rest| rest.starts_with(": ")) =>
+            {
+                Some(code)
+            }
+            (_, text) => text.and_then(error_code_prefix).map(str::to_owned),
+        };
         let bad = |what: &str, e: &dyn std::fmt::Display| {
             corrupt(step, format_args!("journal entry {seq}: {what}: {e}"))
         };
@@ -187,13 +276,20 @@ impl JournalRow {
             op: Op::parse(&self.op, &self.args_json).map_err(in_entry)?,
             precondition: parse_precondition(&self.precondition_json).map_err(in_entry)?,
             actor: Actor::new(self.actor).map_err(|e| bad("actor", &e))?,
-            state: JournalState::parse(&self.state)
-                .ok_or_else(|| bad("state", &format_args!("unknown state {:?}", self.state)))?,
+            state,
             attempts: u32::try_from(self.attempts).map_err(|e| bad("attempts", &e))?,
-            last_error: self.last_error,
+            last_error,
+            last_error_code,
+            note,
+            changed: self.changed.map(|v| v != 0),
             announced_at: opt_timestamp(step, "announced_at", self.announced_at.as_deref())?,
             created_at: timestamp(step, "created_at", &self.created_at)?,
             applied_at: opt_timestamp(step, "applied_at", self.applied_at.as_deref())?,
+            first_offered_at: opt_timestamp(
+                step,
+                "first_offered_at",
+                self.first_offered_at.as_deref(),
+            )?,
         })
     }
 }

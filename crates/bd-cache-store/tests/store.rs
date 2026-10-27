@@ -9,7 +9,9 @@
 
 mod common;
 
-use bd_cache_model::{CacheStore, DrainLock, IdemKey, NewEntry, Op, ScopeId, normalize};
+use bd_cache_model::{
+    CacheStore, DrainLock, IdemKey, NewEntry, Op, Outage, Scope, ScopeId, legacy_label, normalize,
+};
 use bd_cache_store::{FlockDrainLock, READ_DATING_THRESHOLD, SqliteStore};
 use common::{TempDir, identity};
 use rusqlite::Connection;
@@ -17,11 +19,21 @@ use sc_beads::testing::{actor, edge, id};
 use sc_beads::{Bead, DepType, Guards, Timestamp};
 
 fn x() -> ScopeId {
-    ScopeId::phase("x").unwrap()
+    ScopeId::new("x").unwrap()
 }
 
 fn y() -> ScopeId {
-    ScopeId::phase("y").unwrap()
+    ScopeId::new("y").unwrap()
+}
+
+/// The label of the phase-a scope `x`, built from `LEGACY_SCOPE_PREFIX` (ADR-BDC-0012).
+fn px() -> String {
+    legacy_label(&x())
+}
+
+/// The label of the phase-a scope `y`.
+fn py() -> String {
+    legacy_label(&y())
 }
 
 fn ts(s: &str) -> Timestamp {
@@ -42,6 +54,7 @@ fn entry(key: &str, bead: &str, scope: Option<ScopeId>) -> NewEntry {
         op: Op::Close { reason: None },
         precondition: Guards::default(),
         actor: actor("san"),
+        changed: Some(true),
     }
 }
 
@@ -60,12 +73,16 @@ fn fresh(tag: &str) -> (Open, SqliteStore) {
 #[test]
 fn test_dependents_use_the_edge_index() {
     let (open, mut store) = fresh("edges");
-    let mut s1 = row("s1", &["phase-x"]);
+    let mut s1 = row("s1", &[&px()]);
     s1.dependencies = vec![edge("s1", "b1", DepType::Blocks)];
-    let mut s2 = row("s2", &["phase-x"]);
+    let mut s2 = row("s2", &[&px()]);
     s2.dependencies = vec![edge("s2", "b1", DepType::Related)];
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"]), s1, s2], false)
+        .upsert_rows(
+            Some(&Scope::legacy(x())),
+            &[row("b1", &[&px()]), s1, s2],
+            false,
+        )
         .unwrap();
     assert_eq!(
         store.dependents_of(&id("b1")).unwrap(),
@@ -154,6 +171,29 @@ fn test_sync_alert_round_trip() {
     assert_eq!(store.sync_alert(&x()).unwrap(), None);
 }
 
+/// REQ-STORE-0006 (B9Q1-027): the sync alert another writer of the shared v3
+/// file stored, in its `CODE: detail` format under the v3 meta key, reads
+/// back as written, so `cache status` can decode it (`bd-cache-api`'s
+/// `alert_of`, which `alerts_decode_from_either_writer` tests).
+#[test]
+fn an_alert_another_implementation_wrote_reads_back_as_written() {
+    let (open, mut store) = fresh("foreign-alert");
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    drop(store);
+    Connection::open(&open.path)
+        .unwrap()
+        .execute(
+            "INSERT OR REPLACE INTO meta(key, value) VALUES ('sync_alert:x', ?1)",
+            ["BD_CACHE.SYNC_FAILED: bd list failed"],
+        )
+        .unwrap();
+    let store = SqliteStore::open_at(&open.path, &identity()).unwrap();
+    assert_eq!(
+        store.sync_alert(&x()).unwrap().as_deref(),
+        Some("BD_CACHE.SYNC_FAILED: bd list failed")
+    );
+}
+
 #[test]
 fn test_pending_work_counts_as_open() {
     let (_open, mut store) = fresh("open-work");
@@ -169,13 +209,15 @@ fn test_pending_work_counts_as_open() {
 #[test]
 fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
     let (_open, mut store) = fresh("prune");
-    let both = row("both", &["phase-x", "phase-y"]);
-    let mut only = row("only-x", &["phase-x"]);
+    let both = row("both", &[&px(), &py()]);
+    let mut only = row("only-x", &[&px()]);
     only.dependencies = vec![edge("only-x", "both", DepType::Blocks)];
     store
-        .upsert_rows(Some(&x()), &[only, both.clone()], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[only, both.clone()], false)
         .unwrap();
-    store.upsert_rows(Some(&y()), &[both], false).unwrap();
+    store
+        .upsert_rows(Some(&Scope::legacy(y())), &[both], false)
+        .unwrap();
     let report = store.prune_scope(&x()).unwrap();
     assert_eq!((report.beads_deleted, report.out_of_scope_swept), (1, 0));
     assert!(store.get_row(&id("only-x")).unwrap().is_none());
@@ -196,7 +238,7 @@ fn pruning_a_scope_deletes_only_beads_no_other_scope_holds() {
 #[test]
 fn stored_rows_are_normalized_and_written_for_python() {
     let (open, mut store) = fresh("normalize");
-    let mut b = row("b1", &["phase-x", "other"]);
+    let mut b = row("b1", &[&px(), "other"]);
     b.dependency_count = Some(3);
     b.dependent_count = Some(1);
     b.comment_count = Some(2);
@@ -205,7 +247,7 @@ fn stored_rows_are_normalized_and_written_for_python() {
         edge("b1", "a", DepType::Blocks),
     ];
     store
-        .upsert_rows(Some(&x()), std::slice::from_ref(&b), false)
+        .upsert_rows(Some(&Scope::legacy(x())), std::slice::from_ref(&b), false)
         .unwrap();
     drop(store);
     let (phase, status, row_json): (Option<String>, Option<String>, String) =
@@ -235,25 +277,25 @@ fn stored_rows_are_normalized_and_written_for_python() {
     );
 }
 
-/// Rows `bd_cache.py` replaced (no `membership_known`) belong to their v3
+/// Rows the v3 Python writer replaced (no `membership_known`) belong to their v3
 /// `phase`; leftover memberships of beads deleted elsewhere are dropped.
 #[test]
 fn rows_another_implementation_wrote_belong_to_their_phase() {
     let (open, mut store) = fresh("foreign");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .upsert_rows(
-            Some(&x()),
-            &[row("kept", &["phase-x"]), row("gone", &["phase-x"])],
+            Some(&Scope::legacy(x())),
+            &[row("kept", &[&px()]), row("gone", &[&px()])],
             false,
         )
         .unwrap();
     store
-        .upsert_rows(Some(&y()), &[row("moved", &["phase-y"])], false)
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("moved", &[&py()])], false)
         .unwrap();
     drop(store);
     {
-        // What bd_cache.py does: INSERT OR REPLACE a row (extension columns NULL), DELETE a bead.
+        // What the v3 Python writer does: INSERT OR REPLACE a row (extension columns NULL), DELETE a bead.
         let c = Connection::open(&open.path).unwrap();
         let json: String = c
             .query_row("SELECT row_json FROM beads WHERE id = 'moved'", [], |r| {
@@ -281,7 +323,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
     assert!(ids(&store, &y()).is_empty());
     // A bead deleted elsewhere and stored again unscoped is a new, out-of-scope row.
     store
-        .upsert_rows(None, &[row("gone", &["phase-x"])], false)
+        .upsert_rows(None, &[row("gone", &[&px()])], false)
         .unwrap();
     assert_eq!(ids(&store, &x()), ["kept", "moved"]);
     let x_status = store
@@ -298,7 +340,7 @@ fn rows_another_implementation_wrote_belong_to_their_phase() {
 fn a_python_row_written_while_open_is_read_by_its_phase() {
     let (open, mut store) = fresh("live");
     store
-        .upsert_rows(Some(&y()), &[row("b1", &["phase-y"])], false)
+        .upsert_rows(Some(&Scope::legacy(y())), &[row("b1", &[&py()])], false)
         .unwrap();
     let json: String = Connection::open(&open.path)
         .unwrap()
@@ -306,7 +348,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
             r.get(0)
         })
         .unwrap();
-    // A second connection, as a concurrent bd_cache.py process would hold.
+    // A second connection, as a concurrent the v3 Python writer process would hold.
     Connection::open(&open.path)
         .unwrap()
         .execute(
@@ -319,7 +361,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
     // An unscoped store keeps that membership.
     store
-        .upsert_rows(None, &[row("b1", &["phase-y"])], true)
+        .upsert_rows(None, &[row("b1", &[&py()])], true)
         .unwrap();
     assert_eq!(store.rows_in_scope(&x()).unwrap().len(), 1);
     assert!(store.rows_in_scope(&y()).unwrap().is_empty());
@@ -329,7 +371,7 @@ fn a_python_row_written_while_open_is_read_by_its_phase() {
 fn undecodable_stored_values_are_errors_not_skipped() {
     let (open, mut store) = fresh("corrupt");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -364,7 +406,7 @@ fn a_guard_dropped_on_another_thread_releases_the_lock() {
 fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let (_open, mut store) = fresh("readback-id");
     store
-        .upsert_rows(Some(&x()), &[row("b1", &["phase-x"])], false)
+        .upsert_rows(Some(&Scope::legacy(x())), &[row("b1", &[&px()])], false)
         .unwrap();
     let seq = store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-23T10:00:00Z"))
@@ -372,7 +414,7 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     let err = store
         .apply_with_readback(
             seq,
-            Some(&row("b2", &["phase-x"])),
+            Some(&row("b2", &[&px()])),
             None,
             &ts("2026-10-23T10:00:01Z"),
         )
@@ -390,21 +432,214 @@ fn a_read_back_row_of_another_bead_is_refused_and_changes_nothing() {
     );
 }
 
-/// The outage is read in one snapshot: a writer setting and clearing it (one
-/// transaction each, as both implementations do) never makes the read see
-/// one key without the other.
+/// The store reads the outage in one snapshot, stepped deterministically: a
+/// fixed number of handshakes, each a committed set and clear by a second
+/// (raw) connection followed by a reader snapshot, so the work does not depend
+/// on machine speed.
 ///
-/// The reader starts once the writer has completed a full set/clear cycle,
-/// then reads until the writer has toggled [`TOGGLES`] times; every stage has
-/// a hard deadline that fails naming it. The writer reports its own errors.
+/// Strict alternation alone could never interleave, so each handshake also
+/// holds the writer inside an open `BEGIN IMMEDIATE` while the reader reads:
+/// the reader sees the old record whole, then after the commit the new record
+/// whole, never a mix. The free-running variant is
+/// `the_outage_is_read_whole_under_a_free_running_soak` (`--ignored`).
 #[test]
 fn the_outage_is_read_whole_while_another_connection_toggles_it() {
+    use std::time::Duration;
+
+    const HANDSHAKES: u32 = 200;
+    const SINCE: &str = "2026-10-23T10:00:00Z";
+    const SET: &str = "INSERT OR REPLACE INTO meta VALUES \
+                       ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x');";
+    const CLEAR: &str = "DELETE FROM meta WHERE key IN ('outage_since', 'outage_error');";
+
+    let (open, store) = fresh("outage-stepped");
+    let outage = Outage {
+        since: ts(SINCE),
+        last_error: "x".to_owned(),
+    };
+    let raw = Connection::open(&open.path).unwrap();
+    raw.busy_timeout(Duration::from_secs(5)).unwrap();
+    // Durability does not matter to this race; this removes disk-speed dependence.
+    raw.pragma_update(None, "synchronous", "OFF").unwrap();
+
+    for step in 0..HANDSHAKES {
+        // Toggle commit, then a reader snapshot.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {SET} COMMIT;"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), Some(outage.clone()), "step {step}");
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {CLEAR} COMMIT;"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}");
+
+        // Set held open: the reader still sees the old (absent) record whole.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {SET}"))
+            .unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}: set open");
+        raw.execute_batch("COMMIT;").unwrap();
+        assert_eq!(store.outage().unwrap(), Some(outage.clone()), "step {step}");
+
+        // Clear held open: the reader still sees the old record whole.
+        raw.execute_batch(&format!("BEGIN IMMEDIATE; {CLEAR}"))
+            .unwrap();
+        assert_eq!(
+            store.outage().unwrap(),
+            Some(outage.clone()),
+            "step {step}: clear open"
+        );
+        raw.execute_batch("COMMIT;").unwrap();
+        assert_eq!(store.outage().unwrap(), None, "step {step}");
+    }
+}
+
+/// The store writes the outage whole, stepped: the store's own `set_outage`
+/// runs on a writer thread, one command per handshake, while a raw reader
+/// reads continuously until that command finishes. A set or clear split over
+/// two transactions would be caught between them. The work is a fixed
+/// 200 set/clear pairs; the only wait is the per-command deadline.
+#[test]
+fn the_store_writes_the_outage_in_one_transaction_per_change() {
+    use std::sync::mpsc::{TryRecvError, channel};
+    use std::time::{Duration, Instant};
+
+    const HANDSHAKES: u32 = 200;
+    const STAGE_TIMEOUT: Duration = Duration::from_secs(60);
+
+    let (open, mut store) = fresh("outage-writes");
+    let outage = Outage {
+        since: ts("2026-10-23T10:00:00Z"),
+        last_error: "x".to_owned(),
+    };
+    let reader = Connection::open(&open.path).unwrap();
+    reader.busy_timeout(Duration::from_secs(5)).unwrap();
+    let (cmd_tx, cmd_rx) = channel::<Option<Outage>>();
+    let (done_tx, done_rx) = channel::<Result<(), String>>();
+    let writer = std::thread::spawn(move || {
+        while let Ok(cmd) = cmd_rx.recv() {
+            let r = store.set_outage(cmd.as_ref()).map_err(|e| e.to_string());
+            if done_tx.send(r).is_err() {
+                break;
+            }
+        }
+    });
+
+    // One snapshot of both keys, as the store's own read takes it.
+    let snapshot = |step: u32| -> bool {
+        let (since, error): (Option<String>, Option<String>) = reader
+            .query_row(
+                "SELECT (SELECT value FROM meta WHERE key = 'outage_since'), \
+                 (SELECT value FROM meta WHERE key = 'outage_error')",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            since.is_some(),
+            error.is_some(),
+            "step {step}: half-written outage: since={since:?} error={error:?}"
+        );
+        since.is_some()
+    };
+    let run = |cmd: Option<Outage>, step: u32| {
+        let expect = cmd.is_some();
+        cmd_tx.send(cmd).unwrap();
+        let deadline = Instant::now() + STAGE_TIMEOUT;
+        loop {
+            snapshot(step);
+            match done_rx.try_recv() {
+                Ok(r) => {
+                    r.unwrap_or_else(|e| panic!("step {step}: the writer failed: {e}"));
+                    assert_eq!(snapshot(step), expect, "step {step}: after the command");
+                    return;
+                }
+                Err(TryRecvError::Empty) => assert!(
+                    Instant::now() < deadline,
+                    "step {step}: the writer did not finish within {STAGE_TIMEOUT:?}"
+                ),
+                Err(TryRecvError::Disconnected) => panic!("step {step}: the writer thread died"),
+            }
+        }
+    };
+
+    for step in 0..HANDSHAKES {
+        run(Some(outage.clone()), step);
+        run(None, step);
+    }
+    drop(cmd_tx);
+    writer.join().expect("the writer thread panicked");
+}
+
+/// The store's own `outage()` is read whole while a raw writer on another
+/// thread free-runs set/clear toggles. The exit is count-based, not
+/// wall-clock: the reader runs until it has made `READS` reads and the writer
+/// has completed `MIN_TOGGLES` toggles. The hang guard only fails a true hang.
+/// Every read must be `Ok` (a split read surfaces as a corrupt-store error).
+#[test]
+fn the_store_reads_the_outage_whole_while_a_raw_writer_free_runs() {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+    use std::time::{Duration, Instant};
+
+    const READS: u32 = 2_000;
+    const MIN_TOGGLES: u32 = 200;
+    const HANG_GUARD: Duration = Duration::from_secs(120);
+
+    let (open, store) = fresh("outage-reader");
+    let path = open.path.clone();
+    let stop = Arc::new(AtomicBool::new(false));
+    let toggles = Arc::new(AtomicU32::new(0));
+    let writer = {
+        let (stop, toggles) = (Arc::clone(&stop), Arc::clone(&toggles));
+        std::thread::spawn(move || -> rusqlite::Result<()> {
+            let c = Connection::open(&path)?;
+            c.busy_timeout(Duration::from_secs(5))?;
+            c.pragma_update(None, "synchronous", "OFF")?;
+            while !stop.load(Ordering::Relaxed) {
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
+                     ('outage_since', '2026-10-23T10:00:00Z'), ('outage_error', 'x'); COMMIT;",
+                )?;
+                c.execute_batch(
+                    "BEGIN IMMEDIATE; DELETE FROM meta WHERE key IN ('outage_since', 'outage_error'); COMMIT;",
+                )?;
+                toggles.fetch_add(1, Ordering::Relaxed);
+            }
+            Ok(())
+        })
+    };
+
+    let started = Instant::now();
+    let mut reads = 0_u32;
+    let mut failure = None;
+    while reads < READS || toggles.load(Ordering::Relaxed) < MIN_TOGGLES {
+        if started.elapsed() > HANG_GUARD {
+            failure = Some(format!("hang guard after {reads} reads"));
+            break;
+        }
+        if let Err(e) = store.outage() {
+            failure = Some(format!("read {reads}: {e}"));
+            break;
+        }
+        reads += 1;
+    }
+    stop.store(true, Ordering::Relaxed);
+    let done = toggles.load(Ordering::Relaxed);
+    let written = writer.join().expect("the writer thread panicked");
+    assert!(written.is_ok(), "the writer failed: {written:?}");
+    assert!(failure.is_none(), "{failure:?} ({done} toggles)");
+}
+
+/// Opt-in stress (`cargo test -- --ignored`): the outage is read whole while a
+/// second connection free-runs [`TOGGLES`] set/clear toggles. Speed dependent,
+/// so it has its own generous deadline and is not in the default suite.
+#[test]
+#[ignore = "free-running 2,000-toggle stress; opt in with --ignored"]
+fn the_outage_is_read_whole_under_a_free_running_soak() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
     use std::time::{Duration, Instant};
 
     const TOGGLES: u32 = 2_000;
-    const STAGE_TIMEOUT: Duration = Duration::from_secs(60);
+    const STAGE_TIMEOUT: Duration = Duration::from_secs(600);
 
     let (open, store) = fresh("outage-race");
     let path = open.path.clone();
@@ -416,6 +651,7 @@ fn the_outage_is_read_whole_while_another_connection_toggles_it() {
         std::thread::spawn(move || -> rusqlite::Result<()> {
             let c = Connection::open(&path)?;
             c.busy_timeout(Duration::from_secs(5))?;
+            c.pragma_update(None, "synchronous", "OFF")?;
             while !stop.load(Ordering::Relaxed) {
                 c.execute_batch(
                     "BEGIN IMMEDIATE; INSERT OR REPLACE INTO meta VALUES \
@@ -538,8 +774,8 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
         id: id(bead),
         blocked_by: vec![id(by)],
     };
-    store.ensure_scope(&x()).unwrap();
-    store.ensure_scope(&y()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    store.ensure_scope(&Scope::legacy(y())).unwrap();
     store
         .replace_ready_base(
             &x(),
@@ -581,7 +817,7 @@ fn the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild() {
     assert_eq!(indexed("x"), 0, "a rebuild drops every base and its index");
 }
 
-/// Seeds `n` applied journal rows the way `bd_cache.py` leaves them: state
+/// Seeds `n` applied journal rows the way the v3 Python writer leaves them: state
 /// `applied`, no `applied_at`, no epoch, and `updated_at` as it writes it.
 fn seed_python_applied(path: &std::path::Path, n: usize, updated_at: &str, tag: &str) {
     // `created_at` is always readable: only the applied time is under test.
@@ -669,7 +905,7 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
         assert!(plan.contains(index), "{index} not in {plan}");
     }
     // And a pending entry still counts, whatever the time.
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .insert_entry(entry("fresh", "b9", Some(x())), &ts("2026-10-23T10:00:00Z"))
         .unwrap();
@@ -680,7 +916,7 @@ fn the_entries_since_check_uses_indexes_and_ignores_a_long_history() {
     );
 }
 
-/// Entries `bd_cache.py` applied carry no `applied_at` and no epoch; their
+/// Entries the v3 Python writer applied carry no `applied_at` and no epoch; their
 /// time is `updated_at`, written as `...Z` by it and readable as `+00:00` with
 /// fractions too. Before and after they are dated (by the check or the next
 /// open), an old one is not "since", a recent one is, and one with an unreadable time counts as since:
@@ -747,14 +983,14 @@ fn entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_cou
     );
 }
 
-/// The shared file stays writable by a `bd_cache.py` on an SQLite older than
+/// The shared file stays writable by a the v3 Python writer on an SQLite older than
 /// 3.38, which has no `unixepoch()` (Ubuntu 22.04 ships 3.37.2) (S18): no index
 /// holds an expression, and with `unixepoch` replaced by a function that
 /// fails, every kind of journal write still works.
 #[test]
 fn no_index_holds_a_function_and_journal_writes_work_without_unixepoch() {
     let (open, mut store) = fresh("no-functions");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .insert_entry(entry("k", "b1", Some(x())), &ts("2026-10-24T08:00:00Z"))
         .unwrap();
@@ -935,7 +1171,7 @@ fn the_expression_index_of_an_earlier_build_is_dropped_on_open() {
     assert_eq!(left, 0);
 }
 
-/// `bd_cache.py` (atm-core `05831df`) never creates, reads or writes `ready_base`,
+/// the v3 Python writer never creates, reads or writes `ready_base`,
 /// `ready_base_blocked` or `scope_member`: its rebuild deletes `edges`, `beads`
 /// and `sync_state`, and its prune deletes a phase's `edges`, `beads`,
 /// `journal` and `sync_state` rows. Neither touches a stored base or its index
@@ -946,7 +1182,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
     use sc_beads::BlockedRow;
 
     let (open, mut store) = fresh("python-rewrite");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     let blocked = [BlockedRow {
         id: id("a"),
         blocked_by: vec![id("b"), id("c")],
@@ -966,7 +1202,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
     };
     agree(&store);
     let c = Connection::open(&open.path).unwrap();
-    // bd_cache.py's rebuild, then its prune of phase x.
+    // the v3 Python writer's rebuild, then its prune of phase x.
     c.execute_batch(
         "DELETE FROM edges; DELETE FROM beads; DELETE FROM sync_state; \
          DELETE FROM journal WHERE phase = 'x';",
@@ -976,7 +1212,7 @@ fn a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement() 
 }
 
 /// A base another writer replaces with `INSERT OR REPLACE` (the way every
-/// `bd_cache.py` write is spelled, and what a future Python `ready_base` writer
+/// the v3 Python writer write is spelled, and what a future Python `ready_base` writer
 /// would do), without the `indexed` column, resets `indexed` to NULL: the
 /// index rows left behind are ignored and the base is read whole.
 #[test]
@@ -984,7 +1220,7 @@ fn a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_inde
     use sc_beads::BlockedRow;
 
     let (open, mut store) = fresh("python-base");
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     store
         .replace_ready_base(
             &x(),
@@ -1128,7 +1364,7 @@ fn data_version(c: &Connection) -> i64 {
         .unwrap()
 }
 
-/// Entries `bd_cache.py` applies while the store is open have no epoch; past
+/// Entries the v3 Python writer applies while the store is open have no epoch; past
 /// [`READ_DATING_THRESHOLD`] the next journal check dates them, so its SQL
 /// work goes back to a few index probes instead of one `unixepoch` per
 /// undated entry (QA4-001, S26). Measured in SQLite VM steps, never wall-clock.
@@ -1170,7 +1406,7 @@ fn entries_python_applies_while_open_are_dated_by_the_next_check() {
 }
 
 /// Below [`READ_DATING_THRESHOLD`] the journal reads write nothing (S26): a
-/// small burst `bd_cache.py` applied is walked, so a cached `get` has no WAL
+/// small burst the v3 Python writer applied is walked, so a cached `get` has no WAL
 /// commit on its path; one entry more and the next read dates them all.
 #[test]
 fn a_small_burst_is_walked_and_not_dated_until_past_the_threshold() {
@@ -1354,7 +1590,7 @@ fn applied_since_reads_both_partial_indexes_and_no_history() {
     );
 
     // Both halves answer, in seq order.
-    store.ensure_scope(&x()).unwrap();
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
     let mine = store
         .insert_entry(entry("mine", "b2", Some(x())), &at)
         .unwrap();
@@ -1369,7 +1605,7 @@ fn applied_since_reads_both_partial_indexes_and_no_history() {
 }
 
 /// A pending entry journaled before PE-RBP-F004 (an earlier build, or
-/// `bd_cache.py`) may carry a metadata key a new write is refused for. It must
+/// the v3 Python writer) may carry a metadata key a new write is refused for. It must
 /// still decode, so the drain reaches it and escalates it, instead of every
 /// pending read failing with `BAD_ARGS` (QA RCR-001 on #60).
 #[test]
@@ -1398,4 +1634,59 @@ fn a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes() {
         };
         assert_eq!(patch.set_metadata.len(), 1);
     }
+}
+
+/// `last_applied_at` answers from the applied times, not from the history or
+/// the seqs (RCR-001 of #91): thousands of old applied entries leave the
+/// newest time the answer, and the answer does not depend on how many rows
+/// the journal has or on the seqs they carry. The plans of its two index
+/// reads, and the one read snapshot they share (ADR-STORE-0002), are
+/// asserted by `store.rs`' unit tests, where the SQL is.
+#[test]
+fn last_applied_at_ignores_history_and_seqs() {
+    let (open, mut store) = fresh("last-applied-at");
+    {
+        let mut c = Connection::open(&open.path).unwrap();
+        let tx = c.transaction().unwrap();
+        {
+            let mut ins = tx
+                .prepare(
+                    "INSERT INTO journal(idem_key, phase, bead, op, args_json, precondition_json, \
+                     actor, state, attempts, created_at, updated_at, applied_at, applied_epoch) \
+                     VALUES (?1, 'x', 'b1', 'close', '{}', '{}', 'san', 'applied', 0, \
+                     '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', '2026-10-01T00:00:00Z', 1790812800)",
+                )
+                .unwrap();
+            for i in 0..5_000 {
+                ins.execute([format!("old-{i}")]).unwrap();
+            }
+        }
+        tx.commit().unwrap();
+    }
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-01T00:00:00Z")),
+        "the seeded history is the newest applied time"
+    );
+
+    // A newer one wins whatever its seq, and a python-applied entry (no
+    // epoch) counts by its `updated_at`.
+    store.ensure_scope(&Scope::legacy(x())).unwrap();
+    let mine = store
+        .insert_entry(entry("mine", "b2", Some(x())), &ts("2026-10-23T10:00:00Z"))
+        .unwrap();
+    store
+        .apply_with_readback(mine, None, None, &ts("2026-10-24T00:00:00Z"))
+        .unwrap();
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-24T00:00:00Z"))
+    );
+    seed_python_applied(&open.path, 1, "2026-10-25T00:00:00Z", "py-new");
+    seed_python_applied(&open.path, 1, "garbage", "py-bad");
+    assert_eq!(
+        store.last_applied_at().unwrap(),
+        Some(ts("2026-10-25T00:00:00Z")),
+        "undated entries count by updated_at; an unreadable one is skipped"
+    );
 }

@@ -42,6 +42,10 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
+      # PE1-RSH-001: the supply-chain gate. deny.toml configures advisories
+      # only; the tool comes from the repository's lint-toolchain action.
+      - uses: ./.github/actions/setup-lint-toolchain
+
       - name: Format
         run: cargo fmt --all --check
 
@@ -49,6 +53,11 @@ jobs:
         run: cargo doc --workspace $EXCLUDE --no-deps
         env:
           RUSTDOCFLAGS: -D warnings
+
+      # A RUSTSEC advisory against any locked crate (bundled SQLite, tokio,
+      # process-wrap, the git-pinned sc-command) fails here (deny.toml).
+      - name: Advisories (cargo deny, deny.toml)
+        run: cargo deny check advisories
 
       - name: Publish dry run (sc-beads, sc-bd-cli, sc-cron)
         run: cargo publish --dry-run -p sc-beads -p sc-bd-cli -p sc-cron
@@ -63,6 +72,10 @@ jobs:
           the table fails too, so a new crate must be added to the table first.
           A crate's dev-dependency on itself (to enable its own test features)
           is not an edge.
+
+          The table covers workspace edges only, so a second check rejects a
+          direct dependency (any kind) of bd-cache-api or bd-cache-py on
+          sc-command or clap (contract section 9, sprint b-2).
           """
           import json, re, sys
 
@@ -89,6 +102,16 @@ jobs:
                   if target in members and target != name and target not in allowed[name]:
                       kind = dep.get("kind") or "normal"
                       errors.append(f"{name} -> {target} ({kind}): not allowed")
+          no_cli = {"bd-cache-api", "bd-cache-py"}
+          cli_only = {"sc-command", "clap"}
+          for pkg in meta["packages"]:
+              if pkg["name"] not in no_cli:
+                  continue
+              for dep in pkg["dependencies"]:
+                  names = {dep["name"], dep.get("rename") or dep["name"]}
+                  if names & cli_only:
+                      kind = dep.get("kind") or "normal"
+                      errors.append(f"{pkg['name']} -> {dep['name']} ({kind}): no sc-command or clap (contract section 9)")
           for e in errors:
               print(f"::error::{e}")
           if errors:
@@ -96,8 +119,45 @@ jobs:
           print(f"boundaries ok: {sorted(members)}")
           PY
 
-      - name: Release scripts tests (scripts/prerelease_tag.py)
-        run: python3 -m unittest discover -s scripts -p 'test_*.py' -v
+      # The check above sees direct edges only. This one rejects sc-command or
+      # clap anywhere in the normal or build graph of bd-cache-api or
+      # bd-cache-py (contract section 9; QA review), with every feature and
+      # every target, so a dependency that pulls either in is caught too.
+      - name: Crate boundaries, transitive (no sc-command or clap under bd-cache-api, bd-cache-py)
+        run: |
+          set -euo pipefail
+          fail=0
+          for pkg in bd-cache-api bd-cache-py; do
+            tree=$(cargo tree -p "$pkg" -e normal,build --all-features --target all --prefix none --format '{p}')
+            for dep in sc-command clap; do
+              if grep -qE "^${dep} v" <<<"$tree"; then
+                echo "::error::$pkg -> $dep (normal or build, transitive): no sc-command or clap (contract section 9)"
+                cargo tree -p "$pkg" -e normal,build --all-features --target all -i "$dep"
+                fail=1
+              fi
+            done
+          done
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "transitive boundaries ok: no sc-command or clap under bd-cache-api, bd-cache-py"
+
+      - name: Scripts tests (scripts/test_*.py)
+        run: python3 -I -m unittest discover -s scripts -v
+
+      # ADR-BDC-0010 as amended by ADR-BDC-0012 and its Amendment 2 (sprint b-9):
+      # beads-cache names no consumer concern in any tracked file, plans
+      # included. Every tracked file is scanned except the declared out-of-scope
+      # list in the lint (agent tooling, the sc-publish kit, tracker data,
+      # CHANGELOG.md, Cargo.lock); no suppression, no allowlist; the only
+      # exemptions inside the scope are the lint, its tests and
+      # docs/team-protocol.md. The test job runs it on the three OSes too.
+      - name: Strict consumer boundary (ADR-BDC-0010)
+        run: python3 -I scripts/lint_no_atm.py
+
+      # REQ-BDC-0006: the backend is reached only through bd, so no crate of the
+      # workspace depends, with any edge kind, feature or target, on a Dolt or
+      # MySQL client (scripts/check_no_backend.py, its one copy).
+      - name: No Dolt or MySQL client (REQ-BDC-0006)
+        run: python3 -I scripts/check_no_backend.py graph
 
   # Clippy and tests on every supported OS (QA-004).
   test:
@@ -116,17 +176,40 @@ jobs:
 
       - uses: Swatinem/rust-cache@v2
 
-      # bd-cache-store's compatibility test (sprint a-4) runs the reference
-      # Python implementation with uv.
-      - uses: astral-sh/setup-uv@v6
+      # One interpreter on every OS for the repository's scripts (the Windows
+      # image's `python3` may be the store alias).
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # NFR-BDC-0005: the unit tests run against fakes, never a real bd or Dolt;
+      # neither may be reachable on PATH while they run.
+      - name: No bd or dolt on PATH (NFR-BDC-0005)
+        run: python -I scripts/check_no_backend.py path
+
+      # b-9 acceptance 1, ADR-BDC-0012 Amendment 2: the lint and the scripts'
+      # unit tests run on the three OSes (path separators, CRLF checkouts,
+      # git ls-files), not only in the ubuntu lint job.
+      - name: Scripts tests (scripts/test_*.py)
+        run: python -I -m unittest discover -s scripts -v
+
+      - name: Strict consumer boundary (ADR-BDC-0010)
+        run: python -I scripts/lint_no_atm.py
 
       - name: Clippy
-        run: cargo clippy --workspace $EXCLUDE --all-targets --all-features -- -D warnings
+        run: cargo clippy --locked --workspace $EXCLUDE --all-targets --all-features -- -D warnings
 
       # Default features: the libraries must be warning-free without their
       # `testing` features (helpers are crate-private until a-5/a-6 call them).
       - name: Clippy (libraries, default features)
-        run: cargo clippy --workspace $EXCLUDE --lib -- -D warnings
+        run: cargo clippy --locked --workspace $EXCLUDE --lib -- -D warnings
 
       - name: Test
-        run: cargo test --workspace $EXCLUDE --all-features
+        run: cargo test --locked --workspace $EXCLUDE --all-features
+
+      # NFR-BDC-0002 (sprint b-3): a new-process `bdc issues get` cache hit is
+      # under 50 ms, measured in a release build: the median of 50 is gated on
+      # Unix and the p95 reported (lead ruling S80); Windows reports both (S79).
+      # The log also reports the ungated pending-write case.
+      - name: Latency (NFR-BDC-0002, release profile)
+        run: cargo test --locked --release -p bd-cache-cli --test latency -- --ignored --nocapture

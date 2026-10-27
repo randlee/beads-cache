@@ -6,7 +6,7 @@
 //! pure, so [`CliRunner`](crate::CliRunner) spawns, and the test-support
 //! `RecordingInvoker` records, exactly the same vector.
 //!
-//! Every spawn sets `PATH` to [`get_extended_path`]; project invocations run in the
+//! Every spawn sets `PATH` to [`get_extended_path`](crate::path::get_extended_path) (as an `OsString`); project invocations run in the
 //! project's working directory with `BEADS_PATH` set to it. The project spawns
 //! ([`spawn_json`], [`run_raw`]) block until the child exits (`Command::output()`, no
 //! timeout), as in btit; see [`ProjectLocks`] on why they must not share a lock set
@@ -29,7 +29,7 @@ use sc_beads::{CliClient, CliOutput, CliProbe, ProjectRef};
 use crate::bounded::{run_child, BoundedError, MAX_OUTPUT_BYTES};
 use crate::command::{new_command, ChildEnv};
 use crate::locks::{ProjectLocks, WorkingDir};
-use crate::path::get_extended_path;
+use crate::path::extended_path_os;
 
 /// The working directory for `project`: its `cwd`, else `BEADS_PATH`, else the
 /// process current directory, else `"."`.
@@ -158,7 +158,7 @@ pub(crate) fn spawn_json_in(
         .command(binary)
         .args(argv)
         .current_dir(working_dir)
-        .env("PATH", get_extended_path())
+        .env("PATH", extended_path_os())
         .env("BEADS_PATH", working_dir)
         .output()
         .map_err(|e| {
@@ -251,7 +251,7 @@ pub(crate) fn run_raw_in(
     env.command(binary)
         .args(args)
         .current_dir(working_dir)
-        .env("PATH", get_extended_path())
+        .env("PATH", extended_path_os())
         .env("BEADS_PATH", working_dir)
         .output()
         .map(|output| cli_output(&output))
@@ -288,7 +288,7 @@ pub(crate) fn probe_version_output_within(
     command
         .arg(OPERATION)
         .current_dir(env::temp_dir())
-        .env("PATH", get_extended_path());
+        .env("PATH", extended_path_os());
     let start = Instant::now();
     let limit = start.checked_add(timeout).unwrap_or(start);
     let spawn = |source: io::Error| BeadsError::Spawn {
@@ -312,6 +312,10 @@ pub(crate) fn probe_version_output_within(
         ))),
         Err(e @ BoundedError::OutputTooLarge { .. }) => Err(spawn(io::Error::new(
             io::ErrorKind::FileTooLarge,
+            e.to_string(),
+        ))),
+        Err(e @ BoundedError::Interrupted { .. }) => Err(spawn(io::Error::new(
+            io::ErrorKind::Interrupted,
             e.to_string(),
         ))),
     }

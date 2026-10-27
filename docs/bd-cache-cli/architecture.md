@@ -16,13 +16,14 @@ harness. Sprint b-3a shipped the skeleton; sprint b-3 adds the commands over
 | `args` | The one table of commands (`CommandSpec`, `ArgSpec`, `GLOBALS`), the clap tree built from it, the word pre-scan |
 | `request` | argv matches to the JSON request at each argument's member path; `--input FILE\|-` |
 | `config` | flag > env > TOML > default, the `bd` and legacy-file rules, `metadata.json` from `$BEADS_DIR` |
-| `commands` | decode, open (`compose_with_config`), `execute`; `beads` and `manage` hold their surface's rows (and `beads` the unserved operations); `tick` decodes and runs `cache tick`; `signal` takes over SIGTERM / SIGINT / SIGHUP (ADR-CLI-0005) |
+| `commands` | decode, open (`compose_with_config`), `execute`; `beads`, `manage`, `scopes`, `schedule`, `cron`, `tick` and `sync` hold their rows (and `beads` the unserved operations); the front-end verbs run over `bd-cache-sync` (`cron` runs `cache cron run`); `signal` takes over SIGTERM / SIGINT / SIGHUP (ADR-CLI-0005) |
 | `render` | `json`: the sc-command envelope; `text`: `--format text` |
 | `help` | `--help` as `{command, synopsis, arguments}` or text |
 | `log` | the stderr `tracing` subscriber and the level rule |
 | `scenario` (feature `fake-bd`) | `Scenario`, `Faults`, `RefuseWrite`, `serve`: the scenario file and one `fake-bd` invocation |
 | `bin/bd-cache`, `bin/bdc` | `fn main() -> ExitCode { run_process() }`, identical |
 | `bin/fake-bd` (feature `fake-bd`) | reads `$FAKE_BD_SCENARIO`, calls `serve`, prints, exits |
+| `bin/fake-python` (feature `fake-bd`) | a stand-in interpreter for the hook and the Python row (sprint b-8) |
 | `tests/support` | `TestRepo` (temp repo with `.beads/metadata.json` and a scenario), `parse_envelope`, process and in-process `BdCli` constructors |
 
 ## ADR-CLI-0001: sc-command is a git dependency, so the crate is `publish = false`
@@ -143,9 +144,9 @@ Decision:
   store's `store_config_*` codes), except that a top-level `bd` key is
   dropped with a warning: a checked-in file cannot choose an executable.
 - Env overrides use sc-config's naming rule; a value that does not parse is
-  `CONFIG_INVALID` with `details.source: "bdc_env_invalid"`; the legacy file
-  is `CONFIG_INVALID` with `details.source: "bdc_legacy_cache_file"`. The
-  merged configuration is validated (`RepoConfig::validate`, scopes) and
+  `CONFIG_INVALID` with `details.source: "bdc_env_invalid"`. *(The refusal of
+  a legacy cache file is removed by ADR-BDC-0015, amending ADR-CLI-0004, sprint b-8; contract
+  §2.)* The merged configuration is validated (`RepoConfig::validate`, scopes) and
   opened through `compose_with_config` with `$BEADS_DIR` from the given
   environment. `ComposeError` maps through `ApiError::config_invalid` (or the
   cache error's own code).
@@ -193,7 +194,9 @@ Decision:
   reports: a write already journaled is not hidden); the exit code is
   `128 + signal` (143 for SIGTERM), whatever the envelope says, with one line
   on stderr. A second signal changes nothing: the shutdown is bounded by the
-  calls' kill bound (1 s); SIGKILL remains. On Linux the `bd` child also has
+  calls' kill bound (1 s); SIGKILL remains. The exception is `cron run`
+  during its shutdown wait, where a second signal ends the wait at once
+  (REQ-BDC-0730 as amended at the phase-end review). On Linux the `bd` child also has
   `PR_SET_PDEATHSIG` (SIGKILL), for a bdc killed outright.
 - `run` and `run_with` (the in-process entry points) install nothing: the
   host process owns its signals.
@@ -247,3 +250,35 @@ Example:
   "faults": {"slow_ms": 500}
 }
 ```
+
+## Implementation notes (sprint b-8)
+
+- The phase-B verbs are rows of the one command table: `src/commands/scopes.rs` (run by
+  `bd_cache_api::execute`) and `src/commands/{schedule,cron,tick,sync}.rs`. Each row names its
+  `bd_cache_api::Command`, and `Command::is_front_end` alone decides where it runs (QA-1,
+  RBQA-F008): `bd_cache_api::execute`, or over `bd-cache-sync` (ADR-BDC-0015): `cache cron run`
+  in `commands/cron.rs` (`SystemSchedules::cron_run` / `cron_run_once`), every other one
+  through `bd_cache_sync::execute` with `FrontEnd::Cli`, which maps the request to its inputs
+  and each error to the contract's once. `cache scopes` is a command and a group at once (its
+  own reply, and `cache scopes list` … below it). `src/commands/runtime.rs` holds the tokio
+  runtime (two worker threads: sc-cron's worker task and the runs' async halves; the blocking
+  parts run on the blocking pool). The crate has no `sc-cron` edge.
+- `scopes ingest` decodes its snapshot from stdin while it reads it
+  (`IngestSnapshot::from_reader`): the bytes are counted against 64 MiB and the rows against
+  50 000 as they decode, so an oversized input is `INGEST_INVALID` (`too_large`,
+  `too_many_rows`) before it is held whole, and nothing is encoded again; stdin holds `rows`
+  and `blocked` only (the scope, the revision and `--allow-empty` are the command line's;
+  any other member is `BAD_ARGS`) (REQ-BDC-0726).
+- Signals (`commands::signal::Signals`): the first signal's number decides the exit code; the
+  stop flag is set; and every bounded `bd` call is stopped at once, except for `cron run`, which
+  defers that to its shutdown timeout (`Signals::defer_bd_kill`, then `kill_bd`), so its runs
+  in flight finish their bd calls in the grace period (Rand's ruling 5, REQ-BDC-0730). On
+  Windows `cron run` registers Ctrl-C and Ctrl-Break (`console_stop`, a registration failure
+  logged at `WARN`); `install` exists on Unix only. `cron run` logs at `INFO` by default (a
+  service unit can add `-q`, `-v` or `BD_CACHE__LOG`), its subscriber the process default, and
+  escapes control characters in every value it writes.
+- The legacy-directory refusal and the `[tick]` env keys are removed (ADR-BDC-0015 amends
+  ADR-CLI-0004).
+- `bin/fake-python` (feature `fake-bd`): a stand-in interpreter for the hook and the Python row
+  in real-process tests on every OS (`tests/tree_kill.rs`: the process-group and job-object
+  kills, and the Windows Ctrl-Break stop).

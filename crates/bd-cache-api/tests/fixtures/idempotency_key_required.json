@@ -1,0 +1,39 @@
+{
+  "description": "REQ-BDC-0004: every write requires idempotency_key and the cache never derives one from the request; a refused write journals nothing.",
+  "world": {
+    "beads": [{"id": "b1", "status": "in_progress", "assignee": "dev"}, {"id": "b2"}],
+    "sync": ["x"]
+  },
+  "steps": [
+    {
+      "name": "update without a key",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "patch": {"status": "open"}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "idempotency_key"}}}
+    },
+    {
+      "name": "close without a key",
+      "command": "issues close",
+      "request": {"id": "b2", "actor": "san", "reason": "done"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "idempotency_key"}}}
+    },
+    {
+      "name": "dependencies add without a key",
+      "command": "dependencies add",
+      "request": {"actor": "san", "edges": [{"issue_id": "b2", "depends_on_id": "b1", "type": "blocks"}]},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "idempotency_key"}}}
+    },
+    {
+      "name": "a blank key is not a key",
+      "command": "issues close",
+      "request": {"id": "b2", "actor": "san", "idempotency_key": "  "},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "idempotency_key"}}}
+    },
+    {
+      "name": "nothing was journaled",
+      "command": "cache journal list",
+      "request": {"state": "pending"},
+      "expect": {"ok": true, "data": {"entries": []}}
+    }
+  ]
+}

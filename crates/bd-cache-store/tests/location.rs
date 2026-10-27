@@ -39,13 +39,15 @@ fn configured_cache_path_is_taken_from_the_repository_root() {
     let tmp = TempDir::new("configured");
     workspace(tmp.path(), "testdb", "p-1");
     let config = RepoConfig {
-        cache_path: Some(PathBuf::from(".atm-bd/testdb.bd-cache.sqlite3")),
+        cache_path: Some(PathBuf::from(".cache-dir/testdb.bd-cache.sqlite3")),
         ..RepoConfig::default()
     };
     let loc = CacheLocation::resolve_with(tmp.path(), &config, None).unwrap();
     assert_eq!(
         loc.cache_path,
-        tmp.path().join(".atm-bd").join("testdb.bd-cache.sqlite3")
+        tmp.path()
+            .join(".cache-dir")
+            .join("testdb.bd-cache.sqlite3")
     );
 }
 
@@ -63,7 +65,7 @@ fn test_beads_dir_env_names_the_database() {
         Some(OsStr::new("otherdb.bd-cache.sqlite3"))
     );
     assert_eq!(loc.identity.project_id.as_str(), "p-9");
-    // An empty BEADS_DIR is unset, as in bd_cache.py.
+    // An empty BEADS_DIR is unset, as in the v3 Python writer.
     workspace(tmp.path(), "testdb", "p-1");
     let empty = BeadsDirOverride::new(Some(OsStr::new(""))).unwrap();
     assert_eq!(empty, None);
@@ -152,7 +154,7 @@ fn identity_values_are_validated() {
     ] {
         assert!(DoltDatabase::new(bad).is_err(), "{bad:?}");
     }
-    for good in ["atm-dev", "testdb", "a.b", "console", "com10", "lpt", "x_1"] {
+    for good in ["dev", "testdb", "a.b", "console", "com10", "lpt", "x_1"] {
         assert!(DoltDatabase::new(good).is_ok(), "{good:?}");
     }
     assert!(ProjectId::new("").is_err());
@@ -172,15 +174,13 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     let file = tmp.path().join(".beads").join("bd-cache.toml");
     std::fs::write(
         &file,
-        "cache_path = \".atm-bd/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n\
-         [tick]\nteam = \"atm-dev\"\n",
+        "cache_path = \".cache-dir/x.sqlite3\"\nscopes = [\"bk\", \"phase-bj\"]\nmax_attempts = 3\n",
     )
     .unwrap();
     let cfg = load_repo_config(tmp.path()).unwrap();
     assert_eq!(cfg.scopes, ["bk", "phase-bj"]);
     assert_eq!(cfg.max_attempts, Some(3));
-    assert_eq!(cfg.cache_path, Some(PathBuf::from(".atm-bd/x.sqlite3")));
-    assert_eq!(cfg.tick.and_then(|t| t.team).as_deref(), Some("atm-dev"));
+    assert_eq!(cfg.cache_path, Some(PathBuf::from(".cache-dir/x.sqlite3")));
 
     std::fs::write(&file, "surprise = 1\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
@@ -208,12 +208,12 @@ fn repo_config_is_parsed_and_unknown_keys_refused() {
     std::fs::write(&file, "scopes = [\"bad name\"]\n").unwrap();
     let err = load_repo_config(tmp.path()).unwrap_err();
     assert!(
-        matches!(&err, ConfigLoadError::Scope { value, .. } if value == "bad name"),
+        matches!(&err, ConfigLoadError::Scope { source, .. } if source.value == "bad name"),
         "{err:?}"
     );
     assert_eq!(err.code(), "store_config_bad_scope");
     assert!(
-        err.fix().contains(bd_cache_model::PhaseName::RULE),
+        err.fix().contains(bd_cache_model::ScopeName::RULE),
         "{}",
         err.fix()
     );

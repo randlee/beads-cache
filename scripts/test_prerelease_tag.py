@@ -106,6 +106,9 @@ GIT_IDENTITY = {
 
 
 class PartialBumpRollbackTest(unittest.TestCase):
+    # The stand-in `cargo` is a `#!/bin/sh` script with no extension, which Windows'
+    # process launch never resolves; the scripts tests run on the three OSes (b-9).
+    @unittest.skipIf(os.name == "nt", "the stand-in cargo is a POSIX shell script")
     def test_a_bump_failing_at_cargo_update_leaves_the_tree_clean(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

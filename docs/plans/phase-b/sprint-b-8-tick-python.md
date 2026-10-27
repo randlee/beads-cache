@@ -1,7 +1,7 @@
 ---
 id: b-8
 phase: b
-status: planned
+status: complete
 closure_type: integration
 target_boundary: bd-cache-sync, bd-cache-cli, bd-cache-py, bd-cache-api (the new verbs), sc-cron (general features)
 track: core
@@ -15,8 +15,9 @@ parallel_safe: []
 requirements:
   owns: [REQ-BDC-0720, REQ-BDC-0722, REQ-BDC-0723, REQ-BDC-0724, REQ-BDC-0725, REQ-BDC-0727, REQ-BDC-0730, REQ-BDC-0731, "REQ-BDC-0703, 0803, 0810 (amended)", "REQ-BDC-0701, 0702, 0704..0707 (superseded; their code removed)", "REQ-SYNC-0001, 0004, 0010, 0012 (amended)", "REQ-SYNC-0002, 0003, 0006..0009, 0011 (superseded; their code removed)", "REQ-CRON-0005 (amended)", REQ-CRON-0016, REQ-CRON-0018, "REQ-MODEL-0005 (amended)", "REQ-CLI-0006, REQ-CLI-0008 (amended)", "REQ-PY-0002, 0005, 0008 (amended)", "REQ-API-0001, REQ-API-0005 (amended)"]
   not_binding: "REQ-PY-0009: superseded with the vendored call log, which b-9 removes"
-  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0502, REQ-BDC-0602, REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, REQ-BDC-0801, REQ-BDC-0802, REQ-BDC-0807, REQ-BDC-0808, REQ-BDC-0812, REQ-BDC-0909, REQ-BDC-0910, NFR-BDC-0002, NFR-BDC-0003, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0007, "REQ-SYNC-0005, 0013", "REQ-CRON-0001..0004, 0006..0015, 0017", "REQ-API-0002..0004, 0006..0008", "REQ-CLI-0001..0005, 0007, 0009..0012", "REQ-PY-0001, 0003, 0004, 0006, 0007, 0010..0014", "REQ-MODEL-0001..0004"]
-adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BDC-0009, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, ADR-BDC-0015, "ADR-SYNC-0001..0008", "ADR-CRON-0001..0009", "ADR-PY-0001..0006", "ADR-CLI-0001..0005", "ADR-API-0001..0003", "ADR-STORE-0001, 0003, 0006", "ADR-MODEL-0001..0004"]
+  constrained_by: [REQ-BDC-0001, REQ-BDC-0006, REQ-BDC-0007, REQ-BDC-0008, REQ-BDC-0401, REQ-BDC-0402, REQ-BDC-0502, REQ-BDC-0602, REQ-BDC-0721, REQ-BDC-0726, REQ-BDC-0728, REQ-BDC-0729, REQ-BDC-0801, REQ-BDC-0802, REQ-BDC-0807, REQ-BDC-0808, REQ-BDC-0811, REQ-BDC-0812, REQ-BDC-0901, REQ-BDC-0909, REQ-BDC-0910, NFR-BDC-0001, NFR-BDC-0002, NFR-BDC-0003, NFR-BDC-0004, NFR-BDC-0005, NFR-BDC-0006, NFR-BDC-0007, "REQ-SYNC-0005, 0013", "REQ-CRON-0001..0004, 0006..0015, 0017", "REQ-API-0002..0004, 0006..0008", "REQ-CLI-0001..0005, 0007, 0009..0012", "REQ-PY-0001, 0003, 0004, 0006, 0007, 0010..0014", "REQ-MODEL-0001..0004"]
+adrs: [ADR-BDC-0001, ADR-BDC-0002, ADR-BDC-0003, ADR-BDC-0004, ADR-BDC-0005, ADR-BDC-0006, ADR-BDC-0007, ADR-BDC-0009, ADR-BDC-0010, ADR-BDC-0011, ADR-BDC-0012, ADR-BDC-0013, ADR-BDC-0014, ADR-BDC-0015, ADR-SYNC-0001, ADR-SYNC-0002, ADR-SYNC-0006, ADR-SYNC-0008, "ADR-CRON-0001..0009", "ADR-PY-0001..0006", "ADR-CLI-0001..0005", ADR-API-0001, ADR-API-0002, "ADR-STORE-0001, 0003, 0006", "ADR-MODEL-0001..0004", ADR-CORE-0001, ADR-CORE-0002, ADR-CORE-0205]
+adrs_superseded: "ADR-SYNC-0003, 0004, 0005 and 0007 are superseded by ADR-SYNC-0008 (their code is removed by this sprint); ADR-API-0003 is superseded (b-3); none of them binds this sprint"
 owned_paths:
   - "crates/bd-cache-sync/**"
   - "crates/bd-cache-model/{Cargo.toml,src/sender.rs,src/config.rs,src/lib.rs} and crates/bd-cache-model/tests/config.rs (the removals)"
@@ -29,6 +30,14 @@ owned_paths:
   - "the new pytest files crates/bd-cache-py/tests/{test_tick.py,test_schedule.py,test_switch.py,test_run.py,test_sync_harness.py,test_ingest.py,test_scopes.py}"
   - "docs/architecture.md (the bd-cache-sync, bd-cache-py, bd-cache-cli, sc-cron and bd-cache-model rows of the Crate Layout and Boundaries tables, and the ADR implementation table)"
   - "docs/bd-cache-sync/**, docs/sc-cron/**, docs/bd-cache-api/**, docs/bd-cache-cli/{architecture.md,requirements.md} (implementation notes)"
+  - "the carried register and plan edits (lead ruling, QA-1 fix round; each hunk listed in the PR): docs/requirements.md (the REQ-BDC-0727 and 0732 period text), docs/architecture.md (the ADR-BDC-0013 alert-verb text and the ADR implementation table), docs/bd-cache/read-path.md (the ADR-CORE-0205 alert-verb paragraph), docs/project-plan.md and docs/plans/phase-b/{phase-b-plan.md,sprint-b-7-store-contract.md} (the status lines)"
+  - "the alert verbs refuse an unregistered scope (the ADR-BDC-0013 Amendment 1 exception ends with the phase files): crates/bd-cache/src/lib.rs and crates/bd-cache/tests/ingest.rs; crates/bd-cache-store/tests/location.rs (the location test without the phase files)"
+  - "the sync rows' run record (REQ-BDC-0731, the ADR-STORE-0006 sprint b-8 amendment) and the bounded pending and escalation reads (REQ-BDC-0727): crates/bd-cache-model/src/{state.rs,store.rs,testing/store.rs,testing/contract.rs}, crates/bd-cache-store/src/{schema.rs,store.rs}, crates/bd-cache-store/tests/{format_golden.rs,open.rs,fixtures/format-golden.txt}, crates/bd-cache/src/lib.rs, docs/bd-cache-store/architecture.md (the ADR-STORE-0006 amendment)"
+  - "the model types the fixes need: crates/bd-cache-model/src/error.rs (PreconditionReason::PythonSyncEnabled and InsideRun), src/budget.rs (TickBudget::default, ROW_TIMEOUT_MARGIN public), src/ingest.rs (IngestSnapshot::from_values and from_reader, REQ-BDC-0726)"
+  - "crates/bd-cache-cli/src/commands/runtime.rs, crates/bd-cache-cli/src/bin/fake-python.rs, tests/tree_kill.rs (the Windows job-object and Ctrl-Break tests) and tests/release_hygiene.rs (fake-python is a gated test bin like fake-bd); crates/sc-bd-cli/src/process_group.rs (a stale comment); crates/sc-cron/{Cargo.toml,README.md} (process-wrap from the workspace entry; its links); crates/sc-cron/src/store.rs is unchanged"
+  - "the root Cargo.toml [workspace.dependencies] entries of process-wrap and rustix (B8Q1-036), and .github/workflows/python.yml (bdc and fake-bd built beside the wheel for the end-to-end pytest, B8Q1-016)"
+  - "docs/bd-cache-py/architecture.md (the ADR-PY-0006 sprint b-8 amendment: the in-run static and the composition through bd-cache-sync, lead ruling ARCH-002)"
+  - "the new pytest file crates/bd-cache-py/tests/test_cli_e2e.py"
 ---
 
 # Sprint b-8 — the sync rows, the switch, the Python surface and end to end (WP-6b, WP-9)
@@ -45,19 +54,31 @@ ADR-CRON-0009, with REQ-BDC-0720..0731, which hold the parameters.
 
 1. **Schedule** (REQ-BDC-0720, REQ-BDC-0731, ADR-SYNC-0008). `bdc cache schedule
    set|show|enable|disable|clear` manage the built-in row in `CacheScheduleStore` (b-7), as
-   REQ-BDC-0720 gives them. At most one built-in row per repository (ANC-008); `enable` and
+   REQ-BDC-0720 gives them. At most one built-in row per repository (ANC-008): a second
+   `schedule set` replaces the one row in place (generation + 1), and a built-in or Python
+   sync payload on a row of any other name is refused by the resolver and recorded `Failed`,
+   while other sc-cron rows coexist in the table; `enable` and
    `disable` flip only its `enabled` flag (REQ-CRON-0014); `enable` while the Python row is
    enabled is `SCHEDULE_INVALID`. `schedule set` validates all before it writes (the import check
    through sc-cron's supervisor), then writes the row with `replace_and_set_enabled`, its
-   `enabled` flag kept (ADR-SYNC-0008). `schedule show` reports what REQ-BDC-0731 lists.
+   `enabled` flag kept (ADR-SYNC-0008). Every mode-changing command reads the rows and writes
+   them under the cache file's mode lock (ADR-SYNC-0008 as amended in QA-1), so no
+   interleaving leaves both rows enabled. `schedule show` reports what REQ-BDC-0731 lists,
+   each row's run id, consecutive failures and first failure kept as typed data in the cache
+   file's `sync_run` table (ADR-STORE-0006 as amended in QA-1).
 2. **Entry points and shutdown** (REQ-BDC-0720, REQ-BDC-0730, S90). `bdc cache cron run`
-   (sc-cron's worker with bd-cache-sync's resolver, `MissedTickPolicy::Skip`; `bd-cache-cli`
-   gains `tokio` and `sc-cron`), `cron
+   (sc-cron's worker with bd-cache-sync's resolver, `MissedTickPolicy::Skip`, run through
+   bd-cache-sync's `SystemSchedules`; `bd-cache-cli` gains `tokio`, not `sc-cron`, QA-1 ruling
+   RBQA-F003), `cron
    run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run the built-in row's code;
    `Cache.tick()` releases the GIL and owns its runtime as ADR-PY-0006 says. Scheduled times come
    only from the rows (ANC-002). `cron run` stops on `SIGINT`, `SIGTERM` and `SIGHUP` (Ctrl-C and
-   Ctrl-Break on Windows) with `--shutdown-timeout-ms`, killing the trees of runs still going
-   and releasing the lease, as REQ-BDC-0730 says (`kill -9` is covered only by lease expiry);
+   Ctrl-Break on Windows) with `--shutdown-timeout-ms`: on a signal only the stop flag is set
+   and no run starts; the runs in flight, their bd calls included, get the grace period, and
+   only when it expires are the bd calls stopped and the trees still going killed (Rand's
+   ruling 5); the lease is released and a stop takes at most twice the timeout, as
+   REQ-BDC-0730 says (`kill -9` is covered only by lease expiry); `tick` and `sync use-python`
+   stop their bd calls and trees at once;
    `cron run --once` exits 0, or 3 with `TICK_RUN_FAILED`; `cron run` logs as REQ-BDC-0730 says.
    Every new command (`schedule`, `cron`, `tick`, `sync`, `scopes`) is on the `bdc cache`
    cache-management surface; none joins the bd /v0-shaped beads surface (ADR-BDC-0009,
@@ -69,8 +90,10 @@ ADR-CRON-0009, with REQ-BDC-0720..0731, which hold the parameters.
    - Rows are stored only through b-7's strict row decoder (REQ-BDC-0007), all or nothing per
      scope result: one invalid row stores no row from that result and fails the scope
      (REQ-BDC-0008); a stored row whose `updated_at` is newer is never replaced (REQ-BDC-0502).
-   - When bd cannot be reached, a scope's result is `outage` (`details.outage: true`), its rows
-     stay as they were, reads keep answering from the cache, and the hook is told (ADR-BDC-0005).
+   - When bd cannot be reached, a scope's result is `outage`, its error object carrying
+     `outage: true` (REQ-BDC-0729's `details.outage`, flat in the embedded object as
+     ADR-SYNC-0008's request shows), its rows stay as they were, reads keep answering from the
+     cache, and the hook is told (ADR-BDC-0005).
    - While the Python row is enabled, `tick` and `Cache.tick()` are `PRECONDITION` and start no
      bd process.
 4. **The Python sync row and the switch** (REQ-BDC-0724, REQ-BDC-0725, REQ-BDC-0722, ANC-003).
@@ -90,7 +113,10 @@ ADR-CRON-0009, with REQ-BDC-0720..0731, which hold the parameters.
    sc-cron's exported supervisor (REQ-CRON-0018) with REQ-BDC-0723's command, environment, cwd,
    caps and kill at its deadline (NFR-BDC-0004), REQ-BDC-0727's capped request, at-least-once
    delivery and backoff, and the trust check before every launch (`TrustedCacheFile`). The run
-   marks nothing. bd-cache-sync adds no dependency and drops `toml` and `libc` (ADR-SYNC-0008).
+   marks nothing. bd-cache-sync drops `toml` and `libc` and adds only `rustix` (Unix, its
+   `process` module, from the workspace entry) for the trust check's effective uid, and the
+   `bd-cache-api` edge (QA-1: it runs the front-end verbs for every front end and maps their
+   errors once) (ADR-SYNC-0008).
 6. **sc-cron's general features** (REQ-CRON-0016, REQ-CRON-0018, REQ-CRON-0005 amended,
    ADR-CRON-0009). `TargetResolver` and `Scheduler::spawn_worker_with`, called once per launch,
    an error recorded `Failed` with the row left active; `spawn_worker_for` and `spawn_worker`
@@ -108,7 +134,9 @@ ADR-CRON-0009, with REQ-BDC-0720..0731, which hold the parameters.
    on the handle's own connection (ADR-PY-0003), and the new codes in the exports. New scope
    arguments take scope names as written; the 0.1 verbs keep the bare-name rule (b-7). The 0.1
    verbs, arguments and dicts are unchanged, and `dir(Cache)` is still the 0.1 set. `bd-cache-py`
-   gains `bd-cache-sync` and `tokio`, and its Boundaries and Crate Layout rows say so.
+   gains `bd-cache-sync` and `tokio`, opens its handle through bd-cache-sync's one composition
+   root (`compose_tuned`, one process-wide `ProjectLocks`), drops `dunce`, and its Boundaries
+   and Crate Layout rows say so.
 9. **The new verbs in `bd-cache-api` and the CLI** (ADR-BDC-0015, REQ-CLI-0006 amended,
    REQ-API-0001 and 0005 amended, REQ-BDC-0803 amended). The new verbs' request, data and error
    types in `bd-cache-api`, decoded by `decode.rs` and listed in `Command::ALL` (the
@@ -119,7 +147,10 @@ ADR-CRON-0009, with REQ-BDC-0720..0731, which hold the parameters.
    `scopes list`'s alias, now with each scope's filter; `cache evict` is unchanged; `scopes
    remove` is `evict` plus the registry removal. `ApiError::tick_refusal`, its kind table, the
    `refused[]` items, the contract's §4 `TICK_<REFUSAL>` row and its `error_table.rs` expectation
-   are removed. The help text of `cache tick` is rewritten.
+   are removed. The help text of `cache tick` is rewritten. With the phase files gone, the
+   alert verbs (`sync_alert`, `set_sync_alert`, `set_sync_alert_within`) refuse an
+   unregistered scope like every other scope verb (ADR-BDC-0013, ADR-CORE-0205: their
+   Amendment 1 exception ends; `crates/bd-cache/src/lib.rs`, `tests/ingest.rs`).
 10. **Removals** (ADR-BDC-0010, ADR-BDC-0012; REQ-BDC-0701, 0702, 0704..0707 and the REQ-SYNC ids
     above superseded; REQ-BDC-0810 amended). In `crates/bd-cache-sync/src`: the consumer
     messaging module, `phases.rs`, the consumer parts of `announce.rs` and `active.rs`, the stop

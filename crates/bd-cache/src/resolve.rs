@@ -2,7 +2,9 @@
 //!
 //! The lead set the bead by hand after an escalation; the entry becomes
 //! `resolved` (never replayed, no longer blocking `prune`) and the note is
-//! appended to its `last_error` as `" | resolved by <actor>: <note>"`. The
+//! stored in its `note` as `resolved by <actor>: <note>`, `last_error` left as
+//! it was (sprint b-1; the 0.1 `entry` dict still shows the note appended to
+//! `last_error`, as the v3 Python writer writes it). The
 //! state rule is the store's (`CacheStore::resolve`): any entry that is not
 //! escalated, or an absent seq, is `NOT_ESCALATED`. A note over
 //! [`MAX_NOTE_BYTES`](bd_cache_model::MAX_NOTE_BYTES) is `BAD_ARGS` before the

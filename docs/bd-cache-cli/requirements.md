@@ -155,7 +155,7 @@ file is `CONFIG_INVALID` with `details.key: "cache_path"` and
 **Refines:** REQ-BDC-0810, contract §2
 **Acceptance evidence:** `flag_beats_env_beats_toml_beats_default`,
 `bd_is_never_read_from_toml`, `a_subdirectory_does_not_find_the_parent_beads`,
-`the_legacy_cache_file_is_config_invalid`, `metadata_comes_from_beads_dir_when_set`
+`a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_opens_as_any_other` (sprint b-8, replacing `the_legacy_cache_file_is_config_invalid`), `metadata_comes_from_beads_dir_when_set`
 (`tests/process.rs`); `config::tests`.
 
 ## REQ-CLI-0009: `--help` and `--version`

@@ -12,7 +12,9 @@
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 
+use bd_cache_api::{CacheFacts, Command, decode};
 use bd_cache_model::{CacheError as ModelError, DrainBudget, IdemKey, OPS, ScopeId, Seq};
 use pyo3::exceptions::{PyBaseException, PyOSError, PyValueError};
 use pyo3::prelude::*;
@@ -21,8 +23,9 @@ use sc_beads::{Actor, BeadId, Clock, Deadline};
 use serde::Serialize;
 
 use crate::compose::{self, Composition, OpenError, OpenKind, Opened, Overrides};
+use crate::convert::to_py;
 use crate::convert::{json_text, positive_seconds, reply, seconds};
-use crate::error::{ClosedError, bad_argument, cache_err};
+use crate::error::{ClosedError, api_err, bad_argument, cache_err};
 use crate::slot::{NotRun, Slot};
 
 /// The cache of one repository: the SQLite store, the flock drain lock and the `bd` CLI.
@@ -48,10 +51,24 @@ pub(crate) struct PyCache {
     path: PathBuf,
 }
 
-struct Inner {
-    cache: Composition,
+pub(crate) struct Inner {
+    /// The cache, behind the mutex the sync runs share (`bd_cache_sync::SharedCache`):
+    /// the slot already serializes every verb, so this lock is never contended.
+    pub(crate) cache: bd_cache_sync::SharedCache<
+        bd_cache_store::SqliteStore,
+        bd_cache_store::FlockDrainLock,
+        sc_bd_cli::BdCli,
+    >,
     /// The clock the cache and its backend share; every deadline is minted from it.
-    clock: Arc<dyn Clock>,
+    pub(crate) clock: Arc<dyn Clock>,
+    /// The cache file and `metadata.json` facts the api reports.
+    pub(crate) facts: CacheFacts,
+    /// The cache file's schedule table, or why it cannot serve (ADR-BDC-0014),
+    /// the real error kept with its source.
+    pub(crate) schedules: bd_cache_sync::ScheduleTable,
+    /// The files a sync run of this cache uses: the cache file, the beads
+    /// directory and the repository root.
+    pub(crate) files: bd_cache_sync::SyncFiles,
 }
 
 impl Inner {
@@ -59,11 +76,22 @@ impl Inner {
     fn from_opened(opened: Opened) -> (Self, PathBuf) {
         (
             Self {
-                cache: opened.cache,
+                cache: Arc::new(std::sync::Mutex::new(opened.cache)),
                 clock: opened.clock,
+                facts: opened.facts,
+                schedules: opened.schedules,
+                files: opened.files,
             },
             opened.path,
         )
+    }
+
+    /// The cache; a lock a panicking verb poisoned is taken all the same,
+    /// since the slot closes the handle on a panic (ADR-PY-0003).
+    pub(crate) fn cache(&self) -> std::sync::MutexGuard<'_, Composition> {
+        self.cache
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
 }
 
@@ -76,18 +104,29 @@ impl fmt::Debug for Inner {
 /// The `bd_cache_rs` module's version: the wheel's, which versions the reply shapes.
 pub(crate) const VERSION: &str = env!("CARGO_PKG_VERSION");
 
+/// The phase-a scope a 0.1 verb's `phase` names: `x` or the legacy-prefixed
+/// `x` (REQ-BDC-0812 as amended, ADR-BDC-0013), the prefix rule applied here
+/// once; `ValueError` for a name that is not a scope name. The verbs then
+/// refuse, inside the call, a registered filter scope of that name
+/// ([`bd_cache::Cache::legacy_scope`], which strips nothing again).
 fn scope(phase: &str) -> PyResult<ScopeId> {
-    compose::parse_phase(phase).map_err(|text| PyValueError::new_err(format!("phase: {text}")))
+    compose::parse_phase(phase).map_err(|e| PyValueError::new_err(format!("phase: {e}")))
 }
 
-/// A positive number of attempts.
+/// A number of attempts from 1 to `MAX_MAX_ATTEMPTS`.
 fn attempts(n: i64) -> PyResult<u32> {
-    u32::try_from(n).ok().filter(|n| *n >= 1).ok_or_else(|| {
-        bad_argument(
-            "max_attempts",
-            format!("{n} is not a whole number of attempts, at least 1"),
-        )
-    })
+    u32::try_from(n)
+        .ok()
+        .filter(|n| (1..=bd_cache_model::MAX_MAX_ATTEMPTS).contains(n))
+        .ok_or_else(|| {
+            bad_argument(
+                "max_attempts",
+                format!(
+                    "{n} is not a whole number of attempts from 1 to {}",
+                    bd_cache_model::MAX_MAX_ATTEMPTS
+                ),
+            )
+        })
 }
 
 fn bead_id(bead: &str) -> PyResult<BeadId> {
@@ -140,17 +179,29 @@ impl PyCache {
                     .iter()
                     .map(|n| compose::parse_phase(n))
                     .collect::<Result<Vec<_>, _>>()
-                    .map_err(|text| PyValueError::new_err(format!("scopes: {text}")))
+                    .map_err(|e| PyValueError::new_err(format!("scopes: {e}")))
             })
             .transpose()?;
         let overrides = Overrides {
             cache_path,
             scopes,
             call_timeout: call_timeout_s
-                .map(|t| positive_seconds("call_timeout_s", t))
+                .map(|t| {
+                    positive_seconds(
+                        "call_timeout_s",
+                        t,
+                        Duration::from_secs(bd_cache_model::MAX_CALL_TIMEOUT_S),
+                    )
+                })
                 .transpose()?,
             miss_fill_timeout: miss_fill_timeout_ms
-                .map(|ms| positive_seconds("miss_fill_timeout_ms", ms / 1000.0))
+                .map(|ms| {
+                    positive_seconds(
+                        "miss_fill_timeout_ms",
+                        ms / 1000.0,
+                        Duration::from_millis(bd_cache_model::MAX_MISS_FILL_TIMEOUT_MS),
+                    )
+                })
                 .transpose()?,
             max_attempts: max_attempts.map(attempts).transpose()?,
         };
@@ -213,7 +264,7 @@ impl PyCache {
         let timeout = miss_timeout
             .map(|t| seconds("miss_timeout", t))
             .transpose()?;
-        self.call(py, move |c| c.cache.get(&id, timeout))
+        self.call(py, move |c| c.cache().get(&id, timeout))
     }
 
     /// A fresh read of `ids` (one `bd list --id`, all statuses) under `timeout` seconds.
@@ -232,7 +283,7 @@ impl PyCache {
             .map(|i| bead_id(i))
             .collect::<PyResult<Vec<_>>>()?;
         let timeout = seconds("timeout", timeout)?;
-        self.call(py, move |c| c.cache.refresh(&ids, timeout))
+        self.call(py, move |c| c.cache().refresh(&ids, timeout))
     }
 
     /// Journals one write after validating it and checking its precondition.
@@ -274,7 +325,7 @@ impl PyCache {
         };
         let op = op.to_owned();
         self.call(py, move |c| {
-            c.cache.write(&id, &op, &args_json, pre, key, who)
+            c.cache().write(&id, &op, &args_json, pre, key, who)
         })
     }
 
@@ -300,7 +351,8 @@ impl PyCache {
             ));
         }
         self.call(py, move |c| {
-            c.cache.list(&s, status.as_deref(), label.as_deref())
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().list(&s, status.as_deref(), label.as_deref())
         })
     }
 
@@ -321,7 +373,10 @@ impl PyCache {
         let within = fresh_within
             .map(|t| seconds("fresh_within", t))
             .transpose()?;
-        self.call(py, move |c| c.cache.ready(&s, within))
+        self.call(py, move |c| {
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().ready(&s, within)
+        })
     }
 
     /// Syncs `phase` (registering it on demand) within `timeout` seconds.
@@ -332,7 +387,7 @@ impl PyCache {
         let after = seconds("timeout", timeout)?;
         self.call(py, move |c| {
             let d = Deadline::after(c.clock.as_ref(), after);
-            c.cache.sync(&s, d)
+            c.cache().sync_legacy(&s, d)
         })
     }
 
@@ -347,6 +402,7 @@ impl PyCache {
         start_gate_s: f64,
         hard_s: f64,
     ) -> PyResult<Bound<'py, PyAny>> {
+        crate::phase_b::refuse_in_run(py, "drain")?;
         let gate = seconds("start_gate_s", start_gate_s)?;
         let hard = seconds("hard_s", hard_s)?;
         self.call(py, move |c| {
@@ -354,58 +410,73 @@ impl PyCache {
                 start_gate: Deadline::after(c.clock.as_ref(), gate),
                 hard: Deadline::after(c.clock.as_ref(), hard),
             };
-            c.cache.drain(&budget)
+            c.cache().drain(&budget)
         })
     }
 
     /// One journal entry by `seq`, in any state (REQ-BDC-0908).
     fn entry<'py>(&self, py: Python<'py>, seq: i64) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, move |c| c.cache.entry(Seq::new(seq)))
+        self.call(py, move |c| c.cache().entry(Seq::new(seq)))
     }
 
     /// Settles an escalated entry with the lead's `note`; returns `None`.
     fn resolve(&self, py: Python<'_>, seq: i64, note: &str, actor: &str) -> PyResult<()> {
         let who = parse_actor(actor)?;
         let note = note.to_owned();
-        self.run(py, move |c| c.cache.resolve(Seq::new(seq), &note, who))
+        self.run(py, move |c| c.cache().resolve(Seq::new(seq), &note, who))
     }
 
     /// Prunes a phase; returns `{scope, beads_deleted, out_of_scope_swept}`.
     fn prune<'py>(&self, py: Python<'py>, phase: &str) -> PyResult<Bound<'py, PyAny>> {
         let s = scope(phase)?;
-        self.call(py, move |c| c.cache.prune(&s))
+        self.call(py, move |c| {
+            let s = c.cache().legacy_scope(&s)?;
+            c.cache().prune(&s)
+        })
     }
 
     /// The store's status: `{meta, journal, phases, escalated, outage, stale}`.
     fn status<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.status())
+        self.call(py, |c| c.cache().status())
     }
 
     /// Escalated entries not yet announced, as journal-entry dicts.
     fn unannounced_escalations<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.unannounced_escalations())
+        self.call(py, |c| c.cache().unannounced_escalations())
     }
 
     /// Records that the escalation `seq` was announced; returns `None`.
     fn mark_announced(&self, py: Python<'_>, seq: i64) -> PyResult<()> {
-        self.run(py, move |c| c.cache.mark_announced(Seq::new(seq)))
+        self.run(py, move |c| c.cache().mark_announced(Seq::new(seq)))
     }
 
     /// The phase's last announced sync-failure cause, or `None`.
     fn sync_alert(&self, py: Python<'_>, phase: &str) -> PyResult<Option<String>> {
         let s = scope(phase)?;
-        self.run(py, move |c| c.cache.sync_alert(&s))
+        self.run(py, move |c| c.cache().sync_alert(&s))
     }
 
     /// Sets the phase's sync-failure cause; `None` clears it. Returns `None`.
     fn set_sync_alert(&self, py: Python<'_>, phase: &str, cause: Option<String>) -> PyResult<()> {
         let s = scope(phase)?;
-        self.run(py, move |c| c.cache.set_sync_alert(&s, cause.as_deref()))
+        self.run(py, move |c| c.cache().set_sync_alert(&s, cause.as_deref()))
     }
 
     /// Open work for the stop rule: `{pending, escalated_unannounced}`.
     fn open_work<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        self.call(py, |c| c.cache.open_work())
+        self.call(py, |c| c.cache().open_work())
+    }
+
+    /// The 0.2 namespaces: `cache.beads` and `cache.manage` (`api.rs`).
+    ///
+    /// Resolved here, not as class attributes, so the 0.1 handle's public names stay
+    /// exactly the 0.1 set (`dir(Cache)`); `cache.beads` and `cache.manage` work as
+    /// ordinary attributes all the same.
+    fn __getattr__(slf: &Bound<'_, Self>, name: &str) -> PyResult<Py<PyAny>> {
+        match crate::phase_b::method(slf, name)? {
+            Some(method) => Ok(method),
+            None => crate::api::namespace(slf, name),
+        }
     }
 }
 
@@ -431,8 +502,14 @@ fn open_err(py: Python<'_>, e: OpenError) -> PyErr {
             kind.into(),
             path.as_ref(),
         ),
-        OpenError::Read { path, text } => {
-            decorate(PyOSError::new_err(text), OpenKind::Read, Some(&path))
+        OpenError::Read { path, text, source } => {
+            // `OSError(errno, strerror, filename)` sets `errno` and `filename`
+            // from the typed error; an error with no OS code keeps the text.
+            let err = match source.raw_os_error() {
+                Some(code) => PyOSError::new_err((code, text, path.clone())),
+                None => PyOSError::new_err(text),
+            };
+            decorate(err, OpenKind::Read, Some(&path))
         }
         OpenError::Cache(e) => cache_err(py, &e),
     }
@@ -457,11 +534,55 @@ fn closed_message(not_run: &NotRun) -> String {
 }
 
 impl PyCache {
+    /// One 0.2 command: decode the keyword request, execute it with the GIL
+    /// released, return `data` as Python objects (`api.rs`).
+    ///
+    /// The request goes through `bd_cache_api::decode` and nothing else, so the
+    /// validation, the codes and the data are the CLI's (REQ-BDC-0807).
+    pub(crate) fn api_call<'py>(
+        &self,
+        py: Python<'py>,
+        command: Command,
+        request: &serde_json::Value,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        if command == Command::CacheFlush {
+            crate::phase_b::refuse_in_run(py, "manage.flush")?;
+        }
+        let request = decode(command, request).map_err(|e| api_err(py, &e))?;
+        // `bd_cache_sync::execute_api`, as the CLI runs it: `manage.health()`
+        // gets the sync rows' state read now (ADR-BDC-0015 amendment 1).
+        let outcome = py.detach(|| {
+            self.inner.with(|i| {
+                bd_cache_sync::execute_api(&i.schedules, &mut i.cache(), &request, &i.facts)
+                    .map(|d| d.to_json())
+            })
+        });
+        match outcome {
+            Ok(Ok(data)) => to_py(py, &data),
+            Ok(Err(e)) => Err(api_err(py, &e)),
+            Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
+        }
+    }
+
+    /// Runs `f` on the handle's own cache with the GIL released; an
+    /// [`ApiError`](bd_cache_api::ApiError) raises `CacheError` (the phase-B
+    /// methods, `phase_b.rs`).
+    pub(crate) fn run_api<F>(&self, py: Python<'_>, f: F) -> PyResult<serde_json::Value>
+    where
+        F: FnOnce(&mut Inner) -> Result<serde_json::Value, bd_cache_api::ApiError> + Send,
+    {
+        match py.detach(|| self.inner.with(f)) {
+            Ok(Ok(v)) => Ok(v),
+            Ok(Err(e)) => Err(api_err(py, &e)),
+            Err(not_run) => Err(ClosedError::new_err(closed_message(&not_run))),
+        }
+    }
+
     /// Runs `f` with the GIL released and maps a typed error to `CacheError`.
     ///
     /// The lock is taken inside the detached section, so a thread waiting for
     /// another thread's verb does not hold the GIL.
-    fn run<T, F>(&self, py: Python<'_>, f: F) -> PyResult<T>
+    pub(crate) fn run<T, F>(&self, py: Python<'_>, f: F) -> PyResult<T>
     where
         T: Send,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,
@@ -473,7 +594,7 @@ impl PyCache {
     }
 
     /// As [`run`](Self::run), then converts the reply to Python objects.
-    fn call<'py, T, F>(&self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
+    pub(crate) fn call<'py, T, F>(&self, py: Python<'py>, f: F) -> PyResult<Bound<'py, PyAny>>
     where
         T: Send + Serialize,
         F: FnOnce(&mut Inner) -> Result<T, ModelError> + Send,

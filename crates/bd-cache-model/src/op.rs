@@ -1,6 +1,6 @@
 //! Journal operations: [`Op`] with parse, canonical args, overlay and achieved; [`replay`].
 //!
-//! The op table (BD-CACHE.md, Journal operations; REQ-BDC-0301):
+//! The op table (the v3 journal operations; REQ-BDC-0301):
 //!
 //! | op | args | overlay | achieved when |
 //! |---|---|---|---|
@@ -31,7 +31,7 @@ use serde_json::{Map, Value};
 use crate::error::{CacheError, GuardKey, Unmet};
 use crate::journal::{JournalEntry, JournalState};
 use crate::pyjson::python_json;
-use crate::scope::{PhaseName, ScopeId};
+use crate::scope::ScopeId;
 
 /// The status text of a closed bead (bd's `closed`): the one literal the model, the
 /// cache and its callers compare against.
@@ -462,6 +462,33 @@ impl Op {
         row
     }
 
+    /// Whether journaling this op changes `view`, the bead's view before the write.
+    ///
+    /// The `changed` a write reply carries and the journal stores (contract
+    /// §5.3, lead ruling S62). It is a prediction: bd decides at flush. A close
+    /// changes the view unless the bead is already closed (`!already_closed`);
+    /// any other op changes it when its overlay does.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bd_cache_model::Op;
+    /// let mut row = sc_beads::testing::bead("b1");
+    /// row.status = Some("open".into());
+    /// let start = Op::parse("update", r#"{"status": "in_progress"}"#).unwrap();
+    /// assert!(start.changes(&row));
+    /// assert!(!start.changes(&start.overlay(&row)), "already in progress");
+    /// let close = Op::Close { reason: Some("done".into()) };
+    /// assert!(!close.changes(&close.overlay(&row)), "already closed");
+    /// ```
+    #[must_use]
+    pub fn changes(&self, view: &Bead) -> bool {
+        match self {
+            Op::Close { .. } => view.status.as_deref() != Some(CLOSED_STATUS),
+            Op::Update(_) | Op::DepAdd { .. } => self.overlay(view) != *view,
+        }
+    }
+
     /// True when the backend row already shows this op's effect (a write that landed before a crash).
     #[must_use]
     pub fn achieved(&self, row: &Bead) -> bool {
@@ -523,10 +550,12 @@ pub fn normalize(row: &Bead) -> Bead {
     b
 }
 
-/// The first valid `phase-<x>` label's suffix: the v3 `phase` column.
+/// The phase-a scope of a row, the v3 `beads.phase` column: its first label
+/// that is the legacy prefix followed by a valid name ([`ScopeId::from_labels`]);
+/// `None` for a row with no such label (ADR-BDC-0013).
 #[must_use]
-pub fn phase_of(row: &Bead) -> Option<PhaseName> {
-    ScopeId::from_labels(&row.labels).map(|s| s.phase_name().clone())
+pub fn phase_of(row: &Bead) -> Option<ScopeId> {
+    ScopeId::from_labels(&row.labels)
 }
 
 /// Parses a write precondition: `{status?, assignee?}`, with the `/v0` aliases

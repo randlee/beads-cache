@@ -1,8 +1,8 @@
-"""The announcement state atm-bd's cron keeps through its own sender (REQ-BDC-0910)."""
+"""The announcement state a caller keeps through its own sender (REQ-BDC-0910)."""
 
 
 def tick(cache, sender):
-    """What `bd_cache_cron.py` does with the escalations: send each once, then mark it."""
+    """What a caller does with the escalations: send each once, then mark it."""
     sent = []
     for entry in cache.unannounced_escalations():
         if sender(entry):

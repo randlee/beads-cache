@@ -21,6 +21,10 @@
 //!   per-project lock ([`ProjectLocks`]).
 //! - [`argv`]: the argv of every cache call, as pure functions.
 //! - [`bounded`]: the deadline-bounded process run behind the cache calls.
+//! - [`shutdown`]: the process-wide shutdown request a host's signal handler sets, which
+//!   stops every bounded call (RSH-001).
+//! - [`process_group`] (Unix): the group kill and probe of a bounded child, made with
+//!   `kill(2)` itself rather than a `kill` program (RSH-002).
 //! - `testing` (feature `test-support`): `RecordingInvoker`, a scripted invoker that
 //!   spawns nothing and records every argv, and `FakeBd`, an invoker that behaves like
 //!   `bd` over `sc_beads::testing::FakeBackend`.
@@ -62,8 +66,11 @@ pub mod locks;
 pub mod ops;
 pub mod path;
 pub mod probe;
+#[cfg(unix)]
+pub mod process_group;
 pub mod run;
 pub mod runner;
+pub mod shutdown;
 #[cfg(feature = "test-support")]
 pub mod testing;
 

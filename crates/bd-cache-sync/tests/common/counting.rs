@@ -22,8 +22,9 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use bd_cache_model::{
-    BaseEntry, CacheError, CacheStore, FingerprintOutcome, Freshness, IdemKey, JournalEntry,
-    NewEntry, OpenWork, Outage, PruneReport, ReadyBase, ScopeId, Seq, StoreStatus, SyncState,
+    BaseEntry, CacheError, CacheStore, FailingSince, FingerprintOutcome, Freshness, HookState,
+    IdemKey, IngestSnapshot, JournalEntry, LeaseHolder, LeaseTake, NewEntry, OpenWork, Outage,
+    PruneReport, ReadyBase, RunId, Scope, ScopeId, Seq, StoreStatus, SyncOutcome, SyncState,
     UpsertReport,
 };
 use sc_beads::{Actor, Bead, BeadId, BlockedRow, Edge, Fingerprint, Timestamp};
@@ -34,6 +35,7 @@ pub struct Counting<S> {
     touched: Arc<AtomicU64>,
     waits: Arc<Mutex<Vec<Duration>>>,
     fail_next: Arc<AtomicBool>,
+    stop_on_pending: Arc<Mutex<Option<bd_cache_sync::StopFlag>>>,
 }
 
 impl<S> Counting<S> {
@@ -46,9 +48,17 @@ impl<S> Counting<S> {
                 touched: Arc::clone(&touched),
                 waits: Arc::default(),
                 fail_next: Arc::default(),
+                stop_on_pending: Arc::default(),
             },
             touched,
         )
+    }
+
+    /// Sets `flag` when the run reads the pending summary: after its last
+    /// stop check and before it builds the hook's request (a signal that
+    /// arrives in that window).
+    pub fn stop_on_pending_summary(&self, flag: bd_cache_sync::StopFlag) {
+        *self.stop_on_pending.lock().unwrap() = Some(flag);
     }
 
     /// The `wait` of every bounded marker write so far, in order (shared handle).
@@ -88,11 +98,111 @@ impl<S> Counting<S> {
 }
 
 impl<S: CacheStore> CacheStore for Counting<S> {
-    fn ensure_scope(&mut self, s: &ScopeId) -> Result<(), CacheError> {
+    fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
         self.inner.ensure_scope(s)
     }
-    fn scopes(&self) -> Result<Vec<ScopeId>, CacheError> {
+    fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.put_scope(s)
+    }
+    fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.scope_add(s)
+    }
+    fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
+        self.inner.scope_set(s)
+    }
+    fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        self.inner.scope_remove(s)
+    }
+    fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
+        let r = self.inner.scope(s);
+        self.add(0);
+        r
+    }
+    fn scopes(&self) -> Result<Vec<Scope>, CacheError> {
         self.counted(self.inner.scopes())
+    }
+    fn scopes_of(&self, id: &BeadId) -> Result<Vec<Scope>, CacheError> {
+        self.counted(self.inner.scopes_of(id))
+    }
+    fn scope_revision(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
+        self.inner.scope_revision(s)
+    }
+    fn ingest_scope(
+        &mut self,
+        s: &ScopeId,
+        snapshot: &IngestSnapshot,
+        ready: &[BeadId],
+        at: &Timestamp,
+        revision: Option<&str>,
+    ) -> Result<UpsertReport, CacheError> {
+        self.inner.ingest_scope(s, snapshot, ready, at, revision)
+    }
+    fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError> {
+        self.inner.scope_announce(s, since)
+    }
+    fn mark_offered(&mut self, seqs: &[Seq], at: &Timestamp) -> Result<(), CacheError> {
+        self.inner.mark_offered(seqs, at)
+    }
+    fn lease_take(&mut self, h: &LeaseHolder, now: &Timestamp) -> Result<LeaseTake, CacheError> {
+        self.inner.lease_take(h, now)
+    }
+    fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
+        self.inner.lease_release(run_id)
+    }
+    fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
+        self.inner.lease()
+    }
+    fn hook_state(&self) -> Result<HookState, CacheError> {
+        self.inner.hook_state()
+    }
+    fn hook_failed(
+        &mut self,
+        err: &str,
+        at: &Timestamp,
+        next: Option<&Timestamp>,
+    ) -> Result<HookState, CacheError> {
+        self.inner.hook_failed(err, at, next)
+    }
+    fn hook_succeeded(&mut self) -> Result<(), CacheError> {
+        self.inner.hook_succeeded()
+    }
+    fn sync_run(&self, row: &str) -> Result<Option<bd_cache_model::SyncRun>, CacheError> {
+        self.inner.sync_run(row)
+    }
+    fn sync_run_started(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+    ) -> Result<bd_cache_model::SyncRun, CacheError> {
+        self.inner.sync_run_started(row, run_id, at)
+    }
+    fn sync_run_finished(
+        &mut self,
+        row: &str,
+        run_id: &RunId,
+        at: &Timestamp,
+        end: bd_cache_model::SyncRunEnd,
+    ) -> Result<bool, CacheError> {
+        self.inner.sync_run_finished(row, run_id, at, end)
+    }
+    fn pending_summary(&self) -> Result<bd_cache_model::PendingSummary, CacheError> {
+        if let Some(flag) = self.stop_on_pending.lock().unwrap().as_ref() {
+            flag.stop();
+        }
+        let r = self.inner.pending_summary();
+        self.add(1);
+        r
+    }
+    fn unannounced_escalations_first(
+        &self,
+        limit: usize,
+    ) -> Result<bd_cache_model::EscalationPage, CacheError> {
+        let r = self.inner.unannounced_escalations_first(limit);
+        if let Ok(page) = &r {
+            self.add(page.entries.len());
+        }
+        r
     }
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
         let r = self.inner.get_row(id);
@@ -106,7 +216,7 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn upsert_rows(
         &mut self,
-        s: Option<&ScopeId>,
+        s: Option<&Scope>,
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {
@@ -216,6 +326,14 @@ impl<S: CacheStore> CacheStore for Counting<S> {
     }
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
         self.inner.record_sync(st)
+    }
+    fn record_sync_result(
+        &mut self,
+        s: &ScopeId,
+        outcome: &SyncOutcome,
+        started: &Timestamp,
+    ) -> Result<SyncState, CacheError> {
+        self.inner.record_sync_result(s, outcome, started)
     }
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         self.inner.sync_alert(s)

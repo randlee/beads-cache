@@ -1,0 +1,75 @@
+[package]
+name = "bd-cache-cli"
+description = "The bd-cache / bdc command line: sc-command envelopes over the bd-cache core, and the fake-bd harness."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+# sc-command is a git dependency (ADR-CLI-0001), which crates.io refuses.
+publish = false
+
+[features]
+# The fake-bd executable and its test doubles (sc-bd-cli's FakeBd over
+# sc-beads' FakeBackend). Never part of a release build: the binary has
+# `required-features`, and only the self dev-dependency below turns it on.
+fake-bd = ["sc-bd-cli/test-support", "sc-beads/testing"]
+
+[dependencies]
+bd-cache-api.workspace = true
+bd-cache-model.workspace = true
+bd-cache-store.workspace = true
+bd-cache-sync.workspace = true
+clap.workspace = true
+sc-bd-cli.workspace = true
+sc-beads.workspace = true
+sc-command.workspace = true
+sc-observability-types.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+# The runtime of `cron run`, `tick` and the switch (ADR-SYNC-0008).
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+toml.workspace = true
+
+# bdc stops its bd children on SIGTERM / SIGINT / SIGHUP (RSH-001, ADR-CLI-0005).
+[target.'cfg(unix)'.dependencies]
+signal-hook.workspace = true
+
+# `cron run` stops on Ctrl-C and Ctrl-Break (REQ-BDC-0730).
+[target.'cfg(windows)'.dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "signal"] }
+
+[dev-dependencies]
+# Lets the integration tests use CARGO_BIN_EXE_fake-bd and the test doubles.
+bd-cache-cli = { path = ".", features = ["fake-bd"] }
+tempfile.workspace = true
+# tests/sync_process.rs edits a cache file's schedule-table version (ADR-BDC-0014).
+rusqlite.workspace = true
+
+# `doc = false`: the binaries' docs would collide with the `bd-cache` crate's
+# `bd_cache` docs, and the library documents them.
+[[bin]]
+name = "bd-cache"
+path = "src/bin/bd-cache.rs"
+doc = false
+
+[[bin]]
+name = "bdc"
+path = "src/bin/bdc.rs"
+doc = false
+
+[[bin]]
+name = "fake-bd"
+path = "src/bin/fake-bd.rs"
+required-features = ["fake-bd"]
+
+# A stand-in interpreter for the hook and the Python row in real-process
+# tests on every OS (tests/tree_kill.rs); test support, as fake-bd.
+[[bin]]
+name = "fake-python"
+path = "src/bin/fake-python.rs"
+required-features = ["fake-bd"]
+
+[lints]
+workspace = true

@@ -1,0 +1,95 @@
+{
+  "description": "REQ-BDC-0807, contract §1 rules 5-6: the decoder refuses unknown members (BAD_ARGS, details.member), /v0 names the cache does not serve (UNSUPPORTED, details.unsupported), an empty patch and status closed (BAD_ARGS). Nothing is journaled.",
+  "world": {
+    "beads": [{"id": "b1", "status": "in_progress", "assignee": "dev"}],
+    "sync": ["x"]
+  },
+  "steps": [
+    {
+      "name": "unknown member",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"status": "open"}, "bogus": 1},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "kind": "invalid_input", "details": {"member": "bogus", "v0_code": "invalid_argument"}}}
+    },
+    {
+      "name": "unknown patch member",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"set_metadata": {"k": "v"}}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "patch.set_metadata"}}}
+    },
+    {
+      "name": "unknown member on a read",
+      "command": "issues list",
+      "request": {"scope": "x", "colour": "red"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "colour"}}}
+    },
+    {
+      "name": "claim is not served",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"status": "open"}, "claim": true},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "kind": "invalid_input", "details": {"unsupported": "member", "name": "claim", "v0_reason": "unknown_parameter"}}}
+    },
+    {
+      "name": "expected_version is not served on update",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"status": "open"}, "expected_version": 3},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "member", "name": "expected_version"}}}
+    },
+    {
+      "name": "expected_version is not served on close",
+      "command": "issues close",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "expected_version": 3},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "member", "name": "expected_version"}}}
+    },
+    {
+      "name": "include_comments is not served",
+      "command": "issues get",
+      "request": {"id": "b1", "include_comments": true},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "parameter", "name": "include_comments"}}}
+    },
+    {
+      "name": "a patch member /v0 has but the cache does not serve",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"title": "t"}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "member", "name": "patch.title"}}}
+    },
+    {
+      "name": "a ready sort the cache does not serve",
+      "command": "ready",
+      "request": {"scope": "x", "sort": "hybrid"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "parameter", "name": "sort", "value": "hybrid"}}}
+    },
+    {
+      "name": "more than one edge",
+      "command": "dependencies add",
+      "request": {"actor": "san", "idempotency_key": "k1", "edges": [
+        {"issue_id": "b1", "depends_on_id": "b1", "type": "related"},
+        {"issue_id": "b1", "depends_on_id": "b1", "type": "blocks"}]},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.UNSUPPORTED", "details": {"unsupported": "member", "name": "edges"}}}
+    },
+    {
+      "name": "empty patch",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "patch"}}}
+    },
+    {
+      "name": "status closed goes through issues close",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"status": "closed"}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "patch.status"}, "suggested_action": "use issues close"}}
+    },
+    {
+      "name": "a metadata value bd would coerce",
+      "command": "issues update",
+      "request": {"id": "b1", "actor": "san", "idempotency_key": "k1", "patch": {"metadata": {"set": {"n": "5"}}}},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS"}}
+    },
+    {
+      "name": "nothing was journaled",
+      "command": "cache journal list",
+      "request": {"state": "pending"},
+      "expect": {"ok": true, "data": {"entries": []}}
+    }
+  ]
+}

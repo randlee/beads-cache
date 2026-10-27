@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
-# Runs the live tests of bd-cache-sync (tests/live.rs) in a scratch workspace.
+# Runs the live tests of bd-cache-sync (tests/live.rs) in a scratch workspace:
+# the built-in sync row's scheduled run (`cron run --once`) against a real bd
+# (NFR-BDC-0006).
 #
 # Usage: crates/bd-cache-sync/tests/run-live.sh [cargo test arguments...]
 #
 # Needs `bd` and `dolt` on PATH (or SC_BD_BIN and DOLT_BIN_DIR) and a Rust
-# toolchain. Used by the team-lead on the m5-atmbench testbed. It reuses the
+# toolchain. Run by hand on the live testbed. It reuses the
 # scratch-workspace scripts of sprint a-2: everything is created in a scratch
 # directory on a scratch Dolt server and removed on exit; no shared database
-# is read or written, and no `atm` message is sent.
+# is read or written, and nothing is sent to anyone (the cache sends nothing).
 #
 # The whole run is bounded: LIVE_TIMEOUT_S (default 1800) seconds, after which
 # cargo and its tests are terminated and the scratch server is torn down.

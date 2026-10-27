@@ -237,7 +237,8 @@ impl ScheduleSpec {
 /// A schedule as the scheduler asks a store to create it.
 ///
 /// The scheduler fills `jitter` and `next_run_at` from its injected jitter
-/// source and clock, so the store needs neither.
+/// source and clock, so the store needs neither. A new or restarted schedule
+/// is enabled.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NewSchedule {
     /// The caller's specification.
@@ -251,7 +252,9 @@ pub struct NewSchedule {
 /// One stored schedule with its run state.
 ///
 /// A schedule is active while `ended_at` is `None`; an active schedule
-/// always has a `next_run_at`, an ended one never does.
+/// always has a `next_run_at`, an ended one never does. An active schedule
+/// that is not `enabled` is kept, with its generation, expression and
+/// payload, but never fires (REQ-CRON-0014).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Schedule {
     /// Stable id.
@@ -274,6 +277,8 @@ pub struct Schedule {
     pub ended_at: Option<Timestamp>,
     /// Why it ended, when it has.
     pub stop_reason: Option<String>,
+    /// Whether the worker fires it; a disabled schedule stays active.
+    pub enabled: bool,
 }
 
 impl Schedule {
@@ -281,6 +286,45 @@ impl Schedule {
     #[must_use]
     pub fn is_active(&self) -> bool {
         self.ended_at.is_none()
+    }
+
+    /// The first jittered run strictly after `after`, as the worker computes
+    /// it (REQ-CRON-0002); `None` when the expression has no further occurrence.
+    #[must_use]
+    pub fn next_run_after(&self, after: Timestamp) -> Option<Timestamp> {
+        self.spec
+            .expr
+            .next_run(self.jitter, after.as_datetime())
+            .map(Timestamp::from_datetime)
+    }
+
+    /// The gap between the schedule's first two runs strictly after `after`.
+    ///
+    /// For a regular expression this is its interval; for an irregular one
+    /// (`0 0,5 * * * *`) it is the gap that follows `after`, so it varies with
+    /// `after`. `None` when fewer than two runs follow.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use std::time::Duration;
+    /// # use sc_cron::{Generation, Schedule, ScheduleId, ScheduleSpec, Timestamp};
+    /// let spec = ScheduleSpec::new("s", "0 0,5 * * * *", Duration::from_secs(1), serde_json::json!({}))?;
+    /// let at: Timestamp = "2026-10-26T10:01:00Z".parse()?;
+    /// let row = Schedule {
+    ///     id: ScheduleId::new(1), generation: Generation::FIRST, spec, jitter: Duration::ZERO,
+    ///     created_at: at, next_run_at: None, last_run_at: None, last_outcome: None,
+    ///     ended_at: None, stop_reason: None, enabled: true,
+    /// };
+    /// // The runs after 10:01 are 10:05 and 11:00: a 55-minute gap.
+    /// assert_eq!(row.period_after(at), Some(Duration::from_secs(55 * 60)));
+    /// # Ok::<(), sc_cron::CronError>(())
+    /// ```
+    #[must_use]
+    pub fn period_after(&self, after: Timestamp) -> Option<Duration> {
+        let first = self.next_run_after(after)?;
+        let second = self.next_run_after(first)?;
+        (second.as_datetime() - first.as_datetime()).to_std().ok()
     }
 }
 
@@ -308,13 +352,23 @@ impl fmt::Display for RunOutcome {
     }
 }
 
-/// The answer of a job's stop check, asked before every run.
+/// The answer of a job's stop check, asked before every run (REQ-CRON-0005).
+///
+/// `Disable` and `Delete` both skip this tick. A stop check that cannot
+/// answer (a panic, a timeout, or for a Python hook a failure or a malformed
+/// reply) is not a decision: the run is skipped, the outcome is recorded, and
+/// the schedule stays active and enabled.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StopDecision {
     /// Run this tick.
     Continue,
-    /// End the schedule with this reason; this tick does not run.
-    Stop(String),
+    /// Keep the schedule but stop firing it, with this reason; it can be
+    /// enabled again with [`Scheduler::set_enabled`](crate::Scheduler::set_enabled).
+    /// The reason is kept as the schedule's last outcome, [`RunOutcome::Refused`].
+    Disable(String),
+    /// End the schedule with this reason (ADR-CRON-0007). Its row is kept as
+    /// the ended record, and the name can be started again.
+    Delete(String),
 }
 
 #[cfg(test)]

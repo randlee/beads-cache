@@ -2,11 +2,11 @@
 
 A local SQLite read/write cache in front of the beads `bd` CLI.
 
-beads-cache was extracted from its first consumer, where the cache runs today
-as the baseline Python implementation of the baseline design. It
-is a **filtered local replica**: it holds only the beads in its configured
-sync scopes (`phase-<x>` labels today), because bd databases are too large to
-copy whole.
+It is a **filtered local replica**: it holds only the beads in its configured
+sync scopes, each a name plus a bd filter (labels, status, type, assignee, or
+every bead), because bd databases are too large to copy whole. beads-cache is a
+cache, a CLI for configuration and management, and a PyO3 API; it sends no
+messages and reads no consumer's configuration (ADR-BDC-0010).
 
 - **Reads** come from the cache file and start no `bd` process. Each reply
   reports how fresh it is (`stale`, `last_ok_at`, the backend outage if any).
@@ -21,6 +21,10 @@ copy whole.
   the cache's own journaled writes without a `bd` call.
 - The backend may be slow or unreachable. Every `bd` call has a deadline, and
   an outage leaves writes pending instead of escalating them.
+- **The sync runs on a schedule kept in the cache file:** a built-in sync row
+  (drain, then sync every scope, then an optional post-sync Python hook that
+  gets the results and errors), or a consumer's Python sync row in its place,
+  switched with `bdc cache sync use-python` / `use-builtin`.
 
 All backend access goes through `bd`. The cache never reads dolt tables.
 
@@ -32,10 +36,12 @@ All backend access goes through `bd`. The cache never reads dolt tables.
 | [`sc-bd-cli`](crates/sc-bd-cli) | crates.io | The `bd` CLI implementation of those traits (`BdCli`): process runner, deadline-bounded cache calls, exit 13 as a typed refusal, Dolt detection; `FakeBd` behind `test-support` |
 | [`sc-cron`](crates/sc-cron) | crates.io | A SQLite-backed cron scheduler for tokio with generation fencing, jitter and missed-tick handling. No bd types; a prototype for sc-runtime |
 | [`bd-cache-py`](crates/bd-cache-py) | PyPI, as `bd-cache-rs` | Python bindings (maturin / PyO3), module `bd_cache_rs`: the cache in process, over the real store and `bd` |
+| `bd-cache-api` | no | The request, data and error vocabulary shared by every front end: one decoder, the operation layer, the error table |
+| `bd-cache-cli` | GitHub Releases, Homebrew, Scoop, WinGet | The `bd-cache` / `bdc` binaries (see [The `bdc` CLI](#the-bdc-cli)) |
 | `bd-cache-model` | no | Pure cache model: journal ops, replay, the store ports, configuration, replies, `CacheError` with every `BD_CACHE.*` code |
 | `bd-cache-store` | no | The SQLite `CacheStore` (the BD-CACHE v3 file, shared with the Python implementation) and the `flock` drain lock |
 | `bd-cache` | no | The `Cache` facade: get, list, write, drain, sync, ready, resolve, prune, status |
-| `bd-cache-sync` | no | The sync task on `sc-cron` (drain, then sync each active phase), its announcements, and `compose`, which builds the real cache of a repository |
+| `bd-cache-sync` | no | The sync on `sc-cron` rows in the cache file (the built-in row: drain, sync every scope, post-sync hook; the Python row; the switch and the lease), and `compose`, which builds the real cache of a repository |
 
 `sc-beads`, `sc-bd-cli` and `sc-cron` depend on no bd-cache crate, so they can
 be used on their own.
@@ -76,8 +82,8 @@ use sc_bd_cli::{BdCli, ProjectLocks};
 let clock: Arc<dyn Clock> = Arc::new(SystemClock);
 let bd = BdCli::new_with_clock("bd", Arc::new(ProjectLocks::new()), Arc::clone(&clock));
 let project = ProjectRef::local(Some("/work/project".to_owned()));
-let phase = ScopeFilter::Label("phase-x".to_owned());
-let ready = bd.list_ready(&project, &phase, Deadline::after(&*clock, Duration::from_secs(5)))?;
+let scope = ScopeFilter::Label("area:bk".to_owned());
+let ready = bd.list_ready(&project, &scope, Deadline::after(&*clock, Duration::from_secs(5)))?;
 println!("{} ready", ready.len());
 # Ok::<(), sc_beads::BeadsCacheError>(())
 ```
@@ -129,7 +135,7 @@ pip install bd-cache-rs
 ```python
 import bd_cache_rs
 
-with bd_cache_rs.Cache("/path/to/repo", scopes=["x"]) as cache:   # phase-x
+with bd_cache_rs.Cache("/path/to/repo", scopes=["x"]) as cache:
     cache.sync("x", 30)
     print(cache.get("bk-12")["row"]["bead"]["status"])
     cache.write("bk-12", "close", {"reason": "PASS"}, {"status": "open"},
@@ -142,7 +148,10 @@ The repository needs `.beads/metadata.json` (written by `bd`). Settings are
 read from `.beads/bd-cache.toml`, for example:
 
 ```toml
-scopes = ["x"]                # phase names ("x" or "phase-x"): the beads labelled phase-x
+[[scope]]                     # a scope is a name plus a bd filter
+name = "bk"
+labels_all = ["area:bk"]      # or labels_any, status, type, assignee; or all = true
+# scopes = ["x"]              # the 0.1 form: x is the label scope of the 0.1 rule
 # Optional, shown with their defaults:
 # cache_path = ".bd-cache/<dolt_database>.bd-cache.sqlite3"
 # call_timeout_s = 30         # per-call cap on every bd call
@@ -150,11 +159,44 @@ scopes = ["x"]                # phase names ("x" or "phase-x"): the beads labell
 # max_attempts = 5            # failed writes to a reachable bd before escalation
 ```
 
-Unknown keys are an error. The `[tick]` table configures the sync task in
-`bd-cache-sync`.
+Unknown keys are an error. The sync's schedule is not a TOML key: it is set
+with `bdc cache schedule set <cron-expr>` and kept in the cache file
+(contract §6).
 
 See [`crates/bd-cache-py/README.md`](crates/bd-cache-py/README.md) for the
 verbs, errors and limits.
+
+## The `bdc` CLI
+
+`bd-cache` (alias `bdc`) is the cache from a shell or a hook. Beads commands
+(`issues`, `ready`, `dependencies`, `context`) and cache management
+(`cache status|health|scopes|refresh|flush|evict|journal|schedule|cron|tick|sync`) each print one
+JSON envelope on stdout. Exit codes: 0 success, 2 usage error, 3 any other
+typed error. Full reference: [`docs/bd-cache-cli/contract.md`](docs/bd-cache-cli/contract.md).
+
+```sh
+bdc --repo /path/to/repo cache refresh scopes --scope bk
+bdc --repo /path/to/repo issues list --scope bk --all --sort priority
+bdc --repo /path/to/repo ready --scope bk
+bdc --repo /path/to/repo cache flush
+bdc --repo /path/to/repo cache schedule set '0 * * * * *'   # the built-in sync, every minute
+bdc --repo /path/to/repo cache cron run                      # run the schedule until a signal
+```
+
+Install:
+
+```sh
+brew install randlee/tap/bd-cache                          # Homebrew (macOS, Linux)
+scoop bucket add randlee https://github.com/randlee/scoop-bucket && scoop install bd-cache
+winget install randlee.bd-cache                            # WinGet
+```
+
+Or download the `bd-cache` / `bdc` archive for your platform from the GitHub
+Releases page (Linux x86_64, macOS arm64 and x86_64, Windows x86_64).
+
+These channels go live with the first stable release. That release is blocked
+on [randlee/sc-publish#135](https://github.com/randlee/sc-publish/issues/135),
+so until then they publish nothing.
 
 ## Install
 
@@ -171,6 +213,12 @@ cargo add --dev sc-bd-cli --features test-support  # FakeBd, RecordingInvoker
 ```sh
 pip install bd-cache-rs        # import bd_cache_rs
 ```
+
+Python 0.2 adds `cache.beads.*` and `cache.manage.*`, which mirror the `bdc`
+commands (`cache.beads.issues_get(id=..., miss_timeout_ms=...)`,
+`cache.manage.refresh_scopes(...)`) and take timeouts in milliseconds. It is
+additive: the 0.1 verbs are unchanged. `bd_cache_rs.CONTRACT_VERSION` is the
+contract version the new namespaces implement.
 
 ### GitHub
 
@@ -191,7 +239,7 @@ maturin as the build backend.
 pip install "git+https://github.com/randlee/beads-cache@develop#subdirectory=crates/bd-cache-py"
 ```
 
-No GitHub Release has been cut yet, so there are no prebuilt wheels to
+No stable GitHub Release has been cut yet, so there are no prebuilt wheels to
 download. The `python` CI workflow builds an abi3 wheel for macOS arm64 and
 Linux x86_64 on every push, kept as a workflow artifact.
 
@@ -209,33 +257,31 @@ Linux x86_64 on every push, kept as a workflow artifact.
 - **Python:** CPython 3.9 or later (`requires-python = ">=3.9"`, abi3 wheel).
 - **Platforms:** the Rust crates are tested on Linux, macOS and Windows. The
   Python wheel is built and tested on macOS arm64 and Linux x86_64 (Python
-  3.9, 3.11 and 3.13), since the first consumer's hooks run on POSIX only.
+  3.9, 3.11 and 3.13).
 
 ## Versioning and file formats
 
-- All crates are version 0.1.0. A bd change that breaks the row contract is
+- All crates share one version, 0.2.0 (the wheel is 0.2.0 too). A bd change that breaks the row contract is
   taken up in `sc-beads` and `sc-bd-cli` and released as a semver-major
   version of both.
-- The cache file is the BD-CACHE v3 file (`PRAGMA user_version` 3), shared
-  with the baseline Python implementation; extensions are additive tables and nullable
-  columns only. A file at another nonzero version is refused
+- The cache file is the BD-CACHE v3 file (`PRAGMA user_version` 3), readable
+  and writable by any v3 reader (ADR-STORE-0001); extensions are additive
+  tables and nullable columns only (ADR-STORE-0006). A file at another nonzero version is refused
   (`BD_CACHE.SCHEMA_VERSION`), and the version is never changed on open.
-- `sc-cron`'s schedule store has its own file at `user_version` 1.
+- `sc-cron`'s own `SqliteScheduleStore` has its own file at `user_version` 1;
+  the sync's rows live in the cache file (ADR-BDC-0014).
 - The Python reply shapes are versioned with the wheel
   (`bd_cache_rs.__version__`).
 
 ## Status
 
-0.1.0, pre-release. Nothing is published yet. The design baseline is
-the baseline design (the BD-CACHE contract); where beads-cache departs from it, an ADR in
+0.2.0, pre-release. Nothing is published yet. The design baseline is
+the BD-CACHE v3 file format; where beads-cache departs from it, an ADR in
 [`docs/architecture.md`](docs/architecture.md) records why.
 
 Not yet:
 
-- No `bdc` / `bd-cache` CLI binary. It is planned after sc-runtime
-  integration, so there are no Homebrew, Scoop or WinGet packages either.
 - No HTTPS MCP server and no `bd serve` HTTP backend (`sc-bd-http`).
-- One scope kind only: `phase-<x>` labels.
 - No user metadata schema packages (ADR-BDC-0008 is a draft).
 
 ## Documentation

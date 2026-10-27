@@ -15,6 +15,10 @@ sc-beads.workspace = true
 rusqlite.workspace = true
 fs4.workspace = true
 serde_json.workspace = true
+# The schedule rows in the cache file: `CacheScheduleStore` implements
+# `sc_cron::ScheduleStore` over the cache's one connection (ADR-BDC-0014,
+# amending ADR-STORE-0005).
+sc-cron.workspace = true
 
 # Logging is `sc_beads::logging::tracing` (ADR-BDC-0007): no direct `tracing` (ADR-STORE-0005).
 
@@ -26,7 +30,9 @@ serde_json.workspace = true
 # write to read `PRAGMA busy_timeout`. That probe's `Context::get_connection` is the crate's
 # only `unsafe`, test-only (SAFETY in store.rs: the ConnectionRef does not outlive the call
 # or leave the thread running the statement).
-rusqlite = { workspace = true, features = ["functions"] }
+# `trace`: the journal-count test (S62 sprint b-1, contract §6) counts the statements the
+# store runs with `Connection::trace_v2`: `journal_counts` must be one grouped query.
+rusqlite = { workspace = true, features = ["functions", "trace"] }
 # Temp dirs for the unit tests' cache files, removed on drop, also when a test fails (QA6-002).
 tempfile.workspace = true
 # `testing`: the store contract suite and `FakeStore`.

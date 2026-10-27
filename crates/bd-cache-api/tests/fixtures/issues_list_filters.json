@@ -1,0 +1,78 @@
+{
+  "description": "contract §5.3 issues list: closed rows, templates and gate rows are excluded by default; status or all lifts the exclusion; a scope is required; a phase-<x> label selects the scope and still filters.",
+  "world": {
+    "beads": [
+      {"id": "o1", "labels": ["phase-x", "red"]},
+      {"id": "o2", "assignee": "dev"},
+      {"id": "c1", "status": "closed"},
+      {"id": "t1", "is_template": true},
+      {"id": "g1", "issue_type": "gate"},
+      {"id": "y1", "labels": ["phase-y"]}
+    ],
+    "sync": ["x"]
+  },
+  "steps": [
+    {
+      "name": "default exclusions",
+      "command": "issues list",
+      "request": {"scope": "x"},
+      "expect": {"ok": true, "data": {"items": [{"id": "o1"}, {"id": "o2"}], "has_more": false, "next_cursor": "$absent",
+        "x_cache": {"scope": "x", "last_ok_at": "2026-10-23T10:00:00.000Z", "outage": null,
+          "rows": {"o1": {"stale": false, "blocked_by": "$any"}, "o2": {"stale": false, "blocked_by": "$any"}}}}}
+    },
+    {
+      "name": "all lifts the exclusions",
+      "command": "issues list",
+      "request": {"scope": "x", "all": true},
+      "expect": {"ok": true, "data": {"items": [{"id": "c1"}, {"id": "g1"}, {"id": "o1"}, {"id": "o2"}, {"id": "t1"}]}}
+    },
+    {
+      "name": "status replaces the exclusions",
+      "command": "issues list",
+      "request": {"scope": "x", "status": ["closed"]},
+      "expect": {"ok": true, "data": {"items": [{"id": "c1"}]}}
+    },
+    {
+      "name": "a scope is required",
+      "command": "issues list",
+      "request": {},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "kind": "conflict", "details": {"known": ["x"]}}}
+    },
+    {
+      "name": "a scope the cache does not know",
+      "command": "issues list",
+      "request": {"scope": "y"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["x"]}}}
+    },
+    {
+      "name": "a label-only read names no scope (ADR-BDC-0013: no scope is derived from a label)",
+      "command": "issues list",
+      "request": {"label": ["phase-x"]},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.SCOPE_UNKNOWN", "details": {"known": ["x"]}}}
+    },
+    {
+      "name": "every label still filters",
+      "command": "issues list",
+      "request": {"scope": "x", "label": ["phase-x", "red"]},
+      "expect": {"ok": true, "data": {"items": [{"id": "o1", "labels": ["phase-x", "red"]}]}}
+    },
+    {
+      "name": "assignee and exclude_label",
+      "command": "issues list",
+      "request": {"scope": "x", "assignee": "dev", "exclude_label": ["red"]},
+      "expect": {"ok": true, "data": {"items": [{"id": "o2"}]}}
+    },
+    {
+      "name": "an explicit limit pages",
+      "command": "issues list",
+      "request": {"scope": "x", "limit": 1},
+      "expect": {"ok": true, "data": {"items": [{"id": "o1"}], "has_more": true, "next_cursor": "$any"}}
+    },
+    {
+      "name": "a tampered cursor",
+      "command": "issues list",
+      "request": {"scope": "x", "cursor": "v1.Zm9v"},
+      "expect": {"ok": false, "error": {"code": "BD_CACHE.BAD_ARGS", "details": {"member": "cursor", "v0_code": "invalid_cursor"}}}
+    }
+  ]
+}

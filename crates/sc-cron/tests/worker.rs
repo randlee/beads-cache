@@ -1,6 +1,5 @@
 //! Worker behaviour under a manual clock: ticking, missed-tick policy, stop
-//! checks, timeouts, generation fencing, jitter and shutdown. Ported from
-//! atm-cron's `tests/worker.rs` where the cases apply without ATM types.
+//! checks, timeouts, generation fencing, jitter and shutdown.
 //!
 //! No test polls. A test waits on one of three signals: the manual clock's
 //! park at the new time (the worker has settled), the job's entry or drop
@@ -25,8 +24,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use sc_cron::{
     Clock, CronError, Generation, Job, ManualClock, MissedTickPolicy, NewSchedule, RunOutcome,
-    RunTimeout, Schedule, ScheduleId, ScheduleSpec, ScheduleStore, Scheduler, SeqJitter,
-    SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
+    RunTimeout, Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, Scheduler,
+    SeqJitter, SqliteScheduleStore, StopDecision, Timestamp, WorkerHandle,
 };
 use serde_json::{Value, json};
 use tokio::sync::watch;
@@ -313,6 +312,35 @@ impl ScheduleStore for RecordingStore {
         });
         Ok(changed)
     }
+
+    fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError> {
+        self.inner.set_enabled(name, enabled)
+    }
+
+    fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<bool, CronError> {
+        self.inner.set_enabled_many(flags)
+    }
+
+    fn replace_and_set_enabled(
+        &self,
+        schedule: &NewSchedule,
+        enabled: bool,
+        created_at: Timestamp,
+        flags: &[(ScheduleName, bool)],
+    ) -> Result<Option<Schedule>, CronError> {
+        self.inner
+            .replace_and_set_enabled(schedule, enabled, created_at, flags)
+    }
+
+    fn disable(
+        &self,
+        id: ScheduleId,
+        generation: Generation,
+        at: Timestamp,
+        reason: &str,
+    ) -> Result<bool, CronError> {
+        self.inner.disable(id, generation, at, reason)
+    }
 }
 
 type TestScheduler = Scheduler<RecordingStore, ManualClock, SeqJitter>;
@@ -542,7 +570,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
     fixture.job.stop_with(StopDecision::Continue);
     fixture
         .job
-        .stop_with(StopDecision::Stop("phase closed".into()));
+        .stop_with(StopDecision::Delete("work finished".into()));
     let worker = fixture.worker().await;
     for expected in 1..=2 {
         fixture.step(60).await;
@@ -556,7 +584,7 @@ async fn stop_check_runs_before_every_run_and_can_end_the_schedule() {
     assert_eq!(fixture.job.runs(), 2);
     assert_eq!(fixture.job.stop_checks(), 3);
     let row = fixture.row(&schedule);
-    assert_eq!(row.stop_reason.as_deref(), Some("phase closed"));
+    assert_eq!(row.stop_reason.as_deref(), Some("work finished"));
     assert_eq!(row.ended_at, Some(ts("2026-10-19T00:03:00Z")));
     assert_eq!(row.next_run_at, None);
     assert!(fixture.store.list_active().expect("list").is_empty());

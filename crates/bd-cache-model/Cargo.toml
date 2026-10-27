@@ -1,6 +1,6 @@
 [package]
 name = "bd-cache-model"
-description = "Pure bd-cache model: journal ops, replay, store and sender ports, configuration, replies and typed errors."
+description = "Pure bd-cache model: journal ops, replay, the store port, configuration, replies and typed errors."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

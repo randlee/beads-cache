@@ -1,10 +1,12 @@
-# beads-cache workspace (phase a). Every third-party crate the phase uses is
+# beads-cache workspace. Every third-party crate the workspace uses is
 # declared here once; member crates use `workspace = true` and edit only their
 # own Cargo.toml (docs/plans/phase-a/phase-a-plan.md, Shared files). A missing
 # workspace dependency is an amendment to sprint a-1.
 [workspace]
 members = [
     "crates/bd-cache",
+    "crates/bd-cache-api",
+    "crates/bd-cache-cli",
     "crates/bd-cache-model",
     "crates/bd-cache-py",
     "crates/bd-cache-store",
@@ -16,7 +18,7 @@ members = [
 resolver = "3"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 rust-version = "1.98.1"        # equals rust-toolchain.toml
 license = "MIT"
@@ -25,18 +27,21 @@ authors = ["Rand Lee <rand@randlee.com>"]
 
 [workspace.dependencies]
 # workspace crates
-bd-cache = { path = "crates/bd-cache", version = "0.1.0" }
-bd-cache-model = { path = "crates/bd-cache-model", version = "0.1.0" }
-bd-cache-store = { path = "crates/bd-cache-store", version = "0.1.0" }
-sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.1.0" }
-sc-beads = { path = "crates/sc-beads", version = "0.1.0" }
-sc-cron = { path = "crates/sc-cron", version = "0.1.0" }
+bd-cache = { path = "crates/bd-cache", version = "0.2.0" }
+bd-cache-api = { path = "crates/bd-cache-api", version = "0.2.0" }
+bd-cache-model = { path = "crates/bd-cache-model", version = "0.2.0" }
+bd-cache-store = { path = "crates/bd-cache-store", version = "0.2.0" }
+bd-cache-sync = { path = "crates/bd-cache-sync", version = "0.2.0" }
+sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.2.0" }
+sc-beads = { path = "crates/sc-beads", version = "0.2.0" }
+sc-cron = { path = "crates/sc-cron", version = "0.2.0" }
 
 # third-party crates used in phase a
 rusqlite = { version = "0.40", features = ["bundled"] }   # NFR-BDC-0007: bundled SQLite
 fs4 = "1.1"                                                # drain lock (flock), a-4
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+schemars = "1"                                             # request schemas, bd-cache-api (b-2; published with the MCP server)
 sha2 = "0.11"                                              # bd schema fingerprint
 toml = "1.1"                                               # .beads/bd-cache.toml
 tracing = "0.1"
@@ -44,12 +49,30 @@ tokio = { version = "1", features = ["rt", "rt-multi-thread", "macros", "time", 
 async-trait = "0.1"
 chrono = { version = "0.4", default-features = false, features = ["std", "clock"] }
 cron = "0.17"
-libc = "0.2"                                               # O_NONBLOCK for opening phase files (bd-cache-sync, a-7)
-dunce = "1"                                                # canonical paths without the Windows \\?\ prefix, bd-cache-py (a-8, R12)
+libc = "0.2"                                               # sc-bd-cli's non-reaping waitid (Unix); its only user; the root entry stays (ADR-SYNC-0008)
 getrandom = "0.4"                                          # sc-cron jitter (a-3, ADR-BDC-0006)
 criterion = "0.8"
-tempfile = "3.20"                                          # dev-dependency only (sc-cron, bd-cache-store, bd-cache-sync, bd-cache-py tests)
+tempfile = "3.20"                                          # runtime in sc-cron (a Python hook's working directory); dev-dependency (tests) in the other crates
 pyo3 = "0.30"
+# sc-cron's child supervision: a process group or a job object, so a kill
+# reaches grandchildren too (REQ-CRON-0013, ADR-CRON-0008). Declared here
+# by sprint b-8 (B8Q1-036; it was inline in sc-cron's manifest).
+process-wrap = { version = "10", default-features = false, features = ["tokio1", "kill-on-drop", "process-group", "job-object"] }
+# bd-cache-sync's effective uid for the trust check (Unix, REQ-BDC-0723,
+# QA97R2-014): a safe call, no `unsafe`; already in Cargo.lock through tempfile.
+rustix = { version = "1.1", default-features = false }
+
+# phase b: the bdc CLI (sprint b-3a). sc-command is a git dependency on purpose:
+# it is not published to crates.io, so bd-cache-cli stays `publish = false`
+# (ADR-CLI-0001, docs/bd-cache-cli/architecture.md).
+sc-command = { git = "https://github.com/randlee/sc-runtime", tag = "v0.1.0" }
+sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
+clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
+
+# phase b, phase-end fix RSH-001: bdc's SIGTERM / SIGINT / SIGHUP handling
+# (bd-cache-cli, Unix only). The iterator receives signals on a thread of its
+# own, so no handler code of ours runs in signal context.
+signal-hook = { version = "0.3", default-features = false, features = ["iterator"] }
 
 [workspace.lints.rust]
 ambiguous_negative_literals = "warn"

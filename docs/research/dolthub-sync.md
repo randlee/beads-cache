@@ -55,7 +55,7 @@ No database or remote was created or contacted, and no latency was measured.
   nightly backups and branch permissions
   (https://www.dolthub.com/docs/products/hosted/notable-features.md).
 - Each bd call costs one network round trip plus process start. bd-cache's
-  measured ~170 ms per `bd list --id` (the baseline design) grows by about the RTT per
+  measured ~170 ms per `bd list --id` (the v3 performance figure) grows by about the RTT per
   query.
 
 **(c) bd pointed at a remote.**
@@ -92,7 +92,7 @@ process, not a server.
   `assignee`, `metadata`), `dependencies` (primary key
   `(issue_id, depends_on_id)`, plus `type`) and `labels`
   (`database-schema-architecture.md:45-160,174-186`).
-- Cost: this breaks the baseline design's goal 4 ("never reads dolt tables") and loses
+- Cost: this breaks REQ-BDC-0006 (the backend is reached only through bd, never its tables) and loses
   the `bd schema` row contract, which describes `--json` output, not tables.
   bd-cache would have to track bd's migrations itself, including wisp routing
   and the denormalized `is_blocked`.

@@ -1,0 +1,29 @@
+[package]
+name = "bd-cache-api"
+description = "bd-cache contract vocabulary: request and data models, the one request decoder, the operations over Cache and the error table."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+# No sc-command and no clap, in any dependency kind (contract §9; the CI
+# "Crate boundaries" step rejects both).
+[dependencies]
+bd-cache.workspace = true
+bd-cache-model.workspace = true
+sc-beads.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars.workspace = true
+
+[dev-dependencies]
+# Test hooks onto the store (tests/unknown_changed.rs seeds a pre-b-1 entry).
+bd-cache = { workspace = true, features = ["testing"] }
+bd-cache-model = { workspace = true, features = ["testing"] }
+sc-beads = { workspace = true, features = ["testing"] }
+
+[lints]
+workspace = true

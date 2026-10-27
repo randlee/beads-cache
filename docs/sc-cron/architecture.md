@@ -446,10 +446,10 @@ lost its reason is refused, not acted on. A stop check that cannot answer
 reply) is no decision: the run is skipped and the schedule left active and
 enabled, with `Failed` or `TimedOut` recorded.
 
-`StopDecision::Stop(reason)` is kept as an alias of `Delete(reason)`. Its one
-caller outside this crate, `bd-cache-sync`'s stop rule, is owned by sprint b-7,
-which removes that rule; keeping the alias lets the workspace build between b-6
-and b-7. It is to be deleted when no caller is left.
+`StopDecision::Stop(reason)` was kept as an alias of `Delete(reason)` while its
+one caller outside this crate, `bd-cache-sync`'s stop rule, existed. That rule
+and the alias were removed together by sprint b-8 (the rule was never b-7's to
+remove); keeping the alias let the workspace build until then.
 
 *Amended by ADR-CRON-0009:* the last caller moved to sprint b-8, which removes
 the alias together with it; sc-cron is an unpublished prototype, so the removal
@@ -596,3 +596,33 @@ Consequences: a caller with its own protocol for a child process runs it through
 `sc_cron::process` and adds no supervision code or dependency of its own (beads-cache does, for
 its post-sync hook, ADR-SYNC-0008); a caller that needs more around a Python row (a lease, a
 trust check) wraps it in its own `Job` and the resolver.
+
+### Implementation notes (sprint b-8)
+
+- `TargetResolver` is in `src/hook.rs`; the worker resolves a row in `launch` and runs it with
+  `run_target`, which `Scheduler::run_due_with` shares (an outside scheduler's one-shot run of
+  what is due, each run under its own deadline, its outcome and next run recorded).
+- `sc_cron::process` is public (`ChildSpec`, `ChildEnv`, `TempCwd`, `Capped`, `Captured`,
+  `supervise`); `TempCwd` is mode `0700` on Unix. Evidence: `tests/process_api.rs` (a grandchild
+  killed at expiry and on drop, the environment allowlist) and `tests/target_resolver.rs` (one
+  table with a Rust row and a Python row, an unresolvable row recorded `Failed` and active).
+- `Schedule::next_run_after` and `Schedule::period_after` give a row's runs to a caller (the
+  period of QA97R2-016).
+
+- QA-1 of sprint b-8: dropping `Scheduler::run_due_with`'s future aborts the runs it started,
+  as a stopped worker's are (`tests/run_due_abort.rs`). `supervise` waits for every member of
+  the group or job, not only the leader, so a member left behind by an exited child is killed
+  with the group at expiry (`process::tests::unix::a_member_left_behind_by_an_exited_child_is_killed_with_the_group`);
+  a descendant that leaves the group on its own (`setsid` on Unix) is out of reach, a
+  documented limit. The reap after a kill is bounded by `process::REAP_AFTER_KILL` (5 s of
+  wall-clock time, not the tokio timer), then logged and left to the supervisor's drop.
+- The `process-wrap` entry is the workspace's (`process-wrap.workspace = true`, B8Q1-036).
+- QA-2 of sprint b-8 (B8Q1-056), the post-exit group kill: the child is done when its pipes are
+  closed and it has exited; when it exits on its own, `supervise` then kills the rest of its
+  group or job (best effort; an empty group is nothing to kill), so a member that let go of the
+  pipes does not outlive the run either. This replaces the "waits for every member" wording of
+  the QA-1 note above: a member that still holds the pipes is waited for, or killed with the
+  group at expiry, as before. Evidence:
+  `process::tests::unix::a_member_that_let_go_of_the_pipes_is_killed_when_the_child_exits`
+  (planted negative: without the kill after the exit, the member sleeps on and the test times
+  out).

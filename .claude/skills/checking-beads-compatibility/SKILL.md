@@ -134,7 +134,8 @@ merged, then `develop`. Make the changes in `references/pin-locations.md`:
    is a TODO, because the repo has no script for it.
 2. Set `PINNED_BD_VERSION` and `FIXTURE` in `crates/sc-beads/tests/strict_rows_generated.rs`,
    then run `SC_BEADS_REGENERATE=1 cargo test -p sc-beads --test strict_rows_generated`.
-3. Rename the schema copies (`bd-schema-X.json` in `sc-bd-cli` and `bd-cache-py`),
+3. Rename the schema copies (`bd-schema-X.json` in `sc-bd-cli` and `bd-cache-py`; these
+   two are the only copies, since sprint b-9 removed the store's compat fixtures),
    then update every include path and version literal in the reference file.
 4. Run the gates in `.claude/project/quality-policy.md`:
    `cargo fmt --all --check`,

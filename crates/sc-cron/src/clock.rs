@@ -20,6 +20,8 @@ use chrono::{DateTime, Utc};
 /// `Instant::now`, so it behaves the same under a manual clock.
 /// `sleep_until` returns once `now` reaches `target` and is the only place
 /// the scheduler waits on time.
+///
+/// An open extension point, not sealed: adding a required method is a breaking change.
 #[async_trait]
 pub trait Clock: Send + Sync {
     /// Returns the current wall-clock time in UTC.

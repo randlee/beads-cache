@@ -7,16 +7,18 @@ code `STORE`). Repo-level context: [`../architecture.md`](../architecture.md). R
 `bd-cache-store` implements a-1's `CacheStore` and `DrainLock` ports
 (`bd-cache-model`) over one SQLite file per dolt database, the file
 the baseline Python implementation of BD-CACHE v3 uses. It depends on `bd-cache-model`, `sc-beads`
-(also its logging, `sc_beads::logging::tracing`), rusqlite (bundled,
-NFR-BDC-0007), fs4 (the drain lock) and `serde_json` (the `row_json` and
-ready-base text), as the Crate Layout of [`../architecture.md`](../architecture.md)
-lists them; ADR-STORE-0005 records them with the test-only features.
+(also its logging, `sc_beads::logging::tracing`), `sc-cron` (the schedule rows in the
+cache file, ADR-BDC-0014), rusqlite (bundled, NFR-BDC-0007), fs4 (the drain lock) and
+`serde_json` (the `row_json` and ready-base text), as the Crate Layout of
+[`../architecture.md`](../architecture.md) lists them; ADR-STORE-0005, amended by
+ADR-BDC-0014, records them with the test-only features.
 
 | Module | Contents |
 |---|---|
 | `location` | `DoltDatabase`, `ProjectId`, `DatabaseIdentity` (`.beads/metadata.json`, `$BEADS_DIR` aware), `BeadsDirOverride` and `BeadsDirError` (the one validated `$BEADS_DIR`, S49), `CacheLocation`, `beads_dir`, `load_repo_config` and `ConfigLoadError` |
-| `schema` | the v3 DDL as the baseline Python implementation runs it, the extension tables, columns and indexes, the membership take-over (ADR-STORE-0001, 0002) |
-| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method |
+| `schema` | the v3 DDL as the baseline Python implementation runs it, the extension tables, columns and indexes (with ADR-STORE-0006's: `tick_lease`, `hook_state`, `sc_cron_schedule`, the `meta` row `sc_cron_schedule_version`), the membership take-over (ADR-STORE-0001, 0002) |
+| `store` | `SqliteStore`: open (settings, version, identity; `open`, `open_with` with an explicit `BeadsDirOverride`, S36/S49, and `open_at`), every `CacheStore` method (the scope registry, `ingest_scope`, failure marking, lease and hook state included, sprint b-7), and `schedule_store()`; the connection and the claim live in one mutex-guarded object shared with the schedule view (ADR-BDC-0014) |
+| `schedule` | `CacheScheduleStore`: sc-cron's `ScheduleStore` over the cache's one connection, sc-cron's SQL on the `sc_cron_schedule` table in the cache file, the version row checked before any schedule is served (ADR-BDC-0014, REQ-CRON-0017) |
 | `codec` | encoding and validated decoding of stored rows, edges, journal entries, ready bases and timestamps |
 | `lock` | `FlockDrainLock` and its guard |
 | `registry` | the process-wide claim that keeps one connection per cache file (ADR-STORE-0003) |
@@ -111,7 +113,7 @@ text is unchanged; the baseline Python implementation reading an entry this stor
 Consequences: the baseline Python implementation's column-named `INSERT` leaves `changed` NULL
 and its `_mark` leaves `last_error_code` stale, which the read rules cover;
 `tests/compat.rs` (`python_resolves_a_rust_written_entry_and_the_rust_store_splits_it_back`)
-runs both directions.
+ran both directions until sprint b-9 removed it (below).
 
 *Amended by ADR-STORE-0006:* `tests/compat.rs` is removed with the vendored implementation
 (sprint b-9); the read rules above stay, pinned by the store's own tests and the format golden,
@@ -199,13 +201,15 @@ Decision:
   is a plain column (ADR-STORE-0004) so that plain partial indexes serve the query.
 
 Consequences: rows and memberships stay consistent across a prune,
-rebuild or sync of the same file by the baseline Python implementation (tests `compat.rs`, `store.rs`).
+rebuild or sync of the same file by the baseline Python implementation (tests `store.rs`; the
+vendored `compat.rs` run was removed in sprint b-9, ADR-STORE-0006, and the format golden pins
+the file).
 Baseline Python implementation journal args that a-1's `Op::parse` refuses (for example
 `{"add_labels": []}`, ADR-MODEL-0001) read as `BAD_ARGS` naming the entry.
 
 ## ADR-STORE-0003: One connection per process, and the store's own failures
 
-**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`)
+**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`, behind one mutex, so `SqliteStore` is `Send + Sync`; the `Cache` that owns it stays `!Sync` by its own marker, ADR-CORE-0001; B7Q1-025)
 
 Context: NFR-BDC-0007 allows one connection to the cache file per process.
 The store can fail on its own (an SQLite error, a file that cannot be
@@ -278,7 +282,7 @@ Decision:
 - The codes are store-owned and lowercase (S37): `store_config_unreadable` (`Read`:
   the file exists but cannot be read), `store_config_invalid` (`Parse`: bad TOML, an
   unknown key or a wrong type) and `store_config_bad_scope` (`Scope`: a `scopes` entry
-  is not a phase name; its fix states `PhaseName::RULE`). They are **not `CacheError`
+  is not a phase name; its fix states `PhaseName::RULE` [now `ScopeName::RULE`, ADR-BDC-0013]). They are **not `CacheError`
   codes** (the `BD_CACHE.*` namespace belongs to `CacheError` alone) and **not
   CLI-contract codes**: no CLI reply carries them; a consumer that reports a
   configuration failure reports its own code.
@@ -499,8 +503,8 @@ Decision:
   the same question, correct, slower on a long history. The hints are not tried again
   until the next open, which recreates the indexes. Tests assert the plans of the hinted
   queries, their SQL work in VM steps, and that the fallback is not retried.
-- **Baseline Python implementation compatibility** (read at the baseline
-  commit `05831dfe866d389feed138add3c29cb93cd6c82b`): it never creates,
+- **Baseline Python implementation compatibility** (read in the v3
+  baseline): it never creates,
   reads or writes `ready_base`, `ready_base_blocked` or `scope_member`. Its
   rebuild deletes `edges`, `beads` and `sync_state` (lines 359-361); its prune
   deletes a phase's `edges`, `beads`, `journal` and `sync_state` rows (611-614);
@@ -542,7 +546,7 @@ dating, the plans and SQL work (VM steps), the undatable-entry warning and the h
 
 ## ADR-STORE-0005: Dependencies and test-only features
 
-**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10)
+**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10). Amended by ADR-BDC-0014 (sprint b-7): the runtime dependency `sc-cron`. Amended in sprint b-7 (fix round 1, B7Q1-006): the dev-dependency feature rusqlite `trace`.
 
 Context: the Crate Layout of [`../architecture.md`](../architecture.md) lists each
 crate's dependencies; the store's test-only features were recorded nowhere (ARCH-403),
@@ -550,7 +554,10 @@ and the store took `tracing` directly, which the layout does not list (ARCH-401)
 
 Decision:
 - Runtime dependencies: `bd-cache-model`, `sc-beads`, rusqlite (workspace features:
-  `bundled`, NFR-BDC-0007), fs4, `serde_json`. Nothing else.
+  `bundled`, NFR-BDC-0007), fs4, `serde_json`, and (amended by ADR-BDC-0014) `sc-cron`
+  for `CacheScheduleStore`: its `ScheduleStore` trait, types, limits and `SCHEMA_VERSION`.
+  Nothing else. sc-cron's `test-utils` feature is not used: the store's schedule tests drive
+  the store directly with fixed timestamps.
 - Logging goes through `sc_beads::logging::tracing` (ADR-BDC-0007), as `bd-cache` does;
   the store has no direct `tracing` dependency.
 - Dev-dependencies, test builds only:
@@ -567,6 +574,9 @@ Decision:
     thread (rusqlite issue 643); the probe uses it for one read on the thread running
     the statement and drops it before the function returns, so it neither outlives the
     call nor leaves the thread;
+  - rusqlite with `trace` (sprint b-7): `journal_counts_is_one_query_and_its_buckets_sum_to_the_total`
+    (`store.rs` unit tests) counts the statements `journal_counts` runs through
+    `Connection::trace_v2`, so "one grouped query, never a scan" is checked, not assumed;
   - `tempfile`: the unit tests' cache files live in a `TempDir`, removed on drop after
     the store closes, also when a test fails (QA6-002); the doctests' workspaces too
     (QA7-005);
@@ -617,3 +627,78 @@ the schedule would not move with the cache).
 
 Consequences: a v3 reader that does not know an extension still reads and writes the file.
 Further extensions need a later ADR.
+
+Implementation notes (sprint b-7):
+- `schema.rs` adds the five columns through `EXTENSION_COLUMNS` and the two tables through
+  `EXTENSION_TABLES`; `sc_cron_schedule` is sc-cron's version-2 DDL with sc-cron's own limits
+  (`sc_cron_schedule_table`), and the `meta` row is written with `INSERT OR IGNORE`, so a file
+  holding another version keeps it and `CacheScheduleStore` refuses it
+  (`StoreErrorKind::SchemaMismatch`). `tests/format_golden.rs` pins the whole schema
+  (`tests/fixtures/format-golden.txt`) and checks that a v3-only file
+  (`tests/fixtures/v3-schema.sql`) gains every extension at `user_version` 3 and that a v3
+  reader still reads and writes the extended file.
+- `scope.kind` stays `phase` for every row (existing names stay); `scope.filter` alone tells
+  a filter scope (the filter's JSON) from a phase-a scope (NULL), so a v3 reader that knows
+  only `kind = 'phase'` reads every row this build writes; a row of another kind does not
+  decode (`tests/phase_b_store.rs`, the data-level check, B7Q1-007). A v3 `phase` column is
+  read as a phase-a scope's membership only, never a filter scope's of the same name
+  (`in_scope!`, `RECONCILE_MEMBERSHIP`).
+- The four registry calls share one registration body (`register`, with an add-or-set,
+  if-absent, add or set mode) and `scope_remove` and `prune_scope` one prune body; a
+  registration past `MAX_REGISTERED_SCOPES` is `BAD_ARGS`.
+- `ingest_scope` trusts the snapshot's limits (the snapshot owns them, B7Q1-018); it encodes
+  every row before its one `BEGIN IMMEDIATE`; in the transaction it refuses an unregistered
+  scope (`SCOPE_UNKNOWN`) and reads the registered filter, replaces the scope's memberships
+  with the snapshot's rows the status criterion admits, stores rows unforced, writes the
+  ready base restricted to the members, records an ok sync state and the revision. A failure
+  half way rolls back whole (`tests/phase_b_store.rs`).
+- `record_sync_result` applies the `failing_since` lifecycle to the stored sync state in one
+  write transaction; `record_sync` never writes `notified_since`.
+- The lease and the hook state are one-row tables (`id = 1`); `lease_take` refuses an
+  `expires_at` not after now or past `MAX_LEASE_TTL`, decides free, live or expired inside
+  one write transaction, and replaces a row that does not decode (with a warning) instead
+  of failing every later take. `hook_failed` keeps at most `MAX_HOOK_ERROR_BYTES` of the
+  error.
+
+### Amendment: the sync rows' run record and the bounded hook reads (sprint b-8, QA-1)
+
+**Status:** Approved (lead ruling of the b-8 QA-1 fix round, 2026-10-26: "a small table in the
+cache file is acceptable if ADR-STORE-0006 gets an Approved inline amendment naming it").
+
+| Kind | Name | Meaning |
+|---|---|---|
+| table | `sync_run` (`row` TEXT PRIMARY KEY, `run_id` TEXT NOT NULL, `started_at` TEXT NOT NULL, `finished_at` TEXT, `run_end` TEXT CHECK (`run_end` IN ('ok','failed','skipped')), `consecutive_failures` INTEGER NOT NULL DEFAULT 0, `first_failure_at` TEXT) | each sync row's run record (REQ-BDC-0731): its latest run's id and times, and its consecutive failures with the first one's time, as typed data; sc-cron keeps only a last outcome per row |
+
+The table is additive (`CREATE TABLE IF NOT EXISTS`, `user_version` stays 3) and in the format
+golden. The port gains `CacheStore::sync_run`, `sync_run_started` (in one transaction with the
+read of the previous record: a run that never finished counts as one failure from its start,
+`SyncRun::started`) and `sync_run_finished` (only for the run the record names,
+`SyncRun::finished`); the rule is the model's, so both stores apply one. It also gains two
+reads with provided bodies that `SqliteStore` overrides with bounded SQL, so the post-sync
+hook's request never loads a backlog to count it (REQ-BDC-0727): `pending_summary` (a count and
+the oldest pending entry's `created_at`) and `unannounced_escalations_first(limit)` (at most
+`limit` escalations by seq, and their total). Contract tests:
+`sync_run_records_count_failures_across_unfinished_runs`,
+`pending_summary_and_the_escalation_page`.
+
+### Amendment 2: `CacheStore::last_applied_at` and the registered flag (sprint b-9, QA-1)
+
+**Status:** Approved (lead ruling 9 of the b-9 QA-1 fix round: "record
+`CacheStore::last_applied_at` in an Approved inline ADR-STORE-0006 amendment").
+
+The port gains a read with a provided body, for `cache health`'s `last_drain_at`
+(REQ-BDC-0732, contract §6): `last_applied_at`, when the journal last applied an entry, the
+newest applied time of any entry the journal still holds, `None` when none was applied. It
+is judged on the entries' applied times, never on their seqs, so the gaps a prune or `cache
+evict` leaves do not matter. The provided body reads the applied entries through
+`applied_since` from the earliest instant; `SqliteStore` overrides it with two read-only index
+reads, no write, in one read transaction (`SqliteStore::read`, ADR-STORE-0002: a drainer that
+commits between them cannot mix two points in time): the newest `applied_epoch`
+(`journal_applied_epoch`, descending, first row) and the newest readable
+`COALESCE(applied_at, updated_at)` among entries another writer applied without an epoch
+(`journal_applied_unknown`). The SQL is crate-private. Each `StoreStatus` scope also carries
+`registered` (it has a registry row), read in the status snapshot, so health judges the
+registered scopes and their sync state at one point in time. No schema change. Tests:
+`last_applied_at_rules` (contract suite), `last_applied_at_reads_one_snapshot` and
+`last_applied_at_queries_use_the_applied_indexes` (`store.rs` unit tests: the statement trace
+and the plans), `last_applied_at_ignores_history_and_seqs` (`tests/store.rs`).

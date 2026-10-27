@@ -354,7 +354,7 @@ impl<S: CacheStore, L: DrainLock, B: CacheBackend> Pass<'_, S, L, B> {
             bead: e.bead.clone(),
             op: e.op.name().to_owned(),
             actor: e.actor.clone(),
-            phase: e.scope.as_ref().map(|s| s.phase_name().clone()),
+            phase: e.scope.clone(),
             reason,
         });
         Ok(())

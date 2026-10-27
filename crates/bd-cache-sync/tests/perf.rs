@@ -46,7 +46,7 @@ fn synced_cache(beads: usize) -> (tempfile::TempDir, PerfCache, Arc<AtomicU64>) 
     let (store, touched) = Counting::new(store);
     let clock = Arc::new(ManualClock::default());
     let bd = FakeBackend::new(Arc::clone(&clock));
-    let x = ScopeId::phase("x").unwrap();
+    let x = ScopeId::new("x").unwrap();
     for i in 0..beads {
         let mut b = bead(&format!("b{i}"));
         b.labels = vec!["phase-x".into()];
@@ -56,7 +56,10 @@ fn synced_cache(beads: usize) -> (tempfile::TempDir, PerfCache, Arc<AtomicU64>) 
         bd.add_edge(&format!("b{i}"), &format!("b{}", i + 1), DepType::Blocks);
     }
     let mut cache = Cache::new(
-        CacheConfig::new(ProjectRef::local(None), vec![x.clone()]),
+        CacheConfig::new(
+            ProjectRef::local(None),
+            vec![bd_cache_model::Scope::legacy(x.clone())],
+        ),
         store,
         lock,
         bd,
@@ -147,7 +150,7 @@ fn check_steps(c: &rusqlite::Connection, at: i64) -> i32 {
     stmt.get_status(rusqlite::StatementStatus::VmStep)
 }
 
-/// The same with entries `bd_cache.py` applies while the cache is open (no
+/// The same with entries another writer applies while the cache is open (no
 /// `applied_at`, no epoch, QA4-002): a cached `get` still makes the same
 /// store calls, and its journal check dates them, so the SQL work of the
 /// next check is index probes again, not one per entry. Measured in SQLite

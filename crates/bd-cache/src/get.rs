@@ -1,4 +1,4 @@
-//! `get` and `entry` (REQ-BDC-0001, 0202, 0908).
+//! `get`, `entry` and `entry_by_key` (REQ-BDC-0001, 0202, 0908).
 //!
 //! `get` answers a cached bead from the store with its pending entries
 //! replayed and starts no bd call (REQ-BDC-0001). A miss makes one bounded
@@ -6,13 +6,23 @@
 //! configured `miss_fill_timeout`) and stores the row with no scope
 //! membership; a bead bd does not know either is `NOT_FOUND`. The reply
 //! carries the row's `stale` mark, its blocked state from the scope's
-//! adjusted ready base (ADR-BDC-0002), the scope's `last_ok_at` and the
-//! outage (ADR-BDC-0005).
+//! adjusted ready base (ADR-BDC-0002), the bead's scope (`GetReply.scope`)
+//! with its `last_ok_at`, and the outage (ADR-BDC-0005).
+//!
+//! The scope is the one the blocked state is read in ([`scope_for`]): the
+//! view's phase when that scope is a registered phase-a scope, else the first
+//! scope whose stored membership holds the bead and that the view is in;
+//! asking it reads one registry row and the bead's membership rows, never the
+//! whole registry or a scope's members, so a cached `get` stays within
+//! NFR-BDC-0001.
 
 use std::time::Duration;
 
-use bd_cache_model::{CacheError, CacheStore, DrainLock, GetReply, JournalEntry, Seq};
-use sc_beads::{BeadId, CacheBackend};
+use bd_cache_model::{
+    CacheError, CacheStore, DrainLock, Freshness, GetReply, IdemKey, JournalEntry, RowView,
+    ScopeId, Seq,
+};
+use sc_beads::{Bead, BeadId, CacheBackend};
 
 use crate::Cache;
 use crate::ready::{blocked_state, row_view_with, scope_for};
@@ -55,22 +65,38 @@ pub(crate) fn cached<S: CacheStore, L: DrainLock, B: CacheBackend>(
 fn reply<S: CacheStore, L: DrainLock, B: CacheBackend>(
     cache: &Cache<S, L, B>,
     id: &BeadId,
-    (view, freshness): (sc_beads::Bead, bd_cache_model::Freshness),
+    (view, freshness): (Bead, Freshness),
 ) -> Result<GetReply, CacheError> {
     let pending = u32::try_from(cache.store.pending_for(id)?.len()).unwrap_or(u32::MAX);
-    let (scope_last_ok_at, blocked) = match scope_for(cache, &view)? {
-        Some(s) => (
-            cache.store.sync_state(&s)?.last_ok_at,
-            blocked_state(cache, &s, &view)?,
-        ),
-        None => (None, None),
+    let (row, scope) = row_in_scope(cache, view, freshness)?;
+    let scope_last_ok_at = match &scope {
+        Some(s) => cache.store.sync_state(s)?.last_ok_at,
+        None => None,
     };
     Ok(GetReply {
-        row: row_view_with(view, freshness, blocked),
+        row,
         scope_last_ok_at,
         pending,
         outage: cache.store.outage()?,
+        scope,
     })
+}
+
+/// A view as a read returns it, with the scope its blocked state was read in.
+///
+/// The row `get` answers for this view: the blocked state comes from the
+/// view's scope ([`scope_for`], [`blocked_state`]), `None` outside every scope.
+pub(crate) fn row_in_scope<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    view: Bead,
+    freshness: Freshness,
+) -> Result<(RowView, Option<ScopeId>), CacheError> {
+    let scope = scope_for(cache, &view)?;
+    let blocked = match &scope {
+        Some(s) => blocked_state(cache, s, &view)?,
+        None => None,
+    };
+    Ok((row_view_with(view, freshness, blocked), scope.map(|s| s.id)))
 }
 
 /// `entry(seq)`: one journal entry in any state (REQ-BDC-0908).
@@ -83,5 +109,18 @@ pub(crate) fn entry<S: CacheStore, L: DrainLock, B: CacheBackend>(
         .entry_by_seq(seq)?
         .ok_or_else(|| CacheError::NotFound {
             detail: format!("journal entry {seq} is absent"),
+        })
+}
+
+/// `entry_by_key(key)`: the entry an idempotency key journals, in any state (REQ-BDC-0908).
+pub(crate) fn entry_by_key<S: CacheStore, L: DrainLock, B: CacheBackend>(
+    cache: &Cache<S, L, B>,
+    key: &IdemKey,
+) -> Result<JournalEntry, CacheError> {
+    cache
+        .store
+        .entry_by_key(key)?
+        .ok_or_else(|| CacheError::NotFound {
+            detail: format!("no journal entry holds idempotency key {key}"),
         })
 }

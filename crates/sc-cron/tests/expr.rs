@@ -1,5 +1,6 @@
 //! Expression and spec validation: everything is refused before anything is
-//! stored. Ported from atm-cron's `tests/expr.rs`.
+//! stored; five-field crontab expressions are read with crontab's meaning
+//! (REQ-CRON-0001, REQ-CRON-0015).
 
 #![expect(
     clippy::expect_used,
@@ -72,8 +73,118 @@ fn accepts_six_and_seven_fields_and_macros() {
 }
 
 #[test]
-fn refuses_five_fields_with_the_accepted_form_named() {
-    assert!(bad_expression("* * * * *").contains("6 or 7 fields"));
+fn accepts_standard_five_field_crontab_expressions() {
+    for expr in [
+        "* * * * *",
+        "*/5 * * * *",
+        "30 9 * * 1-5",
+        "0 0 1,15 * *",
+        "0 0 * jan mon",
+        "0 12 * * sun,sat",
+        "  0 8 * * 7  ",
+    ] {
+        start(expr).unwrap_or_else(|error| panic!("{expr}: {error}"));
+    }
+}
+
+#[test]
+fn still_refuses_four_fields_and_a_bad_five_field_expression() {
+    for expr in ["* * * *", "*/5 * *"] {
+        bad_expression(expr);
+    }
+    for expr in [
+        "61 * * * *",
+        "0 24 * * *",
+        "0 0 32 * *",
+        "0 0 * 13 *",
+        "0 0 * * 8",
+        "0 0 * * 5-1",
+        "0 0 * * */0",
+        "0 0 * * 3/2",
+        "0 0 * * funday",
+        "0 0 * * 5L",
+    ] {
+        bad_expression(expr);
+    }
+}
+
+/// The first run `start` stores for `expr` when the clock reads `now`.
+fn first_run(expr: &str, now: &str) -> String {
+    let store = Arc::new(SqliteScheduleStore::open_in_memory().expect("store"));
+    let clock = Arc::new(ManualClock::new(now.parse().expect("timestamp")));
+    let scheduler = Scheduler::new(store, clock, Arc::new(SeqJitter::default()));
+    let schedule = scheduler.start(spec(expr).expect("spec")).expect("start");
+    schedule.next_run_at.expect("next run").to_string()
+}
+
+#[test]
+fn five_fields_fire_at_second_zero_of_the_named_minute() {
+    // 2026-10-19 is a Monday.
+    assert_eq!(
+        first_run("*/15 * * * *", "2026-10-19T00:07:30Z"),
+        "2026-10-19T00:15:00.000000Z"
+    );
+    assert_eq!(
+        first_run("30 9 * * *", "2026-10-19T09:30:00Z"),
+        "2026-10-20T09:30:00.000000Z"
+    );
+}
+
+#[test]
+fn five_field_day_of_week_counts_monday_as_one() {
+    // 2026-10-17 is a Saturday: Mon-Fri next fires on Monday the 19th.
+    assert_eq!(
+        first_run("0 9 * * 1-5", "2026-10-17T12:00:00Z"),
+        "2026-10-19T09:00:00.000000Z"
+    );
+    // Sunday is 0 and 7; 2026-10-18 is a Sunday.
+    assert_eq!(
+        first_run("0 9 * * 0", "2026-10-17T12:00:00Z"),
+        "2026-10-18T09:00:00.000000Z"
+    );
+    assert_eq!(
+        first_run("0 9 * * 7", "2026-10-17T12:00:00Z"),
+        "2026-10-18T09:00:00.000000Z"
+    );
+    // Names mean the same as numbers.
+    assert_eq!(
+        first_run("0 9 * * wed", "2026-10-19T12:00:00Z"),
+        "2026-10-21T09:00:00.000000Z"
+    );
+}
+
+#[test]
+fn five_field_restricted_day_of_month_and_day_of_week_match_either() {
+    // The 13th or a Friday. From Saturday 2026-10-10 the 13th (a Tuesday)
+    // comes before the next Friday, the 16th; after the 13th, the Friday.
+    assert_eq!(
+        first_run("0 0 13 * 5", "2026-10-10T12:00:00Z"),
+        "2026-10-13T00:00:00.000000Z"
+    );
+    assert_eq!(
+        first_run("0 0 13 * 5", "2026-10-13T12:00:00Z"),
+        "2026-10-16T00:00:00.000000Z"
+    );
+    // With either field open only the other restricts; a field that starts
+    // with `*` is open, so `*/5` and Friday must both match: the 16th.
+    assert_eq!(
+        first_run("0 0 13 * *", "2026-10-10T12:00:00Z"),
+        "2026-10-13T00:00:00.000000Z"
+    );
+    assert_eq!(
+        first_run("0 0 */5 * 5", "2026-10-10T12:00:00Z"),
+        "2026-10-16T00:00:00.000000Z"
+    );
+}
+
+#[test]
+fn six_field_day_of_week_keeps_the_cron_crates_numbering() {
+    // Seconds-first expressions are read as the `cron` crate reads them,
+    // where 1 is Sunday: 2026-10-17 is a Saturday, so the next day 1 is the 18th.
+    assert_eq!(
+        first_run("0 0 9 * * 1", "2026-10-17T12:00:00Z"),
+        "2026-10-18T09:00:00.000000Z"
+    );
 }
 
 #[test]

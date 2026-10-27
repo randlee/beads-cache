@@ -9,8 +9,13 @@
 //!   (REQ-BDC-0301, 0304, 0305);
 //! - the journal types ([`JournalEntry`], [`NewEntry`], [`Seq`], [`IdemKey`]),
 //!   the size limits on what is journaled ([`MAX_WRITE_ARGS_BYTES`],
-//!   [`check_write_size`]), scopes ([`ScopeId`]) and store-side state;
-//! - the ports: [`CacheStore`] with [`DrainLock`], and [`EscalationSender`];
+//!   [`check_write_size`]) and store-side state;
+//! - scopes as named bd filters ([`ScopeName`], [`ScopeId`], [`ScopeFilter`],
+//!   [`Scope`]; ADR-BDC-0013) and the 0.1 compatibility rule
+//!   ([`LEGACY_SCOPE_PREFIX`], [`legacy_scope`]);
+//! - the phase-B sync's store-side types (ADR-STORE-0006): [`IngestSnapshot`],
+//!   [`FailingSince`], [`LeaseHolder`], [`HookState`] and [`TickBudget`];
+//! - the ports: [`CacheStore`] with [`DrainLock`];
 //! - [`RepoConfig`] (`.beads/bd-cache.toml`), [`CacheConfig`], [`DrainBudget`];
 //! - reply and report shapes, [`CallKind`] / [`CallFailure`];
 //! - [`CacheError`] with every `BD_CACHE.*` code and the backend mapping
@@ -33,16 +38,18 @@
 
 #![deny(missing_docs)]
 
+mod budget;
 mod call;
+mod compat;
 mod config;
 mod error;
+mod ingest;
 mod journal;
 mod limits;
 mod op;
 mod pyjson;
 mod reply;
 mod scope;
-mod sender;
 mod state;
 mod store;
 
@@ -50,23 +57,38 @@ mod store;
 pub mod testing;
 
 #[doc(inline)]
+pub use budget::{
+    BudgetError, BudgetField, DEFAULT_BUDGET_MS, DEFAULT_HOOK_RESERVE_MS, MAX_LEASE_TTL,
+    ROW_TIMEOUT_MARGIN, TickBudget, check_lease_expiry,
+};
+#[doc(inline)]
 pub use call::{CallFailure, CallKind};
 #[doc(inline)]
+pub use compat::{LEGACY_SCOPE_PREFIX, legacy_label, legacy_scope};
+#[doc(inline)]
 pub use config::{
-    CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
-    DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, RepoConfig, START_GATE_MARGIN,
-    SchemaPackageRef, TickConfig,
+    BdKey, CacheConfig, ConfigError, DEFAULT_CALL_TIMEOUT, DEFAULT_MAX_ATTEMPTS,
+    DEFAULT_MISS_FILL_TIMEOUT, DrainBudget, HARD_MARGIN, MAX_CALL_TIMEOUT_S, MAX_CONFIGURED_SCOPES,
+    MAX_MAX_ATTEMPTS, MAX_MISS_FILL_TIMEOUT_MS, RepoConfig, START_GATE_MARGIN, SchemaPackageRef,
+    ScopeConfigError, ScopeTable,
 };
 #[doc(inline)]
 pub use error::{
-    BackendCause, CacheError, ENVELOPE_KEYS, GuardKey, PreconditionReason, StoreCause, SyncCause,
-    TYPED_ERROR_EXIT, UNREACHABLE_CODES, Unmet,
+    BackendCause, CacheError, ConfigOrigin, ENVELOPE_KEYS, GuardKey, IngestReason,
+    MAX_KNOWN_SCOPES_LISTED, PreconditionReason, ScheduleReason, StoreCause, SyncCause,
+    TYPED_ERROR_EXIT, TickRunReason, UNREACHABLE_CODES, Unmet,
 };
 #[doc(inline)]
-pub use journal::{IdemKey, JournalEntry, JournalState, NewEntry, Seq};
+pub use ingest::{IngestSnapshot, MAX_INGEST_BYTES, MAX_INGEST_ROWS, encoded_rows_within_limit};
+#[doc(inline)]
+pub use journal::{
+    IdemKey, JournalEntry, JournalState, NewEntry, RESOLVE_SEPARATOR, Seq, error_code_prefix,
+    resolve_note, split_resolve_note,
+};
 #[doc(inline)]
 pub use limits::{
-    MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_WRITE_ARGS_BYTES, check_note_size, check_write_size,
+    MAX_IDEM_KEY_BYTES, MAX_NOTE_BYTES, MAX_TIMEOUT_MS, MAX_WRITE_ARGS_BYTES, check_note_size,
+    check_write_size,
 };
 #[doc(inline)]
 pub use op::{
@@ -77,17 +99,21 @@ pub use op::{
 pub use pyjson::python_json;
 #[doc(inline)]
 pub use reply::{
-    DrainReport, EscalatedItem, GetReply, ListReply, PruneReport, ReadyBasis, ReadyReply, RowView,
-    StatusReply, SyncReport, WriteReply,
+    DrainReport, EscalatedItem, FallbackCause, GetReply, JournalCounts, ListReply, PruneReport,
+    ReadyBasis, ReadyReply, RowView, StateCounts, StatusReply, SyncReport, WriteOutcome,
+    WriteReply,
 };
 #[doc(inline)]
-pub use scope::{PhaseName, ScopeId};
-#[doc(inline)]
-pub use sender::{EscalationSender, MEMBER_NAME_RULE, SendError, SendErrorKind};
+pub use scope::{
+    Criteria, FilterParts, MAX_FILTER_WORD_BYTES, MAX_FILTER_WORDS, MAX_REGISTERED_SCOPES,
+    MAX_SCOPE_NAME_LEN, Scope, ScopeFilter, ScopeId, ScopeName,
+};
 #[doc(inline)]
 pub use state::{
-    BaseEntry, FingerprintOutcome, Freshness, OpenWork, Outage, ReadyBase, ScopeStatus,
-    StoreStatus, SyncState, UpsertReport,
+    BUILTIN_ROW, BaseEntry, EscalationPage, FailingSince, FingerprintOutcome, Freshness,
+    HOOK_BACKOFF_FROM, HookState, LeaseHolder, LeaseTake, MAX_HOOK_ERROR_BYTES, OpenWork, Outage,
+    PYTHON_ROW, PendingSummary, ReadyBase, RunId, ScopeStatus, StoreStatus, SyncMode, SyncOutcome,
+    SyncRow, SyncRun, SyncRunEnd, SyncState, UpsertReport, clip_hook_error,
 };
 #[doc(inline)]
 pub use store::{CacheStore, DrainGuard, DrainLock};

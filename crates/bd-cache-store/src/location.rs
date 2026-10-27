@@ -13,7 +13,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
-use bd_cache_model::{CacheError, ConfigError, PhaseName, RepoConfig, ScopeId, StoreCause};
+use bd_cache_model::{
+    BdKey, CacheError, ConfigError, RepoConfig, ScopeConfigError, ScopeName, StoreCause,
+};
 use serde_json::Value;
 
 /// The environment variable that moves bd's `.beads` directory.
@@ -75,7 +77,7 @@ impl DoltDatabase {
     /// or be a Windows device name (`CON`, `PRN`, `AUX`, `NUL`, `COM1`-`COM9`,
     /// `LPT1`-`LPT9`, `CONIN$`, `CONOUT$`, any case, with or without an
     /// extension). This is
-    /// stricter than `bd_cache.py`, which refuses only `/`.
+    /// stricter than the v3 Python writer, which refuses only `/`.
     ///
     /// # Errors
     ///
@@ -85,7 +87,7 @@ impl DoltDatabase {
     ///
     /// ```
     /// use bd_cache_store::DoltDatabase;
-    /// assert_eq!(DoltDatabase::new("atm-dev").unwrap().as_str(), "atm-dev");
+    /// assert_eq!(DoltDatabase::new("dev").unwrap().as_str(), "dev");
     /// assert!(DoltDatabase::new("a/b").is_err());
     /// assert!(DoltDatabase::new("").is_err());
     /// assert!(DoltDatabase::new("nul").is_err());
@@ -179,7 +181,7 @@ impl DatabaseIdentity {
             detail: detail(&why),
             source: None,
         };
-        let text = std::fs::read_to_string(&path).map_err(|e| {
+        let text = read_bounded(&path).map_err(|e| {
             let detail = if e.kind() == io::ErrorKind::PermissionDenied {
                 format!(
                     "permission denied reading {}: {e}; the file exists, so bd init will not \
@@ -442,10 +444,10 @@ impl CacheLocation {
     /// std::fs::create_dir_all(root.join(".beads"))?;
     /// std::fs::write(
     ///     root.join(".beads").join("metadata.json"),
-    ///     r#"{"dolt_database": "atm-dev", "project_id": "p-1"}"#,
+    ///     r#"{"dolt_database": "dev", "project_id": "p-1"}"#,
     /// )?;
     /// let loc = CacheLocation::resolve_with(root, &RepoConfig::default(), None)?;
-    /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("atm-dev.bd-cache.sqlite3")));
+    /// assert!(loc.cache_path.ends_with(std::path::Path::new(".bd-cache").join("dev.bd-cache.sqlite3")));
     /// # Ok(())
     /// # }
     /// ```
@@ -493,22 +495,25 @@ pub enum ConfigLoadError {
         /// Why.
         source: ConfigError,
     },
-    /// A `scopes` entry is not a phase name.
+    /// A configured scope is refused (ADR-BDC-0013): a `scopes` entry or a
+    /// `[[scope]]` name that is not a valid scope name, a `[[scope]]` filter
+    /// that is refused, or a name defined twice.
     Scope {
         /// The file.
         path: PathBuf,
-        /// The entry as written.
-        value: String,
+        /// The refused entry (`value`, as written) and why (`reason`).
+        source: ScopeConfigError,
     },
 }
 
-/// The fix of [`ConfigLoadError::Scope`]: it states the phase-name rule in the
-/// model's one text ([`PhaseName::RULE`], RBP-F037).
+/// The fix of [`ConfigLoadError::Scope`]: it states the scope-name rule in the
+/// model's one text ([`ScopeName::RULE`], RBP-F037).
 static BAD_SCOPE_FIX: LazyLock<String> = LazyLock::new(|| {
     format!(
-        "write each scopes entry of .beads/bd-cache.toml as a phase name ({}), with or \
-         without the phase- prefix",
-        PhaseName::RULE
+        "name each scope of .beads/bd-cache.toml ({}), define each name once, and give each \
+         [[scope]] table one filter: labels_all, labels_any, status, type or assignee, or \
+         all = true alone",
+        ScopeName::RULE
     )
 });
 
@@ -569,9 +574,9 @@ impl fmt::Display for ConfigLoadError {
             Self::Parse { path, .. } => {
                 write!(f, "invalid {}; fix: {}", path.display(), self.fix())
             }
-            Self::Scope { path, value } => write!(
+            Self::Scope { path, source } => write!(
                 f,
-                "invalid {}: scopes entry {value:?} is not a phase name; fix: {}",
+                "invalid {}: {source}; fix: {}",
                 path.display(),
                 self.fix()
             ),
@@ -584,16 +589,17 @@ impl std::error::Error for ConfigLoadError {
         match self {
             Self::Read { source, .. } => Some(source),
             Self::Parse { source, .. } => Some(source),
-            Self::Scope { .. } => None,
+            Self::Scope { source, .. } => Some(source),
         }
     }
 }
 
 /// Loads `<repo_root>/.beads/bd-cache.toml` into a [`RepoConfig`]: the one loader.
 ///
-/// A missing file is [`RepoConfig::default`]. Every `scopes` entry must be a
-/// phase name (with or without `phase-`); [`RepoConfig::cache_config`] would
-/// otherwise skip it silently.
+/// A missing file is [`RepoConfig::default`]. Every configured scope must be
+/// valid ([`RepoConfig::configured_scopes`]: the `scopes` entries by the 0.1
+/// rule and the `[[scope]]` tables, ADR-BDC-0013); [`RepoConfig::cache_config`]
+/// would otherwise skip it silently.
 ///
 /// # Errors
 ///
@@ -616,23 +622,116 @@ impl std::error::Error for ConfigLoadError {
 /// # }
 /// ```
 pub fn load_repo_config(repo_root: &Path) -> Result<RepoConfig, ConfigLoadError> {
+    load_repo_config_with(repo_root, BdKey::Refuse).map(|loaded| loaded.config)
+}
+
+/// A configuration [`load_repo_config_with`] loaded.
+#[derive(Debug, Clone, PartialEq)]
+pub struct LoadedConfig {
+    /// The configuration.
+    pub config: RepoConfig,
+    /// True when [`BdKey::Strip`] dropped a top-level `bd` key from the file.
+    pub bd_key_stripped: bool,
+}
+
+/// As [`load_repo_config`], with a policy for a top-level `bd` key: the one
+/// loader for every front end (the Python binding refuses the key with
+/// [`BdKey::Refuse`]; bdc drops it with [`BdKey::Strip`] and warns).
+///
+/// # Errors
+///
+/// As [`load_repo_config`].
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use bd_cache_store::{BdKey, load_repo_config_with};
+/// let dir = tempfile::TempDir::new()?;
+/// let root = dir.path();
+/// std::fs::create_dir_all(root.join(".beads"))?;
+/// std::fs::write(root.join(".beads").join("bd-cache.toml"), "bd = \"x\"\nscopes = [\"bk\"]\n")?;
+/// assert!(load_repo_config_with(root, BdKey::Refuse).is_err());
+/// let loaded = load_repo_config_with(root, BdKey::Strip)?;
+/// assert!(loaded.bd_key_stripped);
+/// assert_eq!(loaded.config.scopes, ["bk"]);
+/// # Ok(())
+/// # }
+/// ```
+pub fn load_repo_config_with(repo_root: &Path, bd: BdKey) -> Result<LoadedConfig, ConfigLoadError> {
     let path = repo_config_path(repo_root);
-    let text = match std::fs::read_to_string(&path) {
+    let text = match read_bounded(&path) {
         Ok(text) => text,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(RepoConfig::default()),
+        Err(e) if e.kind() == io::ErrorKind::NotFound => {
+            return Ok(LoadedConfig {
+                config: RepoConfig::default(),
+                bd_key_stripped: false,
+            });
+        }
         Err(source) => return Err(ConfigLoadError::Read { path, source }),
     };
-    let config = RepoConfig::from_toml(&text).map_err(|source| ConfigLoadError::Parse {
-        path: path.clone(),
-        source,
-    })?;
-    if let Some(bad) = config.scopes.iter().find(|s| ScopeId::parse(s).is_none()) {
-        return Err(ConfigLoadError::Scope {
-            path,
-            value: bad.clone(),
-        });
+    let (config, bd_key_stripped) =
+        RepoConfig::from_toml_with(&text, bd).map_err(|source| ConfigLoadError::Parse {
+            path: path.clone(),
+            source,
+        })?;
+    if let Err(source) = config.configured_scopes() {
+        return Err(ConfigLoadError::Scope { path, source });
     }
-    Ok(config)
+    Ok(LoadedConfig {
+        config,
+        bd_key_stripped,
+    })
+}
+
+/// The most bytes [`read_bounded`] reads: 1 MiB.
+///
+/// `.beads/bd-cache.toml` and `.beads/metadata.json` are a few hundred bytes;
+/// even hundreds of `[[scope]]` tables fit in a few tens of KiB. A file past
+/// this is refused rather than read whole into memory.
+pub const MAX_CONFIG_BYTES: u64 = 1024 * 1024;
+
+/// Reads a small configuration file as UTF-8 text, refusing one over
+/// [`MAX_CONFIG_BYTES`]: the one reader of `.beads/bd-cache.toml` (by
+/// [`load_repo_config_with`]) and `.beads/metadata.json`.
+///
+/// # Errors
+///
+/// The file's own I/O error (`NotFound` for a missing file), or an
+/// [`io::ErrorKind::InvalidData`] error naming the limit for a file over it
+/// or one that is not UTF-8.
+///
+/// # Examples
+///
+/// ```
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use bd_cache_store::{MAX_CONFIG_BYTES, read_bounded};
+/// let dir = tempfile::TempDir::new()?;
+/// let small = dir.path().join("small.toml");
+/// std::fs::write(&small, "scopes = []\n")?;
+/// assert_eq!(read_bounded(&small)?, "scopes = []\n");
+/// let big = dir.path().join("big.toml");
+/// std::fs::write(&big, vec![b'#'; usize::try_from(MAX_CONFIG_BYTES)? + 1])?;
+/// assert_eq!(read_bounded(&big).unwrap_err().kind(), std::io::ErrorKind::InvalidData);
+/// # Ok(())
+/// # }
+/// ```
+pub fn read_bounded(path: &Path) -> io::Result<String> {
+    use std::io::Read as _;
+    let mut text = String::new();
+    std::fs::File::open(path)?
+        .take(MAX_CONFIG_BYTES + 1)
+        .read_to_string(&mut text)?;
+    if u64::try_from(text.len()).unwrap_or(u64::MAX) > MAX_CONFIG_BYTES {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!(
+                "{} is larger than {MAX_CONFIG_BYTES} bytes, the most a configuration file may be",
+                path.display()
+            ),
+        ));
+    }
+    Ok(text)
 }
 
 #[cfg(test)]
@@ -711,5 +810,38 @@ mod tests {
         let (value, source) = err.into_parts();
         assert_eq!(value, Path::new("rel"));
         assert_eq!(source.kind(), io::ErrorKind::NotFound);
+    }
+
+    /// The one loader serves both front ends (PE1-RBQA-F004): a top-level `bd`
+    /// key is refused for the Python binding (`Refuse`, as `load_repo_config`
+    /// does) and dropped, and reported, for bdc (`Strip`); every other error
+    /// is the same for both. Planted negative: a file without the key reports
+    /// nothing stripped.
+    #[test]
+    fn one_loader_refuses_or_strips_the_bd_key() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(root.path().join(".beads")).unwrap();
+        let file = root.path().join(REPO_CONFIG_FILE);
+        std::fs::write(&file, "bd = \"/tmp/x\"\nmax_attempts = 7\n").unwrap();
+        let refused = load_repo_config(root.path()).unwrap_err();
+        assert_eq!(refused.code(), "store_config_invalid");
+        let loaded = load_repo_config_with(root.path(), BdKey::Strip).unwrap();
+        assert!(loaded.bd_key_stripped);
+        assert_eq!(loaded.config.max_attempts, Some(7));
+        std::fs::write(&file, "max_attempts = 7\n").unwrap();
+        let loaded = load_repo_config_with(root.path(), BdKey::Strip).unwrap();
+        assert!(!loaded.bd_key_stripped);
+        assert_eq!(loaded.config, load_repo_config(root.path()).unwrap());
+        // The same refusals for both: an unknown key, a value out of range.
+        for bad in [
+            "surprise = 1\n",
+            "max_attempts = 0\n",
+            "scopes = [\"b k\"]\n",
+        ] {
+            std::fs::write(&file, bad).unwrap();
+            let a = load_repo_config(root.path()).unwrap_err();
+            let b = load_repo_config_with(root.path(), BdKey::Strip).unwrap_err();
+            assert_eq!(a.code(), b.code(), "{bad}");
+        }
     }
 }

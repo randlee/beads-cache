@@ -75,7 +75,7 @@ prune or rebuild). Record the schema as ADR-STORE-0001 in
 5. `DrainLock` with `flock` on `<cache file>.drain.lock`
    (cross-process; REQ-BDC-0401 constraint).
 6. Compatibility both ways (REQ-BDC-0804): the baseline Python implementation
-   (cache and model modules) and a v3 fixture, vendored at the baseline `05831df` under
+   (cache and model modules) and a v3 fixture, vendored in the v3 baseline under
    `crates/bd-cache-store/tests/compat/`, run with `uv` (installed by a-1's CI) to read a file the Rust store wrote;
    and the Rust store reads a Python-written one.
 7. `load_repo_config(repo_root)`: the one loader of `.beads/bd-cache.toml`
@@ -212,7 +212,7 @@ Interpretations (no contract change):
   names it: the cache file's extension replaced, `testdb.bd-cache.drain.lock`
   (the baseline design; the baseline Python implementation uses `path.with_suffix(".drain.lock")`), so the
   two drains exclude each other (`the_python_and_rust_drain_locks_exclude_each_other`).
-- **"A v3 fixture".** No v3 SQLite file exists at the baseline `05831df`; the
+- **"A v3 fixture".** No v3 SQLite file exists in the v3 baseline; the
   vendored v3 fixtures are the bd-1.3.1 `bd-schema.json` and
   `list-rows.json` the reference syncs, and the v3 file is written by the
   vendored baseline Python implementation at test time (`tests/compat/PROVENANCE.md`).

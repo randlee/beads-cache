@@ -184,8 +184,8 @@ fn usage(message: &str) -> CliOutput {
 /// bd parses the text as JSON: a number, `true`/`false` or `null` is stored as that
 /// type (a whole number as an integer, whatever its spelling: `5`, `5.0`, `1e3`,
 /// ` 7`); anything else, including text that is JSON of another kind (`"5"`, `[1]`,
-/// `{"x":1}`) and `True`, is stored as the string it was given (BD-CACHE baseline,
-/// probed live against bd 1.3.1).
+/// `{"x":1}`) and `True`, is stored as the string it was given (probed live against
+/// bd 1.3.1).
 #[must_use]
 pub fn coerce_metadata(value: &str) -> Value {
     match serde_json::from_str::<Value>(value) {
@@ -234,8 +234,17 @@ impl FakeBd {
     fn list(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
         let args = match Args::parse(
             rest,
-            &["--id", "-l", "--status", "-n", "--updated-after"],
-            &["--json"],
+            &[
+                "--id",
+                "-l",
+                "--label-any",
+                "-t",
+                "-a",
+                "--status",
+                "-n",
+                "--updated-after",
+            ],
+            &["--json", "--all"],
         ) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
@@ -250,16 +259,13 @@ impl FakeBd {
                 return Ok(failure(1, "Error: invalid --id list"));
             };
             self.backend.list_by_ids(&p, &ids, d)
-        } else if let Some(label) = args.one("-l") {
+        } else if let Some(filter) = filter_of(&args, true) {
             let cursor = args.one("--updated-after").map(SyncCursor::new);
-            self.backend.list_scope(
-                &p,
-                &ScopeFilter::Label(label.to_owned()),
-                cursor.as_ref(),
-                d,
-            )
+            self.backend.list_scope(&p, &filter, cursor.as_ref(), d)
         } else {
-            return Ok(usage("list needs --id or -l in this fake"));
+            return Ok(usage(
+                "list needs --id, --all or a filter (-l, --label-any, -t, -a) in this fake",
+            ));
         };
         let rows = match rows {
             Ok(rows) => rows,
@@ -273,18 +279,16 @@ impl FakeBd {
     }
 
     fn blocked(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l"], &["--json"]) {
+        // bd blocked has no type or assignee flag (ADR-BDC-0013): -t / -a are unknown flags.
+        let args = match Args::parse(rest, &["-l", "--label-any"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("blocked needs -l in this fake"));
-        };
-        let blocked = match self.backend.list_blocked(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        let filter = filter_of(&args, false).unwrap_or(ScopeFilter::All);
+        let blocked = match self
+            .backend
+            .list_blocked(&ProjectRef::local(None), &filter, d)
+        {
             Ok(rows) => rows,
             Err(e) => return failed(e),
         };
@@ -302,18 +306,15 @@ impl FakeBd {
     }
 
     fn ready(&self, rest: &[String], d: Deadline) -> Result<CliOutput, BoundedError> {
-        let args = match Args::parse(rest, &["-l", "-n"], &["--json"]) {
+        let args = match Args::parse(rest, &["-l", "--label-any", "-t", "-a", "-n"], &["--json"]) {
             Ok(a) => a,
             Err(m) => return Ok(usage(&m)),
         };
-        let Some(label) = args.one("-l") else {
-            return Ok(usage("ready needs -l in this fake"));
-        };
-        let ids = match self.backend.list_ready(
-            &ProjectRef::local(None),
-            &ScopeFilter::Label(label.to_owned()),
-            d,
-        ) {
+        let filter = filter_of(&args, false).unwrap_or(ScopeFilter::All);
+        let ids = match self
+            .backend
+            .list_ready(&ProjectRef::local(None), &filter, d)
+        {
             Ok(ids) => ids,
             Err(e) => return failed(e),
         };
@@ -433,6 +434,35 @@ impl FakeBd {
             .dep_add_typed(&ProjectRef::local(None), id, on, kind, &actor, d);
         written(r, "added")
     }
+}
+
+/// The scope filter a list, blocked or ready argv names (ADR-BDC-0013): `All`
+/// for `--all` (when `all_flag` is allowed), else the criteria of `-l a,b`,
+/// `--label-any c,d`, `-t` and `-a` (a lone `-l l` is
+/// [`ScopeFilter::label`]); `None` when the argv names no filter at all.
+fn filter_of(args: &Args, all_flag: bool) -> Option<ScopeFilter> {
+    if all_flag && args.one("--all").is_some() {
+        return Some(ScopeFilter::All);
+    }
+    let split = |flag: &str| -> Vec<String> {
+        args.one(flag)
+            .map(|v| v.split(',').map(str::to_owned).collect())
+            .unwrap_or_default()
+    };
+    let labels_all = split("-l");
+    let labels_any = split("--label-any");
+    let issue_type = args.one("-t").map(str::to_owned);
+    let assignee = args.one("-a").map(str::to_owned);
+    let none = labels_all.is_empty()
+        && labels_any.is_empty()
+        && issue_type.is_none()
+        && assignee.is_none();
+    (!none).then_some(ScopeFilter::Criteria {
+        labels_all,
+        labels_any,
+        issue_type,
+        assignee,
+    })
 }
 
 /// The `want` positional bead ids and the required `--actor`.
@@ -571,7 +601,7 @@ mod tests {
 
     #[test]
     fn coercion_matches_what_bd_stores() {
-        // The cases of the BD-CACHE baseline ("Metadata values must survive bd's coercion").
+        // The cases that pin bd's metadata coercion (probed live against bd 1.3.1).
         assert_eq!(coerce_metadata("5"), json!(5));
         assert_eq!(coerce_metadata("5.0"), json!(5));
         assert_eq!(coerce_metadata("1e3"), json!(1000));

@@ -4,27 +4,28 @@ Status: Approved (lead ruling, bc-lead, 2026-10-24), with the corrections of QA 
 refining [`../requirements.md`](../requirements.md). Architecture:
 [`architecture.md`](architecture.md). Created by sprint a-7.
 
-Test files are under `crates/bd-cache-sync/tests/`. The ported cases of
-`test_bd_cache_cron.py` keep their Python names.
+Test files are under `crates/bd-cache-sync/tests/`. The ported cases of the baseline cron
+suite keep their Python names.
 
 ## REQ-SYNC-0001: The tick is a library entry point
 
 **Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008
 
-`tick(&mut Cache, &TickConfig, &dyn EscalationSender, Deadline)`
-runs one tick that must finish by the deadline `T`, on the cache's own clock, and returns a `TickReply`:
-`pass-through`, or `refused` with the list of what was refused. It is
-independent of the scheduler: `sc-cron` drives it through `SyncJob`, and an
-external scheduler (the first consumer's cron module through the later
-`bdc tick`) can call it. Only one ticker may run per cache file. The `[tick]` keys come from
-`RepoConfig.tick` (`load_repo_config`, bd-cache-store).
+A run is one sync that must finish by the deadline `T`, on the cache's own clock. Its entry
+point, arguments and reply are those of the amendment below, which supersedes the phase-a
+`tick` signature and its `refused` / `pass-through` reply. It is independent of the
+scheduler: `sc-cron` drives it through `SyncJob`, and an external scheduler (the first
+consumer's cron module through `bdc cache tick`) can call it. Only one run may be in
+flight per cache file.
 
-*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the built-in run is a library function that takes the cache, the row's `TickBudget` and a held `TickLease`, and returns a reply recording each step (lease, drain, each scope's result, hook) with no `refused` or `pass-through`; there is no sender and no `[tick]` key. `cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()` call it (REQ-BDC-0720).*
+*Amended by ADR-SYNC-0008 (Rand, 2026-10-26): the built-in run is a library function that takes the cache, the row's payload (which holds its `TickBudget`) and the run context, takes the `TickLease` itself, passes `&TickLease` to each step (drain, scopes, hook), and returns a reply recording each step (lease, drain, each scope's result, hook) with no `refused` or `pass-through`; there is no sender and no `[tick]` key. `cron run`, `cron run --once`, `bdc cache tick` and `Cache.tick()` call it (REQ-BDC-0720).*
 
 **Refines:** REQ-BDC-0701, 0703
 **Acceptance evidence:** `test_missing_team_is_refused`,
 `test_tick_syncs_only_phases_with_an_open_root` (`tests/tick_phases.rs`);
 the doctests of `tick` and `schedule_spec`.
+
+*Implementation note (sprint b-8):* `run_builtin` (`src/run.rs`); evidence `a_run_syncs_a_label_scope_and_an_all_scope_by_their_filters_and_frees_the_lease`, `a_live_lease_skips_the_run_and_an_expired_one_is_taken_over` (`tests/builtin_run.rs`). The phase-a evidence above was removed with the tick.
 
 ## REQ-SYNC-0002: Phases come from phase files and the configured list
 
@@ -34,7 +35,7 @@ A phase is a phase file, named for its phase, in `[tick] phases_dir` (default:
 the first consumer's own directory, relative to the working directory;
 `compose` resolves it against the repository root) with a `root` bead and an
 optional recipient key; other keys are ignored. `[tick] phases` limits the phases
-(names with or without the `phase-` prefix). The schema was confirmed against the baseline Python implementation's cron module at the baseline at `05831df`, and two real phase files of the first consumer are test fixtures (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
+(names with or without the `phase-` prefix). The schema was confirmed against the baseline Python implementation's cron module in the v3 baseline, and two real phase files of the first consumer are test fixtures (ADR-SYNC-0007). A malformed entry, or an empty list, refuses the
 tick before any work; an unusable file, an unreadable directory or a
 configured phase with no file is listed as refused while the phases that are
 usable still run. A phase is active while its root is not closed: a root the
@@ -102,6 +103,8 @@ out, no tick takes longer than 25 s.
 **Acceptance evidence:** `test_tick_budget_defers_drain_entries`,
 `no_tick_exceeds_25_s_with_every_bd_call_timing_out`,
 `the_drain_runs_before_the_sync` (`tests/tick_budget.rs`).
+
+*Implementation note (sprint b-8):* `Budget` (`src/control.rs`); evidence `a_sync_that_uses_its_whole_share_leaves_the_hook_its_reserve`, `a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes` (`tests/hook_runner.rs`).
 
 ## REQ-SYNC-0005: Threading of the job
 
@@ -234,9 +237,15 @@ readiness in the same tick's sync.
 **Acceptance evidence:**
 `a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain`,
 `test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync`,
-`test_e2e_blocker_close_and_reopen_update_ready` (`tests/e2e.rs`); `tests/live.rs`
-(testbed, composed with `compose_with(..., None)` like `tests/common/real.rs`,
-ARCH-807).
+`test_e2e_blocker_close_and_reopen_update_ready`,
+`an_outage_of_several_runs_through_the_real_store_and_cli`,
+`a_scheduled_run_with_a_slow_bd_ends_within_its_budget` (`tests/e2e.rs`, the built-in
+row's scheduled run through `Schedules::cron_run_once` over the real composition,
+`tests/common/real.rs`); `a_journaled_write_lands_in_a_real_bd_through_cron_run_once`
+and `an_incremental_sync_of_a_1000_bead_scope_is_incremental_and_its_time_is_reported`
+(`tests/live.rs`, testbed through `tests/run-live.sh`, composed with
+`compose_with(..., None)`, ARCH-807); the Python row by `cron run --once` in
+`tests/cron_rows.rs` and `crates/bd-cache-py/tests/test_cli_e2e.py` (sprint b-8).
 
 Amendment (fix-a-7-10 and fix-a-7-12, S34, S37, S38, RBP-F044, QA8-003, REQ-QA-709; **Status:** Approved (lead rulings S34, S37 and S38, bc-lead, 2026-10-24)):
 a `.beads/bd-cache.toml` that cannot be loaded is a `ComposeError::Config`
@@ -328,6 +337,8 @@ never a lossy copy. Evidence: `two_compositions_of_one_project_never_run_bd_at_o
 overlap when another holds its directory), `compose_hands_out_one_lock_set`
 (`Arc::ptr_eq`), `a_repository_root_that_is_not_utf8_is_refused`
 (`src/compose.rs`).
+
+*Implementation note (sprint b-8):* the real composition with `CacheScheduleStore` and sc-cron's `ManualClock` (`tests/common/repo.rs`): `tests/schedule_switch.rs`, `tests/cron_rows.rs`; with a real interpreter, `crates/bd-cache-py/tests/test_run.py` and `test_switch.py`.
 
 ## REQ-SYNC-0011: Messages are sent inside the tick's budget
 
@@ -450,6 +461,8 @@ The stop-flag tree test asserts the child reaped, not the descendant gone
 `KILL_BOUND`, which a stalled host can exceed; the descendant's death is
 `a_child_that_ignores_term_and_its_descendant_are_killed_by_the_real_tree_kill`
 (the sender module, injected 30 s deadline).
+
+*Implementation note (sprint b-8):* `StopFlag` (with `wait`) and the run's `stop` / `kill` flags; evidence `a_stopped_run_syncs_no_scope_and_frees_the_lease` (`tests/builtin_run.rs`), `cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease` (`tests/cron_rows.rs`), `join_idle_is_false_while_a_step_holds_the_cache_and_true_once_it_returns` (`tests/job_threading.rs`).
 
 ## REQ-SYNC-0013: A cached `get` costs the same at any scope size
 

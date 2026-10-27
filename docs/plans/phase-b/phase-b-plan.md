@@ -1,7 +1,11 @@
 # Phase B — bdc CLI, bd-cache-api, Python 0.2, release channels
 
 Status: b-1..b-5 complete and merged into `integrate/phase-b` (b-1 #75, b-2 #76, b-3a #74,
-b-3 #78, b-4 #77, b-5 #80); b-6 complete and merged (#92). b-7, b-8 and b-9 are planned by the
+b-3 #78, b-4 #77, b-5 #80); b-6 complete and merged (#92); b-7 complete and merged (#99); b-8
+complete and merged (#100); b-9 complete and merged (#101, `fa05157`). b-1..b-9 merged;
+phase-end review fixes in review (#102). Rand, 2026-10-26: phase B closes without the
+binaries prerelease, and the contract is 0.2.0, not 1.0.0. Phase B closes when #82 merges into
+`develop`. b-7, b-8 and b-9 are the sprints of the
 boundary extension [phase-b-boundary.md](phase-b-boundary.md) (r3, lead ruling S82, with
 Rand's later Amendments A1–A8). The contract, ADR-BDC-0009 and the REQ-BDC-0801, 0802, 0803
 and 0806 amendments were approved by Rand (lead ruling S60, 2026-10-25). The phase-B extension's
@@ -21,7 +25,7 @@ reads one register. Sprints edit only the implementation rows and notes their fe
 
 Implement the bd-cache / bdc CLI contract,
 [`docs/bd-cache-cli/contract.md`](../../bd-cache-cli/contract.md), contract
-version 1.0.0, as approved at `8115a0a` and marked Approved on #69 at `6dec77e`. The contract is the source of truth. Sprint docs cite its
+version 0.2.0 (Rand, 2026-10-26; it was 1.0.0 when approved at `8115a0a`), as approved at `8115a0a` and marked Approved on #69 at `6dec77e`. The contract is the source of truth. Sprint docs cite its
 sections and do not restate them; a sprint that finds a gap raises it with
 the lead, who changes the contract. Sprints never decide it locally.
 
@@ -33,8 +37,8 @@ the lead, who changes the contract. Sprints never decide it locally.
   on sc-command (contract §2, §3, §8).
 - Python wheel 0.2.0, which adds `cache.beads.*` and `cache.manage.*` and
   leaves 0.1 unchanged (contract §10, §11).
-- Binary releases: GitHub, Homebrew, Scoop and WinGet, plus a prerelease
-  that carries the binaries.
+- Binary releases: GitHub, Homebrew, Scoop and WinGet, declared and dry-run verified. The
+  prerelease that carries the binaries is cut later from `develop` or `main` (Rand, 2026-10-26).
 
 ## Prerequisites
 
@@ -43,10 +47,10 @@ the lead, who changes the contract. Sprints never decide it locally.
 | P-1 | Done: contract approved, lead ruling S60 (2026-10-25). Plan against `8115a0a` or later. PR #69 merges to `develop` before `integrate/phase-b` is cut. | every sprint | none: cut `integrate/phase-b` only after #69 merges. |
 | P-2 | Done: ADR-BDC-0009 and the contract's Appendix A amendments (REQ-BDC-0801, 0802, 0803; 0806 superseded), approved under S60 and marked Approved on #69. | — | — |
 | P-3 | sc-publish#133: a crates-only release with no assets completes. Open. | nothing in b-5 directly | b-5 declares binaries, so every GitHub Release has assets and does not take the empty-asset path. b-5 stays on the current pin `16457e0` unless P-4 needs a bump. |
-| P-4 | sc-publish staging bug: real releases upload the consumer's `release/` config as release assets. No issue filed yet; b-5 files it on randlee/sc-publish. | the first stable `release.yml` run with binaries (an immutable release cannot be corrected) | b-5 closes on the prerelease (`prerelease-archive.yml`) plus a clean `install.py --dry-run` and `validate-manifest` with the channels declared. The first stable release and its channel dispatches wait for a kit pin that contains the fix. |
+| P-4 | sc-publish staging bug: real releases upload the consumer's `release/` config as release assets. No issue filed yet; b-5 files it on randlee/sc-publish. | the first stable `release.yml` run with binaries (an immutable release cannot be corrected) | b-5 closes on a clean `install.py --dry-run` and `validate-manifest` with the channels declared; the prerelease (`prerelease-archive.yml`) is cut later from `develop` or `main` (Rand, 2026-10-26). The first stable release and its channel dispatches wait for a kit pin that contains the fix. |
 | P-5 | sc-runtime request (non-blocking, contract §2 and Q7): an sc-config file source with an explicit path, where a missing file is allowed. | nothing | bdc applies the `BD_CACHE__*` env overrides itself (contract §2). |
 | P-6 | External channel setup, by Rand: enable immutable releases on randlee/beads-cache; add repository secrets `HOMEBREW_TAP_TOKEN` (randlee/homebrew-tap, the tap the first consumer already uses), `SCOOP_BUCKET_TOKEN` (randlee/scoop-bucket) and `WINGET_GITHUB_TOKEN` (classic token with `public_repo`, from the owner of the winget-pkgs fork); fork microsoft/winget-pkgs and get the first version of the WinGet package merged by hand (`wingetcreate new`). | b-5's channel dispatches | b-5 declares the channels and proves them with the dry run; a channel whose setup is missing is dispatched later by tag, with no code change. |
-| P-7 | sc-command at sc-runtime tag `prerelease/v0.1.0` (`ba971c1`) builds on all three CI OSes. | b-3a | b-3a checks this first. On a failure, pin by `rev` and raise the issue with the sc-runtime team; no local fork. |
+| P-7 | sc-command at sc-runtime tag `v0.1.0` (`ae3e10b`) builds on all three CI OSes. | b-3a | b-3a checks this first. On a failure, pin by `rev` and raise the issue with the sc-runtime team; no local fork. |
 | P-8 | Gated step before b-7: PR #97 merges into `develop`, then `develop` merges into `integrate/phase-b` (bc-lead owns the merge). That merge removes `integrate/phase-b`'s superseded `docs/plans/phase-b/sprint-b-7-sync-job.md` and `sprint-b-8-boundary.md`, which this plan's b-7..b-9 replace, and takes the planning branch's side of every doc conflict. This PR deletes the phase-a planted-bug evidence files in applying A8's no-consumer-wording ruling; that deletion awaits Rand's confirmation (Open items). | b-7, b-8, b-9 | none: b-7 is not cut until the merge is on `integrate/phase-b`. |
 
 ## Boundary map
@@ -108,7 +112,7 @@ only its own crate.
 
 | File | Owner | Rule |
 |---|---|---|
-| `Cargo.toml` `[workspace].members` and `[workspace.dependencies]` | b-2 (`bd-cache-api`, schemars), b-3a (`bd-cache-cli`, sc-command git dep at tag `prerelease/v0.1.0`, clap) | Members stay listed literally (the kit rejects globs), in alphabetical order. The second of the two to merge resolves the trivial conflict. |
+| `Cargo.toml` `[workspace].members` and `[workspace.dependencies]` | b-2 (`bd-cache-api`, schemars), b-3a (`bd-cache-cli`, sc-command git dep at tag `v0.1.0`, clap) | Members stay listed literally (the kit rejects globs), in alphabetical order. The second of the two to merge resolves the trivial conflict. |
 | `Cargo.toml` `[workspace.package].version` | b-4 | `0.2.0`, in lockstep with the wheel's static version. The shared crates take 0.2.0 too (S61). |
 | `Cargo.lock` | every sprint that changes dependencies | Committed. Resolve a merge conflict by taking the target branch's lock and re-running `cargo metadata`, never `cargo update`. |
 | `docs/architecture.md` | the planning branch (ADR text); b-2 (`bd-cache-api` rows), b-3 (`bd-cache-cli` rows, ADR-BDC-0009 implementation status), b-7 (`bd-cache-model`, `bd-cache-store`, `sc-beads`, `sc-bd-cli` rows), b-8 (`bd-cache-sync`, `bd-cache-py`, `bd-cache-cli`, `sc-cron`, `bd-cache-model` rows and the ADR implementation table) | A sprint edits only the rows its fence names; ADR text changes only on the planning branch. |
@@ -188,9 +192,13 @@ delivery of b-1..b-6 and are recorded in the requirements and ADRs they amend.
 - P-6: the external setup that Rand does: immutable releases, the three
   channel secrets, the winget-pkgs fork, and the first `randlee.bd-cache`
   submission made by hand.
-- The contract and wheel versions (b-9 deliverable 4): `CONTRACT_VERSION` stays 1.0.0 and the
-  wheel 0.2.0, because contract 1.0.0 is unreleased and its removals are pre-release edits.
-  Recommended; Rand's decision.
+- Ruled (Rand, 2026-10-26): `CONTRACT_VERSION` is 0.2.0, not 1.0.0, with wheel 0.2.0: "we are
+  no-where near 1.0.0. we haven't done a single successful test w/ an actual consumer." The
+  contract is pre-stable until then (contract §11).
+- Ruled (Rand, 2026-10-26): phase B closes without the prerelease that carries `bd-cache` and
+  `bdc` (REQ-BDC-0813, b-5 deliverable 4); the binaries are cut later from `develop` or `main`.
+  b-5 deliverable 4 and acceptance criterion 3 are deferred by this ruling; b-5's complete status
+  rests on its dry-run legs. REQ-BDC-0813 stays with b-5 as its owner.
 - This PR deleted `docs/plans/phase-a/evidence/a-7-planted-bugs.{json,py}` and
   the baseline design document (`docs/baseline/`) in applying A8's no-consumer-wording ruling; both stay in git
   history. Awaiting Rand's confirmation; neither is restored unless he says so.

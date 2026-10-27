@@ -106,6 +106,12 @@ class FakeBd:
         self.state.setdefault("fail", {})[command] = message
         self.save()
 
+    def unfail(self, command):
+        """Undoes `fail(command)`: `command` answers again."""
+        self.load()
+        self.state.get("fail", {}).pop(command, None)
+        self.save()
+
     def delay(self, command, seconds):
         """Makes `command` (or `*` for all) answer after `seconds`."""
         self.load()
@@ -231,7 +237,7 @@ def repo(tmp_path):
     root = tmp_path / "repo"
     (root / ".beads").mkdir(parents=True)
     (root / ".beads" / "metadata.json").write_text(
-        json.dumps({"dolt_database": "atm-dev", "project_id": "p-1"}), encoding="utf-8")
+        json.dumps({"dolt_database": "dev-db", "project_id": "p-1"}), encoding="utf-8")
     fake = FakeBd(tmp_path)
     fake.add(
         bead("b1"),

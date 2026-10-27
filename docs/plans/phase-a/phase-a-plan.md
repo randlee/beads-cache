@@ -22,7 +22,7 @@ implementation; ADR-BDC-0007), the SQLite store, the core library, a cron
 prototype `sc-cron` (ADR-BDC-0006), the sync task on it, and Python
 bindings (`bd-cache-py`) so the first consumer can adopt the Rust cache in process.
 
-Baseline contract: the baseline design, vendored from the first consumer at `05831df`
+Baseline contract: the baseline design, vendored from the first consumer
 (no longer in the tree; see git history). Requirements are drawn from
 it into [`docs/requirements.md`](../../requirements.md); sprint docs cite
 requirement ids, not the baseline.
@@ -193,12 +193,12 @@ The one authoritative list. Rust tests keep the Python name.
 | test_outage_is_not_cleared_while_only_the_backend_check_answers | a-7 |
 | test_undelivered_outage_announcement_is_retried | a-7 |
 
-Counts: 44 + 13 = 57 (a-1 7, a-2 2, a-4 9, a-5 16, a-6 9, a-7 14), from the baseline at 05831df.
+Counts: 44 + 13 = 57 (a-1 7, a-2 2, a-4 9, a-5 16, a-6 9, a-7 14), from the v3 baseline.
 
 ## Planted-bug checks
 
 Each planted bug from the baseline's Tests section must fail at least one
-test in its owner's suite. The baseline (05831df) lists them as examples
+test in its owner's suite. The v3 baseline lists them as examples
 ("among them"); new planted bugs for the outage tests are added by the
 owning sprint.
 
@@ -242,7 +242,7 @@ From the first consumer's maintainer's review (2026-10-24):
 Collected for one comment on the first consumer's upstream tracker (not posted),
 updated with its maintainer's replies of 2026-10-24:
 
-- Gap 2 (outage spends attempts): fixed in v3 at the baseline 05831df, Rand
+- Gap 2 (outage spends attempts): fixed in v3, Rand
   approved; this plan now follows the same rules (ADR-BDC-0005).
 - Blocked state: v3 is not affected; this cache uses `bd blocked` per scope
   (ADR-BDC-0002). The first consumer's maintainer agrees.

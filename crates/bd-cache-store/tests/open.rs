@@ -121,6 +121,10 @@ fn one_connection_per_process() {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one column list per table, in DDL order, read in one place"
+)]
 fn v3_tables_are_unchanged_and_extensions_are_additive() {
     let tmp = TempDir::new("ddl");
     let path = file(&tmp);
@@ -171,7 +175,11 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             "updated_at",
             "announced_at",
             "applied_at",
-            "applied_epoch"
+            "applied_epoch",
+            "last_error_code",
+            "note",
+            "changed",
+            "first_offered_at"
         ]
     );
     assert_eq!(
@@ -184,9 +192,13 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             "backend_kind",
             "endpoint",
             "replica_id",
-            "journal_seq"
+            "journal_seq",
+            "failing_since",
+            "notified_since"
         ]
     );
+    // ADR-STORE-0006: the scope registry gains nullable revision and filter.
+    assert_eq!(names("scope"), ["name", "kind", "revision", "filter"]);
     assert_eq!(names("meta"), ["key", "value"]);
     assert_eq!(names("edges"), ["issue_id", "depends_on_id", "type"]);
     for (table, from) in [("beads", 7), ("journal", 14), ("sync_state", 4)] {
@@ -194,7 +206,16 @@ fn v3_tables_are_unchanged_and_extensions_are_additive() {
             assert!(!notnull, "{table}.{name} must be nullable");
         }
     }
-    for table in ["scope", "scope_member", "ready_base", "ready_base_blocked"] {
+    for table in [
+        "scope",
+        "scope_member",
+        "ready_base",
+        "ready_base_blocked",
+        "tick_lease",
+        "hook_state",
+        "sync_run",
+        "sc_cron_schedule",
+    ] {
         assert!(!names(table).is_empty(), "{table} exists");
     }
     let indexes: Vec<String> = {
