@@ -840,8 +840,7 @@ constant" applies to code that builds or strips a scope label. Tests in crates t
 
 ### Amendment 3: consumer roles and file names (phase-end review)
 
-**Status:** Approved (lead ruling at the phase B phase-end review, PE1-RBQA-F001..F003, applying
-Rand's ruling 7: no consumer wording outside the lint's prohibited list)
+**Status:** Approved (Rand, 2026-10-26, confirming the lead ruling at the phase B phase-end review, PE1-RBQA-F001..F003, which applies his ruling 7: no consumer wording outside the lint's prohibited list)
 
 - **Neutral wording.** The register, the plans and the tests name no consumer-internal role,
   hook or file (the consumer's schema and close-field files, its review roles, its task hooks
