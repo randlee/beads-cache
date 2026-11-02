@@ -51,6 +51,7 @@ requirements:
   - REQ-CLI-0007
   - REQ-PY-0002
   - REQ-PY-0006
+  - REQ-BDC-0910
 adrs:
 - ADR-BDC-0005
 - ADR-BDC-0006
@@ -146,6 +147,16 @@ implementation, not a second scheduler. The exact upstream trait is fixed by the
 | req:REQ-BDC-0730 | CLI and Python use migrated worker; timeout, second stop, hook child-tree kill and lease release obey current bounds | release lease/instance state before child reap or omit kill; process test fails |
 | req:REQ-BDC-0001 | current outage and cached-read suites pass; cache hits invoke no bd and retain latency budget | insert a backend read on a hit; call-log/latency test fails |
 | req:REQ-API-0008 | contract-only sc-command path is permitted, clap/server/runtime leakage remains rejected in isolated consumer builds | enable sc-command/server in the isolated Python consumer; graph test fails |
+
+## Current CI prerequisite
+
+PR #105 exposed a pre-existing runner compatibility failure: Ubuntu 26.04 under
+ubuntu-latest does not offer Python 3.9 in actions/setup-python's build manifest.
+Preserve Python 3.9 support by pinning both Linux wheel-build and wheel-test jobs
+to a compatible runner together (24.04 is available), then qualify that matrix.
+A test-only runner pin risks testing a newer-glibc wheel on an older image. This
+repair serves REQ-BDC-0812/REQ-BDC-0910, adds no product operation and must not be
+mistaken for a failed cache test or a reason to drop Python 3.9 support.
 
 ## Required validation
 

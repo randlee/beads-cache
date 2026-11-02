@@ -189,13 +189,24 @@ milestone alone as authorization to expand this plan. No monitoring is scheduled
 
 ## Plan readiness
 
-This is the initial draft, not a hardened/QA-approved plan. New anchors require
-user confirmation before lock and fixture approval. The local anchoring dependencies
-and stored remote-judge setting are available, and the user explicitly approved TypeSafe/Jev transmission after the initial
-automatic approval review rejection. The authorized rubric retry reached Jev but received HTTP 402 with no judgment.
-Live validation is blocked on that service/account response; anchors and fixtures
-are not locked without their own approval, and no planning gate is reported as passed.
-See [intent and candidate anchors](intent.md). Formal plan hardening and the Jev
-planning gate follow scope approval, with the repository's required reviewers and
-an open planning PR. Existing phase-B anchors remain binding; they are not retuned
-or copied with fabricated approvals.
+This is a draft, not a hardened/QA-approved plan. TypeSafe/Jev access is restored:
+Keychain verification and live rubric requests return answers. The previous HTTP
+402 is historical. All four proposed anchors returned inconclusive testability
+results; narrower rusqlite/sc-lint wording also remained inconclusive at the
+unchanged confidence threshold. Results are retained beside the plan. No anchor
+is locked and no planning gate is reported as passed. Exact statement/fixture
+confirmation and any required independent rubric calibration precede locking.
+
+See [intent and candidate anchors](intent.md). Formal plan hardening follows scope
+approval, with the required reviewers and open planning PR #105. Existing phase-B
+anchors remain binding; they are not retuned or copied with fabricated approvals.
+
+The PR's Rust CI passed. Python checks passed except Linux/Python 3.9, which failed
+before tests at actions/setup-python: ubuntu-latest resolved to Ubuntu 26.04, for
+which the official Python runner manifest offers no Python 3.9 build. That manifest
+does list Python 3.9.25 builds for Ubuntu 22.04/24.04. The current pipeline needs an
+independent compatibility repair before green CI can be claimed: pin wheel-build
+and wheel-test Linux runners together to a Python-3.9-compatible image (24.04),
+rather than changing only the test runner and creating a wheel/glibc mismatch.
+This plan records the defect; it does not change CI implementation on the planning
+branch. c-1 owns requalification of the preserved Python matrix.

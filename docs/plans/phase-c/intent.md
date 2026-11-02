@@ -5,17 +5,17 @@ not keep a second scheduler/framework implementation. The application must retai
 its local-read performance, persistent cache format and existing CLI/Python
 contracts while gaining a real generated lifecycle and the existing validation path.
 
-These are **candidates**, not locked ANC records. No Jev confirmation or fixture
-approval has occurred. IDs below continue the phase-B user-anchor sequence; they
+These are **candidates**, not locked ANC records. Live Jev rubric calls now work,
+but their results remain inconclusive; no statement or fixture is approved for lock. IDs below continue the phase-B user-anchor sequence; they
 are reservations for discussion, not registered anchors. Existing phase-B locked
 anchors continue to constrain all changed source, tests and docs.
 
 | Candidate | Proposed testable statement | User provenance (verbatim) | Development proof |
 |---|---|---|---|
 | ANC-012 | Phase C must adopt sc-runtime application templates as the baseline for its runtime integration. | “if we consume directly, then we would drift from sc-runtime immediately.” | tagged template regeneration plus adopted-path diff and application smoke |
-| ANC-013 | Every beads-cache workspace crate using rusqlite must resolve the 0.39 release line shared with sc-runtime. | “info from sc-runtime:  Matching beads-cache to 0.39 is the right move.” | Cargo metadata/tree and locked store/scheduler tests |
+| ANC-013 | The beads-cache rusqlite dependency must use version 0.39. | “info from sc-runtime:  Matching beads-cache to 0.39 is the right move.” | Cargo metadata/tree and locked store/scheduler tests |
 | ANC-014 | Phase C sprint docs must follow the repository sprint-planning-guidelines, including disjoint same-wave owned paths and explicit acceptance ownership. | See the complete verbatim planning request below. | frontmatter/path/dependency review of this planning branch |
-| ANC-015 | Phase C must defer sc-lint installation, bootstrap and upgrades until sc-runtime 0.2.0 has been released. | “don't worry about sc-lint until sc-runtime 0.2.0 lands” | no early lint bootstrap/profile/version change in sprint fences or delivered diff |
+| ANC-015 | beads-cache must postpone sc-lint work until sc-runtime version 0.2.0 is released. | “don't worry about sc-lint until sc-runtime 0.2.0 lands” | no early lint bootstrap/profile/version change in sprint fences or delivered diff |
 
 Verbatim source for ANC-014:
 
@@ -38,17 +38,39 @@ sc-runtime 0.2.0 lands”. This replaces the draft's earlier lint-adoption propo
 Proposed fixtures for ANC-015: pass — the sprint retains existing CI and defers
 sc-lint changes until upstream 0.2.0; fail — it bootstraps 0.8.x before that release.
 
-The initial rubric attempt on ANC-012 had no Jev answer: sandbox networking failed, then
-automatic approval review rejected external transmission of planning text and the
-user quote. Stored allow_remote_judge=true does not override that rejection.
-The user then answered “Approve TypeSafe/Jev validation”, authorizing the retry.
-Anchor statements/fixtures themselves still require approval before lock.
+## Live validation resumed
 
+The user authorized TypeSafe/Jev transmission and then verified the credential with
+jev-verify. Both environment and Keychain sources produced HTTP 200 with Jev
+1.14.0. Subsequent rubric calls use Keychain through an ephemeral credential bridge;
+the inherited stale environment variable is removed for that subprocess, and the
+credential is passed only to the child environment, never written to disk or logs.
+The Python calls use the system CA bundle with TLS verification enabled.
 
-After explicit egress approval, the first retries encountered Python CA configuration
-errors. Retrying with the system CA bundle and TLS verification enabled reached
-Jev, which returned HTTP 402 without a judgment. The saved rubric result is
-`anchors/runs/rubric-lint-deferral-20261102.json`. No candidate passed, no anchor is
-locked, and no planning gate has been run. The service/account response must be
-resolved before live validation can complete; no payment or account change was
-attempted.
+The earlier HTTP 402 is historical, not the current blocker. Its original receipt
+is retained in anchors/runs/rubric-lint-deferral-20261102.json.
+
+| Candidate | First live rubric | Narrowed wording recheck | Remaining issue |
+|---|---|---|---|
+| ANC-012 | inconclusive | not rewritten | fidelity to the conditional quote, observable adoption, self-contained meaning |
+| ANC-013 | inconclusive | inconclusive | fidelity and self-contained meaning below the unchanged 0.6 confidence threshold |
+| ANC-014 | inconclusive | not rewritten | compound wording, external guideline reference and fidelity; this may belong solely to existing planning-policy enforcement |
+| ANC-015 | inconclusive | inconclusive | observation and self-contained meaning below the unchanged threshold |
+
+Full results, both independent calls per rubric, and the unchanged question/role
+outcomes are retained under anchors/runs/anc-012..015-rubric-20261102.json and the
+anc-013/015-rubric-r2-20261102.json rechecks. The two narrowed candidates remove
+extra wording without adding a new user obligation. No confidence threshold,
+question, scope or fixture was altered to turn an inconclusive result into a pass.
+
+These are anchor-testability results, not judgments of sprint compliance. None is
+a passing planning gate. No anchor is locked and no question override is adopted.
+The next capture step is to confirm the exact statements and pass/fail fixtures
+with the user; the optional daemon and application surface remain proposed scope.
+
+The governing plan-anchoring capture rule says: “Record only when the user confirms
+or says "lock this" or "anchor this".” The rubric rule says to clarify
+inconclusive results rather than treating them as passes. Confirmation must not be
+misreported as a Jev testability pass; if the unchanged rubric still cannot judge a
+confirmed statement, the independent calibration workflow must examine it against
+its frozen corpus before any question change is considered.
