@@ -46,6 +46,9 @@ owned_paths:
 - scripts/test_release_candidate.py
 - README.md
 - docs/development/release.md
+inherited_bounds:
+- ANC-001
+- NFR-BDC-0005
 ---
 
 # Sprint c-4 — Installable candidate artifacts and truthful release gates

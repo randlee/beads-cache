@@ -15,7 +15,7 @@ The user's later upstream guidance selects rusqlite **0.39**, matching sc-runtim
 
 The sprint docs below are authoritative for scope, requirements, owned paths and
 acceptance. Existing requirements and ADRs remain binding unless a **Proposed**
-phase-C amendment is approved. REQ-BDC-1001..1005 and ADR-BDC-0016 are proposed in
+phase-C amendment is approved. REQ-BDC-1001..1003, REQ-BDC-1005 and ADR-BDC-0016 are proposed in
 this planning PR. No implementation or product dependency change is made here.
 The tested rusqlite downgrade remains uncommitted in the original checkout; c-1
 lands that change on its sprint branch rather than committing on `develop`.
@@ -140,7 +140,7 @@ workflow, c-4 proves packaged installation. There is no final test-only sprint.
 | Upstream scheduler operates on the existing cache file, with original CLI/Python behavior | c-1 |
 | Generated application hosts actual sync and health with bounded lifecycle | c-2 |
 | Template updates are reproducible and adopted differences reviewable | c-2 |
-| Existing CI coverage is preserved and sc-lint work waits for upstream 0.2.0 | c-2 scope/validation acceptance; deferral constrains all sprints |
+| Existing CLI/Python validation coverage is preserved | c-1/c-2 validation under existing approved requirements |
 | One actual consumer workflow passes against the built application | c-2 |
 | Built archives/wheels can be installed and exercised, stable publish remains gated | c-4 |
 
@@ -187,19 +187,22 @@ When 0.2.0 lands, review its published template/tooling delta and propose a boun
 plan amendment or later sprint before taking that work. Do not interpret the
 milestone alone as authorization to expand this plan. No monitoring is scheduled.
 
-## Plan readiness
+## Work bounds and plan readiness
 
-This is a draft, not a hardened/QA-approved plan. TypeSafe/Jev access is restored:
-Keychain verification and live rubric requests return answers. The previous HTTP
-402 is historical. All four proposed anchors returned inconclusive testability
-results; narrower rusqlite/sc-lint wording also remained inconclusive at the
-unchanged confidence threshold. Results are retained beside the plan. No anchor
-is locked and no planning gate is reported as passed. Exact statement/fixture
-confirmation and any required independent rubric calibration precede locking.
+Phase C reuses the relevant previously locked anchors documented in
+[Inherited work bounds](anchors/index.md), with unchanged statements and original
+provenance. These bound permissible changes to persistence, backend access, local
+reads, sync behavior, front-end compatibility and deadlines. They are mapped to the
+sprints they constrain, not replaced by conversation-derived planning notes.
 
-See [intent and candidate anchors](intent.md). Formal plan hardening follows scope
-approval, with the required reviewers and open planning PR #105. Existing phase-B
-anchors remain binding; they are not retuned or copied with fabricated approvals.
+The earlier ANC-012..015 candidate packet was rejected by the user as unsuitable
+phase anchors and has been removed. Its rubric results do not block or validate
+this phase. No new anchor confirmation is requested for those remarks. The
+remaining work is to harden the proposed scope against the inherited bounds and
+existing requirements, then review it through the repository's planning workflow.
+The optional daemon remains proposed scope. This is not a QA-approved plan, and
+selecting inherited constraints is not a claim that the planning gate passed.
+See [intent](intent.md) for the phase purpose and separation of proposal/context.
 
 The PR's Rust CI passed. Python checks passed except Linux/Python 3.9, which failed
 before tests at actions/setup-python: ubuntu-latest resolved to Ubuntu 26.04, for

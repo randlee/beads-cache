@@ -83,6 +83,24 @@ owned_paths:
 - docs/bd-cache-cli/architecture.md
 - docs/sc-cron/architecture.md
 - docs/bd-cache-api/requirements.md
+inherited_bounds:
+- ANC-001
+- ANC-002
+- ANC-003
+- ANC-004
+- ANC-008
+- ANC-009
+- ADR-BDC-0009
+- ADR-STORE-0001
+- REQ-BDC-0001
+- REQ-BDC-0006
+- REQ-BDC-0007
+- REQ-BDC-0008
+- REQ-BDC-0502
+- REQ-BDC-0812
+- NFR-BDC-0004
+- NFR-BDC-0005
+- ADR-BDC-0005
 ---
 
 # Sprint c-1 — Published runtime scheduler in the existing cache composition

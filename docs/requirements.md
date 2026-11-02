@@ -968,18 +968,6 @@ must distinguish template source changes from consumer-owned application changes
 from sc-runtime. The mechanism is proposed by the phase-C plan.
 **Acceptance owner:** c-2.
 
-## REQ-BDC-1004: Defer sc-lint adoption until upstream 0.2.0
-
-**Status:** Proposed formalization of explicit user instruction (phase C, 2026-11-02)
-
-No Phase C sprint may install or upgrade sc-lint, introduce its profiles, or migrate
-boundary enforcement to it before sc-runtime 0.2.0 lands. Existing project CI gates
-remain required. Once that upstream milestone lands, review the published changes
-and approve a plan amendment or later sprint before expanding the current scope.
-
-**Source:** user: "don't worry about sc-lint until sc-runtime 0.2.0 lands".
-**Scope:** constrains every phase-C sprint; c-2 owns preservation of current CI.
-
 ## REQ-BDC-1005: Qualified installed candidate artifacts
 
 **Status:** Proposed (phase C, 2026-11-02)

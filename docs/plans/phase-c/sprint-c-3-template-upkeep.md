@@ -17,7 +17,6 @@ requirements:
   owns: []
   constrained_by:
   - REQ-BDC-1003
-  - REQ-BDC-1004
   - REQ-BDC-0006
   - NFR-BDC-0005
 adrs:
@@ -30,6 +29,9 @@ owned_paths:
 - scripts/runtime_templates.py
 - scripts/test_runtime_templates.py
 - docs/development/runtime-updates.md
+inherited_bounds:
+- ANC-001
+- NFR-BDC-0005
 ---
 
 # Sprint c-3 — Repeatable framework template upkeep

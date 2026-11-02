@@ -44,7 +44,6 @@ requirements:
   - NFR-BDC-0005
   - NFR-BDC-0006
   - REQ-PY-0006
-  - REQ-BDC-1004
 adrs:
 - ADR-BDC-0009
 - ADR-BDC-0010
@@ -76,6 +75,24 @@ owned_paths:
 - docs/bd-cache-service/**
 - docs/bd-cache-daemon/**
 - .claude/project/quality-policy.md
+inherited_bounds:
+- ANC-001
+- ANC-002
+- ANC-003
+- ANC-004
+- ANC-008
+- ANC-009
+- ADR-BDC-0009
+- ADR-STORE-0001
+- REQ-BDC-0001
+- REQ-BDC-0006
+- REQ-BDC-0007
+- REQ-BDC-0008
+- REQ-BDC-0502
+- REQ-BDC-0812
+- NFR-BDC-0004
+- NFR-BDC-0005
+- ADR-BDC-0005
 ---
 
 # Sprint c-2 — Generated application, ongoing alignment and consumer proof
@@ -110,7 +127,7 @@ placeholder generated example.
    adaptations. Prove that regenerating old/new baselines exposes an adopted
    scaffold change without overwriting domain code. just upgrade remains a lint
    upgrade; it is not the framework update procedure.
-4. REQ-BDC-1004: preserve existing CI and its OS/Python gates. Extend the current
+4. REQ-BDC-0812, REQ-BDC-0910: preserve existing CI and its OS/Python gates. Extend the current
    docs/architecture.md edge table and inline graph checks for the new crates;
    do not install sc-lint, create its profiles or migrate to its boundary manifests
    before sc-runtime 0.2.0 lands. Keep independently built local artifacts isolated
@@ -167,7 +184,6 @@ existing cache-health evaluation over shared state and returns the phase-plan
 | req:REQ-BDC-0730 | duplicate instance is refused; stop during a blocked hook is bounded, reaps children and then releases ownership; restart succeeds | release the instance lock before shutdown completes; second-instance/process test fails |
 | req:REQ-BDC-0001 | original bdc JSON/0-2-3 contract, alias identity, latency and Python corpus pass with daemon absent and present | route a cached get through HTTP; daemon-off and latency tests fail |
 | req:REQ-BDC-1003 | recorded pin/answers regenerate a baseline; a changed upstream template path appears in the diff without overwriting working files | suppress a changed adopted path; update-helper test fails |
-| req:REQ-BDC-1004 | existing CI validates the new app and rejects forbidden isolated-consumer edges; no sc-lint adoption occurs early | add a premature lint bootstrap/profile or drop a current gate; scope/configuration review rejects the change |
 | req:REQ-BDC-1001 | actual consumer testbed completes the supported workflow with recorded outcomes and bounded timing | mark an undrained write as applied or lose pending data on outage; consumer procedure fails |
 
 ## Required validation

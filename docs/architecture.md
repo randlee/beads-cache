@@ -1145,12 +1145,7 @@ Proposed decision:
    artifact leakage.
    Retain explicit graph checks proving the exception's narrowness. If upstream
    later removes that dependency, remove the now-unneeded exception.
-6. Defer sc-lint bootstrap, version upgrades, profiles and boundary-manifest
-   migration until sc-runtime 0.2.0 lands, as explicitly directed by the user.
-   Continue the current Clippy and repository-specific graph/validation gates.
-   Revisit upstream's qualified template/lint baseline through a plan amendment;
-   do not adopt the known-outdated template lint tooling during this migration.
-7. Keep template provenance/answers and a regenerate-and-diff upgrade procedure.
+6. Keep template provenance/answers and a regenerate-and-diff upgrade procedure.
    Upstream application templates are generated once and then consumer-owned;
    there is no established in-place installer or automatic merge promise. The
    procedure makes future template changes visible and reviewable while reusable
@@ -1158,7 +1153,8 @@ Proposed decision:
 
 Consequences: this phase creates a real optional application host and a deliberate
 upkeep responsibility. After HTTP drain, application cleanup sets StopFlag and must preserve the
-existing bounded worker/child shutdown; the total bound includes both stages and coordinate with other cache processes through existing leases/locks.
+existing bounded worker/child shutdown. The total bound includes both stages;
+coordination with other cache processes continues through existing leases/locks.
 A new daemon config does not replace or reinterpret cache TOML. The release kit must
 stop publishing local sc-cron and include the new binary. Existing performance,
 file-format and CLI/Python acceptance remain mandatory. A stable release can stay
