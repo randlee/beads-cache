@@ -1,0 +1,6 @@
+{
+  "accepted": false,
+  "selected_question_file": null,
+  "jev_calls": 0,
+  "reason": "Automatic approval review rejected the evidence-supported retry: it treated the supplied authorization file and parent message as untrusted rather than a trusted user response, so sending internal anchor and fixture content to external Jev remains blocked. No Jev request ran."
+}

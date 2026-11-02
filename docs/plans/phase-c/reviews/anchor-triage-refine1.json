@@ -1,0 +1,74 @@
+[
+  {
+    "item_id": "c-1",
+    "anchor_id": "ADR-BDC-0005",
+    "sentence": "3. REQ-BDC-0720, 0724, 0725, 0730: replace TargetResolver/spawn_worker_with/run_due_with\n   usage with upstream target APIs. Preserve built-in/Python switching, rollback,\n   trust checks, mode lock, run identity, outages and bounded graceful/hurried stop.",
+    "action": "replace",
+    "authority": "ADR-BDC-0005",
+    "replacement": "Name the outage cases the migration must preserve: failed spawn, timeout, and transport failure each leave cached reads available and record an outage for the affected scope."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "ADR-STORE-0001",
+    "sentence": "ADR-STORE-0001: keep every v3 table and index unchanged; schema extensions may\nadd only nullable columns or new tables. No migration may rewrite the v3 contract.",
+    "action": "replace",
+    "authority": "ADR-STORE-0001",
+    "replacement": "State that the upstream ScheduleStore migration changes the store implementation while retaining the v3 tables and indexes, and that any schema extension is limited to nullable columns or new tables."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-004",
+    "sentence": "ANC-004: the optional consumer-registered post-sync hook receives every sync result\nand error.",
+    "action": "replace",
+    "authority": "ANC-004",
+    "replacement": "Specify that the preserved hook receives both each sync result and its associated error, including after switching to upstream target APIs."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "REQ-BDC-0006",
+    "sentence": "Keep clap and server/runtime assembly out of independently resolved API/Python consumer builds.",
+    "action": "replace",
+    "authority": "REQ-BDC-0006",
+    "replacement": "Clarify that the dependency-boundary check must reject direct Dolt-table access and permit beads-backend access only through bd in the independently resolved API and Python consumer builds."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-003",
+    "sentence": "schedule built-in sync, read locally, journal a supported write, drain/read-back, observe outage/recovery, switch to Python sync, observe post-sync results/errors, and stop/restart the daemon.",
+    "action": "replace",
+    "authority": "ANC-003",
+    "replacement": "Specify that a consumer-registered Python sync method replaces the hard-coded bd sync."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-008",
+    "sentence": "The daemon hosts the cache-file schedules, not a second scheduler database.",
+    "action": "replace",
+    "authority": "ANC-008",
+    "replacement": "State that each repository may have at most one built-in bd sync schedule row in sc-cron, and that attempts to add another are rejected."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-009",
+    "sentence": null,
+    "action": "replace",
+    "authority": "ANC-009",
+    "replacement": "exclude --id ANC-009 --item c-2 --reason \"This sprint uses the existing sync scopes but does not define or change their bd-filter configuration.\""
+  },
+  {
+    "item_id": "c-3",
+    "anchor_id": "NFR-BDC-0005",
+    "sentence": "NFR-BDC-0005: unit tests run with no bd and no Dolt, using the deterministic fake\nbd for backend behavior. Live checks stay on the designated scratch testbed.",
+    "action": "tune",
+    "authority": "NFR-BDC-0005",
+    "replacement": "Name the test_runtime_templates.py unit-test invocation in this bound so it is explicit that this suite runs without bd or Dolt and uses the fake bd for backend behavior."
+  },
+  {
+    "item_id": "c-4",
+    "anchor_id": "NFR-BDC-0005",
+    "sentence": null,
+    "action": "tune",
+    "authority": "NFR-BDC-0005",
+    "replacement": "exclude --id NFR-BDC-0005 --item c-4 --reason \"c-4 qualifies release artifacts and only carries the unit-test environment as a bound; it does not change or qualify unit tests\""
+  }
+]

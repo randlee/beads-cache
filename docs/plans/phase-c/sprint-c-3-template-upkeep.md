@@ -31,7 +31,6 @@ owned_paths:
 - docs/development/runtime-updates.md
 inherited_bounds:
 - ANC-001
-- NFR-BDC-0005
 ---
 
 # Sprint c-3 — Repeatable framework template upkeep
@@ -77,6 +76,9 @@ application and owns REQ-BDC-1003's feature-level upgrade proof.
 | boundary:template-upkeep-tooling | the pinned upstream generation path runs in an absent scratch destination; tool errors retain upstream diagnostics | ignore a generation failure and report success; smoke rejects the result |
 
 ## Required validation
+
+Unit tests here exercise template/packaging helpers, not sync jobs, hooks, ingest
+or CLI behavior. Installed-artifact smoke checks remain integration procedures.
 
 `python3 -I -m unittest discover -s scripts -p 'test_runtime_templates.py' -v`,
 helper positive/negative fixtures, and the pinned real generator smoke. Validate

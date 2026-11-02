@@ -462,6 +462,19 @@
             "quote"
           ],
           "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
+        },
+        {
+          "at": "2026-11-02T23:38:28+00:00",
+          "event": "excluded",
+          "item": "c-2",
+          "reason": "c-2 only hosts/invokes the existing sync and hook; it changes no sync job or post-sync hook behavior, which c-1 owns. The anchor scope explicitly excludes invocation-only work.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "c-2",
+          "reason": "c-2 only hosts/invokes the existing sync and hook; it changes no sync job or post-sync hook behavior, which c-1 owns. The anchor scope explicitly excludes invocation-only work."
         }
       ]
     },
@@ -684,6 +697,19 @@
             "quote"
           ],
           "reason": "Rand's ruling 2026-10-26: no prohibited word outside the no-consumer lint; each prohibited token replaced by a neutral paraphrase with no change of meaning; the verbatim text is in git history"
+        },
+        {
+          "at": "2026-11-02T23:38:28+00:00",
+          "event": "excluded",
+          "item": "c-2",
+          "reason": "c-2 only hosts the existing sync; it defines/parses no scopes and changes no scope-filter sync implementation. c-1 qualifies that behavior.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "c-2",
+          "reason": "c-2 only hosts the existing sync; it defines/parses no scopes and changes no scope-filter sync implementation. c-1 qualifies that behavior."
         }
       ]
     },
@@ -778,6 +804,19 @@
           "at": "2026-10-25T23:42:10+00:00",
           "event": "exclusion_removed",
           "item": "b-1"
+        },
+        {
+          "at": "2026-11-02T23:26:20+00:00",
+          "event": "excluded",
+          "item": "c-2",
+          "reason": "c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "c-2",
+          "reason": "c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary."
         }
       ]
     },
@@ -1402,6 +1441,19 @@
           "at": "2026-10-26T03:17:05+00:00",
           "event": "exclusion_removed",
           "item": "b-7"
+        },
+        {
+          "at": "2026-11-02T23:26:21+00:00",
+          "event": "excluded",
+          "item": "c-4",
+          "reason": "c-4 changes packaging and artifact validation, not Python binding methods, arguments or returned values; c-1/c-2 own compatibility.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "c-4",
+          "reason": "c-4 changes packaging and artifact validation, not Python binding methods, arguments or returned values; c-1/c-2 own compatibility."
         }
       ]
     },
@@ -1562,6 +1614,30 @@
           "at": "2026-10-25T23:42:11+00:00",
           "event": "exclusion_removed",
           "item": "b-1"
+        },
+        {
+          "at": "2026-11-02T23:35:59+00:00",
+          "event": "excluded",
+          "item": "c-3",
+          "reason": "c-3 changes template-regeneration helper tests only, not tests of sync jobs, hooks, ingest or CLI behavior named in this anchor scope.",
+          "replaced": false
+        },
+        {
+          "at": "2026-11-02T23:36:00+00:00",
+          "event": "excluded",
+          "item": "c-4",
+          "reason": "c-4 changes packaging/checksum helper tests and installed-artifact integration checks, not unit tests of sync jobs, hooks, ingest or CLI behavior.",
+          "replaced": false
+        }
+      ],
+      "exclude": [
+        {
+          "item": "c-3",
+          "reason": "c-3 changes template-regeneration helper tests only, not tests of sync jobs, hooks, ingest or CLI behavior named in this anchor scope."
+        },
+        {
+          "item": "c-4",
+          "reason": "c-4 changes packaging/checksum helper tests and installed-artifact integration checks, not unit tests of sync jobs, hooks, ingest or CLI behavior."
         }
       ]
     },

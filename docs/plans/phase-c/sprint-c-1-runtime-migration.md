@@ -52,6 +52,10 @@ requirements:
   - REQ-PY-0002
   - REQ-PY-0006
   - REQ-BDC-0910
+  - REQ-BDC-0721
+  - REQ-BDC-0007
+  - REQ-BDC-0008
+  - REQ-BDC-0502
 adrs:
 - ADR-BDC-0005
 - ADR-BDC-0006
@@ -135,6 +139,26 @@ integration independently of the later generated application.
    wheel build. The all-workspace build may unify sc-command/server legitimately. Record the exception in governed docs before the
    gate changes. Preserve public execution signatures shown below.
 
+## Inherited preservation bounds
+
+ADR-STORE-0001: the store migration includes schema.rs's schedule-extension DDL
+and its format tests. Keep all v3 tables and indexes unchanged; any required
+schedule-extension schema change may add only nullable columns or new tables.
+ANC-002: bd sync runs at the times stored in the cache file's SQLite cron table.
+ANC-003: a consumer-registered Python sync method can replace the built-in bd sync.
+ANC-004: after each built-in sync completes, the optional consumer-registered
+post-sync hook receives both the sync results and sync errors, including each
+scope's result/error after migration to upstream target APIs. REQ-BDC-0007/0008/0502: every stored bead row, including consumer-sync
+rows, passes the strict bd-schema-generated decoder; one invalid row stores no
+rows from that result; sync/ingest never overwrites a newer stored updated_at.
+ADR-BDC-0005: a failed bd spawn, timeout or transport failure leaves cached reads
+available and records an outage for the affected scope. REQ-BDC-0006: all beads
+backend reads and writes go through bd; never query Dolt tables directly or use a
+generated SQL store for backend access. ANC-009: a sync scope remains a bd filter, such as labels or --all; it is never
+a phase definition. NFR-BDC-0004: kill every bd call, Python sync method and post-sync hook at its
+per-call timeout capped by the remaining run deadline. These bounds preserve
+existing behavior.
+
 ## Interface preserved for consumers
 
 ```rust
@@ -165,6 +189,7 @@ implementation, not a second scheduler. The exact upstream trait is fixed by the
 | req:REQ-BDC-0730 | CLI and Python use migrated worker; timeout, second stop, hook child-tree kill and lease release obey current bounds | release lease/instance state before child reap or omit kill; process test fails |
 | req:REQ-BDC-0001 | current outage and cached-read suites pass; cache hits invoke no bd and retain latency budget | insert a backend read on a hit; call-log/latency test fails |
 | req:REQ-API-0008 | contract-only sc-command path is permitted, clap/server/runtime leakage remains rejected in isolated consumer builds | enable sc-command/server in the isolated Python consumer; graph test fails |
+| req:REQ-BDC-0721 / ANC-009 | a configured label-filter scope and an --all scope both sync through the migrated worker as bd filters | derive a scope from phase files instead; scope-sync scenario fails |
 
 ## Current CI prerequisite
 
@@ -177,6 +202,9 @@ repair serves REQ-BDC-0812/REQ-BDC-0910, adds no product operation and must not 
 mistaken for a failed cache test or a reason to drop Python 3.9 support.
 
 ## Required validation
+
+NFR-BDC-0005: unit tests run with no bd and no Dolt, using the deterministic fake
+bd for backend behavior. Live checks stay on the designated scratch testbed.
 
 - `cargo fmt --all --check`.
 - Both existing workspace Clippy gates, with `--locked`, excluding bd-cache-py.

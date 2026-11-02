@@ -1,0 +1,39 @@
+{
+  "stage": "scope-review-preparation",
+  "scope_review": {
+    "rounds_completed": 0,
+    "round_limit": 2,
+    "status": "not_started"
+  },
+  "critical_review": {
+    "rounds_completed": 0,
+    "round_limit": 2,
+    "status": "not_started"
+  },
+  "post_hardening_anchors": {
+    "status": "not_started"
+  },
+  "quality_manager": {
+    "rounds_completed": 0,
+    "status": "not_started",
+    "required_plan_reviewers": [
+      "req-qa",
+      "arch-qa",
+      "ruthless-boundary-qa",
+      "rust-best-practices-agent",
+      "rust-service-hardening-agent",
+      "ceremony-qa"
+    ]
+  },
+  "blocker": null,
+  "authority": "Inherited anchor statements unchanged; allowed plan growth traced to locked prior IDs in triage files.",
+  "initial_anchor_gates": {
+    "c-1": "plan-20261102T233842Z-c-1",
+    "c-2": "plan-20261102T233846Z-c-2",
+    "c-3": "plan-20261102T233844Z-c-3",
+    "c-4": "plan-20261102T233631Z-c-4",
+    "per_item_pass": true,
+    "structural_check": "no-consumer lint must pass; recorded separately",
+    "coverage_note": "Raw coverage counts only satisfied, so structural ANC-001 and all-not-applicable ADR-BDC-0009 remain listed; do not relabel them as Jev satisfied."
+  }
+}

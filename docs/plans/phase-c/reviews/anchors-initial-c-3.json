@@ -1,0 +1,705 @@
+{
+  "schema_version": "1.0.0",
+  "success": true,
+  "canceled": false,
+  "aborted_by": null,
+  "data": {
+    "gate": "plan",
+    "item_id": "c-3",
+    "run_id": "plan-20261102T232421Z-c-3",
+    "run_path": "docs/plans/phase-c/anchors/runs/plan-20261102T232421Z-c-3.json",
+    "dry_run": false,
+    "reused_run": false,
+    "pass": false,
+    "failing": [
+      "NFR-BDC-0005"
+    ],
+    "errors": [],
+    "excluded": [],
+    "results": [
+      {
+        "anchor_id": "NFR-BDC-0005",
+        "verdict": "underspecified",
+        "leaning": "not_addressed",
+        "min_confidence": 0.33,
+        "attempts": 2,
+        "confirmed": true,
+        "explanation": "Jev was not confident (min confidence 0.33); the anchor or the bead may be underspecified.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.33,
+            "probabilities": {
+              "yes": 0.55,
+              "no": 0.44,
+              "unclear": 0.01
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.67,
+            "probabilities": {
+              "yes": 0.11,
+              "no": 0.78,
+              "unclear": 0.11
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.85,
+            "probabilities": {
+              "yes": 0.07,
+              "no": 0.9,
+              "unclear": 0.03
+            }
+          }
+        },
+        "low_questions": [
+          {
+            "ask": "first",
+            "role": "relevance",
+            "question_id": "relevant",
+            "choice": "yes",
+            "confidence": 0.33
+          }
+        ],
+        "to_fix": {
+          "where": "`python3 -I -m unittest discover -s scripts -p 'test_runtime_templates.py' -v`, helper positive/negative fixtures, and the pinned real generator smoke. Validate pin/answers against the tagged wizard schema. Do not use a mutable checkout as the source baseline. Existing no-consumer lint still applies to every new tracked file.",
+          "change": "State that the unit tests run with bd and Dolt unavailable and the deterministic fake bd used for any bd interaction."
+        }
+      },
+      {
+        "anchor_id": "ADR-BDC-0005",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.94,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.94,
+            "probabilities": {
+              "yes": 0.04,
+              "no": 0.96,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 0.99,
+              "unclear": 0.01
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.97,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.97,
+            "probabilities": {
+              "no": 0.98,
+              "unclear": 0.0,
+              "yes": 0.02
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "no": 0.99,
+              "unclear": 0.01,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ADR-STORE-0001",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 1.0,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-002",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 1.0,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-003",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.98,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "no": 0.99,
+              "unclear": 0.0,
+              "yes": 0.01
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-004",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.98,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "no": 0.99,
+              "unclear": 0.0,
+              "yes": 0.01
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "no": 0.99,
+              "unclear": 0.0,
+              "yes": 0.01
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-008",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 1.0,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-009",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.83,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.83,
+            "probabilities": {
+              "no": 0.89,
+              "unclear": 0.0,
+              "yes": 0.11
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "NFR-BDC-0004",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.88,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.88,
+            "probabilities": {
+              "yes": 0.08,
+              "no": 0.92,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.99,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0001",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.97,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.97,
+            "probabilities": {
+              "no": 0.98,
+              "unclear": 0.0,
+              "yes": 0.02
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 1.0,
+              "unclear": 0.0,
+              "yes": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0006",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.82,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.82,
+            "probabilities": {
+              "yes": 0.12,
+              "no": 0.88,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.7,
+            "probabilities": {
+              "yes": 0.08,
+              "no": 0.8,
+              "unclear": 0.12
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.99,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0007",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.92,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.92,
+            "probabilities": {
+              "yes": 0.05,
+              "no": 0.95,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.99,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0008",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.96,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.96,
+            "probabilities": {
+              "yes": 0.03,
+              "no": 0.97,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.99,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0502",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.98,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.98,
+            "probabilities": {
+              "yes": 0.01,
+              "no": 0.99,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "REQ-BDC-0812",
+        "verdict": "not_applicable",
+        "leaning": "not_applicable",
+        "min_confidence": 0.97,
+        "attempts": 1,
+        "explanation": "The anchor does not govern this bead.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.97,
+            "probabilities": {
+              "yes": 0.02,
+              "no": 0.98,
+              "unclear": 0.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 1.0,
+            "probabilities": {
+              "yes": 0.0,
+              "no": 1.0,
+              "unclear": 0.0
+            }
+          }
+        }
+      },
+      {
+        "anchor_id": "ANC-001",
+        "verdict": "deterministic_only",
+        "leaning": null,
+        "min_confidence": null,
+        "attempts": 0,
+        "explanation": "Structural anchor: verified by its deterministic_check, not by Jev",
+        "answers": null
+      }
+    ],
+    "overrides_applied": [
+      "ADR-BDC-0009",
+      "ADR-STORE-0001",
+      "ANC-002",
+      "ANC-003",
+      "ANC-004",
+      "ANC-008",
+      "ANC-009",
+      "REQ-BDC-0001"
+    ],
+    "item_truncated": false,
+    "shortened": [],
+    "report_markdown": "## Anchor gate: plan \u00b7 c-3 - sprint-c-3-template-upkeep\n\nRun `plan-20261102T232421Z-c-3`, model `jev-1.14.0`, threshold 0.6. Counts: underspecified 1, not_applicable 15, deterministic_only 1.\n\n> **c-3 \u00b7 NFR-BDC-0005 \u00b7 underspecified** Anchor: Unit tests for beads-cache must run with no bd and no Dolt, using the deterministic fake bd. Jev was not confident (min confidence 0.33); the anchor or the bead may be underspecified. (leaning: not_addressed)\n>   Low: relevance `relevant` answered yes at 0.33.\n\n"
+  },
+  "error": null,
+  "metadata": {
+    "duration_ms": 67000,
+    "tool_calls": 17,
+    "retry_count": 1,
+    "correlation_id": "c-3-initial"
+  }
+}

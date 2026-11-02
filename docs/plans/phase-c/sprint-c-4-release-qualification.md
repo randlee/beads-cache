@@ -48,7 +48,6 @@ owned_paths:
 - docs/development/release.md
 inherited_bounds:
 - ANC-001
-- NFR-BDC-0005
 ---
 
 # Sprint c-4 — Installable candidate artifacts and truthful release gates
@@ -95,6 +94,9 @@ with Python 3.9/3.11/3.13 as in current CI. No Windows or macOS-x86_64 wheel is
 added implicitly. Match version/commit across binaries and wheels where both ship.
 
 ## Required validation
+
+Unit tests here exercise template/packaging helpers, not sync jobs, hooks, ingest
+or CLI behavior. Installed-artifact smoke checks remain integration procedures.
 
 Canonical installer dry-run/manifest validation; kit script tests affected by the
 qualified pin; release-candidate archive/wheel smoke and checksum tests; full

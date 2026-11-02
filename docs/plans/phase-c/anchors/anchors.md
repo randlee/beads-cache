@@ -98,6 +98,9 @@ Scope: any bead that builds or changes the bd sync job, the reporting or escalat
 
 Deterministic check to pair with the development gate: an end-to-end test asserts the post-sync hook request carries each scope's result and error
 
+Excluded from (not judged; the cell passes as `excluded`):
+- `c-2`: c-2 only hosts/invokes the existing sync and hook; it changes no sync job or post-sync hook behavior, which c-1 owns. The anchor scope explicitly excludes invocation-only work.
+
 Beads: anchor `bdc-3df`, plan questions `bdc-3df.1`, dev questions `bdc-3df.2`
 
 Fixtures:
@@ -138,6 +141,9 @@ Scope: any bead that defines, parses or syncs scopes
 
 Deterministic check to pair with the development gate: tests sync a label-filter scope and an --all scope; grep finds no phase-file reading in crates/
 
+Excluded from (not judged; the cell passes as `excluded`):
+- `c-2`: c-2 only hosts the existing sync; it defines/parses no scopes and changes no scope-filter sync implementation. c-1 qualifies that behavior.
+
 Beads: anchor `bdc-6e7`, plan questions `bdc-6e7.1`, dev questions `bdc-6e7.2`
 
 Fixtures:
@@ -157,6 +163,9 @@ Summary: bdc has a beads surface and a cache surface
 Scope: any bead that adds, renames or changes a bdc command or the bd-cache-api request vocabulary
 
 Deterministic check to pair with the development gate: contract.md section 1 lists both groups; bdc --help shows the beads and cache command groups
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `c-2`: c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary.
 
 Beads: anchor `bdc-hvp`, plan questions `bdc-hvp.1`, dev questions `bdc-hvp.2`
 
@@ -298,6 +307,9 @@ Scope: any bead that adds or changes a method, argument or return value of the b
 
 Deterministic check to pair with the development gate: pytest -W error::DeprecationWarning passes and the 0.1 call corpus test is unchanged
 
+Excluded from (not judged; the cell passes as `excluded`):
+- `c-4`: c-4 changes packaging and artifact validation, not Python binding methods, arguments or returned values; c-1/c-2 own compatibility.
+
 Beads: anchor `bdc-hqn`, plan questions `bdc-hqn.1`, dev questions `bdc-hqn.2`
 
 Fixtures:
@@ -337,6 +349,10 @@ Summary: Unit tests run without bd
 Scope: any bead that adds or changes tests for the sync job, hooks, ingest or the CLI
 
 Deterministic check to pair with the development gate: CI unit jobs run with no bd on PATH; new tests use fake-bd
+
+Excluded from (not judged; the cell passes as `excluded`):
+- `c-3`: c-3 changes template-regeneration helper tests only, not tests of sync jobs, hooks, ingest or CLI behavior named in this anchor scope.
+- `c-4`: c-4 changes packaging/checksum helper tests and installed-artifact integration checks, not unit tests of sync jobs, hooks, ingest or CLI behavior.
 
 Beads: anchor `bdc-vof`, plan questions `bdc-vof.1`, dev questions `bdc-vof.2`
 

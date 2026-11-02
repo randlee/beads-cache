@@ -44,6 +44,9 @@ requirements:
   - NFR-BDC-0005
   - NFR-BDC-0006
   - REQ-PY-0006
+  - REQ-BDC-0007
+  - REQ-BDC-0008
+  - REQ-BDC-0502
 adrs:
 - ADR-BDC-0009
 - ADR-BDC-0010
@@ -139,6 +142,24 @@ placeholder generated example.
    commands, timings and observed outcomes under evidence/. Unit tests still use
    FakeBd; live bd is testbed-only. If the consumer needs #104, report the missing
    capability rather than replacing the consumer proof with synthetic tests.
+
+## Inherited preservation bounds
+
+ANC-002: the host runs bd sync at times stored in the cache file's SQLite cron
+table. ANC-003: a consumer-registered Python sync method replaces the built-in bd
+sync when selected. ANC-008: each repository has at most one built-in bd sync
+schedule row; a second built-in row is rejected, not added by the new host.
+ANC-009: existing sync scopes remain bd filters such as labels or --all, never
+phase definitions. ANC-004: preserve the optional consumer-registered post-sync hook, which
+receives every sync result and error. ADR-BDC-0005: cached reads continue during
+bd outages and affected scopes record their outage. NFR-BDC-0004: every bd call,
+Python sync method and post-sync hook is killed at its timeout, capped by the
+remaining run deadline; shutdown grace does not extend execution deadlines.
+REQ-BDC-0007/0008/0502: preserve the strict bd-schema-generated row decoder on all
+stored rows including consumer sync, all-or-nothing rejection of a result with
+one bad row, and the updated_at guard that retains a newer stored row.
+REQ-BDC-0812: preserve every Python 0.1 verb, argument and returned dict unchanged,
+with no DeprecationWarning. New assembly does not change those binding methods.
 
 ## Composition contract
 

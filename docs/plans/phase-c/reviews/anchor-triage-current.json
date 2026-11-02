@@ -1,0 +1,30 @@
+[
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-009",
+    "action": "add",
+    "authority": "ANC-009",
+    "replacement": "Concrete integration criterion preserves label-filter and --all scope sync through migrated worker."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "NFR-BDC-0004",
+    "action": "add",
+    "authority": "NFR-BDC-0004",
+    "replacement": "Execution per-call deadlines are capped by remaining run deadline, independently of shutdown grace."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-004",
+    "action": "exclude",
+    "authority": "ANC-004 scope excludes items only invoking existing sync",
+    "replacement": "The generated host calls existing sync and post-sync-hook implementation, owned by c-1."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-009",
+    "action": "exclude",
+    "authority": "ANC-009 scope governs scope definition/parsing/sync implementation",
+    "replacement": "c-2 only hosts the existing sync; scope filter implementation is unchanged and qualified by c-1."
+  }
+]

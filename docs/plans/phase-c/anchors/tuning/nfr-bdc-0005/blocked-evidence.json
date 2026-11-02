@@ -1,0 +1,7 @@
+{
+  "accepted": false,
+  "oracle_sha256": "345093b98b5b9b6a60ec4f72dbd242a0812bb7a15ebd1d7795cf46b6fbf13149",
+  "selected_question_file": null,
+  "jev_calls": 0,
+  "approval_rejection": "Automatic approval review rejected transmitting the approved anchor and frozen fixture/probe payload to the external Jev service because the reviewer could not establish explicit authorization for that payload and destination. No Jev request was executed."
+}

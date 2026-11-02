@@ -1,0 +1,16 @@
+[
+  {
+    "item_id": "c-3",
+    "anchor_id": "NFR-BDC-0005",
+    "action": "exclude",
+    "authority": "NFR-BDC-0005 scope: any bead that adds or changes tests for the sync job, hooks, ingest or the CLI",
+    "reason": "This sprint changes only template-regeneration helpers; it changes no unit tests for sync jobs, hooks, ingest or CLI behavior."
+  },
+  {
+    "item_id": "c-4",
+    "anchor_id": "NFR-BDC-0005",
+    "action": "exclude",
+    "authority": "NFR-BDC-0005 scope: any bead that adds or changes tests for the sync job, hooks, ingest or the CLI",
+    "reason": "This sprint changes only artifact packaging helpers; it changes no unit tests for sync jobs, hooks, ingest or CLI behavior."
+  }
+]
