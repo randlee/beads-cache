@@ -1095,3 +1095,76 @@ Each crate's architecture and crate-local ADRs live in
 - [`bd-cache-store`](bd-cache-store/architecture.md) (`ADR-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/architecture.md) (`ADR-SYNC-*`)
 - [`bd-cache-py`](bd-cache-py/architecture.md) (`ADR-PY-*`)
+
+
+## ADR-BDC-0016: Adopt the sc-runtime application framework and scheduler
+
+**Status:** Proposed (phase C, 2026-11-02; not an approved exception)
+
+**Amends when approved:** ADR-BDC-0006 (local sc-cron prototype ownership),
+ADR-BDC-0014 (upstream ScheduleStore implementation), ADR-CLI-0001 (git-only
+sc-command), and the transitive sc-command exclusions in REQ-API-0008 and the
+CLI/Python architecture statements. Domain boundaries and the no-consumer rule
+of ADR-BDC-0010 remain in force.
+
+Context: sc-runtime 0.1.1 has published the shared scheduler and an application
+scaffold. Keeping a local scheduler and independently assembled runtime duplicates
+upstream behavior. The user asked about template installation and rejected
+crates-only consumption as immediate drift. Upstream's rusqlite 0.39 line also
+permits its SQLx SQLite consumers to resolve the same native link provider.
+
+Proposed decision:
+
+1. Adopt tag v0.1.1 at `5af24c862fe7ed8dae8710b7bd64a84a29506b51`, with explicit
+   generation answers `project_name=bd-cache`, `db=none`, `mcp=false`, `licence=MIT`.
+   Render into an absent temporary destination through documented plain cargo-generate
+   and separate schema/document rendering, without checkout patches. Do not invoke
+   the new_project.py recipe pipeline while sc-lint work is deferred. Application
+   composition and daemon lifecycle derive from that scaffold, while domain
+   crates and the existing v3 cache remain the implementation of cache behavior.
+2. Consume published sc-command/sc-cron 0.1.1 with default features off for local
+   consumers; align rusqlite at 0.39. Remove local scheduler ownership/publication.
+   Use upstream's existing observability contract shim as published; qualify its
+   dependency graph instead of silently upgrading beyond the release baseline.
+3. New bd-cache-service owns one existing composed cache and its schedules;
+   bd-cache-daemon owns sc-runtime assembly, listener, logging and cleanup. The
+   generated `db=none` memory example and all widget routes are replaced. No
+   generated store migrations run against BD-CACHE v3. The cache-owned scheduler
+   table remains the only source of scheduled cache work.
+4. Retain existing local CLI/Python front ends. Do not copy the template CLI's
+   HTTP-only dispatch, text default or exit codes. The new optional foreground
+   daemon runs actual sync and exposes process liveness plus cache readiness;
+   it does not add MCP, arbitrary HTTP operations or automatic startup.
+5. Amend the transitive sc-command exclusion only for upstream sc-cron's
+   contract/logging dependency below Python. No direct sc-command edge is added
+   to bd-cache-api; clap, server features, sc-runtime/sc-transport, axum/rmcp and
+   application assembly remain forbidden in independently resolved API/Python
+   normal/build consumer graphs. Prove this with standalone consumer roots and
+   actual wheel builds; a full workspace build may unify server features because
+   it also selects the daemon. Do not interpret that unification as isolated
+   artifact leakage.
+   Retain explicit graph checks proving the exception's narrowness. If upstream
+   later removes that dependency, remove the now-unneeded exception.
+6. Defer sc-lint bootstrap, version upgrades, profiles and boundary-manifest
+   migration until sc-runtime 0.2.0 lands, as explicitly directed by the user.
+   Continue the current Clippy and repository-specific graph/validation gates.
+   Revisit upstream's qualified template/lint baseline through a plan amendment;
+   do not adopt the known-outdated template lint tooling during this migration.
+7. Keep template provenance/answers and a regenerate-and-diff upgrade procedure.
+   Upstream application templates are generated once and then consumer-owned;
+   there is no established in-place installer or automatic merge promise. The
+   procedure makes future template changes visible and reviewable while reusable
+   runtime fixes continue to arrive through the published libraries.
+
+Consequences: this phase creates a real optional application host and a deliberate
+upkeep responsibility. After HTTP drain, application cleanup sets StopFlag and must preserve the
+existing bounded worker/child shutdown; the total bound includes both stages and coordinate with other cache processes through existing leases/locks.
+A new daemon config does not replace or reinterpret cache TOML. The release kit must
+stop publishing local sc-cron and include the new binary. Existing performance,
+file-format and CLI/Python acceptance remain mandatory. A stable release can stay
+blocked on sc-publish #135 independently of application implementation completion.
+
+The proposed signatures, daemon invocation/readiness contract and source mapping
+are specified in docs/plans/phase-c/phase-c-plan.md and its owning sprint docs.
+No gate is relaxed, no template is installed and no runtime source is changed by
+this planning PR itself.
