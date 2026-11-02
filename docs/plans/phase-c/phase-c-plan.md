@@ -140,7 +140,7 @@ workflow, c-4 proves packaged installation. There is no final test-only sprint.
 | Upstream scheduler operates on the existing cache file, with original CLI/Python behavior | c-1 |
 | Generated application hosts actual sync and health with bounded lifecycle | c-2 |
 | Template updates are reproducible and adopted differences reviewable | c-2 |
-| Existing CLI/Python validation coverage is preserved | c-1/c-2 validation under existing approved requirements |
+| Existing CLI/Python behavior survives scheduler migration | c-1; c-2 separately qualifies that preserved surface with its daemon present and absent |
 | One actual consumer workflow passes against the built application | c-2 |
 | Built archives/wheels can be installed and exercised, stable publish remains gated | c-4 |
 
@@ -207,9 +207,9 @@ See [intent](intent.md) for the phase purpose and separation of proposal/context
 The PR's Rust CI passed. Python checks passed except Linux/Python 3.9, which failed
 before tests at actions/setup-python: ubuntu-latest resolved to Ubuntu 26.04, for
 which the official Python runner manifest offers no Python 3.9 build. That manifest
-does list Python 3.9.25 builds for Ubuntu 22.04/24.04. The current pipeline needs an
-independent compatibility repair before green CI can be claimed: pin wheel-build
-and wheel-test Linux runners together to a Python-3.9-compatible image (24.04),
-rather than changing only the test runner and creating a wheel/glibc mismatch.
-This plan records the defect; it does not change CI implementation on the planning
-branch. c-1 owns requalification of the preserved Python matrix.
+does list Python 3.9.25 builds for Ubuntu 22.04/24.04. The planning branch now
+pins the Python Rust, wheel-build and wheel-test Linux matrices together to Ubuntu
+24.04, preserving Python 3.9 support without a wheel/glibc mismatch. That narrow
+CI repair is applied; validation of the repaired pipeline is a separate result,
+and this note does not claim green checks before their completion. c-1 still
+owns requalification of the preserved Python matrix after scheduler migration.

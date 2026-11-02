@@ -1,9 +1,10 @@
 {
-  "stage": "scope-review-preparation",
+  "stage": "scope-review-round-1",
   "scope_review": {
-    "rounds_completed": 0,
+    "rounds_completed": 1,
     "round_limit": 2,
-    "status": "not_started"
+    "status": "FAIL: developer corrections required",
+    "findings_hash": "3c178b5c4e5de8f2af585907853de0b48ca96c902b74258c860dd1a3a311c3fb"
   },
   "critical_review": {
     "rounds_completed": 0,
@@ -28,12 +29,17 @@
   "blocker": null,
   "authority": "Inherited anchor statements unchanged; allowed plan growth traced to locked prior IDs in triage files.",
   "initial_anchor_gates": {
-    "c-1": "plan-20261102T233842Z-c-1",
-    "c-2": "plan-20261102T233846Z-c-2",
+    "c-1": "plan-20261102T234518Z-c-1",
+    "c-2": "plan-20261102T234518Z-c-2",
     "c-3": "plan-20261102T233844Z-c-3",
     "c-4": "plan-20261102T233631Z-c-4",
     "per_item_pass": true,
     "structural_check": "no-consumer lint must pass; recorded separately",
-    "coverage_note": "Raw coverage counts only satisfied, so structural ANC-001 and all-not-applicable ADR-BDC-0009 remain listed; do not relabel them as Jev satisfied."
+    "coverage_note": "Raw coverage counts only satisfied, so structural ANC-001 and all-not-applicable ADR-BDC-0009 remain listed; do not relabel them as Jev satisfied.",
+    "deterministic_lint": "PASS after staging all evidence",
+    "approved_coverage_exceptions": {
+      "ANC-001": "User approved passing deterministic lint instead of Jev satisfied.",
+      "ADR-BDC-0009": "User approved documented non-applicability; no CLI vocabulary change."
+    }
   }
 }

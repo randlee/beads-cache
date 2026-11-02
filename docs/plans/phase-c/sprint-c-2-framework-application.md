@@ -126,7 +126,9 @@ placeholder generated example.
    supervised child tree before releasing instance ownership. No widget/demo
    implementation or generated SQL store remains reachable.
 3. REQ-BDC-1003: consume c-3's pin/answers/baseline helper, record the actual
-   adopted-path mapping in runtime/adoption.toml, and document application-owned
+   adopted-path mapping in runtime/adoption.toml using the sole format definition in
+   [c-3, Adopted-path mapping contract](sprint-c-3-template-upkeep.md#adopted-path-mapping-contract),
+   and document application-owned
    adaptations. Prove that regenerating old/new baselines exposes an adopted
    scaffold change without overwriting domain code. just upgrade remains a lint
    upgrade; it is not the framework update procedure.
@@ -216,6 +218,11 @@ consumer procedure. Linux/macOS run the process/signal paths and Windows covers
 job-object and shutdown behavior. Evidence names the exact integration commit.
 
 ## Dependencies and limits
+
+For both c-1 and c-3, a parent development push triggers merge-forward into c-2
+before every child development/fix round; do not wait for parent QA to begin that
+work. Each parent PR must merge before c-2's PR can complete. These execution
+triggers apply to the named artifacts below, not shared-file sequencing.
 
 c-1 supplies the upstream-backed store/worker and shutdown implementation; c-3
 supplies the pinned template baseline/answers and regeneration helper. These production artifacts, not shared

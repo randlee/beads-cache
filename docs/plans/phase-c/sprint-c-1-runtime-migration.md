@@ -85,6 +85,7 @@ owned_paths:
 - docs/bd-cache-store/architecture.md
 - docs/bd-cache-sync/architecture.md
 - docs/bd-cache-cli/architecture.md
+- docs/bd-cache-py/architecture.md
 - docs/sc-cron/architecture.md
 - docs/bd-cache-api/requirements.md
 inherited_bounds:
@@ -137,7 +138,10 @@ integration independently of the later generated application.
    feature unification with the daemon is not evidence of isolated wheel leakage;
    prove isolation using a temporary standalone consumer Cargo root and the actual
    wheel build. The all-workspace build may unify sc-command/server legitimately. Record the exception in governed docs before the
-   gate changes. Preserve public execution signatures shown below.
+   gate changes. Amend docs/bd-cache-py/architecture.md in this sprint to record
+   that same narrow ADR-BDC-0016 contract/logging exception; retain its no-clap
+   and no-server restriction for isolated Python builds. Preserve public execution
+   signatures shown below.
 
 ## Inherited preservation bounds
 

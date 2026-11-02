@@ -106,6 +106,11 @@ preflight or synthetic tests for actual installed-artifact behavior.
 
 ## Dependencies and closure
 
+A c-2 development push triggers merge-forward into c-4 before every child
+development/fix round; do not wait for c-2 QA to begin that work. The c-2 PR must
+merge before c-4's PR can complete. This relation consumes the real application
+and consumer procedure below, not merely a shared release/version baseline.
+
 c-2 produces the real bd-cache-daemon target and consumer procedure, so this sprint
 cannot close against the earlier CLI-only release baseline. Candidate archives may
 be local/CI artifacts while external stable gates remain blocked. A hosted

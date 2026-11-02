@@ -66,12 +66,45 @@ application and owns REQ-BDC-1003's feature-level upgrade proof.
    Tests use small local fixture trees for error/change detection, plus one real
    pinned-template generation smoke; no new app or product behavior lives here.
 
+## Adopted-path mapping contract
+
+c-3 defines the helper input; c-2 writes `runtime/adoption.toml` using this format:
+
+```toml
+version = 1
+
+[[paths]]
+generated = "crates/daemon/src/composition.rs"
+adopted = "crates/bd-cache-daemon/src/composition.rs"
+
+[[paths]]
+generated = "crates/daemon/src/routes.rs"
+adopted = "crates/bd-cache-daemon/src/routes.rs"
+```
+
+`generated` is one exact file path relative to a pristine generated project;
+`adopted` is its consumer-owned destination relative to the beads-cache root.
+No glob or directory mapping is implied. Paths use `/`, must be relative and
+contain no `..` component; duplicate generated or adopted paths and unsupported
+versions are errors. The mapping identifies review ownership; it never directs
+an overwrite or requires adapted code to byte-match the template.
+
+Compare the union of old/new generated file paths. Report every addition,
+modification and deletion, attaching the adopted destination when mapped.
+A deleted source still retains its mapping through the old baseline; a newly
+added source may use a mapping once present in the new baseline. Unmapped changed
+paths are reported explicitly as unadopted, including new upstream files, so a
+maintainer can decide whether to adopt them. A mapping whose generated path is
+absent from both baselines is an error, not a silently ignored stale entry.
+Without a mapping, report all changes as unadopted. Fixture tests cover these
+rules and reject a report that suppresses a mapped change.
+
 ## Acceptance criteria
 
 | Root | Positive observable | Planted negative |
 |---|---|---|
 | boundary:template-upkeep-tooling | recorded pin/answers regenerate a pristine baseline with registry dependencies | replace tag SHA or insert a checkout patch; baseline check fails |
-| boundary:template-upkeep-tooling | an old/new fixture comparison reports modified, added and deleted paths; adopted paths are identified when mapping is supplied | suppress a changed adopted file; helper test fails |
+| boundary:template-upkeep-tooling | an old/new fixture comparison obeys the mapping contract above for modified, added, deleted and unadopted paths and rejects invalid/stale mappings | suppress a changed adopted file; helper test fails |
 | boundary:template-upkeep-tooling | existing destinations are refused and the original worktree remains byte-identical on generator failure | render over the worktree or swallow a failed generator exit; failure-path test fails |
 | boundary:template-upkeep-tooling | the pinned upstream generation path runs in an absent scratch destination; tool errors retain upstream diagnostics | ignore a generation failure and report success; smoke rejects the result |
 
