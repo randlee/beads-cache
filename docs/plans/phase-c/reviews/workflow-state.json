@@ -1,18 +1,25 @@
 {
-  "stage": "scope-review-round-1",
+  "stage": "quality-manager-qa-1-preparation",
   "scope_review": {
-    "rounds_completed": 1,
+    "rounds_completed": 2,
     "round_limit": 2,
-    "status": "FAIL: developer corrections required",
-    "findings_hash": "3c178b5c4e5de8f2af585907853de0b48ca96c902b74258c860dd1a3a311c3fb"
+    "status": "PASS",
+    "findings_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "critical_review": {
-    "rounds_completed": 0,
+    "rounds_completed": 1,
     "round_limit": 2,
-    "status": "not_started"
+    "status": "PASS",
+    "findings_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "post_hardening_anchors": {
-    "status": "not_started"
+    "status": "PASS with independent validated wrappers and the two user-approved aggregate exceptions",
+    "runs": {
+      "c-1": "plan-20261102T235415Z-c-1",
+      "c-2": "plan-20261102T235415Z-c-2",
+      "c-3": "plan-20261102T235414Z-c-3",
+      "c-4": "plan-20261102T235415Z-c-4"
+    }
   },
   "quality_manager": {
     "rounds_completed": 0,
@@ -41,5 +48,9 @@
       "ANC-001": "User approved passing deterministic lint instead of Jev satisfied.",
       "ADR-BDC-0009": "User approved documented non-applicability; no CLI vocabulary change."
     }
+  },
+  "ci_checkpoint": {
+    "commit": "e3ef2d259e774c937962e8c7d7f87e84d96f3b24",
+    "all_checks": "PASS"
   }
 }
