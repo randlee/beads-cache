@@ -53,6 +53,8 @@ owned_paths:
 - README.md
 - docs/development/release.md
 - docs/getting-started.md
+- docs/plans/phase-c/evidence/c-4-consumer-qualification.md
+- docs/plans/phase-c/evidence/c-4-consumer-qualification.json
 inherited_bounds:
 - ANC-001
 ---
@@ -238,3 +240,28 @@ Release Preflight, parent merges and independent zero-finding QA remain required
 No timer increase, skip, guard suppression, native baseline change or hosted
 publication is introduced to bypass them. This record remains in_progress until
 those completion conditions have actual evidence.
+
+## Exact-source installed consumer result for QA1
+
+The parent-executed fresh macOS arm64 scratch procedure passed at exact source
+`65250a9ee6de25cf591e85dd2ee5ec4dbc4c584c`. The neutral
+[evidence receipt](evidence/c-4-consumer-qualification.md) and its
+[machine-readable record](evidence/c-4-consumer-qualification.json) bind all three
+archive-installed executable hashes, the matching abi3 wheel, payload and raw-log
+hashes, actual update/close/read-back, outage/pending/recovery, Python replacement
+and rollback, blocked-hook stop/restart and successful marked teardown. The live
+driver took 9.9981 seconds; transport returned 0. The disclosed external signature
+and exception bridge remains required; no private source or identifiers are
+added to this repository.
+
+C2's committed Unix lifecycle proof `8bcd47fa364055879e06392a53cb250ebfe564f7`
+was merged afterward without conflicts. Its two changed Rust paths are under
+cfg(test); production input blobs match the tested source. That comparison does
+not claim a new native build or qualify the later receipt head. Independent Rust
+QA must validate the added tests; no full native workspace build was repeated
+after the earlier ENOSPC attempt. The shared C3 cleanup helper remains untouched.
+
+The sprint stays in_progress for full initial QA1, current-head hosted evidence,
+remaining upstream/C3 dependencies, preflight and parent merge gates. The actual
+consumer PASS is not a claim of Windows or complete matrix qualification and no
+publication occurred. The parent owns pushing this frozen receipt head.

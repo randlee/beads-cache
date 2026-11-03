@@ -1,0 +1,149 @@
+{
+  "schema_version": 1,
+  "result": "PASS",
+  "scope": "Supported existing consumer workflow through an explicit external native provider bridge on an owned macOS arm64 scratch testbed.",
+  "tested_source_commit": "65250a9ee6de25cf591e85dd2ee5ec4dbc4c584c",
+  "source_branch": "sprint/c-4-release-qualification",
+  "source_parent": "63cb429eb1a65ab25a17923fded8de5ecf390a5a",
+  "receipt_scope": "Documentation records the exact tested source; no later merge or receipt head is relabeled as built or executed.",
+  "platform": "macOS arm64",
+  "versions": {
+    "native_package": "0.2.0",
+    "bd": "1.3.1 (c1c4b642a)",
+    "dolt": "2.3.1",
+    "python": "3.11.16",
+    "sc_compose": "1.7.0",
+    "pyyaml": "6.0.3",
+    "pydantic": "2.14.2"
+  },
+  "immutable_baseline": {
+    "runtime": "0.1.1",
+    "template_commit": "5af24c862fe7ed8dae8710b7bd64a84a29506b51",
+    "publish_kit": "5fd4d0db1b7cbb4ebf9316588047391a8e4be496"
+  },
+  "artifacts": [
+    {
+      "name": "bd-cache",
+      "kind": "archive-installed executable",
+      "bytes": 10263600,
+      "sha256": "9004db986a5d6d1d6391f2664478ae325e98294cf74eaa9e84cb51e50cb40002"
+    },
+    {
+      "name": "bdc",
+      "kind": "archive-installed executable",
+      "bytes": 10263584,
+      "sha256": "939f63d6fac11b5624271b33b28d4a388857e23b9762923a7d066f7efe8689d6"
+    },
+    {
+      "name": "bd-cache-daemon",
+      "kind": "archive-installed executable",
+      "bytes": 11884624,
+      "sha256": "0bc375f54145e16225d469d197bf2eda3af2dc074f591632979f91cb73eb3f07"
+    },
+    {
+      "name": "bd_cache_rs-0.2.0-cp39-abi3-macosx_11_0_arm64.whl",
+      "kind": "wheel",
+      "bytes": 3036395,
+      "sha256": "fe33046471481010edc086fb790c2f2014c1c2ea807cffbfb80501073e3d5a8b"
+    },
+    {
+      "name": "beads-cache-v0.2.0-aarch64-apple-darwin.tar.gz",
+      "kind": "binary archive",
+      "bytes": 12229014,
+      "sha256": "a6b45b8baa02847fe5f10fd1ef90307e9182090013b1104353437da2ccfb27a5"
+    }
+  ],
+  "payload": {
+    "files": 22,
+    "archive_bytes": 30564365,
+    "sha256": "cc197f52c6d057a40008a80acc25654ace11bbe4389c6e62547e4c6afac52d6f",
+    "manifest_sha256": "5e85ad154ca7a988a3357bccac7cc4678621e7abbe14bc26c406b701d2a2f963",
+    "all_file_hashes_verified_on_testbed": true,
+    "all_file_hashes_rechecked_locally": true,
+    "executables_extracted_from_verified_candidate_archive": true,
+    "fresh_environment": true
+  },
+  "external_consumer": {
+    "unchanged_immutable_source_verified": true,
+    "only_supported_existing_write_method_executed": true,
+    "private_source_and_identifiers_retained_outside_product": true,
+    "full_orchestration_or_messages_executed": false
+  },
+  "provider_bridge": {
+    "explicit_owner_approval": true,
+    "precondition": null,
+    "drain_start_gate_s": 25,
+    "drain_hard_s": 28,
+    "exception_class_translation": true,
+    "native_return_reshaping": false,
+    "direct_substitution_compatible": false
+  },
+  "observed": {
+    "installed_module_under_fresh_venv": true,
+    "scheduled_builtin": true,
+    "cached_cli_and_python_reads": true,
+    "consumer_update_applied": true,
+    "consumer_close_applied": true,
+    "independent_backend_readback": true,
+    "outage_pending_preserved": true,
+    "outage_health_http": 200,
+    "outage_readiness_http": 503,
+    "outage_readiness_probe": null,
+    "post_sync_outage_received": true,
+    "post_sync_failure_recorded": true,
+    "recovered_pending_entry_applied": true,
+    "recovered_readiness_http": 200,
+    "scheduled_python_replacement": true,
+    "builtin_refused_in_python_mode": true,
+    "python_failure_restored_builtin": true,
+    "blocked_hook_process_absent": true,
+    "daemon_restart": true,
+    "daemon_absent_local_read": true
+  },
+  "timings_s": {
+    "driver": 9.9981,
+    "consumer_update": 0.39427820802666247,
+    "blocked_hook_shutdown": 1.0040235840133391,
+    "second_shutdown": 0.0013067920226603746
+  },
+  "completion": {
+    "qualification_result": "PASS",
+    "driver_pass": true,
+    "transport_returncode": 0,
+    "transport_executed_by": "parent orchestrator",
+    "marked_scratch_removed": true,
+    "scratch_exists_after_cleanup": false
+  },
+  "raw_evidence": {
+    "retained_by": "parent orchestrator outside product repository",
+    "bytes": 23561,
+    "sha256": "0569280f71b67a24051c1804361381e27d53be1e50a4a026b016a32dfc352cc3"
+  },
+  "later_test_only_parent": {
+    "commit": "8bcd47fa364055879e06392a53cb250ebfe564f7",
+    "changed_rust_paths": [
+      "crates/bd-cache-daemon/src/readiness_tests.rs",
+      "crates/bd-cache-daemon/src/readiness_tests/runtime_lifecycle.rs"
+    ],
+    "gate": "Parent module is #[cfg(test)]; new child module is #[cfg(unix)].",
+    "production_input_blobs_unchanged": true,
+    "rebuilt_or_reexecuted_at_later_head": false,
+    "independent_rust_qa_build_required": true,
+    "production_input_projection": {
+      "algorithm": "SHA256 of sorted Git blob/path rows for Cargo manifests/lock, crates, config, runtime, scripts, release, workflows and installer, excluding only the two named cfg(test) paths",
+      "sha256": "eca1ce2885e4dfe8881fc51093342995f074b961cae4452c10261c71dd74a051",
+      "tracked_files": 451,
+      "equal_to_tested_source": true
+    }
+  },
+  "limitations": [
+    "Only the supported existing write/drain/read-back workflow through the disclosed bridge; no direct drop-in or full consumer migration claim.",
+    "The live procedure invoked bdc and the daemon. The original CLI artifact was transferred/hash-verified; separate local exact-source installation exercised both CLI names.",
+    "The live blocked hook had no grandchild; local FakeBd acceptance provides the separate grandchild-cleanup evidence.",
+    "Observed positive shutdown times do not qualify contended store work or exhaust the pinned HTTP-drain maximum.",
+    "This macOS arm64 run does not qualify Windows CTRL_BREAK or the complete four-platform/six-Python hosted matrix.",
+    "Native workspace compilation previously aborted on ENOSPC; no repeated native build was performed for this receipt.",
+    "Hosted CI, full release preflight, independent zero-finding QA and parent merge gates remain separate.",
+    "No tag, hosted prerelease, stable release, registry upload, channel update, baseline change or advisory suppression."
+  ]
+}
