@@ -440,3 +440,38 @@ initial bounded health tests pass; both process-tree timeout tests pass outside
 the sandbox. The sandbox denies ps, so its child-alive assertions are not valid
 process evidence. Full post-push validation and actual wheel/pytest results are
 reported separately; hosted Linux/macOS/Windows results remain CI evidence.
+
+### Post-push local validation (2026-11-02)
+
+All local required checks PASS at source head 750ed9b (the following evidence
+update changes documentation only). Workspace tests ran with bd/dolt absent
+from PATH and local process inspection permitted; no live backend was used.
+
+| Check | Result |
+|---|---|
+| cargo fmt --all --check; git diff --check | PASS |
+| Both locked workspace Clippy gates, excluding bd-cache-py | PASS, all-target/all-feature and default-feature library modes |
+| cargo test --locked --workspace --exclude bd-cache-py --all-features | PASS: 1,145 passed, 0 failed, 20 intentionally ignored across 110 test/doctest groups |
+| RUSTDOCFLAGS=-D warnings cargo doc --locked --workspace --exclude bd-cache-py --no-deps | PASS |
+| Python Rust Clippy and cargo test, Python 3.11 | PASS: 23 Rust tests |
+| maturin build --release --locked, actual wheel | PASS: macOS arm64 cp39-abi3, Python >=3.9 |
+| Installed wheel, Python 3.11 pytest with deprecations as errors | PASS: 226 tests, including neutral 0.1 corpus, switches, hooks, CLI end-to-end and threading |
+| Release new-process CLI cache-hit latency | PASS: median 6.6 ms below 50 ms, p95 7.2 ms; pending-write median 7.5 ms/p95 8.0 ms reported |
+| Installed-wheel cached get | PASS: median 20.5 us, p99 26.9 us over 2,000 calls |
+| Existing direct boundary workflow body; independent API/Python graphs | PASS; published 0.1.1 contracts permitted; actual standalone sc-command/server planted negative rejected |
+| Existing no-backend PATH/graph and strict consumer lint | PASS |
+| Existing Python scripts suite | PASS: 71 tests |
+| cargo deny --offline check advisories | PASS against the installed local advisory database; hosted CI performs its normal refresh |
+| cargo publish --dry-run -p sc-beads -p sc-bd-cli | PASS: both packaged and verified; uploads aborted by dry-run |
+
+Logs are available to the parent in /tmp/c1-full-validation.log,
+/tmp/c1-health-final.log, /tmp/c1-v3.log, /tmp/c1-py-rust.log,
+/tmp/c1-pytest.log, /tmp/c1-wheel.log, /tmp/c1-latency.log,
+/tmp/c1-graph-final.log, /tmp/c1-graph-negative.log, /tmp/c1-boundary-direct.log,
+/tmp/c1-scripts.log, /tmp/c1-advisories.log and /tmp/c1-publish.log.
+The actual installed package came from /tmp/c1-wheel-venv/lib/python3.11/site-packages.
+
+Hosted Linux/macOS/Windows CI and Python 3.9/3.13 qualification remain required
+before integration; local macOS/Python 3.11 evidence is not a substitute. The
+existing Linux wheel and test jobs are both pinned to ubuntu-24.04. The bead
+remains in_progress until the parent's independent QA/anchor/CI closeout.
