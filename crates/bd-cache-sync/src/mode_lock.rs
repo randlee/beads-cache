@@ -36,9 +36,11 @@ pub const MODE_LOCK_WAIT: Duration = Duration::from_secs(30);
 const RETRY: Duration = Duration::from_millis(5);
 
 /// The mode lock of one cache file.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub(crate) struct ModeLock {
     path: PathBuf,
+    #[cfg(feature = "testing")]
+    probe: Option<std::sync::Arc<tokio::sync::Notify>>,
 }
 
 /// Holds the mode lock until dropped.
@@ -53,7 +55,16 @@ impl ModeLock {
     pub(crate) fn for_cache_file(cache_file: &Path) -> Self {
         Self {
             path: cache_file.with_extension("mode.lock"),
+            #[cfg(feature = "testing")]
+            probe: None,
         }
+    }
+
+    #[cfg(feature = "testing")]
+    pub(crate) fn attempt_probe(&mut self) -> std::sync::Arc<tokio::sync::Notify> {
+        let probe = std::sync::Arc::new(tokio::sync::Notify::new());
+        self.probe = Some(std::sync::Arc::clone(&probe));
+        probe
     }
 
     /// Takes the lock, waiting at most [`MODE_LOCK_WAIT`] on the blocking pool.
@@ -64,7 +75,17 @@ impl ModeLock {
     /// process holds the lock past the wait.
     pub(crate) async fn hold(&self) -> Result<ModeGuard, CacheError> {
         let path = self.path.clone();
-        blocking(move || hold_within(&path, MODE_LOCK_WAIT)).await
+        #[cfg(feature = "testing")]
+        let probe = self.probe.clone();
+        blocking(move || {
+            hold_observed(&path, MODE_LOCK_WAIT, || {
+                #[cfg(feature = "testing")]
+                if let Some(probe) = &probe {
+                    probe.notify_one();
+                }
+            })
+        })
+        .await
     }
 }
 
@@ -75,7 +96,16 @@ fn failed(path: &Path, what: &str, e: impl std::fmt::Display) -> CacheError {
     }
 }
 
+#[cfg(test)]
 fn hold_within(path: &Path, wait: Duration) -> Result<ModeGuard, CacheError> {
+    hold_observed(path, wait, || {})
+}
+
+fn hold_observed(
+    path: &Path,
+    wait: Duration,
+    mut contended: impl FnMut(),
+) -> Result<ModeGuard, CacheError> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -90,7 +120,9 @@ fn hold_within(path: &Path, wait: Duration) -> Result<ModeGuard, CacheError> {
         match file.try_lock() {
             Ok(()) => return Ok(ModeGuard { _file: file }),
             Err(TryLockError::Error(e)) => return Err(failed(path, "cannot lock it", e)),
-            Err(TryLockError::WouldBlock) => {}
+            Err(TryLockError::WouldBlock) => {
+                contended();
+            }
         }
         let now = Instant::now();
         if now >= until {

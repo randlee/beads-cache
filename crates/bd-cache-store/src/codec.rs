@@ -58,6 +58,7 @@ pub(crate) fn decode_edge(
     depends_on_id: &str,
     kind: &str,
 ) -> Result<Edge, CacheError> {
+    crate::health::check_decode()?;
     let kind = DepType::parse(kind).ok_or_else(|| {
         corrupt(
             step,
@@ -73,11 +74,13 @@ pub(crate) fn decode_edge(
 
 /// A stored bead id.
 pub(crate) fn bead_id(step: Step<'_>, s: &str) -> Result<BeadId, CacheError> {
+    crate::health::check_decode()?;
     BeadId::new(s).map_err(|e| corrupt(step, format_args!("stored bead id: {e}")))
 }
 
 /// A stored timestamp (RFC 3339; compared as an instant, never as text).
 pub(crate) fn timestamp(step: Step<'_>, what: &str, s: &str) -> Result<Timestamp, CacheError> {
+    crate::health::check_decode()?;
     Timestamp::parse(s).map_err(|e| corrupt(step, format_args!("stored {what}: {e}")))
 }
 
@@ -92,6 +95,7 @@ pub(crate) fn opt_timestamp(
 
 /// A stored scope name (the v3 `phase` columns, `scope.name`).
 pub(crate) fn scope(step: Step<'_>, name: &str) -> Result<ScopeId, CacheError> {
+    crate::health::check_decode()?;
     ScopeId::new(name).map_err(|e| corrupt(step, format_args!("stored scope name: {e}")))
 }
 
@@ -110,6 +114,7 @@ pub(crate) fn decode_scope(
     kind: &str,
     filter: Option<&str>,
 ) -> Result<Scope, CacheError> {
+    crate::health::check_decode()?;
     let id = scope(step, name)?;
     if kind != KIND_PHASE {
         return Err(corrupt(
@@ -313,6 +318,7 @@ pub(crate) fn decode_ready(
     blocked: &str,
     ready: &str,
 ) -> Result<(Vec<BlockedRow>, Vec<BeadId>), CacheError> {
+    crate::health::check_decode()?;
     let blocked = serde_json::from_str(blocked)
         .map_err(|e| corrupt(step, format_args!("ready base blocked_json: {e}")))?;
     let ready = serde_json::from_str(ready)
@@ -327,6 +333,7 @@ pub(crate) fn index_blocked(
     step: Step<'_>,
     blocked: &[BlockedRow],
 ) -> Result<Vec<(BeadId, String)>, CacheError> {
+    crate::health::check_decode()?;
     let mut merged: std::collections::BTreeMap<&BeadId, Vec<&BeadId>> =
         std::collections::BTreeMap::new();
     for row in blocked {

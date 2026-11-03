@@ -26,7 +26,7 @@ impl ModuleHook {
     /// # Errors
     /// Returns upstream `HookFailed` if the temporary directory or child cannot
     /// be started. Exit failures and timeouts remain upstream `HookOutput` values.
-    pub async fn invoke<C: Clock + ?Sized>(
+    pub(crate) async fn invoke<C: Clock + ?Sized>(
         &self,
         clock: &C,
         call: &HookCall<'_>,

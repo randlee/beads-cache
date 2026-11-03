@@ -792,7 +792,9 @@ HookCall into the existing sc-cron.hook.v1 JSON object. Upstream HookOutput judg
 replies and upstream process::supervise owns output limits, process trees and
 reaping. The script-path PythonHook API cannot supply the registered-module argv.
 
-The scheduler's public canonical receiver contract is bridged into the existing
-tracing surface, retaining legacy launched/recorded labels. The sync crate uses
-sc-command's contract-only receiver and sc-observability-types; no server or clap
-feature is enabled. API and Python still have no direct sc-command dependency.
+QA1 rejects this candidate's direct sync-to-sc-command receiver edge. The
+approved exception is only upstream sc-cron -> sc-command; implementation text
+is not an ADR amendment. The strengthened isolated graph check intentionally
+rejects the current Python graph until an authorized upstream public logging
+seam exists. Published 0.1.1 remains pinned; no logging events are silently
+removed to conceal this unresolved compatibility blocker.
