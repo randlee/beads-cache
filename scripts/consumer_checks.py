@@ -89,9 +89,28 @@ class FixtureTree:
             self.kernel.QueryInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int,
                                                               ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p)
             self.kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            self.kernel.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int,
+                                                            ctypes.c_void_p, wintypes.DWORD)
+            class BasicLimits(ctypes.Structure):
+                _fields_ = [("process_time", ctypes.c_int64), ("job_time", ctypes.c_int64),
+                            ("flags", wintypes.DWORD), ("minimum_working_set", ctypes.c_size_t),
+                            ("maximum_working_set", ctypes.c_size_t), ("active_limit", wintypes.DWORD),
+                            ("affinity", ctypes.c_size_t), ("priority", wintypes.DWORD),
+                            ("scheduling_class", wintypes.DWORD)]
+            class ExtendedLimits(ctypes.Structure):
+                _fields_ = [("basic", BasicLimits), ("io_counters", ctypes.c_uint64 * 6),
+                            ("process_memory", ctypes.c_size_t), ("job_memory", ctypes.c_size_t),
+                            ("peak_process_memory", ctypes.c_size_t), ("peak_job_memory", ctypes.c_size_t)]
             self.job = self.kernel.CreateJobObjectW(None, None)
             if not self.job:
                 raise ctypes.WinError(ctypes.get_last_error())
+            limits = ExtendedLimits()
+            limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if not self.kernel.SetInformationJobObject(self.job, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+                failure = ctypes.WinError(ctypes.get_last_error())
+                self.kernel.CloseHandle(self.job)
+                self.job = None
+                raise failure
         try:
             self.child = subprocess.Popen(command, stdin=subprocess.PIPE,
                                           start_new_session=os.name != "nt")
