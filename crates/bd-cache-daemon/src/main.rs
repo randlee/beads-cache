@@ -64,12 +64,7 @@ async fn main() -> ExitCode {
     ) {
         Ok(o) => o,
         Err(e) => {
-            return startup_exit(
-                "DAEMON.OBSERVABILITY",
-                e,
-                "fix logging configuration or sink paths and retry",
-                1,
-            );
+            return startup_exit("DAEMON.OBSERVABILITY", &e, e.recovery(), 1);
         }
     };
     let primary = daemon::composition::run(&config, &args.repo, &name, &observability).await;

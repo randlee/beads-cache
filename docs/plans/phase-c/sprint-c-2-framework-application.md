@@ -566,3 +566,30 @@ Final pushed-source tests and exact SHA are reported to parent separately. The
 unsuppressed paste gate and deferred sc-lint/0.2 baseline remain unchanged. No
 upstream repository mutation/publication, remote qualification, self-merge or
 completion claim occurs in this round.
+
+## Cross-sprint QA4 correction
+
+Complete C4 QA1 added two C2-owned findings. The public observability startup
+error now retains its concrete upstream validation/init source, original code
+and remediation; four real-error/public-process regressions request independent
+verification. The lifecycle test's endpoint-reservation handoff remains racy:
+published0.1.1 exposes the actual bound endpoint only through a fixture that
+cannot retain this required cleanup/signal path. All prior eight IDs plus
+C4-RBP-F001 and C4-FTQ-001 remain OPEN. The exact public API blocker, minimal
+upstream requirement and full ten-ID disposition are recorded in
+[the QA4 correction receipt](evidence/c-2-cross-sprint-qa4.md). Real signal,
+run_with_cleanup, LockHeld, actual joins and restart assertions are preserved;
+the endpoint finding is not closed by a passing sample or weakened proof.
+
+### Completed QA4 and qualified C3 parent consumption
+
+[C2 QA4](https://github.com/randlee/beads-cache/pull/109#issuecomment-6608719324)
+verified the typed startup error correction and retained nine OPEN findings
+(7 Blocking, 2 Important, 0 Minor). Parent-authored triage closure/review records
+are preserved. The qualified C3 PR111 merge `91467d1`, including its QA4/anchor
+PASS and 15 green CI checks, is now consumed through integration `77a5eea`.
+Only the qualified template helper/tests and inherited administrative evidence
+change; all native source and typed-error tests remain identical to `3282502`.
+The [updated receipt](evidence/c-2-cross-sprint-qa4.md#qualified-c3-merge-forward-after-completed-c2-qa4)
+lists every remaining blocker. C1, exact-candidate qualification, current C2
+QA/CI/anchor and published compatibility gates remain; C2 is not merge-ready.
