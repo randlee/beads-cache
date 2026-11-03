@@ -1,8 +1,14 @@
 # C2 application development evidence
 
+Current status: all implementation deliverables and the actual scratch workflow
+are complete. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
+source `623218021d27ef247b389233650314896b69cbc1`; the checkpoints below preserve
+the earlier development findings. QA, CI and merge gates remain separate, and
+the advisory is unsuppressed.
+
 Development branch: `sprint/c-2-framework-application`. Parent development heads
 consumed: C1 `4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56`, C3
-`e438286f3aefabe0e26875d8a80e9554f1215f1c`. Parent QA/CI merges are still
+`ef181f69944cad0356bb5f3ee4a04f7c92656730`. Parent QA/CI merges are still
 completion prerequisites. This is a development report, not phase closure.
 
 ## Pinned generation and actual adoption
@@ -56,7 +62,7 @@ qualification to avoid another Cargo build replacing active test executables.
   worker grace, then restart succeeded. Stops measured0.0027s,0.0015s and1.0051s
   for the blocked hook with T=1s. Bound asserted:31s HTTP +2T +1s read +1s tolerance.
 
-## Actual scratch consumer acceptance status
+## Historical scratch consumer prerequisite checkpoint
 
 Read-only designated-testbed checks confirmed bd1.3.2(dev), Dolt2.3.1 and
 Python3.11.16. The existing checksum-verifying installer placed bd1.3.1
@@ -75,7 +81,7 @@ and marker-qualified scratch scripts. The supported real write/drain/read-back
 boundary is selected; provider substitution is explicit. No synthetic test is
 claimed as actual consumer proof. Issue104 create behavior remains excluded.
 
-## Post-push validation and remaining blockers
+## Historical post-push validation and blockers
 
 Initial application head `39c8587cc40c412f74734a8f6d797458e04daebb`:
 full workspace suite1157passed/0failed/20ignored; installed abi3 wheel corpus

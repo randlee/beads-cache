@@ -86,8 +86,9 @@ Supply native Cache through an existing provider field and execute the unchanged
 supported write/drain/read-back method, disclosing that substitution. Check exact
 call signatures first: the selected existing consumer requires an external
 provider adapter to supply native precondition/drain-budget arguments and translate
-exception classes. That adaptation must be reviewed and its execution recorded;
-direct native substitution is not currently compatible. Exercise
+exception classes. That explicit adaptation was owner-approved and executed successfully on the
+actual scratch testbed; see the [qualification receipt](../plans/phase-c/evidence/c-2-consumer-qualification.md).
+Direct native substitution is not currently compatible. Exercise
 built-in scheduling, local reads, journal/drain/read-back, outage/pending-data
 preservation/recovery, Python replacement sync, post-sync results/errors and
 stop/restart. Do not select create-dependent behavior from issue104. Never run

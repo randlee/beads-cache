@@ -1,6 +1,6 @@
 ---
 phase: c
-status: planned
+status: complete
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-2
@@ -313,10 +313,18 @@ filenames, justify both dependencies. c-4 consumes this sprint's built daemon an
 consumer procedure. Public operation HTTP parity, MCP, auto-start and create are
 outside the fence; the optional daemon does not change the local cache contract.
 
-## Development handoff
+## Implementation handoff
 
-Application implementation and local process qualification are recorded in
-[evidence/c-2-application.md](evidence/c-2-application.md). Actual scratch consumer
-execution is pending explicit export approval after an automatic-review refusal.
-The sprint remains in development; parent QA/CI merges and actual consumer proof
-remain completion prerequisites.
+All five implementation deliverables are complete. Application/local process
+qualification is recorded in [evidence/c-2-application.md](evidence/c-2-application.md).
+The actual scratch consumer workflow passed against release artifacts from source
+`623218021d27ef247b389233650314896b69cbc1`; see the exact source/artifact/bridge/
+cleanup [receipt](evidence/c-2-consumer-qualification.md). The later receipt commit
+changes documentation only and does not claim a different artifact build source.
+
+`status: complete` records implementation delivery, not QA/CI completion or merge
+eligibility. Parent QA and PR merges remain required. The advisory gate remains
+unsuppressed and externally blocked under the immutable sc-runtime 0.1.1 pin. The
+owner instructed deferral until sc-runtime 0.2.0 is available and an explicit
+baseline adoption/revalidation is approved. The bead remains in progress until
+the required gates are satisfied; no QA waiver, self-merge or publication occurred.
