@@ -1,6 +1,6 @@
 ---
 phase: c
-status: complete
+status: in_progress
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-3
@@ -249,6 +249,27 @@ single-Job-close/handshake assertion. Substituting the pre-fix runner makes the
 new real-descendant regression fail with the exact planted repeated-cleanup
 PermissionError. No initial permission failure is ignored or retried.
 
-The parent-provided triage record is preserved at
-`.triage/c/findings/CI-C4-001.ttl`, with status open pending independent QA.
+The parent-provided triage record and original finding are preserved at
+`.triage/c/findings/CI-C4-001.ttl`; its current status is closed using independent
+QA-3 verification of the functional correction, as recorded below.
 No framework baseline, dependency, domain or workflow change is included.
+
+### QA-3 lifecycle metadata correction: REQ-QA-003-001
+
+The original PR #107 merge at `22f9d6b`, QA-2 acceptance and associated CI remain
+historical. Corrective PR #111 is in progress. Its authoritative frontmatter and
+central c-3 row now reflect that reopened state; completion must wait for
+parent-owned QA-4, the development-anchor gate and current-head CI.
+
+At `de4762bd73982d0bb1cbba3e1e30ff02e26dc365`, independent QA-3 RustQA
+(`/root/c3_rustqa`, `resolved_in_review`) and flaky-test QA (`/root/c3_flaky`,
+`resolved`) verified CI-C4-001's functional correction. Their provenance and the
+[published QA-3 report](https://github.com/randlee/beads-cache/pull/111#issuecomment-6598060424)
+close that finding's current TTL status while preserving its source and developer
+history. The QA-3 manager nevertheless reported FAIL for the new Minor
+REQ-QA-003-001. That Minor remains open in its pre-dispatch TTL pending QA-4;
+neither the functional finding's closure nor QA-3's 15/15 green CI closes PR #111.
+
+This correction changes lifecycle metadata only. Helper and test Git blobs remain
+identical to independently tested `de4762b`; its source-validation evidence is
+preserved without repeating unchanged test or Rust suites.
