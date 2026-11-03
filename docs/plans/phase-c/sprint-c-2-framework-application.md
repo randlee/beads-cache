@@ -504,3 +504,65 @@ macOS arm64/Python3.11; log `/tmp/c2-qa2-ownership-focused.log`. Full scripts an
 unchanged-native FakeBd acceptance run against the pushed source next; the parent
 will preserve final logs, without another evidence-only commit. Overall remains
 blocked by the eight OPEN IDs above; no QA PASS, completion or merge claim.
+
+
+## Strict-resume lifecycle proof and remaining eight IDs
+
+The owner requires the developer/QA loop to continue until zero findings and
+all required gates pass. This round consumes QA3 FAIL at
+https://github.com/randlee/beads-cache/pull/109#issuecomment-6595583718 and the full
+assignment `/tmp/phase-c-execution/c-2/qa-4/fix.xml`. The eight reviewer-derived
+`.triage/c/findings/*.ttl` records are preserved byte-for-byte with status OPEN;
+no developer disposition marks a finding closed.
+
+### Concrete public-runtime assessment
+
+Pinned public run_with_cleanup can exercise the actual instance lock on Unix
+without a new runtime API: the exactly filtered owned test child installs the
+published runtime through its builder, serves real readiness, and sends real
+SIGTERM only to itself after serving/admission handshakes. A concurrent public
+Daemon startup must fail LockHeld after the actual runtime enters cleanup and
+closes admission, while the same admitted read remains held following its HTTP
+request timeout. Releasing the read allows actual application/runtime joins;
+reacquiring that same instance root and endpoint then proves restart. The existing
+public request-timeout test middleware and testing-only health observer are used;
+no signal handler, production config escape or private runtime control is added.
+The original one-second read budget is not extended. A whole-child watchdog and
+bounded signal-sender kill/reap path own failures as well as successful cleanup.
+
+Portable proof still needs an upstream test-util DaemonFixture start_with_cleanup
+variant that invokes actual run_with_cleanup while using its existing private
+controlled shutdown, preserving serving/endpoint/root and join ownership. Current
+start variants call run; with_control and RunControl are private. Exposing a
+fixture lifecycle hook is sufficient; no public InstanceLock internals are needed.
+This request is separate from Windows production signals: 0.1.1 Signals/install/
+wait only registers and polls ctrl_c. Upstream must register/poll ctrl_break too
+before lock/bind and enter the same drain/cleanup path for either event. Existing
+isolated-group CTRL_BREAK, zero-exit, actual reap, ownership and restart assertions
+remain unchanged. No local handler or baseline workaround is authorized.
+
+| Finding / TTL | Current developer disposition (all OPEN pending independent QA) |
+|---|---|
+| QA-C2-001 | `.triage/c/findings/QA-C2-001.ttl`: concrete CtrlBreak production gap sent to parent for upstream coordination. No Windows acceptance change or successful stop claim. |
+| C2-REQ-003 | `.triage/c/findings/C2-REQ-003.ttl`: exact-head OS/Python/advisory and parent gates remain. Prepared fresh qualification inputs/provenance without selecting, building, transferring or running obsolete artifacts. Historical6232180 proof stays historical. |
+| C2-REQ-004 | `.triage/c/findings/C2-REQ-004.ttl`: C1 owns published bounded worker/store compatibility; no duplicate research or local cancellation/drop substitute. |
+| C2-REQ-007 | `.triage/c/findings/C2-REQ-007.ttl`: actual direct sync logging edge still fails the repaired gate; consume only C1's approved published seam correction. |
+| C2-REQ-009 | `.triage/c/findings/C2-REQ-009.ttl`: new Unix-only actual run_with_cleanup/real-signal/LockHeld/read-join/restart test requests independent verification. Portable lifecycle proof, Windows graceful stop and contended-store bound remain open; no partial fixture is completion. |
+| ARCH-001 | `.triage/c/findings/ARCH-001.ttl`: C1/parent owns public logging seam; no dependency-policy or ADR change. |
+| RSH-001 | `.triage/c/findings/RSH-001.ttl`: C1/parent owns bounded store-operation shutdown; no timeout padding or detached work. |
+| RBQA-F001 | `.triage/c/findings/RBQA-F001.ttl`: distinct logging dependency finding retained independently, not collapsed into ARCH-001. |
+
+Local-only `/tmp/c2-next-candidate-qualification-inputs.json` records the seven
+immutable consumer source hashes and three approved bounded driver hashes, all
+reverified. It selects zero current artifacts: final candidate_source is null
+until approved compatible production sources are frozen/pushed. It prescribes
+fresh same-source release CLI/daemon/wheel builds and hashes, native install,
+pinned-bd/toolchain verification and the existing scratch workflow under parent
+transport ownership. No consumer identifiers or source are copied into this
+product repository, and the prior qualified manifest is not retargeted.
+
+Initial Unix public-lifecycle experiment passed; targeted daemon Clippy passes.
+Final pushed-source tests and exact SHA are reported to parent separately. The
+unsuppressed paste gate and deferred sc-lint/0.2 baseline remain unchanged. No
+upstream repository mutation/publication, remote qualification, self-merge or
+completion claim occurs in this round.

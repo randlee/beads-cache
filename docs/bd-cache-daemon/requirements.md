@@ -49,4 +49,4 @@ DAEMON.READINESS_BUSY and the documented retry recovery.
 
 
 **Refines:** REQ-BDC-1001/NFR-BDC-0004
-**Acceptance evidence:** Blocked-hook process stop/reap/restart and readiness HTTP cleanup fixture. Exact runtime instance-lock ordering with canceled readiness remains OPEN (C2-REQ-009), as do upstream bounded-store shutdown (RSH-001) and Windows graceful stop (QA-C2-001).
+**Acceptance evidence:** Blocked-hook process stop/reap/restart and readiness HTTP cleanup fixture. The Unix-only public runtime lifecycle fixture additionally requires LockHeld through actual signal-driven cleanup and verifies restart. Portable runtime instance-lock ordering with canceled readiness remains OPEN (C2-REQ-009), as do upstream bounded-store shutdown (RSH-001) and Windows graceful stop (QA-C2-001).
