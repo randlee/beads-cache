@@ -179,3 +179,43 @@ creates only an empty owned scratch render directory, then publishes the checked
 result to an exclusively created new output. Existing caller destinations are
 always refused. This distinction is documented in the maintainer procedure; no
 driver/setup/lint recipe or lint-asset installation was run.
+
+### QA-1 corrections
+
+The helper now addresses QA-001, RBP-F001 and FTQ-001 from PR #107's first
+independent review. Python 3.11.4+ and safe extraction capabilities are checked
+before reading inputs or starting tools. Success and failure both emit one JSON
+envelope on stdout; failures have stable `TEMPLATE.*` codes, message, cause and
+concrete recovery, including captured upstream output and exit status.
+
+Every tool invocation has a 120-second deadline and bounded child reaping.
+POSIX process groups and Windows kill-on-close Jobs contain descendants. The
+Windows launch handshake blocks the target until Job assignment. The controlled
+timeout fixtures wait for an actual descendant to acquire a file lock, then
+prove termination, lock release, diagnostics and unchanged fixture bytes. A
+second case proves cleanup after the direct child has already exited. This
+clarifies the upkeep tool's safety contract without creating a product feature,
+new gate, installer or framework fork. Windows execution remains a hosted CI
+check; local execution is macOS.
+
+C-1 remains the sole workflow author. Its isolated shared CI prerequisite
+`4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56` was consumed unchanged with
+`git cherry-pick -x` as `7f183d5`. The six inserted workflow lines install
+`jsonschema>=4.18,<5` before both scripts-suite contexts; no c-1 migration code
+was taken. The c-3 fixes change only its helper, tests and owned documentation.
+
+A fresh `/tmp/c3-qa1-declared-venv` installed only the declared jsonschema range
+and resolved jsonschema 4.26.0 plus its package dependencies. In that environment:
+
+- `python -I -m unittest discover -s scripts -v`: 97 tests, 96 passed and the
+  explicitly enabled real smoke skipped.
+- With `RUNTIME_TEMPLATE_SMOKE_SOURCE=/Users/randlee/github/sc-runtime`, the
+  c-3 suite passed all 26 tests, including real pinned generation twice with
+  identical 38-file baselines.
+- The inherited pin, answers, registry dependency shape, destination guard,
+  source-SHA/check-out-patch negatives and exhaustive mapping assertions remain.
+  Schema validation remains real; no validation test was skipped or replaced
+  with a schema mock to repair CI.
+
+These are developer validation results. QA-2, the development anchor gate and
+green hosted CI are still required; no QA acceptance or merge is claimed here.
