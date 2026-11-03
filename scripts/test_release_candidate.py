@@ -5,6 +5,9 @@ import hashlib
 import io
 import json
 import os
+import subprocess
+import queue
+import threading
 from pathlib import Path
 import sys
 import tarfile
@@ -106,13 +109,63 @@ class CandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(rc.QualificationError, 'no successful installed-candidate'):
                 rc.preflight(None)
 
-    @unittest.skipIf(os.name == 'nt', 'POSIX process-group descendant probe')
-    def test_timeout_reaps_descendant_retaining_pipes(self):
-        script = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c','import time; time.sleep(60)']); time.sleep(60)"
+    def test_timeout_reaps_ready_descendant(self):
+        self.descendant_proof(parent_exits=False)
+
+    def test_timeout_reaps_descendant_after_parent_exits(self):
+        self.descendant_proof(parent_exits=True)
+
+    def descendant_proof(self, *, parent_exits):
+        lock = self.directory / 'descendant.lock'
+        lock.write_bytes(b'x')
+        lock_code = ("import msvcrt; msvcrt.locking(handle.fileno(),msvcrt.LK_LOCK,1)" if os.name == 'nt'
+                     else "import fcntl; fcntl.flock(handle,fcntl.LOCK_EX)")
+        descendant = ("import threading,sys; handle=open(%r,'r+b'); " % str(lock) + lock_code +
+                      "; print('descendant ready',flush=True); threading.Event().wait()")
+        parent = ("import subprocess,sys,threading; subprocess.Popen([sys.executable,'-I','-c',%r]); " % descendant +
+                  ("sys.exit(0)" if parent_exits else "threading.Event().wait()"))
+        actual_popen = subprocess.Popen
+        processes = []
+
+        def controlled_popen(*args, **kwargs):
+            child = actual_popen(*args, **kwargs); processes.append(child)
+            communicate = child.communicate
+            first = True
+
+            def controlled_communicate(*, input=None, timeout=None):
+                nonlocal first
+                if first:
+                    first = False
+                    if input is not None:
+                        child.stdin.write(input); child.stdin.flush()
+                    ready = queue.Queue()
+                    reader = threading.Thread(target=lambda: ready.put(child.stdout.readline()), daemon=True)
+                    reader.start()
+                    self.assertEqual(ready.get(timeout=10), 'descendant ready\n')
+                    reader.join(timeout=5)
+                    self.assertFalse(reader.is_alive())
+                    if parent_exits:
+                        self.assertEqual(child.wait(timeout=5), 0)
+                    raise subprocess.TimeoutExpired(args[0], timeout)
+                return communicate(timeout=timeout)
+            child.communicate = controlled_communicate
+            return child
+
         began = time.monotonic()
-        with self.assertRaisesRegex(rc.QualificationError, 'timed out'):
-            rc.run([sys.executable, '-c', script], timeout=0.1)
-        self.assertLess(time.monotonic() - began, 5)
+        with patch.object(rc.subprocess, 'Popen', side_effect=controlled_popen):
+            with self.assertRaisesRegex(rc.QualificationError, 'timed out'):
+                rc.run([sys.executable, '-I', '-c', parent], timeout=0.25)
+        self.assertLess(time.monotonic() - began, 15)
+        self.assertIsNotNone(processes[0].poll())
+        with lock.open('r+b') as handle:
+            if os.name == 'nt':
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 if __name__ == '__main__':

@@ -153,7 +153,7 @@ The consumer input now publishes only sc-beads/sc-bd-cli and declares all three
 executables for archives, prerelease selectors and Homebrew/Scoop installation.
 The canonical immutable kit candidate is `5fd4d0db1b7cbb4ebf9316588047391a8e4be496`;
 repeat installer dry-run and manifest validation pass. Kit regression tests pass
-(347 passed, 13 skipped, 52 subtests); repository scripts pass (107 tests, one
+(347 passed, 13 skipped, 52 subtests); repository scripts pass (108 tests, one
 explicit real-template smoke skipped). Negative candidate fixtures reject an
 omitted daemon, mixed source receipt, corrupt assets, configuration staged as
 an asset, missing checksums, old kit/staging and restored local sc-cron.

@@ -38,29 +38,51 @@ def require(condition, message):
 
 
 def run(command, *, cwd=None, timeout=120, env=None):
-    """Bound and reap a process tree, including descendants that retain pipes."""
-    child = subprocess.Popen([str(x) for x in command], cwd=cwd, env=env,
+    """Bound and reap a process tree, including descendants after launcher exit."""
+    command = [str(x) for x in command]
+    launcher = ("import subprocess,sys; token=sys.stdin.buffer.read(1); "
+                "sys.exit(subprocess.call(sys.argv[1:],stdin=subprocess.DEVNULL) if token==b'x' else 125)")
+    child = subprocess.Popen([sys.executable, '-I', '-c', launcher, *command] if os.name == 'nt' else command,
+                             cwd=cwd, env=env, stdin=subprocess.PIPE if os.name == 'nt' else subprocess.DEVNULL,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
-                             start_new_session=os.name != 'nt',
-                             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0)
+                             encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
+    job_close = None
+
+    def stop_tree():
+        nonlocal job_close
+        if os.name == 'nt':
+            if job_close is not None:
+                job_close(); job_close = None
+            elif child.poll() is None:
+                child.kill()  # Target cannot start before its stdin handshake.
+        else:
+            try:
+                os.killpg(child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+
     try:
-        stdout, stderr = child.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired as error:
-        terminate_tree(child)
-        raise QualificationError('command timed out; retry in a fresh candidate workspace: ' + str(command[0])) from error
-    require(child.returncode == 0, 'command failed (%s): %s\n%s' % (child.returncode, command, stderr[-4000:]))
-    return stdout
-
-
-def terminate_tree(child):
-    if os.name == 'nt':
-        subprocess.run(['taskkill', '/PID', str(child.pid), '/T', '/F'], capture_output=True, timeout=15, check=False)
-    else:
+        if os.name == 'nt':
+            # Reuse C3's established kill-on-close Job containment, which works
+            # on Python3.9 too; do not invoke its separate template/version API.
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            from runtime_templates import windows_job
+            job_close = windows_job(child)
         try:
-            os.killpg(child.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-    child.communicate(timeout=15)
+            stdout, stderr = child.communicate(input='x' if os.name == 'nt' else None, timeout=timeout)
+        except subprocess.TimeoutExpired as error:
+            stop_tree()
+            child.communicate(timeout=15)
+            raise QualificationError('command timed out; retry in a fresh candidate workspace: ' + command[0]) from error
+        require(child.returncode == 0, 'command failed (%s): %s\n%s' % (child.returncode, command, stderr[-4000:]))
+        return stdout
+    finally:
+        stop_tree()
+        if child.poll() is None:
+            child.kill(); child.wait(timeout=15)
+        for stream in (child.stdin, child.stdout, child.stderr):
+            if stream is not None:
+                stream.close()
 
 
 def digest(path):
@@ -176,6 +198,14 @@ def smoke(args):
         for binary in BINARIES:
             output = run([installed / 'bin' / (binary + suffix), '--version'], cwd=installed)
             require(args.version in output, 'installed binary version mismatch: ' + binary)
+        # The original executable and alias both provide installed cache access.
+        repo = installed / 'cli-repo'
+        (repo / '.beads').mkdir(parents=True)
+        (repo / '.beads/metadata.json').write_text(json.dumps({'dolt_database': 'beads', 'project_id': 'candidate-smoke'}))
+        for binary in ('bd-cache', 'bdc'):
+            result = json.loads(run([installed / 'bin' / (binary + suffix), '--repo', repo,
+                                     '--bd', args.fake_bd.resolve(), 'cache', 'status'], cwd=installed))
+            require(result['ok'] is True, 'installed CLI cache access failed: ' + binary)
         # Existing C2 acceptance procedure executes installed binaries only.
         run([sys.executable, '-I', ROOT / 'scripts/consumer_checks.py', '--bdc', installed / 'bin' / ('bdc' + suffix), '--daemon', installed / 'bin' / ('bd-cache-daemon' + suffix), '--fake-bd', args.fake_bd.resolve(), '--fake-python', args.fake_python.resolve()], cwd=installed, timeout=300)
         wheel = list(args.directory.glob('*.whl'))
@@ -264,6 +294,7 @@ def main(argv=None):
     commands.add_parser('preflight')
     args = parser.parse_args(argv)
     try:
+        require(sys.version_info >= (3, 9), 'candidate tooling requires Python3.9+; choose a supported interpreter')
         if args.command == 'pack':
             pack(args)
         elif args.command == 'check':
@@ -274,7 +305,7 @@ def main(argv=None):
             manifest()
         else:
             preflight(args)
-    except (QualificationError, OSError, ValueError, KeyError, tarfile.TarError, zipfile.BadZipFile) as error:
+    except (QualificationError, OSError, ValueError, KeyError, subprocess.TimeoutExpired, tarfile.TarError, zipfile.BadZipFile) as error:
         print(json.dumps({'status': 'blocked', 'code': 'CANDIDATE.QUALIFICATION', 'cause': str(error), 'recovery': 'Build and install a fresh complete candidate set from the exact committed source; rerun qualification.'}), file=sys.stderr)
         return 1
     return 0
