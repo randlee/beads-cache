@@ -296,3 +296,25 @@ evidence, full Release Preflight, parent merge, green CI and zero-finding QA
 remain required. The actual source652 consumer receipt is unchanged and is not
 retargeted to this later execution. No native build, remote scratch execution,
 publication, settings mutation or baseline update is claimed in this local round.
+
+## QA-2 checkpoint
+
+At reviewed source `69554386cfff1074fa606aed114331685e3760f5`, six independent
+reviewers verified the source-owned packaging correction, ADR-PY-0006 reference,
+qualified C3 cleanup and typed observability errors. Their consumer findings
+C4-REQ-003, C4-ARCH-001, CI-C4-001 and C4-RBP-F001 are closed with QA-2 provenance.
+The [QA-2 report](https://github.com/randlee/beads-cache/pull/110#issuecomment-6612817877)
+still records FAIL: 16/22 deliverables, ten Blocking and one Important finding.
+Actual Linux candidate validation passed at that source; Windows still exits
+3221225786 and the dependent abi3 matrix is skipped. Historical source652
+consumer evidence remains distinct from these executions.
+
+The canonical consumer-preflight step omits GH_TOKEN although the consumer
+checker supports it; correcting the canonical source and regenerating through
+the official installer is required. Full final-source preflight must execute
+and locally satisfiable auth/candidate/staging gates must pass. Publication-only
+missing-tag and owner-setup refusals may be recorded separately; publication is
+not required to close this sprint. The old environment probe conflates API
+failure with absence, so inaccessible metadata is not proof of missing setup.
+Public runtime fixes remain unimplemented/unpublished according to their owner.
+All eleven remaining findings and the phase merge gates remain open.
