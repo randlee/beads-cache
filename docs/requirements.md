@@ -917,3 +917,76 @@ Each crate's requirements live in `docs/<crate>/requirements.md` (see
 - [`bd-cache-store`](bd-cache-store/requirements.md) (`REQ-STORE-*`)
 - [`bd-cache-sync`](bd-cache-sync/requirements.md) (`REQ-SYNC-*`)
 - [`bd-cache-py`](bd-cache-py/requirements.md) (`REQ-PY-*`)
+
+
+## Proposed Phase C requirements
+
+These requirements are **Proposed**, pending approval of plan/phase-c. They do not
+supersede approved requirements until that approval. Sprint ownership and detailed
+acceptance are in docs/plans/phase-c/phase-c-plan.md and its sprint docs.
+
+## REQ-BDC-1001: An operational sc-runtime template application
+
+**Status:** Proposed (phase C, 2026-11-02)
+
+beads-cache must adopt the pinned sc-runtime application scaffold as its runtime
+assembly. The generated application must host real cache-file synchronization and
+cache readiness, while the existing bdc and Python interfaces retain local
+execution, their output/exception contracts and their current latency bounds.
+The foreground daemon is optional; cached reads do not require it to run.
+
+**Source:** user's framework-drift concern during phase-C planning; daemon and
+layout details are a planning proposal, not a separately approved directive.
+**Acceptance owner:** c-2, generated application and actual consumer procedure.
+
+## REQ-BDC-1002: Published scheduler ownership and compatible SQLite
+
+**Status:** Proposed (phase C, 2026-11-02)
+
+beads-cache must consume the published sc-runtime scheduler instead of maintaining
+and publishing its local sc-cron prototype. All workspace rusqlite consumers must
+use the 0.39 line matching sc-runtime. The existing BD-CACHE v3 identity, rows,
+journal, scope/schedule state, sync replacement and shutdown guarantees must survive
+that migration. The CLI's sc-command dependency moves from git to its published
+baseline. No local scheduler fork or development checkout patch may ship.
+
+The proposed transition includes c-1's narrowly owned amendment of REQ-CLI-0001
+from git v0.1.0 to published sc-command 0.1.1, preserving its three-OS build,
+version envelope and usage/exit behavior. It also requires the named narrow
+REQ-API-0008 exception and explicit prototype-contract disposition. These remain
+proposals: record actual project-owner approval before changing any Approved
+requirement or dispatching dependent implementation; plan/QA PASS alone is not
+that approval.
+
+**Source:** upstream sc-runtime 0.1.1 publication; user relay: "Matching beads-cache
+to 0.39 is the right move."
+**Acceptance owner:** c-1.
+
+## REQ-BDC-1003: Repeatable application-template upkeep
+
+**Status:** Proposed (phase C, 2026-11-02)
+
+The repository must retain the immutable template revision and generation answers,
+and provide a regeneration/diff procedure that exposes changes to adopted template
+paths during an upstream upgrade without overwriting application customizations.
+A crates-only dependency bump does not satisfy template adoption. This procedure
+must distinguish template source changes from consumer-owned application changes.
+
+**Source:** user's concern that consuming crates alone would immediately drift
+from sc-runtime. The mechanism is proposed by the phase-C plan.
+**Acceptance owner:** c-2.
+
+## REQ-BDC-1005: Qualified installed candidate artifacts
+
+**Status:** Proposed (phase C, 2026-11-02)
+
+The final phase commit must produce binary archives and Python wheels that pass an
+installed-artifact consumer smoke, including the real daemon. The release manifest
+must stop declaring local sc-cron publication. Stable releases must remain refused
+until a qualified sc-publish revision fixes issue #135 and required channel setup
+is verified. Candidate builds, hosted prereleases and stable publication must be
+reported as distinct outcomes; a dry run is not a published release.
+
+**Source:** existing REQ-BDC-0813 and phase-B release deferral; phase-C proposed
+release qualification.
+**Acceptance owner:** c-4.

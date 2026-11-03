@@ -1,0 +1,182 @@
+[
+  {
+    "item_id": "c-1",
+    "anchor_id": "ADR-STORE-0001",
+    "sentence": "2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing schedule persistence and explicit limits.",
+    "action": "add",
+    "authority": "ADR-STORE-0001",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State directly that all v3 tables and indexes remain unchanged and that schema changes may add only nullable columns or new tables."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-002",
+    "sentence": "The existing bdc and Python surfaces use upstream sc-cron 0.1.1 over the same\ncache file.",
+    "action": "add",
+    "authority": "ANC-002",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Say explicitly that beads-cache runs bd sync at times set by a SQLite cron table in the cache file."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-003",
+    "sentence": "3. REQ-BDC-0720, 0724, 0725, 0730: replace TargetResolver/spawn_worker_with/run_due_with\n   usage with upstream target APIs. Preserve built-in/Python switching, rollback,\n   trust checks, mode lock, run identity, outages and bounded graceful/hurried stop.",
+    "action": "add",
+    "authority": "ANC-003",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Specify that a consumer-registered Python sync method can replace the built-in bd sync, including the switching behavior this migration must preserve."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-004",
+    "sentence": "3. REQ-BDC-0720, 0724, 0725, 0730: replace TargetResolver/spawn_worker_with/run_due_with\n   usage with upstream target APIs. Preserve built-in/Python switching, rollback,\n   trust checks, mode lock, run identity, outages and bounded graceful/hurried stop.",
+    "action": "add",
+    "authority": "ANC-004",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that the optional post-sync consumer hook receives both sync results and sync errors, and remains supported after migration."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "NFR-BDC-0005",
+    "sentence": "Required validation\n\n- `cargo fmt --all --check`.",
+    "action": "add",
+    "authority": "NFR-BDC-0005",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Add that unit tests run without bd or Dolt and use the deterministic fake bd."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "REQ-BDC-0007",
+    "sentence": "2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing\n   schedule persistence and explicit limits. Preserve v3 user_version, old rows,\n   next times, generations, enabled flags, outcomes, leases and hook state.",
+    "action": "add",
+    "authority": "REQ-BDC-0007",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Clarify that every stored bead row, including rows ingested from a consumer sync, passes the strict row decoder generated from the bd schema."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "REQ-BDC-0008",
+    "sentence": "2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing\n   schedule persistence and explicit limits. Preserve v3 user_version, old rows,\n   next times, generations, enabled flags, outcomes, leases and hook state.",
+    "action": "add",
+    "authority": "REQ-BDC-0008",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Require sync, fetch, or ingest to store no rows from a result when any row in that result fails validation."
+  },
+  {
+    "item_id": "c-1",
+    "anchor_id": "REQ-BDC-0502",
+    "sentence": "2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing\n   schedule persistence and explicit limits. Preserve v3 user_version, old rows,\n   next times, generations, enabled flags, outcomes, leases and hook state.",
+    "action": "add",
+    "authority": "REQ-BDC-0502",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Require sync or ingest to preserve any stored bead row whose updated_at is newer than the incoming row."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-004",
+    "sentence": "schedule built-in sync, read locally, journal a supported write, drain/read-back, observe outage/recovery, switch to Python sync, observe post-sync results/errors, and stop/restart the daemon.",
+    "action": "add",
+    "authority": "ANC-004",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Specify an optional consumer-registered hook that runs after sync and receives both sync results and errors."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "REQ-BDC-0007",
+    "sentence": null,
+    "action": "add",
+    "authority": "REQ-BDC-0007",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that every stored bead row, including rows from consumer sync, passes the strict bd-schema-generated row decoder."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ADR-BDC-0005",
+    "sentence": "schedule built-in sync, read locally, journal a supported write, drain/read-back, observe outage/recovery, switch to Python sync, observe post-sync results/errors, and stop/restart the daemon.",
+    "action": "add",
+    "authority": "ADR-BDC-0005",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Specify that cached reads continue during bd outages and that each affected scope records its outage."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ADR-BDC-0009",
+    "sentence": "Existing bdc/Python behavior remains local, and the existing CI gates validate the new workspace without adopting sc-lint.",
+    "action": "exclude",
+    "authority": "ADR-BDC-0009",
+    "diagnosis": "outside existing scope",
+    "replacement": "Clarify whether this sprint changes any bdc commands or bd-cache-api requests; if so, state that beads commands keep the bd /v0 shape and cache management remains a separate surface."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "ANC-002",
+    "sentence": "schedule built-in sync, read locally, journal a supported write, drain/read-back, observe outage/recovery, switch to Python sync, observe post-sync results/errors, and stop/restart the daemon.",
+    "action": "add",
+    "authority": "ANC-002",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that the built-in bd sync runs at the times stored in beads-cache\u2019s SQLite cron table."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "NFR-BDC-0004",
+    "sentence": "Test a total bound of the pinned upstream HTTP-drain maximum (30 seconds plus a one-second backstop) plus the existing worker bound (at most twice its shutdown timeout), including child reap before ownership release and documented scheduler tolerance in process tests.",
+    "action": "add",
+    "authority": "NFR-BDC-0004",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Specify that every bd call, Python sync method, and post-sync hook is killed at its timeout, capped by the remaining run deadline."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "REQ-BDC-0008",
+    "sentence": null,
+    "action": "add",
+    "authority": "REQ-BDC-0008",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that a sync, fetch, or ingest stores no rows from a result if any row in that result fails validation."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "REQ-BDC-0502",
+    "sentence": null,
+    "action": "add",
+    "authority": "REQ-BDC-0502",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that sync and ingest preserve the stored row whenever its updated_at is newer than the incoming row."
+  },
+  {
+    "item_id": "c-2",
+    "anchor_id": "REQ-BDC-0812",
+    "sentence": "Existing bdc/Python behavior remains local, and the existing CI gates validate the new workspace without adopting sc-lint.",
+    "action": "add",
+    "authority": "REQ-BDC-0812",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "Clarify that any new Python binding methods preserve every 0.1 verb, argument, and returned dict and emit no DeprecationWarning."
+  },
+  {
+    "item_id": "c-3",
+    "anchor_id": "NFR-BDC-0005",
+    "sentence": "`python3 -I -m unittest discover -s scripts -p 'test_runtime_templates.py' -v`, helper positive/negative fixtures, and the pinned real generator smoke. Validate pin/answers against the tagged wizard schema. Do not use a mutable checkout as the source baseline. Existing no-consumer lint still applies to every new tracked file.",
+    "action": "add",
+    "authority": "NFR-BDC-0005",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "State that the unit tests run with bd and Dolt unavailable and the deterministic fake bd used for any bd interaction."
+  },
+  {
+    "item_id": "c-4",
+    "anchor_id": "NFR-BDC-0005",
+    "sentence": null,
+    "action": "add",
+    "authority": "NFR-BDC-0005",
+    "diagnosis": "implicit required preservation bound",
+    "replacement": "exclude --id NFR-BDC-0005 --item c-4 --reason \"this sprint qualifies release artifacts and does not change or validate unit-test dependencies\""
+  },
+  {
+    "item_id": "c-4",
+    "anchor_id": "REQ-BDC-0812",
+    "sentence": null,
+    "action": "exclude",
+    "authority": "REQ-BDC-0812",
+    "diagnosis": "outside existing scope",
+    "replacement": "exclude --id REQ-BDC-0812 --item c-4 --reason \"this sprint qualifies release artifacts and does not change Python binding methods\""
+  }
+]

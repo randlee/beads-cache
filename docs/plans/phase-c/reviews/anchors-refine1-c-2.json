@@ -1,0 +1,240 @@
+{
+  "schema_version": "1.0.0",
+  "success": true,
+  "canceled": false,
+  "aborted_by": null,
+  "data": {
+    "gate": "plan",
+    "item_id": "c-2",
+    "run_id": "plan-20261102T232725Z-c-2",
+    "run_path": "/Users/randlee/github/beads-cache-worktrees/plan/phase-c/docs/plans/phase-c/anchors/runs/plan-20261102T232725Z-c-2.json",
+    "dry_run": false,
+    "reused_run": false,
+    "pass": false,
+    "failing": [
+      "ANC-003",
+      "ANC-008",
+      "ANC-009"
+    ],
+    "errors": [],
+    "excluded": [
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "reason": "c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary."
+      }
+    ],
+    "results": [
+      {
+        "anchor_id": "ANC-003",
+        "verdict": "underspecified",
+        "leaning": "satisfied",
+        "min_confidence": 0.37,
+        "attempts": 1,
+        "explanation": "Jev was not confident (min confidence 0.37); the anchor or the bead may be underspecified.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 1.0,
+            "probabilities": {
+              "no": 0.0,
+              "unclear": 0.0,
+              "yes": 1.0
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.37,
+            "probabilities": {
+              "no": 0.14,
+              "unclear": 0.28,
+              "yes": 0.58
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.96,
+            "probabilities": {
+              "no": 0.97,
+              "unclear": 0.01,
+              "yes": 0.02
+            }
+          }
+        },
+        "low_questions": [
+          {
+            "ask": "first",
+            "role": "compliance",
+            "question_id": "addressed",
+            "choice": "yes",
+            "confidence": 0.37
+          }
+        ],
+        "to_fix": {
+          "where": "schedule built-in sync, read locally, journal a supported write, drain/read-back, observe outage/recovery, switch to Python sync, observe post-sync results/errors, and stop/restart the daemon.",
+          "change": "Specify that a consumer-registered Python sync method replaces the hard-coded bd sync."
+        }
+      },
+      {
+        "anchor_id": "ANC-008",
+        "verdict": "underspecified",
+        "leaning": "satisfied",
+        "min_confidence": 0.58,
+        "attempts": 2,
+        "unstable": true,
+        "explanation": "Jev was not confident (min confidence 0.58); the anchor or the bead may be underspecified.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.67,
+            "probabilities": {
+              "no": 0.21,
+              "unclear": 0.01,
+              "yes": 0.78
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.94,
+            "probabilities": {
+              "no": 0.96,
+              "unclear": 0.01,
+              "yes": 0.03
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.58,
+            "probabilities": {
+              "no": 0.72,
+              "unclear": 0.18,
+              "yes": 0.1
+            }
+          }
+        },
+        "low_questions": [
+          {
+            "ask": "first",
+            "role": "conflict",
+            "question_id": "contradicted",
+            "choice": "no",
+            "confidence": 0.58
+          }
+        ],
+        "answers_second": {
+          "relevant": {
+            "type": "choice",
+            "choice": "yes",
+            "confidence": 0.68,
+            "probabilities": {
+              "no": 0.2,
+              "unclear": 0.01,
+              "yes": 0.79
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.96,
+            "probabilities": {
+              "no": 0.97,
+              "unclear": 0.01,
+              "yes": 0.02
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.7,
+            "probabilities": {
+              "no": 0.8,
+              "unclear": 0.12,
+              "yes": 0.08
+            }
+          }
+        },
+        "to_fix": {
+          "where": "The daemon hosts the cache-file schedules, not a second scheduler database.",
+          "change": "State that each repository may have at most one built-in bd sync schedule row in sc-cron, and that attempts to add another are rejected."
+        }
+      },
+      {
+        "anchor_id": "ANC-009",
+        "verdict": "underspecified",
+        "leaning": "not_applicable",
+        "min_confidence": 0.33,
+        "attempts": 1,
+        "explanation": "Jev was not confident (min confidence 0.33); the anchor or the bead may be underspecified.",
+        "answers": {
+          "relevant": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.33,
+            "probabilities": {
+              "no": 0.55,
+              "unclear": 0.14,
+              "yes": 0.31
+            }
+          },
+          "addressed": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.94,
+            "probabilities": {
+              "no": 0.96,
+              "unclear": 0.01,
+              "yes": 0.03
+            }
+          },
+          "contradicted": {
+            "type": "choice",
+            "choice": "no",
+            "confidence": 0.97,
+            "probabilities": {
+              "no": 0.98,
+              "unclear": 0.0,
+              "yes": 0.02
+            }
+          }
+        },
+        "low_questions": [
+          {
+            "ask": "first",
+            "role": "relevance",
+            "question_id": "relevant",
+            "choice": "no",
+            "confidence": 0.33
+          }
+        ],
+        "to_fix": {
+          "where": null,
+          "change": "exclude --id ANC-009 --item c-2 --reason \"This sprint uses the existing sync scopes but does not define or change their bd-filter configuration.\""
+        }
+      }
+    ],
+    "overrides_applied": [
+      "ADR-STORE-0001",
+      "ANC-002",
+      "ANC-003",
+      "ANC-004",
+      "ANC-008",
+      "ANC-009",
+      "REQ-BDC-0001"
+    ],
+    "item_truncated": false,
+    "shortened": [],
+    "report_markdown": "## Anchor gate: plan \u00b7 c-2 - sprint-c-2-framework-application\n\nRun `plan-20261102T232725Z-c-2`, model `jev-1.14.0`, threshold 0.6. Counts: underspecified 3, satisfied 11, not_applicable 1, deterministic_only 1, excluded 1.\n\n> **c-2 \u00b7 ANC-003 \u00b7 underspecified** Anchor: beads-cache must let a consumer-registered Python sync method replace its hard-coded bd sync. You said (phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, Oct 25): \"In the event of the 'hard-coded sync' not working, the hard-coded sync could be disabled and replaced w/ a python method registered by consumer [the first consumer, whose name is a prohibited word]. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history).\" Jev was not confident (min confidence 0.37); the anchor or the bead may be underspecified. (leaning: satisfied)\n>   Low: compliance `addressed` answered yes at 0.37.\n\n> **c-2 \u00b7 ANC-008 \u00b7 underspecified** Anchor: Each repository must have at most one built-in beads-cache bd sync schedule in sc-cron, the SQLite cron job scheduler. You said (phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, Oct 25): \"I expect 'sc-cron' to be a general tool that can be used for scheduling jobs.  limiting 'builtin' sync to one per repo makes sense.\" Jev was not confident (min confidence 0.58); the anchor or the bead may be underspecified. (leaning: satisfied)\n>   Low: conflict `contradicted` answered no at 0.58.\n>   Unstable: two identical requests gave underspecified then satisfied.\n\n> **c-2 \u00b7 ANC-009 \u00b7 underspecified** Anchor: beads-cache sync scopes must be defined as bd filters, such as labels or --all, instead of as phases. You said (phase-b planning session, 2026-10-25 (Rand); wording by bc-lead under Rand's instruction to use judgement, Oct 25): \"0702 Active phases - would NEED to be defined w/ filters.  'phase' is a concept of [the first consumer and its messaging tool, whose names are prohibited words].  other applications would have different scopes including --all. (Rand, 2026-10-25, paraphrased; the verbatim text is in git history).\" Jev was not confident (min confidence 0.33); the anchor or the bead may be underspecified. (leaning: not_applicable)\n>   Low: relevance `relevant` answered no at 0.33.\n\n> **c-2 \u00b7 ADR-BDC-0009 \u00b7 excluded** Anchor: The bdc CLI must offer two command surfaces: a beads surface shaped like the bd /v0 interface, and a separate cache-management surface. Not judged: c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary.\n\n"
+  },
+  "error": null,
+  "metadata": {
+    "duration_ms": 3800,
+    "tool_calls": 19,
+    "retry_count": 1,
+    "correlation_id": "c-2-refine1"
+  }
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "item_id": "c-1",
+    "anchor_id": "ANC-009",
+    "sentence": null,
+    "action": "add",
+    "authority": "ANC-009",
+    "replacement": "Explicitly retain bd-filter scopes rather than phase definitions."
+  }
+]

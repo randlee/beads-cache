@@ -1,6 +1,6 @@
 # beads-cache Project Plan
 
-Status: phase a complete; phase b in progress (see the Phases and Sprints tables).
+Status: phases a and b complete; phase c draft for scope review (see the Phases and Sprints tables).
 
 ## Context
 
@@ -30,7 +30,8 @@ Naming follows the Plan Naming section of
 | Phase | Goal | Plan | Status |
 |---|---|---|---|
 | `a` | Crates with no sc-runtime dependency: model, the shared `sc-beads` traits and `sc-bd-cli` implementation (seeded from btit, published for btit to use), SQLite store, core library, an `sc-cron` prototype and the sync task on it (see Crate Layout in `docs/architecture.md`) | [phase-a-plan](plans/phase-a/phase-a-plan.md) | complete |
-| `b` | The `bdc` CLI contract, `bd-cache-api`, the `bdc` binaries, Python wheel 0.2 and the release channels; then the boundary extension: no consumer concern in beads-cache, the bd sync on sc-cron rows in the cache file with a Python replacement and a post-sync hook, scopes as bd filters, and the lint gate | [phase-b-plan](plans/phase-b/phase-b-plan.md), [phase-b-boundary](plans/phase-b/phase-b-boundary.md) | in progress (b-1..b-9 merged into `integrate/phase-b`; phase-end review fixes in review; closes when PR #82 merges into `develop`, without the binaries prerelease) |
+| `b` | The `bdc` CLI contract, `bd-cache-api`, the `bdc` binaries, Python wheel 0.2 and the release channels; then the boundary extension: no consumer concern in beads-cache, the bd sync on sc-cron rows in the cache file with a Python replacement and a post-sync hook, scopes as bd filters, and the lint gate | [phase-b-plan](plans/phase-b/phase-b-plan.md), [phase-b-boundary](plans/phase-b/phase-b-boundary.md) | complete (PR #82 merged into `develop` at `5196acd`, 2026-10-26 Pacific; binaries prerelease remains deferred) |
+| `c` | Adopt sc-runtime templates and the published scheduler, preserve existing CI and qualify an actual consumer and installed candidate artifacts | [phase-c-plan](plans/phase-c/phase-c-plan.md) | draft; scope and proposed REQ/ADR amendments await approval |
 
 ## Sprints
 
@@ -53,4 +54,14 @@ Naming follows the Plan Naming section of
 | [b-6](plans/phase-b/sprint-b-6-sc-cron.md) | b | sc-cron: Python hook target, enabled flag, stop decisions | `sprint/b-6-sc-cron` | complete (#92) |
 | [b-7](plans/phase-b/sprint-b-7-store-contract.md) | b | store extensions, scope filters, schedule store | `sprint/b-7-store-contract` | complete (merged as PR #99 into `integrate/phase-b`) |
 | [b-8](plans/phase-b/sprint-b-8-tick-python.md) | b | the sync rows, the switch, the Python surface, end to end | `sprint/b-8-tick-python` | complete (merged as PR #100 into `integrate/phase-b`) |
-| [b-9](plans/phase-b/sprint-b-9-boundary-lint.md) | b | neutral tests, contract text, health, lint gate | `sprint/b-9-boundary-lint` | complete (merged as PR #101 into `integrate/phase-b`; phase-end review fixes in review) |
+| [b-9](plans/phase-b/sprint-b-9-boundary-lint.md) | b | neutral tests, contract text, health, lint gate | `sprint/b-9-boundary-lint` | complete (PR #101; phase-end fixes #102/#103 and phase PR #82 merged) |
+
+
+### Phase C (draft)
+
+| Sprint | Deliverable | Branch | Status |
+|---|---|---|---|
+| [c-1](plans/phase-c/sprint-c-1-runtime-migration.md) | upstream scheduler and compatible SQLite in existing composition | `sprint/c-1-runtime-migration` | planned |
+| [c-2](plans/phase-c/sprint-c-2-framework-application.md) | generated application, template upkeep and real consumer proof | `sprint/c-2-framework-application` | planned |
+| [c-3](plans/phase-c/sprint-c-3-template-upkeep.md) | pinned template baseline and regeneration/diff helper | `sprint/c-3-template-upkeep` | planned |
+| [c-4](plans/phase-c/sprint-c-4-release-qualification.md) | installed candidate artifacts and stable-release preflight | `sprint/c-4-release-qualification` | planned |
