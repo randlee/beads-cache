@@ -228,3 +228,27 @@ stale synthetic paths. Helper behavior and C-2's actual mapping are unchanged.
 The declared-environment full suite remains 97 tests (96 pass, opt-in smoke
 skipped); enabling the real pinned smoke passes all 26 c-3 tests with two identical
 38-file baselines.
+
+### Reopened corrective delivery: CI-C4-001
+
+PR #107's prior acceptance remains historical. C-4's actual macOS CI exposed a
+second process-group signal in `finally` after successful timeout termination
+and reaping; its PermissionError masked the original structured timeout. This
+reopens c-3 for corrected-head QA-3 and hosted CI before corrective merge.
+
+The helper now records successful termination or established group absence and
+does not repeat it. A first termination failure remains a structured
+`PROCESS_CLEANUP_FAILED`, retains its original cause and partial diagnostics,
+and does not prevent bounded direct-child reaping or pipe closure. Deadlines,
+process ownership, Windows Job assignment and launch handshake are unchanged.
+
+The focused six-case deadline suite passes, including the genuine descendant
+lock-release cases, a planted PermissionError on a repeated group signal, a
+genuine first-attempt permission failure, and a platform-independent Windows
+single-Job-close/handshake assertion. Substituting the pre-fix runner makes the
+new real-descendant regression fail with the exact planted repeated-cleanup
+PermissionError. No initial permission failure is ignored or retried.
+
+The parent-provided triage record is preserved at
+`.triage/c/findings/CI-C4-001.ttl`, with status open pending independent QA.
+No framework baseline, dependency, domain or workflow change is included.
