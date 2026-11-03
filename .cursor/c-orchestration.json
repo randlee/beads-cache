@@ -4393,7 +4393,17 @@
         "reviewer_tasks_completed": "All8actualparenttaskcompletionnotifications matched saved manifest; no substituted reviewers.",
         "consumer_preview_task": "/root/c4_auth_adoption_preview",
         "consumer_adoption": "Scratch-onlypreview inprogress, actualpinunchanged.",
-        "approval_request": "Pending explicit user approval to merge separately maintained sc-publish PR141 into main; no release/tag/registry publication requested."
+        "approval_request": "Pending explicit user approval to merge separately maintained sc-publish PR141 into main; no release/tag/registry publication requested.",
+        "consumer_preview": {
+          "status": "scratch_only_ready",
+          "base": "f801a97549616064886b57a8f95b48e3d6decd42",
+          "prospective_pin": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+          "report": "/tmp/c4-auth-adoption-preview/report.json",
+          "patch": "/tmp/c4-auth-adoption-preview/adoption.patch",
+          "patch_sha256": "472c841103ebfedab6b2c4171a7533fb6eb570dba67f166ce083e0be652a4f45",
+          "verification": "Official84copies3renderszerodrift;130scripts129pass1existingoptinskip;346kitpass13skip4nativecasesexcluded52subtests;portableexact-basepatchreplayandall6hashesmatch. ActualC4/upstream/cacheunchanged."
+        },
+        "next_action": "Await user upstream-main merge approval; then merge exact QA/CI-approved PR141, adopt its official immutable kit through prepared consumer change, independently re-QA affected C4 scope. No approval inferred."
       }
     }
   },
@@ -6437,5 +6447,29 @@
     "integration_pin": "77a5eeae5adb4d0352fd3664457c38414d4bd32b",
     "scope": "C1 metadata forward; C4 C2 producer consumption with independent C4QA2 pending. No C2acceptanceinferred."
   },
-  "goal_delivery_boundary": "AllPhaseCsprintsandphase-endingfixesmergedintointegrate/phase-c; fullphase-endingQAzeroallsev,applicableanchorsandrequiredexact-final-integration-headCIgreen."
+  "goal_delivery_boundary": "AllPhaseCsprintsandphase-endingfixesmergedintointegrate/phase-c; fullphase-endingQAzeroallsev,applicableanchorsandrequiredexact-final-integration-headCIgreen.",
+  "phase_ending_review": {
+    "status": "not_started",
+    "entry_gate": "Every Phase C sprint completed and merged into integrate/phase-c; current C1/C2/C4 incomplete.",
+    "scope_base": "350a7fc300da50e11281071b62ed377a926d956e",
+    "scope_head": "Final integrated Phase C head, including every sprint and phase-ending fix.",
+    "required_reviewers": [
+      "req-qa",
+      "arch-qa",
+      "extensibility-qa",
+      "ruthless-boundary-qa",
+      "rust-qa-agent",
+      "rust-best-practices-agent",
+      "rust-service-hardening-agent",
+      "flaky-test-qa"
+    ],
+    "enforcer": "cursor-quality-mgr",
+    "fix_loop": "Parent spawns background developers and independent reviewers; every finding at every severity fixed with durable triage and published QA evidence.",
+    "completion_gate": "100% full-phase requirements and deliverables, zero Blocking/Important/Minor, applicable development anchors passing, required exact-final-integration-head CI green, all fixes merged into integrate/phase-c.",
+    "publication": "Registry/tag/channel release publication remains separate approved post-phase work; no publication implied by phase acceptance."
+  },
+  "remaining_external_dependencies": {
+    "runtime_publication": "Producer owner confirms APIs still planned/not implemented; sc-runtime/sc-cronregistry0.1.1only. UpstreamplanningPR114awaits owner decisions; no consumer workaround or release invented.",
+    "upstream_kit_merge": "PR141b697componentQA8roleszeroallsev+CIgreen; userapprovalpending. Consumerpreviewcomplete, actualpin5fdunchanged."
+  }
 }
