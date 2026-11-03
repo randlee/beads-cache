@@ -54,11 +54,479 @@
       "branch": "sprint/c-1-runtime-migration",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
       "pr_target": "integrate/phase-c",
-      "status": "development",
+      "status": "qa1_failed_independent_fixes_in_progress_runtime_api_blockers_documented",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": [],
-      "developer_task": "/root/dev_c1"
+      "qa_rounds": [
+        {
+          "qa_pass": "qa-1",
+          "commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+          "verdict": "FAIL",
+          "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6594457055",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c1_req",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 4,
+                "important": 1,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c1_arch",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 1,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "ruthless-boundary-qa",
+              "task_id": "/root/c1_boundary",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 1,
+                "important": 1,
+                "minor": 1
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c1_rustqa",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "pass",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c1_practices",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 1
+              }
+            },
+            {
+              "agent": "rust-service-hardening-agent",
+              "task_id": "/root/c1_service",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 2,
+                "important": 2,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c1_flaky",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 8,
+                "minor": 0
+              }
+            }
+          ],
+          "triage_ttl_paths": [],
+          "finding_ids": [
+            "REQ-QA-001",
+            "REQ-QA-002",
+            "REQ-QA-003",
+            "REQ-QA-004",
+            "REQ-QA-005",
+            "ARCH-001",
+            "RBQA-F001",
+            "RBQA-F002",
+            "RBQA-F003",
+            "C1-RBP-F001",
+            "RSH-001",
+            "RSH-002",
+            "RSH-003",
+            "RSH-004",
+            "FTQ-001",
+            "FTQ-002",
+            "FTQ-003",
+            "FTQ-004",
+            "FTQ-005",
+            "FTQ-006",
+            "FTQ-007",
+            "FTQ-008"
+          ],
+          "coordinator_task_id": "/root/c1_quality_manager",
+          "machine_status": {
+            "sprint": "c-1",
+            "task": "qa-c-1-1",
+            "branch": "sprint/c-1-runtime-migration",
+            "commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+            "pr": 108,
+            "verdict": "FAIL",
+            "deliverables": {
+              "complete": 16,
+              "total": 21,
+              "percent": 76.19
+            },
+            "findings": {
+              "blocking": 8,
+              "important": 12,
+              "minor": 2
+            },
+            "blocking_ids": [
+              "REQ-QA-001",
+              "REQ-QA-002",
+              "REQ-QA-003",
+              "REQ-QA-004",
+              "REQ-QA-005",
+              "ARCH-001",
+              "RBQA-F001",
+              "RBQA-F002",
+              "RBQA-F003",
+              "C1-RBP-F001",
+              "RSH-001",
+              "RSH-002",
+              "RSH-003",
+              "RSH-004",
+              "FTQ-001",
+              "FTQ-002",
+              "FTQ-003",
+              "FTQ-004",
+              "FTQ-005",
+              "FTQ-006",
+              "FTQ-007",
+              "FTQ-008"
+            ],
+            "merge_readiness": "not ready",
+            "merge_reason": "22 open reviewer findings (8 Blocking, 12 Important, 2 Minor); deliverables 16/21. Current CI is green and does not waive findings.",
+            "next_action": "triage_and_fix",
+            "owner": "parent-orchestrator (routes to dev_c1)",
+            "reviewer_spawn_gate": "pass",
+            "reviewer_manifest": [
+              {
+                "agent": "req-qa",
+                "task_id": "/root/c1_req",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "FAIL",
+                "findings": {
+                  "blocking": 4,
+                  "important": 1,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "arch-qa",
+                "task_id": "/root/c1_arch",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "FAIL",
+                "findings": {
+                  "blocking": 1,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "ruthless-boundary-qa",
+                "task_id": "/root/c1_boundary",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 1,
+                  "important": 1,
+                  "minor": 1
+                }
+              },
+              {
+                "agent": "rust-qa-agent",
+                "task_id": "/root/c1_rustqa",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "pass",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "rust-best-practices-agent",
+                "task_id": "/root/c1_practices",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 1
+                }
+              },
+              {
+                "agent": "rust-service-hardening-agent",
+                "task_id": "/root/c1_service",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 2,
+                  "important": 2,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "flaky-test-qa",
+                "task_id": "/root/c1_flaky",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 0,
+                  "important": 8,
+                  "minor": 0
+                }
+              }
+            ],
+            "missing_reviewers": [],
+            "unparsed_reviewers": [],
+            "evidence_chain": {
+              "qa_pass": "qa-1",
+              "commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+              "pr_number": 108,
+              "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6594457055",
+              "coordinator_task_id": "/root/c1_quality_manager",
+              "reviewer_tasks": [
+                {
+                  "agent": "req-qa",
+                  "task_id": "/root/c1_req",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "FAIL",
+                  "findings": {
+                    "blocking": 4,
+                    "important": 1,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "arch-qa",
+                  "task_id": "/root/c1_arch",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "FAIL",
+                  "findings": {
+                    "blocking": 1,
+                    "important": 0,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "ruthless-boundary-qa",
+                  "task_id": "/root/c1_boundary",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 1,
+                    "important": 1,
+                    "minor": 1
+                  }
+                },
+                {
+                  "agent": "rust-qa-agent",
+                  "task_id": "/root/c1_rustqa",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "pass",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 0,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "rust-best-practices-agent",
+                  "task_id": "/root/c1_practices",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 0,
+                    "minor": 1
+                  }
+                },
+                {
+                  "agent": "rust-service-hardening-agent",
+                  "task_id": "/root/c1_service",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 2,
+                    "important": 2,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "flaky-test-qa",
+                  "task_id": "/root/c1_flaky",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 8,
+                    "minor": 0
+                  }
+                }
+              ],
+              "triage": {
+                "phase_id": "c",
+                "ttl_paths": []
+              },
+              "ceremony_screen": {
+                "path": "/tmp/phase-c-execution/c-1/qa-1/screen-result.md",
+                "keep": 5,
+                "not_applicable": 17,
+                "waivers": [],
+                "all_ids_retained": true
+              },
+              "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+              "todo_scan": {
+                "path": "/tmp/phase-c-execution/c-1/qa-1/todo-scan.txt",
+                "hits": 0
+              },
+              "ci": {
+                "checked_at": "2026-11-03T03:10:15.985307+00:00",
+                "success": 15,
+                "total": 15,
+                "checks": [
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310844",
+                    "name": "pytest (macos-14, python 3.11)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310879",
+                    "name": "pytest (macos-14, python 3.9)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310815",
+                    "name": "pytest (macos-14, python 3.13)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125679243508",
+                    "name": "clippy and test (macos-14)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310783",
+                    "name": "pytest (ubuntu-24.04, python 3.13)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310874",
+                    "name": "pytest (ubuntu-24.04, python 3.11)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125681310888",
+                    "name": "pytest (ubuntu-24.04, python 3.9)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460661/job/125679504129",
+                    "name": "clippy and test (macos-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125679243023",
+                    "name": "wheel (macos-14)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460661/job/125679503918",
+                    "name": "clippy and test (windows-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460661/job/125679504143",
+                    "name": "fmt, doc, publish dry-run, boundaries",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460661/job/125679504240",
+                    "name": "clippy and test (ubuntu-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125679243465",
+                    "name": "wheel (ubuntu-24.04)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125679243389",
+                    "name": "clippy and test (windows-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41563460677/job/125679243272",
+                    "name": "clippy and test (ubuntu-24.04)",
+                    "state": "SUCCESS"
+                  }
+                ],
+                "finding_REQ_QA_004": "Current CI is green; reviewer snapshot finding remains open pending owning req-qa recheck."
+              },
+              "correlations": [
+                {
+                  "ids": [
+                    "ARCH-001",
+                    "RBQA-F001"
+                  ],
+                  "cause": "Unauthorized direct bd-cache-sync -> sc-command dependency edge",
+                  "disposition": "Shared remediation; both IDs retained open, no boundary waiver."
+                }
+              ],
+              "parent_correlation_required": true
+            }
+          },
+          "fix_assignment": "/tmp/phase-c-execution/c-1/qa-1/fix.xml"
+        }
+      ],
+      "developer_task": "/root/dev_c1",
+      "pr_number": 108,
+      "head_commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+      "developer_validation": "PASS",
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c1_req",
+          "spawn_actor": "parent-orchestrator"
+        }
+      ]
     },
     "c-2": {
       "bead": "bdc-n8v.2",
@@ -66,13 +534,31 @@
       "branch": "sprint/c-2-framework-application",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
       "pr_target": "integrate/phase-c",
-      "status": "waiting_for_dependencies",
+      "status": "implementation_and_live_consumer_qualification_pass_qa_pending",
       "must_follow": [
         "c-1",
         "c-3"
       ],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": []
+      "qa_rounds": [],
+      "developer_task": "/root/dev_c2",
+      "consumed_parent_commits": {
+        "c-1": "750ed9bdb90738caaccf994c697d0686aeec6f86",
+        "c-3": "794d5f0a2fab27e647b5f526d6f671392282d0d7"
+      },
+      "completion_waits_for_parent_merges": true,
+      "pr_number": 109,
+      "head_commit": "b7c5a21cc1059f6c1c3bfcc446205144e68e3b3b",
+      "external_qualification": {
+        "status": "PASS",
+        "tested_source": "623218021d27ef247b389233650314896b69cbc1",
+        "receipt_commit": "b7c5a21cc1059f6c1c3bfcc446205144e68e3b3b",
+        "receipt_diff": "five documentation files only",
+        "receipt": "docs/plans/phase-c/evidence/c-2-consumer-qualification.md",
+        "raw_log_sha256": "df1541ad2a18c26e42fbf8dd7f318f1bc081007e0991f99ba90f1f059b0cf43a",
+        "scratch_removed": true,
+        "limits": "Disclosed external provider signature/default/exception bridge; no separate live healthy-scope hook success or grandchild test (FakeBd covers those)."
+      }
     },
     "c-3": {
       "bead": "bdc-n8v.3",
@@ -80,11 +566,423 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "development",
+      "status": "qa2_pass_ci_green_ready_to_merge",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": [],
-      "developer_task": "/root/dev_c3"
+      "qa_rounds": [
+        {
+          "sprint": "c-3",
+          "task": "qa-c-3-1",
+          "branch": "sprint/c-3-template-upkeep",
+          "commit": "794d5f0a2fab27e647b5f526d6f671392282d0d7",
+          "pr": 107,
+          "verdict": "FAIL",
+          "deliverables": {
+            "complete": 10,
+            "total": 10,
+            "percent": 100.0
+          },
+          "findings": {
+            "blocking": 0,
+            "important": 3,
+            "minor": 0
+          },
+          "blocking_ids": [
+            "QA-001",
+            "RBP-F001",
+            "FTQ-001"
+          ],
+          "merge_readiness": "not ready",
+          "merge_reason": "Three Important findings remain open. CI is separately not green; no merge or anchor acceptance is authorized.",
+          "next_action": "triage_and_fix",
+          "owner": "parent-orchestrator / dev_c3",
+          "reviewer_spawn_gate": "pass",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c3_req",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c3_arch",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "ruthless-boundary-qa",
+              "task_id": "/root/c3_boundary",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c3_rustqa",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 0,
+                "important": 1,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c3_practices",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 0,
+                "important": 1,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-service-hardening-agent",
+              "task_id": "/root/c3_service",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "SKIPPED",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c3_flaky",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 0,
+                "important": 1,
+                "minor": 0
+              }
+            }
+          ],
+          "missing_reviewers": [],
+          "unparsed_reviewers": [],
+          "evidence_chain": {
+            "qa_pass": "qa-1",
+            "commit": "794d5f0a2fab27e647b5f526d6f671392282d0d7",
+            "pr_comment_url": "https://github.com/randlee/beads-cache/pull/107#issuecomment-6593431499",
+            "coordinator_task_id": "/root/c3_quality_manager",
+            "reviewer_tasks": [
+              "/root/c3_req",
+              "/root/c3_arch",
+              "/root/c3_boundary",
+              "/root/c3_rustqa",
+              "/root/c3_practices",
+              "/root/c3_service",
+              "/root/c3_flaky"
+            ],
+            "triage": {
+              "ttl_paths": []
+            },
+            "ceremony_screen": "/tmp/phase-c-execution/c-3/qa-1/screen-result.md",
+            "todo_scan": {
+              "command": "python3 .claude/skills/todo-triage/scripts/find_todos.py",
+              "rows": 0,
+              "output": "/tmp/phase-c-execution/c-3/qa-1/todo-scan.txt"
+            },
+            "ci": {
+              "counts": {
+                "FAILURE": 3,
+                "QUEUED": 3,
+                "SUCCESS": 9
+              },
+              "not_green": [
+                {
+                  "name": "pytest (macos-14, python 3.9)",
+                  "state": "QUEUED"
+                },
+                {
+                  "name": "pytest (macos-14, python 3.13)",
+                  "state": "QUEUED"
+                },
+                {
+                  "name": "pytest (macos-14, python 3.11)",
+                  "state": "QUEUED"
+                },
+                {
+                  "name": "clippy and test (macos-latest)",
+                  "state": "FAILURE"
+                },
+                {
+                  "name": "clippy and test (windows-latest)",
+                  "state": "FAILURE"
+                },
+                {
+                  "name": "clippy and test (ubuntu-latest)",
+                  "state": "FAILURE"
+                }
+              ]
+            },
+            "aggregation_source": "reviewer_fenced_json_union_todo_scan"
+          }
+        },
+        {
+          "qa_pass": "qa-2",
+          "commit": "ef181f69944cad0356bb5f3ee4a04f7c92656730",
+          "verdict": "PASS",
+          "pr_comment_url": "https://github.com/randlee/beads-cache/pull/107#issuecomment-6594534864",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c3_req",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c3_arch",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c3_rustqa",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c3_practices",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c3_flaky",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            }
+          ],
+          "triage_ttl_paths": [],
+          "finding_ids": [],
+          "coordinator_task_id": "/root/c3_quality_manager",
+          "machine_status": {
+            "sprint": "c-3",
+            "task": "qa-c-3-2",
+            "branch": "sprint/c-3-template-upkeep",
+            "commit": "ef181f69944cad0356bb5f3ee4a04f7c92656730",
+            "pr": 107,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            },
+            "blocking_ids": [],
+            "merge_readiness": "ready",
+            "merge_reason": "Required follow-up reviewers PASS; req-qa 15/15 (100%); all carried findings resolved by their owning reviewers; zero TODOs and zero open findings; development anchor gate PASS; exact-head PR107 CI15/15 green.",
+            "next_action": "none",
+            "owner": "none",
+            "recommendation": "Merge PR107 into integrate/phase-c at reviewed ef181f69944cad0356bb5f3ee4a04f7c92656730. Parent retains integration-to-develop gate ownership.",
+            "reviewer_spawn_gate": "pass",
+            "reviewer_manifest": [
+              {
+                "agent": "req-qa",
+                "task_id": "/root/c3_req",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "PASS",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "arch-qa",
+                "task_id": "/root/c3_arch",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "PASS",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "rust-qa-agent",
+                "task_id": "/root/c3_rustqa",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "PASS",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "rust-best-practices-agent",
+                "task_id": "/root/c3_practices",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "PASS",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "flaky-test-qa",
+                "task_id": "/root/c3_flaky",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "PASS",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 0
+                }
+              }
+            ],
+            "evidence_chain": {
+              "qa_pass": "qa-2",
+              "commit": "ef181f69944cad0356bb5f3ee4a04f7c92656730",
+              "pr_comment_url": "https://github.com/randlee/beads-cache/pull/107#issuecomment-6594534864",
+              "coordinator_task_id": "/root/c3_quality_manager",
+              "reviewer_tasks": [
+                "/root/c3_req",
+                "/root/c3_arch",
+                "/root/c3_rustqa",
+                "/root/c3_practices",
+                "/root/c3_flaky"
+              ],
+              "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+              "triage": {
+                "ttl_paths": []
+              },
+              "deliverables": {
+                "complete": 15,
+                "total": 15,
+                "percent": 100.0
+              },
+              "resolved_findings": [
+                {
+                  "id": "QA-001",
+                  "reviewer": "rust-qa-agent",
+                  "status": "resolved",
+                  "evidence": "Module documentation and maintainer guide now require Python3.11.4+ with data-filter support. require_python checks version, tomllib, extractall filter parameter and callable data_filter before parsing/dispatch; generate and export_source also call the guard. Existing test and independent representative-API probes reject3.11.0,3.11.3, old extractall signature, absent data_filter and absent tomllib with TEMPLATE.PYTHON_UNSUPPORTED; generate is never called. Current3.11.9 artifact suite passes."
+                },
+                {
+                  "id": "QA-CI-001",
+                  "reviewer": "rust-qa-agent",
+                  "status": "resolved",
+                  "evidence": "Both script suite workflow contexts now install jsonschema>=4.18,<5 using the same interpreter used by their tests. Independent fresh-environment full suite and real pinned smoke pass without schema mocking or validation skips. Shared prerequisite cherry-pick7f183d5 identifies source4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56 and preserves the same six added workflow lines; sprint records sole c1 authorship. This resolves the observed missing dependency mechanism. Current-head hosted CI remains a separate merge gate."
+                },
+                {
+                  "id": "RBP-F001",
+                  "reviewer": "rust-best-practices-agent",
+                  "status": "resolved",
+                  "evidence": "TemplateError now supplies stable TEMPLATE-prefixed code, message, cause object and concrete recovery text through as_dict(). main emits a single stdout JSON envelope for both success and caught failure, including parser usage errors, and preserves the documented conventional --help path. run() preserves command, cwd, exit_status, stdout and stderr in UPSTREAM_FAILED and UPSTREAM_TIMEOUT causes; deadlines are included for timeout recovery. Specific codes distinguish pin mismatch, invalid answers/mapping/destination/baseline, tool availability/version and I/O failures. The maintainer procedure documents envelope fields, stdout/stderr and exit behavior, upstream diagnostic fields and stable code recovery table. ErrorContractTest checks actual CLI envelopes, empty stderr, usage/destination/mapping/missing-file errors, real schema validation and preserved upstream cause; GenerationTest checks real child stdout/stderr/status preservation. Tests were inspected, not executed, as required by this role."
+                },
+                {
+                  "id": "FTQ-001",
+                  "reviewer": "flaky-test-qa",
+                  "status": "resolved",
+                  "evidence": "The shared run() runner now validates a positive finite deadline and uses communicate(timeout=timeout), defaulting to COMMAND_TIMEOUT=120.0. Timeout cleanup calls stop_tree(), then communicates with REAP_TIMEOUT=5.0; the fallback wait and final launcher reap also have that bound. POSIX children start a new session and the process group is killed even when the direct child has already exited. Windows children launch behind a stdin token handshake, are assigned to a kill-on-close Job before receiving the token, and closing that Job terminates descendants. Direct children are reaped and streams are closed. UPSTREAM_TIMEOUT retains command, cwd, deadline, exit status, stdout and stderr. Existing Git fixtures and real pinned smoke therefore inherit hard subprocess deadlines. ProcessDeadlineTest covers a real timeout and two deterministic descendant scenarios, including the direct child already having exited. The descendant signals readiness after taking a file lock; queue.get, reader.join and parent.wait all use explicit five-second bounds. Injecting TimeoutExpired after readiness avoids relying on startup speed. Successful EOF, released nonblocking file lock and direct-child returncode establish tree termination and reaping. The deliberately blocking child Event.wait and readiness reader.readline are confined to killable children or a daemon reader with a bounded supervising queue/join. No sleeps, retries or timeout widening mask the original issue."
+                }
+              ],
+              "todo_scan": {
+                "command": "python3 .claude/skills/todo-triage/scripts/find_todos.py",
+                "rows": 0,
+                "output": "/tmp/phase-c-execution/c-3/qa-2/todo-scan.txt"
+              },
+              "ci": {
+                "verified_pr_head": "ef181f69944cad0356bb5f3ee4a04f7c92656730",
+                "counts": {
+                  "SUCCESS": 15
+                },
+                "not_green": [],
+                "snapshot": "/tmp/phase-c-execution/c-3/qa-2/ci-pr.json",
+                "checks": "/tmp/phase-c-execution/c-3/qa-2/ci-status.json"
+              },
+              "development_anchors": {
+                "status": "PASS",
+                "report": "/tmp/c3-dev-anchor-final-result.md",
+                "attestation": "/tmp/c3-dev-anchor-final-attestation.json",
+                "deterministic_lint": "/tmp/c3-anc001-deterministic-checks.json",
+                "verified_head": "ef181f69944cad0356bb5f3ee4a04f7c92656730"
+              }
+            }
+          }
+        }
+      ],
+      "developer_task": "/root/dev_c3",
+      "pr_number": 107,
+      "head_commit": "ef181f69944cad0356bb5f3ee4a04f7c92656730",
+      "developer_validation": "PASS",
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c3_req",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c3_arch",
+          "spawn_actor": "parent-orchestrator"
+        }
+      ]
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -92,12 +990,28 @@
       "branch": "sprint/c-4-release-qualification",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
       "pr_target": "integrate/phase-c",
-      "status": "waiting_for_dependencies",
+      "status": "windows_candidate_packaging_fix_in_progress",
       "must_follow": [
         "c-2"
       ],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": []
+      "qa_rounds": [],
+      "developer_task": "/root/dev_c4",
+      "consumed_parent_commits": {
+        "c-2": "623218021d27ef247b389233650314896b69cbc1"
+      },
+      "completion_waits_for_parent_merges": true,
+      "authorized_fence_addition": {
+        "path": "docs/getting-started.md",
+        "reason": "Canonical installer-owned page; move c2 daemon paragraph into c4-owned README before canonical regeneration, no loss of runtime procedure."
+      },
+      "pr_number": 110,
+      "head_commit": "31278bb41115a7d9d35dc4481e933b2794be40b1",
+      "qualification_run": "https://github.com/randlee/beads-cache/actions/runs/41571204095",
+      "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
+      "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
+      "qualification_result": "3 candidate platforms passed; Windows packaging failed; abi3 matrix skipped",
+      "preflight_result": "Final deny summary failed; developer collecting exact reasons"
     }
   },
   "qa_rounds": [],
@@ -106,5 +1020,25 @@
     "url": "https://github.com/randlee/beads-cache/pull/106",
     "base": "develop",
     "draft": true
-  }
+  },
+  "shared_ci_prerequisite": {
+    "owner": "c-1",
+    "consumer": "c-3",
+    "reason": "Existing CI discovers all script tests; new tagged-schema validation fixtures require declared jsonschema test dependency in both CI Python contexts.",
+    "transport": "C1 authors isolated workflow-only commit; C3 consumes unchanged, no competing workflow writer.",
+    "commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+    "qa_requirement": "C3 independent QA2 and current-head CI must verify consumed prerequisite, no gates waived.",
+    "c3_cherry_pick": "7f183d5"
+  },
+  "external_blockers": [
+    {
+      "id": "RUSTSEC-2024-0436",
+      "dependency": "sc-runtime0.1.1 -> utoipa-axum0.2.0 -> paste1.0.15",
+      "state": "Owner deferred fix to sc-runtime0.2.0; keep advisory unsuppressed",
+      "owner_steering": [
+        "the paste will be replaced when 0.2.0 sc-runtime drops",
+        "don't spend too much effort working around this issue now"
+      ]
+    }
+  ]
 }
