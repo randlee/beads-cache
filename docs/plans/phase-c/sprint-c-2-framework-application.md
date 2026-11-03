@@ -566,3 +566,17 @@ Final pushed-source tests and exact SHA are reported to parent separately. The
 unsuppressed paste gate and deferred sc-lint/0.2 baseline remain unchanged. No
 upstream repository mutation/publication, remote qualification, self-merge or
 completion claim occurs in this round.
+
+## Cross-sprint QA4 correction
+
+Complete C4 QA1 added two C2-owned findings. The public observability startup
+error now retains its concrete upstream validation/init source, original code
+and remediation; four real-error/public-process regressions request independent
+verification. The lifecycle test's endpoint-reservation handoff remains racy:
+published0.1.1 exposes the actual bound endpoint only through a fixture that
+cannot retain this required cleanup/signal path. All prior eight IDs plus
+C4-RBP-F001 and C4-FTQ-001 remain OPEN. The exact public API blocker, minimal
+upstream requirement and full ten-ID disposition are recorded in
+[the QA4 correction receipt](evidence/c-2-cross-sprint-qa4.md). Real signal,
+run_with_cleanup, LockHeld, actual joins and restart assertions are preserved;
+the endpoint finding is not closed by a passing sample or weakened proof.

@@ -8,19 +8,99 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use sc_command::observability::{CanonicalLog, SharedCanonicalLog};
-use sc_observability_types::{ErrorCode, ErrorContext, LogEvent, Remediation, v2::EventError};
+use sc_observability_types::{
+    ErrorCode, ErrorContext, LogEvent, Remediation, ValueValidationError,
+    v2::{EventError, InitError},
+};
 
 use sc_observability::{LogSettings, LoggerConfig, ServiceName};
 
-/// Observability failed to start. The cause is the builder error text.
+/// Observability failed to start, retaining its concrete upstream cause.
 #[derive(Debug)]
 pub struct ObservabilityStart {
-    cause: String,
+    cause: StartCause,
+}
+
+#[derive(Debug)]
+enum StartCause {
+    ServiceName {
+        source: ValueValidationError,
+        remediation: Remediation,
+    },
+    Logger(InitError),
+}
+
+impl ObservabilityStart {
+    /// Returns the upstream diagnostic code, independent of the process envelope.
+    #[must_use]
+    pub fn code(&self) -> &ErrorCode {
+        match &self.cause {
+            StartCause::ServiceName { source, .. } => source.code(),
+            // InitError::code() in the pinned release is a generic variant code;
+            // the original diagnostic carries the operation-specific logger code.
+            StartCause::Logger(source) => &source.diagnostic().code,
+        }
+    }
+
+    /// Returns the original logger remediation or actionable service-name guidance.
+    #[must_use]
+    pub fn remediation(&self) -> &Remediation {
+        match &self.cause {
+            StartCause::ServiceName { remediation, .. } => remediation,
+            StartCause::Logger(source) => &source.diagnostic().remediation,
+        }
+    }
+
+    /// Returns the first recovery action for the bounded process diagnostic.
+    #[must_use]
+    pub fn recovery(&self) -> &str {
+        match self.remediation() {
+            Remediation::Recoverable { steps } => steps
+                .first_step()
+                .unwrap_or("fix logging configuration or sink paths and retry"),
+            Remediation::NotRecoverable { justification } => justification,
+        }
+    }
+}
+
+impl From<ValueValidationError> for ObservabilityStart {
+    fn from(source: ValueValidationError) -> Self {
+        Self {
+            cause: StartCause::ServiceName {
+                source,
+                // ValueValidationError supplies a code and message, but no remediation.
+                remediation: Remediation::recoverable(
+                    "use a non-empty service name containing only letters, digits, '.', '_' or '-'",
+                    [] as [&str; 0],
+                ),
+            },
+        }
+    }
+}
+
+impl From<InitError> for ObservabilityStart {
+    fn from(source: InitError) -> Self {
+        Self {
+            cause: StartCause::Logger(source),
+        }
+    }
 }
 
 impl std::fmt::Display for ObservabilityStart {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        formatter.write_str(&self.cause)
+        match &self.cause {
+            StartCause::ServiceName { source, .. } => std::fmt::Display::fmt(source, formatter),
+            StartCause::Logger(source) => std::fmt::Display::fmt(source, formatter),
+        }
+    }
+}
+
+impl std::error::Error for ObservabilityStart {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(match &self.cause {
+            StartCause::ServiceName { source, .. } => source,
+            StartCause::Logger(source) => source,
+        })
     }
 }
 
@@ -45,7 +125,7 @@ impl Observability {
         logging: &LogSettings,
         log_root: PathBuf,
     ) -> Result<Self, ObservabilityStart> {
-        let service = ServiceName::new(app_name).map_err(observe)?;
+        let service = ServiceName::new(app_name).map_err(ObservabilityStart::from)?;
         let mut settings = LoggerConfig::default_for(service, log_root);
         if let Some(level) = logging.level {
             settings.level = level;
@@ -59,13 +139,14 @@ impl Observability {
             .enable_console_sink
             .unwrap_or(settings.enable_console_sink);
         settings.enable_console_sink = false;
-        let mut builder = sc_observability::v2::LoggerBuilder::new(settings).map_err(observe)?;
+        let mut builder =
+            sc_observability::v2::LoggerBuilder::new(settings).map_err(ObservabilityStart::from)?;
         if console {
             builder.register_sink(sc_observability::v2::SinkRegistration::typed(Arc::new(
                 sc_observability::ConsoleSink::stderr(),
             )));
         }
-        let logger = builder.build().map_err(observe)?;
+        let logger = builder.build().map_err(ObservabilityStart::from)?;
         let logger = Arc::new(logger);
         let shared: SharedCanonicalLog = Arc::new(LoggerAdapter {
             logger: Arc::clone(&logger),
@@ -87,12 +168,6 @@ impl Observability {
         let Self { logger, shared } = self;
         drop(shared);
         logger.shutdown()
-    }
-}
-
-fn observe(err: impl std::fmt::Display) -> ObservabilityStart {
-    ObservabilityStart {
-        cause: err.to_string(),
     }
 }
 
