@@ -219,3 +219,12 @@ and resolved jsonschema 4.26.0 plus its package dependencies. In that environmen
 
 These are developer validation results. QA-2, the development anchor gate and
 green hosted CI are still required; no QA acceptance or merge is claimed here.
+
+C-2 integration exposed a synthetic CLI test inheriting the application's new
+default adoption mapping. The success fixture now passes its own empty mapping.
+The same test creates a real temporary default mapping and proves explicit
+fixture isolation succeeds while omission still loads that default and rejects
+stale synthetic paths. Helper behavior and C-2's actual mapping are unchanged.
+The declared-environment full suite remains 97 tests (96 pass, opt-in smoke
+skipped); enabling the real pinned smoke passes all 26 c-3 tests with two identical
+38-file baselines.

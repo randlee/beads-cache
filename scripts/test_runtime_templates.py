@@ -338,9 +338,26 @@ class ErrorContractTest(GenerationFixture):
                 rt.require_python()
 
     def test_success_usage_destination_mapping_and_missing_file_envelopes(self) -> None:
-        status, result = self.invoke("diff", str(self.source), str(self.source))
+        empty_mapping = self.mapping([])
+        status, result = self.invoke("diff", str(self.source), str(self.source), "--mapping", str(empty_mapping))
         self.assertEqual(status, 0)
         self.assertEqual(result, {"ok": True, "data": {"changed_paths": 0, "changes": []}, "error": None})
+        # A consumer's real default mapping is unrelated to these synthetic
+        # baselines. Explicit fixture mapping must isolate this success case,
+        # while omission must still load and validate the consumer default.
+        consumer = self.tree("consumer", {"runtime/adoption.toml":
+            'version = 1\n[[paths]]\ngenerated = "crates/daemon/src/composition.rs"\n'
+            'adopted = "crates/app/src/assembly.rs"\n'})
+        before = rt.file_tree(consumer)
+        with patch.object(rt, "ROOT", consumer):
+            isolated_status, isolated = self.invoke("diff", str(self.source), str(self.source),
+                                                    "--mapping", str(empty_mapping))
+            self.assertEqual((isolated_status, isolated), (status, result))
+            default_status, default = self.invoke("diff", str(self.source), str(self.source))
+            self.assertEqual(default_status, 1)
+            self.assertEqual(default["error"]["code"], "TEMPLATE.MAPPING_INVALID")
+            self.assertIn("stale mapping", default["error"]["message"])
+        self.assertEqual(rt.file_tree(consumer), before)
         self.assertEqual(self.invoke("generate")[1]["error"]["code"], "TEMPLATE.USAGE_INVALID")
         self.assertEqual(self.invoke("generate", "--output", str(self.source))[1]["error"]["code"],
                          "TEMPLATE.DESTINATION_INVALID")
