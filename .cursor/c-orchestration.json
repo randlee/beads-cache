@@ -1102,7 +1102,7 @@
       ],
       "developer_task": "/root/dev_c1",
       "pr_number": 108,
-      "head_commit": "96ce326fca99a2919a6462bd4249b9931281eadd",
+      "head_commit": "919aba81fde40a79c8c597f007e968ea072adac9",
       "developer_validation": "PASS",
       "reviewer_manifest": [
         {
@@ -2723,7 +2723,7 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "corrective_qa4_pass_ready_to_merge",
+      "status": "complete",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
       "qa_rounds": [
@@ -3359,9 +3359,9 @@
           "spawn_actor": "parent-orchestrator"
         }
       ],
-      "merge_commit": "22f9d6b9ddc67274d95a23c16a2a8345c0785bc0",
-      "merged_at": "2026-11-03T03:17:40Z",
-      "bead_status": "in_progress",
+      "merge_commit": "91467d1376b4cfb62b6e99674a65b594b0ed5bde",
+      "merged_at": "2026-11-03T15:51:21Z",
+      "bead_status": "closed",
       "initial_pr_number": 107,
       "corrective_pr_number": 111,
       "open_finding_ids": [],
@@ -3379,7 +3379,9 @@
         },
         "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
       },
-      "parent_merge_audit": "/tmp/phase-c-execution/c-3/qa-4/parent-merge-audit.json"
+      "parent_merge_audit": "/tmp/phase-c-execution/c-3/qa-4/parent-merge-audit.json",
+      "initial_merge_commit": "22f9d6b9ddc67274d95a23c16a2a8345c0785bc0",
+      "corrective_merge_commit": "91467d1376b4cfb62b6e99674a65b594b0ed5bde"
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -3655,7 +3657,7 @@
         "reason": "Canonical installer-owned page; move c2 daemon paragraph into c4-owned README before canonical regeneration, no loss of runtime procedure."
       },
       "pr_number": 110,
-      "head_commit": "e7bafc2e5bdda1bf480823c7dd3ac73d0e16b702",
+      "head_commit": "f1da9cd4a9e23bae05fe3e7c952a9e6bbcd5e368",
       "qualification_run": "https://github.com/randlee/beads-cache/actions/runs/41571204095",
       "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
       "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
@@ -5092,5 +5094,10 @@
     "proposal": "/tmp/phase-c-execution/c-1/qa-4/upstream-compatibility-proposal.md",
     "observed_commentary": "The plan now assigns cron logging and lifecycle compatibility to c-5, optional standard commands to c-6, and Windows stop handling plus cleanup fixtures to c-3. The publication sprint consumes and verifies those completed APIs.",
     "observed_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:2"
+  },
+  "qualified_c3_forwarding": {
+    "report": "/tmp/phase-c-qualified-c3-forward-results.json",
+    "task": "/root/phase_c_merge_qualified_c3",
+    "C2": "Frozen3282502 awaiting QA4 enforcer before forwarding"
   }
 }
