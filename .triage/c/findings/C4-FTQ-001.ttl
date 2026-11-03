@@ -4,3 +4,5 @@
 <urn:beads-cache:finding:C4-FTQ-001> triage:owningSprint "c-2" .
 
 <urn:beads-cache:finding:C4-FTQ-001> triage:developerDisposition "blocked_pending_approved_published_api" ; triage:developerEvidence "Published sc-runtime 0.1.1 computes local_endpoint while owning its listener but its RunControl.ready and DaemonBuilder.with_control are private. Public DaemonFixture uses run without application cleanup, detached control disables signals, and start replaces the instance root. No supported public mechanism reports the bound ephemeral endpoint through run_with_cleanup with retained real-signal cleanup ownership. Preserve existing lifecycle assertions; require approved upstream bound-endpoint/serving notification, then deterministic competing-bind negative. See docs/plans/phase-c/evidence/c-2-cross-sprint-qa4.md." .
+
+<urn:beads-cache:finding:C4-FTQ-001> triage:latestReview "C2QA4 at3282502831d33350622f56a9ddc8f5d24a4efc8a, PR109comment6608719324: remains open; no waiver." .
