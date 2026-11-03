@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "phase": "c",
-  "status": "blocked_external_dependencies",
+  "status": "runtime_blocked_consumer_cleanup_under_review",
   "integration_branch": "integrate/phase-c",
   "integration_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
   "integration_base_commit": "350a7fc300da50e11281071b62ed377a926d956e",
@@ -3592,7 +3592,7 @@
       "branch": "sprint/c-4-release-qualification",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
       "pr_target": "integrate/phase-c",
-      "status": "qa2_fail_preflight_auth_fix_in_progress",
+      "status": "consumer_preflight_simplification_under_review",
       "must_follow": [
         "c-2"
       ],
@@ -4229,7 +4229,7 @@
         "pr": 141,
         "url": "https://github.com/randlee/sc-publish/pull/141",
         "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
-        "status": "component_QA_and_CI_pass_awaiting_upstream_merge_decision",
+        "status": "parked_by_owner_direction",
         "machine_status": {
           "sprint": "c-4-upstream-preflight-auth",
           "task": "qa-upstream-preflight-auth-1",
@@ -4393,7 +4393,7 @@
         "reviewer_tasks_completed": "All8actualparenttaskcompletionnotifications matched saved manifest; no substituted reviewers.",
         "consumer_preview_task": "/root/c4_auth_adoption_preview",
         "consumer_adoption": "Scratch-onlypreview inprogress, actualpinunchanged.",
-        "approval_request": "Pending explicit user approval to merge separately maintained sc-publish PR141 into main; no release/tag/registry publication requested.",
+        "approval_request": "Withdrawn; owner does not want this upstream change pursued as the Phase C path.",
         "consumer_preview": {
           "status": "scratch_only_ready",
           "base": "f801a97549616064886b57a8f95b48e3d6decd42",
@@ -4403,8 +4403,13 @@
           "patch_sha256": "472c841103ebfedab6b2c4171a7533fb6eb570dba67f166ce083e0be652a4f45",
           "verification": "Official84copies3renderszerodrift;130scripts129pass1existingoptinskip;346kitpass13skip4nativecasesexcluded52subtests;portableexact-basepatchreplayandall6hashesmatch. ActualC4/upstream/cacheunchanged."
         },
-        "next_action": "Await user upstream-main merge approval; then merge exact QA/CI-approved PR141, adopt its official immutable kit through prepared consumer change, independently re-QA affected C4 scope. No approval inferred."
-      }
+        "next_action": "Review beads-cache-only simplification using existing CI and sc-publish contracts; preserve actual required evidence and quality gates.",
+        "owner_direction": [
+          "your entire project is sidetracked w/ this proposed change to sc-publish that I am not excited to approve.",
+          "I am tired of agents proposing changes that break other teams workflows.  sc-publish is way too complicated already"
+        ]
+      },
+      "consumer_simplification_task": "/root/c4_consumer_simplification"
     }
   },
   "qa_rounds": [
@@ -6475,7 +6480,7 @@
   },
   "remaining_external_dependencies": {
     "runtime_publication": "Producer owner confirms APIs still planned/not implemented; sc-runtime/sc-cronregistry0.1.1only. UpstreamplanningPR114awaits owner decisions; no consumer workaround or release invented.",
-    "upstream_kit_merge": "PR141b697componentQA8roleszeroallsev+CIgreen; userapprovalpending. Consumerpreviewcomplete, actualpin5fdunchanged."
+    "upstream_kit_merge": "Parked, not a requested owner decision or prerequisite to further C1/C2 work. C4 preflight finding remains tracked while consumer-only simplification is assessed."
   },
   "external_dependency_audit": {
     "consecutive_goal_turns": 3,
@@ -6491,6 +6496,7 @@
       "sc-cron": "0.1.1"
     },
     "threshold_met": true,
-    "conclusion": "External impasse after3consecutivegoalturns: pendingrequestedupstreammergeapprovalandmissingimplemented/publishedruntimeAPIs; no live local work or safe remaining implementation. FullPhaseCobjective preserved."
+    "conclusion": "External impasse after3consecutivegoalturns: pendingrequestedupstreammergeapprovalandmissingimplemented/publishedruntimeAPIs; no live local work or safe remaining implementation. FullPhaseCobjective preserved.",
+    "superseded_by_owner_direction": "Do not pursue or wait on PR141 approval; assess consumer-only necessity and simplification. Runtime implementation/publication remains an external dependency."
   }
 }
