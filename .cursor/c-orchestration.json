@@ -4223,7 +4223,178 @@
       "preflight_assessment": "/tmp/phase-c-preflight-assessment.md",
       "upstream_preflight_worktree": "/private/tmp/c4-sc-publish-worktrees/codex/beads-cache-preflight-auth",
       "upstream_preflight_developer_task": "/root/upstream_preflight_dev",
-      "post_qa2_consumer_metadata": "Component-only closure records and existing sprint checkpoint; source695 QA2 and actual Linux artifact provenance preserved, wholeC4stillFAIL11open."
+      "post_qa2_consumer_metadata": "Component-only closure records and existing sprint checkpoint; source695 QA2 and actual Linux artifact provenance preserved, wholeC4stillFAIL11open.",
+      "upstream_preflight_fix": {
+        "repository": "randlee/sc-publish",
+        "pr": 141,
+        "url": "https://github.com/randlee/sc-publish/pull/141",
+        "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+        "status": "component_QA_and_CI_pass_awaiting_upstream_merge_decision",
+        "machine_status": {
+          "sprint": "c-4-upstream-preflight-auth",
+          "task": "qa-upstream-preflight-auth-1",
+          "branch": "codex/beads-cache-preflight-auth",
+          "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+          "pr": 141,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          },
+          "blocking_ids": [],
+          "merge_readiness": "ready",
+          "merge_reason": "PR141 component QA gates only: spawn gate pass, 3/3 deliverables, all reviewers PASS or contract SKIPPED, zero findings and exact-head CI SUCCESS. Parent retains the merge decision.",
+          "next_action": "none",
+          "owner": "none",
+          "recommendation": "PR141 component is eligible for parent merge consideration. Whole C4/Phase C acceptance remains unestablished; C4-REQ-002 remains OPEN.",
+          "reviewer_spawn_gate": "pass",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/up_auth_req1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/up_auth_arch1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/up_auth_rustqa1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "ruthless-boundary-qa",
+              "task_id": "/root/up_auth_boundary1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "extensibility-qa",
+              "task_id": "/root/up_auth_ext1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/up_auth_flaky1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/up_auth_rbp1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "SKIPPED",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-service-hardening-agent",
+              "task_id": "/root/up_auth_service1",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "SKIPPED",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            }
+          ],
+          "evidence_chain": {
+            "qa_pass": "qa-1",
+            "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+            "pr_comment_url": "https://github.com/randlee/sc-publish/pull/141#issuecomment-6613262570",
+            "coordinator_task_id": "/root/up_auth_quality_manager1",
+            "scope": "sc-publish PR141 upstream authentication component only",
+            "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+            "deliverables": {
+              "complete": 3,
+              "total": 3,
+              "percent": 100
+            },
+            "missing_reviewers": [],
+            "unparsed_reviewers": [],
+            "todo_scan": {
+              "rust_rows": 0,
+              "changed_yaml_python_matches": 0,
+              "log": "/tmp/phase-c-upstream-preflight-qa/qa-1/manager-todo-scan.log"
+            },
+            "ci": {
+              "status": "SUCCESS",
+              "name": "unit",
+              "head_sha": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+              "url": "https://github.com/randlee/sc-publish/actions/runs/41700339759/job/126141640179",
+              "observed_at": "2026-11-03T19:19:04.316186+00:00"
+            },
+            "triage": {
+              "ttl_paths": [
+                "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification/.triage/c/findings/C4-REQ-002.ttl"
+              ],
+              "dispositions": {
+                "C4-REQ-002": "OPEN: upstream authentication prerequisite addressed by this component; consumer adoption, qualification and complete preflight still required."
+              }
+            },
+            "whole_C4": {
+              "verdict": "FAIL",
+              "deliverables_complete": 16,
+              "deliverables_total": 22,
+              "open_findings": 11
+            },
+            "phase_C_acceptance": "not established"
+          }
+        },
+        "reviewer_tasks_completed": "All8actualparenttaskcompletionnotifications matched saved manifest; no substituted reviewers.",
+        "consumer_preview_task": "/root/c4_auth_adoption_preview",
+        "consumer_adoption": "Scratch-onlypreview inprogress, actualpinunchanged.",
+        "approval_request": "Pending explicit user approval to merge separately maintained sc-publish PR141 into main; no release/tag/registry publication requested."
+      }
     }
   },
   "qa_rounds": [
@@ -5889,6 +6060,274 @@
         },
         "parent_merge_gate": "C2 PR109 still open; C2 QA4 FAIL with9 gates (7B+2I); C3 qualified merge91467d1 consumed. Public runtime API corrections remain unimplemented/unpublished per owner handoff."
       }
+    },
+    {
+      "sprint": "c-4-upstream-preflight-auth",
+      "qa_pass": "qa-1",
+      "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+      "verdict": "PASS",
+      "repository": "randlee/sc-publish",
+      "pr_comment_url": "https://github.com/randlee/sc-publish/pull/141#issuecomment-6613262570",
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/up_auth_req1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/up_auth_arch1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/up_auth_rustqa1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/up_auth_boundary1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "extensibility-qa",
+          "task_id": "/root/up_auth_ext1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/up_auth_flaky1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/up_auth_rbp1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "SKIPPED",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-service-hardening-agent",
+          "task_id": "/root/up_auth_service1",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "SKIPPED",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        }
+      ],
+      "coordinator_task_id": "/root/up_auth_quality_manager1",
+      "machine_status": {
+        "sprint": "c-4-upstream-preflight-auth",
+        "task": "qa-upstream-preflight-auth-1",
+        "branch": "codex/beads-cache-preflight-auth",
+        "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+        "pr": 141,
+        "verdict": "PASS",
+        "findings": {
+          "blocking": 0,
+          "important": 0,
+          "minor": 0
+        },
+        "blocking_ids": [],
+        "merge_readiness": "ready",
+        "merge_reason": "PR141 component QA gates only: spawn gate pass, 3/3 deliverables, all reviewers PASS or contract SKIPPED, zero findings and exact-head CI SUCCESS. Parent retains the merge decision.",
+        "next_action": "none",
+        "owner": "none",
+        "recommendation": "PR141 component is eligible for parent merge consideration. Whole C4/Phase C acceptance remains unestablished; C4-REQ-002 remains OPEN.",
+        "reviewer_spawn_gate": "pass",
+        "reviewer_manifest": [
+          {
+            "agent": "req-qa",
+            "task_id": "/root/up_auth_req1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "arch-qa",
+            "task_id": "/root/up_auth_arch1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "rust-qa-agent",
+            "task_id": "/root/up_auth_rustqa1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "ruthless-boundary-qa",
+            "task_id": "/root/up_auth_boundary1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "extensibility-qa",
+            "task_id": "/root/up_auth_ext1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "flaky-test-qa",
+            "task_id": "/root/up_auth_flaky1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "PASS",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "rust-best-practices-agent",
+            "task_id": "/root/up_auth_rbp1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "SKIPPED",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "rust-service-hardening-agent",
+            "task_id": "/root/up_auth_service1",
+            "spawn_actor": "parent-orchestrator",
+            "fenced_json_received": true,
+            "verdict": "SKIPPED",
+            "findings": {
+              "blocking": 0,
+              "important": 0,
+              "minor": 0
+            }
+          }
+        ],
+        "evidence_chain": {
+          "qa_pass": "qa-1",
+          "commit": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+          "pr_comment_url": "https://github.com/randlee/sc-publish/pull/141#issuecomment-6613262570",
+          "coordinator_task_id": "/root/up_auth_quality_manager1",
+          "scope": "sc-publish PR141 upstream authentication component only",
+          "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+          "deliverables": {
+            "complete": 3,
+            "total": 3,
+            "percent": 100
+          },
+          "missing_reviewers": [],
+          "unparsed_reviewers": [],
+          "todo_scan": {
+            "rust_rows": 0,
+            "changed_yaml_python_matches": 0,
+            "log": "/tmp/phase-c-upstream-preflight-qa/qa-1/manager-todo-scan.log"
+          },
+          "ci": {
+            "status": "SUCCESS",
+            "name": "unit",
+            "head_sha": "b6976a74a1c6056b5cd221fd7a8ed200d722e54f",
+            "url": "https://github.com/randlee/sc-publish/actions/runs/41700339759/job/126141640179",
+            "observed_at": "2026-11-03T19:19:04.316186+00:00"
+          },
+          "triage": {
+            "ttl_paths": [
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification/.triage/c/findings/C4-REQ-002.ttl"
+            ],
+            "dispositions": {
+              "C4-REQ-002": "OPEN: upstream authentication prerequisite addressed by this component; consumer adoption, qualification and complete preflight still required."
+            }
+          },
+          "whole_C4": {
+            "verdict": "FAIL",
+            "deliverables_complete": 16,
+            "deliverables_total": 22,
+            "open_findings": 11
+          },
+          "phase_C_acceptance": "not established"
+        }
+      },
+      "scope": "Upstreamcomponentonly; owningC4remainsFAIL11open."
     }
   ],
   "integration_pr": {
