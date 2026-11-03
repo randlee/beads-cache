@@ -15,7 +15,7 @@ import tempfile
 import time
 import unittest
 import zipfile
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_release_candidate as rc
@@ -108,6 +108,45 @@ class CandidateTests(unittest.TestCase):
         with patch.object(rc, 'manifest'), patch.object(rc, 'commit', return_value=self.sha), patch.object(rc, 'api', return_value={'workflow_runs': []}):
             with self.assertRaisesRegex(rc.QualificationError, 'no successful installed-candidate'):
                 rc.preflight(None)
+
+    def test_exact_installed_versions_reject_prefix_matches(self):
+        self.assertEqual(rc.binary_version('bd-cache-daemon', 'bd-cache-daemon 0.2.01\n'), '0.2.01')
+        self.assertNotEqual(rc.binary_version('bdc', json.dumps({'ok': True, 'data': {'version': '0.2.01'}})), '0.2.0')
+        with self.assertRaises(rc.QualificationError):
+            rc.binary_version('bd-cache-daemon', 'other-daemon 0.2.0')
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX group termination state; Windows uses its Job')
+    def test_timeout_requests_group_termination_once(self):
+        child = MagicMock()
+        child.communicate.side_effect = [subprocess.TimeoutExpired(['fixture'], 1), ('', '')]
+        child.poll.return_value = -9
+        child.returncode = -9
+        with patch.object(rc.subprocess, 'Popen', return_value=child), patch.object(rc.os, 'killpg', side_effect=[None, PermissionError('second signal forbidden')]) as kill:
+            with self.assertRaisesRegex(rc.QualificationError, 'timed out'):
+                rc.run(['fixture'])
+        self.assertEqual(kill.call_count, 1)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX permission failure; Windows uses its Job')
+    def test_initial_group_permission_failure_is_reported_without_retry(self):
+        child = MagicMock()
+        child.communicate.side_effect = subprocess.TimeoutExpired(['fixture'], 1)
+        child.poll.return_value = -9
+        with patch.object(rc.subprocess, 'Popen', return_value=child), patch.object(rc.os, 'killpg', side_effect=PermissionError('denied')) as kill:
+            with self.assertRaisesRegex(rc.QualificationError, 'could not terminate owned'):
+                rc.run(['fixture'])
+        self.assertEqual(kill.call_count, 1)
+
+    @unittest.skipIf(os.name == 'nt', 'POSIX permission failure; Windows uses its Job')
+    def test_final_cleanup_permission_failure_still_closes_pipes(self):
+        child = MagicMock()
+        child.communicate.return_value = ('ok', '')
+        child.returncode = 0
+        child.poll.return_value = 0
+        with patch.object(rc.subprocess, 'Popen', return_value=child), patch.object(rc.os, 'killpg', side_effect=PermissionError('denied')):
+            with self.assertRaisesRegex(rc.QualificationError, 'could not terminate owned'):
+                rc.run(['fixture'])
+        child.stdout.close.assert_called_once()
+        child.stderr.close.assert_called_once()
 
     def test_acceptance_python_decodes_utf8_native_diagnostics(self):
         # Match a native child writing UTF-8 bytes, rather than Python's

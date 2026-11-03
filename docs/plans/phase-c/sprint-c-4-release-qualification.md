@@ -207,3 +207,34 @@ informational; this is not proof of configured secret validity or publication.
 The paste advisory is a separate unsuppressed ordinary CI gate, not one of this
 Release Preflight run's three final failures. No tag, release or channel write
 was performed to alter any outcome.
+
+## QA1 current-source preparation
+
+The resumed development round consumes the reviewed, committed C2 parent
+`63cb429eb1a65ab25a17923fded8de5ecf390a5a`, including native/application corrections
+and C2's own byte-capture/strict UTF-8 decoding. Parent work that was still
+uncommitted is excluded. The C4 canonical kit, release inputs and binary/wheel
+matrix remain unchanged. C4's own command helper now makes one termination
+request per process tree, preserves an initial termination-permission failure,
+and closes pipes even if final cleanup fails. Its independent fixtures cover
+single-request timeout cleanup and both initial/final permission failures.
+Installed version probes parse exact product versions instead of accepting a
+version prefix. These corrections affect only C4's owned helper/tests; they do
+not close C3-owned CI-C4-001 or alter the shared template helper.
+
+A fresh current-source archive/wheel build and isolated installed smoke are
+required after the final source commit. The parent receives a new scratch-only
+qualification input manifest whose executable files come from the validated
+archive, whose wheel hash matches that candidate receipt, and whose external
+modules and approved bounded driver are hash-verified immutable inputs. No
+private consumer identifiers or code are added to this repository. The parent
+alone performs the authorized testbed transport and returns its actual result;
+source6232180's historical PASS is not relabeled as a current-source PASS.
+
+Actual Windows CTRL_BREAK acceptance, the published logging/graph seam, bounded
+store shutdown, runtime instance-lock qualification, the unsuppressed paste
+advisory, inherited C3 cleanup CI, current-head platform/Python evidence, full
+Release Preflight, parent merges and independent zero-finding QA remain required.
+No timer increase, skip, guard suppression, native baseline change or hosted
+publication is introduced to bypass them. This record remains in_progress until
+those completion conditions have actual evidence.

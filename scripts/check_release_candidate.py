@@ -47,9 +47,15 @@ def run(command, *, cwd=None, timeout=120, env=None):
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
                              encoding='utf-8', errors='replace', start_new_session=os.name != 'nt')
     job_close = None
+    stop_attempted = False
 
     def stop_tree():
-        nonlocal job_close
+        nonlocal job_close, stop_attempted
+        if stop_attempted:
+            return
+        # A single owned termination request: finally must not signal a reaped
+        # process group again, nor retry an initial permission failure.
+        stop_attempted = True
         if os.name == 'nt':
             if job_close is not None:
                 job_close(); job_close = None
@@ -60,6 +66,8 @@ def run(command, *, cwd=None, timeout=120, env=None):
                 os.killpg(child.pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
+            except OSError as error:
+                raise QualificationError('could not terminate owned candidate process tree; inspect process permissions before retrying') from error
 
     try:
         if os.name == 'nt':
@@ -77,12 +85,16 @@ def run(command, *, cwd=None, timeout=120, env=None):
         require(child.returncode == 0, 'command failed (%s): %s\n%s' % (child.returncode, command, stderr[-4000:]))
         return stdout
     finally:
-        stop_tree()
-        if child.poll() is None:
-            child.kill(); child.wait(timeout=15)
-        for stream in (child.stdin, child.stdout, child.stderr):
-            if stream is not None:
-                stream.close()
+        try:
+            stop_tree()
+        finally:
+            try:
+                if child.poll() is None:
+                    child.kill(); child.wait(timeout=15)
+            finally:
+                for stream in (child.stdin, child.stdout, child.stderr):
+                    if stream is not None:
+                        stream.close()
 
 
 def isolated_python(*arguments):
@@ -191,6 +203,17 @@ def validate(directory, expected_commit, expected_version, target):
     return receipt, contents
 
 
+def binary_version(binary, output):
+    """Read the exact product version from each executable's public output."""
+    if binary == 'bd-cache-daemon':
+        fields = output.strip().split()
+        require(len(fields) == 2 and fields[0] == binary, 'invalid installed daemon version response')
+        return fields[1]
+    envelope = json.loads(output)
+    require(envelope.get('ok') is True, 'installed CLI version response failed')
+    return envelope['data']['version']
+
+
 def smoke(args):
     receipt, contents = validate(args.directory, args.commit, args.version, args.target)
     with tempfile.TemporaryDirectory(prefix='installed-candidate-') as temp:
@@ -203,7 +226,7 @@ def smoke(args):
         suffix = '.exe' if 'windows' in args.target else ''
         for binary in BINARIES:
             output = run([installed / 'bin' / (binary + suffix), '--version'], cwd=installed)
-            require(args.version in output, 'installed binary version mismatch: ' + binary)
+            require(binary_version(binary, output) == args.version, 'installed binary version mismatch: ' + binary)
         # The original executable and alias both provide installed cache access.
         repo = installed / 'cli-repo'
         (repo / '.beads').mkdir(parents=True)
