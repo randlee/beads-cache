@@ -403,3 +403,64 @@ exact-candidate scratch qualification is required after the remaining approved
 corrections/baseline decisions. No new remote action is performed in this round.
 Final source validation and exact push SHA follow separately; overall disposition
 remains FAIL/blocked, not merge readiness or a waived acceptance criterion.
+
+
+### QA1 correction validation receipt
+
+Final correction source: `3a6bef362ab4eaa9b76a2d7534b6ad122704ecea`.
+Native Rust/manifests/lock content is unchanged from `070ab583af093475941405c3b67c164f1a07d414`;
+`c8fa58a` adds test-supervisor Windows kill-on-close ownership and `3a6bef3`
+preserves the CLI's approved direct contract while retaining actual sync-edge
+rejection. Merge `56ccd25` consumes root lifecycle metadata `aa192fa` by taking
+that exact project-plan blob; only C2/C3/C4 row conflicts were reconciled.
+This validation receipt changes documentation only.
+
+- PASS: formatting, all-target workspace Clippy, all-feature non-Python Clippy,
+  default library Clippy and warnings-denied docs. Logs:
+  `/tmp/c2-qa1-fix-final-clippy.log`, `c2-qa1-fix-clippy-all.log`,
+  `c2-qa1-fix-clippy-default.log`, `c2-qa1-fix-docs.log` (all under `/tmp`).
+- PASS: all-feature non-Python workspace tests/doctests: 1153 passed, 0 failed,
+  21 intentionally ignored across 114 top-level result groups (nested watchdog
+  child summaries are not counted twice). `/tmp/c2-qa1-fix-workspace.log`.
+  This includes C1 96ce326 and all new service/logger/real HTTP fixture cases;
+  the owned HTTP case observes the public runtime's actual
+  503/RUNTIME.REQUEST_TIMEOUT response, not an invented 504 contract.
+- PASS: final pushed script suite 102 run, 101 passed, 1 existing explicitly
+  opt-in pinned-generation smoke skip. No new platform skip was added.
+  `/tmp/c2-qa1-fix-scripts-final.log`. Focused graph/encoding/owned-tree proofs:
+  `/tmp/c2-qa1-fix-graph-followup.log`; canonical four graph proofs:
+  `/tmp/c2-qa1-fix-graph-unit.log`.
+- PASS: freshly rebuilt debug CLI, fake binaries and daemon process acceptance:
+  scheduled sync, cached v3 identity/state, outage recovery, typed startup errors,
+  duplicate/bind cleanup, blocked hook child/grandchild reap and restart.
+  Stop samples 0.002901/0.001937/1.005516 seconds at the existing configurations.
+  `/tmp/c2-qa1-fix-build-cli.log`, `c2-qa1-fix-build-daemon.log`,
+  `c2-qa1-fix-process.log` under `/tmp`. No test invokes live bd or Dolt.
+- PASS: retained release CLI latency gate: median 5.4 ms (50 ms bound), p95
+  6.5 ms; pending overlay reported median 6.0 ms/p95 7.0 ms.
+  `/tmp/c2-qa1-fix-latency.log`. Incremental 1000-bead sync evidence remains
+  the explicitly consumed C1 production-composition measurement above.
+- PASS: independent API graph; strict consumer neutrality; no backend client.
+  The no-backend PATH check passes under the controlled cargo/system-only PATH;
+  the normal developer PATH contains installed tools and is not claimed isolated.
+  `/tmp/c2-qa1-fix-graph-api.log`, `c2-qa1-fix-neutrality.log`,
+  `c2-qa1-fix-backend-graph.log`, `c2-qa1-fix-backend-path.log` under `/tmp`.
+- EXPECTED REAL FAIL, not waived: independent Python and CLI graphs both reject
+  `bd-cache-sync -> sc-command`; the CLI's own approved edge is not rejected.
+  `/tmp/c2-qa1-fix-graph-python.log`, `c2-qa1-fix-graph-cli.log` under `/tmp`.
+- REAL FAIL, unsuppressed: RUSTSEC-2024-0436 for paste1.0.15 through
+  utoipa-axum0.2.0 / sc-runtime0.1.1. `/tmp/c2-qa1-fix-advisories.log`.
+  No additional workaround investigation or baseline change occurred.
+
+Local execution is macOS arm64/Python3.11. Windows Job Object teardown and the
+fixed strict-decoding regression still require hosted Windows confirmation;
+production CTRL_BREAK acceptance remains blocked upstream and unchanged.
+The existing native Python corpus receipt is C1's changed-source qualification,
+not a newly built C2 release wheel or replacement for the new-head OS/Python CI.
+No full unchanged suite was repeated for the metadata-only merge.
+
+Overall remains FAIL/blocked: upstream logging and bounded store shutdown,
+Windows graceful stop, exact canceled-readiness/runtime-instance-lock proof,
+unsuppressed advisory, exact-head CI and required parent completion/merges.
+All 36 IDs remain available to the next independent QA pass; implementation
+corrections above request verification and do not close the bead or authorize merge.
