@@ -62,6 +62,6 @@ Naming follows the Plan Naming section of
 | Sprint | Deliverable | Branch | Status |
 |---|---|---|---|
 | [c-1](plans/phase-c/sprint-c-1-runtime-migration.md) | upstream scheduler and compatible SQLite in existing composition | `sprint/c-1-runtime-migration` | in progress; QA1 FAIL, independent fixes and upstream API blockers open |
-| [c-2](plans/phase-c/sprint-c-2-framework-application.md) | generated application, template upkeep and real consumer proof | `sprint/c-2-framework-application` | planned |
-| [c-3](plans/phase-c/sprint-c-3-template-upkeep.md) | pinned template baseline and regeneration/diff helper | `sprint/c-3-template-upkeep` | planned |
-| [c-4](plans/phase-c/sprint-c-4-release-qualification.md) | installed candidate artifacts and stable-release preflight | `sprint/c-4-release-qualification` | planned |
+| [c-2](plans/phase-c/sprint-c-2-framework-application.md) | generated application, template upkeep and real consumer proof | `sprint/c-2-framework-application` | in progress; QA1 fixes and upstream/CI gates open |
+| [c-3](plans/phase-c/sprint-c-3-template-upkeep.md) | pinned template baseline and regeneration/diff helper | `sprint/c-3-template-upkeep` | merged into `integrate/phase-c` at `22f9d6b` (PR #107), after QA2, applicable anchors and 15/15 CI green |
+| [c-4](plans/phase-c/sprint-c-4-release-qualification.md) | installed candidate artifacts and stable-release preflight | `sprint/c-4-release-qualification` | implementation delivered; release qualification blocked on Windows/runtime and parent gates |
