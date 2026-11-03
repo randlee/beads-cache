@@ -26,6 +26,8 @@ Generation runs the tagged renderer with a values file, `--name bd-cache`,
 `--init --silent --allow-commands --force --no-workspace`, then `cargo fmt --all`
 inside its owned scratch project and separate sc-compose renders for
 `AGENTS.md.j2` and `CLAUDE.md.j2`. The `.j2` inputs are removed after rendering.
+sc-compose runs from the surrounding scratch directory so its timestamped
+diagnostic logs stay outside the baseline; the diff never filters generated paths.
 The baseline check rejects dependency patches/replacements and path/Git-sourced
 framework dependencies; internal application crate paths remain valid.
 

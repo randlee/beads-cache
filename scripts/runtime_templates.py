@@ -195,7 +195,7 @@ def generate(pin_path: Path, answers_path: Path, destination: Path,
             template = rendered / f"{name}.j2"
             run([compose, "render", "--mode", "file", "--file", str(template),
                  "--root", str(rendered), "--var-file", str(variables),
-                 "--output", str(rendered / name), "--unknown-var-mode", "ignore"], rendered)
+                 "--output", str(rendered / name), "--unknown-var-mode", "ignore"], scratch)
             template.unlink()
         checked = check_baseline(rendered)
         # mkdir is exclusive: a destination created while rendering is also refused.

@@ -148,6 +148,12 @@ class GenerationTest(FixtureTest):
                 (rendered / f"{name}.j2").write_text("agent template")
             return ""
         if argv[1] == "render":
+            # Compose writes timestamped diagnostics under its cwd. Keep those
+            # outside the baseline instead of suppressing changes in diff.
+            self.assertNotEqual(cwd, Path(argv[argv.index("--root") + 1]))
+            log = cwd / ".sc-compose/logs/fixture.jsonl"
+            log.parent.mkdir(parents=True, exist_ok=True)
+            log.write_text("timestamped tool diagnostic")
             Path(argv[argv.index("--output") + 1]).write_text("rendered agent document")
         else:
             self.assertEqual(argv, ["cargo", "fmt", "--all"])
@@ -294,6 +300,11 @@ class RealPinnedSmoke(FixtureTest):
         self.assertTrue(result["agent_documents"])
         self.assertFalse((self.root / "pristine/crates/store-sqlite").exists())
         self.assertFalse((self.root / "pristine/crates/daemon/src/mcp.rs").exists())
+        self.assertFalse((self.root / "pristine/.sc-compose").exists())
+        rt.generate(rt.ROOT / "runtime/pin.toml", rt.ROOT / "runtime/answers.json",
+                    self.root / "repeat", Path(os.environ["RUNTIME_TEMPLATE_SMOKE_SOURCE"]))
+        self.assertEqual(rt.compare(self.root / "pristine", self.root / "repeat"),
+                         {"changes": [], "changed_paths": 0})
 
 
 if __name__ == "__main__":
