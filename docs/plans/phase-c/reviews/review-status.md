@@ -1,22 +1,19 @@
-# Phase C requested review sequence
+# Phase C review result
 
-This status records execution evidence for PR #105; it is not a product gate.
-It is consumed by the user and review coordinator to prevent skipped stages and
-false pass claims. It remains as PR evidence after review completes.
-
-| Stage | State | Evidence / limit |
+| Stage | Result | Evidence |
 |---|---|---|
-| Initial plan anchor gates | PASS with two approved aggregate exceptions | Four initial and four refinement runs; results/triage beside this file |
-| Independent anchor tuning | Frozen oracle retained; no override selected; narrow scoped exclusions resolved the cases | Frozen NFR-BDC-0005 oracle and candidates under anchors/tuning; no selected override |
-| Plan scope reviewer | PASS, round 2 | User cap: two rounds maximum, fixes after each round |
-| Critical plan reviewer | PASS, round 1 | User cap: two rounds maximum, fixes after each round |
-| Post-hardening anchor gates | PASS | Must run after scope/critical fixes |
-| Quality-manager review/fix loop | Not started | Parent must spawn required reviewers, then cursor-quality-mgr enforces evidence/CI |
+| Initial and post-hardening anchors | PASS | Per-sprint live Jev runs and independently validated result envelopes/attestations |
+| Anchors after QA1 fixes | PASS | anchors-post-qa1-c-1..4; statements, scopes and questions unchanged |
+| Scope reviewer | PASS, round2 of2 | scope-r1/r2; all five initial findings fixed |
+| Critical reviewer | PASS, round1 of2 | critical-r1; zero findings |
+| Quality manager | PASS, QA2 | All ten QA1 findings fixed and independently verified; zero open findings at every severity |
 
-Scope round 2 and critical round 1 passed with zero findings. Quality-manager QA has not yet run. The user approved Jev requests from the parent chat; those requests succeeded. Earlier rejected isolated-agent calls remain historical evidence and were never executed.
+QA source snapshot: `9320102b0199d8400d94ebb671484f702cb8c568`. [Published final machine status](https://github.com/randlee/beads-cache/pull/105#issuecomment-6591989797). Requirements QA reports **15/15 planning deliverables (100%)**. All required PR checks were green when the manager issued PASS. The closing commit adds review evidence only; the parent verifies its current PR checks separately.
 
-Raw coverage still lists structural ANC-001 (deterministic lint, which passes) and ADR-BDC-0009 (CLI vocabulary unchanged, all cells not applicable or excluded). Neither is relabelled as Jev-satisfied. Independent review confirmed this distinction. The user approved both exceptions to the aggregate coverage condition; no verdict was changed.
+The user approved two aggregate-anchor exceptions: ANC-001 is structural and its deterministic no-consumer lint passes; ADR-BDC-0009 has no applicable CLI/request vocabulary change. Item exclusions retain the unchanged locked scope; no semantic verdict was rewritten. Independent tuning froze an oracle, but no override was accepted or installed.
 
-A narrow CI repair pins the Python Rust/wheel/test Linux matrices together to
-Ubuntu 24.04 because Python 3.9 setup is unavailable on Ubuntu 26.04. Product code
-and dependencies are not changed by that repair.
+The Codex collaboration harness executed the named reviewer roles. No unavailable Sonnet, Grok or Cursor model execution is claimed. The anchor gate used the registered Luna role.
+
+The Python CI compatibility repair pins Linux Rust/wheel/test matrices together to Ubuntu24.04, preserving Python3.9 support. Product code and dependencies are unchanged.
+
+The plan remains proposed for implementation. Explicit owner approval of the proposed requirement/ADR amendments is required before dependent dispatch. sc-lint stays deferred until sc-runtime0.2.0. No implementation, merge or publication was performed.
