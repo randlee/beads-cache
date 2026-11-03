@@ -109,3 +109,14 @@ it supplies None and bounded25s/28s budgets and preserves native return dicts.
 Its use is pending review/authorization with the export. No consumer adaptation
 or actual live acceptance is claimed complete, and native0.1 signatures are
 preserved. The sprint must not close while these blockers remain.
+
+## Approved qualification preparation
+
+The owner explicitly approved transfer and scratch qualification, including the
+bounded external provider bridge, on the current chat. C3 fixture isolation fix
+`ef181f69944cad0356bb5f3ee4a04f7c92656730` was merged before this round;
+the97-script suite now passes (one separately exercised real-generation smoke
+skipped). Candidate native artifacts will be built from the exact pushed source
+head recorded in the transport manifest. Authorized transport is performed by
+the parent chat; the developer analyzes the returned raw execution logs. This
+approval does not waive the unsuppressed advisory or claim live proof yet.
