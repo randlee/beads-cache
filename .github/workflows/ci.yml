@@ -122,7 +122,9 @@ jobs:
       # ADR-BDC-0016: permit upstream contract/logging, reject clap/server
       # assembly in temporary standalone roots (workspace union is not leakage).
       - name: Crate boundaries, isolated transitive consumers
-        run: python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py
+        run: |
+          python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py
+          python3 -I scripts/consumer_checks.py --graph
 
       - name: Install script test dependencies
         run: python3 -m pip install "jsonschema>=4.18,<5"
@@ -196,6 +198,13 @@ jobs:
 
       - name: Test
         run: cargo test --locked --workspace $EXCLUDE --all-features
+
+      - name: Daemon process acceptance (FakeBd only)
+        run: |
+          cargo build --locked -p bd-cache-cli --features fake-bd --bins
+          cargo build --locked -p bd-cache-daemon
+          suffix=""; if [[ "${{ runner.os }}" == "Windows" ]]; then suffix=".exe"; fi
+          python -I scripts/consumer_checks.py --bdc "$PWD/target/debug/bdc$suffix" --daemon "$PWD/target/debug/bd-cache-daemon$suffix" --fake-bd "$PWD/target/debug/fake-bd$suffix" --fake-python "$PWD/target/debug/fake-python$suffix"
 
       # NFR-BDC-0002 (sprint b-3): a new-process `bdc issues get` cache hit is
       # under 50 ms, measured in a release build: the median of 50 is gated on

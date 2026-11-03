@@ -312,3 +312,11 @@ supplies the pinned template baseline/answers and regeneration helper. These pro
 filenames, justify both dependencies. c-4 consumes this sprint's built daemon and
 consumer procedure. Public operation HTTP parity, MCP, auto-start and create are
 outside the fence; the optional daemon does not change the local cache contract.
+
+## Development handoff
+
+Application implementation and local process qualification are recorded in
+[evidence/c-2-application.md](evidence/c-2-application.md). Actual scratch consumer
+execution is pending explicit export approval after an automatic-review refusal.
+The sprint remains in development; parent QA/CI merges and actual consumer proof
+remain completion prerequisites.

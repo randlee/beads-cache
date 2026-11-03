@@ -1,0 +1,36 @@
+[package]
+name = "bd-cache-daemon"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+publish = false
+
+[dependencies]
+bd-cache-service.workspace = true
+sc-runtime.workspace = true
+sc-config.workspace = true
+sc-transport.workspace = true
+sc-observability.workspace = true
+sc-observability-types.workspace = true
+axum.workspace = true
+utoipa.workspace = true
+utoipa-axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_path_to_error.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+sc-command = { workspace = true, features = ["server"] }
+clap = { workspace = true, features = ["derive"] }
+bd-cache-sync.workspace = true
+sc-beads.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+sc-runtime = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

@@ -57,6 +57,10 @@ jobs:
       - name: No bd or dolt on PATH (NFR-BDC-0005)
         run: python -I scripts/check_no_backend.py path
 
+      # Independently resolved roots exclude daemon/server feature union.
+      - name: Isolated Python/API dependency graph
+        run: python -I scripts/consumer_checks.py --graph --package bd-cache-py --package bd-cache-api
+
       - name: Clippy
         run: cargo clippy -p bd-cache-py --all-targets --all-features -- -D warnings
 
