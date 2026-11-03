@@ -566,7 +566,7 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "qa2_pass_ci_green_ready_to_merge",
+      "status": "merged",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
       "qa_rounds": [
@@ -982,7 +982,10 @@
           "task_id": "/root/c3_arch",
           "spawn_actor": "parent-orchestrator"
         }
-      ]
+      ],
+      "merge_commit": "22f9d6b9ddc67274d95a23c16a2a8345c0785bc0",
+      "merged_at": "2026-11-03T03:17:40Z",
+      "bead_status": "closed"
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -1011,7 +1014,16 @@
       "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
       "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
       "qualification_result": "3 candidate platforms passed; Windows packaging failed; abi3 matrix skipped",
-      "preflight_result": "Final deny summary failed; developer collecting exact reasons"
+      "preflight_result": {
+        "run": 41567884775,
+        "failed": [
+          "github-environments: crates-io environment missing",
+          "consumer-preflight: anonymous GitHub API403rate-limit",
+          "release-candidate-provenance: deliberately absent release-candidate-v0.2.0 tag"
+        ],
+        "credentials": "presence/liveness passed; no credentials exposed",
+        "advisory": "Separate cargo-deny gate, unsuppressed"
+      }
     }
   },
   "qa_rounds": [],
