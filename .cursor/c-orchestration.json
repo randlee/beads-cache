@@ -54,7 +54,7 @@
       "branch": "sprint/c-1-runtime-migration",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
       "pr_target": "integrate/phase-c",
-      "status": "qa1_failed_independent_fixes_in_progress_runtime_api_blockers_documented",
+      "status": "qa2_reviewers_in_progress",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
       "qa_rounds": [
@@ -518,12 +518,42 @@
       ],
       "developer_task": "/root/dev_c1",
       "pr_number": 108,
-      "head_commit": "4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56",
+      "head_commit": "73ced71cd7770d3dc447f7629792e669f555363f",
       "developer_validation": "PASS",
       "reviewer_manifest": [
         {
           "agent": "req-qa",
           "task_id": "/root/c1_req",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c1_arch",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/c1_boundary",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "rust-service-hardening-agent",
+          "task_id": "/root/c1_service",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/c1_practices",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/c1_flaky",
+          "spawn_actor": "parent-orchestrator"
+        },
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c1_rustqa",
           "spawn_actor": "parent-orchestrator"
         }
       ]
@@ -534,13 +564,529 @@
       "branch": "sprint/c-2-framework-application",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
       "pr_target": "integrate/phase-c",
-      "status": "implementation_and_live_consumer_qualification_pass_qa_pending",
+      "status": "qa1_failed_independent_fixes_in_progress",
       "must_follow": [
         "c-1",
         "c-3"
       ],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": [],
+      "qa_rounds": [
+        {
+          "qa_pass": "qa-1",
+          "commit": "bf7f8aad17f1081716b6d37adb44873f25293ee7",
+          "verdict": "FAIL",
+          "pr_comment_url": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6594892195",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c2_req",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 8,
+                "important": 1,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c2_arch",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 2,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c2_rustqa",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 2,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "ruthless-boundary-qa",
+              "task_id": "/root/c2_boundary",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 1,
+                "important": 1,
+                "minor": 3
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c2_practices",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 2
+              }
+            },
+            {
+              "agent": "rust-service-hardening-agent",
+              "task_id": "/root/c2_service",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 2,
+                "important": 2,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c2_flaky",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 13,
+                "minor": 0
+              }
+            }
+          ],
+          "triage_ttl_paths": [],
+          "finding_ids": [
+            "C2-REQ-001",
+            "C2-REQ-002",
+            "C2-REQ-003",
+            "C2-REQ-004",
+            "C2-REQ-005",
+            "C2-REQ-006",
+            "C2-REQ-007",
+            "C2-REQ-008",
+            "C2-REQ-009",
+            "ARCH-001",
+            "RSH-001",
+            "QA-C2-001",
+            "QA-C2-002",
+            "RBQA-F001",
+            "RBQA-F002",
+            "RBQA-F003",
+            "C2-RBQA-F001",
+            "C2-RBQA-F002",
+            "C2-RBP-F001",
+            "C1-RBP-F001",
+            "RSH-002",
+            "RSH-003",
+            "RSH-004",
+            "FTQ-001",
+            "FTQ-002",
+            "FTQ-003",
+            "FTQ-004",
+            "FTQ-005",
+            "FTQ-006",
+            "FTQ-007",
+            "FTQ-008",
+            "C2-FTQ-001",
+            "C2-FTQ-002",
+            "C2-FTQ-003",
+            "C2-FTQ-004",
+            "C2-FTQ-005"
+          ],
+          "coordinator_task_id": "/root/c2_quality_manager",
+          "machine_status": {
+            "sprint": "c-2",
+            "task": "qa-c-2-1",
+            "branch": "sprint/c-2-framework-application",
+            "commit": "bf7f8aad17f1081716b6d37adb44873f25293ee7",
+            "pr": 109,
+            "verdict": "FAIL",
+            "deliverables": {
+              "complete": 12,
+              "total": 21,
+              "percent": 57.14
+            },
+            "findings": {
+              "blocking": 12,
+              "important": 19,
+              "minor": 5
+            },
+            "blocking_ids": [
+              "C2-REQ-001",
+              "C2-REQ-002",
+              "C2-REQ-003",
+              "C2-REQ-004",
+              "C2-REQ-005",
+              "C2-REQ-006",
+              "C2-REQ-007",
+              "C2-REQ-008",
+              "C2-REQ-009",
+              "ARCH-001",
+              "RSH-001",
+              "QA-C2-001",
+              "QA-C2-002",
+              "RBQA-F001",
+              "RBQA-F002",
+              "RBQA-F003",
+              "C2-RBQA-F001",
+              "C2-RBQA-F002",
+              "C2-RBP-F001",
+              "C1-RBP-F001",
+              "RSH-002",
+              "RSH-003",
+              "RSH-004",
+              "FTQ-001",
+              "FTQ-002",
+              "FTQ-003",
+              "FTQ-004",
+              "FTQ-005",
+              "FTQ-006",
+              "FTQ-007",
+              "FTQ-008",
+              "C2-FTQ-001",
+              "C2-FTQ-002",
+              "C2-FTQ-003",
+              "C2-FTQ-004",
+              "C2-FTQ-005"
+            ],
+            "merge_readiness": "not ready",
+            "merge_reason": "36 open reviewer IDs (12 Blocking,19 Important,5 Minor); deliverables12/21; exact-head CI13/15SUCCESS with2FAILURE; parentC1notmerged. No gate waived.",
+            "next_action": "triage_and_fix",
+            "owner": "parent-orchestrator (routes all36IDs to dev_c2, correlating inheritedC1 fixes)",
+            "reviewer_spawn_gate": "pass",
+            "reviewer_manifest": [
+              {
+                "agent": "req-qa",
+                "task_id": "/root/c2_req",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "FAIL",
+                "findings": {
+                  "blocking": 8,
+                  "important": 1,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "arch-qa",
+                "task_id": "/root/c2_arch",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "FAIL",
+                "findings": {
+                  "blocking": 2,
+                  "important": 0,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "rust-qa-agent",
+                "task_id": "/root/c2_rustqa",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 0,
+                  "important": 2,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "ruthless-boundary-qa",
+                "task_id": "/root/c2_boundary",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 1,
+                  "important": 1,
+                  "minor": 3
+                }
+              },
+              {
+                "agent": "rust-best-practices-agent",
+                "task_id": "/root/c2_practices",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 0,
+                  "important": 0,
+                  "minor": 2
+                }
+              },
+              {
+                "agent": "rust-service-hardening-agent",
+                "task_id": "/root/c2_service",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 2,
+                  "important": 2,
+                  "minor": 0
+                }
+              },
+              {
+                "agent": "flaky-test-qa",
+                "task_id": "/root/c2_flaky",
+                "spawn_actor": "parent-orchestrator",
+                "fenced_json_received": true,
+                "verdict": "findings",
+                "findings": {
+                  "blocking": 0,
+                  "important": 13,
+                  "minor": 0
+                }
+              }
+            ],
+            "missing_reviewers": [],
+            "unparsed_reviewers": [],
+            "evidence_chain": {
+              "qa_pass": "qa-1",
+              "commit": "bf7f8aad17f1081716b6d37adb44873f25293ee7",
+              "pr_number": 109,
+              "pr_comment_url": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6594892195",
+              "coordinator_task_id": "/root/c2_quality_manager",
+              "reviewer_tasks": [
+                {
+                  "agent": "req-qa",
+                  "task_id": "/root/c2_req",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "FAIL",
+                  "findings": {
+                    "blocking": 8,
+                    "important": 1,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "arch-qa",
+                  "task_id": "/root/c2_arch",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "FAIL",
+                  "findings": {
+                    "blocking": 2,
+                    "important": 0,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "rust-qa-agent",
+                  "task_id": "/root/c2_rustqa",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 2,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "ruthless-boundary-qa",
+                  "task_id": "/root/c2_boundary",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 1,
+                    "important": 1,
+                    "minor": 3
+                  }
+                },
+                {
+                  "agent": "rust-best-practices-agent",
+                  "task_id": "/root/c2_practices",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 0,
+                    "minor": 2
+                  }
+                },
+                {
+                  "agent": "rust-service-hardening-agent",
+                  "task_id": "/root/c2_service",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 2,
+                    "important": 2,
+                    "minor": 0
+                  }
+                },
+                {
+                  "agent": "flaky-test-qa",
+                  "task_id": "/root/c2_flaky",
+                  "spawn_actor": "parent-orchestrator",
+                  "fenced_json_received": true,
+                  "verdict": "findings",
+                  "findings": {
+                    "blocking": 0,
+                    "important": 13,
+                    "minor": 0
+                  }
+                }
+              ],
+              "triage": {
+                "phase_id": "c",
+                "ttl_paths": []
+              },
+              "ceremony_screen": {
+                "path": "/tmp/phase-c-execution/c-2/qa-1/screen-result.md",
+                "keep": 7,
+                "not_applicable": 29,
+                "waivers": [],
+                "all_ids_retained": true
+              },
+              "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+              "todo_scan": {
+                "path": "/tmp/phase-c-execution/c-2/qa-1/todo-scan.txt",
+                "hits": 0
+              },
+              "ci": {
+                "verified_head": "bf7f8aad17f1081716b6d37adb44873f25293ee7",
+                "counts": {
+                  "SUCCESS": 13,
+                  "FAILURE": 2
+                },
+                "checks": [
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272665",
+                    "name": "pytest (macos-14, python 3.11)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272606",
+                    "name": "pytest (macos-14, python 3.9)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272614",
+                    "name": "pytest (macos-14, python 3.13)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272636",
+                    "name": "pytest (ubuntu-24.04, python 3.9)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125706015085",
+                    "name": "clippy and test (macos-14)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272646",
+                    "name": "pytest (ubuntu-24.04, python 3.13)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125708272667",
+                    "name": "pytest (ubuntu-24.04, python 3.11)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125706014977",
+                    "name": "wheel (macos-14)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756575/job/125706014379",
+                    "name": "clippy and test (macos-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125706015121",
+                    "name": "clippy and test (ubuntu-24.04)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756575/job/125706014288",
+                    "name": "clippy and test (windows-latest)",
+                    "state": "FAILURE"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125706014677",
+                    "name": "wheel (ubuntu-24.04)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756575/job/125706014094",
+                    "name": "fmt, doc, publish dry-run, boundaries",
+                    "state": "FAILURE"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756575/job/125706014553",
+                    "name": "clippy and test (ubuntu-latest)",
+                    "state": "SUCCESS"
+                  },
+                  {
+                    "link": "https://github.com/randlee/beads-cache/actions/runs/41571756824/job/125706015701",
+                    "name": "clippy and test (windows-latest)",
+                    "state": "SUCCESS"
+                  }
+                ]
+              },
+              "correlations": {
+                "shared_ids": {
+                  "RSH-001": [
+                    "arch-qa",
+                    "rust-service-hardening-agent"
+                  ]
+                },
+                "related_cause_ids": [
+                  [
+                    "ARCH-001",
+                    "RBQA-F001",
+                    "RBQA-F002",
+                    "C2-REQ-007"
+                  ],
+                  [
+                    "RSH-001",
+                    "C2-REQ-004"
+                  ],
+                  [
+                    "RSH-002",
+                    "C2-REQ-005"
+                  ],
+                  [
+                    "QA-C2-001",
+                    "C2-REQ-003"
+                  ],
+                  [
+                    "FTQ-001",
+                    "FTQ-002",
+                    "FTQ-003",
+                    "FTQ-004",
+                    "FTQ-005",
+                    "FTQ-006",
+                    "FTQ-007",
+                    "FTQ-008"
+                  ]
+                ],
+                "disposition": "Each unique ID retained; repeated observations of the same ID counted once at highest supplied severity. Related distinct IDs remain open."
+              },
+              "parent_correlation_required": true
+            }
+          },
+          "fix_assignment": "/tmp/phase-c-execution/c-2/qa-1/fix.xml"
+        }
+      ],
       "developer_task": "/root/dev_c2",
       "consumed_parent_commits": {
         "c-1": "750ed9bdb90738caaccf994c697d0686aeec6f86",
@@ -548,7 +1094,7 @@
       },
       "completion_waits_for_parent_merges": true,
       "pr_number": 109,
-      "head_commit": "b7c5a21cc1059f6c1c3bfcc446205144e68e3b3b",
+      "head_commit": "bf7f8aad17f1081716b6d37adb44873f25293ee7",
       "external_qualification": {
         "status": "PASS",
         "tested_source": "623218021d27ef247b389233650314896b69cbc1",
@@ -558,7 +1104,93 @@
         "raw_log_sha256": "df1541ad2a18c26e42fbf8dd7f318f1bc081007e0991f99ba90f1f059b0cf43a",
         "scratch_removed": true,
         "limits": "Disclosed external provider signature/default/exception bridge; no separate live healthy-scope hook success or grandchild test (FakeBd covers those)."
-      }
+      },
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c2_req",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 8,
+            "important": 1,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c2_arch",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 2,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c2_rustqa",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 2,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/c2_boundary",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 1,
+            "important": 1,
+            "minor": 3
+          }
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/c2_practices",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 2
+          }
+        },
+        {
+          "agent": "rust-service-hardening-agent",
+          "task_id": "/root/c2_service",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 2,
+            "important": 2,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/c2_flaky",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 13,
+            "minor": 0
+          }
+        }
+      ]
     },
     "c-3": {
       "bead": "bdc-n8v.3",
@@ -993,7 +1625,7 @@
       "branch": "sprint/c-4-release-qualification",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
       "pr_target": "integrate/phase-c",
-      "status": "windows_candidate_packaging_fix_in_progress",
+      "status": "qualification_blocked_on_windows_runtime_api_and_parent_fixes",
       "must_follow": [
         "c-2"
       ],
@@ -1013,7 +1645,7 @@
       "qualification_run": "https://github.com/randlee/beads-cache/actions/runs/41571204095",
       "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
       "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
-      "qualification_result": "3 candidate platforms passed; Windows packaging failed; abi3 matrix skipped",
+      "qualification_result": "Linux and both macOS candidates PASS; Windows CTRL_BREAK termination bypasses cleanup; Python matrix skipped",
       "preflight_result": {
         "run": 41567884775,
         "failed": [
@@ -1051,6 +1683,28 @@
         "the paste will be replaced when 0.2.0 sc-runtime drops",
         "don't spend too much effort working around this issue now"
       ]
+    },
+    {
+      "id": "runtime-logging-public-api",
+      "finding_ids": [
+        "ARCH-001",
+        "RBQA-F001"
+      ],
+      "state": "Published0.1.1 lacks canonical logging seam through approved sc-cron surface; no workaround or boundary waiver"
+    },
+    {
+      "id": "runtime-bounded-shutdown-api",
+      "finding_ids": [
+        "RSH-001"
+      ],
+      "state": "Published0.1.1 cannot guarantee bounded owned worker/store join; no workaround or false cancellation"
+    },
+    {
+      "id": "runtime-windows-graceful-signal",
+      "finding_ids": [
+        "QA-C2-001"
+      ],
+      "state": "Published0.1.1 handles Ctrl+C but not the acceptance CTRL_BREAK event; actual Windows candidate abnormal termination and retained SQLite file; assertions retained"
     }
   ]
 }
