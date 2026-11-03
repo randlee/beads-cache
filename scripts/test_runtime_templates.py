@@ -7,11 +7,15 @@ Opt in to the real pinned renderer with RUNTIME_TEMPLATE_SMOKE_SOURCE=<Git repo>
 from __future__ import annotations
 
 import json
+import io
 import os
+import queue
+import threading
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
@@ -111,7 +115,7 @@ class ComparisonTest(FixtureTest):
             rt.compare(before, after)
 
 
-class GenerationTest(FixtureTest):
+class GenerationFixture(FixtureTest):
     def setUp(self) -> None:
         super().setUp()
         self.source = self.tree("source", {"wizard/answers.schema.json": json.dumps({
@@ -163,6 +167,8 @@ class GenerationTest(FixtureTest):
         with patch.object(rt, "export_source", return_value=self.source), patch.object(rt, "run", side_effect=self.fake_run):
             return rt.generate(self.pin, self.answers, self.output)
 
+
+class GenerationTest(GenerationFixture):
     def test_scratch_generation_supplies_values_and_renders_docs_without_recipes(self) -> None:
         result = self.generate()
         self.assertEqual(result["files"], 3)
@@ -189,7 +195,8 @@ class GenerationTest(FixtureTest):
 
     def test_generator_and_document_failures_preserve_original_tree_and_diagnostics(self) -> None:
         original = self.tree("application", {"source.rs": "original", ".untracked": "keep"})
-        for failed_step in ("generate", "render"):
+        for failed_step, code in (("generate", "UPSTREAM_FAILED"), ("render", "UPSTREAM_FAILED"),
+                                  ("generate", "UPSTREAM_TIMEOUT")):
             before = rt.file_tree(self.root)
             real_fake = self.fake_run
 
@@ -197,23 +204,27 @@ class GenerationTest(FixtureTest):
                 if argv[1] == failed_step and argv[-1] != "--version":
                     # Model a generator that wrote partial scratch output before failure.
                     (cwd / "partial").write_text("incomplete")
-                    raise rt.TemplateError("upstream exited 42: planted upstream diagnostic")
+                    raise rt.TemplateError("upstream exited 42: planted upstream diagnostic", code=code,
+                                           cause={"exit_status": 42, "stdout": "partial output",
+                                                  "stderr": "planted upstream diagnostic"})
                 return real_fake(argv, cwd)
 
             with patch.object(rt, "export_source", return_value=self.source), patch.object(rt, "run", side_effect=failing):
-                with self.assertRaisesRegex(rt.TemplateError, "42: planted upstream diagnostic"):
+                with self.assertRaisesRegex(rt.TemplateError, "42: planted upstream diagnostic") as failure:
                     rt.generate(self.pin, self.answers, self.output)
+                self.assertEqual(failure.exception.code, f"TEMPLATE.{code}")
             self.assertEqual(rt.file_tree(self.root), before)
             self.assertEqual((original / "source.rs").read_text(), "original")
             self.assertFalse(self.output.exists())
 
     def test_upstream_process_failure_retains_stdout_stderr_and_status(self) -> None:
-        child = subprocess.CompletedProcess(["renderer"], 42, "upstream stdout\n", "upstream stderr\n")
-        with patch.object(rt.subprocess, "run", return_value=child):
-            with self.assertRaisesRegex(rt.TemplateError, "exited 42") as failure:
-                rt.run(["renderer"], self.root)
-        self.assertIn("upstream stdout", str(failure.exception))
-        self.assertIn("upstream stderr", str(failure.exception))
+        with self.assertRaisesRegex(rt.TemplateError, "exited 42") as failure:
+            rt.run([sys.executable, "-I", "-c",
+                    "import sys; print('upstream stdout'); print('upstream stderr',file=sys.stderr); sys.exit(42)"], self.root)
+        self.assertEqual(failure.exception.code, "TEMPLATE.UPSTREAM_FAILED")
+        self.assertEqual(failure.exception.cause["exit_status"], 42)
+        self.assertEqual(failure.exception.cause["stdout"], "upstream stdout\n")
+        self.assertEqual(failure.exception.cause["stderr"], "upstream stderr\n")
 
     def test_invalid_answers_fail_before_any_generator_or_tool_call(self) -> None:
         expected = json.loads(self.answers.read_text())
@@ -288,6 +299,171 @@ class GitSourceTest(FixtureTest):
         path.write_text((rt.ROOT / "runtime/pin.toml").read_text().replace(pin["commit"], pin["commit"][:8]))
         with self.assertRaisesRegex(rt.TemplateError, "full lowercase"):
             rt.load_pin(path)
+
+
+class ErrorContractTest(GenerationFixture):
+    """CLI envelopes use real fixture validation, not a substitute schema."""
+
+    def invoke(self, *args: str) -> tuple[int, dict]:
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(stderr):
+            status = rt.main(list(args))
+        self.assertEqual(stderr.getvalue(), "")
+        envelope = json.loads(stdout.getvalue())
+        self.assertEqual(set(envelope), {"ok", "data", "error"})
+        if status:
+            self.assertFalse(envelope["ok"])
+            self.assertIsNone(envelope["data"])
+            self.assertEqual(set(envelope["error"]), {"code", "message", "cause", "recovery"})
+            self.assertTrue(envelope["error"]["recovery"])
+            self.assertIsInstance(envelope["error"]["cause"], dict)
+        return status, envelope
+
+    def test_python_minimum_and_capability_are_actionable_before_tools_or_output(self) -> None:
+        for version in ((3, 10, 14), (3, 11, 0), (3, 11, 3)):
+            with self.subTest(version=version), patch.object(rt.sys, "version_info", version), patch.object(rt, "run") as run:
+                status, envelope = self.invoke("generate", "--output", str(self.output))
+                self.assertEqual(status, 1)
+                self.assertEqual(envelope["error"]["code"], "TEMPLATE.PYTHON_UNSUPPORTED")
+                self.assertEqual(envelope["error"]["cause"]["minimum"], [3, 11, 4])
+                run.assert_not_called()
+                self.assertFalse(self.output.exists())
+        with patch.object(rt.sys, "version_info", (3, 11, 4)):
+            rt.require_python()
+        with patch.object(rt.tarfile, "data_filter", None):
+            self.assertEqual(self.invoke("check", str(self.root))[1]["error"]["code"],
+                             "TEMPLATE.PYTHON_UNSUPPORTED")
+        with patch.object(rt.tarfile.TarFile, "extractall", lambda self, path: None):
+            with self.assertRaises(rt.TemplateError):
+                rt.require_python()
+
+    def test_success_usage_destination_mapping_and_missing_file_envelopes(self) -> None:
+        status, result = self.invoke("diff", str(self.source), str(self.source))
+        self.assertEqual(status, 0)
+        self.assertEqual(result, {"ok": True, "data": {"changed_paths": 0, "changes": []}, "error": None})
+        self.assertEqual(self.invoke("generate")[1]["error"]["code"], "TEMPLATE.USAGE_INVALID")
+        self.assertEqual(self.invoke("generate", "--output", str(self.source))[1]["error"]["code"],
+                         "TEMPLATE.DESTINATION_INVALID")
+        mapping = self.mapping([("missing", "app/missing")])
+        self.assertEqual(self.invoke("diff", str(self.source), str(self.source), "--mapping", str(mapping))[1]["error"]["code"],
+                         "TEMPLATE.MAPPING_INVALID")
+        self.assertEqual(self.invoke("generate", "--pin", str(self.root / "absent.toml"),
+                                     "--output", str(self.output))[1]["error"]["code"], "TEMPLATE.IO_ERROR")
+
+    def test_real_schema_failure_has_answers_code_and_recovery(self) -> None:
+        answers = json.loads(self.answers.read_text())
+        self.answers.write_text(json.dumps({**answers, "mcp": "false"}))
+        with patch.object(rt, "export_source", return_value=self.source), patch.object(rt, "run") as run:
+            status, result = self.invoke("generate", "--answers", str(self.answers), "--output", str(self.output))
+            run.assert_not_called()
+        self.assertEqual(status, 1)
+        self.assertEqual(result["error"]["code"], "TEMPLATE.ANSWERS_INVALID")
+        self.assertIn("wizard schema", result["error"]["message"])
+        self.assertIn("Correct", result["error"]["recovery"])
+
+    def test_missing_tool_and_upstream_failure_preserve_structured_cause(self) -> None:
+        with self.assertRaises(rt.TemplateError) as missing:
+            rt.run([str(self.root / "nonexistent-tool")], self.root)
+        self.assertEqual(missing.exception.code, "TEMPLATE.TOOL_MISSING")
+        failure = rt.TemplateError("tool exited 42", code="UPSTREAM_FAILED",
+                                   cause={"exit_status": 42, "stdout": "upstream stdout", "stderr": "upstream stderr"})
+        with patch.object(rt, "check_baseline", side_effect=failure):
+            status, result = self.invoke("check", str(self.root))
+        self.assertEqual(status, 1)
+        self.assertEqual(result["error"]["cause"], failure.cause)
+        self.assertEqual(result["error"]["code"], "TEMPLATE.UPSTREAM_FAILED")
+
+
+class ProcessDeadlineTest(FixtureTest):
+    def test_real_child_exceeds_deadline_and_is_reaped(self) -> None:
+        with self.assertRaises(rt.TemplateError) as failure:
+            rt.run([sys.executable, "-I", "-c", "import threading; threading.Event().wait()"],
+                   self.root, timeout=0.01)
+        self.assertEqual(failure.exception.code, "TEMPLATE.UPSTREAM_TIMEOUT")
+        self.assertIsInstance(failure.exception.cause["exit_status"], int)
+        self.assertEqual(failure.exception.cause["timeout_seconds"], 0.01)
+
+    def test_timeout_after_descendant_ready_terminates_tree_and_preserves_diagnostics(self) -> None:
+        self.descendant_timeout_proof(parent_exits=False)
+
+    def test_timeout_terminates_descendant_after_direct_child_exits(self) -> None:
+        self.descendant_timeout_proof(parent_exits=True)
+
+    def descendant_timeout_proof(self, *, parent_exits: bool) -> None:
+        lock = self.root / "descendant.lock"
+        lock.write_bytes(b"x")
+        before = rt.file_tree(self.root)
+        lock_code = ("import msvcrt; msvcrt.locking(handle.fileno(),msvcrt.LK_LOCK,1)" if os.name == "nt"
+                     else "import fcntl; fcntl.flock(handle,fcntl.LOCK_EX)")
+        descendant = ("import threading,sys; " + f"handle=open({str(lock)!r},'r+b'); " + lock_code + "; "
+                      "print('descendant diagnostic',file=sys.stderr,flush=True); "
+                      "print('descendant ready',flush=True); threading.Event().wait()")
+        parent = ("import subprocess,sys,threading; print('parent diagnostic',flush=True); "
+                  f"subprocess.Popen([sys.executable,'-I','-c',{descendant!r}]); "
+                  + ("sys.exit(0)" if parent_exits else "threading.Event().wait()"))
+        real_popen = rt.subprocess.Popen
+        processes, readers = [], []
+
+        def controlled_popen(*args, **kwargs):
+            process = real_popen(*args, **kwargs)
+            processes.append(process)
+            communicate = process.communicate
+            first = True
+            consumed = []
+
+            def controlled_communicate(*, input=None, timeout=None):
+                nonlocal first
+                if first:
+                    first = False
+                    if input is not None:
+                        process.stdin.write(input)
+                        process.stdin.flush()
+                    ready = queue.Queue()
+
+                    def read_ready():
+                        while True:
+                            line = process.stdout.readline()
+                            consumed.append(line)
+                            if not line or line == "descendant ready\n":
+                                ready.put(line)
+                                return
+
+                    reader = threading.Thread(target=read_ready, daemon=True)
+                    readers.append(reader)
+                    reader.start()
+                    self.assertEqual(ready.get(timeout=5), "descendant ready\n")
+                    reader.join(timeout=5)
+                    self.assertFalse(reader.is_alive())
+                    if parent_exits:
+                        self.assertEqual(process.wait(timeout=5), 0)
+                    self.assertEqual(timeout, 0.25)
+                    raise subprocess.TimeoutExpired(args[0], timeout)
+                stdout, stderr = communicate(timeout=timeout)
+                return "".join(consumed) + stdout, stderr
+
+            process.communicate = controlled_communicate
+            return process
+
+        with patch.object(rt.subprocess, "Popen", side_effect=controlled_popen):
+            with self.assertRaises(rt.TemplateError) as failure:
+                rt.run([sys.executable, "-I", "-c", parent], self.root, timeout=0.25)
+        self.assertEqual(failure.exception.code, "TEMPLATE.UPSTREAM_TIMEOUT")
+        self.assertIn("parent diagnostic", failure.exception.cause["stdout"])
+        self.assertIn("descendant diagnostic", failure.exception.cause["stderr"])
+        # The ready descendant holds this file lock forever and inherits the
+        # output pipes. Acquiring its lock and EOF from communicate prove it
+        # terminated; this covers inherited Windows Jobs as well as POSIX groups.
+        with lock.open("r+b") as handle:
+            if os.name == "nt":
+                import msvcrt
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                fcntl.flock(handle, fcntl.LOCK_UN)
+        self.assertIsNotNone(processes[0].returncode)
+        self.assertEqual(rt.file_tree(self.root), before)
 
 
 @unittest.skipUnless(os.environ.get("RUNTIME_TEMPLATE_SMOKE_SOURCE"), "explicit real pinned generation smoke")
