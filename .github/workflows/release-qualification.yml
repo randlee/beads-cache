@@ -48,29 +48,14 @@ jobs:
           python-version: '3.11'
       - run: rustup show active-toolchain || rustup toolchain install
       - uses: Swatinem/rust-cache@v2
-      - name: Build declared production binaries and separate acceptance helpers
-        run: |
-          cargo build --locked --release --target '${{ matrix.target }}' -p bd-cache-cli -p bd-cache-daemon --bins
-          cargo build --locked --release --target '${{ matrix.target }}' -p bd-cache-cli --features fake-bd --bin fake-bd --bin fake-python
-      - name: Build declared abi3 wheel from this same source
+      - name: Install the declared wheel builder
         if: matrix.wheel
-        env:
-          MACOSX_DEPLOYMENT_TARGET: '11.0'
-        run: |
-          python -m pip install 'maturin[zig]==1.9.4'
-          if [[ '${{ runner.os }}' == Linux ]]; then
-            python -m maturin build --locked --release --manifest-path crates/bd-cache-py/Cargo.toml --target '${{ matrix.target }}' --compatibility manylinux_2_28 --zig --out candidate-wheels
-          else
-            python -m maturin build --locked --release --manifest-path crates/bd-cache-py/Cargo.toml --target '${{ matrix.target }}' --out candidate-wheels
-          fi
-      - name: Package and install exact-source candidate
+        run: python -m pip install 'maturin[zig]==1.9.4'
+      - name: Build, package and install the exact committed source
         run: |
           suffix=''; if [[ '${{ runner.os }}' == Windows ]]; then suffix='.exe'; fi
-          bin_dir="$PWD/target/${{ matrix.target }}/release"
-          python -I scripts/check_release_candidate.py pack --target '${{ matrix.target }}' --bin-dir "$bin_dir" --wheel-dir candidate-wheels --output candidate
-          python -I scripts/check_release_candidate.py smoke --directory candidate --commit "$(git rev-parse HEAD)" --version 0.2.0 --target '${{ matrix.target }}' --fake-bd "$bin_dir/fake-bd$suffix" --fake-python "$bin_dir/fake-python$suffix" | tee qualification.json
-          mkdir helpers
-          cp "$bin_dir/fake-bd$suffix" "$bin_dir/fake-python$suffix" helpers/
+          python -I scripts/check_release_candidate.py pack --target '${{ matrix.target }}' --helpers helpers --output candidate
+          python -I scripts/check_release_candidate.py smoke --directory candidate --commit "$(git rev-parse HEAD)" --version 0.2.0 --target '${{ matrix.target }}' --fake-bd "$PWD/helpers/fake-bd$suffix" --fake-python "$PWD/helpers/fake-python$suffix" | tee qualification.json
       - uses: actions/upload-artifact@v6
         with:
           name: candidate-${{ matrix.target }}

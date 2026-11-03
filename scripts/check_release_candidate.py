@@ -108,9 +108,9 @@ def digest(path):
         return hashlib.file_digest(stream, 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else hashlib.sha256(stream.read()).hexdigest()
 
 
-def version():
+def version(root=None):
     # This scalar is available on Python3.9 without an undeclared TOML dependency.
-    text = (ROOT / 'Cargo.toml').read_text(encoding='utf-8')
+    text = ((root or ROOT) / 'Cargo.toml').read_text(encoding='utf-8')
     return re.search(r'(?m)^version\s*=\s*"([^"]+)"', text).group(1)
 
 
@@ -123,15 +123,69 @@ def archive_name(target, release_version):
 
 
 def pack(args):
+    """Own the producer: never label caller-supplied binaries or wheels."""
     require(args.target in TARGETS, 'unsupported target')
     require(not args.output.exists(), 'output exists; choose a fresh candidate directory')
+    require(args.helpers is None or not args.helpers.exists(), 'helper output exists; choose a fresh directory')
     require(not run(['git', 'status', '--porcelain', '--untracked-files=no'], cwd=ROOT).strip(), 'tracked source is dirty; commit before candidate packaging')
+    source_commit = commit()
+    with tempfile.TemporaryDirectory(prefix='candidate-build-') as temp:
+        build = Path(temp).resolve()
+        source = build / 'source'
+        source.mkdir()
+        # Archive the immutable object, not the mutable checkout (or its target
+        # cache). No unsigned input field can assert an artifact's source here.
+        archive = build / 'source.tar'
+        run(['git', 'archive', '--format=tar', '--output', archive, source_commit], cwd=ROOT)
+        with tarfile.open(archive) as src:
+            for member in src.getmembers():
+                relative = Path(member.name)
+                require(not relative.is_absolute() and '..' not in relative.parts
+                        and (member.isdir() or member.isfile()), 'unsafe committed source member')
+                destination = source / relative
+                if member.isdir():
+                    destination.mkdir(parents=True, exist_ok=True)
+                else:
+                    destination.parent.mkdir(parents=True, exist_ok=True)
+                    destination.write_bytes(src.extractfile(member).read())
+                    destination.chmod(member.mode & 0o777)
+        target_dir = build / 'target'
+        wheels = build / 'wheels'
+        environment = dict(os.environ, CARGO_TARGET_DIR=str(target_dir), CARGO_INCREMENTAL='0')
+        run(['cargo', 'build', '--locked', '--release', '--target', args.target,
+             '-p', 'bd-cache-cli', '-p', 'bd-cache-daemon', '--bins'], cwd=source, env=environment, timeout=3600)
+        if args.target in WHEEL_TARGETS:
+            wheel_command = [sys.executable, '-m', 'maturin', 'build', '--locked', '--release',
+                             '--manifest-path', 'crates/bd-cache-py/Cargo.toml', '--target', args.target,
+                             '--out', wheels]
+            if args.target == TARGETS[0]:
+                wheel_command += ['--compatibility', 'manylinux_2_28', '--zig']
+            else:
+                environment['MACOSX_DEPLOYMENT_TARGET'] = '11.0'
+            run(wheel_command, cwd=source, env=environment, timeout=3600)
+        bin_dir = target_dir / args.target / 'release'
+        # Helpers are built separately, without rebuilding production binaries
+        # with the fake backend feature. They never enter distribution assets.
+        if args.helpers is not None:
+            run(['cargo', 'build', '--locked', '--release', '--target', args.target,
+                 '-p', 'bd-cache-cli', '--features', 'fake-bd', '--bin', 'fake-bd', '--bin', 'fake-python'],
+                cwd=source, env=environment, timeout=3600)
+        _package(args, bin_dir, wheels, source_commit, version(source))
+        if args.helpers is not None:
+            args.helpers.mkdir(parents=True)
+            suffix = '.exe' if 'windows' in args.target else ''
+            for name in ('fake-bd', 'fake-python'):
+                shutil.copy2(bin_dir / (name + suffix), args.helpers / (name + suffix))
+
+
+def _package(args, bin_dir, wheel_dir, source_commit, source_version):
+    """Package only outputs owned by pack's fresh committed-source build."""
     args.output.mkdir(parents=True)
     suffix = '.exe' if 'windows' in args.target else ''
-    payload = {('bin/' + name + suffix): args.bin_dir / (name + suffix) for name in BINARIES}
+    payload = {('bin/' + name + suffix): bin_dir / (name + suffix) for name in BINARIES}
     for name, path in payload.items():
         require(path.is_file(), 'missing binary: ' + name)
-    receipt = {'schema_version': 1, 'commit': commit(), 'version': version(), 'target': args.target,
+    receipt = {'schema_version': 1, 'commit': source_commit, 'version': source_version, 'target': args.target,
                'binaries': {name: digest(path) for name, path in payload.items()}, 'assets': {}}
     with tempfile.TemporaryDirectory(prefix='candidate-package-') as temp:
         staging = Path(temp)
@@ -151,7 +205,7 @@ def pack(args):
                 for path in sorted(staging.rglob('*')):
                     if path.is_file():
                         out.add(path, arcname=path.relative_to(staging).as_posix(), recursive=False)
-    wheels = list(args.wheel_dir.glob('*.whl')) if args.wheel_dir else []
+    wheels = list(wheel_dir.glob('*.whl'))
     require(bool(wheels) == (args.target in WHEEL_TARGETS) and len(wheels) <= 1, 'wheel set differs from declared target matrix')
     for wheel in wheels:
         require('-cp39-abi3-' in wheel.name and receipt['version'].replace('-', '_') in wheel.name, 'wheel version/abi3-py39 tag mismatch')
@@ -307,8 +361,7 @@ def main(argv=None):
     commands = parser.add_subparsers(dest='command', required=True)
     p = commands.add_parser('pack')
     p.add_argument('--target', required=True)
-    p.add_argument('--bin-dir', type=Path, required=True)
-    p.add_argument('--wheel-dir', type=Path)
+    p.add_argument('--helpers', type=Path, help='fresh output directory for separate same-source acceptance helpers')
     p.add_argument('--output', type=Path, required=True)
     for action in ('check', 'smoke'):
         p = commands.add_parser(action)

@@ -13,7 +13,28 @@ x86_64. Each contains exactly `bin/bd-cache`, `bin/bdc`, `bin/bd-cache-daemon`
 also build a single CPython3.9 abi3 wheel from that checkout. The wheel is
 installed and exercised on Python3.9, 3.11 and 3.13; other wheels are not promised.
 Production binaries are built without test features. Fake backend/interpreter
-helpers are separate CI artifacts and never enter a distribution archive.
+helpers are built separately from the same source and never enter a distribution
+archive.
+
+`pack` owns the build as well as packaging. It resolves the clean checkout's full
+commit once, exports that immutable Git object into fresh scratch source, and
+builds with its committed Cargo.lock using `--locked`, the declared target and
+a fresh `CARGO_TARGET_DIR` (`CARGO_INCREMENTAL=0`). The wheel builder uses that
+same snapshot and a fresh wheel output directory. It accepts no prebuilt binary
+or wheel input directories, so same-version artifacts from another commit cannot
+be substituted from the checkout's target cache or a supplied wheel directory.
+Version and receipt commit come from that source snapshot; packaging does not
+stamp the current checkout onto arbitrary files. Install `maturin[zig]==1.9.4` first
+on wheel targets, then run from committed source:
+
+```sh
+python3 -I scripts/check_release_candidate.py pack \
+  --target aarch64-apple-darwin --output candidate --helpers helpers
+```
+
+Both outputs must be absent. The source/build scratch directories are removed
+after packaging or failure. Native compilation still runs only in the supported
+build environment; packaging fixtures do not establish an installed matrix pass.
 
 Each target's `candidate.json` records the full source commit, version, target,
 binary hashes and archive/wheel hashes. `checksums.txt` covers exactly the archive
@@ -21,9 +42,11 @@ and declared wheel. Release configuration, receipts and acceptance helpers are
 excluded from that checksum asset set. The archive embeds its provenance and
 binary hashes. Verification rejects omitted executables, mixed commit/version
 receipts, changed wheel/archive bytes, unsafe/extra archive members, missing or
-extra checksums and configuration accidentally staged as an asset. The trusted
-same-source CI job binds wheel hashes to the checkout; a wheel filename alone
-cannot establish its source commit.
+extra checksums and configuration accidentally staged as an asset. Admission
+trusts the existing qualification workflow and its owned source build, then
+checks the downloaded files against that workflow's receipt. A standalone
+checksum receipt is not a signature or proof of origin for arbitrary files.
+No additional source ledger or independent metadata assertion is introduced.
 
 After extracting into a new temporary installation, the workflow probes all
 three executable versions and runs the existing C2 daemon acceptance procedure
@@ -31,7 +54,9 @@ with the installed `bdc` and daemon: scheduling, cached CLI access, readiness,
 outage/recovery, stop/restart, schema/schedule preservation and bounded shutdown
 including a blocked descendant hook. On wheel targets, a new venv installs only
 the hashed wheel and runs the Python corpus with the extracted CLI. The isolated
-import probe confirms the package lives under that venv. The corpus exercises
+import probe confirms the package lives under that venv. ADR-PY-0006's mixed
+`bd_cache_rs._native` layout, `run`/`sync` modules and neutral installed 0.1 corpus
+remain binding. The corpus exercises
 cached Python access, Python replacement sync and hooks. These checks use FakeBd;
 they do not replace the separately authorized real-backend scratch procedure in
 [runtime.md](runtime.md). External consumer source stays outside this repository.

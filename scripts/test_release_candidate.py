@@ -15,10 +15,154 @@ import tempfile
 import time
 import unittest
 import zipfile
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import check_release_candidate as rc
+
+
+class ProducerTests(unittest.TestCase):
+    """Real git snapshots and source-dependent fixture outputs, without Rust."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.repo = self.root / 'repo'
+        self.repo.mkdir()
+        self.target = rc.TARGETS[0]
+        self.git('init', '-q')
+        self.git('config', 'user.name', 'Candidate Fixture')
+        self.git('config', 'user.email', 'candidate@example.invalid')
+        (self.repo / 'Cargo.toml').write_text('[workspace.package]\nversion = "0.2.0"\n')
+        (self.repo / 'Cargo.lock').write_text('fixture lock\n')
+        self.producer = self.root / 'producer.py'
+        self.producer.write_text(
+            "import os,sys,zipfile\n"
+            "from pathlib import Path\n"
+            "args=sys.argv[1:]\n"
+            "assert '--locked' in args\n"
+            "assert os.environ['CARGO_INCREMENTAL']=='0'\n"
+            "assert Path('Cargo.lock').read_text()=='fixture lock\\n'\n"
+            "data=Path('payload').read_bytes()\n"
+            "if '--out' in args:\n"
+            " out=Path(args[args.index('--out')+1]); out.mkdir()\n"
+            " with zipfile.ZipFile(out/'bd_cache_rs-0.2.0-cp39-abi3-manylinux_2_28_x86_64.whl','w') as wheel:\n"
+            "  wheel.writestr('bd_cache_rs-0.2.0.dist-info/METADATA','Metadata-Version: 2.1\\nName: bd-cache-rs\\nVersion: 0.2.0\\n')\n"
+            "  wheel.writestr('bd_cache_rs/source.bin',data)\n"
+            "else:\n"
+            " out=Path(os.environ['CARGO_TARGET_DIR'])/args[args.index('--target')+1]/'release'\n"
+            " out.mkdir(parents=True,exist_ok=True)\n"
+            " names=('fake-bd','fake-python') if '--features' in args else ('bd-cache','bdc','bd-cache-daemon')\n"
+            " for name in names:\n"
+            "  path=out/name; path.write_bytes(b'#!/usr/bin/env python3\\n# version 0.2.0\\n# '+data); path.chmod(0o755)\n")
+        self.actual_run = rc.run
+        self.builds = []
+
+    def git(self, *args):
+        return subprocess.check_output(['git', *args], cwd=self.repo, text=True).strip()
+
+    def source(self, payload):
+        (self.repo / 'payload').write_text(payload)
+        self.git('add', '.')
+        self.git('commit', '-qm', payload)
+        return self.git('rev-parse', 'HEAD')
+
+    def run_producer(self, command, **kwargs):
+        if str(command[0]) == 'cargo' or list(command[1:3]) == ['-m', 'maturin']:
+            self.builds.append((command, kwargs))
+            command = [sys.executable, '-I', self.producer, *command[1:]]
+        return self.actual_run(command, **kwargs)
+
+    def pack(self, name):
+        args = SimpleNamespace(target=self.target, output=self.root / name, helpers=self.root / (name + '-helpers'))
+        with patch.object(rc, 'ROOT', self.repo), patch.object(rc, 'run', side_effect=self.run_producer):
+            rc.pack(args)
+        return args.output
+
+    def test_same_version_foreign_source_substitution_cannot_enter_pack(self):
+        foreign_sha = self.source('foreign source')
+        foreign = self.pack('foreign')
+        foreign_receipt, foreign_binaries = rc.validate(foreign, foreign_sha, '0.2.0', self.target)
+        current_sha = self.source('current source')
+        # Plant actual same-version, different-commit artifacts at the former
+        # arbitrary inputs, including the caller's configured Cargo target cache.
+        cache = self.repo / 'target' / self.target / 'release'
+        cache.mkdir(parents=True)
+        for name, data in foreign_binaries.items():
+            (cache / Path(name).name).write_bytes(data)
+        wheels = self.repo / 'candidate-wheels'
+        wheels.mkdir()
+        foreign_wheel = next(foreign.glob('*.whl'))
+        (wheels / foreign_wheel.name).write_bytes(foreign_wheel.read_bytes())
+        with patch.dict(os.environ, {'CARGO_TARGET_DIR': str(self.repo / 'target')}):
+            current = self.pack('current')
+        current_receipt, current_binaries = rc.validate(current, current_sha, '0.2.0', self.target)
+        self.assertNotEqual(current_receipt['binaries'], foreign_receipt['binaries'])
+        self.assertTrue(all(b'current source' in data and b'foreign source' not in data for data in current_binaries.values()))
+        with zipfile.ZipFile(next(current.glob('*.whl'))) as wheel:
+            self.assertEqual(wheel.read('bd_cache_rs/source.bin'), b'current source')
+        # Its existing receipt cannot be admitted as the current source either.
+        with self.assertRaisesRegex(rc.QualificationError, 'mixed candidate'):
+            rc.validate(foreign, current_sha, '0.2.0', self.target)
+        self.assertTrue(all(Path(options['cwd']) != self.repo for _, options in self.builds))
+        self.assertTrue(all(Path(options['env']['CARGO_TARGET_DIR']) != self.repo / 'target' for _, options in self.builds))
+
+    def test_old_arbitrary_artifact_input_options_are_rejected(self):
+        self.source('foreign source')
+        foreign = self.pack('foreign')
+        with patch.object(sys, 'stderr', io.StringIO()), self.assertRaises(SystemExit) as caught:
+            rc.main(['pack', '--target', self.target, '--output', str(self.root / 'relabeled'),
+                     '--bin-dir', str(foreign), '--wheel-dir', str(foreign)])
+        self.assertEqual(caught.exception.code, 2)
+        self.assertFalse((self.root / 'relabeled').exists())
+
+    def test_missing_owned_binary_cannot_fall_back_to_foreign_build(self):
+        foreign_sha = self.source('foreign source')
+        foreign = self.pack('foreign')
+        _, binaries = rc.validate(foreign, foreign_sha, '0.2.0', self.target)
+        shared = self.repo / 'target' / self.target / 'release'
+        shared.mkdir(parents=True)
+        for name, data in binaries.items():
+            (shared / Path(name).name).write_bytes(data)
+        self.source('current source')
+        producer = self.run_producer
+
+        def omit_owned_binary(command, **kwargs):
+            result = producer(command, **kwargs)
+            if str(command[0]) == 'cargo' and '--bins' in command:
+                (Path(kwargs['env']['CARGO_TARGET_DIR']) / self.target / 'release/bdc').unlink()
+            return result
+
+        with patch.object(self, 'run_producer', side_effect=omit_owned_binary):
+            with self.assertRaisesRegex(rc.QualificationError, 'missing binary: bin/bdc'):
+                self.pack('missing')
+
+    def test_unchanged_committed_source_positive_is_reproducible(self):
+        sha = self.source('same source')
+        first = self.pack('first')
+        second = self.pack('second')
+        first_receipt, first_binaries = rc.validate(first, sha, '0.2.0', self.target)
+        second_receipt, second_binaries = rc.validate(second, sha, '0.2.0', self.target)
+        self.assertEqual(first_binaries, second_binaries)
+        self.assertEqual(first_receipt['binaries'], second_receipt['binaries'])
+        self.assertEqual({path.name for path in (self.root / 'second-helpers').iterdir()}, {'fake-bd', 'fake-python'})
+        self.assertFalse(any('fake' in name for name in second_receipt['binaries']))
+
+    def test_dirty_source_and_existing_outputs_refused_before_build(self):
+        self.source('committed source')
+        (self.repo / 'payload').write_text('uncommitted source')
+        with self.assertRaisesRegex(rc.QualificationError, 'tracked source is dirty'):
+            self.pack('dirty')
+        self.assertFalse(self.builds)
+        (self.root / 'occupied').mkdir()
+        with self.assertRaisesRegex(rc.QualificationError, 'output exists'):
+            self.pack('occupied')
+        (self.root / 'existing-helpers').mkdir()
+        with self.assertRaisesRegex(rc.QualificationError, 'helper output exists'):
+            self.pack('existing')
+        self.assertFalse(self.builds)
 
 
 class CandidateTests(unittest.TestCase):

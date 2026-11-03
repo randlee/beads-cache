@@ -30,6 +30,7 @@ requirements:
 adrs:
 - ADR-BDC-0006
 - ADR-PY-0004
+- ADR-PY-0006
 - ADR-CLI-0001
 - ADR-BDC-0010
 - ADR-BDC-0012
@@ -265,3 +266,33 @@ The sprint stays in_progress for full initial QA1, current-head hosted evidence,
 remaining upstream/C3 dependencies, preflight and parent merge gates. The actual
 consumer PASS is not a claim of Windows or complete matrix qualification and no
 publication occurred. The parent owns pushing this frozen receipt head.
+
+## QA1 local corrections and retained gates
+
+The QA1 manager reported FAIL at source `e7bafc2e5bdda1bf480823c7dd3ac73d0e16b702`.
+C4-REQ-003 is implemented pending independent QA in the existing consumer
+build/pack seam: it builds from one immutable committed-source snapshot with its
+lockfile into fresh target/wheel directories and no longer accepts arbitrary
+prebuilt inputs. Same-version fixture artifacts produced from another real Git
+commit cannot enter through the former shared directories or removed options;
+missing owned outputs fail instead of falling back to foreign builds. A repeated
+unchanged-source fixture passes. These are packaging tests, not native or
+installed qualification evidence. The existing receipt format and canonical
+84-asset kit remain unchanged, with zero installer drift.
+
+C4-ARCH-001 is implemented pending independent QA by adding ADR-PY-0006 to the
+single governing ADR list. Its mixed native package, run/sync modules and neutral
+installed corpus remain part of qualification. Every one of the 15 QA1 findings
+has a developer disposition appended to its existing `.triage/c/findings/*.ttl`
+record; original reviewer records and open statuses are preserved. No finding
+is closed by this developer update.
+
+The C3 helper correction awaits its qualified integration merge. The C2-owned
+typed observability error and endpoint ownership fixes are separately assigned;
+neither is copied into C4. Published logging/graph, Windows graceful shutdown,
+contended worker bounds and portable lock/readiness qualification remain upstream
+or parent gates. Exact final-source installed matrix, fresh applicable consumer
+evidence, full Release Preflight, parent merge, green CI and zero-finding QA
+remain required. The actual source652 consumer receipt is unchanged and is not
+retargeted to this later execution. No native build, remote scratch execution,
+publication, settings mutation or baseline update is claimed in this local round.
