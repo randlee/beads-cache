@@ -153,20 +153,30 @@ def run(argv: list[str], cwd: Path, *, timeout: float = COMMAND_TIMEOUT) -> str:
         raise TemplateError(f"could not start {argv[0]}", code="TOOL_MISSING",
                             cause={**context, "detail": str(error)}) from error
     job_close = None
+    tree_stopped = False
+    cleanup_failure = None
 
     def stop_tree() -> None:
-        nonlocal job_close
-        if os.name == "nt":
-            if job_close is not None:
-                job_close()
-                job_close = None
-            elif process.poll() is None:
-                process.kill()  # Launcher has not passed its handshake.
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+        nonlocal job_close, tree_stopped, cleanup_failure
+        if tree_stopped or cleanup_failure is not None:
+            return
+        try:
+            if os.name == "nt":
+                if job_close is not None:
+                    job_close()
+                    job_close = None
+                elif process.poll() is None:
+                    process.kill()  # Launcher has not passed its handshake.
+            else:
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass  # Established absence also completes this ownership.
+        except OSError as error:
+            cleanup_failure = TemplateError("could not terminate tool process tree", code="PROCESS_CLEANUP_FAILED",
+                                            cause={**context, "pid": process.pid, "detail": str(error)})
+            raise cleanup_failure from error
+        tree_stopped = True
 
     try:
         if os.name == "nt":
@@ -178,6 +188,10 @@ def run(argv: list[str], cwd: Path, *, timeout: float = COMMAND_TIMEOUT) -> str:
         try:
             stdout, stderr = process.communicate(input="x" if os.name == "nt" else None, timeout=timeout)
         except subprocess.TimeoutExpired as error:
+            context.update({"stdout": error.stdout.decode("utf-8", "replace") if isinstance(error.stdout, bytes)
+                            else error.stdout or "",
+                            "stderr": error.stderr.decode("utf-8", "replace") if isinstance(error.stderr, bytes)
+                            else error.stderr or ""})
             stop_tree()
             try:
                 stdout, stderr = process.communicate(timeout=REAP_TIMEOUT)
@@ -197,14 +211,24 @@ def run(argv: list[str], cwd: Path, *, timeout: float = COMMAND_TIMEOUT) -> str:
                                        "stdout": stdout, "stderr": stderr})
         return stdout.strip()
     finally:
-        stop_tree()
-        # Also reap a launcher if assignment failed before communicate().
-        if process.poll() is None:
-            process.kill()
-            process.wait(timeout=REAP_TIMEOUT)
-        for stream in (process.stdin, process.stdout, process.stderr):
-            if stream is not None:
-                stream.close()
+        try:
+            stop_tree()
+        finally:
+            try:
+                # Also reap a launcher if assignment failed before communicate().
+                if process.poll() is None:
+                    process.kill()
+                    process.wait(timeout=REAP_TIMEOUT)
+            except (OSError, subprocess.TimeoutExpired) as error:
+                if cleanup_failure is None:
+                    raise TemplateError("could not reap tool process", code="PROCESS_CLEANUP_FAILED",
+                                        cause={**context, "pid": process.pid, "detail": str(error)}) from error
+                # Preserve the first structured cleanup failure; pipe closure
+                # still runs, and no process-group termination is retried.
+            finally:
+                for stream in (process.stdin, process.stdout, process.stderr):
+                    if stream is not None:
+                        stream.close()
 
 
 def load_pin(path: Path) -> dict:

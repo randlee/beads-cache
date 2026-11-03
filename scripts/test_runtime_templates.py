@@ -17,7 +17,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout, redirect_stderr
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import runtime_templates as rt  # noqa: E402
@@ -406,7 +406,72 @@ class ProcessDeadlineTest(FixtureTest):
     def test_timeout_terminates_descendant_after_direct_child_exits(self) -> None:
         self.descendant_timeout_proof(parent_exits=True)
 
-    def descendant_timeout_proof(self, *, parent_exits: bool) -> None:
+    def test_windows_timeout_closes_job_once_and_retains_handshake(self) -> None:
+        process = Mock(pid=12345, returncode=None)
+        process.stdin, process.stdout, process.stderr = io.StringIO(), io.StringIO(), io.StringIO()
+        process.poll.return_value = None
+        job_close = Mock()
+        first = True
+
+        def communicate(**kwargs):
+            nonlocal first
+            if first:
+                first = False
+                raise subprocess.TimeoutExpired([sys.executable], 0.25)
+            process.returncode = -9
+            process.poll.return_value = -9
+            return "windows stdout", "windows stderr"
+
+        process.communicate.side_effect = communicate
+        with patch.object(rt.os, "name", "nt"), patch.object(rt.subprocess, "Popen", return_value=process), \
+                patch.object(rt, "windows_job", return_value=job_close) as assign:
+            with self.assertRaises(rt.TemplateError) as failure:
+                rt.run([sys.executable], self.root, timeout=0.25)
+        assign.assert_called_once_with(process)
+        job_close.assert_called_once_with()
+        self.assertEqual(process.communicate.call_args_list[0].kwargs, {"input": "x", "timeout": 0.25})
+        self.assertEqual(process.communicate.call_args_list[1].kwargs, {"timeout": rt.REAP_TIMEOUT})
+        process.kill.assert_not_called()
+        self.assertEqual(failure.exception.code, "TEMPLATE.UPSTREAM_TIMEOUT")
+        self.assertEqual(failure.exception.cause["stdout"], "windows stdout")
+        self.assertEqual(failure.exception.cause["stderr"], "windows stderr")
+        self.assertTrue(all(stream.closed for stream in (process.stdin, process.stdout, process.stderr)))
+
+    @unittest.skipIf(os.name == "nt", "POSIX process-group ownership regression")
+    def test_timeout_does_not_resignal_terminated_group_with_permission_error(self) -> None:
+        self.descendant_timeout_proof(parent_exits=False, duplicate_permission=True)
+
+    @unittest.skipIf(os.name == "nt", "POSIX initial process-group permission fault")
+    def test_initial_group_permission_failure_is_structured_and_resources_close(self) -> None:
+        process = Mock(pid=12345, returncode=None)
+        process.stdin = None
+        process.stdout, process.stderr = io.StringIO(), io.StringIO()
+        process.poll.return_value = None
+        process.communicate.side_effect = subprocess.TimeoutExpired(
+            [sys.executable], 0.25, output=b"partial stdout", stderr=b"partial stderr")
+
+        def kill_direct_child():
+            process.returncode = -9
+            process.poll.return_value = -9
+
+        process.kill.side_effect = kill_direct_child
+        denied = PermissionError(1, "planted initial permission failure")
+        with patch.object(rt.subprocess, "Popen", return_value=process), patch.object(rt.os, "killpg", side_effect=denied) as killpg:
+            with self.assertRaises(rt.TemplateError) as failure:
+                rt.run([sys.executable], self.root, timeout=0.25)
+        self.assertEqual(failure.exception.code, "TEMPLATE.PROCESS_CLEANUP_FAILED")
+        self.assertIn("planted initial permission failure", failure.exception.cause["detail"])
+        self.assertEqual(failure.exception.cause["pid"], 12345)
+        self.assertEqual(failure.exception.cause["stdout"], "partial stdout")
+        self.assertEqual(failure.exception.cause["stderr"], "partial stderr")
+        self.assertIs(failure.exception.__cause__, denied)
+        killpg.assert_called_once_with(12345, rt.signal.SIGKILL)
+        process.kill.assert_called_once()
+        process.wait.assert_called_once_with(timeout=rt.REAP_TIMEOUT)
+        self.assertTrue(process.stdout.closed)
+        self.assertTrue(process.stderr.closed)
+
+    def descendant_timeout_proof(self, *, parent_exits: bool, duplicate_permission: bool = False) -> None:
         lock = self.root / "descendant.lock"
         lock.write_bytes(b"x")
         before = rt.file_tree(self.root)
@@ -420,6 +485,19 @@ class ProcessDeadlineTest(FixtureTest):
                   + ("sys.exit(0)" if parent_exits else "threading.Event().wait()"))
         real_popen = rt.subprocess.Popen
         processes, readers = [], []
+        group_signals = []
+        if duplicate_permission:
+            real_killpg = rt.os.killpg
+
+            def kill_group_once(pid, sig):
+                if group_signals:
+                    raise PermissionError(1, "planted repeated cleanup permission failure")
+                group_signals.append((pid, sig))
+                return real_killpg(pid, sig)
+
+            group_patch = patch.object(rt.os, "killpg", side_effect=kill_group_once)
+            group_patch.start()
+            self.addCleanup(group_patch.stop)
 
         def controlled_popen(*args, **kwargs):
             process = real_popen(*args, **kwargs)
@@ -480,6 +558,10 @@ class ProcessDeadlineTest(FixtureTest):
                 fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 fcntl.flock(handle, fcntl.LOCK_UN)
         self.assertIsNotNone(processes[0].returncode)
+        if duplicate_permission:
+            self.assertEqual(group_signals, [(processes[0].pid, rt.signal.SIGKILL)])
+            self.assertTrue(processes[0].stdout.closed)
+            self.assertTrue(processes[0].stderr.closed)
         self.assertEqual(rt.file_tree(self.root), before)
 
 
