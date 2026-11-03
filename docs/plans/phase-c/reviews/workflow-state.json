@@ -1,5 +1,5 @@
 {
-  "stage": "quality-manager-qa-1-preparation",
+  "stage": "quality-manager-qa-2-preparation",
   "scope_review": {
     "rounds_completed": 2,
     "round_limit": 2,
@@ -22,8 +22,8 @@
     }
   },
   "quality_manager": {
-    "rounds_completed": 0,
-    "status": "not_started",
+    "rounds_completed": 1,
+    "status": "QA1 all10 developer-fixed; independent QA2 pending",
     "required_plan_reviewers": [
       "req-qa",
       "arch-qa",
@@ -31,6 +31,38 @@
       "rust-best-practices-agent",
       "rust-service-hardening-agent",
       "ceremony-qa"
+    ],
+    "reviewer_manifest": [
+      {
+        "agent": "req-qa",
+        "task_id": "/root/qa_req",
+        "spawn_actor": "parent-orchestrator"
+      },
+      {
+        "agent": "arch-qa",
+        "task_id": "/root/qa_arch",
+        "spawn_actor": "parent-orchestrator"
+      },
+      {
+        "agent": "ruthless-boundary-qa",
+        "task_id": "/root/qa_boundary",
+        "spawn_actor": "parent-orchestrator"
+      },
+      {
+        "agent": "rust-best-practices-agent",
+        "task_id": "/root/qa_practices",
+        "spawn_actor": "parent-orchestrator"
+      },
+      {
+        "agent": "rust-service-hardening-agent",
+        "task_id": "/root/qa_service",
+        "spawn_actor": "parent-orchestrator"
+      },
+      {
+        "agent": "ceremony-qa",
+        "task_id": "/root/qa_ceremony",
+        "spawn_actor": "parent-orchestrator"
+      }
     ]
   },
   "blocker": null,
@@ -52,5 +84,125 @@
   "ci_checkpoint": {
     "commit": "e3ef2d259e774c937962e8c7d7f87e84d96f3b24",
     "all_checks": "PASS"
+  },
+  "qa_rounds": [
+    {
+      "round": "qa-1",
+      "task_id": "/root/quality_manager",
+      "reviewed_commit": "0beef1a8e213b9b55af85d55ca014e85fde52782",
+      "verdict": "FAIL",
+      "reviewer_spawn_gate": "pass",
+      "findings": {
+        "blocking": 7,
+        "important": 2,
+        "minor": 1
+      },
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/qa_req",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 4,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/qa_arch",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 3,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/qa_boundary",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "pass",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/qa_practices",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 1,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-service-hardening-agent",
+          "task_id": "/root/qa_service",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 1,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "ceremony-qa",
+          "task_id": "/root/qa_ceremony",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 1
+          }
+        }
+      ],
+      "evidence_chain": {
+        "qa_pass": "qa-1",
+        "commit": "0beef1a8e213b9b55af85d55ca014e85fde52782",
+        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/105#issuecomment-6591684348",
+        "coordinator_task_id": "/root/quality_manager",
+        "reviewer_tasks": [
+          "/root/qa_req",
+          "/root/qa_arch",
+          "/root/qa_boundary",
+          "/root/qa_practices",
+          "/root/qa_service",
+          "/root/qa_ceremony"
+        ],
+        "triage": {
+          "ttl_paths": []
+        },
+        "ceremony_screen": "docs/plans/phase-c/reviews/qa1-screen.md",
+        "ci": "14 SUCCESS; one Windows Rust leg IN_PROGRESS at observation; no CI PASS claimed",
+        "todo_scan": "not applicable to doc_review; no implementation sprint-end/integration review",
+        "aggregation_source": "reviewer_fenced_json_union_todo_scan"
+      }
+    }
+  ],
+  "post_qa1_anchors": {
+    "status": "PASS; validated independent result fences",
+    "runs": {
+      "c-1": "plan-20261103T001057Z-c-1",
+      "c-2": "plan-20261103T000925Z-c-2",
+      "c-3": "plan-20261103T000925Z-c-3",
+      "c-4": "plan-20261103T000925Z-c-4"
+    },
+    "definitions_changed": false,
+    "coverage_exceptions": "Same two user-approved exceptions; ADRBDC0009 c1 now explicitly excluded per locked scope."
   }
 }

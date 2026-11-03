@@ -26,6 +26,18 @@ checkout. Its template is application-owned scaffold, not an in-place installer:
 `scripts/new_project.py` refuses an existing destination. Its `install.py` installs
 sc-publish; `just upgrade` upgrades sc-lint, not generated Rust code.
 
+## Implementation dispatch gate
+
+All four implementation sprints remain blocked until the authorized project owner
+explicitly approves the proposed Phase C scope/requirements and ADR-BDC-0016,
+including the narrow REQ-CLI-0001 dependency-source/version and REQ-API-0008
+transitive-contract amendments and prototype ownership disposition. Record the
+actual decision in the existing governed docs before applying those amendments or
+dispatching dependent code. Reviewer PASS, green CI and merging this planning PR
+are not substitutes for that explicit approval. Current Approved text and binding
+ADR lists retain authority until the decision occurs; proposed_adrs is separate
+from binding adrs in every sprint. This planning correction grants no approval.
+
 ## Proposed application shape
 
 Render the tagged template into an absent temporary destination using the documented
@@ -69,12 +81,17 @@ The daemon is operational because it hosts real scheduling, not because it can
 serve a demo route. Application cleanup runs after the runtime HTTP drain, sets the existing
 StopFlag and awaits bounded worker/child termination before releasing the instance
 lock. The total bound includes the pinned upstream HTTP-drain maximum of 31 seconds
-and the existing worker cleanup bound; this release has no public configurable
+the existing worker cleanup bound, and at most one admitted readiness evaluation
+with a 1-second store-read budget plus documented scheduling tolerance. This release has no public configurable
 HTTP-drain budget.
 
 The daemon needs an application composition without opening a second same-process handle
 to the same cache file. HTTP readiness and the worker share that composition;
-blocking store/backend work runs outside async request tasks. Direct cached reads
+blocking store/backend work runs outside async request tasks. c-1 supplies the
+store-owned bounded health-read seam; c-2 admits one readiness job with no waiter
+queue, retains it through disconnect/timeout, and joins it during cleanup before
+instance release. Saturation is a typed daemon-only 503; SQLite/mutex deadlines
+are real store limits, not cancellation of a detached blocking future. Direct cached reads
 through bdc and Python work whether the daemon is running or stopped.
 
 ## Boundary map before sprint cuts
@@ -195,11 +212,8 @@ provenance. These bound permissible changes to persistence, backend access, loca
 reads, sync behavior, front-end compatibility and deadlines. They are mapped to the
 sprints they constrain, not replaced by conversation-derived planning notes.
 
-The earlier ANC-012..015 candidate packet was rejected by the user as unsuitable
-phase anchors and has been removed. Its rubric results do not block or validate
-this phase. No new anchor confirmation is requested for those remarks. The
-remaining work is to harden the proposed scope against the inherited bounds and
-existing requirements, then review it through the repository's planning workflow.
+The remaining work is to harden the proposed scope against the inherited bounds
+and existing requirements, then review it through the repository's planning workflow.
 The optional daemon remains proposed scope. This is not a QA-approved plan, and
 selecting inherited constraints is not a claim that the planning gate passed.
 See [intent](intent.md) for the phase purpose and separation of proposal/context.

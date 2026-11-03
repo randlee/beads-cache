@@ -56,6 +56,61 @@ requirements:
   - REQ-BDC-0007
   - REQ-BDC-0008
   - REQ-BDC-0502
+  - REQ-CLI-0002
+  - REQ-CLI-0004
+  - REQ-CLI-0005
+  - REQ-CLI-0006
+  - REQ-CLI-0008
+  - REQ-CLI-0009
+  - REQ-CLI-0010
+  - REQ-CLI-0011
+  - REQ-CLI-0012
+  - REQ-PY-0001
+  - REQ-PY-0003
+  - REQ-PY-0004
+  - REQ-PY-0005
+  - REQ-PY-0007
+  - REQ-PY-0008
+  - REQ-PY-0010
+  - REQ-PY-0011
+  - REQ-PY-0012
+  - REQ-PY-0013
+  - REQ-PY-0014
+  - REQ-STORE-0001
+  - REQ-STORE-0004
+  - REQ-STORE-0005
+  - REQ-STORE-0006
+  - REQ-STORE-0007
+  - REQ-STORE-0008
+  - REQ-SYNC-0001
+  - REQ-SYNC-0004
+  - REQ-SYNC-0005
+  - REQ-SYNC-0010
+  - REQ-SYNC-0012
+  - REQ-SYNC-0013
+  - REQ-CRON-0001
+  - REQ-CRON-0002
+  - REQ-CRON-0003
+  - REQ-CRON-0004
+  - REQ-CRON-0005
+  - REQ-CRON-0006
+  - REQ-CRON-0007
+  - REQ-CRON-0008
+  - REQ-CRON-0009
+  - REQ-CRON-0010
+  - REQ-CRON-0011
+  - REQ-CRON-0012
+  - REQ-CRON-0013
+  - REQ-CRON-0016
+  - REQ-CRON-0017
+  - REQ-CRON-0018
+  - REQ-CRON-0014
+  - REQ-CRON-0015
+  - NFR-BDC-0001
+  - NFR-BDC-0003
+  - REQ-BDC-0703
+  - REQ-BDC-0726
+  - REQ-BDC-0728
 adrs:
 - ADR-BDC-0005
 - ADR-BDC-0006
@@ -63,7 +118,6 @@ adrs:
 - ADR-BDC-0011
 - ADR-BDC-0014
 - ADR-BDC-0015
-- ADR-BDC-0016 (proposed)
 - ADR-STORE-0001
 - ADR-STORE-0003
 - ADR-STORE-0006
@@ -71,6 +125,35 @@ adrs:
 - ADR-CLI-0001
 - ADR-CLI-0005
 - ADR-PY-0006
+- ADR-CRON-0001
+- ADR-CRON-0002
+- ADR-CRON-0003
+- ADR-CRON-0004
+- ADR-CRON-0005
+- ADR-CRON-0006
+- ADR-CRON-0007
+- ADR-CRON-0008
+- ADR-CRON-0009
+- ADR-STORE-0002
+- ADR-STORE-0004
+- ADR-STORE-0005
+- ADR-SYNC-0001
+- ADR-SYNC-0002
+- ADR-SYNC-0006
+- ADR-CLI-0002
+- ADR-CLI-0003
+- ADR-CLI-0004
+- ADR-PY-0001
+- ADR-PY-0002
+- ADR-PY-0003
+- ADR-PY-0004
+- ADR-PY-0005
+- ADR-BDC-0009
+- ADR-BDC-0012
+- ADR-BDC-0013
+- ADR-CORE-0001
+proposed_adrs:
+- ADR-BDC-0016
 owned_paths:
 - Cargo.toml
 - Cargo.lock
@@ -85,8 +168,10 @@ owned_paths:
 - docs/bd-cache-store/architecture.md
 - docs/bd-cache-sync/architecture.md
 - docs/bd-cache-cli/architecture.md
+- docs/bd-cache-cli/requirements.md
 - docs/bd-cache-py/architecture.md
 - docs/sc-cron/architecture.md
+- docs/sc-cron/requirements.md
 - docs/bd-cache-api/requirements.md
 inherited_bounds:
 - ANC-001
@@ -116,6 +201,16 @@ The existing bdc and Python surfaces use upstream sc-cron 0.1.1 over the same
 cache file. No local scheduler remains to drift. This sprint closes scheduler
 integration independently of the later generated application.
 
+## Approval prerequisite
+
+`adrs` lists currently binding decisions; `proposed_adrs` confers no authority.
+Do not dispatch this sprint's implementation until the authorized project owner
+has explicitly approved ADR-BDC-0016 and the dependent requirement amendments
+listed in the phase plan's [dispatch gate](phase-c-plan.md#implementation-dispatch-gate).
+A plan-review PASS, CI success or PR merge alone is not that approval. Only after
+recording the actual decision may ADR-BDC-0016 be moved to the binding list and
+its approved amendments applied. Existing approved rules remain in force meanwhile.
+
 ## Deliverables
 
 1. REQ-BDC-1002: land the already-tested rusqlite 0.39 alignment; move sc-command
@@ -123,6 +218,10 @@ integration independently of the later generated application.
    one libsqlite3-sys. Retire the local sc-cron workspace member and source/tests;
    retain historical design docs with an upstream ownership note. Remove local
    sc-cron from existing CI publish dry-runs. Do not update unrelated dependencies.
+   After explicit approval, apply the narrowly scoped REQ-CLI-0001 amendment in
+   docs/bd-cache-cli/requirements.md from the old git tag to the published 0.1.1
+   baseline. Keep its three-OS build, version envelope and usage/exit guarantees.
+   Until approval, the current Approved requirement remains unchanged.
 2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing
    schedule persistence and explicit limits. Preserve v3 user_version, old rows,
    next times, generations, enabled flags, outcomes, leases and hook state.
@@ -143,6 +242,22 @@ integration independently of the later generated application.
    and no-server restriction for isolated Python builds. Preserve public execution
    signatures shown below.
 
+## Prototype contract disposition
+
+The listed REQ-CRON-0001..0018 and ADR-CRON-0001..0009 constrain the prototype's
+retirement as currently amended; they are not silently discarded. Under the
+proposed ownership transition, c-1 preserves their parse/time/jitter/missed-tick,
+stop/deadline, single-run/generation, store-atomicity/enabled, hook-target and
+supervised-process guarantees through the published scheduler and cache adapter.
+REQ-CRON-0009's standalone store remains upstream's default; this application
+continues the existing approved cache-owned ScheduleStore exception. Prototype
+API signatures, local implementation paths and local publication ownership become
+historical only after the explicit transition approval, with that disposition
+noted in docs/sc-cron/requirements.md and architecture.md; no obsolete API is
+re-created locally. A semantic mismatch blocks the migration pending an upstream
+fix or a separately authorized narrow amendment. Superseded sync/Python decisions
+remain history; they are not revived by the metadata additions.
+
 ## Inherited preservation bounds
 
 ADR-STORE-0001: the store migration includes schema.rs's schedule-extension DDL
@@ -162,6 +277,52 @@ generated SQL store for backend access. ANC-009: a sync scope remains a bd filte
 a phase definition. NFR-BDC-0004: kill every bd call, Python sync method and post-sync hook at its
 per-call timeout capped by the remaining run deadline. These bounds preserve
 existing behavior.
+
+## Bounded store-health seam for c-2
+
+REQ-BDC-1002 / NFR-BDC-0004: add a store-owned budget handle over the already-open
+connection and expose it before Composed.cache moves. c-2 consumes this additive
+seam; existing CacheStore methods and compose/execute signatures stay available.
+The new handle shares the connection claim, never opens another connection and
+does not depend on API/transport types:
+
+```rust
+// bd-cache-store; Clone + Send + Sync, tied to one shared connection identity.
+pub struct HealthReadControl { /* private store state */ }
+impl SqliteStore {
+    pub fn health_read_control(&self) -> HealthReadControl;
+}
+impl HealthReadControl {
+    pub fn within<T, E>(
+        &self, deadline: std::time::Instant,
+        read: impl FnOnce() -> Result<T, E>,
+    ) -> Result<T, E>
+    where E: From<bd_cache_model::CacheError>;
+}
+// Composed gains the additive public health_reads: HealthReadControl field.
+```
+
+`within` is a synchronous, read-only, calling-thread scope for health evaluation
+on that connection and its schedule view. It must not hold the connection mutex
+around the closure, which calls normal store methods. Instead, affected sessions
+acquire that mutex with deadline-aware try-lock/recheck (no unbounded wait), cap
+each SQLite busy wait by remaining time, and use SQLite progress/deadline checks
+through statement execution and row decoding. Restore per-session busy/progress
+settings on success, error and unwind while the connection guard is held; other
+threads' sync/write sessions must not inherit the health budget or be interrupted
+by a late watchdog. Reject mutation in this read-only scope. No detached watchdog
+or cancellation-by-dropping-a-future is an implementation of this contract.
+Use rusqlite's safe hook API (enable its hooks feature only if needed), not new
+unsafe code or a backend client. Expiry/lock refusal is the existing
+BD_CACHE.STORE_FAILED with a bounded health-read cause, preserving source details;
+the original unconstrained health path retains its current behavior.
+
+Extend existing store/session and health tests to cover mutex contention, a long
+SQLite statement and row iteration, restoration after error/unwind, and concurrent
+normal scheduler writes. A 1-second health budget must complete or return its typed
+error within that budget plus documented scheduling/interrupt-check tolerance.
+The finite scope must finish before the blocking task is joined; an async timeout
+alone is not a passing test. c-2's production readiness test consumes this handle.
 
 ## Interface preserved for consumers
 
@@ -192,6 +353,7 @@ implementation, not a second scheduler. The exact upstream trait is fixed by the
 | req:REQ-BDC-0724 | real composition switches built-in → Python → built-in, including failed-switch rollback and same-process health | leave both enabled or reset prior mode on failed run; scenario fails |
 | req:REQ-BDC-0730 | CLI and Python use migrated worker; timeout, second stop, hook child-tree kill and lease release obey current bounds | release lease/instance state before child reap or omit kill; process test fails |
 | req:REQ-BDC-0001 | current outage and cached-read suites pass; cache hits invoke no bd and retain latency budget | insert a backend read on a hit; call-log/latency test fails |
+| req:REQ-BDC-1002 / NFR-BDC-0004 | the store-health scope enforces its deadline through lock wait, SQLite work and decoding, restores settings and leaves concurrent scheduler work intact | replace the scope with timeout(spawn_blocking) or leave a stale progress hook; bounded/restoration tests fail |
 | req:REQ-API-0008 | contract-only sc-command path is permitted, clap/server/runtime leakage remains rejected in isolated consumer builds | enable sc-command/server in the isolated Python consumer; graph test fails |
 | req:REQ-BDC-0721 / ANC-009 | a configured label-filter scope and an --all scope both sync through the migrated worker as bd filters | derive a scope from phase files instead; scope-sync scenario fails |
 

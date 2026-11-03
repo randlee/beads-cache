@@ -811,12 +811,23 @@
           "item": "c-2",
           "reason": "c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary.",
           "replaced": false
+        },
+        {
+          "at": "2026-11-03T00:10:45+00:00",
+          "event": "excluded",
+          "item": "c-1",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope.",
+          "replaced": false
         }
       ],
       "exclude": [
         {
           "item": "c-2",
           "reason": "c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary."
+        },
+        {
+          "item": "c-1",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
         }
       ]
     },

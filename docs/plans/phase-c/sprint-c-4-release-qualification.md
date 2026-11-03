@@ -23,11 +23,18 @@ requirements:
   - REQ-BDC-0910
   - REQ-BDCLI-0008
   - NFR-BDC-0007
+  - REQ-PY-0010
+  - REQ-PY-0014
+  - NFR-BDC-0005
+  - NFR-BDC-0006
 adrs:
 - ADR-BDC-0006
-- ADR-BDC-0016 (proposed)
 - ADR-PY-0004
 - ADR-CLI-0001
+- ADR-BDC-0010
+- ADR-BDC-0012
+proposed_adrs:
+- ADR-BDC-0016
 owned_paths:
 - release/**
 - install.py
@@ -57,6 +64,16 @@ inherited_bounds:
 The final application is distributed as usable candidate artifacts and the
 stable-release decision is backed by preflight. The cache no longer attempts to
 publish sc-runtime's sc-cron crate under its former local ownership.
+
+## Approval prerequisite
+
+`adrs` lists currently binding decisions; `proposed_adrs` confers no authority.
+Do not dispatch this sprint's implementation until the authorized project owner
+has explicitly approved ADR-BDC-0016 and the dependent requirement amendments
+listed in the phase plan's [dispatch gate](phase-c-plan.md#implementation-dispatch-gate).
+A plan-review PASS, CI success or PR merge alone is not that approval. Only after
+recording the actual decision may ADR-BDC-0016 be moved to the binding list and
+its approved amendments applied. Existing approved rules remain in force meanwhile.
 
 ## Deliverables
 

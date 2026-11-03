@@ -166,6 +166,7 @@ Deterministic check to pair with the development gate: contract.md section 1 lis
 
 Excluded from (not judged; the cell passes as `excluded`):
 - `c-2`: c-2 adds service/daemon assembly and health only; it adds or changes no bdc command or bd-cache-api request vocabulary.
+- `c-1`: c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope.
 
 Beads: anchor `bdc-hvp`, plan questions `bdc-hvp.1`, dev questions `bdc-hvp.2`
 

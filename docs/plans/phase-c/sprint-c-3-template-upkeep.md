@@ -22,7 +22,8 @@ requirements:
 adrs:
 - ADR-BDC-0010
 - ADR-BDC-0012
-- ADR-BDC-0016 (proposed)
+proposed_adrs:
+- ADR-BDC-0016
 owned_paths:
 - runtime/pin.toml
 - runtime/answers.json
@@ -40,6 +41,16 @@ inherited_bounds:
 The pinned application template can be regenerated and compared without touching
 working source. This sprint closes the upkeep-tool boundary; c-2 adopts the actual
 application and owns REQ-BDC-1003's feature-level upgrade proof.
+
+## Approval prerequisite
+
+`adrs` lists currently binding decisions; `proposed_adrs` confers no authority.
+Do not dispatch this sprint's implementation until the authorized project owner
+has explicitly approved ADR-BDC-0016 and the dependent requirement amendments
+listed in the phase plan's [dispatch gate](phase-c-plan.md#implementation-dispatch-gate).
+A plan-review PASS, CI success or PR merge alone is not that approval. Only after
+recording the actual decision may ADR-BDC-0016 be moved to the binding list and
+its approved amendments applied. Existing approved rules remain in force meanwhile.
 
 ## Deliverables
 

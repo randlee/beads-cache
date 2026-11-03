@@ -950,6 +950,14 @@ journal, scope/schedule state, sync replacement and shutdown guarantees must sur
 that migration. The CLI's sc-command dependency moves from git to its published
 baseline. No local scheduler fork or development checkout patch may ship.
 
+The proposed transition includes c-1's narrowly owned amendment of REQ-CLI-0001
+from git v0.1.0 to published sc-command 0.1.1, preserving its three-OS build,
+version envelope and usage/exit behavior. It also requires the named narrow
+REQ-API-0008 exception and explicit prototype-contract disposition. These remain
+proposals: record actual project-owner approval before changing any Approved
+requirement or dispatching dependent implementation; plan/QA PASS alone is not
+that approval.
+
 **Source:** upstream sc-runtime 0.1.1 publication; user relay: "Matching beads-cache
 to 0.39 is the right move."
 **Acceptance owner:** c-1.

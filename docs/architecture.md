@@ -1103,9 +1103,17 @@ Each crate's architecture and crate-local ADRs live in
 
 **Amends when approved:** ADR-BDC-0006 (local sc-cron prototype ownership),
 ADR-BDC-0014 (upstream ScheduleStore implementation), ADR-CLI-0001 (git-only
-sc-command), and the transitive sc-command exclusions in REQ-API-0008 and the
+sc-command), REQ-CLI-0001 (only git source/tag to published 0.1.1), and the transitive sc-command exclusions in REQ-API-0008 and the
 CLI/Python architecture statements. Domain boundaries and the no-consumer rule
 of ADR-BDC-0010 remain in force.
+
+Approval is an implementation-dispatch prerequisite for all four Phase C sprints.
+The authorized project owner's actual decision must be recorded before changing
+Approved requirements, moving this ID to binding sprint adrs or dispatching code.
+A review PASS, green CI or planning-PR merge does not itself approve this decision.
+Existing authority remains unchanged. c-1 owns the CLI/API requirement amendments
+and the explicit disposition of prototype-specific CRON contracts; cache-visible
+semantics remain preserved unless a separately authorized amendment names a change.
 
 Context: sc-runtime 0.1.1 has published the shared scheduler and an application
 scaffold. Keeping a local scheduler and independently assembled runtime duplicates
@@ -1153,7 +1161,11 @@ Proposed decision:
 
 Consequences: this phase creates a real optional application host and a deliberate
 upkeep responsibility. After HTTP drain, application cleanup sets StopFlag and must preserve the
-existing bounded worker/child shutdown. The total bound includes both stages;
+existing bounded worker/child shutdown. c-1 supplies a connection-scoped health-read
+budget; c-2 bounds readiness admission, owns in-flight work across request
+cancellation, and joins its dedicated blocking worker before instance release.
+The total bound includes HTTP drain, bounded worker cleanup and the one admitted
+readiness evaluation with its 1-second budget and documented scheduling tolerance;
 coordination with other cache processes continues through existing leases/locks.
 A new daemon config does not replace or reinterpret cache TOML. The release kit must
 stop publishing local sc-cron and include the new binary. Existing performance,

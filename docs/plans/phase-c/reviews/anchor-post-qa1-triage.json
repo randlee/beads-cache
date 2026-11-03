@@ -1,0 +1,9 @@
+{
+  "run": "plan-20261103T000924Z-c-1",
+  "anchor": "ADR-BDC-0009",
+  "failure": "relevance confidence0.56; leaning not_applicable; no contradiction",
+  "independent_evidence": "anchors-post-qa1-c-1-initial.md",
+  "classification": "item outside unchanged locked scope",
+  "action": "record item exclusion, then rerun",
+  "reason": "c1 migrates dependencies/internals while preserving bdc command and API request vocabulary. User explicitly approved aggregate non-applicability; independent gate agent confirmed item scope. No definition/question/threshold changed."
+}
