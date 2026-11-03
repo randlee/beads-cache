@@ -552,3 +552,46 @@ this correction record.
 The owner-directed paste/sc-lint 0.2.0 deferral does not waive any finding above.
 Existing gates remain enabled. Final correction validation and exact push SHA
 are reported separately; this record does not claim QA PASS or merge readiness.
+
+
+### QA1 correction validation receipt
+
+Exact validated source head: 0885ce639a5cd53d1458baf3ea6acb48b74479a7.
+Independent corrections are commit 0134c15; merge 0140cf3 consumed approved C3
+integration including 22f9d6b9ddc67274d95a23c16a2a8345c0785bc0, and 0885ce6
+removed the duplicate shared prerequisite installation created by that merge.
+This receipt changes documentation only.
+
+- PASS: fmt/diff checks, both locked workspace Clippy modes and warning-free
+  docs. Logs: /tmp/c1-fix-prevalidate-clippy.log,
+  /tmp/c1-fix-clippy-default.log, /tmp/c1-fix-doc.log.
+- PASS: full workspace tests/doctests, 1149 passed / 0 failed / 21 intentionally
+  ignored, with bd/dolt absent from PATH and process inspection permitted.
+  /tmp/c1-fix-workspace.log. Focused store/sync: 282 passed, 8 intentional
+  ignores (/tmp/c1-fix-focused.log).
+- PASS: explicit release-profile incremental qualification, 6.184458 ms for a
+  migrated scheduled 1000-bead scope, with cursor and changed-row assertions.
+  /tmp/c1-fix-incremental.log. Its normal-suite ignore is not the evidence:
+  the exact timing command ran explicitly with --release --ignored --nocapture.
+- PASS: fresh actual cp39-abi3 macOS arm64 wheel built from the changed source;
+  installed-wheel Python 3.11 pytest 226 passed, including neutral corpus,
+  switching, hooks and real CLI fixtures. Py Rust tests: 23 passed; Py Clippy
+  passed. /tmp/c1-fix-wheel.log, /tmp/c1-fix-pytest.log,
+  /tmp/c1-fix-py-rust.log, /tmp/c1-fix-py-clippy.log.
+- PASS: merged script suite in the clean declared dependency environment:
+  97 run, 96 passed, 1 explicit opt-in real-generator smoke skip.
+  /tmp/c1-fix-scripts.log. No script tests were suppressed for C1.
+- PASS: four graph checker/provenance/forbidden-package/owned-child deadline
+  proofs (/tmp/c1-fix-graph-unit.log). Actual API isolated graph passes.
+  EXPECTED FAIL remains for actual isolated Python normal/build graph:
+  bd-cache-sync -> sc-command is unauthorized (/tmp/c1-fix-graph-final.log).
+  The existing CI gate executes that rejection; no allowlist masks it.
+- PASS: no-backend PATH/graph and strict consumer lint after the source changes.
+
+Overall correction disposition remains FAIL / blocked, not QA PASS: ARCH-001,
+RBQA-F001 and RSH-001 need the documented upstream public APIs. REQ-QA-004
+requires the owning reviewer's confirmation and appropriate exact-head hosted
+qualification; current expected boundary failure cannot be declared green.
+The other 18 implementation/evidence corrections request independent QA2
+verification. No acceptance criterion, baseline pin or advisory gate was waived.
+The bead and sprint remain in_progress, and no merge is authorized by this receipt.
