@@ -7,17 +7,31 @@ under docs/development/runtime.md and never runs from this CI check.
 """
 from __future__ import annotations
 import argparse
+import importlib.util
 import concurrent.futures
+import contextlib
 import http.client
 import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
+
+
+def run_product(command, **kwargs):
+    """Capture the product UTF-8 protocol independently of the host locale."""
+    result = subprocess.run(command, capture_output=True, **kwargs)
+    # Windows subprocess reader threads cannot propagate decoder exceptions to
+    # communicate(). Own strict decoding on this caller thread instead.
+    result.stdout = result.stdout.decode("utf-8")
+    result.stderr = result.stderr.decode("utf-8")
+    return result
 
 
 def wait_for(probe, seconds=15):
@@ -28,6 +42,34 @@ def wait_for(probe, seconds=15):
             return value
         time.sleep(0.025)
     raise AssertionError("bounded condition timed out")
+
+
+def consumer_graph_errors(meta, package):
+    """Delegate provenance and introducer policy to the canonical consumer gate."""
+    path = Path(__file__).resolve().parents[1] / "crates/bd-cache-sync/tests/check_consumer_graph.py"
+    spec = importlib.util.spec_from_file_location("canonical_consumer_graph", path)
+    graph = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(graph)
+    errors = graph.violations(meta)
+    if package == "bd-cache-cli":
+        # The existing CLI owns its direct command-contract dependency. This
+        # exception does not permit sync (below Python too) to introduce it.
+        errors = [e for e in errors if e not in {
+            "isolated consumer contains clap", "isolated consumer contains clap_builder",
+            "bd-cache-cli -> sc-command: only published sc-cron may introduce the contract/logging exception"}]
+    packages = {p["id"]: p for p in meta["packages"]}
+    nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
+    reached, pending = set(), [meta["resolve"]["root"]]
+    while pending:
+        identity = pending.pop()
+        if identity in reached:
+            continue
+        reached.add(identity)
+        if packages[identity]["name"] in {"bd-cache-service", "bd-cache-daemon"}:
+            errors.append("isolated consumer contains " + packages[identity]["name"])
+        pending.extend(edge["pkg"] for edge in nodes[identity]["deps"]
+                       if any(k["kind"] in (None, "build") for k in edge["dep_kinds"]))
+    return errors
 
 
 def isolated_graph(packages):
@@ -42,32 +84,256 @@ def isolated_graph(packages):
                 '[workspace]\n[package]\nname="artifact-consumer"\nversion="0.0.0"\nedition="2024"\n[dependencies]\n'
                 + f'{package} = {{path={json.dumps(str(root / "crates" / package))}}}\n')
             meta = json.loads(subprocess.check_output(["cargo", "metadata", "--format-version", "1", "--manifest-path", str(consumer / "Cargo.toml")], timeout=180))
-            nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-            reachable, pending = set(), [meta["resolve"]["root"]]
-            while pending:
-                identity = pending.pop()
-                if identity in reachable:
-                    continue
-                reachable.add(identity)
-                for dep in nodes[identity]["deps"]:
-                    if any(kind["kind"] != "dev" for kind in dep["dep_kinds"]):
-                        pending.append(dep["pkg"])
-            forbidden = {"sc-runtime", "sc-transport", "axum", "rmcp", "bd-cache-daemon", "bd-cache-service"}
-            if package != "bd-cache-cli":
-                forbidden |= {"clap", "clap_builder"}
-            for pkg in meta["packages"]:
-                if pkg["id"] not in reachable:
-                    continue
-                assert pkg["name"] not in forbidden, (package, pkg["name"])
-                if pkg["name"] == "sc-command":
-                    assert "server" not in nodes[pkg["id"]]["features"], package
-                    assert pkg["version"] == "0.1.1" and pkg["source"].startswith("registry+"), pkg
+            errors = consumer_graph_errors(meta, package)
+            assert not errors, "\n".join(errors)
             print(f"{package}: isolated normal/build graph PASS")
 
+
+# A POSIX session leader remains alive and unreaped after the worker reports its
+# result. This anchors the SID until every hook PGID in that session is stopped.
+_SESSION_OWNER = r'''
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import traceback
+
+status = Path(sys.argv[1])
+if sys.stdin.buffer.readline() != b"owned-fixture-start\n":
+    raise SystemExit("session ownership handshake missing")
+try:
+    worker = subprocess.Popen(sys.argv[2:], stdin=subprocess.PIPE)
+    worker.stdin.write(b"owned-fixture-start\n")
+    worker.stdin.close()
+    code = worker.wait()
+except BaseException:
+    traceback.print_exc()
+    code = 1
+pending = status.with_suffix(".pending")
+pending.write_text(json.dumps(code), encoding="utf-8")
+os.replace(pending, status)
+# The supervisor keeps this pipe open and reaps this leader only after cleanup.
+sys.stdin.buffer.read()
+'''
+
+
+def remaining(deadline):
+    left = deadline - time.monotonic()
+    if left <= 0:
+        raise TimeoutError("owned fixture session cleanup exceeded 10s")
+    return left
+
+
+class FixtureTree:
+    """Own all fixture descendants, even after their direct parent has exited."""
+    def __init__(self, command):
+        self.job = None
+        self.child = None
+        self.control = None
+        self.command = command
+        self.sid = None
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            self.kernel.CreateJobObjectW.restype = wintypes.HANDLE
+            self.kernel.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+            self.kernel.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+            self.kernel.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+            self.kernel.QueryInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int,
+                                                              ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p)
+            self.kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            self.kernel.SetInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int,
+                                                            ctypes.c_void_p, wintypes.DWORD)
+            class BasicLimits(ctypes.Structure):
+                _fields_ = [("process_time", ctypes.c_int64), ("job_time", ctypes.c_int64),
+                            ("flags", wintypes.DWORD), ("minimum_working_set", ctypes.c_size_t),
+                            ("maximum_working_set", ctypes.c_size_t), ("active_limit", wintypes.DWORD),
+                            ("affinity", ctypes.c_size_t), ("priority", wintypes.DWORD),
+                            ("scheduling_class", wintypes.DWORD)]
+            class ExtendedLimits(ctypes.Structure):
+                _fields_ = [("basic", BasicLimits), ("io_counters", ctypes.c_uint64 * 6),
+                            ("process_memory", ctypes.c_size_t), ("job_memory", ctypes.c_size_t),
+                            ("peak_process_memory", ctypes.c_size_t), ("peak_job_memory", ctypes.c_size_t)]
+            self.job = self.kernel.CreateJobObjectW(None, None)
+            if not self.job:
+                raise ctypes.WinError(ctypes.get_last_error())
+            limits = ExtendedLimits()
+            limits.basic.flags = 0x2000  # JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+            if not self.kernel.SetInformationJobObject(self.job, 9, ctypes.byref(limits), ctypes.sizeof(limits)):
+                failure = ctypes.WinError(ctypes.get_last_error())
+                self.kernel.CloseHandle(self.job)
+                self.job = None
+                raise failure
+        try:
+            if os.name != "nt":
+                self.control = tempfile.TemporaryDirectory(prefix="fixture-owner-")
+                self.status = Path(self.control.name) / "worker-status.json"
+                command = [sys.executable, "-I", "-c", _SESSION_OWNER, str(self.status), *command]
+            self.child = subprocess.Popen(command, stdin=subprocess.PIPE,
+                                          start_new_session=os.name != "nt")
+            if os.name != "nt":
+                self.sid = self.child.pid
+                if os.getsid(self.child.pid) != self.sid or self.sid == os.getsid(0):
+                    raise RuntimeError("fixture did not establish a private session")
+            if self.job and not self.kernel.AssignProcessToJobObject(self.job, int(self.child._handle)):
+                import ctypes
+                failure = ctypes.WinError(ctypes.get_last_error())
+                self.child.kill()
+                raise failure
+            # Child has not launched any descendants before assignment/session
+            # ownership. No process discovery race or PID-file dependence.
+            self.child.stdin.write(b"owned-fixture-start\n")
+            self.child.stdin.flush()
+            if os.name == "nt":
+                self.child.stdin.close()
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self):
+        if self.child is None:
+            if self.job:
+                self.kernel.CloseHandle(self.job)
+                self.job = None
+            return
+        if self.job:
+            if not self.kernel.TerminateJobObject(self.job, 1):
+                import ctypes
+                raise ctypes.WinError(ctypes.get_last_error())
+            import ctypes
+            class Accounting(ctypes.Structure):
+                _fields_ = [(name, ctypes.c_int64) for name in (
+                    "user_time", "kernel_time", "period_user_time", "period_kernel_time")] + [
+                    (name, ctypes.c_uint32) for name in (
+                    "page_faults", "total_processes", "active_processes", "terminated_processes")]
+            accounting = Accounting()
+            until = time.monotonic() + 10
+            while True:
+                if not self.kernel.QueryInformationJobObject(self.job, 1, ctypes.byref(accounting),
+                                                              ctypes.sizeof(accounting), None):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                if accounting.active_processes == 0:
+                    break
+                if time.monotonic() >= until:
+                    raise RuntimeError("owned fixture job did not reap all descendants in 10s")
+                time.sleep(0.01)
+            self.kernel.CloseHandle(self.job)
+            self.job = None
+        else:
+            self.close_session(time.monotonic() + 10)
+            self.child = None
+            self.control.cleanup()
+            self.control = None
+            return
+        self.child.wait(timeout=10)
+        self.child = None
+
+    def wait(self, timeout):
+        if os.name == "nt":
+            return self.child.wait(timeout=timeout)
+        deadline = time.monotonic() + timeout
+        while True:
+            if self.status.exists():
+                return json.loads(self.status.read_text(encoding="utf-8"))
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(self.command, timeout)
+            # Do not poll/wait the leader here: its unreaped identity anchors
+            # the session even if the keeper itself exits unexpectedly.
+            time.sleep(max(0, min(0.01, deadline - time.monotonic())))
+
+    def session_members(self, deadline):
+        snapshot = subprocess.run(["/bin/ps", "-axo", "pid=,stat="],
+                                  capture_output=True, text=True,
+                                  timeout=min(5, remaining(deadline)), check=True)
+        members = []
+        for line in snapshot.stdout.splitlines():
+            remaining(deadline)
+            parts = line.split()
+            if len(parts) != 2 or parts[1].startswith("Z"):
+                continue
+            pid = int(parts[0])
+            if pid == self.child.pid:
+                continue
+            try:
+                if os.getsid(pid) == self.sid:
+                    members.append(pid)
+            except (ProcessLookupError, PermissionError):
+                continue
+        return members
+
+    def signal_member(self, pid, signum, deadline):
+        remaining(deadline)
+        # A group can change or be reparented during cleanup. Signal only an
+        # individually reverified member of this anchored SID, never a name,
+        # arbitrary descendant PID, the caller session or a reused foreign PGID.
+        if self.sid == os.getsid(0) or pid == self.child.pid:
+            raise RuntimeError("refusing unsafe fixture session signal")
+        try:
+            if os.getsid(pid) == self.sid:
+                os.kill(pid, signum)
+        except ProcessLookupError:
+            pass
+
+    def close_session(self, deadline):
+        if self.sid == os.getsid(0) or os.getsid(self.child.pid) != self.sid:
+            raise RuntimeError("refusing cleanup without the owned session anchor")
+        # Freeze the anchor too: it must not launch a worker between the last
+        # empty inventory and its own final termination.
+        os.kill(self.child.pid, signal.SIGSTOP)
+        while members := self.session_members(deadline):
+            # Freeze known members before rescanning, so normal forking cannot
+            # keep outrunning cleanup; new hook PGIDs remain inside the SID.
+            for pid in members:
+                self.signal_member(pid, signal.SIGSTOP, deadline)
+            for pid in self.session_members(deadline):
+                self.signal_member(pid, signal.SIGKILL, deadline)
+            time.sleep(min(0.01, remaining(deadline)))
+        # Reap the session leader last. Until here, its PID/SID cannot be reused
+        # for an unrelated session even when the acceptance worker has exited.
+        if os.getsid(self.child.pid) != self.sid:
+            raise RuntimeError("fixture session anchor changed during cleanup")
+        self.child.kill()
+        self.child.wait(timeout=remaining(deadline))
+        self.child.stdin.close()
+
+
+def run_fixture(command, timeout=300, *, scratch_root=None):
+    tree = FixtureTree(command)
+    primary = None
+    code = None
+    try:
+        code = tree.wait(timeout=timeout)
+        return code
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        closed = False
+        try:
+            tree.close()
+            closed = True
+        except BaseException as cleanup_error:
+            print(f"owned fixture cleanup failed: {cleanup_error!r}", file=sys.stderr)
+            if primary is None and not code:
+                raise
+        finally:
+            if scratch_root is not None:
+                if closed:
+                    try:
+                        shutil.rmtree(scratch_root)
+                    except BaseException as scratch_error:
+                        print(f"fixture scratch cleanup failed: {scratch_error!r}", file=sys.stderr)
+                        if primary is None and not code:
+                            raise
+                else:
+                    print(f"fixture scratch retained after cleanup failure: {scratch_root}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--graph", action="store_true")
+    parser.add_argument("--fixture-root", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--package", action="append", choices=("bd-cache-api", "bd-cache-py", "bd-cache-cli"))
     for name in ("bdc", "daemon", "fake-bd", "fake-python"):
         parser.add_argument("--" + name, type=Path)
@@ -77,7 +343,9 @@ def main():
         return
     if any(getattr(args, name) is None for name in ("bdc", "daemon", "fake_bd", "fake_python")):
         parser.error("process checks require --bdc --daemon --fake-bd --fake-python")
-    with tempfile.TemporaryDirectory(prefix="daemon-acceptance-") as temp:
+    # The supervisor removes scratch only after terminating/reaping the fixture
+    # tree; worker exception cleanup must not race surviving helper processes.
+    with contextlib.nullcontext(args.fixture_root) as temp:
         root = Path(temp)
         repo = root / "repo"
         (repo / ".beads").mkdir(parents=True)
@@ -98,7 +366,7 @@ def main():
         command = [str(args.daemon), "--repo", str(repo), "--config", str(config)]
 
         def bdc(*words, ok=True):
-            result = subprocess.run([str(args.bdc), "--repo", str(repo), "--bd", str(args.fake_bd), *words], env=env, capture_output=True, text=True, timeout=15)
+            result = run_product([str(args.bdc), "--repo", str(repo), "--bd", str(args.fake_bd), *words], env=env, timeout=15)
             data = json.loads(result.stdout)
             assert data["ok"] is ok, (words, result.returncode, data, result.stderr)
             return data
@@ -115,7 +383,7 @@ def main():
                 conn.close()
 
         def spawn():
-            return subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            return subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0)
 
         def stop(child):
@@ -128,20 +396,20 @@ def main():
             assert elapsed <= 31 + 0.3 + 1 + 1, elapsed
             return elapsed
 
-        help_result = subprocess.run([str(args.daemon), "--help"], env=env, capture_output=True, text=True, timeout=10)
+        help_result = run_product([str(args.daemon), "--help"], env=env, timeout=10)
         assert help_result.returncode == 0 and help_result.stdout and not help_result.stderr
-        usage_result = subprocess.run([str(args.daemon), "--unknown"], env=env, capture_output=True, text=True, timeout=10)
+        usage_result = run_product([str(args.daemon), "--unknown"], env=env, timeout=10)
         assert usage_result.returncode == 2 and not usage_result.stdout and usage_result.stderr.startswith("CLI.USAGE ")
         # Every refusal keeps stdout empty and no store opens for config/policy/endpoint failures.
         for payload, code in (("{", "CFG.PARSE"), ('{"shutdown_timeout_ms":"secret-value"}', "CFG.DESERIALIZE"), (json.dumps({**values, "endpoint": "tcp:0.0.0.0:1"}), "DAEMON.LISTENER_POLICY"), (json.dumps({**values, "endpoint": "bad-endpoint"}), "RUNTIME.ENDPOINT_FAILED")):
             config.write_text(payload)
-            result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            result = run_product(command, env=env, timeout=10)
             assert result.returncode == 1 and not result.stdout, result
             assert result.stderr.startswith(code + " ") and " — " in result.stderr and len(result.stderr.splitlines()) == 1, result.stderr
             assert "secret-value" not in result.stderr
             assert not (repo / ".bd-cache").exists(), result.stderr
         config.unlink()
-        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+        result = run_product(command, env=env, timeout=10)
         assert result.returncode == 1 and result.stderr.startswith("CFG.READ ") and not result.stdout
         config.write_text(json.dumps(values))
         bdc("cache", "schedule", "set", "* * * * * *")
@@ -155,7 +423,7 @@ def main():
         child = spawn()
         try:
             wait_for(lambda: probe_http("/health"))
-            duplicate = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            duplicate = run_product(command, env=env, timeout=10)
             assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD ") and not duplicate.stdout, duplicate
             wait_for(lambda: (reply := probe_http("/ready")) and reply[0] == 200)
             assert bdc("cache", "status")["data"]["store_schema_version"] == 3
@@ -189,11 +457,12 @@ def main():
             # Bind failure still executes application cleanup and permits immediate restart.
             with socket.socket() as occupied:
                 occupied.bind(("127.0.0.1", port)); occupied.listen()
-                result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+                result = run_product(command, env=env, timeout=10)
                 assert result.returncode == 1 and result.stderr.startswith("RUNTIME.BIND_FAILED ") and not result.stdout, result
             child = spawn(); wait_for(lambda: probe_http("/health")); stop(child); child = None
-            # Stop with a blocked hook process tree. The second owner must fail
-            # during worker grace, and only succeed after both children are reaped.
+            # Stop and reap a real blocked hook tree. Deterministic ownership
+            # through cleanup is covered by the bounded readiness HTTP fixture;
+            # a fresh process launch cannot be ordered inside finite worker grace.
             values["shutdown_timeout_ms"] = 1000
             config.write_text(json.dumps(values))
             bdc("cache", "schedule", "set", "* * * * * *", "--budget-ms", "30000", "--hook-reserve-ms", "20000", "--post-sync", "consumer.hooks:after", "--python", str(args.fake_python), "--env", "FAKE_PY_DIR")
@@ -202,8 +471,6 @@ def main():
             pids = [int(wait_for(lambda p=p: p.read_text().strip() if p.exists() else None)) for p in (root / "child.pid", root / "gc.pid")]
             began = time.monotonic()
             child.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
-            duplicate = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
-            assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD "), duplicate
             stdout, stderr = child.communicate(timeout=35)
             blocked_stop = time.monotonic() - began
             assert child.returncode == 0 and not stdout, (child.returncode, stdout, stderr)
@@ -231,4 +498,16 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--owned-fixture-child" in sys.argv:
+        sys.argv.remove("--owned-fixture-child")
+        if sys.stdin.buffer.readline() != b"owned-fixture-start\n":
+            raise SystemExit("fixture ownership handshake missing")
+        main()
+    elif "--graph" in sys.argv:
+        main()
+    else:
+        fixture_root = tempfile.mkdtemp(prefix="daemon-acceptance-")
+        code = run_fixture([sys.executable, "-I", str(Path(__file__).resolve()),
+                            "--owned-fixture-child", "--fixture-root", fixture_root, *sys.argv[1:]],
+                           scratch_root=fixture_root)
+        raise SystemExit(code)

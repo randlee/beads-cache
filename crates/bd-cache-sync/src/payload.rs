@@ -197,7 +197,8 @@ impl TrustedInterpreter {
                 ),
             ));
         }
-        if module.is_empty() || !module.split('.').all(sc_cron::is_identifier) {
+        if module.is_empty() || module.len() > 256 || !module.split('.').all(sc_cron::is_identifier)
+        {
             return Err(invalid(
                 module_field,
                 ScheduleReason::BadModule,

@@ -62,8 +62,11 @@ mod hook;
 mod job;
 mod launch;
 mod module_hook;
-#[doc(inline)]
+#[cfg(feature = "testing")]
+#[doc(hidden)]
 pub use module_hook::ModuleHook;
+#[cfg(not(feature = "testing"))]
+use module_hook::ModuleHook;
 mod lease;
 mod mode_lock;
 mod payload;
@@ -161,7 +164,7 @@ pub use payload::{
 pub use python_job::{PythonRun, PythonSyncJob};
 #[cfg(feature = "testing")]
 #[doc(hidden)]
-pub use run::{RunContext, run_builtin};
+pub use run::{RunContext, run_builtin, run_builtin_until};
 #[cfg(feature = "testing")]
 #[doc(hidden)]
 pub use schedule::Rows;

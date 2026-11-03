@@ -7,7 +7,10 @@ pub mod agent_error;
 pub mod composition;
 pub mod config;
 pub mod observability;
-pub mod routes;
+mod routes;
 
 /// Application identity used by runtime and logging.
 pub const APP_NAME: &str = "bd-cache";
+
+#[cfg(test)]
+mod readiness_tests;

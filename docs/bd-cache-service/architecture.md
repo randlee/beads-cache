@@ -15,3 +15,11 @@ The sole store budget is C1 HealthReadControl; this service does not add SQL,
 thread-local budget logic, a second connection, a scheduler database, or a fork.
 Store budget errors keep BD_CACHE.STORE_FAILED. Refused admission/cache mutex
 contention map to daemon-specific unavailable envelopes at the daemon boundary.
+
+
+The service has no direct store dependency: sync supplies the shared connection
+and HealthReadControl. Its `testing` feature exposes only the hidden
+`Application::start_observed` fixture seam, enabled by daemon dev-dependencies.
+The observer runs inside the actual readiness health scope and original deadline;
+normal Application::start supplies a no-op and no config/environment activates
+this observer. No test hook is added to the production daemon executable.

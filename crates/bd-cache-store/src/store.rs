@@ -188,6 +188,8 @@ pub struct SqliteStore {
 pub(crate) struct Shared {
     // Field order matters: the connection closes before the claim is released.
     pub(crate) inner: Mutex<Inner>,
+    #[cfg(test)]
+    pub(crate) contention_probe: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     path: PathBuf,
     _claim: Registration,
 }
@@ -376,6 +378,8 @@ impl SqliteStore {
                     examined_through: Cell::new(undatable),
                 }),
                 path: path.to_path_buf(),
+                #[cfg(test)]
+                contention_probe: Mutex::new(None),
                 _claim: claim,
             }),
         })
@@ -1531,6 +1535,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (name, kind, filter) = r.at(at)?;
             out.push(decode_scope(at, &name, &kind, filter.as_deref())?);
         }
@@ -1560,6 +1565,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = BTreeSet::new();
         for r in rows {
+            crate::health::check_decode()?;
             out.insert(bead_id(at, &r.at(at)?)?);
         }
         Ok(out)
@@ -1579,6 +1585,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (name, kind, filter) = r.at(at)?;
             out.push(decode_scope(at, &name, &kind, filter.as_deref())?);
         }
@@ -1871,6 +1878,7 @@ impl Session<'_> {
         let tx = begin(self.conn, at)?;
         let mut report = UpsertReport::default();
         for row in rows {
+            crate::health::check_decode()?;
             match Self::store_row(&tx, at, s, row, force)? {
                 Stored::SkippedNewer => report.skipped_newer.push(row.id.clone()),
                 Stored::Yes { status_changed } => {
@@ -1894,6 +1902,7 @@ impl Session<'_> {
         let rows = stmt.query_map([], |r| r.get::<_, String>(0)).at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             out.push(bead_id(at, &r.at(at)?)?);
         }
         Ok(out)
@@ -1919,6 +1928,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (from, to, kind) = r.at(at)?;
             out.push(decode_edge(at, &from, &to, &kind)?);
         }
@@ -2582,6 +2592,7 @@ impl Session<'_> {
             .at(at)?;
         let mut counts = JournalCounts::default();
         for r in rows {
+            crate::health::check_decode()?;
             let (phase, state, n) = r.at(at)?;
             let scope = phase.as_deref().map(|p| scope(at, p)).transpose()?;
             let state = JournalState::parse(&state)
@@ -2935,6 +2946,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (id, json, stale) = r.at(at)?;
             out.push(self.load_row(at, &id, &json, stale)?);
         }
@@ -2953,6 +2965,7 @@ impl Session<'_> {
                 .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
                 .at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 let (k, v) = r.at(at)?;
                 meta.insert(k, v);
             }
@@ -2973,6 +2986,7 @@ impl Session<'_> {
                 })
                 .at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 let (phase, state, n) = r.at(at)?;
                 // v3 prints a missing phase as Python's None.
                 let phase = phase.as_deref().unwrap_or("None");
@@ -2982,9 +2996,18 @@ impl Session<'_> {
         let registry: BTreeMap<ScopeId, Scope> = self
             .scopes()?
             .into_iter()
-            .map(|s| (s.id.clone(), s))
-            .collect();
-        let mut names: BTreeSet<ScopeId> = registry.keys().cloned().collect();
+            .map(|s| {
+                crate::health::check_decode()?;
+                Ok((s.id.clone(), s))
+            })
+            .collect::<Result<_, CacheError>>()?;
+        let mut names: BTreeSet<ScopeId> = registry
+            .keys()
+            .map(|s| {
+                crate::health::check_decode()?;
+                Ok(s.clone())
+            })
+            .collect::<Result<_, CacheError>>()?;
         {
             let mut stmt = self
                 .conn
@@ -2992,11 +3015,13 @@ impl Session<'_> {
                 .at(at)?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0)).at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 names.insert(scope(at, &r.at(at)?)?);
             }
         }
         let mut scopes = Vec::new();
         for s in names {
+            crate::health::check_decode()?;
             scopes.push(ScopeStatus {
                 beads: self.scope_beads(at, &s)?,
                 filter: registry.get(&s).and_then(|r| r.filter.clone()),

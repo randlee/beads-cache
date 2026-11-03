@@ -123,11 +123,9 @@ jobs:
       # assembly in temporary standalone roots (workspace union is not leakage).
       - name: Crate boundaries, isolated transitive consumers
         run: |
+          python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v
           python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py
           python3 -I scripts/consumer_checks.py --graph
-
-      - name: Install script test dependencies
-        run: python3 -m pip install "jsonschema>=4.18,<5"
 
       - name: Install script test dependencies
         run: python3 -m pip install "jsonschema>=4.18,<5"

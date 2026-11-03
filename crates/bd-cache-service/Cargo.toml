@@ -8,10 +8,12 @@ repository.workspace = true
 authors.workspace = true
 publish = false
 
+[features]
+testing = []
+
 [dependencies]
 bd-cache-api.workspace = true
 bd-cache-model.workspace = true
-bd-cache-store.workspace = true
 bd-cache-sync.workspace = true
 sc-bd-cli.workspace = true
 tokio.workspace = true

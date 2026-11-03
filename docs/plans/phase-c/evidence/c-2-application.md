@@ -1,10 +1,30 @@
 # C2 application development evidence
 
-Current status: all implementation deliverables and the actual scratch workflow
-are complete. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
+Current status: QA1 correction delivery is in progress, with upstream API,
+Windows stop, exact lifecycle coverage and CI/parent merge gates open. The earlier
+scratch workflow completed against its recorded source only. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
 source `623218021d27ef247b389233650314896b69cbc1`; the checkpoints below preserve
 the earlier development findings. QA, CI and merge gates remain separate, and
 the advisory is unsuppressed.
+
+## Windows acceptance decoding correction
+
+General CI run `41567572146` reached the daemon diagnostic assertion on Windows
+and failed because subprocess text decoding used the host locale for UTF-8
+product output. After merging integration `22f9d6b9ddc67274d95a23c16a2a8345c0785bc0`,
+the acceptance script explicitly decodes all captured product processes as UTF-8,
+including the long-running daemon pipes. The diagnostic prefix, em dash,
+single-line and redaction assertions remain unchanged. System utility output
+continues to use its platform decoder.
+
+A focused subprocess regression emits raw UTF-8 diagnostics with a simulated
+CP1252 default decoder: the control corrupts the text and the product boundary
+preserves it exactly. Invalid UTF-8 still raises instead of being replaced.
+Local validation passes: 99 script tests (one existing smoke skip), formatting,
+all-target Clippy with warnings denied, and the complete FakeBd daemon process
+acceptance (including blocked child/grandchild cleanup in 1.007 seconds).
+This is a test-harness portability change; the native artifact sources qualified
+above are unchanged. A new hosted Windows run remains required.
 
 Development branch: `sprint/c-2-framework-application`. Parent development heads
 consumed: C1 `4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56`, C3
@@ -126,3 +146,27 @@ skipped). Candidate native artifacts will be built from the exact pushed source
 head recorded in the transport manifest. Authorized transport is performed by
 the parent chat; the developer analyzes the returned raw execution logs. This
 approval does not waive the unsuppressed advisory or claim live proof yet.
+
+
+## QA1 correction source boundary
+
+The [owning sprint dispositions](../sprint-c-2-framework-application.md#qa1-correction-delivery-and-open-gates)
+retain all 36 manager FAIL IDs. C1 native corrections (73ced71 plus test-only
+96ce326) are now consumed; the old actual consumer artifact receipt remains tied
+to 623218021d27ef247b389233650314896b69cbc1 and does not qualify this changed source.
+No scratch transport or remote rerun occurred during these corrections.
+
+The new real HTTP/service fixture proves typed busy admission, actual upstream
+503/RUNTIME.REQUEST_TIMEOUT response cancellation, retained capacity/cache claim,
+actual reader cleanup and restart under an owned process watchdog. Its explicit
+testing-feature observer holds one real health evaluation inside the existing
+one-second deadline. It does not claim runtime daemon.lock ordering: that exact
+lifecycle proof remains open because the published runtime test control is private.
+The earlier sleep-dependent duplicate launch inside finite worker grace is removed;
+real duplicate refusal before stop, blocked-tree reap and restart remain.
+
+Windows acceptance still sends its original isolated-group CTRL_BREAK and requires
+zero exit plus cleanup. Published runtime 0.1.1 handles only CtrlC, so QA-C2-001 is
+still blocked upstream. Fixture cleanup now owns all descendants independently of
+whether production graceful stop succeeds. The strict-byte decoding regression
+runs on the caller thread rather than Windows subprocess reader threads.

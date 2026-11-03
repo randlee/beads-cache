@@ -134,7 +134,7 @@ fn admission_panicked() -> EventError {
 
 #[cfg(test)]
 #[path = "observability_adapter_tests.rs"]
-mod adapter_tests;
+pub(crate) mod adapter_tests;
 
 impl std::fmt::Debug for Observability {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

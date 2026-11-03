@@ -10,6 +10,8 @@ use bd_cache_model::CacheError;
 use crate::store::{Inner, Shared};
 
 thread_local! {
+    #[cfg(test)]
+    static EXPIRE_AFTER_DECODES: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static ACTIVE: RefCell<Vec<Option<Instant>>> = const { RefCell::new(Vec::new()) };
     static BUDGETS: RefCell<Vec<(usize, Instant)>> = const { RefCell::new(Vec::new()) };
 }
@@ -78,6 +80,19 @@ pub(crate) fn is_scoped() -> bool {
 }
 
 pub(crate) fn check_decode() -> Result<(), CacheError> {
+    #[cfg(test)]
+    EXPIRE_AFTER_DECODES.with(|remaining| {
+        if let Some(n) = remaining.get() {
+            remaining.set(Some(n.saturating_sub(1)));
+            if n == 0 {
+                ACTIVE.with_borrow_mut(|active| {
+                    if let Some(deadline) = active.last_mut() {
+                        *deadline = Some(Instant::now());
+                    }
+                });
+            }
+        }
+    });
     check(ACTIVE.with_borrow(|sessions| sessions.last().copied().flatten()))
 }
 
@@ -146,6 +161,16 @@ impl Shared {
                 }
             }
         } else {
+            #[cfg(test)]
+            if matches!(self.inner.try_lock(), Err(TryLockError::WouldBlock))
+                && let Some(probe) = self
+                    .contention_probe
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .as_ref()
+            {
+                let _ = probe.send(());
+            }
             self.lock()
         };
         ACTIVE.with_borrow_mut(|sessions| sessions.push(deadline));
@@ -227,24 +252,175 @@ mod tests {
 
     #[test]
     fn mutex_wait_is_bounded_and_does_not_wait_for_the_holder() {
+        const CHILD_MODE: &str = "BD_CACHE_HEALTH_MUTEX_CHILD";
+        if let Ok(mode) = std::env::var(CHILD_MODE) {
+            mutex_wait_fixture(mode == "stalled");
+            return;
+        }
+        let mut child = MutexChild::spawn(CHILD_MODE, "normal");
+        let status = child.finish().unwrap_or_else(|| {
+            panic!(
+                "health mutex child exceeded its five-second lifetime: {}",
+                child.output()
+            )
+        });
+        assert!(
+            status.success(),
+            "health mutex child failed: {}",
+            child.output()
+        );
+        assert!(
+            child.output().contains("1 passed"),
+            "child did not execute the mutex scenario: {}",
+            child.output()
+        );
+    }
+
+    /// Owns the whole synchronous scenario: a stuck reader can only outlive the
+    /// assertion inside this process, never the supervising test's deadline.
+    struct MutexChild {
+        process: std::process::Child,
+        output: tempfile::NamedTempFile,
+        _scratch: tempfile::TempDir,
+    }
+
+    impl MutexChild {
+        fn spawn(key: &str, mode: &str) -> Self {
+            let output = tempfile::NamedTempFile::new().unwrap();
+            let scratch = tempfile::tempdir().unwrap();
+            let stdout = output.reopen().unwrap();
+            let stderr = stdout.try_clone().unwrap();
+            let process = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(key, mode)
+                // The parent removes even a killed child's temporary cache.
+                .env("TMPDIR", scratch.path())
+                .env("TMP", scratch.path())
+                .env("TEMP", scratch.path())
+                .stdin(std::process::Stdio::null())
+                .stdout(stdout)
+                .stderr(stderr)
+                .spawn()
+                .unwrap();
+            Self {
+                process,
+                output,
+                _scratch: scratch,
+            }
+        }
+
+        fn finish(&mut self) -> Option<std::process::ExitStatus> {
+            let until = Instant::now() + Duration::from_secs(5);
+            loop {
+                if let Some(status) = self.process.try_wait().unwrap() {
+                    return Some(status);
+                }
+                if Instant::now() >= until {
+                    self.kill_and_reap();
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+
+        fn kill_and_reap(&mut self) {
+            // Once killed, wait only reaps the OS child; no test thread or cache
+            // lock must cooperate. Drop also covers assertions and unwind.
+            let _ = self.process.kill();
+            self.process.wait().unwrap();
+        }
+
+        fn output(&self) -> String {
+            std::fs::read_to_string(self.output.path()).unwrap()
+        }
+    }
+
+    impl Drop for MutexChild {
+        fn drop(&mut self) {
+            let _ = self.process.kill();
+            let _ = self.process.wait();
+        }
+    }
+
+    #[test]
+    fn mutex_wait_supervisor_kills_and_reaps_a_stalled_reader() {
+        let mut child = MutexChild::spawn("BD_CACHE_HEALTH_MUTEX_CHILD", "stalled");
+        assert!(
+            child.finish().is_none(),
+            "stalled fixture unexpectedly exited: {}",
+            child.output()
+        );
+        assert!(
+            child.process.try_wait().unwrap().is_some(),
+            "timed-out child was not reaped"
+        );
+        assert!(
+            child
+                .output()
+                .contains("health read did not return while holder remained locked"),
+            "stalled reader did not reach the contended-read failure path: {}",
+            child.output()
+        );
+    }
+
+    fn mutex_wait_fixture(stall_reader: bool) {
         let (_dir, store) = store();
         let control = store.health_read_control();
         let shared = Arc::clone(&control.shared);
-        let (tx, rx) = std::sync::mpsc::channel();
+        let (ready, observed) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel::<()>();
         let holder = std::thread::spawn(move || {
-            let _guard = shared.lock();
-            tx.send(()).unwrap();
-            std::thread::sleep(Duration::from_millis(250));
+            let until = Instant::now() + Duration::from_secs(5);
+            let guard = loop {
+                if let Ok(guard) = shared.inner.try_lock() {
+                    break guard;
+                }
+                assert!(
+                    Instant::now() < until,
+                    "holder could not acquire connection"
+                );
+                std::thread::yield_now();
+            };
+            ready.send(()).unwrap();
+            let _ = released.recv(); // owner Drop closes this on every unwind
+            drop(guard);
         });
-        rx.recv().unwrap();
-        let started = Instant::now();
-        let error = control
-            .within(started + Duration::from_millis(50), || store.status())
-            .unwrap_err();
+        observed.recv_timeout(Duration::from_secs(5)).unwrap();
+        let (began, starting) = std::sync::mpsc::channel();
+        let (answer, answers) = std::sync::mpsc::channel();
+        let reader = std::thread::spawn(move || {
+            let started = Instant::now();
+            began.send(()).unwrap();
+            if stall_reader {
+                // Fault injection: model a synchronous health read that never
+                // completes, even after the holder releases its connection.
+                loop {
+                    std::thread::park();
+                }
+            }
+            let result = control.within(started + Duration::from_millis(50), || store.status());
+            let _ = answer.send((result, started.elapsed(), store));
+        });
+        starting.recv_timeout(Duration::from_secs(5)).unwrap();
+        let bounded = answers.recv_timeout(Duration::from_millis(200));
+        drop(release); // explicit release occurs after read refusal, or on failure
+        if let Err(error) = &bounded {
+            eprintln!("health read did not return while holder remained locked: {error}");
+        }
+        // These synchronous joins are confined to the owned child. Even an
+        // actual deadlock here is killed and reaped by the parent after 5 s.
+        reader.join().unwrap();
+        holder.join().unwrap();
+        let (result, elapsed, store) = bounded.expect("health read exceeded its answer deadline");
+        let error = result.unwrap_err();
         assert_eq!(error.code(), "BD_CACHE.STORE_FAILED");
         assert!(error.detail().contains("bounded health read"));
-        assert!(started.elapsed() < Duration::from_millis(150));
-        holder.join().unwrap();
+        assert!(elapsed < Duration::from_millis(150));
         assert!(store.status().is_ok());
     }
 
@@ -255,42 +431,52 @@ mod tests {
         let (_dir, store) = store();
         let control = store.health_read_control();
         let schedules = store.schedule_store().unwrap();
+        let (attempt, attempted) = std::sync::mpsc::channel();
+        *control.shared.contention_probe.lock().unwrap() = Some(attempt);
+        let (done, completed) = std::sync::mpsc::channel();
+        let mut writer = None;
         let start = Instant::now();
-        let writer = std::thread::spawn(move || {
-            std::thread::sleep(Duration::from_millis(20));
-            let at = "2026-11-01T00:00:00Z".parse().unwrap();
-            schedules
-                .create(
-                    &NewSchedule {
-                        spec: ScheduleSpec::new(
-                            "normal",
-                            "@hourly",
-                            Duration::from_secs(1),
-                            serde_json::json!({}),
-                        )
-                        .unwrap(),
-                        jitter: Duration::ZERO,
-                        next_run_at: at,
-                    },
-                    at,
-                )
-                .unwrap();
-        });
         let result: Result<i64, CacheError> =
             control.within(start + Duration::from_secs(1), || {
-                control
-                    .shared
-                    .session_lock()?
+                let session = control.shared.session_lock()?;
+                // Only spawn once the health session owns the connection. The
+                // probe acknowledges a real failed acquisition by the normal writer.
+                writer = Some(std::thread::spawn(move || {
+                    let at = "2026-11-01T00:00:00Z".parse().unwrap();
+                    let result = schedules.create(
+                        &NewSchedule {
+                            spec: ScheduleSpec::new(
+                                "normal",
+                                "@hourly",
+                                Duration::from_secs(1),
+                                serde_json::json!({}),
+                            )
+                            .unwrap(),
+                            jitter: Duration::ZERO,
+                            next_run_at: at,
+                        },
+                        at,
+                    );
+                    let _ = done.send(result);
+                }));
+                attempted.recv_timeout(Duration::from_millis(500)).unwrap();
+                session
                     .conn
                     .query_row(LONG_SQL, [], |r| r.get(0))
                     .map_err(setting)
             });
+        let elapsed = start.elapsed();
+        completed
+            .recv_timeout(Duration::from_secs(2))
+            .unwrap()
+            .unwrap();
+        writer.unwrap().join().unwrap();
+        *control.shared.contention_probe.lock().unwrap() = None;
         assert_eq!(result.unwrap_err().code(), "BD_CACHE.STORE_FAILED");
         assert!(
-            start.elapsed() < Duration::from_millis(1100),
+            elapsed < Duration::from_millis(1100),
             "the blocking work actually ended"
         );
-        writer.join().unwrap();
         assert_eq!(
             store.schedule_store().unwrap().list_active().unwrap().len(),
             1
@@ -359,33 +545,61 @@ mod tests {
     }
     #[test]
     fn public_store_row_decoding_obeys_the_budget() {
+        struct Reset;
+        impl Drop for Reset {
+            fn drop(&mut self) {
+                EXPIRE_AFTER_DECODES.with(|n| n.set(None));
+            }
+        }
         let (_dir, mut store) = store();
         let scope = Scope::new(
             ScopeId::new("decode").unwrap(),
             bd_cache_model::ScopeFilter::All,
         );
-        let mut rows = Vec::new();
-        for n in 0..500 {
-            let mut row = sc_beads::testing::bead(&format!("b{n}"));
-            row.description = Some("x".repeat(128 * 1024));
-            rows.push(row);
-        }
+        let rows: Vec<_> = (0..10)
+            .map(|n| sc_beads::testing::bead(&format!("b{n}")))
+            .collect();
         store.upsert_rows(Some(&scope), &rows, false).unwrap();
         let control = store.health_read_control();
-        let started = Instant::now();
-        let result = control.within(started + Duration::from_millis(20), || {
+        let _reset = Reset;
+        EXPIRE_AFTER_DECODES.with(|n| n.set(Some(2)));
+        let result = control.within(Instant::now() + Duration::from_secs(1), || {
             store.rows_in_scope(&scope.id)
         });
-        assert!(
-            result.is_err(),
-            "a real public read cannot finish every decode within 20ms"
-        );
-        assert!(started.elapsed() < Duration::from_millis(150));
-        // Restoration also covers an ordinary successful bounded read.
+        assert!(result.unwrap_err().detail().contains("bounded health read"));
+        EXPIRE_AFTER_DECODES.with(|n| n.set(None));
+        assert_eq!(store.rows_in_scope(&scope.id).unwrap().len(), 10);
         assert!(
             control
                 .within(Instant::now() + Duration::from_secs(1), || store.status())
                 .is_ok()
         );
+    }
+
+    #[test]
+    fn scope_filters_and_status_assembly_check_each_boundary() {
+        let (_dir, mut store) = store();
+        for n in 0..10 {
+            store
+                .ensure_scope(&Scope::new(
+                    ScopeId::new(format!("s{n}")).unwrap(),
+                    bd_cache_model::ScopeFilter::label("area").unwrap(),
+                ))
+                .unwrap();
+        }
+        let control = store.health_read_control();
+        for status in [false, true] {
+            EXPIRE_AFTER_DECODES.with(|n| n.set(Some(2)));
+            let result = control.within(Instant::now() + Duration::from_secs(1), || {
+                if status {
+                    store.status().map(|_| ())
+                } else {
+                    store.scopes().map(|_| ())
+                }
+            });
+            EXPIRE_AFTER_DECODES.with(|n| n.set(None));
+            assert!(result.unwrap_err().detail().contains("bounded health read"));
+        }
+        assert_eq!(store.scopes().unwrap().len(), 10);
     }
 }

@@ -1,6 +1,6 @@
 ---
 phase: c
-status: complete
+status: in_progress
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-2
@@ -21,6 +21,13 @@ requirements:
   owns:
   - REQ-BDC-1001
   - REQ-BDC-1003
+  - REQ-SERVICE-0001
+  - REQ-SERVICE-0002
+  - REQ-SERVICE-0003
+  - REQ-DAEMON-0001
+  - REQ-DAEMON-0002
+  - REQ-DAEMON-0003
+  - REQ-DAEMON-0004
   constrained_by:
   - REQ-BDC-0001
   - REQ-BDC-0006
@@ -34,12 +41,15 @@ requirements:
   - REQ-BDC-0730
   - REQ-BDC-0732
   - REQ-BDC-0802
+  - REQ-BDC-0804
+  - REQ-BDC-0903
   - REQ-BDC-0805
   - REQ-BDC-0810
   - REQ-BDC-0812
   - REQ-BDC-0910
   - NFR-BDC-0001
   - NFR-BDC-0002
+  - NFR-BDC-0003
   - NFR-BDC-0004
   - NFR-BDC-0005
   - NFR-BDC-0006
@@ -315,16 +325,182 @@ outside the fence; the optional daemon does not change the local cache contract.
 
 ## Implementation handoff
 
-All five implementation deliverables are complete. Application/local process
+The application implementation and earlier consumer qualification are delivered;
+QA1 has identified independent corrections and unresolved upstream/gate findings. Application/local process
 qualification is recorded in [evidence/c-2-application.md](evidence/c-2-application.md).
 The actual scratch consumer workflow passed against release artifacts from source
 `623218021d27ef247b389233650314896b69cbc1`; see the exact source/artifact/bridge/
 cleanup [receipt](evidence/c-2-consumer-qualification.md). The later receipt commit
 changes documentation only and does not claim a different artifact build source.
 
-`status: complete` records implementation delivery, not QA/CI completion or merge
-eligibility. Parent QA and PR merges remain required. The advisory gate remains
+`status: in_progress` includes QA corrections and open upstream/CI/merge gates.
+The earlier implementation-only completion label is superseded by this status. Parent QA and PR merges remain required. The advisory gate remains
 unsuppressed and externally blocked under the immutable sc-runtime 0.1.1 pin. The
 owner instructed deferral until sc-runtime 0.2.0 is available and an explicit
 baseline adoption/revalidation is approved. The bead remains in progress until
 the required gates are satisfied; no QA waiver, self-merge or publication occurred.
+
+
+## QA1 correction delivery and open gates
+
+QA1 reviewed `bf7f8aad17f1081716b6d37adb44873f25293ee7` and published FAIL:
+36 unique IDs (12 Blocking, 19 Important, 5 Minor). The authoritative report is
+[PR #109 QA1](https://github.com/randlee/beads-cache/pull/109#issuecomment-6594892195),
+with local full occurrences and ceremony screen at
+`/tmp/phase-c-execution/c-2/qa-1/screen-input.json` and `screen-result.md`.
+Every ID below requests independent verification; no row declares QA closure.
+
+C1 published corrections were consumed from `73ced71`, followed by its test-only
+FTQ-001 correction `96ce326fca99a2919a6462bd4249b9931281eadd`. The sole merge
+conflict in ci.yml retained both approved graph invocations, C1's graph unit
+proofs, and exactly one jsonschema prerequisite; C1 remains that workflow
+correction's owner. Shared project-plan corrections come only from C1.
+
+| Finding | Correction / remaining disposition |
+|---|---|
+| FTQ-001 | Consumed C1 96ce326: whole-child watchdog bounds the held-mutex scenario and its deliberately stalled-reader failure branch. Independent C1 QA2 verification remains required. |
+| FTQ-002 | Consumed C1 deterministic injected row-decode expiration, replacing machine-throughput assumptions. |
+| FTQ-003 | Consumed C1 causal active-health-session / normal-writer contention handshakes and restoration proof. |
+| FTQ-004 | Consumed C1 first-snapshot acknowledgements and owned observer cleanup for store and both sync pollers. |
+| FTQ-005 | Consumed C1 actual contended mode-lock acquisition handshake with bounded completion. |
+| FTQ-006 | Consumed C1 bounded real watchdog and owned abort/join for hook and manual-clock run completion. |
+| FTQ-007 | Consumed C1 bounded Cargo metadata capture and actual sleeping-child timeout/reap regression. |
+| FTQ-008 | Consumed C1 bounded holder/readiness/release/task completion and unwind-safe release ownership. |
+| C2-FTQ-001 | Readiness thread test now independently awaits actual evaluator entry, aborts/joins response task, checks held capacity, observes join attempt, and releases/joins under finite deadlines. The complete scenario runs in an owned child watchdog. |
+| C2-FTQ-002 | Application test uses a finite startup/readiness deadline with yielding rather than sleep, a cleanup deadline, and a whole-child watchdog owning all service threads. |
+| C2-FTQ-003 | Both real-logger lifecycle cases now run entirely inside the existing owned child watchdog; real flush/shutdown/event assertions remain. |
+| C2-FTQ-004 | Removed the scheduling race that launched a new process after stop inside a finite grace window. Duplicate-owner refusal before stop and real blocked-tree reap/restart remain. Causal HTTP fixture separately checks cleanup retains the cache claim while evaluation is held. Exact runtime instance-lock retention through this phase remains OPEN with C2-REQ-009; no expanded grace or replacement proof is claimed. |
+| C2-FTQ-005 | QA1 added Windows Job ownership and initial POSIX group cleanup. QA2 correctly found that actual upstream hooks lead a separate group within the session, so the original POSIX cleanup/proof was incomplete. The verified-session correction and actual-topology regressions are recorded below; this historical row does not claim QA2 closure. |
+| QA-C2-001 | OPEN/BLOCKED: published sc-runtime 0.1.1 registers Windows CtrlC only; the isolated process-group acceptance requires CTRL_BREAK. Existing zero-exit/cleanup assertions and Windows acceptance remain intact. Needs approved public upstream graceful stop support; no competing handler/workaround is added. |
+| QA-C2-002 | run_product captures bytes and strictly decodes both streams on its calling thread, so Windows pipe-reader threads cannot swallow UnicodeDecodeError. Exact UTF-8 diagnostic and malformed-byte negative regressions remain. |
+| ARCH-001 | OPEN/BLOCKED: unauthorized direct sync -> sc-command logging receiver edge requires the upstream public seam recorded by C1. No boundary waiver or dropped canonical events. |
+| RSH-001 | OPEN/BLOCKED: pinned WorkerHandle can await uncancelled blocking store work beyond the stop deadline. Existing ownership joins remain; no detach/timeout/drop substitute claims to enforce 2T. |
+| RBQA-F001 | OPEN/BLOCKED, distinct correlated logging dependency finding; consume only an approved published upstream receiver seam through C1. |
+| RBQA-F002 | Consumed C1 canonical root-reachable normal/build provenance/introducer checks and planted negatives; C2 delegates to the same checker, retaining only the CLI's already-approved direct contract and clap dependencies. Actual unauthorized edge is intentionally rejected. |
+| RBQA-F003 | Consumed C1 testing-only ModuleHook export and crate-private invoke; no normal consumer process API remains. |
+| C2-RBQA-F001 | Removed unused direct service -> store normal dependency and both architecture table edges. Real storage stays behind sync composition. |
+| C2-RBQA-F002 | Daemon routes module is private; router is crate-visible. Binary-facing composition/config/observability APIs remain. |
+| C2-RBP-F001 | ShutdownError::source exposes the actual Worker JoinError and no source for source-free variants. Test downcasts the retained cause from an actually canceled Tokio task. |
+| C1-RBP-F001 | Consumed C1 infallible local unrunnable constructor correction while preserving fallible resolver errors. |
+| C2-REQ-001 | Single sprint list now includes all seven local refinements and retained 0804/0903/NFR0003 constraints. Per-crate records have titled IDs, approved status, statement/refines/evidence, and both baseline indices include service/daemon. |
+| C2-REQ-002 | Consumed C1-owned shared lifecycle correction; owning C2 status is in_progress and the implementation-only complete label is superseded. Root metadata aa192fa now updates the central C2/C3/C4 rows from C1's exact shared-file baseline. All QA/CI/parent merge gates remain open. |
+| C2-REQ-003 | OPEN: exact new-head OS/Python qualification, independent QA and C1 merge are required. Windows graceful stop, actual unauthorized graph, unbounded upstream store join and unsuppressed paste advisory block green completion. Owner defers paste effort until published 0.2.0 and explicit adoption/revalidation. |
+| C2-REQ-004 | OPEN/BLOCKED with RSH-001: no approved upstream bounded store-operation shutdown contract is available; happy-path stop timings cannot qualify contended store work. |
+| C2-REQ-005 | Consumed C1 absolute scheduled deadline propagation through record claims, preparation, mutex wait, backend, hook and completion; causal expired-before-acquisition regression checks no later backend call. |
+| C2-REQ-006 | Consumed C1 256-byte module validation for Python sync and hooks, with positive 256/negative 257 and unchanged-row assertions. |
+| C2-REQ-007 | Partially corrected: C2 delegates to canonical graph provenance/introducer rule; a planted unauthorized direct contract edge is rejected even for CLI, while its own existing direct contract remains permitted. OPEN until upstream logging seam permits C1 to remove the actual direct sync introducer. |
+| C2-REQ-008 | Consumed C1 migrated production scheduled 1000-bead incremental qualification (6.184458 ms release measurement), including incremental cursor and changed cached row assertions. Cached-get latency is not used as this evidence. |
+| C2-REQ-009 | Partially corrected, OPEN for exact runtime instance-lock lifecycle: owned real HTTP fixture uses the production router, public runtime request-timeout instrumentation and actual Application health evaluation. It proves causal admission, typed concurrent BUSY, actual HTTP timeout cancellation, capacity retention, HTTP drain, cleanup/cache-claim retention, actual reader join and reopen/restart. A testing-feature observer gates one real evaluation inside its original one-second budget; no production config bypass exists. Published runtime test-util lacks public run_with_cleanup stop injection/instance control, and Windows production stop is blocked by QA-C2-001. Cache-claim retention is not relabeled as runtime instance-lock proof. |
+| RSH-002 | Consumed C1 scheduled absolute deadline propagation and causal contention/expiry proof; shutdown grace does not renew execution budgets. |
+| RSH-003 | Consumed C1 health deadline checks at all scope/filter row and status assembly boundaries, with deterministic expiration/restoration tests. |
+| RSH-004 | Consumed C1 continuous-worker context with no detailed retained failure collection; finite run-once retains exact details and drain-once proof. |
+
+
+The retained actual consumer receipt qualifies only source
+`623218021d27ef247b389233650314896b69cbc1`. C1 production corrections now change
+the native candidate; old live proof is not proof for this new head. Future
+exact-candidate scratch qualification is required after the remaining approved
+corrections/baseline decisions. No new remote action is performed in this round.
+Final source validation and exact push SHA follow separately; overall disposition
+remains FAIL/blocked, not merge readiness or a waived acceptance criterion.
+
+
+### QA1 correction validation receipt
+
+Final correction source: `3a6bef362ab4eaa9b76a2d7534b6ad122704ecea`.
+Native Rust/manifests/lock content is unchanged from `070ab583af093475941405c3b67c164f1a07d414`;
+`c8fa58a` adds test-supervisor Windows kill-on-close ownership and `3a6bef3`
+preserves the CLI's approved direct contract while retaining actual sync-edge
+rejection. Merge `56ccd25` consumes root lifecycle metadata `aa192fa` by taking
+that exact project-plan blob; only C2/C3/C4 row conflicts were reconciled.
+This validation receipt changes documentation only.
+
+- PASS: formatting, all-target workspace Clippy, all-feature non-Python Clippy,
+  default library Clippy and warnings-denied docs. Logs:
+  `/tmp/c2-qa1-fix-final-clippy.log`, `c2-qa1-fix-clippy-all.log`,
+  `c2-qa1-fix-clippy-default.log`, `c2-qa1-fix-docs.log` (all under `/tmp`).
+- PASS: all-feature non-Python workspace tests/doctests: 1153 passed, 0 failed,
+  21 intentionally ignored across 114 top-level result groups (nested watchdog
+  child summaries are not counted twice). `/tmp/c2-qa1-fix-workspace.log`.
+  This includes C1 96ce326 and all new service/logger/real HTTP fixture cases;
+  the owned HTTP case observes the public runtime's actual
+  503/RUNTIME.REQUEST_TIMEOUT response, not an invented 504 contract.
+- PASS: final pushed script suite 102 run, 101 passed, 1 existing explicitly
+  opt-in pinned-generation smoke skip. No new platform skip was added.
+  `/tmp/c2-qa1-fix-scripts-final.log`. Focused graph/encoding/owned-tree proofs:
+  `/tmp/c2-qa1-fix-graph-followup.log`; canonical four graph proofs:
+  `/tmp/c2-qa1-fix-graph-unit.log`.
+- PASS: freshly rebuilt debug CLI, fake binaries and daemon process acceptance:
+  scheduled sync, cached v3 identity/state, outage recovery, typed startup errors,
+  duplicate/bind cleanup, blocked hook child/grandchild reap and restart.
+  Stop samples 0.002901/0.001937/1.005516 seconds at the existing configurations.
+  `/tmp/c2-qa1-fix-build-cli.log`, `c2-qa1-fix-build-daemon.log`,
+  `c2-qa1-fix-process.log` under `/tmp`. No test invokes live bd or Dolt.
+- PASS: retained release CLI latency gate: median 5.4 ms (50 ms bound), p95
+  6.5 ms; pending overlay reported median 6.0 ms/p95 7.0 ms.
+  `/tmp/c2-qa1-fix-latency.log`. Incremental 1000-bead sync evidence remains
+  the explicitly consumed C1 production-composition measurement above.
+- PASS: independent API graph; strict consumer neutrality; no backend client.
+  The no-backend PATH check passes under the controlled cargo/system-only PATH;
+  the normal developer PATH contains installed tools and is not claimed isolated.
+  `/tmp/c2-qa1-fix-graph-api.log`, `c2-qa1-fix-neutrality.log`,
+  `c2-qa1-fix-backend-graph.log`, `c2-qa1-fix-backend-path.log` under `/tmp`.
+- EXPECTED REAL FAIL, not waived: independent Python and CLI graphs both reject
+  `bd-cache-sync -> sc-command`; the CLI's own approved edge is not rejected.
+  `/tmp/c2-qa1-fix-graph-python.log`, `c2-qa1-fix-graph-cli.log` under `/tmp`.
+- REAL FAIL, unsuppressed: RUSTSEC-2024-0436 for paste1.0.15 through
+  utoipa-axum0.2.0 / sc-runtime0.1.1. `/tmp/c2-qa1-fix-advisories.log`.
+  No additional workaround investigation or baseline change occurred.
+
+Local execution is macOS arm64/Python3.11. Windows Job Object teardown and the
+fixed strict-decoding regression still require hosted Windows confirmation;
+production CTRL_BREAK acceptance remains blocked upstream and unchanged.
+The existing native Python corpus receipt is C1's changed-source qualification,
+not a newly built C2 release wheel or replacement for the new-head OS/Python CI.
+No full unchanged suite was repeated for the metadata-only merge.
+
+Overall remains FAIL/blocked: upstream logging and bounded store shutdown,
+Windows graceful stop, exact canceled-readiness/runtime-instance-lock proof,
+unsuppressed advisory, exact-head CI and required parent completion/merges.
+All 36 IDs remain available to the next independent QA pass; implementation
+corrections above request verification and do not close the bead or authorize merge.
+
+
+## QA2 fixture ownership correction
+
+QA2 reviewed `380f87f3a9634982fb1b992acf96b5e18f89f304` and published FAIL with
+nine IDs (7 Blocking, 2 Important), while owning reviewers resolved 27 original
+IDs. Authoritative report:
+[PR #109 QA2](https://github.com/randlee/beads-cache/pull/109#issuecomment-6595342965);
+full findings and ceremony screen are under `/tmp/phase-c-execution/c-2/qa-2/`.
+This round changes only the two acceptance scripts and this owning receipt;
+integration merge-forward contributes orchestration metadata only. Native Rust,
+manifest/lock content and the previously qualified local debug artifacts remain
+unchanged. No Rust/wheel suite or remote consumer qualification is repeated.
+
+| QA2 finding | Disposition |
+|---|---|
+| C2-FTQ-005 | Correction requests verification: POSIX starts an owned session-leader keeper, which reports the acceptance worker's original exit code while staying alive and unreaped. Cleanup freezes that anchor, inventories PIDs and verifies each matching SID before signaling, stops/kills members across every owned hook PGID under one absolute 10-second deadline, then kills/reaps the anchor last. Caller SID is refused before any signal. Scratch removal occurs only after successful tree cleanup; cleanup failure retains scratch and preserves the primary failure/timeout diagnostics. Windows Job admission/accounting/kill-on-close is unchanged. |
+| QA-C2-001 | OPEN: published runtime Windows CtrlC-only handling does not satisfy isolated-group CTRL_BREAK graceful stop. Original Windows acceptance and zero-exit/cleanup assertions remain. No handler or runtime-control workaround. |
+| C2-REQ-003 | OPEN: exact-head OS/Python CI, current-native/wheel consumer qualification and parent completion/merge gates remain. Historical live6232180 proof is not retargeted to current native source. The graph/advisory failures are real and unsuppressed. |
+| C2-REQ-004 | OPEN: approved upstream bounded store-operation stop/join contract is unavailable; safe actual joins remain, with no timeout/drop substitute or bound padding. |
+| C2-REQ-007 | OPEN: repaired canonical graph check correctly rejects the actual direct sync logging edge; removal requires the approved published upstream logging seam through C1. |
+| C2-REQ-009 | OPEN: real HTTP/service cancellation fixture proves retained capacity/cache claim, but does not establish actual runtime instance-lock ordering through run_with_cleanup. No cache-claim or keeper test is mislabeled as that proof. |
+| RBQA-F001 | OPEN: unauthorized sync -> sc-command dependency requires the compliant upstream public receiver seam; no boundary expansion or dropped events. |
+| RSH-001 | OPEN: published worker shutdown can await uncancelled blocking store work beyond the existing bound. Preserve ownership and await the approved upstream correction. |
+| ARCH-001 | OPEN: distinct correlated direct logging receiver dependency finding remains, despite correct fail-closed graph enforcement. |
+
+Focused regressions now establish the actual topology causally: a helper calls
+setpgid(0,0), its grandchild shares that separate PGID, and both retain the owned
+SID. Both failed-worker and watchdog-timeout cases assert distinct PGID/same SID,
+verify every actual signal targets the owned session, and observe both helpers
+terminated and the direct leader reaped before scratch removal. An unrelated
+session sentinel must remain alive and is explicitly terminated/reaped by the
+test afterward. The original worker exit23 and TimeoutExpired command/timeout
+are preserved. No test or platform acceptance is skipped.
+
+Pre-push focused ownership/graph/encoding validation: 6 tests passed on local
+macOS arm64/Python3.11; log `/tmp/c2-qa2-ownership-focused.log`. Full scripts and
+unchanged-native FakeBd acceptance run against the pushed source next; the parent
+will preserve final logs, without another evidence-only commit. Overall remains
+blocked by the eight OPEN IDs above; no QA PASS, completion or merge claim.
