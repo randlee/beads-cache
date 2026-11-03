@@ -1,6 +1,6 @@
 ---
 phase: c
-status: planned
+status: complete
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-3
@@ -9,7 +9,7 @@ target_boundary: framework template upkeep tooling
 track: templates
 wave: 1
 branch: sprint/c-3-template-upkeep
-worktree: sprint/c-3-template-upkeep
+worktree: /Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep
 must_follow: []
 parallel_safe:
 - c-1
@@ -135,3 +135,39 @@ scheduler path. c-2 consumes the pin/answers/helper and proves actual adoption a
 upkeep against the installed application. sc-lint bootstrap, upgrades, profiles and
 boundary-manifest migration are expressly deferred until sc-runtime 0.2.0 lands;
 this sprint must not take that work early.
+
+## Implementation evidence (2026-11-02)
+
+The c-3 owned paths now provide the immutable v0.1.1 pin, exact approved answers,
+scratch-only generator, baseline check, exhaustive mapped/unadopted JSON delta,
+local fixtures and maintainer procedure. Feature-level application adoption and
+upgrade proof remain c-2's responsibility; independent QA, the development anchor
+gate and CI are still required before merge.
+
+- `python3 -I -m unittest discover -s scripts -p 'test_runtime_templates.py' -v`:
+  18 local tests passed; the explicitly enabled real smoke was skipped.
+- With `RUNTIME_TEMPLATE_SMOKE_SOURCE=/Users/randlee/github/sc-runtime`, the same
+  command passed all 19 tests, including real pinned generation.
+- The standalone `generate --source /Users/randlee/github/sc-runtime --output
+  /tmp/beads-cache-c3-first-baseline` succeeded with 39 files, both rendered agent
+  documents and registry dependencies. Its source tag resolved exactly to
+  `5af24c862fe7ed8dae8710b7bd64a84a29506b51`. `check` passed and self-`diff`
+  reported zero changed paths. Tools: cargo-generate 0.25.1, sc-compose 1.7.0,
+  Python 3.11.9, jsonschema 4.25.1 (Draft 2020-12).
+- Planted negatives cover mismatched source SHA, checkout patches/path/Git
+  dependencies, invalid/stale/duplicate mappings, mapped-change suppression via
+  exact expected-report assertions, existing/concurrently-created outputs and
+  generator/document failure with byte-identical original fixture trees.
+- `cargo fmt --all` and `cargo clippy --all-targets -- -D warnings` exited 0;
+  rustfmt printed a pre-existing v0.1.0 dependency checkout's unrendered-template
+  parse diagnostic. No Rust or Cargo file changed in this sprint. c-1 owns the
+  dependency migration that removes that inherited source.
+
+Upstream renderer semantics: a literally absent cargo-generate `--destination`
+failed with `Error: No such file or directory (os error 2)`. Tagged
+`docs/generation.md` step 5 and `scripts/new_project.py:cargo_generate` require
+creating that directory first. The helper therefore keeps caller output absent,
+creates only an empty owned scratch render directory, then publishes the checked
+result to an exclusively created new output. Existing caller destinations are
+always refused. This distinction is documented in the maintainer procedure; no
+driver/setup/lint recipe or lint-asset installation was run.
