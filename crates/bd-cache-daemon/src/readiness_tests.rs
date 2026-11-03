@@ -173,3 +173,6 @@ fn temporary_repo() -> tempfile::TempDir {
 fn compose(repo: &std::path::Path) -> Result<bd_cache_sync::Composed, bd_cache_sync::ComposeError> {
     bd_cache_sync::compose(repo, "/never-run-backend", Arc::new(sc_beads::SystemClock))
 }
+
+#[cfg(unix)]
+mod runtime_lifecycle;

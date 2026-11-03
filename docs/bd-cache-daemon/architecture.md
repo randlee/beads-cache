@@ -33,3 +33,14 @@ runtime daemon.lock ordering: published test-util lacks a public controlled-stop
 run_with_cleanup fixture. Exact canceled-readiness/instance-lock coverage remains
 open, together with Windows CTRL_BREAK compatibility and upstream contended-store
 shutdown. No test fixture substitutes for the unchanged Windows acceptance.
+
+
+The Unix supplement now calls actual public Daemon::run_with_cleanup in an owned
+child, delivers real SIGTERM after serving/admission handshakes, and uses a second
+public Daemon startup against the same instance root to require LockHeld while
+cleanup waits for the admitted reader. It releases the read, joins the runtime,
+then starts and cleanly stops another runtime on that same root. Public test
+request-timeout instrumentation and the existing testing-only observer make
+cancellation causal without a production bypass. This supplements the earlier
+router/cache-claim fixture; it does not establish portable Windows stop support
+or the separate contended-store shutdown bound.
