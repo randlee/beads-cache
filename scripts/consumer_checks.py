@@ -15,6 +15,7 @@ import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import socket
 import sqlite3
 import subprocess
@@ -88,11 +89,50 @@ def isolated_graph(packages):
             print(f"{package}: isolated normal/build graph PASS")
 
 
+# A POSIX session leader remains alive and unreaped after the worker reports its
+# result. This anchors the SID until every hook PGID in that session is stopped.
+_SESSION_OWNER = r'''
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import traceback
+
+status = Path(sys.argv[1])
+if sys.stdin.buffer.readline() != b"owned-fixture-start\n":
+    raise SystemExit("session ownership handshake missing")
+try:
+    worker = subprocess.Popen(sys.argv[2:], stdin=subprocess.PIPE)
+    worker.stdin.write(b"owned-fixture-start\n")
+    worker.stdin.close()
+    code = worker.wait()
+except BaseException:
+    traceback.print_exc()
+    code = 1
+pending = status.with_suffix(".pending")
+pending.write_text(json.dumps(code), encoding="utf-8")
+os.replace(pending, status)
+# The supervisor keeps this pipe open and reaps this leader only after cleanup.
+sys.stdin.buffer.read()
+'''
+
+
+def remaining(deadline):
+    left = deadline - time.monotonic()
+    if left <= 0:
+        raise TimeoutError("owned fixture session cleanup exceeded 10s")
+    return left
+
+
 class FixtureTree:
     """Own all fixture descendants, even after their direct parent has exited."""
     def __init__(self, command):
         self.job = None
         self.child = None
+        self.control = None
+        self.command = command
+        self.sid = None
         if os.name == "nt":
             import ctypes
             from ctypes import wintypes
@@ -127,8 +167,16 @@ class FixtureTree:
                 self.job = None
                 raise failure
         try:
+            if os.name != "nt":
+                self.control = tempfile.TemporaryDirectory(prefix="fixture-owner-")
+                self.status = Path(self.control.name) / "worker-status.json"
+                command = [sys.executable, "-I", "-c", _SESSION_OWNER, str(self.status), *command]
             self.child = subprocess.Popen(command, stdin=subprocess.PIPE,
                                           start_new_session=os.name != "nt")
+            if os.name != "nt":
+                self.sid = self.child.pid
+                if os.getsid(self.child.pid) != self.sid or self.sid == os.getsid(0):
+                    raise RuntimeError("fixture did not establish a private session")
             if self.job and not self.kernel.AssignProcessToJobObject(self.job, int(self.child._handle)):
                 import ctypes
                 failure = ctypes.WinError(ctypes.get_last_error())
@@ -137,7 +185,9 @@ class FixtureTree:
             # Child has not launched any descendants before assignment/session
             # ownership. No process discovery race or PID-file dependence.
             self.child.stdin.write(b"owned-fixture-start\n")
-            self.child.stdin.close()
+            self.child.stdin.flush()
+            if os.name == "nt":
+                self.child.stdin.close()
         except BaseException:
             self.close()
             raise
@@ -172,44 +222,113 @@ class FixtureTree:
             self.kernel.CloseHandle(self.job)
             self.job = None
         else:
-            try:
-                os.killpg(self.child.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            until = time.monotonic() + 10
-            while True:
-                snapshot = subprocess.run(["/bin/ps", "-axo", "pgid=,stat="],
-                                          capture_output=True, text=True, timeout=5, check=True)
-                active = any(int(parts[0]) == self.child.pid and not parts[1].startswith("Z")
-                             for line in snapshot.stdout.splitlines() if len(parts := line.split()) == 2)
-                if not active:
-                    break
-                if time.monotonic() >= until:
-                    raise RuntimeError("owned fixture group still has running descendants after 10s")
-                time.sleep(0.01)
-        # The owned process is reaped even when it already exited; job/group
-        # termination above also owns the helpers that outlived that parent.
+            self.close_session(time.monotonic() + 10)
+            self.child = None
+            self.control.cleanup()
+            self.control = None
+            return
         self.child.wait(timeout=10)
         self.child = None
 
+    def wait(self, timeout):
+        if os.name == "nt":
+            return self.child.wait(timeout=timeout)
+        deadline = time.monotonic() + timeout
+        while True:
+            if self.status.exists():
+                return json.loads(self.status.read_text(encoding="utf-8"))
+            if time.monotonic() >= deadline:
+                raise subprocess.TimeoutExpired(self.command, timeout)
+            # Do not poll/wait the leader here: its unreaped identity anchors
+            # the session even if the keeper itself exits unexpectedly.
+            time.sleep(max(0, min(0.01, deadline - time.monotonic())))
 
-def run_fixture(command, timeout=300):
+    def session_members(self, deadline):
+        snapshot = subprocess.run(["/bin/ps", "-axo", "pid=,stat="],
+                                  capture_output=True, text=True,
+                                  timeout=min(5, remaining(deadline)), check=True)
+        members = []
+        for line in snapshot.stdout.splitlines():
+            remaining(deadline)
+            parts = line.split()
+            if len(parts) != 2 or parts[1].startswith("Z"):
+                continue
+            pid = int(parts[0])
+            if pid == self.child.pid:
+                continue
+            try:
+                if os.getsid(pid) == self.sid:
+                    members.append(pid)
+            except (ProcessLookupError, PermissionError):
+                continue
+        return members
+
+    def signal_member(self, pid, signum, deadline):
+        remaining(deadline)
+        # A group can change or be reparented during cleanup. Signal only an
+        # individually reverified member of this anchored SID, never a name,
+        # arbitrary descendant PID, the caller session or a reused foreign PGID.
+        if self.sid == os.getsid(0) or pid == self.child.pid:
+            raise RuntimeError("refusing unsafe fixture session signal")
+        try:
+            if os.getsid(pid) == self.sid:
+                os.kill(pid, signum)
+        except ProcessLookupError:
+            pass
+
+    def close_session(self, deadline):
+        if self.sid == os.getsid(0) or os.getsid(self.child.pid) != self.sid:
+            raise RuntimeError("refusing cleanup without the owned session anchor")
+        # Freeze the anchor too: it must not launch a worker between the last
+        # empty inventory and its own final termination.
+        os.kill(self.child.pid, signal.SIGSTOP)
+        while members := self.session_members(deadline):
+            # Freeze known members before rescanning, so normal forking cannot
+            # keep outrunning cleanup; new hook PGIDs remain inside the SID.
+            for pid in members:
+                self.signal_member(pid, signal.SIGSTOP, deadline)
+            for pid in self.session_members(deadline):
+                self.signal_member(pid, signal.SIGKILL, deadline)
+            time.sleep(min(0.01, remaining(deadline)))
+        # Reap the session leader last. Until here, its PID/SID cannot be reused
+        # for an unrelated session even when the acceptance worker has exited.
+        if os.getsid(self.child.pid) != self.sid:
+            raise RuntimeError("fixture session anchor changed during cleanup")
+        self.child.kill()
+        self.child.wait(timeout=remaining(deadline))
+        self.child.stdin.close()
+
+
+def run_fixture(command, timeout=300, *, scratch_root=None):
     tree = FixtureTree(command)
     primary = None
     code = None
     try:
-        code = tree.child.wait(timeout=timeout)
+        code = tree.wait(timeout=timeout)
         return code
     except BaseException as error:
         primary = error
         raise
     finally:
+        closed = False
         try:
             tree.close()
+            closed = True
         except BaseException as cleanup_error:
             print(f"owned fixture cleanup failed: {cleanup_error!r}", file=sys.stderr)
             if primary is None and not code:
                 raise
+        finally:
+            if scratch_root is not None:
+                if closed:
+                    try:
+                        shutil.rmtree(scratch_root)
+                    except BaseException as scratch_error:
+                        print(f"fixture scratch cleanup failed: {scratch_error!r}", file=sys.stderr)
+                        if primary is None and not code:
+                            raise
+                else:
+                    print(f"fixture scratch retained after cleanup failure: {scratch_root}", file=sys.stderr)
 
 def main():
     parser = argparse.ArgumentParser(__doc__)
@@ -387,7 +506,8 @@ if __name__ == "__main__":
     elif "--graph" in sys.argv:
         main()
     else:
-        with tempfile.TemporaryDirectory(prefix="daemon-acceptance-") as fixture_root:
-            code = run_fixture([sys.executable, "-I", str(Path(__file__).resolve()),
-                                "--owned-fixture-child", "--fixture-root", fixture_root, *sys.argv[1:]])
+        fixture_root = tempfile.mkdtemp(prefix="daemon-acceptance-")
+        code = run_fixture([sys.executable, "-I", str(Path(__file__).resolve()),
+                            "--owned-fixture-child", "--fixture-root", fixture_root, *sys.argv[1:]],
+                           scratch_root=fixture_root)
         raise SystemExit(code)

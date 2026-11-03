@@ -370,7 +370,7 @@ correction's owner. Shared project-plan corrections come only from C1.
 | C2-FTQ-002 | Application test uses a finite startup/readiness deadline with yielding rather than sleep, a cleanup deadline, and a whole-child watchdog owning all service threads. |
 | C2-FTQ-003 | Both real-logger lifecycle cases now run entirely inside the existing owned child watchdog; real flush/shutdown/event assertions remain. |
 | C2-FTQ-004 | Removed the scheduling race that launched a new process after stop inside a finite grace window. Duplicate-owner refusal before stop and real blocked-tree reap/restart remain. Causal HTTP fixture separately checks cleanup retains the cache claim while evaluation is held. Exact runtime instance-lock retention through this phase remains OPEN with C2-REQ-009; no expanded grace or replacement proof is claimed. |
-| C2-FTQ-005 | The acceptance supervisor owns the fixture session (POSIX) or Job Object (Windows) before its startup handshake. It unconditionally terminates descendants even after direct parent exit, reaps the child, and removes scratch only afterward. Failed-parent child/grandchild and hard-watchdog regressions exercise teardown independently of graceful product behavior. |
+| C2-FTQ-005 | QA1 added Windows Job ownership and initial POSIX group cleanup. QA2 correctly found that actual upstream hooks lead a separate group within the session, so the original POSIX cleanup/proof was incomplete. The verified-session correction and actual-topology regressions are recorded below; this historical row does not claim QA2 closure. |
 | QA-C2-001 | OPEN/BLOCKED: published sc-runtime 0.1.1 registers Windows CtrlC only; the isolated process-group acceptance requires CTRL_BREAK. Existing zero-exit/cleanup assertions and Windows acceptance remain intact. Needs approved public upstream graceful stop support; no competing handler/workaround is added. |
 | QA-C2-002 | run_product captures bytes and strictly decodes both streams on its calling thread, so Windows pipe-reader threads cannot swallow UnicodeDecodeError. Exact UTF-8 diagnostic and malformed-byte negative regressions remain. |
 | ARCH-001 | OPEN/BLOCKED: unauthorized direct sync -> sc-command logging receiver edge requires the upstream public seam recorded by C1. No boundary waiver or dropped canonical events. |
@@ -464,3 +464,43 @@ Windows graceful stop, exact canceled-readiness/runtime-instance-lock proof,
 unsuppressed advisory, exact-head CI and required parent completion/merges.
 All 36 IDs remain available to the next independent QA pass; implementation
 corrections above request verification and do not close the bead or authorize merge.
+
+
+## QA2 fixture ownership correction
+
+QA2 reviewed `380f87f3a9634982fb1b992acf96b5e18f89f304` and published FAIL with
+nine IDs (7 Blocking, 2 Important), while owning reviewers resolved 27 original
+IDs. Authoritative report:
+[PR #109 QA2](https://github.com/randlee/beads-cache/pull/109#issuecomment-6595342965);
+full findings and ceremony screen are under `/tmp/phase-c-execution/c-2/qa-2/`.
+This round changes only the two acceptance scripts and this owning receipt;
+integration merge-forward contributes orchestration metadata only. Native Rust,
+manifest/lock content and the previously qualified local debug artifacts remain
+unchanged. No Rust/wheel suite or remote consumer qualification is repeated.
+
+| QA2 finding | Disposition |
+|---|---|
+| C2-FTQ-005 | Correction requests verification: POSIX starts an owned session-leader keeper, which reports the acceptance worker's original exit code while staying alive and unreaped. Cleanup freezes that anchor, inventories PIDs and verifies each matching SID before signaling, stops/kills members across every owned hook PGID under one absolute 10-second deadline, then kills/reaps the anchor last. Caller SID is refused before any signal. Scratch removal occurs only after successful tree cleanup; cleanup failure retains scratch and preserves the primary failure/timeout diagnostics. Windows Job admission/accounting/kill-on-close is unchanged. |
+| QA-C2-001 | OPEN: published runtime Windows CtrlC-only handling does not satisfy isolated-group CTRL_BREAK graceful stop. Original Windows acceptance and zero-exit/cleanup assertions remain. No handler or runtime-control workaround. |
+| C2-REQ-003 | OPEN: exact-head OS/Python CI, current-native/wheel consumer qualification and parent completion/merge gates remain. Historical live6232180 proof is not retargeted to current native source. The graph/advisory failures are real and unsuppressed. |
+| C2-REQ-004 | OPEN: approved upstream bounded store-operation stop/join contract is unavailable; safe actual joins remain, with no timeout/drop substitute or bound padding. |
+| C2-REQ-007 | OPEN: repaired canonical graph check correctly rejects the actual direct sync logging edge; removal requires the approved published upstream logging seam through C1. |
+| C2-REQ-009 | OPEN: real HTTP/service cancellation fixture proves retained capacity/cache claim, but does not establish actual runtime instance-lock ordering through run_with_cleanup. No cache-claim or keeper test is mislabeled as that proof. |
+| RBQA-F001 | OPEN: unauthorized sync -> sc-command dependency requires the compliant upstream public receiver seam; no boundary expansion or dropped events. |
+| RSH-001 | OPEN: published worker shutdown can await uncancelled blocking store work beyond the existing bound. Preserve ownership and await the approved upstream correction. |
+| ARCH-001 | OPEN: distinct correlated direct logging receiver dependency finding remains, despite correct fail-closed graph enforcement. |
+
+Focused regressions now establish the actual topology causally: a helper calls
+setpgid(0,0), its grandchild shares that separate PGID, and both retain the owned
+SID. Both failed-worker and watchdog-timeout cases assert distinct PGID/same SID,
+verify every actual signal targets the owned session, and observe both helpers
+terminated and the direct leader reaped before scratch removal. An unrelated
+session sentinel must remain alive and is explicitly terminated/reaped by the
+test afterward. The original worker exit23 and TimeoutExpired command/timeout
+are preserved. No test or platform acceptance is skipped.
+
+Pre-push focused ownership/graph/encoding validation: 6 tests passed on local
+macOS arm64/Python3.11; log `/tmp/c2-qa2-ownership-focused.log`. Full scripts and
+unchanged-native FakeBd acceptance run against the pushed source next; the parent
+will preserve final logs, without another evidence-only commit. Overall remains
+blocked by the eight OPEN IDs above; no QA PASS, completion or merge claim.
