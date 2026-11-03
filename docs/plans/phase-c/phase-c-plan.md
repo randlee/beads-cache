@@ -1,6 +1,7 @@
 # Phase C — Adopt the sc-runtime framework and qualify a consumer release
 
-Status: **draft for scope review; not approved for implementation**. Written 2026-11-02.
+Status: **approved for implementation, 2026-11-02**. Written 2026-11-02.
+Approval is the explicit project-owner execution instruction recorded below; no sprint is complete yet.
 Plan branch/worktree: `plan/phase-c`. Integration branch: `integrate/phase-c`, cut from
 `develop` only after the plan PR merges. Sprint PRs target the integration branch;
 only the plan PR and final phase PR target `develop`.
@@ -14,9 +15,10 @@ The user rejected a crates-only integration because it would drift from sc-runti
 The user's later upstream guidance selects rusqlite **0.39**, matching sc-runtime.
 
 The sprint docs below are authoritative for scope, requirements, owned paths and
-acceptance. Existing requirements and ADRs remain binding unless a **Proposed**
-phase-C amendment is approved. REQ-BDC-1001..1003, REQ-BDC-1005 and ADR-BDC-0016 are proposed in
-this planning PR. No implementation or product dependency change is made here.
+acceptance. The project owner approved REQ-BDC-1001..1003, REQ-BDC-1005 and
+ADR-BDC-0016 for implementation on 2026-11-02. All other binding requirements
+and ADRs remain in force. This approval record makes no product implementation
+or dependency change; c-1 applies its narrowly owned approved amendments.
 The tested rusqlite downgrade remains uncommitted in the original checkout; c-1
 lands that change on its sprint branch rather than committing on `develop`.
 
@@ -28,17 +30,20 @@ sc-publish; `just upgrade` upgrades sc-lint, not generated Rust code.
 
 ## Implementation dispatch gate
 
-All four implementation sprints remain blocked until the authorized project owner
-explicitly approves the proposed Phase C scope/requirements and ADR-BDC-0016,
-including the narrow REQ-CLI-0001 dependency-source/version and REQ-API-0008
-transitive-contract amendments and prototype ownership disposition. Record the
-actual decision in the existing governed docs before applying those amendments or
-dispatching dependent code. Reviewer PASS, green CI and merging this planning PR
-are not substitutes for that explicit approval. Current Approved text and binding
-ADR lists retain authority until the decision occurs; proposed_adrs is separate
-from binding adrs in every sprint. This planning correction grants no approval.
+The project owner explicitly approved implementation on 2026-11-02 in this Codex chat: “pr105 approved” and “complete all phase-c sprints and merge to develop when qa+ci both green”, with a direction to start cursor-orchestration and assign cursor-quality-mgr to QA.
 
-## Proposed application shape
+This direct execution instruction satisfies the owner-approval prerequisite for
+all four bounded sprints, including ADR-BDC-0016, REQ-BDC-1001..1003 and
+REQ-BDC-1005, the narrow REQ-CLI-0001 dependency-source/version and
+REQ-API-0008 transitive-contract amendments, and the prototype ownership
+disposition already described in the approved plan. It is distinct from a
+reviewer PASS, CI success or planning-PR merge alone. c-1 applies its owned
+CLI/API/CRON amendments before their dependent code changes. No broader
+behavior change, sc-lint adoption or QA waiver is approved. Each sprint and the
+phase still require independent cursor-quality-mgr QA, passing applicable anchor
+gates and green CI before merge.
+
+## Approved application shape
 
 Render the tagged template into an absent temporary destination using the documented
 plain cargo-generate path, with registry dependencies and no checkout patches,
@@ -212,10 +217,10 @@ provenance. These bound permissible changes to persistence, backend access, loca
 reads, sync behavior, front-end compatibility and deadlines. They are mapped to the
 sprints they constrain, not replaced by conversation-derived planning notes.
 
-The remaining work is to harden the proposed scope against the inherited bounds
-and existing requirements, then review it through the repository's planning workflow.
-The optional daemon remains proposed scope. This is not a QA-approved plan, and
-selecting inherited constraints is not a claim that the planning gate passed.
+Plan hardening and plan QA are complete as recorded in reviews/review-status.md.
+The project owner has now approved the bounded implementation, including the
+optional daemon. Implementation delivery remains subject to the sprint and phase
+QA/CI gates; plan approval is not evidence that any sprint has shipped.
 See [intent](intent.md) for the phase purpose and separation of proposal/context.
 
 The PR's Rust CI passed. Python checks passed except Linux/Python 3.9, which failed

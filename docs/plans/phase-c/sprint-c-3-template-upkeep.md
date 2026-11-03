@@ -22,7 +22,6 @@ requirements:
 adrs:
 - ADR-BDC-0010
 - ADR-BDC-0012
-proposed_adrs:
 - ADR-BDC-0016
 owned_paths:
 - runtime/pin.toml
@@ -42,15 +41,15 @@ The pinned application template can be regenerated and compared without touching
 working source. This sprint closes the upkeep-tool boundary; c-2 adopts the actual
 application and owns REQ-BDC-1003's feature-level upgrade proof.
 
-## Approval prerequisite
+## Recorded owner approval
 
-`adrs` lists currently binding decisions; `proposed_adrs` confers no authority.
-Do not dispatch this sprint's implementation until the authorized project owner
-has explicitly approved ADR-BDC-0016 and the dependent requirement amendments
-listed in the phase plan's [dispatch gate](phase-c-plan.md#implementation-dispatch-gate).
-A plan-review PASS, CI success or PR merge alone is not that approval. Only after
-recording the actual decision may ADR-BDC-0016 be moved to the binding list and
-its approved amendments applied. Existing approved rules remain in force meanwhile.
+The project owner's explicit 2026-11-02 instruction to execute all approved
+Phase C sprints satisfies this sprint's dispatch prerequisite. See the phase
+plan's [recorded approval](phase-c-plan.md#implementation-dispatch-gate) and
+ADR-BDC-0016 for provenance and the unchanged bounds. ADR-BDC-0016 is now in the
+binding `adrs` list. c-1 applies the approved CLI/API/CRON amendments in its owned
+files; no other existing rule is waived. Independent implementation QA, applicable
+anchor gates and green CI remain required before merge.
 
 ## Deliverables
 

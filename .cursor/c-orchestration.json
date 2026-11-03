@@ -1,0 +1,102 @@
+{
+  "schema_version": "1.0.0",
+  "phase": "c",
+  "status": "approved_for_execution",
+  "integration_branch": "integrate/phase-c",
+  "integration_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
+  "integration_base_commit": "350a7fc300da50e11281071b62ed377a926d956e",
+  "final_pr_target": "develop",
+  "phase_bead": "bdc-n8v",
+  "approval": {
+    "client_date": "2026-11-02",
+    "source": "Explicit project-owner instruction in current Codex chat",
+    "verbatim_excerpts": [
+      "pr105 approved",
+      "complete all phase-c sprints and merge to develop when qa+ci both green"
+    ],
+    "scope": "Only the reviewed Phase C plan and named narrow amendments; no QA or CI waiver",
+    "planning_pr": "https://github.com/randlee/beads-cache/pull/105"
+  },
+  "orchestration": {
+    "workflow": ".cursor/skills/cursor-orchestration/SKILL.md",
+    "parent_spawns_developers_and_reviewers": true,
+    "qa_role": "cursor-quality-mgr",
+    "model_adapter": "Cursor-only Grok/Composer models unavailable in this harness; use approved plan-selected gpt-6.1-sol for development and available named-role agent harness for QA; never claim unavailable model execution.",
+    "wave_policy": "Approved phase plan controls c-1/c-3 parallel-safe wave1 over the generic sequential default; c-2 consumes their real artifacts, c-4 consumes c-2. Required merge-forward and parent-completion constraints remain.",
+    "merge_gate": {
+      "reviewer_spawn_gate": "pass",
+      "deliverable_completion_percent": 100,
+      "open_findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "applicable_development_anchor_gate": "pass",
+      "required_ci": "all green"
+    }
+  },
+  "primary_checkout": {
+    "path": "/Users/randlee/github/beads-cache",
+    "branch": "develop",
+    "dirty_cargo_preserved": true,
+    "remote_refreshed": true,
+    "note": "Protected update intentionally not run: primary has two uncommitted Cargo changes. Fetch and clean origin/develop worktree base used instead."
+  },
+  "approved_anchor_coverage_exceptions": {
+    "ANC-001": "passing deterministic lint",
+    "ADR-BDC-0009": "documented non-applicability under unchanged scope"
+  },
+  "sc_lint": "Deferred until sc-runtime0.2.0 and later bounded plan decision; no bootstrap in current phase.",
+  "sprints": {
+    "c-1": {
+      "bead": "bdc-n8v.1",
+      "sprint_doc": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "branch": "sprint/c-1-runtime-migration",
+      "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
+      "pr_target": "integrate/phase-c",
+      "status": "ready",
+      "must_follow": [],
+      "developer_model": "gpt-6.1-sol",
+      "qa_rounds": []
+    },
+    "c-2": {
+      "bead": "bdc-n8v.2",
+      "sprint_doc": "docs/plans/phase-c/sprint-c-2-framework-application.md",
+      "branch": "sprint/c-2-framework-application",
+      "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
+      "pr_target": "integrate/phase-c",
+      "status": "waiting_for_dependencies",
+      "must_follow": [
+        "c-1",
+        "c-3"
+      ],
+      "developer_model": "gpt-6.1-sol",
+      "qa_rounds": []
+    },
+    "c-3": {
+      "bead": "bdc-n8v.3",
+      "sprint_doc": "docs/plans/phase-c/sprint-c-3-template-upkeep.md",
+      "branch": "sprint/c-3-template-upkeep",
+      "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
+      "pr_target": "integrate/phase-c",
+      "status": "ready",
+      "must_follow": [],
+      "developer_model": "gpt-6.1-sol",
+      "qa_rounds": []
+    },
+    "c-4": {
+      "bead": "bdc-n8v.4",
+      "sprint_doc": "docs/plans/phase-c/sprint-c-4-release-qualification.md",
+      "branch": "sprint/c-4-release-qualification",
+      "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
+      "pr_target": "integrate/phase-c",
+      "status": "waiting_for_dependencies",
+      "must_follow": [
+        "c-2"
+      ],
+      "developer_model": "gpt-6.1-sol",
+      "qa_rounds": []
+    }
+  },
+  "qa_rounds": []
+}

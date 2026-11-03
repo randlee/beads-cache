@@ -1099,21 +1099,24 @@ Each crate's architecture and crate-local ADRs live in
 
 ## ADR-BDC-0016: Adopt the sc-runtime application framework and scheduler
 
-**Status:** Proposed (phase C, 2026-11-02; not an approved exception)
+**Status:** Approved (phase C, project-owner execution approval, 2026-11-02)
 
-**Amends when approved:** ADR-BDC-0006 (local sc-cron prototype ownership),
+**Approval provenance:** The project owner explicitly approved implementation on 2026-11-02 in this Codex chat: “pr105 approved” and “complete all phase-c sprints and merge to develop when qa+ci both green”, with a direction to start cursor-orchestration and assign cursor-quality-mgr to QA. The initial proposal and plan QA
+preceded this explicit execution decision; planning-PR merge alone was not used
+as approval.
+
+**Amends:** ADR-BDC-0006 (local sc-cron prototype ownership),
 ADR-BDC-0014 (upstream ScheduleStore implementation), ADR-CLI-0001 (git-only
 sc-command), REQ-CLI-0001 (only git source/tag to published 0.1.1), and the transitive sc-command exclusions in REQ-API-0008 and the
 CLI/Python architecture statements. Domain boundaries and the no-consumer rule
 of ADR-BDC-0010 remain in force.
 
-Approval is an implementation-dispatch prerequisite for all four Phase C sprints.
-The authorized project owner's actual decision must be recorded before changing
-Approved requirements, moving this ID to binding sprint adrs or dispatching code.
-A review PASS, green CI or planning-PR merge does not itself approve this decision.
-Existing authority remains unchanged. c-1 owns the CLI/API requirement amendments
-and the explicit disposition of prototype-specific CRON contracts; cache-visible
-semantics remain preserved unless a separately authorized amendment names a change.
+The explicit project-owner decision above satisfies the implementation-dispatch
+prerequisite for all four Phase C sprints. c-1 owns application of the CLI/API
+requirement amendments and the explicit disposition of prototype-specific CRON
+contracts. This approval record does not apply those c-1-owned edits prematurely.
+Cache-visible semantics remain preserved unless a separately authorized narrow
+amendment names a change. All independent implementation QA and CI gates remain.
 
 Context: sc-runtime 0.1.1 has published the shared scheduler and an application
 scaffold. Keeping a local scheduler and independently assembled runtime duplicates
@@ -1121,7 +1124,7 @@ upstream behavior. The user asked about template installation and rejected
 crates-only consumption as immediate drift. Upstream's rusqlite 0.39 line also
 permits its SQLx SQLite consumers to resolve the same native link provider.
 
-Proposed decision:
+Approved decision:
 
 1. Adopt tag v0.1.1 at `5af24c862fe7ed8dae8710b7bd64a84a29506b51`, with explicit
    generation answers `project_name=bd-cache`, `db=none`, `mcp=false`, `licence=MIT`.
@@ -1172,7 +1175,7 @@ stop publishing local sc-cron and include the new binary. Existing performance,
 file-format and CLI/Python acceptance remain mandatory. A stable release can stay
 blocked on sc-publish #135 independently of application implementation completion.
 
-The proposed signatures, daemon invocation/readiness contract and source mapping
+The approved signatures, daemon invocation/readiness contract and source mapping
 are specified in docs/plans/phase-c/phase-c-plan.md and its owning sprint docs.
 No gate is relaxed, no template is installed and no runtime source is changed by
 this planning PR itself.
