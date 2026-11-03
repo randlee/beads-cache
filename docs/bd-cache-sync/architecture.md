@@ -779,3 +779,20 @@ decision above where it says otherwise; ADR and code agree on each point.
 | `tests/outage.rs` | the outage result (`builtin_run.rs`), an outage of several runs (`e2e.rs`), the hook told (`hook_runner.rs`); no announcement exists |
 | `tests/tick_budget.rs` | the step order (`cron_logging.rs`), the hook's reserve (`hook_runner.rs`), a slow bd within the budget (`e2e.rs`), a stop between steps (`builtin_run.rs`) |
 | `tests/marker_wait.rs` | no marker is written by the run; the hook marks with its own verbs (`hook_runner.rs`) |
+
+### Phase C upstream Job adapter
+
+LaunchStore wraps only scheduler reads with internal id/generation/name/period
+metadata derived from the actual persisted row. Public reads and stored payloads
+are unchanged. The shared upstream Rust Job dispatcher constructs one cache job
+per launch, retaining its run identity from should_stop through run. It delegates
+all timing, generations, enable/disable and worker shutdown to upstream.
+ModuleHook preserves registered dotted modules with -I -m and projects upstream
+HookCall into the existing sc-cron.hook.v1 JSON object. Upstream HookOutput judges
+replies and upstream process::supervise owns output limits, process trees and
+reaping. The script-path PythonHook API cannot supply the registered-module argv.
+
+The scheduler's public canonical receiver contract is bridged into the existing
+tracing surface, retaining legacy launched/recorded labels. The sync crate uses
+sc-command's contract-only receiver and sc-observability-types; no server or clap
+feature is enabled. API and Python still have no direct sc-command dependency.

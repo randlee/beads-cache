@@ -33,6 +33,7 @@ pub(crate) fn encode_row(step: Step<'_>, row: &Bead) -> Result<(Bead, String), C
 /// upsert stored reads back. `dependencies` is ignored: the `edges` table is
 /// the authority, and the v3 Python writer keeps bd's full dependency objects there.
 pub(crate) fn decode_row(step: Step<'_>, id: &str, row_json: &str) -> Result<Bead, CacheError> {
+    crate::health::check_decode()?;
     let mut value: Value = serde_json::from_str(row_json)
         .map_err(|e| corrupt(step, format_args!("row_json of {id} is not JSON: {e}")))?;
     let Some(obj) = value.as_object_mut() else {
@@ -226,6 +227,7 @@ impl JournalRow {
     ///   with `<code>: `, else the code of the text's `CODE: ` prefix;
     /// - `changed`: `None` when NULL.
     pub(crate) fn decode(self, step: Step<'_>) -> Result<JournalEntry, CacheError> {
+        crate::health::check_decode()?;
         let seq = self.seq;
         let state = JournalState::parse(&self.state).ok_or_else(|| {
             corrupt(

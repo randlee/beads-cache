@@ -129,7 +129,7 @@ where
     ///
     /// # Panics
     ///
-    /// As `Scheduler::spawn_worker_with`: outside a tokio runtime, or with a
+    /// As `Scheduler::spawn_worker`: outside a tokio runtime, or with a
     /// worker of this scheduler already running.
     pub async fn cron_run(
         &self,
@@ -166,9 +166,7 @@ where
             kill.clone(),
         ));
         self.warn_at_startup().await;
-        let worker = self
-            .scheduler
-            .spawn_worker_with(sync_resolver(Arc::clone(&ctx)));
+        let worker = self.scheduler.spawn_worker(sync_resolver(Arc::clone(&ctx)));
         tracing::info!(action = "cron_run", "worker started");
         let worker_ended = loop {
             tokio::select! {
@@ -326,7 +324,7 @@ where
         let ctx = Arc::new(ctx);
         let runs = self
             .scheduler
-            .run_due_with(sync_resolver(Arc::clone(&ctx)))
+            .run_due(sync_resolver(Arc::clone(&ctx)))
             .await
             .map_err(schedule_store_failed)?;
         let mut failed = ctx.take_failures();

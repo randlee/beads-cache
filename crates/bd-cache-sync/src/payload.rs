@@ -14,7 +14,7 @@ use std::time::Duration;
 
 use bd_cache_model::{CacheError, ScheduleReason, TickBudget};
 use sc_cron::process::{ChildEnv, ChildSpec, TempCwd, supervise};
-use sc_cron::{PythonHook, RunTimeout, ScheduleName};
+use sc_cron::{RunTimeout, ScheduleName};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -148,10 +148,11 @@ fn utf8(field: Field, what: &str, path: &Path) -> Result<String, CacheError> {
 /// An absolute path to a regular executable file, with the module it runs.
 ///
 /// Built only by [`TrustedInterpreter::new`], which then calls
-/// [`PythonHook::new`], so the module rule has one parser (ADR-SYNC-0008).
+/// [`sc_cron::is_identifier`], so the module rule has one parser (ADR-SYNC-0008).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TrustedInterpreter {
-    hook: PythonHook,
+    path: PathBuf,
+    module: String,
 }
 
 impl TrustedInterpreter {
@@ -196,32 +197,39 @@ impl TrustedInterpreter {
                 ),
             ));
         }
-        let hook = PythonHook::new(path, module).map_err(|e| {
-            invalid(
+        if module.is_empty() || !module.split('.').all(sc_cron::is_identifier) {
+            return Err(invalid(
                 module_field,
                 ScheduleReason::BadModule,
-                format!("{module:?} is not a dotted module name: {e}"),
-            )
-        })?;
-        Ok(Self { hook })
+                format!("{module:?} is not a dotted module name"),
+            ));
+        }
+        Ok(Self {
+            path: path.to_path_buf(),
+            module: module.to_owned(),
+        })
     }
 
     /// The interpreter.
     #[must_use]
     pub fn path(&self) -> &Path {
-        self.hook.interpreter()
+        &self.path
     }
 
     /// The module.
     #[must_use]
     pub fn module(&self) -> &str {
-        self.hook.module()
+        &self.module
     }
 
     /// sc-cron's hook for this interpreter and module, with `env`.
     #[must_use]
-    pub fn python_hook(&self, env: ChildEnv) -> PythonHook {
-        self.hook.clone().with_env(env)
+    pub fn python_hook(&self, env: ChildEnv) -> crate::ModuleHook {
+        crate::ModuleHook {
+            interpreter: self.path.clone(),
+            module: self.module.clone(),
+            env,
+        }
     }
 
     /// Runs `<interpreter> -I -c 'import bd_cache_rs'` through sc-cron's

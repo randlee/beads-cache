@@ -485,19 +485,14 @@ fn schedule_ddl(c: &Connection) -> String {
     sql.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The cache file's `sc_cron_schedule` is sc-cron's own table: its DDL equals
-/// the one `SqliteScheduleStore` creates, after whitespace normalisation, so
-/// the hand-kept copy cannot drift from sc-cron's (ADR-BDC-0014).
+/// The pre-migration cache extension DDL is stable even though upstream's
+/// standalone schema has different target columns and a different version.
 #[test]
-fn the_cache_files_schedule_table_is_sc_crons_own_ddl() {
+fn the_cache_files_schedule_table_preserves_its_historical_ddl() {
     let h = Harness::new();
-    let tmp = TempDir::new("sc-cron-own");
-    let own = tmp.path().join("cron.db");
-    drop(sc_cron::SqliteScheduleStore::open(&own).unwrap());
-    assert_eq!(
-        schedule_ddl(&other(&h.path)),
-        schedule_ddl(&Connection::open(&own).unwrap())
-    );
+    let ddl = schedule_ddl(&other(&h.path));
+    let golden = include_str!("fixtures/format-golden.txt");
+    assert!(golden.contains(&ddl), "cache extension DDL changed: {ddl}");
 }
 
 #[test]

@@ -702,3 +702,21 @@ registered scopes and their sync state at one point in time. No schema change. T
 `last_applied_at_rules` (contract suite), `last_applied_at_reads_one_snapshot` and
 `last_applied_at_queries_use_the_applied_indexes` (`store.rs` unit tests: the statement trace
 and the plans), `last_applied_at_ignores_history_and_seqs` (`tests/store.rs`).
+
+### Phase C upstream schedule and health adapter
+
+The cache's schedule extension remains version 2 in meta and user_version 3;
+upstream's standalone schema version is independent and never opens this file.
+Old rows derive HookTarget::Rust and empty HookEnvironment. Both built-in and
+consumer Python schedules are Rust jobs owned by the cache composition; Python
+module policy already round-trips in the existing payload. Non-Rust upstream
+hooks or nonempty upstream environments are explicitly refused before writes,
+never silently discarded. The store enforces a 1024 active-row ceiling on new
+names and restarts; existing rows are retained even above the ceiling.
+
+HealthReadControl shares the connection claim. Its calling-thread scope uses
+try-lock retries, SQLite busy/deadline/progress checks, read-only sessions and
+row-decode checks. Session guards restore query_only, busy timeout and progress
+handler before unlocking, including error/unwind. Other threads keep normal
+scheduler settings. The bound allows 50 ms scheduling tolerance plus one bounded
+row decode; no watchdog or dropped future implements cancellation.

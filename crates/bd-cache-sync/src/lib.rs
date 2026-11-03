@@ -54,11 +54,16 @@
 mod compose;
 mod control;
 mod cron;
+mod cron_log;
 mod front_end;
 mod health;
 mod history;
 mod hook;
 mod job;
+mod launch;
+mod module_hook;
+#[doc(inline)]
+pub use module_hook::ModuleHook;
 mod lease;
 mod mode_lock;
 mod payload;

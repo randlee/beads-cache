@@ -7,7 +7,7 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 authors.workspace = true
-# sc-command is a git dependency (ADR-CLI-0001), which crates.io refuses.
+# The CLI remains unpublished after the published dependency migration (ADR-BDC-0016).
 publish = false
 
 [features]

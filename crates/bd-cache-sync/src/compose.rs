@@ -27,6 +27,8 @@ pub type RealCache = Cache<SqliteStore, FlockDrainLock, BdCli>;
 /// A repository's cache, with its schedule table and the facts its sync rows need.
 #[derive(Debug)]
 pub struct Composed {
+    /// Read-only health budgets over the already-open cache connection.
+    pub health_reads: bd_cache_store::HealthReadControl,
     /// The cache of the repository's file.
     pub cache: RealCache,
     /// The cache file's name.
@@ -557,9 +559,11 @@ fn compose_inner(
     if let Some(d) = tuning.miss_fill_timeout {
         cache_config.miss_fill_timeout = d;
     }
+    let health_reads = store.health_read_control();
     let cache =
         Cache::new(cache_config, store, lock, backend, clock).map_err(ComposeError::Cache)?;
     Ok(Composed {
+        health_reads,
         cache,
         name,
         cache_path,
