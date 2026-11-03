@@ -109,6 +109,15 @@ class CandidateTests(unittest.TestCase):
             with self.assertRaisesRegex(rc.QualificationError, 'no successful installed-candidate'):
                 rc.preflight(None)
 
+    def test_acceptance_python_decodes_utf8_native_diagnostics(self):
+        # Match a native child writing UTF-8 bytes, rather than Python's
+        # configurable console encoding. The C2 acceptance uses text=True.
+        diagnostic = 'CFG.PARSE invalid JSON — Fix the JSON.'
+        native = 'import sys; sys.stdout.buffer.write(%r)' % diagnostic.encode('utf-8')
+        probe = ("import subprocess,sys; assert sys.flags.utf8_mode == 1; "
+                 "print(subprocess.check_output([sys.executable,'-c',%r],text=True))") % native
+        self.assertEqual(rc.run(rc.isolated_python('-c', probe)).strip(), diagnostic)
+
     def test_timeout_reaps_ready_descendant(self):
         self.descendant_proof(parent_exits=False)
 

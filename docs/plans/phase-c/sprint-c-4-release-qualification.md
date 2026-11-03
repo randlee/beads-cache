@@ -176,3 +176,34 @@ and independent QA satisfy its acceptance criteria.
 Post-merge follow-up: qualify the merged Phase C head on develop/main, then obtain
 separate authorization to cut a hosted prerelease and exercise installed release
 and channel legs. No release/tag/registry/channel publication has been performed.
+
+## First hosted qualification evidence
+
+At source `6a98b8c17bce85f68fb2b718e9200d749d363943`, the actual build-only
+[qualification run 41567572170](https://github.com/randlee/beads-cache/actions/runs/41567572170)
+passed installed archive acceptance on Linux x86_64, macOS arm64 and macOS
+x86_64 (including the declared wheel corpus on the first two). Windows built
+all three production executables but failed installed acceptance because the
+Python procedure decoded native UTF-8 diagnostics using the Windows locale.
+The C4 caller now selects `-X utf8 -I` explicitly; an actual subprocess fixture
+covers decoding the native em-dash diagnostic. The six downstream Python matrix
+jobs were skipped after the failed Windows prerequisite, so this run is not a
+complete matrix PASS. Qualification must rerun at the fix head.
+
+The full read-only
+[Release Preflight run 41567884775](https://github.com/randlee/beads-cache/actions/runs/41567884775)
+completed its summary and denied release with exactly these failed checks:
+
+- `github-environments`: the declared `crates-io` environment is absent.
+- `consumer-preflight`: the anonymous public GitHub API returned HTTP403 rate limit exceeded.
+- `release-candidate-provenance`: `release-candidate-v0.2.0` does not exist;
+  creating that publication-provenance tag is deliberately deferred.
+
+Repository secret presence and credential liveness, immutable-release admission,
+registry-state, manifest, publish order, version lockstep, dependency-aware Cargo
+package checks and release permissions passed in that run. Protected Python
+environment-secret metadata was inaccessible to the workflow token and reported
+informational; this is not proof of configured secret validity or publication.
+The paste advisory is a separate unsuppressed ordinary CI gate, not one of this
+Release Preflight run's three final failures. No tag, release or channel write
+was performed to alter any outcome.

@@ -85,6 +85,12 @@ def run(command, *, cwd=None, timeout=120, env=None):
                 stream.close()
 
 
+def isolated_python(*arguments):
+    # -I ignores PYTHONUTF8. Explicit interpreter mode also makes subprocess
+    # text=True decode native UTF-8 diagnostics correctly on Windows.
+    return [sys.executable, '-X', 'utf8', '-I', *arguments]
+
+
 def digest(path):
     with path.open('rb') as stream:
         return hashlib.file_digest(stream, 'sha256').hexdigest() if hasattr(hashlib, 'file_digest') else hashlib.sha256(stream.read()).hexdigest()
@@ -207,7 +213,7 @@ def smoke(args):
                                      '--bd', args.fake_bd.resolve(), 'cache', 'status'], cwd=installed))
             require(result['ok'] is True, 'installed CLI cache access failed: ' + binary)
         # Existing C2 acceptance procedure executes installed binaries only.
-        run([sys.executable, '-I', ROOT / 'scripts/consumer_checks.py', '--bdc', installed / 'bin' / ('bdc' + suffix), '--daemon', installed / 'bin' / ('bd-cache-daemon' + suffix), '--fake-bd', args.fake_bd.resolve(), '--fake-python', args.fake_python.resolve()], cwd=installed, timeout=300)
+        run(isolated_python(ROOT / 'scripts/consumer_checks.py', '--bdc', installed / 'bin' / ('bdc' + suffix), '--daemon', installed / 'bin' / ('bd-cache-daemon' + suffix), '--fake-bd', args.fake_bd.resolve(), '--fake-python', args.fake_python.resolve()), cwd=installed, timeout=300)
         wheel = list(args.directory.glob('*.whl'))
         if wheel:
             # A clean venv forbids source or previously installed package shadowing.
