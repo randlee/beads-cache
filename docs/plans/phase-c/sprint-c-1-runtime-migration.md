@@ -1,6 +1,6 @@
 ---
 phase: c
-status: planned
+status: complete
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-1
@@ -387,3 +387,56 @@ c-2 follows the actual upstream-backed SystemSchedules and migrated store.
 This sprint does not close generated daemon behavior or template upkeep (c-2),
 or artifact installation (c-4). sc-lint adoption is deferred pending upstream 0.2.0
 and a later plan decision, outside the current sprint set.
+
+## Implementation delivery (2026-11-02)
+
+Development is delivered on the declared sprint branch; independent QA, the
+sprint anchor gate and hosted three-OS CI still govern integration closeout.
+The approved owner record was merged from integrate/phase-c commit 8850fc8 before
+implementation. The primary checkout's Cargo files were not touched.
+
+- Cargo.toml/Cargo.lock use published sc-cron/sc-command exactly 0.1.1, default
+  features off, rusqlite 0.39 and one libsqlite3-sys. The local scheduler source,
+  tests and publish dry-run entry are retired; historical CRON docs retain their
+  semantic obligations and upstream ownership note.
+- store/schedule.rs implements upstream's exact ScheduleStore with a 1024 active
+  row ceiling. Cache meta format 2 and user_version 3 stay unchanged. Rust hook
+  metadata and empty environment are derived; consumer module policy already
+  round-trips in existing payloads. Unsupported native upstream hook metadata
+  is refused before writes instead of being discarded.
+- sync/launch.rs adds scheduler-only row/generation envelopes; sync/job.rs uses
+  upstream's shared Job port and creates each launch's own job and run id.
+  sync/module_hook.rs preserves -I -m module invocation using upstream HookCall,
+  HookOutput and process supervision. cron_log.rs bridges real upstream canonical
+  events into the existing tracing/log-redaction surface; no scheduler or
+  supervisor was copied or patched.
+- store/health.rs and store/store.rs expose HealthReadControl over the same
+  connection claim, with deadline-aware locking, dynamic busy retries, safe
+  SQLite progress hooks, per-row decode checks, mutation refusal and RAII
+  restoration. Composed.health_reads is captured before Cache owns the store.
+- Governed CLI/API/Python/CRON docs record ADR-BDC-0016 before CI boundary changes.
+  The existing transitive CI boundary now resolves temporary standalone API and
+  Python consumers via tests/check_consumer_graph.py. Published contracts pass;
+  a real sc-command/server dependency is the planted failing graph. The existing
+  actual wheel build remains required. Linux wheel-build and wheel-test already
+  both use ubuntu-24.04, preserving Python 3.9 qualification.
+
+Concrete compatibility/anchor proof paths:
+
+| Bound | Implementation and proof |
+|---|---|
+| ANC-001/002, cache-time scheduling | sync/launch.rs, sync/cron.rs; sync/tests/e2e.rs literal pre-migration v3 scheduled-drain/reopen test preserves generation, id, payload, journal, hook state and user_version |
+| ANC-003, replacement and rollback | sync/job.rs, sync/module_hook.rs; existing sync/tests/schedule_switch.rs, cron_rows.rs and py/tests/test_schedule.py |
+| ANC-004, per-scope hook results/errors | existing sync/hook.rs and run.rs use published supervisor; sync/tests/hook_runner.rs and builtin_run.rs |
+| ANC-008, row identity | launch.rs derives row identity independently of payload; existing sync/tests/cron_rows.rs rejects another row carrying a sync payload |
+| ANC-009, scopes are bd filters | the v3 e2e test schedules both label-filter and All scopes; existing builtin_run.rs and CLI tests/scope_filters.rs assert filter-specific behavior |
+| NFR-BDC-0004, bounded health | health.rs tests exercise actual public row reads, mutex refusal, one-second SQLite work, row iteration, restoration after error/unwind and concurrent normal schedule writes |
+| REQ-BDC-0730, reaping and lease release | unchanged CLI tests/sync_process.rs and tree_kill.rs run against upstream-backed SystemSchedules; both tree-kill cases pass with process inspection allowed |
+| REQ-BDC-0001, outage/cache hit | existing CLI tests/outage_scenario.rs, sync/tests/e2e.rs and perf.rs; release latency remains an explicit validation command |
+
+Pre-delivery evidence: workspace check and all-target/all-feature Clippy pass;
+new v3 scheduled-drain/reopen test and canonical-log/redaction test pass; four
+initial bounded health tests pass; both process-tree timeout tests pass outside
+the sandbox. The sandbox denies ps, so its child-alive assertions are not valid
+process evidence. Full post-push validation and actual wheel/pytest results are
+reported separately; hosted Linux/macOS/Windows results remain CI evidence.

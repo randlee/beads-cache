@@ -132,8 +132,10 @@ it is absent too.
 `cache status`. The crate depends on `bd-cache`, `bd-cache-model`,
 `sc-beads`, serde, serde_json and schemars only: no sc-command, no clap, in
 any dependency kind, and none of its normal or build dependencies pulls
-sc-command or clap in transitively (CI "Crate boundaries" and "Crate
-boundaries, transitive").
+clap or sc-command/server in transitively. ADR-BDC-0016 (owner approval
+2026-11-02) permits only upstream sc-cron's sc-command contract/logging edge
+in an independently resolved consumer graph; sc-runtime/server assembly and
+sc-transport remain excluded (CI "Crate boundaries" and "Crate boundaries, transitive").
 
 **Refines:** REQ-BDC-0811, contract §9
 **Acceptance evidence:** fixtures `reads`, `writes` (`contract_version`); the two CI boundary steps.

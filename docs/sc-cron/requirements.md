@@ -1,5 +1,15 @@
 # sc-cron Requirements
 
+> Historical local prototype documentation. ADR-BDC-0016, explicitly approved
+> by the owner on 2026-11-02, transfers scheduler implementation and publication
+> ownership to published upstream sc-cron 0.1.1. Local signatures and source
+> paths below are historical. Parse/time/jitter/missed-tick, bounded stop,
+> single-run/generation, atomic enabled state and process supervision semantics
+> remain binding through upstream plus the cache-owned ScheduleStore adapter.
+> REQ-CRON-0009's standalone store remains upstream's default; this application
+> preserves the approved same-cache connection exception. No local fork remains.
+
+
 Status: REQ-CRON-0001..0012 are Approved (lead ruling 2026-10-24, a-3 QA-2).
 REQ-CRON-0013..0015 are Approved (Rand's rulings, 2026-10-25); b-6 also amends REQ-CRON-0001,
 0002, 0005, 0006, 0007, 0009 and 0011, marked in each.

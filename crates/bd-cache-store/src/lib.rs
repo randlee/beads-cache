@@ -52,6 +52,7 @@
 
 mod codec;
 mod error;
+mod health;
 mod location;
 mod lock;
 mod registry;
@@ -61,6 +62,8 @@ mod store;
 
 #[doc(no_inline)]
 pub use bd_cache_model::{BdKey, CacheStore, DrainLock};
+#[doc(inline)]
+pub use health::HealthReadControl;
 #[doc(inline)]
 pub use location::{
     BEADS_DIR_ENV, BeadsDirError, BeadsDirOverride, CacheLocation, ConfigLoadError,
