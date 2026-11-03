@@ -2723,7 +2723,7 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "corrective_qa4_zero_findings_anchors_pass_awaiting_ci",
+      "status": "corrective_qa4_pass_ready_to_merge",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
       "qa_rounds": [
@@ -3246,22 +3246,18 @@
           "branch": "sprint/c-3-template-upkeep",
           "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
           "pr": 111,
-          "verdict": "IN-FLIGHT",
-          "deliverables": {
-            "complete": 18,
-            "total": 18,
-            "percent": 100.0
-          },
+          "verdict": "PASS",
           "findings": {
             "blocking": 0,
             "important": 0,
             "minor": 0
           },
           "blocking_ids": [],
-          "merge_readiness": "not ready",
-          "merge_reason": "Zero open findings and18/18 complete, but current-head CI and source-pinned QA4 development-anchor acceptance remain required before final PASS.",
-          "next_action": "await_ci_and_development_anchors",
-          "owner": "parent-orchestrator / cursor-quality-mgr",
+          "merge_readiness": "ready",
+          "merge_reason": "Required reviewers PASS;18/18 (100%);0B+0I+0M; TODO0; source-pinned QA4 development anchors PASS and exact-head CI15/15 green.",
+          "next_action": "none",
+          "owner": "none",
+          "recommendation": "Merge corrective PR111 into integrate/phase-c at reviewed01cba9c0cccd05517207aeeb84a0a2980d183499.",
           "reviewer_spawn_gate": "pass",
           "reviewer_manifest": [
             {
@@ -3301,8 +3297,6 @@
               }
             }
           ],
-          "missing_reviewers": [],
-          "unparsed_reviewers": [],
           "evidence_chain": {
             "qa_pass": "qa-4",
             "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
@@ -3326,36 +3320,20 @@
             "ci": {
               "verified_pr_head": "01cba9c0cccd05517207aeeb84a0a2980d183499",
               "counts": {
-                "QUEUED": 4,
-                "SUCCESS": 11
+                "SUCCESS": 15
               },
-              "not_green": [
-                {
-                  "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793946072",
-                  "name": "pytest (macos-14, python 3.9)",
-                  "state": "QUEUED"
-                },
-                {
-                  "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793945920",
-                  "name": "pytest (macos-14, python 3.13)",
-                  "state": "QUEUED"
-                },
-                {
-                  "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793945933",
-                  "name": "pytest (macos-14, python 3.11)",
-                  "state": "QUEUED"
-                },
-                {
-                  "link": "https://github.com/randlee/beads-cache/actions/runs/41597912433/job/125789508066",
-                  "name": "clippy and test (macos-latest)",
-                  "state": "QUEUED"
-                }
-              ],
+              "not_green": [],
               "snapshot": "/tmp/phase-c-execution/c-3/qa-4/ci-pr.json"
             },
             "development_anchors": {
-              "status": "pending",
-              "final_PASS_held": true
+              "status": "PASS",
+              "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
+              "run": "docs/plans/phase-c/anchors/runs/qa-4-pr111/dev-20261103T080841Z-c-3.json",
+              "archive_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
+              "result": "/tmp/phase-c-execution/c-3/qa-4/anchor-sprint-review-result.md",
+              "reviewer_task": "/root/c3_dev_anchor",
+              "pr_comment_url": "https://github.com/randlee/beads-cache/pull/111#issuecomment-6598616623",
+              "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
             }
           }
         }
@@ -3400,7 +3378,8 @@
           "excluded": 1
         },
         "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
-      }
+      },
+      "parent_merge_audit": "/tmp/phase-c-execution/c-3/qa-4/parent-merge-audit.json"
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -4698,125 +4677,6 @@
       }
     },
     {
-      "sprint": "c-3",
-      "task": "qa-c-3-corrective-4",
-      "branch": "sprint/c-3-template-upkeep",
-      "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
-      "pr": 111,
-      "verdict": "IN-FLIGHT",
-      "deliverables": {
-        "complete": 18,
-        "total": 18,
-        "percent": 100.0
-      },
-      "findings": {
-        "blocking": 0,
-        "important": 0,
-        "minor": 0
-      },
-      "blocking_ids": [],
-      "merge_readiness": "not ready",
-      "merge_reason": "Zero open findings and18/18 complete, but current-head CI and source-pinned QA4 development-anchor acceptance remain required before final PASS.",
-      "next_action": "await_ci_and_development_anchors",
-      "owner": "parent-orchestrator / cursor-quality-mgr",
-      "reviewer_spawn_gate": "pass",
-      "reviewer_manifest": [
-        {
-          "agent": "req-qa",
-          "task_id": "/root/c3_req",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "PASS",
-          "findings": {
-            "blocking": 0,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "arch-qa",
-          "task_id": "/root/c3_arch",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "PASS",
-          "findings": {
-            "blocking": 0,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "rust-qa-agent",
-          "task_id": "/root/c3_rustqa",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "PASS",
-          "findings": {
-            "blocking": 0,
-            "important": 0,
-            "minor": 0
-          }
-        }
-      ],
-      "missing_reviewers": [],
-      "unparsed_reviewers": [],
-      "evidence_chain": {
-        "qa_pass": "qa-4",
-        "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
-        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/111#issuecomment-6598419526",
-        "coordinator_task_id": "/root/c3_quality_manager",
-        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
-        "triage": {
-          "ttl_paths": [
-            ".triage/c/findings/CI-C4-001.ttl",
-            ".triage/c/findings/REQ-QA-003-001.ttl"
-          ]
-        },
-        "carry_forward": {
-          "CI-C4-001": "Closed TTL with actual QA3 owning-reviewer provenance; executable blobs unchanged.",
-          "REQ-QA-003-001": "Resolved by owning req-qa at exact QA4 head; parent owns tracked closure."
-        },
-        "todo_scan": {
-          "rows": 0,
-          "output": "/tmp/phase-c-execution/c-3/qa-4/todo-scan.txt"
-        },
-        "ci": {
-          "verified_pr_head": "01cba9c0cccd05517207aeeb84a0a2980d183499",
-          "counts": {
-            "QUEUED": 4,
-            "SUCCESS": 11
-          },
-          "not_green": [
-            {
-              "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793946072",
-              "name": "pytest (macos-14, python 3.9)",
-              "state": "QUEUED"
-            },
-            {
-              "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793945920",
-              "name": "pytest (macos-14, python 3.13)",
-              "state": "QUEUED"
-            },
-            {
-              "link": "https://github.com/randlee/beads-cache/actions/runs/41597912413/job/125793945933",
-              "name": "pytest (macos-14, python 3.11)",
-              "state": "QUEUED"
-            },
-            {
-              "link": "https://github.com/randlee/beads-cache/actions/runs/41597912433/job/125789508066",
-              "name": "clippy and test (macos-latest)",
-              "state": "QUEUED"
-            }
-          ],
-          "snapshot": "/tmp/phase-c-execution/c-3/qa-4/ci-pr.json"
-        },
-        "development_anchors": {
-          "status": "pending",
-          "final_PASS_held": true
-        }
-      }
-    },
-    {
       "sprint": "c-4",
       "task": "qa-c-4-1",
       "branch": "sprint/c-4-release-qualification",
@@ -5065,6 +4925,103 @@
           "merge_gate": "required after fixes"
         },
         "parent_merge_gate": "C2 PR109 remains open; C3 corrective PR111 not consumed at reviewed e7."
+      }
+    },
+    {
+      "sprint": "c-3",
+      "task": "qa-c-3-corrective-4",
+      "branch": "sprint/c-3-template-upkeep",
+      "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
+      "pr": 111,
+      "verdict": "PASS",
+      "findings": {
+        "blocking": 0,
+        "important": 0,
+        "minor": 0
+      },
+      "blocking_ids": [],
+      "merge_readiness": "ready",
+      "merge_reason": "Required reviewers PASS;18/18 (100%);0B+0I+0M; TODO0; source-pinned QA4 development anchors PASS and exact-head CI15/15 green.",
+      "next_action": "none",
+      "owner": "none",
+      "recommendation": "Merge corrective PR111 into integrate/phase-c at reviewed01cba9c0cccd05517207aeeb84a0a2980d183499.",
+      "reviewer_spawn_gate": "pass",
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c3_req",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c3_arch",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c3_rustqa",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        }
+      ],
+      "evidence_chain": {
+        "qa_pass": "qa-4",
+        "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
+        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/111#issuecomment-6598419526",
+        "coordinator_task_id": "/root/c3_quality_manager",
+        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+        "triage": {
+          "ttl_paths": [
+            ".triage/c/findings/CI-C4-001.ttl",
+            ".triage/c/findings/REQ-QA-003-001.ttl"
+          ]
+        },
+        "carry_forward": {
+          "CI-C4-001": "Closed TTL with actual QA3 owning-reviewer provenance; executable blobs unchanged.",
+          "REQ-QA-003-001": "Resolved by owning req-qa at exact QA4 head; parent owns tracked closure."
+        },
+        "todo_scan": {
+          "rows": 0,
+          "output": "/tmp/phase-c-execution/c-3/qa-4/todo-scan.txt"
+        },
+        "ci": {
+          "verified_pr_head": "01cba9c0cccd05517207aeeb84a0a2980d183499",
+          "counts": {
+            "SUCCESS": 15
+          },
+          "not_green": [],
+          "snapshot": "/tmp/phase-c-execution/c-3/qa-4/ci-pr.json"
+        },
+        "development_anchors": {
+          "status": "PASS",
+          "commit": "01cba9c0cccd05517207aeeb84a0a2980d183499",
+          "run": "docs/plans/phase-c/anchors/runs/qa-4-pr111/dev-20261103T080841Z-c-3.json",
+          "archive_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
+          "result": "/tmp/phase-c-execution/c-3/qa-4/anchor-sprint-review-result.md",
+          "reviewer_task": "/root/c3_dev_anchor",
+          "pr_comment_url": "https://github.com/randlee/beads-cache/pull/111#issuecomment-6598616623",
+          "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
+        }
       }
     }
   ],
