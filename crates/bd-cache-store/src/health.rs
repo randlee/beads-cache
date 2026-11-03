@@ -360,7 +360,10 @@ mod tests {
     #[test]
     fn public_store_row_decoding_obeys_the_budget() {
         let (_dir, mut store) = store();
-        let scope = Scope::legacy(ScopeId::new("decode").unwrap());
+        let scope = Scope::new(
+            ScopeId::new("decode").unwrap(),
+            bd_cache_model::ScopeFilter::All,
+        );
         let mut rows = Vec::new();
         for n in 0..500 {
             let mut row = sc_beads::testing::bead(&format!("b{n}"));

@@ -426,7 +426,7 @@ Concrete compatibility/anchor proof paths:
 | Bound | Implementation and proof |
 |---|---|
 | ANC-001/002, cache-time scheduling | sync/launch.rs, sync/cron.rs; sync/tests/e2e.rs literal pre-migration v3 scheduled-drain/reopen test preserves generation, id, payload, journal, hook state and user_version |
-| ANC-003, replacement and rollback | sync/job.rs, sync/module_hook.rs; existing sync/tests/schedule_switch.rs, cron_rows.rs and py/tests/test_sync.py |
+| ANC-003, replacement and rollback | sync/job.rs, sync/module_hook.rs; existing sync/tests/schedule_switch.rs, cron_rows.rs and py/tests/test_schedule.py |
 | ANC-004, per-scope hook results/errors | existing sync/hook.rs and run.rs use published supervisor; sync/tests/hook_runner.rs and builtin_run.rs |
 | ANC-008, row identity | launch.rs derives row identity independently of payload; existing sync/tests/cron_rows.rs rejects another row carrying a sync payload |
 | ANC-009, scopes are bd filters | the v3 e2e test schedules both label-filter and All scopes; existing builtin_run.rs and CLI tests/scope_filters.rs assert filter-specific behavior |
