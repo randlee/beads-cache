@@ -158,13 +158,16 @@ where
         on_expiry: impl FnOnce() + Send,
     ) -> CronStopped {
         let kill = StopFlag::new();
-        let ctx = Arc::new(SyncContext::new(
-            Arc::clone(&self.cache),
-            Arc::clone(&self.clock),
-            self.files.clone(),
-            stop.clone(),
-            kill.clone(),
-        ));
+        let ctx = Arc::new(
+            SyncContext::new(
+                Arc::clone(&self.cache),
+                Arc::clone(&self.clock),
+                self.files.clone(),
+                stop.clone(),
+                kill.clone(),
+            )
+            .continuous(),
+        );
         self.warn_at_startup().await;
         let worker = self.scheduler.spawn_worker(sync_resolver(Arc::clone(&ctx)));
         tracing::info!(action = "cron_run", "worker started");

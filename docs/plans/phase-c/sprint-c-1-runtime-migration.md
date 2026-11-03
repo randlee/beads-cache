@@ -1,6 +1,6 @@
 ---
 phase: c
-status: complete
+status: in_progress
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-1
@@ -20,6 +20,15 @@ requirements:
   owns:
   - REQ-BDC-1002
   constrained_by:
+  - REQ-BDC-0804
+  - REQ-BDC-0903
+  - REQ-API-0001
+  - REQ-API-0002
+  - REQ-API-0003
+  - REQ-API-0004
+  - REQ-API-0005
+  - REQ-API-0006
+  - REQ-API-0007
   - REQ-BDC-0001
   - REQ-BDC-0006
   - REQ-BDC-0103
@@ -164,6 +173,7 @@ owned_paths:
 - .github/workflows/ci.yml
 - .github/workflows/python.yml
 - docs/architecture.md
+- docs/project-plan.md
 - docs/bd-cache-store/architecture.md
 - docs/bd-cache-sync/architecture.md
 - docs/bd-cache-cli/architecture.md
@@ -475,3 +485,70 @@ Hosted Linux/macOS/Windows CI and Python 3.9/3.13 qualification remain required
 before integration; local macOS/Python 3.11 evidence is not a substitute. The
 existing Linux wheel and test jobs are both pinned to ubuntu-24.04. The bead
 remains in_progress until the parent's independent QA/anchor/CI closeout.
+
+
+## QA1 correction delivery and remaining public API blockers
+
+QA1 reviewed 4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56 on PR #108 and
+published FAIL with 22 IDs (8 Blocking, 12 Important, 2 Minor). Source of truth:
+/tmp/phase-c-execution/c-1/qa-1/manager-result.md; ceremony triage:
+/tmp/phase-c-execution/c-1/qa-1/screen-result.md. No ID is waived or collapsed.
+The sprint is in_progress. The following implementation dispositions request
+independent verification, rather than declaring the QA findings closed.
+
+| Finding | Correction / remaining disposition |
+|---|---|
+| REQ-QA-001 | TrustedInterpreter enforces the inherited 256-byte module bound for both sync modules and post-sync hooks; schedule_switch.rs proves 256 accepted, 257 refused with both prior rows unchanged. |
+| REQ-QA-002 | Existing constrained_by list now includes REQ-BDC-0804, REQ-BDC-0903 and REQ-API-0001..0007. |
+| REQ-QA-003 | Sprint status is in_progress; narrowly authorized project-plan lifecycle receipt records owner approval and C1 QA1 corrections, preserving all other sprint rows. |
+| REQ-QA-004 | Earlier reviewed head eventually completed 15/15 hosted checks; manager receipt records ci run 41563460661 and python run 41563460677. Req reviewer must confirm that receipt. Changed production head needs fresh checks; the strengthened boundary gate intentionally remains red for the unresolved logging edge. |
+| REQ-QA-005 | Existing perf.rs now qualifies real migrated scheduled incremental sync over the existing 1000-bead fake-Bd composition, asserts an incremental cursor and changed cached row. Release qualification measured 6.184458 ms, below 1 s. No live bd ran. |
+| ARCH-001 | OPEN/BLOCKED: current direct receiver edge is unauthorized. Removed implementation-document text that appeared to bless it; public 0.1.1 cannot construct this receiver through sc-cron alone. Exact minimal upstream need is below. |
+| RBQA-F001 | OPEN/BLOCKED, correlated with ARCH-001 but retained independently. No new direct framework edge, baseline change, fork or missing-event substitution is introduced. |
+| RBQA-F002 | Existing isolated graph gate now traverses root-reachable normal/build edges and permits sc-command introducers only from published sc-cron 0.1.1. Explicit axum/rmcp exclusions added. Focused planted negatives cover direct sync introducer, local source, server feature, HTTP/MCP and ignored dev-only edges. Existing candidate leak is detected, not suppressed. |
+| RBQA-F003 | ModuleHook is exported only under testing; invoke is crate-private and no normal consumer surface is added. |
+| C1-RBP-F001 | Local unrunnable constructor returns Arc<dyn Job> directly; only genuinely fallible resolver branches retain Result. |
+| RSH-001 | OPEN/BLOCKED: published WorkerHandle shutdown owns an unbounded join of a blocking store call after its handle deadline. No timeout/drop or fake abort is substituted. Exact minimal upstream need is below. |
+| RSH-002 | Scheduled built-in job propagates its upstream absolute deadline through bounded start/end record cache claims, preparation, sync/drain, hook offer/launch and final cache claim. Budget derives from original scheduler launch instant (deadline minus row timeout), before record or mutex delay, and is capped by the caller. Public on-demand run_builtin remains. job_threading.rs proves held cache claim expires and no detached preparation issues later bd calls. |
+| RSH-003 | Scope/filter decoding and every public store row iteration/status assembly boundary now use the common calling-thread health deadline check. Added deterministic public scopes/status expiration coverage; normal unscoped reads/restoration remain covered. |
+| RSH-004 | Continuous worker context retains no detailed failure collection; finite cron_run_once retains exact reply details. Persistent run counters/logs remain. Unit proof records 10000 continuous failures with no retained history and verifies finite details drain exactly once. |
+| FTQ-001 | Health mutex holder uses explicit release ownership, not an independent release sleep. Reader has bounded start/result handshakes; holder and reader are released/joined before assertions, including a deadline-regression failure. |
+| FTQ-002 | Public row-decode test injects expiration after decoding begins using a cfg(test) calling-thread seam; it no longer assumes finite fixture decoding takes 20 ms. Separate real one-second SQLite integration bound remains. |
+| FTQ-003 | Health session first acquires the shared connection, then a normal writer acknowledges an actual failed acquisition via a cfg(test) contention probe. SQL expires while the writer contends; restored scope precedes the successful normal write. |
+| FTQ-004 | Store observer and both sync observers acknowledge their first successful snapshot before mutations. Owned stop guards release/reap observers on success/unwind with finite completion waits. |
+| FTQ-005 | Mode-lock test waits for an actual contended acquisition attempt through the existing testing-only facade, then checks unchanged flags/incomplete task. Release and final task join are bounded; the scheduling sleep is removed. |
+| FTQ-006 | Manual-clock hook/run tests use a real bounded owned-task join helper; expiry aborts the owned task and waits bounded cleanup before failing. Both repeated hook_runner occurrences are corrected. |
+| FTQ-007 | Cargo metadata runs with a hard subprocess deadline and captured diagnostics. subprocess.run kills/reaps its owned child on timeout; a real sleeping-child test proves the deadline path. |
+| FTQ-008 | Lease-abort holder acquisition/readiness/release and task/thread completion are bounded; release sender ownership closes the wait during unwind. |
+
+### Minimal unresolved upstream public API requirements (no local workaround)
+
+Published immutable sc-cron 0.1.1 is the only approved baseline. No publication
+request, version relaxation, source patch or copied scheduler is authorized by
+this correction record.
+
+1. Logging (ARCH-001 / RBQA-F001, ADR-BDC-0016): scheduler.rs:288-292 accepts
+   sc_command::observability::SharedCanonicalLog, but lib.rs:100-178 exports no
+   public receiver/type adapter. Scheduler::new at scheduler.rs:279-280 uses
+   private noop_logger (lib.rs:181-183). The minimum upstream public seam is
+   re-exporting the receiver and all required signature types through sc-cron,
+   or an equivalent upstream callback-to-canonical-receiver constructor that
+   can be used without any direct application -> sc-command dependency. Then
+   remove the direct sync dependency and bridge through that seam. Current
+   source still contains that rejected edge, and the strengthened graph fails
+   on it. Dropping canonical events would violate REQ-BDC-0730, not resolve it.
+2. Shutdown (RSH-001, REQ-BDC-0730 / REQ-CRON-0012): WorkerHandle's task and
+   shutdown sender are private (scheduler.rs:850-853). shutdown at :904-954
+   unconditionally awaits the task after timeout_at; worker.rs:539-552 awaits
+   uncancelled spawn_blocking storage. The minimum behavioral/public contract
+   must let stop deadlines/cancellation reach outstanding store operations and
+   retain their ownership through a bounded join, including T=0, a contended
+   reload/persistence call, and second-stop shortening. Merely exposing an
+   abort handle or dropping a timeout future leaves blocking work unowned and
+   is insufficient. The existing health read-only scope cannot cancel those
+   normal writes. No local cancellation framework is added; this remains a
+   real upstream compatibility blocker.
+
+The owner-directed paste/sc-lint 0.2.0 deferral does not waive any finding above.
+Existing gates remain enabled. Final correction validation and exact push SHA
+are reported separately; this record does not claim QA PASS or merge readiness.

@@ -22,7 +22,7 @@ use sc_beads::{CacheBackend, Timestamp};
 use sc_cron::Schedule;
 use serde::Serialize;
 
-use crate::lease::hold;
+use crate::lease::{hold, hold_within};
 use crate::payload::SyncRow;
 use crate::run::{SharedCache, blocking};
 
@@ -100,6 +100,52 @@ where
         let written = blocking(move || hold(&cache)?.sync_run_started(row.as_str(), &run_id)).await;
         if let Err(e) = written {
             log_failed(self.row, &self.run_id, "start", &e);
+        }
+    }
+
+    pub(crate) async fn start_until(&self, deadline: sc_beads::Deadline) {
+        let (cache, row, run_id) = (
+            std::sync::Arc::clone(&self.cache),
+            self.row,
+            self.run_id.clone(),
+        );
+        let written = blocking(move || {
+            let wait = deadline
+                .instant()
+                .saturating_duration_since(std::time::Instant::now());
+            let mut cache = hold_within(&cache, wait)?.ok_or_else(crate::run::run_expired)?;
+            if deadline.remaining(&*cache.clock()).is_zero() {
+                return Err(crate::run::run_expired());
+            }
+            cache.sync_run_started(row.as_str(), &run_id).map(|_| ())
+        })
+        .await;
+        if let Err(e) = written {
+            log_failed(self.row, &self.run_id, "start", &e);
+        }
+    }
+
+    pub(crate) async fn finish_until(&self, end: SyncRunEnd, deadline: sc_beads::Deadline) {
+        let (cache, row, run_id) = (
+            std::sync::Arc::clone(&self.cache),
+            self.row,
+            self.run_id.clone(),
+        );
+        let written = blocking(move || {
+            let wait = deadline
+                .instant()
+                .saturating_duration_since(std::time::Instant::now());
+            let mut cache = hold_within(&cache, wait)?.ok_or_else(crate::run::run_expired)?;
+            if deadline.remaining(&*cache.clock()).is_zero() {
+                return Err(crate::run::run_expired());
+            }
+            cache
+                .sync_run_finished(row.as_str(), &run_id, end)
+                .map(|_| ())
+        })
+        .await;
+        if let Err(e) = written {
+            log_failed(self.row, &self.run_id, "end", &e);
         }
     }
 

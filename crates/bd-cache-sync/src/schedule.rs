@@ -658,6 +658,13 @@ where
         }
     }
 
+    /// Observes an actual contended mode-lock attempt (test builds only).
+    #[cfg(feature = "testing")]
+    #[doc(hidden)]
+    pub fn mode_lock_attempt_for_tests(&mut self) -> Arc<tokio::sync::Notify> {
+        self.mode.attempt_probe()
+    }
+
     /// The files the runs use.
     #[must_use]
     pub fn files(&self) -> &SyncFiles {

@@ -9,6 +9,7 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
 
 use bd_cache_model::TickBudget;
 use sc_beads::{Clock, Deadline};
@@ -106,6 +107,20 @@ impl Budget {
         Self {
             sync: Deadline::after(clock, budget.work()),
             hook: Deadline::after(clock, budget.budget()),
+        }
+    }
+
+    pub(crate) fn starting_at(start: Instant, budget: &TickBudget) -> Self {
+        Self {
+            sync: Deadline::at(start.checked_add(budget.work()).unwrap_or(start)),
+            hook: Deadline::at(start.checked_add(budget.budget()).unwrap_or(start)),
+        }
+    }
+
+    pub(crate) fn capped(self, deadline: Deadline) -> Self {
+        Self {
+            sync: self.sync.earliest(deadline),
+            hook: self.hook.earliest(deadline),
         }
     }
 
