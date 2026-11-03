@@ -11,7 +11,7 @@ use tracing::Instrument;
 use utoipa_axum::{router::OpenApiRouter, routes};
 
 /// Application router. Runtime adds its reserved liveness and `OpenAPI` routes.
-pub fn router(state: ReadyState) -> OpenApiRouter {
+pub(crate) fn router(state: ReadyState) -> OpenApiRouter {
     OpenApiRouter::new()
         .routes(routes!(ready_route))
         .route_layer(middleware::from_fn(request_id))

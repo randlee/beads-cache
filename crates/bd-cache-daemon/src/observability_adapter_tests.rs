@@ -76,6 +76,14 @@ fn logger(root: &std::path::Path, sink: Arc<dyn LogSink>, capacity: usize) -> Ar
     reason = "the pinned 1.5.0 shutdown diagnostic is the contract under test"
 )]
 fn forwards_real_events_and_native_shutdown_error() {
+    bounded_fixture(
+        "observability::adapter_tests::forwards_real_events_and_native_shutdown_error",
+        forwards_real_events_and_native_shutdown_error_scenario,
+    );
+}
+
+#[allow(deprecated, reason = "pinned shutdown contract under test")]
+fn forwards_real_events_and_native_shutdown_error_scenario() {
     let root = tempfile::tempdir().expect("temp root");
     let sink = Arc::new(RecordingSink(Mutex::new(Vec::new())));
     let logger = logger(root.path(), Arc::<RecordingSink>::clone(&sink), 8);
@@ -181,7 +189,7 @@ fn run_fixture_child(name: &str, deadline: Duration) -> Result<(), String> {
     }
 }
 
-fn bounded_fixture(name: &str, scenario: fn()) {
+pub(crate) fn bounded_fixture(name: &str, scenario: fn()) {
     if std::env::var("SC_ADAPTER_FIXTURE").ok().as_deref() == Some(name) {
         scenario();
         let done = std::env::var_os("SC_ADAPTER_FIXTURE_DONE").expect("completion marker");
@@ -335,6 +343,13 @@ impl sc_observability::Redactor for PanickingRedactor {
 
 #[test]
 fn real_try_log_unwind_becomes_fixed_error_without_payload() {
+    bounded_fixture(
+        "observability::adapter_tests::real_try_log_unwind_becomes_fixed_error_without_payload",
+        real_try_log_unwind_becomes_fixed_error_without_payload_scenario,
+    );
+}
+
+fn real_try_log_unwind_becomes_fixed_error_without_payload_scenario() {
     let root = tempfile::tempdir().expect("temp root");
     let service = ServiceName::new("adapter-service").expect("service");
     let mut config = LoggerConfig::default_for(service, root.path().to_path_buf());

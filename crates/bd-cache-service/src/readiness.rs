@@ -118,38 +118,84 @@ mod tests {
     #![expect(clippy::expect_used, reason = "test assertions")]
     use super::*;
 
-    #[tokio::test]
-    async fn canceled_response_retains_capacity_and_cleanup_joins_real_work() {
-        let (entered, entered_rx) = mpsc::channel();
+    #[test]
+    fn canceled_response_retains_capacity_and_cleanup_joins_real_work() {
+        crate::test_support::bounded_fixture(
+            "readiness::tests::canceled_response_retains_capacity_and_cleanup_joins_real_work",
+            || {
+                tokio::runtime::Runtime::new()
+                    .expect("runtime")
+                    .block_on(scenario());
+            },
+        );
+    }
+
+    async fn scenario() {
+        let (entered, entered_rx) = oneshot::channel();
+        let entered = Mutex::new(Some(entered));
         let (release, release_rx) = mpsc::channel();
         let release_rx = Mutex::new(release_rx);
         let (state, worker) = start(move |_| {
-            entered.send(()).expect("entered");
-            release_rx.lock().expect("lock").recv().expect("release");
+            entered
+                .lock()
+                .expect("entered lock")
+                .take()
+                .expect("one evaluation")
+                .send(())
+                .expect("entered");
+            release_rx
+                .lock()
+                .expect("lock")
+                .recv_timeout(Duration::from_secs(2))
+                .expect("release");
             Err(ReadyError::Busy)
         })
         .expect("worker");
-        // A rendezvous refuses while the thread is starting; no second job queues.
-        let first = loop {
-            let state = state.clone();
-            let request = tokio::spawn(async move { state.ready().await });
-            tokio::time::sleep(Duration::from_millis(5)).await;
-            if entered_rx.try_recv().is_ok() {
-                break request;
+        // Sender ownership releases the evaluate closure even during unwind.
+        // Startup Busy is retried only under a finite watchdog, never by awaiting
+        // an admitted response before independently observing worker entry.
+        let request_state = state.clone();
+        let first = tokio::spawn(async move {
+            loop {
+                let result = request_state.ready().await;
+                if !matches!(result, Err(ReadyError::Busy)) {
+                    return result;
+                }
+                tokio::task::yield_now().await;
             }
-            assert!(matches!(
-                request.await.expect("request"),
-                Err(ReadyError::Busy)
-            ));
-        };
+        });
+        tokio::time::timeout(Duration::from_secs(2), entered_rx)
+            .await
+            .expect("entry deadline")
+            .expect("entered");
         first.abort();
+        let _ = first.await;
+        assert_eq!(state.0.capacity.available_permits(), 0);
         assert!(matches!(state.ready().await, Err(ReadyError::Busy)));
         state.close();
         assert!(matches!(state.ready().await, Err(ReadyError::Closing)));
-        let joined = tokio::task::spawn_blocking(move || worker.join());
-        tokio::time::sleep(Duration::from_millis(10)).await;
-        assert!(!joined.is_finished());
+        assert!(
+            !worker.0.is_finished(),
+            "the signaled evaluator remains held"
+        );
+        let (joining, join_attempt) = oneshot::channel();
+        let joined = tokio::task::spawn_blocking(move || {
+            joining.send(()).expect("join attempt");
+            worker.join()
+        });
+        tokio::time::timeout(Duration::from_secs(2), join_attempt)
+            .await
+            .expect("join attempt deadline")
+            .expect("join attempt");
+        assert!(
+            !joined.is_finished(),
+            "join cannot complete while evaluator is held"
+        );
         release.send(()).expect("release");
-        joined.await.expect("task").expect("thread");
+        tokio::time::timeout(Duration::from_secs(2), joined)
+            .await
+            .expect("join deadline")
+            .expect("task")
+            .expect("thread");
     }
 }

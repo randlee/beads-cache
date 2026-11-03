@@ -24,3 +24,12 @@ The daemon depends on the service and composition/clock types. The service may
 not depend on daemon or runtime. Existing independently resolved CLI/API/Python
 consumers do not inherit the daemon's axum/runtime/MCP implementation dependencies.
 An all-workspace build unifies features; isolated consumer gates enforce this.
+
+
+Route assembly is private to this crate. The owned readiness HTTP fixture uses
+that real router and public runtime request-timeout middleware, then drains HTTP
+and joins the actual application. Its cache-file claim proof is distinct from
+runtime daemon.lock ordering: published test-util lacks a public controlled-stop
+run_with_cleanup fixture. Exact canceled-readiness/instance-lock coverage remains
+open, together with Windows CTRL_BREAK compatibility and upstream contended-store
+shutdown. No test fixture substitutes for the unchanged Windows acceptance.

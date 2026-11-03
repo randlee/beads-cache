@@ -239,7 +239,6 @@ version = "0.2.0"
 dependencies = [
  "bd-cache-api",
  "bd-cache-model",
- "bd-cache-store",
  "bd-cache-sync",
  "sc-bd-cli",
  "sc-beads",

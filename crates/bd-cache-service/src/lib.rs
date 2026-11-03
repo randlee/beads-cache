@@ -5,6 +5,8 @@
 //! Scheduler jobs retain the existing production scheduler and supervision path.
 
 mod readiness;
+#[cfg(test)]
+mod test_support;
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -31,6 +33,29 @@ impl Application {
     /// # Errors
     /// Returns the original schedule error or a typed thread-start failure.
     pub fn start(composed: Composed, shutdown_timeout: Duration) -> Result<Self, StartError> {
+        Self::start_inner(composed, shutdown_timeout, |_| {})
+    }
+
+    /// Observes actual admitted evaluation for owned integration fixtures only.
+    /// No runtime config or normal-consumer bypass enables this seam.
+    ///
+    /// # Errors
+    /// Preserves the normal application startup errors.
+    #[cfg(feature = "testing")]
+    #[doc(hidden)]
+    pub fn start_observed(
+        composed: Composed,
+        shutdown_timeout: Duration,
+        before_read: impl Fn(std::time::Instant) + Send + 'static,
+    ) -> Result<Self, StartError> {
+        Self::start_inner(composed, shutdown_timeout, before_read)
+    }
+
+    fn start_inner(
+        composed: Composed,
+        shutdown_timeout: Duration,
+        before_read: impl Fn(std::time::Instant) + Send + 'static,
+    ) -> Result<Self, StartError> {
         let health_reads = composed.health_reads.clone();
         let facts = composed.facts();
         let files = composed.files();
@@ -44,6 +69,7 @@ impl Application {
             let mut cache = cache.try_lock().map_err(|_error| ReadyError::Busy)?;
             health_reads
                 .within(deadline, || {
+                    before_read(deadline);
                     bd_cache_sync::execute_api(&table, &mut cache, &request, &facts)
                 })
                 .map_err(ReadyError::Cache)
@@ -153,7 +179,14 @@ impl std::fmt::Display for ShutdownError {
         }
     }
 }
-impl std::error::Error for ShutdownError {}
+impl std::error::Error for ShutdownError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Worker(error) => Some(error),
+            Self::Readiness | Self::NotIdle => None,
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -161,8 +194,36 @@ mod tests {
     use super::*;
     use bd_cache_api::Data;
 
+    #[test]
+    fn health_is_cached_and_cleanup_releases_the_single_connection() {
+        crate::test_support::bounded_fixture(
+            "tests::health_is_cached_and_cleanup_releases_the_single_connection",
+            || {
+                tokio::runtime::Runtime::new()
+                    .expect("runtime")
+                    .block_on(application_scenario());
+            },
+        );
+    }
+
     #[tokio::test]
-    async fn health_is_cached_and_cleanup_releases_the_single_connection() {
+    async fn shutdown_error_retains_actual_join_error_source() {
+        use std::error::Error;
+        let task = tokio::spawn(async { std::future::pending::<()>().await });
+        task.abort();
+        let error = ShutdownError::Worker(task.await.expect_err("canceled task"));
+        let source = error.source().expect("retained source");
+        assert!(
+            source
+                .downcast_ref::<tokio::task::JoinError>()
+                .expect("typed join cause")
+                .is_cancelled()
+        );
+        assert!(ShutdownError::Readiness.source().is_none());
+        assert!(ShutdownError::NotIdle.source().is_none());
+    }
+
+    async fn application_scenario() {
         let repo = tempfile::tempdir().expect("repo");
         std::fs::create_dir(repo.path().join(".beads")).expect("beads");
         std::fs::write(
@@ -178,12 +239,16 @@ mod tests {
         .expect("compose without backend");
         let app = Application::start(composed, Duration::from_millis(150)).expect("application");
         let state = app.state();
-        let data = loop {
-            match state.ready().await {
-                Err(ReadyError::Busy) => tokio::time::sleep(Duration::from_millis(1)).await,
-                result => break result.expect("cached health"),
+        let data = tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match state.ready().await {
+                    Err(ReadyError::Busy) => tokio::task::yield_now().await,
+                    result => break result.expect("cached health"),
+                }
             }
-        };
+        })
+        .await
+        .expect("bounded readiness startup and evaluation");
         assert!(matches!(&data, Data::CacheHealth(_)));
         let Data::CacheHealth(health) = data else {
             return;
@@ -202,7 +267,10 @@ mod tests {
             .is_err(),
             "the existing connection retains the same-process file claim"
         );
-        app.shutdown().await.expect("joined");
+        tokio::time::timeout(Duration::from_secs(2), app.shutdown())
+            .await
+            .expect("bounded application cleanup")
+            .expect("joined");
         assert!(matches!(state.ready().await, Err(ReadyError::Closing)));
         let reopened = bd_cache_sync::compose(
             repo.path(),

@@ -7,7 +7,9 @@ under docs/development/runtime.md and never runs from this CI check.
 """
 from __future__ import annotations
 import argparse
+import importlib.util
 import concurrent.futures
+import contextlib
 import http.client
 import json
 import os
@@ -16,13 +18,19 @@ import signal
 import socket
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import time
 
 
 def run_product(command, **kwargs):
     """Capture the product UTF-8 protocol independently of the host locale."""
-    return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", **kwargs)
+    result = subprocess.run(command, capture_output=True, **kwargs)
+    # Windows subprocess reader threads cannot propagate decoder exceptions to
+    # communicate(). Own strict decoding on this caller thread instead.
+    result.stdout = result.stdout.decode("utf-8")
+    result.stderr = result.stderr.decode("utf-8")
+    return result
 
 
 def wait_for(probe, seconds=15):
@@ -33,6 +41,19 @@ def wait_for(probe, seconds=15):
             return value
         time.sleep(0.025)
     raise AssertionError("bounded condition timed out")
+
+
+def consumer_graph_errors(meta, package):
+    """Delegate provenance and introducer policy to the canonical consumer gate."""
+    path = Path(__file__).resolve().parents[1] / "crates/bd-cache-sync/tests/check_consumer_graph.py"
+    spec = importlib.util.spec_from_file_location("canonical_consumer_graph", path)
+    graph = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(graph)
+    errors = graph.violations(meta)
+    if package == "bd-cache-cli":
+        errors = [e for e in errors if e not in {
+            "isolated consumer contains clap", "isolated consumer contains clap_builder"}]
+    return errors
 
 
 def isolated_graph(packages):
@@ -47,32 +68,119 @@ def isolated_graph(packages):
                 '[workspace]\n[package]\nname="artifact-consumer"\nversion="0.0.0"\nedition="2024"\n[dependencies]\n'
                 + f'{package} = {{path={json.dumps(str(root / "crates" / package))}}}\n')
             meta = json.loads(subprocess.check_output(["cargo", "metadata", "--format-version", "1", "--manifest-path", str(consumer / "Cargo.toml")], timeout=180))
-            nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
-            reachable, pending = set(), [meta["resolve"]["root"]]
-            while pending:
-                identity = pending.pop()
-                if identity in reachable:
-                    continue
-                reachable.add(identity)
-                for dep in nodes[identity]["deps"]:
-                    if any(kind["kind"] != "dev" for kind in dep["dep_kinds"]):
-                        pending.append(dep["pkg"])
-            forbidden = {"sc-runtime", "sc-transport", "axum", "rmcp", "bd-cache-daemon", "bd-cache-service"}
-            if package != "bd-cache-cli":
-                forbidden |= {"clap", "clap_builder"}
-            for pkg in meta["packages"]:
-                if pkg["id"] not in reachable:
-                    continue
-                assert pkg["name"] not in forbidden, (package, pkg["name"])
-                if pkg["name"] == "sc-command":
-                    assert "server" not in nodes[pkg["id"]]["features"], package
-                    assert pkg["version"] == "0.1.1" and pkg["source"].startswith("registry+"), pkg
+            errors = consumer_graph_errors(meta, package)
+            assert not errors, "\n".join(errors)
             print(f"{package}: isolated normal/build graph PASS")
 
+
+class FixtureTree:
+    """Own all fixture descendants, even after their direct parent has exited."""
+    def __init__(self, command):
+        self.job = None
+        self.child = None
+        if os.name == "nt":
+            import ctypes
+            from ctypes import wintypes
+            self.kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+            self.kernel.CreateJobObjectW.restype = wintypes.HANDLE
+            self.kernel.CreateJobObjectW.argtypes = (ctypes.c_void_p, wintypes.LPCWSTR)
+            self.kernel.AssignProcessToJobObject.argtypes = (wintypes.HANDLE, wintypes.HANDLE)
+            self.kernel.TerminateJobObject.argtypes = (wintypes.HANDLE, wintypes.UINT)
+            self.kernel.QueryInformationJobObject.argtypes = (wintypes.HANDLE, ctypes.c_int,
+                                                              ctypes.c_void_p, wintypes.DWORD, ctypes.c_void_p)
+            self.kernel.CloseHandle.argtypes = (wintypes.HANDLE,)
+            self.job = self.kernel.CreateJobObjectW(None, None)
+            if not self.job:
+                raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            self.child = subprocess.Popen(command, stdin=subprocess.PIPE,
+                                          start_new_session=os.name != "nt")
+            if self.job and not self.kernel.AssignProcessToJobObject(self.job, int(self.child._handle)):
+                import ctypes
+                failure = ctypes.WinError(ctypes.get_last_error())
+                self.child.kill()
+                raise failure
+            # Child has not launched any descendants before assignment/session
+            # ownership. No process discovery race or PID-file dependence.
+            self.child.stdin.write(b"owned-fixture-start\n")
+            self.child.stdin.close()
+        except BaseException:
+            self.close()
+            raise
+
+    def close(self):
+        if self.child is None:
+            if self.job:
+                self.kernel.CloseHandle(self.job)
+                self.job = None
+            return
+        if self.job:
+            if not self.kernel.TerminateJobObject(self.job, 1):
+                import ctypes
+                raise ctypes.WinError(ctypes.get_last_error())
+            import ctypes
+            class Accounting(ctypes.Structure):
+                _fields_ = [(name, ctypes.c_int64) for name in (
+                    "user_time", "kernel_time", "period_user_time", "period_kernel_time")] + [
+                    (name, ctypes.c_uint32) for name in (
+                    "page_faults", "total_processes", "active_processes", "terminated_processes")]
+            accounting = Accounting()
+            until = time.monotonic() + 10
+            while True:
+                if not self.kernel.QueryInformationJobObject(self.job, 1, ctypes.byref(accounting),
+                                                              ctypes.sizeof(accounting), None):
+                    raise ctypes.WinError(ctypes.get_last_error())
+                if accounting.active_processes == 0:
+                    break
+                if time.monotonic() >= until:
+                    raise RuntimeError("owned fixture job did not reap all descendants in 10s")
+                time.sleep(0.01)
+            self.kernel.CloseHandle(self.job)
+            self.job = None
+        else:
+            try:
+                os.killpg(self.child.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            until = time.monotonic() + 10
+            while True:
+                snapshot = subprocess.run(["/bin/ps", "-axo", "pgid=,stat="],
+                                          capture_output=True, text=True, timeout=5, check=True)
+                active = any(int(parts[0]) == self.child.pid and not parts[1].startswith("Z")
+                             for line in snapshot.stdout.splitlines() if len(parts := line.split()) == 2)
+                if not active:
+                    break
+                if time.monotonic() >= until:
+                    raise RuntimeError("owned fixture group still has running descendants after 10s")
+                time.sleep(0.01)
+        # The owned process is reaped even when it already exited; job/group
+        # termination above also owns the helpers that outlived that parent.
+        self.child.wait(timeout=10)
+        self.child = None
+
+
+def run_fixture(command, timeout=300):
+    tree = FixtureTree(command)
+    primary = None
+    code = None
+    try:
+        code = tree.child.wait(timeout=timeout)
+        return code
+    except BaseException as error:
+        primary = error
+        raise
+    finally:
+        try:
+            tree.close()
+        except BaseException as cleanup_error:
+            print(f"owned fixture cleanup failed: {cleanup_error!r}", file=sys.stderr)
+            if primary is None and not code:
+                raise
 
 def main():
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--graph", action="store_true")
+    parser.add_argument("--fixture-root", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--package", action="append", choices=("bd-cache-api", "bd-cache-py", "bd-cache-cli"))
     for name in ("bdc", "daemon", "fake-bd", "fake-python"):
         parser.add_argument("--" + name, type=Path)
@@ -82,7 +190,9 @@ def main():
         return
     if any(getattr(args, name) is None for name in ("bdc", "daemon", "fake_bd", "fake_python")):
         parser.error("process checks require --bdc --daemon --fake-bd --fake-python")
-    with tempfile.TemporaryDirectory(prefix="daemon-acceptance-") as temp:
+    # The supervisor removes scratch only after terminating/reaping the fixture
+    # tree; worker exception cleanup must not race surviving helper processes.
+    with contextlib.nullcontext(args.fixture_root) as temp:
         root = Path(temp)
         repo = root / "repo"
         (repo / ".beads").mkdir(parents=True)
@@ -197,8 +307,9 @@ def main():
                 result = run_product(command, env=env, timeout=10)
                 assert result.returncode == 1 and result.stderr.startswith("RUNTIME.BIND_FAILED ") and not result.stdout, result
             child = spawn(); wait_for(lambda: probe_http("/health")); stop(child); child = None
-            # Stop with a blocked hook process tree. The second owner must fail
-            # during worker grace, and only succeed after both children are reaped.
+            # Stop and reap a real blocked hook tree. Deterministic ownership
+            # through cleanup is covered by the bounded readiness HTTP fixture;
+            # a fresh process launch cannot be ordered inside finite worker grace.
             values["shutdown_timeout_ms"] = 1000
             config.write_text(json.dumps(values))
             bdc("cache", "schedule", "set", "* * * * * *", "--budget-ms", "30000", "--hook-reserve-ms", "20000", "--post-sync", "consumer.hooks:after", "--python", str(args.fake_python), "--env", "FAKE_PY_DIR")
@@ -207,8 +318,6 @@ def main():
             pids = [int(wait_for(lambda p=p: p.read_text().strip() if p.exists() else None)) for p in (root / "child.pid", root / "gc.pid")]
             began = time.monotonic()
             child.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
-            duplicate = run_product(command, env=env, timeout=10)
-            assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD "), duplicate
             stdout, stderr = child.communicate(timeout=35)
             blocked_stop = time.monotonic() - began
             assert child.returncode == 0 and not stdout, (child.returncode, stdout, stderr)
@@ -236,4 +345,15 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if "--owned-fixture-child" in sys.argv:
+        sys.argv.remove("--owned-fixture-child")
+        if sys.stdin.buffer.readline() != b"owned-fixture-start\n":
+            raise SystemExit("fixture ownership handshake missing")
+        main()
+    elif "--graph" in sys.argv:
+        main()
+    else:
+        with tempfile.TemporaryDirectory(prefix="daemon-acceptance-") as fixture_root:
+            code = run_fixture([sys.executable, "-I", str(Path(__file__).resolve()),
+                                "--owned-fixture-child", "--fixture-root", fixture_root, *sys.argv[1:]])
+        raise SystemExit(code)

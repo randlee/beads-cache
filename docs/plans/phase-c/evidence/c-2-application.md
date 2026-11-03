@@ -1,7 +1,8 @@
 # C2 application development evidence
 
-Current status: all implementation deliverables and the actual scratch workflow
-are complete. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
+Current status: QA1 correction delivery is in progress, with upstream API,
+Windows stop, exact lifecycle coverage and CI/parent merge gates open. The earlier
+scratch workflow completed against its recorded source only. The final [consumer receipt](c-2-consumer-qualification.md) qualifies
 source `623218021d27ef247b389233650314896b69cbc1`; the checkpoints below preserve
 the earlier development findings. QA, CI and merge gates remain separate, and
 the advisory is unsuppressed.
@@ -145,3 +146,27 @@ skipped). Candidate native artifacts will be built from the exact pushed source
 head recorded in the transport manifest. Authorized transport is performed by
 the parent chat; the developer analyzes the returned raw execution logs. This
 approval does not waive the unsuppressed advisory or claim live proof yet.
+
+
+## QA1 correction source boundary
+
+The [owning sprint dispositions](../sprint-c-2-framework-application.md#qa1-correction-delivery-and-open-gates)
+retain all 36 manager FAIL IDs. C1 native corrections (73ced71 plus test-only
+96ce326) are now consumed; the old actual consumer artifact receipt remains tied
+to 623218021d27ef247b389233650314896b69cbc1 and does not qualify this changed source.
+No scratch transport or remote rerun occurred during these corrections.
+
+The new real HTTP/service fixture proves typed busy admission, actual upstream
+503/RUNTIME.REQUEST_TIMEOUT response cancellation, retained capacity/cache claim,
+actual reader cleanup and restart under an owned process watchdog. Its explicit
+testing-feature observer holds one real health evaluation inside the existing
+one-second deadline. It does not claim runtime daemon.lock ordering: that exact
+lifecycle proof remains open because the published runtime test control is private.
+The earlier sleep-dependent duplicate launch inside finite worker grace is removed;
+real duplicate refusal before stop, blocked-tree reap and restart remain.
+
+Windows acceptance still sends its original isolated-group CTRL_BREAK and requires
+zero exit plus cleanup. Published runtime 0.1.1 handles only CtrlC, so QA-C2-001 is
+still blocked upstream. Fixture cleanup now owns all descendants independently of
+whether production graceful stop succeeds. The strict-byte decoding regression
+runs on the caller thread rather than Windows subprocess reader threads.
