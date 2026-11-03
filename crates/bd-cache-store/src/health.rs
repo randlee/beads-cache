@@ -252,6 +252,123 @@ mod tests {
 
     #[test]
     fn mutex_wait_is_bounded_and_does_not_wait_for_the_holder() {
+        const CHILD_MODE: &str = "BD_CACHE_HEALTH_MUTEX_CHILD";
+        if let Ok(mode) = std::env::var(CHILD_MODE) {
+            mutex_wait_fixture(mode == "stalled");
+            return;
+        }
+        let mut child = MutexChild::spawn(CHILD_MODE, "normal");
+        let status = child.finish().unwrap_or_else(|| {
+            panic!(
+                "health mutex child exceeded its five-second lifetime: {}",
+                child.output()
+            )
+        });
+        assert!(
+            status.success(),
+            "health mutex child failed: {}",
+            child.output()
+        );
+        assert!(
+            child.output().contains("1 passed"),
+            "child did not execute the mutex scenario: {}",
+            child.output()
+        );
+    }
+
+    /// Owns the whole synchronous scenario: a stuck reader can only outlive the
+    /// assertion inside this process, never the supervising test's deadline.
+    struct MutexChild {
+        process: std::process::Child,
+        output: tempfile::NamedTempFile,
+        _scratch: tempfile::TempDir,
+    }
+
+    impl MutexChild {
+        fn spawn(key: &str, mode: &str) -> Self {
+            let output = tempfile::NamedTempFile::new().unwrap();
+            let scratch = tempfile::tempdir().unwrap();
+            let stdout = output.reopen().unwrap();
+            let stderr = stdout.try_clone().unwrap();
+            let process = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder",
+                    "--nocapture",
+                    "--test-threads=1",
+                ])
+                .env(key, mode)
+                // The parent removes even a killed child's temporary cache.
+                .env("TMPDIR", scratch.path())
+                .env("TMP", scratch.path())
+                .env("TEMP", scratch.path())
+                .stdin(std::process::Stdio::null())
+                .stdout(stdout)
+                .stderr(stderr)
+                .spawn()
+                .unwrap();
+            Self {
+                process,
+                output,
+                _scratch: scratch,
+            }
+        }
+
+        fn finish(&mut self) -> Option<std::process::ExitStatus> {
+            let until = Instant::now() + Duration::from_secs(5);
+            loop {
+                if let Some(status) = self.process.try_wait().unwrap() {
+                    return Some(status);
+                }
+                if Instant::now() >= until {
+                    self.kill_and_reap();
+                    return None;
+                }
+                std::thread::sleep(Duration::from_millis(5));
+            }
+        }
+
+        fn kill_and_reap(&mut self) {
+            // Once killed, wait only reaps the OS child; no test thread or cache
+            // lock must cooperate. Drop also covers assertions and unwind.
+            let _ = self.process.kill();
+            self.process.wait().unwrap();
+        }
+
+        fn output(&self) -> String {
+            std::fs::read_to_string(self.output.path()).unwrap()
+        }
+    }
+
+    impl Drop for MutexChild {
+        fn drop(&mut self) {
+            let _ = self.process.kill();
+            let _ = self.process.wait();
+        }
+    }
+
+    #[test]
+    fn mutex_wait_supervisor_kills_and_reaps_a_stalled_reader() {
+        let mut child = MutexChild::spawn("BD_CACHE_HEALTH_MUTEX_CHILD", "stalled");
+        assert!(
+            child.finish().is_none(),
+            "stalled fixture unexpectedly exited: {}",
+            child.output()
+        );
+        assert!(
+            child.process.try_wait().unwrap().is_some(),
+            "timed-out child was not reaped"
+        );
+        assert!(
+            child
+                .output()
+                .contains("health read did not return while holder remained locked"),
+            "stalled reader did not reach the contended-read failure path: {}",
+            child.output()
+        );
+    }
+
+    fn mutex_wait_fixture(stall_reader: bool) {
         let (_dir, store) = store();
         let control = store.health_read_control();
         let shared = Arc::clone(&control.shared);
@@ -279,23 +396,27 @@ mod tests {
         let reader = std::thread::spawn(move || {
             let started = Instant::now();
             began.send(()).unwrap();
+            if stall_reader {
+                // Fault injection: model a synchronous health read that never
+                // completes, even after the holder releases its connection.
+                loop {
+                    std::thread::park();
+                }
+            }
             let result = control.within(started + Duration::from_millis(50), || store.status());
             let _ = answer.send((result, started.elapsed(), store));
         });
         starting.recv_timeout(Duration::from_secs(5)).unwrap();
         let bounded = answers.recv_timeout(Duration::from_millis(200));
         drop(release); // explicit release occurs after read refusal, or on failure
-        let (result, elapsed, store) = match bounded {
-            Ok(answer) => answer,
-            Err(error) => {
-                let _ = answers.recv_timeout(Duration::from_secs(5));
-                reader.join().unwrap();
-                holder.join().unwrap();
-                panic!("health read did not return while holder remained locked: {error}");
-            }
-        };
+        if let Err(error) = &bounded {
+            eprintln!("health read did not return while holder remained locked: {error}");
+        }
+        // These synchronous joins are confined to the owned child. Even an
+        // actual deadlock here is killed and reaped by the parent after 5 s.
         reader.join().unwrap();
         holder.join().unwrap();
+        let (result, elapsed, store) = bounded.expect("health read exceeded its answer deadline");
         let error = result.unwrap_err();
         assert_eq!(error.code(), "BD_CACHE.STORE_FAILED");
         assert!(error.detail().contains("bounded health read"));

@@ -512,7 +512,7 @@ independent verification, rather than declaring the QA findings closed.
 | RSH-002 | Scheduled built-in job propagates its upstream absolute deadline through bounded start/end record cache claims, preparation, sync/drain, hook offer/launch and final cache claim. Budget derives from original scheduler launch instant (deadline minus row timeout), before record or mutex delay, and is capped by the caller. Public on-demand run_builtin remains. job_threading.rs proves held cache claim expires and no detached preparation issues later bd calls. |
 | RSH-003 | Scope/filter decoding and every public store row iteration/status assembly boundary now use the common calling-thread health deadline check. Added deterministic public scopes/status expiration coverage; normal unscoped reads/restoration remain covered. |
 | RSH-004 | Continuous worker context retains no detailed failure collection; finite cron_run_once retains exact reply details. Persistent run counters/logs remain. Unit proof records 10000 continuous failures with no retained history and verifies finite details drain exactly once. |
-| FTQ-001 | Health mutex holder uses explicit release ownership, not an independent release sleep. Reader has bounded start/result handshakes; holder and reader are released/joined before assertions, including a deadline-regression failure. |
+| FTQ-001 | QA1 removed the release-sleep race but QA2 found its failure-path reader join still unbounded. The QA2 correction below confines the whole scenario to an owned child with an enforced lifetime; this replaces the incomplete QA1 cleanup claim. |
 | FTQ-002 | Public row-decode test injects expiration after decoding begins using a cfg(test) calling-thread seam; it no longer assumes finite fixture decoding takes 20 ms. Separate real one-second SQLite integration bound remains. |
 | FTQ-003 | Health session first acquires the shared connection, then a normal writer acknowledges an actual failed acquisition via a cfg(test) contention probe. SQL expires while the writer contends; restored scope precedes the successful normal write. |
 | FTQ-004 | Store observer and both sync observers acknowledge their first successful snapshot before mutations. Owned stop guards release/reap observers on success/unwind with finite completion waits. |
@@ -595,3 +595,25 @@ qualification; current expected boundary failure cannot be declared green.
 The other 18 implementation/evidence corrections request independent QA2
 verification. No acceptance criterion, baseline pin or advisory gate was waived.
 The bead and sprint remain in_progress, and no merge is authorized by this receipt.
+
+### QA2 narrow correction receipt (2026-11-02)
+
+Manager QA2 reviewed 73ced71 and published FAIL (4 Blocking, 2 Important) at
+https://github.com/randlee/beads-cache/pull/108#issuecomment-6594983314.
+The byte-identical manager record and full six-ID assignment are
+/tmp/phase-c-execution/c-1/qa-2/manager-result.md and fix.xml; ceremony triage is
+/tmp/phase-c-execution/c-1/qa-2/screen-result.md. No finding is waived.
+
+| Finding | QA2 correction / remaining disposition |
+|---|---|
+| FTQ-001 | Correction present, specialist verification pending. health.rs runs the existing causal mutex fixture in an owned child test process. The parent enforces a five-second lifetime, kills and reaps on expiry, and its owner Drop also kills/reaps during unwind. File-backed diagnostics avoid pipe-drain threads; parent-owned scratch storage removes a killed child's cache. The original holder/read-start handshakes, 50 ms read budget, 200 ms answer deadline, <150 ms assertion and post-release store.status check remain. A deliberately stalled reader reaches the contended-read failure path and proves timeout kill/reap, rather than allowing a detached-thread success or health retry. |
+| REQ-QA-004 | OPEN. Actual authorized dependency composition and all required hosted checks must pass on the reviewed changed head. Prior-head green and local successful suites do not close it. |
+| ARCH-001 | OPEN/BLOCKED. Unauthorized direct sync -> sc-command receiver edge remains; the minimal upstream public seam recorded above is still required. |
+| RBQA-F001 | OPEN/BLOCKED. Same unresolved production edge as ARCH-001, separately retained. No new exception is authorized. |
+| RSH-001 | OPEN/BLOCKED. Published 0.1.1 bounded-shutdown incompatibility remains; no local cancellation, abort or timeout/drop workaround is added. |
+| QA2-001 | OPEN. The actual isolated Python graph rejects the unauthorized introducer, correlated with ARCH-001/RBQA-F001 but independently retained. The strict gate stays enabled and unchanged. |
+
+This round changes only health.rs test code and this receipt, after updating from
+the integration branch. Production code, dependency pins, acceptance criteria and
+baseline/advisory gates remain unchanged. Targeted validation results and exact
+push SHA are reported separately. Overall FAIL / blocked and in_progress remain.
