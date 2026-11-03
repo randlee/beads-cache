@@ -1102,7 +1102,7 @@
       ],
       "developer_task": "/root/dev_c1",
       "pr_number": 108,
-      "head_commit": "919aba81fde40a79c8c597f007e968ea072adac9",
+      "head_commit": "90baf07383da848e35a256b5cd58490801c0cbbf",
       "developer_validation": "PASS",
       "reviewer_manifest": [
         {
@@ -1169,7 +1169,7 @@
       "branch": "sprint/c-2-framework-application",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
       "pr_target": "integrate/phase-c",
-      "status": "qa4_fail_upstream_and_qualification_gates_open",
+      "status": "qa4_fail_remaining9_blockers_qualified_parent_forwarded",
       "must_follow": [
         "c-1",
         "c-3"
@@ -2843,7 +2843,7 @@
       },
       "completion_waits_for_parent_merges": true,
       "pr_number": 109,
-      "head_commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+      "head_commit": "465018044fde792e2f1ea4d828f8fa08ca4cfc86",
       "external_qualification": {
         "status": "PASS",
         "tested_source": "623218021d27ef247b389233650314896b69cbc1",
@@ -2917,7 +2917,8 @@
       ],
       "resolved_finding_ids": [
         "C4-RBP-F001"
-      ]
+      ],
+      "qualified_parent_validation": "/tmp/phase-c-execution/c-2/qa-4/qualified-parent-validation.json"
     },
     "c-3": {
       "bead": "bdc-n8v.3",
@@ -3591,7 +3592,7 @@
       "branch": "sprint/c-4-release-qualification",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
       "pr_target": "integrate/phase-c",
-      "status": "qa1_fixes_pushed_qualified_c3_consumed_awaiting_qa2",
+      "status": "qa2_fail_preflight_auth_fix_in_progress",
       "must_follow": [
         "c-2"
       ],
@@ -3847,6 +3848,248 @@
             },
             "parent_merge_gate": "C2 PR109 remains open; C3 corrective PR111 not consumed at reviewed e7."
           }
+        },
+        {
+          "sprint": "c-4",
+          "task": "qa-c-4-2",
+          "branch": "sprint/c-4-release-qualification",
+          "commit": "69554386cfff1074fa606aed114331685e3760f5",
+          "pr": 110,
+          "verdict": "FAIL",
+          "deliverables": {
+            "complete": 16,
+            "total": 22,
+            "percent": 72.73
+          },
+          "findings": {
+            "blocking": 10,
+            "important": 1,
+            "minor": 0
+          },
+          "blocking_ids": [
+            "ARCH-001",
+            "C2-REQ-009",
+            "C4-REQ-001",
+            "C4-REQ-002",
+            "C4-REQ-004",
+            "C4-REQ-005",
+            "C4-REQ-006",
+            "QA-C2-001",
+            "RBQA-F001",
+            "RSH-001"
+          ],
+          "merge_readiness": "not ready",
+          "merge_reason": "10 Blocking +1 Important +0 Minor across11 unique IDs remain open;16/22 (72.73%) deliverables complete. Exact-head CI fails; C2 parent, final matrix/consumer/preflight and applicable anchor/QA gates remain open.",
+          "next_action": "triage_and_fix",
+          "owner": "parent-orchestrator / owning C1-C2-upstream and C4 developers",
+          "reviewer_spawn_gate": "pass",
+          "reviewer_manifest": [
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c4_req2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 5,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c4_arch2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 6,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c4_rustqa2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 1,
+                "important": 3,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "ruthless-boundary-qa",
+              "task_id": "/root/c4_boundary2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 1,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c4_rbp2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c4_flaky2",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 0,
+                "important": 1,
+                "minor": 0
+              }
+            }
+          ],
+          "missing_reviewers": [],
+          "unparsed_reviewers": [],
+          "evidence_chain": {
+            "qa_pass": "qa-2",
+            "commit": "69554386cfff1074fa606aed114331685e3760f5",
+            "pr_comment_url": "https://github.com/randlee/beads-cache/pull/110#issuecomment-6612817877",
+            "coordinator_task_id": "/root/c4_quality_manager2",
+            "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+            "severity_policy": "Current JSON maximum per ID plus unresolved canonical QA-1 severity; distinct correlated IDs retained; no silent downgrade.",
+            "raw_current_json_counts": {
+              "blocking": 9,
+              "important": 2
+            },
+            "severity_reconciliation": [
+              {
+                "id": "QA-C2-001",
+                "current_json_severity": "important",
+                "prior_canonical_severity": "blocking",
+                "merge_gate_severity": "blocking",
+                "reason": "No explicit owning-reviewer reclassification or resolution; retain canonical QA-1 maximum severity."
+              }
+            ],
+            "triage": {
+              "ttl_paths": [
+                ".triage/c/findings/RSH-001.ttl",
+                ".triage/c/findings/QA-C2-001.ttl",
+                ".triage/c/findings/ARCH-001.ttl",
+                ".triage/c/findings/CI-C4-001.ttl",
+                ".triage/c/findings/C4-REQ-001.ttl",
+                ".triage/c/findings/C4-REQ-002.ttl",
+                ".triage/c/findings/C4-REQ-003.ttl",
+                ".triage/c/findings/C4-REQ-004.ttl",
+                ".triage/c/findings/C4-REQ-005.ttl",
+                ".triage/c/findings/C4-REQ-006.ttl",
+                ".triage/c/findings/C2-REQ-009.ttl",
+                ".triage/c/findings/C4-ARCH-001.ttl",
+                ".triage/c/findings/RBQA-F001.ttl",
+                ".triage/c/findings/C4-RBP-F001.ttl",
+                ".triage/c/findings/C4-FTQ-001.ttl"
+              ],
+              "open_ids": [
+                "ARCH-001",
+                "C2-REQ-009",
+                "C4-FTQ-001",
+                "C4-REQ-001",
+                "C4-REQ-002",
+                "C4-REQ-004",
+                "C4-REQ-005",
+                "C4-REQ-006",
+                "QA-C2-001",
+                "RBQA-F001",
+                "RSH-001"
+              ],
+              "fixed_on_reviewed_branch": [
+                "C4-ARCH-001",
+                "C4-RBP-F001",
+                "C4-REQ-003",
+                "CI-C4-001"
+              ],
+              "reconciliation": "Four fixes independently verified in current reviewer JSON. Frozen TTL consumer main records remain open/pending; parent must append QA2 closure evidence after this round. QualifiedProducer alone was not closure."
+            },
+            "ceremony_screen": {
+              "result": "/tmp/phase-c-execution/c-4/qa-2/screen-result.md",
+              "screened": 11,
+              "not_applicable": 11,
+              "waivers": [],
+              "parent_adjudication": "Accepted all11; no ceremony rejection or waiver."
+            },
+            "todo_scan": {
+              "rows": 0,
+              "output": "/tmp/phase-c-execution/c-4/qa-2/todo-scan.txt"
+            },
+            "ci": {
+              "verified_pr_head": "69554386cfff1074fa606aed114331685e3760f5",
+              "merge_state": "UNSTABLE",
+              "counts": {
+                "SUCCESS": 13,
+                "SKIPPED": 1,
+                "FAILURE": 6
+              },
+              "not_green": [
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670911095/job/126047673153",
+                  "name": "installed abi3 (${{ matrix.target }}, Python ${{ matrix.python }})",
+                  "state": "SKIPPED"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038701227",
+                  "name": "clippy and test (macos-14)",
+                  "state": "FAILURE"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670911095/job/126039020737",
+                  "name": "candidate (x86_64-pc-windows-msvc)",
+                  "state": "FAILURE"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670910990/job/126038890240",
+                  "name": "fmt, doc, publish dry-run, boundaries",
+                  "state": "FAILURE"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670910990/job/126038889410",
+                  "name": "clippy and test (windows-latest)",
+                  "state": "FAILURE"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038700806",
+                  "name": "clippy and test (ubuntu-24.04)",
+                  "state": "FAILURE"
+                },
+                {
+                  "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038701350",
+                  "name": "clippy and test (windows-latest)",
+                  "state": "FAILURE"
+                }
+              ],
+              "snapshot": "/tmp/phase-c-execution/c-4/qa-2/manager-ci-checks.json",
+              "bounded_poll": true
+            },
+            "preflight": {
+              "finding": "C4-REQ-002",
+              "acceptance": "Full current-source read-only preflight execution plus passing locally satisfiable auth/candidate/staging gates. Document expected publication-only missing tag and actual owner-setup denials separately; all-green publication admission is not phase acceptance.",
+              "auth_gap": "Canonical consumer step lacks GH_TOKEN despite checker support; observed anonymous403 is actionable integration defect, not acceptable publication waiver.",
+              "developer_assessment": "/tmp/phase-c-preflight-assessment.md",
+              "assessment_status": "Preparation and proposed upstream fix only; not reviewer acceptance or actual hosted preflight execution."
+            },
+            "development_anchors": {
+              "status": "not accepted for incomplete C4",
+              "merge_gate": "required after fixes"
+            },
+            "parent_merge_gate": "C2 PR109 still open; C2 QA4 FAIL with9 gates (7B+2I); C3 qualified merge91467d1 consumed. Public runtime API corrections remain unimplemented/unpublished per owner handoff."
+          }
         }
       ],
       "developer_task": "/root/dev_c4_qa1_fix",
@@ -3859,7 +4102,7 @@
         "reason": "Canonical installer-owned page; move c2 daemon paragraph into c4-owned README before canonical regeneration, no loss of runtime procedure."
       },
       "pr_number": 110,
-      "head_commit": "f1da9cd4a9e23bae05fe3e7c952a9e6bbcd5e368",
+      "head_commit": "f801a97549616064886b57a8f95b48e3d6decd42",
       "qualification_run": "https://github.com/randlee/beads-cache/actions/runs/41571204095",
       "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
       "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
@@ -3877,8 +4120,32 @@
       "qa_status": "Initial QA not complete; required parent merges and final candidate qualification remain open",
       "reviewer_manifest": [
         {
+          "agent": "req-qa",
+          "task_id": "/root/c4_req2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 5,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c4_arch2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 6,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
           "agent": "rust-qa-agent",
-          "task_id": "/root/c4_rustqa",
+          "task_id": "/root/c4_rustqa2",
           "spawn_actor": "parent-orchestrator",
           "fenced_json_received": true,
           "verdict": "FAIL",
@@ -3889,86 +4156,38 @@
           }
         },
         {
-          "agent": "req-qa",
-          "task_id": "/root/c4_req",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 6,
-            "important": 1,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "arch-qa",
-          "task_id": "/root/c4_arch",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 9,
-            "important": 1,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "extensibility-qa",
-          "task_id": "/root/c4_extensibility",
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/c4_boundary2",
           "spawn_actor": "parent-orchestrator",
           "fenced_json_received": true,
           "verdict": "FAIL",
           "findings": {
             "blocking": 1,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "ruthless-boundary-qa",
-          "task_id": "/root/c4_boundary",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 2,
             "important": 0,
             "minor": 0
           }
         },
         {
           "agent": "rust-best-practices-agent",
-          "task_id": "/root/c4_rbp",
+          "task_id": "/root/c4_rbp2",
           "spawn_actor": "parent-orchestrator",
           "fenced_json_received": true,
-          "verdict": "FAIL",
+          "verdict": "PASS",
           "findings": {
             "blocking": 0,
-            "important": 1,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "rust-service-hardening-agent",
-          "task_id": "/root/c4_service",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 1,
-            "important": 1,
+            "important": 0,
             "minor": 0
           }
         },
         {
           "agent": "flaky-test-qa",
-          "task_id": "/root/c4_flaky",
+          "task_id": "/root/c4_flaky2",
           "spawn_actor": "parent-orchestrator",
           "fenced_json_received": true,
           "verdict": "FAIL",
           "findings": {
             "blocking": 0,
-            "important": 2,
+            "important": 1,
             "minor": 0
           }
         }
@@ -3976,16 +4195,12 @@
       "open_finding_ids": [
         "ARCH-001",
         "C2-REQ-009",
-        "C4-ARCH-001",
         "C4-FTQ-001",
-        "C4-RBP-F001",
         "C4-REQ-001",
         "C4-REQ-002",
-        "C4-REQ-003",
         "C4-REQ-004",
         "C4-REQ-005",
         "C4-REQ-006",
-        "CI-C4-001",
         "QA-C2-001",
         "RBQA-F001",
         "RSH-001"
@@ -3997,7 +4212,18 @@
       },
       "fix_assignment": "/tmp/phase-c-execution/c-4/qa-1/fix.xml",
       "local_fix_commit": "70e6842af42702f861a435193ea74b16fac9661f",
-      "local_validation": "124scripts pass1optinskip;21candidate tests pass; canonical84assetszero drift; manifest/lint/diff pass; C4producer source binding and ADR-PY-0006 pending independent QA2."
+      "local_validation": "124scripts pass1optinskip;21candidate tests pass; canonical84assetszero drift; manifest/lint/diff pass; C4producer source binding and ADR-PY-0006 pending independent QA2.",
+      "consumed_c2_producer": "465018044fde792e2f1ea4d828f8fa08ca4cfc86",
+      "resolved_finding_ids": [
+        "C4-ARCH-001",
+        "C4-RBP-F001",
+        "C4-REQ-003",
+        "CI-C4-001"
+      ],
+      "preflight_assessment": "/tmp/phase-c-preflight-assessment.md",
+      "upstream_preflight_worktree": "/private/tmp/c4-sc-publish-worktrees/codex/beads-cache-preflight-auth",
+      "upstream_preflight_developer_task": "/root/upstream_preflight_dev",
+      "post_qa2_consumer_metadata": "Component-only closure records and existing sprint checkpoint; source695 QA2 and actual Linux artifact provenance preserved, wholeC4stillFAIL11open."
     }
   },
   "qa_rounds": [
@@ -5421,6 +5647,248 @@
         },
         "parent_merge_gate": "C1 PR108 remains open. C3 corrective PR111 merged91467d1, but is not consumed in reviewed3282502."
       }
+    },
+    {
+      "sprint": "c-4",
+      "task": "qa-c-4-2",
+      "branch": "sprint/c-4-release-qualification",
+      "commit": "69554386cfff1074fa606aed114331685e3760f5",
+      "pr": 110,
+      "verdict": "FAIL",
+      "deliverables": {
+        "complete": 16,
+        "total": 22,
+        "percent": 72.73
+      },
+      "findings": {
+        "blocking": 10,
+        "important": 1,
+        "minor": 0
+      },
+      "blocking_ids": [
+        "ARCH-001",
+        "C2-REQ-009",
+        "C4-REQ-001",
+        "C4-REQ-002",
+        "C4-REQ-004",
+        "C4-REQ-005",
+        "C4-REQ-006",
+        "QA-C2-001",
+        "RBQA-F001",
+        "RSH-001"
+      ],
+      "merge_readiness": "not ready",
+      "merge_reason": "10 Blocking +1 Important +0 Minor across11 unique IDs remain open;16/22 (72.73%) deliverables complete. Exact-head CI fails; C2 parent, final matrix/consumer/preflight and applicable anchor/QA gates remain open.",
+      "next_action": "triage_and_fix",
+      "owner": "parent-orchestrator / owning C1-C2-upstream and C4 developers",
+      "reviewer_spawn_gate": "pass",
+      "reviewer_manifest": [
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c4_req2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 5,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c4_arch2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 6,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c4_rustqa2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 1,
+            "important": 3,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "ruthless-boundary-qa",
+          "task_id": "/root/c4_boundary2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 1,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/c4_rbp2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/c4_flaky2",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 0,
+            "important": 1,
+            "minor": 0
+          }
+        }
+      ],
+      "missing_reviewers": [],
+      "unparsed_reviewers": [],
+      "evidence_chain": {
+        "qa_pass": "qa-2",
+        "commit": "69554386cfff1074fa606aed114331685e3760f5",
+        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/110#issuecomment-6612817877",
+        "coordinator_task_id": "/root/c4_quality_manager2",
+        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+        "severity_policy": "Current JSON maximum per ID plus unresolved canonical QA-1 severity; distinct correlated IDs retained; no silent downgrade.",
+        "raw_current_json_counts": {
+          "blocking": 9,
+          "important": 2
+        },
+        "severity_reconciliation": [
+          {
+            "id": "QA-C2-001",
+            "current_json_severity": "important",
+            "prior_canonical_severity": "blocking",
+            "merge_gate_severity": "blocking",
+            "reason": "No explicit owning-reviewer reclassification or resolution; retain canonical QA-1 maximum severity."
+          }
+        ],
+        "triage": {
+          "ttl_paths": [
+            ".triage/c/findings/RSH-001.ttl",
+            ".triage/c/findings/QA-C2-001.ttl",
+            ".triage/c/findings/ARCH-001.ttl",
+            ".triage/c/findings/CI-C4-001.ttl",
+            ".triage/c/findings/C4-REQ-001.ttl",
+            ".triage/c/findings/C4-REQ-002.ttl",
+            ".triage/c/findings/C4-REQ-003.ttl",
+            ".triage/c/findings/C4-REQ-004.ttl",
+            ".triage/c/findings/C4-REQ-005.ttl",
+            ".triage/c/findings/C4-REQ-006.ttl",
+            ".triage/c/findings/C2-REQ-009.ttl",
+            ".triage/c/findings/C4-ARCH-001.ttl",
+            ".triage/c/findings/RBQA-F001.ttl",
+            ".triage/c/findings/C4-RBP-F001.ttl",
+            ".triage/c/findings/C4-FTQ-001.ttl"
+          ],
+          "open_ids": [
+            "ARCH-001",
+            "C2-REQ-009",
+            "C4-FTQ-001",
+            "C4-REQ-001",
+            "C4-REQ-002",
+            "C4-REQ-004",
+            "C4-REQ-005",
+            "C4-REQ-006",
+            "QA-C2-001",
+            "RBQA-F001",
+            "RSH-001"
+          ],
+          "fixed_on_reviewed_branch": [
+            "C4-ARCH-001",
+            "C4-RBP-F001",
+            "C4-REQ-003",
+            "CI-C4-001"
+          ],
+          "reconciliation": "Four fixes independently verified in current reviewer JSON. Frozen TTL consumer main records remain open/pending; parent must append QA2 closure evidence after this round. QualifiedProducer alone was not closure."
+        },
+        "ceremony_screen": {
+          "result": "/tmp/phase-c-execution/c-4/qa-2/screen-result.md",
+          "screened": 11,
+          "not_applicable": 11,
+          "waivers": [],
+          "parent_adjudication": "Accepted all11; no ceremony rejection or waiver."
+        },
+        "todo_scan": {
+          "rows": 0,
+          "output": "/tmp/phase-c-execution/c-4/qa-2/todo-scan.txt"
+        },
+        "ci": {
+          "verified_pr_head": "69554386cfff1074fa606aed114331685e3760f5",
+          "merge_state": "UNSTABLE",
+          "counts": {
+            "SUCCESS": 13,
+            "SKIPPED": 1,
+            "FAILURE": 6
+          },
+          "not_green": [
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670911095/job/126047673153",
+              "name": "installed abi3 (${{ matrix.target }}, Python ${{ matrix.python }})",
+              "state": "SKIPPED"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038701227",
+              "name": "clippy and test (macos-14)",
+              "state": "FAILURE"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670911095/job/126039020737",
+              "name": "candidate (x86_64-pc-windows-msvc)",
+              "state": "FAILURE"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670910990/job/126038890240",
+              "name": "fmt, doc, publish dry-run, boundaries",
+              "state": "FAILURE"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670910990/job/126038889410",
+              "name": "clippy and test (windows-latest)",
+              "state": "FAILURE"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038700806",
+              "name": "clippy and test (ubuntu-24.04)",
+              "state": "FAILURE"
+            },
+            {
+              "link": "https://github.com/randlee/beads-cache/actions/runs/41670911181/job/126038701350",
+              "name": "clippy and test (windows-latest)",
+              "state": "FAILURE"
+            }
+          ],
+          "snapshot": "/tmp/phase-c-execution/c-4/qa-2/manager-ci-checks.json",
+          "bounded_poll": true
+        },
+        "preflight": {
+          "finding": "C4-REQ-002",
+          "acceptance": "Full current-source read-only preflight execution plus passing locally satisfiable auth/candidate/staging gates. Document expected publication-only missing tag and actual owner-setup denials separately; all-green publication admission is not phase acceptance.",
+          "auth_gap": "Canonical consumer step lacks GH_TOKEN despite checker support; observed anonymous403 is actionable integration defect, not acceptable publication waiver.",
+          "developer_assessment": "/tmp/phase-c-preflight-assessment.md",
+          "assessment_status": "Preparation and proposed upstream fix only; not reviewer acceptance or actual hosted preflight execution."
+        },
+        "development_anchors": {
+          "status": "not accepted for incomplete C4",
+          "merge_gate": "required after fixes"
+        },
+        "parent_merge_gate": "C2 PR109 still open; C2 QA4 FAIL with9 gates (7B+2I); C3 qualified merge91467d1 consumed. Public runtime API corrections remain unimplemented/unpublished per owner handoff."
+      }
     }
   ],
   "integration_pr": {
@@ -5486,14 +5954,49 @@
   "upstream_coordination": {
     "thread_id": "01a16ea1-6444-76c3-90fc-eca18f70f658",
     "title": "Find main checkout branch",
-    "state": "Upstream active chat reports owner assignment: runtime c-5 logging/lifecycle, c-3 Windows stop and cleanup fixtures; publication consumes verified APIs. Implementation and compatible published baseline still required.",
+    "state": "Producer owner explicitly confirms APIs still planned, implementation not started; no compatible publication handoff. Planning PR1149695c3f green but twoownerdecisions prevent approval.",
     "proposal": "/tmp/phase-c-execution/c-1/qa-4/upstream-compatibility-proposal.md",
     "observed_commentary": "The plan now assigns cron logging and lifecycle compatibility to c-5, optional standard commands to c-6, and Windows stop handling plus cleanup fixtures to c-3. The publication sprint consumes and verifies those completed APIs.",
-    "observed_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:2"
+    "observed_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:2",
+    "published_crates_check": {
+      "checked_at": "2026-11-03",
+      "sources": [
+        "https://crates.io/api/v1/crates/sc-runtime",
+        "https://crates.io/api/v1/crates/sc-cron"
+      ],
+      "sc-runtime": "0.1.1",
+      "sc-cron": "0.1.1",
+      "result": "No compatible newer published baseline present at check; publicAPIgaps remain."
+    },
+    "owner_handoff": {
+      "cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:4",
+      "thread_status": "idle_completed",
+      "implementation_started": false,
+      "draft_contract_only": true,
+      "assignments": {
+        "c-1": "public contracts and prerequisites",
+        "c-5": "logging facade and cooperative store/shutdown behavior",
+        "c-3": "Ctrl-Break, cleanup fixture and bound endpoint notification",
+        "c-4": "publication and registry-only consumer qualification"
+      },
+      "planning_pr": 114,
+      "planning_head": "9695c3f",
+      "pending_owner_decisions": [
+        "fidelity benchmark authority",
+        "SQLite commit-deadline semantics"
+      ]
+    }
   },
   "qualified_c3_forwarding": {
     "report": "/tmp/phase-c-qualified-c3-forward-results.json",
     "task": "/root/phase_c_merge_qualified_c3",
     "C2": "Frozen3282502 awaiting QA4 enforcer before forwarding"
-  }
+  },
+  "latest_qualified_forwarding": {
+    "task": "/root/phase_c_merge_qualified_c3",
+    "report": "/tmp/phase-c-c2-producer-forward-results.json",
+    "integration_pin": "77a5eeae5adb4d0352fd3664457c38414d4bd32b",
+    "scope": "C1 metadata forward; C4 C2 producer consumption with independent C4QA2 pending. No C2acceptanceinferred."
+  },
+  "goal_delivery_boundary": "AllPhaseCsprintsandphase-endingfixesmergedintointegrate/phase-c; fullphase-endingQAzeroallsev,applicableanchorsandrequiredexact-final-integration-headCIgreen."
 }
