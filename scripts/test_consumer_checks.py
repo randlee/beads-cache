@@ -51,6 +51,15 @@ class GraphIntroducerTest(unittest.TestCase):
         edge(0, 2)
         self.assertTrue(any("consumer -> sc-command" in e
                             for e in consumer_checks.consumer_graph_errors(meta, "bd-cache-cli")))
+        packages[0]["name"] = "bd-cache-cli"
+        self.assertEqual(consumer_checks.consumer_graph_errors(meta, "bd-cache-cli"), [])
+        packages[3]["name"] = "bd-cache-service"
+        self.assertTrue(any("bd-cache-service" in e
+                            for e in consumer_checks.consumer_graph_errors(meta, "bd-cache-cli")))
+        packages[3]["name"] = "clap"
+        packages[0]["name"] = "bd-cache-sync"
+        self.assertTrue(any("bd-cache-sync -> sc-command" in e
+                            for e in consumer_checks.consumer_graph_errors(meta, "bd-cache-cli")))
 
 
 class FixtureOwnershipTest(unittest.TestCase):

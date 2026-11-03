@@ -51,8 +51,23 @@ def consumer_graph_errors(meta, package):
     spec.loader.exec_module(graph)
     errors = graph.violations(meta)
     if package == "bd-cache-cli":
+        # The existing CLI owns its direct command-contract dependency. This
+        # exception does not permit sync (below Python too) to introduce it.
         errors = [e for e in errors if e not in {
-            "isolated consumer contains clap", "isolated consumer contains clap_builder"}]
+            "isolated consumer contains clap", "isolated consumer contains clap_builder",
+            "bd-cache-cli -> sc-command: only published sc-cron may introduce the contract/logging exception"}]
+    packages = {p["id"]: p for p in meta["packages"]}
+    nodes = {n["id"]: n for n in meta["resolve"]["nodes"]}
+    reached, pending = set(), [meta["resolve"]["root"]]
+    while pending:
+        identity = pending.pop()
+        if identity in reached:
+            continue
+        reached.add(identity)
+        if packages[identity]["name"] in {"bd-cache-service", "bd-cache-daemon"}:
+            errors.append("isolated consumer contains " + packages[identity]["name"])
+        pending.extend(edge["pkg"] for edge in nodes[identity]["deps"]
+                       if any(k["kind"] in (None, "build") for k in edge["dep_kinds"]))
     return errors
 
 
