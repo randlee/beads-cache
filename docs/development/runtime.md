@@ -59,7 +59,8 @@ the example service with the existing cache composition, remove all demo routes,
 omit unused generated CLI/API-types/store crates, and do not install generated
 lint configuration. The generated cron database/config/job is replaced by the
 existing SystemSchedules over the cache-file schedule table. No fork or checkout
-patch is used. The generated logger orphan-rule bridge and tests are retained
+patch is used. Console events use the public stderr sink so stdout stays reserved.
+The generated logger orphan-rule bridge and tests are retained
 until the upstream public adapter exists.
 
 Use [runtime-updates.md](runtime-updates.md) to regenerate old/new pristine
@@ -82,7 +83,11 @@ existing scripts/bd-compat setup/teardown, a checksum-verified bd1.3.1 install,
 and installed same-commit binaries/wheel. The host's bd1.3.2dev is not the pinned
 fingerprint. External consumer source/config stays outside this product repo.
 Supply native Cache through an existing provider field and execute the unchanged
-supported write/drain/read-back method, disclosing that substitution. Exercise
+supported write/drain/read-back method, disclosing that substitution. Check exact
+call signatures first: the selected existing consumer requires an external
+provider adapter to supply native precondition/drain-budget arguments and translate
+exception classes. That adaptation must be reviewed and its execution recorded;
+direct native substitution is not currently compatible. Exercise
 built-in scheduling, local reads, journal/drain/read-back, outage/pending-data
 preservation/recovery, Python replacement sync, post-sync results/errors and
 stop/restart. Do not select create-dependent behavior from issue104. Never run

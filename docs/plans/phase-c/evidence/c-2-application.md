@@ -2,7 +2,7 @@
 
 Development branch: `sprint/c-2-framework-application`. Parent development heads
 consumed: C1 `4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56`, C3
-`794d5f0a2fab27e647b5f526d6f671392282d0d7`. Parent QA/CI merges are still
+`e438286f3aefabe0e26875d8a80e9554f1215f1c`. Parent QA/CI merges are still
 completion prerequisites. This is a development report, not phase closure.
 
 ## Pinned generation and actual adoption
@@ -29,7 +29,7 @@ planted upstream delta proof, not a claimed new upstream release.
 
 `cargo clippy --offline -p bd-cache-service -p bd-cache-daemon --all-targets -- -D
 warnings` PASS. `cargo test --offline -p bd-cache-service -p bd-cache-daemon` PASS:
-8 daemon tests and1 readiness ownership test. Inherited canonical logger adapter
+8 daemon tests and2 service/readiness ownership tests. Inherited canonical logger adapter
 tests cover sink admission panic/saturation/disconnection and timeout child reap.
 The service test cancels its response, checks the next probe remains busy, closes
 admission and proves join waits for the actual work to finish.
@@ -74,3 +74,38 @@ review: seven unchanged external import modules at source commit
 and marker-qualified scratch scripts. The supported real write/drain/read-back
 boundary is selected; provider substitution is explicit. No synthetic test is
 claimed as actual consumer proof. Issue104 create behavior remains excluded.
+
+## Post-push validation and remaining blockers
+
+Initial application head `39c8587cc40c412f74734a8f6d797458e04daebb`:
+full workspace suite1157passed/0failed/20ignored; installed abi3 wheel corpus
+224passed/2skipped; cached native get median74.3us/p9986.8us. Original release
+CLI gate median5.8ms/p9510.4ms (50ms median gate), pending-case median6.6ms.
+Full/default-library Clippy, rustdoc warnings-denied, formatting, workspace edge
+table, isolated consumer graphs and no-backend-client/strict-neutrality gates pass.
+The new process acceptance also checks --help/usage; it caught the missing
+clap/help feature inherited from workspace default-feature-off configuration.
+The daemon now explicitly enables help; existing local CLI remains unchanged.
+C3 QA1 fixed helper head was subsequently merged cleanly before this fix round.
+
+Required `cargo deny check advisories` FAILS: RUSTSEC-2024-0436,
+[paste is unmaintained](https://rustsec.org/advisories/RUSTSEC-2024-0436.html),
+paste1.0.15 ← utoipa-axum0.2.0 ← pinned sc-runtime0.1.1 (also direct daemon).
+Both runtime's utoipa-axum and utoipa-axum's paste dependencies are unconditional;
+features cannot remove them. The current public crates.io index, fetched during
+qualification, has only0.2.0 in the0.2series. Version0.3.0 uses pastey but requires
+utoipa6 and is outside runtime's ^0.2 range. No compatible published resolution
+removes the advisory. [The released0.2manifest](https://raw.githubusercontent.com/juhaku/utoipa/utoipa-axum-0.2.0/utoipa-axum/Cargo.toml)
+confirms the unconditional paste dependency. No ignore, patch, fork or unapproved
+pin change is applied. A compatible upstream maintenance release switching the
+macro dependency, or an approved new framework baseline, is required for green CI.
+
+Actual consumer integration has an additional observed call-signature mismatch:
+the selected unchanged method omits native write's required `precondition`, and
+calls drain with no arguments while native drain requires `start_gate_s` and
+`hard_s`. Direct native provider substitution cannot run unchanged. An explicit
+external signature/exception adapter has been proposed outside this product tree;
+it supplies None and bounded25s/28s budgets and preserves native return dicts.
+Its use is pending review/authorization with the export. No consumer adaptation
+or actual live acceptance is claimed complete, and native0.1 signatures are
+preserved. The sprint must not close while these blockers remain.

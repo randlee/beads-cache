@@ -181,7 +181,6 @@ workspace crates (third-party edges are in the Crate Layout table):
 | `bd-cache-py` | `bd-cache`, `bd-cache-store`, `bd-cache-model`, `sc-bd-cli`, `sc-beads`, `bd-cache-api`, `bd-cache-sync` (`bd-cache-api`: ADR-BDC-0009; `bd-cache-sync`: ADR-PY-0006, sprint b-8) |
 | `bd-cache-api` | `bd-cache`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009) |
 | `bd-cache-cli` | `bd-cache-api`, `bd-cache-store`, `sc-bd-cli`, `bd-cache-sync`, `bd-cache-model`, `sc-beads` (ADR-BDC-0009; `cron run` reaches sc-cron only through bd-cache-sync's `SystemSchedules`, sprint b-8 QA-1) |
-
 | `bd-cache-service` | `bd-cache-sync`, `bd-cache-store`, `bd-cache-model`, `bd-cache-api`, `sc-bd-cli`, `sc-beads` (test-only clock/backend) |
 | `bd-cache-daemon` | `bd-cache-service`, `bd-cache-sync`, `sc-beads` |
 

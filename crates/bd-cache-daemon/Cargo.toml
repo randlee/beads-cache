@@ -24,7 +24,7 @@ serde_path_to_error.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 sc-command = { workspace = true, features = ["server"] }
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "help"] }
 bd-cache-sync.workspace = true
 sc-beads.workspace = true
 
