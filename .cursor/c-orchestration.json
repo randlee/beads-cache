@@ -1,7 +1,7 @@
 {
   "schema_version": "1.0.0",
   "phase": "c",
-  "status": "approved_for_execution",
+  "status": "implementation_in_progress",
   "integration_branch": "integrate/phase-c",
   "integration_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
   "integration_base_commit": "350a7fc300da50e11281071b62ed377a926d956e",
@@ -54,10 +54,11 @@
       "branch": "sprint/c-1-runtime-migration",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
       "pr_target": "integrate/phase-c",
-      "status": "ready",
+      "status": "development",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": []
+      "qa_rounds": [],
+      "developer_task": "/root/dev_c1"
     },
     "c-2": {
       "bead": "bdc-n8v.2",
@@ -79,10 +80,11 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "ready",
+      "status": "development",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
-      "qa_rounds": []
+      "qa_rounds": [],
+      "developer_task": "/root/dev_c3"
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -98,5 +100,11 @@
       "qa_rounds": []
     }
   },
-  "qa_rounds": []
+  "qa_rounds": [],
+  "integration_pr": {
+    "number": 106,
+    "url": "https://github.com/randlee/beads-cache/pull/106",
+    "base": "develop",
+    "draft": true
+  }
 }
