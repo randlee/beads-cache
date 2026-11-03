@@ -1,6 +1,6 @@
 ---
 phase: c
-status: planned
+status: in_progress
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-4
@@ -52,6 +52,7 @@ owned_paths:
 - scripts/test_release_candidate.py
 - README.md
 - docs/development/release.md
+- docs/getting-started.md
 inherited_bounds:
 - ANC-001
 ---
@@ -136,3 +137,42 @@ Stable/channel publication is not required for phase closure. Credentials and
 first WinGet submission are owner setup, not implementation deliverables to
 silently mark complete. Upstream kit changes stay upstream; this sprint does not
 hand-edit vendored workflows to bypass them.
+
+## Installer ownership handoff
+
+On 2026-11-02 the phase orchestrator authorized the narrow C2-to-C4 handoff
+of `docs/getting-started.md` solely for canonical sc-publish installer output.
+The C2-added optional-daemon paragraph is preserved faithfully in the
+consumer-owned root README with its link to `docs/development/runtime.md`;
+the runtime operation and external consumer procedure remain there unchanged.
+The kit-owned document is never hand-edited.
+
+## Development qualification state
+
+The consumer input now publishes only sc-beads/sc-bd-cli and declares all three
+executables for archives, prerelease selectors and Homebrew/Scoop installation.
+The canonical immutable kit candidate is `5fd4d0db1b7cbb4ebf9316588047391a8e4be496`;
+repeat installer dry-run and manifest validation pass. Kit regression tests pass
+(347 passed, 13 skipped, 52 subtests); repository scripts pass (107 tests, one
+explicit real-template smoke skipped). Negative candidate fixtures reject an
+omitted daemon, mixed source receipt, corrupt assets, configuration staged as
+an asset, missing checksums, old kit/staging and restored local sc-cron.
+
+`Release artifact qualification` is a build-only workflow with four binary
+platforms and six installed abi3/Python combinations. Full source receipts,
+checksums and installed results are attached to its actual run. No supported
+platform completion is claimed until those jobs execute successfully at the
+reviewed final SHA. The existing consumer preflight extension admits only exact
+SHA successful complete matrix evidence with unexpired archives/receipts.
+
+Full Release Preflight and channel outcomes remain pending actual execution.
+The upstream runtime0.1.1 paste advisory stays unsuppressed; owner steering
+explicitly defers its workaround/update to runtime0.2.0. Issue135 source staging
+regressions are tested, but its open issue and external immutable/channel setup
+are not silently marked resolved. C2 merge and its real consumer procedure remain
+closure prerequisites. This sprint remains in progress until actual qualification
+and independent QA satisfy its acceptance criteria.
+
+Post-merge follow-up: qualify the merged Phase C head on develop/main, then obtain
+separate authorization to cut a hosted prerelease and exercise installed release
+and channel legs. No release/tag/registry/channel publication has been performed.

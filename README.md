@@ -49,7 +49,7 @@ be used on their own.
 ## Quick start: Rust
 
 ```sh
-cargo add sc-beads sc-bd-cli sc-cron
+cargo add sc-beads sc-bd-cli
 ```
 
 **sc-beads**: validate `bd list --json` output against the strict row
@@ -191,19 +191,21 @@ scoop bucket add randlee https://github.com/randlee/scoop-bucket && scoop instal
 winget install randlee.bd-cache                            # WinGet
 ```
 
-Or download the `bd-cache` / `bdc` archive for your platform from the GitHub
-Releases page (Linux x86_64, macOS arm64 and x86_64, Windows x86_64).
+The build-only `Release artifact qualification` workflow produces archives of
+`bd-cache`, `bdc` and `bd-cache-daemon` for Linux x86_64, macOS arm64 and x86_64,
+and Windows x86_64, plus abi3 wheels for Linux x86_64 and macOS arm64.
+These workflow artifacts are distinct from a hosted prerelease or stable release.
 
-These channels go live with the first stable release. That release is blocked
-on [randlee/sc-publish#135](https://github.com/randlee/sc-publish/issues/135),
-so until then they publish nothing.
+Channels go live only after separate publication authorization, qualified
+[sc-publish staging](https://github.com/randlee/sc-publish/issues/135), immutable
+release verification and actual channel setup. See the [release gates](docs/development/release.md).
 
 ## Install
 
 ### crates.io
 
 ```sh
-cargo add sc-beads sc-bd-cli sc-cron
+cargo add sc-beads sc-bd-cli
 cargo add --dev sc-beads --features testing        # FakeBackend, ManualClock, contract suite
 cargo add --dev sc-bd-cli --features test-support  # FakeBd, RecordingInvoker
 ```
@@ -228,7 +230,6 @@ The crates as git dependencies, from `develop`:
 [dependencies]
 sc-beads = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
 sc-bd-cli = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
-sc-cron = { git = "https://github.com/randlee/beads-cache", branch = "develop" }
 ```
 
 The Python module, built from source. This needs a Rust toolchain: rustup
@@ -295,3 +296,12 @@ Not yet:
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+## Optional foreground scheduler daemon
+
+Build `cargo build -p bd-cache-daemon`, then follow [runtime operation](docs/development/runtime.md)
+for explicit daemon JSON, loopback readiness and bounded cleanup. Existing local
+CLI/Python use requires no daemon.
+
+See [candidate qualification and release gates](docs/development/release.md) for
+build-only artifacts, installed acceptance and deferred publication.

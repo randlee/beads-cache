@@ -3,7 +3,7 @@ schema_version = 1
 [project]
 name = "beads-cache"
 archive_prefix = "beads-cache"
-description = "Rust cache of a beads repository: sc-beads backend contract, sc-bd-cli bd backend, sc-cron scheduler and the bd-cache-rs Python bindings"
+description = "Rust cache of a beads repository with local CLI, Python bindings and an optional foreground scheduler daemon"
 homepage = "https://github.com/randlee/beads-cache"
 license = "MIT"
 renderer_archive_path = "bin/bd-cache"
@@ -14,7 +14,7 @@ rust_toolchain = "1.98.1"
 tag_prefix = "prerelease/v"
 tag_script = "scripts/prerelease_tag.py"
 install_root = "~/.beads-cache-builds"
-binaries = ["bd-cache", "bdc"]
+binaries = ["bd-cache", "bdc", "bd-cache-daemon"]
 protected_branches = ["develop", "main"]
 selector_dir = { darwin = "~/.beads-cache-builds/selectors/darwin", linux = "~/.beads-cache-builds/selectors/linux", windows = "%LOCALAPPDATA%\\beads-cache\\prerelease-selectors" }
 post_install = "{python} -m pip install --force-reinstall {wheels} && {selector_dir}/bdc --version"
@@ -45,24 +45,19 @@ publish = true
 publish_order = 1
 wait_after_publish_seconds = 30
 [[crates]]
-artifact = "sc-cron"
-package = "sc-cron"
-cargo_toml = "crates/sc-cron/Cargo.toml"
-publish = true
-publish_order = 2
-wait_after_publish_seconds = 30
-[[crates]]
 artifact = "sc-bd-cli"
 package = "sc-bd-cli"
 cargo_toml = "crates/sc-bd-cli/Cargo.toml"
 publish = true
-publish_order = 3
+publish_order = 2
 wait_after_publish_seconds = 0
 
 [[release_binaries]]
 name = "bd-cache"
 [[release_binaries]]
 name = "bdc"
+[[release_binaries]]
+name = "bd-cache-daemon"
 
 [[python_packages]]
 artifact = "bd-cache-rs-wheel"
@@ -77,7 +72,7 @@ source = "crates/bd-cache-py"
 cargo_manifest = "crates/bd-cache-py/Cargo.toml"
 module_path = "crates/bd-cache-py"
 sdist = true
-wheels = ["macos-14", "ubuntu-latest"]
+wheels = [{ id = "linux-x64", os = "ubuntu-24.04", target = "x86_64-unknown-linux-gnu", platform = "manylinux_2_28_x86_64", manylinux = "2_28" }, { id = "macos-arm64", os = "macos-14", target = "aarch64-apple-darwin", platform = "macosx_11_0_arm64", deployment_target = "11.0" }]
 
 [channels.pypi]
 workflow = "pypi-publish.yml"
@@ -96,7 +91,7 @@ renderer_target = "x86_64-unknown-linux-gnu"
 path = "Formula/bd-cache.rb"
 template = "release/homebrew/formula.rb.j2"
 class = "BdCache"
-binaries = ["bd-cache", "bdc"]
+binaries = ["bd-cache", "bdc", "bd-cache-daemon"]
 test_binary = "bdc"
 test_command = "--version"
 test_output = "bd-cache"
@@ -123,7 +118,7 @@ workflow = "scoop-publish.yml"
 dispatch_inputs = {  }
 bucket_repository = "randlee/scoop-bucket"
 manifest_path = "bucket/bd-cache.json"
-manifest_template = "release/scoop/bd-cache.json.j2"
+manifest_template = "release/scoop/beads-cache.json.j2"
 installer_target = "x86_64-pc-windows-msvc"
 binary = "bin/bd-cache.exe"
 renderer_target = "x86_64-unknown-linux-gnu"
