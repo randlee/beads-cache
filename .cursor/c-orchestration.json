@@ -1102,7 +1102,7 @@
       ],
       "developer_task": "/root/dev_c1",
       "pr_number": 108,
-      "head_commit": "96ce326fca99a2919a6462bd4249b9931281eadd",
+      "head_commit": "919aba81fde40a79c8c597f007e968ea072adac9",
       "developer_validation": "PASS",
       "reviewer_manifest": [
         {
@@ -1169,7 +1169,7 @@
       "branch": "sprint/c-2-framework-application",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
       "pr_target": "integrate/phase-c",
-      "status": "qa4_cross_sprint_fix_in_progress",
+      "status": "qa4_fail_upstream_and_qualification_gates_open",
       "must_follow": [
         "c-1",
         "c-3"
@@ -2642,6 +2642,198 @@
               "parent_correlation_required": true
             }
           }
+        },
+        {
+          "sprint": "c-2",
+          "task": "qa-c-2-4",
+          "branch": "sprint/c-2-framework-application",
+          "commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+          "pr": 109,
+          "verdict": "FAIL",
+          "deliverables": {
+            "complete": 14,
+            "total": 21,
+            "percent": 66.67
+          },
+          "findings": {
+            "blocking": 7,
+            "important": 2,
+            "minor": 0
+          },
+          "blocking_ids": [
+            "ARCH-001",
+            "C2-REQ-003",
+            "C2-REQ-004",
+            "C2-REQ-007",
+            "C2-REQ-009",
+            "RBQA-F001",
+            "RSH-001"
+          ],
+          "merge_readiness": "not ready",
+          "merge_reason": "7 Blocking +2 Important +0 Minor remain;14/21 deliverables complete. Exact-head CI has5 failed checks, and published-upstream compatibility, current qualification, anchors and parent merge gates remain open.",
+          "next_action": "triage_and_fix",
+          "owner": "parent-orchestrator / rust-developer owners",
+          "reviewer_spawn_gate": "pass",
+          "reviewer_manifest": [
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c2_rustqa4",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 3,
+                "important": 2,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "rust-best-practices-agent",
+              "task_id": "/root/c4_rbp",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "PASS",
+              "findings": {
+                "blocking": 0,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c2_req4",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 4,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c2_arch4",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 4,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/c4_flaky",
+              "spawn_actor": "parent-orchestrator",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "findings": {
+                "blocking": 0,
+                "important": 2,
+                "minor": 0
+              }
+            }
+          ],
+          "missing_reviewers": [],
+          "unparsed_reviewers": [],
+          "evidence_chain": {
+            "qa_pass": "qa-4",
+            "commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+            "pr_comment_url": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6608719324",
+            "coordinator_task_id": "/root/c2_quality_manager4",
+            "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+            "severity_policy": "Normalize critical/BLOCKING to Blocking and retain highest reported severity per identical ID. Distinct correlated owner IDs remain until independently resolved.",
+            "triage": {
+              "ttl_paths": [
+                ".triage/c/findings/QA-C2-001.ttl",
+                ".triage/c/findings/C2-REQ-003.ttl",
+                ".triage/c/findings/C2-REQ-004.ttl",
+                ".triage/c/findings/C2-REQ-007.ttl",
+                ".triage/c/findings/C2-REQ-009.ttl",
+                ".triage/c/findings/ARCH-001.ttl",
+                ".triage/c/findings/RSH-001.ttl",
+                ".triage/c/findings/RBQA-F001.ttl",
+                ".triage/c/findings/C4-RBP-F001.ttl",
+                ".triage/c/findings/C4-FTQ-001.ttl"
+              ],
+              "disposition": "Nine IDs remain open; C4-RBP-F001 verified fixed by owning RBP and independent RustQA, with tracked closure owned by parent."
+            },
+            "carry_forward": {
+              "resolved": [
+                "C4-RBP-F001"
+              ],
+              "open": [
+                "ARCH-001",
+                "C2-REQ-003",
+                "C2-REQ-004",
+                "C2-REQ-007",
+                "C2-REQ-009",
+                "C4-FTQ-001",
+                "QA-C2-001",
+                "RBQA-F001",
+                "RSH-001"
+              ]
+            },
+            "ceremony_screen": {
+              "task_id": "/root/c4_ceremony_screen",
+              "result": "/tmp/phase-c-execution/c-2/qa-4/screen-result.md",
+              "screened": 9,
+              "not_applicable": 9,
+              "waivers": [],
+              "parent_adjudication": "Accepted all9 retained findings; existing capabilities and existing validation gates, no new process artifacts."
+            },
+            "todo_scan": {
+              "rows": 0,
+              "output": "/tmp/phase-c-execution/c-2/qa-4/manager-todo-scan.txt"
+            },
+            "ci": {
+              "verified_pr_head": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+              "counts": {
+                "FAILURE": 5,
+                "SUCCESS": 10
+              },
+              "not_green": [
+                {
+                  "name": "fmt, doc, publish dry-run, boundaries",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "url": "https://github.com/randlee/beads-cache/actions/runs/41603469190/job/125807488829"
+                },
+                {
+                  "name": "clippy and test (macos-14)",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488714"
+                },
+                {
+                  "name": "clippy and test (ubuntu-24.04)",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488652"
+                },
+                {
+                  "name": "clippy and test (windows-latest)",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488368"
+                },
+                {
+                  "name": "clippy and test (windows-latest)",
+                  "status": "COMPLETED",
+                  "conclusion": "FAILURE",
+                  "url": "https://github.com/randlee/beads-cache/actions/runs/41603469190/job/125807488201"
+                }
+              ],
+              "snapshot": "/tmp/phase-c-execution/c-2/qa-4/manager-ci.json"
+            },
+            "development_anchors": {
+              "status": "not accepted for incomplete C2",
+              "merge_gate": "Required after remaining fixes"
+            },
+            "parent_merge_gate": "C1 PR108 remains open. C3 corrective PR111 merged91467d1, but is not consumed in reviewed3282502."
+          }
         }
       ],
       "developer_task": "/root/dev_c2_cross_fix",
@@ -2651,7 +2843,7 @@
       },
       "completion_waits_for_parent_merges": true,
       "pr_number": 109,
-      "head_commit": "8bcd47fa364055879e06392a53cb250ebfe564f7",
+      "head_commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
       "external_qualification": {
         "status": "PASS",
         "tested_source": "623218021d27ef247b389233650314896b69cbc1",
@@ -2713,8 +2905,18 @@
       "development_anchor_gate": "No PASS claimed while sprint is blocked",
       "fix_assignment": "/tmp/phase-c-execution/c-2/qa-4/cross-sprint-fix.xml",
       "open_finding_ids": [
-        "C4-RBP-F001",
-        "C4-FTQ-001"
+        "ARCH-001",
+        "C2-REQ-003",
+        "C2-REQ-004",
+        "C2-REQ-007",
+        "C2-REQ-009",
+        "C4-FTQ-001",
+        "QA-C2-001",
+        "RBQA-F001",
+        "RSH-001"
+      ],
+      "resolved_finding_ids": [
+        "C4-RBP-F001"
       ]
     },
     "c-3": {
@@ -2723,7 +2925,7 @@
       "branch": "sprint/c-3-template-upkeep",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-3-template-upkeep",
       "pr_target": "integrate/phase-c",
-      "status": "corrective_qa4_pass_ready_to_merge",
+      "status": "complete",
       "must_follow": [],
       "developer_model": "gpt-6.1-sol",
       "qa_rounds": [
@@ -3359,9 +3561,9 @@
           "spawn_actor": "parent-orchestrator"
         }
       ],
-      "merge_commit": "22f9d6b9ddc67274d95a23c16a2a8345c0785bc0",
-      "merged_at": "2026-11-03T03:17:40Z",
-      "bead_status": "in_progress",
+      "merge_commit": "91467d1376b4cfb62b6e99674a65b594b0ed5bde",
+      "merged_at": "2026-11-03T15:51:21Z",
+      "bead_status": "closed",
       "initial_pr_number": 107,
       "corrective_pr_number": 111,
       "open_finding_ids": [],
@@ -3379,7 +3581,9 @@
         },
         "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
       },
-      "parent_merge_audit": "/tmp/phase-c-execution/c-3/qa-4/parent-merge-audit.json"
+      "parent_merge_audit": "/tmp/phase-c-execution/c-3/qa-4/parent-merge-audit.json",
+      "initial_merge_commit": "22f9d6b9ddc67274d95a23c16a2a8345c0785bc0",
+      "corrective_merge_commit": "91467d1376b4cfb62b6e99674a65b594b0ed5bde"
     },
     "c-4": {
       "bead": "bdc-n8v.4",
@@ -3387,7 +3591,7 @@
       "branch": "sprint/c-4-release-qualification",
       "worktree_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-4-release-qualification",
       "pr_target": "integrate/phase-c",
-      "status": "qa1_fail_all_findings_dispatched_for_fix",
+      "status": "qa1_fixes_pushed_qualified_c3_consumed_awaiting_qa2",
       "must_follow": [
         "c-2"
       ],
@@ -3655,7 +3859,7 @@
         "reason": "Canonical installer-owned page; move c2 daemon paragraph into c4-owned README before canonical regeneration, no loss of runtime procedure."
       },
       "pr_number": 110,
-      "head_commit": "e7bafc2e5bdda1bf480823c7dd3ac73d0e16b702",
+      "head_commit": "f1da9cd4a9e23bae05fe3e7c952a9e6bbcd5e368",
       "qualification_run": "https://github.com/randlee/beads-cache/actions/runs/41571204095",
       "preflight_run": "https://github.com/randlee/beads-cache/actions/runs/41567884775",
       "local_installed_smoke": "PASS macOS arm64 Python3.11.9; remaining matrix required",
@@ -3791,7 +3995,9 @@
         "report": "/tmp/phase-c-execution/c-4/qa-1/screen-result.md",
         "decision": "Accepted screen: all15 findings retained; existing build/check source-binding seam, no extra ledger or parallel manifest; no waivers."
       },
-      "fix_assignment": "/tmp/phase-c-execution/c-4/qa-1/fix.xml"
+      "fix_assignment": "/tmp/phase-c-execution/c-4/qa-1/fix.xml",
+      "local_fix_commit": "70e6842af42702f861a435193ea74b16fac9661f",
+      "local_validation": "124scripts pass1optinskip;21candidate tests pass; canonical84assetszero drift; manifest/lint/diff pass; C4producer source binding and ADR-PY-0006 pending independent QA2."
     }
   },
   "qa_rounds": [
@@ -5023,6 +5229,198 @@
           "deterministic_checks": "/tmp/phase-c-execution/c-3/qa-4/anc001-deterministic-checks.json"
         }
       }
+    },
+    {
+      "sprint": "c-2",
+      "task": "qa-c-2-4",
+      "branch": "sprint/c-2-framework-application",
+      "commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+      "pr": 109,
+      "verdict": "FAIL",
+      "deliverables": {
+        "complete": 14,
+        "total": 21,
+        "percent": 66.67
+      },
+      "findings": {
+        "blocking": 7,
+        "important": 2,
+        "minor": 0
+      },
+      "blocking_ids": [
+        "ARCH-001",
+        "C2-REQ-003",
+        "C2-REQ-004",
+        "C2-REQ-007",
+        "C2-REQ-009",
+        "RBQA-F001",
+        "RSH-001"
+      ],
+      "merge_readiness": "not ready",
+      "merge_reason": "7 Blocking +2 Important +0 Minor remain;14/21 deliverables complete. Exact-head CI has5 failed checks, and published-upstream compatibility, current qualification, anchors and parent merge gates remain open.",
+      "next_action": "triage_and_fix",
+      "owner": "parent-orchestrator / rust-developer owners",
+      "reviewer_spawn_gate": "pass",
+      "reviewer_manifest": [
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c2_rustqa4",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 3,
+            "important": 2,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "rust-best-practices-agent",
+          "task_id": "/root/c4_rbp",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "PASS",
+          "findings": {
+            "blocking": 0,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c2_req4",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 4,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c2_arch4",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 4,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/c4_flaky",
+          "spawn_actor": "parent-orchestrator",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "findings": {
+            "blocking": 0,
+            "important": 2,
+            "minor": 0
+          }
+        }
+      ],
+      "missing_reviewers": [],
+      "unparsed_reviewers": [],
+      "evidence_chain": {
+        "qa_pass": "qa-4",
+        "commit": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6608719324",
+        "coordinator_task_id": "/root/c2_quality_manager4",
+        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+        "severity_policy": "Normalize critical/BLOCKING to Blocking and retain highest reported severity per identical ID. Distinct correlated owner IDs remain until independently resolved.",
+        "triage": {
+          "ttl_paths": [
+            ".triage/c/findings/QA-C2-001.ttl",
+            ".triage/c/findings/C2-REQ-003.ttl",
+            ".triage/c/findings/C2-REQ-004.ttl",
+            ".triage/c/findings/C2-REQ-007.ttl",
+            ".triage/c/findings/C2-REQ-009.ttl",
+            ".triage/c/findings/ARCH-001.ttl",
+            ".triage/c/findings/RSH-001.ttl",
+            ".triage/c/findings/RBQA-F001.ttl",
+            ".triage/c/findings/C4-RBP-F001.ttl",
+            ".triage/c/findings/C4-FTQ-001.ttl"
+          ],
+          "disposition": "Nine IDs remain open; C4-RBP-F001 verified fixed by owning RBP and independent RustQA, with tracked closure owned by parent."
+        },
+        "carry_forward": {
+          "resolved": [
+            "C4-RBP-F001"
+          ],
+          "open": [
+            "ARCH-001",
+            "C2-REQ-003",
+            "C2-REQ-004",
+            "C2-REQ-007",
+            "C2-REQ-009",
+            "C4-FTQ-001",
+            "QA-C2-001",
+            "RBQA-F001",
+            "RSH-001"
+          ]
+        },
+        "ceremony_screen": {
+          "task_id": "/root/c4_ceremony_screen",
+          "result": "/tmp/phase-c-execution/c-2/qa-4/screen-result.md",
+          "screened": 9,
+          "not_applicable": 9,
+          "waivers": [],
+          "parent_adjudication": "Accepted all9 retained findings; existing capabilities and existing validation gates, no new process artifacts."
+        },
+        "todo_scan": {
+          "rows": 0,
+          "output": "/tmp/phase-c-execution/c-2/qa-4/manager-todo-scan.txt"
+        },
+        "ci": {
+          "verified_pr_head": "3282502831d33350622f56a9ddc8f5d24a4efc8a",
+          "counts": {
+            "FAILURE": 5,
+            "SUCCESS": 10
+          },
+          "not_green": [
+            {
+              "name": "fmt, doc, publish dry-run, boundaries",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE",
+              "url": "https://github.com/randlee/beads-cache/actions/runs/41603469190/job/125807488829"
+            },
+            {
+              "name": "clippy and test (macos-14)",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE",
+              "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488714"
+            },
+            {
+              "name": "clippy and test (ubuntu-24.04)",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE",
+              "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488652"
+            },
+            {
+              "name": "clippy and test (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE",
+              "url": "https://github.com/randlee/beads-cache/actions/runs/41603469148/job/125807488368"
+            },
+            {
+              "name": "clippy and test (windows-latest)",
+              "status": "COMPLETED",
+              "conclusion": "FAILURE",
+              "url": "https://github.com/randlee/beads-cache/actions/runs/41603469190/job/125807488201"
+            }
+          ],
+          "snapshot": "/tmp/phase-c-execution/c-2/qa-4/manager-ci.json"
+        },
+        "development_anchors": {
+          "status": "not accepted for incomplete C2",
+          "merge_gate": "Required after remaining fixes"
+        },
+        "parent_merge_gate": "C1 PR108 remains open. C3 corrective PR111 merged91467d1, but is not consumed in reviewed3282502."
+      }
     }
   ],
   "integration_pr": {
@@ -5092,5 +5490,10 @@
     "proposal": "/tmp/phase-c-execution/c-1/qa-4/upstream-compatibility-proposal.md",
     "observed_commentary": "The plan now assigns cron logging and lifecycle compatibility to c-5, optional standard commands to c-6, and Windows stop handling plus cleanup fixtures to c-3. The publication sprint consumes and verifies those completed APIs.",
     "observed_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:2"
+  },
+  "qualified_c3_forwarding": {
+    "report": "/tmp/phase-c-qualified-c3-forward-results.json",
+    "task": "/root/phase_c_merge_qualified_c3",
+    "C2": "Frozen3282502 awaiting QA4 enforcer before forwarding"
   }
 }

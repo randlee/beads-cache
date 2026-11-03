@@ -1,6 +1,6 @@
 ---
 phase: c
-status: in_progress
+status: complete
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-3
@@ -257,9 +257,9 @@ No framework baseline, dependency, domain or workflow change is included.
 ### QA-3 lifecycle metadata correction: REQ-QA-003-001
 
 The original PR #107 merge at `22f9d6b`, QA-2 acceptance and associated CI remain
-historical. Corrective PR #111 is in progress. Its authoritative frontmatter and
-central c-3 row now reflect that reopened state; completion must wait for
-parent-owned QA-4, the development-anchor gate and current-head CI.
+historical. At QA-3, corrective PR #111 was in progress. Its metadata correction
+reflected that reopened state; parent-owned QA-4, development anchors and
+current-head CI were still required.
 
 At `de4762bd73982d0bb1cbba3e1e30ff02e26dc365`, independent QA-3 RustQA
 (`/root/c3_rustqa`, `resolved_in_review`) and flaky-test QA (`/root/c3_flaky`,
@@ -267,9 +267,25 @@ At `de4762bd73982d0bb1cbba3e1e30ff02e26dc365`, independent QA-3 RustQA
 [published QA-3 report](https://github.com/randlee/beads-cache/pull/111#issuecomment-6598060424)
 close that finding's current TTL status while preserving its source and developer
 history. The QA-3 manager nevertheless reported FAIL for the new Minor
-REQ-QA-003-001. That Minor remains open in its pre-dispatch TTL pending QA-4;
+REQ-QA-003-001. At QA-3, that Minor remained open in its pre-dispatch TTL pending QA-4;
 neither the functional finding's closure nor QA-3's 15/15 green CI closes PR #111.
 
 This correction changes lifecycle metadata only. Helper and test Git blobs remain
 identical to independently tested `de4762b`; its source-validation evidence is
 preserved without repeating unchanged test or Rust suites.
+
+### Corrective acceptance after QA-4
+
+Corrective [PR #111](https://github.com/randlee/beads-cache/pull/111) merged into
+`integrate/phase-c` at `91467d1376b4cfb62b6e99674a65b594b0ed5bde` on
+2026-11-03 at 15:51 UTC. At reviewed source
+`01cba9c0cccd05517207aeeb84a0a2980d183499`, independent QA-4 completed all
+18 deliverables with zero findings, applicable development anchors passed, and
+all 15 required CI checks succeeded. The parent verified the posted and saved
+Machine Status and reviewer evidence before merging.
+
+The [QA-4 approval](https://github.com/randlee/beads-cache/pull/111#issuecomment-6598419526)
+and [development-anchor report](https://github.com/randlee/beads-cache/pull/111#issuecomment-6598616623)
+record that acceptance. REQ-QA-003-001 is now closed by its owning reviewer
+disposition and parent closure; historical QA-3 failures remain above. C3 is
+complete; other Phase C sprint and integration gates remain independent.
