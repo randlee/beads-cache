@@ -20,6 +20,11 @@ import tempfile
 import time
 
 
+def run_product(command, **kwargs):
+    """Capture the product UTF-8 protocol independently of the host locale."""
+    return subprocess.run(command, capture_output=True, text=True, encoding="utf-8", **kwargs)
+
+
 def wait_for(probe, seconds=15):
     deadline = time.monotonic() + seconds
     while time.monotonic() < deadline:
@@ -98,7 +103,7 @@ def main():
         command = [str(args.daemon), "--repo", str(repo), "--config", str(config)]
 
         def bdc(*words, ok=True):
-            result = subprocess.run([str(args.bdc), "--repo", str(repo), "--bd", str(args.fake_bd), *words], env=env, capture_output=True, text=True, timeout=15)
+            result = run_product([str(args.bdc), "--repo", str(repo), "--bd", str(args.fake_bd), *words], env=env, timeout=15)
             data = json.loads(result.stdout)
             assert data["ok"] is ok, (words, result.returncode, data, result.stderr)
             return data
@@ -115,7 +120,7 @@ def main():
                 conn.close()
 
         def spawn():
-            return subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            return subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, encoding="utf-8",
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0)
 
         def stop(child):
@@ -128,20 +133,20 @@ def main():
             assert elapsed <= 31 + 0.3 + 1 + 1, elapsed
             return elapsed
 
-        help_result = subprocess.run([str(args.daemon), "--help"], env=env, capture_output=True, text=True, timeout=10)
+        help_result = run_product([str(args.daemon), "--help"], env=env, timeout=10)
         assert help_result.returncode == 0 and help_result.stdout and not help_result.stderr
-        usage_result = subprocess.run([str(args.daemon), "--unknown"], env=env, capture_output=True, text=True, timeout=10)
+        usage_result = run_product([str(args.daemon), "--unknown"], env=env, timeout=10)
         assert usage_result.returncode == 2 and not usage_result.stdout and usage_result.stderr.startswith("CLI.USAGE ")
         # Every refusal keeps stdout empty and no store opens for config/policy/endpoint failures.
         for payload, code in (("{", "CFG.PARSE"), ('{"shutdown_timeout_ms":"secret-value"}', "CFG.DESERIALIZE"), (json.dumps({**values, "endpoint": "tcp:0.0.0.0:1"}), "DAEMON.LISTENER_POLICY"), (json.dumps({**values, "endpoint": "bad-endpoint"}), "RUNTIME.ENDPOINT_FAILED")):
             config.write_text(payload)
-            result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            result = run_product(command, env=env, timeout=10)
             assert result.returncode == 1 and not result.stdout, result
             assert result.stderr.startswith(code + " ") and " — " in result.stderr and len(result.stderr.splitlines()) == 1, result.stderr
             assert "secret-value" not in result.stderr
             assert not (repo / ".bd-cache").exists(), result.stderr
         config.unlink()
-        result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+        result = run_product(command, env=env, timeout=10)
         assert result.returncode == 1 and result.stderr.startswith("CFG.READ ") and not result.stdout
         config.write_text(json.dumps(values))
         bdc("cache", "schedule", "set", "* * * * * *")
@@ -155,7 +160,7 @@ def main():
         child = spawn()
         try:
             wait_for(lambda: probe_http("/health"))
-            duplicate = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            duplicate = run_product(command, env=env, timeout=10)
             assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD ") and not duplicate.stdout, duplicate
             wait_for(lambda: (reply := probe_http("/ready")) and reply[0] == 200)
             assert bdc("cache", "status")["data"]["store_schema_version"] == 3
@@ -189,7 +194,7 @@ def main():
             # Bind failure still executes application cleanup and permits immediate restart.
             with socket.socket() as occupied:
                 occupied.bind(("127.0.0.1", port)); occupied.listen()
-                result = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+                result = run_product(command, env=env, timeout=10)
                 assert result.returncode == 1 and result.stderr.startswith("RUNTIME.BIND_FAILED ") and not result.stdout, result
             child = spawn(); wait_for(lambda: probe_http("/health")); stop(child); child = None
             # Stop with a blocked hook process tree. The second owner must fail
@@ -202,7 +207,7 @@ def main():
             pids = [int(wait_for(lambda p=p: p.read_text().strip() if p.exists() else None)) for p in (root / "child.pid", root / "gc.pid")]
             began = time.monotonic()
             child.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGTERM)
-            duplicate = subprocess.run(command, env=env, capture_output=True, text=True, timeout=10)
+            duplicate = run_product(command, env=env, timeout=10)
             assert duplicate.returncode == 1 and duplicate.stderr.startswith("RUNTIME.LOCK_HELD "), duplicate
             stdout, stderr = child.communicate(timeout=35)
             blocked_stop = time.monotonic() - began

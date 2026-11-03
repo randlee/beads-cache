@@ -6,6 +6,25 @@ source `623218021d27ef247b389233650314896b69cbc1`; the checkpoints below preserv
 the earlier development findings. QA, CI and merge gates remain separate, and
 the advisory is unsuppressed.
 
+## Windows acceptance decoding correction
+
+General CI run `41567572146` reached the daemon diagnostic assertion on Windows
+and failed because subprocess text decoding used the host locale for UTF-8
+product output. After merging integration `22f9d6b9ddc67274d95a23c16a2a8345c0785bc0`,
+the acceptance script explicitly decodes all captured product processes as UTF-8,
+including the long-running daemon pipes. The diagnostic prefix, em dash,
+single-line and redaction assertions remain unchanged. System utility output
+continues to use its platform decoder.
+
+A focused subprocess regression emits raw UTF-8 diagnostics with a simulated
+CP1252 default decoder: the control corrupts the text and the product boundary
+preserves it exactly. Invalid UTF-8 still raises instead of being replaced.
+Local validation passes: 99 script tests (one existing smoke skip), formatting,
+all-target Clippy with warnings denied, and the complete FakeBd daemon process
+acceptance (including blocked child/grandchild cleanup in 1.007 seconds).
+This is a test-harness portability change; the native artifact sources qualified
+above are unchanged. A new hosted Windows run remains required.
+
 Development branch: `sprint/c-2-framework-application`. Parent development heads
 consumed: C1 `4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56`, C3
 `ef181f69944cad0356bb5f3ee4a04f7c92656730`. Parent QA/CI merges are still
