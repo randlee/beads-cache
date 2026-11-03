@@ -129,9 +129,6 @@ jobs:
       - name: Install script test dependencies
         run: python3 -m pip install "jsonschema>=4.18,<5"
 
-      - name: Install script test dependencies
-        run: python3 -m pip install "jsonschema>=4.18,<5"
-
       - name: Scripts tests (scripts/test_*.py)
         run: python3 -I -m unittest discover -s scripts -v
 
