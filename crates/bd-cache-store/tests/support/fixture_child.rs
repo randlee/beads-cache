@@ -8,11 +8,11 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug)]
 pub(crate) struct FixtureChild {
-    process: Child,
+    pub(crate) process: Child,
     output: tempfile::NamedTempFile,
-    scratch: tempfile::TempDir,
-    cleaned: Arc<AtomicBool>,
-    started: Instant,
+    pub(crate) scratch: tempfile::TempDir,
+    pub(crate) cleaned: Arc<AtomicBool>,
+    pub(crate) started: Instant,
 }
 
 impl FixtureChild {

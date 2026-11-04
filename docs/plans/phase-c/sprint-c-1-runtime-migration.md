@@ -742,3 +742,61 @@ RSH-001 remains **closed only under its actual QA4 owner/enforcer evidence**.
 FTQ-009/010 remain open pending fresh independent review. No new upstream work,
 version change, publisher dependency, full workspace rerun or sprint/anchor/CI
 PASS is introduced by this test-only correction. Merge remains gated.
+
+
+### QA5 pre-registration process ownership correction (FTQ-010)
+
+QA5 manager https://github.com/randlee/beads-cache/pull/108#issuecomment-6620709101
+accepted FTQ-009 and retained the actual production RSH-001 closure, but its
+owning flaky reviewer reproduced a residual FTQ-010 orphan before the Python
+stub's PID registration. The source-free PATH `cat` delay left the real Python
+shell/cat group alive after the old fixture timeout. The prior registered-child
+proof was insufficient for complete launch ownership.
+
+Python lifecycle fixtures now establish a new kernel session with the existing
+safe rustix API before creating their runtime, stores, stub or any producer job.
+Published sc-cron's separate process groups inherit that session. A test-only
+SessionFixture composes the existing owned fixture child and uses kernel session
+membership as its cleanup authority, not child-written PID files. A process
+inventory capability check occurs before launching a fixture. No SDK, dependency,
+production execution, logging, graph, or baseline change is made.
+
+Within the existing first 250 ms cleanup observation, the supervisor first lets
+actual runtime parents reap killed job groups, then stops the fixture root and
+acknowledges a stable census of stopped/zombie session members before termination.
+This prevents those members from launching more work between census and kill.
+The supervisor kills and actually waits for the direct fixture process, then
+re-enumerates and drains the inherited session during the original final 750 ms
+observation. Session ownership survives separate groups and reparenting; the
+post-root-join census covers in-flight launches. Cleanup succeeds only when all
+session members have disappeared. Timeout and assertion unwind use the same
+path. No future or synchronous work is detached.
+
+A native negative stalls the actual production PythonJob/PyStub before input
+consumption and before any PID registry entry, with its real shell and external
+command in the producer's distinct process group. Both the five-second fixture
+timeout and parent assertion unwind confirm kernel session emptiness plus actual
+PID and process-group disappearance/reap. The test keeps the original causal
+and strict production timing checks. The existing post-registration, management,
+worker-join, same-Scheduler cancellation and rejected-start cases remain.
+
+The exact QA5 source-free PATH-cat counterexample also ran against the rebuilt
+binary: it still fails finitely (exit 101), while `post_test_exit_survivors` is
+empty **before** the probe's explicit cleanup. Final post-push lifecycle and
+unchanged-probe evidence, including SID/PID/PGID audit, is reported under
+/tmp/phase-c-execution/c-1/qa-5/fix-*. The old failing probe is retained as the
+counterexample; no failure was converted into a false successful fixture.
+
+Accepted production files and the complete store test module are byte-identical
+to 2111df6f. The accepted FTQ-009 shared supervisor's logic is also byte-identical;
+only four test-internal field visibilities allow the lifecycle session owner to
+compose it. This proof is /tmp/phase-c-execution/c-1/qa-5/fix-source-equivalence.json.
+The normal store-only fixture path is unchanged. RSH-001 and FTQ-009 remain closed
+only under their actual owning reviewer/enforcer evidence.
+
+FTQ-010 remains open, implementation pending independent QA6. REQ-QA-004,
+ARCH-001, RBQA-F001 and QA2-001 remain open for the unchanged genuine published
+receiver/isolated graph and actual-head CI blockers. The previous bounded public
+interface assessment is retained without another workaround loop. No publisher
+work, SDK factory/executor, version change, waiver or whole-sprint/anchor/CI/merge
+PASS is introduced.

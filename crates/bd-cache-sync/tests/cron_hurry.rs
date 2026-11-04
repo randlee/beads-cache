@@ -7,6 +7,8 @@
 mod common;
 #[path = "../../bd-cache-store/tests/support/fixture_child.rs"]
 mod fixture_child;
+#[path = "common/session_fixture.rs"]
+mod session_fixture;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -118,6 +120,7 @@ fn ordinary_expiry_joins_the_contended_production_worker_before_writer_release()
 -> Result<(), Box<dyn std::error::Error>> {
     lifecycle_fixture(
         "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
+        false,
         |mode| bounded_store_stop(false, false, mode),
     )
 }
@@ -128,6 +131,7 @@ fn hurried_expiry_joins_the_contended_production_worker_before_writer_release()
 -> Result<(), Box<dyn std::error::Error>> {
     lifecycle_fixture(
         "hurried_expiry_joins_the_contended_production_worker_before_writer_release",
+        false,
         |mode| bounded_store_stop(true, false, mode),
     )
 }
@@ -139,6 +143,7 @@ fn zero_timeout_joins_the_contended_worker_without_granting_a_grace_period()
 -> Result<(), Box<dyn std::error::Error>> {
     lifecycle_fixture(
         "zero_timeout_joins_the_contended_worker_without_granting_a_grace_period",
+        false,
         |mode| bounded_store_stop(false, true, mode),
     )
 }
@@ -281,6 +286,7 @@ fn same_scheduler_management_cancels_the_running_row_without_a_new_outcome()
 -> Result<(), Box<dyn std::error::Error>> {
     lifecycle_fixture(
         "same_scheduler_management_cancels_the_running_row_without_a_new_outcome",
+        true,
         |mode| python_lifecycle(false, mode),
     )
 }
@@ -292,6 +298,7 @@ fn rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline()
 -> Result<(), Box<dyn std::error::Error>> {
     lifecycle_fixture(
         "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+        true,
         |mode| python_lifecycle(true, mode),
     )
 }
@@ -302,6 +309,9 @@ async fn python_lifecycle(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let repo = Repo::new(vec![]);
     let stub = PyStub::new();
+    if mode == "stalled-preregistration" {
+        stub.set("pre-registration-stall", "");
+    }
     let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
         Arc::clone(&repo.store),
         Arc::clone(&repo.cache),
@@ -482,20 +492,30 @@ const LIFECYCLE_FIXTURE_MODE: &str = "BD_CACHE_CRON_LIFECYCLE_FIXTURE";
 
 fn lifecycle_fixture<F>(
     test: &str,
+    owns_python: bool,
     fixture: impl FnOnce(String) -> F,
 ) -> Result<(), Box<dyn std::error::Error>>
 where
     F: std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>,
 {
     if let Ok(mode) = std::env::var(LIFECYCLE_FIXTURE_MODE) {
+        // Establish kernel ownership before constructing the runtime, stores,
+        // stub, or any producer-owned Python process group.
+        rustix::process::setsid()?;
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
             .enable_all()
             .build()?;
         return runtime.block_on(fixture(mode));
     }
-    let mut child = fixture_child::FixtureChild::spawn(test, LIFECYCLE_FIXTURE_MODE, "normal")?;
-    fixture_child::assert_passed(&mut child)?;
+    if owns_python {
+        let mut child =
+            session_fixture::SessionFixture::spawn(test, LIFECYCLE_FIXTURE_MODE, "normal")?;
+        session_fixture::assert_passed(&mut child)?;
+    } else {
+        let mut child = fixture_child::FixtureChild::spawn(test, LIFECYCLE_FIXTURE_MODE, "normal")?;
+        fixture_child::assert_passed(&mut child)?;
+    }
     Ok(())
 }
 
@@ -521,7 +541,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
     ];
     for (test, mode, marker) in cases {
         let started = Instant::now();
-        let mut child = fixture_child::FixtureChild::spawn(test, LIFECYCLE_FIXTURE_MODE, mode)?;
+        let mut child = session_fixture::SessionFixture::spawn(test, LIFECYCLE_FIXTURE_MODE, mode)?;
         assert!(
             child.wait_for_output(marker, Duration::from_secs(3))?,
             "fixture never reached its actual cleanup stall: {}",
@@ -581,7 +601,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
 #[test]
 fn lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind()
 -> Result<(), Box<dyn std::error::Error>> {
-    let child = fixture_child::FixtureChild::spawn(
+    let child = session_fixture::SessionFixture::spawn(
         "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
         LIFECYCLE_FIXTURE_MODE,
         "stalled-second-start",
@@ -650,4 +670,77 @@ fn spawn_stopping_worker(
         }
         stopped
     })
+}
+
+/// Exercise the QA5 counterexample before any child-written PID registration,
+/// including the whole fixture timeout and the parent's assertion-unwind path.
+#[test]
+fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind()
+-> Result<(), Box<dyn std::error::Error>> {
+    for unwind in [false, true] {
+        let started = Instant::now();
+        let mut child = session_fixture::SessionFixture::spawn(
+            "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+            LIFECYCLE_FIXTURE_MODE,
+            "stalled-preregistration",
+        )?;
+        let ready_by = Instant::now() + Duration::from_secs(3);
+        while !child.unregistered_launch_ready()? && Instant::now() < ready_by {
+            std::thread::sleep(Duration::from_millis(5));
+        }
+        assert!(
+            child.unregistered_launch_ready()?,
+            "pre-registration production job did not launch: {}",
+            child.output()?
+        );
+        let session = child.session_id();
+        let members = child.members()?;
+        assert!(
+            members.len() >= 2,
+            "must own actual Python shell and its stalled command"
+        );
+        assert!(
+            members.iter().all(|member| member.group != session),
+            "must include the producer's separate process group"
+        );
+        let receipt = child.cleanup_receipt();
+        if unwind {
+            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                let _owner = child;
+                panic!("injected pre-registration parent assertion");
+            }));
+            assert!(failure.is_err());
+        } else {
+            assert!(
+                child.finish(Duration::from_secs(5))?.is_none(),
+                "pre-registration fixture must fail finitely"
+            );
+        }
+        assert!(
+            receipt.load(Ordering::SeqCst),
+            "unregistered process cleanup did not reap"
+        );
+        assert!(
+            session_fixture::session_members(session)?.is_empty(),
+            "owned session retained a process after cleanup"
+        );
+        for member in &members {
+            assert_eq!(
+                rustix::process::test_kill_process(member.pid),
+                Err(rustix::io::Errno::SRCH),
+                "child was not reaped: {member:?}"
+            );
+            assert_eq!(
+                rustix::process::test_kill_process_group(member.group),
+                Err(rustix::io::Errno::SRCH),
+                "process group survived: {member:?}"
+            );
+        }
+        assert!(started.elapsed() < Duration::from_secs(7));
+        eprintln!(
+            "FTQ-010 pre-registration unwind={unwind}: kernel-owned session {session:?} empty/reaped in {:?}; zero PID registry entries; actual groups={members:?}",
+            started.elapsed()
+        );
+    }
+    Ok(())
 }

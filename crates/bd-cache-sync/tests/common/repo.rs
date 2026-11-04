@@ -206,6 +206,10 @@ impl PyStub {
         let body = r#"#!/bin/sh
 d="@DIR@"
 if [ "$2" = -c ]; then [ -f "$d/noimport" ] && exit 1; exit 0; fi
+if [ -f "$d/pre-registration-stall" ]; then
+  : > "@REGISTRY@/pre-registration.ready"
+  /bin/sleep 3600
+fi
 input=$(cat)
 case "$input" in *'"cron.stop"'*) ev=stop ;; *) ev=tick ;; esac
 n=$(( $(cat "$d/$ev.count" 2>/dev/null || echo 0) + 1 )); echo $n > "$d/$ev.count"
