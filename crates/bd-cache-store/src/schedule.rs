@@ -799,7 +799,10 @@ mod tests {
     use crate::store::SqliteStore;
 
     fn shutdown_store() -> (tempfile::TempDir, SqliteStore) {
+        let started = Instant::now();
+        store_fixture_phase(started, "scratch-create-start");
         let dir = tempfile::tempdir().unwrap();
+        store_fixture_phase(started, "store-open-start");
         let store = SqliteStore::open_at(
             &dir.path().join("shutdown.sqlite3"),
             &DatabaseIdentity {
@@ -808,7 +811,14 @@ mod tests {
             },
         )
         .unwrap();
+        store_fixture_phase(started, "store-open-returned");
         (dir, store)
+    }
+
+    // Diagnostic receipts describe completed phases only; they never satisfy a
+    // result assertion, alter a deadline or authorize skipping the real call.
+    fn store_fixture_phase(started: Instant, phase: &str) {
+        eprintln!("RQA9 store phase={phase} elapsed={:?}", started.elapsed());
     }
 
     /// A deadline installed after a real mutex wait started must end that wait
@@ -821,27 +831,49 @@ mod tests {
         .unwrap() else {
             return;
         };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
         let (_dir, store) = shutdown_store();
+        store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
+        store_fixture_phase(started, "schedule-setup-complete");
         let (worker, control) = public.worker_view();
         let guard = store.inner();
         let (waiting, observed) = std::sync::mpsc::channel();
         control.observe_wait(waiting);
         let (completed, result) = std::sync::mpsc::channel();
+        store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
+            store_fixture_phase(started, "worker-call-start");
             let result = worker.list_active();
+            eprintln!(
+                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
+                started.elapsed()
+            );
             stall_store_cleanup(stall);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
+        eprintln!(
+            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
+            started.elapsed()
+        );
         control.finish_by(Instant::now() + Duration::from_millis(30));
+        store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
         if bounded.is_err() {
             eprintln!("store cleanup observation expired after 500ms");
         }
         // Always release and join before an assertion can unwind the test.
         drop(guard);
+        store_fixture_phase(started, "worker-join-start");
         task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
         entered.unwrap();
         assert!(
             bounded
@@ -875,8 +907,12 @@ mod tests {
         .unwrap() else {
             return;
         };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
         let (dir, store) = shutdown_store();
+        store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
         let spec = ScheduleSpec::new(
             "shutdown",
             "@hourly",
@@ -885,6 +921,7 @@ mod tests {
         )
         .unwrap();
         let now = chrono_time();
+        store_fixture_phase(started, "schedule-create-start");
         let row = public
             .create(
                 &NewSchedule {
@@ -895,26 +932,49 @@ mod tests {
                 now,
             )
             .unwrap();
+        store_fixture_phase(started, "schedule-setup-complete");
         let (worker, control) = public.worker_view();
+        store_fixture_phase(started, "contender-open-start");
         let other = Connection::open(dir.path().join("shutdown.sqlite3")).unwrap();
+        store_fixture_phase(started, "contender-lock-start");
         other.execute_batch("BEGIN IMMEDIATE").unwrap();
+        store_fixture_phase(started, "contender-lock-acquired");
         let (waiting, observed) = std::sync::mpsc::channel();
         control.observe_wait(waiting);
         let (completed, result) = std::sync::mpsc::channel();
         let (id, generation) = (row.id, row.generation);
+        store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
+            store_fixture_phase(started, "worker-call-start");
             let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            eprintln!(
+                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
+                started.elapsed()
+            );
             stall_store_cleanup(stall);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
+        eprintln!(
+            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
+            started.elapsed()
+        );
         control.finish_by(Instant::now() + Duration::from_millis(30));
+        store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
         if bounded.is_err() {
             eprintln!("store cleanup observation expired after 500ms");
         }
+        store_fixture_phase(started, "contender-rollback-start");
         other.execute_batch("ROLLBACK").unwrap();
+        store_fixture_phase(started, "contender-rollback-returned");
+        store_fixture_phase(started, "worker-join-start");
         task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
         entered.unwrap();
         assert!(bounded.unwrap().is_err());
         assert_eq!(
@@ -927,22 +987,7 @@ mod tests {
                 .record_run(id, generation, now, &RunOutcome::Ok)
                 .unwrap()
         );
-        let inner = store.inner();
-        let busy: i64 = inner
-            .conn
-            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(
-            busy,
-            i64::try_from(crate::BUSY_TIMEOUT.as_millis()).unwrap()
-        );
-        assert!(
-            !inner
-                .conn
-                .query_row("PRAGMA query_only", [], |r| r.get::<_, bool>(0))
-                .unwrap()
-        );
-        drop(inner);
+        assert_normal_session_settings(&store);
         assert_eq!(
             store
                 .health_read_control()
@@ -958,6 +1003,24 @@ mod tests {
         );
     }
 
+    fn assert_normal_session_settings(store: &SqliteStore) {
+        let inner = store.inner();
+        let busy: i64 = inner
+            .conn
+            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(
+            busy,
+            i64::try_from(crate::BUSY_TIMEOUT.as_millis()).unwrap()
+        );
+        assert!(
+            !inner
+                .conn
+                .query_row("PRAGMA query_only", [], |r| r.get::<_, bool>(0))
+                .unwrap()
+        );
+    }
+
     /// The controller reaches SQL already executing, and a late signal cannot
     /// interrupt a subsequent ordinary writer after the worker session restores.
     #[test]
@@ -968,8 +1031,12 @@ mod tests {
         .unwrap() else {
             return;
         };
+        let started = Instant::now();
+        store_fixture_phase(started, "fixture-body-entered");
         let (_dir, store) = shutdown_store();
+        store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
+        store_fixture_phase(started, "schedule-view-returned");
         let now = chrono_time();
         let spec = ScheduleSpec::new(
             "shutdown",
@@ -978,6 +1045,7 @@ mod tests {
             serde_json::json!({}),
         )
         .unwrap();
+        store_fixture_phase(started, "schedule-create-start");
         let row = public
             .create(
                 &NewSchedule {
@@ -995,19 +1063,35 @@ mod tests {
                 END;").unwrap();
             inner.conn.get_interrupt_handle()
         };
+        store_fixture_phase(started, "schedule-setup-complete");
         let (worker, control) = public.worker_view();
         let (waiting, observed) = std::sync::mpsc::channel();
         control.observe_wait(waiting);
         let (completed, result) = std::sync::mpsc::channel();
         let (id, generation) = (row.id, row.generation);
+        store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
+            store_fixture_phase(started, "worker-call-start");
             let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            eprintln!(
+                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
+                started.elapsed()
+            );
             stall_store_cleanup(stall);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
+        eprintln!(
+            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
+            started.elapsed()
+        );
         control.finish_by(Instant::now() + Duration::from_millis(30));
+        store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        eprintln!(
+            "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
+            started.elapsed()
+        );
         if bounded.is_err() {
             eprintln!("store cleanup observation expired after 500ms");
         }
@@ -1016,7 +1100,9 @@ mod tests {
         if bounded.is_err() {
             interrupt.interrupt();
         }
+        store_fixture_phase(started, "worker-join-start");
         task.join().unwrap();
+        store_fixture_phase(started, "worker-join-returned");
         entered.unwrap();
         assert!(bounded.unwrap().is_err());
         store
@@ -1081,9 +1167,10 @@ mod tests {
                 "supervisor cleanup exceeded its finite watchdog"
             );
             let output = child.output().unwrap();
+            eprintln!("RQA9 owned child {test} output:\n{output}");
             assert!(
                 output.contains("stalled store cleanup after real worker call"),
-                "worker operation did not run: {output}"
+                "required post-call/stall receipt missing; child phase unresolved: {output}"
             );
             assert!(
                 output.contains("store cleanup observation expired after 500ms"),

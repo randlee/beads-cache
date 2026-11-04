@@ -972,3 +972,32 @@ SID audits and final pushed-source evidence follow the push. Per-platform CI
 remains separate from these local Darwin checks, following memory rule
 b-mr7cp6x0-ipdnhs. No QA, sprint, anchor, CI or merge acceptance is claimed by this
 developer receipt.
+
+
+## QA9 Windows shared-store diagnostic RQA9-001
+
+QA9 published FAIL (3 Blocking, 2 Important) for C1 `a753d279` and paired C2
+`b7de8e98`; the actual C2 Windows job 126397662727 failed the shared-store
+busy-persistence negative fixture without the post-call/stall receipt. Both
+schedule source `d30f281` and fixture helper `d312b56` match across those heads.
+The retained raw Windows log remains under the QA9 evidence archive. Its absent
+receipt does not identify which child phase exhausted the original five seconds
+or prove that the operation never began or returned.
+
+This diagnostic adds elapsed receipts for setup/open, the actual worker call and
+wait result, cancellation installation, completion timeout, rollback and actual
+join. The owned supervisor emits its captured child diagnostics on success as
+well as failure; the missing-receipt failure message states the observed limit.
+All original real-operation and timeout assertions, 30 ms cancellation, 500 ms
+observation, five-second absolute fixture lifetime and kill/reap ownership remain.
+No production source, dependency, guard or startup behavior changes. Initial
+strict affected lint rejected the expanded test's line count; the same existing
+session-settings assertions were extracted and strict lint then passed. Native
+Darwin affected store tests pass 5/5; this does not establish the Windows cause.
+
+RQA9-001 remains OPEN: this is a diagnostic push, without a supported cause or
+correction claim. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the
+unchanged published logging seam, strict graph and actual CI gates. Exact-source
+hosted Windows observations and independent QA10 remain required. Candidate-
+scoped QA9 RSH-001/FTQ-011 evidence and all earlier triage history were preserved
+while merging exact integration `63ebc1fa`. No sprint acceptance or merge is claimed.
