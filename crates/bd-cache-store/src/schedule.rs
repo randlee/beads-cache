@@ -810,7 +810,7 @@ mod tests {
         store_fixture_phase(started, "scratch-create-start");
         let dir = tempfile::tempdir().unwrap();
         store_fixture_phase(started, "store-open-start");
-        let store = SqliteStore::open_at(
+        let store = SqliteStore::open_shutdown_fixture(
             &dir.path().join("shutdown.sqlite3"),
             &DatabaseIdentity {
                 dolt_database: DoltDatabase::new("shutdown").unwrap(),

@@ -1131,3 +1131,39 @@ other platform or full CI acceptance. All six canonical findings remain OPEN for
 independent QA/owner adjudication; RQA9 remains unlocalized and the four public
 logging/graph/current-acceptance blockers remain unwaived. No source claim
 supersedes prior failed logs, scoped FTQ/RSH credits or candidate histories.
+
+
+## QA11 native fixture qualification correction
+
+QA11 remains FAIL29/34 with six open findings. Its actual Windows trace puts
+busy-fixture setup near4.785s and worker entry near4.975s against the complete
+five-second owner; cancellation/required return qualification then ran out of
+that lifetime. The disposable test store now uses a cfg(test)-only constructor
+with synchronous=OFF before the SAME complete initialization/identity transaction,
+canonical file claim, busy policy and WAL configuration. It still exercises real
+public schedule operations, external writer contention and actual running SQL;
+no schema substitute or production durability change is introduced. The shared
+management/error/unwind/health test uses this fixture too and remains required.
+The observed trace does not isolate fsync as the exact historical cost or promise
+a host scheduling margin. All setup remains within the original pre-spawn5s
+owner, with30ms cancellation,500ms observation and all required negative markers.
+
+QA11's distinct macOS delayed-inventory positive observed command exit0/wait after
+its250ms output deadline. That isolated regression now owns spawn and actual STOP
+readiness in the existing SessionFixture5s exact-child supervisor, then creates
+ONE250ms caller deadline before process_ids_using. The real>=80ms hold,CONT,
+complete real inventory parsing/self-presence and wait/reap/PID-absence all remain
+inside that caller qualification. This explicitly changes isolated test setup
+scope; no supplied deadline is renewed. Ordinary preflight/cleanup/audit callers
+still include their command spawn and complete parsing under the same original
+absolute deadlines. All timeout, assertion-unwind, incomplete-receipt/no-retry
+and root/census controls remain; arbitrary timeout cannot pass the positive.
+The historical50ms cap placed BEFORE injection must still fail this case.
+
+RQA10 and CI-C2-RUNNER-001 retain QA11's independently resolved exact-C1 scope;
+prior FTQ/RSH credits and all original failures remain. RQA9/RQA11 corrections
+require independent QA12/owner adjudication. ARCH-001, QA2-001, RBQA-F001 and
+REQ-QA-004 retain their genuine public receiver/graph/current-acceptance blockers.
+No SDK/pin/guard/publisher workaround or whole-sprint acceptance is claimed.
+Ordinary developer source/test evidence is in QA11's native-qualification result;
+no separate coverage-ledger artifact or standing process gate is required.

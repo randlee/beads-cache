@@ -721,11 +721,26 @@ fn stopped_inventory(deadline: Instant) -> io::Result<Inventory> {
 
 #[test]
 fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {
+    const MODE: &str = "BD_CACHE_DELAYED_INVENTORY_FIXTURE";
+    const TEST: &str =
+        "session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command";
+    if std::env::var_os(MODE).is_none() {
+        // The existing owner includes spawn and all readiness preparation, not
+        // just the later caller qualification. Its five seconds never restart.
+        let mut child = SessionFixture::spawn(TEST, MODE, "ready")?;
+        assert_passed(&mut child)?;
+        // Report the real hold/census proof only after owned root cleanup.
+        eprintln!("{}", child.output()?);
+        return Ok(());
+    }
+    rustix::process::setsid()?;
+    // Acknowledge real readiness under the enclosing owner before supplying
+    // the caller's one deadline. No previously supplied deadline is renewed.
+    let inventory = stopped_inventory(Instant::now() + Duration::from_secs(5))?;
     let started = Instant::now();
     let deadline = started + Duration::from_millis(250);
     let mut delayed = None;
     let pids = process_ids_using(deadline, || {
-        let inventory = stopped_inventory(deadline)?;
         let child = Pid::from_child(&inventory.process);
         // Keep this real delay independent of transient cleanup recovery: it
         // exceeds the old 50ms cap within the existing 250ms caller budget.
@@ -735,6 +750,9 @@ fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() ->
         kill_process(child, Signal::CONT)?;
         delayed = Some((child, delay_elapsed));
         Ok(inventory)
+    })
+    .inspect_err(|error| {
+        eprintln!("FTQ-011 ready inventory qualification failed: delayed={delayed:?}; {error}");
     })?;
     assert!(
         pids.iter()
