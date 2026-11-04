@@ -638,3 +638,15 @@ This diagnostic promotion leaves C1 QA10 FAIL3B3I29/34, historical C2 Windows RQ
 and actual C1 macOS RQA10 OPEN/unknown cause. It establishes no new C2 platform
 failure or whole-sprint acceptance. Local Cargo/push remain serialized by the parent;
 exact validation and hosted handles follow in the external execution receipt.
+
+
+## Immutable inventory diagnostic consumption
+
+The [scoped consumption receipt](evidence/c-2-inventory-diagnostic-consumption.md)
+records ordinary exact integration9f7cd65 and immutable producerec68 merges.
+Only private SessionFixture Rust diagnostics/control change; original production,
+budgets,80ms fault, census/audit and all12 histories remain. Actual C2 macOS37b
+recovery timeout is correlated to RQA10-001, still OPEN/unknown cause. RQA9's
+validated observability scope receives independent owner credit while historical
+qualification stays OPEN. Formatting/affected strict lint pass; a later frozen
+source hosted observation is separately parent-owned. No acceptance/merge claim.
