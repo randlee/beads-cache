@@ -256,10 +256,11 @@ fn identity(pid: Pid) -> io::Result<Option<(Pid, Pid)>> {
     match std::fs::read_to_string(format!("/proc/{}/stat", pid.as_raw_pid())) {
         Ok(stat) => parse_linux_identity(&stat),
         Err(error)
-            if matches!(
-                error.kind(),
-                io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
-            ) =>
+            if error.raw_os_error() == Some(Errno::SRCH.raw_os_error())
+                || matches!(
+                    error.kind(),
+                    io::ErrorKind::NotFound | io::ErrorKind::PermissionDenied
+                ) =>
         {
             Ok(None)
         }
