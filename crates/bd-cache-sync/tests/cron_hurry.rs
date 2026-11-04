@@ -5,6 +5,8 @@
 
 #![cfg(unix)]
 mod common;
+#[path = "../../bd-cache-store/tests/support/fixture_child.rs"]
+mod fixture_child;
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -111,39 +113,43 @@ async fn a_second_stop_kills_the_runs_without_waiting_for_the_grace() {
 /// Production's worker must leave an actual SQLite write wait and join while
 /// another connection still owns the writer lock. Expiry is a timed kill event,
 /// not a consequence delayed until the upstream blocking-store future returns.
-#[tokio::test(flavor = "multi_thread")]
-async fn ordinary_expiry_joins_the_contended_production_worker_before_writer_release()
+#[test]
+fn ordinary_expiry_joins_the_contended_production_worker_before_writer_release()
 -> Result<(), Box<dyn std::error::Error>> {
-    bounded_store_stop(false, false).await
+    lifecycle_fixture(
+        "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
+        |mode| bounded_store_stop(false, false, mode),
+    )
 }
 
 /// A second signal shortens the same already-running store wait immediately.
-#[tokio::test(flavor = "multi_thread")]
-async fn hurried_expiry_joins_the_contended_production_worker_before_writer_release()
+#[test]
+fn hurried_expiry_joins_the_contended_production_worker_before_writer_release()
 -> Result<(), Box<dyn std::error::Error>> {
-    bounded_store_stop(true, false).await
+    lifecycle_fixture(
+        "hurried_expiry_joins_the_contended_production_worker_before_writer_release",
+        |mode| bounded_store_stop(true, false, mode),
+    )
 }
 
 /// Zero timeout grants no grace and still owns the real store/worker join.
 /// The 100ms observation watchdog below is test scheduling tolerance only.
-#[tokio::test(flavor = "multi_thread")]
-async fn zero_timeout_joins_the_contended_worker_without_granting_a_grace_period()
+#[test]
+fn zero_timeout_joins_the_contended_worker_without_granting_a_grace_period()
 -> Result<(), Box<dyn std::error::Error>> {
-    bounded_store_stop(false, true).await
+    lifecycle_fixture(
+        "zero_timeout_joins_the_contended_worker_without_granting_a_grace_period",
+        |mode| bounded_store_stop(false, true, mode),
+    )
 }
 
-async fn bounded_store_stop(hurried: bool, zero: bool) -> Result<(), Box<dyn std::error::Error>> {
+async fn bounded_store_stop(
+    hurried: bool,
+    zero: bool,
+    mode: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     let repo = Repo::new(vec![]);
-    repo.schedules()
-        .set(&bd_cache_sync::ScheduleSet {
-            expr: "* * * * * *".into(),
-            budget_ms: None,
-            hook_reserve_ms: None,
-            post_sync: None,
-            python: None,
-            env: vec![],
-        })
-        .await?;
+    repo.schedules().set(&every_second()).await?;
     let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
         Arc::clone(&repo.store),
         Arc::clone(&repo.cache),
@@ -154,7 +160,7 @@ async fn bounded_store_stop(hurried: bool, zero: bool) -> Result<(), Box<dyn std
         .ok_or("production controller missing")?;
     for _cycle in 0..2 {
         schedules.enable(true).await?;
-        stopped_write_cycle(&schedules, &repo, &control, hurried, zero).await?;
+        stopped_write_cycle(&schedules, &repo, &control, hurried, zero, &mode).await?;
     }
     Ok(())
 }
@@ -165,6 +171,7 @@ async fn stopped_write_cycle(
     control: &bd_cache_store::ScheduleShutdownControl,
     hurried: bool,
     zero: bool,
+    mode: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let attempted = control.wait_attempt_for_tests();
     let other = rusqlite::Connection::open(&repo.cache_path)?;
@@ -172,34 +179,35 @@ async fn stopped_write_cycle(
     let stop = StopFlag::new();
     let hurry = StopFlag::new();
     let (expired_send, expired_receive) = std::sync::mpsc::channel();
-    let run = tokio::spawn({
-        let schedules = Arc::clone(schedules);
-        let (stop, hurry) = (stop.clone(), hurry.clone());
-        async move {
-            schedules
-                .cron_run_hurried(
-                    stop,
-                    hurry,
-                    if zero {
-                        Duration::ZERO
-                    } else if hurried {
-                        Duration::from_secs(10)
-                    } else {
-                        Duration::from_millis(250)
-                    },
-                    move || {
-                        let _ = expired_send.send(Instant::now());
-                    },
-                )
-                .await
-        }
-    });
+    let grace = if zero {
+        Duration::ZERO
+    } else if hurried {
+        Duration::from_secs(10)
+    } else {
+        Duration::from_millis(250)
+    };
+    let run = spawn_stopping_worker(
+        schedules,
+        stop.clone(),
+        hurry.clone(),
+        grace,
+        expired_send,
+        mode == "stalled-worker-join",
+    );
     let entered =
         tokio::task::spawn_blocking(move || attempted.recv_timeout(Duration::from_secs(5))).await?;
     let management_attempt = control.management_attempt_for_tests();
+    let stall_management = mode == "stalled-management";
     let management = tokio::spawn({
         let schedules = Arc::clone(schedules);
-        async move { schedules.enable(false).await }
+        async move {
+            let result = schedules.enable(false).await;
+            if stall_management {
+                eprintln!("stalled management join after real writer release");
+                std::future::pending::<()>().await;
+            }
+            result
+        }
     });
     let asked = Instant::now();
     stop.stop();
@@ -214,6 +222,9 @@ async fn stopped_write_cycle(
     // release the external lock and await the real join below.
     let mut run = run;
     let bounded = tokio::time::timeout(Duration::from_millis(500), &mut run).await;
+    if bounded.is_err() {
+        eprintln!("lifecycle shutdown observation expired after 500ms");
+    }
     let completion_elapsed = asked.elapsed();
     let expiry = expired_receive.try_recv();
     let management_still_owned = !management.is_finished();
@@ -265,21 +276,30 @@ async fn stopped_write_cycle(
 
 /// Same-core management must notify/cancel immediately, well before the 30s
 /// reload poll, retaining the prior persisted outcome for the cancelled run.
-#[tokio::test(flavor = "multi_thread")]
-async fn same_scheduler_management_cancels_the_running_row_without_a_new_outcome()
+#[test]
+fn same_scheduler_management_cancels_the_running_row_without_a_new_outcome()
 -> Result<(), Box<dyn std::error::Error>> {
-    python_lifecycle(false).await
+    lifecycle_fixture(
+        "same_scheduler_management_cancels_the_running_row_without_a_new_outcome",
+        |mode| python_lifecycle(false, mode),
+    )
 }
 
 /// A second start keeps upstream's rejection behavior and cannot clear the
 /// already-installed shutdown deadline of the first worker.
-#[tokio::test(flavor = "multi_thread")]
-async fn rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline()
+#[test]
+fn rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline()
 -> Result<(), Box<dyn std::error::Error>> {
-    python_lifecycle(true).await
+    lifecycle_fixture(
+        "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+        |mode| python_lifecycle(true, mode),
+    )
 }
 
-async fn python_lifecycle(reject_second: bool) -> Result<(), Box<dyn std::error::Error>> {
+async fn python_lifecycle(
+    reject_second: bool,
+    mode: String,
+) -> Result<(), Box<dyn std::error::Error>> {
     let repo = Repo::new(vec![]);
     let stub = PyStub::new();
     let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
@@ -287,16 +307,7 @@ async fn python_lifecycle(reject_second: bool) -> Result<(), Box<dyn std::error:
         Arc::clone(&repo.cache),
         repo.files(),
     ));
-    schedules
-        .set(&bd_cache_sync::ScheduleSet {
-            expr: "* * * * * *".into(),
-            budget_ms: None,
-            hook_reserve_ms: None,
-            post_sync: None,
-            python: None,
-            env: vec![],
-        })
-        .await?;
+    schedules.set(&every_second()).await?;
     schedules
         .use_python(
             &UsePython {
@@ -340,7 +351,13 @@ async fn python_lifecycle(reject_second: bool) -> Result<(), Box<dyn std::error:
     let mut switched = None;
     if ready.is_ok() {
         if reject_second {
-            rejected = rejected_start_keeps_deadline(&schedules, &control, &stop).await;
+            rejected = rejected_start_keeps_deadline(
+                &schedules,
+                &control,
+                &stop,
+                mode == "stalled-second-start",
+            )
+            .await;
         } else {
             switched = Some(schedules.use_builtin().await);
             immediate_cancel = child_disappears(&stub).await;
@@ -381,6 +398,7 @@ async fn rejected_start_keeps_deadline(
     schedules: &Arc<bd_cache_sync::SystemSchedules>,
     control: &bd_cache_store::ScheduleShutdownControl,
     stop: &StopFlag,
+    stall_second: bool,
 ) -> bool {
     stop.stop();
     let deadline_ready = tokio::time::timeout(Duration::from_secs(2), async {
@@ -395,6 +413,10 @@ async fn rejected_start_keeps_deadline(
         let schedules = Arc::clone(schedules);
         let stop = second_stop.clone();
         async move {
+            if stall_second {
+                eprintln!("stalled second start while first Python child is owned");
+                std::future::pending::<()>().await;
+            }
             schedules
                 .cron_run(stop, Duration::from_secs(1), || {})
                 .await
@@ -404,6 +426,7 @@ async fn rejected_start_keeps_deadline(
         if let Ok(outcome) = tokio::time::timeout(Duration::from_secs(2), &mut second).await {
             outcome
         } else {
+            eprintln!("second-start cleanup reached its 2s timeout");
             second_stop.stop();
             second.await
         };
@@ -453,4 +476,178 @@ async fn child_disappears(stub: &PyStub) -> bool {
     })
     .await
     .is_ok()
+}
+
+const LIFECYCLE_FIXTURE_MODE: &str = "BD_CACHE_CRON_LIFECYCLE_FIXTURE";
+
+fn lifecycle_fixture<F>(
+    test: &str,
+    fixture: impl FnOnce(String) -> F,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    F: std::future::Future<Output = Result<(), Box<dyn std::error::Error>>>,
+{
+    if let Ok(mode) = std::env::var(LIFECYCLE_FIXTURE_MODE) {
+        let runtime = tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(2)
+            .enable_all()
+            .build()?;
+        return runtime.block_on(fixture(mode));
+    }
+    let mut child = fixture_child::FixtureChild::spawn(test, LIFECYCLE_FIXTURE_MODE, "normal")?;
+    fixture_child::assert_passed(&mut child)?;
+    Ok(())
+}
+
+#[test]
+fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
+-> Result<(), Box<dyn std::error::Error>> {
+    let cases = [
+        (
+            "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
+            "stalled-worker-join",
+            "stalled lifecycle worker join after real shutdown",
+        ),
+        (
+            "ordinary_expiry_joins_the_contended_production_worker_before_writer_release",
+            "stalled-management",
+            "stalled management join after real writer release",
+        ),
+        (
+            "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+            "stalled-second-start",
+            "stalled second start while first Python child is owned",
+        ),
+    ];
+    for (test, mode, marker) in cases {
+        let started = Instant::now();
+        let mut child = fixture_child::FixtureChild::spawn(test, LIFECYCLE_FIXTURE_MODE, mode)?;
+        assert!(
+            child.wait_for_output(marker, Duration::from_secs(3))?,
+            "fixture never reached its actual cleanup stall: {}",
+            child.output()?
+        );
+        let pids = child.owned_pids()?;
+        if mode == "stalled-second-start" {
+            assert!(
+                !pids.is_empty(),
+                "negative must own the first real Python child"
+            );
+            for pid in &pids {
+                assert!(fixture_child::pid_exists(*pid)?);
+            }
+        }
+        let receipt = child.cleanup_receipt();
+        assert!(
+            child.finish(Duration::from_secs(5))?.is_none(),
+            "stalled fixture unexpectedly exited: {}",
+            child.output()?
+        );
+        assert!(
+            receipt.load(Ordering::SeqCst),
+            "fixture cleanup did not reap its owned process tree"
+        );
+        assert!(
+            started.elapsed() < Duration::from_secs(7),
+            "supervisor cleanup did not terminate"
+        );
+        for pid in &pids {
+            assert!(
+                !fixture_child::pid_exists(*pid)?,
+                "Python child survived fixture cleanup"
+            );
+        }
+        eprintln!(
+            "FTQ-010 {mode}: finite timeout cleanup in {:?}; owned Python PIDs reaped: {pids:?}",
+            started.elapsed()
+        );
+        let output = child.output()?;
+        if mode == "stalled-worker-join" {
+            assert!(
+                output.contains("lifecycle shutdown observation expired after 500ms"),
+                "{output}"
+            );
+        }
+        if mode == "stalled-second-start" {
+            assert!(
+                output.contains("second-start cleanup reached its 2s timeout"),
+                "{output}"
+            );
+        }
+    }
+    Ok(())
+}
+
+#[test]
+fn lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind()
+-> Result<(), Box<dyn std::error::Error>> {
+    let child = fixture_child::FixtureChild::spawn(
+        "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+        LIFECYCLE_FIXTURE_MODE,
+        "stalled-second-start",
+    )?;
+    assert!(
+        child.wait_for_output(
+            "stalled second start while first Python child is owned",
+            Duration::from_secs(3)
+        )?,
+        "first Python child was not reached: {}",
+        child.output()?
+    );
+    let pids = child.owned_pids()?;
+    assert!(!pids.is_empty());
+    let receipt = child.cleanup_receipt();
+    let started = Instant::now();
+    let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+        let _owner = child;
+        panic!("injected parent assertion");
+    }));
+    assert!(failure.is_err());
+    assert!(receipt.load(Ordering::SeqCst));
+    assert!(started.elapsed() < Duration::from_secs(2));
+    for pid in &pids {
+        assert!(
+            !fixture_child::pid_exists(*pid)?,
+            "unwind left a Python child"
+        );
+    }
+    eprintln!(
+        "FTQ-010 assertion-unwind cleanup in {:?}; owned Python PIDs reaped: {pids:?}",
+        started.elapsed()
+    );
+    Ok(())
+}
+
+fn every_second() -> bd_cache_sync::ScheduleSet {
+    bd_cache_sync::ScheduleSet {
+        expr: "* * * * * *".into(),
+        budget_ms: None,
+        hook_reserve_ms: None,
+        post_sync: None,
+        python: None,
+        env: vec![],
+    }
+}
+
+fn spawn_stopping_worker(
+    schedules: &Arc<bd_cache_sync::SystemSchedules>,
+    stop: StopFlag,
+    hurry: StopFlag,
+    grace: Duration,
+    expired_send: std::sync::mpsc::Sender<Instant>,
+    stall: bool,
+) -> tokio::task::JoinHandle<bd_cache_sync::CronStopped> {
+    let schedules = Arc::clone(schedules);
+    tokio::spawn(async move {
+        let stopped = schedules
+            .cron_run_hurried(stop, hurry, grace, move || {
+                let _ = expired_send.send(Instant::now());
+            })
+            .await;
+        if stall {
+            eprintln!("stalled lifecycle worker join after real shutdown");
+            std::future::pending::<()>().await;
+        }
+        stopped
+    })
 }

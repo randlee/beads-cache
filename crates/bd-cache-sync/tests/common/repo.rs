@@ -225,14 +225,15 @@ mode=$(cat "$d/tick" 2>/dev/null)
 case "$mode" in
   exit:*) echo "script failed: ${mode#exit:}" >&2; exit "${mode#exit:}" ;;
   sleep) exec sleep 3600 ;;
-  managed_hang) echo $$ > "$d/run.pid"; echo up > "$d/run.ready"; exec sleep 3600 ;;
+  managed_hang) echo $$ > "$d/run.pid"; echo $$ > "@REGISTRY@/owned-child-$$.pid"; echo up > "$d/run.ready"; exec sleep 3600 ;;
   stderr:*) printf '%s' "${mode#stderr:}" >&2; exit 0 ;;
   leak) i=0; while [ $i -lt 400 ]; do printf 'leak %s ' "$HOME" >&2; i=$((i+1)); done; exit 1 ;;
   grandchild) exec 3> "$d/life"; ( trap '' TERM; echo up > "$d/ready"; exec sleep 3600 ) & wait; exit 0 ;;
 esac
 exit 0
 "#
-        .replace("@DIR@", &dir.path().display().to_string());
+        .replace("@DIR@", &dir.path().display().to_string())
+        .replace("@REGISTRY@", &std::env::var_os("BD_CACHE_FIXTURE_ROOT").map_or_else(|| dir.path().to_path_buf(), PathBuf::from).display().to_string());
         super::script(&python, &body);
         Self { dir, python }
     }

@@ -687,3 +687,58 @@ receiver/type re-export or equivalent constructor delivering real canonical
 events without a direct consumer sc-command dependency. No producer change, new
 PR, baseline relaxation, architecture waiver or missing-event substitute is
 introduced. Independent QA, anchors and green CI remain prerequisites to merge.
+
+
+### QA4 test-lifetime correction (FTQ-009 / FTQ-010)
+
+QA4's actual manager report is
+https://github.com/randlee/beads-cache/pull/108#issuecomment-6620322598,
+reviewing 95def5f3c1c2ffe7a0e9ebfe3630ac835217c680. The owning service reviewer
+accepted RSH-001 for the production composition and the parent recorded that
+closure with owner/enforcer evidence. That scoped acceptance is preserved;
+production shutdown, session, control, adapter and dependency code is unchanged.
+The new Important FTQ-009/010 findings concern failure cleanup in the new tests.
+
+The complete three synchronous store fixtures and the new lifecycle fixtures
+now execute in exactly filtered owned child processes. A small shared test-only
+helper follows the existing health fixture pattern, with file-backed output,
+parent-owned scratch storage, a five-second lifetime measured from spawn, and
+kill/reap cleanup on timeout and assertion unwind. No tested thread or async
+shutdown future is detached. The existing real task/thread joins stay inside
+that enforceable process lifetime. Original causal probes, 30 ms cancellation,
+500 ms store observation, production elapsed/callback checks and two-second
+second-start observation are unchanged; process containment grants no additional
+product grace or cleanup budget.
+
+Lifecycle fixtures also register each actual managed Python child in the
+parent-owned scratch root, which survives a child assertion's local TempDir
+cleanup. The supervisor kills those separately owned process groups while the
+real runtime/parent remains alive to reap them, kills/reaps the test process,
+and confirms the registered Python PIDs have disappeared. The timeout and Drop
+paths share this cleanup. Its OS cleanup confirmations have finite 250/750 ms
+observations; a missing reap is an error, never a success claim.
+
+Meaningful negatives cover all three store joins after an actual mutex, busy
+write or running-SQL operation, plus lifecycle worker join, management join and
+incorrectly accepted second-start cleanup stalls. They reach the original
+bounded failure paths before the whole fixture is killed and reaped. The
+second-start negative owns a real running Python child and verifies its PID is
+gone after cleanup. Separate assertion-unwind negatives verify both fixture
+families; the lifecycle one also verifies real Python reaping. Pre-push focused
+runs passed 5 store tests and 8 lifecycle tests; affected locked Clippy modes and
+fmt passed without suppressions. Final pushed-source logs are reported separately
+under /tmp/phase-c-execution/c-1/qa-4/fix-*.log.
+
+| Finding | Current correction/disposition |
+|---|---|
+| FTQ-009 | Implemented pending independent QA: complete store fixtures have enforced owned lifetimes; all three real post-call stalled join paths and parent unwind cleanup are tested. |
+| FTQ-010 | Implemented pending independent QA: complete lifecycle fixtures contain worker/management/second-start cleanup stalls, retain real ownership, and prove timeout/unwind Python kill and reap. |
+| ARCH-001 | OPEN: the genuine published canonical receiver interface gap remains; the prior exact-source assessment and minimum public receiver contract still apply. |
+| RBQA-F001 | OPEN: the same unauthorized introducer remains independently tracked; no architectural exception is widened. |
+| QA2-001 | OPEN: the actual isolated Python graph still rejects that unchanged direct sc-command edge; no graph guard is bypassed. |
+| REQ-QA-004 | OPEN: actual changed-head hosted checks remain required, with the existing boundary blocker unwaived. |
+
+RSH-001 remains **closed only under its actual QA4 owner/enforcer evidence**.
+FTQ-009/010 remain open pending fresh independent review. No new upstream work,
+version change, publisher dependency, full workspace rerun or sprint/anchor/CI
+PASS is introduced by this test-only correction. Merge remains gated.

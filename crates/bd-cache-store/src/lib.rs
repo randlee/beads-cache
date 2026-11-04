@@ -84,3 +84,7 @@ pub use schema::{
 };
 #[doc(inline)]
 pub use store::{BUSY_TIMEOUT, READ_DATING_THRESHOLD, SqliteStore};
+
+#[cfg(test)]
+#[path = "../tests/support/fixture_child.rs"]
+mod fixture_child;

@@ -792,6 +792,7 @@ impl RawRow {
 #[cfg(test)]
 mod tests {
     use bd_cache_model::{CacheStore, ScopeId};
+    use std::time::Instant;
 
     use super::*;
     use crate::location::{DatabaseIdentity, DoltDatabase, ProjectId};
@@ -814,7 +815,12 @@ mod tests {
     /// before the holder releases it. The error is not a dropped blocking task.
     #[test]
     fn shutdown_interrupts_an_already_contended_worker_read_only() {
-        use std::time::Instant;
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+        )
+        .unwrap() else {
+            return;
+        };
         let (_dir, store) = shutdown_store();
         let public = store.schedule_store().unwrap();
         let (worker, control) = public.worker_view();
@@ -823,11 +829,16 @@ mod tests {
         control.observe_wait(waiting);
         let (completed, result) = std::sync::mpsc::channel();
         let task = std::thread::spawn(move || {
-            completed.send(worker.list_active()).unwrap();
+            let result = worker.list_active();
+            stall_store_cleanup(stall);
+            completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
         control.finish_by(Instant::now() + Duration::from_millis(30));
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
         // Always release and join before an assertion can unwind the test.
         drop(guard);
         task.join().unwrap();
@@ -858,7 +869,12 @@ mod tests {
     /// rolls back, and restores connection settings for normal writes/health.
     #[test]
     fn shutdown_interrupts_busy_persistence_and_restores_the_shared_session() {
-        use std::time::Instant;
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        )
+        .unwrap() else {
+            return;
+        };
         let (dir, store) = shutdown_store();
         let public = store.schedule_store().unwrap();
         let spec = ScheduleSpec::new(
@@ -887,13 +903,16 @@ mod tests {
         let (completed, result) = std::sync::mpsc::channel();
         let (id, generation) = (row.id, row.generation);
         let task = std::thread::spawn(move || {
-            completed
-                .send(worker.record_run(id, generation, now, &RunOutcome::Ok))
-                .unwrap();
+            let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            stall_store_cleanup(stall);
+            completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
         control.finish_by(Instant::now() + Duration::from_millis(30));
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
         other.execute_batch("ROLLBACK").unwrap();
         task.join().unwrap();
         entered.unwrap();
@@ -943,7 +962,12 @@ mod tests {
     /// interrupt a subsequent ordinary writer after the worker session restores.
     #[test]
     fn shutdown_interrupts_a_running_sql_statement_and_restores_progress() {
-        use std::time::Instant;
+        let Some(stall) = store_fixture_mode(
+            "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+        )
+        .unwrap() else {
+            return;
+        };
         let (_dir, store) = shutdown_store();
         let public = store.schedule_store().unwrap();
         let now = chrono_time();
@@ -977,13 +1001,16 @@ mod tests {
         let (completed, result) = std::sync::mpsc::channel();
         let (id, generation) = (row.id, row.generation);
         let task = std::thread::spawn(move || {
-            completed
-                .send(worker.record_run(id, generation, now, &RunOutcome::Ok))
-                .unwrap();
+            let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
+            stall_store_cleanup(stall);
+            completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
         control.finish_by(Instant::now() + Duration::from_millis(30));
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        if bounded.is_err() {
+            eprintln!("store cleanup observation expired after 500ms");
+        }
         // If a planted mutation omits cancellation, own and interrupt the same
         // connection before joining; the test still fails its bounded receipt.
         if bounded.is_err() {
@@ -1005,11 +1032,109 @@ mod tests {
         );
     }
 
+    const STORE_FIXTURE_MODE: &str = "BD_CACHE_SCHEDULE_FIXTURE";
+    const STORE_FIXTURES: [&str; 3] = [
+        "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+        "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+    ];
+
+    fn store_fixture_mode(test: &str) -> std::io::Result<Option<bool>> {
+        if let Some(mode) = std::env::var_os(STORE_FIXTURE_MODE) {
+            return Ok(Some(mode == "stalled"));
+        }
+        let mut child =
+            crate::fixture_child::FixtureChild::spawn(test, STORE_FIXTURE_MODE, "normal")?;
+        crate::fixture_child::assert_passed(&mut child)?;
+        Ok(None)
+    }
+
+    fn stall_store_cleanup(stall: bool) {
+        if stall {
+            eprintln!("stalled store cleanup after real worker call");
+            loop {
+                std::thread::park();
+            }
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup() {
+        use std::sync::atomic::Ordering;
+        for test in STORE_FIXTURES {
+            let started = std::time::Instant::now();
+            let mut child =
+                crate::fixture_child::FixtureChild::spawn(test, STORE_FIXTURE_MODE, "stalled")
+                    .unwrap();
+            let receipt = child.cleanup_receipt();
+            assert!(
+                child.finish(Duration::from_secs(5)).unwrap().is_none(),
+                "stalled fixture exited: {}",
+                child.output().unwrap()
+            );
+            assert!(
+                receipt.load(Ordering::SeqCst),
+                "test child was not killed and reaped"
+            );
+            assert!(
+                started.elapsed() < Duration::from_secs(7),
+                "supervisor cleanup exceeded its finite watchdog"
+            );
+            let output = child.output().unwrap();
+            assert!(
+                output.contains("stalled store cleanup after real worker call"),
+                "worker operation did not run: {output}"
+            );
+            assert!(
+                output.contains("store cleanup observation expired after 500ms"),
+                "failure join path was not reached: {output}"
+            );
+            eprintln!(
+                "FTQ-009 {test}: stalled post-call join killed/reaped in {:?}; original 500ms observation failure reached",
+                started.elapsed()
+            );
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_supervisor_reaps_during_assertion_unwind() {
+        use std::sync::atomic::Ordering;
+        let child = crate::fixture_child::FixtureChild::spawn(
+            STORE_FIXTURES[0],
+            STORE_FIXTURE_MODE,
+            "stalled",
+        )
+        .unwrap();
+        assert!(
+            child
+                .wait_for_output(
+                    "stalled store cleanup after real worker call",
+                    Duration::from_secs(2)
+                )
+                .unwrap()
+        );
+        let receipt = child.cleanup_receipt();
+        let started = std::time::Instant::now();
+        let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            let _owner = child;
+            panic!("injected parent assertion");
+        }));
+        assert!(failure.is_err());
+        assert!(
+            receipt.load(Ordering::SeqCst),
+            "unwind did not reap the owned child"
+        );
+        assert!(started.elapsed() < Duration::from_secs(2));
+        eprintln!(
+            "FTQ-009 assertion-unwind child cleanup in {:?}",
+            started.elapsed()
+        );
+    }
+
     /// Management policy belongs to exactly one view/connection and is restored
     /// before returning an error or unwinding. It never overrides health policy.
     #[test]
     fn management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only() {
-        use std::time::Instant;
         let (_dir, store) = shutdown_store();
         let public = store.schedule_store().unwrap();
         let (worker, control) = public.worker_view();
