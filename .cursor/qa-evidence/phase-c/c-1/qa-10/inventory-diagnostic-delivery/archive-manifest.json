@@ -1,0 +1,133 @@
+{
+  "created_at": "2026-11-04T07:38:53.200690+00:00",
+  "status": "diagnostic_delivery_only_not_QA_acceptance",
+  "limits": "Original RQA9/RQA10 causes unresolved. Passing diagnostics do not close findings. CI snapshots retain their original observation times; terminal-analysis records later macOS outcomes. No sprint merge authorized by these receipts.",
+  "files": [
+    {
+      "file": "inventory-stage-clippy-all.log",
+      "sha256": "414215868bcfe7b6081365c53ee0e2bbf96f0f2447141e5ac35617ee89f98b6c",
+      "bytes": 202,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-clippy-all.log"
+    },
+    {
+      "file": "inventory-stage-clippy-controls.log",
+      "sha256": "6909db9cf644ddeee960395aa25dfe4d90858824e78d957cd2325ce3eaf6cc42",
+      "bytes": 3147,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-clippy-controls.log"
+    },
+    {
+      "file": "inventory-stage-clippy-final.log",
+      "sha256": "76082a30f378a68dbf089fe726a02065c082a2e768c2d76819150f6050aba7d6",
+      "bytes": 202,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-clippy-final.log"
+    },
+    {
+      "file": "inventory-stage-clippy-initial.log",
+      "sha256": "70072483174ea33a5cc854f5c4f756c662b2dce50ea3477bef8047f43fc83fd8",
+      "bytes": 202,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-clippy-initial.log"
+    },
+    {
+      "file": "inventory-stage-fix-vars.json",
+      "sha256": "5db4b9dd1ee773cbb12ce0f447e48991235ef21135e61708968869e3994ab783",
+      "bytes": 8555,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-fix-vars.json"
+    },
+    {
+      "file": "inventory-stage-fix.xml.txt",
+      "sha256": "8ef80351eb6ee799ce5b6ae7d50b00f1201ba64c95ad2c0428c377ee7e570bdb",
+      "bytes": 11008,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-fix.xml"
+    },
+    {
+      "file": "inventory-stage-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-fmt.log"
+    },
+    {
+      "file": "inventory-stage-hosted-ci.json",
+      "sha256": "2b9f9cd01395120cc6476861b326c3ffd76861c6593964e4b2a11cb229810d11",
+      "bytes": 12306,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-hosted-ci.json"
+    },
+    {
+      "file": "inventory-stage-hosted-macos.log",
+      "sha256": "f03bbedccdd3e78256dfb10e7bc57562c38c0c241fa40f95c27a6fe09ff51cb3",
+      "bytes": 210599,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-hosted-macos.log"
+    },
+    {
+      "file": "inventory-stage-hosted-runs.json",
+      "sha256": "98cb1915dd62bbf0fe360f8a7344cb2a5ecd22481b3570c80b40b57db9808eae",
+      "bytes": 412,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-hosted-runs.json"
+    },
+    {
+      "file": "inventory-stage-postpush-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-postpush-fmt.log"
+    },
+    {
+      "file": "inventory-stage-postpush-tests.log",
+      "sha256": "753a48faf614256af4431e1f686edf971334ea9b2e7bc9f2d6f3f74b5ffc2f16",
+      "bytes": 13789,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-postpush-tests.log"
+    },
+    {
+      "file": "inventory-stage-preregistration.log",
+      "sha256": "d36c7d47ebf03299c703de6da7de645f4cf46e8a2b75daebeb585d34ef627ec5",
+      "bytes": 8614,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-preregistration.log"
+    },
+    {
+      "file": "inventory-stage-result.json",
+      "sha256": "3eecd0e9d21875d168481225b705c1706a3bc5a42b80337796ec05259de8e09e",
+      "bytes": 10513,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-result.json"
+    },
+    {
+      "file": "inventory-stage-result.md",
+      "sha256": "e5d50fc3715eab6459a0d3f44c48799d82407226557d8eb312e2b36e073c793f",
+      "bytes": 1974,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-result.md"
+    },
+    {
+      "file": "inventory-stage-source-identity.json",
+      "sha256": "0d6d4d74fe79b667cedc682b361a6f137785ee3ee745e642bd91db643f9f232f",
+      "bytes": 620,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-source-identity.json"
+    },
+    {
+      "file": "inventory-stage-tests-authorized.log",
+      "sha256": "d84bcacaa1ac7097a68e58134c010ce36b3a3e123f8a4c47e023cb9ebc49521f",
+      "bytes": 13803,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-tests-authorized.log"
+    },
+    {
+      "file": "inventory-stage-tests.log",
+      "sha256": "872a148590cba805d295ebd5007679f73e4249c506c48e667ea359c094a866b5",
+      "bytes": 2936,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-tests.log"
+    },
+    {
+      "file": "inventory-stage-unwind.log",
+      "sha256": "feb99e5cbc719e7aecc5cfcf76c26637e97e1bcd651e44eda33170c4863c87e1",
+      "bytes": 3797,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-unwind.log"
+    },
+    {
+      "file": "terminal-analysis.json",
+      "sha256": "b816f403c667284fd01f4af18845c3b4b9cc5d10e6f24d6c8daa4f53c89b7844",
+      "bytes": 6527,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/terminal-analysis.json"
+    },
+    {
+      "file": "terminal-analysis.md",
+      "sha256": "b6c4786968d8f50954140c29309684f5ab50d07d37503e6c3532c07dfc20c483",
+      "bytes": 1762,
+      "source": "/tmp/phase-c-execution/c-1/qa-10/terminal-analysis.md"
+    }
+  ]
+}

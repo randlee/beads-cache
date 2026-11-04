@@ -1,0 +1,169 @@
+{
+  "created_at": "2026-11-04T07:38:53.207464+00:00",
+  "status": "diagnostic_delivery_only_not_QA_acceptance",
+  "limits": "Original RQA9/RQA10 causes unresolved. Passing diagnostics do not close findings. CI snapshots retain their original observation times; terminal-analysis records later macOS outcomes. No sprint merge authorized by these receipts.",
+  "files": [
+    {
+      "file": "validated-phase-protocol-before.json",
+      "sha256": "91523c5bd37daba3df91aa21c464aeadc2f8b5013bf3ca2527e31d25cc1327b2",
+      "bytes": 185181,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-before.json"
+    },
+    {
+      "file": "validated-phase-protocol-cargo-version.txt",
+      "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503",
+      "bytes": 36,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-cargo-version.txt"
+    },
+    {
+      "file": "validated-phase-protocol-ci-snapshot.json",
+      "sha256": "cd0f6e1bde75bfa6afadfee6b867d43246577e9a4d7111fbd6f7f236c0776399",
+      "bytes": 12807,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-ci-snapshot.json"
+    },
+    {
+      "file": "validated-phase-protocol-clippy-default.log",
+      "sha256": "0f5bee6424730912b3a6e2596cf5ac8b861d17ef35a6e705bf1c307b3003a461",
+      "bytes": 620,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy-default.log"
+    },
+    {
+      "file": "validated-phase-protocol-clippy.log",
+      "sha256": "0fa46a4ef671c01fa4aa8c2fd18bf2af633c6135dd780535774bd78bd935256e",
+      "bytes": 620,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy.log"
+    },
+    {
+      "file": "validated-phase-protocol-commands.json",
+      "sha256": "1b5d3b881390173ad1c907fd0c70237127dc464ac0ba53fc918ce6d86fa7e8aa",
+      "bytes": 2934,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-commands.json"
+    },
+    {
+      "file": "validated-phase-protocol-compiler.txt",
+      "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4",
+      "bytes": 192,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-compiler.txt"
+    },
+    {
+      "file": "validated-phase-protocol-consumption-pre-cargo-result.json",
+      "sha256": "df3ea13108ccd7b750b7bbc5354f1cb7ae5d27f64a5b92edd81cb65629c0e87e",
+      "bytes": 12440,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-pre-cargo-result.json"
+    },
+    {
+      "file": "validated-phase-protocol-consumption-pre-cargo-result.md",
+      "sha256": "6c647e10c46d0fa9e384134966714c0f035cebcbd637316c2fe9b21b2bdf0cab",
+      "bytes": 2148,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-pre-cargo-result.md"
+    },
+    {
+      "file": "validated-phase-protocol-consumption-result.json",
+      "sha256": "a2a70a4b3278695f1b5c2c3ae331a953a24a399bd23e27e057f3c663a00e178d",
+      "bytes": 56651,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-result.json"
+    },
+    {
+      "file": "validated-phase-protocol-consumption-result.md",
+      "sha256": "0f7f6dec7f8e2323a63e80696de1b28b38292b311c04789cb74bcf61454b87db",
+      "bytes": 3750,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-result.md"
+    },
+    {
+      "file": "validated-phase-protocol-consumption-vars.json",
+      "sha256": "99d821301d9bb6e9f1c0fa49cf95dfbe439578651a09f61d4c4690675db8b4a1",
+      "bytes": 5845,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-vars.json"
+    },
+    {
+      "file": "validated-phase-protocol-consumption.xml.txt",
+      "sha256": "4ad0ca02e86b58c407a9a3ca8c54a5f303c16c2b1f8379032bd9026be6fb1e85",
+      "bytes": 8417,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption.xml"
+    },
+    {
+      "file": "validated-phase-protocol-dispositions.json",
+      "sha256": "6a7cc64f270f4a5aac5fbef95818971ce527107ff1032fae1569423800b9978d",
+      "bytes": 1529,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-dispositions.json"
+    },
+    {
+      "file": "validated-phase-protocol-final-source-identities.json",
+      "sha256": "f18ac930453ad4e60820e353f966421652154be85c7940aa2becff4fae82c3d3",
+      "bytes": 3979,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-final-source-identities.json"
+    },
+    {
+      "file": "validated-phase-protocol-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-fmt.log"
+    },
+    {
+      "file": "validated-phase-protocol-health-default.log",
+      "sha256": "df6d3192c520db0afd493d5ff3b7110d3fd5d3128388930da4e06fed0e00f81e",
+      "bytes": 608,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-health-default.log"
+    },
+    {
+      "file": "validated-phase-protocol-hosted-macos.log",
+      "sha256": "cdf16c1c95c0b69f09ca2563d4afbdb7080eba02320a6c7601c3aee44da124ab",
+      "bytes": 153046,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-hosted-macos.log"
+    },
+    {
+      "file": "validated-phase-protocol-postpush-direct-negative.json",
+      "sha256": "aef6a98ba17f052f93116ce650bd3618d6ecc372f362fbcff568df82b78d747e",
+      "bytes": 8885,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.json"
+    },
+    {
+      "file": "validated-phase-protocol-postpush-direct-negative.log",
+      "sha256": "920dffab1feb1aa72a131a3c03c4b905d283fa19d1b290eaff735c1cb524fc99",
+      "bytes": 8399,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.log"
+    },
+    {
+      "file": "validated-phase-protocol-pr-source.json",
+      "sha256": "628baf93e6e0da4ad6814804597327bb8efaec60d67830100ee542d163787931",
+      "bytes": 212,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-pr-source.json"
+    },
+    {
+      "file": "validated-phase-protocol-private-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-private-fmt.log"
+    },
+    {
+      "file": "validated-phase-protocol-selected-artifacts.json",
+      "sha256": "fe5845020cd85a2bb8f25459421d5e7378a6a82ac66315474bfd1ac7344fc8d4",
+      "bytes": 1829,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-selected-artifacts.json"
+    },
+    {
+      "file": "validated-phase-protocol-service.log",
+      "sha256": "845f5516be7a10578bd9bc7ae5bffcc924e8b8ccb02713ac9bffba7802774bc9",
+      "bytes": 3307,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-service.log"
+    },
+    {
+      "file": "validated-phase-protocol-source-identities.json",
+      "sha256": "9df8fbf199bd854070d626cbf99c33189be1e5d237b61f538fd29c29b8b16626",
+      "bytes": 5150,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-source-identities.json"
+    },
+    {
+      "file": "validated-phase-protocol-store.log",
+      "sha256": "068d18365183b38765e745a9ef3037d1793aeca57fe2e02e5771cd77e0e25870",
+      "bytes": 26659,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-store.log"
+    },
+    {
+      "file": "validated-phase-protocol-windows-feature-tree.log",
+      "sha256": "c7b396aa3969944ba655942c4390beac7350d4c5f2a80a32ba50a8612d06ea1e",
+      "bytes": 7780,
+      "source": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-windows-feature-tree.log"
+    }
+  ]
+}
