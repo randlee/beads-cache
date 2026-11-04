@@ -1,0 +1,28 @@
+{
+  "crates/bd-cache-store": {
+    "45c9dd13258482ba8af3e5cfeae5ce146b120453": "6286e1f33ae881d92e7acaf95852c4010ab82cbc",
+    "adbcc88d3dc134ae94403bc2af7a8db76ba921a5": "6286e1f33ae881d92e7acaf95852c4010ab82cbc",
+    "HEAD": "6286e1f33ae881d92e7acaf95852c4010ab82cbc"
+  },
+  "crates/bd-cache-sync": {
+    "45c9dd13258482ba8af3e5cfeae5ce146b120453": "dbbc186889785bc7630babc73400f12068154352",
+    "adbcc88d3dc134ae94403bc2af7a8db76ba921a5": "d5659aa9808685794710763c0a4c1de726cd63c8",
+    "HEAD": "d5659aa9808685794710763c0a4c1de726cd63c8"
+  },
+  "crates/bd-cache-service": {
+    "45c9dd13258482ba8af3e5cfeae5ce146b120453": "fd450e7a6e71ea86e3189490bed4cbde03bb992f",
+    "adbcc88d3dc134ae94403bc2af7a8db76ba921a5": {
+      "absent_in_ref": true,
+      "diagnostic": "fatal: path 'crates/bd-cache-service' exists on disk, but not in 'adbcc88d3dc134ae94403bc2af7a8db76ba921a5'"
+    },
+    "HEAD": "760338fd13e8ae69e2efad36055dda841993b4c7"
+  },
+  "crates/bd-cache-daemon": {
+    "45c9dd13258482ba8af3e5cfeae5ce146b120453": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+    "adbcc88d3dc134ae94403bc2af7a8db76ba921a5": {
+      "absent_in_ref": true,
+      "diagnostic": "fatal: path 'crates/bd-cache-daemon' exists on disk, but not in 'adbcc88d3dc134ae94403bc2af7a8db76ba921a5'"
+    },
+    "HEAD": "5a79080c0817dff42f63a6a404c7fdaa39514833"
+  }
+}

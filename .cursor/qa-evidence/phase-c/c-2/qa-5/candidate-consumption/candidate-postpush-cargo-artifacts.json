@@ -1,0 +1,137 @@
+[
+  {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store#0.2.0",
+    "manifest_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store/Cargo.toml",
+    "target": {
+      "kind": [
+        "lib"
+      ],
+      "crate_types": [
+        "lib"
+      ],
+      "name": "bd_cache_store",
+      "src_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store/src/lib.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": true,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "0",
+      "debuginfo": 2,
+      "debug_assertions": true,
+      "overflow_checks": true,
+      "test": false
+    },
+    "features": [
+      "testing"
+    ],
+    "filenames": [
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_store-54c00b926fb3f909.rlib",
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_store-54c00b926fb3f909.rmeta"
+    ],
+    "executable": null,
+    "fresh": true
+  },
+  {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync#0.2.0",
+    "manifest_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync/Cargo.toml",
+    "target": {
+      "kind": [
+        "lib"
+      ],
+      "crate_types": [
+        "lib"
+      ],
+      "name": "bd_cache_sync",
+      "src_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync/src/lib.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": true,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "0",
+      "debuginfo": 2,
+      "debug_assertions": true,
+      "overflow_checks": true,
+      "test": false
+    },
+    "features": [
+      "testing"
+    ],
+    "filenames": [
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_sync-a8268612367dfd29.rlib",
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_sync-a8268612367dfd29.rmeta"
+    ],
+    "executable": null,
+    "fresh": true
+  },
+  {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service#0.2.0",
+    "manifest_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/Cargo.toml",
+    "target": {
+      "kind": [
+        "lib"
+      ],
+      "crate_types": [
+        "lib"
+      ],
+      "name": "bd_cache_service",
+      "src_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": true,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "0",
+      "debuginfo": 2,
+      "debug_assertions": true,
+      "overflow_checks": true,
+      "test": false
+    },
+    "features": [],
+    "filenames": [
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_service-a91a8ceb842dd6f7.rlib",
+      "/tmp/phase-c-execution/c-1/restart-target/debug/deps/libbd_cache_service-a91a8ceb842dd6f7.rmeta"
+    ],
+    "executable": null,
+    "fresh": false
+  },
+  {
+    "reason": "compiler-artifact",
+    "package_id": "path+file:///tmp/phase-c-execution/c-2/qa-5/startup-probe#c2-rustqa-startup-probe@0.0.0",
+    "manifest_path": "/tmp/phase-c-execution/c-2/qa-5/startup-probe/Cargo.toml",
+    "target": {
+      "kind": [
+        "bin"
+      ],
+      "crate_types": [
+        "bin"
+      ],
+      "name": "c2-rustqa-startup-probe",
+      "src_path": "/tmp/phase-c-execution/c-2/qa-5/startup-probe/src/main.rs",
+      "edition": "2024",
+      "doc": true,
+      "doctest": false,
+      "test": true
+    },
+    "profile": {
+      "opt_level": "0",
+      "debuginfo": 2,
+      "debug_assertions": true,
+      "overflow_checks": true,
+      "test": false
+    },
+    "features": [],
+    "filenames": [
+      "/tmp/phase-c-execution/c-1/restart-target/debug/c2-rustqa-startup-probe"
+    ],
+    "executable": "/tmp/phase-c-execution/c-1/restart-target/debug/c2-rustqa-startup-probe",
+    "fresh": false
+  }
+]

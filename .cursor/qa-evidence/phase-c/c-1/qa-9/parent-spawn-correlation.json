@@ -1,0 +1,56 @@
+{
+  "qa_pass": "qa-9",
+  "actor": "parent-orchestrator",
+  "correlated_at": "2026-11-04T05:21:28.914763+00:00",
+  "source_scope": "Actual spawn tool returns and completed-task notifications in parent conversation; no invented launch timestamps or live handle assumptions",
+  "reviewers": [
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa9",
+      "spawn_actor": "parent-orchestrator",
+      "actual_spawn_tool": "collaboration.spawn_agent",
+      "spawn_result_task_name": "/root/c1_rustqa9",
+      "completion_status": "completed",
+      "completion_proof_source": "Actual FINAL_ANSWER notification delivered to parent in this goal turn; not inferred from file or intent",
+      "completion_notification": "Parent received FINAL_ANSWER from /root/c1_rustqa9 and subsequent same-task correction FINAL_ANSWER: current RSH startup resolved_verified_pending_sole_enforcer_aggregation,open QA2-001/RQA9-001,matching updated artifacts,Cargo released.",
+      "result_json_sha256": "149165c776ef20045d1613f829d4980060fd9116309ec7bf54188df899011600",
+      "parent_correlation": "verified"
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa9",
+      "spawn_actor": "parent-orchestrator",
+      "actual_spawn_tool": "collaboration.spawn_agent",
+      "spawn_result_task_name": "/root/c1_archqa9",
+      "completion_status": "completed",
+      "completion_proof_source": "Actual FINAL_ANSWER notification delivered to parent in this goal turn; not inferred from file or intent",
+      "completion_notification": "Parent received FINAL_ANSWER from /root/c1_archqa9: saved report and matching JSON; FAIL1 Blocking ARCH-001; no new architecture defects; no builds/tests.",
+      "result_json_sha256": "ee0c4b1e8660646a5a7c919bcbc78dff54092e6f9cf7f78a7a1fcb3612da9dc2",
+      "parent_correlation": "verified"
+    },
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa9",
+      "spawn_actor": "parent-orchestrator",
+      "actual_spawn_tool": "collaboration.spawn_agent",
+      "spawn_result_task_name": "/root/c1_reqqa9",
+      "completion_status": "completed",
+      "completion_proof_source": "Actual FINAL_ANSWER notification delivered to parent in this goal turn; not inferred from file or intent",
+      "completion_notification": "Parent received FINAL_ANSWER from /root/c1_reqqa9: exact a753d279,101 requirements,29/34 deliverables85.29%,FAIL,matching fenced/parsed files.",
+      "result_json_sha256": "d97ae73e92a4039f3fa14b87fb156d55f561f30c451d981c60225e1acc9f0c55",
+      "parent_correlation": "verified"
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c1_flakyqa9",
+      "spawn_actor": "parent-orchestrator",
+      "actual_spawn_tool": "collaboration.spawn_agent",
+      "spawn_result_task_name": "/root/c1_flakyqa9",
+      "completion_status": "completed",
+      "completion_proof_source": "Actual FINAL_ANSWER notification delivered to parent in this goal turn; not inferred from file or intent",
+      "completion_notification": "Parent received FINAL_ANSWER from /root/c1_flakyqa9: exact C1/C2,one Important RQA9-001,FTQ011 closure supported on C1,Cargo released,no tests.",
+      "result_json_sha256": "f81cf097b5da25028be59ec5e6a1d228791d08d28d90b7db1b5cef5ba3f2c146",
+      "parent_correlation": "verified"
+    }
+  ]
+}

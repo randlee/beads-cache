@@ -1,0 +1,154 @@
+   Compiling sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/sc-beads)
+   Compiling bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-model)
+   Compiling sc-bd-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/sc-bd-cli)
+   Compiling bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache)
+   Compiling bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-store)
+   Compiling bd-cache-api v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-api)
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-sync)
+   Compiling bd-cache-service v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service)
+   Compiling bd-cache-daemon v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-daemon)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.06s
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_daemon-8359d4d28f29373b)
+
+running 10 tests
+test observability::adapter_tests::panic_mapping_is_fixed_and_value_free ... ok
+DAEMON.OBSERVABILITY_SHUTDOWN sink drain failed — inspect sink health and retry shutdown
+test agent_error::tests::structured_runtime_and_transport_errors_keep_exact_library_recovery ... ok
+test agent_error::tests::operation_remains_primary_and_shutdown_only_fails_success ... ok
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+thread 'observability::adapter_tests::real_try_log_unwind_becomes_fixed_error_without_payload' (318239850) panicked at crates/bd-cache-daemon/src/observability_adapter_tests.rs:340:9:
+test-only secret panic payload
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test observability::adapter_tests::forwards_real_events_and_native_shutdown_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+test observability::adapter_tests::real_try_log_unwind_becomes_fixed_error_without_payload ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+
+thread 'sc-observability-writer' (318239856) panicked at crates/bd-cache-daemon/src/observability_adapter_tests.rs:258:9:
+test-only sink panic terminates the actual writer
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test observability::adapter_tests::disconnected_writer_preserves_native_error_context_and_classification ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+test observability::adapter_tests::saturated_real_queue_rejects_without_waiting_for_sink ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.01s
+
+test observability::adapter_tests::real_try_log_unwind_becomes_fixed_error_without_payload ... ok
+test observability::adapter_tests::forwards_real_events_and_native_shutdown_error ... ok
+test observability::adapter_tests::disconnected_writer_preserves_native_error_context_and_classification ... ok
+test observability::adapter_tests::saturated_real_queue_rejects_without_waiting_for_sink ... ok
+test readiness_tests::canceled_http_keeps_actual_read_and_cache_claim_until_cleanup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.08s
+
+test readiness_tests::canceled_http_keeps_actual_read_and_cache_claim_until_cleanup ... ok
+test readiness_tests::runtime_lifecycle::canceled_read_keeps_runtime_instance_locked_through_real_signal_cleanup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.09s
+
+test readiness_tests::runtime_lifecycle::canceled_read_keeps_runtime_instance_locked_through_real_signal_cleanup ... ok
+test observability::adapter_tests::fixture_timeout_kills_and_reaps_child ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running unittests src/main.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_daemon-8ebc84d371746c06)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/observability_start.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/observability_start-ca3b5f6c7a8996b1)
+
+running 4 tests
+test real_builder_validation_failure_keeps_native_type_and_code ... ok
+test real_service_name_failure_survives_an_ordinary_error_boundary ... ok
+test real_build_failure_retains_the_original_diagnostic_and_remediation ... ok
+test process_formats_real_init_failure_once_without_values_or_stdout ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_service-29acfb0d9d88e395)
+
+running 7 tests
+test tests::shutdown_error_retains_actual_join_error_source ... ok
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+
+running 1 test
+test readiness::tests::canceled_response_retains_capacity_and_cleanup_joins_real_work ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+test readiness::tests::canceled_response_retains_capacity_and_cleanup_joins_real_work ... ok
+test tests::health_is_cached_and_cleanup_releases_the_single_connection ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+
+Application startup grace=0ns: joined=1.337917ms, callback=Some(15), readiness=Err(Closing), management pending until rollback; probe/management/worker/readiness joined and cache reopened
+test tests::health_is_cached_and_cleanup_releases_the_single_connection ... ok
+test startup_tests::startup_zero_timeout_joins_before_retained_management_writer_release ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.02s
+
+test startup_tests::startup_zero_timeout_joins_before_retained_management_writer_release ... ok
+actual Application shutdown under SQLite contention: grace=250ms, joined=251.465834ms, writer remained locked until join
+test shutdown_tests::application_joins_contended_worker_before_external_writer_release ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.34s
+
+test shutdown_tests::application_joins_contended_worker_before_external_writer_release ... ok
+Application startup grace=250ms: joined=251.034791ms, callback=Some(15), readiness=Err(Closing), management pending until rollback; probe/management/worker/readiness joined and cache reopened
+test startup_tests::startup_shutdown_joins_before_retained_management_writer_release ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.38s
+
+test startup_tests::startup_shutdown_joins_before_retained_management_writer_release ... ok
+actual Application shutdown under SQLite contention: grace=0ns, joined=2.399708ms, writer remained locked until join
+test shutdown_tests::zero_timeout_application_joins_contended_worker_without_grace ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.97s
+
+test shutdown_tests::zero_timeout_application_joins_contended_worker_without_grace ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+
+   Doc-tests bd_cache_daemon
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bd_cache_service
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

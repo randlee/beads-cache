@@ -1,0 +1,41 @@
+{
+  "inventory_stall_snapshot": {
+    "elapsed_s": 5.500975499860942,
+    "test_still_alive": false,
+    "stopped_inventory": [
+      {
+        "pid": 41352,
+        "stopped_at_s": 5.099826999939978,
+        "command": "/bin/ps -axo pid=,stat="
+      }
+    ]
+  },
+  "probe": "pre-registration cat stall, temp PATH only, no source edits; cat delay records PID and PPID before sleeping",
+  "test_exit_code": 101,
+  "elapsed_s": 5.501283541787416,
+  "observed_injected_pids": [
+    {
+      "pid": 41314,
+      "pgid": 41313,
+      "sid": 41309
+    },
+    {
+      "pid": 41313,
+      "pgid": 41313,
+      "sid": 41309
+    }
+  ],
+  "owned_groups": [
+    41313
+  ],
+  "post_test_exit_survivors": [],
+  "owned_sessions": [
+    41309
+  ],
+  "post_test_exit_owned_session_members": [],
+  "post_test_exit_group_survivors": [],
+  "post_test_exit_inventory_survivors": [],
+  "post_test_exit_outer_session_members": [],
+  "test_output": "\nrunning 1 test\ntest rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... session cleanup recovered preliminary inventory: owned session inventory timed out\n\nthread 'rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline' (318266231) panicked at crates/bd-cache-sync/tests/common/session_fixture.rs:509:5:\nsession fixture failed or exceeded five seconds: \nrunning 1 test\ntest rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... \nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\nFAILED\n\nfailures:\n\nfailures:\n    rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 5.24s\n\n"
+}
+AFTER_EXPLICIT_PROBE_CLEANUP []
