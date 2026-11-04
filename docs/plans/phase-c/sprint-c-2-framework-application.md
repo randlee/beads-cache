@@ -593,3 +593,18 @@ change; all native source and typed-error tests remain identical to `3282502`.
 The [updated receipt](evidence/c-2-cross-sprint-qa4.md#qualified-c3-merge-forward-after-completed-c2-qa4)
 lists every remaining blocker. C1, exact-candidate qualification, current C2
 QA/CI/anchor and published compatibility gates remain; C2 is not merge-ready.
+
+
+### Qualified C1 bounded-shutdown component consumption
+
+Exact integration `d4af63d2a81bebd6b5b967ef5032731152bb5f7c` and independently
+qualified C1 source `5255610a16ef4500f0af508e29a533707a4a3e0a` are consumed by
+ordinary merges `74536fb` and `ddc0027`. Store/sync trees match qualified source
+exactly; C2 owning triage/history and integration orchestration are preserved.
+The existing Application uses the bounded SystemSchedules::system path and
+retains real worker/readiness joins. Two actual Application contention/zero-
+timeout regressions request independent QA5; no production interface change.
+See [the scoped receipt](evidence/c-2-qualified-shutdown-consumption.md) for all
+nine dispositions and source provenance. RSH-001/C2-REQ-004 are implemented
+pending C2 QA; endpoint/Windows/logging/paste/current qualification gates remain.
+Whole C1 is FAIL3B1I, PR108 remains unmerged, and C2 is not merge-ready.

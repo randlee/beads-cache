@@ -37,4 +37,4 @@ at-most twice shutdown-timeout bound.
 
 
 **Refines:** REQ-BDC-0730
-**Acceptance evidence:** `health_is_cached_and_cleanup_releases_the_single_connection` and blocked-hook process acceptance. The total worker bound remains OPEN under inherited RSH-001/C2-REQ-004; happy-path timings do not close the contention requirement.
+**Acceptance evidence:** `health_is_cached_and_cleanup_releases_the_single_connection` and blocked-hook process acceptance. Exact qualified C1 source5255610 supplies the bounded worker/store path consumed by SystemSchedules::system. Actual Application writer-contention and zero-timeout regressions request independent C2 QA5; owning RSH-001/C2-REQ-004 remain open / implemented_pending_C2_QA. Happy-path timing does not close the contention requirement.

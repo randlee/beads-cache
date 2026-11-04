@@ -6,6 +6,8 @@
 
 mod readiness;
 #[cfg(test)]
+mod shutdown_tests;
+#[cfg(test)]
 mod test_support;
 
 use std::sync::{Arc, Mutex};
@@ -25,6 +27,9 @@ pub struct Application {
     reader: readiness::Worker,
     stop: StopFlag,
     worker: tokio::task::JoinHandle<CronStopped>,
+    // Unit tests observe this exact application worker, never a second scheduler.
+    #[cfg(test)]
+    worker_wait: Option<std::sync::mpsc::Receiver<()>>,
 }
 
 impl Application {
@@ -63,6 +68,10 @@ impl Application {
         let store = composed.schedule_store().map_err(StartError::Cache)?;
         let cache = Arc::new(Mutex::new(composed.cache));
         let schedules = SystemSchedules::system(store, Arc::clone(&cache), files);
+        #[cfg(test)]
+        let worker_wait = schedules
+            .worker_store_control_for_tests()
+            .map(|control| control.wait_attempt_for_tests());
         let request =
             decode(Command::CacheHealth, &serde_json::json!({})).map_err(StartError::Request)?;
         let (ready, reader) = readiness::start(move |deadline| {
@@ -90,6 +99,8 @@ impl Application {
             reader,
             stop,
             worker,
+            #[cfg(test)]
+            worker_wait,
         })
     }
 

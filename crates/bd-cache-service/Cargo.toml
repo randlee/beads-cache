@@ -20,6 +20,10 @@ tokio.workspace = true
 serde_json.workspace = true
 
 [dev-dependencies]
+# Observe the real bounded worker only in unit tests; no production store edge.
+bd-cache-sync = { workspace = true, features = ["testing"] }
+bd-cache-store = { workspace = true, features = ["testing"] }
+rusqlite.workspace = true
 tempfile.workspace = true
 sc-beads = { workspace = true, features = ["testing"] }
 sc-bd-cli = { workspace = true, features = ["test-support"] }

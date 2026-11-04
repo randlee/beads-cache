@@ -239,7 +239,9 @@ version = "0.2.0"
 dependencies = [
  "bd-cache-api",
  "bd-cache-model",
+ "bd-cache-store",
  "bd-cache-sync",
+ "rusqlite",
  "sc-bd-cli",
  "sc-beads",
  "serde_json",
