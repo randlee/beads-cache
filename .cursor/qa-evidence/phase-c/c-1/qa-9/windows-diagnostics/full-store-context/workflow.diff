@@ -1,0 +1,30 @@
+--- first-one-shot.yml
++++ full-store-context.yml
+@@ -1,5 +1,5 @@
+ # One-time diagnostic branch only. Never merge into integration.
+-name: one-time Windows store phase observation
++name: one-time Windows full store context observation
+ on:
+   push:
+     branches: [codex/c2-windows-store-phase-observation]
+@@ -36,15 +36,16 @@
+         run: python -I scripts/check_no_backend.py path
+       - name: Record selected store SQLite feature context
+         run: cargo tree --locked -p bd-cache-store --all-features --target x86_64-pc-windows-msvc --edges features --invert rusqlite
+-      - name: Observe exactly one supervisor negative test
++      - name: Observe existing full store library once with default threads
+         run: |
+           set -o pipefail
+-          cargo test --locked -p bd-cache-store --lib --all-features schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup -- --exact --nocapture 2>&1 | tee "$RUNNER_TEMP/windows-store-phase-observation.log"
++          printf 'RUST_TEST_THREADS=%s\n' "${RUST_TEST_THREADS-<unset>}"
++          cargo test --locked -p bd-cache-store --lib --all-features -- --nocapture 2>&1 | tee "$RUNNER_TEMP/windows-full-store-context.log"
+       - name: Preserve raw focused output on success or failure
+         if: always()
+         uses: actions/upload-artifact@v4
+         with:
+-          name: windows-store-phase-observation-e86d9da
+-          path: ${{ runner.temp }}/windows-store-phase-observation.log
++          name: windows-full-store-context-e86d9da
++          path: ${{ runner.temp }}/windows-full-store-context.log
+           if-no-files-found: warn
+           retention-days: 7

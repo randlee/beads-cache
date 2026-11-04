@@ -1,0 +1,21 @@
+#!/bin/bash
+# DRAFT ONLY: parent centrally executes this reviewed full-store observation exactly once.
+set -euo pipefail
+if [ "$#" -ne 1 ]; then
+  echo "usage: $0 /absolute/path/to/authorized/isolated/worktree" >&2
+  exit 2
+fi
+worktree_dir="$1"
+expected_workflow_head=05165e20aba8f996a100ced5e25f04634fb55c60
+expected_branch=codex/c2-windows-store-phase-observation
+draft_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+test "$(git -C "$worktree_dir" branch --show-current)" = "$expected_branch"
+test "$(git -C "$worktree_dir" rev-parse HEAD)" = "$expected_workflow_head"
+test -z "$(git -C "$worktree_dir" status --porcelain)"
+cp "$draft_dir/one-time-windows-store-phase-observation.yml" "$worktree_dir/.github/workflows/one-time-windows-store-phase-observation.yml"
+git -C "$worktree_dir" add .github/workflows/one-time-windows-store-phase-observation.yml
+git -C "$worktree_dir" diff --cached --check
+test "$(git -C "$worktree_dir" diff --cached --name-only)" = .github/workflows/one-time-windows-store-phase-observation.yml
+git -C "$worktree_dir" commit -m 'Observe existing Windows store library with captured phases'
+git -C "$worktree_dir" push -u origin "$expected_branch"
+# This push triggers one full-store observation; do not dispatch or execute twice.

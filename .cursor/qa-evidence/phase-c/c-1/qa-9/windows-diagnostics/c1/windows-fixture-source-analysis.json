@@ -1,0 +1,89 @@
+{
+  "source": "bcfcae7021522454e85be964661b9525bb15e58c",
+  "paired_source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+  "status": "no_supported_causal_trigger_identified",
+  "cause_confidence": "unknown",
+  "source_unchanged": true,
+  "observations": [
+    {
+      "fact": "Windows-target all-workspace non-Python all-feature Cargo feature resolution is identical for rusqlite.",
+      "evidence": "windows-fixture-feature-comparison.json and both raw *windows-feature-tree.log",
+      "features": [
+        "bundled",
+        "cache",
+        "default",
+        "functions",
+        "hashlink",
+        "hooks",
+        "modern_sqlite",
+        "trace"
+      ],
+      "limits": "Current manifests/locks match corresponding original C1a753/C2b7de heads; resolved feature equality does not establish equal OS runtime execution."
+    },
+    {
+      "fact": "Locked rusqlite0.39.0/libsqlite3-sys0.37.0/tempfile3.27.0/fs4 1.1.0/getrandom0.4.3/sc-cron0.1.1 match.",
+      "limits": "No demonstrated SQLite feature/version divergence explains the failed Windows occurrence."
+    },
+    {
+      "fact": "Each child is current_exe exact1test single test thread, with a new temp root and process-local registries/TLS/controls.",
+      "source": "crates/bd-cache-store/tests/support/fixture_child.rs:20; schedule.rs:903; registry.rs:16",
+      "limits": "Other libtest parent tests do not share the child static registry, shared connection identity, observer channel or shutdown control. No concrete cross-test in-memory contention mechanism identified."
+    },
+    {
+      "fact": "Five-second absolute lifetime starts immediately before child spawn, before child database setup.",
+      "source": "fixture_child.rs:27,47",
+      "limits": "Completion time combines spawn/startup/setup, actual wait receipt, cancellation and post-call/join phases. Existing500ms completion timer begins only after the up-to2second wait-receipt observation; it is not a full child-startup budget."
+    },
+    {
+      "fact": "Controlled second SQLite contender is opened and BEGIN IMMEDIATE acquired only after store initialization and schedule creation.",
+      "source": "schedule.rs:910-956",
+      "limits": "Initialization has ordinary BUSY_TIMEOUT5seconds and real filesystem/schema/WAL operations, but no intentional second database holder exists at that phase. No actual initialization contention, I/O failure or latency cause is evidenced."
+    },
+    {
+      "fact": "Observed worker waits come from mutex would-block, SQLite busy callback or progress callback; wait receiver is bounded2seconds. Deadline is installed even if that wait returns Err.",
+      "source": "schedule_budget.rs:98-120; health.rs:141-170,194-274; schedule.rs:957-970",
+      "limits": "Generic wait receipt is not by itself a tagged busy-handler receipt. No lost-notification or lock-cycle mechanism found. No source claim that a missing receipt means operation non-entry."
+    },
+    {
+      "fact": "record_run enters the worker view; guarded_update acquires session and executes UPDATE; session RAII restores settings before worker call returns. Then stall emits original marker and parks; main observes original500ms timeout, rolls back contender and attempts actual join.",
+      "source": "schedule.rs:162-191,311-329,949-985; health.rs:293-315",
+      "limits": "A missing post-call marker is compatible with unfinished setup, unfinished worker call/restoration, or no recorded marker before timeout. Original output cannot distinguish them. No proven local production defect."
+    }
+  ],
+  "hypotheses": [
+    {
+      "phase": "before worker call",
+      "hypothesis": "Setup/startup consumed original lifetime before worker result was observable.",
+      "supported_only_as": "source-compatible location, no demonstrated trigger",
+      "missing_observation": "fixture-body-entered and setup/open/create/contender-lock phase timestamps from existing diagnostic job."
+    },
+    {
+      "phase": "worker call through session restoration",
+      "hypothesis": "Worker operation or cancellation/restoration did not complete before owner timeout.",
+      "supported_only_as": "source-compatible location, no demonstrated local failure",
+      "missing_observation": "worker-call-start, wait-receipt result, cancellation-installed, worker-call-returned result and elapsed timestamps."
+    },
+    {
+      "phase": "post-call and join",
+      "hypothesis": "Worker returned but post-call/stall diagnostic was not recorded before owner timeout.",
+      "supported_only_as": "cannot exclude from original missing marker; not asserted to have happened",
+      "missing_observation": "actual worker-call-returned followed by original stall marker, completion receipt and rollback/join phase traces."
+    }
+  ],
+  "probe_decision": "No local deterministic execution probe is justified before existing exact-context Windows diagnostics arrive: forcing setup/worker pauses would reproduce a generic timeout, not establish the retained occurrence mechanism. No fault hook or additional diagnostic/code change added.",
+  "cargo": {
+    "status": "RELEASED",
+    "active_owned_commands": 0,
+    "builds_or_tests_in_this_continuation": 0,
+    "readonly_feature_queries": 2
+  },
+  "findings": {
+    "REQ-QA-004": "OPEN",
+    "ARCH-001": "OPEN",
+    "RBQA-F001": "OPEN",
+    "QA2-001": "OPEN",
+    "RQA9-001": "OPEN"
+  },
+  "next_action": "Parent obtains terminal output from already-running source-specific C1Windows126408082388 and C2Windows126409418610; classify observed phase before selecting correction or deterministic probe. No duplicate hosted polling or green-run closure.",
+  "timestamp_utc": "2026-11-04T05:38:02.854012+00:00"
+}
