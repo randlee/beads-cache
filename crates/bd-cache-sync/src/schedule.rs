@@ -564,6 +564,9 @@ where
     pub(crate) scheduler: Scheduler<crate::launch::LaunchStore<St>, C, J>,
     pub(crate) store: Arc<St>,
     pub(crate) store_shutdown: Option<bd_cache_store::ScheduleShutdownControl>,
+    // Own startup through the actual worker/store join. A rejected start must
+    // never alter the cancellation deadline of the preceding lifetime.
+    pub(crate) cron_lifetime: tokio::sync::Mutex<()>,
     pub(crate) cache: SharedCache<S, L, B>,
     pub(crate) files: SyncFiles,
     pub(crate) clock: Arc<C>,
@@ -696,6 +699,7 @@ where
             scheduler,
             store,
             store_shutdown,
+            cron_lifetime: tokio::sync::Mutex::new(()),
             cache,
             files,
             clock,

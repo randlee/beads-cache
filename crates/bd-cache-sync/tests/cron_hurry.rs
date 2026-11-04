@@ -744,3 +744,318 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
     }
     Ok(())
 }
+
+/// The supported public core can retain its ordinary table before starting cron.
+/// Its independent write must not hide an already requested startup stop.
+#[test]
+fn startup_stop_joins_its_read_before_independent_management_writer_release()
+-> Result<(), Box<dyn std::error::Error>> {
+    lifecycle_fixture(
+        "startup_stop_joins_its_read_before_independent_management_writer_release",
+        false,
+        |mode| bounded_startup_stop(StartupCase::Ordinary, mode),
+    )
+}
+
+#[test]
+fn startup_zero_timeout_joins_its_read_without_grace() -> Result<(), Box<dyn std::error::Error>> {
+    lifecycle_fixture(
+        "startup_zero_timeout_joins_its_read_without_grace",
+        false,
+        |mode| bounded_startup_stop(StartupCase::Zero, mode),
+    )
+}
+
+#[test]
+fn startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline()
+-> Result<(), Box<dyn std::error::Error>> {
+    lifecycle_fixture(
+        "startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline",
+        false,
+        |mode| bounded_startup_stop(StartupCase::Hurried, mode),
+    )
+}
+
+#[test]
+fn startup_read_that_finishes_during_grace_drains_without_starting_a_worker()
+-> Result<(), Box<dyn std::error::Error>> {
+    lifecycle_fixture(
+        "startup_read_that_finishes_during_grace_drains_without_starting_a_worker",
+        false,
+        |mode| bounded_startup_stop(StartupCase::Completes, mode),
+    )
+}
+
+#[derive(Clone, Copy)]
+enum StartupCase {
+    Ordinary,
+    Zero,
+    Hurried,
+    Completes,
+}
+
+impl StartupCase {
+    fn grace(self) -> Duration {
+        if matches!(self, Self::Zero) {
+            Duration::ZERO
+        } else {
+            Duration::from_millis(250)
+        }
+    }
+}
+
+type StartupManagement = std::thread::JoinHandle<Result<bool, sc_cron::CronError>>;
+
+struct StartupRejection {
+    rejected: bool,
+    entered: Result<(), std::sync::mpsc::RecvTimeoutError>,
+    task: Option<tokio::task::JoinHandle<bd_cache_sync::CronStopped>>,
+}
+
+impl StartupRejection {
+    fn not_requested() -> Self {
+        Self {
+            rejected: true,
+            entered: Ok(()),
+            task: None,
+        }
+    }
+}
+
+async fn reject_starting_worker(
+    schedules: &Arc<bd_cache_sync::SystemSchedules>,
+    waiting: std::sync::mpsc::Receiver<()>,
+) -> Result<StartupRejection, Box<dyn std::error::Error>> {
+    let entered =
+        tokio::task::spawn_blocking(move || waiting.recv_timeout(Duration::from_secs(1))).await?;
+    let second_stop = StopFlag::new();
+    let stop_second = second_stop.clone();
+    let mut second = tokio::spawn({
+        let schedules = Arc::clone(schedules);
+        async move { schedules.cron_run(stop_second, Duration::ZERO, || {}).await }
+    });
+    let (rejected, task) = match tokio::time::timeout(Duration::from_millis(100), &mut second).await
+    {
+        Ok(Err(error)) => (error.is_panic(), None),
+        Ok(Ok(_)) => (false, None),
+        Err(_) => {
+            second_stop.stop();
+            (false, Some(second))
+        }
+    };
+    Ok(StartupRejection {
+        rejected,
+        entered,
+        task,
+    })
+}
+
+fn contend_startup_store(
+    repo: &Repo,
+) -> Result<(rusqlite::Connection, StartupManagement), Box<dyn std::error::Error>> {
+    let name = repo.store.list_active()?.remove(0).spec.name;
+    let external = rusqlite::Connection::open(&repo.cache_path)?;
+    external.execute_batch("BEGIN IMMEDIATE")?;
+    let management_store = Arc::clone(&repo.store);
+    let management = std::thread::spawn(move || management_store.set_enabled(&name, false));
+    // A bounded view acknowledges a real failed connection claim. The normal
+    // public write owns the mutex; no synthetic/exclusive startup lock is used.
+    let (probe, probe_control) = repo.store.worker_view();
+    let contention = probe_control.wait_attempt_for_tests();
+    let probing = std::thread::spawn(move || {
+        loop {
+            if let Err(error) = probe.list_active() {
+                break error;
+            }
+            std::thread::yield_now();
+        }
+    });
+    let entered = contention.recv_timeout(Duration::from_secs(1));
+    probe_control.finish_by(Instant::now());
+    let probe_result = probing.join();
+    if entered.is_err() || probe_result.is_err() {
+        external.execute_batch("ROLLBACK")?;
+        let _ = management.join();
+        entered?;
+        return Err("owned contention probe panicked".into());
+    }
+    eprintln!("PROVED normal public management owns connection; actual probe joined canceled");
+    Ok((external, management))
+}
+
+async fn bounded_startup_stop(
+    case: StartupCase,
+    _mode: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let hurried = matches!(case, StartupCase::Hurried);
+    let zero = matches!(case, StartupCase::Zero);
+    let release_early = matches!(case, StartupCase::Completes);
+    let after_read_started = hurried || release_early;
+    let repo = Repo::new(vec![]);
+    repo.schedules().set(&every_second()).await?;
+    // The same public SystemSchedules/retained CacheScheduleStore composition
+    // as the Application probe, without claiming a C2 caller requalification.
+    let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
+        Arc::clone(&repo.store),
+        Arc::clone(&repo.cache),
+        repo.files(),
+    ));
+    let control = schedules
+        .worker_store_control_for_tests()
+        .ok_or("missing worker control")?;
+    let (external, management) = contend_startup_store(&repo)?;
+    let (stop, hurry) = (StopFlag::new(), StopFlag::new());
+    let grace = case.grace();
+    let waiting = control.wait_attempt_for_tests();
+    let (expired_send, expired_receive) = std::sync::mpsc::channel();
+    let mut asked = Instant::now();
+    if !after_read_started {
+        stop.stop();
+    }
+    let run = tokio::spawn({
+        let schedules = Arc::clone(&schedules);
+        let (stop, hurry) = (stop.clone(), hurry.clone());
+        async move {
+            schedules
+                .cron_run_hurried(stop, hurry, grace, move || {
+                    let _ = expired_send.send(Instant::now());
+                })
+                .await
+        }
+    });
+    let mut rejection = StartupRejection::not_requested();
+    if after_read_started {
+        rejection = reject_starting_worker(&schedules, waiting).await?;
+        asked = Instant::now();
+        stop.stop();
+    }
+    if hurried {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        hurry.stop();
+    }
+    let early_management_owned = if release_early {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        let owned = !management.is_finished();
+        external.execute_batch("ROLLBACK")?;
+        Some(owned)
+    } else {
+        None
+    };
+    let mut run = run;
+    let observed = tokio::time::timeout(Duration::from_millis(500), &mut run).await;
+    let elapsed = asked.elapsed();
+    let expiry = expired_receive.try_recv();
+    let management_still_owned =
+        early_management_owned.unwrap_or_else(|| !management.is_finished());
+    // Rescue first on both outcomes. The test owns and joins the normal caller
+    // and the complete cron future even when the original implementation fails.
+    if !release_early {
+        external.execute_batch("ROLLBACK")?;
+    }
+    let management_result = management.join().map_err(|_panic| "management panicked")?;
+    let (bounded, stopped) = match observed {
+        Ok(result) => (true, result?),
+        Err(_) => (false, run.await?),
+    };
+    if let Some(second) = rejection.task {
+        let _ = second.await;
+    }
+    rejection.entered?;
+    assert!(
+        management_still_owned,
+        "stop canceled independent management"
+    );
+    assert!(
+        management_result?,
+        "management did not finish after writer release"
+    );
+    assert!(
+        rejection.rejected,
+        "concurrent startup must retain existing single-worker panic"
+    );
+    assert!(
+        bounded
+            && elapsed
+                < if zero || hurried {
+                    Duration::from_millis(100)
+                } else {
+                    Duration::from_millis(500)
+                },
+        "startup exceeded original stop bound: {elapsed:?}; {stopped:?}"
+    );
+    assert_startup_completion(&control, &schedules, asked, elapsed, expiry, stopped, case).await?;
+    // Reuse the SAME object after an actually expired startup and joined read.
+    schedules.enable(true).await?;
+    stopped_write_cycle(&schedules, &repo, &control, false, false, "normal").await?;
+    Ok(())
+}
+
+async fn assert_startup_completion(
+    control: &bd_cache_store::ScheduleShutdownControl,
+    schedules: &bd_cache_sync::SystemSchedules,
+    asked: Instant,
+    elapsed: Duration,
+    expiry: Result<Instant, std::sync::mpsc::TryRecvError>,
+    stopped: bd_cache_sync::CronStopped,
+    case: StartupCase,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let zero = matches!(case, StartupCase::Zero);
+    let hurried = matches!(case, StartupCase::Hurried);
+    let grace = case.grace();
+    if matches!(case, StartupCase::Completes) {
+        assert!(expiry.is_err(), "completed startup must not report expiry");
+        assert!(
+            stopped.drained,
+            "completed startup read was not joined/drained"
+        );
+        assert!(
+            stopped.finish_by <= asked + Duration::from_millis(510),
+            "startup renewed the stop budget"
+        );
+    } else {
+        let expiry = expiry?;
+        assert!(
+            expiry.duration_since(asked)
+                < if zero || hurried {
+                    Duration::from_millis(100)
+                } else {
+                    Duration::from_millis(300)
+                },
+            "startup expiry was late"
+        );
+        if !zero && !hurried {
+            assert!(
+                expiry.duration_since(asked) >= grace,
+                "startup cut grace short"
+            );
+        }
+        if hurried {
+            assert!(
+                expiry.duration_since(asked) >= Duration::from_millis(50),
+                "hurry fired before actual second signal"
+            );
+        }
+        assert!(
+            stopped.finish_by <= asked + grace * 2 + Duration::from_millis(10),
+            "startup started a fresh cleanup budget after joining"
+        );
+        assert!(
+            !stopped.drained,
+            "canceled startup reported a successful drain"
+        );
+        eprintln!(
+            "RSH-001 startup hurry={hurried} zero={zero}: joined before independent writer release in {elapsed:?}; callback at {:?}",
+            expiry.duration_since(asked)
+        );
+    }
+    assert!(stopped.idle && !stopped.worker_ended, "{stopped:?}");
+    assert!(
+        control.deadline_for_tests().is_none(),
+        "joined startup left an expired deadline"
+    );
+    assert!(
+        schedules.rows().await.is_ok(),
+        "public management inherited startup cancellation"
+    );
+    Ok(())
+}

@@ -847,3 +847,55 @@ isolated dependency graph blocker. RSH-001 and FTQ-009 closures remain owned by
 their actual reviewer/enforcer evidence. No SDK change, dependency change,
 publisher work, timing relaxation, guard waiver or sprint/anchor/merge PASS is
 introduced.
+
+
+### QA7 supported startup stop correction (RSH-001)
+
+Independent C2 QA5 reopened RSH-001 for a new startup occurrence. A supported
+public caller may retain Composed's ordinary table view and start management
+before Application starts. The old cron prelude awaited warn_at_startup/rows on
+that normal view before observing stop. The actual Application probe remained
+pending at 902ms with T=250ms and returned only after writer rollback. This does
+not establish a stock-daemon HTTP reproduction: stock composition does not
+itself initiate that independent pre-start management writer. The previously
+qualified post-start fix remains credited. No exclusive-startup precondition is
+added to the public contract.
+
+Cron's internal startup read now uses the existing bounded raw worker view of
+the same physical connection. Public rows, standalone warn_at_startup and
+independent management keep their normal policies. Cron selects stop/hurry while
+retaining the actual blocking read future. The first observed stop starts the
+original T/2T budget; expiry/hurry calls the real callback and cooperatively ends
+only the owned startup read. Cron really joins it, then resets its control. It
+never spawns the SDK worker after a startup stop, never renews the stop budget
+for a later phase, and never reports a canceled read as drained/ready. Normal
+startup still emits the existing warnings before spawning the one SDK worker.
+The private lifecycle claim covers startup through real worker/store/cache
+joins, retaining the documented concurrent-worker panic and preventing a rejected
+start from modifying another lifetime's deadline. No caller factory or new SDK
+port is introduced. Cache health read-only and deadline policies are unchanged.
+
+The new C1 public-core test uses SystemSchedules and its retained ordinary table
+under a real external BEGIN IMMEDIATE writer. A separately bounded view proves
+the actual management operation owns the shared mutex, then is canceled and
+joined. The old production implementation fails the new 500ms stop observation
+(500.76ms) and completes only after explicit rescue rollback; management and cron
+are both actually joined before the failure assertion. This finite negative is
+recorded in /tmp/phase-c-execution/c-1/qa-7/startup-old-negative.log. The fixed
+regressions cover ordinary pre-stopped startup, zero timeout, a second signal
+after startup-read contention, rejected concurrent startup, read completion
+within grace, and reuse of the SAME object after joined startup cancellation.
+Every complete case uses the qualified owned fixture supervisor and retains the
+500ms/100ms timing assertions and real management/worker joins. Existing
+post-start and FTQ-009/010 regressions remain acceptance targets.
+
+Focused final-source validation and receipts live under
+/tmp/phase-c-execution/c-1/qa-7/startup-*. This C1 task qualifies the public core;
+the exact public Application probe must be rerun by C2 after consuming the
+correction. No candidate Application/HTTP result is claimed from old C2 source.
+FTQ-010's actual QA7 owning-reviewer/enforcer closure and FTQ-009's closure are
+preserved. RSH-001 remains OPEN, implemented pending independent QA8 and C2
+consumption. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the genuine
+published canonical receiver/isolated graph and required actual-head CI gates.
+No dependency upgrade, publisher work, graph waiver, timing widening, detached
+blocking work, sprint/anchor/merge PASS or self-closure is introduced.
