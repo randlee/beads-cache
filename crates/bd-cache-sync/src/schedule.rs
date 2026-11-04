@@ -563,6 +563,7 @@ where
 {
     pub(crate) scheduler: Scheduler<crate::launch::LaunchStore<St>, C, J>,
     pub(crate) store: Arc<St>,
+    pub(crate) store_shutdown: Option<bd_cache_store::ScheduleShutdownControl>,
     pub(crate) cache: SharedCache<S, L, B>,
     pub(crate) files: SyncFiles,
     pub(crate) clock: Arc<C>,
@@ -609,10 +610,43 @@ impl SystemSchedules {
         >,
         files: SyncFiles,
     ) -> Self {
-        Self::new(
+        Self::new_with_bounded_store(
             store,
             Arc::new(sc_cron::SystemClock),
             Arc::new(sc_cron::SystemJitter),
+            cache,
+            files,
+        )
+    }
+}
+
+impl<S, L, B, C, J> Schedules<bd_cache_store::CacheScheduleStore, S, L, B, C, J>
+where
+    S: CacheStore + 'static,
+    L: DrainLock + 'static,
+    B: CacheBackend + 'static,
+    C: CronClock + 'static,
+    J: JitterSource + 'static,
+{
+    /// Builds the cache scheduler with cooperative worker-only store shutdown.
+    ///
+    /// Its worker view shares the existing connection. The original store stays
+    /// available for public reads without inheriting worker shutdown deadlines.
+    #[must_use]
+    pub fn new_with_bounded_store(
+        store: Arc<bd_cache_store::CacheScheduleStore>,
+        clock: Arc<C>,
+        jitter: Arc<J>,
+        cache: SharedCache<S, L, B>,
+        files: SyncFiles,
+    ) -> Self {
+        let (worker_store, control) = store.worker_view();
+        Self::build(
+            store,
+            Arc::new(worker_store),
+            Some(control),
+            clock,
+            jitter,
             cache,
             files,
         )
@@ -637,12 +671,21 @@ where
         cache: SharedCache<S, L, B>,
         files: SyncFiles,
     ) -> Self {
+        Self::build(Arc::clone(&store), store, None, clock, jitter, cache, files)
+    }
+
+    fn build(
+        store: Arc<St>,
+        worker_store: Arc<St>,
+        store_shutdown: Option<bd_cache_store::ScheduleShutdownControl>,
+        clock: Arc<C>,
+        jitter: Arc<J>,
+        cache: SharedCache<S, L, B>,
+        files: SyncFiles,
+    ) -> Self {
         let names = Arc::default();
         let scheduler = Scheduler::new_with_logger(
-            Arc::new(crate::launch::LaunchStore(
-                Arc::clone(&store),
-                Arc::clone(&names),
-            )),
+            Arc::new(crate::launch::LaunchStore(worker_store, Arc::clone(&names))),
             Arc::clone(&clock),
             jitter,
             crate::cron_log::logger(names),
@@ -652,10 +695,41 @@ where
             mode: ModeLock::for_cache_file(&files.cache_path),
             scheduler,
             store,
+            store_shutdown,
             cache,
             files,
             clock,
         }
+    }
+
+    // Keep the producer's same-core notification and validation, while selecting
+    // the management policy inside the blocking task that actually calls it.
+    // No context crosses an await or applies to run_due/worker/job callbacks.
+    async fn manage<T: Send + 'static>(
+        &self,
+        operation: impl FnOnce(&Scheduler<crate::launch::LaunchStore<St>, C, J>) -> Result<T, CronError>
+        + Send
+        + 'static,
+    ) -> Result<T, CacheError> {
+        let scheduler = self.scheduler.share();
+        let control = self.store_shutdown.clone();
+        blocking(move || {
+            let _management = control
+                .as_ref()
+                .map(bd_cache_store::ScheduleShutdownControl::management_call);
+            operation(&scheduler).map_err(schedule_store_failed)
+        })
+        .await
+    }
+
+    /// Observes the bounded production worker store in integration tests.
+    #[cfg(feature = "testing")]
+    #[doc(hidden)]
+    #[must_use]
+    pub fn worker_store_control_for_tests(
+        &self,
+    ) -> Option<bd_cache_store::ScheduleShutdownControl> {
+        self.store_shutdown.clone()
     }
 
     /// Observes an actual contended mode-lock attempt (test builds only).
@@ -703,10 +777,8 @@ where
         let enabled = rows.builtin.as_ref().map_or(!python_enabled, |r| r.enabled);
         let flags = rows.others(SyncRow::Builtin, enabled);
         let written = self
-            .scheduler
-            .replace_and_set_enabled_async(spec, enabled, flags)
-            .await
-            .map_err(schedule_store_failed)?;
+            .manage(move |scheduler| scheduler.replace_and_set_enabled(spec, enabled, &flags))
+            .await?;
         let mode = self.rows().await?.mode();
         Ok(ScheduleSetReply {
             row: SyncRow::Builtin.as_str(),
@@ -740,10 +812,10 @@ where
                 "the Python sync row is enabled; switch to the built-in row instead",
             ));
         }
-        self.scheduler
-            .set_enabled_async(&schedule_name(SyncRow::Builtin), enabled)
-            .await
-            .map_err(schedule_store_failed)?;
+        self.manage(move |scheduler| {
+            scheduler.set_enabled(&schedule_name(SyncRow::Builtin), enabled)
+        })
+        .await?;
         let mode = self.rows().await?.mode();
         Ok(ScheduleEnableReply {
             row: SyncRow::Builtin.as_str(),
@@ -762,10 +834,11 @@ where
         let rows = self.rows().await?;
         let cleared = match &rows.builtin {
             Some(row) => {
-                self.scheduler
-                    .stop_async(row.id, row.generation, "cleared by schedule clear")
-                    .await
-                    .map_err(schedule_store_failed)?;
+                let (id, generation) = (row.id, row.generation);
+                self.manage(move |scheduler| {
+                    scheduler.stop(id, generation, "cleared by schedule clear")
+                })
+                .await?;
                 true
             }
             None => false,
@@ -993,11 +1066,10 @@ where
             &SyncPayload::Python(payload.clone()),
         )?;
         let flags = before.others(SyncRow::Python, true);
+        let replacing = new_spec.clone();
         let written = self
-            .scheduler
-            .replace_and_set_enabled_async(new_spec.clone(), true, flags)
-            .await
-            .map_err(schedule_store_failed)?;
+            .manage(move |scheduler| scheduler.replace_and_set_enabled(replacing, true, &flags))
+            .await?;
         Ok((before, written, new_spec))
     }
 
@@ -1059,10 +1131,7 @@ where
                 Some(row) => (row.spec.clone(), row.enabled),
                 None => (new_spec, false),
             };
-            self.scheduler
-                .replace_and_set_enabled_async(spec, enabled, builtin_flag)
-                .await
-                .map_err(schedule_store_failed)?;
+            self.manage(move |scheduler| scheduler.replace_and_set_enabled(spec, enabled, &builtin_flag)).await?;
             Ok(true)
         }
         .await;
@@ -1102,10 +1171,8 @@ where
         }
         let mut flags = vec![(schedule_name(SyncRow::Builtin), true)];
         flags.extend(rows.others(SyncRow::Builtin, true));
-        self.scheduler
-            .set_enabled_many_async(flags)
-            .await
-            .map_err(schedule_store_failed)?;
+        self.manage(move |scheduler| scheduler.set_enabled_many(&flags))
+            .await?;
         Ok(UseBuiltinReply {
             row: SyncRow::Builtin.as_str(),
             mode: SyncMode::Builtin,

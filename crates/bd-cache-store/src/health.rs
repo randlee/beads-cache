@@ -13,6 +13,8 @@ thread_local! {
     #[cfg(test)]
     static EXPIRE_AFTER_DECODES: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
     static ACTIVE: RefCell<Vec<Option<Instant>>> = const { RefCell::new(Vec::new()) };
+    static WORKER: RefCell<Vec<Option<crate::ScheduleShutdownControl>>> = const { RefCell::new(Vec::new()) };
+    static BUSY: RefCell<Vec<(Option<Instant>, Duration)>> = const { RefCell::new(Vec::new()) };
     static BUDGETS: RefCell<Vec<(usize, Instant)>> = const { RefCell::new(Vec::new()) };
 }
 
@@ -93,6 +95,7 @@ pub(crate) fn check_decode() -> Result<(), CacheError> {
             }
         }
     });
+    check_worker()?;
     check(ACTIVE.with_borrow(|sessions| sessions.last().copied().flatten()))
 }
 
@@ -116,13 +119,58 @@ fn expired() -> CacheError {
     )
 }
 
-fn busy(_: i32) -> bool {
-    let deadline = ACTIVE.with_borrow(|sessions| sessions.last().copied().flatten());
-    let Some(left) = deadline.and_then(|d| d.checked_duration_since(Instant::now())) else {
+fn check_worker() -> Result<(), CacheError> {
+    WORKER.with_borrow(|sessions| check_shutdown(sessions.last().and_then(Option::as_ref)))
+}
+
+pub(crate) fn check_shutdown(
+    control: Option<&crate::ScheduleShutdownControl>,
+) -> Result<(), CacheError> {
+    if control.is_some_and(crate::ScheduleShutdownControl::expired) {
+        return Err(CacheError::store_failed(
+            "schedule worker shutdown: store deadline expired",
+            std::io::Error::new(
+                std::io::ErrorKind::TimedOut,
+                "schedule store deadline expired",
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn busy(attempt: i32) -> bool {
+    #[cfg(any(test, feature = "testing"))]
+    WORKER.with_borrow(|sessions| {
+        if let Some(Some(control)) = sessions.last() {
+            control.note_wait();
+        }
+    });
+    if check_worker().is_err() {
         return false;
+    }
+
+    let deadline = ACTIVE.with_borrow(|sessions| sessions.last().copied().flatten());
+    let left = if let Some(deadline) = deadline {
+        let Some(left) = deadline.checked_duration_since(Instant::now()) else {
+            return false;
+        };
+        left
+    } else {
+        // Scheduler sessions retain the normal SQLite busy limit before stop.
+        let left = BUSY.with_borrow_mut(|sessions| {
+            let (started, limit) = sessions.last_mut()?;
+            if attempt == 0 {
+                *started = Some(Instant::now());
+            }
+            limit.checked_sub(started.get_or_insert_with(Instant::now).elapsed())
+        });
+        let Some(left) = left else {
+            return false;
+        };
+        left
     };
     std::thread::sleep(left.min(Duration::from_millis(1)));
-    deadline.is_some_and(|d| Instant::now() < d)
+    check_worker().is_ok() && deadline.is_none_or(|d| Instant::now() < d)
 }
 
 /// Restores connection settings before releasing the connection mutex.
@@ -145,18 +193,24 @@ impl Shared {
 
     pub(crate) fn session_lock(&self) -> Result<HealthSession<'_>, CacheError> {
         let deadline = self.health_deadline();
-        let guard = if let Some(deadline) = deadline {
+        let worker = crate::schedule_budget::current(std::ptr::from_ref(self) as usize);
+        let guard = if deadline.is_some() || worker.is_some() {
             loop {
-                check(Some(deadline))?;
+                check(deadline)?;
+                check_shutdown(worker.as_ref())?;
                 match self.inner.try_lock() {
                     Ok(guard) => break guard,
                     Err(TryLockError::Poisoned(e)) => break e.into_inner(),
                     Err(TryLockError::WouldBlock) => {
-                        std::thread::sleep(
+                        #[cfg(any(test, feature = "testing"))]
+                        if let Some(control) = &worker {
+                            control.note_wait();
+                        }
+                        std::thread::sleep(deadline.map_or(Duration::from_millis(1), |deadline| {
                             deadline
                                 .saturating_duration_since(Instant::now())
-                                .min(Duration::from_millis(1)),
-                        );
+                                .min(Duration::from_millis(1))
+                        }));
                     }
                 }
             }
@@ -174,11 +228,13 @@ impl Shared {
             self.lock()
         };
         ACTIVE.with_borrow_mut(|sessions| sessions.push(deadline));
+        WORKER.with_borrow_mut(|sessions| sessions.push(worker.clone()));
+        BUSY.with_borrow_mut(|sessions| sessions.push((None, crate::BUSY_TIMEOUT)));
         let mut session = HealthSession {
             guard,
             restore: None,
         };
-        if let Some(deadline) = deadline {
+        if deadline.is_some() || worker.is_some() {
             let conn = &session.guard.conn;
             let busy_ms = conn
                 .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
@@ -187,13 +243,33 @@ impl Shared {
                 .query_row("PRAGMA query_only", [], |r| r.get(0))
                 .map_err(setting)?;
             session.restore = Some((busy_ms, query_only));
+            BUSY.with_borrow_mut(|sessions| {
+                if let Some((_, limit)) = sessions.last_mut() {
+                    *limit = Duration::from_millis(u64::try_from(busy_ms).unwrap_or(0));
+                }
+            });
             let conn = &session.guard.conn;
-            conn.pragma_update(None, "query_only", true)
-                .map_err(setting)?;
+            if deadline.is_some() {
+                conn.pragma_update(None, "query_only", true)
+                    .map_err(setting)?;
+            }
             conn.busy_handler(Some(busy)).map_err(setting)?;
-            conn.progress_handler(1000, Some(move || Instant::now() >= deadline))
-                .map_err(setting)?;
-            check(Some(deadline))?;
+            conn.progress_handler(
+                1000,
+                Some(move || {
+                    #[cfg(any(test, feature = "testing"))]
+                    if let Some(control) = &worker {
+                        control.note_wait();
+                    }
+                    deadline.is_some_and(|deadline| Instant::now() >= deadline)
+                        || worker
+                            .as_ref()
+                            .is_some_and(crate::ScheduleShutdownControl::expired)
+                }),
+            )
+            .map_err(setting)?;
+            check(deadline)?;
+            check_worker()?;
         }
         Ok(session)
     }
@@ -228,6 +304,12 @@ impl Drop for HealthSession<'_> {
             }
         }
         ACTIVE.with_borrow_mut(|sessions| {
+            sessions.pop();
+        });
+        WORKER.with_borrow_mut(|sessions| {
+            sessions.pop();
+        });
+        BUSY.with_borrow_mut(|sessions| {
             sessions.pop();
         });
     }

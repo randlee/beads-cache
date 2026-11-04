@@ -798,3 +798,25 @@ is not an ADR amendment. The strengthened isolated graph check intentionally
 rejects the current Python graph until an authorized upstream public logging
 seam exists. Published 0.1.1 remains pinned; no logging events are silently
 removed to conceal this unresolved compatibility blocker.
+
+
+### Phase C cache-owned shutdown cooperation
+
+The production SystemSchedules builds a worker view of the same cache schedule
+connection with a dynamic shutdown control. Mutex acquisition, SQLite busy and
+progress callbacks, and row decoding observe that control, including a deadline
+shortened after work began. RAII restores the connection's previous busy,
+progress and read-only settings before unlock. The original public store view
+and HealthReadControl keep their independent policies.
+
+A single upstream Scheduler still owns worker/run-due coordination. Front-end
+management calls use its public synchronous methods via `Scheduler::share()` and
+the existing blocking helper, preserving the same Core's validation and immediate
+reload notification. An RAII management scope applies only to the exact control
+identity and physical connection; it never overrides health read-only/deadline
+rules and does not wrap worker/run-due/job callback work. Expiry/second-stop kill
+is selected independently, while the actual WorkerHandle shutdown/store work is
+joined. The existing two-stage `2 × T` shutdown budget above is unchanged. The
+control resets after that join for reuse; rejected concurrent starts do not reset
+it. RSH-001 awaits independent QA; the canonical receiver dependency blocker and
+strict isolated graph gate above remain open and unchanged.
