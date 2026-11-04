@@ -8644,7 +8644,8 @@
       "cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:10",
       "thread_status": "idle_completed",
       "response": "Beads-cache shutdownfixedlocally; overall sprintQA fails. Publiccanonicalcronloggingfacade remainsupstreamblocker plannedC5. No approvedscope/guaranteeschanged; upstreamPlanAnchor goalblockedseparately."
-    }
+    },
+    "latest_status_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:11"
   },
   "qualified_c3_forwarding": {
     "report": "/tmp/phase-c-qualified-c3-forward-results.json",
@@ -8685,8 +8686,8 @@
     "consecutive_goal_turns": 0,
     "reset_reason": "Owner explicitly restarted goal and directed removal of the unrelated publisher approval blocker. Fresh audit starts only if direct consumer work reaches a genuine impasse.",
     "latest_registry_verification": {
-      "at": "2026-11-04T04:56:43.025517+00:00",
       "receipt": "/tmp/phase-c-current-published-sdk-versions.json",
+      "checked_at": "2026-11-04T06:01:32.737472+00:00",
       "non_yanked_versions": {
         "sc-runtime": [
           "0.1.1"
@@ -8695,7 +8696,7 @@
           "0.1.1"
         ]
       },
-      "result": "No new consumable published SDK; local fixes continue"
+      "owner_chat": "Active planning-anchor work, no compatible new publication announced"
     }
   },
   "restart_direction": {
@@ -8926,64 +8927,129 @@
     "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6623311092"
   },
   "current_fix_dispatch": {
-    "dispatched_at": "2026-11-04T04:53:15.747923+00:00",
+    "dispatched_at": "2026-11-04T05:26:44.589264+00:00",
+    "status": "diagnostic_context_complete_finding_unlocalized",
     "actor": "parent-orchestrator",
-    "status": "completed",
     "tasks": [
       {
-        "task_id": "/root/c1_helper_resume",
-        "sprint": "c-1",
+        "task_id": "/root/c1_windowsqa9_dev",
         "role": "rust-developer",
+        "sprint": "c-1",
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-8/helper-fix.xml",
-        "state": "completed_frozen_for_independent_QA9",
+        "model_provenance": "Configured Grok/Composer unavailable; available fallback recorded honestly",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-9/windows-fixture-fix.xml",
+        "state": "completed_actual_phase_analysis_no_cause_identified",
         "cargo_slot": false,
-        "production_freeze": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5 cron.rs/schedule.rs",
-        "grant_at": "2026-11-04T04:59:58.280347+00:00",
-        "reported_push_sha": "a753d2799183dd4e341c854c4515bf046447eb6c",
-        "result": "/tmp/phase-c-execution/c-1/qa-8/helper-fix-result.json",
-        "durable_archive": ".cursor/qa-evidence/phase-c/c-1/qa-8/helper-correction"
+        "baseline": "a753d2799183dd4e341c854c4515bf046447eb6c",
+        "integration_source": "63ebc1fa032f7ccaa2b5b0b97a8f9621599060d0",
+        "finding_ids": [
+          "REQ-QA-004",
+          "ARCH-001",
+          "RBQA-F001",
+          "QA2-001",
+          "RQA9-001"
+        ],
+        "focus": "Actual Windows store fixture missing causal observation; cause unknown, original budgets preserved",
+        "progress": "Only expected add/add triage conflicts; preserve union of candidate-scope closure history. Original Windows cause unknown; bounded owned causal phase observations being prepared.",
+        "diagnostic_push": "bcfcae7021522454e85be964661b9525bb15e58c",
+        "result": "/tmp/phase-c-execution/c-1/qa-9/windows-fixture-result.json",
+        "root_cause": "unknown",
+        "finding_status": "All5remain open; not a proven fix",
+        "scope": "Bounded supported source/feature/lifetime analysis while two actual Windows diagnostic jobs run; no guessed cause/fix"
       },
       {
-        "task_id": "/root/c2_candidate_resume",
-        "sprint": "c-2",
+        "task_id": "/root/c2_windowsdiag_dev",
         "role": "rust-developer",
+        "sprint": "c-2",
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "assignment": "/tmp/phase-c-execution/c-2/qa-5/candidate-fix.xml",
-        "state": "completed_awaiting_independent_review",
+        "model_provenance": "Configured Grok/Composer unavailable; available fallback",
+        "assignment": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-consumption.xml",
+        "state": "completed_source_consumption_and_local_checks",
         "cargo_slot": false,
-        "candidate_source": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5",
-        "source_after_candidate_merge": "dcaa8e4d15f231a46babe7d70da384a3e626b876",
-        "original_public_probe_reported": {
-          "exceeded_2T": false,
-          "shutdown_ms": 251.517333,
-          "budget_ms": 500,
-          "result": "Ok(())",
-          "management": "Ok(true)",
-          "owned_process_reaped": true,
-          "status": "Developer proof only; independent QA pending",
-          "receipt": "/tmp/phase-c-execution/c-2/qa-5/candidate-original-probe-process.json"
-        },
-        "reported_push_short_sha": "b7de8e9",
-        "prepush_reported": "All7 service tests, new ordinary/zero causal startup regressions, affected all-target/all-feature Clippy and fmt PASS; initial lint failure retained",
-        "reported_push_sha": "b7de8e9879503353879c500edacf12a6832d709d",
-        "postpush_reported": {
-          "application_daemon_tests": "21/21 PASS",
-          "ordinary_ms": 251.034791,
-          "zero_ms": 1.337917,
-          "original_probe_ms": 251.883875,
-          "original_budget_ms": 500,
-          "fmt_clippy": "PASS",
-          "canonical_findings": "Remain open pending independent QA"
-        },
-        "result": "/tmp/phase-c-execution/c-2/qa-5/startup-candidate-result.json",
-        "durable_archive": ".cursor/qa-evidence/phase-c/c-2/qa-5/candidate-consumption"
+        "baseline": "b7de8e9879503353879c500edacf12a6832d709d",
+        "immutable_producer": "bcfcae7021522454e85be964661b9525bb15e58c",
+        "scope": "Necessary consumer-context source diagnostic, no PR merge or full acceptance",
+        "pushed_source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "local_validation": "Store5/5,service7/7,both strict scoped Clippy/fmt PASS; no cause/fix claim",
+        "result": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-consumption-result.json"
       }
     ],
-    "model_provenance": "Configured Grok/Composer unavailable; available fallback recorded explicitly",
-    "merge_authorized_only_after": "Independent QA zero findings, development anchors passing, exact-reviewed-head required CI green"
+    "remote_jobs": [
+      {
+        "job_id": 126408082388,
+        "run_id": 41779664282,
+        "source": "bcfcae7021522454e85be964661b9525bb15e58c",
+        "sprint": "c-1",
+        "platform": "Windows",
+        "status": "completed",
+        "conclusion": "success",
+        "verified_at": "2026-11-04T05:36:41.119706+00:00",
+        "verification": "Actual gh api actions/jobs/126408082388 returned live in_progress",
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41779664282/job/126408082388",
+        "active_step": "Test",
+        "store_result": "34/34 PASS",
+        "phase_visibility": "suppressed"
+      },
+      {
+        "job_id": 126409418610,
+        "run_id": 41780092066,
+        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "sprint": "c-2",
+        "platform": "Windows",
+        "status": "completed",
+        "active_step": "Clippy",
+        "conclusion": "failure",
+        "verified_at": "2026-11-04T05:36:41.119706+00:00",
+        "verification": "Actual gh api actions/jobs/126409418610 returned live in_progress",
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41780092066/job/126409418610",
+        "store_result": "34/34 PASS",
+        "failed_step": "Daemon process acceptance (FakeBd only)",
+        "observed_exit_code": 3221225786,
+        "phase_visibility": "suppressed"
+      },
+      {
+        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "workflow_commit": "05165e20aba8f996a100ced5e25f04634fb55c60",
+        "run_id": 41782100405,
+        "job_id": 126415769693,
+        "status": "completed",
+        "conclusion": "success",
+        "scope": "ONE filtered supervisor observation; no cause/fix claim",
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41782100405/job/126415769693"
+      },
+      {
+        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "workflow_commit": "59cb77d253ed20d202e19f563776f26f69a225b0",
+        "run_id": 41783469872,
+        "job_id": 126420131075,
+        "status": "completed",
+        "conclusion": "success",
+        "result": "fullstore34/34,normalphases,actualbusy-negative sibling overlap not original",
+        "scope": "Controlled diagnostic only, no cause/fix claim"
+      }
+    ],
+    "evidence_integrity": {
+      "files_verified": 83,
+      "committed_blob_hashes_match_manifests": true,
+      "scope": "All three current developer/QA9 evidence archives"
+    },
+    "diagnostic_evidence_archive": ".cursor/qa-evidence/phase-c/c-1/qa-9/windows-diagnostics",
+    "independent_owner_investigation": {
+      "task_id": "/root/rqa9_causal_owner",
+      "status": "completed_OPEN_UNRESOLVED_CAUSE",
+      "scope": "Original-to-current test diff and actual observed phases; assess supported mechanism and controlled next probe, not fullQA10",
+      "result": "/tmp/phase-c-execution/c-1/qa-9/full-context-owner-result.json"
+    },
+    "isolated_worktree": {
+      "creation_task": "/root/windowsdiag_worktree_create",
+      "path": "/Users/randlee/github/beads-cache-worktrees/codex/c2-windows-store-phase-observation",
+      "branch": "codex/c2-windows-store-phase-observation",
+      "source_guard_verified": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+      "workflow_commit": "05165e20aba8f996a100ced5e25f04634fb55c60",
+      "purpose": "Disposable diagnostic only; never merge workflow; no local Cargo output"
+    }
   },
   "goal_turn_audit": {
     "previous_turn": "progress",
@@ -8995,9 +9061,14 @@
       "Current owners explicitly verify RSH startup resolution and FTQ011 correction; sole-enforcer aggregation pending",
       "New actual Windows shared-store failure RQA9-001 is triaged with independent Rust/flaky evidence, unknown cause retained, no external blocker substitution",
       "Ceremony screen complete and parent accepted all five operational findings; sole cursor-quality-mgr9 ACKed and publishing mandatory PR report",
-      "QA9 sole enforcer published exact report6623311092,FAIL3B2I29/34; RSH/FTQ011 resolved in candidate scope, new local Windows finding routed next"
+      "QA9 sole enforcer published exact report6623311092,FAIL3B2I29/34; RSH/FTQ011 resolved in candidate scope, new local Windows finding routed next",
+      "Actual background developer c1_windowsqa9_dev dispatched all5 published QA9 IDs after sole enforcer completion, exact integration63ebc1f handed off",
+      "C1 diagnostic bcfcae pushed with bounded causal observations/no fix claim; exact Windows job126408082388 verified live via API; background C2 diagnostic-consumer task spawned and given released Cargo slot",
+      "C2e86d9da diagnostic source pushed, focused store5/service7/lints passed; two exact Windows handles verified live Test/Clippy; C1 source-cause analysis reactivated with released local slot",
+      "Both diagnostic broad Windows store suites34/34 PASS; C2fails daemon3221225786 separately; root-approved one-shot target obtains actual causal phases but original RQA9 mechanism remains unknown; independent owner reassessment running",
+      "Single-target and full34 Windows visible-phase probes passed with exact source and original bounds; independent causal owner confirms RQA9 unlocalized and recommends structured-phase planted-negative control, not more green reruns"
     ],
-    "next_safe_action": "Wait on verified live enforcer, persist exact report then dispatch all current findings to background dev, focusing concrete local Windows fixture cause without widening deadlines",
+    "next_safe_action": "Background developer implements only bounded structured phase diagnostics/common-origin accounting and planted post-return/pre-marker classification control; original failure remains open until actual causal evidence and own review",
     "blocked_audit_increment": false
   },
   "current_nonblockers": {
@@ -9013,6 +9084,11 @@
       "issue": "bdc-n8v.1",
       "comment_id": 7,
       "kind": "developer helper proof and QA9 dispatch"
+    },
+    "c-1-QA9-published": {
+      "issue": "bdc-n8v.1",
+      "comment_id": 8,
+      "kind": "Exact published QA9 verdict and actual all-findings developer dispatch"
     }
   },
   "qualified_shutdown_component": {

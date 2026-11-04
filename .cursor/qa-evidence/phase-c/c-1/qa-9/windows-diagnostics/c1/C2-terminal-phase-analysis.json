@@ -1,0 +1,116 @@
+{
+  "source_head": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+  "job": 126409418610,
+  "run": 41780092066,
+  "job_url": "https://github.com/randlee/beads-cache/actions/runs/41780092066/job/126409418610",
+  "platform": "Windows native hosted",
+  "terminal_state": "completed FAILURE",
+  "completed_at_utc_parent_verified": "2026-11-04T05:47:54Z",
+  "raw_log": {
+    "path": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-c2-126409418610.log",
+    "bytes": 265777,
+    "sha256": "effd8fc9fe05d0c8c86957adf272c47924a9e398c3bf83f62455a16019e7f968",
+    "expected_hash_matches": true
+  },
+  "checkout": {
+    "actual_pr_merge": "6b19bc8c95c3972b0232831c4151858051a405e1",
+    "base": "63ebc1fa032f7ccaa2b5b0b97a8f9621599060d0",
+    "head": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+    "raw_lines": [
+      111,
+      114
+    ],
+    "head_consumes_base": true,
+    "limit": "Synthetic PR checkout, not literal head checkout; expected head-tree equivalence because base is ancestor, but no hosted blob fetch/comparison performed in this continuation."
+  },
+  "store": {
+    "result": "PASS34/34",
+    "elapsed_group_seconds": 15.92,
+    "result_line": 1946,
+    "shutdown_tests": [
+      {
+        "line": 1927,
+        "text": "2026-11-04T05:45:00.9039804Z test schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind ... ok"
+      },
+      {
+        "line": 1928,
+        "text": "2026-11-04T05:45:01.0441996Z test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok"
+      },
+      {
+        "line": 1929,
+        "text": "2026-11-04T05:45:01.1520686Z test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok"
+      },
+      {
+        "line": 1932,
+        "text": "2026-11-04T05:45:01.3691834Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok"
+      },
+      {
+        "line": 1944,
+        "text": "2026-11-04T05:45:15.6093698Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok"
+      }
+    ],
+    "original_RQA9_failure_reappeared": false,
+    "phase_marker_counts": {
+      "RQA9": 0,
+      "FTQ-009": 0,
+      "stalled store cleanup after real worker call": 0,
+      "store cleanup observation expired after 500ms": 0
+    },
+    "raw_phase_timings": null,
+    "raw_phase_results": null,
+    "qualified_scope": "This occurrence passes unchanged supervisor marker/500ms/kill-reap/watchdog assertions for all3 children. No actual per-phase values visible; pass does not identify original cause or correction."
+  },
+  "visibility": {
+    "workspace_test_command": [
+      {
+        "line": 808,
+        "text": "2026-11-04T05:37:43.0629721Z ##[group]Run cargo test --locked --workspace $EXCLUDE --all-features"
+      }
+    ],
+    "cause": "Outer successful libtest capture suppresses successful supervisor eprintln output. No outer --nocapture/--show-output in workspace Test command. Job failure later does not print earlier successful tests captured output.",
+    "remaining_observations": "Exact raw setup/open/create, actual wait/cancel/call-return and original stalled cleanup/500ms/rollback/join traces remain absent for Windows."
+  },
+  "service": {
+    "observed": "service unit suite7/7 passes at line1906; actual contention trace joins252.4021ms with grace250ms while writer remains locked",
+    "limits": "Separate observed Application qualification, not overall daemon process acceptance or a disposition of other findings."
+  },
+  "daemon_acceptance": {
+    "result": "FAIL separate later step",
+    "failure_lines": [
+      3035,
+      3037,
+      3058,
+      3061,
+      3063,
+      3064,
+      3065
+    ],
+    "source": "scripts/consumer_checks.py:390-395; first_stop main445",
+    "actual_mechanism_observed": "stop sends CTRL_BREAK_EVENT for Windows, communicates with34s timeout, then requires child.returncode==0 and empty stdout. Raw traceback shows tuple(3221225786,empty stdout,empty stderr) at first_stop. This assertion fails and job exits1.",
+    "return_code_decimal": 3221225786,
+    "return_code_hex": "0xc000013a",
+    "root_cause_limit": "This log supports nonzero exit following the actual stop path. It does not by itself locate signal registration/handling internals or justify an SDK/runtime fix; no prior signal history assumed as proof. Separate from earlier store phase observation."
+  },
+  "comparison_to_original": {
+    "original_failure_source": "b7de8e9879503353879c500edacf12a6832d709d",
+    "original_failure_job": 126397662727,
+    "original_failure": "Store33/34 missing busy post-call/stall receipt at original5second owner deadline",
+    "new_run": "Store passes34/34; success output suppressed; later daemon first_stop failure",
+    "conclusion": "No reproduced RQA9 mechanism or supported fix. The later green store result cannot waive original failed qualification."
+  },
+  "next_action": "Parent can now decide whether to authorize isolated one-time outer--nocapture diagnostic: current C2 terminal log still lacks needed raw phases. Parent must perform specialized sc-worktree-create and provide verified path before any explicit one-shot script handoff. Developer has not created, pushed or run diagnostic branch.",
+  "findings": {
+    "REQ-QA-004": "OPEN",
+    "ARCH-001": "OPEN",
+    "RBQA-F001": "OPEN",
+    "QA2-001": "OPEN",
+    "RQA9-001": "OPEN"
+  },
+  "source_changes": false,
+  "cargo": {
+    "status": "RELEASED",
+    "commands_build_test": 0,
+    "active_owned_commands": 0
+  },
+  "timestamp_utc": "2026-11-04T05:49:26.210261+00:00"
+}

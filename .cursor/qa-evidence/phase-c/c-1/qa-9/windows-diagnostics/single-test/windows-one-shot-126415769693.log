@@ -1,0 +1,708 @@
+﻿2026-11-04T05:54:34.1686180Z Current runner version: '2.338.2'
+2026-11-04T05:54:34.1712218Z ##[group]Runner Image Provisioner
+2026-11-04T05:54:34.1713069Z Hosted Compute Agent
+2026-11-04T05:54:34.1713659Z Version: 20261021.618
+2026-11-04T05:54:34.1714276Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+2026-11-04T05:54:34.1714966Z Build Date: 2026-10-21T00:45:21Z
+2026-11-04T05:54:34.1715651Z Worker ID: {b8d32cd4-d0a7-4a33-96a9-ae797f288522}
+2026-11-04T05:54:34.1716330Z Region: westus
+2026-11-04T05:54:34.1716831Z Cloud: Azure
+2026-11-04T05:54:34.1717361Z ##[endgroup]
+2026-11-04T05:54:34.1718648Z ##[group]Operating System
+2026-11-04T05:54:34.1719350Z Microsoft Windows Server 2025
+2026-11-04T05:54:34.1719978Z 10.0.26100
+2026-11-04T05:54:34.1720454Z Datacenter
+2026-11-04T05:54:34.1720970Z ##[endgroup]
+2026-11-04T05:54:34.1721480Z ##[group]Runner Image
+2026-11-04T05:54:34.1722063Z Image: windows-2025-vs2026
+2026-11-04T05:54:34.1722659Z Version: 20261030.294.1
+2026-11-04T05:54:34.1724134Z Included Software: https://github.com/actions/runner-images/blob/win25-vs2026/20261030.294/images/windows/Windows2025-VS2026-Readme.md
+2026-11-04T05:54:34.1725754Z Image Release: https://github.com/actions/runner-images/releases/tag/win25-vs2026%2F20261030.294
+2026-11-04T05:54:34.1726699Z ##[endgroup]
+2026-11-04T05:54:34.1727798Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T05:54:34.1729641Z Contents: read
+2026-11-04T05:54:34.1730276Z Metadata: read
+2026-11-04T05:54:34.1730791Z ##[endgroup]
+2026-11-04T05:54:34.1733312Z Secret source: Actions
+2026-11-04T05:54:34.1734204Z Cache mode: write
+2026-11-04T05:54:34.1734923Z Prepare workflow directory
+2026-11-04T05:54:34.2192528Z Prepare all required actions
+2026-11-04T05:54:34.2255112Z Getting action download info
+2026-11-04T05:54:34.5721098Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T05:54:34.6998887Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-04T05:54:35.5926814Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-04T05:54:35.7407584Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-11-04T05:54:36.1053892Z Complete job name: observe
+2026-11-04T05:54:36.2866718Z ##[group]Run actions/checkout@v4
+2026-11-04T05:54:36.2868929Z with:
+2026-11-04T05:54:36.2870148Z   ref: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:36.2871838Z   repository: randlee/beads-cache
+2026-11-04T05:54:36.2882912Z   token: ***
+2026-11-04T05:54:36.2883692Z   ssh-strict: true
+2026-11-04T05:54:36.2884417Z   ssh-user: git
+2026-11-04T05:54:36.2885166Z   persist-credentials: true
+2026-11-04T05:54:36.2885978Z   clean: true
+2026-11-04T05:54:36.2886714Z   sparse-checkout-cone-mode: true
+2026-11-04T05:54:36.2887603Z   fetch-depth: 1
+2026-11-04T05:54:36.2888323Z   fetch-tags: false
+2026-11-04T05:54:36.2889493Z   show-progress: true
+2026-11-04T05:54:36.2890244Z   lfs: false
+2026-11-04T05:54:36.2890949Z   submodules: false
+2026-11-04T05:54:36.2891707Z   set-safe-directory: true
+2026-11-04T05:54:36.2892563Z   allow-unsafe-pr-checkout: false
+2026-11-04T05:54:36.2893746Z env:
+2026-11-04T05:54:36.2894418Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:36.2895259Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:36.2896045Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:36.2897021Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:36.2898099Z ##[endgroup]
+2026-11-04T05:54:36.4325719Z Syncing repository: randlee/beads-cache
+2026-11-04T05:54:36.4328226Z ##[group]Getting Git version info
+2026-11-04T05:54:36.4329333Z Working directory is 'D:\a\beads-cache\beads-cache'
+2026-11-04T05:54:36.5476415Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-04T05:54:36.8694502Z git version 2.56.0.windows.4
+2026-11-04T05:54:36.8753479Z ##[endgroup]
+2026-11-04T05:54:36.8774953Z Temporarily overriding HOME='D:\a\_temp\ba511080-96ec-4f0e-8bce-e17a985b85e4' before making global git config changes
+2026-11-04T05:54:36.8785377Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T05:54:36.8787903Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\beads-cache\beads-cache
+2026-11-04T05:54:36.9346826Z Deleting the contents of 'D:\a\beads-cache\beads-cache'
+2026-11-04T05:54:36.9352759Z ##[group]Initializing the repository
+2026-11-04T05:54:36.9361743Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\beads-cache\beads-cache
+2026-11-04T05:54:37.0310331Z Initialized empty Git repository in D:/a/beads-cache/beads-cache/.git/
+2026-11-04T05:54:37.0354160Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/randlee/beads-cache
+2026-11-04T05:54:37.1006963Z ##[endgroup]
+2026-11-04T05:54:37.1008881Z ##[group]Disabling automatic garbage collection
+2026-11-04T05:54:37.1016943Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+2026-11-04T05:54:37.1420647Z ##[endgroup]
+2026-11-04T05:54:37.1422434Z ##[group]Setting up auth
+2026-11-04T05:54:37.1432698Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T05:54:37.2036011Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-04T05:54:38.5867921Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T05:54:38.6256928Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-04T05:54:39.2001785Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T05:54:39.2381868Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-11-04T05:54:39.7983893Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+2026-11-04T05:54:39.8445755Z ##[endgroup]
+2026-11-04T05:54:39.8446597Z ##[group]Fetching the repository
+2026-11-04T05:54:39.8448344Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:41.1812227Z From https://github.com/randlee/beads-cache
+2026-11-04T05:54:41.1813083Z  * branch            e86d9da92a8c8c9b787c780e29bc54e417680d71 -> FETCH_HEAD
+2026-11-04T05:54:41.1852174Z ##[endgroup]
+2026-11-04T05:54:41.1852599Z ##[group]Determining the checkout info
+2026-11-04T05:54:41.1854815Z ##[endgroup]
+2026-11-04T05:54:41.1870109Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+2026-11-04T05:54:41.2433130Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+2026-11-04T05:54:41.2812230Z ##[group]Checking out the ref
+2026-11-04T05:54:41.2820379Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:41.6862048Z Note: switching to 'e86d9da92a8c8c9b787c780e29bc54e417680d71'.
+2026-11-04T05:54:41.6863000Z 
+2026-11-04T05:54:41.6863477Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-04T05:54:41.6864372Z changes and commit them, and you can discard any commits you make in this
+2026-11-04T05:54:41.6865190Z state without impacting any branches by switching back to a branch.
+2026-11-04T05:54:41.6865689Z 
+2026-11-04T05:54:41.6865997Z If you want to create a new branch to retain commits you create, you may
+2026-11-04T05:54:41.6866766Z do so (now or later) by using -c with the switch command. Example:
+2026-11-04T05:54:41.6868641Z 
+2026-11-04T05:54:41.6868850Z   git switch -c <new-branch-name>
+2026-11-04T05:54:41.6869163Z 
+2026-11-04T05:54:41.6869333Z Or undo this operation with:
+2026-11-04T05:54:41.6869651Z 
+2026-11-04T05:54:41.6869823Z   git switch -
+2026-11-04T05:54:41.6870069Z 
+2026-11-04T05:54:41.6870419Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-04T05:54:41.6870944Z 
+2026-11-04T05:54:41.6871591Z HEAD is now at e86d9da Merge commit 'bcfcae7021522454e85be964661b9525bb15e58c' into sprint/c-2-framework-application
+2026-11-04T05:54:41.6943802Z ##[endgroup]
+2026-11-04T05:54:41.7431980Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+2026-11-04T05:54:41.7777002Z e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:41.8182745Z ##[group]Run test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+2026-11-04T05:54:41.8183270Z [36;1mtest "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"[0m
+2026-11-04T05:54:41.8183611Z [36;1mgit log -1 --format=%H[0m
+2026-11-04T05:54:41.8184223Z [36;1mgit rev-parse HEAD:Cargo.lock HEAD:crates/bd-cache-store/src/schedule.rs HEAD:crates/bd-cache-store/tests/support/fixture_child.rs[0m
+2026-11-04T05:54:41.8208290Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T05:54:41.8208695Z env:
+2026-11-04T05:54:41.8208874Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:41.8209092Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:41.8209294Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:41.8209569Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:41.8209871Z ##[endgroup]
+2026-11-04T05:54:42.0671453Z e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:42.1072241Z 8ff90ed761ac59b12f60c757085de42ccb2b8928
+2026-11-04T05:54:42.1072957Z fd0bd6d1c6fe3dca34aca7a97767d08550866ec1
+2026-11-04T05:54:42.1073322Z d312b5608d5bd50511647227cf865938219e3efb
+2026-11-04T05:54:42.1291654Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+2026-11-04T05:54:42.1292634Z [36;1mrustup show active-toolchain || rustup toolchain install[0m
+2026-11-04T05:54:42.1308151Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T05:54:42.1308537Z env:
+2026-11-04T05:54:42.1308714Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:42.1308925Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:42.1309121Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:42.1309391Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:42.1309704Z ##[endgroup]
+2026-11-04T05:54:42.8078992Z info: syncing channel updates for 1.98.1-x86_64-pc-windows-msvc
+2026-11-04T05:54:43.2849595Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-04T05:54:43.2943925Z info: downloading 5 components
+2026-11-04T05:54:52.5753044Z warn: the missing active toolchain `1.98.1-x86_64-pc-windows-msvc` has been auto-installed
+2026-11-04T05:54:52.5754129Z warn: auto-installation is deprecated for most `rustup` commands
+2026-11-04T05:54:52.5754995Z warn: scripts relying on this behavior in `rustup` may stop working in the future
+2026-11-04T05:54:52.5757320Z warn: to install the active toolchain, use `rustup install` instead
+2026-11-04T05:54:52.5758173Z warn: see <https://github.com/rust-lang/rustup/issues/4836> for more info
+2026-11-04T05:54:52.5759229Z 1.98.1-x86_64-pc-windows-msvc (overridden by 'D:\a\beads-cache\beads-cache\rust-toolchain.toml')
+2026-11-04T05:54:52.6059588Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-04T05:54:52.6059910Z with:
+2026-11-04T05:54:52.6060088Z   prefix-key: v0-rust
+2026-11-04T05:54:52.6060292Z   add-job-id-key: true
+2026-11-04T05:54:52.6060506Z   add-rust-environment-hash-key: true
+2026-11-04T05:54:52.6060749Z   cache-targets: true
+2026-11-04T05:54:52.6060938Z   cache-all-crates: false
+2026-11-04T05:54:52.6061148Z   cache-workspace-crates: false
+2026-11-04T05:54:52.6061359Z   save-if: true
+2026-11-04T05:54:52.6061534Z   cache-provider: github
+2026-11-04T05:54:52.6061726Z   cache-bin: true
+2026-11-04T05:54:52.6062112Z   lookup-only: false
+2026-11-04T05:54:52.6062296Z   cmd-format: {0}
+2026-11-04T05:54:52.6062461Z env:
+2026-11-04T05:54:52.6062616Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:52.6062813Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:52.6063010Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:52.6063271Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:52.6063599Z ##[endgroup]
+2026-11-04T05:54:57.4129557Z ##[group]Cache Configuration
+2026-11-04T05:54:57.4130412Z Cache Provider:
+2026-11-04T05:54:57.4130790Z     github
+2026-11-04T05:54:57.4131273Z Workspaces:
+2026-11-04T05:54:57.4131604Z     D:\a\beads-cache\beads-cache
+2026-11-04T05:54:57.4132006Z Cache Paths:
+2026-11-04T05:54:57.4132324Z     C:\Users\runneradmin\.cargo\bin
+2026-11-04T05:54:57.4132755Z     C:\Users\runneradmin\.cargo\.crates.toml
+2026-11-04T05:54:57.4133220Z     C:\Users\runneradmin\.cargo\.crates2.json
+2026-11-04T05:54:57.4134127Z     C:\Users\runneradmin\.cargo\registry
+2026-11-04T05:54:57.4134602Z     C:\Users\runneradmin\.cargo\git
+2026-11-04T05:54:57.4135000Z     D:\a\beads-cache\beads-cache\target
+2026-11-04T05:54:57.4135407Z Restore Key:
+2026-11-04T05:54:57.4135754Z     v0-rust-observe-Windows_NT-x64-29a6c760
+2026-11-04T05:54:57.4136131Z Cache Key:
+2026-11-04T05:54:57.4136468Z     v0-rust-observe-Windows_NT-x64-29a6c760-1206d1b1
+2026-11-04T05:54:57.4136883Z .. Prefix:
+2026-11-04T05:54:57.4137186Z   - v0-rust-observe-Windows_NT-x64
+2026-11-04T05:54:57.4137565Z .. Environment considered:
+2026-11-04T05:54:57.4137877Z   - Rust Versions:
+2026-11-04T05:54:57.4138327Z     - 1.98.1 x86_64-pc-windows-msvc 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T05:54:57.4139065Z     - 1.99.1 x86_64-pc-windows-msvc 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-04T05:54:57.4139635Z   - CARGO_INCREMENTAL
+2026-11-04T05:54:57.4139952Z   - CARGO_TERM_COLOR
+2026-11-04T05:54:57.4140249Z   - RUSTFLAGS
+2026-11-04T05:54:57.4140542Z .. Lockfiles considered:
+2026-11-04T05:54:57.4140916Z   - D:\a\beads-cache\beads-cache\Cargo.lock
+2026-11-04T05:54:57.4141494Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-api\Cargo.toml
+2026-11-04T05:54:57.4142149Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-cli\Cargo.toml
+2026-11-04T05:54:57.4142788Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-daemon\Cargo.toml
+2026-11-04T05:54:57.4143470Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-model\Cargo.toml
+2026-11-04T05:54:57.4144127Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-py\Cargo.toml
+2026-11-04T05:54:57.4144796Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-service\Cargo.toml
+2026-11-04T05:54:57.4145647Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-store\Cargo.toml
+2026-11-04T05:54:57.4146429Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-sync\Cargo.toml
+2026-11-04T05:54:57.4147710Z   - D:\a\beads-cache\beads-cache\crates\bd-cache\Cargo.toml
+2026-11-04T05:54:57.4148603Z   - D:\a\beads-cache\beads-cache\crates\sc-bd-cli\Cargo.toml
+2026-11-04T05:54:57.4149410Z   - D:\a\beads-cache\beads-cache\crates\sc-beads\Cargo.toml
+2026-11-04T05:54:57.4150215Z   - D:\a\beads-cache\beads-cache\rust-toolchain.toml
+2026-11-04T05:54:57.4151963Z ##[endgroup]
+2026-11-04T05:54:57.4152442Z 
+2026-11-04T05:54:57.4152752Z ... Restoring cache ...
+2026-11-04T05:54:57.7946475Z No cache found.
+2026-11-04T05:54:57.8282118Z ##[group]Run actions/setup-python@v5
+2026-11-04T05:54:57.8282452Z with:
+2026-11-04T05:54:57.8282641Z   python-version: 3.12
+2026-11-04T05:54:57.8282867Z   check-latest: false
+2026-11-04T05:54:57.8285251Z   token: ***
+2026-11-04T05:54:57.8285454Z   update-environment: true
+2026-11-04T05:54:57.8285691Z   allow-prereleases: false
+2026-11-04T05:54:57.8285904Z   freethreaded: false
+2026-11-04T05:54:57.8286090Z env:
+2026-11-04T05:54:57.8286256Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:57.8286466Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:57.8286667Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:57.8286943Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:57.8287464Z   CACHE_ON_FAILURE: false
+2026-11-04T05:54:57.8287668Z ##[endgroup]
+2026-11-04T05:54:57.9884907Z ##[group]Installed versions
+2026-11-04T05:54:58.0106118Z (node:6560) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T05:54:58.0107426Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T05:54:58.0108076Z Successfully set up CPython (3.12.10)
+2026-11-04T05:54:58.0109001Z ##[endgroup]
+2026-11-04T05:54:58.0392949Z ##[group]Run python -I scripts/check_no_backend.py path
+2026-11-04T05:54:58.0393625Z [36;1mpython -I scripts/check_no_backend.py path[0m
+2026-11-04T05:54:58.0417622Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T05:54:58.0418256Z env:
+2026-11-04T05:54:58.0418533Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:58.0418884Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:58.0419208Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:58.0419678Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:58.0420206Z   CACHE_ON_FAILURE: false
+2026-11-04T05:54:58.0420691Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.0421464Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T05:54:58.0422224Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.0422910Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.0423622Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.0424156Z ##[endgroup]
+2026-11-04T05:54:58.9020427Z no bd or dolt on PATH
+2026-11-04T05:54:58.9321509Z ##[group]Run cargo tree --locked -p bd-cache-store --all-features --target x86_64-pc-windows-msvc --edges features --invert rusqlite
+2026-11-04T05:54:58.9322502Z [36;1mcargo tree --locked -p bd-cache-store --all-features --target x86_64-pc-windows-msvc --edges features --invert rusqlite[0m
+2026-11-04T05:54:58.9339429Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T05:54:58.9339807Z env:
+2026-11-04T05:54:58.9340364Z   CARGO_TERM_COLOR: always
+2026-11-04T05:54:58.9340728Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:54:58.9340929Z   RUSTFLAGS: -D warnings
+2026-11-04T05:54:58.9341196Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:54:58.9341505Z   CACHE_ON_FAILURE: false
+2026-11-04T05:54:58.9341790Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.9342257Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T05:54:58.9342725Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.9343134Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.9343536Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:54:58.9343840Z ##[endgroup]
+2026-11-04T05:54:59.1522169Z [1m[92m    Updating[0m crates.io index
+2026-11-04T05:55:01.6535716Z [1m[92m Downloading[0m crates ...
+2026-11-04T05:55:01.7439237Z [1m[92m  Downloaded[0m cfg-if v1.0.5
+2026-11-04T05:55:01.8038686Z [1m[92m  Downloaded[0m bytes v1.12.1
+2026-11-04T05:55:01.8620997Z [1m[92m  Downloaded[0m async-trait v0.1.92
+2026-11-04T05:55:01.9141980Z [1m[92m  Downloaded[0m chrono v0.4.45
+2026-11-04T05:55:01.9678555Z [1m[92m  Downloaded[0m futures-core v0.3.34
+2026-11-04T05:55:01.9828913Z [1m[92m  Downloaded[0m hashbrown v0.17.1
+2026-11-04T05:55:02.0276813Z [1m[92m  Downloaded[0m futures-executor v0.3.34
+2026-11-04T05:55:02.0416004Z [1m[92m  Downloaded[0m mio v1.2.4
+2026-11-04T05:55:02.1013590Z [1m[92m  Downloaded[0m bitflags v2.13.2
+2026-11-04T05:55:02.1523495Z [1m[92m  Downloaded[0m process-wrap v10.0.1
+2026-11-04T05:55:02.2335777Z [1m[92m  Downloaded[0m rand_core v0.6.4
+2026-11-04T05:55:02.2460725Z [1m[92m  Downloaded[0m fallible-iterator v0.3.0
+2026-11-04T05:55:02.2603383Z [1m[92m  Downloaded[0m phf_macros v0.11.3
+2026-11-04T05:55:02.2686319Z [1m[92m  Downloaded[0m serde_json v1.0.154
+2026-11-04T05:55:02.3708603Z [1m[92m  Downloaded[0m num-conv v0.2.2
+2026-11-04T05:55:02.3795233Z [1m[92m  Downloaded[0m futures-io v0.3.34
+2026-11-04T05:55:02.3874330Z [1m[92m  Downloaded[0m block-buffer v0.12.1
+2026-11-04T05:55:02.4010302Z [1m[92m  Downloaded[0m futures-macro v0.3.34
+2026-11-04T05:55:02.4110241Z [1m[92m  Downloaded[0m fastrand v2.5.0
+2026-11-04T05:55:02.4276039Z [1m[92m  Downloaded[0m time-core v0.1.9
+2026-11-04T05:55:02.4381225Z [1m[92m  Downloaded[0m windows-collections v0.3.2
+2026-11-04T05:55:02.4498263Z [1m[92m  Downloaded[0m fallible-streaming-iterator v0.1.9
+2026-11-04T05:55:02.4608658Z [1m[92m  Downloaded[0m find-msvc-tools v0.1.15
+2026-11-04T05:55:02.4816460Z [1m[92m  Downloaded[0m futures-channel v0.3.34
+2026-11-04T05:55:02.5011637Z [1m[92m  Downloaded[0m itoa v1.0.18
+2026-11-04T05:55:02.5179667Z [1m[92m  Downloaded[0m phf_generator v0.11.3
+2026-11-04T05:55:02.5282405Z [1m[92m  Downloaded[0m pkg-config v0.3.34
+2026-11-04T05:55:02.5417351Z [1m[92m  Downloaded[0m toml_writer v1.1.3+spec-1.1.0
+2026-11-04T05:55:02.5525050Z [1m[92m  Downloaded[0m windows-numerics v0.3.1
+2026-11-04T05:55:02.5715914Z [1m[92m  Downloaded[0m phf_shared v0.11.3
+2026-11-04T05:55:02.5801156Z [1m[92m  Downloaded[0m getrandom v0.4.3
+2026-11-04T05:55:02.6249619Z [1m[92m  Downloaded[0m proc-macro2 v1.0.107
+2026-11-04T05:55:02.6552352Z [1m[92m  Downloaded[0m cpufeatures v0.3.1
+2026-11-04T05:55:02.6709789Z [1m[92m  Downloaded[0m powerfmt v0.2.1
+2026-11-04T05:55:02.6827902Z [1m[92m  Downloaded[0m const-oid v0.10.2
+2026-11-04T05:55:02.7032154Z [1m[92m  Downloaded[0m hybrid-array v0.4.15
+2026-11-04T05:55:02.7262035Z [1m[92m  Downloaded[0m phf v0.11.3
+2026-11-04T05:55:02.7379359Z [1m[92m  Downloaded[0m sha2 v0.11.1
+2026-11-04T05:55:02.7801442Z [1m[92m  Downloaded[0m crypto-common v0.2.2
+2026-11-04T05:55:02.7910056Z [1m[92m  Downloaded[0m futures-task v0.3.34
+2026-11-04T05:55:02.8131956Z [1m[92m  Downloaded[0m tracing-core v0.1.36
+2026-11-04T05:55:02.8374618Z [1m[92m  Downloaded[0m thiserror-impl v2.0.21
+2026-11-04T05:55:02.8552407Z [1m[92m  Downloaded[0m windows-interface v0.59.3
+2026-11-04T05:55:02.8636907Z [1m[92m  Downloaded[0m time-macros v0.2.32
+2026-11-04T05:55:02.8885524Z [1m[92m  Downloaded[0m once_cell v1.21.4
+2026-11-04T05:55:02.9177203Z [1m[92m  Downloaded[0m sc-lint-directives v0.4.0
+2026-11-04T05:55:02.9258067Z [1m[92m  Downloaded[0m windows-result v0.4.1
+2026-11-04T05:55:02.9411717Z [1m[92m  Downloaded[0m tokio-macros v2.7.2
+2026-11-04T05:55:02.9562005Z [1m[92m  Downloaded[0m windows-implement v0.60.2
+2026-11-04T05:55:02.9654495Z [1m[92m  Downloaded[0m fs4 v1.1.0
+2026-11-04T05:55:03.0166320Z [1m[92m  Downloaded[0m cron v0.17.0
+2026-11-04T05:55:03.0445239Z [1m[92m  Downloaded[0m autocfg v1.5.1
+2026-11-04T05:55:03.0671699Z [1m[92m  Downloaded[0m digest v0.11.3
+2026-11-04T05:55:03.0903989Z [1m[92m  Downloaded[0m hashlink v0.11.1
+2026-11-04T05:55:03.1136994Z [1m[92m  Downloaded[0m equivalent v1.0.3
+2026-11-04T05:55:03.1236738Z [1m[92m  Downloaded[0m futures v0.3.34
+2026-11-04T05:55:03.6482679Z [1m[92m  Downloaded[0m windows-link v0.2.1
+2026-11-04T05:55:03.6563327Z [1m[92m  Downloaded[0m pin-project-lite v0.2.17
+2026-11-04T05:55:03.7308857Z [1m[92m  Downloaded[0m toml_datetime v1.1.2+spec-1.1.0
+2026-11-04T05:55:03.7419929Z [1m[92m  Downloaded[0m sc-lint-attributes v0.4.0
+2026-11-04T05:55:03.7529987Z [1m[92m  Downloaded[0m typenum v1.20.1
+2026-11-04T05:55:03.7812675Z [1m[92m  Downloaded[0m unicode-ident v1.0.27
+2026-11-04T05:55:03.8113245Z [1m[92m  Downloaded[0m sc-command v0.1.1
+2026-11-04T05:55:03.8276067Z [1m[92m  Downloaded[0m serde_spanned v1.1.2
+2026-11-04T05:55:03.8371266Z [1m[92m  Downloaded[0m siphasher v1.0.4
+2026-11-04T05:55:03.8539781Z [1m[92m  Downloaded[0m thiserror v2.0.21
+2026-11-04T05:55:03.9597576Z [1m[92m  Downloaded[0m windows-threading v0.2.1
+2026-11-04T05:55:03.9693289Z [1m[92m  Downloaded[0m zmij v1.0.23
+2026-11-04T05:55:03.9854281Z [1m[92m  Downloaded[0m foldhash v0.2.0
+2026-11-04T05:55:04.0013679Z [1m[92m  Downloaded[0m smallvec v1.16.4
+2026-11-04T05:55:04.0114416Z [1m[92m  Downloaded[0m windows-future v0.3.2
+2026-11-04T05:55:04.0276536Z [1m[92m  Downloaded[0m futures-sink v0.3.34
+2026-11-04T05:55:04.0358026Z [1m[92m  Downloaded[0m slab v0.4.12
+2026-11-04T05:55:04.0503669Z [1m[92m  Downloaded[0m windows-core v0.62.2
+2026-11-04T05:55:04.0859052Z [1m[92m  Downloaded[0m indexmap v2.14.2
+2026-11-04T05:55:04.1614256Z [1m[92m  Downloaded[0m serde_derive v1.0.229
+2026-11-04T05:55:04.2285020Z [1m[92m  Downloaded[0m toml_parser v1.1.5+spec-1.1.0
+2026-11-04T05:55:04.3156130Z [1m[92m  Downloaded[0m tracing-attributes v0.1.31
+2026-11-04T05:55:04.4180067Z [1m[92m  Downloaded[0m rand v0.8.8
+2026-11-04T05:55:04.8719191Z [1m[92m  Downloaded[0m sc-observability-types v1.5.0
+2026-11-04T05:55:05.2605498Z [1m[92m  Downloaded[0m toml v1.1.8+spec-1.1.0
+2026-11-04T05:55:05.3725380Z [1m[92m  Downloaded[0m deranged v0.5.9
+2026-11-04T05:55:05.4303698Z [1m[92m  Downloaded[0m num-traits v0.2.19
+2026-11-04T05:55:05.5191077Z [1m[92m  Downloaded[0m quote v1.0.47
+2026-11-04T05:55:05.5620219Z [1m[92m  Downloaded[0m shlex v2.0.1
+2026-11-04T05:55:05.6144057Z [1m[92m  Downloaded[0m tempfile v3.27.0
+2026-11-04T05:55:05.7361497Z [1m[92m  Downloaded[0m serde_core v1.0.229
+2026-11-04T05:55:05.8591675Z [1m[92m  Downloaded[0m memchr v2.8.3
+2026-11-04T05:55:06.3058904Z [1m[92m  Downloaded[0m serde v1.0.229
+2026-11-04T05:55:06.3349573Z [1m[92m  Downloaded[0m cc v1.10.0
+2026-11-04T05:55:06.3771841Z [1m[92m  Downloaded[0m hashbrown v0.16.1
+2026-11-04T05:55:06.4360248Z [1m[92m  Downloaded[0m futures-util v0.3.34
+2026-11-04T05:55:06.6393371Z [1m[92m  Downloaded[0m rusqlite v0.39.0
+2026-11-04T05:55:06.7068642Z [1m[92m  Downloaded[0m winnow v0.7.15
+2026-11-04T05:55:06.8033679Z [1m[92m  Downloaded[0m winnow v1.0.4
+2026-11-04T05:55:06.8993853Z [1m[92m  Downloaded[0m sc-cron v0.1.1
+2026-11-04T05:55:06.9676730Z [1m[92m  Downloaded[0m time v0.3.55
+2026-11-04T05:55:07.1328634Z [1m[92m  Downloaded[0m vcpkg v0.2.15
+2026-11-04T05:55:08.3005563Z [1m[92m  Downloaded[0m syn v3.0.9
+2026-11-04T05:55:08.3899503Z [1m[92m  Downloaded[0m syn v2.0.119
+2026-11-04T05:55:08.4682765Z [1m[92m  Downloaded[0m tracing v0.1.44
+2026-11-04T05:55:08.5497248Z [1m[92m  Downloaded[0m tokio v1.54.1
+2026-11-04T05:55:09.3373510Z [1m[92m  Downloaded[0m windows-sys v0.61.2
+2026-11-04T05:55:09.8426812Z [1m[92m  Downloaded[0m libsqlite3-sys v0.37.0
+2026-11-04T05:55:09.9301764Z [1m[92m  Downloaded[0m windows v0.62.2
+2026-11-04T05:55:11.3867028Z [1m[92m  Downloaded[0m windows-strings v0.5.1
+2026-11-04T05:55:11.4415899Z rusqlite v0.39.0
+2026-11-04T05:55:11.4417130Z [2m[35m├──[0m rusqlite feature "bundled"
+2026-11-04T05:55:11.4418084Z [2m[35m│[0m   [2m├──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store)
+2026-11-04T05:55:11.4419409Z [2m[35m│[0m   [2m│[0m   [2m[35m├──[0m bd-cache-store feature "default" (command-line)
+2026-11-04T05:55:11.4420280Z [2m[35m│[0m   [2m│[0m   [2m[35m└──[0m bd-cache-store feature "testing" (command-line)
+2026-11-04T05:55:11.4420942Z [2m[35m│[0m   [2m└──[0m sc-cron v0.1.1
+2026-11-04T05:55:11.4421874Z [2m[35m│[0m   [2m [0m   [2m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4422799Z [2m[35m│[0m   [96m[1m[dev-dependencies][39m[22m
+2026-11-04T05:55:11.4423780Z [2m[35m│[0m   [1m[36m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4424675Z [2m[35m├──[0m rusqlite feature "cache"
+2026-11-04T05:55:11.4425220Z [2m[35m│[0m   [2m[35m└──[0m rusqlite feature "default"
+2026-11-04T05:55:11.4426584Z [2m[35m│[0m   [2m[35m [0m   [2m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4427584Z [2m[35m│[0m   [2m[35m [0m   [96m[1m[dev-dependencies][39m[22m
+2026-11-04T05:55:11.4428646Z [2m[35m│[0m   [2m[35m [0m   [1m[36m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4429656Z [2m[35m├──[0m rusqlite feature "default" [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4430230Z [2m[35m├──[0m rusqlite feature "functions"
+2026-11-04T05:55:11.4430783Z [2m[35m│[0m   [96m[1m[dev-dependencies][39m[22m
+2026-11-04T05:55:11.4431720Z [2m[35m│[0m   [1m[36m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4432609Z [2m[35m├──[0m rusqlite feature "hashlink"
+2026-11-04T05:55:11.4433227Z [2m[35m│[0m   [2m[35m└──[0m rusqlite feature "cache" [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4433839Z [2m[35m├──[0m rusqlite feature "hooks"
+2026-11-04T05:55:11.4434772Z [2m[35m│[0m   [2m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4435648Z [2m[35m│[0m   [96m[1m[dev-dependencies][39m[22m
+2026-11-04T05:55:11.4436570Z [2m[35m│[0m   [1m[36m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4437437Z [2m[35m├──[0m rusqlite feature "modern_sqlite"
+2026-11-04T05:55:11.4438318Z [2m[35m│[0m   [2m[35m└──[0m rusqlite feature "bundled" [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.4439310Z [2m[35m└──[0m rusqlite feature "trace"
+2026-11-04T05:55:11.4439829Z [2m[35m [0m   [96m[1m[dev-dependencies][39m[22m
+2026-11-04T05:55:11.4440745Z [2m[35m [0m   [1m[36m└──[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store) [33m[2m(*)[39m[22m
+2026-11-04T05:55:11.5334975Z ##[group]Run set -o pipefail
+2026-11-04T05:55:11.5335330Z [36;1mset -o pipefail[0m
+2026-11-04T05:55:11.5336517Z [36;1mcargo test --locked -p bd-cache-store --lib --all-features schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup -- --exact --nocapture 2>&1 | tee "$RUNNER_TEMP/windows-store-phase-observation.log"[0m
+2026-11-04T05:55:11.5364596Z shell: C:\Program Files\Git\bin\bash.EXE --noprofile --norc -e -o pipefail {0}
+2026-11-04T05:55:11.5364990Z env:
+2026-11-04T05:55:11.5365158Z   CARGO_TERM_COLOR: always
+2026-11-04T05:55:11.5365365Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:55:11.5365556Z   RUSTFLAGS: -D warnings
+2026-11-04T05:55:11.5365823Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:55:11.5366129Z   CACHE_ON_FAILURE: false
+2026-11-04T05:55:11.5366409Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:55:11.5366912Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T05:55:11.5367379Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:55:11.5367771Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:55:11.5368528Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:55:11.5369107Z ##[endgroup]
+2026-11-04T05:55:12.4558848Z [1m[92m   Compiling[0m proc-macro2 v1.0.107
+2026-11-04T05:55:12.4559583Z [1m[92m   Compiling[0m quote v1.0.47
+2026-11-04T05:55:12.4560011Z [1m[92m   Compiling[0m unicode-ident v1.0.27
+2026-11-04T05:55:12.4560390Z [1m[92m   Compiling[0m windows-link v0.2.1
+2026-11-04T05:55:12.5225876Z [1m[92m   Compiling[0m serde_core v1.0.229
+2026-11-04T05:55:12.5861812Z [1m[92m   Compiling[0m memchr v2.8.3
+2026-11-04T05:55:13.5838108Z [1m[92m   Compiling[0m pin-project-lite v0.2.17
+2026-11-04T05:55:13.6472287Z [1m[92m   Compiling[0m zmij v1.0.23
+2026-11-04T05:55:14.5057740Z [1m[92m   Compiling[0m windows-result v0.4.1
+2026-11-04T05:55:14.5202117Z [1m[92m   Compiling[0m windows-strings v0.5.1
+2026-11-04T05:55:14.9363824Z [1m[92m   Compiling[0m once_cell v1.21.4
+2026-11-04T05:55:15.1682126Z [1m[92m   Compiling[0m serde_json v1.0.154
+2026-11-04T05:55:15.2910583Z [1m[92m   Compiling[0m siphasher v1.0.4
+2026-11-04T05:55:15.6197967Z [1m[92m   Compiling[0m typenum v1.20.1
+2026-11-04T05:55:15.9032301Z [1m[92m   Compiling[0m syn v2.0.119
+2026-11-04T05:55:15.9086025Z [1m[92m   Compiling[0m syn v3.0.9
+2026-11-04T05:55:17.1749043Z [1m[92m   Compiling[0m serde v1.0.229
+2026-11-04T05:55:17.6157915Z [1m[92m   Compiling[0m hybrid-array v0.4.15
+2026-11-04T05:55:18.5013380Z [1m[92m   Compiling[0m windows-sys v0.61.2
+2026-11-04T05:55:19.0282204Z [1m[92m   Compiling[0m cfg-if v1.0.5
+2026-11-04T05:55:19.0893293Z [1m[92m   Compiling[0m itoa v1.0.18
+2026-11-04T05:55:19.3402174Z [1m[92m   Compiling[0m rand_core v0.6.4
+2026-11-04T05:55:19.5513552Z [1m[92m   Compiling[0m autocfg v1.5.1
+2026-11-04T05:55:20.1806447Z [1m[92m   Compiling[0m find-msvc-tools v0.1.15
+2026-11-04T05:55:21.5654294Z [1m[92m   Compiling[0m shlex v2.0.1
+2026-11-04T05:55:21.8327841Z [1m[92m   Compiling[0m futures-core v0.3.34
+2026-11-04T05:55:22.0081081Z [1m[92m   Compiling[0m futures-sink v0.3.34
+2026-11-04T05:55:22.1054126Z [1m[92m   Compiling[0m futures-channel v0.3.34
+2026-11-04T05:55:22.4100367Z [1m[92m   Compiling[0m cc v1.10.0
+2026-11-04T05:55:22.8697284Z [1m[92m   Compiling[0m serde_derive v1.0.229
+2026-11-04T05:55:23.0113801Z [1m[92m   Compiling[0m futures-macro v0.3.34
+2026-11-04T05:55:24.1643882Z [1m[92m   Compiling[0m windows-interface v0.59.3
+2026-11-04T05:55:24.2806410Z [1m[92m   Compiling[0m windows-implement v0.60.2
+2026-11-04T05:55:25.2832662Z [1m[92m   Compiling[0m num-traits v0.2.19
+2026-11-04T05:55:25.2938299Z [1m[92m   Compiling[0m windows-core v0.62.2
+2026-11-04T05:55:25.3298865Z [1m[92m   Compiling[0m rand v0.8.8
+2026-11-04T05:55:26.1499898Z [1m[92m   Compiling[0m phf_shared v0.11.3
+2026-11-04T05:55:26.1504025Z [1m[92m   Compiling[0m futures-task v0.3.34
+2026-11-04T05:55:26.3611868Z [1m[92m   Compiling[0m futures-io v0.3.34
+2026-11-04T05:55:26.3612980Z [1m[92m   Compiling[0m slab v0.4.12
+2026-11-04T05:55:26.5643396Z [1m[92m   Compiling[0m thiserror v2.0.21
+2026-11-04T05:55:26.5859004Z [1m[92m   Compiling[0m vcpkg v0.2.15
+2026-11-04T05:55:27.0223939Z [1m[92m   Compiling[0m pkg-config v0.3.34
+2026-11-04T05:55:27.8307207Z [1m[92m   Compiling[0m futures-util v0.3.34
+2026-11-04T05:55:27.8527140Z [1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+2026-11-04T05:55:27.9276768Z [1m[92m   Compiling[0m phf_generator v0.11.3
+2026-11-04T05:55:28.3491301Z [1m[92m   Compiling[0m tracing-attributes v0.1.31
+2026-11-04T05:55:28.3873153Z [1m[92m   Compiling[0m thiserror-impl v2.0.21
+2026-11-04T05:55:29.1405143Z [1m[92m   Compiling[0m sc-lint-directives v0.4.0
+2026-11-04T05:55:29.3179475Z [1m[92m   Compiling[0m crypto-common v0.2.2
+2026-11-04T05:55:30.5155496Z [1m[92m   Compiling[0m block-buffer v0.12.1
+2026-11-04T05:55:30.5893133Z [1m[92m   Compiling[0m deranged v0.5.9
+2026-11-04T05:55:30.7020539Z [1m[92m   Compiling[0m tracing-core v0.1.36
+2026-11-04T05:55:31.6098246Z [1m[92m   Compiling[0m windows-threading v0.2.1
+2026-11-04T05:55:31.7683462Z [1m[92m   Compiling[0m time-core v0.1.9
+2026-11-04T05:55:31.8436087Z [1m[92m   Compiling[0m powerfmt v0.2.1
+2026-11-04T05:55:32.0510503Z [1m[92m   Compiling[0m foldhash v0.2.0
+2026-11-04T05:55:32.0513695Z [1m[92m   Compiling[0m num-conv v0.2.2
+2026-11-04T05:55:32.2282252Z [1m[92m   Compiling[0m getrandom v0.4.3
+2026-11-04T05:55:32.2560674Z [1m[92m   Compiling[0m const-oid v0.10.2
+2026-11-04T05:55:32.2561447Z [1m[92m   Compiling[0m hashbrown v0.16.1
+2026-11-04T05:55:32.5468666Z [1m[92m   Compiling[0m time v0.3.55
+2026-11-04T05:55:32.5770979Z [1m[92m   Compiling[0m digest v0.11.3
+2026-11-04T05:55:32.6118456Z [1m[92m   Compiling[0m futures-executor v0.3.34
+2026-11-04T05:55:32.7848085Z [1m[92m   Compiling[0m windows-future v0.3.2
+2026-11-04T05:55:33.0435059Z [1m[92m   Compiling[0m tracing v0.1.44
+2026-11-04T05:55:33.2427472Z [1m[92m   Compiling[0m sc-lint-attributes v0.4.0
+2026-11-04T05:55:33.9041083Z [1m[92m   Compiling[0m phf_macros v0.11.3
+2026-11-04T05:55:34.4306919Z [1m[92m   Compiling[0m windows-numerics v0.3.1
+2026-11-04T05:55:34.6998908Z [1m[92m   Compiling[0m windows-collections v0.3.2
+2026-11-04T05:55:34.7126530Z [1m[92m   Compiling[0m tokio-macros v2.7.2
+2026-11-04T05:55:35.2696302Z [1m[92m   Compiling[0m mio v1.2.4
+2026-11-04T05:55:35.8417958Z [1m[92m   Compiling[0m cpufeatures v0.3.1
+2026-11-04T05:55:35.9047383Z [1m[92m   Compiling[0m hashbrown v0.17.1
+2026-11-04T05:55:36.5382438Z [1m[92m   Compiling[0m equivalent v1.0.3
+2026-11-04T05:55:36.6151968Z [1m[92m   Compiling[0m bytes v1.12.1
+2026-11-04T05:55:36.6685503Z [1m[92m   Compiling[0m winnow v1.0.4
+2026-11-04T05:55:36.7786127Z [1m[92m   Compiling[0m indexmap v2.14.2
+2026-11-04T05:55:37.2677425Z [1m[92m   Compiling[0m toml_parser v1.1.5+spec-1.1.0
+2026-11-04T05:55:37.6988658Z [1m[92m   Compiling[0m tokio v1.54.1
+2026-11-04T05:55:37.7352348Z [1m[92m   Compiling[0m sha2 v0.11.1
+2026-11-04T05:55:38.6174774Z [1m[92m   Compiling[0m phf v0.11.3
+2026-11-04T05:55:38.8288990Z [1m[92m   Compiling[0m sc-observability-types v1.5.0
+2026-11-04T05:55:39.3935375Z [1m[92m   Compiling[0m windows v0.62.2
+2026-11-04T05:55:40.4570250Z [1m[92m   Compiling[0m chrono v0.4.45
+2026-11-04T05:55:42.8574476Z [1m[92m   Compiling[0m hashlink v0.11.1
+2026-11-04T05:55:43.2623556Z [1m[92m   Compiling[0m futures v0.3.34
+2026-11-04T05:55:43.3405627Z [1m[92m   Compiling[0m toml_datetime v1.1.2+spec-1.1.0
+2026-11-04T05:55:43.4878333Z [1m[92m   Compiling[0m serde_spanned v1.1.2
+2026-11-04T05:55:43.6324944Z [1m[92m   Compiling[0m toml_writer v1.1.3+spec-1.1.0
+2026-11-04T05:55:43.8487066Z [1m[92m   Compiling[0m bitflags v2.13.2
+2026-11-04T05:55:43.9423808Z [1m[92m   Compiling[0m fallible-streaming-iterator v0.1.9
+2026-11-04T05:55:44.0957301Z [1m[92m   Compiling[0m winnow v0.7.15
+2026-11-04T05:55:44.1522042Z [1m[92m   Compiling[0m smallvec v1.16.4
+2026-11-04T05:55:44.4520564Z [1m[92m   Compiling[0m fallible-iterator v0.3.0
+2026-11-04T05:55:44.9510186Z [1m[92m   Compiling[0m fastrand v2.5.0
+2026-11-04T05:55:45.2341923Z [1m[92m   Compiling[0m tempfile v3.27.0
+2026-11-04T05:55:46.0848135Z [1m[92m   Compiling[0m rusqlite v0.39.0
+2026-11-04T05:55:46.6661440Z [1m[92m   Compiling[0m cron v0.17.0
+2026-11-04T05:55:47.0455889Z [1m[92m   Compiling[0m sc-command v0.1.1
+2026-11-04T05:55:47.5117411Z [1m[92m   Compiling[0m toml v1.1.8+spec-1.1.0
+2026-11-04T05:55:48.6058030Z [1m[92m   Compiling[0m process-wrap v10.0.1
+2026-11-04T05:55:49.3988492Z [1m[92m   Compiling[0m sc-beads v0.2.0 (D:\a\beads-cache\beads-cache\crates\sc-beads)
+2026-11-04T05:55:50.0438872Z [1m[92m   Compiling[0m async-trait v0.1.92
+2026-11-04T05:55:51.0702014Z [1m[92m   Compiling[0m fs4 v1.1.0
+2026-11-04T05:55:51.7114576Z [1m[92m   Compiling[0m sc-cron v0.1.1
+2026-11-04T05:55:53.0969481Z [1m[92m   Compiling[0m bd-cache-model v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-model)
+2026-11-04T05:55:58.5735039Z [1m[92m   Compiling[0m bd-cache-store v0.2.0 (D:\a\beads-cache\beads-cache\crates\bd-cache-store)
+2026-11-04T05:56:02.8668845Z [1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 50.68s
+2026-11-04T05:56:02.8828148Z [1m[92m     Running[0m unittests src\lib.rs (target\debug\deps\bd_cache_store-13fa15f35aba80e5.exe)
+2026-11-04T05:56:02.8828854Z 
+2026-11-04T05:56:02.8828990Z running 1 test
+2026-11-04T05:56:07.8973496Z RQA9 owned child schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only output:
+2026-11-04T05:56:07.8973950Z 
+2026-11-04T05:56:07.8974027Z running 1 test
+2026-11-04T05:56:07.8975019Z test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... RQA9 store phase=fixture-body-entered elapsed=2.6µs
+2026-11-04T05:56:07.8975958Z RQA9 store phase=scratch-create-start elapsed=0ns
+2026-11-04T05:56:07.8976384Z RQA9 store phase=store-open-start elapsed=344.3µs
+2026-11-04T05:56:07.8976742Z RQA9 store phase=store-open-returned elapsed=46.294ms
+2026-11-04T05:56:07.8977086Z RQA9 store phase=schedule-view-start elapsed=46.4964ms
+2026-11-04T05:56:07.8977429Z RQA9 store phase=schedule-view-returned elapsed=49.464ms
+2026-11-04T05:56:07.8977794Z RQA9 store phase=schedule-setup-complete elapsed=49.551ms
+2026-11-04T05:56:07.8978146Z RQA9 store phase=worker-spawn-start elapsed=49.6279ms
+2026-11-04T05:56:07.8978468Z RQA9 store phase=worker-call-start elapsed=49.9208ms
+2026-11-04T05:56:07.8978812Z RQA9 store phase=wait-receipt elapsed=50.0683ms result=Ok(())
+2026-11-04T05:56:07.8979176Z RQA9 store phase=cancellation-installed elapsed=51.6464ms
+2026-11-04T05:56:07.8980453Z RQA9 store phase=worker-call-returned elapsed=83.2285ms result=Err(Store(StoreError { kind: Other, context: "bounded cache schedule session", source: Some(StoreFailed { detail: "schedule worker shutdown: store deadline expired", source: Some(StoreCause(Custom { kind: TimedOut, error: "schedule store deadline expired" })) }) }))
+2026-11-04T05:56:07.8981821Z stalled store cleanup after real worker call
+2026-11-04T05:56:07.8982196Z RQA9 store phase=completion-receipt elapsed=552.4373ms result=Err(Timeout)
+2026-11-04T05:56:07.8982582Z store cleanup observation expired after 500ms
+2026-11-04T05:56:07.8982889Z RQA9 store phase=worker-join-start elapsed=552.5517ms
+2026-11-04T05:56:07.8983105Z 
+2026-11-04T05:56:07.8983669Z FTQ-009 schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only: stalled post-call join killed/reaped in 5.0064097s; original 500ms observation failure reached
+2026-11-04T05:56:12.8927925Z RQA9 owned child schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session output:
+2026-11-04T05:56:12.8929330Z 
+2026-11-04T05:56:12.8929514Z running 1 test
+2026-11-04T05:56:12.8930575Z test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... RQA9 store phase=fixture-body-entered elapsed=100ns
+2026-11-04T05:56:12.8931797Z RQA9 store phase=scratch-create-start elapsed=0ns
+2026-11-04T05:56:12.8932717Z RQA9 store phase=store-open-start elapsed=304.2µs
+2026-11-04T05:56:12.8933482Z RQA9 store phase=store-open-returned elapsed=47.7441ms
+2026-11-04T05:56:12.8934141Z RQA9 store phase=schedule-view-start elapsed=47.9033ms
+2026-11-04T05:56:12.8934779Z RQA9 store phase=schedule-view-returned elapsed=50.6449ms
+2026-11-04T05:56:12.8935418Z RQA9 store phase=schedule-create-start elapsed=51.0012ms
+2026-11-04T05:56:12.8936094Z RQA9 store phase=schedule-setup-complete elapsed=63.3489ms
+2026-11-04T05:56:12.8936741Z RQA9 store phase=contender-open-start elapsed=63.4371ms
+2026-11-04T05:56:12.8937327Z RQA9 store phase=contender-lock-start elapsed=63.7239ms
+2026-11-04T05:56:12.8937973Z RQA9 store phase=contender-lock-acquired elapsed=65.2842ms
+2026-11-04T05:56:12.8938619Z RQA9 store phase=worker-spawn-start elapsed=65.3229ms
+2026-11-04T05:56:12.8939177Z RQA9 store phase=worker-call-start elapsed=65.527ms
+2026-11-04T05:56:12.8939817Z RQA9 store phase=wait-receipt elapsed=65.7693ms result=Ok(())
+2026-11-04T05:56:12.8940499Z RQA9 store phase=cancellation-installed elapsed=65.8551ms
+2026-11-04T05:56:12.8942329Z RQA9 store phase=worker-call-returned elapsed=96.6554ms result=Err(Store(StoreError { kind: Busy, context: "failed to update sc_cron_schedule id 1", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some("database is locked"))) }))
+2026-11-04T05:56:12.8944114Z stalled store cleanup after real worker call
+2026-11-04T05:56:12.8944775Z RQA9 store phase=completion-receipt elapsed=567.7216ms result=Err(Timeout)
+2026-11-04T05:56:12.8945457Z store cleanup observation expired after 500ms
+2026-11-04T05:56:12.8946070Z RQA9 store phase=contender-rollback-start elapsed=567.8006ms
+2026-11-04T05:56:12.8947487Z RQA9 store phase=contender-rollback-returned elapsed=567.8643ms
+2026-11-04T05:56:12.8948138Z RQA9 store phase=worker-join-start elapsed=567.8898ms
+2026-11-04T05:56:12.8948505Z 
+2026-11-04T05:56:12.8949505Z FTQ-009 schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session: stalled post-call join killed/reaped in 5.0039503s; original 500ms observation failure reached
+2026-11-04T05:56:17.9015342Z RQA9 owned child schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress output:
+2026-11-04T05:56:17.9016158Z 
+2026-11-04T05:56:17.9016310Z running 1 test
+2026-11-04T05:56:17.9017248Z test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... RQA9 store phase=fixture-body-entered elapsed=100ns
+2026-11-04T05:56:17.9018266Z RQA9 store phase=scratch-create-start elapsed=0ns
+2026-11-04T05:56:17.9019102Z RQA9 store phase=store-open-start elapsed=312.7µs
+2026-11-04T05:56:17.9019730Z RQA9 store phase=store-open-returned elapsed=171.5073ms
+2026-11-04T05:56:17.9020348Z RQA9 store phase=schedule-view-start elapsed=171.6803ms
+2026-11-04T05:56:17.9020962Z RQA9 store phase=schedule-view-returned elapsed=194.6527ms
+2026-11-04T05:56:17.9021595Z RQA9 store phase=schedule-create-start elapsed=194.9134ms
+2026-11-04T05:56:17.9022193Z RQA9 store phase=schedule-setup-complete elapsed=309.4703ms
+2026-11-04T05:56:17.9022784Z RQA9 store phase=worker-spawn-start elapsed=309.5838ms
+2026-11-04T05:56:17.9023328Z RQA9 store phase=worker-call-start elapsed=309.898ms
+2026-11-04T05:56:17.9023910Z RQA9 store phase=wait-receipt elapsed=332.6606ms result=Ok(())
+2026-11-04T05:56:17.9024554Z RQA9 store phase=cancellation-installed elapsed=332.7163ms
+2026-11-04T05:56:17.9026265Z RQA9 store phase=worker-call-returned elapsed=362.8003ms result=Err(Store(StoreError { kind: Other, context: "failed to update sc_cron_schedule id 1", source: Some(SqliteFailure(Error { code: OperationInterrupted, extended_code: 9 }, Some("interrupted"))) }))
+2026-11-04T05:56:17.9027539Z stalled store cleanup after real worker call
+2026-11-04T05:56:17.9028067Z RQA9 store phase=completion-receipt elapsed=837.367ms result=Err(Timeout)
+2026-11-04T05:56:17.9028613Z store cleanup observation expired after 500ms
+2026-11-04T05:56:17.9029032Z RQA9 store phase=worker-join-start elapsed=837.4487ms
+2026-11-04T05:56:17.9029641Z 
+2026-11-04T05:56:17.9030300Z FTQ-009 schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress: stalled post-call join killed/reaped in 5.0059945s; original 500ms observation failure reached
+2026-11-04T05:56:17.9064563Z test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok
+2026-11-04T05:56:17.9065274Z 
+2026-11-04T05:56:17.9065708Z test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 33 filtered out; finished in 15.02s
+2026-11-04T05:56:17.9066722Z 
+2026-11-04T05:56:17.9378248Z ##[group]Run actions/upload-artifact@v4
+2026-11-04T05:56:17.9378578Z with:
+2026-11-04T05:56:17.9378835Z   name: windows-store-phase-observation-e86d9da
+2026-11-04T05:56:17.9379198Z   path: D:\a\_temp/windows-store-phase-observation.log
+2026-11-04T05:56:17.9379507Z   if-no-files-found: warn
+2026-11-04T05:56:17.9379717Z   retention-days: 7
+2026-11-04T05:56:17.9379910Z   compression-level: 6
+2026-11-04T05:56:17.9380106Z   overwrite: false
+2026-11-04T05:56:17.9380308Z   include-hidden-files: false
+2026-11-04T05:56:17.9380515Z env:
+2026-11-04T05:56:17.9380687Z   CARGO_TERM_COLOR: always
+2026-11-04T05:56:17.9380895Z   CARGO_INCREMENTAL: 0
+2026-11-04T05:56:17.9381091Z   RUSTFLAGS: -D warnings
+2026-11-04T05:56:17.9381366Z   EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+2026-11-04T05:56:17.9381739Z   CACHE_ON_FAILURE: false
+2026-11-04T05:56:17.9382038Z   pythonLocation: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:56:17.9382524Z   PKG_CONFIG_PATH: C:\hostedtoolcache\windows\Python\3.12.10\x64/lib/pkgconfig
+2026-11-04T05:56:17.9382975Z   Python_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:56:17.9383588Z   Python2_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:56:17.9383982Z   Python3_ROOT_DIR: C:\hostedtoolcache\windows\Python\3.12.10\x64
+2026-11-04T05:56:17.9384292Z ##[endgroup]
+2026-11-04T05:56:18.1267286Z (node:4216) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T05:56:18.1268603Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T05:56:18.1325172Z With the provided path, there will be 1 file uploaded
+2026-11-04T05:56:18.1331347Z Artifact name is valid!
+2026-11-04T05:56:18.1333743Z Root directory input is valid!
+2026-11-04T05:56:18.5135781Z Beginning upload of artifact content to blob storage
+2026-11-04T05:56:18.5343310Z (node:4216) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-04T05:56:18.7952344Z Uploaded bytes 2528
+2026-11-04T05:56:18.8703560Z Finished uploading artifact content to blob storage!
+2026-11-04T05:56:18.8705326Z SHA256 digest of uploaded artifact zip is dd681bf82edf220753ff66ba269517292cb0f5c08b8fbe4d364d9e65ed85aef8
+2026-11-04T05:56:18.8708335Z Finalizing artifact upload
+2026-11-04T05:56:19.3669447Z Artifact windows-store-phase-observation-e86d9da.zip successfully finalized. Artifact ID 13298969731
+2026-11-04T05:56:19.3671048Z Artifact windows-store-phase-observation-e86d9da has been successfully uploaded! Final size is 2528 bytes. Artifact ID is 13298969731
+2026-11-04T05:56:19.3680119Z Artifact download URL: https://github.com/randlee/beads-cache/actions/runs/41782100405/artifacts/13298969731
+2026-11-04T05:56:19.4037710Z Post job cleanup.
+2026-11-04T05:56:19.5495611Z (node:3828) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T05:56:19.5497412Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T05:56:19.5811478Z Post job cleanup.
+2026-11-04T05:56:19.7542507Z ##[group]Cache Configuration
+2026-11-04T05:56:19.7545101Z Cache Provider:
+2026-11-04T05:56:19.7545932Z     github
+2026-11-04T05:56:19.7548367Z Workspaces:
+2026-11-04T05:56:19.7548887Z     D:\a\beads-cache\beads-cache
+2026-11-04T05:56:19.7549459Z Cache Paths:
+2026-11-04T05:56:19.7549952Z     C:\Users\runneradmin\.cargo\bin
+2026-11-04T05:56:19.7550590Z     C:\Users\runneradmin\.cargo\.crates.toml
+2026-11-04T05:56:19.7551252Z     C:\Users\runneradmin\.cargo\.crates2.json
+2026-11-04T05:56:19.7552050Z     C:\Users\runneradmin\.cargo\registry
+2026-11-04T05:56:19.7552723Z     C:\Users\runneradmin\.cargo\git
+2026-11-04T05:56:19.7553452Z     D:\a\beads-cache\beads-cache\target
+2026-11-04T05:56:19.7554082Z Restore Key:
+2026-11-04T05:56:19.7554596Z     v0-rust-observe-Windows_NT-x64-29a6c760
+2026-11-04T05:56:19.7555203Z Cache Key:
+2026-11-04T05:56:19.7555779Z     v0-rust-observe-Windows_NT-x64-29a6c760-1206d1b1
+2026-11-04T05:56:19.7556504Z .. Prefix:
+2026-11-04T05:56:19.7557036Z   - v0-rust-observe-Windows_NT-x64
+2026-11-04T05:56:19.7557657Z .. Environment considered:
+2026-11-04T05:56:19.7558176Z   - Rust Versions:
+2026-11-04T05:56:19.7558859Z     - 1.98.1 x86_64-pc-windows-msvc 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T05:56:19.7559817Z     - 1.99.1 x86_64-pc-windows-msvc 58cf8f9c35b355199727627d07ae34a4e2846d67
+2026-11-04T05:56:19.7560583Z   - CARGO_INCREMENTAL
+2026-11-04T05:56:19.7561379Z   - CARGO_TERM_COLOR
+2026-11-04T05:56:19.7561985Z   - RUSTFLAGS
+2026-11-04T05:56:19.7562490Z .. Lockfiles considered:
+2026-11-04T05:56:19.7563061Z   - D:\a\beads-cache\beads-cache\Cargo.lock
+2026-11-04T05:56:19.7563815Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-api\Cargo.toml
+2026-11-04T05:56:19.7564652Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-cli\Cargo.toml
+2026-11-04T05:56:19.7565530Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-daemon\Cargo.toml
+2026-11-04T05:56:19.7566837Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-model\Cargo.toml
+2026-11-04T05:56:19.7567717Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-py\Cargo.toml
+2026-11-04T05:56:19.7568609Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-service\Cargo.toml
+2026-11-04T05:56:19.7569591Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-store\Cargo.toml
+2026-11-04T05:56:19.7570470Z   - D:\a\beads-cache\beads-cache\crates\bd-cache-sync\Cargo.toml
+2026-11-04T05:56:19.7571928Z   - D:\a\beads-cache\beads-cache\crates\bd-cache\Cargo.toml
+2026-11-04T05:56:19.7572899Z   - D:\a\beads-cache\beads-cache\crates\sc-bd-cli\Cargo.toml
+2026-11-04T05:56:19.7573731Z   - D:\a\beads-cache\beads-cache\crates\sc-beads\Cargo.toml
+2026-11-04T05:56:19.7574500Z   - D:\a\beads-cache\beads-cache\rust-toolchain.toml
+2026-11-04T05:56:19.7598647Z ##[endgroup]
+2026-11-04T05:56:19.7601532Z 
+2026-11-04T05:56:41.0298283Z ... Cleaning D:\a\beads-cache\beads-cache\target ...
+2026-11-04T05:56:41.0567377Z ... Cleaning cargo registry (cache-all-crates: false) ...
+2026-11-04T05:56:45.6949657Z ... Cleaning cargo/bin ...
+2026-11-04T05:56:45.7036441Z ... Cleaning cargo git cache ...
+2026-11-04T05:56:45.7042831Z ... Saving cache ...
+2026-11-04T05:56:45.8188444Z [command]"C:\Program Files\Git\usr\bin\tar.exe" --posix -cf cache.tzst --exclude cache.tzst -P -C D:/a/beads-cache/beads-cache --files-from manifest.txt --force-local --use-compress-program "zstd -T0"
+2026-11-04T05:56:50.1179231Z Sent 0 of 180866462 (0.0%), 0.0 MBs/sec
+2026-11-04T05:56:51.1175693Z Sent 0 of 180866462 (0.0%), 0.0 MBs/sec
+2026-11-04T05:56:51.5631296Z Sent 180866462 of 180866462 (100.0%), 70.1 MBs/sec
+2026-11-04T05:56:51.9046854Z Post job cleanup.
+2026-11-04T05:56:52.1044997Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-11-04T05:56:52.1401879Z git version 2.56.0.windows.4
+2026-11-04T05:56:52.1471017Z Temporarily overriding HOME='D:\a\_temp\49498b07-960d-48af-8635-93610fa4b887' before making global git config changes
+2026-11-04T05:56:52.1472297Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T05:56:52.1482788Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\beads-cache\beads-cache
+2026-11-04T05:56:52.1861197Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T05:56:52.2233264Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-11-04T05:56:52.7792777Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T05:56:52.8124861Z http.https://github.com/.extraheader
+2026-11-04T05:56:52.8166458Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T05:56:52.8540619Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-11-04T05:56:53.4045574Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T05:56:53.4419128Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-11-04T05:56:54.0505646Z Cleaning up orphan processes
+2026-11-04T05:56:54.0735857Z Terminate orphan process: pid (3416) (vctip)
+2026-11-04T05:56:54.1326365Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5, actions/upload-artifact@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

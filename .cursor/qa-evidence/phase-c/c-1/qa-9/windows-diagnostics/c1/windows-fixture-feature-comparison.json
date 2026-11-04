@@ -1,0 +1,52 @@
+{
+  "c1": {
+    "exit": 0,
+    "feature_lines": [
+      "\"bundled\"",
+      "\"bundled\" (*)",
+      "\"cache\"",
+      "\"cache\" (*)",
+      "\"default\"",
+      "\"default\" (*)",
+      "\"functions\"",
+      "\"hashlink\"",
+      "\"hooks\"",
+      "\"modern_sqlite\"",
+      "\"trace\""
+    ],
+    "error_excerpt": null,
+    "store_dependency_versions": {
+      "fs4": "1.1.0",
+      "getrandom": "0.4.3",
+      "libsqlite3-sys": "0.37.0",
+      "rusqlite": "0.39.0",
+      "sc-cron": "0.1.1",
+      "tempfile": "3.27.0"
+    }
+  },
+  "c2": {
+    "exit": 0,
+    "feature_lines": [
+      "\"bundled\"",
+      "\"bundled\" (*)",
+      "\"cache\"",
+      "\"cache\" (*)",
+      "\"default\"",
+      "\"default\" (*)",
+      "\"functions\"",
+      "\"hashlink\"",
+      "\"hooks\"",
+      "\"modern_sqlite\"",
+      "\"trace\""
+    ],
+    "error_excerpt": null,
+    "store_dependency_versions": {
+      "fs4": "1.1.0",
+      "getrandom": "0.4.3",
+      "libsqlite3-sys": "0.37.0",
+      "rusqlite": "0.39.0",
+      "sc-cron": "0.1.1",
+      "tempfile": "3.27.0"
+    }
+  }
+}
