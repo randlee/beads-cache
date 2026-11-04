@@ -800,3 +800,50 @@ receiver/isolated graph and actual-head CI blockers. The previous bounded public
 interface assessment is retained without another workaround loop. No publisher
 work, SDK factory/executor, version change, waiver or whole-sprint/anchor/CI/merge
 PASS is introduced.
+
+
+### QA6 owned inventory and Linux identity correction (FTQ-010 / REQ-QA-004)
+
+The test-only session inventory now owns each `/bin/ps` child, redirects its
+output to an owned file, polls completion against the caller's absolute deadline,
+and kills and actually reaps a stalled child before returning its failure. Drop
+also kills/reaps that same child; no pipe reader or wait task is detached. A scan
+gets at most 50ms inside the existing cleanup observation, with no new scan
+started in a phase's final partial slice. The 250ms cooperative/quiescence and
+750ms final observations now share one absolute one-second cleanup budget. The
+final drain remains after the actual root join and includes unregistered and
+in-flight Python groups. An inventory error is retained as failure even if a
+subsequent inventory removes the tree; it never becomes a cleanup-success receipt.
+
+The session owner performs cleanup once. The composed shared FixtureChild has an
+explicit Drop ownership handoff, defaulting to its original store cleanup. Only
+SessionFixture takes that ownership; its failed cleanup cannot restart a fresh
+registry budget during field destruction. The accepted store test bodies and
+production shutdown implementation remain unchanged. Focused default store
+cleanup tests cover this necessary shared-helper adjustment.
+
+On Linux, the all-host PID census reads kernel `/proc/<pid>/stat` metadata as raw
+identifiers and excludes nonpositive session/group IDs before constructing a
+positive typed PID. Parsing uses the final comm delimiter, including names with
+spaces or parentheses. Every kill/stop still rechecks current session AND group
+identity; the new inventory retains kernel-session ownership established before
+real production PythonJob launch. Darwin retains its native kernel identity path.
+The old hosted getsid assertion is established by the actual stack; a particular
+foreign kernel PID was not logged, so its identity remains an inference. The
+regression covers zero/negative raw IDs, a normal identity and malformed metadata.
+Local Darwin passes do not establish Linux or Windows qualification.
+
+Focused evidence is recorded in /tmp/phase-c-execution/c-1/qa-6/fix-*. Logs include
+actual stopped-inventory timeout/unwind, complete lifecycle and store cleanup
+families, unchanged QA5 PATH-cat and QA6 SIGSTOP counterexamples, and metadata-only
+SID/PID/PGID/inventory-child audits before probe fallback cleanup. The original
+negative fixtures must still fail finitely; no failing test is reported as a
+successful fixture. Required exact-new-source hosted Linux CI is tracked separately.
+
+FTQ-010 remains OPEN pending independent QA7. REQ-QA-004 remains OPEN for actual
+new-head platform checks AND the unchanged strict logging dependency gate.
+ARCH-001, RBQA-F001 and QA2-001 retain their genuine public logging receiver and
+isolated dependency graph blocker. RSH-001 and FTQ-009 closures remain owned by
+their actual reviewer/enforcer evidence. No SDK change, dependency change,
+publisher work, timing relaxation, guard waiver or sprint/anchor/merge PASS is
+introduced.

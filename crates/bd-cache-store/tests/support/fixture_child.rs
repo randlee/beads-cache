@@ -13,6 +13,7 @@ pub(crate) struct FixtureChild {
     pub(crate) scratch: tempfile::TempDir,
     pub(crate) cleaned: Arc<AtomicBool>,
     pub(crate) started: Instant,
+    pub(crate) cleanup_on_drop: bool,
 }
 
 impl FixtureChild {
@@ -39,6 +40,7 @@ impl FixtureChild {
             scratch,
             cleaned: Arc::default(),
             started,
+            cleanup_on_drop: true,
         })
     }
 
@@ -130,7 +132,8 @@ impl FixtureChild {
 
 impl Drop for FixtureChild {
     fn drop(&mut self) {
-        if !self.cleaned.load(Ordering::SeqCst)
+        if self.cleanup_on_drop
+            && !self.cleaned.load(Ordering::SeqCst)
             && let Err(error) = self.kill_and_reap()
         {
             eprintln!("owned fixture cleanup failed: {error}");
