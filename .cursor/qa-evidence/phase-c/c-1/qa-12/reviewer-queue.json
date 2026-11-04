@@ -1,0 +1,10 @@
+{
+  "required_roles": [
+    "req-qa",
+    "arch-qa",
+    "rust-qa-agent",
+    "flaky-test-qa"
+  ],
+  "pending": [],
+  "all_actual_required_roles_dispatched": true
+}

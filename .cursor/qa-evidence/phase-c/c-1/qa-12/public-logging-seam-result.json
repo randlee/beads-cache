@@ -1,0 +1,279 @@
+{
+  "success": true,
+  "data": {
+    "status": "blocked_missing_published_public_logging_seam",
+    "assessment_complete": true,
+    "timestamp_utc": "2026-11-04T10:13:40.355114+00:00",
+    "branch": "sprint/c-1-runtime-migration",
+    "source_head": "da94641038f6745366a240c308b211c796d4cbb6",
+    "source_clean_unchanged": true,
+    "source_changes": false,
+    "cargo_commands": 0,
+    "compile_probe": "NOT_RUN; no legitimate route found that merits a Cargo probe, per assignment",
+    "capability_conclusion": "No permitted current0.1.1 public canonical callback/receiver-construction route exists. This conclusion includes actual trait implementations and callback factories, not merely missing type re-exports.",
+    "verified_published_packages": [
+      {
+        "crate": "sc-cron",
+        "version": "0.1.1",
+        "cached_source": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1",
+        "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1.crate",
+        "archive_sha256": "8d84a3e95441b6dde1d4da16d6b7924303b2d02a1872c477457dbb9986931475",
+        "all_packaged_files_byte_verified_against_checksum_bound_archive": 74,
+        "in_C1_lock": true,
+        "lock_or_index_match": "C1 Cargo.lock exactregistry/version/checksum",
+        "features": {
+          "monty": [
+            "dep:monty",
+            "dep:monty-types"
+          ],
+          "monty-test-handshake": [
+            "monty"
+          ],
+          "test-utils": []
+        },
+        "sc_command_dependency": {
+          "version": "0.1.1",
+          "default-features": false
+        }
+      },
+      {
+        "crate": "sc-command",
+        "version": "0.1.1",
+        "cached_source": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1",
+        "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1.crate",
+        "archive_sha256": "a1b3be9d1889fa675b03f4bf7f77962924a6eaa47c560961d84a013395a7e243",
+        "all_packaged_files_byte_verified_against_checksum_bound_archive": 18,
+        "in_C1_lock": true,
+        "lock_or_index_match": "C1 Cargo.lock exactregistry/version/checksum",
+        "features": {
+          "default": [],
+          "server": [
+            "dep:axum",
+            "dep:rmcp"
+          ],
+          "test-util": []
+        },
+        "sc_command_dependency": null
+      },
+      {
+        "crate": "sc-runtime",
+        "version": "0.1.1",
+        "cached_source": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1",
+        "archive": "/Users/randlee/.cargo/registry/cache/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1.crate",
+        "archive_sha256": "e9a6756ed7c658e198c4cc23ca0fba388a3165c7ab87841f663c7abe375bbd2c",
+        "all_packaged_files_byte_verified_against_checksum_bound_archive": 21,
+        "in_C1_lock": false,
+        "lock_or_index_match": "Not in C1 lock; supplementarypublishedbaseline cache matches cachedofficialregistryindex0.1.1",
+        "features": {
+          "default": [],
+          "test-util": [
+            "dep:tempfile"
+          ]
+        },
+        "sc_command_dependency": {
+          "version": "0.1.1",
+          "features": [
+            "server"
+          ]
+        }
+      }
+    ],
+    "current_feature_scope": {
+      "workspace": "sc-cron = =0.1.1 default-features=false; sc-command = =0.1.1 default-features=false",
+      "sync": "normal sc-cron.workspace=true and sc-command.workspace=true; dev sc-cron test-utils only",
+      "sc_command": "default empty; server and test-util not enabled in locked C1 dependency set; neither adds a generic receiver callback",
+      "sc_cron": "no default feature; test-utils exposes clock/jitter test types, no canonical receiver; monty irrelevant/disabled under ordinary C1 feature graph and no receiver factory even in examined optional code",
+      "sc_runtime": "supplementary0.1.1 package not in C1 lock; cache bound to official cached index checksum, not falsely claimed locked dependency"
+    },
+    "public_signatures": [
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability.rs",
+        "lines": "15-27",
+        "signature": "pub trait CanonicalLog: Send + Sync { fn service_name(&self) -> &ServiceName; fn emit(&self, event: LogEvent) -> Result<(), v2::EventError>; } pub type SharedCanonicalLog = Arc<dyn CanonicalLog>;",
+        "assessment": "Nominal open port, not a function trait. No blanket F:Fn(LogEvent)->Result implementation."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability.rs",
+        "lines": "31-68,73-76",
+        "signature": "NoopCanonicalLog::new(service_name: ServiceName) -> Self; NoopCanonicalLog::named_or_default(service: &'static str) -> Self; impl CanonicalLog for NoopCanonicalLog; feature=test-util exposes RecordingCanonicalLog/RejectingCanonicalLog",
+        "assessment": "Noop discards events; test record/reject utilities require direct forbidden contract path and feature, and are not a callback forwarding adapter."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/scheduler.rs",
+        "lines": "279-315,709-723",
+        "signature": "pub fn new(store: Arc<S>, clock: Arc<C>, jitter: Arc<J>) -> Self\npub fn new_with_logger(\n        store: Arc<S>,\n        clock: Arc<C>,\n        jitter: Arc<J>,\n        logger: SharedCanonicalLog,\n    ) -> Self\npub fn open_with_logger(\n        path: impl AsRef<std::path::Path>,\n        limits: ScheduleLimits,\n        clock: Arc<C>,\n        logger: SharedCanonicalLog,\n    ) -> Result<Self, CronError>",
+        "assessment": "All real receiver paths require same nominal sc-command receiver; new delegates to private discarding logger. No closure callback factory."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/lib.rs",
+        "lines": "100-178,181-183",
+        "signature": "Public exports include Scheduler, WorkerHandle, store/clock/jitter/hook/types; pub(crate) fn noop_logger()->sc_command::observability::SharedCanonicalLog",
+        "assessment": "No CanonicalLog/SharedCanonicalLog receiver export and no public receiver-construction function."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/jitter.rs",
+        "lines": "62",
+        "signature": "pub fn with_logger(logger: sc_command::observability::SharedCanonicalLog) -> Self",
+        "assessment": "Same nominal receiver requirement; not an event callback."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/hook.rs",
+        "lines": "182-185",
+        "signature": "pub fn new_with_logger(\n        module: impl AsRef<Path>,\n        logger: sc_command::observability::SharedCanonicalLog,\n    ) -> Result<Self, CronError>",
+        "assessment": "Same nominal receiver requirement; not a receiver factory."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/sqlite.rs",
+        "lines": "142-146",
+        "signature": "pub fn open_with_logger(\n        path: impl AsRef<Path>,\n        limits: ScheduleLimits,\n        logger: sc_command::observability::SharedCanonicalLog,\n    ) -> Result<Self, CronError>",
+        "assessment": "Same nominal receiver requirement; not a receiver factory."
+      },
+      {
+        "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1/src/builder.rs",
+        "lines": "8,97,103-112",
+        "signature": "pub fn logger(mut self, logger: SharedCanonicalLog) -> Self",
+        "assessment": "Same nominal receiver; no callback factory or public re-export. Stores/routes/cleanup callbacks are unrelated to canonical events. Runtime is not in C1 Cargo.lock and would add server dependencies."
+      }
+    ],
+    "blanket_impl_evidence": {
+      "scope": "All .rs files of checksum-bound cachedpublished sc-command/sc-cron/sc-runtime0.1.1; inspected full receiver module and relevant public surfaces",
+      "concrete_impls": [
+        {
+          "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability.rs",
+          "line": 62,
+          "text": "impl CanonicalLog for NoopCanonicalLog {"
+        },
+        {
+          "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability/test_util.rs",
+          "line": 46,
+          "text": "impl CanonicalLog for RecordingCanonicalLog {"
+        },
+        {
+          "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability/test_util.rs",
+          "line": 82,
+          "text": "impl CanonicalLog for RejectingCanonicalLog {"
+        },
+        {
+          "file": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/sqlite.rs",
+          "line": 939,
+          "text": "impl sc_command::observability::CanonicalLog for ReentrantReceiver {"
+        }
+      ],
+      "function_trait_LogEvent_hits": [],
+      "blanket_closure_impl_found": false,
+      "notes": "Additional impls are tests/test-util concrete receivers, not a production generic closure implementation. All logger constructor signatures examined; public nonlogger FnOnce callbacks do not transport LogEvent."
+    },
+    "why_alternatives_fail": [
+      "An inferred Arc<closure> cannot implement a nominal CanonicalLog without a real blanket impl; none exists. A matching emit signature does not provide structural trait conformance.",
+      "Scheduler::new delegates to Noop and drops canonical events; current real worker taxonomy is emitted via logger.emit, so ordinary tracing subscription cannot preserve those events by choosing Noop.",
+      "Other with_logger constructors accept the same nominal receiver and do not manufacture it from a callback.",
+      "Runtime builder/logger and unrelated stores/routes/cleanup closures supply no scheduler canonical-event forwarding route; adding runtime below isolated Python is outside approved graph.",
+      "Moving the sc-command introducer to another crate, copying the trait, transitive/private import tricks, a no-op logger, fabricated events, new features or changed guard/exception are not permitted corrections."
+    ],
+    "upstream_request": {
+      "preferred_minimal_option": "Provide an upstream public sc-cron factory accepting validated service identity and a complete canonical-event callback, constructing the existing real receiver internally.",
+      "illustrative_contract_only_not_an_available_API": "pub fn canonical_log<F>(service: ServiceName, emit: F) -> SharedCanonicalLog where F: Fn(LogEvent) -> Result<(), v2::EventError> + Send + Sync + 'static;",
+      "equivalent_minimal_option": "Re-export the real CanonicalLog trait and SharedCanonicalLog from the approved sc-cron boundary; required LogEvent/ServiceName/EventError types already have an allowed direct sc-observability-types dependency. No Noop fallback or event reconstruction.",
+      "semantic_obligations": "Preserve validated service identity, every already-redacted LogEvent and fields/action/outcome/error, ordering, synchronous admission contract and existing upstream best-effort rejection handling. Consumer can retain its current legacy action/name projection without importing sc-command.",
+      "adoption_limit": "No upstream code/publication or baseline/pin change authorized here. Immutable published0.1.1 lacks this; parent must obtain an authorized published seam and separately approve any baseline adoption before the consumer dependency can be removed."
+    },
+    "current_consumer_to_preserve": {
+      "dependency": "crates/bd-cache-sync/Cargo.toml:31 directsc-command",
+      "receiver": "crates/bd-cache-sync/src/cron_log.rs:3-55 implements nominal trait and preserves canonical_action/action/name/outcome/fields projection",
+      "attachment": "crates/bd-cache-sync/src/schedule.rs:690-695 Scheduler::new_with_logger",
+      "logging_tests": "crates/bd-cache-sync/tests/cron_logging.rs current launch/recorded/redaction/error obligations remain unchanged"
+    },
+    "four_dispositions": {
+      "ARCH-001": "OPEN/BLOCKED: no approved public receiver/callback seam; direct edge violates existing narrow architecture exception",
+      "RBQA-F001": "OPEN/BLOCKED: carried direct sync logging-contract introducer remains; no relocation/waiver",
+      "QA2-001": "OPEN: unchanged isolated graph correctly rejects the current direct edge; not rerun on unchanged source",
+      "REQ-QA-004": "OPEN: boundary CI remains failed and current public compatibility/acceptance gap remains;14success does not waive remainingcheck"
+    },
+    "qualified_source_retained": {
+      "QA12": "29/34;3Blocking1Important; native3+Python11SUCCESS, onlyboundaryFAILURE",
+      "resolved_exact_C1": "RQA9/RQA11resolved atda946 perQA12; RQA10/runner/FTQ/RSH credits preserved; no unchanged qualification replay"
+    },
+    "original_qa12_evidence": {
+      "comment": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6627974296",
+      "boundary_log": "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log",
+      "machine_status": "/tmp/phase-c-execution/c-1/qa-12/manager-machine-status.json"
+    },
+    "inspected_files": [
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/observability.rs",
+        "bytes": 2692,
+        "sha256": "d49224523d28250692276b49e605c73fdb514e580350cc7f146d898443666c56"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/src/lib.rs",
+        "bytes": 1390,
+        "sha256": "4425ef1b25e5df03a718b1f5c85983694eb30b22eb99e77a68410308999ed70d"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-command-0.1.1/Cargo.toml",
+        "bytes": 1587,
+        "sha256": "c336c016f63d4f1240860462cd45325a92682f8d004598f8c4018c1a98bfd1b5"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/lib.rs",
+        "bytes": 8468,
+        "sha256": "b2117d1588f2e82db5384b907382359fa8435dfab69a2c7d2e0e401f218d284d"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/scheduler.rs",
+        "bytes": 37919,
+        "sha256": "3a8f06305f19b80eba54956f9c8a152c58f4095cf3a3c2cca960789fc838f239"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/worker.rs",
+        "bytes": 43400,
+        "sha256": "0465e34736530f4ad32881f65df08e39a182763f5dfd4affd95741d206630ab6"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/worker/event_rows.rs",
+        "bytes": 4956,
+        "sha256": "e75083787ad021481f6f2eaab10d61e4fc683dd21efd5af1409480ae59f855fb"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/jitter.rs",
+        "bytes": 9071,
+        "sha256": "8d3dc8fc0a2c2c4fcfbc82a16fd4648c15990f5489626c0e1ebce7cb68af4619"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/hook.rs",
+        "bytes": 31491,
+        "sha256": "cc093e1c9aadd4dab7612d0d5929f5f93d073848a07a883dab561f271972dd17"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/src/sqlite.rs",
+        "bytes": 41359,
+        "sha256": "267bfa491033f416f638ad5e8647aa1580b461dc5dad3365c3f3066316b3da79"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-cron-0.1.1/Cargo.toml",
+        "bytes": 4131,
+        "sha256": "be9f3b143aec40637bac9645c24a57b35758d387e371a85c0bc3c74354b47c14"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1/src/lib.rs",
+        "bytes": 2176,
+        "sha256": "66816b0813bfc52ae1565a8feeb11c2f8dd483ca3eca74b2b1fc36c5672a6ec9"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1/src/builder.rs",
+        "bytes": 15025,
+        "sha256": "26f131861505cbfa334990d98a3d2fcbbddc247db4faf2fe08ec44d2101a33f9"
+      },
+      {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1/Cargo.toml",
+        "bytes": 2887,
+        "sha256": "725da7e9e710cf1028f1342e05cdbe5e657ebf60c1b8bbfcd05a8cef8f53355a"
+      }
+    ],
+    "read_only_verification_notes": "Initial read assumed .cargo-checksum.json existed; cached unpacked trees have .cargo-ok instead. Verification was completed by matching actual .crate archive SHA against Cargo.lock/index and byte-comparing every packaged file, without fetching/building or modifying cache. A few guessed local helper paths were absent; no inference drawn from those misses. Final signature binding copied exact declarations from verified files, including real module/path/clock arguments; no guessed parameter shapes retained.",
+    "actions": "Read-only bounded cached source, manifests/lock, current findings and actual published QA12 evidence; wrote only temporary assessment files. No source/triage edit, Cargo, network, SDK working-tree read/patch, publisher/auth, branch merge/push or agents.",
+    "cargo_slot": "NOT_USED / RELEASED; zeroactivecommands",
+    "next_action": "Parent owns upstream coordination for the precise missing public seam; preserve current source and four findings. STOP."
+  },
+  "error": null
+}

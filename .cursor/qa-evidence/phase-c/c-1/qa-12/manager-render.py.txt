@@ -1,0 +1,63 @@
+import json,pathlib,hashlib,datetime,subprocess,re,collections
+p=pathlib.Path('/tmp/phase-c-execution/c-1/qa-12');e=json.loads((p/'manager-evidence-verification.json').read_text());pr=json.loads((p/'manager-current-pr.json').read_text());checks=json.loads((p/'manager-current-checks.json').read_text())
+assert pr['headRefOid']=='da94641038f6745366a240c308b211c796d4cbb6'
+assert len(checks)==15 and collections.Counter(x['state'] for x in checks)=={'SUCCESS':14,'FAILURE':1}
+assert not (p/'manager-todo-scan.txt').read_text().strip()
+req=json.loads((p/'manager-parsed-req-qa.json').read_text());fl=json.loads((p/'manager-parsed-flaky-test-qa.json').read_text())['data']
+reqsum=req['summary']; counts=e['counts_before_todo']; manifest=e['required_reviewers'];sha=pr['headRefOid'];task='/root/c1_quality_manager12'
+def digest(f):return hashlib.sha256(f.read_bytes()).hexdigest()
+url=(p/'manager-published-url.txt').read_text().strip() if (p/'manager-published-url.txt').exists() else 'pending_initial_publication_then_amend_same_post'
+tri=[x['path'] for x in e['triage']]
+ci={'total':15,'success':14,'failure':1,'pending':0,'green':False,'head':sha,'failed_check':next(x for x in checks if x['state']=='FAILURE'),'native_success':3,'python_success':11,'hosted_tested_merge':'43d7088a6e702859f438c25c024b29ad0aa2f473','hosted_merge_base':'f1e0756e0e17a2002a69a7dcfba2de60aeb6887c'}
+chain={'qa_pass':'qa-12','commit':sha,'pr_comment_url':url,'coordinator_task_id':task,'assignment_task_id':'qa-c-1-12','coordinator_role':'cursor-quality-mgr','actual_model':'gpt-6.1-sol high fallback; configured Composer/Grok unavailable','reviewer_tasks':[{'agent':m['agent'],'task_id':m['task_id'],'spawn_actor':m['spawn_actor']} for m in manifest],'aggregation_source':'reviewer_fenced_json_union_todo_scan','open_finding_ids':[x['id'] for x in e['open_findings']],'todo_scan':{'command':'python3 .claude/skills/todo-triage/scripts/find_todos.py','rows':0,'unresolved':0,'report':str(p/'manager-todo-scan.txt'),'sha256':digest(p/'manager-todo-scan.txt')},'ci':ci,'triage':{'ttl_paths':tri,'disposition':'all four rechecked canonical findings still open'},'evidence_verification':{'path':str(p/'manager-evidence-verification.json'),'sha256':digest(p/'manager-evidence-verification.json'),'reviewer_fences':4,'verified_hash_checks':32},'parent_spawn_correlation':{'path':str(p/'parent-spawn-correlation.json'),'sha256':digest(p/'parent-spawn-correlation.json')},'owner_resolved_ids_exact_C1':['RQA9-001','RQA11-001'],'preserved_scoped_credit_ids':['RQA10-001','CI-C2-RUNNER-001','FTQ-009','FTQ-010','FTQ-011','RSH-001'],'ceremony_parent_decisions':'four accepted_not_applicable; findings open; no waiver','incomplete_deliverable_ids':reqsum['incomplete_deliverable_ids'],'requirement_results':reqsum['requirement_results'],'requirement_total':reqsum['requirement_total'],'parent_correlation_required':True,'scope_limits':'Exact C1 only; historical failed evidence retained; no whole-C2, all-goal, SDK, anchor, integration or merge acceptance.'}
+# Use owning reviewer wording when available; historical RBQA is carried verbatim.
+by={x['id']:x for x in e['open_findings']}
+chosen={}
+for id,z in by.items():
+ owner={'ARCH-001':'arch-qa','REQ-QA-004':'req-qa','QA2-001':'rust-qa-agent','RBQA-F001':'rust-qa-agent'}[id]
+ chosen[id]=next(r['finding'] for r in z['reports'] if r['role']==owner)
+rows=[]
+for id in ['ARCH-001','REQ-QA-004','RBQA-F001','QA2-001']:
+ f=chosen[id];sev=by[id]['severity'].title();loc=f"{f['file']}:{f['line']}" if 'file' in f else '; '.join(f['target_refs'])
+ issue=f.get('issue',f.get('description'));rem=f.get('required_correction',f.get('remediation',f.get('recommendation')))
+ rows.append(f"### {id} — {sev}\n\n- Status: still open; canonical ID retained, not reissued.\n- Location: `{loc}`.\n- Finding: {issue}\n- Required correction: {rem}\n- Reviewer provenance: "+', '.join(r['role'] for r in by[id]['reports'])+f".\n- Triage: `.triage/c/findings/{id}.ttl`; current owner fence controls QA12 disposition.")
+review_table='\n'.join(['| Actual reviewer | Actual parent task | Reported gate verdict | Per-role findings (overlap retained) |','|---|---|---|---|']+[f"| {m['agent']} | `{m['task_id']}` | {m['verdict']}"+(' (owned timing scope PASS; carried findings remain)' if m['agent']=='flaky-test-qa' else '')+f" | {m['findings']['blocking']}B + {m['findings']['important']}I + {m['findings']['minor']}M |" for m in manifest])
+context=f"""### Reviewer evidence and aggregation
+
+{review_table}
+
+All four required QA2+ reviewers completed as actual parent tasks at `{sha}`. Each required fence parses, wrapper execution succeeded, canonical handoff and Markdown agree, and 32 bound artifact hash checks pass. Rust/flaky cross-role carry objects duplicate existing IDs; the merge gate counts their canonical ID union once. RBQA-F001 remains the inherited actual QA4 specialist finding; QA12 does not rerun open-ended specialist review. The architecture and req ownership verdicts remain FAIL; flaky's owned timing PASS does not clear carried findings. Actual available model was gpt-6.1-sol high fallback; configured Composer/Grok models were unavailable.
+
+### Requirement and deliverable result
+
+Req-qa alone supplies **29/34 (85.29%)**, with **101 requirement checks: 99 upheld, 2 violated**. Incomplete: {', '.join(reqsum['incomplete_deliverable_ids'])}. Completion was not inferred from coordinator source searches. The authoritative sprint document supplies aggregation context; its prior pending-owner wording is superseded for RQA9/RQA11 by the current actual owner fences.
+
+### TODO triage
+
+Prescribed repository-wide Rust finder ran after the valid handoff in the exact sprint worktree: **0 rows, 0 unresolved**. Grouped tag report: none; chosen disposition: none required. No TODO finding is added. Aggregation is reviewer fenced JSON union TODO scan.
+
+### Current required CI
+
+Bounded ambient-gh refresh confirms exact PR head `{sha}` and terminal **14 SUCCESS / 1 FAILURE / 0 pending**, all three native jobs and eleven Python jobs successful. The sole failing job is [fmt, doc, publish dry-run, boundaries](https://github.com/randlee/beads-cache/actions/runs/41807736208/job/126498882662). Actual reviewer-bound raw evidence identifies the isolated Python graph's direct sync-to-sc-command rejection. `mergeStateStatus=UNSTABLE`. CI is not green.
+
+Hosted checks attach to exact PR head but checked out synthetic merge `43d7088a6e702859f438c25c024b29ad0aa2f473` into frozen `f1e0756e0e17a2002a69a7dcfba2de60aeb6887c`. Literal source review and local affected checks used da946410; no literal runner HEAD-da assertion is made. Independent Rust affected store37/37, cron19/19 and strict affected lint/fmt passed per actual reviewer evidence. Successful test capture omits detailed phases; retained raw and source assertions supply the owner-qualified semantics.
+
+### Ceremony and triage disposition
+
+All four proposals were screened not_applicable and accepted by the parent without waiver. Existing source/test evidence and ordinary developer handoff suffice; no separate mandatory coverage ledger or standing process gate is added. Existing QA, applicable development anchors, required CI and integration closeout remain. All four supplied triage findings are still open; no canonical ID is newly created or silently deferred. These are current source/acceptance defects requiring the parent developer-fix-re-QA loop.
+
+The enforcer only parsed evidence, read context/triage, ran the prescribed TODO finder, refreshed CI and rendered/published this report. No coordinator Cargo, source/deliverable review, child agent, fix, SDK/pin/publisher/auth/guard workaround or merge occurred. No whole-C2, all-goal, SDK or merge acceptance is implied.
+"""
+res=[]
+for r in fl['resolved_findings']:
+ res.append(f"### {r['id']} — RESOLVED for exact C1 candidate\n\n{r['canonical_disposition']}\n\n{r['correction']}\n\nQualification: {r['qualification']}\n\nBasis: {r['why_not_pass_only']}\n\nLimits: {r['limits']}")
+res.append('### Prior scoped dispositions preserved\n\nRQA10-001 and CI-C2-RUNNER-001 retain independently verified exact-C1 QA11 credit; FTQ-009/010/011 retain their original lifetime/session/cap mechanism closures; RSH-001 retains the prior supported C1 and paired public-C2 scope only. C2-FTQ-006 remains retracted. Historical failures remain valid evidence. There is no whole-C2 acceptance or claim about unrecorded lower-level costs. RQA9/RQA11 are no longer pending owner adjudication for this candidate.')
+reason='Four canonical findings remain (3 Blocking + 1 Important + 0 Minor); deliverables 29/34; required boundary CI fails. Merge blocked.'
+v={'generated_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'qa_pass':'qa-12','sprint_id':'c-1','task_id':task,'branch':'sprint/c-1-runtime-migration','commit':sha,'pr_number':108,'verdict':'FAIL','deliverables_complete':29,'deliverables_total':34,'deliverables_percent':85.29,'merge_readiness':'not ready','merge_reason':reason,'findings_blocking':3,'findings_important':1,'findings_minor':0,'blocking_ids_json':json.dumps(['ARCH-001','REQ-QA-004','RBQA-F001']),'blocking_findings_md':'\n'.join(f"- **{id}** — {chosen[id].get('issue',chosen[id].get('description'))}" for id in ['ARCH-001','REQ-QA-004','RBQA-F001']),'detailed_findings_md':'\n\n'.join(rows)+'\n\n'+context,'resolved_findings_md':'\n\n'.join(res),'next_action':'triage_and_fix','action_owner':'parent-orchestrator','reviewer_spawn_gate':'pass','reviewer_manifest_json':json.dumps(manifest),'evidence_chain_json':json.dumps(chain),'missing_reviewers_json':'[]','unparsed_reviewers_json':'[]'}
+(p/'manager-report-vars.json').write_text(json.dumps(v,indent=2)+'\n')
+r=subprocess.run(['sc-compose','render','--root','.claude/skills/quality-management-gh','--file','findings-report.md.j2','--var-file',str(p/'manager-report-vars.json')],capture_output=True,text=True,check=True)
+(p/'manager-result.md').write_text(r.stdout)
+b=re.search(r'## Machine Status \(JSON\)\s*```json\s*(.*?)\s*```',r.stdout,re.S).group(1);status=json.loads(b)
+(p/'manager-machine-status.json').write_text(json.dumps(status,indent=2)+'\n');(p/'manager-machine-status-block.md').write_text('```json\n'+b+'\n```\n')
+(p/'manager-parent-report.md').write_text(r.stdout)
+print(json.dumps({'rendered_bytes':len(r.stdout.encode()),'machine_status_valid':True,'verdict':status['verdict'],'findings':status['findings'],'url':url}))

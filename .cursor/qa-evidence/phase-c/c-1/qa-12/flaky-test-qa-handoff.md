@@ -1,0 +1,187 @@
+```json
+{
+  "success": true,
+  "data": {
+    "handoff_type": "canonical_flaky_test_qa_leaf_projection",
+    "qa_pass": "qa-12",
+    "status": "findings",
+    "role_owned_verdict": "PASS",
+    "review_mode": "sprint_review",
+    "round_limit": false,
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+    "owner": "flaky-test-qa",
+    "model": "actual gpt-6.1-sol high fallback; configured Grok/Composer unavailable",
+    "findings": [
+      {
+        "id": "ARCH-001",
+        "category": "correctness",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.",
+        "recommendation": "Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.",
+        "evidence": "Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.",
+        "owner": "arch-qa",
+        "status": "open"
+      },
+      {
+        "id": "RBQA-F001",
+        "category": "guideline",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.",
+        "recommendation": "Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.",
+        "evidence": "Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.",
+        "owner": "rust-best-practices-agent historical QA4",
+        "status": "open"
+      },
+      {
+        "id": "REQ-QA-004",
+        "category": "tests",
+        "severity": "critical",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 225,
+        "issue": "Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.",
+        "recommendation": "Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.",
+        "evidence": "Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.",
+        "owner": "req-qa",
+        "status": "open"
+      },
+      {
+        "id": "QA2-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Required current isolated Python consumer graph rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+        "recommendation": "Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.",
+        "evidence": "Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -> sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.",
+        "owner": "rust-qa-agent",
+        "status": "open"
+      }
+    ],
+    "finding_provenance": "Four cross-role carried objects copied unchanged from actual independent QA12 Rust final fence; zero role-owned open/new flaky findings. Parent deduplicates canonical IDs; these are not new owner-origin graph findings.",
+    "resolved_findings": [
+      {
+        "id": "RQA9-001",
+        "severity": "important",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains.",
+        "correction": "Actual cfg(test) open_shutdown_fixture sets synchronous=OFF only on disposable real connection before SAME initialize/schema/extensions/backfill/identity/claim/WAL. Public read-only mutex, external BEGIN IMMEDIATE busy and executing SQL paths remain. Production open_at and all production behavior are byte-equivalent; helper also covers management/error/unwind/health.",
+        "qualification": "Unchanged pre-spawn whole5s owner,30ms cancellation,500ms observation, real-return/stall receipts, rollback/no-write and normal-session restoration remain. Independent QA12 local37/37; required Windows37/37 and macOS37/37. Retained detailed corrected raw supplies actual read-only deadline error, DatabaseBusy5 and OperationInterrupted9 returns/stall markers/root reap; planted post-return marker gap still fails normal qualification and cleans root; observer error/panic/bad-receipt controls retained.",
+        "why_not_pass_only": "QA11 actual trace localized setup consuming4.785s and worker-entry4.975s before cancellation5.480s under original5s owner. Candidate removes irrelevant crash-durability work while retaining complete real cancellation conditions and meaningful failing controls. This source-supported scoped redesign plus independent affected/platform qualification supports disposition, without demanding identical historical recurrence.",
+        "limits": "Original QA9 and QA11 failures remain retained. Exact fsync/OS cost and every earlier uninstrumented stage remain unknown; no universal timing or production durable-commit/cancellation guarantee, whole-C2 acceptance or assertion that original failed case qualified. Captured hosted/local PASS logs omit detailed phases; retained developer raw and source assertions supply those semantics."
+      },
+      {
+        "id": "RQA11-001",
+        "severity": "important",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains.",
+        "correction": "Existing same test now runs exactly filtered in complete SessionFixture5s from pre-spawn with actual setsid. Real stopped command is acknowledged inside that owner before creating ONE250ms caller deadline immediately before process_ids_using. Measured>=80ms hold,CONT,same Inventory finish/output/full parse/self-presence,actual wait/reap and PID absence remain inside caller qualification. No earlier supplied caller or outer deadline is renewed.",
+        "qualification": "Independent QA12 local full19/19 and current required macOS full19/19. Retained corrected raw measures85.854834ms hold/114.615834ms caller; postpush81.869792ms/117.949916ms. Old50ms-before-closure mutant actually fails child+outer101 after84.020583ms hold, PID89442 actual kill/wait at89.354083ms; outer cleanuptrue does not waive caller error. Restored helperSHA72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac independently matches current source.",
+        "why_not_pass_only": "Explicit acknowledged-readiness split removes incidental shell/temp/STOP-ack preparation from this isolated regression measurement while retaining the intentional delay exceeding the former cap. Ordinary preflight/cleanup/audit whole-call absolute bounds and stopped timeout/unwind/three incomplete-scan false-receipt/no-retry/distinct quiescence-audit controls are byte-equivalent and exercised. No arbitrary timeout acceptance, padding, cap renewal, fake clock, host tuning or missing census.",
+        "limits": "Original macOS waited-exit0 at257.978625ms then output-deadline failure remains retained. Isolated positive intentionally no longer measures preparation within250ms; outer5s owns preparation. This does not change real preflight spawning budget or identify unrecorded STOP/CONT/OS costs. Mutant is inspected retained execution/provenance, not independently re-executed by this owner; no C2 consumption inferred."
+      }
+    ],
+    "summary": {
+      "total_findings": 4,
+      "critical": 3,
+      "important": 1,
+      "minor": 0,
+      "new_findings": 0,
+      "role_owned_open_findings": 0,
+      "role_owned_verdict": "PASS",
+      "cross_role_carried_open_ids": [
+        "ARCH-001",
+        "RBQA-F001",
+        "REQ-QA-004",
+        "QA2-001"
+      ],
+      "resolved_findings_this_review": [
+        "RQA9-001",
+        "RQA11-001"
+      ],
+      "preserved_scoped_resolutions": [
+        "RQA10-001",
+        "CI-C2-RUNNER-001",
+        "FTQ-009",
+        "FTQ-010",
+        "FTQ-011",
+        "RSH-001"
+      ],
+      "current_required_ci": {
+        "terminal": true,
+        "total": 15,
+        "success": 14,
+        "failure": 1,
+        "native_success": 3,
+        "python_success": 11
+      },
+      "sprint_verdict": "FAIL: four carried graph/composition/acceptance findings remain; no whole-sprint, SDK, C2 or merge acceptance. Owner fixture findings resolved for exact C1 candidate."
+    },
+    "preserved_dispositions": [
+      {
+        "id": "RQA10-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate"
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate"
+      },
+      {
+        "id": "FTQ-009",
+        "status": "closed_preserved_for_original_unbounded_lifetime"
+      },
+      {
+        "id": "FTQ-010",
+        "status": "closed_preserved_for_original_session_orphan_inventory_mechanisms"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "closed_preserved_for_independent50ms_cap_mechanism"
+      },
+      {
+        "id": "RSH-001",
+        "status": "resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "open"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "open"
+      },
+      {
+        "id": "QA2-001",
+        "status": "open"
+      },
+      {
+        "id": "REQ-QA-004",
+        "status": "open"
+      },
+      {
+        "id": "C2-FTQ-006",
+        "status": "retracted_preserved"
+      }
+    ],
+    "evidence_limits": "Source exact clean da9464; hosted checkout synthetic merge43d7088 of da9464 into frozenf1. Successful libtest capture hides phases; detailed retained raw/control evidence and source assertions reviewed. Historical failed evidence and lower-level cost limits preserved; no wholeC2/globalCI/SDK/merge acceptance.",
+    "full_report": {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+      "sha256": "646fdb8994cc16e1a5a1dafc019a3ee39e7fb996a34a8dc81e8ca19d39410525",
+      "markdown_path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.md",
+      "markdown_sha256": "e866b8303ae3a493671e22537392d65e7aa537177fe251e5d43c89d2401aebd3"
+    },
+    "state": "STOP"
+  },
+  "error": null
+}
+```

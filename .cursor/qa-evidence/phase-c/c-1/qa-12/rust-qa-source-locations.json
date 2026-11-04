@@ -1,0 +1,52 @@
+[
+  {
+    "file": "crates/bd-cache-store/src/store.rs",
+    "line": 926,
+    "text": "pub(crate) fn open_shutdown_fixture("
+  },
+  {
+    "file": "crates/bd-cache-store/src/schedule.rs",
+    "line": 809,
+    "text": "fn shutdown_store_at(started: Instant) -> (tempfile::TempDir, SqliteStore) {"
+  },
+  {
+    "file": "crates/bd-cache-store/src/schedule.rs",
+    "line": 1148,
+    "text": "fn shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup() {"
+  },
+  {
+    "file": "crates/bd-cache-store/src/schedule.rs",
+    "line": 1156,
+    "text": "fn shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification() {"
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 399,
+    "text": "fn process_ids_using("
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 665,
+    "text": "fn stopped_inventory_is_owned_reaped_on_timeout_and_unwind() -> io::Result<()> {"
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 695,
+    "text": "fn stopped_inventory(deadline: Instant) -> io::Result<Inventory> {"
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 723,
+    "text": "fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {"
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 844,
+    "text": "fn incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget() -> io::Result<()> {"
+  },
+  {
+    "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+    "line": 899,
+    "text": "fn stage_timeout_control(post_audit: bool) -> io::Result<()> {"
+  }
+]

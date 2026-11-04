@@ -1,0 +1,5 @@
+{
+  "returncode": 1,
+  "stdout": "",
+  "stderr": "failed to create review: GraphQL: Review Can not request changes on your own pull request (addPullRequestReview)\n"
+}
