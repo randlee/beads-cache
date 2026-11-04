@@ -1,0 +1,140 @@
+{
+  "sprint": "c-2",
+  "task": "qa-c-2-5",
+  "branch": "sprint/c-2-framework-application",
+  "commit": "45c9dd13258482ba8af3e5cfeae5ce146b120453",
+  "pr": 109,
+  "verdict": "FAIL",
+  "deliverables": {
+    "complete": 14,
+    "total": 21,
+    "percent": 66.67
+  },
+  "findings": {
+    "blocking": 7,
+    "important": 2,
+    "minor": 0
+  },
+  "blocking_ids": [
+    "ARCH-001",
+    "C2-REQ-003",
+    "C2-REQ-004",
+    "C2-REQ-007",
+    "C2-REQ-009",
+    "RBQA-F001",
+    "RSH-001"
+  ],
+  "merge_readiness": "not ready",
+  "merge_reason": "Nine open findings (7 Blocking, 2 Important); deliverables 14/21; current CI 10 success/5 failure; parent, exact-candidate qualification and acceptance gates remain.",
+  "next_action": "triage_and_fix",
+  "owner": "parent-orchestrator; C1 producer and C2 caller/acceptance owners",
+  "reviewer_spawn_gate": "pass",
+  "reviewer_manifest": [
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/c4_flaky",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FINDINGS",
+      "findings": {
+        "blocking": 0,
+        "important": 2,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c2_req4",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 4,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c2_arch4",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 5,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c2_rustqa4",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "fenced_json_received": true,
+      "verdict": "FINDINGS",
+      "findings": {
+        "blocking": 4,
+        "important": 2,
+        "minor": 0
+      }
+    }
+  ],
+  "missing_reviewers": [],
+  "unparsed_reviewers": [],
+  "evidence_chain": {
+    "qa_pass": "qa-5",
+    "commit": "45c9dd13258482ba8af3e5cfeae5ce146b120453",
+    "pr_comment_url": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6622258720",
+    "coordinator_task_id": "/root/c2_quality_manager5",
+    "reviewer_tasks": {
+      "flaky-test-qa": "/root/c4_flaky",
+      "req-qa": "/root/c2_req4",
+      "arch-qa": "/root/c2_arch4",
+      "rust-qa-agent": "/root/c2_rustqa4"
+    },
+    "triage": {
+      "ttl_paths": [
+        ".triage/c/findings/QA-C2-001.ttl",
+        ".triage/c/findings/C2-REQ-003.ttl",
+        ".triage/c/findings/C2-REQ-004.ttl",
+        ".triage/c/findings/C2-REQ-007.ttl",
+        ".triage/c/findings/C2-REQ-009.ttl",
+        ".triage/c/findings/ARCH-001.ttl",
+        ".triage/c/findings/RSH-001.ttl",
+        ".triage/c/findings/RBQA-F001.ttl",
+        ".triage/c/findings/C4-FTQ-001.ttl",
+        ".triage/c/findings/C2-FTQ-006.ttl"
+      ]
+    },
+    "ci": {
+      "success": 10,
+      "failure": 5,
+      "pending": 0,
+      "snapshot": "/tmp/phase-c-execution/c-2/qa-5/manager-ci.json"
+    },
+    "todo_scan": {
+      "rows": 0,
+      "path": "/tmp/phase-c-execution/c-2/qa-5/manager-todo-scan.txt"
+    },
+    "ceremony_adjudication": "/tmp/phase-c-execution/c-2/qa-5/screen-parent-adjudication.json",
+    "assignment_sha256": "bd7062cfa9655669c07444c5b63b6c0768faa3fe23817c694b7db59f883ca29d",
+    "handoff_proof": "/tmp/phase-c-execution/c-2/qa-5/manager-validated-handoff.json",
+    "publish_mode": "comment_after_github_self_review_rejection"
+  },
+  "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+  "open_ids": [
+    "ARCH-001",
+    "C2-REQ-003",
+    "C2-REQ-004",
+    "C2-REQ-007",
+    "C2-REQ-009",
+    "C4-FTQ-001",
+    "QA-C2-001",
+    "RBQA-F001",
+    "RSH-001"
+  ]
+}

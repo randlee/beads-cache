@@ -1,0 +1,29 @@
+{
+  "source_commit": "45c9dd13258482ba8af3e5cfeae5ce146b120453",
+  "build_exit": 0,
+  "process_exit": 0,
+  "source_file": "/tmp/phase-c-execution/c-2/qa-5/startup-probe/src/main.rs",
+  "source_sha256": "604ce3bf268209bdf9f3a6f9d25023d7cacf85fa0624dc29c6c8c02480ad07c6",
+  "manifest_file": "/tmp/phase-c-execution/c-2/qa-5/startup-probe/Cargo.toml",
+  "manifest_sha256": "46e3054e20c9a0acff0383953aab70f7ca66cd1e3f95711b7b237d32ce2de26e",
+  "log": "/tmp/phase-c-execution/c-2/qa-5/rustqa-startup-probe.log",
+  "log_sha256": "7ddb118bb69a7165a2ba5f8e097b7359a31fcb0010e377d37f71a509c5c76284",
+  "ordinary_grace_ms": 250,
+  "original_2T_bound_ms": 500,
+  "shutdown_pending_at_ms": 902.343541,
+  "shutdown_total_after_rescue_ms": 978.142166,
+  "normal_management_write_result": "Ok(true)",
+  "application_shutdown_result": "Ok(())",
+  "cleanup": {
+    "external_writer": "ROLLBACK performed before joining management writer",
+    "management_thread": "actual std::thread::JoinHandle joined",
+    "contention_probe_thread": "deadline shortened and actual std::thread::JoinHandle joined",
+    "application_worker_and_readiness": "actual Application.shutdown awaited to Ok",
+    "direct_probe_process": "subprocess.run waited/reaped exit0; no descendant processes spawned by probe",
+    "rescue_watchdog_seconds": 12,
+    "watchdog_triggered": false
+  },
+  "reachability": "Actual public Application API caller retains Composed.schedule_store and starts an ordinary management write before handing Composed to Application::start. No private access or production source changes. Stock daemon composition does not itself start this independent same-connection management task; underlying generic cron startup path is C1-owned.",
+  "counterexample": "Worker cron startup warning calls self.rows on normal management view and does not observe stop until it returns; post-start worker control deadline therefore does not bound this early-stop path.",
+  "initial_probe_manifest_error": "First private manifest assumed registry sc-beads0.1.1; corrected to actual local sc-beads path and unchanged SQLite hooks before successful offline build; no product manifest/lock change."
+}
