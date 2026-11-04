@@ -132,18 +132,37 @@ impl SessionFixture {
         let started = *self.cleanup_started.get_or_insert_with(Instant::now);
         let quiesce_by = started + Duration::from_millis(250);
         let final_by = started + Duration::from_secs(1);
+        let mut calls = 0;
         let early_failure = drain(
             self.session,
             started + Duration::from_millis(100),
             false,
-            inventory,
+            &mut |deadline| {
+                stage_inventory(
+                    self.session,
+                    "initial-drain",
+                    started,
+                    &mut calls,
+                    deadline,
+                    inventory,
+                )
+            },
         )
         .err();
         let mut failure = None;
         // Stop the root and acknowledge a stable stopped session before kill.
         // Kernel membership covers groups born before registration; no stopped
         // member can fork another child between this census and termination.
-        match quiesce(self.session, quiesce_by, inventory) {
+        match quiesce(self.session, quiesce_by, &mut |deadline| {
+            stage_inventory(
+                self.session,
+                "quiescence",
+                started,
+                &mut calls,
+                deadline,
+                inventory,
+            )
+        }) {
             Ok(members) => {
                 for member in members {
                     if member.pid != self.session {
@@ -154,12 +173,28 @@ impl SessionFixture {
             Err(error) => failure = Some(error),
         }
         let _ = self.child.process.kill();
-        if let Err(error) = self.child.process.wait() {
+        let root_wait = self.child.process.wait();
+        eprintln!(
+            "RQA10_ROOT session={} elapsed={:?} wait={root_wait:?} remaining_final={:?}",
+            self.session.as_raw_pid(),
+            started.elapsed(),
+            final_by.saturating_duration_since(Instant::now())
+        );
+        if let Err(error) = root_wait {
             failure = Some(error);
         }
         // The real root wait closes all in-flight fixture launches. Re-enumerate
         // the inherited session after that join, including reparented processes.
-        match drain(self.session, final_by, true, inventory) {
+        match drain(self.session, final_by, true, &mut |deadline| {
+            stage_inventory(
+                self.session,
+                "final-drain",
+                started,
+                &mut calls,
+                deadline,
+                inventory,
+            )
+        }) {
             Ok(true) => {}
             Ok(false) => {
                 failure = Some(io::Error::new(
@@ -170,6 +205,11 @@ impl SessionFixture {
             Err(error) => failure = Some(error),
         }
         if let Some(error) = failure {
+            eprintln!(
+                "RQA10_CLEANUP session={} calls={calls} elapsed={:?} cleaned=false error={error}",
+                self.session.as_raw_pid(),
+                started.elapsed()
+            );
             return Err(error);
         }
         if let Some(error) = early_failure {
@@ -179,8 +219,71 @@ impl SessionFixture {
             eprintln!("session cleanup recovered preliminary inventory: {error}");
         }
         self.child.cleaned.store(true, Ordering::SeqCst);
+        eprintln!(
+            "RQA10_CLEANUP session={} calls={calls} elapsed={:?} cleaned=true final_complete_census=true",
+            self.session.as_raw_pid(),
+            started.elapsed()
+        );
         Ok(())
     }
+}
+
+fn stage_inventory(
+    session: Pid,
+    stage: &str,
+    origin: Instant,
+    calls: &mut usize,
+    deadline: Instant,
+    inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<Vec<(Pid, bool)>> {
+    *calls += 1;
+    let thread = std::thread::current().id();
+    let entered = Instant::now();
+    eprintln!(
+        "RQA10_SCAN_BEGIN thread={thread:?} session={} stage={stage} call={calls} owner_elapsed={:?} deadline_offset={:?} remaining={:?}",
+        session.as_raw_pid(),
+        entered.duration_since(origin),
+        deadline.saturating_duration_since(origin),
+        deadline.saturating_duration_since(entered)
+    );
+    let result = inventory(deadline);
+    eprintln!(
+        "RQA10_SCAN_END thread={thread:?} session={} stage={stage} call={calls} elapsed={:?} remaining={:?} result={:?}",
+        session.as_raw_pid(),
+        entered.elapsed(),
+        deadline.saturating_duration_since(Instant::now()),
+        result.as_ref().map(Vec::len)
+    );
+    result
+}
+
+fn audit_members_using(
+    session: Pid,
+    deadline: Instant,
+    inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<Vec<Member>> {
+    let origin = Instant::now();
+    let mut calls = 0;
+    // This is independent verification, not a second cleanup attempt. The
+    // supplied audit deadline is retained exactly, including census/parsing.
+    let result = members_before(session, deadline, &mut |deadline| {
+        stage_inventory(
+            session,
+            "post-cleanup-audit",
+            origin,
+            &mut calls,
+            deadline,
+            inventory,
+        )
+    });
+    eprintln!(
+        "RQA10_AUDIT session={} elapsed={:?} remaining={:?} complete_members={:?}",
+        session.as_raw_pid(),
+        origin.elapsed(),
+        deadline.saturating_duration_since(Instant::now()),
+        result.as_ref().map(Vec::len)
+    );
+    result
 }
 
 impl Drop for SessionFixture {
@@ -199,6 +302,7 @@ impl Drop for SessionFixture {
 struct Inventory {
     process: Child,
     output: tempfile::NamedTempFile,
+    started: Instant,
 }
 
 impl Inventory {
@@ -207,18 +311,36 @@ impl Inventory {
     }
 
     fn spawn_command(command: &mut Command) -> io::Result<Self> {
+        let thread = std::thread::current().id();
         let output = tempfile::NamedTempFile::new()?;
+        let started = Instant::now();
         let process = command
             .stdin(Stdio::null())
             .stdout(output.reopen()?)
             .stderr(output.reopen()?)
             .spawn()?;
-        Ok(Self { process, output })
+        eprintln!(
+            "RQA10_COMMAND_SPAWN thread={thread:?} pid={} spawn_elapsed={:?}",
+            process.id(),
+            started.elapsed()
+        );
+        Ok(Self {
+            process,
+            output,
+            started,
+        })
     }
 
     fn finish(&mut self, deadline: Instant) -> io::Result<String> {
+        let thread = std::thread::current().id();
         loop {
             if let Some(status) = self.process.try_wait()? {
+                eprintln!(
+                    "RQA10_COMMAND_EXIT thread={thread:?} pid={} command_elapsed={:?} actual_wait=true status={status} remaining={:?}",
+                    self.process.id(),
+                    self.started.elapsed(),
+                    deadline.saturating_duration_since(Instant::now())
+                );
                 let output = std::fs::read_to_string(self.output.path())?;
                 if Instant::now() >= deadline {
                     return Err(io::Error::new(
@@ -238,6 +360,12 @@ impl Inventory {
                 // SIGKILL also terminates SIGSTOPped inventory. Reap our actual
                 // child before returning the deadline failure, including unwind.
                 self.reap()?;
+                eprintln!(
+                    "RQA10_COMMAND_TIMEOUT thread={thread:?} pid={} command_elapsed={:?} actual_kill_wait=true remaining={:?}",
+                    self.process.id(),
+                    self.started.elapsed(),
+                    deadline.saturating_duration_since(Instant::now())
+                );
                 return Err(io::Error::new(
                     io::ErrorKind::TimedOut,
                     "owned session inventory timed out",
@@ -647,7 +775,7 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
     let session = child.session;
     let mut scans = 0;
     let mut delayed_pid = None;
-    let status = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+    let finished = child.finish_using(Duration::from_secs(5), &mut |deadline| {
         scans += 1;
         if scans == 1 {
             Err(io::Error::other("injected transient inventory failure"))
@@ -656,14 +784,24 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
                 let inventory = stopped_inventory(deadline)?;
                 let pid = Pid::from_child(&inventory.process);
                 delayed_pid = Some(pid);
+                let delay_started = Instant::now();
+                eprintln!("RQA10_INJECT scan=3 pid={pid:?} actual_stop_ack=true remaining_before_80ms={:?}", deadline.saturating_duration_since(delay_started));
                 std::thread::sleep(Duration::from_millis(80));
+                eprintln!("RQA10_INJECT scan=3 pid={pid:?} actual_delay={:?} remaining_before_cont={:?}", delay_started.elapsed(), deadline.saturating_duration_since(Instant::now()));
                 kill_process(pid, Signal::CONT)?;
                 Ok(inventory)
             })
         } else {
             process_ids(deadline)
         }
-    })?;
+    });
+    eprintln!(
+        "RQA10_RECOVERY_RESULT session={} scans={scans} finish={finished:?} root_status={:?} cleaned={}",
+        session.as_raw_pid(),
+        child.child.process.try_wait()?,
+        child.child.cleaned.load(Ordering::SeqCst)
+    );
+    let status = finished?;
     assert!(status.is_some_and(|status| !status.success()));
     assert!(
         child
@@ -675,7 +813,14 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
         scans >= 5,
         "recovery must include fresh stable and final censuses"
     );
-    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+    assert!(
+        audit_members_using(
+            session,
+            Instant::now() + Duration::from_millis(250),
+            &mut process_ids
+        )?
+        .is_empty()
+    );
     assert_eq!(
         rustix::process::test_kill_process(session),
         Err(Errno::SRCH)
@@ -734,6 +879,102 @@ fn incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget() -> 
     assert!(!receipt.load(Ordering::SeqCst));
     eprintln!(
         "FTQ-011 noncooperative census children {inventory_pids:?} reaped; failed cleanup retained"
+    );
+    Ok(())
+}
+
+#[test]
+fn cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes() -> io::Result<()> {
+    for post_audit in [false, true] {
+        stage_timeout_control(post_audit)?;
+    }
+    Ok(())
+}
+
+fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
+    assert!(child.wait_for_output(
+        "inventory fixture session established",
+        Duration::from_secs(3)
+    )?);
+    let session = child.session;
+    let mut scans = 0;
+    let mut held_pid = None;
+    let result = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+        scans += 1;
+        if !post_audit && scans == 2 {
+            process_ids_using(deadline, || {
+                let inventory = stopped_inventory(deadline)?;
+                held_pid = Some(Pid::from_child(&inventory.process));
+                Ok(inventory)
+            })
+        } else {
+            process_ids(deadline)
+        }
+    });
+    if post_audit {
+        assert!(result?.is_some_and(|status| !status.success()));
+        assert!(child.child.cleaned.load(Ordering::SeqCst));
+        let error = audit_members_using(
+            session,
+            Instant::now() + Duration::from_millis(250),
+            &mut |deadline| {
+                process_ids_using(deadline, || {
+                    let inventory = stopped_inventory(deadline)?;
+                    held_pid = Some(Pid::from_child(&inventory.process));
+                    Ok(inventory)
+                })
+            },
+        )
+        .err()
+        .ok_or_else(|| io::Error::other("held independent audit unexpectedly succeeded"))?;
+        assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+        // Audit failure is not silently accepted as an empty census and does
+        // not rewrite the already completed cleanup's separate receipt.
+        assert!(child.child.cleaned.load(Ordering::SeqCst));
+    } else {
+        assert_eq!(
+            result
+                .err()
+                .ok_or_else(|| io::Error::other("held quiescence unexpectedly succeeded"))?
+                .kind(),
+            io::ErrorKind::TimedOut
+        );
+        assert!(!child.child.cleaned.load(Ordering::SeqCst));
+        let original_attempt = child.cleanup_started;
+        assert!(child.cleanup().is_err());
+        assert_eq!(child.cleanup_started, original_attempt);
+    }
+    let root_status = child
+        .child
+        .process
+        .try_wait()?
+        .ok_or_else(|| io::Error::other("actual root wait incomplete"))?;
+    assert!(
+        !root_status.success(),
+        "the original child failure must stay failed"
+    );
+    assert!(
+        child
+            .output()?
+            .contains("original fixture failure must remain a failure")
+    );
+    assert_eq!(
+        rustix::process::test_kill_process(session),
+        Err(Errno::SRCH)
+    );
+    assert_eq!(
+        rustix::process::test_kill_process(
+            held_pid.ok_or_else(|| io::Error::other("owned held inventory absent"))?
+        ),
+        Err(Errno::SRCH)
+    );
+    // A fresh independent audit establishes actual emptiness without changing
+    // the failed cleanup/audit observation or granting another cleanup attempt.
+    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+    assert_eq!(child.child.cleaned.load(Ordering::SeqCst), post_audit);
+    eprintln!(
+        "RQA10_CONTROL post_audit={post_audit} actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt={post_audit} original_fixture_failed=true before_driver_fallback"
     );
     Ok(())
 }

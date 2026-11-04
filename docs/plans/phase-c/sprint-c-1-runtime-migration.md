@@ -1047,3 +1047,46 @@ as reviewed. This is diagnostic/classification work, not an original-cause fix.
 All five canonical findings remain OPEN; QA10 and actual platform/current CI,
 sprint/anchor and merge gates are not waived. Final exact-source validation and
 push receipts follow in the QA9 phase-protocol result artifacts.
+
+
+## QA10 inventory stage diagnostics
+
+QA10's actual macOS cron_hurry17/18 failure remains a valid unlocalized inventory
+timeout. The recovered initial-drain notice does not identify whether the later
+failure was in quiescence, final drain or independent audit. Exact integration
+`c0b251da` is consumed by ordinary merge, preserving all owning histories and
+previous candidate-scoped dispositions. All six current findings stay OPEN.
+
+The session helper now reports each cleanup stage, call index, original absolute
+deadline offset, remaining time and actual inventory result. Inventory subprocess
+PID, owner thread, elapsed time and actual exit or timeout kill/wait are recorded.
+The thread tag links each command with its synchronous stage callback; it is not
+a new execution controller. Root wait, final complete census/cleanup receipt and
+independent post-cleanup audit outcomes are separate observations. The existing
+transient first scan and third-scan stopped-command80ms injection retain their
+exact order and behavior; diagnostics record actual stop acknowledgement and
+remaining time before and after that original delay.
+
+An owned controlled counterexample establishes the old generic timeout's ambiguity:
+a held quiescence command fails cleanup, with root actually reaped and receipt
+false; a held post-audit command fails only after completed root cleanup, with its
+separate cleanup receipt still true. In both cases the held inventory is killed
+and waited, the original fixture remains failed, and complete independent session
+verification cannot rewrite the intentionally failed observation. Failed cleanup
+cannot acquire a second attempt or fresh deadline. These are stage-classification
+controls, not reproduction or correction of the natural macOS failure.
+
+Authorized local inventory controls pass6/6. The original EPERM sandbox attempt
+is retained separately: real process inventory was denied, not evidence about the
+hosted timeout. A normal local recovery observed scan3 in quiescence with214.069ms
+left after stop acknowledgement,81.886ms actual delay and132.183ms left before
+CONT; that observation does not establish the original failure stage or cause.
+
+Initial100ms drain, absolute250ms quiescence,1s cleanup, independent250ms audit,
+whole-child5s and one-attempt ownership remain unchanged. No fault or audit was
+removed or moved, no new per-scan cap, retry-to-green, production correction,
+public artifact, SDK/pin/guard change or acceptance waiver is introduced. This is
+diagnostic-only delivery pending exact-source hosted stage evidence and owner
+assessment. Store phase protocol and reviewed production sources remain unchanged.
+Final source, targeted post-push proof and macOS handle are recorded in QA10's
+inventory-stage result artifacts; no overall CI, sprint, anchor or merge claim.
