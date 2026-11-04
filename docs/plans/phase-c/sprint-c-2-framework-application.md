@@ -608,3 +608,21 @@ See [the scoped receipt](evidence/c-2-qualified-shutdown-consumption.md) for all
 nine dispositions and source provenance. RSH-001/C2-REQ-004 are implemented
 pending C2 QA; endpoint/Windows/logging/paste/current qualification gates remain.
 Whole C1 is FAIL3B1I, PR108 remains unmerged, and C2 is not merge-ready.
+
+
+### QA5 startup candidate consumption (owning review pending)
+
+QA5 at `45c9dd13258482ba8af3e5cfeae5ce146b120453` reopened the supported public
+Application startup occurrence of RSH-001/C2-REQ-004. That original negative
+receipt remains unchanged. Exact integration `07a1ebcb11085bb6294096139528e040720554c3`
+and frozen C1 candidate `adbcc88d3dc134ae94403bc2af7a8db76ba921a5` are now consumed
+by ordinary feature-source merges `b09c3d0` and `dcaa8e4`. This is candidate
+validation; C1 QA8 remains FAIL (4 Blocking, 2 Important), PR108 remains unmerged.
+The unchanged public probe rebuild joins in 251.517333ms under the original500ms
+bound while ordinary retained management remains blocked until explicit rollback.
+Two deterministic Application startup regressions observe the actual startup
+read, ordinary/zero-timeout stop, production expiry callback, closing readiness,
+normal management completion and actual joins/reopen. No production caller change
+was required. All nine C2 findings plus imported FTQ-011 remain open pending
+owning independent review or their unchanged documented blockers. See the
+[scoped candidate receipt](evidence/c-2-startup-candidate-consumption.md).

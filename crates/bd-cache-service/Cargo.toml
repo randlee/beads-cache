@@ -26,6 +26,7 @@ bd-cache-store = { workspace = true, features = ["testing"] }
 rusqlite.workspace = true
 tempfile.workspace = true
 sc-beads = { workspace = true, features = ["testing"] }
+sc-cron.workspace = true
 sc-bd-cli = { workspace = true, features = ["test-support"] }
 bd-cache-model = { workspace = true, features = ["testing"] }
 

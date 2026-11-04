@@ -244,6 +244,7 @@ dependencies = [
  "rusqlite",
  "sc-bd-cli",
  "sc-beads",
+ "sc-cron",
  "serde_json",
  "tempfile",
  "tokio",

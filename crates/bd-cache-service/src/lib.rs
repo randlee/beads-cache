@@ -8,6 +8,8 @@ mod readiness;
 #[cfg(test)]
 mod shutdown_tests;
 #[cfg(test)]
+mod startup_tests;
+#[cfg(test)]
 mod test_support;
 
 use std::sync::{Arc, Mutex};
