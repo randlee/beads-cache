@@ -1,0 +1,113 @@
+# Consumer-owned build/install evidence. No release, tag or registry writes.
+name: Release artifact qualification
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'release/**'
+      - 'scripts/check_release_candidate.py'
+      - 'scripts/test_release_candidate.py'
+      - '.github/workflows/release-qualification.yml'
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: candidate-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: candidate (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+            wheel: true
+          - os: macos-14
+            target: aarch64-apple-darwin
+            wheel: true
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            wheel: false
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            wheel: false
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # PR merge refs are synthetic and must not become release evidence.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - name: Install the declared wheel builder
+        if: matrix.wheel
+        run: python -m pip install 'maturin[zig]==1.9.4'
+      - name: Build, package and install the exact committed source
+        run: |
+          suffix=''; if [[ '${{ runner.os }}' == Windows ]]; then suffix='.exe'; fi
+          python -I scripts/check_release_candidate.py pack --target '${{ matrix.target }}' --helpers helpers --output candidate
+          python -I scripts/check_release_candidate.py smoke --directory candidate --commit "$(git rev-parse HEAD)" --version 0.2.0 --target '${{ matrix.target }}' --fake-bd "$PWD/helpers/fake-bd$suffix" --fake-python "$PWD/helpers/fake-python$suffix" | tee qualification.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: candidate-${{ matrix.target }}
+          path: candidate/*
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        with:
+          name: evidence-${{ matrix.target }}
+          path: qualification.json
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v6
+        with:
+          name: helpers-${{ matrix.target }}
+          path: helpers/*
+          if-no-files-found: error
+  python:
+    name: installed abi3 (${{ matrix.target }}, Python ${{ matrix.python }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, python: '3.9'}
+          - {os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, python: '3.11'}
+          - {os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, python: '3.13'}
+          - {os: macos-14, target: aarch64-apple-darwin, python: '3.9'}
+          - {os: macos-14, target: aarch64-apple-darwin, python: '3.11'}
+          - {os: macos-14, target: aarch64-apple-darwin, python: '3.13'}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: candidate-${{ matrix.target }}
+          path: candidate
+      - uses: actions/download-artifact@v7
+        with:
+          name: helpers-${{ matrix.target }}
+          path: helpers
+      - name: Install and exercise the downloaded archive and wheel
+        shell: bash
+        run: |
+          chmod +x helpers/*
+          python -I scripts/check_release_candidate.py smoke --directory candidate --commit "$(git rev-parse HEAD)" --version 0.2.0 --target '${{ matrix.target }}' --fake-bd "$PWD/helpers/fake-bd" --fake-python "$PWD/helpers/fake-python" | tee qualification.json
+      - uses: actions/upload-artifact@v6
+        with:
+          name: evidence-${{ matrix.target }}-py${{ matrix.python }}
+          path: qualification.json
+          if-no-files-found: error

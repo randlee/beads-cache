@@ -26,7 +26,7 @@ harness. Sprint b-3a shipped the skeleton; sprint b-3 adds the commands over
 | `bin/fake-python` (feature `fake-bd`) | a stand-in interpreter for the hook and the Python row (sprint b-8) |
 | `tests/support` | `TestRepo` (temp repo with `.beads/metadata.json` and a scenario), `parse_envelope`, process and in-process `BdCli` constructors |
 
-## ADR-CLI-0001: sc-command is a git dependency, so the crate is `publish = false`
+## ADR-CLI-0001: Historical git dependency and unpublished CLI
 
 **Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
@@ -282,3 +282,9 @@ Example:
 - `bin/fake-python` (feature `fake-bd`): a stand-in interpreter for the hook and the Python row
   in real-process tests on every OS (`tests/tree_kill.rs`: the process-group and job-object
   kills, and the Windows Ctrl-Break stop).
+
+### Phase C amendment to ADR-CLI-0001
+
+ADR-BDC-0016 (owner approval 2026-11-02) replaces the historical git pin with
+published sc-command exactly 0.1.1, default features off. The CLI remains
+unpublished. Three-OS builds and all version/usage/exit envelopes are unchanged.

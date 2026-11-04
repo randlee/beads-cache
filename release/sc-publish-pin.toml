@@ -1,14 +1,8 @@
-# sc-publish pin manifest (see release/sc-publish-pin.toml.example and
-# README.sc-publish.md "Pinning, bootstrap, and qualification").
-#
-# sc-publish develop at 66d11b2 (b-5): it contains #130 (prerelease publishes
-# every declared wheel) and #133 (a release with no artifacts completes). The
-# consumer tree is unchanged canonical-installer output of this exact revision,
-# rendered from release/sc-publish-consumer-input.json. No shared kit file is
-# hand-edited. No stable release runs at this pin: it waits for a pin that
-# contains the fix for randlee/sc-publish#135 (P-4).
+# Immutable sc-publish candidate source; canonical installer output.
+# Separate release-asset staging regression is exercised without publishing.
+# Issue #135 remains open; org publication qualification and channel setup
+# are separate owner gates. See docs/development/release.md.
 
 [sc-publish]
 repository = "https://github.com/randlee/sc-publish"
-# The org-blessed, consumer-qualified kit revision (full 40-character SHA).
-revision = "66d11b2e34d638f9e9239c23621744cb971cee3d"
+revision = "5fd4d0db1b7cbb4ebf9316588047391a8e4be496"

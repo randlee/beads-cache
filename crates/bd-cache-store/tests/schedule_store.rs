@@ -209,10 +209,31 @@ fn set_enabled_flips_only_the_flag_and_set_next_is_refused_while_disabled() {
 
 /// Every pair of flags a second connection read while `flip` ran.
 fn poll_while(path: &Path, names: [&str; 2], flip: impl FnOnce()) -> Vec<(bool, bool)> {
+    struct Stop {
+        flag: Arc<AtomicBool>,
+        thread: Option<std::thread::JoinHandle<Vec<(bool, bool)>>>,
+    }
+    impl Drop for Stop {
+        fn drop(&mut self) {
+            self.flag.store(true, Ordering::SeqCst);
+            if let Some(thread) = self.thread.take() {
+                let until = std::time::Instant::now() + Duration::from_secs(30);
+                while !thread.is_finished() && std::time::Instant::now() < until {
+                    std::thread::yield_now();
+                }
+                if thread.is_finished() {
+                    let _ = thread.join();
+                } else {
+                    eprintln!("owned store observer did not stop by cleanup deadline");
+                }
+            }
+        }
+    }
     let path = path.to_path_buf();
     let done = Arc::new(AtomicBool::new(false));
     let stop = Arc::clone(&done);
     let names = names.map(str::to_owned);
+    let (ready, observed) = std::sync::mpsc::sync_channel(1);
     let poller = std::thread::spawn(move || {
         let c = other(&path);
         let mut seen = Vec::new();
@@ -230,12 +251,26 @@ fn poll_while(path: &Path, names: [&str; 2], flip: impl FnOnce()) -> Vec<(bool, 
                     },
                 )
                 .unwrap();
+            if seen.is_empty() {
+                ready.send(()).unwrap();
+            }
             seen.push(pair);
         }
         seen
     });
+    let mut owner = Stop {
+        flag: Arc::clone(&done),
+        thread: Some(poller),
+    };
+    observed.recv_timeout(Duration::from_secs(5)).unwrap();
     flip();
     done.store(true, Ordering::SeqCst);
+    let poller = owner.thread.take().unwrap();
+    let until = std::time::Instant::now() + Duration::from_secs(5);
+    while !poller.is_finished() {
+        assert!(std::time::Instant::now() < until, "observer failed to stop");
+        std::thread::yield_now();
+    }
     poller.join().unwrap()
 }
 
@@ -485,19 +520,14 @@ fn schedule_ddl(c: &Connection) -> String {
     sql.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The cache file's `sc_cron_schedule` is sc-cron's own table: its DDL equals
-/// the one `SqliteScheduleStore` creates, after whitespace normalisation, so
-/// the hand-kept copy cannot drift from sc-cron's (ADR-BDC-0014).
+/// The pre-migration cache extension DDL is stable even though upstream's
+/// standalone schema has different target columns and a different version.
 #[test]
-fn the_cache_files_schedule_table_is_sc_crons_own_ddl() {
+fn the_cache_files_schedule_table_preserves_its_historical_ddl() {
     let h = Harness::new();
-    let tmp = TempDir::new("sc-cron-own");
-    let own = tmp.path().join("cron.db");
-    drop(sc_cron::SqliteScheduleStore::open(&own).unwrap());
-    assert_eq!(
-        schedule_ddl(&other(&h.path)),
-        schedule_ddl(&Connection::open(&own).unwrap())
-    );
+    let ddl = schedule_ddl(&other(&h.path));
+    let golden = include_str!("fixtures/format-golden.txt");
+    assert!(golden.contains(&ddl), "cache extension DDL changed: {ddl}");
 }
 
 #[test]

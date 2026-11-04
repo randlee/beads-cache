@@ -561,7 +561,7 @@ where
     C: CronClock,
     J: JitterSource,
 {
-    pub(crate) scheduler: Scheduler<St, C, J>,
+    pub(crate) scheduler: Scheduler<crate::launch::LaunchStore<St>, C, J>,
     pub(crate) store: Arc<St>,
     pub(crate) cache: SharedCache<S, L, B>,
     pub(crate) files: SyncFiles,
@@ -637,8 +637,17 @@ where
         cache: SharedCache<S, L, B>,
         files: SyncFiles,
     ) -> Self {
-        let scheduler = Scheduler::new(Arc::clone(&store), Arc::clone(&clock), jitter)
-            .with_missed_tick_policy(MissedTickPolicy::Skip);
+        let names = Arc::default();
+        let scheduler = Scheduler::new_with_logger(
+            Arc::new(crate::launch::LaunchStore(
+                Arc::clone(&store),
+                Arc::clone(&names),
+            )),
+            Arc::clone(&clock),
+            jitter,
+            crate::cron_log::logger(names),
+        )
+        .with_missed_tick_policy(MissedTickPolicy::Skip);
         Self {
             mode: ModeLock::for_cache_file(&files.cache_path),
             scheduler,
@@ -647,6 +656,13 @@ where
             files,
             clock,
         }
+    }
+
+    /// Observes an actual contended mode-lock attempt (test builds only).
+    #[cfg(feature = "testing")]
+    #[doc(hidden)]
+    pub fn mode_lock_attempt_for_tests(&mut self) -> Arc<tokio::sync::Notify> {
+        self.mode.attempt_probe()
     }
 
     /// The files the runs use.

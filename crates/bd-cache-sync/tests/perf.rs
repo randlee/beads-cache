@@ -317,3 +317,78 @@ fn print_median_cached_get_by_scope_size() {
         eprintln!("{beads} beads: median cached get {:?}", median(samples));
     }
 }
+
+/// Release-profile qualification of incremental sync, never a live backend.
+#[cfg(unix)]
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "release-profile NFR-BDC-0003 timing qualification"]
+async fn migrated_incremental_sync_of_1000_beads_is_under_one_second() {
+    use bd_cache_sync::{ScheduleSet, StopFlag};
+    let repo = common::repo::Repo::new(vec![common::label_scope("area", "area")]);
+    for n in 0..1_000 {
+        let mut row = bead(&format!("b{n}"));
+        row.labels = vec!["area".into()];
+        repo.bd.insert(row);
+    }
+    repo.schedules()
+        .set(&ScheduleSet {
+            expr: "0 * * * * *".into(),
+            budget_ms: None,
+            hook_reserve_ms: Some(0),
+            post_sync: None,
+            python: None,
+            env: vec![],
+        })
+        .await
+        .unwrap();
+    repo.clock.advance(Duration::from_secs(60));
+    repo.cron_clock.advance(chrono::Duration::seconds(60));
+    assert_eq!(
+        repo.schedules()
+            .cron_run_once(StopFlag::new())
+            .await
+            .unwrap()
+            .ran[0]
+            .outcome,
+        "ok"
+    );
+    repo.clock.advance(Duration::from_secs(1));
+    let mut changed = repo.bd.row("b17").unwrap();
+    changed.updated_at = repo.clock.now_utc().as_str().to_owned();
+    changed.title = "incremental update".into();
+    repo.bd.insert(changed);
+    repo.clock.advance(Duration::from_secs(59));
+    repo.cron_clock.advance(chrono::Duration::seconds(60));
+    repo.bd.clear_calls();
+    let start = Instant::now();
+    let run = repo
+        .schedules()
+        .cron_run_once(StopFlag::new())
+        .await
+        .unwrap();
+    let elapsed = start.elapsed();
+    assert!(
+        repo.bd.calls().iter().any(|call| matches!(
+            call,
+            sc_beads::testing::FakeCall::ListScope { since: Some(_), .. }
+        )),
+        "qualification must actually use an incremental cursor"
+    );
+    assert_eq!(run.ran[0].outcome, "ok");
+    assert_eq!(
+        repo.cache
+            .lock()
+            .unwrap()
+            .get(&sc_beads::testing::id("b17"), None)
+            .unwrap()
+            .row
+            .bead
+            .title,
+        "incremental update"
+    );
+    eprintln!("NFR-BDC-0003 migrated scheduled incremental sync of 1000-bead scope: {elapsed:?}");
+    assert!(
+        elapsed < Duration::from_secs(1),
+        "incremental sync exceeded one second: {elapsed:?}"
+    );
+}

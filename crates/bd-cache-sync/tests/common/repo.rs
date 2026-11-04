@@ -62,7 +62,16 @@ impl Repo {
     /// A repository whose configuration defines `scopes` (`[[scope]]`-like).
     #[must_use]
     pub fn new(scopes: Vec<Scope>) -> Self {
+        Self::with_seed(scopes, |_| {})
+    }
+
+    /// Composes over a cache file seeded before the migrated store first opens.
+    #[must_use]
+    pub fn with_seed(scopes: Vec<Scope>, seed: impl FnOnce(&std::path::Path)) -> Self {
         let dir = tempfile::tempdir().unwrap();
+        let cache_file = dir.path().join(".bd-cache/dev.bd-cache.sqlite3");
+        std::fs::create_dir_all(cache_file.parent().unwrap()).unwrap();
+        seed(&cache_file);
         std::fs::create_dir_all(dir.path().join(".beads")).unwrap();
         std::fs::write(
             dir.path().join(".beads/metadata.json"),

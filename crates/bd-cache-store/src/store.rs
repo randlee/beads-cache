@@ -187,7 +187,9 @@ pub struct SqliteStore {
 #[derive(Debug)]
 pub(crate) struct Shared {
     // Field order matters: the connection closes before the claim is released.
-    inner: Mutex<Inner>,
+    pub(crate) inner: Mutex<Inner>,
+    #[cfg(test)]
+    pub(crate) contention_probe: Mutex<Option<std::sync::mpsc::Sender<()>>>,
     path: PathBuf,
     _claim: Registration,
 }
@@ -376,6 +378,8 @@ impl SqliteStore {
                     examined_through: Cell::new(undatable),
                 }),
                 path: path.to_path_buf(),
+                #[cfg(test)]
+                contention_probe: Mutex::new(None),
                 _claim: claim,
             }),
         })
@@ -412,9 +416,20 @@ impl SqliteStore {
         CacheScheduleStore::over(Arc::clone(&self.shared))
     }
 
+    /// A read-only health budget over this store and its schedule view.
+    #[must_use]
+    pub fn health_read_control(&self) -> crate::HealthReadControl {
+        crate::HealthReadControl {
+            shared: Arc::clone(&self.shared),
+        }
+    }
+
     /// One call on the locked connection.
-    fn session<T>(&self, f: impl FnOnce(&mut Session<'_>) -> T) -> T {
-        let mut guard = self.shared.lock();
+    fn session<T>(
+        &self,
+        f: impl FnOnce(&mut Session<'_>) -> Result<T, CacheError>,
+    ) -> Result<T, CacheError> {
+        let mut guard = self.shared.session_lock()?;
         let inner = &mut *guard;
         let mut session = Session {
             conn: &mut inner.conn,
@@ -423,7 +438,15 @@ impl SqliteStore {
             undatable_through: &inner.undatable_through,
             examined_through: &inner.examined_through,
         };
-        f(&mut session)
+        let result = f(&mut session);
+        let deadline = self.shared.health_deadline();
+        let value = if deadline.is_some() {
+            result.map_err(|e| CacheError::store_failed(format!("bounded health read: {e}"), e))?
+        } else {
+            result?
+        };
+        crate::health::check(deadline)?;
+        Ok(value)
     }
 
     /// The locked connection and its state, for the unit tests.
@@ -477,6 +500,9 @@ impl Session<'_> {
     /// Entries with an unreadable time are warned about once for each new
     /// highest such seq, and are not counted again (QA5-002).
     fn date_undated(&self) {
+        if crate::health::is_scoped() {
+            return;
+        }
         let floor = self.undatable_through.get();
         let limit = i64::from(READ_DATING_THRESHOLD) + 1;
         let waiting: rusqlite::Result<i64> =
@@ -1509,6 +1535,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (name, kind, filter) = r.at(at)?;
             out.push(decode_scope(at, &name, &kind, filter.as_deref())?);
         }
@@ -1538,6 +1565,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = BTreeSet::new();
         for r in rows {
+            crate::health::check_decode()?;
             out.insert(bead_id(at, &r.at(at)?)?);
         }
         Ok(out)
@@ -1557,6 +1585,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (name, kind, filter) = r.at(at)?;
             out.push(decode_scope(at, &name, &kind, filter.as_deref())?);
         }
@@ -1849,6 +1878,7 @@ impl Session<'_> {
         let tx = begin(self.conn, at)?;
         let mut report = UpsertReport::default();
         for row in rows {
+            crate::health::check_decode()?;
             match Self::store_row(&tx, at, s, row, force)? {
                 Stored::SkippedNewer => report.skipped_newer.push(row.id.clone()),
                 Stored::Yes { status_changed } => {
@@ -1872,6 +1902,7 @@ impl Session<'_> {
         let rows = stmt.query_map([], |r| r.get::<_, String>(0)).at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             out.push(bead_id(at, &r.at(at)?)?);
         }
         Ok(out)
@@ -1897,6 +1928,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (from, to, kind) = r.at(at)?;
             out.push(decode_edge(at, &from, &to, &kind)?);
         }
@@ -2560,6 +2592,7 @@ impl Session<'_> {
             .at(at)?;
         let mut counts = JournalCounts::default();
         for r in rows {
+            crate::health::check_decode()?;
             let (phase, state, n) = r.at(at)?;
             let scope = phase.as_deref().map(|p| scope(at, p)).transpose()?;
             let state = JournalState::parse(&state)
@@ -2574,18 +2607,23 @@ impl Session<'_> {
 /// and runs on it.
 impl CacheStore for SqliteStore {
     fn ensure_scope(&mut self, s: &Scope) -> Result<Scope, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.ensure_scope(s))
     }
     fn put_scope(&mut self, s: &Scope) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.put_scope(s))
     }
     fn scope_add(&mut self, s: &Scope) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.scope_add(s))
     }
     fn scope_set(&mut self, s: &Scope) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.scope_set(s))
     }
     fn scope_remove(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.scope_remove(s))
     }
     fn scope(&self, s: &ScopeId) -> Result<Option<Scope>, CacheError> {
@@ -2611,12 +2649,15 @@ impl CacheStore for SqliteStore {
         at: &Timestamp,
         revision: Option<&str>,
     ) -> Result<UpsertReport, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.ingest_scope(s, snapshot, ready, at, revision))
     }
     fn scope_announce(&mut self, s: &ScopeId, since: &FailingSince) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.scope_announce(s, since))
     }
     fn mark_offered(&mut self, seqs: &[Seq], at: &Timestamp) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.mark_offered(seqs, at))
     }
     fn lease_take(
@@ -2624,9 +2665,11 @@ impl CacheStore for SqliteStore {
         holder: &LeaseHolder,
         now: &Timestamp,
     ) -> Result<LeaseTake, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.lease_take(holder, now))
     }
     fn lease_release(&mut self, run_id: &RunId) -> Result<bool, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.lease_release(run_id))
     }
     fn lease(&self) -> Result<Option<LeaseHolder>, CacheError> {
@@ -2641,9 +2684,11 @@ impl CacheStore for SqliteStore {
         at: &Timestamp,
         next_attempt_at: Option<&Timestamp>,
     ) -> Result<HookState, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.hook_failed(err, at, next_attempt_at))
     }
     fn hook_succeeded(&mut self) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         // A closure, not the method path: `session` hands a `Session` of any lifetime.
         #[expect(
             clippy::redundant_closure_for_method_calls,
@@ -2660,6 +2705,7 @@ impl CacheStore for SqliteStore {
         run_id: &RunId,
         at: &Timestamp,
     ) -> Result<SyncRun, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.sync_run_started(row, run_id, at))
     }
     fn sync_run_finished(
@@ -2669,6 +2715,7 @@ impl CacheStore for SqliteStore {
         at: &Timestamp,
         end: SyncRunEnd,
     ) -> Result<bool, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.sync_run_finished(row, run_id, at, end))
     }
     fn get_row(&self, id: &BeadId) -> Result<Option<(Bead, Freshness)>, CacheError> {
@@ -2683,6 +2730,7 @@ impl CacheStore for SqliteStore {
         rows: &[Bead],
         force: bool,
     ) -> Result<UpsertReport, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.upsert_rows(s, rows, force))
     }
     fn stale_rows(&self) -> Result<Vec<BeadId>, CacheError> {
@@ -2698,6 +2746,7 @@ impl CacheStore for SqliteStore {
         ready: &[BeadId],
         at: &Timestamp,
     ) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.replace_ready_base(s, blocked, ready, at))
     }
     fn ready_base(&self, s: &ScopeId) -> Result<Option<ReadyBase>, CacheError> {
@@ -2710,6 +2759,7 @@ impl CacheStore for SqliteStore {
         self.session(|x| x.has_entries_since(at))
     }
     fn mark_ready_base_stale(&mut self, s: &ScopeId) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.mark_ready_base_stale(s))
     }
     fn entry_by_key(&self, k: &IdemKey) -> Result<Option<JournalEntry>, CacheError> {
@@ -2719,6 +2769,7 @@ impl CacheStore for SqliteStore {
         self.session(|x| x.entry_by_seq(seq))
     }
     fn insert_entry(&mut self, e: NewEntry, at: &Timestamp) -> Result<Seq, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.insert_entry(&e, at))
     }
     fn pending_entries(&self) -> Result<Vec<JournalEntry>, CacheError> {
@@ -2743,12 +2794,15 @@ impl CacheStore for SqliteStore {
         err: Option<&str>,
         at: &Timestamp,
     ) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.apply_with_readback(seq, row, err, at))
     }
     fn record_attempt(&mut self, seq: Seq, err: &str, at: &Timestamp) -> Result<u32, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.record_attempt(seq, err, at))
     }
     fn escalate(&mut self, seq: Seq, reason: &str, at: &Timestamp) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.escalate(seq, reason, at))
     }
     fn resolve(
@@ -2758,6 +2812,7 @@ impl CacheStore for SqliteStore {
         actor: &Actor,
         at: &Timestamp,
     ) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.resolve(seq, note, actor, at))
     }
     fn unannounced_escalations(&self) -> Result<Vec<JournalEntry>, CacheError> {
@@ -2767,6 +2822,7 @@ impl CacheStore for SqliteStore {
         self.session(|x| x.unannounced_escalations_first(limit))
     }
     fn mark_announced(&mut self, seq: Seq, at: &Timestamp) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.mark_announced(seq, at))
     }
     fn mark_announced_within(
@@ -2775,15 +2831,18 @@ impl CacheStore for SqliteStore {
         at: &Timestamp,
         wait: Duration,
     ) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.mark_announced_within(seq, at, wait))
     }
     fn record_fingerprint(&mut self, f: &Fingerprint) -> Result<FingerprintOutcome, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.record_fingerprint(f))
     }
     fn sync_state(&self, s: &ScopeId) -> Result<SyncState, CacheError> {
         self.session(|x| x.sync_state(s))
     }
     fn record_sync(&mut self, st: &SyncState) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.record_sync(st))
     }
     fn record_sync_result(
@@ -2792,12 +2851,14 @@ impl CacheStore for SqliteStore {
         outcome: &SyncOutcome,
         started: &Timestamp,
     ) -> Result<SyncState, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.record_sync_result(s, outcome, started))
     }
     fn sync_alert(&self, s: &ScopeId) -> Result<Option<String>, CacheError> {
         self.session(|x| x.sync_alert(s))
     }
     fn set_sync_alert(&mut self, s: &ScopeId, cause: Option<&str>) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.set_sync_alert(s, cause))
     }
     fn set_sync_alert_within(
@@ -2806,15 +2867,18 @@ impl CacheStore for SqliteStore {
         cause: Option<&str>,
         wait: Duration,
     ) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.set_sync_alert_within(s, cause, wait))
     }
     fn outage(&self) -> Result<Option<Outage>, CacheError> {
         self.session(|x| x.outage())
     }
     fn set_outage(&mut self, o: Option<&Outage>) -> Result<(), CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.set_outage(o))
     }
     fn prune_scope(&mut self, s: &ScopeId) -> Result<PruneReport, CacheError> {
+        crate::health::reject_mutation(self.shared.health_deadline())?;
         self.session(|x| x.prune_scope(s))
     }
     fn open_work(&self) -> Result<OpenWork, CacheError> {
@@ -2882,6 +2946,7 @@ impl Session<'_> {
             .at(at)?;
         let mut out = Vec::new();
         for r in rows {
+            crate::health::check_decode()?;
             let (id, json, stale) = r.at(at)?;
             out.push(self.load_row(at, &id, &json, stale)?);
         }
@@ -2900,6 +2965,7 @@ impl Session<'_> {
                 .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))
                 .at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 let (k, v) = r.at(at)?;
                 meta.insert(k, v);
             }
@@ -2920,6 +2986,7 @@ impl Session<'_> {
                 })
                 .at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 let (phase, state, n) = r.at(at)?;
                 // v3 prints a missing phase as Python's None.
                 let phase = phase.as_deref().unwrap_or("None");
@@ -2929,9 +2996,18 @@ impl Session<'_> {
         let registry: BTreeMap<ScopeId, Scope> = self
             .scopes()?
             .into_iter()
-            .map(|s| (s.id.clone(), s))
-            .collect();
-        let mut names: BTreeSet<ScopeId> = registry.keys().cloned().collect();
+            .map(|s| {
+                crate::health::check_decode()?;
+                Ok((s.id.clone(), s))
+            })
+            .collect::<Result<_, CacheError>>()?;
+        let mut names: BTreeSet<ScopeId> = registry
+            .keys()
+            .map(|s| {
+                crate::health::check_decode()?;
+                Ok(s.clone())
+            })
+            .collect::<Result<_, CacheError>>()?;
         {
             let mut stmt = self
                 .conn
@@ -2939,11 +3015,13 @@ impl Session<'_> {
                 .at(at)?;
             let rows = stmt.query_map([], |r| r.get::<_, String>(0)).at(at)?;
             for r in rows {
+                crate::health::check_decode()?;
                 names.insert(scope(at, &r.at(at)?)?);
             }
         }
         let mut scopes = Vec::new();
         for s in names {
+            crate::health::check_decode()?;
             scopes.push(ScopeStatus {
                 beads: self.scope_beads(at, &s)?,
                 filter: registry.get(&s).and_then(|r| r.filter.clone()),
@@ -3055,7 +3133,11 @@ mod tests {
         // Past the threshold the readable one was dated: only the bad ones remain.
         assert_eq!(store.inner().examined_through.get(), highest_bad);
         assert_eq!(
-            store.session(|s| s.note_undatable()).unwrap(),
+            store
+                .session(|s| s
+                    .note_undatable()
+                    .map_err(|e| failed(s.at("dating probe"), e)))
+                .unwrap(),
             None,
             "no second warning"
         );
@@ -3075,19 +3157,44 @@ mod tests {
         seed_applied(&path, "worse", 1, "garbage");
         assert!(store.has_entries_since(&at).unwrap());
         assert_eq!(store.inner().undatable_through.get(), highest_bad + 2);
-        assert_eq!(store.session(|s| s.note_undatable()).unwrap(), None);
+        assert_eq!(
+            store
+                .session(|s| s
+                    .note_undatable()
+                    .map_err(|e| failed(s.at("dating probe"), e)))
+                .unwrap(),
+            None
+        );
         seed_applied(&path, "worst", 1, "never");
         assert_eq!(
-            store.session(|s| s.note_undatable()).unwrap(),
+            store
+                .session(|s| s
+                    .note_undatable()
+                    .map_err(|e| failed(s.at("dating probe"), e)))
+                .unwrap(),
             Some(highest_bad + 3)
         );
-        assert_eq!(store.session(|s| s.note_undatable()).unwrap(), None);
+        assert_eq!(
+            store
+                .session(|s| s
+                    .note_undatable()
+                    .map_err(|e| failed(s.at("dating probe"), e)))
+                .unwrap(),
+            None
+        );
         drop((c, store));
 
         // The open warns about all of them and starts above the highest.
         let reopened = SqliteStore::open_at(&path, &identity).unwrap();
         assert_eq!(reopened.inner().undatable_through.get(), highest_bad + 3);
-        assert_eq!(reopened.session(|s| s.note_undatable()).unwrap(), None);
+        assert_eq!(
+            reopened
+                .session(|s| s
+                    .note_undatable()
+                    .map_err(|e| failed(s.at("dating probe"), e)))
+                .unwrap(),
+            None
+        );
         drop(reopened);
     }
 

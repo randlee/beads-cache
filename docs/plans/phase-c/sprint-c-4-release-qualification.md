@@ -1,6 +1,6 @@
 ---
 phase: c
-status: planned
+status: in_progress
 recommended_agent: rust-developer
 recommended_model: gpt-6.1-sol
 id: c-4
@@ -30,6 +30,7 @@ requirements:
 adrs:
 - ADR-BDC-0006
 - ADR-PY-0004
+- ADR-PY-0006
 - ADR-CLI-0001
 - ADR-BDC-0010
 - ADR-BDC-0012
@@ -52,6 +53,9 @@ owned_paths:
 - scripts/test_release_candidate.py
 - README.md
 - docs/development/release.md
+- docs/getting-started.md
+- docs/plans/phase-c/evidence/c-4-consumer-qualification.md
+- docs/plans/phase-c/evidence/c-4-consumer-qualification.json
 inherited_bounds:
 - ANC-001
 ---
@@ -136,3 +140,206 @@ Stable/channel publication is not required for phase closure. Credentials and
 first WinGet submission are owner setup, not implementation deliverables to
 silently mark complete. Upstream kit changes stay upstream; this sprint does not
 hand-edit vendored workflows to bypass them.
+
+## Installer ownership handoff
+
+On 2026-11-02 the phase orchestrator authorized the narrow C2-to-C4 handoff
+of `docs/getting-started.md` solely for canonical sc-publish installer output.
+The C2-added optional-daemon paragraph is preserved faithfully in the
+consumer-owned root README with its link to `docs/development/runtime.md`;
+the runtime operation and external consumer procedure remain there unchanged.
+The kit-owned document is never hand-edited.
+
+## Development qualification state
+
+The consumer input now publishes only sc-beads/sc-bd-cli and declares all three
+executables for archives, prerelease selectors and Homebrew/Scoop installation.
+The canonical immutable kit candidate is `5fd4d0db1b7cbb4ebf9316588047391a8e4be496`;
+repeat installer dry-run and manifest validation pass. Kit regression tests pass
+(347 passed, 13 skipped, 52 subtests); repository scripts pass (108 tests, one
+explicit real-template smoke skipped). Negative candidate fixtures reject an
+omitted daemon, mixed source receipt, corrupt assets, configuration staged as
+an asset, missing checksums, old kit/staging and restored local sc-cron.
+
+`Release artifact qualification` is a build-only workflow with four binary
+platforms and six installed abi3/Python combinations. Full source receipts,
+checksums and installed results are attached to its actual run. No supported
+platform completion is claimed until those jobs execute successfully at the
+reviewed final SHA. The existing consumer preflight extension admits only exact
+SHA successful complete matrix evidence with unexpired archives/receipts.
+
+Full Release Preflight and channel outcomes remain pending actual execution.
+The upstream runtime0.1.1 paste advisory stays unsuppressed; owner steering
+explicitly defers its workaround/update to runtime0.2.0. Issue135 source staging
+regressions are tested, but its open issue and external immutable/channel setup
+are not silently marked resolved. C2 merge and its real consumer procedure remain
+closure prerequisites. This sprint remains in progress until actual qualification
+and independent QA satisfy its acceptance criteria.
+
+Post-merge follow-up: qualify the merged Phase C head on develop/main, then obtain
+separate authorization to cut a hosted prerelease and exercise installed release
+and channel legs. No release/tag/registry/channel publication has been performed.
+
+## First hosted qualification evidence
+
+At source `6a98b8c17bce85f68fb2b718e9200d749d363943`, the actual build-only
+[qualification run 41567572170](https://github.com/randlee/beads-cache/actions/runs/41567572170)
+passed installed archive acceptance on Linux x86_64, macOS arm64 and macOS
+x86_64 (including the declared wheel corpus on the first two). Windows built
+all three production executables but failed installed acceptance because the
+Python procedure decoded native UTF-8 diagnostics using the Windows locale.
+The C4 caller now selects `-X utf8 -I` explicitly; an actual subprocess fixture
+covers decoding the native em-dash diagnostic. The six downstream Python matrix
+jobs were skipped after the failed Windows prerequisite, so this run is not a
+complete matrix PASS. Qualification must rerun at the fix head.
+
+The full read-only
+[Release Preflight run 41567884775](https://github.com/randlee/beads-cache/actions/runs/41567884775)
+completed its summary and denied release with exactly these failed checks:
+
+- `github-environments`: the declared `crates-io` environment is absent.
+- `consumer-preflight`: the anonymous public GitHub API returned HTTP403 rate limit exceeded.
+- `release-candidate-provenance`: `release-candidate-v0.2.0` does not exist;
+  creating that publication-provenance tag is deliberately deferred.
+
+Repository secret presence and credential liveness, immutable-release admission,
+registry-state, manifest, publish order, version lockstep, dependency-aware Cargo
+package checks and release permissions passed in that run. Protected Python
+environment-secret metadata was inaccessible to the workflow token and reported
+informational; this is not proof of configured secret validity or publication.
+The paste advisory is a separate unsuppressed ordinary CI gate, not one of this
+Release Preflight run's three final failures. No tag, release or channel write
+was performed to alter any outcome.
+
+## QA1 current-source preparation
+
+The resumed development round consumes the reviewed, committed C2 parent
+`63cb429eb1a65ab25a17923fded8de5ecf390a5a`, including native/application corrections
+and C2's own byte-capture/strict UTF-8 decoding. Parent work that was still
+uncommitted is excluded. The C4 canonical kit, release inputs and binary/wheel
+matrix remain unchanged. C4's own command helper now makes one termination
+request per process tree, preserves an initial termination-permission failure,
+and closes pipes even if final cleanup fails. Its independent fixtures cover
+single-request timeout cleanup and both initial/final permission failures.
+Installed version probes parse exact product versions instead of accepting a
+version prefix. These corrections affect only C4's owned helper/tests; they do
+not close C3-owned CI-C4-001 or alter the shared template helper.
+
+A fresh current-source archive/wheel build and isolated installed smoke are
+required after the final source commit. The parent receives a new scratch-only
+qualification input manifest whose executable files come from the validated
+archive, whose wheel hash matches that candidate receipt, and whose external
+modules and approved bounded driver are hash-verified immutable inputs. No
+private consumer identifiers or code are added to this repository. The parent
+alone performs the authorized testbed transport and returns its actual result;
+source6232180's historical PASS is not relabeled as a current-source PASS.
+
+Actual Windows CTRL_BREAK acceptance, the published logging/graph seam, bounded
+store shutdown, runtime instance-lock qualification, the unsuppressed paste
+advisory, inherited C3 cleanup CI, current-head platform/Python evidence, full
+Release Preflight, parent merges and independent zero-finding QA remain required.
+No timer increase, skip, guard suppression, native baseline change or hosted
+publication is introduced to bypass them. This record remains in_progress until
+those completion conditions have actual evidence.
+
+## Exact-source installed consumer result for QA1
+
+The parent-executed fresh macOS arm64 scratch procedure passed at exact source
+`65250a9ee6de25cf591e85dd2ee5ec4dbc4c584c`. The neutral
+[evidence receipt](evidence/c-4-consumer-qualification.md) and its
+[machine-readable record](evidence/c-4-consumer-qualification.json) bind all three
+archive-installed executable hashes, the matching abi3 wheel, payload and raw-log
+hashes, actual update/close/read-back, outage/pending/recovery, Python replacement
+and rollback, blocked-hook stop/restart and successful marked teardown. The live
+driver took 9.9981 seconds; transport returned 0. The disclosed external signature
+and exception bridge remains required; no private source or identifiers are
+added to this repository.
+
+C2's committed Unix lifecycle proof `8bcd47fa364055879e06392a53cb250ebfe564f7`
+was merged afterward without conflicts. Its two changed Rust paths are under
+cfg(test); production input blobs match the tested source. That comparison does
+not claim a new native build or qualify the later receipt head. Independent Rust
+QA must validate the added tests; no full native workspace build was repeated
+after the earlier ENOSPC attempt. The shared C3 cleanup helper remains untouched.
+
+The sprint stays in_progress for full initial QA1, current-head hosted evidence,
+remaining upstream/C3 dependencies, preflight and parent merge gates. The actual
+consumer PASS is not a claim of Windows or complete matrix qualification and no
+publication occurred. The parent owns pushing this frozen receipt head.
+
+## QA1 local corrections and retained gates
+
+The QA1 manager reported FAIL at source `e7bafc2e5bdda1bf480823c7dd3ac73d0e16b702`.
+C4-REQ-003 is implemented pending independent QA in the existing consumer
+build/pack seam: it builds from one immutable committed-source snapshot with its
+lockfile into fresh target/wheel directories and no longer accepts arbitrary
+prebuilt inputs. Same-version fixture artifacts produced from another real Git
+commit cannot enter through the former shared directories or removed options;
+missing owned outputs fail instead of falling back to foreign builds. A repeated
+unchanged-source fixture passes. These are packaging tests, not native or
+installed qualification evidence. The existing receipt format and canonical
+84-asset kit remain unchanged, with zero installer drift.
+
+C4-ARCH-001 is implemented pending independent QA by adding ADR-PY-0006 to the
+single governing ADR list. Its mixed native package, run/sync modules and neutral
+installed corpus remain part of qualification. Every one of the 15 QA1 findings
+has a developer disposition appended to its existing `.triage/c/findings/*.ttl`
+record; original reviewer records and open statuses are preserved. No finding
+is closed by this developer update.
+
+The C3 helper correction awaits its qualified integration merge. The C2-owned
+typed observability error and endpoint ownership fixes are separately assigned;
+neither is copied into C4. Published logging/graph, Windows graceful shutdown,
+contended worker bounds and portable lock/readiness qualification remain upstream
+or parent gates. Exact final-source installed matrix, fresh applicable consumer
+evidence, full Release Preflight, parent merge, green CI and zero-finding QA
+remain required. The actual source652 consumer receipt is unchanged and is not
+retargeted to this later execution. No native build, remote scratch execution,
+publication, settings mutation or baseline update is claimed in this local round.
+
+## QA-2 checkpoint
+
+At reviewed source `69554386cfff1074fa606aed114331685e3760f5`, six independent
+reviewers verified the source-owned packaging correction, ADR-PY-0006 reference,
+qualified C3 cleanup and typed observability errors. Their consumer findings
+C4-REQ-003, C4-ARCH-001, CI-C4-001 and C4-RBP-F001 are closed with QA-2 provenance.
+The [QA-2 report](https://github.com/randlee/beads-cache/pull/110#issuecomment-6612817877)
+still records FAIL: 16/22 deliverables, ten Blocking and one Important finding.
+Actual Linux candidate validation passed at that source; Windows still exits
+3221225786 and the dependent abi3 matrix is skipped. Historical source652
+consumer evidence remains distinct from these executions.
+
+The canonical consumer-preflight step omits GH_TOKEN although the consumer
+checker supports it. The owner has parked the upstream publisher proposal and
+withdrawn its implementation approval; the canonical kit remains at 5fd and no
+kit upgrade or generated workflow change is made here. Full final-source
+preflight must execute and locally satisfiable auth/candidate/staging gates
+must pass. The anonymous HTTP403 remains part of open C4-REQ-002. Publication-only
+missing-tag and owner-setup refusals may be recorded separately; publication is
+not required to close this sprint. The old environment probe conflates API
+failure with absence, so inaccessible metadata is not proof of missing setup.
+Public runtime fixes remain unimplemented/unpublished according to their owner.
+All eleven remaining findings and the phase merge gates remain open.
+
+
+## Consumer-only admission simplification
+
+The existing consumer checker now makes two metadata requests instead of three.
+It selects an exact-source successful run of the trusted qualification workflow
+and requires all 14 unexpired candidate/evidence artifacts. Under the unchanged
+workflow, the four candidate and ten evidence uploads follow successful installed
+smokes; this proves the required four-binary/six-Python matrix without the
+redundant jobs query or job-name comparison. Matrix reporting names this proof
+basis. Manifest, staging, canonical pin, version, source, checksum, membership
+and installed-smoke contracts remain enforced. Complete metadata fixtures reject
+any jobs request; wrong source/path/conclusion, each missing or expired artifact
+and API failures still block. Fixtures are not actual installed qualification.
+
+This cleanup does not resolve anonymous rate limiting or establish an equivalent
+API-free input. C4-REQ-002 still requires actual final-source full preflight and
+its recorded outcomes. Historical source652 consumer and source695 QA evidence
+keep their original source bindings. All eleven remaining IDs stay open:
+ARCH-001, C2-REQ-009, C4-FTQ-001, C4-REQ-001, C4-REQ-002, C4-REQ-004,
+C4-REQ-005, C4-REQ-006, QA-C2-001, RBQA-F001 and RSH-001. C1/C2/upstream
+production corrections, complete final-source installed evidence, parent merge,
+independent QA, applicable anchors and green CI remain required.

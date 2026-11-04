@@ -779,3 +779,22 @@ decision above where it says otherwise; ADR and code agree on each point.
 | `tests/outage.rs` | the outage result (`builtin_run.rs`), an outage of several runs (`e2e.rs`), the hook told (`hook_runner.rs`); no announcement exists |
 | `tests/tick_budget.rs` | the step order (`cron_logging.rs`), the hook's reserve (`hook_runner.rs`), a slow bd within the budget (`e2e.rs`), a stop between steps (`builtin_run.rs`) |
 | `tests/marker_wait.rs` | no marker is written by the run; the hook marks with its own verbs (`hook_runner.rs`) |
+
+### Phase C upstream Job adapter
+
+LaunchStore wraps only scheduler reads with internal id/generation/name/period
+metadata derived from the actual persisted row. Public reads and stored payloads
+are unchanged. The shared upstream Rust Job dispatcher constructs one cache job
+per launch, retaining its run identity from should_stop through run. It delegates
+all timing, generations, enable/disable and worker shutdown to upstream.
+ModuleHook preserves registered dotted modules with -I -m and projects upstream
+HookCall into the existing sc-cron.hook.v1 JSON object. Upstream HookOutput judges
+replies and upstream process::supervise owns output limits, process trees and
+reaping. The script-path PythonHook API cannot supply the registered-module argv.
+
+QA1 rejects this candidate's direct sync-to-sc-command receiver edge. The
+approved exception is only upstream sc-cron -> sc-command; implementation text
+is not an ADR amendment. The strengthened isolated graph check intentionally
+rejects the current Python graph until an authorized upstream public logging
+seam exists. Published 0.1.1 remains pinned; no logging events are silently
+removed to conceal this unresolved compatibility blocker.

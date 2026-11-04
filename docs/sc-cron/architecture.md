@@ -1,5 +1,15 @@
 # sc-cron Architecture
 
+> Historical local prototype documentation. ADR-BDC-0016, explicitly approved
+> by the owner on 2026-11-02, transfers scheduler implementation and publication
+> ownership to published upstream sc-cron 0.1.1. Local signatures and source
+> paths below are historical. Parse/time/jitter/missed-tick, bounded stop,
+> single-run/generation, atomic enabled state and process supervision semantics
+> remain binding through upstream plus the cache-owned ScheduleStore adapter.
+> REQ-CRON-0009's standalone store remains upstream's default; this application
+> preserves the approved same-cache connection exception. No local fork remains.
+
+
 Status: ADR-CRON-0001..0006 are Approved (lead ruling 2026-10-24, a-3 QA-1).
 ADR-CRON-0007 and 0008 are Approved (Rand's rulings, 2026-10-25), which also amends
 ADR-CRON-0006 (its amendment below). Domain code: `CRON`. Requirements:

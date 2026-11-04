@@ -27,9 +27,9 @@ use rusqlite::{
 };
 use sc_beads::logging::tracing;
 use sc_cron::{
-    CronError, CronExpr, Generation, MAX_PAYLOAD_BYTES, NewSchedule, RunOutcome, RunTimeout,
-    Schedule, ScheduleId, ScheduleName, ScheduleSpec, ScheduleStore, StoreError, StoreErrorKind,
-    Timestamp,
+    CronError, CronExpr, Generation, HookEnvironment, HookTarget, MAX_PAYLOAD_BYTES, NewSchedule,
+    RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleLimits, ScheduleName, ScheduleSpec,
+    ScheduleStore, StoreError, StoreErrorKind, Timestamp,
 };
 
 use crate::schema::{SC_CRON_SCHEDULE_VERSION, SC_CRON_SCHEDULE_VERSION_KEY};
@@ -79,6 +79,7 @@ const COLUMNS: &str = "id, generation, name, expr, timeout_ms, jitter_ms, payloa
 #[derive(Debug)]
 pub struct CacheScheduleStore {
     shared: Arc<Shared>,
+    limits: ScheduleLimits,
     // Row ids already warned about as corrupt, so a bad row is reported once
     // per store rather than on every worker reload.
     warned: Mutex<HashSet<i64>>,
@@ -89,7 +90,8 @@ impl CacheScheduleStore {
     /// `sc_cron_schedule_version` row (ADR-BDC-0014).
     pub(crate) fn over(shared: Arc<Shared>) -> Result<Self, CronError> {
         let version: Option<String> = shared
-            .lock()
+            .session_lock()
+            .map_err(health_error)?
             .conn
             .query_row(
                 "SELECT value FROM meta WHERE key = ?1",
@@ -113,6 +115,7 @@ impl CacheScheduleStore {
         }
         Ok(Self {
             shared,
+            limits: ScheduleLimits::with_max_schedule_rows(std::num::NonZeroUsize::new(1024)),
             warned: Mutex::new(HashSet::new()),
         })
     }
@@ -146,7 +149,8 @@ impl CacheScheduleStore {
         all.extend_from_slice(values);
         let changed = self
             .shared
-            .lock()
+            .session_lock()
+            .map_err(health_error)?
             .conn
             .execute(sql, all.as_slice())
             .map_err(|error| store_error(&format!("failed to update {TABLE} id {id}"), error))?;
@@ -162,9 +166,13 @@ fn begin(connection: &mut Connection) -> Result<Transaction<'_>, CronError> {
 }
 
 impl ScheduleStore for CacheScheduleStore {
+    fn limits(&self) -> ScheduleLimits {
+        self.limits
+    }
     fn create(&self, schedule: &NewSchedule, created_at: Timestamp) -> Result<Schedule, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         let columns = Columns::new(schedule, created_at)?;
-        let mut inner = self.shared.lock();
+        let mut inner = self.shared.session_lock().map_err(health_error)?;
         let transaction = begin(&mut inner.conn)?;
         let existing = transaction
             .query_row(
@@ -185,10 +193,14 @@ impl ScheduleStore for CacheScheduleStore {
                 return Err(CronError::AlreadyActive(schedule.spec.name.clone()));
             }
             Some((id, generation, false)) => {
+                check_limit(&transaction, self.limits)?;
                 columns.rewrite(&transaction, id, generation, true)?;
                 id
             }
-            None => columns.insert(&transaction, schedule.spec.name.as_str(), true)?,
+            None => {
+                check_limit(&transaction, self.limits)?;
+                columns.insert(&transaction, schedule.spec.name.as_str(), true)?
+            }
         };
         let row = select_one(&transaction, id)?.ok_or_else(|| missing(id, "create"))?;
         transaction
@@ -201,12 +213,12 @@ impl ScheduleStore for CacheScheduleStore {
         let Ok(id) = i64::try_from(id.get()) else {
             return Ok(None);
         };
-        select_one(&self.shared.lock().conn, id)
+        select_one(&self.shared.session_lock().map_err(health_error)?.conn, id)
     }
 
     fn list_active(&self) -> Result<Vec<Schedule>, CronError> {
         let rows = {
-            let inner = self.shared.lock();
+            let inner = self.shared.session_lock().map_err(health_error)?;
             let mut statement = inner
                 .conn
                 .prepare(&format!(
@@ -224,6 +236,7 @@ impl ScheduleStore for CacheScheduleStore {
         };
         let mut schedules = Vec::with_capacity(rows.len());
         for row in rows {
+            crate::health::check(self.shared.health_deadline()).map_err(health_error)?;
             let (id, name, error) = match row {
                 Ok(raw) => {
                     let (id, name) = (raw.id, raw.name.clone());
@@ -260,6 +273,7 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         outcome: &RunOutcome,
     ) -> Result<bool, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET last_run_at = ?3, last_outcome = ?4
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -275,6 +289,7 @@ impl ScheduleStore for CacheScheduleStore {
         generation: Generation,
         next_run_at: Timestamp,
     ) -> Result<bool, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET next_run_at = ?3
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL AND enabled = 1",
@@ -291,6 +306,7 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET ended_at = ?3, stop_reason = ?4, next_run_at = NULL
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -301,10 +317,12 @@ impl ScheduleStore for CacheScheduleStore {
     }
 
     fn set_enabled(&self, name: &ScheduleName, enabled: bool) -> Result<bool, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         // Flips only the `enabled` column, in place (REQ-CRON-0014).
         let changed = self
             .shared
-            .lock()
+            .session_lock()
+            .map_err(health_error)?
             .conn
             .execute(
                 "UPDATE sc_cron_schedule SET enabled = ?2
@@ -322,6 +340,7 @@ impl ScheduleStore for CacheScheduleStore {
         at: Timestamp,
         reason: &str,
     ) -> Result<bool, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         self.guarded_update(
             "UPDATE sc_cron_schedule SET enabled = 0, last_run_at = ?3, last_outcome = ?4
              WHERE id = ?1 AND generation = ?2 AND ended_at IS NULL",
@@ -335,7 +354,8 @@ impl ScheduleStore for CacheScheduleStore {
     }
 
     fn set_enabled_many(&self, flags: &[(ScheduleName, bool)]) -> Result<bool, CronError> {
-        let mut inner = self.shared.lock();
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
+        let mut inner = self.shared.session_lock().map_err(health_error)?;
         let transaction = begin(&mut inner.conn)?;
         // A missing name returns before the commit: the transaction rolls
         // back on drop, so no flag of the list changes (REQ-CRON-0017).
@@ -355,6 +375,7 @@ impl ScheduleStore for CacheScheduleStore {
         created_at: Timestamp,
         flags: &[(ScheduleName, bool)],
     ) -> Result<Option<Schedule>, CronError> {
+        crate::health::reject_mutation(self.shared.health_deadline()).map_err(health_error)?;
         let name = &schedule.spec.name;
         if flags.iter().any(|(listed, _)| listed == name) {
             return Err(CronError::InvalidSpec(format!(
@@ -362,7 +383,7 @@ impl ScheduleStore for CacheScheduleStore {
             )));
         }
         let columns = Columns::new(schedule, created_at)?;
-        let mut inner = self.shared.lock();
+        let mut inner = self.shared.session_lock().map_err(health_error)?;
         let transaction = begin(&mut inner.conn)?;
         let existing = transaction
             .query_row(
@@ -374,12 +395,22 @@ impl ScheduleStore for CacheScheduleStore {
             .map_err(|error| store_error(&format!("failed to read {TABLE}"), error))?;
         // The row is written with its flag directly; it never passes through
         // another enabled state (REQ-CRON-0017).
-        let id = match existing {
-            Some((id, generation)) => {
-                columns.rewrite(&transaction, id, generation, enabled)?;
-                id
+        let id = if let Some((id, generation)) = existing {
+            let active: bool = transaction
+                .query_row(
+                    "SELECT ended_at IS NULL FROM sc_cron_schedule WHERE id = ?1",
+                    [id],
+                    |r| r.get(0),
+                )
+                .map_err(|e| store_error("checking active row", e))?;
+            if !active {
+                check_limit(&transaction, self.limits)?;
             }
-            None => columns.insert(&transaction, name.as_str(), enabled)?,
+            columns.rewrite(&transaction, id, generation, enabled)?;
+            id
+        } else {
+            check_limit(&transaction, self.limits)?;
+            columns.insert(&transaction, name.as_str(), enabled)?
         };
         if !set_flags(&transaction, flags)? {
             return Ok(None);
@@ -390,6 +421,34 @@ impl ScheduleStore for CacheScheduleStore {
             .map_err(|error| store_error("failed to commit", error))?;
         Ok(Some(row))
     }
+}
+
+fn health_error(error: bd_cache_model::CacheError) -> CronError {
+    StoreError::new(
+        StoreErrorKind::Other,
+        "bounded health read of schedule store",
+    )
+    .with_source(error)
+    .into()
+}
+
+fn check_limit(transaction: &Transaction<'_>, limits: ScheduleLimits) -> Result<(), CronError> {
+    if let Some(limit) = limits.max_schedule_rows {
+        let count: i64 = transaction
+            .query_row(
+                "SELECT COUNT(*) FROM sc_cron_schedule WHERE ended_at IS NULL",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| store_error("counting schedule rows", e))?;
+        if count >= i64::try_from(limit.get()).unwrap_or(i64::MAX) {
+            return Err(CronError::InvalidSpec(format!(
+                "schedule row limit {} reached: current count {count}",
+                limit.get()
+            )));
+        }
+    }
+    Ok(())
 }
 
 /// Sets each listed active schedule's flag inside `transaction`; `false` as
@@ -434,6 +493,9 @@ struct Columns {
 impl Columns {
     fn new(schedule: &NewSchedule, created_at: Timestamp) -> Result<Self, CronError> {
         let spec = &schedule.spec;
+        if !matches!(spec.hook, HookTarget::Rust) || !spec.environment.is_empty() {
+            return Err(CronError::InvalidSpec("cache schedule adapter supports Rust jobs with empty upstream hook environment; Python modules remain cache-owned supervised jobs".into()));
+        }
         let payload = spec.payload.to_string();
         if payload.len() > MAX_PAYLOAD_BYTES {
             return Err(CronError::InvalidSpec(format!(
@@ -655,6 +717,8 @@ impl RawRow {
                 expr: CronExpr::parse(&self.expr).map_err(|error| field("expr", error))?,
                 timeout: RunTimeout::new(timeout).map_err(|error| field("timeout_ms", error))?,
                 payload,
+                hook: HookTarget::Rust,
+                environment: HookEnvironment::new(),
             },
             jitter: duration(self.jitter_ms, "jitter_ms")?,
             created_at: stamp("created_at", &self.created_at)?,
@@ -746,5 +810,64 @@ mod tests {
             assert_eq!(decode_outcome(&outcome.to_string()), Some(outcome));
         }
         assert_eq!(decode_outcome("exit"), None);
+    }
+    #[test]
+    fn explicit_row_limits_count_disabled_rows_and_refuse_restarts_atomically() {
+        let dir = tempfile::tempdir().unwrap();
+        let identity = DatabaseIdentity {
+            dolt_database: DoltDatabase::new("db").unwrap(),
+            project_id: ProjectId::new("p").unwrap(),
+        };
+        let store = SqliteStore::open_at(&dir.path().join("limits.db"), &identity).unwrap();
+        let mut view = store.schedule_store().unwrap();
+        view.limits = ScheduleLimits::with_max_schedule_rows(std::num::NonZeroUsize::new(2));
+        let at = "2026-11-01T00:00:00Z".parse().unwrap();
+        let new = |name| NewSchedule {
+            spec: ScheduleSpec::new(
+                name,
+                "@hourly",
+                Duration::from_secs(1),
+                serde_json::json!({}),
+            )
+            .unwrap(),
+            jitter: Duration::ZERO,
+            next_run_at: at,
+        };
+        let first = view.create(&new("first"), at).unwrap();
+        view.create(&new("second"), at).unwrap();
+        view.set_enabled(&ScheduleName::new("second").unwrap(), false)
+            .unwrap();
+        assert!(matches!(
+            view.create(&new("third"), at),
+            Err(CronError::InvalidSpec(_))
+        ));
+        view.stop(first.id, first.generation, at, "end").unwrap();
+        view.create(&new("third"), at).unwrap();
+        assert!(matches!(
+            view.create(&new("first"), at),
+            Err(CronError::InvalidSpec(_))
+        ));
+        assert!(matches!(
+            view.replace_and_set_enabled(&new("first"), true, at, &[]),
+            Err(CronError::InvalidSpec(_))
+        ));
+        assert_eq!(
+            view.get(first.id).unwrap().unwrap().generation,
+            first.generation
+        );
+        assert_eq!(view.list_active().unwrap().len(), 2);
+        // Active replacement is allowed at the ceiling; unsupported upstream
+        // target metadata is rejected before any row can be changed.
+        assert!(
+            view.replace_and_set_enabled(&new("second"), true, at, &[])
+                .unwrap()
+                .is_some()
+        );
+        let mut unsupported = new("second");
+        unsupported.spec.hook = HookTarget::python("hook.py").unwrap();
+        assert!(matches!(
+            view.replace_and_set_enabled(&unsupported, true, at, &[]),
+            Err(CronError::InvalidSpec(_))
+        ));
     }
 }
