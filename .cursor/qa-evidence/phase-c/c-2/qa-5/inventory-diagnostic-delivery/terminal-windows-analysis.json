@@ -1,0 +1,265 @@
+{
+  "success": true,
+  "data": {
+    "status": "terminal_windows_evidence_diagnosis_complete",
+    "model": {
+      "actual": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "provenance": "available fallback; configured Grok/Composer unavailable"
+    },
+    "branch": "sprint/c-2-framework-application",
+    "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+    "run_id": 41792355909,
+    "job_id": 126448419419,
+    "url": "https://github.com/randlee/beads-cache/actions/runs/41792355909/job/126448419419",
+    "job_status": {
+      "status": "completed",
+      "conclusion": "failure",
+      "completed_at": "2026-11-04T07:40:40Z",
+      "terminal_metadata_provenance": "Parent supplied terminal job metadata; actual retained raw log independently inspected."
+    },
+    "raw": {
+      "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-hosted-windows.log",
+      "bytes": 266161,
+      "sha256": "818a94d57a41b8298435e58498f70304ccfa3a8f746f387c6aaa1846e84d10a8",
+      "lines": 3085,
+      "escape_bytes_preserved": 2322,
+      "mutated": false
+    },
+    "actual_checkout": {
+      "sha": "046ace2d262b89a705a074411fcfd7d9b225ae3a",
+      "kind": "synthetic refs/remotes/pull/109/merge",
+      "description": "Merge37b37376329ff9ceb84319ea17d769f84d67fbf9 into c0b251da8c491cb32acf49950b87557bd5f86e8e",
+      "evidence": {
+        "raw_lines": [
+          111,
+          114
+        ],
+        "text": "2026-11-04T07:27:16.9493646Z HEAD is now at 046ace2 Merge 37b37376329ff9ceb84319ea17d769f84d67fbf9 into c0b251da8c491cb32acf49950b87557bd5f86e8e\n2026-11-04T07:27:16.9575421Z ##[endgroup]\n2026-11-04T07:27:17.0078486Z [command]\"C:\\Program Files\\Git\\bin\\git.exe\" log -1 --format=%H\n2026-11-04T07:27:17.0438624Z 046ace2d262b89a705a074411fcfd7d9b225ae3a"
+      },
+      "synthetic_object_present_locally": false,
+      "limits": "Associated exact PR head is37b3737; raw literal checkout is synthetic merge046ace2. Hosted blob equality is not asserted from unavailable synthetic object."
+    },
+    "runner": {
+      "os": "Microsoft Windows Server2025 10.0.26100 Datacenter",
+      "image": "windows-2025-vs2026",
+      "version": "20261030.294.1",
+      "raw_lines": [
+        11,
+        20
+      ]
+    },
+    "actual_failed_step": {
+      "name": "Daemon process acceptance (FakeBd only)",
+      "workflow_file": ".github/workflows/ci.yml",
+      "workflow_lines": [
+        203,
+        208
+      ],
+      "command": "python -I scripts/consumer_checks.py --bdc \"$PWD/target/debug/bdc.exe\" --daemon \"$PWD/target/debug/bd-cache-daemon.exe\" --fake-bd \"$PWD/target/debug/fake-bd.exe\" --fake-python \"$PWD/target/debug/fake-python.exe\"",
+      "builds": "Both daemon and fake/CLI builds finished; Python acceptance assertion fails afterward.",
+      "observed_case": "first ordinary daemon graceful stop after readiness/outage recovery, before restart and blocked-hook stop cases",
+      "call_site": "scripts/consumer_checks.py:445 first_stop = stop(child)",
+      "signal_site": "scripts/consumer_checks.py:391 child.send_signal(signal.CTRL_BREAK_EVENT on Windows)",
+      "assertion_site": "scripts/consumer_checks.py:394 child.returncode ==0 and not stdout",
+      "observed_exit": 3221225786,
+      "hex_exit": "0xC000013A",
+      "constant_name": "STATUS_CONTROL_C_EXIT",
+      "constant_source": {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/windows-sys-0.61.2/src/Windows/Win32/Foundation/mod.rs",
+        "line": 6977,
+        "sha256": "7da61986429ad6764c2c5ec3656ef5c4b3fba6969b6eabbf85991f86966f2994"
+      },
+      "stdout": "",
+      "stderr": "",
+      "actual_step_exit": 1,
+      "traceback_evidence": {
+        "call_and_assertion": {
+          "raw_lines": [
+            3038,
+            3046
+          ],
+          "text": "2026-11-04T07:40:36.7434936Z Traceback (most recent call last):\n2026-11-04T07:40:36.7435549Z readiness at failure: None\n2026-11-04T07:40:36.7446540Z   File \"D:\\a\\beads-cache\\beads-cache\\scripts\\consumer_checks.py\", line 505, in <module>\n2026-11-04T07:40:36.7450775Z schedule at failure: {'version': '1', 'ok': True, 'data': {'flags': [], 'hook': None, 'lease': None, 'mode': 'builtin', 'rows': {'builtin': {'budget_ms': 25000, 'consecutive_failures': 0, 'enabled': True, 'expr': '* * * * * *', 'first_failure_at': None, 'generation': 1, 'hook_reserve_ms': 5000, 'kind': 'builtin', 'last_run_at': '2026-11-04T07:40:34.611319Z', 'name': 'bd-cache.sync.builtin', 'next_run_at': '2026-11-04T07:40:35.327000Z', 'outcome': 'ok', 'run_id': '1793778034349-2084-3'}, 'python': None}, 'scopes': [{'failing_since': None, 'last_ok_at': '2026-11-04T07:40:34Z', 'scope': 'all'}]}, 'error': None}\n2026-11-04T07:40:36.7454238Z     main()\n2026-11-04T07:40:36.7454909Z   File \"D:\\a\\beads-cache\\beads-cache\\scripts\\consumer_checks.py\", line 445, in main\n2026-11-04T07:40:36.7455631Z     first_stop = stop(child)\n2026-11-04T07:40:36.7456020Z                  ^^^^^^^^^^^\n2026-11-04T07:40:36.7456718Z   File \"D:\\a\\beads-cache\\beads-cache\\scripts\\consumer_checks.py\", line 394, in stop"
+        },
+        "exit": {
+          "raw_lines": [
+            3065,
+            3068
+          ],
+          "text": "2026-11-04T07:40:36.7528557Z     assert child.returncode == 0 and not stdout, (child.returncode, stdout, stderr)\n2026-11-04T07:40:36.7529266Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n2026-11-04T07:40:36.7529717Z AssertionError: (3221225786, '', '')\n2026-11-04T07:40:36.8071212Z ##[error]Process completed with exit code 1."
+        }
+      },
+      "other_observations": {
+        "readiness_after_failure": "None at raw3039; post-exit observation only",
+        "schedule_after_failure": "builtin enabled, last outcome ok, lease null at raw3041",
+        "last_retained_ready_event": "HTTP200 request.finish at raw3063, embedded event timestamp2026-11-04T07:40:34.6404865Z",
+        "ordering_limit": "Reach of stop at445 implies preceding straight-line assertions completed in this run; does not qualify restart, bind-failure or blocked-hook teardown paths after445.",
+        "cleanup_limit": "No successful graceful cleanup, admitted-work joins, descendant reap, instance-unlock ordering or restart claimed from this abnormal exit. No WinError32 appears in this raw failure; do not import it from older occurrence."
+      }
+    },
+    "finding_correlation": {
+      "owning_existing_id": "QA-C2-001",
+      "status": "OPEN",
+      "new_issue_supported": false,
+      "evidence_basis": "Actual first-stop call/zero-exit failure with CTRL_BREAK_EVENT and3221225786 matches existing owning QA-C2-001 location/observable, independently of the job name. Pinned published sc-runtime0.1.1 local source was read: Signals stores only CtrlC on Windows, install registers/polls only ctrl_c, and wait selects ctrl_c/private receiver.",
+      "published_runtime_source": {
+        "path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-runtime-0.1.1/src/shutdown.rs",
+        "sha256": "b58e841e3c44dd02d7bcf528cb4ffb838a9a724d7052f88a39bdcaa5c882504d",
+        "lines": {
+          "listener": [
+            53,
+            64
+          ],
+          "install": [
+            94,
+            102
+          ],
+          "wait": [
+            126,
+            135
+          ]
+        },
+        "version_observed_in_actual_build": "sc-runtime0.1.1 at raw3032",
+        "causal_limit": "Source-supported missing CtrlBreak listener and matching abnormal-stop observable support existing finding correlation; no OS-level signal trace or novel cancellation/store mechanism is asserted."
+      },
+      "blocking_acceptance_ids": [
+        "QA-C2-001",
+        "C2-REQ-003",
+        "C2-REQ-009"
+      ],
+      "no_new_TTL_created": true
+    },
+    "store_and_test_evidence": {
+      "Test_step": "SUCCESS supplied by parent and supported by full raw test output followed by next fail-fast shell step",
+      "test_command": "cargo test --locked --workspace --exclude bd-cache-py --all-features",
+      "command_raw_lines": [
+        808,
+        822
+      ],
+      "store_binary": "target\\debug\\deps\\bd_cache_store-0736be897941eed8.exe",
+      "store": {
+        "passed": 37,
+        "failed": 0,
+        "ignored": 0,
+        "duration_seconds": 16.56,
+        "raw_lines": [
+          1908,
+          1949
+        ]
+      },
+      "new_control_tests": {
+        "cleanup_error_receipt_no_retry": "PASS raw1927",
+        "observer_error_unwind_root_reap": "PASS raw1928",
+        "assertion_unwind": "PASS raw1930",
+        "post_return_marker_gap_classifier": "PASS raw1946",
+        "three_stalled_cleanup_supervisor": "PASS raw1947"
+      },
+      "RQA9_PROTOCOL_line_count": 0,
+      "other_protocol_marker_counts": {
+        "RQA9_OWNER_CONTROL": 0,
+        "RQA9 store phase=": 0,
+        "RQA9 owned child": 0,
+        "FTQ-009": 0
+      },
+      "receipt_limits": "Normal test command lacks --nocapture and successful libtest stdout is captured; this raw log exposes passing test names/results, not detailed phase receipts. No new naturally failing store occurrence or original-cause localization is observed.",
+      "historical_RQA9": "OPEN unknown cause; ordinary37/37 does not identify or repair prior failed Windows occurrence.",
+      "RQA10": "OPEN actual earlier C1 macOS inventory timeout; this Windows daemon failure is a different case and no Windows counterpart is inferred."
+    },
+    "source_identity": {
+      "scripts/consumer_checks.py": {
+        "blob": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+        "sha256": "947dd5e9d70651cb97cb60b607b2ccab8a06104edaa0b862b3d151a1126a4510"
+      },
+      "runtime/pin.toml": {
+        "blob": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+        "sha256": "0ed371c209ad815a29fde415b278b323df9f7d56eececdc795d360860ab485e1"
+      },
+      "Cargo.lock": {
+        "blob": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+        "sha256": "07b5c507314928dc8cccab711f5a1290cd2463a7d948b115fa61db303f7750ca"
+      },
+      ".github/workflows/ci.yml": {
+        "blob": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+        "sha256": "d32789f5d4e6b98bf8f0eb7e37fd0ccd419b373868c31fab3c31a95ac293013d"
+      },
+      ".triage/c/findings/QA-C2-001.ttl": {
+        "blob": "1fb8c9a4fa1d888fc44b3a17d2373950a6de9600",
+        "sha256": "27ee10a69de54e4e2e7c22b2677dba6f54f3d85a4ee730d719737b43d9bb58a0"
+      }
+    },
+    "all_12_findings_preserved": [
+      {
+        "id": "QA-C2-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: published CtrlC-only runtime and separate actual C2 STOP 3221225786 remain; no Windows stop fix."
+      },
+      {
+        "id": "C2-REQ-003",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: current CI, consumer, parent merges, independent QA and anchor acceptance remain incomplete; advisory retained."
+      },
+      {
+        "id": "C2-REQ-004",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN owning C2 disposition: existing qualified startup/post-start correction retained; this diagnostic promotion adds no broad acceptance."
+      },
+      {
+        "id": "C2-REQ-007",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: actual direct sync -> sc-command edge still requires approved published logging receiver seam."
+      },
+      {
+        "id": "C2-REQ-009",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: portable endpoint/signal/instance-lock qualification remains incomplete."
+      },
+      {
+        "id": "ARCH-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: published canonical logging seam/direct introducing edge unchanged; strict graph remains rejecting."
+      },
+      {
+        "id": "RSH-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN owning C2 disposition; independently resolved supported C1 and paired public C2 startup scope preserved, not reopened."
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: distinct carried logging dependency finding retained."
+      },
+      {
+        "id": "C4-FTQ-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: released ephemeral reservation race retained; public endpoint seam required."
+      },
+      {
+        "id": "FTQ-011",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN owning C2 disposition; exact C1 QA9 scoped helper closure and QA10 preservation retained; no removed 50ms recurrence claim."
+      },
+      {
+        "id": "RQA9-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN: historical actual C2 Windows busy-negative cause UNKNOWN. Planted classifier control is not historical reproduction or correction."
+      },
+      {
+        "id": "RQA10-001",
+        "status": "tracked_open_owning_disposition",
+        "prior_disposition": "OPEN imported C1-only macOS inventory timeout at producer 8c1aefa; precise phase/cause UNKNOWN. No C2 platform occurrence inferred."
+      }
+    ],
+    "next_action": {
+      "parent_action": "Correlate this exact terminal raw occurrence into existing QA-C2-001/C2 acceptance evidence; preserve failing first-stop assertion and all12 histories. No duplicate finding or store-cause fix dispatch is supported.",
+      "required_future_correction": "Approved published runtime Windows graceful-stop support for the isolated process-group CTRL_BREAK contract, followed by exact-source independent first-stop/restart/blocked-hook/actual join/reap/ownership validation under original assertions and budgets.",
+      "current_action": "Return evidence and STOP. No source change, competing handler, alternate signal, abnormal-exit acceptance, test skip, deadline relaxation, Cargo or green rerun is authorized.",
+      "historical_findings": "Keep historical RQA9 and C1-only macOS RQA10 OPEN/unknown; retain prior scoped RSH/FTQ closures and C2-FTQ-006 retraction."
+    },
+    "memory_note": "[cass: helpful b-mr7cp6x0-ipdnhs] Windows is assessed independently; its successful Test step does not qualify daemon acceptance or other platforms. No additional checks were executed for this evidence-only task.",
+    "actions": "Read retained raw log and exact local source/triage/published cached source; wrote only terminal-windows-analysis.json/.md. No source/triage edits, Cargo, rerun, nested agent, network polling, merge or own QA closure.",
+    "active_owned_commands": 0,
+    "working_tree_clean": true,
+    "timestamp_utc": "2026-11-04T07:44:06.566731+00:00"
+  },
+  "error": null
+}

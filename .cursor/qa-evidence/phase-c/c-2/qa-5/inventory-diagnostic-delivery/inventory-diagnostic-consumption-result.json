@@ -1,0 +1,571 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_scoped_diagnostic_promotion_pushed_and_stopped",
+    "branch": "sprint/c-2-framework-application",
+    "worktree": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
+    "model": {
+      "actual": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "provenance": "available fallback; configured Grok/Composer unavailable"
+    },
+    "baseline": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+    "integration": "9f7cd65e7920ca54989fa12616205e78aa907767",
+    "producer": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+    "integration_merge": "65c7aa585c776f1939241200bb76406fc26a5c9e",
+    "producer_merge": "93d7489e9023eaec334da3896a371212414b989f",
+    "pushed_commit": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+    "pr": {
+      "baseRefName": "integrate/phase-c",
+      "headRefName": "sprint/c-2-framework-application",
+      "headRefOid": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "state": "OPEN",
+      "url": "https://github.com/randlee/beads-cache/pull/109"
+    },
+    "push": {
+      "executed": true,
+      "remote": "origin",
+      "branch": "sprint/c-2-framework-application",
+      "old_head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "new_head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "force": false
+    },
+    "source_identities": {
+      "baseline": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "integration": "9f7cd65e7920ca54989fa12616205e78aa907767",
+      "producer": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+      "integration_merge": "65c7aa585c776f1939241200bb76406fc26a5c9e",
+      "producer_merge": "93d7489e9023eaec334da3896a371212414b989f",
+      "rust_delta": [
+        "crates/bd-cache-sync/tests/common/session_fixture.rs"
+      ],
+      "unchanged": {
+        "crates/bd-cache-store": {
+          "baseline": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "consumer": "5479d866a253ba3d4becb96112ad3118b7959e1c"
+        },
+        "crates/bd-cache-service": {
+          "baseline": "760338fd13e8ae69e2efad36055dda841993b4c7",
+          "consumer": "760338fd13e8ae69e2efad36055dda841993b4c7"
+        },
+        "crates/bd-cache-daemon": {
+          "baseline": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+          "consumer": "5a79080c0817dff42f63a6a404c7fdaa39514833"
+        },
+        "crates/bd-cache-sync/src": {
+          "baseline": "e120b6546c27892a1cee78f647cc799cc09019d0",
+          "consumer": "e120b6546c27892a1cee78f647cc799cc09019d0"
+        },
+        "crates/bd-cache-sync/Cargo.toml": {
+          "baseline": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "consumer": "69beb2d25850df8d79373700818ee3d1a64ba2cf"
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "baseline": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "consumer": "78ccd70669746a1e8921349b1e51d6fdbce6b262"
+        },
+        "Cargo.toml": {
+          "baseline": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "consumer": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7"
+        },
+        "Cargo.lock": {
+          "baseline": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "consumer": "8ff90ed761ac59b12f60c757085de42ccb2b8928"
+        },
+        "runtime/pin.toml": {
+          "baseline": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+          "consumer": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13"
+        },
+        ".github/workflows/ci.yml": {
+          "baseline": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "consumer": "82afd3f400900f5d803f7f7ab2728495e32c8d40"
+        },
+        ".github/workflows/python.yml": {
+          "baseline": "fd6ae15ecc9356241d58eb37ff7dd4478d81d060",
+          "consumer": "fd6ae15ecc9356241d58eb37ff7dd4478d81d060"
+        },
+        "scripts/consumer_checks.py": {
+          "baseline": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+          "consumer": "45324ac568d490ba95d2f484e0ef2f0483b378dd"
+        }
+      },
+      "exact_producer": {
+        "crates/bd-cache-store": {
+          "producer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "consumer": "5479d866a253ba3d4becb96112ad3118b7959e1c"
+        },
+        "crates/bd-cache-sync": {
+          "producer": "a32624c673b8351f0854f13b307fb15e1e400a34",
+          "consumer": "a32624c673b8351f0854f13b307fb15e1e400a34"
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "producer": "8f5313e8db352e00dd233e0fe43011207174857c",
+          "consumer": "8f5313e8db352e00dd233e0fe43011207174857c"
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "producer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+          "consumer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d"
+        },
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+          "producer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+          "consumer": "2036f2e2d29962e76df24ca24934df530497f7d0"
+        }
+      },
+      "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+      "original_triage_nonblank_lines_preserved": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/RQA10-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "retracted_C2_FTQ_006_unchanged": true,
+      "diagnostic_scope": "Test-only stage/PID/deadline/root/census/audit receipts and owned controls; no proven underlying cause correction. Diagnostic I/O has cost within unchanged timers; zero perturbation is not asserted."
+    },
+    "final_source_binding": {
+      "head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "helper_blob": "8f5313e8db352e00dd233e0fe43011207174857c",
+      "whole_sync_tree": "a32624c673b8351f0854f13b307fb15e1e400a34",
+      "whole_store_tree": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+      "Rust_delta_from_prior_C2": [
+        "crates/bd-cache-sync/tests/common/session_fixture.rs"
+      ],
+      "final_metadata_commit": "7fb2246 changes14 docs/triage files only; no source staged",
+      "parent_preflight": "Parent explicitly reports final frozen consumer/producer ancestry/helper/lock/only-Rust-delta preflight passed before passive observation publishing."
+    },
+    "merges": {
+      "integration": "ordinary clean merge",
+      "producer_conflicts": [
+        "ARCH-001",
+        "RBQA-F001",
+        "RQA9-001",
+        "RQA10-001"
+      ],
+      "resolution": "Complete owning history plus each unique incoming nonblank line retained; no source conflict or local Rust edit."
+    },
+    "validation": {
+      "commands": [
+        {
+          "name": "fmt",
+          "command": [
+            "cargo",
+            "fmt",
+            "--all",
+            "--check"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 0.7194430842064321,
+          "driver_fallback_used": false,
+          "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-fmt.log"
+        },
+        {
+          "name": "private-fmt",
+          "command": [
+            "rustfmt",
+            "--edition",
+            "2024",
+            "--check",
+            "crates/bd-cache-sync/tests/common/session_fixture.rs"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 0.03914087498560548,
+          "driver_fallback_used": false,
+          "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-private-fmt.log"
+        },
+        {
+          "name": "clippy",
+          "command": [
+            "cargo",
+            "clippy",
+            "--offline",
+            "--locked",
+            "-p",
+            "bd-cache-sync",
+            "--all-targets",
+            "--all-features",
+            "--",
+            "-D",
+            "warnings"
+          ],
+          "exit": 0,
+          "elapsed_seconds": 2.3954467503353953,
+          "driver_fallback_used": false,
+          "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-clippy.log"
+        }
+      ],
+      "workspace_fmt": "PASS",
+      "private_helper_fmt": "PASS",
+      "affected_sync_all_targets_all_features_strict_Clippy": "PASS",
+      "diff_check": "PASS",
+      "local_tests_executed": 0,
+      "new_or_repeated_local_broad_suites": 0,
+      "initial_unexpected_failures": [],
+      "driver_fallback_used": false,
+      "source_scope": "exact producer and intended private SessionFixture-only Rust delta; production/store/service/daemon/manifests/lock/CI unchanged",
+      "no_additional_checks_after_parent_stop": true
+    },
+    "diagnostics": [
+      {
+        "command": "exploratory git diff37b...ec68 --stat",
+        "exit": 0,
+        "stderr": "multiple merge bases, using c0b251da8c491cb32acf49950b87557bd5f86e8e",
+        "disposition": "Exploratory triple-dot scope discarded. All source conclusions use direct baseline-to-consumer comparisons and exact producer tree/blob identities."
+      }
+    ],
+    "all_findings": [
+      {
+        "id": "QA-C2-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: current37b Windows first-stop CTRL_BREAK abnormal exit3221225786 confirmed; published runtime stop support remains required.",
+        "triage": ".triage/c/findings/QA-C2-001.ttl"
+      },
+      {
+        "id": "C2-REQ-003",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: current CI, consumer, parent merges, independent QA and anchor acceptance remain incomplete; advisory retained.",
+        "triage": ".triage/c/findings/C2-REQ-003.ttl"
+      },
+      {
+        "id": "C2-REQ-004",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN owning C2 disposition: existing qualified startup/post-start correction retained; this diagnostic promotion adds no broad acceptance.",
+        "triage": ".triage/c/findings/C2-REQ-004.ttl"
+      },
+      {
+        "id": "C2-REQ-007",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: actual direct sync -> sc-command edge still requires approved published logging receiver seam.",
+        "triage": ".triage/c/findings/C2-REQ-007.ttl"
+      },
+      {
+        "id": "C2-REQ-009",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: portable endpoint/signal/instance-lock qualification remains incomplete.",
+        "triage": ".triage/c/findings/C2-REQ-009.ttl"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: published canonical logging seam/direct introducing edge unchanged; strict graph remains rejecting.",
+        "triage": ".triage/c/findings/ARCH-001.ttl"
+      },
+      {
+        "id": "RSH-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN owning C2 disposition; independently resolved supported C1 and paired public C2 startup scope preserved, not reopened.",
+        "triage": ".triage/c/findings/RSH-001.ttl"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: distinct carried logging dependency finding retained.",
+        "triage": ".triage/c/findings/RBQA-F001.ttl"
+      },
+      {
+        "id": "C4-FTQ-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: released ephemeral reservation race retained; public endpoint seam required.",
+        "triage": ".triage/c/findings/C4-FTQ-001.ttl"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN owning C2 disposition; original independently corrected50ms-cap mechanism/scoped closure preserved. RQA10 remains a distinct actual recovery timeout.",
+        "triage": ".triage/c/findings/FTQ-011.ttl"
+      },
+      {
+        "id": "RQA9-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN historical failed qualification/cause unknown. Independent owner credits validated observability/control scope as resolved; no further unchanged store rerun.",
+        "triage": ".triage/c/findings/RQA9-001.ttl"
+      },
+      {
+        "id": "RQA10-001",
+        "status": "open_owning_disposition_preserved",
+        "disposition": "OPEN: same recovery inventory timeout observed on C1 macOS8c and actual C2 macOS37b. Stage/call/root/census cause unresolved. Exact ec68 diagnostics now consumed; no cause correction claimed.",
+        "triage": ".triage/c/findings/RQA10-001.ttl"
+      }
+    ],
+    "scoped_owner_credit": {
+      "RQA9_observability": "RESOLVED_FOR_VALIDATED_SCOPE per independent owner-terminal-assessment.json; private per-child actual wait/cancel/return before marker, real negative qualification/owned cleanup controls credited",
+      "historical_RQA9": "OPEN original failed qualification, historical underlying cause unknown; no new store change or unchanged store rerun",
+      "RQA10": "OPEN actual C1 macOS and repeated C2mac37b recovery timeout, missing stage traces; no concrete incorrect cleanup/census/ownership mechanism shown",
+      "FTQ_009_010_011": "Original scoped complete lifetime/session ownership/independent50ms-cap correction closures preserved",
+      "RSH_001": "Accepted supported C1 and paired public C2 startup resolution preserved; no wholeC2/stockHTTP inference",
+      "C2_FTQ_006": "Retraction unchanged"
+    },
+    "platform_status": {
+      "current_exact_head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "ci_run": 41794713892,
+      "ci_status": "queued",
+      "native": {
+        "Windows": {
+          "databaseId": 126455975425,
+          "name": "clippy and test (windows-latest)",
+          "status": "in_progress",
+          "conclusion": "",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41794713892/job/126455975425",
+          "steps": [
+            {
+              "completedAt": "2026-11-04T07:47:39Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-04T07:47:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:47:45Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-11-04T07:47:39Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:47:58Z",
+              "conclusion": "success",
+              "name": "Install the pinned toolchain (rust-toolchain.toml)",
+              "number": 3,
+              "startedAt": "2026-11-04T07:47:45Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 4,
+              "startedAt": "2026-11-04T07:47:58Z",
+              "status": "in_progress"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Run actions/setup-python@v5",
+              "number": 5,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "No bd or dolt on PATH (NFR-BDC-0005)",
+              "number": 6,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Install script test dependencies",
+              "number": 7,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Scripts tests (scripts/test_*.py)",
+              "number": 8,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Strict consumer boundary (ADR-BDC-0010)",
+              "number": 9,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Clippy",
+              "number": 10,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Clippy (libraries, default features)",
+              "number": 11,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Test",
+              "number": 12,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Daemon process acceptance (FakeBd only)",
+              "number": 13,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Latency (NFR-BDC-0002, release profile)",
+              "number": 14,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 27,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/checkout@v4",
+              "number": 28,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            }
+          ],
+          "head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+          "run_id": 41794713892
+        },
+        "macOS": {
+          "databaseId": 126455975561,
+          "name": "clippy and test (macos-latest)",
+          "status": "queued",
+          "conclusion": "",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41794713892/job/126455975561",
+          "steps": [],
+          "head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+          "run_id": 41794713892
+        }
+      },
+      "python_run": {
+        "conclusion": "",
+        "databaseId": 41794713901,
+        "event": "pull_request",
+        "headSha": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+        "status": "queued",
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41794713901",
+        "workflowName": "python"
+      },
+      "limits": "One bounded snapshot only; new native CI ongoing/queued. Job status is not root cause or whole acceptance. No CIwatch performed.",
+      "prior_C2_37b": {
+        "Windows": "actual job126448419419 Test/store37 SUCCESS, daemon firststop CTRL_BREAK exit0xC000013A correlated existingQA-C2-001; terminal-windows-analysis.json retained",
+        "macOS": "actual job126448419348 recovery timeout17/18exit101 correlated existingRQA10; phase/cause unknown",
+        "parent_current_matrix": "9success6failure, including boundary/Python and two native failures; causes not inferred from names"
+      },
+      "prior_C1_ec68": "Parent current14success1failure boundary; successfulmac19/19 does not establish causal correction; no fullQA update inferred"
+    },
+    "observation_handoff": {
+      "workflow_authored": false,
+      "workflow_executed": false,
+      "separate_parent_owned_next_action": "Parent may bind this frozen SHA to separately reviewed one-shot native hosted macOS full cron_hurry/nocapture observation with default concurrency and unchanged budgets/faults/assertions.",
+      "expected_family_count": 19,
+      "current_scope": "Diagnostic consumption only; no speculative correction or experiment performed.",
+      "cause_limit": "One successful later observation would record stage/remaining/control coverage, not automatically establish historical cause or correction."
+    },
+    "cargo": {
+      "status": "RELEASED",
+      "active_owned_build_test_commands": 0,
+      "incremental": "0",
+      "target": "/tmp/phase-c-execution/c-1/restart-target",
+      "release_reported_to_parent_immediately_after_push": true
+    },
+    "cleanup": "All owned formatting/lint/git/network commands completed; no test child process launched by this assignment. No source/helper edit, retry-to-green, timer/fault/guard/SDK/signal/endpoint/publicfactory/publisher/auth/token change, nested agent, CIwatch or PR merge.",
+    "merge_readiness": "NOT READY; all12 tracked; C1QA10FAIL3B3I29/34 and existing acceptance/CI/QA/anchor/parent/public compatibility/advisory gaps remain.",
+    "result_files": {
+      "json": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption-result.json",
+      "markdown": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption-result.md"
+    },
+    "artifacts": {
+      "inventory-diagnostic-before.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-before.json",
+        "bytes": 224152,
+        "sha256": "ef571247519256a843685ba6282734ce58121bc1a473787127011a83242031e7"
+      },
+      "inventory-diagnostic-ci-snapshot.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-ci-snapshot.json",
+        "bytes": 9508,
+        "sha256": "0f0cf3c323823b525dd8b28a9b0766e24dc6e5c1d1e6b8e32df5caa544d77d27"
+      },
+      "inventory-diagnostic-clippy.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-clippy.log",
+        "bytes": 342,
+        "sha256": "39d9308a1bd8ba2222090cdcaeaa59b7bf21bfad3b58f7f3fce3eec495125f28"
+      },
+      "inventory-diagnostic-commands.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-commands.json",
+        "bytes": 1061,
+        "sha256": "810b67a9d5a3f5268c70cccb187b77f30c4f09f0c21154c8ce56f7698f72b828"
+      },
+      "inventory-diagnostic-consumption-vars.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption-vars.json",
+        "bytes": 4913,
+        "sha256": "9d632106cca91972a540393970d28e538226d6fecf820e9a72851d01c0c5cf9e"
+      },
+      "inventory-diagnostic-consumption.xml": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption.xml",
+        "bytes": 7483,
+        "sha256": "0bc1c8719bcb4c9e65dd9e88d383009858fd500d444c61ce70969cbbab78ad9c"
+      },
+      "inventory-diagnostic-dispositions.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-dispositions.json",
+        "bytes": 1669,
+        "sha256": "63fe6111e11b8eb39b787d905585d8763d9eeceae09724b3d275dc1563c565c8"
+      },
+      "inventory-diagnostic-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "inventory-diagnostic-hosted-runs.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-hosted-runs.json",
+        "bytes": 464,
+        "sha256": "a02e03c7fc9b0c763819eafcfb613d3c2ec000913cc080f7b05ebb43d6b7fb1d"
+      },
+      "inventory-diagnostic-pr-source.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-pr-source.json",
+        "bytes": 212,
+        "sha256": "d3544aad781b935dbf74655de69c835f0f84de9cf118277513d1ec15b1209dcb"
+      },
+      "inventory-diagnostic-private-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-private-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "inventory-diagnostic-source-identities.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-source-identities.json",
+        "bytes": 4643,
+        "sha256": "406c3e9dd16269f6cfcc657c7de6430424c215df87aca90bebfcd653676be7b1"
+      }
+    },
+    "timestamp_utc": "2026-11-04T07:49:44.176711+00:00",
+    "stopped": true
+  },
+  "error": null
+}
