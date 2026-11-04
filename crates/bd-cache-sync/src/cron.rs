@@ -157,6 +157,29 @@ where
         shutdown_timeout: Duration,
         on_expiry: impl FnOnce() + Send,
     ) -> CronStopped {
+        let lifetime = self.cron_lifetime.try_lock();
+        assert!(
+            lifetime.is_ok(),
+            "sc-cron: a worker for this scheduler is already running"
+        );
+        let mut on_expiry = Some(on_expiry);
+        if let Some(stopped) = self
+            .stop_aware_startup(&stop, &hurry, shutdown_timeout, &mut on_expiry)
+            .await
+        {
+            return stopped;
+        }
+        self.run_worker(stop, hurry, shutdown_timeout, on_expiry)
+            .await
+    }
+
+    async fn run_worker(
+        &self,
+        stop: StopFlag,
+        hurry: StopFlag,
+        shutdown_timeout: Duration,
+        mut on_expiry: Option<impl FnOnce() + Send>,
+    ) -> CronStopped {
         let kill = StopFlag::new();
         let ctx = Arc::new(
             SyncContext::new(
@@ -168,7 +191,6 @@ where
             )
             .continuous(),
         );
-        self.warn_at_startup().await;
         let worker = self.scheduler.spawn_worker(sync_resolver(Arc::clone(&ctx)));
         tracing::info!(action = "cron_run", "worker started");
         let worker_ended = loop {
@@ -205,7 +227,6 @@ where
         if let Some(control) = &self.store_shutdown {
             control.finish_by(grace_by.into_std());
         }
-        let mut on_expiry = Some(on_expiry);
         let shutdown = worker.shutdown(grace_by);
         tokio::pin!(shutdown);
         let mut expired = false;
@@ -258,6 +279,92 @@ where
         }
     }
 
+    // The internal startup read uses the same bounded raw view as the worker,
+    // not the independent management view and not LaunchStore's job envelope.
+    // Keep the blocking future retained through cancellation and its real join.
+    async fn stop_aware_startup(
+        &self,
+        stop: &StopFlag,
+        hurry: &StopFlag,
+        timeout: Duration,
+        on_expiry: &mut Option<impl FnOnce() + Send>,
+    ) -> Option<CronStopped> {
+        let store = Arc::clone(&self.scheduler.store().0);
+        let startup = blocking(move || crate::schedule::Rows::read(store.as_ref()));
+        tokio::pin!(startup);
+        let rows = tokio::select! {
+            biased;
+            () = stop.wait() => None,
+            rows = &mut startup => Some(rows),
+        };
+        let joined_read_ok = rows.as_ref().map(Result::is_ok);
+        if let Some(rows) = rows {
+            self.startup_warnings(rows);
+            // A stop after the completed read still precedes worker creation.
+            if !stop.is_stopped() {
+                return None;
+            }
+        }
+        // This is the only stop budget for this lifetime. Startup that receives
+        // a signal does not go on to spawn a worker or renew either deadline.
+        let grace_by = tokio::time::Instant::now() + timeout;
+        let mut finish_by = grace_by
+            .into_std()
+            .checked_add(timeout)
+            .unwrap_or_else(Instant::now);
+        if let Some(control) = &self.store_shutdown {
+            control.finish_by(grace_by.into_std());
+        }
+        let mut expired = false;
+        // The startup future was already joined if its rows were selected.
+        let read_ok = if let Some(read_ok) = joined_read_ok {
+            read_ok
+        } else {
+            tokio::select! {
+                biased;
+                () = async {
+                    tokio::select! {
+                        () = hurry.wait() => {},
+                        () = tokio::time::sleep_until(grace_by) => {},
+                    }
+                } => {
+                    expired = true;
+                    if let Some(callback) = on_expiry.take() { callback(); }
+                    if let Some(control) = &self.store_shutdown { control.finish_by(Instant::now()); }
+                    finish_by = finish_by.min(Instant::now().checked_add(timeout).unwrap_or_else(Instant::now));
+                    // Deadline-aware mutex/SQLite work exits cooperatively; this
+                    // await really joins it and never detaches a timed-out task.
+                    (&mut startup).await.is_ok()
+                }
+                rows = &mut startup => {
+                    let ok = rows.is_ok();
+                    self.startup_warnings(rows);
+                    ok
+                }
+            }
+        };
+        if Instant::now() >= grace_by.into_std() && !expired {
+            expired = true;
+            if let Some(callback) = on_expiry.take() {
+                callback();
+            }
+        }
+        if let Some(control) = &self.store_shutdown {
+            control.restart();
+        }
+        let cache = Arc::clone(&self.cache);
+        let idle = tokio::task::spawn_blocking(move || join_idle(&cache, finish_by))
+            .await
+            .unwrap_or(false);
+        tracing::info!(action = "cron_run", "startup stopped; no worker started");
+        Some(CronStopped {
+            drained: read_ok && !expired,
+            idle,
+            worker_ended: false,
+            finish_by,
+        })
+    }
+
     /// The checks `cron run` makes before it serves (REQ-BDC-0730): one
     /// `WARN` for no enabled sync row, and one per enabled sync row whose
     /// payload does not decode or whose cache file fails the trust check,
@@ -265,8 +372,12 @@ where
     /// Returns the warnings, as logged.
     #[doc(hidden)]
     pub async fn warn_at_startup(&self) -> Vec<String> {
+        self.startup_warnings(self.rows().await)
+    }
+
+    fn startup_warnings(&self, rows: Result<crate::schedule::Rows, CacheError>) -> Vec<String> {
         let mut warnings = Vec::new();
-        match self.rows().await {
+        match rows {
             Err(e) => warnings.push(format!("the schedule table cannot be read: {e}")),
             Ok(rows) => {
                 if rows.mode() == crate::schedule::SyncMode::None {
