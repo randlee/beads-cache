@@ -8963,7 +8963,7 @@
       "thread_status": "idle_completed",
       "response": "Beads-cache shutdownfixedlocally; overall sprintQA fails. Publiccanonicalcronloggingfacade remainsupstreamblocker plannedC5. No approvedscope/guaranteeschanged; upstreamPlanAnchor goalblockedseparately."
     },
-    "latest_status_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:11"
+    "latest_status_cursor": "c942f6e3-3585-4e39-bf1c-0c99fec557e7:12"
   },
   "qualified_c3_forwarding": {
     "report": "/tmp/phase-c-qualified-c3-forward-results.json",
@@ -9005,7 +9005,7 @@
     "reset_reason": "Owner explicitly restarted goal and directed removal of the unrelated publisher approval blocker. Fresh audit starts only if direct consumer work reaches a genuine impasse.",
     "latest_registry_verification": {
       "receipt": "/tmp/phase-c-current-published-sdk-versions.json",
-      "checked_at": "2026-11-04T06:01:32.737472+00:00",
+      "checked_at": "2026-11-04T07:13:27.826527+00:00",
       "non_yanked_versions": {
         "sc-runtime": [
           "0.1.1"
@@ -9014,7 +9014,7 @@
           "0.1.1"
         ]
       },
-      "owner_chat": "Active planning-anchor work, no compatible new publication announced"
+      "owner_chat": "Planning complete and reviewed; implementation/publishedcompatiblefix still pending"
     }
   },
   "restart_direction": {
@@ -9320,175 +9320,176 @@
     "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833"
   },
   "current_fix_dispatch": {
-    "dispatched_at": "2026-11-04T05:26:44.589264+00:00",
-    "status": "completed",
+    "status": "one_shot_native_observation_queued",
     "actor": "parent-orchestrator",
+    "dispatched_at": "2026-11-04T07:10:37.919641+00:00",
+    "active_task_id": null,
+    "cargo_owner": null,
     "tasks": [
       {
         "task_id": "/root/c1_windowsqa9_dev",
-        "role": "rust-developer",
-        "sprint": "c-1",
-        "model": "gpt-6.1-sol",
-        "reasoning_effort": "high",
-        "model_provenance": "Configured Grok/Composer unavailable; available fallback recorded honestly",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-9/windows-fixture-fix.xml",
-        "state": "completed_actual_phase_analysis_no_cause_identified",
-        "cargo_slot": false,
-        "baseline": "a753d2799183dd4e341c854c4515bf046447eb6c",
-        "integration_source": "63ebc1fa032f7ccaa2b5b0b97a8f9621599060d0",
-        "finding_ids": [
-          "REQ-QA-004",
-          "ARCH-001",
-          "RBQA-F001",
-          "QA2-001",
-          "RQA9-001"
-        ],
-        "focus": "Actual Windows store fixture missing causal observation; cause unknown, original budgets preserved",
-        "progress": "Only expected add/add triage conflicts; preserve union of candidate-scope closure history. Original Windows cause unknown; bounded owned causal phase observations being prepared.",
-        "diagnostic_push": "bcfcae7021522454e85be964661b9525bb15e58c",
-        "result": "/tmp/phase-c-execution/c-1/qa-9/windows-fixture-result.json",
-        "root_cause": "unknown",
-        "finding_status": "All5remain open; not a proven fix",
-        "scope": "Bounded supported source/feature/lifetime analysis while two actual Windows diagnostic jobs run; no guessed cause/fix"
-      },
-      {
-        "task_id": "/root/c2_windowsdiag_dev",
-        "role": "rust-developer",
-        "sprint": "c-2",
-        "model": "gpt-6.1-sol",
-        "reasoning_effort": "high",
-        "model_provenance": "Configured Grok/Composer unavailable; available fallback",
-        "assignment": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-consumption.xml",
-        "state": "completed_source_consumption_and_local_checks",
-        "cargo_slot": false,
-        "baseline": "b7de8e9879503353879c500edacf12a6832d709d",
-        "immutable_producer": "bcfcae7021522454e85be964661b9525bb15e58c",
-        "scope": "Necessary consumer-context source diagnostic, no PR merge or full acceptance",
-        "pushed_source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
-        "local_validation": "Store5/5,service7/7,both strict scoped Clippy/fmt PASS; no cause/fix claim",
-        "result": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-consumption-result.json"
-      },
-      {
-        "task_id": "/root/c1_windowsqa9_dev",
-        "task_local_id": "fix-c-1-qa9-rqa9-phase-classification",
+        "task_local_id": "fix-c-1-qa10-inventory-stage",
         "invocation": "parent_followup_existing_background_developer",
         "role": "rust-developer",
         "sprint": "c-1",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-fix.xml",
-        "state": "completed_frozen_for_QA10",
-        "baseline": "bcfcae7021522454e85be964661b9525bb15e58c",
-        "integration": "b731c09e55733b6468ff24af19cc24d1b3f6295e",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-fix.xml",
+        "baseline": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "integration": "c0b251da8c491cb32acf49950b87557bd5f86e8e",
+        "state": "diagnostic_delivery_complete_cause_unresolved",
         "cargo_slot": false,
-        "dispatched_at": "2026-11-04T06:25:30.313601+00:00",
-        "scope": "Minimal bounded phase diagnostics and planted classification control only; original historical cause remains open",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Available fallback; configured Grok/Composer unavailable",
         "finding_ids": [
-          "REQ-QA-004",
-          "ARCH-001",
-          "RBQA-F001",
           "QA2-001",
-          "RQA9-001"
+          "RQA9-001",
+          "RQA10-001",
+          "ARCH-001",
+          "REQ-QA-004",
+          "RBQA-F001"
         ],
-        "progress": "Only RQA9 triage conflict, preserving union. Private independent phase checkpoints and planted post-return/pre-marker owned failure; optional no-op observer for existing helper callers. No Cargo yet, original cause unknown.",
-        "merge_commit": "c88c5431fa942090c1642e14ac119050f3a0da03",
-        "reported_progress": "Private main/worker phase checkpoints and planted post-return/pre-marker control implemented; strict affected all-target/all-feature Clippy PASS after retained style errors. Eight targeted shutdown/control tests running; no parent-inferred result. Original cause remains unknown and all5 OPEN.",
-        "pushed_source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
-        "reported_prepush": "8/8 targeted controls and actual plantedexit1015.020s,rootcleanuptrue,no fallback; affected/default/helpercompat Clippy/fmt PASS; historical cause unknown",
-        "result": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-result.json",
-        "reported_postpush": "Store8/8,defaultowner2/2,direct actualplantedexit101 with completed root cleanup before fallback; historicalcauseUNKNOWN"
-      }
-    ],
-    "remote_jobs": [
-      {
-        "job_id": 126408082388,
-        "run_id": 41779664282,
-        "source": "bcfcae7021522454e85be964661b9525bb15e58c",
-        "sprint": "c-1",
-        "platform": "Windows",
-        "status": "completed",
-        "conclusion": "success",
-        "verified_at": "2026-11-04T05:36:41.119706+00:00",
-        "verification": "Actual gh api actions/jobs/126408082388 returned live in_progress",
-        "url": "https://github.com/randlee/beads-cache/actions/runs/41779664282/job/126408082388",
-        "active_step": "Test",
-        "store_result": "34/34 PASS",
-        "phase_visibility": "suppressed"
+        "scope": "Actual RQA10 macOS inventorystage/cause correction under original budgets, historical RQA9 remains open",
+        "progress": "Developer completed bounded source analysis without speculative patch; all six findings remain open. Cargo released.",
+        "merge_commit": "7140a3e6acdd9d2b3487b16c46a9788d9506c75e",
+        "observed_worktree_scope": "session_fixture.rs private test helper edits; no unmerged conflicts; no parent test/cause/fix inference",
+        "pushed_commit": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+        "receipt": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-result.json",
+        "terminal_analysis": "/tmp/phase-c-execution/c-1/qa-10/terminal-analysis.json",
+        "macos_ci": {
+          "job": 126447058941,
+          "conclusion": "success",
+          "cause_closure": false
+        }
       },
       {
-        "job_id": 126409418610,
-        "run_id": 41780092066,
-        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "task_id": "/root/c2_protocol_consumer11",
+        "task_local_id": "fix-c-2-qa5-validated-phase-protocol",
+        "invocation": "parent_spawn_new_background_developer",
+        "role": "rust-developer",
         "sprint": "c-2",
-        "platform": "Windows",
-        "status": "completed",
-        "active_step": "Clippy",
-        "conclusion": "failure",
-        "verified_at": "2026-11-04T05:36:41.119706+00:00",
-        "verification": "Actual gh api actions/jobs/126409418610 returned live in_progress",
-        "url": "https://github.com/randlee/beads-cache/actions/runs/41780092066/job/126409418610",
-        "store_result": "34/34 PASS",
-        "failed_step": "Daemon process acceptance (FakeBd only)",
-        "observed_exit_code": 3221225786,
-        "phase_visibility": "suppressed"
+        "assignment": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption.xml",
+        "baseline": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+        "integration": "c0b251da8c491cb32acf49950b87557bd5f86e8e",
+        "immutable_producer": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "state": "scoped_protocol_consumption_complete_not_accepted",
+        "cargo_slot": false,
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+        "scope": "Necessary originalC2 context diagnostic promotion only, no PRmerge/fullacceptance",
+        "finding_ids": [
+          "QA-C2-001",
+          "C2-REQ-003",
+          "C2-REQ-004",
+          "C2-REQ-007",
+          "C2-REQ-009",
+          "ARCH-001",
+          "RSH-001",
+          "RBQA-F001",
+          "C4-FTQ-001",
+          "FTQ-011",
+          "RQA9-001",
+          "RQA10-001"
+        ],
+        "dispatched_at": "2026-11-04T07:18:34.078560+00:00",
+        "observed_merge_conflict": ".triage/c/findings/RQA9-001.ttl",
+        "pushed_commit": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+        "receipt": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-result.json",
+        "macos_ci": {
+          "job": 126448419348,
+          "conclusion": "failure",
+          "observed_case": "same inventory recovery timeout; missing stage instrumentation"
+        },
+        "windows_ci": {
+          "job": 126448419419,
+          "status": "completed",
+          "conclusion": "failure",
+          "completed_at": "2026-11-04T07:40:40Z",
+          "cause": "pending_background_developer_log_assessment"
+        }
       },
       {
-        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
-        "workflow_commit": "05165e20aba8f996a100ced5e25f04634fb55c60",
-        "run_id": 41782100405,
-        "job_id": 126415769693,
-        "status": "completed",
-        "conclusion": "success",
-        "scope": "ONE filtered supervisor observation; no cause/fix claim",
-        "url": "https://github.com/randlee/beads-cache/actions/runs/41782100405/job/126415769693"
-      },
-      {
-        "source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
-        "workflow_commit": "59cb77d253ed20d202e19f563776f26f69a225b0",
-        "run_id": 41783469872,
-        "job_id": 126420131075,
-        "status": "completed",
-        "conclusion": "success",
-        "result": "fullstore34/34,normalphases,actualbusy-negative sibling overlap not original",
-        "scope": "Controlled diagnostic only, no cause/fix claim"
+        "task_id": "/root/c2_protocol_consumer11",
+        "task_local_id": "fix-c-2-qa5-inventory-diagnostic-consumption",
+        "invocation": "parent_followup_existing_background_developer",
+        "role": "rust-developer",
+        "sprint": "c-2",
+        "assignment": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption.xml",
+        "baseline": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+        "integration": "9f7cd65e7920ca54989fa12616205e78aa907767",
+        "immutable_producer": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+        "state": "completed_scoped_diagnostic_delivery",
+        "cargo_slot": false,
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Configured Grok unavailable; available fallback",
+        "scope": "Diagnostic SessionFixture promotion only; complete finding histories preserved; no acceptance claim",
+        "pushed_commit": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+        "receipt": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption-result.json",
+        "native_run": 41794713892,
+        "windows_job": 126455975425,
+        "macos_job": 126455975561
       }
     ],
-    "evidence_integrity": {
-      "files_verified": 83,
-      "committed_blob_hashes_match_manifests": true,
-      "scope": "All three current developer/QA9 evidence archives"
-    },
-    "diagnostic_evidence_archive": ".cursor/qa-evidence/phase-c/c-1/qa-9/windows-diagnostics",
-    "independent_owner_investigation": {
+    "independent_owner_assessment": {
       "task_id": "/root/rqa9_causal_owner",
-      "status": "completed_OPEN_UNRESOLVED_CAUSE",
-      "scope": "Original-to-current test diff and actual observed phases; assess supported mechanism and controlled next probe, not fullQA10",
-      "result": "/tmp/phase-c-execution/c-1/qa-9/full-context-owner-result.json"
+      "invocation": "parent_followup_existing_independent_reviewer",
+      "state": "completed",
+      "scope": "Actual terminal CI evidence and smallest meaningful causal next step; no Cargo/source edits/full-QA claim",
+      "receipt": "/tmp/phase-c-execution/c-1/qa-10/owner-terminal-assessment.json",
+      "next_action": "Immutable ec68 diagnostics consumption into C2 plus one bounded native macOS full cron_hurry observation; no automatic rerun"
     },
-    "isolated_worktree": {
-      "creation_task": "/root/windowsdiag_worktree_create",
-      "path": "/Users/randlee/github/beads-cache-worktrees/codex/c2-windows-store-phase-observation",
-      "branch": "codex/c2-windows-store-phase-observation",
-      "source_guard_verified": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
-      "workflow_commit": "05165e20aba8f996a100ced5e25f04634fb55c60",
-      "purpose": "Disposable diagnostic only; never merge workflow; no local Cargo output"
+    "terminal_windows_diagnosis": {
+      "task_id": "/root/c2_protocol_consumer11",
+      "role": "rust-developer",
+      "state": "completed",
+      "job": 126448419419,
+      "source": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "result": "failure_after_test_success",
+      "raw": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-hosted-windows.log",
+      "cargo_slot": false,
+      "finding": "QA-C2-001",
+      "observed_exit": "3221225786/0xC000013A",
+      "test_step": "success_store37/37",
+      "receipt": "/tmp/phase-c-execution/c-2/qa-5/terminal-windows-analysis.json"
     },
-    "active_task_id": "/root/c1_windowsqa9_dev",
-    "cargo_owner": null
+    "bounded_mac_observation_preparation": {
+      "task_id": "/root/mac_inventory_observation_prep",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_spawn_new_background_developer",
+      "role": "rust-developer",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "model_provenance": "Configured Grok unavailable; available fallback",
+      "state": "completed_passive_preparation",
+      "cargo_slot": false,
+      "source_sha": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "scope": "Passive workflow/script drafts only; no publish/worktree/source mutation"
+    },
+    "bounded_mac_observation": {
+      "run": 41794982056,
+      "status": "queued",
+      "workflow_commit": "4b89a434c7d32ee3b3c36a962179e92bc45dd2ab",
+      "immutable_consumer": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "developer_task": "/root/mac_inventory_observation_prep",
+      "root_publication": "Executed reviewed developer-authored guarded publish script once; auto-review approved",
+      "workflow_path": ".github/workflows/one-time-macos-cron-hurry-observation.yml",
+      "url": "https://github.com/randlee/beads-cache/actions/runs/41794982056",
+      "attempt_limit": 1,
+      "acceptance": "Diagnostic only; original RQA9/RQA10 remain open; no sprint merge",
+      "job": 126456844993,
+      "last_verified_at": "2026-11-04T07:56:28.106188+00:00"
+    }
   },
   "goal_turn_audit": {
     "previous_turn": "progress",
     "current_classification": "progress",
+    "observed_at": "2026-11-04T07:56:28.106235+00:00",
     "evidence": [
-      "Actual background developer handle confirmed live",
-      "Ordinary integration merge c88c543 completed, prior RQA histories preserved",
-      "Authoritative worktree has scoped store-test/shared-fixture edits; developer reports phase protocol/control implemented and eight meaningful tests running",
-      "QA10 current-owner four-role configuration prepared but no review dispatched against incomplete source",
-      "Actual C1 phase protocol8c1aef pushed; prepush8/8 and live owned plantednegative classification proof reported, exact QA10 assignments rendered pending final developer release",
-      "Final phase-protocol8c1aef frozen/pushed/postpush8+2/directownednegative proof; actual independent Rust/flaky/archQA10 tasks launched, req queued for next slot",
-      "QA10 independent Rust/arch/flaky complete, protocolcontrols pass but actual macOS17/18 inventorytimeout RQA10-001 independently correlated and triaged; full req role dispatched from actual current evidence",
-      "QA10 all4currentfences matched and actual parent task notifications preserved; six-ID ceremony screen accepted, sole enforcer10 spawned for mandatory PR publication",
-      "QA10 sole enforcer published report6624794833 verified exact29/34FAIL3B3I; allsix IDs remainopen, ready for all-findings developer handoff"
+      "Verified exact observation job126456844993 exists and remains queued; no restart or rerun",
+      "Archived completed C2 diagnostic handoff and prior terminal Windows evidence with source distinctions and raw byte hashes"
     ],
-    "next_safe_action": "Commit final QA10 evidence/new triage, render allsix-finding fix assignment and dispatch background developer for supported inventory-stage diagnosis/correction",
+    "next_safe_action": "Wait for exact macOS observation job; preserve terminal log/artifacts then independent owner assessment",
     "blocked_audit_increment": false
   },
   "current_nonblockers": {
@@ -9517,6 +9518,11 @@
     "c-2-diagnostic-context": {
       "issue": "bdc-n8v.2",
       "comment_id": 10
+    },
+    "c-1-QA10-published": {
+      "issue": "bdc-n8v.1",
+      "comment_id": 11,
+      "kind": "Exact published QA10 verdict and all-six finding developer handoff"
     }
   },
   "qualified_shutdown_component": {

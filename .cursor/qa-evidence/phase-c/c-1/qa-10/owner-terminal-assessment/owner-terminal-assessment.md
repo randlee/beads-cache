@@ -1,0 +1,115 @@
+```json
+{
+  "success": true,
+  "data": {
+    "review_type": "bounded_independent_owner_terminal_assessment; not new full QA or coordinator",
+    "owner": "flaky-test-qa",
+    "model": "actual gpt-6.1-sol high fallback; Composer unavailable",
+    "cm_context_executed": true,
+    "producer_source": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+    "consumer_source": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+    "both_assigned_worktrees_clean_verified": true,
+    "assessment": "No supported underlying correction or concrete incorrect cleanup/census/ownership mechanism is established for RQA10. Existing source exposes a conditional budget shortfall, not evidence that it caused either failure. One bounded instrumented consumer-context observation is justified. RQA9 observability/control work is independently supported; its original failed qualification is not repaired by that fact alone.",
+    "RQA10_001": {
+      "status": "OPEN",
+      "observability_status": "stage/command/root/cleanup/audit distinction implemented and locally controlled; no failing consumer trace yet",
+      "actual_evidence": [
+        "C1 ec68 macOS run41791930215 job126447058941 SUCCESS; cron_hurry19/19 in15.63s. Standard successful outer libtest capture hides all RQA10 stage receipts. This is not a causal correction.",
+        "C2 37b macOS run41792355909 job126448419348 FAILURE; same recovery test, preliminary drain recovered from injected transient error then owned inventoryTimedOut, cron_hurry17/18exit101. This correlates to existing RQA10-001, not a new ID or RQA9 store occurrence.",
+        "C2 helper blob123a5ce3a4c14895b2013f1cb74093f982129be9 matches8c, while C1 ec68 has8f5313e8db352e00dd233e0fe43011207174857c. C2 does not contain stage instrumentation or its added control."
+      ],
+      "source_findings": [
+        "ec68 changes only the private SessionFixture test helper among Rust files relative8c. Adds inline stage/call/thread/session/deadline/PID/wait diagnostics and owned stage controls; original fault index3, acknowledgedSTOP,80ms sleep/CONT, timing decisions and audit remain.",
+        "The third callback is a global call count, not a phase selector. Initial drain100ms, quiescence250ms and final cleanup1s share one cleanup origin. The independent post-cleanup audit has its own250ms budget. No removed50ms cap reappears.",
+        "A late STOP acknowledgement can leave less than80ms plus actual ps/parsing/census work. Even>80ms remaining does not guarantee a further required stable census. That is conditional budget arithmetic; no retained failed log supplies the actual remaining time or proves this path.",
+        "An incomplete quiescence clears prior census history and requires two complete stable quiet censuses by the original deadline. A successful final drain cannot erase a retained quiescence error. Actual root wait precedes final drain; cleanup receipttrue requires all required proof. No actionable wrong-acceptance or orphan mechanism demonstrated.",
+        "The same timeout string can originate from injected scan3, later cleanup scans or the separate final audit. Generic raw timeout and prior recovery text cannot select among them."
+      ],
+      "controls_reviewed": "Raw inventory-stage-postpush-tests.log: ordinary recovery scan3 occurs in quiescence with216.822083ms left after STOP acknowledgement; actual delay80.855333ms leaves135.966708ms beforeCONT, then fresh stable census/rootwait/finalcensus and independent empty audit complete. Separate deliberately held quiescence command yields receiptfalse; held post-cleanup audit yields receipttrue after successful cleanup. Both owned commands/root waits are verified before fallback; no fallback used. Fresh independent census does not change failed observation or grant another cleanup attempt.",
+      "actionable_fix_now": null,
+      "why_no_speculative_fix": "Moving/deleting the80ms injection or audit, padding deadlines or imposing artificial lateness would not establish which requirement failed. Existing forced deadline controls validate ownership and classification, not the retained natural trigger."
+    },
+    "RQA9_001": {
+      "status": "OPEN original failed qualification; historical underlying cause unresolved",
+      "observability_gap": "RESOLVED_FOR_VALIDATED_SCOPE",
+      "supported_scope": "Private per-child main/worker files independently record actual wait/cancellation/worker return before marker delivery. Meaningful post-return/pre-marker control proves DatabaseBusy real return while normal qualification still fails the missing original marker. Independent directnegative101, completed root kill/wait/reap before fallback(false), all normal3-family negatives, default finish/no-op behavior, assertion unwind, observer error/panic and failedreceipt/no-retry controls support this design.",
+      "source_identity": "C1 ec68 and C2 37b both retain exact8c schedule blob31a8baa56b36597d25dc2ddd2e3d15cc47075faf, protocol2036f2e2d29962e76df24ca24934df530497f7d0 and FixtureChild48f8b51be5fa2b3bfdffc80520468edd78ee056d.",
+      "limits": "Protocol solves false inference from absent text; it does not prove the original missing-marker failure came from a marker-delivery gap or that busy-negative qualification was satisfied in that failed occurrence. No additional identical historical recurrence is required as a rule: a supported reachable mechanism plus meaningful correction/control proof could justify owner disposition. Neither is currently shown for the original failure.",
+      "next_work": "No further store protocol change or unchanged store rerun recommended by this assessment. Preserve qualified observability and original open occurrence separately."
+    },
+    "next_authorized_developer_action": {
+      "scope": "Ordinarily consume immutable ec68 producer diagnostics into C2, preserving consumer production, manifests/lock, validated store protocol and complete prior histories. Record new immutable consumer SHA and verify Rust delta is the intended SessionFixture diagnostics/control only; do not mix a speculative correction.",
+      "experiment_count": 1,
+      "platform": "native hosted macOS",
+      "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
+      "selection": "Exactly the existing full cron_hurry integration target after diagnostic consumption, expected19 tests. No original-case --exact filter: retain default parent concurrency and existing sibling context. Read/record RUST_TEST_THREADS without changing it. Outer nocapture must expose stage receipts even on success.",
+      "required_records": "Literal immutable source/checkout and helper blob, consumer lock/feature selection and actual cron_hurry binary/hash, full count/command/environment, raw stageBEGIN/END including original deadline and remaining time, STOPack/delay/CONT of injected call3, actual inventoryPID exit or kill/wait, rootwait, complete stable/final census, cleanup receipt and independent audit. Preserve actual test outcome and all errors.",
+      "context_limit": "Package-selected run restores the existing lifecycle test-family context on the instrumented C2 consumer; it does not reproduce the entire original workspace feature union/build artifact or scheduling interleaving. Record that limitation. If a previously consumer-workspace-built matching instrumented artifact is already available, invoke that full target once with --nocapture instead of building/running a broader matrix; do not execute both alternatives.",
+      "on_failure": "Use the identified actual stage/call/remaining and ownership receipt to route a concrete fixture/inventory correction. Preserve original100ms/250ms/1s/5s budgets,80ms fault, complete census, false incomplete receipts and one attempt until a supported redesign is reviewed.",
+      "on_success": "Record actual stage/timing/control coverage and stop. A success is not the historical cause or correction; no automatic unchanged rerun/stress loop. Owner may assess source/control proof or another specifically justified causal action from the new facts; no requirement to wait indefinitely for an identical historical event.",
+      "not_authorized_by_this_assessment": "No retry-to-green, synthetic host load, forced-lateness counterexample, thread override, timer widening, removing/moving the fault/audit, full1171 matrix, SDK/publisher/auth changes, waiver, PR approval or merge.",
+      "execution": "Recommended for parent dispatch; nothing promoted, prepared or executed by this reviewer."
+    },
+    "evidence_limits": [
+      "Both current hosted logs check out synthetic PR merge commits (C1 35daab4b1b708caba098917c4956ddeb57056736; C2 046ace2d262b89a705a074411fcfd7d9b225ae3a). Local head/blob comparison is direct; synthetic hosted blobs were not independently fetched by this reviewer.",
+      "C1 successful capture hides stage values; C2 failed source lacks them. Thus there is no retained instrumented failing consumer stage/PID/remaining/root/census trace.",
+      "Diagnostics add synchronous observation cost under unchanged monotonic deadlines; no exact zero-perturbation or mathematical kernel-progress guarantee asserted.",
+      "Latest parent reports C2 Windows job126448419419 terminalFAILURE07:40:40Z after TestSUCCESS, with daemon failure being independently classified by its consumer owner. This reviewer makes no daemon-cause or oldCTRL_BREAK correlation claim; it is separate from the macOS recovery occurrence and original RQA9. No overallCI acceptance.",
+      "Local generic held-command controls demonstrate distinguishable outcomes and cleanup, not natural timeout cause. Raw natural error is not proof of survivors or receiptfalse."
+    ],
+    "preserved_dispositions": {
+      "RQA9-001": "OPEN; qualified observability/control credited",
+      "RQA10-001": "OPEN; repeated actual recovery occurrence correlated",
+      "FTQ-009": "Original scoped complete-lifetime closure preserved",
+      "FTQ-010": "Original scoped session ownership closure preserved",
+      "FTQ-011": "Original independent50ms-cap correction closure preserved; new recovery occurrence separate",
+      "RSH-001": "Accepted supported startup resolution preserved by unchanged production; no wholeC2/stockHTTP inference",
+      "ARCH-001": "OPEN",
+      "RBQA-F001": "OPEN",
+      "QA2-001": "OPEN",
+      "REQ-QA-004": "OPEN"
+    },
+    "actions": "Read-only source/diff/evidence review. No Cargo/build/test, source/triage edits, agents, PR posting/report, merge or SDK/publisher/auth work. Wrote only this owner assessment pair; existing QA10 and investigation results unchanged.",
+    "active_owned_commands": 0,
+    "evidence_files": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/terminal-analysis.json",
+        "bytes": 6527,
+        "sha256": "b816f403c667284fd01f4af18845c3b4b9cc5d10e6f24d6c8daa4f53c89b7844"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/terminal-analysis.md",
+        "bytes": 1762,
+        "sha256": "b6c4786968d8f50954140c29309684f5ab50d07d37503e6c3532c07dfc20c483"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-result.json",
+        "bytes": 10513,
+        "sha256": "3eecd0e9d21875d168481225b705c1706a3bc5a42b80337796ec05259de8e09e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-result.md",
+        "bytes": 1974,
+        "sha256": "e5d50fc3715eab6459a0d3f44c48799d82407226557d8eb312e2b36e073c793f"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-hosted-macos.log",
+        "bytes": 210599,
+        "sha256": "f03bbedccdd3e78256dfb10e7bc57562c38c0c241fa40f95c27a6fe09ff51cb3"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-hosted-macos.log",
+        "bytes": 153046,
+        "sha256": "cdf16c1c95c0b69f09ca2563d4afbdb7080eba02320a6c7601c3aee44da124ab"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/inventory-stage-postpush-tests.log",
+        "bytes": 13789,
+        "sha256": "753a48faf614256af4431e1f686edf971334ea9b2e7bc9f2d6f3f74b5ffc2f16"
+      }
+    ],
+    "timestamp_utc": "2026-11-04T07:42:06.065881+00:00"
+  },
+  "error": null
+}
+```

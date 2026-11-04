@@ -1,0 +1,217 @@
+<cursor-task id="fix-c-1-qa10-inventory-stage" phase="c" assignee="rust-developer" mode="fix">
+  <description>Route all six published QA10 findings. Diagnose and correct the actual macOS inventory-timeout occurrence with stage/call/deadline proof, preserving validated protocol and all original ownership/budget/coverage guarantees.</description>
+
+  <branch>sprint/c-1-runtime-migration</branch>
+  <worktree>/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration</worktree>
+  <pr-target>integrate/phase-c</pr-target>
+  <authoritative-sprint-doc>docs/plans/phase-c/sprint-c-1-runtime-migration.md</authoritative-sprint-doc>
+
+  <additional-sprint-docs>
+/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/docs/plans/phase-c/sprint-c-2-framework-application.md
+  </additional-sprint-docs>
+
+  <finding-ids>
+QA2-001
+RQA9-001
+RQA10-001
+ARCH-001
+REQ-QA-004
+RBQA-F001
+  </finding-ids>
+
+  <requirement-ids>
+REQ-BDC-1002
+REQ-BDC-0804
+REQ-BDC-0903
+REQ-API-0001
+REQ-API-0002
+REQ-API-0003
+REQ-API-0004
+REQ-API-0005
+REQ-API-0006
+REQ-API-0007
+REQ-BDC-0001
+REQ-BDC-0006
+REQ-BDC-0103
+REQ-BDC-0107
+REQ-BDC-0720
+REQ-BDC-0722
+REQ-BDC-0723
+REQ-BDC-0724
+REQ-BDC-0725
+REQ-BDC-0727
+REQ-BDC-0729
+REQ-BDC-0730
+REQ-BDC-0731
+REQ-BDC-0732
+REQ-BDC-0802
+REQ-BDC-0803
+REQ-BDC-0812
+REQ-BDC-0911
+NFR-BDC-0002
+NFR-BDC-0004
+NFR-BDC-0005
+NFR-BDC-0006
+NFR-BDC-0007
+REQ-STORE-0002
+REQ-STORE-0003
+REQ-API-0008
+REQ-CLI-0001
+REQ-CLI-0003
+REQ-CLI-0007
+REQ-PY-0002
+REQ-PY-0006
+REQ-BDC-0910
+REQ-BDC-0721
+REQ-BDC-0007
+REQ-BDC-0008
+REQ-BDC-0502
+REQ-CLI-0002
+REQ-CLI-0004
+REQ-CLI-0005
+REQ-CLI-0006
+REQ-CLI-0008
+REQ-CLI-0009
+REQ-CLI-0010
+REQ-CLI-0011
+REQ-CLI-0012
+REQ-PY-0001
+REQ-PY-0003
+REQ-PY-0004
+REQ-PY-0005
+REQ-PY-0007
+REQ-PY-0008
+REQ-PY-0010
+REQ-PY-0011
+REQ-PY-0012
+REQ-PY-0013
+REQ-PY-0014
+REQ-STORE-0001
+REQ-STORE-0004
+REQ-STORE-0005
+REQ-STORE-0006
+REQ-STORE-0007
+REQ-STORE-0008
+REQ-SYNC-0001
+REQ-SYNC-0004
+REQ-SYNC-0005
+REQ-SYNC-0010
+REQ-SYNC-0012
+REQ-SYNC-0013
+REQ-CRON-0001
+REQ-CRON-0002
+REQ-CRON-0003
+REQ-CRON-0004
+REQ-CRON-0005
+REQ-CRON-0006
+REQ-CRON-0007
+REQ-CRON-0008
+REQ-CRON-0009
+REQ-CRON-0010
+REQ-CRON-0011
+REQ-CRON-0012
+REQ-CRON-0013
+REQ-CRON-0016
+REQ-CRON-0017
+REQ-CRON-0018
+REQ-CRON-0014
+REQ-CRON-0015
+NFR-BDC-0001
+NFR-BDC-0003
+REQ-BDC-0703
+REQ-BDC-0726
+REQ-BDC-0728
+REQ-SERVICE-0003
+REQ-CRON-0012
+  </requirement-ids>
+
+  <adr-ids>
+ADR-BDC-0005
+ADR-BDC-0006
+ADR-BDC-0010
+ADR-BDC-0011
+ADR-BDC-0014
+ADR-BDC-0015
+ADR-STORE-0001
+ADR-STORE-0003
+ADR-STORE-0006
+ADR-SYNC-0008
+ADR-CLI-0001
+ADR-CLI-0005
+ADR-PY-0006
+ADR-CRON-0001
+ADR-CRON-0002
+ADR-CRON-0003
+ADR-CRON-0004
+ADR-CRON-0005
+ADR-CRON-0006
+ADR-CRON-0007
+ADR-CRON-0008
+ADR-CRON-0009
+ADR-STORE-0002
+ADR-STORE-0004
+ADR-STORE-0005
+ADR-SYNC-0001
+ADR-SYNC-0002
+ADR-SYNC-0006
+ADR-CLI-0002
+ADR-CLI-0003
+ADR-CLI-0004
+ADR-PY-0001
+ADR-PY-0002
+ADR-PY-0003
+ADR-PY-0004
+ADR-PY-0005
+ADR-BDC-0009
+ADR-BDC-0012
+ADR-BDC-0013
+ADR-CORE-0001
+ADR-BDC-0016
+ADR-SYNC-0008
+  </adr-ids>
+
+  <triage-records>
+.triage/c/findings/QA2-001.ttl
+.triage/c/findings/RQA9-001.ttl
+.triage/c/findings/RQA10-001.ttl
+.triage/c/findings/ARCH-001.ttl
+.triage/c/findings/REQ-QA-004.ttl
+.triage/c/findings/RBQA-F001.ttl
+  </triage-records>
+
+  <required-fixes>
+Read authoritative C1 sprint and all six actual triage records/current QA10 report https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833. Exact clean baseline8c1aefafd7fd269c82c7974e610e848816d026d8; consume exact integrationc0b251da8c491cb32acf49950b87557bd5f86e8e by ordinary feature merge, preserving full owning histories and accepted scoped closures. New actual RQA10-001: exact macOS job126430892802 cron_hurry17/18 fails cleanup_inventory_recovery_preserves_the_original_fixture_failure after recovered-inventory notice with owned-session inventory timed out. Raw current evidence cannot distinguish cleanup/quiescence/finaldrain inventory versus separate postcleanup250ms session_members audit; it proves neither orphan, removed50ms-cap recurrence, host load, observer-hook cause nor product fault. Identify exact stage/call/owned command/source of deadline consumption and whether actual root/reap/complete census had already finished. Retain original failed raw log and outcome. Use bounded stage/call/deadline/remaining/elapsed diagnostics tied to original absolute clocks and complete subprocess/output ownership; never create fresh hidden budgets or a new ambient per-scan speed cap. Construct a meaningful supported pre-fix counterexample or phase-specific fault proof, then correct the actual identified mechanism, not just alter a message or report later green. Source test injects a transient inventory failure and delayed inventory in a call-dependent sequence: evaluate real phase/call placement versus remaining deadline only as a hypothesis, not assumed cause. Do not simply remove/move injected fault or independent verification to make a test pass; any test redesign must demonstrate retained delayed-inventory coverage, original-fixture-failure preservation, independent root/session/member verification and actual complete cleanup under unchanged budgets. Prefer scoped efficient source logic over new process requirements/knobs; no generic framework or new consumer artifact. Preserve all original phase/grace/cleanup/audit/wholefixture numerical budgets, one cleanup attempt, defaultDrop/unwind, registration/inflight/zeroSID/epoch safeguards, actual root kill/wait/reap and final valid complete census. Incomplete or failed inventories never equal empty; prior original fixture failure remains failed even if cleanup later recovers. Observe optional/shared helper dependency effects without inferring regression just because source body differs. Keep QA10-validated private store phase protocol/controls sound; original RQA9 remains OPEN/unknown cause and cannot close from planted control or ordinary passing observations. Existing typed diagnostics may support a genuine later original occurrence; no new ordinary green reruns or unsupported stress. Four logging/graph/acceptance IDs remain open while published0.1.1 lacks approved seam; no SDK/pin/guard/signal/endpoint or publisher/auth/token workaround. Protected dirty primary untouched, no agents/PR merge/self-QA closure.
+  </required-fixes>
+
+  <acceptance-criteria>
+Actual RQA10 failing-stage/source mechanism is localized with real owned evidence, a supported pre-fix/controlled failure distinguishes it, and a correction removes the mechanism while preserving all original budgets/real coverage and full owned lifecycle. Truthful original failure/history retained; no false root/orphan/timeout cause inference. If diagnostics only or source cause unresolved, report precise missing evidence and actual job handle rather than assert a fix. Previous scoped RSH/FTQ009/010/011 and diagnostic-control properties preserved or genuine supported regressions corrected. All six IDs remain honestly tracked until independent owners/enforcer decide; no whole C1/C2/CI/anchor/merge acceptance.
+  </acceptance-criteria>
+
+  <validation-requirements>
+You own sole local Cargo now: CARGO_INCREMENTAL=0,target/tmp/phase-c-execution/c-1/restart-target. Meaningful targeted recovery/delay/cleanup/post-audit/ownership/error/unwind proof plus appropriate affected lifecycle tests and strict lint/fmt. Do not repeat unchanged store8+2/App7/full1171/performance unless changes justify. No retry-to-green or global host tuning; retain initial failures and invalid permission diagnostics separately. Push concrete diagnostic/correction source promptly, then focused exact postpush proof and bounded macOS/source-specific CI handle/status; release Cargo immediately when no active commands, do not hold for remote waiting. Save qa-10/inventory-stage-result.json and matching.md with exact source/phase/call/time/receipt/cleanup classification, supported cause confidence, pre/post evidence, actual commands/logs/platform status and all six dispositions. STOP for parent independent review, no selfmerge. Coordinate any required C2 immutable diagnostic promotion only through parent, no crossbranch edits/messages.
+  </validation-requirements>
+
+  <references>
+/tmp/phase-c-execution/c-1/qa-10/manager-result.md
+/tmp/phase-c-execution/c-1/qa-10/manager-machine-status.json
+/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json
+/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json
+/tmp/phase-c-execution/c-1/qa-10/rust-qa-hosted-macos.log
+/tmp/phase-c-execution/c-1/qa-10/screen-parent-adjudication.json
+/tmp/phase-c-execution/c-1/qa-9/phase-protocol-result.json
+/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA10-001.ttl
+  </references>
+
+  <workflow>
+    <step id="a">ACK this Task immediately. Begin work in the same session unless blocked. This Task has no prior sprint session memory — rely only on this assignment and the cited docs.</step>
+    <step id="b">Read `docs/plans/phase-c/sprint-c-1-runtime-migration.md` before editing. It is the authoritative sprint plan for the owning/promoted branch. Treat it as the source for sprint scope, retained requirements, deletion targets, validation, and acceptance criteria. If this assignment summary and the sprint doc differ, the sprint doc wins and the mismatch must be reported.</step>
+    <step id="c">If additional sprint docs are listed, read them as supporting origin context for cross-sprint findings on this branch. Do not treat them as replacing `docs/plans/phase-c/sprint-c-1-runtime-migration.md`.</step>
+    <step id="d">Read the cited requirement ids and ADR ids in this assignment. Those ids — not whole-document dumps — are the compliance targets this fix must restore. Sprint plans already embed broader requirements/ADR links from planning; do not expand scope beyond the cited ids plus triage occurrences unless the authoritative sprint doc requires it.</step>
+    <step id="e">Update the assigned worktree from the target branch before editing. Include all earlier-sprint fixes already merged forward to that branch.</step>
+    <step id="f">Read the referenced triage records first. Treat the listed occurrences as the minimum required scope on this branch. Fix **every** finding id in `<finding-ids>` regardless of severity (Blocking, Important, and Minor).</step>
+    <step id="g">Fix every promoted-branch occurrence in scope. Do not stop at the first location when the triage record marks the finding as repeatable.</step>
+    <step id="h">As soon as the branch is pushable, commit and push immediately. Report branch name, commit hash, and any triage record paths from `<triage-records>` (when provided) so the evidence chain shows the fix scope.</step>
+    <step id="i">Run the required validation after the push report and send a second report with PASS or FAIL plus concrete failure details.</step>
+    <step id="j">Stop after the validation report. Wait for a new parent Task; do not self-merge. Do not spawn child Tasks (reviewers, cursor-quality-mgr, or follow-on dev Tasks).</step>
+  </workflow>
+</cursor-task>

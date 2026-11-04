@@ -1,0 +1,39 @@
+   Compiling bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.51s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 6 tests
+RQA10_COMMAND_SPAWN thread=ThreadId(7) pid=84248 spawn_elapsed=620.test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+917µs
+RQA10_COMMAND_SPAWN thread=ThreadId(6) pid=84251 spawn_elapsed=642.375µs
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... FAILED
+Error: Os { code: 1, kind: PermissionDenied, message: "test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... FAILED
+Operation not permitted" }
+test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... FAILED
+RQA10_COMMAND_TIMEOUT thread=ThreadId(7) pid=84248 command_elapsed=50.024125ms actual_kill_wait=true remaining=0ns
+FTQ-010 stopped inventory unwind=false: pid=Pid(84248) actually reaped in 51.492291ms
+RQA10_COMMAND_SPAWN thread=ThreadId(7) pid=84253 spawn_elapsed=2.026667ms
+
+thread 'session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind' (319087440) panicked at crates/bd-cache-sync/tests/common/session_fixture.rs:673:17:
+injected inventory assertion unwind
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FTQ-010 stopped inventory unwind=true: pid=Pid(84253) actually reaped in 8.881584ms
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+RQA10_COMMAND_EXIT thread=ThreadId(6) pid=84251 command_elapsed=88.301291ms actual_wait=true status=exit status: 1 remaining=160.45725ms
+Error: Custom { kind: Other, error: "owned session inventory failed: /bin/sh: /bin/ps: Operation not permitted\n/bin/sh: /bin/ps: Undefined error: 0\n" }
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... FAILED
+
+failures:
+
+failures:
+    session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes
+    session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure
+    session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget
+    session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command
+
+test result: FAILED. 2 passed; 4 failed; 0 ignored; 0 measured; 13 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`

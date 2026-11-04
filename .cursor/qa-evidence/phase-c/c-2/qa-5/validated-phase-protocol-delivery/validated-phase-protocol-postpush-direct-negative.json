@@ -1,0 +1,299 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--offline",
+    "--locked",
+    "-p",
+    "bd-cache-store",
+    "--lib",
+    "--all-features",
+    "schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification",
+    "--",
+    "--exact",
+    "--nocapture"
+  ],
+  "environment": {
+    "BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE": "1",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_TARGET_DIR": "/tmp/phase-c-execution/c-1/restart-target"
+  },
+  "exit": 101,
+  "expected_exit": 101,
+  "elapsed_seconds": 5.146266708150506,
+  "driver_fallback_used": false,
+  "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.log",
+  "protocol_receipts": [
+    {
+      "absolute_lifetime_ns": 5000000000,
+      "classification": "worker_returned_required_marker_missing",
+      "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+      "mode": "post-return-gap",
+      "outer_to_owner_ns": 933750,
+      "owner_origin": "Instant before Command.spawn",
+      "owner_reported_ns": 5009794834,
+      "owner_unix_ns": 1793777260317283000,
+      "receipts": [
+        {
+          "execution": {
+            "child_elapsed_ns": 671708,
+            "data": null,
+            "phase": "fixture-body-entered",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 4996000
+          },
+          "owner_received_ns": 9723459
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1123708,
+            "data": null,
+            "phase": "scratch-create-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 5924000
+          },
+          "owner_received_ns": 9760917
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1229542,
+            "data": null,
+            "phase": "store-open-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 6030000
+          },
+          "owner_received_ns": 9767459
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 10658000,
+            "data": null,
+            "phase": "store-open-returned",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 15456000
+          },
+          "owner_received_ns": 16086125
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 10711792,
+            "data": null,
+            "phase": "schedule-view-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 15513000
+          },
+          "owner_received_ns": 16093084
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 10930667,
+            "data": null,
+            "phase": "schedule-view-returned",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 15732000
+          },
+          "owner_received_ns": 16099042
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 11424375,
+            "data": null,
+            "phase": "schedule-create-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16225000
+          },
+          "owner_received_ns": 22435834
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 11798292,
+            "data": null,
+            "phase": "schedule-setup-complete",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16599000
+          },
+          "owner_received_ns": 22442167
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 11837833,
+            "data": null,
+            "phase": "contender-open-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16639000
+          },
+          "owner_received_ns": 22447459
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 11937250,
+            "data": null,
+            "phase": "contender-lock-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16739000
+          },
+          "owner_received_ns": 22452709
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 11995250,
+            "data": null,
+            "phase": "contender-lock-acquired",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16797000
+          },
+          "owner_received_ns": 22458042
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 12030125,
+            "data": null,
+            "phase": "worker-spawn-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 16832000
+          },
+          "owner_received_ns": 22466917
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 12320125,
+            "data": {
+              "ok": true
+            },
+            "phase": "wait-result",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 17121000
+          },
+          "owner_received_ns": 22480084
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 12367458,
+            "data": {
+              "child_deadline_ns": 42365542
+            },
+            "phase": "cancellation-deadline-installed",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 17169000
+          },
+          "owner_received_ns": 22486459
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 12393458,
+            "data": null,
+            "phase": "cancellation-installed",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 17195000
+          },
+          "owner_received_ns": 22491875
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 517581875,
+            "data": {
+              "timeout": true
+            },
+            "phase": "completion-result",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 522383000
+          },
+          "owner_received_ns": 527765084
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 518122167,
+            "data": null,
+            "phase": "contender-rollback-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 522925000
+          },
+          "owner_received_ns": 527818792
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 518785542,
+            "data": null,
+            "phase": "contender-rollback-returned",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 523565000
+          },
+          "owner_received_ns": 527834042
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 519086458,
+            "data": null,
+            "phase": "worker-join-start",
+            "pid": 91365,
+            "stream": "main",
+            "wall_since_owner_ns": 523892000
+          },
+          "owner_received_ns": 527865250
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 12091750,
+            "data": null,
+            "phase": "worker-call-start",
+            "pid": 91365,
+            "stream": "worker",
+            "wall_since_owner_ns": 16891000
+          },
+          "owner_received_ns": 22511709
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 43046167,
+            "data": {
+              "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+              "is_error": true,
+              "sqlite_code": "DatabaseBusy"
+            },
+            "phase": "worker-call-returned",
+            "pid": 91365,
+            "stream": "worker",
+            "wall_since_owner_ns": 47847000
+          },
+          "owner_received_ns": 54077459
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 43106042,
+            "data": null,
+            "phase": "planted-post-return-gap",
+            "pid": 91365,
+            "stream": "worker",
+            "wall_since_owner_ns": 47907000
+          },
+          "owner_received_ns": 54085917
+        }
+      ],
+      "root_joined_and_cleaned": true,
+      "spawn_returned_ns": 1641667,
+      "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"
+    }
+  ],
+  "qualification_assertion_retained": true,
+  "expected_classifier": "worker_returned_required_marker_missing",
+  "actual_classifier": "worker_returned_required_marker_missing",
+  "root_cleaned": true
+}
