@@ -1,0 +1,42 @@
+use std::sync::Arc;
+use std::time::{Duration,Instant};
+use sc_cron::ScheduleStore;
+#[tokio::main]
+async fn main() {
+ let repo=tempfile::tempdir().unwrap();
+ std::fs::create_dir(repo.path().join(".beads")).unwrap();
+ std::fs::write(repo.path().join(".beads/metadata.json"),r#"{"dolt_database":"test","project_id":"p-1"}"#).unwrap();
+ let compose=||bd_cache_sync::compose(repo.path(),"/never-run-backend",Arc::new(sc_beads::SystemClock)).unwrap();
+ let schedules=compose().into_schedules().unwrap();
+ schedules.set(&bd_cache_sync::ScheduleSet{expr:"* * * * * *".into(),budget_ms:None,hook_reserve_ms:None,post_sync:None,python:None,env:vec![]}).await.unwrap();
+ drop(schedules);
+ let composed=compose();
+ let store=composed.schedule_store().unwrap();
+ let name=store.list_active().unwrap().remove(0).spec.name;
+ let writer=rusqlite::Connection::open(&composed.cache_path).unwrap();
+ writer.execute_batch("BEGIN IMMEDIATE").unwrap();
+ let management=Arc::clone(&store);
+ let (started,entered)=std::sync::mpsc::channel();
+ let writing=std::thread::spawn(move||{started.send(()).unwrap();let r=management.set_enabled(&name,false);eprintln!("management write returned: {r:?}");r});
+ entered.recv_timeout(Duration::from_secs(1)).unwrap();
+ let (probe,control)=store.worker_view();
+ let waiting=control.wait_attempt_for_tests();
+ let probing=std::thread::spawn(move||probe.list_active());
+ let contended=waiting.recv_timeout(Duration::from_secs(1)).is_ok();
+ control.finish_by(Instant::now());
+ let _=probing.join().unwrap();
+ if !contended {writer.execute_batch("ROLLBACK").unwrap();let _=writing.join();eprintln!("INCONCLUSIVE: management had not yet acquired mutex");return;}
+ eprintln!("PROVED: normal public management call owns connection under external SQLite writer");
+ let app=bd_cache_service::Application::start(composed,Duration::from_millis(250)).unwrap();
+ let asked=Instant::now();
+ let shutdown=app.shutdown();tokio::pin!(shutdown);
+ let bounded=tokio::time::timeout(Duration::from_millis(900),&mut shutdown).await;
+ let waiting_for_startup=bounded.is_err();
+ let at_observation=asked.elapsed();
+ writer.execute_batch("ROLLBACK").unwrap();
+ let _=writing.join().unwrap();
+ let final_result=match bounded {Ok(r)=>r,Err(_)=>shutdown.await};
+ eprintln!("RESULT exceeded_2T={waiting_for_startup}, observed={at_observation:?}, final={final_result:?}, total={:?}",asked.elapsed());
+ drop(store);
+ assert!(final_result.is_ok());
+}

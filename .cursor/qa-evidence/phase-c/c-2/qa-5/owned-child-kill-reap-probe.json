@@ -1,0 +1,12 @@
+{
+  "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_service-f9445789d6e7c3ad",
+  "test": "shutdown_tests::zero_timeout_application_joins_contended_worker_without_grace",
+  "probe": "single actual fixture executable; stop owned direct same-UID child, then force-kill and bounded reap",
+  "source_modified": false,
+  "pid": 95984,
+  "stop_observed": true,
+  "returncode": -9,
+  "kill_to_reap_seconds": 0.0013147504068911076,
+  "status": "PASS",
+  "owned_child_reaped": true
+}
