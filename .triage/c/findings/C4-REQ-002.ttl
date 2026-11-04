@@ -4,3 +4,5 @@
 <urn:beads-cache:finding:C4-REQ-002> triage:developerDisposition "parent_pending" ; triage:developerDetail "After final source qualification, execute full Release Preflight and retain every channel outcome; actual setup/API access remains owner-coordinated, no release/tag/settings write." .
 
 <urn:beads-cache:finding:C4-REQ-002> triage:latestReview "C4QA2 source69554386cfff1074fa606aed114331685e3760f5; PR110comment6612817877 remains OPEN, no waiver." .
+
+<urn:beads-cache:finding:C4-REQ-002> triage:developerUpdate "Consumer-only cleanup removes the redundant jobs lookup: exact-source successful trusted workflow plus all14 unexpired post-smoke artifacts retain the matrix admission proof. Two metadata requests remain. Anonymous HTTP403, final-source matrix and full Release Preflight execution/outcomes remain unresolved; no authentication waiver, upstream kit change or closure claimed. Canonical5fd unchanged; all11 remaining C4 findings stay open." .

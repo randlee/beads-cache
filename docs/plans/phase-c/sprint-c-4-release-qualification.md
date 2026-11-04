@@ -310,11 +310,36 @@ Actual Linux candidate validation passed at that source; Windows still exits
 consumer evidence remains distinct from these executions.
 
 The canonical consumer-preflight step omits GH_TOKEN although the consumer
-checker supports it; correcting the canonical source and regenerating through
-the official installer is required. Full final-source preflight must execute
-and locally satisfiable auth/candidate/staging gates must pass. Publication-only
+checker supports it. The owner has parked the upstream publisher proposal and
+withdrawn its implementation approval; the canonical kit remains at 5fd and no
+kit upgrade or generated workflow change is made here. Full final-source
+preflight must execute and locally satisfiable auth/candidate/staging gates
+must pass. The anonymous HTTP403 remains part of open C4-REQ-002. Publication-only
 missing-tag and owner-setup refusals may be recorded separately; publication is
 not required to close this sprint. The old environment probe conflates API
 failure with absence, so inaccessible metadata is not proof of missing setup.
 Public runtime fixes remain unimplemented/unpublished according to their owner.
 All eleven remaining findings and the phase merge gates remain open.
+
+
+## Consumer-only admission simplification
+
+The existing consumer checker now makes two metadata requests instead of three.
+It selects an exact-source successful run of the trusted qualification workflow
+and requires all 14 unexpired candidate/evidence artifacts. Under the unchanged
+workflow, the four candidate and ten evidence uploads follow successful installed
+smokes; this proves the required four-binary/six-Python matrix without the
+redundant jobs query or job-name comparison. Matrix reporting names this proof
+basis. Manifest, staging, canonical pin, version, source, checksum, membership
+and installed-smoke contracts remain enforced. Complete metadata fixtures reject
+any jobs request; wrong source/path/conclusion, each missing or expired artifact
+and API failures still block. Fixtures are not actual installed qualification.
+
+This cleanup does not resolve anonymous rate limiting or establish an equivalent
+API-free input. C4-REQ-002 still requires actual final-source full preflight and
+its recorded outcomes. Historical source652 consumer and source695 QA evidence
+keep their original source bindings. All eleven remaining IDs stay open:
+ARCH-001, C2-REQ-009, C4-FTQ-001, C4-REQ-001, C4-REQ-002, C4-REQ-004,
+C4-REQ-005, C4-REQ-006, QA-C2-001, RBQA-F001 and RSH-001. C1/C2/upstream
+production corrections, complete final-source installed evidence, parent merge,
+independent QA, applicable anchors and green CI remain required.

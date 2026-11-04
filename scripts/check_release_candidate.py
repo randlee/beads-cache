@@ -327,7 +327,7 @@ def manifest():
 
 def api(path):
     # The kit's consumer extension has no token environment. Public read-only
-    # run/job/artifact metadata needs no credential; never read checkout secrets.
+    # run/artifact metadata is public but rate limited; never read checkout secrets.
     headers = {'Accept': 'application/vnd.github+json', 'User-Agent': 'beads-cache-candidate-preflight'}
     if os.environ.get('GH_TOKEN'):
         headers['Authorization'] = 'Bearer ' + os.environ['GH_TOKEN']
@@ -340,20 +340,23 @@ def preflight(args):
     manifest()
     sha = commit()
     runs = api('actions/workflows/release-qualification.yml/runs?head_sha=' + sha + '&status=success&per_page=10')['workflow_runs']
-    runs = [r for r in runs if r['head_sha'] == sha and r['path'] == '.github/workflows/release-qualification.yml']
+    runs = [r for r in runs if r['head_sha'] == sha and r['path'] == '.github/workflows/release-qualification.yml'
+            and r['conclusion'] == 'success']
     require(runs, 'no successful installed-candidate workflow for exact commit; run Release artifact qualification and retry')
     selected = runs[0]
-    jobs = api('actions/runs/%s/jobs?per_page=100' % selected['id'])['jobs']
     expected_jobs = {'candidate (%s)' % t for t in TARGETS}
     expected_jobs |= {'installed abi3 (%s, Python %s)' % (t, p) for t in WHEEL_TARGETS for p in ('3.9', '3.11', '3.13')}
-    successful = {j['name'] for j in jobs if j['conclusion'] == 'success'}
-    require(expected_jobs <= successful, 'same-commit installed platform/Python matrix incomplete')
+    # The trusted workflow uploads these artifacts only after each installed
+    # smoke succeeds. Its exact-source success and complete artifact set prove
+    # this matrix without a separate jobs query.
     artifacts = api('actions/runs/%s/artifacts?per_page=100' % selected['id'])['artifacts']
     expected_artifacts = {'candidate-' + t for t in TARGETS} | {'evidence-' + t for t in TARGETS}
     expected_artifacts |= {'evidence-%s-py%s' % (t, p) for t in WHEEL_TARGETS for p in ('3.9', '3.11', '3.13')}
     require(expected_artifacts <= {a['name'] for a in artifacts if not a['expired']}, 'candidate archives or installed receipts missing/expired; rerun qualification')
     print(json.dumps({'status': 'pass', 'commit': sha, 'version': version(), 'candidate_run': selected['id'],
-                      'installed_jobs': sorted(expected_jobs), 'evidence': selected['html_url']}))
+                      'installed_jobs': sorted(expected_jobs),
+                      'matrix_proof': 'successful workflow and required unexpired artifacts',
+                      'evidence': selected['html_url']}))
 
 
 def main(argv=None):

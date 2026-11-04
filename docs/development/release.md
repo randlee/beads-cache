@@ -85,14 +85,21 @@ The consumer input declares `installed-candidate` through sc-publish's existing
 `release/publish-preflight.toml`; no shared workflow is patched by hand. The
 check validates both consumer/rendered manifests, local sc-cron removal, all
 three binaries and reviewed isolated staging in the pinned kit. It then reads
-public GitHub run/job/artifact metadata and requires a successful qualification
-run from this exact commit, all four installed binary jobs, all six installed
-Python jobs and unexpired candidate/evidence artifacts. The actual membership,
-checksums and installed smokes execute within those successful jobs. No token
-is needed for public metadata; `GH_TOKEN` may be supplied without logging it.
-Missing/expired evidence fails with a rerun instruction. API denial/rate limits
-fail closed. This is evidence admission through the existing preflight extension,
-not a new publication framework.
+public GitHub metadata in two requests: qualification runs for this exact commit,
+then the selected run's artifacts. Admission requires the exact source SHA,
+trusted qualification workflow path and successful conclusion, plus all 14
+unexpired artifacts: four candidates, four platform smoke receipts and six abi3
+Python receipts. The unchanged workflow uploads each only after its installed
+smoke succeeds; together these checks prove the four binary and six Python jobs
+without a separate job-list request. The reported `installed_jobs` names describe
+that matrix, with `matrix_proof` identifying the workflow/artifact admission basis.
+Membership, checksums and installed smokes still execute within those jobs.
+Public metadata is anonymously readable subject to rate limits; `GH_TOKEN` may
+be supplied without logging it. The canonical consumer step does not supply that
+token, and reducing the requests from three to two does not resolve the observed
+anonymous HTTP403 refusal. Missing/expired evidence fails with a rerun instruction;
+API denial/rate limits still fail closed. Full final-source Release Preflight
+remains required. This uses the existing consumer preflight extension.
 
 The immutable candidate kit revision is
 `5fd4d0db1b7cbb4ebf9316588047391a8e4be496`. Its normal release workflow initializes

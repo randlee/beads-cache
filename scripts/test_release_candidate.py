@@ -14,6 +14,7 @@ import tarfile
 import tempfile
 import time
 import unittest
+import urllib.error
 import zipfile
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -163,6 +164,101 @@ class ProducerTests(unittest.TestCase):
         with self.assertRaisesRegex(rc.QualificationError, 'helper output exists'):
             self.pack('existing')
         self.assertFalse(self.builds)
+
+
+class PreflightTests(unittest.TestCase):
+    """Admit complete trusted workflow evidence without consulting job metadata."""
+
+    def setUp(self):
+        self.sha = 'a' * 40
+        self.workflow_run = {'id': 123, 'head_sha': self.sha, 'conclusion': 'success',
+                    'path': '.github/workflows/release-qualification.yml',
+                    'html_url': 'https://github.com/randlee/beads-cache/actions/runs/123'}
+        targets = ('x86_64-unknown-linux-gnu', 'aarch64-apple-darwin',
+                   'x86_64-apple-darwin', 'x86_64-pc-windows-msvc')
+        self.names = {prefix + target for prefix in ('candidate-', 'evidence-') for target in targets}
+        self.names |= {'evidence-%s-py%s' % (target, python)
+                       for target in targets[:2] for python in ('3.9', '3.11', '3.13')}
+        self.assertEqual(len(self.names), 14)
+        self.artifacts = [{'name': name, 'expired': False} for name in sorted(self.names)]
+        self.runs = [self.workflow_run]
+        self.paths = []
+        self.runs_path = ('actions/workflows/release-qualification.yml/runs?head_sha='
+                          + self.sha + '&status=success&per_page=10')
+        self.artifacts_path = 'actions/runs/123/artifacts?per_page=100'
+        self.output = io.StringIO()
+        for patcher in (patch.object(rc, 'commit', return_value=self.sha),
+                        patch.object(rc, 'api', side_effect=self.api),
+                        patch.object(sys, 'stdout', self.output)):
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def api(self, path):
+        self.paths.append(path)
+        # An unexpected /jobs request must fail even with complete evidence.
+        self.assertNotIn('/jobs', path)
+        if path == self.runs_path:
+            return {'workflow_runs': self.runs}
+        self.assertEqual(path, self.artifacts_path)
+        return {'artifacts': self.artifacts}
+
+    def test_complete_evidence_passes_with_only_run_and_artifact_queries(self):
+        self.assertEqual(rc.main(['preflight']), 0)
+        self.assertEqual(self.paths, [self.runs_path, self.artifacts_path])
+        result = json.loads(self.output.getvalue().splitlines()[-1])
+        self.assertEqual(result['status'], 'pass')
+        self.assertEqual(result['commit'], self.sha)
+        self.assertEqual(result['candidate_run'], 123)
+        self.assertEqual(len(result['installed_jobs']), 10)
+        self.assertEqual(result['matrix_proof'], 'successful workflow and required unexpired artifacts')
+        self.assertEqual(result['evidence'], self.workflow_run['html_url'])
+
+    def test_wrong_source_workflow_or_unsuccessful_run_is_rejected(self):
+        for field, value in [('head_sha', 'b' * 40), ('path', '.github/workflows/ci.yml'),
+                             ('conclusion', 'failure'), ('conclusion', 'cancelled'),
+                             ('conclusion', 'skipped'), ('conclusion', None)]:
+            with self.subTest(field=field, value=value):
+                self.runs = [dict(self.workflow_run, **{field: value})]
+                self.paths.clear()
+                with self.assertRaisesRegex(rc.QualificationError, 'no successful installed-candidate'):
+                    rc.preflight(None)
+                self.assertEqual(self.paths, [self.runs_path])
+
+    def test_each_required_candidate_or_receipt_must_be_present(self):
+        complete = self.artifacts
+        for name in sorted(self.names):
+            with self.subTest(missing=name):
+                self.artifacts = [artifact for artifact in complete if artifact['name'] != name]
+                with self.assertRaisesRegex(rc.QualificationError, 'missing/expired'):
+                    rc.preflight(None)
+
+    def test_each_required_candidate_or_receipt_must_be_unexpired(self):
+        complete = self.artifacts
+        for name in sorted(self.names):
+            with self.subTest(expired=name):
+                self.artifacts = [dict(artifact, expired=artifact['name'] == name) for artifact in complete]
+                with self.assertRaisesRegex(rc.QualificationError, 'missing/expired'):
+                    rc.preflight(None)
+
+    def test_api_failures_block_at_either_query(self):
+        for failed_path in (self.runs_path, self.artifacts_path):
+            for error in (urllib.error.HTTPError('https://api.github.com', 403, 'rate limit exceeded', {}, None),
+                          urllib.error.URLError('connection unavailable')):
+                with self.subTest(path=failed_path, error=str(error)):
+                    def denied(path):
+                        if path == failed_path:
+                            raise error
+                        return self.api(path)
+                    stderr = io.StringIO()
+                    self.output.seek(0)
+                    self.output.truncate()
+                    with patch.object(rc, 'api', side_effect=denied), patch.object(sys, 'stderr', stderr):
+                        self.assertEqual(rc.main(['preflight']), 1)
+                    result = json.loads(stderr.getvalue())
+                    self.assertEqual(result['status'], 'blocked')
+                    self.assertEqual(result['code'], 'CANDIDATE.QUALIFICATION')
+                    self.assertIn(str(error), result['cause'])
+                    self.assertNotIn('"status": "pass"', self.output.getvalue())
 
 
 class CandidateTests(unittest.TestCase):
