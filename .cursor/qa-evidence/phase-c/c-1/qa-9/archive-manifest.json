@@ -1,0 +1,208 @@
+{
+  "qa_pass": "qa-9",
+  "source": "a753d2799183dd4e341c854c4515bf046447eb6c",
+  "status": "QA9 sole enforcer complete FAIL3B2I; published exact report and parent Machine Status verified",
+  "files": [
+    {
+      "path": "manifest.json",
+      "sha256": "cb7b838e79b9ba062ccf835dde75ec26d33da574a6b08066575df2cbc26f21c4",
+      "bytes": 1021
+    },
+    {
+      "path": "parsed-handoff.json",
+      "sha256": "9cb8a76073a4154f235dbb3ebdae8811c745580e640bf154b4b690be2de30be8",
+      "bytes": 236382
+    },
+    {
+      "path": "screen-result.json",
+      "sha256": "1438fda83c14b275f794eeddb5de707760c03f56144952f8d0c98b8880c24d9c",
+      "bytes": 2287
+    },
+    {
+      "path": "screen-parent-adjudication.json",
+      "sha256": "2aeb5da465b8e6b96e5ff49828c1cf2e4449c5ee8cd3708e4ccd6d6227d43624",
+      "bytes": 1734
+    },
+    {
+      "path": "req-qa-result.md",
+      "sha256": "a3f527c2a37ce66134780057a9cf9f360b641716c6870392ce6f218b465cdf55",
+      "bytes": 135103
+    },
+    {
+      "path": "req-qa-result.json",
+      "sha256": "d97ae73e92a4039f3fa14b87fb156d55f561f30c451d981c60225e1acc9f0c55",
+      "bytes": 135091
+    },
+    {
+      "path": "arch-qa-result.md",
+      "sha256": "9ed4cb266e78c3f575abfd1783b328916b9fcce61f6f5a48dc65f0968edf3390",
+      "bytes": 46446
+    },
+    {
+      "path": "arch-qa-result.json",
+      "sha256": "ee0c4b1e8660646a5a7c919bcbc78dff54092e6f9cf7f78a7a1fcb3612da9dc2",
+      "bytes": 46434
+    },
+    {
+      "path": "rust-qa-agent-result.md",
+      "sha256": "c7f9e72ae9270810b8d3b2b43c97b80e4a43ae067bfe10c33f88d73086dbc9f8",
+      "bytes": 26991
+    },
+    {
+      "path": "rust-qa-agent-result.json",
+      "sha256": "149165c776ef20045d1613f829d4980060fd9116309ec7bf54188df899011600",
+      "bytes": 26979
+    },
+    {
+      "path": "flaky-test-qa-result.md",
+      "sha256": "adcbf45b623c12134585d28a48b0c11d7975552821a0b42f6ca3521626a125d1",
+      "bytes": 15512
+    },
+    {
+      "path": "flaky-test-qa-result.json",
+      "sha256": "f81cf097b5da25028be59ec5e6a1d228791d08d28d90b7db1b5cef5ba3f2c146",
+      "bytes": 15500
+    },
+    {
+      "path": "arch-qa-source-equivalence.json",
+      "sha256": "4525aa57343a8ce4dc239cc414d182aee66f71420582d1e4f85a2c62c4928e70",
+      "bytes": 45415
+    },
+    {
+      "path": "flaky-test-qa-source-equivalence.json",
+      "sha256": "8815193ac39827320ba3af3daa3052fc47f9b14b2d7f449d2fd8bde299e03d64",
+      "bytes": 19904
+    },
+    {
+      "path": "req-qa-source-equivalence.json",
+      "sha256": "84f3738d9a61e62fc0a99a1a75bbb0bbd0418a26f9ba6ef9f026a70e578c7f01",
+      "bytes": 34230
+    },
+    {
+      "path": "rust-qa-source-equivalence.json",
+      "sha256": "d2362660d54fa93bf92c26c386838d3a9fb147810aca509dbddf62c92cff94d0",
+      "bytes": 5148
+    },
+    {
+      "path": "rust-qa-c2-probe-build.log",
+      "sha256": "4ed6bb6a83dd7f53d523fef80e5c1b1c58e62d621bef408fc174786a5e0d1810",
+      "bytes": 111057
+    },
+    {
+      "path": "rust-qa-c2-probe-rebuild.log",
+      "sha256": "dc3d96acd08530dfd04567af693cdb178dde80a97c601aca7e0a7ee97e9eddc2",
+      "bytes": 111150
+    },
+    {
+      "path": "rust-qa-c2-probe.log",
+      "sha256": "c2f12969f184aefddda1e8a7c970ebaaa62cf537d8c66f882cb7b885d60b156d",
+      "bytes": 200
+    },
+    {
+      "path": "rust-qa-c2-rebuilt-probe.log",
+      "sha256": "f985ffea867b12e038c4e6c85b18506dc0f6401605835be4003aacf09097610d",
+      "bytes": 198
+    },
+    {
+      "path": "rust-qa-c2-service.log",
+      "sha256": "04009f1ca33c83bd5915340349b1a9814e20482c992e5a75b5f1f9bb35253098",
+      "bytes": 3037
+    },
+    {
+      "path": "rust-qa-clippy-default.log",
+      "sha256": "02db5a66fa0c60ca8618bd08aac556eac4f3ec863e8630a0d353dba6a0f6e126",
+      "bytes": 72
+    },
+    {
+      "path": "rust-qa-clippy.log",
+      "sha256": "5604fc8f0c276397a55db4bd7008236712075c0ad37d3b3a0f1fe362b1b85a36",
+      "bytes": 72
+    },
+    {
+      "path": "rust-qa-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "rust-qa-hosted-c1-boundary.log",
+      "sha256": "7762cff1c0778787a8f2eadf4846806aa6a0e8b7d51c5762d5ccee251fb564a6",
+      "bytes": 44663
+    },
+    {
+      "path": "rust-qa-hosted-c2-windows.log",
+      "sha256": "9353fe77341ad929becd2f0e923c2ec02c369afa93fa66a275a5c4d4d3acbc4b",
+      "bytes": 168109
+    },
+    {
+      "path": "rust-qa-lifecycle.log",
+      "sha256": "43e1668f5dd6b1b3f4cb13caf52b3c947cba59d282fad0f8b21071f57ac0718a",
+      "bytes": 3926
+    },
+    {
+      "path": "rust-qa-qa5-exact.log",
+      "sha256": "8b841ea5d881c2487bc8c5a52590ab8476f04952f53a3b339988c5471bdf82c5",
+      "bytes": 1658
+    },
+    {
+      "path": "rust-qa-qa5-sid-audit.log",
+      "sha256": "2389341cfba8d94b9082f73ca0b17527f211e56da0bcda593152a548dd61113d",
+      "bytes": 1821
+    },
+    {
+      "path": "rust-qa-qa6-exact.log",
+      "sha256": "2c53ce4916a60304b1a3e31c74c43a81d011afac4f8148228f394a74772fd542",
+      "bytes": 1499
+    },
+    {
+      "path": "rust-qa-qa6-sid-audit.log",
+      "sha256": "af3d5ede8133c93f7645f0206bbd9fade6454e5f88456602546d60badadc6376",
+      "bytes": 1753
+    },
+    {
+      "path": "rust-qa-store.log",
+      "sha256": "24ed83ec0fd5b7d7ed1a657f5954c6a2718d2afd4878c43b29df50b50f77ff93",
+      "bytes": 1644
+    },
+    {
+      "path": "manager-result.md",
+      "sha256": "88efecac7ce2db263d51d459e9bcbf0a05d4dd16ad9d6b1bcd6c7c2b55dce70d",
+      "bytes": 14202
+    },
+    {
+      "path": "manager-machine-status.json",
+      "sha256": "e15156b250d5526471849d79304ad3d1781e85687b3f324695572c7413cea8a4",
+      "bytes": 4122
+    },
+    {
+      "path": "manager-published-report.md",
+      "sha256": "88efecac7ce2db263d51d459e9bcbf0a05d4dd16ad9d6b1bcd6c7c2b55dce70d",
+      "bytes": 14202
+    },
+    {
+      "path": "manager-publication-equality.json",
+      "sha256": "f04525bfeed66ffdcfc574cef01ae4fb8593c36d8fa916ad3551de1ea14121f0",
+      "bytes": 679
+    },
+    {
+      "path": "parent-spawn-correlation.json",
+      "sha256": "53be2dbeaa471acc1f98be2e4f0cfe272c548a57ef41cde53e7cc8e823ebc900",
+      "bytes": 3306
+    },
+    {
+      "path": "manager-evidence-validation.json",
+      "sha256": "b6d69a32a24e8473ca3b31b9edee184a1afa643b9c0c66f99de4e2892d3d6358",
+      "bytes": 1633
+    },
+    {
+      "path": "manager-pr108-ci.json",
+      "sha256": "4e29c7719dbe77e929ee1946c4c209b4eb54835589986e0ab25a4f90764e0467",
+      "bytes": 4752
+    },
+    {
+      "path": "manager-pr108-checks.json",
+      "sha256": "6875ea6744b9d1488ab3c9d19a7c1d02918ecbb4cef61cf298bb92c8dfa0d5c2",
+      "bytes": 2486
+    }
+  ],
+  "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6623311092"
+}

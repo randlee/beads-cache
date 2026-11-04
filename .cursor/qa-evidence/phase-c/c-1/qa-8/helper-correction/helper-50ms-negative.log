@@ -1,0 +1,16 @@
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.38s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 1 test
+Error: Custom { kind: TimedOut, error: "owned session inventory timed out" }
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... FAILED
+
+failures:
+
+failures:
+    session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.09s
+
+error: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`

@@ -1,0 +1,34 @@
+[
+  {
+    "agent": "rust-qa-agent",
+    "task_id": "/root/c1_rustqa9",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Available fallback; configured Grok/Composer unavailable"
+  },
+  {
+    "agent": "arch-qa",
+    "task_id": "/root/c1_archqa9",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Available fallback; configured Grok/Composer unavailable"
+  },
+  {
+    "agent": "req-qa",
+    "task_id": "/root/c1_reqqa9",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Available fallback; configured Grok/Composer unavailable"
+  },
+  {
+    "agent": "flaky-test-qa",
+    "task_id": "/root/c1_flakyqa9",
+    "spawn_actor": "parent-orchestrator",
+    "model": "gpt-6.1-sol",
+    "reasoning_effort": "high",
+    "model_provenance": "Available fallback; configured Composer unavailable"
+  }
+]
