@@ -1090,3 +1090,44 @@ diagnostic-only delivery pending exact-source hosted stage evidence and owner
 assessment. Store phase protocol and reviewed production sources remain unchanged.
 Final source, targeted post-push proof and macOS handle are recorded in QA10's
 inventory-stage result artifacts; no overall CI, sprint, anchor or merge claim.
+
+
+## QA10 recovery fixture composition correction
+
+The retained one-shot macOS observation at literal C2 source
+`7fb224623280dae9cb056915484cb698ddf6bdf0`, run41796715401/job126462431901,
+failed the recovery test18/19. Its ec68 helper receipts localize that occurrence
+to quiescence call3: the deliberately STOPped inventory was delayed80ms before
+CONT inside the same absolute250ms window requiring two complete stable censuses.
+The command timed out and was actually killed/waited; root exit101 and a complete
+final empty-session drain were retained, while cleanup correctly stayed failed.
+The independent audit was not reached. Lower-level signal/ps/observer timing and
+all earlier uninstrumented failure stages remain unproven. The independent owner
+supported separating these test inputs; this delivery does not claim a production
+cancellation or kernel fix.
+
+| Required proof | Earlier composition | Corrected independent coverage |
+|---|---|---|
+| Transient census recovery | First scan error plus extra stopped-command delay on scan3 | Same first error, followed by real full inventory, two fresh stable quiet censuses, actual root wait and final empty-session census; at least5 scans required |
+| Original failure preserved | Deliberately failed fixture must remain failed | Same failed status and child panic output assertions; cleanup success cannot convert its result to pass |
+| Independent final verification | Separate250ms audit and root absence | Same complete audit and root absence assertions; any audit error still fails the test |
+| Owned delayed inventory exceeds former50ms cap | Real STOP/80ms/CONT in recovery and separate existing preflight test | Existing independent250ms preflight regression retains actual STOP acknowledgement, requested80ms, verifies measured stopped-delay>=80ms, successful CONT, complete parsed inventory, actual wait/reap and PID absence; no redundant delay in recovery |
+| Incomplete quiescence fails closed | Held real command consumes original quiescence deadline | Unchanged stage control: false cleanup receipt, original root failure, command/root reap, complete independent session audit, refused second attempt |
+| Independent audit timeout stays an error | Held real command consumes independent250ms audit | Unchanged stage control: audit fails while prior cleanup receipt stays true; command/root reap and complete independent later verification cannot waive the failed audit |
+| Noncooperation, one attempt and unwind | Complete owned cleanup under original budgets | Unchanged incomplete-inventory and stopped-inventory timeout/unwind tests, plus pre-registration and fixture/Python assertion-unwind lifecycle proofs |
+
+Only the two private test bodies change. SessionFixture, inventory execution,
+quiescence, final-drain, observer protocol and cleanup/Drop implementations remain
+unchanged. All numerical budgets remain: preflight250ms, initial drain100ms,
+absolute quiescence250ms, final cleanup1s, independent audit250ms and fixture5s.
+No error becomes successful recovery, no census/audit is removed, and no retry,
+minimum success-margin reservation, fresh budget or host/thread setting is added.
+Any required real inventory exceeding its deadline still fails honestly.
+
+Focused native controls/lifecycle proof, strict affected all-target/all-feature
+Clippy and fmt are recorded with exact pushed source in QA10's
+`recovery-composition-result.json/.md` receipt. Native success does not imply any
+other platform or full CI acceptance. All six canonical findings remain OPEN for
+independent QA/owner adjudication; RQA9 remains unlocalized and the four public
+logging/graph/current-acceptance blockers remain unwaived. No source claim
+supersedes prior failed logs, scoped FTQ/RSH credits or candidate histories.
