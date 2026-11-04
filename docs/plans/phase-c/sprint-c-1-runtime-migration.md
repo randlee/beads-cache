@@ -617,3 +617,73 @@ This round changes only health.rs test code and this receipt, after updating fro
 the integration branch. Production code, dependency pins, acceptance criteria and
 baseline/advisory gates remain unchanged. Targeted validation results and exact
 push SHA are reported separately. Overall FAIL / blocked and in_progress remain.
+
+
+### Consumer restart correction: bounded cache scheduler shutdown
+
+The fresh restart assessment inspected actual hosted job 126038712470 at source
+90baf073. Its failure is the actual isolated Python graph's direct
+`bd-cache-sync -> sc-command` edge, after direct boundary and graph unit checks
+pass. It is unrelated to the deferred paste/sc-lint work. The sprint consumed
+current integrate/phase-c at ea53f022 before this correction; the merge changes
+only orchestration metadata.
+
+RSH-001 now has a consumer-owned implementation pending independent QA. This
+supersedes the earlier claim that outstanding cache-store cancellation necessarily
+requires an upstream change. `CacheScheduleStore::worker_view` shares the existing
+connection and file claim; its separate `ScheduleShutdownControl` exists before
+worker calls begin and can shorten a mutex wait, SQLite busy/progress work and
+row decoding already in progress. Scoped session settings restore before the
+connection is unlocked. Other views/connections, ordinary cache sessions and
+HealthReadControl retain their own policies; no health deadline is repurposed.
+
+One upstream Scheduler remains the execution owner for continuous and run-due
+work, with its original coordination and canonical receiver. Public management
+operations invoke that same Scheduler's documented synchronous methods through
+`share()` in the existing owned blocking helper. A calling-thread RAII management
+scope names both the exact worker-view control and physical connection. It
+preserves normal management wait/error behavior and never exempts health
+read-only/deadline rules, worker calls, run-due work or job callbacks. The same
+Core performs validation/state changes and immediate reload notification; a
+second mutation Scheduler and a caller-supplied executor/factory are not used.
+
+The cron facade selects expiry independently of the producer's shutdown future,
+requests child/bd kill at expiry or a second signal, and still awaits the actual
+owned worker/store join. Its cleanup deadline is fixed from the original grace
+boundary, preserving the existing `2 × T` approved by ADR-SYNC-0008's shutdown
+amendment (docs/bd-cache-sync/architecture.md:735–742) and ADR-BDC-0016. A second
+signal begins the existing cleanup stage early. The store control resets only
+after the worker really joins, so reuse needs no caller reset and a rejected
+second start cannot reset the first worker's deadline. This does not assert that
+an arbitrary third-party ScheduleStore can be preempted; the production cache
+composition uses the new bounded store constructor and its existing signatures
+remain available.
+
+Focused development evidence: store/sync suites passed 292 tests with 8 explicit
+ignores, including real process/tree/lease paths. Final dedicated lifecycle tests
+cover ordinary, hurried and zero-timeout store joins before external writer
+release; ordinary total completion is checked inside the existing `2 × T`;
+public management remains owned and completes normally after writer release.
+They also cover same-object immediate Python cancellation before the 30-second
+poll with no new outcome, repeated worker lifetimes, and upstream's exact
+concurrent-start panic without changing the first deadline. Store tests cover a
+real held mutex, busy persistence, executing SQL, per-view/connection isolation,
+health policy and restoration after error/unwind. Planted mutants disabling
+store cancellation fail all three bounded-store tests; disabling management
+isolation fails its scope test. Sources were restored and the store suite passed.
+The normal and all-target/all-feature locked Clippy gates pass. Detailed logs
+are under /tmp/phase-c-execution/c-1/qa-4/restart-*.log; final post-push validation
+is reported separately.
+
+All five IDs remain **open**: RSH-001 is implemented_pending_independent_QA;
+ARCH-001, RBQA-F001 and QA2-001 still require a consumable public canonical
+receiver path; REQ-QA-004 still requires all actual checks green on the reviewed
+head. The published 0.1.1 Scheduler accepts a nominal sc-command receiver trait
+that sc-cron does not re-export or construct from a callback. Moving the bridge
+into C2's optional daemon cannot deliver sc-cron's own events for existing
+CLI/Python callers below that boundary; moving it into another lower crate only
+moves the forbidden introducer. Minimum producer need is a public sc-cron
+receiver/type re-export or equivalent constructor delivering real canonical
+events without a direct consumer sc-command dependency. No producer change, new
+PR, baseline relaxation, architecture waiver or missing-event substitute is
+introduced. Independent QA, anchors and green CI remain prerequisites to merge.

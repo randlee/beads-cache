@@ -57,6 +57,7 @@ mod location;
 mod lock;
 mod registry;
 mod schedule;
+mod schedule_budget;
 mod schema;
 mod store;
 
@@ -74,6 +75,8 @@ pub use location::{
 pub use lock::FlockDrainLock;
 #[doc(inline)]
 pub use schedule::CacheScheduleStore;
+#[doc(inline)]
+pub use schedule_budget::{ScheduleManagementCall, ScheduleShutdownControl};
 #[doc(inline)]
 pub use schema::{
     APPLIED_SINCE_SQL, APPLIED_SINCE_UNHINTED_SQL, HAS_ENTRIES_SINCE_SQL,

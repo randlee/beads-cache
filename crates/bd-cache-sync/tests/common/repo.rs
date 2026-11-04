@@ -146,7 +146,7 @@ impl Repo {
     /// table and clocks).
     #[must_use]
     pub fn schedules(&self) -> RealSchedules {
-        Schedules::new(
+        Schedules::new_with_bounded_store(
             Arc::clone(&self.store),
             Arc::clone(&self.cron_clock),
             Arc::new(SeqJitter::default()),
@@ -225,6 +225,7 @@ mode=$(cat "$d/tick" 2>/dev/null)
 case "$mode" in
   exit:*) echo "script failed: ${mode#exit:}" >&2; exit "${mode#exit:}" ;;
   sleep) exec sleep 3600 ;;
+  managed_hang) echo $$ > "$d/run.pid"; echo up > "$d/run.ready"; exec sleep 3600 ;;
   stderr:*) printf '%s' "${mode#stderr:}" >&2; exit 0 ;;
   leak) i=0; while [ $i -lt 400 ]; do printf 'leak %s ' "$HOME" >&2; i=$((i+1)); done; exit 1 ;;
   grandchild) exec 3> "$d/life"; ( trap '' TERM; echo up > "$d/ready"; exec sleep 3600 ) & wait; exit 0 ;;

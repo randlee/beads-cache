@@ -194,41 +194,57 @@ where
                 "stopping: no new run; waiting for the runs in flight"
             );
         }
+        // ADR-SYNC-0008's existing two-stage stop budget: T for grace,
+        // followed by at most T for owned blocking cleanup. Never start a new
+        // cleanup budget after an upstream store wait has consumed either stage.
+        let grace_by = tokio::time::Instant::now() + shutdown_timeout;
+        let mut finish_by = grace_by
+            .into_std()
+            .checked_add(shutdown_timeout)
+            .unwrap_or_else(Instant::now);
+        if let Some(control) = &self.store_shutdown {
+            control.finish_by(grace_by.into_std());
+        }
         let mut on_expiry = Some(on_expiry);
-        let shutdown = worker.shutdown(tokio::time::Instant::now() + shutdown_timeout);
+        let shutdown = worker.shutdown(grace_by);
         tokio::pin!(shutdown);
-        let mut hurried = false;
+        let mut expired = false;
         let mut drained = tokio::select! {
             drained = &mut shutdown => drained,
-            () = hurry.wait() => {
-                tracing::warn!(
-                    action = "cron_run",
-                    "stop requested again: the runs in flight are killed with their process trees now"
-                );
-                hurried = true;
-                kill.stop();
-                if let Some(on_expiry) = on_expiry.take() {
-                    on_expiry();
+            () = async {
+                tokio::select! {
+                    () = hurry.wait() => {},
+                    () = tokio::time::sleep_until(grace_by) => {},
                 }
-                // The wait for them to end stays bounded by the shutdown timeout.
+            } => {
+                expired = true;
+                tracing::warn!(action = "cron_run",
+                    "grace ended: killing runs and their process trees now");
+                kill.stop();
+                if let Some(callback) = on_expiry.take() { callback(); }
+                if let Some(control) = &self.store_shutdown {
+                    control.finish_by(Instant::now());
+                }
+                // A second signal starts the same existing cleanup stage early.
+                finish_by = finish_by.min(Instant::now()
+                    .checked_add(shutdown_timeout).unwrap_or_else(Instant::now));
+                // Keep ownership through the real worker/store join. The cache
+                // adapter makes the current store call observe the deadline.
                 (&mut shutdown).await
             }
         };
-        if !drained && !hurried {
-            tracing::warn!(
-                action = "cron_run",
-                "runs still going at the shutdown timeout were killed with their process trees"
-            );
+        if (!drained || Instant::now() >= grace_by.into_std()) && !expired {
+            expired = true;
             kill.stop();
-            if let Some(on_expiry) = on_expiry.take() {
-                on_expiry();
+            if let Some(callback) = on_expiry.take() {
+                callback();
             }
         }
-        // Runs killed on a second signal were not drained, whenever they ended.
-        drained &= !hurried;
-        let finish_by = Instant::now()
-            .checked_add(shutdown_timeout)
-            .unwrap_or_else(Instant::now);
+        drained &= !expired;
+        // Every worker store call has really joined before this lifetime resets.
+        if let Some(control) = &self.store_shutdown {
+            control.restart();
+        }
         let cache = Arc::clone(&self.cache);
         let idle = tokio::task::spawn_blocking(move || join_idle(&cache, finish_by))
             .await
