@@ -1,0 +1,722 @@
+{
+  "agent": "arch-qa",
+  "branch": "sprint/c-1-runtime-migration",
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "commit": "a753d2799183dd4e341c854c4515bf046447eb6c",
+  "verdict": "FAIL",
+  "blocking": 1,
+  "important": 0,
+  "minor": 0,
+  "model": {
+    "configured": "Grok",
+    "configured_available": false,
+    "actual": "gpt-6.1-sol",
+    "reasoning": "high"
+  },
+  "review_method": "Independent source and retained-evidence review only. No Cargo/build/test or binary execution; rust-qa-agent owns the sole heavy slot.",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "rule": "RULE-ADR-CODE",
+      "adr": "ADR-BDC-0016",
+      "severity": "BLOCKING",
+      "file": "crates/bd-cache-sync/Cargo.toml",
+      "line": 31,
+      "description": "OPEN at exact a753d279. bd-cache-sync directly depends on sc-command and imports its CanonicalLog contract in cron_log.rs:3. Approved ADR-BDC-0016 decision 5 permits only the published upstream sc-cron introducer below isolated Python. The helper-only correction leaves that edge, logger, lockfile and strict introducer-aware consumer guard unchanged; no Approved/Active amendment authorizes it.",
+      "remediation": "Keep ARCH-001 open. Obtain the authorized consumable upstream public receiver/type re-export or equivalent genuine canonical-event callback constructor, remove the direct sync -> sc-command edge, and pass the unchanged isolated-consumer gate. Preserve logging and the narrow dependency policy. No publisher/auth/token work, version change, relocated forbidden introducer, fabricated event, gate relaxation or waiver is authorized by this review."
+    }
+  ],
+  "adr_checks": [
+    {
+      "adr": "ADR-BDC-0005",
+      "source": "docs/architecture.md:370",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0006",
+      "source": "docs/architecture.md:411",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0010",
+      "source": "docs/architecture.md:621",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:287",
+        "crates/bd-cache-sync/src/schedule.rs:567",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0011",
+      "source": "docs/architecture.md:730",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0014",
+      "source": "docs/architecture.md:973",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:95",
+        "crates/bd-cache-store/src/schedule_budget.rs:30",
+        "crates/bd-cache-sync/src/schedule.rs:636",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0015",
+      "source": "docs/architecture.md:1016",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0001",
+      "source": "docs/bd-cache-store/architecture.md:27",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:110",
+        "crates/bd-cache-store/src/schedule_budget.rs:30",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0003",
+      "source": "docs/bd-cache-store/architecture.md:210",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:95",
+        "crates/bd-cache-store/src/health.rs:223",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0006",
+      "source": "docs/bd-cache-store/architecture.md:589",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-SYNC-0008",
+      "source": "docs/bd-cache-sync/architecture.md:479",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "docs/bd-cache-sync/architecture.md:735",
+        "crates/bd-cache-sync/src/cron.rs:159",
+        "crates/bd-cache-sync/src/cron.rs:287",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CLI-0001",
+      "source": "docs/bd-cache-cli/architecture.md:29",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CLI-0005",
+      "source": "docs/bd-cache-cli/architecture.md:166",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:223",
+        "crates/bd-cache-sync/src/cron.rs:216",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0006",
+      "source": "docs/bd-cache-py/architecture.md:274",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/schedule.rs:603",
+        "crates/bd-cache-sync/src/schedule.rs:636",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0001",
+      "source": "docs/sc-cron/architecture.md:266",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0002",
+      "source": "docs/sc-cron/architecture.md:299",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0003",
+      "source": "docs/sc-cron/architecture.md:319",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0004",
+      "source": "docs/sc-cron/architecture.md:338",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0005",
+      "source": "docs/sc-cron/architecture.md:357",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:229",
+        "crates/bd-cache-store/src/health.rs:223",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0006",
+      "source": "docs/sc-cron/architecture.md:383",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/schedule.rs:686",
+        "crates/bd-cache-store/src/schedule.rs:95",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0007",
+      "source": "docs/sc-cron/architecture.md:434",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0008",
+      "source": "docs/sc-cron/architecture.md:472",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CRON-0009",
+      "source": "docs/sc-cron/architecture.md:535",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/schedule.rs:708",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0002",
+      "source": "docs/bd-cache-store/architecture.md:122",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0004",
+      "source": "docs/bd-cache-store/architecture.md:360",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-STORE-0005",
+      "source": "docs/bd-cache-store/architecture.md:547",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/Cargo.toml:13",
+        "crates/bd-cache-store/src/schedule_budget.rs:3",
+        "crates/bd-cache-store/src/health.rs:303"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-SYNC-0001",
+      "source": "docs/bd-cache-sync/architecture.md:35",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-SYNC-0002",
+      "source": "docs/bd-cache-sync/architecture.md:57",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/run.rs:222",
+        "crates/bd-cache-sync/src/cron.rs:249",
+        "crates/bd-cache-sync/src/schedule.rs:708",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-SYNC-0006",
+      "source": "docs/bd-cache-sync/architecture.md:330",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "/tmp/phase-c-execution/c-1/qa-8/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CLI-0002",
+      "source": "docs/bd-cache-cli/architecture.md:68",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CLI-0003",
+      "source": "docs/bd-cache-cli/architecture.md:102",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CLI-0004",
+      "source": "docs/bd-cache-cli/architecture.md:130",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0001",
+      "source": "docs/bd-cache-py/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0002",
+      "source": "docs/bd-cache-py/architecture.md:77",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0003",
+      "source": "docs/bd-cache-py/architecture.md:123",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0004",
+      "source": "docs/bd-cache-py/architecture.md:161",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-PY-0005",
+      "source": "docs/bd-cache-py/architecture.md:206",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0009",
+      "source": "docs/architecture.md:587",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0012",
+      "source": "docs/architecture.md:768",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0013",
+      "source": "docs/architecture.md:852",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-CORE-0001",
+      "source": "docs/bd-cache/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "crates/bd-cache-sync/src/cron.rs:310",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/lib.rs:123"
+      ],
+      "assessment_basis": "Prior unchanged-source architecture assessment retained through independent byte comparison; current helper/startup/caller ownership reviewed freshly within the existing approved decisions. This is architecture continuity, not new execution or full artifact acceptance."
+    },
+    {
+      "adr": "ADR-BDC-0016",
+      "source": "docs/architecture.md:1099",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+        "docs/architecture.md:1148",
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3"
+      ],
+      "assessment_basis": "The published upstream-only introducer exception remains violated by direct sync->sc-command. Startup/caller/readiness and helper ownership corrections do not amend the boundary."
+    },
+    {
+      "adr": "ADR-BDC-0008",
+      "source": "docs/architecture.md:515",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:134"
+      ],
+      "assessment_basis": "Draft consumer schema-package decision is not binding and is not depended on by this sprint."
+    }
+  ],
+  "gate_artifact_checks": [
+    {
+      "artifact": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:383",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:946"
+      ],
+      "notes": "Full independent QA, actual-head platform/strict graph CI, applicable anchors and merge gates remain. Current startup/helper source evidence credited; genuine dependency/CI blockers remain."
+    },
+    {
+      "artifact": "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36",
+        "crates/bd-cache-sync/Cargo.toml:31"
+      ],
+      "notes": "Strict introducer guard unchanged and live unauthorized edge persists. Actual graph execution belongs to Rust/boundary owners; no guard waiver."
+    },
+    {
+      "artifact": ".triage/c/findings/ARCH-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/ARCH-001.ttl:2",
+        "docs/architecture.md:1148"
+      ],
+      "notes": "Direct source independently reconfirms canonical architecture violation."
+    },
+    {
+      "artifact": ".triage/c/findings/RBQA-F001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/RBQA-F001.ttl:2",
+        "crates/bd-cache-sync/src/cron_log.rs:3"
+      ],
+      "notes": "Distinct correlated boundary owner finding remains open; not reissued as a second architecture count."
+    },
+    {
+      "artifact": ".triage/c/findings/RSH-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/startup_tests.rs:128",
+        "/tmp/phase-c-execution/c-2/qa-5/candidate-postpush-original-probe.log"
+      ],
+      "notes": "Current source and retained exact-candidate evidence satisfy architecture concern and prove actual C2 consumption; canonical runtime adjudication awaits assigned independent QA9 owner. Old missing-candidate reason no longer applies."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-011.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:123",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:271",
+        "/tmp/phase-c-execution/c-1/qa-8/helper-postpush-lifecycle.log"
+      ],
+      "notes": "Architectural ownership/budget correction verified; runtime/flaky acceptance remains with QA9 assigned owners. Original failures remain preserved."
+    }
+  ],
+  "merge_ready": false,
+  "finding_dispositions": [
+    {
+      "id": "ARCH-001",
+      "status": "open",
+      "disposition": "reconfirmed_blocking_at_exact_a753d279",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "docs/architecture.md:1148"
+      ]
+    },
+    {
+      "id": "RBQA-F001",
+      "status": "open",
+      "disposition": "correlated_boundary_finding_preserved_unwaived",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        ".triage/c/findings/RBQA-F001.ttl:2"
+      ]
+    },
+    {
+      "id": "QA2-001",
+      "status": "open",
+      "disposition": "strict_isolated_graph_obligation_preserved_live_forbidden_introducer_unchanged",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ]
+    },
+    {
+      "id": "REQ-QA-004",
+      "status": "open",
+      "disposition": "actual_head_platform_and_all_required_CI_gate_remains_with_owners",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:383"
+      ]
+    },
+    {
+      "id": "RSH-001",
+      "status": "architecture_remediation_verified_canonical_runtime_owner_pending",
+      "disposition": "Canonical STARTUP occurrence now has actual frozen C2 consumption and current independent runtime proof: original public probe actually recompiled/replayed250.876416ms<500ms; causal Application ordinary250.471292ms/zero1.325334ms with production callback, readinessErr(Closing), management pending until rollback and real joins/cache reopen. Architecture remediation verified. Final owning Rust fence is pending, so this report does not substitute for that owner/enforcer closure. Old missing-candidate/runtime evidence objection no longer applies. No stock-daemon HTTP reproduction or exclusive-startup precondition.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:292",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application/crates/bd-cache-service/src/startup_tests.rs:121",
+        "/tmp/phase-c-execution/c-2/qa-5/startup-candidate-result.json",
+        "/tmp/phase-c-execution/c-2/qa-5/candidate-postpush-original-probe.log",
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-service.log",
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-rebuilt-probe.log",
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-rebuilt-artifacts.json"
+      ]
+    },
+    {
+      "id": "FTQ-011",
+      "status": "architecture_remediation_verified_flaky_runtime_owner_pending",
+      "disposition": "Separate50ms requirement removed without widening fixture/phase budgets. Fresh complete census recovery, actual child/root joins and false-receipt preservation verified from source; originals14/15 and13/15 remain retained. Current developer18/18 and mutant/negative proofs credited as supplemental evidence only; owning QA9 flaky/runtime acceptance required.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:119",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:271",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:451",
+        "/tmp/phase-c-execution/c-1/qa-8/helper-50ms-negative.log"
+      ]
+    },
+    {
+      "id": "FTQ-009",
+      "status": "closed_preserved_for_original_mechanisms",
+      "disposition": "Prior actual owner/enforcer closure retained; complete store fixtures/default supervisor/cancellation sources independently byte-identical. No detachment or budget regression introduced. Current runtime result belongs to Rust owner.",
+      "evidence_refs": [
+        "crates/bd-cache-store/tests/support/fixture_child.rs:47",
+        ".triage/c/findings/FTQ-009.ttl:6"
+      ]
+    },
+    {
+      "id": "FTQ-010",
+      "status": "closed_preserved_for_original_mechanisms",
+      "disposition": "Pre-registration session ownership, bounded owned inventory child/output, timeout/unwind reap, one cleanup handoff and Linux safe identity remain required and source-supported. Complete original counterexamples retain finite failing fixture exit and empty PID/group/session/inventory proof before fallback. FTQ011 is distinct; no clean historical-suite claim.",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:32",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:156",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:219",
+        "/tmp/phase-c-execution/c-1/qa-8/helper-postpush-qa6-sid-audit.log"
+      ]
+    }
+  ],
+  "source_equivalence": {
+    "proof": "/tmp/phase-c-execution/c-1/qa-9/arch-qa-source-equivalence.json",
+    "baseline": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5",
+    "production_files_compared": 159,
+    "all_production_byte_identical": true,
+    "all_C1_C2_sync_store_production_byte_identical": true,
+    "all_architecture_docs_unchanged": true,
+    "original_public_probe_source_unchanged": true,
+    "helper_receipt_markdown_json_identical": true,
+    "qualifier": "All 159 tracked crate src files independently compared to adbcc88d. Manifests/lock/CI/strict graph/default store supervisor controls independently compared unchanged. C2 sync/store production is byte-identical to this C1. C2 retains the OLD session helper and FTQ-011; production equality does not claim helper propagation or whole C2 acceptance."
+  },
+  "supplemental_architecture_assessment": {
+    "actual_changed_scope": "Only session_fixture.rs and deadline arguments in cron_hurry.rs change executable behavior after adbcc88d; all production sources remain unchanged. Other merged paths archive QA8/C2 evidence, triage and sprint metadata. No new production public family, backend port, scheduler, connection, dependency, feature policy or process contract is introduced by this helper correction.",
+    "startup_ownership": "cron.rs:160 obtains the real cron_lifetime MutexGuard before startup/control changes, and retains it through stop_aware_startup/run_worker/cache join. A concurrent rejected start cannot reset another lifetime. Startup clones scheduler.store().0, the same-connection bounded raw worker view; it does not call public rows/warn_at_startup management policy and does not run through LaunchStore job-envelope policy. The pinned blocking read is awaited through real cancellation/join. Startup stop always returns without creating an SDK worker.",
+    "absolute_stop_budget": "cron.rs:310 fixes grace_by=first observed stop+T and finish_by=grace_by+T once. Hurry/grace expiry invokes the actual callback, shortens this worker control and reduces finish_by using min; it does not renew T/2T for another phase. Control restart follows actual read/worker join; join_idle still uses the same finish_by. Normal worker path preserves the same original two-stage policy. Startup completion within grace can drain; cancellation/expiry is drained=false and worker_ended=false, with actual idle observation.",
+    "normal_management_and_health": "CacheScheduleStore::worker_view shares the exact Arc<Shared> connection/claim. Public management view remains normal. Per-thread management exemption identifies both controller and connection and restores on Drop; it does not override health read-only/deadline policy. Actual C2 tests retain normal management blocked until writer rollback, then returning Ok(true). No exclusive-startup precondition exists or is inferred.",
+    "helper_budgets": "process_ids_using now passes the caller absolute deadline through spawn, owned wait, output parse and identity census. There is no ambient50ms cap/minimum slice. Preflight remains250ms; member diagnostics cap to child.started+5s. Cleanup starts once with original100ms preliminary drain,250ms absolute quiescence and1s absolute final boundary. Readiness caller deadlines are passed explicitly, not replaced by new250ms allowances. No phase or fixture restart follows error.",
+    "helper_evidence_recovery": "A failed/incomplete scan is never an empty census. process_ids requires a successfully completed/parsed command including the observer PID. Quiesce resets previous census on error and requires two complete stable stopped/zombie membership scans; identities are checked before stop/kill. Preliminary errors may recover only through those proofs before quiesce_by, actual root kill/wait, and complete final whole-session empty census before final_by. A failed required quiescence/final proof remains failure even if later diagnostics see emptiness. Retried scans use the same deadline, and original fixture status/timeout remains failed.",
+    "helper_ownership": "Inventory owns Child and file output, with timeout kill/wait and Drop reap on output/parse/error/unwind; no pipe-reader or detached inventory task. SessionFixture owns cleanup once and transfers default FixtureChild Drop cleanup ownership. Second cleanup/Drop cannot start a fresh registry/session budget or turn false receipt true. Kernel-session ownership before Python launch, pre-registration/in-flight launch coverage, raw Linux nonpositive SID filtering and identity rechecks remain.",
+    "current_public_Application_evidence": "Actual frozen C2 b7de8e9 uses SystemSchedules::system and real Application::shutdown closes readiness, sets stop, joins both cron and blocking reader join using tokio::join!, preserves typed worker/cache/request/thread errors and checks idle/unexpected termination. Readiness remains genuine bounded evaluation with owned admitted permit and thread; closing returns Err(Closing), not fabricated successful readiness. New startup regressions prove the exact Application startup read waited on the same connection before stop, require production callback Some(15), retain normal management pending before rollback, actually join contention probe/management/cron/readiness, and reopen v3 cache.",
+    "current_probe_limit": "The ORIGINAL public probe source and manifest were retained and Cargo artifacts identify actual C2 paths. Raw postpush log reports251.883875ms shutdown,260.927125ms after rollback/join, normal management Ok(true), final Application Ok. Both are below original2T500ms atT250ms. The probe boolean uses a900ms observation, so the measured elapsed value and stronger500ms Application regression are the evidence for2T; the label alone is not. Historical902.343541ms old-source failure remains historical evidence. Supported generic public Application/Composed reachability is established; no stock-daemon HTTP reproduction or whole-C2 acceptance is claimed.",
+    "retained_history": "Read QA8 owner dispositions and original14/15 developer +13/15 independent Rust failures. They remain real failures and are retained. New developer18/18, native inventory5/5, store5/5, old50ms mutant exit101, and original four negative probes/SID audits are supplemental evidence. Their raw logs support expected finite101 with empty survivors BEFORE explicit fallback cleanup. This source-only reviewer does not call them its own runtime runs or replace independent QA9 execution.",
+    "governing_scope": "All41 sprint-listed ADRs resolve to binding approved records; superseded portions apply as amended by later records. Governing architecture docs are independently byte-identical to QA8. The source repair uses already approved bounded-cooperation/one-scheduler/one-connection decisions. New helper internals do not establish a new product structural decision needing an ADR. Unchanged nonaffected semantics carry prior architecture assessment only; current startup/helper changes and caller path were inspected directly."
+  },
+  "verification_limitations": [
+    "No independent execution by arch-qa. Canonical runtime closure of RSH-001 and flaky closure of FTQ-011 require their assigned QA9 owners; current source/retained-evidence verification is affirmative and must not be replaced by the old pre-candidate missing-consumption text.",
+    "Following cm rule b-mr7cp6x0-ipdnhs, local Darwin receipts do not establish Linux/macOS/Windows current-head or whole CI success. Current exact-source platform and graph gates are owned elsewhere and remain required.",
+    "No product/triage edits, Cargo, new agents, SDK/publisher work, guard waiver or PR merge. Only reviewer artifacts under qa-9 were authored."
+  ],
+  "notes": "Adopted cursor-orchestration skill and arch-qa contract. Exact clean branch/HEAD verified at start and end; C2 exact clean candidate independently verified. cm context ran before review; available procedural memory did not override this source-only assignment or Cursor quality-manager binding. Full sprint verdict remains FAIL because ARCH-001 is a live binding ADR violation; no new architectural defect found in current helper/startup scope.",
+  "independent_runtime_evidence_inspected": {
+    "owner": "/root/c1_rustqa9",
+    "scope": "Current exact C1/C2 source as attributed by raw commands/artifacts; these executions were performed by Rust QA, not arch-qa.",
+    "C1": {
+      "source": "a753d2799183dd4e341c854c4515bf046447eb6c",
+      "lifecycle": "18 passed; 0 failed",
+      "store": "5 passed; 0 failed",
+      "logs": [
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-lifecycle.log",
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-store.log"
+      ],
+      "commands": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-commands.json"
+    },
+    "C2": {
+      "source": "b7de8e9879503353879c500edacf12a6832d709d",
+      "service": "7 passed; 0 failed",
+      "startup_ordinary_ms": 250.471292,
+      "startup_zero_ms": 1.325334,
+      "log": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-service.log",
+      "actual_rebuilt_original_probe_ms": 250.876416,
+      "original_2T_ms": 500,
+      "probe_total_ms": 251.884,
+      "probe_log": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-rebuilt-probe.log",
+      "rebuild_commands": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-rebuild-commands.json",
+      "actual_rebuild_artifacts": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-c2-rebuilt-artifacts.json",
+      "binary_sha256": "7e429aa30b51fe55ef33d50d580fe56b9ab90b69fdd7dbef05c655b0804dde32",
+      "probe_original_source_sha256": "604ce3bf268209bdf9f3a6f9d25023d7cacf85fa0624dc29c6c8c02480ad07c6",
+      "probe_original_manifest_sha256": "46e3054e20c9a0acff0383953aab70f7ca66cd1e3f95711b7b237d32ce2de26e"
+    },
+    "qualification": "Raw current independent evidence read directly. Owner final fenced JSON pending; parent assertions do not substitute. Probe boolean is not alone relied on: actual250.876416ms is below original500ms, and causal Application regressions independently assert original bounds, normal management, genuine readiness and complete joins."
+  }
+}
