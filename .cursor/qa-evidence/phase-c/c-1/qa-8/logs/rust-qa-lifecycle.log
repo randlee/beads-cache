@@ -1,0 +1,43 @@
+HEAD=adbcc88d3dc134ae94403bc2af7a8db76ba921a5 CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/tmp/phase-c-execution/c-1/restart-target
+COMMAND ['cargo', 'test', '--locked', '-p', 'bd-cache-sync', '--test', 'cron_hurry', '--', '--nocapture']
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.12s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 15 tests
+test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+FTQ-010 stopped inventory unwind=false: pid=Pid(22257) actually reaped in 50.202583ms
+
+thread 'session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind' (318146537) panicked at crates/bd-cache-sync/tests/common/session_fixture.rs:446:17:
+injected inventory assertion unwind
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FTQ-010 stopped inventory unwind=true: pid=Pid(22288) actually reaped in 798µs
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+test startup_zero_timeout_joins_its_read_without_grace ... ok
+test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... ok
+test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+
+thread 'lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind' (318146532) panicked at crates/bd-cache-sync/tests/cron_hurry.rs:623:9:
+injected parent assertion
+FTQ-010 assertion-unwind cleanup in 148.595333ms; owned Python PIDs reaped: [22409]
+test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... ok
+Error: Custom { kind: TimedOut, error: "owned session inventory timed out" }
+test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... FAILED
+Error: Custom { kind: TimedOut, error: "owned session inventory timed out" }
+test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... FAILED
+
+failures:
+
+failures:
+    lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind
+    lifecycle_supervisor_kills_and_reaps_stalled_join_families
+
+test result: FAILED. 13 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.20s
+
+error: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`
