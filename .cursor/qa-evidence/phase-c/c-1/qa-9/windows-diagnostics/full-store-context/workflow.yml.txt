@@ -1,0 +1,51 @@
+# One-time diagnostic branch only. Never merge into integration.
+name: one-time Windows full store context observation
+on:
+  push:
+    branches: [codex/c2-windows-store-phase-observation]
+permissions:
+  contents: read
+jobs:
+  observe:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: '0'
+      RUSTFLAGS: -D warnings
+      EXPECTED_SOURCE: e86d9da92a8c8c9b787c780e29bc54e417680d71
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e86d9da92a8c8c9b787c780e29bc54e417680d71
+      - name: Verify immutable test source
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE"
+          git log -1 --format=%H
+          git rev-parse HEAD:Cargo.lock HEAD:crates/bd-cache-store/src/schedule.rs HEAD:crates/bd-cache-store/tests/support/fixture_child.rs
+      - name: Install the pinned toolchain
+        run: rustup show active-toolchain || rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: No bd or dolt on PATH
+        run: python -I scripts/check_no_backend.py path
+      - name: Record selected store SQLite feature context
+        run: cargo tree --locked -p bd-cache-store --all-features --target x86_64-pc-windows-msvc --edges features --invert rusqlite
+      - name: Observe existing full store library once with default threads
+        run: |
+          set -o pipefail
+          printf 'RUST_TEST_THREADS=%s\n' "${RUST_TEST_THREADS-<unset>}"
+          cargo test --locked -p bd-cache-store --lib --all-features -- --nocapture 2>&1 | tee "$RUNNER_TEMP/windows-full-store-context.log"
+      - name: Preserve raw focused output on success or failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-full-store-context-e86d9da
+          path: ${{ runner.temp }}/windows-full-store-context.log
+          if-no-files-found: warn
+          retention-days: 7

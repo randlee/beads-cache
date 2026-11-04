@@ -1,0 +1,620 @@
+```json
+{
+  "agent": "arch-qa",
+  "branch": "sprint/c-1-runtime-migration",
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "verdict": "FAIL",
+  "blocking": 1,
+  "important": 0,
+  "minor": 0,
+  "model": {
+    "configured": "Grok",
+    "configured_available": false,
+    "actual": "gpt-6.1-sol",
+    "reasoning": "high"
+  },
+  "review_method": "Independent source and retained raw-evidence review. No Cargo/build/test/binary execution, child agents, source/triage edits or publication. Sole runtime owner is separate rust-qa-agent.",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "rule": "RULE-ADR-CODE",
+      "adr": "ADR-BDC-0016",
+      "severity": "BLOCKING",
+      "file": "crates/bd-cache-sync/Cargo.toml",
+      "line": 31,
+      "description": "OPEN at exact 8c1aefa. bd-cache-sync directly introduces sc-command and imports its CanonicalLog contract at cron_log.rs:3. Approved ADR-BDC-0016 decision 5 permits only the published sc-cron introducer below isolated Python. No Approved/Active amendment changes that narrow exception. The current private protocol correction leaves this production edge and the strict rejecting graph guard intact.",
+      "remediation": "Keep ARCH-001 open. The authorized genuine upstream public receiver/type re-export or equivalent canonical-event callback constructor must allow required logging without the direct sync -> sc-command edge; remove that edge and qualify the unchanged isolated-consumer gate. Preserve published 0.1.1, logging and graph policy. No publisher/auth/token work, SDK sidequest, fabricated event, relocated introducer, waiver or exception widening is authorized."
+    }
+  ],
+  "adr_checks": [
+    {
+      "adr": "ADR-BDC-0005",
+      "source": "docs/architecture.md:370",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0006",
+      "source": "docs/architecture.md:411",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0010",
+      "source": "docs/architecture.md:621",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0011",
+      "source": "docs/architecture.md:730",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0014",
+      "source": "docs/architecture.md:973",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:287",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:123"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0015",
+      "source": "docs/architecture.md:1016",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0001",
+      "source": "docs/bd-cache-store/architecture.md:27",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0003",
+      "source": "docs/bd-cache-store/architecture.md:210",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0006",
+      "source": "docs/bd-cache-store/architecture.md:589",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-SYNC-0008",
+      "source": "docs/bd-cache-sync/architecture.md:479",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:287",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:123"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CLI-0001",
+      "source": "docs/bd-cache-cli/architecture.md:29",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CLI-0005",
+      "source": "docs/bd-cache-cli/architecture.md:166",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0006",
+      "source": "docs/bd-cache-py/architecture.md:274",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0001",
+      "source": "docs/sc-cron/architecture.md:266",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0002",
+      "source": "docs/sc-cron/architecture.md:299",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0003",
+      "source": "docs/sc-cron/architecture.md:319",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0004",
+      "source": "docs/sc-cron/architecture.md:338",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0005",
+      "source": "docs/sc-cron/architecture.md:357",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/cron.rs:160",
+        "crates/bd-cache-sync/src/cron.rs:287",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:123"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0006",
+      "source": "docs/sc-cron/architecture.md:383",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0007",
+      "source": "docs/sc-cron/architecture.md:434",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0008",
+      "source": "docs/sc-cron/architecture.md:472",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CRON-0009",
+      "source": "docs/sc-cron/architecture.md:535",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0002",
+      "source": "docs/bd-cache-store/architecture.md:122",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0004",
+      "source": "docs/bd-cache-store/architecture.md:360",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-STORE-0005",
+      "source": "docs/bd-cache-store/architecture.md:547",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+        "crates/bd-cache-store/src/schedule.rs:792",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:1"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-SYNC-0001",
+      "source": "docs/bd-cache-sync/architecture.md:35",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-SYNC-0002",
+      "source": "docs/bd-cache-sync/architecture.md:57",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-SYNC-0006",
+      "source": "docs/bd-cache-sync/architecture.md:330",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CLI-0002",
+      "source": "docs/bd-cache-cli/architecture.md:68",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CLI-0003",
+      "source": "docs/bd-cache-cli/architecture.md:102",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CLI-0004",
+      "source": "docs/bd-cache-cli/architecture.md:130",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0001",
+      "source": "docs/bd-cache-py/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0002",
+      "source": "docs/bd-cache-py/architecture.md:77",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0003",
+      "source": "docs/bd-cache-py/architecture.md:123",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0004",
+      "source": "docs/bd-cache-py/architecture.md:161",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-PY-0005",
+      "source": "docs/bd-cache-py/architecture.md:206",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0009",
+      "source": "docs/architecture.md:587",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0012",
+      "source": "docs/architecture.md:768",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0013",
+      "source": "docs/architecture.md:852",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-CORE-0001",
+      "source": "docs/bd-cache/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0016",
+      "source": "docs/architecture.md:1099",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "docs/architecture.md:1148",
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ],
+      "assessment_basis": "Current correction checked against unchanged binding decision and independent scoped source-equivalence. Upheld means architecture continuity for the reviewed migration/correction; no new full requirements, runtime or release certification."
+    },
+    {
+      "adr": "ADR-BDC-0008",
+      "source": "docs/architecture.md:515",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "docs/architecture.md:517"
+      ],
+      "assessment_basis": "Draft consumer schema proposal is not a binding or used structural decision."
+    }
+  ],
+  "gate_artifact_checks": [
+    {
+      "artifact": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:383",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:1047"
+      ],
+      "notes": "Authoritative independent QA/anchors/current platform CI gate remains open. Private diagnostics do not close the logging/graph blockers or historical RQA9 failure; no forced deliverable or requirement completion."
+    },
+    {
+      "artifact": "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36",
+        "crates/bd-cache-sync/Cargo.toml:31",
+        ".github/workflows/ci.yml:127"
+      ],
+      "notes": "Inspected strict introducer-aware normal/build root traversal directly; no graph relaxation. Live sync introducer remains forbidden. No graph command executed by this reviewer."
+    },
+    {
+      "artifact": ".triage/c/findings/ARCH-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/ARCH-001.ttl:2",
+        "docs/architecture.md:1148"
+      ],
+      "notes": "Own source assessment independently reconfirms the violation."
+    },
+    {
+      "artifact": ".triage/c/findings/RBQA-F001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3"
+      ],
+      "notes": "Distinct correlated boundary-owner finding retained; not duplicated in architecture counts."
+    },
+    {
+      "artifact": ".triage/c/findings/QA2-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36",
+        "crates/bd-cache-sync/Cargo.toml:31"
+      ],
+      "notes": "Actual strict graph blocker remains independent; no new source fix or waiver."
+    },
+    {
+      "artifact": ".triage/c/findings/REQ-QA-004.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:383",
+        "/tmp/phase-c-execution/c-1/qa-10/parent-windows-job.json"
+      ],
+      "notes": "CI/requirements owner owns platform and whole acceptance. An in-progress Windows snapshot or Darwin logs cannot establish current all-platform green."
+    },
+    {
+      "artifact": ".triage/c/findings/RQA9-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:979",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:169",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:192"
+      ],
+      "notes": "Private classification supports a planted post-return/pre-marker interval; no natural historical cause or substantive original-failure correction proven."
+    },
+    {
+      "artifact": ".triage/c/findings/RSH-001.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        ".triage/c/findings/RSH-001.ttl:14",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve published QA9 owner/enforcer candidate-scoped C1 startup and paired public C2 assessment through exact C1 production equivalence. No fresh C2, stock HTTP or whole C2 acceptance claimed."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-009.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        ".triage/c/findings/FTQ-009.ttl:6",
+        "crates/bd-cache-store/tests/support/fixture_child.rs:74",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs:181"
+      ],
+      "notes": "Preserve complete owned store fixture mechanism after fresh changed-helper review: original 5s deadline, actual root wait and required failed negative qualification remain."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-010.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        ".triage/c/findings/FTQ-010.ttl:14",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:123",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Accepted kernel-session/pre-registration ownership, bounded inventory, actual root wait and postjoin drain unchanged from a753d279; shared helper handoff remains."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-011.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        ".triage/c/findings/FTQ-011.ttl",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:271",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve actual QA9 C1 owner/enforcer disposition; caller remaining absolute inventory budget, stable complete census and false failed-receipt behavior unchanged. No guarantee of kernel progress or new C2 propagation claim."
+    }
+  ],
+  "changed_scope_assessment": {
+    "private_boundary": "schedule_protocol.rs is include! inside cfg(test) schedule::tests; helper is shared test infrastructure. No production type family, consumer protocol or feature/dependency added; existing decisions cover the owned-test diagnostics, so no new production structural ADR is required.",
+    "ownership": "FixtureChild owns root, captured file and scratch dir. finish delegates to inline no-op observer; optional callback creates no reader task. Both exit/timeout paths call actual kill/wait before final receipt collection. Live observer error/unwind leaves Drop owning cleanup. cleanup_attempted + cleanup_on_drop=false prevent retries/fresh attempts; failed registry evidence retains false cleaned even after actual root wait. Existing SessionFixture explicitly takes default cleanup ownership and is unchanged.",
+    "phase_records": "Separate single-writer main/worker JSONL files in owned scratch. Each read is capped at 64KiB+1 and rejects excess, malformed complete lines, wrong root identity/stream or rewritten received records. Live partial tail is deferred; final post-wait partial is an error. Missing worker record is unresolved observation, not proof of non-entry.",
+    "clock_provenance": "Owner Instant captured before Command.spawn; spawn-return and outer/setup offsets separately reported. Child body Instant feeds main/worker elapsed values. Parent owner_received timestamps describe collection, not execution. Wall deltas are labeled correlation only and do not drive deadline decisions.",
+    "limits": "Original owner-started absolute 5s, 30ms cancellation, 500ms completion observation and 7s supervisor assertion preserved. No fresh timeout is created for protocol collection or a repeated cleanup; the unchanged cleanup observations remain separate ownership cleanup limits.",
+    "normal_and_negative": "Original three real operations and assertions remain. Normal path restores session settings/health and joins actual worker. Stalled path still requires original stderr marker and 500ms failure text in qualify; structured return alone cannot pass. Planted busy call records genuine return then parks before marker. Outer control catches the failed qualification, validates DatabaseBusy and root reap; direct flag resumes failure. No parked thread join completion is claimed.",
+    "new_architecture_findings": []
+  },
+  "source_equivalence": {
+    "proof": "/tmp/phase-c-execution/c-1/qa-10/arch-qa-source-equivalence.json",
+    "baseline": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5",
+    "whole_src_files_compared": 159,
+    "whole_src_files_byte_identical": 158,
+    "whole_src_file_changed": "crates/bd-cache-store/src/schedule.rs",
+    "production_prefix_equal": true,
+    "production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+    "production_prefix_lines": 791,
+    "all_architecture_docs_equal": true,
+    "policy_and_session_equal_to_QA9": true,
+    "qualification": "Current whole schedule source changed in cfg(test). Shared FixtureChild changed and reviewed freshly. SessionFixture/cron_hurry compared to actual QA9 a753d279, not incorrectly to pre-FTQ011 adbcc88d. No blanket 159 whole-file or full runtime parity claim."
+  },
+  "retained_raw_evidence": {
+    "receipt": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-result.json",
+    "logs": [
+      "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-store.log",
+      "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-default-owner.log",
+      "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-direct-negative.log",
+      "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-direct-negative.json"
+    ],
+    "observed": "Read raw postpush 8/8 and default 2/2 result lines, observer error/panic/root-wait control receipts, actual missing-marker FAILED libtest output, and direct driver exit101/5.025715s/no fallback receipt. These are retained developer evidence, not commands independently rerun by arch-qa. Source supports actual kill/wait path; no independent syscall/kernel audit asserted."
+  },
+  "merge_ready": false,
+  "notes": "All 41 authoritative sprint ADR entries resolve to Approved decisions; current changed boundaries do not introduce another architectural violation. Unchanged architecture/production supports explicitly scoped prior assessments, not blanket requirement completion. ARCH-001 blocks the sprint. RBQA-F001, QA2-001, REQ-QA-004 and historical RQA9-001 remain independent open constraints. No waivers, exception widening or publisher/auth/SDK work. cm context ran first; its ATM dispatch memory rule is superseded by governing Cursor role instructions. This source-only review does not run the platform commands described in memory rule b-mr7cp6x0-ipdnhs."
+}
+```

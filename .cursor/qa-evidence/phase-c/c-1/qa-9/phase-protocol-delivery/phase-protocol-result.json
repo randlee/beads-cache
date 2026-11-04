@@ -1,0 +1,626 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_diagnostic_classification_scope_only_pending_independent_QA10",
+    "branch": "sprint/c-1-runtime-migration",
+    "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+    "source_freeze_clean": true,
+    "integration_consumed": "b731c09e55733b6468ff24af19cc24d1b3f6295e",
+    "ordinary_merge": "c88c5431fa942090c1642e14ac119050f3a0da03",
+    "source_scope": {
+      "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+      "baseline": "bcfcae7021522454e85be964661b9525bb15e58c",
+      "exact_whole_src_rs_unchanged_count": 158,
+      "whole_src_rs_changed": [
+        "crates/bd-cache-store/src/schedule.rs"
+      ],
+      "schedule_production_prefix_equal": true,
+      "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+      "changed_test_helpers": [
+        "crates/bd-cache-store/tests/support/fixture_child.rs",
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs"
+      ],
+      "session_fixture_unchanged": true,
+      "integration_consumed": true,
+      "new_public_production_api": false
+    },
+    "changes": [
+      "Private small main/worker structured checkpoints in existing owned scratch, independent capturedstderr; no shared writing mutex.",
+      "Real return with SQLitecode recorded before result/stall eprintln; planted gate parks after acknowledged record write before required marker.",
+      "Parent optional inline observer polls bounded records using original pre-spawn owner monotonic clock; final partial/malformed/re-written/wrongPID receipt is error.",
+      "Existing qualification keeps original markers/500ms timeout, real wait/error and5s actual root cleanup. Planted occurrence fails normal qualification; outer regression passes only by proving owned failure and accurate classification.",
+      "Default Drop and observer error/panic retain actual kill/wait; cleanup attempt guard prevents retry/fresh budget or true receipt after incomplete evidence. SessionFixture handoff unchanged."
+    ],
+    "files_changed": [
+      ".triage/c/findings/ARCH-001.ttl",
+      ".triage/c/findings/QA2-001.ttl",
+      ".triage/c/findings/RBQA-F001.ttl",
+      ".triage/c/findings/REQ-QA-004.ttl",
+      ".triage/c/findings/RQA9-001.ttl",
+      "crates/bd-cache-store/src/schedule.rs",
+      "crates/bd-cache-store/tests/support/fixture_child.rs",
+      "crates/bd-cache-store/tests/support/schedule_protocol.rs",
+      "docs/plans/phase-c/sprint-c-1-runtime-migration.md"
+    ],
+    "clock_and_transport": {
+      "parent_origin": "existing FixtureChild.started Instant before Command.spawn; parent temp/output creation offset separately measured by outer_to_owner_ns",
+      "parent_receive": "owner_received_ns is first observation of complete per-thread record on owner clock; not execution timestamp",
+      "child_origin": "single fixture-body Instant also passed into setup helper; record timestamp follows observed program event but precedes write acknowledgement",
+      "wall": "wall_since_owner_ns correlates with env-supplied pre-spawnUnix timestamp only; clock adjustments/cross-process precision explicitly not used for decisions",
+      "limits": "File/observer work consumes original owner lifetime; OS scheduling/IO precision is not guaranteed. Silence never proves non-entry. Per-stream cap64KiB; incomplete live append waits for completion, final partial record fails; ownership remains inline, no detached task."
+    },
+    "budgets": {
+      "cancellation_ms": 30,
+      "completion_receive_ms": 500,
+      "child_absolute_seconds": 5,
+      "supervisor_assertion_seconds": 7,
+      "changed": false
+    },
+    "actual_planted_control": {
+      "mode": "post-return-gap",
+      "real_root_pid": 44216,
+      "independent_worker_return": {
+        "execution": {
+          "child_elapsed_ns": 48641959,
+          "data": {
+            "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+            "is_error": true,
+            "sqlite_code": "DatabaseBusy"
+          },
+          "phase": "worker-call-returned",
+          "pid": 44216,
+          "stream": "worker",
+          "wall_since_owner_ns": 54721000
+        },
+        "owner_received_ns": 55879834
+      },
+      "required_stall_marker_present": false,
+      "structured_marker_write_present": false,
+      "classification": "worker_returned_required_marker_missing",
+      "ordinary_regression": "PASS only by catch of normal qualification panic, actualErrorBusy assertion and root cleanup evidence",
+      "direct_negative": {
+        "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "command": [
+          "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+          "--exact",
+          "schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification",
+          "--nocapture"
+        ],
+        "environment": {
+          "BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE": "1"
+        },
+        "exit": 101,
+        "elapsed_seconds": 5.025715457741171,
+        "expected_exit": 101,
+        "actual_failed_qualification": true,
+        "root_cleanup_before_driver_fallback": true,
+        "driver_fallback_used": false
+      },
+      "direct_source_packet": {
+        "absolute_lifetime_ns": 5000000000,
+        "classification": "worker_returned_required_marker_missing",
+        "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+        "mode": "post-return-gap",
+        "outer_to_owner_ns": 200334,
+        "owner_origin": "Instant before Command.spawn",
+        "owner_reported_ns": 5007052875,
+        "owner_unix_ns": 1793774393833215000,
+        "receipts": [
+          {
+            "execution": {
+              "child_elapsed_ns": 50042,
+              "data": null,
+              "phase": "fixture-body-entered",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 2348000
+            },
+            "owner_received_ns": 6091916
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 193042,
+              "data": null,
+              "phase": "scratch-create-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 2527000
+            },
+            "owner_received_ns": 6109416
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 290333,
+              "data": null,
+              "phase": "store-open-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 2625000
+            },
+            "owner_received_ns": 6116458
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4212292,
+              "data": null,
+              "phase": "store-open-returned",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 6546000
+            },
+            "owner_received_ns": 12475291
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4259458,
+              "data": null,
+              "phase": "schedule-view-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 6594000
+            },
+            "owner_received_ns": 12483083
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4485417,
+              "data": null,
+              "phase": "schedule-view-returned",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 6820000
+            },
+            "owner_received_ns": 12489291
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4582250,
+              "data": null,
+              "phase": "schedule-create-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 6917000
+            },
+            "owner_received_ns": 12498916
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4854167,
+              "data": null,
+              "phase": "schedule-setup-complete",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7183000
+            },
+            "owner_received_ns": 12505500
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 4926250,
+              "data": null,
+              "phase": "contender-open-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7260000
+            },
+            "owner_received_ns": 12511750
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5072917,
+              "data": null,
+              "phase": "contender-lock-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7407000
+            },
+            "owner_received_ns": 12517833
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5148792,
+              "data": null,
+              "phase": "contender-lock-acquired",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7483000
+            },
+            "owner_received_ns": 12523958
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5190167,
+              "data": null,
+              "phase": "worker-spawn-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7525000
+            },
+            "owner_received_ns": 12530041
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5363708,
+              "data": {
+                "ok": true
+              },
+              "phase": "wait-result",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7698000
+            },
+            "owner_received_ns": 12544125
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5412167,
+              "data": {
+                "child_deadline_ns": 35410125
+              },
+              "phase": "cancellation-deadline-installed",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7747000
+            },
+            "owner_received_ns": 12551458
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5437917,
+              "data": null,
+              "phase": "cancellation-installed",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 7773000
+            },
+            "owner_received_ns": 12557791
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 510544500,
+              "data": {
+                "timeout": true
+              },
+              "phase": "completion-result",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 512869000
+            },
+            "owner_received_ns": 514968333
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 510937667,
+              "data": null,
+              "phase": "contender-rollback-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 513265000
+            },
+            "owner_received_ns": 515029541
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 511355833,
+              "data": null,
+              "phase": "contender-rollback-returned",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 513668000
+            },
+            "owner_received_ns": 515044833
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 511518000,
+              "data": null,
+              "phase": "worker-join-start",
+              "pid": 45615,
+              "stream": "main",
+              "wall_since_owner_ns": 513847000
+            },
+            "owner_received_ns": 515059791
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 5255042,
+              "data": null,
+              "phase": "worker-call-start",
+              "pid": 45615,
+              "stream": "worker",
+              "wall_since_owner_ns": 7589000
+            },
+            "owner_received_ns": 12586958
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 35885208,
+              "data": {
+                "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+                "is_error": true,
+                "sqlite_code": "DatabaseBusy"
+              },
+              "phase": "worker-call-returned",
+              "pid": 45615,
+              "stream": "worker",
+              "wall_since_owner_ns": 38218000
+            },
+            "owner_received_ns": 38441583
+          },
+          {
+            "execution": {
+              "child_elapsed_ns": 36015542,
+              "data": null,
+              "phase": "planted-post-return-gap",
+              "pid": 45615,
+              "stream": "worker",
+              "wall_since_owner_ns": 38349000
+            },
+            "owner_received_ns": 38451041
+          }
+        ],
+        "root_joined_and_cleaned": true,
+        "spawn_returned_ns": 247416,
+        "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"
+      },
+      "historical_reproduction_claimed": false
+    },
+    "ownership_proof": {
+      "root_join_receipts_all_packets": [
+        {
+          "mode": "stalled",
+          "test": "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+          "cleaned": true
+        },
+        {
+          "mode": "post-return-gap",
+          "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+          "cleaned": true
+        },
+        {
+          "mode": "stalled",
+          "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+          "cleaned": true
+        },
+        {
+          "mode": "stalled",
+          "test": "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+          "cleaned": true
+        }
+      ],
+      "observer_error_panic_failedreceipt_audits": [
+        "RQA9_OWNER_CONTROL observer_panic=false root_pid=44214 actual_kill_wait_receipt=true before_driver_fallback",
+        "RQA9_OWNER_CONTROL cleanup_error root_pid=44219 actual_root_wait=true cleanup_receipt=false repeat_attempt_refused=true before_driver_fallback",
+        "RQA9_OWNER_CONTROL observer_panic=true root_pid=44220 actual_kill_wait_receipt=true before_driver_fallback"
+      ],
+      "before_external_driver_fallback": true,
+      "external_driver_fallback_used": false,
+      "limits": "Actual kill/wait supported by helper source and successful/incomplete receipt assertions plus root try_wait on failedreceipt path. No independent syscall/kernel audit; intentionally parked worker-thread join never claimed returned."
+    },
+    "verification": [
+      {
+        "command": "cargo fmt --all; cargo fmt --all --check",
+        "status": "PASS; prepush and postpush"
+      },
+      {
+        "command": "rustfmt --edition 2024 --check crates/bd-cache-store/tests/support/schedule_protocol.rs",
+        "status": "PASS; include! source checked explicitly"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-store --all-targets --all-features -- -D warnings",
+        "status": "PASS final source",
+        "log": "phase-protocol-clippy-clock-hook.log"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-store --lib -- -D warnings",
+        "status": "PASS; production prefix unchanged",
+        "log": "phase-protocol-clippy-default.log"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-sync --test cron_hurry --all-features -- -D warnings",
+        "status": "PASS; optional shared-hook/session-fixture compile compatibility",
+        "log": "phase-protocol-helper-compat-clippy-corrected.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-store --lib --all-features schedule::tests::shutdown_ -- --nocapture",
+        "status": "postpushPASS8/8,29filtered,15.05s",
+        "log": "phase-protocol-postpush-store.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-store --lib --all-features health::tests::mutex_wait_ -- --nocapture",
+        "status": "postpushPASS2/2,35filtered,5.00s; default no-op helper path",
+        "log": "phase-protocol-postpush-default-owner.log"
+      },
+      {
+        "command": [
+          "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+          "--exact",
+          "schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification",
+          "--nocapture"
+        ],
+        "environment": {
+          "BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE": "1"
+        },
+        "status": "EXPECTED REAL FAILED QUALIFICATION exit101 after5.025715s; no driver fallback",
+        "log": "phase-protocol-postpush-direct-negative.log"
+      }
+    ],
+    "binary_receipt": {
+      "path": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+      "sha256": "e648e86788ee0e67368364c9ff126fd92b74270889e69845d9f56b8ae77298ac",
+      "built_and_exercised_by": "phase-protocol-postpush-store.log then postpush-direct-negative",
+      "source": "8c1aefafd7fd269c82c7974e610e848816d026d8"
+    },
+    "initial_failures_retained": [
+      {
+        "log": "phase-protocol-clippy-initial.log",
+        "failure": "borrowedJSON payload and busytest111/100 lines",
+        "correction": "borrow JSON and extract same receipt helpers; no lint suppression"
+      },
+      {
+        "log": "phase-protocol-clippy-corrected.log",
+        "failure": "triviallyCopy receiver result passed by reference",
+        "correction": "copy receiver result into receipt helper"
+      },
+      {
+        "log": "phase-protocol-helper-compat-clippy.log",
+        "failure": "clock metadata fields unused in shared sync include",
+        "correction": "clock values carried through optional observer arguments; private fields used internally, no deadcode suppression"
+      }
+    ],
+    "platforms": {
+      "native": "macOS-15.5-arm64-arm-64bit",
+      "Darwin": "actual scoped proof/lints/fmt PASS; direct negative intentionallyFAIL101",
+      "Windows": {
+        "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "run": 41786865484,
+        "job": 126430893018,
+        "status": "in_progress",
+        "conclusion": "",
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41786865484/job/126430893018",
+        "terminal_qualification_claimed": false
+      },
+      "Linux": "no new local qualification; exact source hosted gate not asserted complete"
+    },
+    "findings": [
+      {
+        "id": "REQ-QA-004",
+        "status": "OPEN",
+        "triage": ".triage/c/findings/REQ-QA-004.ttl",
+        "disposition": "unchanged published public logging/strictgraph/requiredCI acceptance blocker"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "OPEN",
+        "triage": ".triage/c/findings/ARCH-001.ttl",
+        "disposition": "unchanged published public logging/strictgraph/requiredCI acceptance blocker"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "OPEN",
+        "triage": ".triage/c/findings/RBQA-F001.ttl",
+        "disposition": "unchanged published public logging/strictgraph/requiredCI acceptance blocker"
+      },
+      {
+        "id": "QA2-001",
+        "status": "OPEN",
+        "triage": ".triage/c/findings/QA2-001.ttl",
+        "disposition": "unchanged published public logging/strictgraph/requiredCI acceptance blocker"
+      },
+      {
+        "id": "RQA9-001",
+        "status": "OPEN",
+        "triage": ".triage/c/findings/RQA9-001.ttl",
+        "disposition": "diagnostic/classification correction delivered; historicalcauseUNKNOWN and independentowner/QA10required"
+      }
+    ],
+    "preserved": [
+      "Original Windows33/34 missingreceipt raw log and hashes",
+      "Independent causal/fullcontext owner assessment and normal Windows observations",
+      "All owning triage histories and candidate-scoped RSH001/FTQ009/010/011 dispositions",
+      "Production policies, publicinterfaces, dependencies and guards; userdirtyprimary untouched"
+    ],
+    "remaining_uncertainty": "Historical RQA9 failing phase/trigger remains unknown. Planted control tests explicit source interval; it is not a natural failure reproduction, waiver or original fix. Whole sprint/anchor/currentCI acceptance remains blocked.",
+    "logs": {
+      "phase-protocol-clippy-clock-hook.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-clock-hook.log",
+        "bytes": 204,
+        "sha256": "4dc8a26930af3a0535b108426f187b990ef499c63107e4ed773de27fa0ea8620"
+      },
+      "phase-protocol-clippy-corrected.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-corrected.log",
+        "bytes": 996,
+        "sha256": "e29921e4ec9c5bcdc8d3a0c73fd951338895a2eedf9633c4f9412598aaa1b040"
+      },
+      "phase-protocol-clippy-default.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-default.log",
+        "bytes": 204,
+        "sha256": "6ab453022aa0814eb65a70cb617bb37aeadc8e6779899fc22bcf2713abbf432b"
+      },
+      "phase-protocol-clippy-final-source.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-final-source.log",
+        "bytes": 204,
+        "sha256": "ab216385ee848a9481091730b1ba4dc810322883138df0e61cc10e887043a86c"
+      },
+      "phase-protocol-clippy-final.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-final.log",
+        "bytes": 204,
+        "sha256": "e0e30d14d183002630770a38556a281261c05512626b9d1b14e97f7d3eb1937f"
+      },
+      "phase-protocol-clippy-initial.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-clippy-initial.log",
+        "bytes": 1682,
+        "sha256": "a44ff8287cd3ba2de4b9ccd347f61b6e6ad93a8ca328f95b2b54ace1d9388fd2"
+      },
+      "phase-protocol-direct-negative.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-direct-negative.log",
+        "bytes": 8150,
+        "sha256": "49dbe0c6a48d15bf0e3891e651e171d8e48bf2829e680b2d44f18f8e2cf6b68b"
+      },
+      "phase-protocol-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "phase-protocol-helper-compat-clippy-corrected.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-helper-compat-clippy-corrected.log",
+        "bytes": 334,
+        "sha256": "57bdf3c307747c6e1de6814a800f1607f1c455ecbb62f3bb9d7d52711d31dd36"
+      },
+      "phase-protocol-helper-compat-clippy.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-helper-compat-clippy.log",
+        "bytes": 1056,
+        "sha256": "4bba89e00dd42c4ef16e037147763a4b8c7b3916ea350e2d862ce5c719aba0d6"
+      },
+      "phase-protocol-postpush-default-owner.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-default-owner.log",
+        "bytes": 472,
+        "sha256": "aa334469886876f999373a31f4dbe70bad278b6fc0f808eb97c6677bd08c8fec"
+      },
+      "phase-protocol-postpush-direct-negative.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-direct-negative.log",
+        "bytes": 8081,
+        "sha256": "18b121e7cfe781bba39406fa9639abd3e0e4d2b1a04a54bc9a182926e2cefde8"
+      },
+      "phase-protocol-postpush-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "phase-protocol-postpush-private-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-private-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "phase-protocol-postpush-store.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-postpush-store.log",
+        "bytes": 26656,
+        "sha256": "63c50c5f02a3bd4bc0398daf273c6831436093d7cf0fb9e32aa7a99557e0cf9f"
+      },
+      "phase-protocol-private-module-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-private-module-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "phase-protocol-store-final-source.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-store-final-source.log",
+        "bytes": 26631,
+        "sha256": "f708f3087032fbe925918adc6bf930f6abbf5fe039297fb63c51358798755f5e"
+      },
+      "phase-protocol-store-initial.log": {
+        "path": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-store-initial.log",
+        "bytes": 25935,
+        "sha256": "c2d4b042b79ded5f35f026f5c94745bdd8328546fc735bda03a46bf2bfd116cd"
+      }
+    },
+    "cargo_slot": {
+      "status": "RELEASED",
+      "incremental": "0",
+      "target": "/tmp/phase-c-execution/c-1/restart-target",
+      "active_owned_commands": 0
+    },
+    "next_action": "STOP for independentQA10 on frozen source; parent monitors exactWindowshandle. No further workflow, test rerun, source changes or merge.",
+    "timestamp_utc": "2026-11-04T06:41:55.966392+00:00"
+  },
+  "error": null
+}

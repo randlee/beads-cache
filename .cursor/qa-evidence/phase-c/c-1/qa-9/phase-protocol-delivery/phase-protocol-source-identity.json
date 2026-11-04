@@ -1,0 +1,17 @@
+{
+  "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "baseline": "bcfcae7021522454e85be964661b9525bb15e58c",
+  "exact_whole_src_rs_unchanged_count": 158,
+  "whole_src_rs_changed": [
+    "crates/bd-cache-store/src/schedule.rs"
+  ],
+  "schedule_production_prefix_equal": true,
+  "schedule_production_prefix_sha256": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+  "changed_test_helpers": [
+    "crates/bd-cache-store/tests/support/fixture_child.rs",
+    "crates/bd-cache-store/tests/support/schedule_protocol.rs"
+  ],
+  "session_fixture_unchanged": true,
+  "integration_consumed": true,
+  "new_public_production_api": false
+}
