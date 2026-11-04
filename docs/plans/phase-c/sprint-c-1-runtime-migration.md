@@ -899,3 +899,105 @@ consumption. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the gen
 published canonical receiver/isolated graph and required actual-head CI gates.
 No dependency upgrade, publisher work, graph waiver, timing widening, detached
 blocking work, sprint/anchor/merge PASS or self-closure is introduced.
+
+
+### QA8 inventory budget correction (FTQ-011)
+
+QA8's exact report is
+https://github.com/randlee/beads-cache/pull/108#issuecomment-6622741614.
+The retained developer lifecycle run failed 14/15 and the independent Rust QA8
+run failed 13/15 with owned inventory timeouts. Both original logs remain under
+`.cursor/qa-evidence/phase-c/c-1/qa-8/logs/`; the focused later pass does not erase
+either failure. They establish the actual helper timing dependency, without
+establishing a particular slow invocation, PID or host-load cause.
+
+The test-only inventory now consumes its caller's remaining absolute budget;
+there is no separate 50ms cap or minimum 50ms slice. Preflight retains its 250ms
+allowance. Diagnostic/readiness callers supply their existing absolute observation
+or fixture deadline, capped by the five-second fixture lifetime. Cleanup retains
+the same initial 100ms drain, absolute 250ms quiescence boundary and absolute
+one-second final boundary. No phase or fixture timeout is renewed after error.
+Every started inventory owns its child and output file and completes or is
+killed and actually reaped, including output/parse errors and assertion unwind.
+An empty or incomplete inventory is never evidence of session emptiness.
+
+A transient scan error may recover only with fresh complete evidence before the
+same phase deadline. Failed scans reset the stable-census observation. Cleanup
+requires two complete stable stopped-session censuses, the actual root wait,
+and a fresh complete empty-session census after that join, including the root.
+Exhausting any required proof remains an error even if a later diagnostic sees
+an empty session. The preliminary drain may recover through those required
+proofs; recovery is logged while the original fixture failure/timeout is retained.
+The one-attempt handoff to the shared supervisor remains: error, Drop and a
+second cleanup call cannot start a fresh registry or session cleanup budget.
+Pre-registration ownership, in-flight launch closure, Linux raw nonpositive SID
+filtering and identity rechecks are preserved.
+
+Deterministic added regressions self-stop and acknowledge an actual owned
+inventory command, then resume it after 80ms under the existing preflight and
+cleanup budgets. Another injects a transient census error while retaining a real
+failed fixture exit. A genuine noncooperative command consumes the existing
+cleanup phases, is killed/reaped each time, and leaves the failed receipt false
+after root reaping, a repeated cleanup call, Drop and a separate diagnostic audit.
+The existing true timeout/unwind inventory proof now acknowledges the command's
+kernel stop before testing it. These are test inputs, not host tuning or new
+process-control promises.
+
+| Finding | Current developer disposition |
+|---|---|
+| FTQ-011 | OPEN: correction validated locally; final pushed-source proof and independent QA9 required. Original failures retained. |
+| RSH-001 | OPEN: C1 startup production remains exactly adbcc88d3dc134ae94403bc2af7a8db76ba921a5; C2 actual public Application candidate qualification is a separate parent-owned gate. |
+| REQ-QA-004 | OPEN: exact candidate CI, including each supported platform and the actual dependency gate, remains required. |
+| ARCH-001 | OPEN: genuine published public receiver composition remains blocked; no new interface research or workaround is included. |
+| RBQA-F001 | OPEN: direct sync-to-sc-command dependency remains independently tracked and unwaived. |
+| QA2-001 | OPEN: strict isolated dependency graph remains unchanged and failing until compatible composition exists. |
+
+The C1 branch merged current integration metadata before editing. Production
+cron.rs and both sync/store schedule.rs files remain byte-identical to adbcc88d;
+SDK dependencies, logging, consumer graph checks, shared store supervisor and
+startup/store cancellation mechanisms are unchanged. The initial phase used formatting and source inspection only while C2 owned the
+sole Cargo slot. After explicit release/grant, native inventory regressions pass
+5/5, the complete affected lifecycle suite passes 18/18 (the prior 15 plus three
+new cases), default store cleanup passes 5/5, both scoped strict Clippy modes
+pass, and formatting passes. Restoring the old 50ms cap makes the deterministic
+80ms inventory regression fail with TimedOut; canonical source was restored.
+The initial sandbox inventory execution's explicit EPERM failures remain
+recorded separately from authorized native qualification. The mutant assessment
+wrapper initially checked the wrong timeout wording; its preserved actual exit
+101/log establishes the intended negative without a repeated run.
+
+Concrete logs are `/tmp/phase-c-execution/c-1/qa-8/helper-*.log` and source freeze
+is recorded in `helper-edit-progress.json`. Original source-free counterexamples,
+SID audits and final pushed-source evidence follow the push. Per-platform CI
+remains separate from these local Darwin checks, following memory rule
+b-mr7cp6x0-ipdnhs. No QA, sprint, anchor, CI or merge acceptance is claimed by this
+developer receipt.
+
+
+## QA9 Windows shared-store diagnostic RQA9-001
+
+QA9 published FAIL (3 Blocking, 2 Important) for C1 `a753d279` and paired C2
+`b7de8e98`; the actual C2 Windows job 126397662727 failed the shared-store
+busy-persistence negative fixture without the post-call/stall receipt. Both
+schedule source `d30f281` and fixture helper `d312b56` match across those heads.
+The retained raw Windows log remains under the QA9 evidence archive. Its absent
+receipt does not identify which child phase exhausted the original five seconds
+or prove that the operation never began or returned.
+
+This diagnostic adds elapsed receipts for setup/open, the actual worker call and
+wait result, cancellation installation, completion timeout, rollback and actual
+join. The owned supervisor emits its captured child diagnostics on success as
+well as failure; the missing-receipt failure message states the observed limit.
+All original real-operation and timeout assertions, 30 ms cancellation, 500 ms
+observation, five-second absolute fixture lifetime and kill/reap ownership remain.
+No production source, dependency, guard or startup behavior changes. Initial
+strict affected lint rejected the expanded test's line count; the same existing
+session-settings assertions were extracted and strict lint then passed. Native
+Darwin affected store tests pass 5/5; this does not establish the Windows cause.
+
+RQA9-001 remains OPEN: this is a diagnostic push, without a supported cause or
+correction claim. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the
+unchanged published logging seam, strict graph and actual CI gates. Exact-source
+hosted Windows observations and independent QA10 remain required. Candidate-
+scoped QA9 RSH-001/FTQ-011 evidence and all earlier triage history were preserved
+while merging exact integration `63ebc1fa`. No sprint acceptance or merge is claimed.

@@ -45,14 +45,22 @@ impl SessionFixture {
     }
 
     pub(crate) fn finish(&mut self, lifetime: Duration) -> io::Result<Option<ExitStatus>> {
+        self.finish_using(lifetime, &mut process_ids)
+    }
+
+    fn finish_using(
+        &mut self,
+        lifetime: Duration,
+        inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+    ) -> io::Result<Option<ExitStatus>> {
         let deadline = self.child.started + lifetime;
         loop {
             if let Some(status) = self.child.process.try_wait()? {
-                self.cleanup()?;
+                self.cleanup_using(inventory)?;
                 return Ok(Some(status));
             }
             if Instant::now() >= deadline {
-                self.cleanup()?;
+                self.cleanup_using(inventory)?;
                 return Ok(None);
             }
             std::thread::sleep(Duration::from_millis(5));
@@ -71,9 +79,9 @@ impl SessionFixture {
         self.child.wait_for_output(needle, lifetime)
     }
 
-    pub(crate) fn owned_pids(&self) -> io::Result<Vec<u32>> {
+    pub(crate) fn owned_pids(&self, deadline: Instant) -> io::Result<Vec<u32>> {
         Ok(self
-            .members()?
+            .members(deadline)?
             .into_iter()
             .map(|member| member.pid.as_raw_pid().cast_unsigned())
             .collect())
@@ -83,14 +91,17 @@ impl SessionFixture {
         self.session
     }
 
-    pub(crate) fn members(&self) -> io::Result<Vec<Member>> {
-        Ok(session_members(self.session)?
-            .into_iter()
-            .filter(|member| member.pid != self.session)
-            .collect())
+    pub(crate) fn members(&self, deadline: Instant) -> io::Result<Vec<Member>> {
+        Ok(session_members(
+            self.session,
+            deadline.min(self.child.started + Duration::from_secs(5)),
+        )?
+        .into_iter()
+        .filter(|member| member.pid != self.session)
+        .collect())
     }
 
-    pub(crate) fn unregistered_launch_ready(&self) -> io::Result<bool> {
+    pub(crate) fn unregistered_launch_ready(&self, deadline: Instant) -> io::Result<bool> {
         Ok(self
             .child
             .scratch
@@ -98,20 +109,41 @@ impl SessionFixture {
             .join("pre-registration.ready")
             .exists()
             && self.child.owned_pids()?.is_empty()
-            && self.members()?.len() >= 2)
+            && self.members(deadline)?.len() >= 2)
     }
 
     fn cleanup(&mut self) -> io::Result<()> {
+        self.cleanup_using(&mut process_ids)
+    }
+
+    fn cleanup_using(
+        &mut self,
+        inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+    ) -> io::Result<()> {
+        if self.cleanup_started.is_some() {
+            return if self.child.cleaned.load(Ordering::SeqCst) {
+                Ok(())
+            } else {
+                Err(io::Error::other("session cleanup was already attempted"))
+            };
+        }
         // Preserve the existing 250ms cooperative and 750ms final cleanup
         // observations. Session quiescence consumes the first budget too.
         let started = *self.cleanup_started.get_or_insert_with(Instant::now);
         let quiesce_by = started + Duration::from_millis(250);
         let final_by = started + Duration::from_secs(1);
-        let mut failure = drain(self.session, started + Duration::from_millis(100)).err();
+        let early_failure = drain(
+            self.session,
+            started + Duration::from_millis(100),
+            false,
+            inventory,
+        )
+        .err();
+        let mut failure = None;
         // Stop the root and acknowledge a stable stopped session before kill.
         // Kernel membership covers groups born before registration; no stopped
         // member can fork another child between this census and termination.
-        match quiesce(self.session, quiesce_by) {
+        match quiesce(self.session, quiesce_by, inventory) {
             Ok(members) => {
                 for member in members {
                     if member.pid != self.session {
@@ -127,7 +159,7 @@ impl SessionFixture {
         }
         // The real root wait closes all in-flight fixture launches. Re-enumerate
         // the inherited session after that join, including reparented processes.
-        match drain(self.session, final_by) {
+        match drain(self.session, final_by, true, inventory) {
             Ok(true) => {}
             Ok(false) => {
                 failure = Some(io::Error::new(
@@ -139,6 +171,12 @@ impl SessionFixture {
         }
         if let Some(error) = failure {
             return Err(error);
+        }
+        if let Some(error) = early_failure {
+            // This is recovery evidence, not an empty/error census: quiescence,
+            // the actual root wait and a fresh full-session drain all succeeded
+            // under the original deadlines. The fixture's own status is intact.
+            eprintln!("session cleanup recovered preliminary inventory: {error}");
         }
         self.child.cleaned.store(true, Ordering::SeqCst);
         Ok(())
@@ -165,9 +203,12 @@ struct Inventory {
 
 impl Inventory {
     fn spawn() -> io::Result<Self> {
+        Self::spawn_command(Command::new("/bin/ps").args(["-axo", "pid=,stat="]))
+    }
+
+    fn spawn_command(command: &mut Command) -> io::Result<Self> {
         let output = tempfile::NamedTempFile::new()?;
-        let process = Command::new("/bin/ps")
-            .args(["-axo", "pid=,stat="])
+        let process = command
             .stdin(Stdio::null())
             .stdout(output.reopen()?)
             .stderr(output.reopen()?)
@@ -179,6 +220,12 @@ impl Inventory {
         loop {
             if let Some(status) = self.process.try_wait()? {
                 let output = std::fs::read_to_string(self.output.path())?;
+                if Instant::now() >= deadline {
+                    return Err(io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        "session inventory output budget exhausted",
+                    ));
+                }
                 return if status.success() {
                     Ok(output)
                 } else {
@@ -218,17 +265,31 @@ impl Drop for Inventory {
 }
 
 fn process_ids(deadline: Instant) -> io::Result<Vec<(Pid, bool)>> {
+    process_ids_using(deadline, Inventory::spawn)
+}
+
+fn process_ids_using(
+    deadline: Instant,
+    spawn: impl FnOnce() -> io::Result<Inventory>,
+) -> io::Result<Vec<(Pid, bool)>> {
     if Instant::now() >= deadline {
         return Err(io::Error::new(
             io::ErrorKind::TimedOut,
             "session inventory budget exhausted",
         ));
     }
-    let invocation_by = deadline.min(Instant::now() + Duration::from_millis(50));
-    let output = Inventory::spawn()?.finish(invocation_by)?;
-    output
+    // Inventory consumes the caller's remaining absolute budget. A separately
+    // scheduled host-wide ps has no independent healthy-speed requirement.
+    let output = spawn()?.finish(deadline)?;
+    let pids: Vec<_> = output
         .lines()
         .map(|line| {
+            if Instant::now() >= deadline {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "session inventory parsing budget exhausted",
+                ));
+            }
             let mut fields = line.split_whitespace();
             let raw = fields
                 .next()
@@ -245,7 +306,16 @@ fn process_ids(deadline: Instant) -> io::Result<Vec<(Pid, bool)>> {
                 .ok_or_else(|| io::Error::other("invalid process inventory PID"))?;
             Ok((pid, state.starts_with(['T', 't', 'Z', 'X'])))
         })
-        .collect()
+        .collect::<io::Result<_>>()?;
+    if !pids
+        .iter()
+        .any(|(pid, _)| *pid == rustix::process::getpid())
+    {
+        return Err(io::Error::other(
+            "session inventory omitted its observing process",
+        ));
+    }
+    Ok(pids)
 }
 
 // Linux permits SID/PGID zero for foreign kernel tasks. rustix's typed getsid
@@ -305,13 +375,17 @@ fn identity(pid: Pid) -> io::Result<Option<(Pid, Pid)>> {
     }
 }
 
-pub(crate) fn session_members(session: Pid) -> io::Result<Vec<Member>> {
-    members_before(session, Instant::now() + Duration::from_millis(250))
+pub(crate) fn session_members(session: Pid, deadline: Instant) -> io::Result<Vec<Member>> {
+    members_before(session, deadline, &mut process_ids)
 }
 
-fn members_before(session: Pid, deadline: Instant) -> io::Result<Vec<Member>> {
+fn members_before(
+    session: Pid,
+    deadline: Instant,
+    inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<Vec<Member>> {
     let mut members = Vec::new();
-    for (pid, quiet) in process_ids(deadline)? {
+    for (pid, quiet) in inventory(deadline)? {
         if Instant::now() >= deadline {
             return Err(io::Error::new(
                 io::ErrorKind::TimedOut,
@@ -327,24 +401,28 @@ fn members_before(session: Pid, deadline: Instant) -> io::Result<Vec<Member>> {
     Ok(members)
 }
 
-fn drain(session: Pid, deadline: Instant) -> io::Result<bool> {
+fn drain(
+    session: Pid,
+    deadline: Instant,
+    root_joined: bool,
+    inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<bool> {
     let mut failure = None;
     loop {
-        // Do not start a new inventory with only the tail of the observation
-        // left: that would mislabel ordinary phase expiry as a stalled child.
-        // Every started inventory still owns its full bounded slice, counted
-        // inside (never added to) this absolute deadline.
-        if Instant::now() + Duration::from_millis(50) > deadline {
+        if Instant::now() >= deadline {
             return failure.map_or(Ok(false), Err);
         }
-        match members_before(session, deadline) {
+        match members_before(session, deadline, inventory) {
             Ok(members) => {
                 let members: Vec<_> = members
                     .into_iter()
-                    .filter(|member| member.pid != session)
+                    .filter(|member| root_joined || member.pid != session)
                     .collect();
                 if members.is_empty() {
-                    return failure.map_or(Ok(true), Err);
+                    if let Some(error) = failure {
+                        eprintln!("session drain recovered inventory before deadline: {error}");
+                    }
+                    return Ok(true);
                 }
                 for member in members {
                     kill_member(session, member);
@@ -370,17 +448,39 @@ fn kill_member(session: Pid, member: Member) {
     }
 }
 
-fn quiesce(session: Pid, deadline: Instant) -> io::Result<Vec<Member>> {
+fn quiesce(
+    session: Pid,
+    deadline: Instant,
+    inventory: &mut impl FnMut(Instant) -> io::Result<Vec<(Pid, bool)>>,
+) -> io::Result<Vec<Member>> {
     let _ = kill_process(session, Signal::STOP);
     let mut previous = None;
+    let mut failure = None;
     loop {
-        let members = members_before(session, deadline)?;
+        if Instant::now() >= deadline {
+            return Err(failure.unwrap_or_else(|| {
+                io::Error::new(io::ErrorKind::TimedOut, "fixture session did not quiesce")
+            }));
+        }
+        let members = match members_before(session, deadline, inventory) {
+            Ok(members) => members,
+            Err(error) => {
+                failure = Some(error);
+                // An incomplete scan cannot be one of the two stable censuses.
+                previous = None;
+                std::thread::sleep(Duration::from_millis(5));
+                continue;
+            }
+        };
         let mut ids: Vec<_> = members
             .iter()
             .map(|member| member.pid.as_raw_pid())
             .collect();
         ids.sort_unstable();
         if members.iter().all(|member| member.quiet) && previous.as_ref() == Some(&ids) {
+            if let Some(error) = failure {
+                eprintln!("session quiescence recovered inventory before deadline: {error}");
+            }
             return Ok(members);
         }
         for member in &members {
@@ -437,9 +537,8 @@ fn foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use() -> io
 fn stopped_inventory_is_owned_reaped_on_timeout_and_unwind() -> io::Result<()> {
     for unwind in [false, true] {
         let started = Instant::now();
-        let mut inventory = Inventory::spawn()?;
+        let mut inventory = stopped_inventory(started + Duration::from_millis(250))?;
         let pid = Pid::from_child(&inventory.process);
-        kill_process(pid, Signal::STOP)?;
         if unwind {
             let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
                 let _owner = inventory;
@@ -459,5 +558,182 @@ fn stopped_inventory_is_owned_reaped_on_timeout_and_unwind() -> io::Result<()> {
             started.elapsed()
         );
     }
+    Ok(())
+}
+
+/// Self-stop before exec, then acknowledge the actual kernel stop under the
+/// same caller budget. Unlike racing SIGSTOP with a fast ps, this always owns a
+/// noncooperative command. There is no shell child or asynchronous reader.
+fn stopped_inventory(deadline: Instant) -> io::Result<Inventory> {
+    use rustix::process::{WaitOptions, waitpid};
+
+    let inventory = Inventory::spawn_command(
+        Command::new("/bin/sh").args(["-c", "kill -STOP $$; exec /bin/ps -axo pid=,stat="]),
+    )?;
+    let pid = Pid::from_child(&inventory.process);
+    loop {
+        if let Some((_, status)) = waitpid(Some(pid), WaitOptions::UNTRACED | WaitOptions::NOHANG)?
+        {
+            if status.stopped() {
+                return Ok(inventory);
+            }
+            return Err(io::Error::other(
+                "inventory exited before its injected stop",
+            ));
+        }
+        if Instant::now() >= deadline {
+            return Err(io::Error::new(
+                io::ErrorKind::TimedOut,
+                "inventory did not acknowledge its injected stop",
+            ));
+        }
+        std::thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {
+    let started = Instant::now();
+    let deadline = started + Duration::from_millis(250);
+    let mut pid = None;
+    let pids = process_ids_using(deadline, || {
+        let inventory = stopped_inventory(deadline)?;
+        let child = Pid::from_child(&inventory.process);
+        pid = Some(child);
+        // A deterministic real command delay exceeds the old healthy-speed cap,
+        // while consuming only the existing preflight/diagnostic allowance.
+        std::thread::sleep(Duration::from_millis(80));
+        kill_process(child, Signal::CONT)?;
+        Ok(inventory)
+    })?;
+    assert!(
+        pids.iter()
+            .any(|(pid, _)| *pid == rustix::process::getpid())
+    );
+    assert!(started.elapsed() >= Duration::from_millis(80));
+    assert!(started.elapsed() < Duration::from_millis(250));
+    assert_eq!(
+        rustix::process::test_kill_process(pid.expect("inventory spawned")),
+        Err(Errno::SRCH)
+    );
+    eprintln!(
+        "FTQ-011 delayed owned inventory completed/reaped in {:?}",
+        started.elapsed()
+    );
+    Ok(())
+}
+
+const INVENTORY_FIXTURE_MODE: &str = "BD_CACHE_INVENTORY_FIXTURE_MODE";
+const INVENTORY_FIXTURE_TEST: &str =
+    "session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure";
+
+#[test]
+fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Result<()> {
+    if let Ok(mode) = std::env::var(INVENTORY_FIXTURE_MODE) {
+        rustix::process::setsid()?;
+        eprintln!("inventory fixture session established");
+        if mode == "wait" {
+            loop {
+                std::thread::park();
+            }
+        }
+        panic!("original fixture failure must remain a failure");
+    }
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "fail")?;
+    assert!(child.wait_for_output(
+        "inventory fixture session established",
+        Duration::from_secs(3)
+    )?);
+    let session = child.session;
+    let mut scans = 0;
+    let mut delayed_pid = None;
+    let status = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+        scans += 1;
+        if scans == 1 {
+            Err(io::Error::other("injected transient inventory failure"))
+        } else if scans == 3 {
+            process_ids_using(deadline, || {
+                let inventory = stopped_inventory(deadline)?;
+                let pid = Pid::from_child(&inventory.process);
+                delayed_pid = Some(pid);
+                std::thread::sleep(Duration::from_millis(80));
+                kill_process(pid, Signal::CONT)?;
+                Ok(inventory)
+            })
+        } else {
+            process_ids(deadline)
+        }
+    })?;
+    assert!(status.is_some_and(|status| !status.success()));
+    assert!(
+        child
+            .output()?
+            .contains("original fixture failure must remain a failure")
+    );
+    assert!(child.child.cleaned.load(Ordering::SeqCst));
+    assert!(
+        scans >= 5,
+        "recovery must include fresh stable and final censuses"
+    );
+    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+    assert_eq!(
+        rustix::process::test_kill_process(session),
+        Err(Errno::SRCH)
+    );
+    assert_eq!(
+        rustix::process::test_kill_process(delayed_pid.expect("delayed cleanup inventory")),
+        Err(Errno::SRCH)
+    );
+    eprintln!(
+        "FTQ-011 transient census recovered via {scans} scans; original fixture failed/reaped"
+    );
+    Ok(())
+}
+
+#[test]
+fn incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget() -> io::Result<()> {
+    let mut child = SessionFixture::spawn(INVENTORY_FIXTURE_TEST, INVENTORY_FIXTURE_MODE, "wait")?;
+    assert!(child.wait_for_output(
+        "inventory fixture session established",
+        Duration::from_secs(3)
+    )?);
+    let session = child.session;
+    let receipt = child.cleanup_receipt();
+    let mut inventory_pids = Vec::new();
+    let started = Instant::now();
+    let error = child
+        .cleanup_using(&mut |deadline| {
+            process_ids_using(deadline, || {
+                let inventory = stopped_inventory(deadline)?;
+                inventory_pids.push(Pid::from_child(&inventory.process));
+                Ok(inventory)
+            })
+        })
+        .expect_err("incomplete required censuses must not prove successful cleanup");
+    assert_eq!(error.kind(), io::ErrorKind::TimedOut);
+    assert!(!receipt.load(Ordering::SeqCst));
+    assert!(started.elapsed() < Duration::from_secs(2));
+    let attempted = child.cleanup_started;
+    assert!(
+        child.cleanup().is_err(),
+        "a second cleanup must not gain a fresh budget"
+    );
+    assert_eq!(child.cleanup_started, attempted);
+    drop(child);
+    assert!(!receipt.load(Ordering::SeqCst));
+    assert_eq!(
+        rustix::process::test_kill_process(session),
+        Err(Errno::SRCH)
+    );
+    assert_eq!(inventory_pids.len(), 3, "one owned scan per existing phase");
+    for pid in &inventory_pids {
+        assert_eq!(rustix::process::test_kill_process(*pid), Err(Errno::SRCH));
+    }
+    // This separate audit is evidence only; it cannot retroactively set receipt.
+    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+    assert!(!receipt.load(Ordering::SeqCst));
+    eprintln!(
+        "FTQ-011 noncooperative census children {inventory_pids:?} reaped; failed cleanup retained"
+    );
     Ok(())
 }

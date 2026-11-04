@@ -547,7 +547,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
             "fixture never reached its actual cleanup stall: {}",
             child.output()?
         );
-        let pids = child.owned_pids()?;
+        let pids = child.owned_pids(started + Duration::from_secs(5))?;
         if mode == "stalled-second-start" {
             assert!(
                 !pids.is_empty(),
@@ -601,6 +601,7 @@ fn lifecycle_supervisor_kills_and_reaps_stalled_join_families()
 #[test]
 fn lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind()
 -> Result<(), Box<dyn std::error::Error>> {
+    let fixture_started = Instant::now();
     let child = session_fixture::SessionFixture::spawn(
         "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
         LIFECYCLE_FIXTURE_MODE,
@@ -614,7 +615,7 @@ fn lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind()
         "first Python child was not reached: {}",
         child.output()?
     );
-    let pids = child.owned_pids()?;
+    let pids = child.owned_pids(fixture_started + Duration::from_secs(5))?;
     assert!(!pids.is_empty());
     let receipt = child.cleanup_receipt();
     let started = Instant::now();
@@ -685,16 +686,16 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
             "stalled-preregistration",
         )?;
         let ready_by = Instant::now() + Duration::from_secs(3);
-        while !child.unregistered_launch_ready()? && Instant::now() < ready_by {
+        while Instant::now() < ready_by && !child.unregistered_launch_ready(ready_by)? {
             std::thread::sleep(Duration::from_millis(5));
         }
         assert!(
-            child.unregistered_launch_ready()?,
+            child.unregistered_launch_ready(ready_by)?,
             "pre-registration production job did not launch: {}",
             child.output()?
         );
         let session = child.session_id();
-        let members = child.members()?;
+        let members = child.members(started + Duration::from_secs(5))?;
         assert!(
             members.len() >= 2,
             "must own actual Python shell and its stalled command"
@@ -721,7 +722,8 @@ fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind(
             "unregistered process cleanup did not reap"
         );
         assert!(
-            session_fixture::session_members(session)?.is_empty(),
+            session_fixture::session_members(session, Instant::now() + Duration::from_millis(250))?
+                .is_empty(),
             "owned session retained a process after cleanup"
         );
         for member in &members {
