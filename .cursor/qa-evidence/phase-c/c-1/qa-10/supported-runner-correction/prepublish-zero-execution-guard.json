@@ -1,0 +1,8 @@
+{
+  "old_run": 41794982056,
+  "old_job": 126456844993,
+  "terminal": "completed/cancelled",
+  "job_steps": 0,
+  "runner_assigned": false,
+  "assessment": "No workflow/test execution; cancellation is no test outcome."
+}

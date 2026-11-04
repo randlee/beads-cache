@@ -1,0 +1,509 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_static_validated_pushed_stopped_pending_CI_registration",
+    "model": "actual gpt-6.1-sol high fallback; configured Grok/Composer unavailable",
+    "branch": "sprint/c-2-framework-application",
+    "baseline": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+    "pushed_commit": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+    "pr": {
+      "baseRefName": "integrate/phase-c",
+      "headRefName": "sprint/c-2-framework-application",
+      "headRefOid": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+      "state": "OPEN",
+      "url": "https://github.com/randlee/beads-cache/pull/109"
+    },
+    "summary": "Exactly three Python macos-14 matrix labels changed to supported arm64 macos-15; canonical parent finding record included unchanged. All11 jobs and previous histories preserved.",
+    "finding": "CI-C2-RUNNER-001",
+    "finding_status": "OPEN pending actual exact-source hosted/owning validation; no self-QA closure",
+    "parent_authorization": {
+      "independent_owner": "runner-owner-assessment/result.json Important consumer/C2-owned finding confirmed",
+      "canonical_TTL": "Parent authored identical record in integration and C2 before dispatch; included byte-identically.",
+      "ceremony": "Parent accepted not_applicable; three executable values add no process/gate and waive nothing.",
+      "ownership": "C2-owned existing consumer workflow; no generator/pin/fingerprint/adoption step required."
+    },
+    "files_changed": [
+      ".github/workflows/python.yml",
+      ".triage/c/findings/CI-C2-RUNNER-001.ttl"
+    ],
+    "source_identity": {
+      "head": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+      "baseline": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "parent": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "changed_files": [
+        ".github/workflows/python.yml",
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl"
+      ],
+      "workflow_blob": "a21dd451a30d8d7a0ab60d2d18ebcca16c9ba7d7",
+      "workflow_sha256": "0e2110cd90d20b5d7383aaa4c973b7ade7917651bba0d9369369a4e424de7fc3",
+      "canonical_TTL_blob": "aada42e50310b21c2270c5139327a2b83125cb2c",
+      "unchanged": {
+        "crates": {
+          "before": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab",
+          "after": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab"
+        },
+        "Cargo.toml": {
+          "before": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "after": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7"
+        },
+        "Cargo.lock": {
+          "before": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "after": "8ff90ed761ac59b12f60c757085de42ccb2b8928"
+        },
+        "runtime": {
+          "before": "1a73c937007ce19137e4e8ab239292befe05638a",
+          "after": "1a73c937007ce19137e4e8ab239292befe05638a"
+        },
+        ".github/workflows/ci.yml": {
+          "before": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "after": "82afd3f400900f5d803f7f7ab2728495e32c8d40"
+        },
+        "scripts/consumer_checks.py": {
+          "before": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+          "after": "45324ac568d490ba95d2f484e0ef2f0483b378dd"
+        },
+        "docs": {
+          "before": "f9fc5c6989d4d60d9b60ffa1ad5022df00818815",
+          "after": "f9fc5c6989d4d60d9b60ffa1ad5022df00818815"
+        }
+      },
+      "all_prior_and_new_canonical_triage_byte_identical": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/RQA10-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "working_tree_clean": true,
+      "no_new_merge": true
+    },
+    "static_validation": {
+      "status": "PASS",
+      "parser": "installed PyYAML yaml.safe_load used on both complete workflows",
+      "changed_lines": [
+        40,
+        75,
+        117
+      ],
+      "exact_text_change_only": true,
+      "parsed_entire_workflow_equals_three_matrix_substitutions": true,
+      "before_expanded_matrix": [
+        {
+          "job": "rust",
+          "os": "macos-14"
+        },
+        {
+          "job": "rust",
+          "os": "ubuntu-24.04"
+        },
+        {
+          "job": "rust",
+          "os": "windows-latest"
+        },
+        {
+          "job": "wheel",
+          "os": "macos-14"
+        },
+        {
+          "job": "wheel",
+          "os": "ubuntu-24.04"
+        },
+        {
+          "job": "test",
+          "os": "macos-14",
+          "python": "3.9"
+        },
+        {
+          "job": "test",
+          "os": "macos-14",
+          "python": "3.11"
+        },
+        {
+          "job": "test",
+          "os": "macos-14",
+          "python": "3.13"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.9"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.11"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.13"
+        }
+      ],
+      "after_expanded_matrix": [
+        {
+          "job": "rust",
+          "os": "macos-15"
+        },
+        {
+          "job": "rust",
+          "os": "ubuntu-24.04"
+        },
+        {
+          "job": "rust",
+          "os": "windows-latest"
+        },
+        {
+          "job": "wheel",
+          "os": "macos-15"
+        },
+        {
+          "job": "wheel",
+          "os": "ubuntu-24.04"
+        },
+        {
+          "job": "test",
+          "os": "macos-15",
+          "python": "3.9"
+        },
+        {
+          "job": "test",
+          "os": "macos-15",
+          "python": "3.11"
+        },
+        {
+          "job": "test",
+          "os": "macos-15",
+          "python": "3.13"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.9"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.11"
+        },
+        {
+          "job": "test",
+          "os": "ubuntu-24.04",
+          "python": "3.13"
+        }
+      ],
+      "matrix_counts": {
+        "rust": 3,
+        "wheel": 2,
+        "pytest": 6,
+        "total": 11
+      },
+      "python_versions": [
+        "3.9",
+        "3.11",
+        "3.13"
+      ],
+      "matching_artifact_names": {
+        "upload": "wheel-${{ matrix.os }}",
+        "download": "wheel-${{ matrix.os }}",
+        "wheel_platforms": [
+          "macos-15",
+          "ubuntu-24.04"
+        ]
+      },
+      "all_steps_commands_actions_guards_toolchains_unchanged": {
+        "rust": true,
+        "wheel": true,
+        "test": true
+      },
+      "workflow_triggers_permissions_concurrency_env_defaults_timeouts_needs_failfast_unchanged": true,
+      "native_host_target_flags_and_features_unchanged": true,
+      "all_original_triage_including_canonical_new_record_byte_identical": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/RQA10-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "tracked_source_delta": [
+        ".github/workflows/python.yml"
+      ],
+      "no_Cargo_or_dependency_install": true,
+      "qualification_limit": "Static contracts passed; supported-runner execution, arm64 actual artifacts and all required Python versions must still be observed independently."
+    },
+    "commands": [
+      {
+        "name": "static-yaml-matrix-contracts",
+        "command": "python3 installed PyYAML: compare full old/new AST; enumerate matrices; compare steps/artifact references and exact source substitution",
+        "exit": 0,
+        "output": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-static-validation.json",
+        "execution": "one static validation invocation, no test file added"
+      },
+      {
+        "name": "consumer-boundary",
+        "command": [
+          "python3",
+          "scripts/lint_no_atm.py",
+          "--paths",
+          ".github/workflows/python.yml"
+        ],
+        "exit": 0,
+        "stdout": "no ATM concerns (ADR-BDC-0010)\n",
+        "stderr": ""
+      },
+      {
+        "name": "diff-check",
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "exit": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "name": "final-source-and-histories",
+        "command": "Read git object identities and old/new file/history hashes; exact two-file delta; clean worktree",
+        "exit": 0,
+        "output": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-final-source-identities.json"
+      }
+    ],
+    "lightweight_validation": {
+      "yaml": "PASS installed PyYAML full old/new parsed equality after only three substitutions; exact rawtext equality independently limits delta",
+      "matrix": "PASS3 Rust+2 wheel+6 pytest=11; Python3.9/3.11/3.13 retained",
+      "artifact_wiring": "PASS matching matrix-derived wheel upload/download preserved",
+      "all_steps_guards_actions_commands_timeouts_needs_triggers_features": "unchanged",
+      "consumer_boundary_lint": "PASS no ATM concerns (ADR-BDC-0010)",
+      "git_diff_check": "PASS",
+      "actionlint": "not installed; no installation attempted",
+      "tests_added": 0,
+      "Cargo_executed": false,
+      "dependency_installs": false,
+      "unexpected_validation_failures": []
+    },
+    "architecture": "Approved/intended and actual predecessor macOSarm64 preserved by supported macos-15 label. Explicit runner actual architecture/Python availability still requires hosted receipts; no unsupported Intel wheel added.",
+    "all13_dispositions": [
+      {
+        "id": "QA-C2-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: current37b Windows first-stop CTRL_BREAK abnormal exit3221225786 confirmed; published runtime stop support remains required.",
+        "triage": ".triage/c/findings/QA-C2-001.ttl"
+      },
+      {
+        "id": "C2-REQ-003",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: current CI, consumer, parent merges, independent QA and anchor acceptance remain incomplete; advisory retained.",
+        "triage": ".triage/c/findings/C2-REQ-003.ttl"
+      },
+      {
+        "id": "C2-REQ-004",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition: existing qualified startup/post-start correction retained; this diagnostic promotion adds no broad acceptance.",
+        "triage": ".triage/c/findings/C2-REQ-004.ttl"
+      },
+      {
+        "id": "C2-REQ-007",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: actual direct sync -> sc-command edge still requires approved published logging receiver seam.",
+        "triage": ".triage/c/findings/C2-REQ-007.ttl"
+      },
+      {
+        "id": "C2-REQ-009",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: portable endpoint/signal/instance-lock qualification remains incomplete.",
+        "triage": ".triage/c/findings/C2-REQ-009.ttl"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: published canonical logging seam/direct introducing edge unchanged; strict graph remains rejecting.",
+        "triage": ".triage/c/findings/ARCH-001.ttl"
+      },
+      {
+        "id": "RSH-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition; independently resolved supported C1 and paired public C2 startup scope preserved, not reopened.",
+        "triage": ".triage/c/findings/RSH-001.ttl"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: distinct carried logging dependency finding retained.",
+        "triage": ".triage/c/findings/RBQA-F001.ttl"
+      },
+      {
+        "id": "C4-FTQ-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: released ephemeral reservation race retained; public endpoint seam required.",
+        "triage": ".triage/c/findings/C4-FTQ-001.ttl"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN owning C2 disposition; original independently corrected50ms-cap mechanism/scoped closure preserved. RQA10 remains a distinct actual recovery timeout.",
+        "triage": ".triage/c/findings/FTQ-011.ttl"
+      },
+      {
+        "id": "RQA9-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN historical failed qualification/cause unknown. Independent owner credits validated observability/control scope as resolved; no further unchanged store rerun.",
+        "triage": ".triage/c/findings/RQA9-001.ttl"
+      },
+      {
+        "id": "RQA10-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: same recovery inventory timeout observed on C1 macOS8c and actual C2 macOS37b. Stage/call/root/census cause unresolved. Exact ec68 diagnostics now consumed; no cause correction claimed.",
+        "triage": ".triage/c/findings/RQA10-001.ttl"
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "tracked_open_owning_disposition",
+        "disposition": "OPEN: exact three supported arm64 labels corrected and static contracts PASS; actual changed-head macOS15/toolchain/Python3.9/3.11/3.13/wheel/pytest receipts and independent owner validation pending. No self-closure.",
+        "triage": ".triage/c/findings/CI-C2-RUNNER-001.ttl"
+      }
+    ],
+    "history_preservation": "Every prior tracked triage file and parent canonical new record byte-identical to pre-edit snapshot; scoped RSH/FTQ closure histories and C2-FTQ-006 retraction unchanged.",
+    "hosted_registration": {
+      "exact_pr_head_confirmed": true,
+      "initial_exact_head_run_list": [],
+      "second_bounded_registration_run_list": [],
+      "exact_head_check_runs_total": 0,
+      "native_CI_run_handle": null,
+      "python_CI_run_handle": null,
+      "native_job_handles": [],
+      "python_job_handles": [],
+      "limitation": "At bounded snapshot no new workflow runs/checks are registered for exact head. This is not a CI result or established infrastructure cause. Parent notified and owns later registration/monitoring. No workflow dispatch/rerun or wait-to-green performed."
+    },
+    "retirement_evidence_limit": "Official retirement establishes unsupported predecessor labels. Some prior macos14 jobs executed; specific queued3.9/3.11 cause remains unproven. No blanket unavailable/scheduling cause assertion.",
+    "unchanged_separate_failures": "Existing directsync->sc-command graph failures, Windows graceful stop, public endpoint/advisory/parent/wholeacceptance gaps remain unwaived. HistoricalRQA9/RQA10 stayOPEN unknown cause; scoped observability credit preserved.",
+    "frozen_observation": {
+      "head": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "run_id": 41796715401,
+      "job_id": 126462431901,
+      "untouched": true,
+      "actions": "No edit, cancellation, redispatch, query or rerun of frozen observation by this assignment."
+    },
+    "no_extra_scope": [
+      "No product/test source",
+      "No Cargo or broad tests",
+      "No new test file mirroring replacements",
+      "No SDK/publisher/auth/guard/pin/fingerprint/generation changes",
+      "No extra worktree or integration merges",
+      "No agents",
+      "No PRmerge or selfclosure"
+    ],
+    "cargo": {
+      "status": "NOT USED",
+      "active_owned_build_test_commands": 0
+    },
+    "working_tree_clean": true,
+    "merge_readiness": "NOT READY; all13 tracked; CI registration/actual receipts and independent QA/wholeacceptance remain pending",
+    "artifacts": {
+      "required-python-runner-before.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-before.json",
+        "bytes": 2627,
+        "sha256": "212565a38bd597688223d5c6c6661c4fbe3939870459474075e8f48017a8f887"
+      },
+      "required-python-runner-commands.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-commands.json",
+        "bytes": 1076,
+        "sha256": "a4880175a52254ac8df1f2b590031c4eaeda00a8a0eaae3d082f7170543b3739"
+      },
+      "required-python-runner-consumer-lint.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-consumer-lint.log",
+        "bytes": 31,
+        "sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d"
+      },
+      "required-python-runner-diff-check.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-diff-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "required-python-runner-final-source-identities.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-final-source-identities.json",
+        "bytes": 2642,
+        "sha256": "c074176d50dcb7f600f69834ce079c93e938e4db377e2122b1a1413915b5ea8d"
+      },
+      "required-python-runner-fix-vars.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-fix-vars.json",
+        "bytes": 4761,
+        "sha256": "6ded74617655b4a3f2ae797ddd920c2c0065b856c263430e5b07fab639014aeb"
+      },
+      "required-python-runner-fix.xml": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-fix.xml",
+        "bytes": 7334,
+        "sha256": "982d87e4f8a26327e025129bd13b3324d806dcf894a07b9459f2d88c88fd85c1"
+      },
+      "required-python-runner-head-checks.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-head-checks.json",
+        "bytes": 33,
+        "sha256": "e83cfac35507982a40cfeb776ce85aa0367e7646f81fe857df4a6c841ea8a170"
+      },
+      "required-python-runner-hosted-runs-registered.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-hosted-runs-registered.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "required-python-runner-hosted-runs.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-hosted-runs.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "required-python-runner-pr-source.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-pr-source.json",
+        "bytes": 212,
+        "sha256": "6fb99c5fce3c2a58deb786033b1d932505f839c85c3f03bb8292322b5e608ba8"
+      },
+      "required-python-runner-source.diff": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-source.diff",
+        "bytes": 902,
+        "sha256": "8a61f24b789e6b48bb888acd1bca7685f34c1d6eb782a4b7c95fed0b18cb92b8"
+      },
+      "required-python-runner-static-validation.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-static-validation.json",
+        "bytes": 3872,
+        "sha256": "e4d94e87652b0be07e373ddfe7abfe35ab05f872bbcebbc91d88f88e7c9c1017"
+      },
+      "required-python-runner-static-validation.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/required-python-runner-static-validation.log",
+        "bytes": 3872,
+        "sha256": "e4d94e87652b0be07e373ddfe7abfe35ab05f872bbcebbc91d88f88e7c9c1017"
+      }
+    },
+    "timestamp_utc": "2026-11-04T08:16:25.282126+00:00",
+    "stopped": true
+  },
+  "error": null
+}

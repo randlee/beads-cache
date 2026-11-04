@@ -1,0 +1,83 @@
+diff --git a/crates/bd-cache-sync/tests/common/session_fixture.rs b/crates/bd-cache-sync/tests/common/session_fixture.rs
+index 8f5313e..d8db8c9 100644
+--- a/crates/bd-cache-sync/tests/common/session_fixture.rs
++++ b/crates/bd-cache-sync/tests/common/session_fixture.rs
+@@ -723,29 +723,29 @@ fn stopped_inventory(deadline: Instant) -> io::Result<Inventory> {
+ fn inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command() -> io::Result<()> {
+     let started = Instant::now();
+     let deadline = started + Duration::from_millis(250);
+-    let mut pid = None;
++    let mut delayed = None;
+     let pids = process_ids_using(deadline, || {
+         let inventory = stopped_inventory(deadline)?;
+         let child = Pid::from_child(&inventory.process);
+-        pid = Some(child);
+-        // A deterministic real command delay exceeds the old healthy-speed cap,
+-        // while consuming only the existing preflight/diagnostic allowance.
++        // Keep this real delay independent of transient cleanup recovery: it
++        // exceeds the old 50ms cap within the existing 250ms caller budget.
++        let delay_started = Instant::now();
+         std::thread::sleep(Duration::from_millis(80));
++        let delay_elapsed = delay_started.elapsed();
+         kill_process(child, Signal::CONT)?;
++        delayed = Some((child, delay_elapsed));
+         Ok(inventory)
+     })?;
+     assert!(
+         pids.iter()
+             .any(|(pid, _)| *pid == rustix::process::getpid())
+     );
+-    assert!(started.elapsed() >= Duration::from_millis(80));
++    let (pid, delay_elapsed) = delayed.expect("stopped inventory resumed");
++    assert!(delay_elapsed >= Duration::from_millis(80));
+     assert!(started.elapsed() < Duration::from_millis(250));
+-    assert_eq!(
+-        rustix::process::test_kill_process(pid.expect("inventory spawned")),
+-        Err(Errno::SRCH)
+-    );
++    assert_eq!(rustix::process::test_kill_process(pid), Err(Errno::SRCH));
+     eprintln!(
+-        "FTQ-011 delayed owned inventory completed/reaped in {:?}",
++        "FTQ-011 delayed owned inventory completed/reaped in {:?}; pid={pid:?} actual_stop_ack=true requested_delay=80ms actual_delay={delay_elapsed:?} cont_returned_ok=true actual_wait_reaped=true",
+         started.elapsed()
+     );
+     Ok(())
+@@ -774,23 +774,14 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
+     )?);
+     let session = child.session;
+     let mut scans = 0;
+-    let mut delayed_pid = None;
++    // Positive transient recovery requires fresh real censuses under the
++    // original cleanup deadlines. The independent inventory-delay regression
++    // above owns the deliberate STOP/80ms/CONT input; combining it here added a
++    // second timing assumption inside the two-stable-census quiescence window.
+     let finished = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+         scans += 1;
+         if scans == 1 {
+             Err(io::Error::other("injected transient inventory failure"))
+-        } else if scans == 3 {
+-            process_ids_using(deadline, || {
+-                let inventory = stopped_inventory(deadline)?;
+-                let pid = Pid::from_child(&inventory.process);
+-                delayed_pid = Some(pid);
+-                let delay_started = Instant::now();
+-                eprintln!("RQA10_INJECT scan=3 pid={pid:?} actual_stop_ack=true remaining_before_80ms={:?}", deadline.saturating_duration_since(delay_started));
+-                std::thread::sleep(Duration::from_millis(80));
+-                eprintln!("RQA10_INJECT scan=3 pid={pid:?} actual_delay={:?} remaining_before_cont={:?}", delay_started.elapsed(), deadline.saturating_duration_since(Instant::now()));
+-                kill_process(pid, Signal::CONT)?;
+-                Ok(inventory)
+-            })
+         } else {
+             process_ids(deadline)
+         }
+@@ -825,10 +816,6 @@ fn cleanup_inventory_recovery_preserves_the_original_fixture_failure() -> io::Re
+         rustix::process::test_kill_process(session),
+         Err(Errno::SRCH)
+     );
+-    assert_eq!(
+-        rustix::process::test_kill_process(delayed_pid.expect("delayed cleanup inventory")),
+-        Err(Errno::SRCH)
+-    );
+     eprintln!(
+         "FTQ-011 transient census recovered via {scans} scans; original fixture failed/reaped"
+     );

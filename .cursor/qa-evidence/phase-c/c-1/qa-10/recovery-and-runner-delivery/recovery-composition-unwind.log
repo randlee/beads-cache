@@ -1,0 +1,39 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.15s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 1 test
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33654 spawn_elapsed=228.416µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33654 command_elapsed=24.368291ms actual_wait=true status=exit status: 0 remaining=225.26575ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33688 spawn_elapsed=279.917µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33688 command_elapsed=27.415709ms actual_wait=true status=exit status: 0 remaining=4.471877833s
+
+thread 'lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind' (319423941) panicked at crates/bd-cache-sync/tests/cron_hurry.rs:624:9:
+injected parent assertion
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=33655 stage=initial-drain call=1 owner_elapsed=1.083µs deadline_offset=100ms remaining=99.998917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33689 spawn_elapsed=239.083µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33689 command_elapsed=24.348083ms actual_wait=true status=exit status: 0 remaining=75.319417ms
+RQA10_SCAN_END thread=ThreadId(2) session=33655 stage=initial-drain call=1 elapsed=25.400583ms remaining=74.598292ms result=Ok(1027)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=33655 stage=initial-drain call=2 owner_elapsed=33.333ms deadline_offset=100ms remaining=66.667ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33690 spawn_elapsed=225.166µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33690 command_elapsed=25.856125ms actual_wait=true status=exit status: 0 remaining=40.696459ms
+RQA10_SCAN_END thread=ThreadId(2) session=33655 stage=initial-drain call=2 elapsed=26.777208ms remaining=39.88975ms result=Ok(1026)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=33655 stage=quiescence call=3 owner_elapsed=60.573666ms deadline_offset=250ms remaining=189.426334ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33691 spawn_elapsed=240.667µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33691 command_elapsed=26.700667ms actual_wait=true status=exit status: 0 remaining=162.598ms
+RQA10_SCAN_END thread=ThreadId(2) session=33655 stage=quiescence call=3 elapsed=27.636667ms remaining=161.789625ms result=Ok(1026)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=33655 stage=quiescence call=4 owner_elapsed=95.099625ms deadline_offset=250ms remaining=154.900375ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33692 spawn_elapsed=252.458µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33692 command_elapsed=24.383708ms actual_wait=true status=exit status: 0 remaining=130.38325ms
+RQA10_SCAN_END thread=ThreadId(2) session=33655 stage=quiescence call=4 elapsed=25.260833ms remaining=129.6395ms result=Ok(1026)
+RQA10_ROOT session=33655 elapsed=121.517208ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=878.482792ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=33655 stage=final-drain call=5 owner_elapsed=121.603875ms deadline_offset=1s remaining=878.396125ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=33693 spawn_elapsed=234.875µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=33693 command_elapsed=24.340292ms actual_wait=true status=exit status: 0 remaining=853.874459ms
+RQA10_SCAN_END thread=ThreadId(2) session=33655 stage=final-drain call=5 elapsed=25.316541ms remaining=853.079584ms result=Ok(1025)
+RQA10_CLEANUP session=33655 calls=5 elapsed=147.364166ms cleaned=true final_complete_census=true
+FTQ-010 assertion-unwind cleanup in 151.002541ms; owned Python PIDs reaped: [33681]
+test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 18 filtered out; finished in 0.68s
+

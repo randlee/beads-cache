@@ -1,0 +1,281 @@
+﻿2026-11-04T07:51:11.3672840Z Current runner version: '2.338.2'
+2026-11-04T07:51:11.3690540Z ##[group]Runner Image Provisioner
+2026-11-04T07:51:11.3691390Z Hosted Compute Agent
+2026-11-04T07:51:11.3691940Z Version: 20260828.587
+2026-11-04T07:51:11.3692420Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-11-04T07:51:11.3692970Z Build Date: 2026-08-28T16:44:25Z
+2026-11-04T07:51:11.3693490Z Worker ID: {414beb47-f389-4a78-bdd0-4c768422415b}
+2026-11-04T07:51:11.3694030Z Azure Region: westus
+2026-11-04T07:51:11.3694480Z ##[endgroup]
+2026-11-04T07:51:11.3695550Z ##[group]Operating System
+2026-11-04T07:51:11.3696020Z macOS
+2026-11-04T07:51:11.3696420Z 14.8.9
+2026-11-04T07:51:11.3696940Z 23J631
+2026-11-04T07:51:11.3697380Z ##[endgroup]
+2026-11-04T07:51:11.3697910Z ##[group]Runner Image
+2026-11-04T07:51:11.3698400Z Image: macos-14-arm64
+2026-11-04T07:51:11.3698870Z Version: 20260831.0302.1
+2026-11-04T07:51:11.3700010Z Included Software: https://github.com/actions/runner-images/blob/macos-14-arm64/20260831.0302/images/macos/macos-14-arm64-Readme.md
+2026-11-04T07:51:11.3701310Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260831.0302
+2026-11-04T07:51:11.3702150Z ##[endgroup]
+2026-11-04T07:51:11.3703060Z ##[group]GITHUB_TOKEN Permissions
+2026-11-04T07:51:11.3704530Z Contents: read
+2026-11-04T07:51:11.3704980Z Metadata: read
+2026-11-04T07:51:11.3705430Z ##[endgroup]
+2026-11-04T07:51:11.3706980Z Secret source: Actions
+2026-11-04T07:51:11.3707710Z Cache mode: write
+2026-11-04T07:51:11.3708260Z Prepare workflow directory
+2026-11-04T07:51:11.4009360Z Prepare all required actions
+2026-11-04T07:51:11.4043840Z Getting action download info
+2026-11-04T07:51:11.7978000Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-04T07:51:12.0435110Z Download action repository 'Swatinem/rust-cache@v2' (SHA:d1527c8f67ef9af357290475d4af4b0fab8f12e0)
+2026-11-04T07:51:12.4850400Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+2026-11-04T07:51:12.6447460Z Complete job name: clippy and test (macos-14)
+2026-11-04T07:51:12.7014240Z ##[group]Run actions/checkout@v4
+2026-11-04T07:51:12.7014910Z with:
+2026-11-04T07:51:12.7015320Z   repository: randlee/beads-cache
+2026-11-04T07:51:12.7018330Z   token: ***
+2026-11-04T07:51:12.7018730Z   ssh-strict: true
+2026-11-04T07:51:12.7019130Z   ssh-user: git
+2026-11-04T07:51:12.7019650Z   persist-credentials: true
+2026-11-04T07:51:12.7020100Z   clean: true
+2026-11-04T07:51:12.7020510Z   sparse-checkout-cone-mode: true
+2026-11-04T07:51:12.7020970Z   fetch-depth: 1
+2026-11-04T07:51:12.7021370Z   fetch-tags: false
+2026-11-04T07:51:12.7021790Z   show-progress: true
+2026-11-04T07:51:12.7022200Z   lfs: false
+2026-11-04T07:51:12.7022730Z   submodules: false
+2026-11-04T07:51:12.7023200Z   set-safe-directory: true
+2026-11-04T07:51:12.7023650Z   allow-unsafe-pr-checkout: false
+2026-11-04T07:51:12.7024310Z env:
+2026-11-04T07:51:12.7024700Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:12.7025160Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:12.7025610Z ##[endgroup]
+2026-11-04T07:51:13.0734740Z Syncing repository: randlee/beads-cache
+2026-11-04T07:51:13.0736270Z ##[group]Getting Git version info
+2026-11-04T07:51:13.0736990Z Working directory is '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T07:51:13.0738030Z [command]/opt/homebrew/bin/git version
+2026-11-04T07:51:13.0979730Z git version 2.55.0
+2026-11-04T07:51:13.0994360Z ##[endgroup]
+2026-11-04T07:51:13.1005540Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/f6ad3c1c-8144-49d9-92c6-324907df5a70/.gitconfig'
+2026-11-04T07:51:13.1012910Z Temporarily overriding HOME='/Users/runner/work/_temp/f6ad3c1c-8144-49d9-92c6-324907df5a70' before making global git config changes
+2026-11-04T07:51:13.1014000Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T07:51:13.1016060Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T07:51:13.1113120Z Deleting the contents of '/Users/runner/work/beads-cache/beads-cache'
+2026-11-04T07:51:13.1117340Z ##[group]Initializing the repository
+2026-11-04T07:51:13.1120340Z [command]/opt/homebrew/bin/git init /Users/runner/work/beads-cache/beads-cache
+2026-11-04T07:51:13.1334080Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-04T07:51:13.1335160Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-04T07:51:13.1336220Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-04T07:51:13.1337050Z hint: call:
+2026-11-04T07:51:13.1337530Z hint:
+2026-11-04T07:51:13.1338460Z hint: 	git config --global init.defaultBranch <name>
+2026-11-04T07:51:13.1339030Z hint:
+2026-11-04T07:51:13.1339680Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-04T07:51:13.1340450Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-04T07:51:13.1341080Z hint:
+2026-11-04T07:51:13.1341540Z hint: 	git branch -m <name>
+2026-11-04T07:51:13.1341990Z hint:
+2026-11-04T07:51:13.1342560Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-04T07:51:13.1343540Z Initialized empty Git repository in /Users/runner/work/beads-cache/beads-cache/.git/
+2026-11-04T07:51:13.1345160Z [command]/opt/homebrew/bin/git remote add origin https://github.com/randlee/beads-cache
+2026-11-04T07:51:13.1407760Z ##[endgroup]
+2026-11-04T07:51:13.1408870Z ##[group]Disabling automatic garbage collection
+2026-11-04T07:51:13.1409680Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-11-04T07:51:13.1462930Z ##[endgroup]
+2026-11-04T07:51:13.1464560Z ##[group]Setting up auth
+2026-11-04T07:51:13.1467550Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T07:51:13.1520100Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T07:51:13.2261560Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T07:51:13.2304640Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T07:51:13.2873380Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T07:51:13.2945720Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T07:51:13.3507100Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-04T07:51:13.3557020Z ##[endgroup]
+2026-11-04T07:51:13.3558100Z ##[group]Fetching the repository
+2026-11-04T07:51:13.3565630Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +c300e626be7e4b83c5cebf4c0d469ce3ef710a0e:refs/remotes/pull/109/merge
+2026-11-04T07:51:14.7037520Z From https://github.com/randlee/beads-cache
+2026-11-04T07:51:14.7038730Z  * [new ref]         c300e626be7e4b83c5cebf4c0d469ce3ef710a0e -> pull/109/merge
+2026-11-04T07:51:14.7040740Z ##[endgroup]
+2026-11-04T07:51:14.7041340Z ##[group]Determining the checkout info
+2026-11-04T07:51:14.7042050Z ##[endgroup]
+2026-11-04T07:51:14.7045330Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-11-04T07:51:14.7105530Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-04T07:51:14.7150960Z ##[group]Checking out the ref
+2026-11-04T07:51:14.7153980Z [command]/opt/homebrew/bin/git checkout --progress --force refs/remotes/pull/109/merge
+2026-11-04T07:51:14.8975150Z HEAD is now at c300e62 Merge 7fb224623280dae9cb056915484cb698ddf6bdf0 into 9f7cd65e7920ca54989fa12616205e78aa907767
+2026-11-04T07:51:14.8989100Z ##[endgroup]
+2026-11-04T07:51:14.9083380Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2026-11-04T07:51:14.9134500Z c300e626be7e4b83c5cebf4c0d469ce3ef710a0e
+2026-11-04T07:51:14.9322460Z ##[group]Run rustup show active-toolchain || rustup toolchain install
+2026-11-04T07:51:14.9323100Z [36;1mrustup show active-toolchain || rustup toolchain install[0m
+2026-11-04T07:51:14.9390710Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T07:51:14.9391120Z env:
+2026-11-04T07:51:14.9391380Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:14.9391730Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:14.9392020Z ##[endgroup]
+2026-11-04T07:51:15.0408390Z info: syncing channel updates for 1.98.1-aarch64-apple-darwin
+2026-11-04T07:51:15.1673640Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-11-04T07:51:15.1683000Z info: downloading 5 components
+2026-11-04T07:51:21.7190770Z 1.98.1-aarch64-apple-darwin (overridden by '/Users/runner/work/beads-cache/beads-cache/rust-toolchain.toml')
+2026-11-04T07:51:21.7383580Z ##[group]Run Swatinem/rust-cache@v2
+2026-11-04T07:51:21.7383870Z with:
+2026-11-04T07:51:21.7384360Z   prefix-key: v0-rust
+2026-11-04T07:51:21.7384540Z   add-job-id-key: true
+2026-11-04T07:51:21.7384810Z   add-rust-environment-hash-key: true
+2026-11-04T07:51:21.7385030Z   cache-targets: true
+2026-11-04T07:51:21.7385220Z   cache-all-crates: false
+2026-11-04T07:51:21.7385420Z   cache-workspace-crates: false
+2026-11-04T07:51:21.7385670Z   save-if: true
+2026-11-04T07:51:21.7385840Z   cache-provider: github
+2026-11-04T07:51:21.7386160Z   cache-bin: true
+2026-11-04T07:51:21.7386330Z   lookup-only: false
+2026-11-04T07:51:21.7386520Z   cmd-format: {0}
+2026-11-04T07:51:21.7386740Z env:
+2026-11-04T07:51:21.7407050Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:21.7407440Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:21.7407740Z ##[endgroup]
+2026-11-04T07:51:22.5702230Z ##[group]Cache Configuration
+2026-11-04T07:51:22.5707970Z Cache Provider:
+2026-11-04T07:51:22.5709380Z     github
+2026-11-04T07:51:22.5709910Z Workspaces:
+2026-11-04T07:51:22.5710430Z     /Users/runner/work/beads-cache/beads-cache
+2026-11-04T07:51:22.5712570Z Cache Paths:
+2026-11-04T07:51:22.5713070Z     /Users/runner/.cargo/bin
+2026-11-04T07:51:22.5713450Z     /Users/runner/.cargo/.crates.toml
+2026-11-04T07:51:22.5713890Z     /Users/runner/.cargo/.crates2.json
+2026-11-04T07:51:22.5714360Z     /Users/runner/.cargo/registry
+2026-11-04T07:51:22.5714790Z     /Users/runner/.cargo/git
+2026-11-04T07:51:22.5715170Z     /Users/runner/work/beads-cache/beads-cache/target
+2026-11-04T07:51:22.5716390Z Restore Key:
+2026-11-04T07:51:22.5716830Z     v0-rust-rust-Darwin-arm64-600c669f
+2026-11-04T07:51:22.5717300Z Cache Key:
+2026-11-04T07:51:22.5717690Z     v0-rust-rust-Darwin-arm64-600c669f-a7b7d3f7
+2026-11-04T07:51:22.5718610Z .. Prefix:
+2026-11-04T07:51:22.5719450Z   - v0-rust-rust-Darwin-arm64
+2026-11-04T07:51:22.5719950Z .. Environment considered:
+2026-11-04T07:51:22.5720360Z   - Rust Versions:
+2026-11-04T07:51:22.5721050Z     - 1.98.0 aarch64-apple-darwin 88d9e12ae178fab0fb5cc050a94da85685d449ea
+2026-11-04T07:51:22.5721810Z     - 1.98.1 aarch64-apple-darwin 48a229ceaefd4985c50990b14116b6d856af0985
+2026-11-04T07:51:22.5722350Z   - CARGO_INCREMENTAL
+2026-11-04T07:51:22.5722690Z   - CARGO_TERM_COLOR
+2026-11-04T07:51:22.5723350Z   - RUSTFLAGS
+2026-11-04T07:51:22.5724370Z .. Lockfiles considered:
+2026-11-04T07:51:22.5726230Z   - /Users/runner/work/beads-cache/beads-cache/Cargo.lock
+2026-11-04T07:51:22.5727020Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api/Cargo.toml
+2026-11-04T07:51:22.5727860Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-cli/Cargo.toml
+2026-11-04T07:51:22.5728690Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-daemon/Cargo.toml
+2026-11-04T07:51:22.5729370Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model/Cargo.toml
+2026-11-04T07:51:22.5729970Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-py/Cargo.toml
+2026-11-04T07:51:22.5731020Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-service/Cargo.toml
+2026-11-04T07:51:22.5737860Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store/Cargo.toml
+2026-11-04T07:51:22.5738340Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync/Cargo.toml
+2026-11-04T07:51:22.5739400Z   - /Users/runner/work/beads-cache/beads-cache/crates/bd-cache/Cargo.toml
+2026-11-04T07:51:22.5739900Z   - /Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli/Cargo.toml
+2026-11-04T07:51:22.5740500Z   - /Users/runner/work/beads-cache/beads-cache/crates/sc-beads/Cargo.toml
+2026-11-04T07:51:22.5740980Z   - /Users/runner/work/beads-cache/beads-cache/rust-toolchain.toml
+2026-11-04T07:51:22.5741670Z ##[endgroup]
+2026-11-04T07:51:22.5741760Z 
+2026-11-04T07:51:22.5741840Z ... Restoring cache ...
+2026-11-04T07:51:22.9580370Z Cache hit for restore-key: v0-rust-rust-Darwin-arm64-600c669f-e7f9b194
+2026-11-04T07:51:24.2115170Z Received 0 of 168191808 (0.0%), 0.0 MBs/sec
+2026-11-04T07:51:25.2145960Z Received 75497472 of 168191808 (44.9%), 35.9 MBs/sec
+2026-11-04T07:51:26.2164870Z Received 134217728 of 168191808 (79.8%), 42.6 MBs/sec
+2026-11-04T07:51:26.3689390Z Received 168191808 of 168191808 (100.0%), 50.8 MBs/sec
+2026-11-04T07:51:26.3693790Z Cache Size: ~160 MB (168191808 B)
+2026-11-04T07:51:26.3738290Z [command]/opt/homebrew/bin/gtar -xf /Users/runner/work/_temp/bd6e9f27-3da3-4298-a5cd-42ff65457785/cache.tzst -P -C /Users/runner/work/beads-cache/beads-cache --delay-directory-restore --use-compress-program unzstd
+2026-11-04T07:51:27.8033490Z Cache restored successfully
+2026-11-04T07:51:27.8055410Z Restored from cache key "v0-rust-rust-Darwin-arm64-600c669f-e7f9b194" full match: false.
+2026-11-04T07:51:28.0291250Z ##[group]Run actions/setup-python@v5
+2026-11-04T07:51:28.0291500Z with:
+2026-11-04T07:51:28.0291650Z   python-version: 3.12
+2026-11-04T07:51:28.0291820Z   check-latest: false
+2026-11-04T07:51:28.0293940Z   token: ***
+2026-11-04T07:51:28.0294110Z   update-environment: true
+2026-11-04T07:51:28.0294320Z   allow-prereleases: false
+2026-11-04T07:51:28.0294500Z   freethreaded: false
+2026-11-04T07:51:28.0294650Z env:
+2026-11-04T07:51:28.0294800Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:28.0294980Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:28.0295150Z   CACHE_ON_FAILURE: false
+2026-11-04T07:51:28.0295320Z   CARGO_INCREMENTAL: 0
+2026-11-04T07:51:28.0295480Z ##[endgroup]
+2026-11-04T07:51:28.1611430Z ##[group]Installed versions
+2026-11-04T07:51:28.1673460Z (node:1991) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-04T07:51:28.1674160Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-04T07:51:28.1674710Z Successfully set up CPython (3.12.10)
+2026-11-04T07:51:28.1675150Z ##[endgroup]
+2026-11-04T07:51:28.1750580Z ##[group]Run python -I scripts/check_no_backend.py path
+2026-11-04T07:51:28.1750950Z [36;1mpython -I scripts/check_no_backend.py path[0m
+2026-11-04T07:51:28.1817100Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T07:51:28.1817440Z env:
+2026-11-04T07:51:28.1817620Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:28.1817830Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:28.1818030Z   CACHE_ON_FAILURE: false
+2026-11-04T07:51:28.1818240Z   CARGO_INCREMENTAL: 0
+2026-11-04T07:51:28.1818540Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.1819080Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T07:51:28.1819550Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.1819960Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.1820380Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.1831050Z ##[endgroup]
+2026-11-04T07:51:28.4445780Z no bd or dolt on PATH
+2026-11-04T07:51:28.4513390Z ##[group]Run python -I scripts/consumer_checks.py --graph --package bd-cache-py --package bd-cache-api
+2026-11-04T07:51:28.4518400Z [36;1mpython -I scripts/consumer_checks.py --graph --package bd-cache-py --package bd-cache-api[0m
+2026-11-04T07:51:28.4569760Z shell: /bin/bash --noprofile --norc -e -o pipefail {0}
+2026-11-04T07:51:28.4570050Z env:
+2026-11-04T07:51:28.4570220Z   CARGO_TERM_COLOR: always
+2026-11-04T07:51:28.4570430Z   RUSTFLAGS: -D warnings
+2026-11-04T07:51:28.4570630Z   CACHE_ON_FAILURE: false
+2026-11-04T07:51:28.4570840Z   CARGO_INCREMENTAL: 0
+2026-11-04T07:51:28.4571130Z   pythonLocation: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.4571600Z   PKG_CONFIG_PATH: /Users/runner/hostedtoolcache/Python/3.12.10/arm64/lib/pkgconfig
+2026-11-04T07:51:28.4572130Z   Python_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.4572540Z   Python2_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.4573000Z   Python3_ROOT_DIR: /Users/runner/hostedtoolcache/Python/3.12.10/arm64
+2026-11-04T07:51:28.4573310Z ##[endgroup]
+2026-11-04T07:51:28.8776220Z [1m[92m    Updating[0m crates.io index
+2026-11-04T07:51:29.1145040Z [1m[92m     Locking[0m 151 packages to latest Rust 1.98.1 compatible versions
+2026-11-04T07:51:29.2492380Z [1m[92m Downloading[0m crates ...
+2026-11-04T07:51:30.6876620Z [1m[92m  Downloaded[0m cc v1.11.0
+2026-11-04T07:51:30.6947180Z [1m[92m  Downloaded[0m hashlink v0.11.1
+2026-11-04T07:51:30.6976800Z [1m[92m  Downloaded[0m js-sys v0.3.107
+2026-11-04T07:51:30.7026390Z [1m[92m  Downloaded[0m log v0.4.35
+2026-11-04T07:51:30.7068860Z [1m[92m  Downloaded[0m libsqlite3-sys v0.37.0
+2026-11-04T07:51:30.7726830Z [1m[92m  Downloaded[0m rusqlite v0.39.0
+2026-11-04T07:51:30.7851570Z [1m[92m  Downloaded[0m rustix v1.1.6
+2026-11-04T07:51:30.8341770Z [1m[92m  Downloaded[0m sc-command v0.1.1
+2026-11-04T07:51:30.8371040Z [1m[92m  Downloaded[0m sc-cron v0.1.1
+2026-11-04T07:51:30.8491350Z [1m[92m  Downloaded[0m toml v1.2.0+spec-1.1.0
+2026-11-04T07:51:30.8563520Z [1m[92m  Downloaded[0m toml_writer v1.2.0+spec-1.1.0
+2026-11-04T07:51:30.8619500Z [1m[92m  Downloaded[0m wasm-bindgen v0.2.130
+2026-11-04T07:51:30.8668030Z [1m[92m  Downloaded[0m wasm-bindgen-macro v0.2.130
+2026-11-04T07:51:30.8683300Z [1m[92m  Downloaded[0m wasm-bindgen-shared v0.2.130
+2026-11-04T07:51:30.8704670Z [1m[92m  Downloaded[0m wasm-bindgen-macro-support v0.2.130
+2026-11-04T07:51:30.9165570Z Traceback (most recent call last):
+2026-11-04T07:51:30.9173990Z   File "/Users/runner/work/beads-cache/beads-cache/scripts/consumer_checks.py", line 507, in <module>
+2026-11-04T07:51:30.9174590Z     main()
+2026-11-04T07:51:30.9175070Z   File "/Users/runner/work/beads-cache/beads-cache/scripts/consumer_checks.py", line 342, in main
+2026-11-04T07:51:30.9175700Z     isolated_graph(args.package or ("bd-cache-api", "bd-cache-py", "bd-cache-cli"))
+2026-11-04T07:51:30.9176450Z   File "/Users/runner/work/beads-cache/beads-cache/scripts/consumer_checks.py", line 88, in isolated_graph
+2026-11-04T07:51:30.9176990Z     assert not errors, "\n".join(errors)
+2026-11-04T07:51:30.9177250Z            ^^^^^^^^^^
+2026-11-04T07:51:30.9178270Z AssertionError: bd-cache-sync -> sc-command: only published sc-cron may introduce the contract/logging exception
+2026-11-04T07:51:30.9278030Z ##[error]Process completed with exit code 1.
+2026-11-04T07:51:30.9406740Z Post job cleanup.
+2026-11-04T07:51:31.0350810Z [command]/opt/homebrew/bin/git version
+2026-11-04T07:51:31.0417210Z git version 2.55.0
+2026-11-04T07:51:31.0435510Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/a803ebab-55f1-442d-8b59-cae63c5ee80b/.gitconfig'
+2026-11-04T07:51:31.0446290Z Temporarily overriding HOME='/Users/runner/work/_temp/a803ebab-55f1-442d-8b59-cae63c5ee80b' before making global git config changes
+2026-11-04T07:51:31.0447420Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-04T07:51:31.0448700Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/beads-cache/beads-cache
+2026-11-04T07:51:31.0503730Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-04T07:51:31.0553090Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-04T07:51:31.1181170Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-04T07:51:31.1222760Z http.https://github.com/.extraheader
+2026-11-04T07:51:31.1229290Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-04T07:51:31.1281880Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-04T07:51:31.1875280Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-04T07:51:31.1922810Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-04T07:51:31.2593520Z Cleaning up orphan processes
+2026-11-04T07:51:31.2719670Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

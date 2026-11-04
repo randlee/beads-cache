@@ -1,0 +1,63 @@
+{
+  "qa_pass": "qa-11",
+  "source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "recorded_at": "2026-11-04T08:58:39.196004+00:00",
+  "proof": [
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa11",
+      "parent_received_actual_final_answer": true,
+      "current_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "canonical_handoff": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+      "sha256": "28070142c23f21de9ee7968c6d2103b52200219f2b6ef4d16ba2f037bef961b2",
+      "json_markdown_identity": true,
+      "full_report_hash_bound_to_actual_final": true,
+      "finding_ids": [
+        "QA2-001",
+        "RQA9-001",
+        "RQA11-001"
+      ]
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa11",
+      "parent_received_actual_final_answer": true,
+      "current_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "canonical_handoff": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-result.json",
+      "sha256": "bc78efcf959f92bfbe0c895575bbf5e785d91b55ea92f2ddc5a9862984b70d90",
+      "json_markdown_identity": true,
+      "full_report_hash_bound_to_actual_final": true,
+      "finding_ids": [
+        "ARCH-001"
+      ]
+    },
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa11",
+      "parent_received_actual_final_answer": true,
+      "current_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "canonical_handoff": "/tmp/phase-c-execution/c-1/qa-11/req-qa-handoff.json",
+      "sha256": "a55be40f0149a89c221289084223bc45d0e840e2e5fe1d1ba1d88feab51a84f2",
+      "json_markdown_identity": true,
+      "full_report_hash_bound_to_actual_final": true,
+      "finding_ids": [
+        "REQ-QA-004"
+      ]
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/rqa9_causal_owner",
+      "parent_received_actual_final_answer": true,
+      "current_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "canonical_handoff": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-handoff.json",
+      "sha256": "a050039ade573278c7b60715306216300ff1fe63bf915a48de40321bb3ca69bf",
+      "json_markdown_identity": true,
+      "full_report_hash_bound_to_actual_final": true,
+      "finding_ids": [
+        "RQA9-001",
+        "RQA11-001"
+      ]
+    }
+  ],
+  "method": "Actual parent tool task IDs and FINAL_ANSWER notifications; artifact digests stated in leaf fences verified, projections authored by leaves and matched to full finding/summary objects. No invented completion timestamps."
+}

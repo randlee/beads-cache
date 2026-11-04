@@ -1,0 +1,61 @@
+#!/bin/bash
+# PASSIVE DRAFT. Parent executes only after reviewing the exact runner-only diff.
+set -euo pipefail
+if [ "$#" -ne 1 ] || [[ "$1" != /* ]]; then
+  echo "usage: $0 /absolute/path/to/the/existing/diagnostic/worktree" >&2
+  exit 2
+fi
+worktree_dir="$1"
+draft_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+expected_branch=codex/c2-windows-store-phase-observation
+expected_head=4b89a434c7d32ee3b3c36a962179e92bc45dd2ab
+expected_old_blob=2f10862c5ef59506714600a624a11e0cf5aa5e8a
+consumer_sha=7fb224623280dae9cb056915484cb698ddf6bdf0
+workflow=.github/workflows/one-time-macos-cron-hurry-observation.yml
+test "$(git -C "$worktree_dir" branch --show-current)" = "$expected_branch"
+test "$(git -C "$worktree_dir" rev-parse HEAD)" = "$expected_head"
+test "$(git -C "$worktree_dir" rev-parse "origin/$expected_branch")" = "$expected_head"
+test -z "$(git -C "$worktree_dir" status --porcelain)"
+test "$(git -C "$worktree_dir" rev-parse "HEAD:$workflow")" = "$expected_old_blob"
+test "$(git -C "$worktree_dir" rev-parse "$consumer_sha:crates/bd-cache-sync/tests/common/session_fixture.rs")" = 8f5313e8db352e00dd233e0fe43011207174857c
+test "$(git -C "$worktree_dir" rev-parse "$consumer_sha:Cargo.lock")" = 8ff90ed761ac59b12f60c757085de42ccb2b8928
+python3 - "$worktree_dir" "$workflow" "$draft_dir/one-time-macos-cron-hurry-observation.yml" <<'PY'
+import pathlib, subprocess, sys
+root, path, draft = sys.argv[1:]
+old = subprocess.check_output(["git", "-C", root, "show", "HEAD:"+path])
+assert old.count(b"    runs-on: macos-14\n") == 1
+expected = old.replace(b"    runs-on: macos-14\n", b"    runs-on: macos-latest\n")
+assert pathlib.Path(draft).read_bytes() == expected, "draft must change only the runner label"
+assert old.count(b"7fb224623280dae9cb056915484cb698ddf6bdf0") == 4
+PY
+# Fresh read-only GETs, using ambient repository/auth. No rerun/cancel endpoint.
+# Guard MUST finish before any worktree mutation. Existing saved parent evidence
+# is historical context, not a substitute for these current terminal receipts.
+(
+  cd "$worktree_dir"
+  gh api 'repos/{owner}/{repo}/actions/runs/41794982056' > "$draft_dir/prepublish-old-run.json"
+  gh api 'repos/{owner}/{repo}/actions/runs/41794982056/jobs?filter=all&per_page=100' > "$draft_dir/prepublish-old-jobs.json"
+)
+python3 "$draft_dir/verify-retired-run.py" "$draft_dir/prepublish-old-run.json" "$draft_dir/prepublish-old-jobs.json" > "$draft_dir/prepublish-zero-execution-guard.json"
+# Recheck immutable worktree guards after the read-only requests.
+test "$(git -C "$worktree_dir" branch --show-current)" = "$expected_branch"
+test "$(git -C "$worktree_dir" rev-parse HEAD)" = "$expected_head"
+test -z "$(git -C "$worktree_dir" status --porcelain)"
+cp "$draft_dir/one-time-macos-cron-hurry-observation.yml" "$worktree_dir/$workflow"
+git -C "$worktree_dir" add -- "$workflow"
+git -C "$worktree_dir" diff --cached --check
+test "$(git -C "$worktree_dir" diff --cached --name-only)" = "$workflow"
+python3 - "$worktree_dir" "$workflow" <<'PY'
+import subprocess, sys
+root, path = sys.argv[1:]
+old = subprocess.check_output(["git", "-C", root, "show", "HEAD:"+path])
+new = subprocess.check_output(["git", "-C", root, "show", ":"+path])
+assert new == old.replace(b"    runs-on: macos-14\n", b"    runs-on: macos-latest\n"), "staged delta must be exactly runner-only"
+PY
+git -C "$worktree_dir" diff --cached -- "$workflow"
+git -C "$worktree_dir" commit -m "Use original macos-latest label for the unexecuted frozen observation"
+test "$(git -C "$worktree_dir" rev-parse HEAD^)" = "$expected_head"
+git -C "$worktree_dir" push origin "HEAD:refs/heads/$expected_branch"
+echo 'One runner-correction branch push issued. Await the new run; do not dispatch or rerun.'
+# An uncertain push outcome requires read-only remote/run inspection. A second
+# invocation refuses the changed HEAD. Never reset, force-push, merge or repeat.

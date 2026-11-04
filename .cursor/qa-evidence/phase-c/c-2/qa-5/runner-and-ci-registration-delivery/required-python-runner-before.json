@@ -1,0 +1,30 @@
+{
+  "baseline": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+  "workflow_before_sha256": "4e51772df12375a61630eaae3c91d82b053d8e66b361354437d28e9ad8da0444",
+  "canonical_ttl_sha256": "f87bb5e13463ff09185cd33a49109e1058ee43ade8f84461a899de8ba604aa32",
+  "canonical_matches_integration": true,
+  "prior_triage_sha256": {
+    ".triage/c/findings/C2-REQ-003.ttl": "a51a99fe165f3858dfc53918341a75fdf1d3714ce165d845571d4f71e88fd34b",
+    ".triage/c/findings/FTQ-009.ttl": "ef498f398e9d7095be95b2ed729bcda43033739ea03cba64c8d3776702cf0589",
+    ".triage/c/findings/QA-C2-001.ttl": "b0b08647ae4253ecaf7984bf9283e85fb84f2103dd547f7e64c66dfb365b7c97",
+    ".triage/c/findings/RSH-001.ttl": "677f0f21feb6a722a49e6397c98afd711ca31161ba24388acf55db8f3e07f7f3",
+    ".triage/c/findings/C2-REQ-007.ttl": "7ac6c367817a566ab2e9e6caca7de59a9aed7add22e13d92a6ac6b45c18721c4",
+    ".triage/c/findings/CI-C2-RUNNER-001.ttl": "f87bb5e13463ff09185cd33a49109e1058ee43ade8f84461a899de8ba604aa32",
+    ".triage/c/findings/C2-REQ-004.ttl": "b986de097e7614c79b6da44760b436128f8633ad1fb921ee8df4adda57230ec2",
+    ".triage/c/findings/CI-C4-001.ttl": "7c5e4c32eff0ef66db0682cd1f19070bdf4b259adba348d8691b041a768db8cf",
+    ".triage/c/findings/RQA10-001.ttl": "8345857e0496064a915e17d7a75231c73993a15b2a5beab78ee5daf933bdc3e2",
+    ".triage/c/findings/REQ-QA-003-001.ttl": "1f7c2d416c5e8569afd736df05abeaa5edfaca611068887e9795c39f743ff876",
+    ".triage/c/findings/C2-FTQ-006.ttl": "a86a00beeaa752c9ffb3aa74716758d79bea34f986698858d1bc3b357f0635d1",
+    ".triage/c/findings/REQ-QA-004.ttl": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+    ".triage/c/findings/ARCH-001.ttl": "a740ce86dc2eb07c4826d36427be97d967dbc0513d637d7f0ca67310c8546156",
+    ".triage/c/findings/RBQA-F001.ttl": "766aa4129a0b7cddb00507337f6212d63433045f381cef86c3626ad5c33e00d1",
+    ".triage/c/findings/C2-REQ-009.ttl": "3c1d8392312699de9b8f6f06bd92f050bb9059010313a75ff962db88ea9c0f1d",
+    ".triage/c/findings/C4-RBP-F001.ttl": "748e16ffd2a5b57a5c64ea7b788fa371d7ce5b5022311100987ce8ba88025329",
+    ".triage/c/findings/FTQ-011.ttl": "9194c8084b0bad2fc23aec0f0181348a4bfefd77da35ad528f12f142af2794cb",
+    ".triage/c/findings/FTQ-010.ttl": "12a67af5b07237d8a004c38556f87fd248d2583c4e1f6394db9a449416bb4022",
+    ".triage/c/findings/RQA9-001.ttl": "a5a79550617d3461333f51364de0e6c52b8d24e059bac0dd430e24f8cf112305",
+    ".triage/c/findings/QA2-001.ttl": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+    ".triage/c/findings/C4-FTQ-001.ttl": "2e1936396e49a475b35f68076b64e4ce8ee97acf2bf99888f1159aba56f5f5e6"
+  },
+  "actionlint_path": null
+}

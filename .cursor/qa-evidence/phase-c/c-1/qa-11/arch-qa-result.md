@@ -1,0 +1,784 @@
+```json
+{
+  "agent": "arch-qa",
+  "branch": "sprint/c-1-runtime-migration",
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "commit": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "verdict": "FAIL",
+  "blocking": 1,
+  "important": 0,
+  "minor": 0,
+  "model": {
+    "configured": "Grok",
+    "configured_available": false,
+    "actual": "gpt-6.1-sol",
+    "reasoning": "high"
+  },
+  "review_method": "Independent full-sprint architecture and current source/evidence review. Clean exact branch/HEAD verified. Zero Cargo/build/test/binary commands, child agents, product/triage edits, PR publication or merge. Rust QA owns runtime verification.",
+  "findings": [
+    {
+      "id": "ARCH-001",
+      "rule": "RULE-ADR-CODE",
+      "adr": "ADR-BDC-0016",
+      "severity": "BLOCKING",
+      "file": "crates/bd-cache-sync/Cargo.toml",
+      "line": 31,
+      "description": "OPEN at frozen d8242dbe. Sync directly introduces sc-command and implements its CanonicalLog receiver (cron_log.rs:3), outside the approved exception allowing only published sc-cron to introduce that contract below isolated Python. The dependency restrictions of ADR-SYNC-0006/0008 and ADR-PY-0005 are affected by the same violation. Exact-head CI raw log independently rejects this edge; no binding amendment permits it.",
+      "remediation": "Keep ARCH-001 open. Use an authorized genuine upstream public receiver/type re-export or equivalent canonical-event callback constructor that delivers required real scheduler events without a direct sync -> sc-command edge, remove the direct edge, then qualify the unchanged isolated consumer gate. Preserve the approved published 0.1.1 baseline, logging and graph policy. No SDK/publisher/auth work, relocated introducer, fabricated event, waiver or widened exception is authorized."
+    }
+  ],
+  "adr_checks": [
+    {
+      "adr": "ADR-BDC-0001",
+      "source": "docs/architecture.md:220",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/run.rs:613"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0002",
+      "source": "docs/architecture.md:241",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/run.rs:613"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0003",
+      "source": "docs/architecture.md:323",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+        "crates/bd-cache-sync/src/front_end.rs:121"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0004",
+      "source": "docs/architecture.md:346",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/compose.rs:21",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0005",
+      "source": "docs/architecture.md:370",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/run.rs:613",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0006",
+      "source": "docs/architecture.md:411",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:37",
+        "docs/sc-cron/architecture.md:3"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0007",
+      "source": "docs/architecture.md:450",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-store/Cargo.toml:28",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0008",
+      "source": "docs/architecture.md:515",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "docs/architecture.md:517"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0009",
+      "source": "docs/architecture.md:587",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/front_end.rs:121",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0010",
+      "source": "docs/architecture.md:621",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:148",
+        "scripts/lint_no_atm.py:1",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0011",
+      "source": "docs/architecture.md:730",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:1",
+        "crates/bd-cache-sync/src/launch.rs:32"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0012",
+      "source": "docs/architecture.md:768",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        ".github/workflows/ci.yml:148",
+        "scripts/lint_no_atm.py:1",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0013",
+      "source": "docs/architecture.md:852",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/run.rs:613",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0014",
+      "source": "docs/architecture.md:973",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schedule.rs:95",
+        "crates/bd-cache-store/src/store.rs:189"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0015",
+      "source": "docs/architecture.md:1016",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/front_end.rs:121",
+        "crates/bd-cache-sync/src/lib.rs:116",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-BDC-0016",
+      "source": "docs/architecture.md:1099",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ]
+    },
+    {
+      "adr": "ADR-CLI-0001",
+      "source": "docs/bd-cache-cli/architecture.md:29",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "Cargo.toml:63",
+        "crates/bd-cache-cli/Cargo.toml:27"
+      ]
+    },
+    {
+      "adr": "ADR-CLI-0002",
+      "source": "docs/bd-cache-cli/architecture.md:68",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/Cargo.toml:63",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CLI-0003",
+      "source": "docs/bd-cache-cli/architecture.md:102",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/args.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CLI-0004",
+      "source": "docs/bd-cache-cli/architecture.md:130",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/config.rs:83",
+        "crates/bd-cache-sync/src/compose.rs:21",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CLI-0005",
+      "source": "docs/bd-cache-cli/architecture.md:166",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-cli/src/commands/signal.rs:1",
+        "crates/bd-cache-sync/src/cron.rs:233",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0001",
+      "source": "docs/bd-cache-py/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/compose.rs:562",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0002",
+      "source": "docs/bd-cache-py/architecture.md:77",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/src/api.rs:54",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0003",
+      "source": "docs/bd-cache-py/architecture.md:123",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "docs/bd-cache-py/architecture.md:123",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0004",
+      "source": "docs/bd-cache-py/architecture.md:161",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/Cargo.toml:29",
+        ".github/workflows/python.yml:40"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0005",
+      "source": "docs/bd-cache-py/architecture.md:206",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ]
+    },
+    {
+      "adr": "ADR-PY-0006",
+      "source": "docs/bd-cache-py/architecture.md:274",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-py/pyproject.toml:33",
+        "crates/bd-cache-sync/src/front_end.rs:121",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0001",
+      "source": "docs/bd-cache-store/architecture.md:27",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0002",
+      "source": "docs/bd-cache-store/architecture.md:122",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/store.rs:189",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0003",
+      "source": "docs/bd-cache-store/architecture.md:210",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/store.rs:189",
+        "crates/bd-cache-store/src/health.rs:205"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0004",
+      "source": "docs/bd-cache-store/architecture.md:360",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/store.rs:189",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0005",
+      "source": "docs/bd-cache-store/architecture.md:547",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/Cargo.toml:19",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-STORE-0006",
+      "source": "docs/bd-cache-store/architecture.md:589",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schema.rs:1",
+        "crates/bd-cache-store/src/schedule.rs:116",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0001",
+      "source": "docs/bd-cache-sync/architecture.md:35",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/run.rs:260",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0002",
+      "source": "docs/bd-cache-sync/architecture.md:57",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/run.rs:222",
+        "crates/bd-cache-sync/src/cron.rs:233",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0003",
+      "source": "docs/bd-cache-sync/architecture.md:135",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:646",
+        "crates/bd-cache-sync/src/cron.rs:233"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0004",
+      "source": "docs/bd-cache-sync/architecture.md:251",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:646",
+        "crates/bd-cache-sync/src/cron.rs:233"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0005",
+      "source": "docs/bd-cache-sync/architecture.md:291",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:646",
+        "crates/bd-cache-sync/src/cron.rs:233"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0006",
+      "source": "docs/bd-cache-sync/architecture.md:330",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0007",
+      "source": "docs/bd-cache-sync/architecture.md:375",
+      "listed_in_sprint_doc": false,
+      "result": "not-applicable",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/schedule.rs:646",
+        "crates/bd-cache-sync/src/cron.rs:233"
+      ]
+    },
+    {
+      "adr": "ADR-SYNC-0008",
+      "source": "docs/bd-cache-sync/architecture.md:479",
+      "listed_in_sprint_doc": true,
+      "result": "violated",
+      "evidence_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36"
+      ]
+    },
+    {
+      "adr": "ADR-CORE-0001",
+      "source": "docs/bd-cache/architecture.md:33",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/compose.rs:127",
+        "crates/bd-cache-sync/src/run.rs:222",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0001",
+      "source": "docs/sc-cron/architecture.md:266",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/job.rs:1",
+        "crates/bd-cache-store/src/schedule.rs:194",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0002",
+      "source": "docs/sc-cron/architecture.md:299",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:423",
+        "crates/bd-cache-sync/src/module_hook.rs:35",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0003",
+      "source": "docs/sc-cron/architecture.md:319",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schedule.rs:41",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0004",
+      "source": "docs/sc-cron/architecture.md:338",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schedule.rs:41",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0005",
+      "source": "docs/sc-cron/architecture.md:357",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/cron.rs:233",
+        "crates/bd-cache-sync/src/module_hook.rs:35",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0006",
+      "source": "docs/sc-cron/architecture.md:383",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schedule.rs:194",
+        "docs/sc-cron/architecture.md:3"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0007",
+      "source": "docs/sc-cron/architecture.md:434",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-store/src/schedule.rs:162",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0008",
+      "source": "docs/sc-cron/architecture.md:472",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/module_hook.rs:53",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "adr": "ADR-CRON-0009",
+      "source": "docs/sc-cron/architecture.md:535",
+      "listed_in_sprint_doc": true,
+      "result": "upheld",
+      "evidence_refs": [
+        "crates/bd-cache-sync/src/launch.rs:32",
+        "crates/bd-cache-sync/src/module_hook.rs:53",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ]
+    }
+  ],
+  "gate_artifact_checks": [
+    {
+      "artifact": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:379",
+        "docs/plans/phase-c/phase-c-plan.md:40"
+      ],
+      "notes": "Independent implementation QA, applicable sprint anchors and exact-head green platform CI are prerequisites; current direct dependency violation blocks closure. Historical delivery receipts are not QA acceptance."
+    },
+    {
+      "artifact": "docs/architecture.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/architecture.md:166",
+        "docs/architecture.md:1148",
+        "crates/bd-cache-sync/Cargo.toml:31"
+      ],
+      "notes": "Full table and ADR boundaries inspected. No boundary manifests are declared by policy; existing strict checks remain authoritative. Workspace edges otherwise retain their allowed directions; the isolated logging introducer violation remains."
+    },
+    {
+      "artifact": "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "status": "open",
+      "evidence_refs": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py:36",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:560",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561"
+      ],
+      "notes": "Directly inspected standalone normal/build root traversal and source/version/feature checks. Exact-head hosted job reports API graph PASS, forbidden sync introducer, exit1. Reviewer ran no metadata or test command."
+    },
+    {
+      "artifact": ".github/workflows/python.yml",
+      "status": "open",
+      "evidence_refs": [
+        ".github/workflows/python.yml:40",
+        ".github/workflows/python.yml:71",
+        ".github/workflows/python.yml:113",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json"
+      ],
+      "notes": "Only three macos-14 -> macos-15 replacements versus4452 verified byte-for-byte. All11 jobs, versions3.9/3.11/3.13, Windows Rust, Linux wheel target and matching artifact wiring preserved. Snapshot has macOS Rust success but macOS wheel still in progress; installed pytest receipts incomplete. Canonical CI-C2-RUNNER-001 remains owning-review pending."
+    },
+    {
+      "artifact": "docs/plans/phase-c/anchors/index.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/anchors/index.md:15",
+        "docs/plans/phase-c/reviews/review-status.md:11"
+      ],
+      "notes": "Inherited bounds and original provenance read directly. Planning PASS at9320102 is not implementation anchor qualification; no fresh anchor gate was run or inferred by this reviewer."
+    },
+    {
+      "artifact": "docs/plans/phase-c/phase-c-plan.md",
+      "status": "open",
+      "evidence_refs": [
+        "docs/plans/phase-c/phase-c-plan.md:105",
+        "docs/plans/phase-c/phase-c-plan.md:185",
+        "docs/project-plan.md:64"
+      ],
+      "notes": "Boundary map/closure ownership and release rule inspected. All-four-sprint, actual-consumer and installed-artifact phase gates remain open and separately owned. C1 cannot claim generated daemon, C3 mapping, C4 release or publisher closure."
+    },
+    {
+      "artifact": "docs/plans/phase-b/phase-b-boundary.md",
+      "status": "closed",
+      "evidence_refs": [
+        "docs/plans/phase-b/phase-b-boundary.md:3",
+        "docs/project-plan.md:33"
+      ],
+      "notes": "Historical PhaseB closure remains recorded; its inherited v3, two-row, strict-ingest, no-consumer and bd-only bounds apply to C1. No new PhaseB or PhaseC release acceptance inferred."
+    },
+    {
+      "artifact": ".triage/c/findings/ARCH-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/ARCH-001.ttl:2"
+      ],
+      "notes": "Independent present-source violation; counted once as architecture Blocking."
+    },
+    {
+      "artifact": ".triage/c/findings/RBQA-F001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/RBQA-F001.ttl:2"
+      ],
+      "notes": "Distinct boundary-owner finding remains open for the same direct introducer; not duplicated in architecture counts."
+    },
+    {
+      "artifact": ".triage/c/findings/QA2-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/QA2-001.ttl:2"
+      ],
+      "notes": "Actual isolated graph failure remains open and is confirmed by exact-head raw hosted log561."
+    },
+    {
+      "artifact": ".triage/c/findings/REQ-QA-004.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/REQ-QA-004.ttl:2"
+      ],
+      "notes": "Whole requirements/platform/CI acceptance remains open. Current snapshot has a real boundary failure and incomplete other jobs; advisory check passed separately."
+    },
+    {
+      "artifact": ".triage/c/findings/RQA9-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/RQA9-001.ttl:2"
+      ],
+      "notes": "Historical Windows busy-negative remains unresolved. Private phase/classifier controls and FixtureChild/store protocol are unchanged; no historical cause or substantive correction demonstrated."
+    },
+    {
+      "artifact": ".triage/c/findings/RQA10-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/RQA10-001.ttl:2"
+      ],
+      "notes": "Candidate composition correction is supported by source and coverage ledger; actual native19/19 raw evidence reviewed. Owning flaky/Rust disposition and sole enforcer decide closure; no developer self-closure accepted."
+    },
+    {
+      "artifact": ".triage/c/findings/CI-C2-RUNNER-001.ttl",
+      "status": "open",
+      "evidence_refs": [
+        ".triage/c/findings/CI-C2-RUNNER-001.ttl:2"
+      ],
+      "notes": "Canonical cross-sprint runner finding retained. Source-only three-label correction verified; final required hosted arm64 wheel/three-Python-version receipts and owning disposition incomplete in supplied snapshot."
+    },
+    {
+      "artifact": ".triage/c/findings/RSH-001.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        ".triage/c/findings/RSH-001.ttl:14",
+        "/tmp/phase-c-execution/c-1/qa-9/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve QA9 owner/enforcer startup correction credit for exact C1 and paired public C2 scope. Independent current production equivalence to accepted adbcc88:158 whole src files plus schedule.rs production prefix; no fresh C2/stock HTTP or whole-runtime certification."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-009.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-5/flaky-test-qa-result.json",
+        "crates/bd-cache-store/tests/support/fixture_child.rs:74",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve original complete store-fixture ownership credit. Actual owner QA5/QA9 receipts read; current FixtureChild, schedule protocol and cfg(test) schedule implementation match QA10, retain original5s lifetime, actual wait/reap, inner30ms/500ms bounds and honest failed qualification. RQA9 separate."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-010.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/flaky-test-qa-result.json",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:579",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve accepted original unregistered-child and inventory-stall mechanism repair. Kernel session exists before launch, inventory owned/reaped, two stable quiet censuses, actual root wait and final drain persist; helper outside two changed test bodies equals ec68, private lifecycle fixture source equals QA10."
+    },
+    {
+      "artifact": ".triage/c/findings/FTQ-011.ttl",
+      "status": "closed",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-9/flaky-test-qa-result.json",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:396",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:723",
+        "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json"
+      ],
+      "notes": "Preserve QA9 owner/enforcer correction of independent50ms cap. Caller absolute budgets and timeout failure behavior unchanged; real delayed-command proof remains separately required. No impossible-kernel-progress finding revived, and no C2 propagation acceptance inferred."
+    }
+  ],
+  "adr_scope_assessment": {
+    "listed_binding_ADRs": 41,
+    "listed_missing_or_nonbinding": [],
+    "owned_crate_ADR_coverage": "All binding STORE, SYNC, CLI, PY and historical-semantic CRON ADRs listed; CORE0001 inherited. Superseded SYNC0003/4/5/7 are history, not revived.",
+    "additional_repo_ADRs": "BDC0001/2/3/4/7 inspected for preserved core cursor/base/vocabulary/backend/shared-port contracts. C1 changes no decision owned by those original ADRs; later listed BDC0013 governs scope preservation. Draft BDC0008 is neither a dependency nor binding.",
+    "structural_decisions": "Published scheduler/retirement, same-connection health/worker controls, target adapters and narrow logging boundary are recorded under Approved BDC0016 and governing existing ADR amendments/adapter notes. Private test composition and runner label replacements introduce no new product public type/wire contract. No missing structural ADR found.",
+    "full_inventory": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+    "not_applicable_outside_changed_crates": "Other per-crate architecture files exist and their ADR inventory is recorded in source proof; no changed source/manifests in sc-beads, sc-bd-cli, bd-cache-model, core or API introduces a new local decision.",
+    "assessment_limit": "Upheld is source-level architectural continuity under current amendments plus explicit frozen-source equivalence and retained scoped owner evidence; it is not a fresh runtime, requirements, platform or release certification."
+  },
+  "changed_scope_assessment": {
+    "recovery_composition": "Compared exact ec68 helper to d824. Only existing delay-test and recovery-test bodies differ; helper cleanup/inventory/quiescence/Drop plus all controls are byte-identical. Positive recovery still injects first error and requires >=5 scans, two fresh stable quiet censuses, actual failed-root status/output, final empty census and independent250ms audit. Deliberate scan3 delay removed from recovery and retained in existing real STOP/at-least80ms/CONT test under original250ms including actual command wait/reap and PIDabsence.",
+    "negative_coverage": "Unchanged incomplete-quiescence control must fail TimedOut with false cleanup; independent audit timeout must remain an error while prior completed cleanup receipt stays true. Both retain actual root/command waits, original failure and fresh evidence-only emptiness; no new cleanup attempt or budget via retry/Drop. Noncooperative3-command and lifecycle timeout/unwind ownership retained.",
+    "coverage_ledger": "Reviewed old/new code, developer ledger and actual observation raw logs independently. This removes a supported additional positive timing assumption from a shared250ms window while retaining each obligation in a dedicated existing proof. No timer padding, budget reset, minimum-margin reserve, retry, host/thread override, removed census/audit or arbitrary timeout acceptance found. A passing test alone was not the basis.",
+    "observed_failure_limits": "Actual41796715401/job126462431901 atliteral7fb/ec68 failed recovery quiescencecall3 after acknowledgedSTOP and102.544417ms observed delay, with77.427666ms logged beforeCONT. Owned command/root waits and final drain completed, cleaned=false; independent audit was not reached. No lower-level signal/ps/log/output cause or every historical stage inferred.",
+    "runner": "Independently proved exact three macos-14->macos-15 byte replacements from4452; all11 C1-specific jobs/commands/toolchains/deadlines/features/guards/permissions/triggers and upload/download keys remain. No C3 pin/mapping/fingerprint regeneration applies.",
+    "full_sprint": "Inspected upstream retirement/pins, same-cache store/claim/schema, health and worker scopes/restoration, startup stop/real joins, same-Core management, launch identity and supervised module adapter, facade preservation and full boundary/gate documentation. No new architecture violation beyond canonical logging dependency was found."
+  },
+  "source_equivalence": {
+    "artifact": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+    "all159_src_files_equal_QA10": true,
+    "accepted_RSH_production_equivalent": true,
+    "helper_outside_two_test_bodies_equal_ec68": true,
+    "helper_equal_tested2bb": true,
+    "FixtureChild_store_protocol_and_nativeCI_equal_QA10": true,
+    "limits": "Explicit source continuity supports scoped prior mechanism credit only; no inferred cross-platform/runtime/release or all-requirements acceptance."
+  },
+  "retained_raw_evidence": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/corrected-hosted-macos.log",
+      "lines": "1745-1766",
+      "fact": "Historical actual quiescencecall3 failed; root failed101, false cleanup; audit not reached."
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-controls.log",
+      "lines": "45-65,82,110,120",
+      "fact": "Source-equivalent2bb:6 controls pass; actual delay86.758917ms, recovery5 scans, failedroot101 preserved, distinct cleanup/audit receipts."
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log",
+      "lines": "62,76-82,108,159,350",
+      "fact": "Independent Rust-owned exact-candidate native full cron_hurry19/19. Actual87.911459ms delay within126.580083ms,5 real recovery scans and both honest negative receipts. This reviewer did not execute it; formal Rust verdict is separate."
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log",
+      "lines": "445,560-562",
+      "fact": "Exacthead advisories pass; isolatedAPI passes; actual sync->sc-command rejection exits1. Failure cause read from raw step, not inferred from aggregate job name."
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json",
+      "fact": "Snapshot bound d824/f1:MERGEABLE/UNSTABLE;3PythonRust jobs andLinuxwheel success;macOSwheel inprogress;nativeLinux/Windows inprogress,macOSqueued;boundary job failed. No terminal all-platform claim."
+    }
+  ],
+  "merge_ready": false,
+  "notes": "STOP for parent sole cursor-quality-mgr handoff. ARCH-001 remains Blocking. Keep RBQA-F001, QA2-001, REQ-QA-004, RQA9-001 and pending RQA10/runner owning dispositions separate. No developer-asserted closure or forced completion count; requirements reviewer computes101 requirements/34deliverables. Prior scoped RSH/FTQ credits retained only through explicit current equivalence. Following cm rule b-mr7cp6x0-ipdnhs: native/source success does not imply three-platform CI acceptance; explicit assignment prohibits local Cargo. Memory returned no historical snippets (cass degraded); no memory rules fabricated."
+}
+```

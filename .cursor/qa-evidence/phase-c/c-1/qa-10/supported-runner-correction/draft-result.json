@@ -1,0 +1,61 @@
+{
+  "status": "PASSIVE_RUNNER_CORRECTION_PREPARED_NOT_PUBLISHED",
+  "consumer_sha": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+  "expected_workflow_head": "4b89a434c7d32ee3b3c36a962179e92bc45dd2ab",
+  "expected_old_workflow_blob": "2f10862c5ef59506714600a624a11e0cf5aa5e8a",
+  "only_workflow_delta": "runs-on: macos-14 -> macos-latest",
+  "retirement_primary_url": "https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/",
+  "retirement_date": "2026-11-02",
+  "static_checks": [
+    "byte-exact one-line runner-only delta against published immutable workflow",
+    "YAML parsed; all hosted shell steps bash -n",
+    "publishing script bash -n; embedded Python AST parsed",
+    "synthetic zero-execution guard positive case passes",
+    "synthetic negative cases reject before publication"
+  ],
+  "synthetic_negative_cases": [
+    "queued run",
+    "noncancelled run",
+    "changed workflow head",
+    "changed run attempt",
+    "any recorded step",
+    "assigned runner",
+    "wrong old job",
+    "additional job",
+    "noncancelled job"
+  ],
+  "live_github_state_check": "not executed by preparer; publishing script requires fresh raw GET receipts before mutation",
+  "actions_not_performed": [
+    "Cargo/build/test",
+    "worktree/source edits",
+    "publishing script execution",
+    "commit/push/dispatch/rerun",
+    "finding acceptance or closure"
+  ],
+  "files": {
+    "README.md": {
+      "bytes": 4851,
+      "sha256": "bc918f2ff71814a1838bd47735da3653bc4c4ea0589f2f270de039b76d0b9acd"
+    },
+    "one-time-macos-cron-hurry-observation.yml": {
+      "bytes": 6518,
+      "sha256": "8bf28af0a2adf215f1e68410b0abcac87f579f2b08c16c15830b80341b9d3a0b"
+    },
+    "parent-retired-run-terminal.json": {
+      "bytes": 398,
+      "sha256": "5fda2e35ca9c7fd85688e0f155cb9cdf6387229369b6a41aba323abf584f5359"
+    },
+    "publish-runner-correction-by-parent-once.sh": {
+      "bytes": 3868,
+      "sha256": "a04405e8e47ec952077cd2d5c015bf94c544a76fd847b2277e06d3b7e6d4da8e"
+    },
+    "verify-retired-run.py": {
+      "bytes": 2254,
+      "sha256": "52f2350c9e252de71bf82bc86f7d2d6fe86fa3f98a8245f381ee63843520e63b"
+    },
+    "workflow.diff": {
+      "bytes": 287,
+      "sha256": "3b7a7d27a7a988b5f0267e4988cb1656c005c6082a6a96dbe4d31e67d53dc579"
+    }
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "success": true,
+  "data": {
+    "review_type": "bounded_independent_actual_observation_assessment; not fullQA/coordinator",
+    "owner": "flaky-test-qa",
+    "model": "actual gpt-6.1-sol high fallback",
+    "cm_context_executed": true,
+    "disposition": "RQA10-001_OPEN_NOW_LOCALIZED_TO_QUIESCENCE_CALL3; no new duplicate finding",
+    "conclusion": "This was a real recovery-test failure, not setup, selected-binary/tee receipt or planted-control failure. The ordinary recovery case adds its real stopped-command delay inside the same absolute quiescence window that must obtain two fresh stable censuses. Its resumed inventory was not observed complete by that deadline; the owner killed/waited it and correctly retained failed cleanup. The positive fixture has a supported timing-sensitive composition to redesign. No new unchanged observation is needed to locate this occurrence.",
+    "actual_execution": {
+      "run_id": 41796715401,
+      "job_id": 126462431901,
+      "terminal": "FAILURE (parent terminal receipt; raw step exit101)",
+      "runner_id": 1000263298,
+      "workflow_commit": "0146b6615f0398c79bf794b062e6b979751f50e5",
+      "literal_test_source": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "source_guard_verified_from_raw": true,
+      "helper_blob": "8f5313e8db352e00dd233e0fe43011207174857c",
+      "lock_blob": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "protocol_and_owner_blobs": {
+        "schedule.rs": "31a8baa56b36597d25dc2ddd2e3d15cc47075faf",
+        "FixtureChild": "48f8b51be5fa2b3bfdffc80520468edd78ee056d"
+      },
+      "source_review": "Read exact7fb Git object for SessionFixture cleanup/Inventory.finish/recovery case. Local current HEAD had advanced to c8d0c9e; its helper blob is the same, but assessment is pinned to executed7fb, not a claim that local HEAD is7fb.",
+      "os": "macOS26.6.2 arm64, Darwin25.6.0",
+      "toolchain": "Rust/Cargo1.98.1 aarch64-apple-darwin; Python3.12.10",
+      "runner_selection": "macos-latest; prior retiredmacos14 zero-step cancellation is separate and consumed no test execution.",
+      "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
+      "thread_context": "RUST_TEST_THREADS=<unset>",
+      "RUSTFLAGS": "-D warnings",
+      "CARGO_INCREMENTAL": "0",
+      "test_result": {
+        "running": 19,
+        "passed": 18,
+        "failed": 1,
+        "filtered": 0,
+        "elapsed_seconds": 15.7,
+        "failed_test": "session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure"
+      },
+      "exits": {
+        "cargo": 101,
+        "tee": 0,
+        "binary_receipt": 0
+      },
+      "selected_binary": {
+        "running_line_paths": [
+          "target/debug/deps/cron_hurry-5e0c2ce6f0388807"
+        ],
+        "test_summaries": [
+          "test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.70s"
+        ],
+        "test_counts": [
+          "running 19 tests"
+        ],
+        "binary_path": "/Users/runner/work/beads-cache/beads-cache/target/debug/deps/cron_hurry-5e0c2ce6f0388807",
+        "binary_bytes": 27584008,
+        "binary_sha256": "26d1e01e3f7b6fa8d6e6431b78630c1a1c60ede38c3fdf31715b01e12cf2818d"
+      },
+      "count": "One actual Running line and one Cargo test invocation. No rerun or separately invoked test executable.",
+      "context_limit": "Native package-selected full lifecycle target, default parent concurrency, all selected package features and raw feature tree captured. Original whole-workspace feature union/artifact/interleaving are not identical. The actual binary hash is reported in uploaded receipt; remote binary was not independently rehashed by this reviewer."
+    },
+    "localized_sequence": {
+      "session": 3896,
+      "thread": "ThreadId(18)",
+      "inventory_pid": 3900,
+      "origin": "One cleanup Instant; original100ms initial drain/250ms quiescence/1s final deadline",
+      "initial": "Call1 injected transient error. Call2 actual ps succeeds with48.091125ms left in initial drain, then recovery message emitted.",
+      "quiescence_call3": {
+        "entered_cleanup_elapsed_ms": 52.257417,
+        "deadline_offset_ms": 250,
+        "remaining_at_entry_ms": 197.742583,
+        "stop_ack": true,
+        "remaining_after_stop_ack_ms": 179.972375,
+        "requested_sleep_ms": 80,
+        "observed_delay_ms": 102.544417,
+        "remaining_logged_before_CONT_ms": 77.427666,
+        "finish_result": "Owned inventory timeout; pid3900 actual_kill_wait=true",
+        "inventory_command_elapsed_at_timeout_ms": 335.995625,
+        "scan_elapsed_ms": 336.607208,
+        "remaining_at_failure_ms": 0
+      },
+      "root": "Actual root wait returns original failed fixture status unix25856 (exit101) at cleanup402.704084ms. Root was already a deliberately failed child; no claim that a root SIGKILL caused this status.",
+      "final_drain": "Call4 starts at402.748542ms with597.251458ms left to original1s final deadline. Actual ps completes, scanEndOk504 at26.822458ms, cleanup returns at430.22825ms retaining original timeout and cleaned=false. Source/control flow plus the single completed final scan and retained original error support successful complete empty final-session drain.504 is all-host inventory row count, not session member count.",
+      "retained_status": "RQA10_RECOVERY_RESULT scans=4 finish=Err(owned session inventory timed out), root_status=Some(exit101), cleaned=false. Propagated at recovery test line804.",
+      "independent_audit": "Not reached in failing recovery case; finished? returns before lines817-822. No post-cleanup independent audit or delayedPID absence assertion for3896 is claimed.",
+      "critical_raw_receipts": [
+        {
+          "raw_line": 291,
+          "text": "RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=initial-drain call=1 owner_elapsed=8.167µs deadline_offset=100ms remaining=99.991833ms"
+        },
+        {
+          "raw_line": 292,
+          "text": "RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=initial-drain call=1 elapsed=66.292µs remaining=99.925458ms result=Err(Custom { kind: Other, error: \"injected transient inventory failure\" })"
+        },
+        {
+          "raw_line": 293,
+          "text": "RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=initial-drain call=2 owner_elapsed=20.306084ms deadline_offset=100ms remaining=79.693916ms"
+        },
+        {
+          "raw_line": 294,
+          "text": "RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3899 spawn_elapsed=1.533833ms"
+        },
+        {
+          "raw_line": 296,
+          "text": "RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=initial-drain call=2 elapsed=31.60275ms remaining=48.091125ms result=Ok(502)"
+        },
+        {
+          "raw_line": 298,
+          "text": "RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=quiescence call=3 owner_elapsed=52.257417ms deadline_offset=250ms remaining=197.742583ms"
+        },
+        {
+          "raw_line": 299,
+          "text": "RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3900 spawn_elapsed=1.727834ms"
+        },
+        {
+          "raw_line": 300,
+          "text": "RQA10_INJECT scan=3 pid=Pid(3900) actual_stop_ack=true remaining_before_80ms=179.972375ms"
+        },
+        {
+          "raw_line": 301,
+          "text": "RQA10_INJECT scan=3 pid=Pid(3900) actual_delay=102.544417ms remaining_before_cont=77.427666ms"
+        },
+        {
+          "raw_line": 302,
+          "text": "RQA10_COMMAND_TIMEOUT thread=ThreadId(18) pid=3900 command_elapsed=335.995625ms actual_kill_wait=true remaining=0ns"
+        },
+        {
+          "raw_line": 303,
+          "text": "RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=quiescence call=3 elapsed=336.607208ms remaining=0ns result=Err(Custom { kind: TimedOut, error: \"owned session inventory timed out\" })"
+        },
+        {
+          "raw_line": 304,
+          "text": "RQA10_ROOT session=3896 elapsed=402.704084ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=597.295625ms"
+        },
+        {
+          "raw_line": 305,
+          "text": "RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=final-drain call=4 owner_elapsed=402.748542ms deadline_offset=1s remaining=597.251458ms"
+        },
+        {
+          "raw_line": 308,
+          "text": "RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=final-drain call=4 elapsed=26.822458ms remaining=570.42875ms result=Ok(504)"
+        },
+        {
+          "raw_line": 309,
+          "text": "RQA10_CLEANUP session=3896 calls=4 elapsed=430.22825ms cleaned=false error=owned session inventory timed out"
+        },
+        {
+          "raw_line": 310,
+          "text": "RQA10_RECOVERY_RESULT session=3896 scans=4 finish=Err(Custom { kind: TimedOut, error: \"owned session inventory timed out\" }) root_status=Some(ExitStatus(unix_wait_status(25856))) cleaned=false"
+        }
+      ]
+    },
+    "supported_mechanism": {
+      "confidence": "Concrete proximate failure and source interaction established for this occurrence; lower-level command/observer timing cause unknown.",
+      "description": "The positive recovery fixture combines transient recovery with an additional STOP/80ms/CONT live-command delay on global callback3, while requiring two complete quiet stable censuses by cleanup+250ms. This creates a positive success assumption about combined injected latency plus real command/output/parsing/identity work. In the actual occurrence callback3 belongs to quiescence and fails under that shared deadline; later complete final census cannot restore its failed qualification.",
+      "what_is_not_proven": [
+        "The requested80ms sleep alone caused timeout: its actual measured interval was102.544417ms, but positive77.427666ms remained before the subsequentCONT call.",
+        "The resumed ps itself ran beyond77ms. The remaining value is computed before synchronous stderr output and CONT; subsequent command/observer/logging/poll/kill-wait costs are not separately measured. Command_elapsed includes the stopped interval and cleanup, not pure ps runtime.",
+        "A particular host load, kernel/signal defect, output block, sibling interference or source regression caused those costs.",
+        "Every historical uninstrumented RQA10 failure reached this same call/stage. Their generic timeout was ambiguous; this trace localizes one actual equivalent recovery occurrence."
+      ],
+      "current_helper_behavior": "Correctly fails closed. Does not substitute incomplete census, mark cleanup successful, retry cleanup or reset budgets; original child failure retained. No orphan or production cancellation fault shown.",
+      "historical_correlation": "Same canonicalRQA10-001 test/error/unchanged fault and budget semantics. This now supplies a supported fixture-level causal path without requiring identical replay of every earlier failure. Original removed50ms-cap correction remains credited."
+    },
+    "supported_correction_direction": {
+      "status": "DESIGN_SUPPORTED_NOT_IMPLEMENTED_OR_VALIDATED",
+      "next_parent_developer_action": "Route a bounded test-fixture redesign for RQA10, with an explicit coverage ledger. Separate transient-recovery success from artificial delayed-inventory timing rather than adding delay inside the strict quiescence critical path. Do not run another unchanged observation.",
+      "minimal_design_to_review": [
+        "Keep the recovery-positive case exercising the injected transient error, then real fresh complete stable quiet censuses, actual root wait, final empty census and independent250ms audit under the original100/250/1000ms deadlines.",
+        "Retain acknowledgedSTOP/80ms/CONT real owned-command delay coverage as an explicit separate inventory-budget regression. Existing inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command already covers a real delay exceeding the old50ms cap under the original250ms preflight budget; developer must show that proof is retained rather than silently deleting it.",
+        "Retain the separate owned incomplete-quiescence and post-cleanup-audit controls. They must still reject incomplete evidence, preserve false cleanup receipts where appropriate, reap actual command/root, refuse another cleanup attempt and retain the original child failure.",
+        "If a design still requires a deliberately delayed inventory inside quiescence, make the intended success versus deadline-exhaustion outcome explicit and causal. It cannot assume a minimum remaining success margin, add an80ms reservation or enlarge/reset the original absolute deadline to make the test green."
+      ],
+      "coverage_limit": "Splitting concerns does not guarantee that every live ps invocation always completes within250ms. Any real required census that exceeds its deadline must still fail honestly. No mathematical scheduler/kernel guarantee requested.",
+      "qualification_needed": "Parent reviews the concrete old/new test coverage and actual affected proof before any owner closure. A corrected pass alone is insufficient; demonstrate removal of the extra timing assumption while preserving live full-census/ownership and delayed-command/failed-budget evidence. No correction has yet been delivered by this assessment."
+    },
+    "other_controls_and_findings": {
+      "new_stage_controls": "The intentional held-quiescence and held-independent-audit controls pass in the same19-test run; their timeout lines belong to other sessions and are not mistaken for3896. They remain classification/ownership controls, not the failing recovery case.",
+      "RQA9-001": "OPEN original qualification; validated store protocol observability credited. No store tests were executed here and no new disposition inferred.",
+      "RQA10-001": "OPEN; localized actual quiescence/call3 occurrence, actionable fixture redesign direction supported.",
+      "CI-C2-RUNNER-001": "Prior independent runner finding/history unchanged by this observation assessment.",
+      "other_prior_findings_and_scoped_FTQ_RSH_credits": "Preserved; no graph/signal/advisory/wholeCI closure."
+    },
+    "evidence_limits": [
+      "Absolute deadline250ms is unchanged; recorded timeout and cleanup can be observed after that instant. Do not report335.995625ms command_elapsed as a widened budget or an exact timeout delivery guarantee.",
+      "Synchronous diagnostics consume time; this one occurrence establishes its phase and error propagation, not zero-perturbation identity with historical uninstrumented execution.",
+      "Source/assertion/raw receipts support actual wait/reap; no independent syscall trace or external allPID audit. Complete final drain is source-based inference from the successful single scan/control flow, while the independent recovery-case audit was never reached.",
+      "No setup/build/tee/binary-receipt failure substituted for actual test result.",
+      "All earlier logs/cancelled-run/one-shot records retained; no retry authorized or performed."
+    ],
+    "actions": "Read-only exact source and uploaded/raw evidence. Wrote only this assessment pair. No tests/reruns, Cargo, source/triage edits, new agents or cross-agent messaging, PR posting/merge or other finding closure.",
+    "active_owned_commands": 0,
+    "evidence_files": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/corrected-hosted-macos.log",
+        "bytes": 253267,
+        "sha256": "4e8e279bbf7f1385d28d46c4ea1cd206bd91f09264f7e31abacc63243f58ba62"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/workflow.diff",
+        "bytes": 287,
+        "sha256": "3b7a7d27a7a988b5f0267e4988cb1656c005c6082a6a96dbe4d31e67d53dc579"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/source-context.log",
+        "bytes": 1751,
+        "sha256": "dfbcae5100ae5ba53b54875cda8b524fd28759362f7ebd5ede7589913c97dcd3"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/command.txt",
+        "bytes": 85,
+        "sha256": "059da58822ec6752e2ca5e928d876aabb899b9754bb80bfe2a0e0883938a90ef"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/thread-context.txt",
+        "bytes": 26,
+        "sha256": "bf8f93b200f6758e85649927a6bb8036be284126f2354d0cf2e99276d1220e24"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/toolchain-features.log",
+        "bytes": 125367,
+        "sha256": "5f093ce5a28d3f089059c22a4a753419337b378b25d2e34886c2aa43c68e34ba"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/cron-hurry.raw.log",
+        "bytes": 45596,
+        "sha256": "474d80212726b389489ef6f664e8eea4811f9e1766540baa6eb27da5333f5f72"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/selected-binary.json",
+        "bytes": 490,
+        "sha256": "8d4651709ebe7350fb2a10e29b9d3d793e618f58ab7d3caecaeff4a2419ee3b9"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/hosted-artifacts/mac-cron-hurry-7fb224623280dae9cb056915484cb698ddf6bdf0-41796715401/exit-status.txt",
+        "bytes": 48,
+        "sha256": "3ed12e42b10165cb566cd7a3787f02da9ca804430474dd91a04387ce7cb33e44"
+      }
+    ],
+    "timestamp_utc": "2026-11-04T08:17:50.134542+00:00"
+  },
+  "error": null
+}

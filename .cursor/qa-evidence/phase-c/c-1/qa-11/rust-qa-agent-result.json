@@ -1,0 +1,320 @@
+{
+  "success": true,
+  "data": {
+    "status": "findings",
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+    "review_mode": "sprint_review",
+    "model": {
+      "actual": "gpt-6.1-sol",
+      "reasoning": "high",
+      "configured_Grok_available": false
+    },
+    "executed_checks": {
+      "fmt": {
+        "status": "pass",
+        "command": "cargo fmt --all --check",
+        "exit_code": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-fmt.log"
+      },
+      "clippy": {
+        "status": "pass",
+        "command": "cargo clippy -p bd-cache-sync --all-targets --all-features -- -D warnings",
+        "exit_code": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-clippy.log"
+      },
+      "tests": {
+        "status": "fail",
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
+        "exit_code": 0,
+        "passed": 19,
+        "failed": 0,
+        "elapsed_seconds": 15.51,
+        "log": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log",
+        "sandbox_attempt": {
+          "status": "fail",
+          "exit_code": 101,
+          "passed": 10,
+          "failed": 9,
+          "log": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests.log",
+          "classification": "Explicit sandbox EPERM process-inventory access denial; retained execution-context failure, not qualified code/fixture cause. Corrected native context once on identical frozen source."
+        },
+        "local_status": "pass",
+        "status_scope": "Local native19/19 passes; required terminal hosted macOS18/19 and Windows36/37 fail independently.",
+        "hosted": {
+          "macOS": {
+            "job": 126474511866,
+            "passed": 18,
+            "failed": 1,
+            "exit_code": 101,
+            "failed_test": "session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command"
+          },
+          "Windows": {
+            "job": 126474512170,
+            "passed": 36,
+            "failed": 1,
+            "exit_code": 101,
+            "failed_test": "schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup"
+          }
+        }
+      },
+      "coverage": {
+        "status": "not_run",
+        "adequate_for_risk": true,
+        "reason": "Not requested; concrete affected real-operation/owned-timeout paths exercised, no numerical coverage claim."
+      },
+      "artifacts": {
+        "status": "not_run",
+        "command": "",
+        "reason": "No regeneration requested."
+      }
+    },
+    "findings": [
+      {
+        "id": "QA2-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "The required exact-head isolated Python graph still rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+        "recommendation": "Preserve the failing guard; resolve the already-owned ARCH-001/RBQA-F001 public logging seam and remove the direct edge, then qualify the actual isolated consumer and required CI. No exception expansion or suppression.",
+        "evidence": "Current exact d8242 run41800238075 job126474512121 rust-qa-hosted-boundary-raw.log:557-562: checker4 pass; isolated Python rejects direct bd-cache-sync -> sc-command, exit1. Cargo.toml:31, cron_log.rs:3, manifests/lock/checker independently byte equal QA10.",
+        "limits": "No current graph acceptance; no exception expansion, suppression or SDK/interface repair. Prior actual failures remain retained."
+      },
+      {
+        "id": "RQA9-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-store/src/schedule.rs",
+        "line": 1148,
+        "issue": "Historical Windows busy-persistence missing-return/stall qualification remains open and now has another actual exact-d8242 Windows failure with phase receipts. Current worker entry is observed; setup consumes almost all original five-second lifetime before cancellation, then the required return/stall qualification is absent.",
+        "recommendation": "Retain RQA9-001 and route exact phase evidence to its owning flaky reviewer for bounded causal assessment/correction. Preserve all original budgets, real-operation proof, required return/stall receipt, actual wait/reap and one attempt. No worker-non-entry inference, deadline widening, reset, retry-to-green or historical stage assumption.",
+        "evidence": "Exact run41800238075 Windows job126474512170 parent-current-hosted-windows.log:1310-1356: busy family worker-call-start4.9751434s(child), wait-result5.4799576s, cancellation-installed5.480623s; root_joined_and_cleaned=true, owner_reported5.4938283s, no worker-return receipt, classify worker_return_unobserved_phase_unresolved, schedule_protocol.rs192 missing marker; store36passed1failed exit101. Earlier read-only stalled family has real return and marker, actual reap5.0047654s.",
+        "limits": "Current entry proved; missing return is unobserved, not proof it never returned. Child and owner monotonic origins differ; owner receive is observation, wall correlation is not deadline authority. Current setup/lifetime interaction is concrete; underlying I/O/observer/OS cost and original historical failure stage remain unproven. Root cleaned, no orphan or production defect established. Prior original failures/classifier credit retained.",
+        "original_line": 1084
+      },
+      {
+        "id": "RQA11-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+        "line": 723,
+        "issue": "Exact-head required macOS cron_hurry fails the separate delayed-inventory preflight test. Owned command exits0 and is actually waited, but output validation finds its original250ms caller budget exhausted; target18passed1failed exit101. This is a distinct new actual occurrence, not the RQA10 recovery test.",
+        "recommendation": "Route to owning flaky reviewer/parent for canonical triage and bounded qualification correction. Preserve acknowledged STOP/at least80ms/CONT coverage, complete census, real wait/reap, honest timeout and original budgets. Retain this failure; no retry-to-green, timing widening/reset, minimum-margin reservation, host tuning or loss of required delay proof.",
+        "evidence": "Exact d8242 run41800238075 job126474511866 parent-current-hosted-macos.log:1562/1574-1586: pid12479 command_elapsed257.978625ms actual_wait=true exit0 remaining0, then session inventory output budget exhausted. Source Inventory.finish334-350 checks after actual wait and output read; test723-751 passes original250ms through stopped command. Recovery1559 and stage controls1558 pass.",
+        "limits": "Observed post-wait output deadline exhaustion before parsed census. Command elapsed includes stopped interval and other work, not pure ps execution; actual delay/CONT interval is not printed on this failure. No signal, host-load, orphan or production defect inferred. Prior FTQ011 removed50ms-cap repair remains credited; Canonical RQA11-001 independently correlated by flaky owner and parent; original RQA10 composition resolution remains separate."
+      }
+    ],
+    "summary": {
+      "total_findings": 3,
+      "by_severity": {
+        "critical": 0,
+        "important": 3,
+        "minor": 0
+      },
+      "new_findings": 1,
+      "sprint_verdict": "FAIL; terminal15checks=12SUCCESS3FAILURE; boundary/macOS/Windows failures retained, no globalcompletioncount",
+      "resolved_findings_this_review": [
+        "RQA10-001",
+        "CI-C2-RUNNER-001 exact C1 scope"
+      ]
+    },
+    "dispositions": [
+      {
+        "id": "ARCH-001",
+        "status": "open",
+        "reason": "Public receiver seam/direct sync edge unchanged; architecture owner retains Blocking."
+      },
+      {
+        "id": "REQ-QA-004",
+        "status": "open",
+        "reason": "Terminal required boundary/macOS/Windows checks fail. All11Python and nativeLinux succeed; current acceptance remains blocked."
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "open",
+        "reason": "Original independent best-practices boundary finding unchanged; no new RBP/service review."
+      },
+      {
+        "id": "QA2-001",
+        "status": "open",
+        "reason": "Current exact-head strict isolated graph failure reproduced in actual required CI."
+      },
+      {
+        "id": "RQA9-001",
+        "status": "open",
+        "reason": "Original qualification remains open; new exact-head Windows busy-persistence receipt localizes current entry/setup/lifetime interaction, not original historical cause."
+      },
+      {
+        "id": "RQA10-001",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "reason": "Actual completed flaky owner adjudication consumed, supported source/coverage correction plus independent local/hosted recovery proof; original historical errors retained. Separate RQA11 failure does not reopen resolved mixed composition."
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "resolved_verified_in_exact_C1_scope",
+        "reason": "Three-label source correction and all11PythonSUCCESS plus actual arm64/toolchain/nativewheel/artifact/installed3versions raw proof verified. Shared canonical cross-consumer aggregation belongs to parent; no specific oldqueuecause inferred."
+      },
+      {
+        "id": "RSH-001",
+        "status": "prior_scoped_disposition_preserved",
+        "reason": "Prior supported startup mechanism closure retained through all159src.rs equivalence toQA10 and prior owner receipts; affected native lifecycle passes. No fresh public Application probe claimed."
+      },
+      {
+        "id": "FTQ-009",
+        "status": "prior_scoped_disposition_preserved",
+        "reason": "Prior actual unbounded-lifetime repair credit retained; production/store protocol/FixtureChild equalQA10; originalRQA9 separate."
+      },
+      {
+        "id": "FTQ-010",
+        "status": "prior_scoped_disposition_preserved",
+        "reason": "Owned inventory/pre-registration/unwind/one-attempt repair credit retained by unchanged implementations and full19test native proof."
+      },
+      {
+        "id": "FTQ-011",
+        "status": "prior_scoped_disposition_preserved",
+        "reason": "Removed independent50ms cap and full census/original budgets retained. Split supported recovery/delay tests independently qualify; RQA10 owner adjudicates separate occurrence."
+      },
+      {
+        "id": "C2-FTQ-006",
+        "status": "prior_scoped_disposition_preserved",
+        "reason": "Retraction preserved; no theoretical healthy-kernel progress finding revived."
+      },
+      {
+        "id": "RQA11-001",
+        "status": "open_new_actual_required_macos_occurrence",
+        "reason": "Distinct delayed-preflight output-budget failure; same canonical RQA11-001 confirmed independently by flaky owner/parent."
+      }
+    ],
+    "coverage_ledger_assessment": [
+      {
+        "proof": "transient recovery",
+        "source": "session_fixture.rs759-822; cleanup/quiesce implementation byte equal ec68 outside two test bodies",
+        "assessment": "First injected error retained; actual fresh inventory call2, stable quiet calls3+4, root wait then final call5, failed root status/output, cleaned receipt, independent250ms empty audit and root absence all remain mandatory. Native receipt independently confirms5scans and original exit101."
+      },
+      {
+        "proof": "delayed inventory",
+        "source": "session_fixture.rs695-751",
+        "assessment": "Existing separate250ms preflight test still uses actual self-STOP acknowledgement, sleeps80ms, sendsCONT, parses complete real inventory, waits/reaps and checks ESRCH. New measured87.911459ms exceeds80ms; total126.580083ms is below original250ms. No imposed success-margin reservation."
+      },
+      {
+        "proof": "failed quiescence versus audit",
+        "source": "session_fixture.rs826-966; byte equal ec68",
+        "assessment": "Held real commands still produce honest timeout. Quiescence control preserves false receipt and rejects another attempt; post-audit timeout preserves previously true cleanup but remains error. Both command/root waits, original failed child/output, absence and later complete census are checked; native lines108/159 confirm before fallback."
+      },
+      {
+        "proof": "unwind and noncooperation",
+        "source": "unchanged FixtureChild/store protocol/session lifecycle helper; native full19 target",
+        "assessment": "Actual stalled joins, preregistration ownership and fixture/Python assertion unwind pass. Original100ms drain/250ms absolute quiescence/1s cleanup/250ms audit/5s fixture and one-attempt semantics unchanged."
+      },
+      {
+        "proof": "terminal hosted scope limits",
+        "source": "parent-current-hosted-macos.log1558-1586; Windows1310-1356",
+        "assessment": "Hosted recovery/stage controls pass, but separate acknowledged-delay positive fails output deadline. Windows busyqualification now shows setup/lifetime cost with actualworkerentry and missingreturn. Local19/19 remains valid Darwin local evidence; current overall tests fail. No prior failure or mechanism credit erased."
+      }
+    ],
+    "source_equivalence": {
+      "receipt": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-receipt.json",
+      "all_159_src_rs_equal_qa10_ec68": true,
+      "helper_outside_two_bodies_equal_ec68": true,
+      "FixtureChild_store_protocol_manifests_lock_graph_nativeCI_equal_qa10": true,
+      "exact_three_python_label_substitutions": [
+        40,
+        71,
+        113
+      ],
+      "all_other_nonmetadata_paths_equal_tested_2bb": true,
+      "clean_frozen_source": true
+    },
+    "ci_snapshot": {
+      "head": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+      "total": 15,
+      "success": 12,
+      "failure": 3,
+      "all11Python": "SUCCESS",
+      "nativeLinux": "SUCCESS",
+      "nativeMacOS": "FAILURE cron_hurry18/19 delayedpreflight",
+      "nativeWindows": "FAILURE store36/37 busyqualification",
+      "boundary": "FAILURE isolated direct sync->sc-command",
+      "receipt": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+      "assessment": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json"
+    },
+    "cargo_slot": {
+      "status": "RELEASED",
+      "released_at": "2026-11-04T08:36:44.605876+00:00",
+      "reason": "Meaningful native full cron_hurry and all other assigned checks completed; no further Cargo commands will be run.",
+      "supersedes": "Premature sandbox-wrapper release marker; slot retained for correcting explicit process-inventory EPERM execution context."
+    },
+    "notes": [
+      "Required cm context and named role/guidelines read. Following b-mr7cp6x0-ipdnhs: fmt precedes lint; local Darwin qualification remains separate from hosted platforms.",
+      "Authoritative sprint, prior actual QA10 result, independent actual observation assessment and recovery/metadata/runner handoffs reviewed; original scope preserved through independent source identity.",
+      "Sandbox EPERM test failure, initial network denial, workflow-log unavailability and CLI escape guard remain recorded. Completed actual boundary job raw log was subsequently retrieved. No test/CI retry-to-green.",
+      "Whole tracked workspace legacy-family scan saved; no executable retired family remains. Current changed tests retain genuinely fallible inventory/fixture paths; no new infallible production Result shape. Existing sole-Ok test style and stale documentation comments are specialist notes only.",
+      "No new product defect found in the two-body correction; supported coverage correction independently qualifies. All seven original histories retained; current scoped dispositions supersede procedural pending text. Original failures and prior scoped FTQ/RSH credits remain; no generic historical timeout stage invented.",
+      "No unchanged full1171/performance/store/public startup replay, nested agents, product/triage edits, reset, PR post/merge, publisher/auth or SDK/pin/guard work. Cargo released at08:36:44.605876Z; no Cargo thereafter.",
+      "Revised after terminal actual same-source CI; original result/fence retained verbatim as provisional. No new tests, Cargo, CI actions or source/triage edits. Completed RQA10 owning resolution and actual C1 runner qualification now consumed; no circular pending. Shared canonical cross-consumer aggregation remains parent-owned."
+    ],
+    "timestamp_utc": "2026-11-04T08:51:48.342628+00:00",
+    "state": "STOP",
+    "raw_receipts": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-evidence-manifest.json",
+    "revision": {
+      "kind": "bounded terminal CI evidence update",
+      "provisional_json": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.json",
+      "provisional_sha256": "d8ea65bd18ad1ff76c99f85951282e635e9a7976d880f34a27d5db1ded9d7cae",
+      "source_unchanged": true,
+      "new_Cargo_commands": 0,
+      "new_test_or_CI_runs": 0,
+      "assessment": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json",
+      "actual_owner_resolution_consumed": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-consumed-RQA10-owner-resolution.json",
+      "terminal_before_owner_history": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.json",
+      "runner_actual_proof": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-runner-qualification.json"
+    },
+    "resolved_findings_this_review": [
+      {
+        "id": "RQA10-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+        "line": 759,
+        "issue": "RQA10-001 remains open for owning-reviewer adjudication. One actual instrumented equivalent macOS occurrence localized the mixed transient-error plus STOP80msCONT recovery fixture to quiescence call3 timeout. Current source separates those success assumptions and independently qualifies all retained obligations; original generic historical stages are not all localized.",
+        "recommendation": "Owner should adjudicate the supported fixture composition correction using source/coverage ledger and actual affected evidence. Retain original failures, original budgets, full census/audit/actual waits and one attempt. No closure solely from a pass and no additional unchanged observation required.",
+        "evidence": "Read actual run41796715401/job126462431901 raw cron-hurry.raw.log291-310 and independent observation-owner-assessment. Current helper diff changes only two private test bodies. Native QA11 rust-qa-tests-native.log62: STOP acknowledged, actual delay87.911459ms, total126.580083ms, wait/reap/PID absence; lines76-82: recovery5scans, original exit101, cleanedtrue, independent audit0members; lines108/156/159: distinct quiescencefalse/audittrue receipts with actual wait and failed original preserved; full19/19exit0. Current exact-head hosted macOS recovery test and stage timeout controls pass at raw1549-1560; successful outer capture hides their detailed receipts. The new hosted failed test is separate delayed preflight RQA11-001.",
+        "limits": "Supported correction removes an additional artificial delay from transient-recovery critical path, with its separate existing delay regression retained and strengthened. It does not identify low-level ps/signal/observer costs or every earlier uninstrumented stage; owner disposition and current hosted matrix remain separate. Historical closure remains owner-pending; neither current recovery pass nor different delayed-preflight failure substitutes for that adjudication.",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "resolution": "Actual completed flaky owner adjudication consumed from rust-qa-consumed-RQA10-owner-resolution.json; scoped mixed recovery/artificial-delay mechanism resolved, not a pass-only inference. Historical failures remain."
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "severity": "important",
+        "category": "guideline",
+        "file": ".github/workflows/python.yml",
+        "line": 40,
+        "locations": [
+          {
+            "file": ".github/workflows/python.yml",
+            "line": 40,
+            "job": "rust.matrix.os"
+          },
+          {
+            "file": ".github/workflows/python.yml",
+            "line": 71,
+            "job": "wheel.matrix.os"
+          },
+          {
+            "file": ".github/workflows/python.yml",
+            "line": 113,
+            "job": "test.matrix.os"
+          }
+        ],
+        "issue": "Shared CI-C2-RUNNER-001 candidate has exact three-label C1 correction and all eleven exact-head Python checks terminal SUCCESS. Owning reviewer verification of actual runner/architecture/toolchain/wheel receipts remains pending in this Rust QA fence.",
+        "recommendation": "Owning reviewer must verify actual macOS15 arm64/toolchain/wheel and installed Python3.9/3.11/3.13 receipts. Retain all other failures and histories; no C3 regeneration or pin/mapping change required for these labels.",
+        "evidence": "Exact d8242 terminal parent-current-pr108-ci-later.json has3Python Rust+2wheel+6installed-pytest checks SUCCESS, including macos-15 Python3.9/3.11/3.13 and Linux equivalents. Independent source proof preserves every workflow byte except labels40/71/113 and matrix-derived upload/download wiring.",
+        "limits": "Terminal job success is actual complete matrix qualification, replacing prior pending snapshot. This reviewer has not independently read detailed macOS arm64/wheel/interpreter receipts; owner assessment remains pending, with no circular wait or claimed closure. Other native boundary/tests failures are separate.",
+        "original_category": "ci_infrastructure",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "resolution": "Exact source correction plus all11PythonSUCCESS and actual macos15arm64/toolchain/wheel/artifact/installed3versions226each raw qualification independently verified; rust-qa-runner-qualification.json. Shared canonical cross-consumer aggregation remains parent-owned."
+      }
+    ]
+  },
+  "error": null
+}

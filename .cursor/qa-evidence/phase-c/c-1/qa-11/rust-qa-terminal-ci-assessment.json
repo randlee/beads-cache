@@ -1,0 +1,56 @@
+{
+  "head": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "branch": "sprint/c-1-runtime-migration",
+  "clean": true,
+  "Cargo_commands": 0,
+  "source_mutations": 0,
+  "observed_at": "2026-11-04T08:49:12.909782+00:00",
+  "raw_evidence": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-macos.log",
+      "sha256": "3dab9ded0ca461c57856526e674d81fd94dfaabb2c4b07dc0a7f96a3e9ca03b4",
+      "bytes": 140992
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-windows.log",
+      "sha256": "a7791c07633ca09f39c7458a215a0ec8b75a397d74187618f6638f5494fbc1e5",
+      "bytes": 129443
+    }
+  ],
+  "classification": {
+    "macos": {
+      "run": 41800238075,
+      "job": 126474511866,
+      "failed_test": "session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command",
+      "group_result": "18passed1failed exit101",
+      "actual": "pid12479 owned command exit0 actual_wait=true elapsed257.978625ms remaining0; session inventory output budget exhausted",
+      "stage": "Inventory.finish after actual command wait, output read/deadline validation before parsed census",
+      "correlation": "Distinct new delayed-preflight occurrence; proposed RQA11-001, not RQA10 recovery recurrence",
+      "limits": "Command elapsed includes stopped interval and other overhead; no pure ps duration, precise delay/CONT latency, host load, signal bug, orphan or production defect inferred. Recovery and negative stage controls pass in same target."
+    },
+    "windows": {
+      "run": 41800238075,
+      "job": 126474512170,
+      "failed_test": "schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup",
+      "group_result": "36passed1failed exit101",
+      "actual": "Second busy-persistence family; protocol worker_return_unobserved_phase_unresolved, root_joined_and_cleaned=true, post-call/stall receipt missing at schedule_protocol.rs192",
+      "child_elapsed_seconds": {
+        "store_open_returned": 1.934422,
+        "schedule_view_returned": 3.6993178,
+        "schedule_setup_complete": 4.7853572,
+        "contender_lock_acquired": 4.9745686,
+        "worker_call_start": 4.9751434,
+        "wait_result": 5.4799576,
+        "cancellation_installed": 5.480623
+      },
+      "owner_received_seconds": {
+        "worker_call_start": 5.486514,
+        "wait_result": 5.4936823,
+        "cancellation_installed": 5.49371
+      },
+      "owner_reported_seconds": 5.4938283,
+      "correlation": "Existing RQA9-001 same busy-persistence missing required return/stall qualification; no duplicate ID",
+      "limits": "Current receipt proves worker entry. Missing return remains unobserved, not proof of non-return. Child monotonic and owner monotonic origins differ; receive time is not execution and wall correlation not deadline authority. Setup consumes almost all original5s before worker launch and cancellation recorded after5s child time. Low-level setup/observer/OS scheduling cause and historical original stage remain unknown. Root cleaned=true, no orphan demonstrated."
+    }
+  }
+}

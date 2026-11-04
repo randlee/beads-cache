@@ -1,0 +1,492 @@
+[1m[92m   Compiling[0m proc-macro2 v1.0.107
+[1m[92m   Compiling[0m unicode-ident v1.0.27
+[1m[92m   Compiling[0m quote v1.0.47
+[1m[92m   Compiling[0m libc v0.2.191
+[1m[92m   Compiling[0m serde_core v1.0.229
+[1m[92m   Compiling[0m syn v3.0.9
+[1m[92m   Compiling[0m syn v2.0.119
+[1m[92m   Compiling[0m memchr v2.8.3
+[1m[92m   Compiling[0m cfg-if v1.0.5
+[1m[92m   Compiling[0m serde v1.0.229
+[1m[92m   Compiling[0m zmij v1.0.23
+[1m[92m   Compiling[0m serde_json v1.0.154
+[1m[92m   Compiling[0m itoa v1.0.18
+[1m[92m   Compiling[0m pin-project-lite v0.2.17
+[1m[92m   Compiling[0m serde_derive v1.0.229
+[1m[92m   Compiling[0m once_cell v1.21.4
+[1m[92m   Compiling[0m find-msvc-tools v0.1.15
+[1m[92m   Compiling[0m typenum v1.20.1
+[1m[92m   Compiling[0m shlex v2.0.1
+[1m[92m   Compiling[0m cc v1.10.0
+[1m[92m   Compiling[0m hybrid-array v0.4.15
+[1m[92m   Compiling[0m autocfg v1.5.1
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m crypto-common v0.2.2
+[1m[92m   Compiling[0m block-buffer v0.12.1
+[1m[92m   Compiling[0m tracing-core v0.1.36
+[1m[92m   Compiling[0m tracing-attributes v0.1.31
+[1m[92m   Compiling[0m errno v0.3.14
+[1m[92m   Compiling[0m siphasher v1.0.4
+[1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m const-oid v0.10.2
+[1m[92m   Compiling[0m digest v0.11.3
+[1m[92m   Compiling[0m cpufeatures v0.3.1
+[1m[92m   Compiling[0m tracing v0.1.44
+[1m[92m   Compiling[0m rand_core v0.6.4
+[1m[92m   Compiling[0m futures-core v0.3.34
+[1m[92m   Compiling[0m futures-sink v0.3.34
+[1m[92m   Compiling[0m rand v0.8.8
+[1m[92m   Compiling[0m sha2 v0.11.1
+[1m[92m   Compiling[0m futures-channel v0.3.34
+[1m[92m   Compiling[0m phf_shared v0.11.3
+[1m[92m   Compiling[0m futures-macro v0.3.34
+[1m[92m   Compiling[0m cfg_aliases v0.2.2
+[1m[92m   Compiling[0m slab v0.4.12
+[1m[92m   Compiling[0m pkg-config v0.3.34
+[1m[92m   Compiling[0m winnow v1.0.4
+[1m[92m   Compiling[0m crossbeam-utils v0.8.23
+[1m[92m   Compiling[0m vcpkg v0.2.15
+[1m[92m   Compiling[0m thiserror v2.0.21
+[1m[92m   Compiling[0m futures-io v0.3.34
+[1m[92m   Compiling[0m rustix v1.1.5
+[1m[92m   Compiling[0m futures-task v0.3.34
+[1m[92m   Compiling[0m futures-util v0.3.34
+[1m[92m   Compiling[0m libsqlite3-sys v0.37.0
+[1m[92m   Compiling[0m toml_parser v1.1.5+spec-1.1.0
+[1m[92m   Compiling[0m nix v0.31.3
+[1m[92m   Compiling[0m phf_generator v0.11.3
+[1m[92m   Compiling[0m sc-beads v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-beads)
+[1m[92m   Compiling[0m thiserror-impl v2.0.21
+[1m[92m   Compiling[0m sc-lint-directives v0.4.0
+[1m[92m   Compiling[0m serde_spanned v1.1.2
+[1m[92m   Compiling[0m toml_datetime v1.1.2+spec-1.1.0
+[1m[92m   Compiling[0m deranged v0.5.9
+[1m[92m   Compiling[0m core-foundation-sys v0.8.7
+[1m[92m   Compiling[0m powerfmt v0.2.1
+[1m[92m   Compiling[0m num-conv v0.2.2
+[1m[92m   Compiling[0m foldhash v0.2.0
+[1m[92m   Compiling[0m getrandom v0.4.3
+[1m[92m   Compiling[0m zerocopy v0.8.63
+[1m[92m   Compiling[0m crossbeam-epoch v0.9.21
+[1m[92m   Compiling[0m time-core v0.1.9
+[1m[92m   Compiling[0m toml_writer v1.1.3+spec-1.1.0
+[1m[92m   Compiling[0m toml v1.1.8+spec-1.1.0
+[1m[92m   Compiling[0m time v0.3.55
+[1m[92m   Compiling[0m hashbrown v0.16.1
+[1m[92m   Compiling[0m iana-time-zone v0.1.65
+[1m[92m   Compiling[0m futures-executor v0.3.34
+[1m[92m   Compiling[0m sc-lint-attributes v0.4.0
+[1m[92m   Compiling[0m phf_macros v0.11.3
+[1m[92m   Compiling[0m signal-hook-registry v1.4.8
+[1m[92m   Compiling[0m zerocopy-derive v0.8.63
+[1m[92m   Compiling[0m tokio-macros v2.7.2
+[1m[92m   Compiling[0m mio v1.2.4
+[1m[92m   Compiling[0m equivalent v1.0.3
+[1m[92m   Compiling[0m hashbrown v0.17.1
+[1m[92m   Compiling[0m bytes v1.12.1
+[1m[92m   Compiling[0m ref-cast v1.0.27
+[1m[92m   Compiling[0m crossbeam-deque v0.8.8
+[1m[92m   Compiling[0m tokio v1.54.1
+[1m[92m   Compiling[0m indexmap v2.14.2
+[1m[92m   Compiling[0m phf v0.11.3
+[1m[92m   Compiling[0m sc-observability-types v1.5.0
+[1m[92m   Compiling[0m futures v0.3.34
+[1m[92m   Compiling[0m chrono v0.4.45
+[1m[92m   Compiling[0m hashlink v0.11.1
+[1m[92m   Compiling[0m bd-cache-model v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-model)
+[1m[92m   Compiling[0m ref-cast-impl v1.0.27
+[1m[92m   Compiling[0m serde_derive_internals v0.30.0
+[1m[92m   Compiling[0m rayon-core v1.13.0
+[1m[92m   Compiling[0m fastrand v2.5.0
+[1m[92m   Compiling[0m fallible-iterator v0.3.0
+[1m[92m   Compiling[0m fallible-streaming-iterator v0.1.9
+[1m[92m   Compiling[0m either v1.19.0
+[1m[92m   Compiling[0m winnow v0.7.15
+[1m[92m   Compiling[0m smallvec v1.16.4
+[1m[92m   Compiling[0m rusqlite v0.39.0
+[1m[92m   Compiling[0m cron v0.17.0
+[1m[92m   Compiling[0m sc-command v0.1.1
+[1m[92m   Compiling[0m tempfile v3.27.0
+[1m[92m   Compiling[0m schemars_derive v1.2.3
+[1m[92m   Compiling[0m process-wrap v10.0.1
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m alloca v0.4.0
+[1m[92m   Compiling[0m async-trait v0.1.92
+[1m[92m   Compiling[0m plotters-backend v0.3.7
+[1m[92m   Compiling[0m clap_lex v1.1.1
+[1m[92m   Compiling[0m dyn-clone v1.0.20
+[1m[92m   Compiling[0m anstyle v1.0.14
+[1m[92m   Compiling[0m ciborium-io v0.2.2
+[1m[92m   Compiling[0m regex-syntax v0.8.11
+[1m[92m   Compiling[0m clap_builder v4.6.7
+[1m[92m   Compiling[0m sc-cron v0.1.1
+[1m[92m   Compiling[0m regex-automata v0.4.18
+[1m[92m   Compiling[0m ciborium-ll v0.2.2
+[1m[92m   Compiling[0m schemars v1.2.3
+[1m[92m   Compiling[0m plotters-svg v0.3.7
+[1m[92m   Compiling[0m itertools v0.13.0
+[1m[92m   Compiling[0m bd-cache v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache)
+[1m[92m   Compiling[0m fs4 v1.1.0
+[1m[92m   Compiling[0m same-file v1.0.6
+[1m[92m   Compiling[0m cast v0.3.0
+[1m[92m   Compiling[0m bd-cache-api v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-api)
+[1m[92m   Compiling[0m walkdir v2.5.0
+[1m[92m   Compiling[0m criterion-plot v0.8.2
+[1m[92m   Compiling[0m bd-cache-store v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-store)
+[1m[92m   Compiling[0m rayon v1.12.0
+[1m[92m   Compiling[0m plotters v0.3.7
+[1m[92m   Compiling[0m ciborium v0.2.2
+[1m[92m   Compiling[0m regex v1.13.1
+[1m[92m   Compiling[0m clap v4.6.7
+[1m[92m   Compiling[0m sc-bd-cli v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/sc-bd-cli)
+[1m[92m   Compiling[0m tinytemplate v1.2.1
+[1m[92m   Compiling[0m page_size v0.6.0
+[1m[92m   Compiling[0m anes v0.1.6
+[1m[92m   Compiling[0m oorandom v11.1.5
+[1m[92m   Compiling[0m criterion v0.8.2
+[1m[92m   Compiling[0m bd-cache-sync v0.2.0 (/Users/runner/work/beads-cache/beads-cache/crates/bd-cache-sync)
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 1m 18s
+[1m[92m     Running[0m tests/cron_hurry.rs (target/debug/deps/cron_hurry-5e0c2ce6f0388807)
+
+running 19 tests
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3683 spawn_elapsed=947.875µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3683 command_elapsed=34.789333ms actual_wait=true status=exit status: 0 remaining=214.4555ms
+test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3691 spawn_elapsed=909.042µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3691 command_elapsed=26.443917ms actual_wait=true status=exit status: 0 remaining=223.480375ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3708 spawn_elapsed=375.916µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3708 command_elapsed=28.963458ms actual_wait=true status=exit status: 0 remaining=2.866872667s
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3709 spawn_elapsed=429.625µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3709 command_elapsed=23.470292ms actual_wait=true status=exit status: 0 remaining=2.841794875s
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3748 spawn_elapsed=414.5µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3748 command_elapsed=11.96475ms actual_wait=true status=exit status: 0 remaining=4.789297792s
+test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3762 spawn_elapsed=957.375µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3762 command_elapsed=23.360041ms actual_wait=true status=exit status: 0 remaining=226.317834ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3780 spawn_elapsed=425.208µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3780 command_elapsed=19.05425ms actual_wait=true status=exit status: 0 remaining=4.600512667s
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3793 spawn_elapsed=417.917µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3793 command_elapsed=15.924792ms actual_wait=true status=exit status: 0 remaining=4.731808417s
+
+thread 'lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind' (17610) panicked at crates/bd-cache-sync/tests/cron_hurry.rs:624:9:
+injected parent assertion
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+RQA10_SCAN_BEGIN thread=ThreadId(13) session=3764 stage=initial-drain call=1 owner_elapsed=1.833µs deadline_offset=100ms remaining=99.998167ms
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3794 spawn_elapsed=435.083µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3794 command_elapsed=16.688917ms actual_wait=true status=exit status: 0 remaining=83.117334ms
+RQA10_SCAN_END thread=ThreadId(13) session=3764 stage=initial-drain call=1 elapsed=17.666083ms remaining=82.332042ms result=Ok(494)
+RQA10_SCAN_BEGIN thread=ThreadId(13) session=3764 stage=initial-drain call=2 owner_elapsed=41.640916ms deadline_offset=100ms remaining=58.359084ms
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3795 spawn_elapsed=804.875µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3795 command_elapsed=13.487209ms actual_wait=true status=exit status: 0 remaining=44.663084ms
+RQA10_SCAN_END thread=ThreadId(13) session=3764 stage=initial-drain call=2 elapsed=14.571042ms remaining=43.787917ms result=Ok(493)
+RQA10_SCAN_BEGIN thread=ThreadId(13) session=3764 stage=quiescence call=3 owner_elapsed=56.496041ms deadline_offset=250ms remaining=193.503959ms
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3796 spawn_elapsed=340.584µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3796 command_elapsed=14.95875ms actual_wait=true status=exit status: 0 remaining=178.441417ms
+RQA10_SCAN_END thread=ThreadId(13) session=3764 stage=quiescence call=3 elapsed=15.88375ms remaining=177.620167ms result=Ok(493)
+RQA10_SCAN_BEGIN thread=ThreadId(13) session=3764 stage=quiescence call=4 owner_elapsed=77.987541ms deadline_offset=250ms remaining=172.012459ms
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3797 spawn_elapsed=381.042µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3797 command_elapsed=16.615ms actual_wait=true status=exit status: 0 remaining=155.2835ms
+RQA10_SCAN_END thread=ThreadId(13) session=3764 stage=quiescence call=4 elapsed=17.702042ms remaining=154.310375ms result=Ok(493)
+RQA10_ROOT session=3764 elapsed=96.489708ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=903.510125ms
+RQA10_SCAN_BEGIN thread=ThreadId(13) session=3764 stage=final-drain call=5 owner_elapsed=96.550458ms deadline_offset=1s remaining=903.449542ms
+RQA10_COMMAND_SPAWN thread=ThreadId(13) pid=3798 spawn_elapsed=379.333µs
+RQA10_COMMAND_EXIT thread=ThreadId(13) pid=3798 command_elapsed=12.476375ms actual_wait=true status=exit status: 0 remaining=890.867375ms
+RQA10_SCAN_END thread=ThreadId(13) session=3764 stage=final-drain call=5 elapsed=18.459042ms remaining=884.990375ms result=Ok(492)
+RQA10_CLEANUP session=3764 calls=5 elapsed=115.516583ms cleaned=true final_complete_census=true
+FTQ-010 assertion-unwind cleanup in 134.832041ms; owned Python PIDs reaped: [3786]
+test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(15) pid=3804 spawn_elapsed=981.583µs
+RQA10_COMMAND_EXIT thread=ThreadId(15) pid=3804 command_elapsed=27.959083ms actual_wait=true status=exit status: 0 remaining=221.849333ms
+RQA10_SCAN_BEGIN thread=ThreadId(15) session=3805 stage=initial-drain call=1 owner_elapsed=4.542µs deadline_offset=100ms remaining=99.995458ms
+RQA10_COMMAND_SPAWN thread=ThreadId(15) pid=3836 spawn_elapsed=517.375µs
+RQA10_COMMAND_EXIT thread=ThreadId(15) pid=3836 command_elapsed=17.8195ms actual_wait=true status=exit status: 0 remaining=81.9725ms
+RQA10_SCAN_END thread=ThreadId(15) session=3805 stage=initial-drain call=1 elapsed=19.552792ms remaining=80.4425ms result=Ok(494)
+RQA10_SCAN_BEGIN thread=ThreadId(15) session=3805 stage=quiescence call=2 owner_elapsed=19.9185ms deadline_offset=250ms remaining=230.0815ms
+RQA10_COMMAND_SPAWN thread=ThreadId(15) pid=3837 spawn_elapsed=430.708µs
+RQA10_COMMAND_EXIT thread=ThreadId(15) pid=3837 command_elapsed=23.333708ms actual_wait=true status=exit status: 0 remaining=206.610291ms
+RQA10_SCAN_END thread=ThreadId(15) session=3805 stage=quiescence call=2 elapsed=24.547167ms remaining=205.53425ms result=Ok(494)
+RQA10_SCAN_BEGIN thread=ThreadId(15) session=3805 stage=quiescence call=3 owner_elapsed=53.834292ms deadline_offset=250ms remaining=196.165708ms
+RQA10_COMMAND_SPAWN thread=ThreadId(15) pid=3838 spawn_elapsed=1.905375ms
+RQA10_COMMAND_EXIT thread=ThreadId(15) pid=3838 command_elapsed=18.879917ms actual_wait=true status=exit status: 0 remaining=176.932666ms
+RQA10_SCAN_END thread=ThreadId(15) session=3805 stage=quiescence call=3 elapsed=20.634542ms remaining=175.531041ms result=Ok(494)
+RQA10_ROOT session=3805 elapsed=75.017125ms wait=Ok(ExitStatus(unix_wait_status(0))) remaining_final=924.98275ms
+RQA10_SCAN_BEGIN thread=ThreadId(15) session=3805 stage=final-drain call=4 owner_elapsed=75.063709ms deadline_offset=1s remaining=924.936291ms
+RQA10_COMMAND_SPAWN thread=ThreadId(15) pid=3839 spawn_elapsed=1.131667ms
+RQA10_COMMAND_EXIT thread=ThreadId(15) pid=3839 command_elapsed=17.694875ms actual_wait=true status=exit status: 0 remaining=906.976791ms
+RQA10_SCAN_END thread=ThreadId(15) session=3805 stage=final-drain call=4 elapsed=20.054291ms remaining=904.881791ms result=Ok(494)
+RQA10_CLEANUP session=3805 calls=4 elapsed=95.792292ms cleaned=true final_complete_census=true
+test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(16) pid=3840 spawn_elapsed=802.375µs
+RQA10_COMMAND_EXIT thread=ThreadId(16) pid=3840 command_elapsed=26.160209ms actual_wait=true status=exit status: 0 remaining=223.660583ms
+RQA10_SCAN_BEGIN thread=ThreadId(16) session=3841 stage=initial-drain call=1 owner_elapsed=5.375µs deadline_offset=100ms remaining=99.994625ms
+RQA10_COMMAND_SPAWN thread=ThreadId(16) pid=3871 spawn_elapsed=886.042µs
+RQA10_COMMAND_EXIT thread=ThreadId(16) pid=3871 command_elapsed=29.888167ms actual_wait=true status=exit status: 0 remaining=69.701125ms
+RQA10_SCAN_END thread=ThreadId(16) session=3841 stage=initial-drain call=1 elapsed=31.471666ms remaining=68.522917ms result=Ok(495)
+RQA10_SCAN_BEGIN thread=ThreadId(16) session=3841 stage=quiescence call=2 owner_elapsed=31.974083ms deadline_offset=250ms remaining=218.025917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(16) pid=3872 spawn_elapsed=697.292µs
+RQA10_COMMAND_EXIT thread=ThreadId(16) pid=3872 command_elapsed=24.373375ms actual_wait=true status=exit status: 0 remaining=193.347834ms
+RQA10_SCAN_END thread=ThreadId(16) session=3841 stage=quiescence call=2 elapsed=26.278333ms remaining=191.7475ms result=Ok(495)
+RQA10_SCAN_BEGIN thread=ThreadId(16) session=3841 stage=quiescence call=3 owner_elapsed=67.892625ms deadline_offset=250ms remaining=182.107375ms
+RQA10_COMMAND_SPAWN thread=ThreadId(16) pid=3873 spawn_elapsed=747.458µs
+RQA10_COMMAND_EXIT thread=ThreadId(16) pid=3873 command_elapsed=17.585416ms actual_wait=true status=exit status: 0 remaining=164.201292ms
+RQA10_SCAN_END thread=ThreadId(16) session=3841 stage=quiescence call=3 elapsed=19.369125ms remaining=162.738125ms result=Ok(495)
+RQA10_ROOT session=3841 elapsed=87.993ms wait=Ok(ExitStatus(unix_wait_status(0))) remaining_final=912.006959ms
+RQA10_SCAN_BEGIN thread=ThreadId(16) session=3841 stage=final-drain call=4 owner_elapsed=88.030416ms deadline_offset=1s remaining=911.969584ms
+RQA10_COMMAND_SPAWN thread=ThreadId(16) pid=3874 spawn_elapsed=479.125µs
+RQA10_COMMAND_EXIT thread=ThreadId(16) pid=3874 command_elapsed=28.770833ms actual_wait=true status=exit status: 0 remaining=882.894292ms
+RQA10_SCAN_END thread=ThreadId(16) session=3841 stage=final-drain call=4 elapsed=31.023417ms remaining=880.945959ms result=Ok(495)
+RQA10_CLEANUP session=3841 calls=4 elapsed=119.493375ms cleaned=true final_complete_census=true
+test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3876 spawn_elapsed=875.084µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3876 command_elapsed=18.785667ms actual_wait=true status=exit status: 0 remaining=230.951541ms
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3877 stage=initial-drain call=1 owner_elapsed=4.583µs deadline_offset=100ms remaining=99.995417ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3878 spawn_elapsed=543.75µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3878 command_elapsed=23.148042ms actual_wait=true status=exit status: 0 remaining=76.460083ms
+RQA10_SCAN_END thread=ThreadId(17) session=3877 stage=initial-drain call=1 elapsed=25.731167ms remaining=74.264083ms result=Ok(495)
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3877 stage=quiescence call=2 owner_elapsed=26.457417ms deadline_offset=250ms remaining=223.542583ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3879 spawn_elapsed=873.333µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(17) pid=3879 command_elapsed=227.910333ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(17) session=3877 stage=quiescence call=2 elapsed=228.86475ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_ROOT session=3877 elapsed=275.536667ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=724.463167ms
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3877 stage=final-drain call=3 owner_elapsed=275.706875ms deadline_offset=1s remaining=724.293125ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3882 spawn_elapsed=543.208µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3882 command_elapsed=21.217833ms actual_wait=true status=exit status: 0 remaining=702.755583ms
+RQA10_SCAN_END thread=ThreadId(17) session=3877 stage=final-drain call=3 elapsed=23.791542ms remaining=700.501458ms result=Ok(497)
+RQA10_CLEANUP session=3877 calls=3 elapsed=300.219333ms cleaned=false error=owned session inventory timed out
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3883 spawn_elapsed=1.158ms
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3883 command_elapsed=22.748125ms actual_wait=true status=exit status: 0 remaining=227.101709ms
+RQA10_CONTROL post_audit=false actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=false original_fixture_failed=true before_driver_fallback
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3884 spawn_elapsed=565.125µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3884 command_elapsed=24.283792ms actual_wait=true status=exit status: 0 remaining=225.548542ms
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3885 stage=initial-drain call=1 owner_elapsed=5.583µs deadline_offset=100ms remaining=99.994417ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3886 spawn_elapsed=756.75µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3886 command_elapsed=20.070833ms actual_wait=true status=exit status: 0 remaining=79.721333ms
+RQA10_SCAN_END thread=ThreadId(17) session=3885 stage=initial-drain call=1 elapsed=21.993042ms remaining=78.001292ms result=Ok(497)
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3885 stage=quiescence call=2 owner_elapsed=22.665792ms deadline_offset=250ms remaining=227.334208ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3887 spawn_elapsed=417.083µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3887 command_elapsed=22.979208ms actual_wait=true status=exit status: 0 remaining=204.1605ms
+RQA10_SCAN_END thread=ThreadId(17) session=3885 stage=quiescence call=2 elapsed=24.600625ms remaining=202.733417ms result=Ok(497)
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3885 stage=quiescence call=3 owner_elapsed=70.843875ms deadline_offset=250ms remaining=179.156125ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3888 spawn_elapsed=540.125µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3888 command_elapsed=16.165042ms actual_wait=true status=exit status: 0 remaining=162.745292ms
+RQA10_SCAN_END thread=ThreadId(17) session=3885 stage=quiescence call=3 elapsed=18.236625ms remaining=160.919458ms result=Ok(497)
+RQA10_ROOT session=3885 elapsed=89.9465ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=910.053458ms
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3885 stage=final-drain call=4 owner_elapsed=89.981292ms deadline_offset=1s remaining=910.018708ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3889 spawn_elapsed=935.667µs
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3889 command_elapsed=16.499ms actual_wait=true status=exit status: 0 remaining=893.173417ms
+RQA10_SCAN_END thread=ThreadId(17) session=3885 stage=final-drain call=4 elapsed=17.903875ms remaining=892.11475ms result=Ok(497)
+RQA10_CLEANUP session=3885 calls=4 elapsed=108.459333ms cleaned=true final_complete_census=true
+RQA10_SCAN_BEGIN thread=ThreadId(17) session=3885 stage=post-cleanup-audit call=1 owner_elapsed=1.417µs deadline_offset=249.9995ms remaining=249.998083ms
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3890 spawn_elapsed=487.958µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(17) pid=3890 command_elapsed=250.412ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(17) session=3885 stage=post-cleanup-audit call=1 elapsed=250.901916ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_AUDIT session=3885 elapsed=251.287542ms remaining=0ns complete_members=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_COMMAND_SPAWN thread=ThreadId(17) pid=3893 spawn_elapsed=5.45325ms
+RQA10_COMMAND_EXIT thread=ThreadId(17) pid=3893 command_elapsed=35.370042ms actual_wait=true status=exit status: 0 remaining=214.472667ms
+RQA10_CONTROL post_audit=true actual_root_wait=true held_inventory_reaped=true complete_independent_census=true cleanup_receipt=true original_fixture_failed=true before_driver_fallback
+test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3895 spawn_elapsed=2.1275ms
+RQA10_COMMAND_EXIT thread=ThreadId(18) pid=3895 command_elapsed=24.22825ms actual_wait=true status=exit status: 0 remaining=225.538875ms
+RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=initial-drain call=1 owner_elapsed=8.167µs deadline_offset=100ms remaining=99.991833ms
+RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=initial-drain call=1 elapsed=66.292µs remaining=99.925458ms result=Err(Custom { kind: Other, error: "injected transient inventory failure" })
+RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=initial-drain call=2 owner_elapsed=20.306084ms deadline_offset=100ms remaining=79.693916ms
+RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3899 spawn_elapsed=1.533833ms
+RQA10_COMMAND_EXIT thread=ThreadId(18) pid=3899 command_elapsed=30.42275ms actual_wait=true status=exit status: 0 remaining=48.941625ms
+RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=initial-drain call=2 elapsed=31.60275ms remaining=48.091125ms result=Ok(502)
+session drain recovered inventory before deadline: injected transient inventory failure
+RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=quiescence call=3 owner_elapsed=52.257417ms deadline_offset=250ms remaining=197.742583ms
+RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3900 spawn_elapsed=1.727834ms
+RQA10_INJECT scan=3 pid=Pid(3900) actual_stop_ack=true remaining_before_80ms=179.972375ms
+RQA10_INJECT scan=3 pid=Pid(3900) actual_delay=102.544417ms remaining_before_cont=77.427666ms
+RQA10_COMMAND_TIMEOUT thread=ThreadId(18) pid=3900 command_elapsed=335.995625ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=quiescence call=3 elapsed=336.607208ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_ROOT session=3896 elapsed=402.704084ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=597.295625ms
+RQA10_SCAN_BEGIN thread=ThreadId(18) session=3896 stage=final-drain call=4 owner_elapsed=402.748542ms deadline_offset=1s remaining=597.251458ms
+RQA10_COMMAND_SPAWN thread=ThreadId(18) pid=3904 spawn_elapsed=1.471958ms
+RQA10_COMMAND_EXIT thread=ThreadId(18) pid=3904 command_elapsed=24.615458ms actual_wait=true status=exit status: 0 remaining=572.404791ms
+RQA10_SCAN_END thread=ThreadId(18) session=3896 stage=final-drain call=4 elapsed=26.822458ms remaining=570.42875ms result=Ok(504)
+RQA10_CLEANUP session=3896 calls=4 elapsed=430.22825ms cleaned=false error=owned session inventory timed out
+RQA10_RECOVERY_RESULT session=3896 scans=4 finish=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" }) root_status=Some(ExitStatus(unix_wait_status(25856))) cleaned=false
+Error: Custom { kind: TimedOut, error: "owned session inventory timed out" }
+test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... FAILED
+test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(20) pid=3905 spawn_elapsed=1.773958ms
+RQA10_COMMAND_EXIT thread=ThreadId(20) pid=3905 command_elapsed=29.299291ms actual_wait=true status=exit status: 0 remaining=220.605208ms
+RQA10_SCAN_BEGIN thread=ThreadId(20) session=3906 stage=initial-drain call=1 owner_elapsed=6.167µs deadline_offset=100ms remaining=99.993833ms
+RQA10_COMMAND_SPAWN thread=ThreadId(20) pid=3907 spawn_elapsed=777.292µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(20) pid=3907 command_elapsed=103.80875ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(20) session=3906 stage=initial-drain call=1 elapsed=104.567333ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_SCAN_BEGIN thread=ThreadId(20) session=3906 stage=quiescence call=2 owner_elapsed=104.639709ms deadline_offset=250ms remaining=145.360291ms
+RQA10_COMMAND_SPAWN thread=ThreadId(20) pid=3908 spawn_elapsed=1.909459ms
+RQA10_COMMAND_TIMEOUT thread=ThreadId(20) pid=3908 command_elapsed=146.562792ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(20) session=3906 stage=quiescence call=2 elapsed=147.255083ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_ROOT session=3906 elapsed=266.564292ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=733.435541ms
+RQA10_SCAN_BEGIN thread=ThreadId(20) session=3906 stage=final-drain call=3 owner_elapsed=267.116834ms deadline_offset=1s remaining=732.883166ms
+RQA10_COMMAND_SPAWN thread=ThreadId(20) pid=3909 spawn_elapsed=1.340792ms
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3686 stage=initial-drain call=1 owner_elapsed=4.709µs deadline_offset=100ms remaining=99.995291ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3913 spawn_elapsed=796.209µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3913 command_elapsed=27.024334ms actual_wait=true status=exit status: 0 remaining=72.638791ms
+RQA10_SCAN_END thread=ThreadId(4) session=3686 stage=initial-drain call=1 elapsed=28.727666ms remaining=71.267541ms result=Ok(507)
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3686 stage=initial-drain call=2 owner_elapsed=46.031125ms deadline_offset=100ms remaining=53.968875ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3914 spawn_elapsed=1.006458ms
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3914 command_elapsed=38.720791ms actual_wait=true status=exit status: 0 remaining=14.842416ms
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3700 stage=initial-drain call=1 owner_elapsed=3.542µs deadline_offset=100ms remaining=99.996458ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3916 spawn_elapsed=525.708µs
+RQA10_SCAN_END thread=ThreadId(4) session=3686 stage=initial-drain call=2 elapsed=40.144125ms remaining=13.824666ms result=Ok(505)
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3686 stage=quiescence call=3 owner_elapsed=86.803625ms deadline_offset=250ms remaining=163.196375ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3917 spawn_elapsed=635.667µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3917 command_elapsed=28.54125ms actual_wait=true status=exit status: 0 remaining=134.450583ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3916 command_elapsed=30.220625ms actual_wait=true status=exit status: 0 remaining=69.571916ms
+RQA10_SCAN_END thread=ThreadId(4) session=3686 stage=quiescence call=3 elapsed=30.021084ms remaining=133.175166ms result=Ok(507)
+RQA10_SCAN_END thread=ThreadId(9) session=3700 stage=initial-drain call=1 elapsed=32.388958ms remaining=67.607333ms result=Ok(507)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3700 stage=quiescence call=2 owner_elapsed=33.103542ms deadline_offset=250ms remaining=216.896458ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3918 spawn_elapsed=871.833µs
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3686 stage=quiescence call=4 owner_elapsed=124.518292ms deadline_offset=250ms remaining=125.481708ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3919 spawn_elapsed=815.708µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3919 command_elapsed=31.219125ms actual_wait=true status=exit status: 0 remaining=93.942916ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3918 command_elapsed=37.283042ms actual_wait=true status=exit status: 0 remaining=179.275333ms
+RQA10_SCAN_END thread=ThreadId(4) session=3686 stage=quiescence call=4 elapsed=33.622958ms remaining=91.858625ms result=Ok(507)
+RQA10_SCAN_END thread=ThreadId(9) session=3700 stage=quiescence call=2 elapsed=39.947917ms remaining=176.948416ms result=Ok(506)
+RQA10_ROOT session=3686 elapsed=158.592459ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=841.4075ms
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3686 stage=final-drain call=5 owner_elapsed=158.618667ms deadline_offset=1s remaining=841.381333ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3920 spawn_elapsed=983.25µs
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3700 stage=quiescence call=3 owner_elapsed=79.526209ms deadline_offset=250ms remaining=170.473791ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3921 spawn_elapsed=1.447334ms
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3920 command_elapsed=31.38825ms actual_wait=true status=exit status: 0 remaining=809.815166ms
+RQA10_SCAN_END thread=ThreadId(4) session=3686 stage=final-drain call=5 elapsed=32.481292ms remaining=808.9ms result=Ok(505)
+RQA10_CLEANUP session=3686 calls=5 elapsed=191.440709ms cleaned=true final_complete_census=true
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3922 spawn_elapsed=726.625µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3921 command_elapsed=30.025584ms actual_wait=true status=exit status: 0 remaining=140.236041ms
+RQA10_SCAN_END thread=ThreadId(9) session=3700 stage=quiescence call=3 elapsed=32.184458ms remaining=138.28925ms result=Ok(506)
+RQA10_ROOT session=3700 elapsed=113.990959ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=886.009ms
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3700 stage=final-drain call=4 owner_elapsed=114.023792ms deadline_offset=1s remaining=885.976208ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3923 spawn_elapsed=761.375µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3922 command_elapsed=29.185167ms actual_wait=true status=exit status: 0 remaining=220.681875ms
+FTQ-010 pre-registration unwind=false: kernel-owned session Pid(3686) empty/reaped in 5.27512875s; zero PID registry entries; actual groups=[Member { pid: Pid(3704), group: Pid(3704), quiet: false }, Member { pid: Pid(3705), group: Pid(3704), quiet: false }]
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3924 spawn_elapsed=629.042µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3923 command_elapsed=33.492083ms actual_wait=true status=exit status: 0 remaining=852.071458ms
+RQA10_SCAN_END thread=ThreadId(9) session=3700 stage=final-drain call=4 elapsed=35.235083ms remaining=850.741083ms result=Ok(505)
+RQA10_CLEANUP session=3700 calls=4 elapsed=149.725875ms cleaned=true final_complete_census=true
+FTQ-010 stalled-worker-join: finite timeout cleanup in 5.212370166s; owned Python PIDs reaped: []
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3925 spawn_elapsed=567.416µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3924 command_elapsed=32.312583ms actual_wait=true status=exit status: 0 remaining=217.581584ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3925 command_elapsed=22.111958ms actual_wait=true status=exit status: 0 remaining=227.7995ms
+RQA10_COMMAND_TIMEOUT thread=ThreadId(20) pid=3909 command_elapsed=734.764167ms actual_kill_wait=true remaining=0ns
+RQA10_SCAN_END thread=ThreadId(20) session=3906 stage=final-drain call=3 elapsed=735.49125ms remaining=0ns result=Err(Custom { kind: TimedOut, error: "owned session inventory timed out" })
+RQA10_CLEANUP session=3906 calls=3 elapsed=1.002635375s cleaned=false error=owned session inventory timed out
+RQA10_COMMAND_SPAWN thread=ThreadId(20) pid=3928 spawn_elapsed=1.066833ms
+RQA10_COMMAND_EXIT thread=ThreadId(20) pid=3928 command_elapsed=24.967458ms actual_wait=true status=exit status: 0 remaining=224.702541ms
+FTQ-011 noncooperative census children [Pid(3907), Pid(3908), Pid(3909)] reaped; failed cleanup retained
+test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(21) pid=3932 spawn_elapsed=716.125µs
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3935 spawn_elapsed=376.5µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3935 command_elapsed=37.30775ms actual_wait=true status=exit status: 0 remaining=2.883058125s
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3936 spawn_elapsed=399.459µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3936 command_elapsed=29.134917ms actual_wait=true status=exit status: 0 remaining=2.85181975s
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3937 spawn_elapsed=1.027333ms
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3937 command_elapsed=21.32475ms actual_wait=true status=exit status: 0 remaining=4.793213084s
+
+thread 'lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind' (17479) panicked at crates/bd-cache-sync/tests/cron_hurry.rs:711:17:
+injected pre-registration parent assertion
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3926 stage=initial-drain call=1 owner_elapsed=4µs deadline_offset=100ms remaining=99.996ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3938 spawn_elapsed=1.071583ms
+RQA10_COMMAND_EXIT thread=ThreadId(21) pid=3932 command_elapsed=147.117625ms actual_wait=true status=exit status: 0 remaining=102.727375ms
+FTQ-011 delayed owned inventory completed/reaped in 149.40325ms
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... ok
+RQA10_COMMAND_SPAWN thread=ThreadId(22) pid=3939 spawn_elapsed=969.333µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3938 command_elapsed=35.212791ms actual_wait=true status=exit status: 0 remaining=64.479625ms
+RQA10_SCAN_END thread=ThreadId(4) session=3926 stage=initial-drain call=1 elapsed=37.986916ms remaining=62.008792ms result=Ok(508)
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3926 stage=initial-drain call=2 owner_elapsed=48.689833ms deadline_offset=100ms remaining=51.310167ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3940 spawn_elapsed=530.458µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3940 command_elapsed=20.010125ms actual_wait=true status=exit status: 0 remaining=31.088917ms
+RQA10_SCAN_END thread=ThreadId(4) session=3926 stage=initial-drain call=2 elapsed=22.036542ms remaining=29.273542ms result=Ok(506)
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3926 stage=quiescence call=3 owner_elapsed=71.114916ms deadline_offset=250ms remaining=178.885084ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3941 spawn_elapsed=406.417µs
+RQA10_COMMAND_TIMEOUT thread=ThreadId(22) pid=3939 command_elapsed=51.702541ms actual_kill_wait=true remaining=0ns
+FTQ-010 stopped inventory unwind=false: pid=Pid(3939) actually reaped in 51.889917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(22) pid=3942 spawn_elapsed=515.541µs
+
+thread 'session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind' (18071) panicked at crates/bd-cache-sync/tests/common/session_fixture.rs:673:17:
+injected inventory assertion unwind
+FTQ-010 stopped inventory unwind=true: pid=Pid(3942) actually reaped in 13.791375ms
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3941 command_elapsed=30.708708ms actual_wait=true status=exit status: 0 remaining=148.002917ms
+RQA10_SCAN_END thread=ThreadId(4) session=3926 stage=quiescence call=3 elapsed=33.133459ms remaining=145.751459ms result=Ok(506)
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3926 stage=quiescence call=4 owner_elapsed=123.688541ms deadline_offset=250ms remaining=126.311459ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3944 spawn_elapsed=888.791µs
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=3945 spawn_elapsed=435.292µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=3945 command_elapsed=18.814333ms actual_wait=true status=exit status: 0 remaining=4.65646325s
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3944 command_elapsed=24.001166ms actual_wait=true status=exit status: 0 remaining=102.108667ms
+RQA10_SCAN_END thread=ThreadId(4) session=3926 stage=quiescence call=4 elapsed=26.281375ms remaining=100.029875ms result=Ok(506)
+RQA10_ROOT session=3926 elapsed=150.317083ms wait=Ok(ExitStatus(unix_wait_status(25856))) remaining_final=849.682875ms
+RQA10_SCAN_BEGIN thread=ThreadId(4) session=3926 stage=final-drain call=5 owner_elapsed=150.36925ms deadline_offset=1s remaining=849.63075ms
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3946 spawn_elapsed=560.792µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3946 command_elapsed=20.685542ms actual_wait=true status=exit status: 0 remaining=828.673667ms
+RQA10_SCAN_END thread=ThreadId(4) session=3926 stage=final-drain call=5 elapsed=21.91225ms remaining=827.718459ms result=Ok(505)
+RQA10_CLEANUP session=3926 calls=5 elapsed=172.609541ms cleaned=true final_complete_census=true
+RQA10_COMMAND_SPAWN thread=ThreadId(4) pid=3947 spawn_elapsed=406.25µs
+RQA10_COMMAND_EXIT thread=ThreadId(4) pid=3947 command_elapsed=25.980709ms actual_wait=true status=exit status: 0 remaining=223.932667ms
+FTQ-010 pre-registration unwind=true: kernel-owned session Pid(3926) empty/reaped in 411.015541ms; zero PID registry entries; actual groups=[Member { pid: Pid(3933), group: Pid(3933), quiet: false }, Member { pid: Pid(3934), group: Pid(3933), quiet: false }]
+test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... ok
+test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+test startup_zero_timeout_joins_its_read_without_grace ... ok
+test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3927 stage=initial-drain call=1 owner_elapsed=125.959µs deadline_offset=100ms remaining=99.874041ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4123 spawn_elapsed=2.579125ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4123 command_elapsed=41.561541ms actual_wait=true status=exit status: 0 remaining=57.301583ms
+RQA10_SCAN_END thread=ThreadId(9) session=3927 stage=initial-drain call=1 elapsed=50.679416ms remaining=49.194416ms result=Ok(516)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3927 stage=quiescence call=2 owner_elapsed=51.914542ms deadline_offset=250ms remaining=198.085458ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4124 spawn_elapsed=1.456666ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4124 command_elapsed=34.317958ms actual_wait=true status=exit status: 0 remaining=163.538625ms
+RQA10_SCAN_END thread=ThreadId(9) session=3927 stage=quiescence call=2 elapsed=36.644625ms remaining=161.44075ms result=Ok(516)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3927 stage=quiescence call=3 owner_elapsed=97.456125ms deadline_offset=250ms remaining=152.543875ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4125 spawn_elapsed=748.917µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4125 command_elapsed=31.012375ms actual_wait=true status=exit status: 0 remaining=121.331208ms
+RQA10_SCAN_END thread=ThreadId(9) session=3927 stage=quiescence call=3 elapsed=33.4745ms remaining=119.069083ms result=Ok(516)
+RQA10_ROOT session=3927 elapsed=133.194709ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=866.805083ms
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=3927 stage=final-drain call=4 owner_elapsed=133.24875ms deadline_offset=1s remaining=866.75125ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4126 spawn_elapsed=1.224583ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4126 command_elapsed=29.755167ms actual_wait=true status=exit status: 0 remaining=836.648833ms
+RQA10_SCAN_END thread=ThreadId(9) session=3927 stage=final-drain call=4 elapsed=33.410834ms remaining=833.340125ms result=Ok(515)
+RQA10_CLEANUP session=3927 calls=4 elapsed=167.188792ms cleaned=true final_complete_census=true
+FTQ-010 stalled-management: finite timeout cleanup in 5.1921355s; owned Python PIDs reaped: []
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4127 spawn_elapsed=1.315083ms
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4127 command_elapsed=29.566125ms actual_wait=true status=exit status: 0 remaining=220.255167ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4157 spawn_elapsed=544.541µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4157 command_elapsed=24.799583ms actual_wait=true status=exit status: 0 remaining=3.904452958s
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=4128 stage=initial-drain call=1 owner_elapsed=25.958µs deadline_offset=100ms remaining=99.974042ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4186 spawn_elapsed=779.709µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4186 command_elapsed=32.184292ms actual_wait=true status=exit status: 0 remaining=67.155167ms
+RQA10_SCAN_END thread=ThreadId(9) session=4128 stage=initial-drain call=1 elapsed=34.3615ms remaining=65.612417ms result=Ok(511)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=4128 stage=initial-drain call=2 owner_elapsed=60.960333ms deadline_offset=100ms remaining=39.039667ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4187 spawn_elapsed=860.291µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4187 command_elapsed=19.351166ms actual_wait=true status=exit status: 0 remaining=19.293167ms
+RQA10_SCAN_END thread=ThreadId(9) session=4128 stage=initial-drain call=2 elapsed=20.613792ms remaining=18.425792ms result=Ok(507)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=4128 stage=quiescence call=3 owner_elapsed=81.912291ms deadline_offset=250ms remaining=168.087709ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4188 spawn_elapsed=693.417µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4188 command_elapsed=12.952125ms actual_wait=true status=exit status: 0 remaining=154.989417ms
+RQA10_SCAN_END thread=ThreadId(9) session=4128 stage=quiescence call=3 elapsed=14.1985ms remaining=153.889125ms result=Ok(507)
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=4128 stage=quiescence call=4 owner_elapsed=111.375708ms deadline_offset=250ms remaining=138.624292ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4189 spawn_elapsed=851.958µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4189 command_elapsed=24.475375ms actual_wait=true status=exit status: 0 remaining=113.759917ms
+RQA10_SCAN_END thread=ThreadId(9) session=4128 stage=quiescence call=4 elapsed=27.145875ms remaining=111.478167ms result=Ok(507)
+RQA10_ROOT session=4128 elapsed=140.045041ms wait=Ok(ExitStatus(unix_wait_status(9))) remaining_final=859.95475ms
+RQA10_SCAN_BEGIN thread=ThreadId(9) session=4128 stage=final-drain call=5 owner_elapsed=140.067875ms deadline_offset=1s remaining=859.932125ms
+RQA10_COMMAND_SPAWN thread=ThreadId(9) pid=4190 spawn_elapsed=574.75µs
+RQA10_COMMAND_EXIT thread=ThreadId(9) pid=4190 command_elapsed=21.051417ms actual_wait=true status=exit status: 0 remaining=838.706459ms
+RQA10_SCAN_END thread=ThreadId(9) session=4128 stage=final-drain call=5 elapsed=28.973541ms remaining=830.958417ms result=Ok(506)
+RQA10_CLEANUP session=4128 calls=5 elapsed=169.412375ms cleaned=true final_complete_census=true
+FTQ-010 stalled-second-start: finite timeout cleanup in 5.213293542s; owned Python PIDs reaped: [4150]
+test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... ok
+
+failures:
+
+failures:
+    session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure
+
+test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.70s
+
+[1m[91merror[0m: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`
