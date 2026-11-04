@@ -1,0 +1,18 @@
+    Checking bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+error: fields `spawn_returned_after` and `owner_unix_ns` are never read
+  --> crates/bd-cache-sync/tests/../../bd-cache-store/tests/support/fixture_child.rs:17:16
+   |
+10 | pub(crate) struct FixtureChild {
+   |                   ------------ fields in this struct
+...
+17 |     pub(crate) spawn_returned_after: Duration,
+   |                ^^^^^^^^^^^^^^^^^^^^
+18 |     pub(crate) owner_unix_ns: u64,
+   |                ^^^^^^^^^^^^^
+   |
+   = note: `FixtureChild` has a derived impl for the trait `Debug`, but this is intentionally ignored during dead code analysis
+   = note: `-D dead-code` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[expect(dead_code)]` or `#[allow(dead_code)]`
+
+error: could not compile `bd-cache-sync` (test "cron_hurry") due to 1 previous error

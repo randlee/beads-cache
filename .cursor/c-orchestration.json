@@ -8528,6 +8528,324 @@
           "RQA9-001"
         ]
       }
+    },
+    {
+      "qa_pass": "qa-10",
+      "sprint": "c-1",
+      "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+      "verdict": "FAIL",
+      "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833",
+      "reviewer_manifest": [
+        {
+          "agent": "rust-qa-agent",
+          "task_id": "/root/c1_rustqa10",
+          "spawn_actor": "parent-orchestrator",
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "reported_verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 3,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/rqa9_causal_owner",
+          "spawn_actor": "parent-orchestrator",
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_followup_existing_independent_reviewer",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "reported_verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 2,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "arch-qa",
+          "task_id": "/root/c1_archqa10",
+          "spawn_actor": "parent-orchestrator",
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "reported_verdict": "FAIL",
+          "findings": {
+            "blocking": 1,
+            "important": 0,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "req-qa",
+          "task_id": "/root/c1_reqqa10",
+          "spawn_actor": "parent-orchestrator",
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "model_provenance": "Available fallback; configured Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "reported_verdict": "FAIL",
+          "findings": {
+            "blocking": 1,
+            "important": 0,
+            "minor": 0
+          }
+        }
+      ],
+      "triage_ttl_paths": [
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RQA9-001.ttl",
+        "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA10-001.ttl",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl",
+        "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl"
+      ],
+      "finding_ids": [
+        "QA2-001",
+        "RQA9-001",
+        "RQA10-001",
+        "ARCH-001",
+        "REQ-QA-004",
+        "RBQA-F001"
+      ],
+      "coordinator_task_id": "/root/c1_quality_manager10",
+      "machine_status": {
+        "sprint": "c-1",
+        "task": "qa-c-1-10",
+        "branch": "sprint/c-1-runtime-migration",
+        "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "pr": 108,
+        "verdict": "FAIL",
+        "deliverables": {
+          "complete": 29,
+          "total": 34,
+          "percent": 85.29
+        },
+        "findings": {
+          "blocking": 3,
+          "important": 3,
+          "minor": 0
+        },
+        "blocking_ids": [
+          "ARCH-001",
+          "REQ-QA-004",
+          "RBQA-F001"
+        ],
+        "merge_readiness": "not ready",
+        "merge_reason": "Six open findings (3 Blocking, 3 Important), deliverables 29/34, and two failed exact-head CI checks.",
+        "next_action": "triage_and_fix",
+        "owner": "parent-orchestrator",
+        "reviewer_spawn_gate": "pass",
+        "reviewer_manifest": [
+          {
+            "agent": "rust-qa-agent",
+            "task_id": "/root/c1_rustqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "findings",
+            "findings": {
+              "blocking": 0,
+              "important": 3,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "flaky-test-qa",
+            "task_id": "/root/rqa9_causal_owner",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_followup_existing_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "findings",
+            "findings": {
+              "blocking": 0,
+              "important": 2,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "arch-qa",
+            "task_id": "/root/c1_archqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "FAIL",
+            "findings": {
+              "blocking": 1,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "req-qa",
+            "task_id": "/root/c1_reqqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "FAIL",
+            "findings": {
+              "blocking": 1,
+              "important": 0,
+              "minor": 0
+            }
+          }
+        ],
+        "missing_reviewers": [],
+        "unparsed_reviewers": [],
+        "evidence_chain": {
+          "qa_pass": "qa-10",
+          "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+          "pr_number": 108,
+          "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833",
+          "coordinator_task_id": "/root/c1_quality_manager10",
+          "reviewer_tasks": [
+            {
+              "agent": "rust-qa-agent",
+              "task_id": "/root/c1_rustqa10",
+              "spawn_actor": "parent-orchestrator",
+              "model": "gpt-6.1-sol",
+              "reasoning_effort": "high",
+              "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+              "invocation": "parent_spawn_new_independent_reviewer",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "reported_verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 3,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "flaky-test-qa",
+              "task_id": "/root/rqa9_causal_owner",
+              "spawn_actor": "parent-orchestrator",
+              "model": "gpt-6.1-sol",
+              "reasoning_effort": "high",
+              "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+              "invocation": "parent_followup_existing_independent_reviewer",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "reported_verdict": "findings",
+              "findings": {
+                "blocking": 0,
+                "important": 2,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "arch-qa",
+              "task_id": "/root/c1_archqa10",
+              "spawn_actor": "parent-orchestrator",
+              "model": "gpt-6.1-sol",
+              "reasoning_effort": "high",
+              "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+              "invocation": "parent_spawn_new_independent_reviewer",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "reported_verdict": "FAIL",
+              "findings": {
+                "blocking": 1,
+                "important": 0,
+                "minor": 0
+              }
+            },
+            {
+              "agent": "req-qa",
+              "task_id": "/root/c1_reqqa10",
+              "spawn_actor": "parent-orchestrator",
+              "model": "gpt-6.1-sol",
+              "reasoning_effort": "high",
+              "model_provenance": "Available fallback; configured Composer unavailable",
+              "invocation": "parent_spawn_new_independent_reviewer",
+              "fenced_json_received": true,
+              "verdict": "FAIL",
+              "reported_verdict": "FAIL",
+              "findings": {
+                "blocking": 1,
+                "important": 0,
+                "minor": 0
+              }
+            }
+          ],
+          "parent_spawn_correlation": "/tmp/phase-c-execution/c-1/qa-10/parent-spawn-correlation.json",
+          "reviewer_output_proof": "/tmp/phase-c-execution/c-1/qa-10/manager-evidence-verification.json",
+          "triage": {
+            "phase_id": "c",
+            "ttl_paths": [
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl",
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RQA9-001.ttl",
+              "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA10-001.ttl",
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl",
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl",
+              "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl"
+            ]
+          },
+          "parent_correlation_required": true,
+          "model": {
+            "actual": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "configured_Composer_available": false
+          },
+          "ceremony_screen": {
+            "task_id": "/root/c1_ceremonyqa10",
+            "all_six_parent_decisions": "accepted not_applicable; no waiver/new gate"
+          },
+          "ci": {
+            "snapshot": "/tmp/phase-c-execution/c-1/qa-10/manager-pr108-view.json",
+            "checks_snapshot": "/tmp/phase-c-execution/c-1/qa-10/manager-pr108-checks.json",
+            "head": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+            "total": 15,
+            "success": 13,
+            "failure": 2,
+            "python_success": 11
+          },
+          "historical_carry": {
+            "id": "RBQA-F001",
+            "source": "/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json",
+            "fresh_review": false
+          }
+        },
+        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
+        "open_finding_ids": [
+          "QA2-001",
+          "RQA9-001",
+          "RQA10-001",
+          "ARCH-001",
+          "REQ-QA-004",
+          "RBQA-F001"
+        ],
+        "ci_gate": "fail"
+      }
     }
   ],
   "integration_pr": {
@@ -8707,94 +9025,79 @@
   },
   "current_qa_dispatch": {
     "sprint": "c-1",
-    "qa_pass": "qa-9",
-    "commit": "a753d2799183dd4e341c854c4515bf046447eb6c",
+    "qa_pass": "qa-10",
+    "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
     "status": "sole_enforcer_complete_FAIL",
-    "started_at": "2026-11-04T05:07:21.730417+00:00",
+    "started_at": "2026-11-04T06:44:53.287321+00:00",
     "reviewer_manifest": [
       {
         "agent": "rust-qa-agent",
-        "task_id": "/root/c1_rustqa9",
+        "task_id": "/root/c1_rustqa10",
         "spawn_actor": "parent-orchestrator",
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "model_provenance": "Available fallback; configured Grok/Composer unavailable"
-      },
-      {
-        "agent": "arch-qa",
-        "task_id": "/root/c1_archqa9",
-        "spawn_actor": "parent-orchestrator",
-        "model": "gpt-6.1-sol",
-        "reasoning_effort": "high",
-        "model_provenance": "Available fallback; configured Grok/Composer unavailable"
-      },
-      {
-        "agent": "req-qa",
-        "task_id": "/root/c1_reqqa9",
-        "spawn_actor": "parent-orchestrator",
-        "model": "gpt-6.1-sol",
-        "reasoning_effort": "high",
-        "model_provenance": "Available fallback; configured Grok/Composer unavailable"
+        "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+        "invocation": "parent_spawn_new_independent_reviewer"
       },
       {
         "agent": "flaky-test-qa",
-        "task_id": "/root/c1_flakyqa9",
+        "task_id": "/root/rqa9_causal_owner",
         "spawn_actor": "parent-orchestrator",
         "model": "gpt-6.1-sol",
         "reasoning_effort": "high",
-        "model_provenance": "Available fallback; configured Composer unavailable"
+        "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+        "invocation": "parent_followup_existing_independent_reviewer"
+      },
+      {
+        "agent": "arch-qa",
+        "task_id": "/root/c1_archqa10",
+        "spawn_actor": "parent-orchestrator",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+        "invocation": "parent_spawn_new_independent_reviewer"
+      },
+      {
+        "agent": "req-qa",
+        "task_id": "/root/c1_reqqa10",
+        "spawn_actor": "parent-orchestrator",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Available fallback; configured Composer unavailable",
+        "invocation": "parent_spawn_new_independent_reviewer"
       }
     ],
     "queued_roles": [],
     "cargo_owner": null,
-    "paired_caller_source": "b7de8e9879503353879c500edacf12a6832d709d",
-    "paired_caller_receipt": "/tmp/phase-c-execution/c-2/qa-5/startup-candidate-result.json",
-    "coordinator_task_id": "/root/c1_quality_manager9",
+    "coordinator_task_id": "/root/c1_quality_manager10",
+    "developer_receipt": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-result.json",
+    "current_source_Windows_job": 126430893018,
+    "completed_reviewers": [
+      "/root/c1_rustqa10",
+      "/root/rqa9_causal_owner",
+      "/root/c1_archqa10",
+      "/root/c1_reqqa10"
+    ],
     "independent_progress": {
-      "rustqa": "C1 lifecycle18/18, store5/5, lints PASS; rebuilt exact C2 public probe250.876ms<500ms and service7/7 PASS; final JSON pending",
-      "archqa": "Completed actual fenced FAIL1B ARCH-001; raw current runtime and source evidence accepted in architecture scope, owner/enforcer canonical aggregation pending",
-      "reqqa": "all101 IDs resolved and168 src/manifests equality independently verified; full completion disposition awaits runtime receipt",
-      "status": "In-flight; no completed coordinator verdict",
-      "current_c2_windows_failure": {
-        "job_id": 126397662727,
-        "cause": "store fixture shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup: worker operation did not run",
-        "result": "33 passed,1 failed",
-        "scope": "Current inherited shared-store test failure; actual cause unproven, NOT current CTRL_BREAK evidence",
-        "log": "/tmp/phase-c-execution/c-1/qa-9/rust-qa-hosted-c2-windows.log",
-        "next_action": "Flaky owner review then triage based on fenced findings before dev investigation"
-      },
-      "final_req_completion": {
+      "new_protocol": "Independent Rust8/8+2/2,strictfmt/lints and direct plantedexit101 actualrootcleanup/no fallback PASS; arch/flaky no new diagnostic-scope defect",
+      "source_scope": "158whole src.rs equal plus modifiedschedule.rs productionprefix equal; not blanket159 byteequality",
+      "native_ci": "Linux/WindowsSUCCESS,macOS17/18FAIL,boundaryFAIL",
+      "new_finding": "RQA10-001Important actual inventorytimeout, failing phase/causeunknown, separatefromRQA9 and priorFTQ011 repair",
+      "new_triage": ".triage/c/findings/RQA10-001.ttl",
+      "req_completion": {
         "complete": 29,
         "total": 34,
         "percent": 85.29
-      },
-      "actual_union_ids_plus_unchanged_carry": [
-        "REQ-QA-004",
-        "ARCH-001",
-        "RBQA-F001",
-        "QA2-001",
-        "RQA9-001"
-      ],
-      "canonical_fix_dispositions_pending_enforcer": {
-        "RSH-001": "Rust owner explicitly resolves reopened startup at exact C1/C2 sources; architecture and flaky confirm",
-        "FTQ-011": "Flaky owner verifies closure at exact C1; C2 still requires helper source consumption"
       }
     },
-    "completed_reviewers": [
-      "/root/c1_rustqa9",
-      "/root/c1_archqa9",
-      "/root/c1_reqqa9",
-      "/root/c1_flakyqa9"
-    ],
-    "screen_task_id": "/root/c1_ceremonyqa9",
-    "enforcer_acknowledged": true,
-    "screen_status": "all_five_not_applicable_parent_accepted",
-    "leaf_evidence_archive": ".cursor/qa-evidence/phase-c/c-1/qa-9",
+    "screen_task_id": "/root/c1_ceremonyqa10",
+    "screen_status": "Allsixnot_applicable_parentaccepted",
+    "leaf_evidence_archive": ".cursor/qa-evidence/phase-c/c-1/qa-10",
     "machine_status": {
       "sprint": "c-1",
-      "task": "qa-c-1-9",
+      "task": "qa-c-1-10",
       "branch": "sprint/c-1-runtime-migration",
-      "commit": "a753d2799183dd4e341c854c4515bf046447eb6c",
+      "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
       "pr": 108,
       "verdict": "FAIL",
       "deliverables": {
@@ -8804,7 +9107,7 @@
       },
       "findings": {
         "blocking": 3,
-        "important": 2,
+        "important": 3,
         "minor": 0
       },
       "blocking_ids": [
@@ -8813,20 +9116,39 @@
         "RBQA-F001"
       ],
       "merge_readiness": "not ready",
-      "merge_reason": "5 open findings (3 Blocking, 2 Important, 0 Minor), incomplete deliverables and failing required boundary CI.",
+      "merge_reason": "Six open findings (3 Blocking, 3 Important), deliverables 29/34, and two failed exact-head CI checks.",
       "next_action": "triage_and_fix",
       "owner": "parent-orchestrator",
       "reviewer_spawn_gate": "pass",
       "reviewer_manifest": [
         {
           "agent": "rust-qa-agent",
-          "task_id": "/root/c1_rustqa9",
+          "task_id": "/root/c1_rustqa10",
           "spawn_actor": "parent-orchestrator",
           "model": "gpt-6.1-sol",
           "reasoning_effort": "high",
           "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
           "fenced_json_received": true,
-          "verdict": "findings",
+          "verdict": "FAIL",
+          "reported_verdict": "findings",
+          "findings": {
+            "blocking": 0,
+            "important": 3,
+            "minor": 0
+          }
+        },
+        {
+          "agent": "flaky-test-qa",
+          "task_id": "/root/rqa9_causal_owner",
+          "spawn_actor": "parent-orchestrator",
+          "model": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_followup_existing_independent_reviewer",
+          "fenced_json_received": true,
+          "verdict": "FAIL",
+          "reported_verdict": "findings",
           "findings": {
             "blocking": 0,
             "important": 2,
@@ -8835,13 +9157,15 @@
         },
         {
           "agent": "arch-qa",
-          "task_id": "/root/c1_archqa9",
+          "task_id": "/root/c1_archqa10",
           "spawn_actor": "parent-orchestrator",
           "model": "gpt-6.1-sol",
           "reasoning_effort": "high",
           "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
           "fenced_json_received": true,
           "verdict": "FAIL",
+          "reported_verdict": "FAIL",
           "findings": {
             "blocking": 1,
             "important": 0,
@@ -8850,31 +9174,18 @@
         },
         {
           "agent": "req-qa",
-          "task_id": "/root/c1_reqqa9",
-          "spawn_actor": "parent-orchestrator",
-          "model": "gpt-6.1-sol",
-          "reasoning_effort": "high",
-          "model_provenance": "Available fallback; configured Grok/Composer unavailable",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 1,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "flaky-test-qa",
-          "task_id": "/root/c1_flakyqa9",
+          "task_id": "/root/c1_reqqa10",
           "spawn_actor": "parent-orchestrator",
           "model": "gpt-6.1-sol",
           "reasoning_effort": "high",
           "model_provenance": "Available fallback; configured Composer unavailable",
+          "invocation": "parent_spawn_new_independent_reviewer",
           "fenced_json_received": true,
-          "verdict": "findings",
+          "verdict": "FAIL",
+          "reported_verdict": "FAIL",
           "findings": {
-            "blocking": 0,
-            "important": 1,
+            "blocking": 1,
+            "important": 0,
             "minor": 0
           }
         }
@@ -8882,53 +9193,135 @@
       "missing_reviewers": [],
       "unparsed_reviewers": [],
       "evidence_chain": {
-        "qa_pass": "qa-9",
-        "commit": "a753d2799183dd4e341c854c4515bf046447eb6c",
+        "qa_pass": "qa-10",
+        "commit": "8c1aefafd7fd269c82c7974e610e848816d026d8",
         "pr_number": 108,
-        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6623311092",
-        "coordinator_task_id": "/root/c1_quality_manager9",
-        "parent_spawn_correlation": "/tmp/phase-c-execution/c-1/qa-9/parent-spawn-correlation.json",
-        "triage": {
-          "ttl_paths": [
-            ".triage/c/findings/REQ-QA-004.ttl",
-            ".triage/c/findings/ARCH-001.ttl",
-            ".triage/c/findings/RBQA-F001.ttl",
-            ".triage/c/findings/QA2-001.ttl",
-            ".triage/c/findings/RSH-001.ttl",
-            ".triage/c/findings/FTQ-011.ttl",
-            ".triage/c/findings/FTQ-009.ttl",
-            ".triage/c/findings/FTQ-010.ttl",
-            ".triage/c/findings/RQA9-001.ttl"
-          ],
-          "new_record_worktree": "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c",
-          "frozen_review_worktree_unchanged": true
-        },
-        "carry_forward_ids": [
-          "RBQA-F001"
+        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833",
+        "coordinator_task_id": "/root/c1_quality_manager10",
+        "reviewer_tasks": [
+          {
+            "agent": "rust-qa-agent",
+            "task_id": "/root/c1_rustqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "findings",
+            "findings": {
+              "blocking": 0,
+              "important": 3,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "flaky-test-qa",
+            "task_id": "/root/rqa9_causal_owner",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_followup_existing_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "findings",
+            "findings": {
+              "blocking": 0,
+              "important": 2,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "arch-qa",
+            "task_id": "/root/c1_archqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Grok/Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "FAIL",
+            "findings": {
+              "blocking": 1,
+              "important": 0,
+              "minor": 0
+            }
+          },
+          {
+            "agent": "req-qa",
+            "task_id": "/root/c1_reqqa10",
+            "spawn_actor": "parent-orchestrator",
+            "model": "gpt-6.1-sol",
+            "reasoning_effort": "high",
+            "model_provenance": "Available fallback; configured Composer unavailable",
+            "invocation": "parent_spawn_new_independent_reviewer",
+            "fenced_json_received": true,
+            "verdict": "FAIL",
+            "reported_verdict": "FAIL",
+            "findings": {
+              "blocking": 1,
+              "important": 0,
+              "minor": 0
+            }
+          }
         ],
-        "carry_owner_evidence": "/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json",
-        "todo_scan_rows": 0,
-        "ci_snapshot": "/tmp/phase-c-execution/c-1/qa-9/manager-pr108-ci.json",
-        "ci_checks": "/tmp/phase-c-execution/c-1/qa-9/manager-pr108-checks.json",
-        "ci_success": 14,
-        "ci_failure": 1,
-        "ci_pending": 0,
-        "scope": "C1 QA9; paired C2 startup occurrence only; no whole C2, stock HTTP, anchor, sprint or merge acceptance"
+        "parent_spawn_correlation": "/tmp/phase-c-execution/c-1/qa-10/parent-spawn-correlation.json",
+        "reviewer_output_proof": "/tmp/phase-c-execution/c-1/qa-10/manager-evidence-verification.json",
+        "triage": {
+          "phase_id": "c",
+          "ttl_paths": [
+            "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl",
+            "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RQA9-001.ttl",
+            "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/RQA10-001.ttl",
+            "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl",
+            "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl",
+            "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl"
+          ]
+        },
+        "parent_correlation_required": true,
+        "model": {
+          "actual": "gpt-6.1-sol",
+          "reasoning_effort": "high",
+          "configured_Composer_available": false
+        },
+        "ceremony_screen": {
+          "task_id": "/root/c1_ceremonyqa10",
+          "all_six_parent_decisions": "accepted not_applicable; no waiver/new gate"
+        },
+        "ci": {
+          "snapshot": "/tmp/phase-c-execution/c-1/qa-10/manager-pr108-view.json",
+          "checks_snapshot": "/tmp/phase-c-execution/c-1/qa-10/manager-pr108-checks.json",
+          "head": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+          "total": 15,
+          "success": 13,
+          "failure": 2,
+          "python_success": 11
+        },
+        "historical_carry": {
+          "id": "RBQA-F001",
+          "source": "/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json",
+          "fresh_review": false
+        }
       },
       "aggregation_source": "reviewer_fenced_json_union_todo_scan",
       "open_finding_ids": [
-        "REQ-QA-004",
-        "ARCH-001",
-        "RBQA-F001",
         "QA2-001",
-        "RQA9-001"
-      ]
+        "RQA9-001",
+        "RQA10-001",
+        "ARCH-001",
+        "REQ-QA-004",
+        "RBQA-F001"
+      ],
+      "ci_gate": "fail"
     },
-    "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6623311092"
+    "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833"
   },
   "current_fix_dispatch": {
     "dispatched_at": "2026-11-04T05:26:44.589264+00:00",
-    "status": "diagnostic_context_complete_finding_unlocalized",
+    "status": "completed",
     "actor": "parent-orchestrator",
     "tasks": [
       {
@@ -8974,6 +9367,34 @@
         "pushed_source": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
         "local_validation": "Store5/5,service7/7,both strict scoped Clippy/fmt PASS; no cause/fix claim",
         "result": "/tmp/phase-c-execution/c-2/qa-5/windows-diagnostic-consumption-result.json"
+      },
+      {
+        "task_id": "/root/c1_windowsqa9_dev",
+        "task_local_id": "fix-c-1-qa9-rqa9-phase-classification",
+        "invocation": "parent_followup_existing_background_developer",
+        "role": "rust-developer",
+        "sprint": "c-1",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-fix.xml",
+        "state": "completed_frozen_for_QA10",
+        "baseline": "bcfcae7021522454e85be964661b9525bb15e58c",
+        "integration": "b731c09e55733b6468ff24af19cc24d1b3f6295e",
+        "cargo_slot": false,
+        "dispatched_at": "2026-11-04T06:25:30.313601+00:00",
+        "scope": "Minimal bounded phase diagnostics and planted classification control only; original historical cause remains open",
+        "finding_ids": [
+          "REQ-QA-004",
+          "ARCH-001",
+          "RBQA-F001",
+          "QA2-001",
+          "RQA9-001"
+        ],
+        "progress": "Only RQA9 triage conflict, preserving union. Private independent phase checkpoints and planted post-return/pre-marker owned failure; optional no-op observer for existing helper callers. No Cargo yet, original cause unknown.",
+        "merge_commit": "c88c5431fa942090c1642e14ac119050f3a0da03",
+        "reported_progress": "Private main/worker phase checkpoints and planted post-return/pre-marker control implemented; strict affected all-target/all-feature Clippy PASS after retained style errors. Eight targeted shutdown/control tests running; no parent-inferred result. Original cause remains unknown and all5 OPEN.",
+        "pushed_source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "reported_prepush": "8/8 targeted controls and actual plantedexit1015.020s,rootcleanuptrue,no fallback; affected/default/helpercompat Clippy/fmt PASS; historical cause unknown",
+        "result": "/tmp/phase-c-execution/c-1/qa-9/phase-protocol-result.json",
+        "reported_postpush": "Store8/8,defaultowner2/2,direct actualplantedexit101 with completed root cleanup before fallback; historicalcauseUNKNOWN"
       }
     ],
     "remote_jobs": [
@@ -9049,26 +9470,25 @@
       "source_guard_verified": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
       "workflow_commit": "05165e20aba8f996a100ced5e25f04634fb55c60",
       "purpose": "Disposable diagnostic only; never merge workflow; no local Cargo output"
-    }
+    },
+    "active_task_id": "/root/c1_windowsqa9_dev",
+    "cargo_owner": null
   },
   "goal_turn_audit": {
     "previous_turn": "progress",
     "current_classification": "progress",
     "evidence": [
-      "C1 helper a753d27 and C2 public Application candidate b7de8e9 pushed and postpush validated by background developers",
-      "All four independent QA9 roles completed with current matching JSON fences and actual task IDs",
-      "Independent Rust rebuilt original public Application probe and verified original500ms bound, service7/7, lifecycle18/store5/lints and four negative owned-cleanup probes",
-      "Current owners explicitly verify RSH startup resolution and FTQ011 correction; sole-enforcer aggregation pending",
-      "New actual Windows shared-store failure RQA9-001 is triaged with independent Rust/flaky evidence, unknown cause retained, no external blocker substitution",
-      "Ceremony screen complete and parent accepted all five operational findings; sole cursor-quality-mgr9 ACKed and publishing mandatory PR report",
-      "QA9 sole enforcer published exact report6623311092,FAIL3B2I29/34; RSH/FTQ011 resolved in candidate scope, new local Windows finding routed next",
-      "Actual background developer c1_windowsqa9_dev dispatched all5 published QA9 IDs after sole enforcer completion, exact integration63ebc1f handed off",
-      "C1 diagnostic bcfcae pushed with bounded causal observations/no fix claim; exact Windows job126408082388 verified live via API; background C2 diagnostic-consumer task spawned and given released Cargo slot",
-      "C2e86d9da diagnostic source pushed, focused store5/service7/lints passed; two exact Windows handles verified live Test/Clippy; C1 source-cause analysis reactivated with released local slot",
-      "Both diagnostic broad Windows store suites34/34 PASS; C2fails daemon3221225786 separately; root-approved one-shot target obtains actual causal phases but original RQA9 mechanism remains unknown; independent owner reassessment running",
-      "Single-target and full34 Windows visible-phase probes passed with exact source and original bounds; independent causal owner confirms RQA9 unlocalized and recommends structured-phase planted-negative control, not more green reruns"
+      "Actual background developer handle confirmed live",
+      "Ordinary integration merge c88c543 completed, prior RQA histories preserved",
+      "Authoritative worktree has scoped store-test/shared-fixture edits; developer reports phase protocol/control implemented and eight meaningful tests running",
+      "QA10 current-owner four-role configuration prepared but no review dispatched against incomplete source",
+      "Actual C1 phase protocol8c1aef pushed; prepush8/8 and live owned plantednegative classification proof reported, exact QA10 assignments rendered pending final developer release",
+      "Final phase-protocol8c1aef frozen/pushed/postpush8+2/directownednegative proof; actual independent Rust/flaky/archQA10 tasks launched, req queued for next slot",
+      "QA10 independent Rust/arch/flaky complete, protocolcontrols pass but actual macOS17/18 inventorytimeout RQA10-001 independently correlated and triaged; full req role dispatched from actual current evidence",
+      "QA10 all4currentfences matched and actual parent task notifications preserved; six-ID ceremony screen accepted, sole enforcer10 spawned for mandatory PR publication",
+      "QA10 sole enforcer published report6624794833 verified exact29/34FAIL3B3I; allsix IDs remainopen, ready for all-findings developer handoff"
     ],
-    "next_safe_action": "Background developer implements only bounded structured phase diagnostics/common-origin accounting and planted post-return/pre-marker classification control; original failure remains open until actual causal evidence and own review",
+    "next_safe_action": "Commit final QA10 evidence/new triage, render allsix-finding fix assignment and dispatch background developer for supported inventory-stage diagnosis/correction",
     "blocked_audit_increment": false
   },
   "current_nonblockers": {
@@ -9089,6 +9509,14 @@
       "issue": "bdc-n8v.1",
       "comment_id": 8,
       "kind": "Exact published QA9 verdict and actual all-findings developer dispatch"
+    },
+    "c-1-diagnostic-context": {
+      "issue": "bdc-n8v.1",
+      "comment_id": 9
+    },
+    "c-2-diagnostic-context": {
+      "issue": "bdc-n8v.2",
+      "comment_id": 10
     }
   },
   "qualified_shutdown_component": {
@@ -9292,6 +9720,14 @@
       "source": "crates/bd-cache-store/src/schedule.rs",
       "scope": "Actual C2 Windows store fixture lacks causal stall receipt at owned watchdog; why unknown",
       "next_action": "Finish sole QA9 enforcer then background dev causal investigation preserving budgets/ownership"
+    },
+    "RQA10-001": {
+      "status": "open_Important",
+      "owner": "c-1",
+      "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+      "triage": ".triage/c/findings/RQA10-001.ttl",
+      "scope": "Actual macOS session inventory timeout; cleanup versus postaudit stage unknown",
+      "next_action": "All-current-findings dev handoff after QA10 sole enforcer publication"
     }
   },
   "reclassified_local_findings": {
@@ -9310,12 +9746,13 @@
     }
   },
   "next_local_actions": {
-    "c-1": "Background developer causal investigation and fix for RQA9-001 actual Windows store fixture failure under unchanged budgets; all5 QA9 IDs routed",
-    "c-2": "After producer correction/review, consume exact helper/store corrections and complete own QA",
+    "c-1": "Route all six QA10 IDs; diagnose/fix actual RQA10 inventory/postaudit timeout under original deadlines, preserve historicalRQA9 unknowncause and validated phaseprotocol",
+    "c-2": "Candidate phase-protocol source consumption for actual supported C2 context after parent dispatch; no PR merge/acceptance, existing SDK and macro failures remain",
     "cargo_priority": [
-      "c-1 RQA9-001 causal investigation"
+      "c-1 inventory causal work",
+      "C2 immutable diagnostic promotion only if paired validation necessary"
     ],
-    "sc_publish": "Parked; excluded from goal dependencies"
+    "sc_publish": "Parked; no goal dependency"
   },
   "candidate_validation_archives": [
     {
