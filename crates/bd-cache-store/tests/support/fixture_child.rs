@@ -4,7 +4,7 @@ use std::io;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug)]
 pub(crate) struct FixtureChild {
@@ -14,6 +14,9 @@ pub(crate) struct FixtureChild {
     pub(crate) cleaned: Arc<AtomicBool>,
     pub(crate) started: Instant,
     pub(crate) cleanup_on_drop: bool,
+    spawn_returned_after: Duration,
+    owner_unix_ns: u64,
+    cleanup_attempted: bool,
 }
 
 impl FixtureChild {
@@ -23,10 +26,19 @@ impl FixtureChild {
         let stdout = output.reopen()?;
         let stderr = stdout.try_clone()?;
         let started = Instant::now();
+        // Diagnostic wall correlation only; the lifetime always uses started.
+        let owner_unix_ns = u64::try_from(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(io::Error::other)?
+                .as_nanos(),
+        )
+        .map_err(io::Error::other)?;
         let process = Command::new(std::env::current_exe()?)
             .args(["--exact", test, "--nocapture", "--test-threads=1"])
             .env(key, mode)
             .env("BD_CACHE_FIXTURE_ROOT", scratch.path())
+            .env("BD_CACHE_FIXTURE_OWNER_UNIX_NS", owner_unix_ns.to_string())
             .env("TMPDIR", scratch.path())
             .env("TMP", scratch.path())
             .env("TEMP", scratch.path())
@@ -34,6 +46,7 @@ impl FixtureChild {
             .stdout(stdout)
             .stderr(stderr)
             .spawn()?;
+        let spawn_returned_after = started.elapsed();
         Ok(Self {
             process,
             output,
@@ -41,20 +54,36 @@ impl FixtureChild {
             cleaned: Arc::default(),
             started,
             cleanup_on_drop: true,
+            spawn_returned_after,
+            owner_unix_ns,
+            cleanup_attempted: false,
         })
     }
 
     pub(crate) fn finish(&mut self, lifetime: Duration) -> io::Result<Option<ExitStatus>> {
+        self.finish_observing(lifetime, |_, _, _, _| Ok(()))
+    }
+
+    // The optional observer runs inline under the same original absolute clock.
+    // Its error or unwind leaves this owner responsible for actual cleanup.
+    pub(crate) fn finish_observing(
+        &mut self,
+        lifetime: Duration,
+        mut observe: impl FnMut(&Self, bool, Duration, u64) -> io::Result<()>,
+    ) -> io::Result<Option<ExitStatus>> {
         let deadline = self.started + lifetime;
         loop {
             if let Some(status) = self.process.try_wait()? {
                 self.kill_and_reap()?;
+                observe(self, true, self.spawn_returned_after, self.owner_unix_ns)?;
                 return Ok(Some(status));
             }
             if Instant::now() >= deadline {
                 self.kill_and_reap()?;
+                observe(self, true, self.spawn_returned_after, self.owner_unix_ns)?;
                 return Ok(None);
             }
+            observe(self, false, self.spawn_returned_after, self.owner_unix_ns)?;
             std::thread::sleep(Duration::from_millis(5));
         }
     }
@@ -99,6 +128,11 @@ impl FixtureChild {
     }
 
     fn kill_and_reap(&mut self) -> io::Result<()> {
+        if std::mem::replace(&mut self.cleanup_attempted, true) {
+            return Err(io::Error::other("owned fixture cleanup already attempted"));
+        }
+        // An incomplete receipt stays incomplete; Drop cannot create a retry.
+        self.cleanup_on_drop = false;
         let (pids, mut failure) = match self.owned_pids() {
             Ok(pids) => (pids, None),
             Err(error) => (Vec::new(), Some(error)),
