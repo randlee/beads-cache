@@ -1,7 +1,7 @@
 {
   "qa_pass": "qa-9",
   "source": "a753d2799183dd4e341c854c4515bf046447eb6c",
-  "status": "All leaf evidence complete; sole enforcer publishing report",
+  "status": "QA9 sole enforcer complete FAIL3B2I; published exact report and parent Machine Status verified",
   "files": [
     {
       "path": "manifest.json",
@@ -162,6 +162,47 @@
       "path": "rust-qa-store.log",
       "sha256": "24ed83ec0fd5b7d7ed1a657f5954c6a2718d2afd4878c43b29df50b50f77ff93",
       "bytes": 1644
+    },
+    {
+      "path": "manager-result.md",
+      "sha256": "88efecac7ce2db263d51d459e9bcbf0a05d4dd16ad9d6b1bcd6c7c2b55dce70d",
+      "bytes": 14202
+    },
+    {
+      "path": "manager-machine-status.json",
+      "sha256": "e15156b250d5526471849d79304ad3d1781e85687b3f324695572c7413cea8a4",
+      "bytes": 4122
+    },
+    {
+      "path": "manager-published-report.md",
+      "sha256": "88efecac7ce2db263d51d459e9bcbf0a05d4dd16ad9d6b1bcd6c7c2b55dce70d",
+      "bytes": 14202
+    },
+    {
+      "path": "manager-publication-equality.json",
+      "sha256": "f04525bfeed66ffdcfc574cef01ae4fb8593c36d8fa916ad3551de1ea14121f0",
+      "bytes": 679
+    },
+    {
+      "path": "parent-spawn-correlation.json",
+      "sha256": "53be2dbeaa471acc1f98be2e4f0cfe272c548a57ef41cde53e7cc8e823ebc900",
+      "bytes": 3306
+    },
+    {
+      "path": "manager-evidence-validation.json",
+      "sha256": "b6d69a32a24e8473ca3b31b9edee184a1afa643b9c0c66f99de4e2892d3d6358",
+      "bytes": 1633
+    },
+    {
+      "path": "manager-pr108-ci.json",
+      "sha256": "4e29c7719dbe77e929ee1946c4c209b4eb54835589986e0ab25a4f90764e0467",
+      "bytes": 4752
+    },
+    {
+      "path": "manager-pr108-checks.json",
+      "sha256": "6875ea6744b9d1488ab3c9d19a7c1d02918ecbb4cef61cf298bb92c8dfa0d5c2",
+      "bytes": 2486
     }
-  ]
+  ],
+  "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6623311092"
 }
