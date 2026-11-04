@@ -798,8 +798,15 @@ mod tests {
     use crate::location::{DatabaseIdentity, DoltDatabase, ProjectId};
     use crate::store::SqliteStore;
 
+    mod protocol {
+        include!("../tests/support/schedule_protocol.rs");
+    }
+
     fn shutdown_store() -> (tempfile::TempDir, SqliteStore) {
-        let started = Instant::now();
+        shutdown_store_at(Instant::now())
+    }
+
+    fn shutdown_store_at(started: Instant) -> (tempfile::TempDir, SqliteStore) {
         store_fixture_phase(started, "scratch-create-start");
         let dir = tempfile::tempdir().unwrap();
         store_fixture_phase(started, "store-open-start");
@@ -818,6 +825,7 @@ mod tests {
     // Diagnostic receipts describe completed phases only; they never satisfy a
     // result assertion, alter a deadline or authorize skipping the real call.
     fn store_fixture_phase(started: Instant, phase: &str) {
+        protocol::record(started, "main", phase, &serde_json::Value::Null).unwrap();
         eprintln!("RQA9 store phase={phase} elapsed={:?}", started.elapsed());
     }
 
@@ -833,7 +841,7 @@ mod tests {
         };
         let started = Instant::now();
         store_fixture_phase(started, "fixture-body-entered");
-        let (_dir, store) = shutdown_store();
+        let (_dir, store) = shutdown_store_at(started);
         store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
         store_fixture_phase(started, "schedule-view-returned");
@@ -845,23 +853,18 @@ mod tests {
         let (completed, result) = std::sync::mpsc::channel();
         store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
-            store_fixture_phase(started, "worker-call-start");
+            protocol::worker_started(started);
             let result = worker.list_active();
-            eprintln!(
-                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
-                started.elapsed()
-            );
-            stall_store_cleanup(stall);
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
-        eprintln!(
-            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
-            started.elapsed()
-        );
-        control.finish_by(Instant::now() + Duration::from_millis(30));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
         store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
         eprintln!(
             "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
             started.elapsed()
@@ -909,7 +912,7 @@ mod tests {
         };
         let started = Instant::now();
         store_fixture_phase(started, "fixture-body-entered");
-        let (dir, store) = shutdown_store();
+        let (dir, store) = shutdown_store_at(started);
         store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
         store_fixture_phase(started, "schedule-view-returned");
@@ -945,23 +948,18 @@ mod tests {
         let (id, generation) = (row.id, row.generation);
         store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
-            store_fixture_phase(started, "worker-call-start");
+            protocol::worker_started(started);
             let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
-            eprintln!(
-                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
-                started.elapsed()
-            );
-            stall_store_cleanup(stall);
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
-        eprintln!(
-            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
-            started.elapsed()
-        );
-        control.finish_by(Instant::now() + Duration::from_millis(30));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
         store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
         eprintln!(
             "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
             started.elapsed()
@@ -1033,7 +1031,7 @@ mod tests {
         };
         let started = Instant::now();
         store_fixture_phase(started, "fixture-body-entered");
-        let (_dir, store) = shutdown_store();
+        let (_dir, store) = shutdown_store_at(started);
         store_fixture_phase(started, "schedule-view-start");
         let public = store.schedule_store().unwrap();
         store_fixture_phase(started, "schedule-view-returned");
@@ -1071,23 +1069,18 @@ mod tests {
         let (id, generation) = (row.id, row.generation);
         store_fixture_phase(started, "worker-spawn-start");
         let task = std::thread::spawn(move || {
-            store_fixture_phase(started, "worker-call-start");
+            protocol::worker_started(started);
             let result = worker.record_run(id, generation, now, &RunOutcome::Ok);
-            eprintln!(
-                "RQA9 store phase=worker-call-returned elapsed={:?} result={result:?}",
-                started.elapsed()
-            );
-            stall_store_cleanup(stall);
+            protocol::worker_returned(started, &result, stall);
+            stall_store_cleanup(stall, started);
             completed.send(result).unwrap();
         });
         let entered = observed.recv_timeout(Duration::from_secs(2));
-        eprintln!(
-            "RQA9 store phase=wait-receipt elapsed={:?} result={entered:?}",
-            started.elapsed()
-        );
-        control.finish_by(Instant::now() + Duration::from_millis(30));
+        protocol::wait_result(started, entered);
+        protocol::cancel(started, &control);
         store_fixture_phase(started, "cancellation-installed");
         let bounded = result.recv_timeout(Duration::from_millis(500));
+        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
         eprintln!(
             "RQA9 store phase=completion-receipt elapsed={:?} result={bounded:?}",
             started.elapsed()
@@ -1125,9 +1118,9 @@ mod tests {
         "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
     ];
 
-    fn store_fixture_mode(test: &str) -> std::io::Result<Option<bool>> {
+    fn store_fixture_mode(test: &str) -> std::io::Result<Option<protocol::Mode>> {
         if let Some(mode) = std::env::var_os(STORE_FIXTURE_MODE) {
-            return Ok(Some(mode == "stalled"));
+            return protocol::Mode::parse(&mode).map(Some);
         }
         let mut child =
             crate::fixture_child::FixtureChild::spawn(test, STORE_FIXTURE_MODE, "normal")?;
@@ -1135,9 +1128,16 @@ mod tests {
         Ok(None)
     }
 
-    fn stall_store_cleanup(stall: bool) {
-        if stall {
+    fn stall_store_cleanup(stall: protocol::Mode, started: Instant) {
+        if stall != protocol::Mode::Normal {
             eprintln!("stalled store cleanup after real worker call");
+            protocol::record(
+                started,
+                "worker",
+                "stall-marker-written",
+                &serde_json::Value::Null,
+            )
+            .unwrap();
             loop {
                 std::thread::park();
             }
@@ -1146,40 +1146,32 @@ mod tests {
 
     #[test]
     fn shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup() {
-        use std::sync::atomic::Ordering;
         for test in STORE_FIXTURES {
-            let started = std::time::Instant::now();
-            let mut child =
-                crate::fixture_child::FixtureChild::spawn(test, STORE_FIXTURE_MODE, "stalled")
-                    .unwrap();
-            let receipt = child.cleanup_receipt();
-            assert!(
-                child.finish(Duration::from_secs(5)).unwrap().is_none(),
-                "stalled fixture exited: {}",
-                child.output().unwrap()
-            );
-            assert!(
-                receipt.load(Ordering::SeqCst),
-                "test child was not killed and reaped"
-            );
-            assert!(
-                started.elapsed() < Duration::from_secs(7),
-                "supervisor cleanup exceeded its finite watchdog"
-            );
-            let output = child.output().unwrap();
-            eprintln!("RQA9 owned child {test} output:\n{output}");
-            assert!(
-                output.contains("stalled store cleanup after real worker call"),
-                "required post-call/stall receipt missing; child phase unresolved: {output}"
-            );
-            assert!(
-                output.contains("store cleanup observation expired after 500ms"),
-                "failure join path was not reached: {output}"
-            );
-            eprintln!(
-                "FTQ-009 {test}: stalled post-call join killed/reaped in {:?}; original 500ms observation failure reached",
-                started.elapsed()
-            );
+            let observation = protocol::observe(test, STORE_FIXTURE_MODE, "stalled").unwrap();
+            observation.qualify();
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification() {
+        let observation =
+            protocol::observe(STORE_FIXTURES[1], STORE_FIXTURE_MODE, "post-return-gap").unwrap();
+        let failure =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observation.qualify()));
+        assert!(
+            failure.is_err(),
+            "planted missing marker must fail normal qualification"
+        );
+        assert_eq!(
+            observation.classification(),
+            "worker_returned_required_marker_missing"
+        );
+        observation.assert_real_return_and_reap();
+        observation.assert_planted_return();
+        // The direct negative command retains actual libtest exit101. The
+        // ordinary outer regression passes only by proving that owned failure.
+        if std::env::var_os("BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE").is_some() {
+            std::panic::resume_unwind(failure.unwrap_err());
         }
     }
 
@@ -1215,6 +1207,95 @@ mod tests {
         eprintln!(
             "FTQ-009 assertion-unwind child cleanup in {:?}",
             started.elapsed()
+        );
+    }
+
+    #[test]
+    fn shutdown_fixture_observer_error_and_unwind_reap_owned_root() {
+        use std::sync::atomic::Ordering;
+        for panic in [false, true] {
+            let mut child = crate::fixture_child::FixtureChild::spawn(
+                STORE_FIXTURES[0],
+                STORE_FIXTURE_MODE,
+                "stalled",
+            )
+            .unwrap();
+            assert!(
+                child
+                    .wait_for_output(
+                        "stalled store cleanup after real worker call",
+                        Duration::from_secs(2)
+                    )
+                    .unwrap()
+            );
+            let receipt = child.cleanup_receipt();
+            let pid = child.process.id();
+            let failure = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+                child.finish_observing(Duration::from_secs(5), |_, _, _, _| {
+                    assert!(!panic, "injected phase observer panic");
+                    Err(std::io::Error::other("injected phase observer error"))
+                })
+            }));
+            if panic {
+                assert!(failure.is_err());
+            } else {
+                assert_eq!(
+                    failure.unwrap().unwrap_err().to_string(),
+                    "injected phase observer error"
+                );
+            }
+            assert!(
+                receipt.load(Ordering::SeqCst),
+                "observer failure did not reap root"
+            );
+            eprintln!(
+                "RQA9_OWNER_CONTROL observer_panic={panic} root_pid={pid} actual_kill_wait_receipt=true before_driver_fallback"
+            );
+        }
+    }
+
+    #[test]
+    fn shutdown_fixture_cleanup_failure_is_not_retried_or_a_successful_receipt() {
+        use std::sync::atomic::Ordering;
+        let mut child = crate::fixture_child::FixtureChild::spawn(
+            STORE_FIXTURES[0],
+            STORE_FIXTURE_MODE,
+            "stalled",
+        )
+        .unwrap();
+        assert!(
+            child
+                .wait_for_output(
+                    "stalled store cleanup after real worker call",
+                    Duration::from_secs(2)
+                )
+                .unwrap()
+        );
+        std::fs::write(
+            child.scratch.path().join("owned-child-invalid.pid"),
+            "invalid",
+        )
+        .unwrap();
+        assert!(child.finish(Duration::ZERO).is_err());
+        assert!(
+            child.process.try_wait().unwrap().is_some(),
+            "root was not reaped after receipt error"
+        );
+        assert!(!child.cleanup_receipt().load(Ordering::SeqCst));
+        assert!(
+            !child.cleanup_on_drop,
+            "Drop must not retry incomplete cleanup"
+        );
+        assert!(
+            child
+                .finish(Duration::ZERO)
+                .unwrap_err()
+                .to_string()
+                .contains("already attempted")
+        );
+        eprintln!(
+            "RQA9_OWNER_CONTROL cleanup_error root_pid={} actual_root_wait=true cleanup_receipt=false repeat_attempt_refused=true before_driver_fallback",
+            child.process.id()
         );
     }
 

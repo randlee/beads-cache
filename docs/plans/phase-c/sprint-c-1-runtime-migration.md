@@ -1001,3 +1001,49 @@ unchanged published logging seam, strict graph and actual CI gates. Exact-source
 hosted Windows observations and independent QA10 remain required. Candidate-
 scoped QA9 RSH-001/FTQ-011 evidence and all earlier triage history were preserved
 while merging exact integration `63ebc1fa`. No sprint acceptance or merge is claimed.
+
+
+## QA9 private phase protocol and planted classification control
+
+Exact integration `b731c09e` is consumed by ordinary feature merge, preserving
+both RQA9 diagnostic/owner histories and prior candidate-scoped closures. The
+independent causal owner keeps the original Windows failure OPEN: neither the
+selected nor full-store successful observation identifies its historical cause.
+
+The private store-test protocol now writes small structured checkpoints to
+separate main/worker files under the existing owned scratch directory, independent
+of captured stderr and without a shared logging mutex. It records setup, actual
+wait result, installed cancellation deadline, real call result/SQLite code before
+any result/stall text, original marker-write completion, completion timeout and
+actual join attempt. All child phases use the fixture-body monotonic origin.
+Parent receipt timestamps use the existing owner Instant captured before spawn;
+spawn-return and parent setup offsets are reported. Receipt times indicate
+observation, not exact child execution. Separately labeled wall-clock correlation
+may move and is never used for timing decisions. A final partial/malformed record
+is a failure; silence never proves operation non-entry.
+
+The actual busy-persistence planted control parks only after the real call and
+its independent return checkpoint complete, before the required stderr marker.
+The unchanged normal negative qualification fails that occurrence. The outer
+regression passes only after catching that failed qualification, verifying the
+real DatabaseBusy return, missing marker, original timeout and completed owned
+root reap. An explicit direct negative command can retain libtest exit101.
+The original normal three-family qualification and normal/restoration/unwind
+coverage remain. There is no early-stop or scenario-selection change.
+
+The shared test helper's observer is optional and inline; existing callers use a
+no-op observer. Original absolute five-second lifetime, 30ms cancellation, 500ms
+observation and seven-second supervisor assertion remain. Observer error/unwind
+still drops the owned root through actual kill/wait. Cleanup can be attempted
+once: an incomplete cleanup receipt remains false and Drop cannot create a retry
+or fresh cleanup budget. Existing session-fixture ownership handoff is retained.
+New owned controls check observer error/panic and invalid receipt/root-reap paths.
+
+Only the schedule test module and private test helpers change. The production
+prefix of schedule.rs is checked separately; it is inaccurate to call that whole
+Rust file unchanged. Production store/cron/sync policy, accepted startup and
+FTQ009/010/011 mechanisms, public interfaces, dependencies and strict guards stay
+as reviewed. This is diagnostic/classification work, not an original-cause fix.
+All five canonical findings remain OPEN; QA10 and actual platform/current CI,
+sprint/anchor and merge gates are not waived. Final exact-source validation and
+push receipts follow in the QA9 phase-protocol result artifacts.
