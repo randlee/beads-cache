@@ -8461,9 +8461,27 @@
   },
   "external_dependency_audit": {
     "consecutive_goal_turns": 0,
-    "reset_reason": "Owner explicitly restarted goal and directed removal of the unrelated publisher approval blocker. Fresh audit starts only if direct consumer work reaches a genuine impasse."
+    "reset_reason": "Owner explicitly restarted goal and directed removal of the unrelated publisher approval blocker. Fresh audit starts only if direct consumer work reaches a genuine impasse.",
+    "latest_registry_verification": {
+      "at": "2026-11-04T04:56:43.025517+00:00",
+      "receipt": "/tmp/phase-c-current-published-sdk-versions.json",
+      "non_yanked_versions": {
+        "sc-runtime": [
+          "0.1.1"
+        ],
+        "sc-cron": [
+          "0.1.1"
+        ]
+      },
+      "result": "No new consumable published SDK; local fixes continue"
+    }
   },
-  "restart_direction": "Direct Phase C consumer work resumed. sc-publish PR141 parked; no approval request or dependency gate.",
+  "restart_direction": {
+    "updated_at": "2026-11-04T04:53:15.747923+00:00",
+    "status": "resumed_actual_background_developers",
+    "scope": "Phase C only; sc-publish PR141 remains parked and excluded",
+    "blocking_policy": "Continue concrete local fixes; unrelated publisher/auth work does not block goal"
+  },
   "current_qa_dispatch": {
     "sprint": "c-1",
     "qa_pass": "qa-8",
@@ -8622,31 +8640,71 @@
     }
   },
   "current_fix_dispatch": {
-    "sprint": "c-1",
-    "developer_task": "/root/c1_restart_dev",
-    "assignment": "/tmp/phase-c-execution/c-1/qa-7/startup-fix.xml",
-    "status": "pushed_validation_handoff_complete_with_retained_failure",
-    "cargo_owner": null,
-    "before_commit": "5255610a16ef4500f0af508e29a533707a4a3e0a",
-    "finding_ids": [
-      "REQ-QA-004",
-      "ARCH-001",
-      "RBQA-F001",
-      "QA2-001",
-      "RSH-001"
+    "dispatched_at": "2026-11-04T04:53:15.747923+00:00",
+    "actor": "parent-orchestrator",
+    "status": "running",
+    "tasks": [
+      {
+        "task_id": "/root/c1_helper_resume",
+        "sprint": "c-1",
+        "role": "rust-developer",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-8/helper-fix.xml",
+        "state": "explicit_cargo_grant_sent",
+        "cargo_slot": true,
+        "production_freeze": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5 cron.rs/schedule.rs",
+        "grant_at": "2026-11-04T04:59:58.280347+00:00"
+      },
+      {
+        "task_id": "/root/c2_candidate_resume",
+        "sprint": "c-2",
+        "role": "rust-developer",
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "assignment": "/tmp/phase-c-execution/c-2/qa-5/candidate-fix.xml",
+        "state": "completed_awaiting_independent_review",
+        "cargo_slot": false,
+        "candidate_source": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5",
+        "source_after_candidate_merge": "dcaa8e4d15f231a46babe7d70da384a3e626b876",
+        "original_public_probe_reported": {
+          "exceeded_2T": false,
+          "shutdown_ms": 251.517333,
+          "budget_ms": 500,
+          "result": "Ok(())",
+          "management": "Ok(true)",
+          "owned_process_reaped": true,
+          "status": "Developer proof only; independent QA pending",
+          "receipt": "/tmp/phase-c-execution/c-2/qa-5/candidate-original-probe-process.json"
+        },
+        "reported_push_short_sha": "b7de8e9",
+        "prepush_reported": "All7 service tests, new ordinary/zero causal startup regressions, affected all-target/all-feature Clippy and fmt PASS; initial lint failure retained",
+        "reported_push_sha": "b7de8e9879503353879c500edacf12a6832d709d",
+        "postpush_reported": {
+          "application_daemon_tests": "21/21 PASS",
+          "ordinary_ms": 251.034791,
+          "zero_ms": 1.337917,
+          "original_probe_ms": 251.883875,
+          "original_budget_ms": 500,
+          "fmt_clippy": "PASS",
+          "canonical_findings": "Remain open pending independent QA"
+        },
+        "result": "/tmp/phase-c-execution/c-2/qa-5/startup-candidate-result.json",
+        "durable_archive": ".cursor/qa-evidence/phase-c/c-2/qa-5/candidate-consumption"
+      }
     ],
-    "source_consumer_report": "https://github.com/randlee/beads-cache/pull/109#issuecomment-6622258720",
-    "commit": "adbcc88d3dc134ae94403bc2af7a8db76ba921a5",
-    "result": "/tmp/phase-c-execution/c-1/qa-7/startup-fix-result.json"
+    "model_provenance": "Configured Grok/Composer unavailable; available fallback recorded explicitly",
+    "merge_authorized_only_after": "Independent QA zero findings, development anchors passing, exact-reviewed-head required CI green"
   },
   "goal_turn_audit": {
     "previous_turn": "progress",
     "current_classification": "progress",
     "evidence": [
-      "Independent QA8 verifies C1 startup implementation and4 cases while reproducing full13/15 helper failure",
-      "New FTQ011 Important triaged; exact QA8 FAIL4B2I corrected/published with28/34 completion",
-      "Preserved current raw reviewer/manifest/report evidence and retained failure logs",
-      "Next safe actions are paired feature-branch C2 public reprobe and isolated C1 helper correction with serialized Cargo, no PR merge or publisher work"
+      "Actual C1 and C2 background developer tasks dispatched and both ACKed; live handles confirmed running",
+      "Serialized Cargo ownership assigned to C2; C1 edit-only producer production freeze",
+      "Prepared current-owner QA9 carry-forward config; not dispatched against stale or future source",
+      "Upstream owner thread polled at authoritative cursor: idle completed unchanged; no sidequest started",
+      "C2 completed exact candidate public probe and21/21 postpush tests; durable raw evidence archived; C1 now owns Cargo for actual helper correction"
     ]
   },
   "current_nonblockers": {
@@ -8874,5 +8932,110 @@
       "c-2 candidate public API validation",
       "c-1 helper tests and full affected validation"
     ]
-  }
+  },
+  "candidate_validation_archives": [
+    {
+      "sprint": "c-2",
+      "source": "b7de8e9879503353879c500edacf12a6832d709d",
+      "path": ".cursor/qa-evidence/phase-c/c-2/qa-5/candidate-consumption",
+      "status": "developer_proof_only",
+      "files": [
+        {
+          "path": "startup-candidate-result.json",
+          "sha256": "4adb3e9e31cedb14ab5cd63d919f48fdcec720d4794ff162a96d86da875d55c0",
+          "bytes": 24241
+        },
+        {
+          "path": "startup-candidate-result.md",
+          "sha256": "8802c9dfae1def2c5906ae1ca558f426a6203848d7f3138b018cd0a7430f5429",
+          "bytes": 5385
+        },
+        {
+          "path": "candidate-postpush-application.log",
+          "sha256": "e98c0a16e6958357210d56d9f4d81ef8ba197733bdf0516f4061bd4792f45c6d",
+          "bytes": 8135
+        },
+        {
+          "path": "candidate-postpush-clippy.log",
+          "sha256": "0b53209db424367e80c52cd8cde8b75e37af110438a0efde777104a1463956de",
+          "bytes": 72
+        },
+        {
+          "path": "candidate-postpush-fmt.log",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "bytes": 0
+        },
+        {
+          "path": "candidate-postpush-original-probe.log",
+          "sha256": "d66ca0de7df103ffd70228535298b146782ba4bacb6bf99c4fc17ed539b075f1",
+          "bytes": 201
+        },
+        {
+          "path": "candidate-postpush-original-process.json",
+          "sha256": "e2271bae41c45d901eaff11f570245608f9cecdfc5205699a660908721ca585d",
+          "bytes": 508
+        },
+        {
+          "path": "candidate-postpush-cargo-artifacts.json",
+          "sha256": "9e7eb552b75662c03454b624c14539080ae2f749d3aba90f9da5800a29b6be46",
+          "bytes": 4345
+        },
+        {
+          "path": "candidate-source-identities.json",
+          "sha256": "bff87adc9dcae55fbd7af1a7f41385ac506032346a42ad55d2aa34e1bd80f77e",
+          "bytes": 1343
+        },
+        {
+          "path": "candidate-current-ci.json",
+          "sha256": "2a32e49dcfcb63d639d514af95ae2ef5ea58dc16682fa8e06f4228ef3858b9e2",
+          "bytes": 2847
+        },
+        {
+          "path": "candidate-clippy.log",
+          "sha256": "adb4f02067123313048d9e52d47638c58da4860ca3d390c75a35ce7bdcf73317",
+          "bytes": 1024
+        },
+        {
+          "path": "candidate-clippy-corrected.log",
+          "sha256": "79d7324e1a01dc55ccb9b9af725d869ec56dc06d6c3cbf0a86a3be9f17717e21",
+          "bytes": 350
+        },
+        {
+          "path": "candidate-original-probe.log",
+          "sha256": "3fa42a1e7d3ddcf0b31628d49eb9547857580d69e61bbeb6febe8e03a1eee631",
+          "bytes": 201
+        },
+        {
+          "path": "candidate-original-probe-process.json",
+          "sha256": "2620def312b0af550d805fc05d5ab76cb531cd4fd3dac3d1e83fc058f6b32c6a",
+          "bytes": 212
+        },
+        {
+          "path": "candidate-compiler.txt",
+          "sha256": "a17837f62002146faab0af278112fabbc9bbf657f7fc3383834b992a6be5bbea",
+          "bytes": 228
+        },
+        {
+          "path": "candidate-ci-failed-job-126397663048-raw.log",
+          "sha256": "c5dae3fd95b73e7c6ed7e22fa3dac1b29b825094ff68941f6e4cb6a69b1c5c01",
+          "bytes": 22459
+        },
+        {
+          "path": "candidate-ci-failed-job-126397663052-raw.log",
+          "sha256": "e5367701798dfb79da74de3c509ad37cf7e23119bd9dc548c6f70bdf1172aa34",
+          "bytes": 51553
+        },
+        {
+          "path": "candidate-ci-failed-job-126397663069-raw.log",
+          "sha256": "a50a45e64cf65998d7e426e2cba8e59c475fb93d900636c7096d18b77cc04990",
+          "bytes": 22059
+        },
+        {
+          "path": "candidate-ci-failed-job-126397663102-raw.log",
+          "sha256": "e1d0049f0e25f05e01151b8d7f1c3a4943fae833efaa63882f970f4269b4b5fb",
+          "bytes": 23010
+        }
+      ]
+    }
+  ]
 }
