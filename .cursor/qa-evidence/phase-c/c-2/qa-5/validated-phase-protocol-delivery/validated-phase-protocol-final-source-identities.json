@@ -1,0 +1,108 @@
+{
+  "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+  "working_tree_clean": true,
+  "source_trees": {
+    "crates/bd-cache-store": {
+      "producer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+      "final": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+      "equal": true
+    },
+    "crates/bd-cache-sync": {
+      "producer": "060ff9040235d995cef976caf3cbc5f619597de3",
+      "final": "060ff9040235d995cef976caf3cbc5f619597de3",
+      "equal": true
+    },
+    "crates/bd-cache-store/tests/support/fixture_child.rs": {
+      "producer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+      "final": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+      "equal": true
+    },
+    "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+      "producer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+      "final": "2036f2e2d29962e76df24ca24934df530497f7d0",
+      "equal": true
+    },
+    "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+      "producer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+      "final": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+      "equal": true
+    },
+    "crates/bd-cache-sync/tests/cron_hurry.rs": {
+      "producer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+      "final": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+      "equal": true
+    },
+    "crates/bd-cache-service": {
+      "baseline": "760338fd13e8ae69e2efad36055dda841993b4c7",
+      "final": "760338fd13e8ae69e2efad36055dda841993b4c7",
+      "unchanged": true
+    },
+    "crates/bd-cache-daemon": {
+      "baseline": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+      "final": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+      "unchanged": true
+    },
+    "Cargo.toml": {
+      "baseline": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+      "final": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+      "unchanged": true
+    },
+    "Cargo.lock": {
+      "baseline": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "final": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "unchanged": true
+    },
+    "runtime/pin.toml": {
+      "baseline": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+      "final": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+      "unchanged": true
+    },
+    ".github/workflows/ci.yml": {
+      "baseline": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+      "final": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+      "unchanged": true
+    }
+  },
+  "original_histories": {
+    ".triage/c/findings/C2-REQ-003.ttl": true,
+    ".triage/c/findings/FTQ-009.ttl": true,
+    ".triage/c/findings/QA-C2-001.ttl": true,
+    ".triage/c/findings/RSH-001.ttl": true,
+    ".triage/c/findings/C2-REQ-007.ttl": true,
+    ".triage/c/findings/C2-REQ-004.ttl": true,
+    ".triage/c/findings/CI-C4-001.ttl": true,
+    ".triage/c/findings/REQ-QA-003-001.ttl": true,
+    ".triage/c/findings/C2-FTQ-006.ttl": true,
+    ".triage/c/findings/REQ-QA-004.ttl": true,
+    ".triage/c/findings/ARCH-001.ttl": true,
+    ".triage/c/findings/RBQA-F001.ttl": true,
+    ".triage/c/findings/C2-REQ-009.ttl": true,
+    ".triage/c/findings/C4-RBP-F001.ttl": true,
+    ".triage/c/findings/FTQ-011.ttl": true,
+    ".triage/c/findings/FTQ-010.ttl": true,
+    ".triage/c/findings/RQA9-001.ttl": true,
+    ".triage/c/findings/QA2-001.ttl": true,
+    ".triage/c/findings/C4-FTQ-001.ttl": true
+  },
+  "incoming_histories": {
+    "c0b251da8c491cb32acf49950b87557bd5f86e8e": {
+      "RSH-001": true,
+      "FTQ-011": true,
+      "RQA9-001": true,
+      "RQA10-001": true
+    },
+    "8c1aefafd7fd269c82c7974e610e848816d026d8": {
+      "ARCH-001": true,
+      "RSH-001": true,
+      "RBQA-F001": true,
+      "FTQ-011": true,
+      "RQA9-001": true
+    }
+  },
+  "ancestry": {
+    "c0b251da8c491cb32acf49950b87557bd5f86e8e": true,
+    "8c1aefafd7fd269c82c7974e610e848816d026d8": true
+  },
+  "scope": "Final pushed C2 composition only; source/helper trees exact immutable reviewed producer. No actual source equality assertion for hosted synthetic PR merge.",
+  "retracted_C2_FTQ_006_unchanged": true
+}

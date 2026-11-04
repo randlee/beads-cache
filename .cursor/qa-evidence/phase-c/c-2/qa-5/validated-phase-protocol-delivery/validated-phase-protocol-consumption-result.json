@@ -1,0 +1,1436 @@
+{
+  "success": true,
+  "data": {
+    "status": "scoped_diagnostic_consumption_pushed_and_validated_stopped",
+    "summary": "Reviewed private protocol consumed exactly into actual C2 source; scoped local8+2+7/lint/fmt PASS, deliberate postpush missing-marker negative exits101 with root cleanup. Historical causes remain unknown; no whole QA/CI acceptance.",
+    "branch": "sprint/c-2-framework-application",
+    "worktree": "/Users/randlee/github/beads-cache-worktrees/sprint/c-2-framework-application",
+    "model": {
+      "actual": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "provenance": "honest fallback; configured Grok/Composer unavailable"
+    },
+    "identities": {
+      "baseline": "e86d9da92a8c8c9b787c780e29bc54e417680d71",
+      "integration": "c0b251da8c491cb32acf49950b87557bd5f86e8e",
+      "producer": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+      "consumer_merge": "7d2383104cca83f4c799c3dcc86c35386130af17",
+      "parents": "c205d90944499d19a05d71f8646fb43bec227ab6 8c1aefafd7fd269c82c7974e610e848816d026d8",
+      "source_identity": {
+        "crates/bd-cache-store": {
+          "producer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "consumer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "equal": true
+        },
+        "crates/bd-cache-sync": {
+          "producer": "060ff9040235d995cef976caf3cbc5f619597de3",
+          "consumer": "060ff9040235d995cef976caf3cbc5f619597de3",
+          "equal": true
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "producer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+          "consumer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+          "equal": true
+        },
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+          "producer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+          "consumer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+          "equal": true
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "producer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "consumer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "equal": true
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "producer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "consumer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "equal": true
+        }
+      },
+      "manifest_identity": {
+        "Cargo.toml": {
+          "baseline": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "consumer": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "unchanged_from_C2_baseline": true
+        },
+        "Cargo.lock": {
+          "baseline": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "consumer": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "unchanged_from_C2_baseline": true
+        },
+        "runtime/pin.toml": {
+          "baseline": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+          "consumer": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+          "unchanged_from_C2_baseline": true
+        },
+        ".github/workflows/ci.yml": {
+          "baseline": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "consumer": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "unchanged_from_C2_baseline": true
+        },
+        "crates/bd-cache-store/Cargo.toml": {
+          "baseline": "b0993b3bf68745ad4e9ca93df3b6f5e9883e8cd4",
+          "consumer": "b0993b3bf68745ad4e9ca93df3b6f5e9883e8cd4",
+          "unchanged_from_C2_baseline": true
+        },
+        "crates/bd-cache-sync/Cargo.toml": {
+          "baseline": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "consumer": "69beb2d25850df8d79373700818ee3d1a64ba2cf",
+          "unchanged_from_C2_baseline": true
+        },
+        "crates/bd-cache-service/Cargo.toml": {
+          "baseline": "ee35e79c32f4c2f9b1dd182ab9253eb727e4d2ae",
+          "consumer": "ee35e79c32f4c2f9b1dd182ab9253eb727e4d2ae",
+          "unchanged_from_C2_baseline": true
+        },
+        "crates/bd-cache-daemon/Cargo.toml": {
+          "baseline": "7f7e3224e99daf6d437923076e1a3ac55c59058c",
+          "consumer": "7f7e3224e99daf6d437923076e1a3ac55c59058c",
+          "unchanged_from_C2_baseline": true
+        }
+      },
+      "schedule_production_prefix_sha256": {
+        "e86d9da92a8c8c9b787c780e29bc54e417680d71": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+        "8c1aefafd7fd269c82c7974e610e848816d026d8": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a",
+        "HEAD": "49438f00b7310fb4d385355dbc887ab3c353264eed25e05df9f824e5872da05a"
+      },
+      "original_triage_nonblank_lines_preserved": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "tracked_ids": [
+        "QA-C2-001",
+        "C2-REQ-003",
+        "C2-REQ-004",
+        "C2-REQ-007",
+        "C2-REQ-009",
+        "ARCH-001",
+        "RSH-001",
+        "RBQA-F001",
+        "C4-FTQ-001",
+        "FTQ-011",
+        "RQA9-001",
+        "RQA10-001"
+      ],
+      "features": {
+        "bd-cache-store": {
+          "testing": []
+        },
+        "bd-cache-sync": {
+          "testing": []
+        },
+        "bd-cache-service": {
+          "testing": []
+        },
+        "bd-cache-daemon": {}
+      },
+      "feature_limit": "Declared features only in first phase; actual selected artifact/Windows host feature graph pending explicit Cargo slot and hosted run.",
+      "working_tree_clean": true
+    },
+    "merges": [
+      {
+        "input": "c0b251da8c491cb32acf49950b87557bd5f86e8e",
+        "result": "c205d90944499d19a05d71f8646fb43bec227ab6",
+        "conflicts": [
+          ".triage/c/findings/RQA9-001.ttl"
+        ],
+        "resolution": "Complete owning history plus every unique incoming nonblank line preserved."
+      },
+      {
+        "input": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+        "result": "7d2383104cca83f4c799c3dcc86c35386130af17",
+        "conflicts": [
+          ".triage/c/findings/RQA9-001.ttl"
+        ],
+        "resolution": "Complete owning/integration history plus every unique producer nonblank line preserved."
+      }
+    ],
+    "diagnostics": [
+      {
+        "command": "git merge --no-edit c0b251da8c491cb32acf49950b87557bd5f86e8e",
+        "exit": 128,
+        "stderr": "ORIG_HEAD.lock Operation not permitted in shared worktree metadata",
+        "resolution": "Authorized escalation succeeded; automatic review did not reject."
+      },
+      {
+        "command": "gh run list --branch sprint/c-2-framework-application --commit 37b37376329ff9ceb84319ea17d769f84d67fbf9",
+        "exit": 1,
+        "stderr": "error connecting to api.github.com; check your internet connection or https://githubstatus.com",
+        "resolution": "Authorized network escalation succeeded; no automatic review rejection."
+      }
+    ],
+    "all_findings": [
+      {
+        "id": "QA-C2-001",
+        "status": "open",
+        "disposition": "OPEN: published CtrlC-only runtime and separate actual C2 STOP 3221225786 remain; no Windows stop fix.",
+        "triage": ".triage/c/findings/QA-C2-001.ttl"
+      },
+      {
+        "id": "C2-REQ-003",
+        "status": "open",
+        "disposition": "OPEN: current CI, consumer, parent merges, independent QA and anchor acceptance remain incomplete; advisory retained.",
+        "triage": ".triage/c/findings/C2-REQ-003.ttl"
+      },
+      {
+        "id": "C2-REQ-004",
+        "status": "open",
+        "disposition": "OPEN owning C2 disposition: existing qualified startup/post-start correction retained; this diagnostic promotion adds no broad acceptance.",
+        "triage": ".triage/c/findings/C2-REQ-004.ttl"
+      },
+      {
+        "id": "C2-REQ-007",
+        "status": "open",
+        "disposition": "OPEN: actual direct sync -> sc-command edge still requires approved published logging receiver seam.",
+        "triage": ".triage/c/findings/C2-REQ-007.ttl"
+      },
+      {
+        "id": "C2-REQ-009",
+        "status": "open",
+        "disposition": "OPEN: portable endpoint/signal/instance-lock qualification remains incomplete.",
+        "triage": ".triage/c/findings/C2-REQ-009.ttl"
+      },
+      {
+        "id": "ARCH-001",
+        "status": "open",
+        "disposition": "OPEN: published canonical logging seam/direct introducing edge unchanged; strict graph remains rejecting.",
+        "triage": ".triage/c/findings/ARCH-001.ttl"
+      },
+      {
+        "id": "RSH-001",
+        "status": "open",
+        "disposition": "OPEN owning C2 disposition; independently resolved supported C1 and paired public C2 startup scope preserved, not reopened.",
+        "triage": ".triage/c/findings/RSH-001.ttl"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "open",
+        "disposition": "OPEN: distinct carried logging dependency finding retained.",
+        "triage": ".triage/c/findings/RBQA-F001.ttl"
+      },
+      {
+        "id": "C4-FTQ-001",
+        "status": "open",
+        "disposition": "OPEN: released ephemeral reservation race retained; public endpoint seam required.",
+        "triage": ".triage/c/findings/C4-FTQ-001.ttl"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "open",
+        "disposition": "OPEN owning C2 disposition; exact C1 QA9 scoped helper closure and QA10 preservation retained; no removed 50ms recurrence claim.",
+        "triage": ".triage/c/findings/FTQ-011.ttl"
+      },
+      {
+        "id": "RQA9-001",
+        "status": "open",
+        "disposition": "OPEN: historical actual C2 Windows busy-negative cause UNKNOWN. Planted classifier control is not historical reproduction or correction.",
+        "triage": ".triage/c/findings/RQA9-001.ttl"
+      },
+      {
+        "id": "RQA10-001",
+        "status": "open",
+        "disposition": "OPEN imported C1-only macOS inventory timeout at producer 8c1aefa; precise phase/cause UNKNOWN. No C2 platform occurrence inferred.",
+        "triage": ".triage/c/findings/RQA10-001.ttl"
+      }
+    ],
+    "C1_QA10": {
+      "verdict": "FAIL",
+      "blocking": 3,
+      "important": 3,
+      "deliverables": "29/34",
+      "changed_scope": "no new defect identified by independent reviewers",
+      "historical_RQA9": "OPEN unknown cause",
+      "actual_RQA10": "OPEN actual C1 macOS occurrence only; precise inventory stage/cause unknown"
+    },
+    "C2_platformstatus": {
+      "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "ci_run": 41792355909,
+      "ci_run_status": "in_progress",
+      "native": {
+        "Windows": {
+          "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+          "run_id": 41792355909,
+          "job_id": 126448419419,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41792355909/job/126448419419",
+          "status": "in_progress",
+          "conclusion": null,
+          "steps": [
+            {
+              "completedAt": "2026-11-04T07:27:10Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-04T07:27:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:17Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-11-04T07:27:10Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:28Z",
+              "conclusion": "success",
+              "name": "Install the pinned toolchain (rust-toolchain.toml)",
+              "number": 3,
+              "startedAt": "2026-11-04T07:27:17Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:49Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 4,
+              "startedAt": "2026-11-04T07:27:28Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:49Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 5,
+              "startedAt": "2026-11-04T07:27:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:50Z",
+              "conclusion": "success",
+              "name": "No bd or dolt on PATH (NFR-BDC-0005)",
+              "number": 6,
+              "startedAt": "2026-11-04T07:27:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:57Z",
+              "conclusion": "success",
+              "name": "Install script test dependencies",
+              "number": 7,
+              "startedAt": "2026-11-04T07:27:50Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:28:14Z",
+              "conclusion": "success",
+              "name": "Scripts tests (scripts/test_*.py)",
+              "number": 8,
+              "startedAt": "2026-11-04T07:27:57Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Strict consumer boundary (ADR-BDC-0010)",
+              "number": 9,
+              "startedAt": "2026-11-04T07:28:14Z",
+              "status": "in_progress"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Clippy",
+              "number": 10,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Clippy (libraries, default features)",
+              "number": 11,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Test",
+              "number": 12,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Daemon process acceptance (FakeBd only)",
+              "number": 13,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Latency (NFR-BDC-0002, release profile)",
+              "number": 14,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 26,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 27,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/checkout@v4",
+              "number": 28,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            }
+          ],
+          "limits": "Bounded snapshot only. No platform outcome/cause inferred; parent monitors exact-head run."
+        },
+        "macOS": {
+          "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+          "run_id": 41792355909,
+          "job_id": 126448419348,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/41792355909/job/126448419348",
+          "status": "in_progress",
+          "conclusion": null,
+          "steps": [
+            {
+              "completedAt": "2026-11-04T07:27:11Z",
+              "conclusion": "success",
+              "name": "Set up job",
+              "number": 1,
+              "startedAt": "2026-11-04T07:27:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:13Z",
+              "conclusion": "success",
+              "name": "Run actions/checkout@v4",
+              "number": 2,
+              "startedAt": "2026-11-04T07:27:11Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:21Z",
+              "conclusion": "success",
+              "name": "Install the pinned toolchain (rust-toolchain.toml)",
+              "number": 3,
+              "startedAt": "2026-11-04T07:27:13Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:37Z",
+              "conclusion": "success",
+              "name": "Run Swatinem/rust-cache@v2",
+              "number": 4,
+              "startedAt": "2026-11-04T07:27:21Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:37Z",
+              "conclusion": "success",
+              "name": "Run actions/setup-python@v5",
+              "number": 5,
+              "startedAt": "2026-11-04T07:27:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:38Z",
+              "conclusion": "success",
+              "name": "No bd or dolt on PATH (NFR-BDC-0005)",
+              "number": 6,
+              "startedAt": "2026-11-04T07:27:37Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:41Z",
+              "conclusion": "success",
+              "name": "Install script test dependencies",
+              "number": 7,
+              "startedAt": "2026-11-04T07:27:38Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:49Z",
+              "conclusion": "success",
+              "name": "Scripts tests (scripts/test_*.py)",
+              "number": 8,
+              "startedAt": "2026-11-04T07:27:41Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:27:52Z",
+              "conclusion": "success",
+              "name": "Strict consumer boundary (ADR-BDC-0010)",
+              "number": 9,
+              "startedAt": "2026-11-04T07:27:49Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:28:09Z",
+              "conclusion": "success",
+              "name": "Clippy",
+              "number": 10,
+              "startedAt": "2026-11-04T07:27:52Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "2026-11-04T07:28:15Z",
+              "conclusion": "success",
+              "name": "Clippy (libraries, default features)",
+              "number": 11,
+              "startedAt": "2026-11-04T07:28:09Z",
+              "status": "completed"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Test",
+              "number": 12,
+              "startedAt": "2026-11-04T07:28:15Z",
+              "status": "in_progress"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Daemon process acceptance (FakeBd only)",
+              "number": 13,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Latency (NFR-BDC-0002, release profile)",
+              "number": 14,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/setup-python@v5",
+              "number": 26,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run Swatinem/rust-cache@v2",
+              "number": 27,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            },
+            {
+              "completedAt": "0001-01-01T00:00:00Z",
+              "conclusion": "",
+              "name": "Post Run actions/checkout@v4",
+              "number": 28,
+              "startedAt": "0001-01-01T00:00:00Z",
+              "status": "pending"
+            }
+          ],
+          "limits": "Bounded snapshot only. No platform outcome/cause inferred; parent monitors exact-head run."
+        }
+      },
+      "boundary": {
+        "job_id": 126448419184,
+        "url": "https://github.com/randlee/beads-cache/actions/runs/41792355909/job/126448419184",
+        "status": "completed",
+        "conclusion": "failure",
+        "cause": "not inspected in bounded snapshot; parent owns remote diagnosis"
+      },
+      "python_run_id": 41792355950,
+      "no_platform_failure_inferred_from_C1_RQA10": true,
+      "historical_RQA9_run": 41776396362,
+      "historical_RQA9_job": 126397662727,
+      "C2_daemon_STOP": "3221225786 remains separate"
+    },
+    "cargo": {
+      "status": "RELEASED",
+      "active_owned_build_test_commands": 0,
+      "explicit_grant_received": true,
+      "incremental": "0",
+      "target": "/tmp/phase-c-execution/c-1/restart-target",
+      "released_to_parent_immediately_after_postpush_proof": true
+    },
+    "push": {
+      "executed": true,
+      "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "branch": "sprint/c-2-framework-application",
+      "remote": "origin",
+      "pr_head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "pr_url": "https://github.com/randlee/beads-cache/pull/109"
+    },
+    "commands": [
+      {
+        "name": "fmt",
+        "command": [
+          "cargo",
+          "fmt",
+          "--all",
+          "--check"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.7228961656801403,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-fmt.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "private-fmt",
+        "command": [
+          "rustfmt",
+          "--edition",
+          "2024",
+          "--check",
+          "crates/bd-cache-store/tests/support/schedule_protocol.rs"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 0.042464541271328926,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-private-fmt.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "store",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "bd-cache-store",
+          "--lib",
+          "--all-features",
+          "schedule::tests::shutdown_",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 16.94657020829618,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-store.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "health-default",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "bd-cache-store",
+          "--lib",
+          "health::tests::mutex_wait_",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 6.423057792242616,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-health-default.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "service",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--locked",
+          "-p",
+          "bd-cache-service",
+          "--",
+          "--nocapture"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 4.543099916074425,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-service.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "clippy",
+        "command": [
+          "cargo",
+          "clippy",
+          "--offline",
+          "--locked",
+          "-p",
+          "bd-cache-service",
+          "-p",
+          "bd-cache-daemon",
+          "-p",
+          "bd-cache-sync",
+          "-p",
+          "bd-cache-store",
+          "--all-targets",
+          "--all-features",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 2.6768748750910163,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy.log",
+        "driver_fallback_used": false
+      },
+      {
+        "name": "clippy-default",
+        "command": [
+          "cargo",
+          "clippy",
+          "--offline",
+          "--locked",
+          "-p",
+          "bd-cache-service",
+          "-p",
+          "bd-cache-daemon",
+          "-p",
+          "bd-cache-sync",
+          "-p",
+          "bd-cache-store",
+          "--lib",
+          "--",
+          "-D",
+          "warnings"
+        ],
+        "exit": 0,
+        "elapsed_seconds": 1.4257404580712318,
+        "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy-default.log",
+        "driver_fallback_used": false
+      }
+    ],
+    "validation": {
+      "git_diff_check": "pass",
+      "prepush_scoped_checks": "pass",
+      "postpush_direct_negative": "expected actual exit101; classification/root cleanup assertion retained",
+      "source_binding": "final source exact reviewed immutable producer",
+      "hosted": "pending exact-head native jobs; observed boundary failure with cause not inferred"
+    },
+    "cleanup": "All owned local commands completed. Scoped logs preserve actual observer error/unwind kill/wait receipts and incomplete-cleanup false receipt/no retry. Deliberate postpush negative records root_joined_and_cleaned=true before no driver fallback. Original budgets unchanged. No survivor or complete process census claim beyond available owned receipts.",
+    "merge_readiness": "NOT READY: all owning/imported findings remain tracked, required QA/CI/parent gates remain open.",
+    "preserved_scope": [
+      "Every original triage nonblank line",
+      "C2-FTQ-006 retraction",
+      "RSH-001 independently resolved supported C1 and paired public C2 startup scope",
+      "FTQ-009/010/011 original scoped mechanism closures",
+      "Strict existing graph and advisory failures"
+    ],
+    "limitations": [
+      "Diagnostic promotion is not RQA9 root-cause correction or full C1 acceptance.",
+      "No live C1 inventory edits, source/helper edits, SDK/pin/guard/signal/endpoint/publicfactory/publisher/auth/token changes.",
+      "No agents, broad suite rerun, PR merge or self-QA closure."
+    ],
+    "timestamp_utc": "2026-11-04T07:29:52.132326+00:00",
+    "final_source_identities": {
+      "head": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "working_tree_clean": true,
+      "source_trees": {
+        "crates/bd-cache-store": {
+          "producer": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "final": "5479d866a253ba3d4becb96112ad3118b7959e1c",
+          "equal": true
+        },
+        "crates/bd-cache-sync": {
+          "producer": "060ff9040235d995cef976caf3cbc5f619597de3",
+          "final": "060ff9040235d995cef976caf3cbc5f619597de3",
+          "equal": true
+        },
+        "crates/bd-cache-store/tests/support/fixture_child.rs": {
+          "producer": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+          "final": "48f8b51be5fa2b3bfdffc80520468edd78ee056d",
+          "equal": true
+        },
+        "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+          "producer": "2036f2e2d29962e76df24ca24934df530497f7d0",
+          "final": "2036f2e2d29962e76df24ca24934df530497f7d0",
+          "equal": true
+        },
+        "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+          "producer": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "final": "123a5ce3a4c14895b2013f1cb74093f982129be9",
+          "equal": true
+        },
+        "crates/bd-cache-sync/tests/cron_hurry.rs": {
+          "producer": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "final": "78ccd70669746a1e8921349b1e51d6fdbce6b262",
+          "equal": true
+        },
+        "crates/bd-cache-service": {
+          "baseline": "760338fd13e8ae69e2efad36055dda841993b4c7",
+          "final": "760338fd13e8ae69e2efad36055dda841993b4c7",
+          "unchanged": true
+        },
+        "crates/bd-cache-daemon": {
+          "baseline": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+          "final": "5a79080c0817dff42f63a6a404c7fdaa39514833",
+          "unchanged": true
+        },
+        "Cargo.toml": {
+          "baseline": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "final": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+          "unchanged": true
+        },
+        "Cargo.lock": {
+          "baseline": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "final": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+          "unchanged": true
+        },
+        "runtime/pin.toml": {
+          "baseline": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+          "final": "5eff3e7cea4de1b109c49470f8a815ab5ee72e13",
+          "unchanged": true
+        },
+        ".github/workflows/ci.yml": {
+          "baseline": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "final": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+          "unchanged": true
+        }
+      },
+      "original_histories": {
+        ".triage/c/findings/C2-REQ-003.ttl": true,
+        ".triage/c/findings/FTQ-009.ttl": true,
+        ".triage/c/findings/QA-C2-001.ttl": true,
+        ".triage/c/findings/RSH-001.ttl": true,
+        ".triage/c/findings/C2-REQ-007.ttl": true,
+        ".triage/c/findings/C2-REQ-004.ttl": true,
+        ".triage/c/findings/CI-C4-001.ttl": true,
+        ".triage/c/findings/REQ-QA-003-001.ttl": true,
+        ".triage/c/findings/C2-FTQ-006.ttl": true,
+        ".triage/c/findings/REQ-QA-004.ttl": true,
+        ".triage/c/findings/ARCH-001.ttl": true,
+        ".triage/c/findings/RBQA-F001.ttl": true,
+        ".triage/c/findings/C2-REQ-009.ttl": true,
+        ".triage/c/findings/C4-RBP-F001.ttl": true,
+        ".triage/c/findings/FTQ-011.ttl": true,
+        ".triage/c/findings/FTQ-010.ttl": true,
+        ".triage/c/findings/RQA9-001.ttl": true,
+        ".triage/c/findings/QA2-001.ttl": true,
+        ".triage/c/findings/C4-FTQ-001.ttl": true
+      },
+      "incoming_histories": {
+        "c0b251da8c491cb32acf49950b87557bd5f86e8e": {
+          "RSH-001": true,
+          "FTQ-011": true,
+          "RQA9-001": true,
+          "RQA10-001": true
+        },
+        "8c1aefafd7fd269c82c7974e610e848816d026d8": {
+          "ARCH-001": true,
+          "RSH-001": true,
+          "RBQA-F001": true,
+          "FTQ-011": true,
+          "RQA9-001": true
+        }
+      },
+      "ancestry": {
+        "c0b251da8c491cb32acf49950b87557bd5f86e8e": true,
+        "8c1aefafd7fd269c82c7974e610e848816d026d8": true
+      },
+      "scope": "Final pushed C2 composition only; source/helper trees exact immutable reviewed producer. No actual source equality assertion for hosted synthetic PR merge.",
+      "retracted_C2_FTQ_006_unchanged": true
+    },
+    "local_results": {
+      "store_controls": {
+        "passed": 8,
+        "failed": 0
+      },
+      "default_health": {
+        "passed": 2,
+        "failed": 0
+      },
+      "service": {
+        "passed": 7,
+        "failed": 0,
+        "nested_owned_child_results_not_double_counted": true
+      },
+      "fmt": "pass",
+      "private_protocol_fmt": "pass",
+      "strict_four_crate_all_targets_all_features": "pass",
+      "strict_four_crate_default_libs": "pass"
+    },
+    "store_protocol_summaries": [
+      {
+        "test": "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+        "mode": "stalled",
+        "classification": "worker_return_and_stall_marker_observed",
+        "root_joined_and_cleaned": true,
+        "owner_reported_ns": 5007145542,
+        "spawn_returned_ns": 726042,
+        "actual_wait": {
+          "ok": true
+        },
+        "actual_worker_return": {
+          "debug": "Err(Store(StoreError { kind: Other, context: \"bounded cache schedule session\", source: Some(StoreFailed { detail: \"schedule worker shutdown: store deadline expired\", source: Some(StoreCause(Custom { kind: TimedOut, error: \"schedule store deadline expired\" })) }) }))",
+          "is_error": true,
+          "sqlite_code": null
+        },
+        "completion": {
+          "timeout": true
+        }
+      },
+      {
+        "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        "mode": "post-return-gap",
+        "classification": "worker_returned_required_marker_missing",
+        "root_joined_and_cleaned": true,
+        "owner_reported_ns": 5007017792,
+        "spawn_returned_ns": 756667,
+        "actual_wait": {
+          "ok": true
+        },
+        "actual_worker_return": {
+          "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+          "is_error": true,
+          "sqlite_code": "DatabaseBusy"
+        },
+        "completion": {
+          "timeout": true
+        }
+      },
+      {
+        "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+        "mode": "stalled",
+        "classification": "worker_return_and_stall_marker_observed",
+        "root_joined_and_cleaned": true,
+        "owner_reported_ns": 5008478833,
+        "spawn_returned_ns": 453833,
+        "actual_wait": {
+          "ok": true
+        },
+        "actual_worker_return": {
+          "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+          "is_error": true,
+          "sqlite_code": "DatabaseBusy"
+        },
+        "completion": {
+          "timeout": true
+        }
+      },
+      {
+        "test": "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+        "mode": "stalled",
+        "classification": "worker_return_and_stall_marker_observed",
+        "root_joined_and_cleaned": true,
+        "owner_reported_ns": 5003385083,
+        "spawn_returned_ns": 516666,
+        "actual_wait": {
+          "ok": true
+        },
+        "actual_worker_return": {
+          "debug": "Err(Store(StoreError { kind: Other, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: OperationInterrupted, extended_code: 9 }, Some(\"interrupted\"))) }))",
+          "is_error": true,
+          "sqlite_code": "OperationInterrupted"
+        },
+        "completion": {
+          "timeout": true
+        }
+      }
+    ],
+    "owner_controls": [
+      "RQA9_OWNER_CONTROL observer_panic=false root_pid=89728 actual_kill_wait_receipt=true before_driver_fallback",
+      "RQA9_OWNER_CONTROL cleanup_error root_pid=89726 actual_root_wait=true cleanup_receipt=false repeat_attempt_refused=true before_driver_fallback",
+      "RQA9_OWNER_CONTROL observer_panic=true root_pid=89734 actual_kill_wait_receipt=true before_driver_fallback"
+    ],
+    "postpush_proof": {
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-p",
+        "bd-cache-store",
+        "--lib",
+        "--all-features",
+        "schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification",
+        "--",
+        "--exact",
+        "--nocapture"
+      ],
+      "environment": {
+        "BD_CACHE_EXPOSE_PHASE_QUALIFICATION_FAILURE": "1",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_TARGET_DIR": "/tmp/phase-c-execution/c-1/restart-target"
+      },
+      "exit": 101,
+      "expected_exit": 101,
+      "elapsed_seconds": 5.146266708150506,
+      "driver_fallback_used": false,
+      "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.log",
+      "protocol_receipts": [
+        {
+          "absolute_lifetime_ns": 5000000000,
+          "classification": "worker_returned_required_marker_missing",
+          "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+          "mode": "post-return-gap",
+          "outer_to_owner_ns": 933750,
+          "owner_origin": "Instant before Command.spawn",
+          "owner_reported_ns": 5009794834,
+          "owner_unix_ns": 1793777260317283000,
+          "receipts": [
+            {
+              "execution": {
+                "child_elapsed_ns": 671708,
+                "data": null,
+                "phase": "fixture-body-entered",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 4996000
+              },
+              "owner_received_ns": 9723459
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 1123708,
+                "data": null,
+                "phase": "scratch-create-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 5924000
+              },
+              "owner_received_ns": 9760917
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 1229542,
+                "data": null,
+                "phase": "store-open-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 6030000
+              },
+              "owner_received_ns": 9767459
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 10658000,
+                "data": null,
+                "phase": "store-open-returned",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 15456000
+              },
+              "owner_received_ns": 16086125
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 10711792,
+                "data": null,
+                "phase": "schedule-view-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 15513000
+              },
+              "owner_received_ns": 16093084
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 10930667,
+                "data": null,
+                "phase": "schedule-view-returned",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 15732000
+              },
+              "owner_received_ns": 16099042
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 11424375,
+                "data": null,
+                "phase": "schedule-create-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16225000
+              },
+              "owner_received_ns": 22435834
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 11798292,
+                "data": null,
+                "phase": "schedule-setup-complete",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16599000
+              },
+              "owner_received_ns": 22442167
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 11837833,
+                "data": null,
+                "phase": "contender-open-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16639000
+              },
+              "owner_received_ns": 22447459
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 11937250,
+                "data": null,
+                "phase": "contender-lock-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16739000
+              },
+              "owner_received_ns": 22452709
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 11995250,
+                "data": null,
+                "phase": "contender-lock-acquired",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16797000
+              },
+              "owner_received_ns": 22458042
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 12030125,
+                "data": null,
+                "phase": "worker-spawn-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 16832000
+              },
+              "owner_received_ns": 22466917
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 12320125,
+                "data": {
+                  "ok": true
+                },
+                "phase": "wait-result",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 17121000
+              },
+              "owner_received_ns": 22480084
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 12367458,
+                "data": {
+                  "child_deadline_ns": 42365542
+                },
+                "phase": "cancellation-deadline-installed",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 17169000
+              },
+              "owner_received_ns": 22486459
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 12393458,
+                "data": null,
+                "phase": "cancellation-installed",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 17195000
+              },
+              "owner_received_ns": 22491875
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 517581875,
+                "data": {
+                  "timeout": true
+                },
+                "phase": "completion-result",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 522383000
+              },
+              "owner_received_ns": 527765084
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 518122167,
+                "data": null,
+                "phase": "contender-rollback-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 522925000
+              },
+              "owner_received_ns": 527818792
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 518785542,
+                "data": null,
+                "phase": "contender-rollback-returned",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 523565000
+              },
+              "owner_received_ns": 527834042
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 519086458,
+                "data": null,
+                "phase": "worker-join-start",
+                "pid": 91365,
+                "stream": "main",
+                "wall_since_owner_ns": 523892000
+              },
+              "owner_received_ns": 527865250
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 12091750,
+                "data": null,
+                "phase": "worker-call-start",
+                "pid": 91365,
+                "stream": "worker",
+                "wall_since_owner_ns": 16891000
+              },
+              "owner_received_ns": 22511709
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 43046167,
+                "data": {
+                  "debug": "Err(Store(StoreError { kind: Busy, context: \"failed to update sc_cron_schedule id 1\", source: Some(SqliteFailure(Error { code: DatabaseBusy, extended_code: 5 }, Some(\"database is locked\"))) }))",
+                  "is_error": true,
+                  "sqlite_code": "DatabaseBusy"
+                },
+                "phase": "worker-call-returned",
+                "pid": 91365,
+                "stream": "worker",
+                "wall_since_owner_ns": 47847000
+              },
+              "owner_received_ns": 54077459
+            },
+            {
+              "execution": {
+                "child_elapsed_ns": 43106042,
+                "data": null,
+                "phase": "planted-post-return-gap",
+                "pid": 91365,
+                "stream": "worker",
+                "wall_since_owner_ns": 47907000
+              },
+              "owner_received_ns": 54085917
+            }
+          ],
+          "root_joined_and_cleaned": true,
+          "spawn_returned_ns": 1641667,
+          "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"
+        }
+      ],
+      "qualification_assertion_retained": true,
+      "expected_classifier": "worker_returned_required_marker_missing",
+      "actual_classifier": "worker_returned_required_marker_missing",
+      "root_cleaned": true
+    },
+    "selected_test_artifacts": [
+      {
+        "test": "store",
+        "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+        "sha256": "b79dfdc47d268f1ddc715d97ffa1c9bdbf25160bbe94b2a4f8c727063ace6d7f",
+        "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-1d0ca69baec4ff92/test-lib-bd_cache_store.json",
+        "features": "[\"testing\"]",
+        "declared_features": "[\"testing\"]",
+        "rustflags": []
+      },
+      {
+        "test": "health-default",
+        "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-4f2574d4f213f3f0",
+        "sha256": "971e22a147d23f785195be98cf1720f9dd3e0aa56fe590636e234eabd6a3e781",
+        "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-4f2574d4f213f3f0/test-lib-bd_cache_store.json",
+        "features": "[]",
+        "declared_features": "[\"testing\"]",
+        "rustflags": []
+      },
+      {
+        "test": "service",
+        "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_service-b31765a07f3f2526",
+        "sha256": "9e81abd6cb2accaae5e12b313c76c601ad07ee6d9efe4a76a073b097b74c5d5e",
+        "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-service-b31765a07f3f2526/test-lib-bd_cache_service.json",
+        "features": "[]",
+        "declared_features": "[\"testing\"]",
+        "rustflags": []
+      },
+      {
+        "test": "postpush-direct-negative",
+        "binary": "/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-1d0ca69baec4ff92",
+        "sha256": "b79dfdc47d268f1ddc715d97ffa1c9bdbf25160bbe94b2a4f8c727063ace6d7f",
+        "fingerprint": "/tmp/phase-c-execution/c-1/restart-target/debug/.fingerprint/bd-cache-store-1d0ca69baec4ff92/test-lib-bd_cache_store.json",
+        "features": "[\"testing\"]",
+        "declared_features": "[\"testing\"]",
+        "rustflags": []
+      }
+    ],
+    "compiler": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: aarch64-apple-darwin\nrelease: 1.98.1\nLLVM version: 22.1.8\ncargo 1.98.1 (797e8a9bc 2026-08-05)\n",
+    "feature_context": {
+      "windows_full_workspace_command": "cargo tree --offline --locked --workspace --exclude bd-cache-py --all-features --target x86_64-pc-windows-msvc -e features -i rusqlite",
+      "exit": 0,
+      "log": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-windows-feature-tree.log",
+      "scope": "Static target resolution, not Windows execution or reproduction of original artifact. Selected local artifact features recorded independently."
+    },
+    "working_tree_clean": true,
+    "pre_cargo_receipt_preserved": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-pre-cargo-result.json",
+    "stopped_for_parent_remote_monitoring_and_own_QA": true,
+    "artifacts": {
+      "validated-phase-protocol-before.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-before.json",
+        "bytes": 185181,
+        "sha256": "91523c5bd37daba3df91aa21c464aeadc2f8b5013bf3ca2527e31d25cc1327b2"
+      },
+      "validated-phase-protocol-cargo-version.txt": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-cargo-version.txt",
+        "bytes": 36,
+        "sha256": "9950bbb2d5c3417b1a068f0e81f6d3cac991a363193bdf2a22d447f5acf8b503"
+      },
+      "validated-phase-protocol-ci-snapshot.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-ci-snapshot.json",
+        "bytes": 12807,
+        "sha256": "cd0f6e1bde75bfa6afadfee6b867d43246577e9a4d7111fbd6f7f236c0776399"
+      },
+      "validated-phase-protocol-clippy-default.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy-default.log",
+        "bytes": 620,
+        "sha256": "0f5bee6424730912b3a6e2596cf5ac8b861d17ef35a6e705bf1c307b3003a461"
+      },
+      "validated-phase-protocol-clippy.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-clippy.log",
+        "bytes": 620,
+        "sha256": "0fa46a4ef671c01fa4aa8c2fd18bf2af633c6135dd780535774bd78bd935256e"
+      },
+      "validated-phase-protocol-commands.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-commands.json",
+        "bytes": 2934,
+        "sha256": "1b5d3b881390173ad1c907fd0c70237127dc464ac0ba53fc918ce6d86fa7e8aa"
+      },
+      "validated-phase-protocol-compiler.txt": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-compiler.txt",
+        "bytes": 192,
+        "sha256": "e2211d4c0760a2a3b03eab88e42f8848952b7aa2ed649277a8fdbf3ce1838fd4"
+      },
+      "validated-phase-protocol-consumption-pre-cargo-result.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-pre-cargo-result.json",
+        "bytes": 12440,
+        "sha256": "df3ea13108ccd7b750b7bbc5354f1cb7ae5d27f64a5b92edd81cb65629c0e87e"
+      },
+      "validated-phase-protocol-consumption-pre-cargo-result.md": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-pre-cargo-result.md",
+        "bytes": 2148,
+        "sha256": "6c647e10c46d0fa9e384134966714c0f035cebcbd637316c2fe9b21b2bdf0cab"
+      },
+      "validated-phase-protocol-consumption-vars.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption-vars.json",
+        "bytes": 5845,
+        "sha256": "99d821301d9bb6e9f1c0fa49cf95dfbe439578651a09f61d4c4690675db8b4a1"
+      },
+      "validated-phase-protocol-consumption.xml": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-consumption.xml",
+        "bytes": 8417,
+        "sha256": "4ad0ca02e86b58c407a9a3ca8c54a5f303c16c2b1f8379032bd9026be6fb1e85"
+      },
+      "validated-phase-protocol-dispositions.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-dispositions.json",
+        "bytes": 1529,
+        "sha256": "6a7cc64f270f4a5aac5fbef95818971ce527107ff1032fae1569423800b9978d"
+      },
+      "validated-phase-protocol-final-source-identities.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-final-source-identities.json",
+        "bytes": 3979,
+        "sha256": "f18ac930453ad4e60820e353f966421652154be85c7940aa2becff4fae82c3d3"
+      },
+      "validated-phase-protocol-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validated-phase-protocol-health-default.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-health-default.log",
+        "bytes": 608,
+        "sha256": "df6d3192c520db0afd493d5ff3b7110d3fd5d3128388930da4e06fed0e00f81e"
+      },
+      "validated-phase-protocol-postpush-direct-negative.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.json",
+        "bytes": 8885,
+        "sha256": "aef6a98ba17f052f93116ce650bd3618d6ecc372f362fbcff568df82b78d747e"
+      },
+      "validated-phase-protocol-postpush-direct-negative.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-postpush-direct-negative.log",
+        "bytes": 8399,
+        "sha256": "920dffab1feb1aa72a131a3c03c4b905d283fa19d1b290eaff735c1cb524fc99"
+      },
+      "validated-phase-protocol-pr-source.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-pr-source.json",
+        "bytes": 212,
+        "sha256": "628baf93e6e0da4ad6814804597327bb8efaec60d67830100ee542d163787931"
+      },
+      "validated-phase-protocol-private-fmt.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-private-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "validated-phase-protocol-run-local.py": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-run-local.py",
+        "bytes": 1921,
+        "sha256": "5157c391b0af8526bac3f7f3821ec9ea820ceea0cd0696594fe9a38e36d93ed7"
+      },
+      "validated-phase-protocol-selected-artifacts.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-selected-artifacts.json",
+        "bytes": 1829,
+        "sha256": "fe5845020cd85a2bb8f25459421d5e7378a6a82ac66315474bfd1ac7344fc8d4"
+      },
+      "validated-phase-protocol-service.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-service.log",
+        "bytes": 3307,
+        "sha256": "845f5516be7a10578bd9bc7ae5bffcc924e8b8ccb02713ac9bffba7802774bc9"
+      },
+      "validated-phase-protocol-source-identities.json": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-source-identities.json",
+        "bytes": 5150,
+        "sha256": "9df8fbf199bd854070d626cbf99c33189be1e5d237b61f538fd29c29b8b16626"
+      },
+      "validated-phase-protocol-store.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-store.log",
+        "bytes": 26659,
+        "sha256": "068d18365183b38765e745a9ef3037d1793aeca57fe2e02e5771cd77e0e25870"
+      },
+      "validated-phase-protocol-windows-feature-tree.log": {
+        "path": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-windows-feature-tree.log",
+        "bytes": 7780,
+        "sha256": "c7b396aa3969944ba655942c4390beac7350d4c5f2a80a32ba50a8612d06ea1e"
+      }
+    }
+  },
+  "error": null
+}
