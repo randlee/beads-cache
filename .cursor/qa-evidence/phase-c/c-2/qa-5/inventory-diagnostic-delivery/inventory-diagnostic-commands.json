@@ -1,0 +1,49 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 0.7194430842064321,
+    "driver_fallback_used": false,
+    "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-fmt.log"
+  },
+  {
+    "name": "private-fmt",
+    "command": [
+      "rustfmt",
+      "--edition",
+      "2024",
+      "--check",
+      "crates/bd-cache-sync/tests/common/session_fixture.rs"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 0.03914087498560548,
+    "driver_fallback_used": false,
+    "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-private-fmt.log"
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--offline",
+      "--locked",
+      "-p",
+      "bd-cache-sync",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 2.3954467503353953,
+    "driver_fallback_used": false,
+    "log": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-clippy.log"
+  }
+]

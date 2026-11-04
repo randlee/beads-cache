@@ -9320,10 +9320,10 @@
     "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833"
   },
   "current_fix_dispatch": {
-    "status": "independent_causal_assessment_running",
+    "status": "one_shot_native_observation_queued",
     "actor": "parent-orchestrator",
     "dispatched_at": "2026-11-04T07:10:37.919641+00:00",
-    "active_task_id": "/root/rqa9_causal_owner",
+    "active_task_id": null,
     "cargo_owner": null,
     "tasks": [
       {
@@ -9402,29 +9402,94 @@
         },
         "windows_ci": {
           "job": 126448419419,
-          "status": "in_progress",
-          "observed_at": "2026-11-04T07:38:20.342689+00:00"
+          "status": "completed",
+          "conclusion": "failure",
+          "completed_at": "2026-11-04T07:40:40Z",
+          "cause": "pending_background_developer_log_assessment"
         }
+      },
+      {
+        "task_id": "/root/c2_protocol_consumer11",
+        "task_local_id": "fix-c-2-qa5-inventory-diagnostic-consumption",
+        "invocation": "parent_followup_existing_background_developer",
+        "role": "rust-developer",
+        "sprint": "c-2",
+        "assignment": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption.xml",
+        "baseline": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+        "integration": "9f7cd65e7920ca54989fa12616205e78aa907767",
+        "immutable_producer": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+        "state": "completed_scoped_diagnostic_delivery",
+        "cargo_slot": false,
+        "model": "gpt-6.1-sol",
+        "reasoning_effort": "high",
+        "model_provenance": "Configured Grok unavailable; available fallback",
+        "scope": "Diagnostic SessionFixture promotion only; complete finding histories preserved; no acceptance claim",
+        "pushed_commit": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+        "receipt": "/tmp/phase-c-execution/c-2/qa-5/inventory-diagnostic-consumption-result.json",
+        "native_run": 41794713892,
+        "windows_job": 126455975425,
+        "macos_job": 126455975561
       }
     ],
     "independent_owner_assessment": {
       "task_id": "/root/rqa9_causal_owner",
       "invocation": "parent_followup_existing_independent_reviewer",
-      "state": "running",
-      "scope": "Actual terminal CI evidence and smallest meaningful causal next step; no Cargo/source edits/full-QA claim"
+      "state": "completed",
+      "scope": "Actual terminal CI evidence and smallest meaningful causal next step; no Cargo/source edits/full-QA claim",
+      "receipt": "/tmp/phase-c-execution/c-1/qa-10/owner-terminal-assessment.json",
+      "next_action": "Immutable ec68 diagnostics consumption into C2 plus one bounded native macOS full cron_hurry observation; no automatic rerun"
+    },
+    "terminal_windows_diagnosis": {
+      "task_id": "/root/c2_protocol_consumer11",
+      "role": "rust-developer",
+      "state": "completed",
+      "job": 126448419419,
+      "source": "37b37376329ff9ceb84319ea17d769f84d67fbf9",
+      "result": "failure_after_test_success",
+      "raw": "/tmp/phase-c-execution/c-2/qa-5/validated-phase-protocol-hosted-windows.log",
+      "cargo_slot": false,
+      "finding": "QA-C2-001",
+      "observed_exit": "3221225786/0xC000013A",
+      "test_step": "success_store37/37",
+      "receipt": "/tmp/phase-c-execution/c-2/qa-5/terminal-windows-analysis.json"
+    },
+    "bounded_mac_observation_preparation": {
+      "task_id": "/root/mac_inventory_observation_prep",
+      "spawn_actor": "parent-orchestrator",
+      "invocation": "parent_spawn_new_background_developer",
+      "role": "rust-developer",
+      "model": "gpt-6.1-sol",
+      "reasoning_effort": "high",
+      "model_provenance": "Configured Grok unavailable; available fallback",
+      "state": "completed_passive_preparation",
+      "cargo_slot": false,
+      "source_sha": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "scope": "Passive workflow/script drafts only; no publish/worktree/source mutation"
+    },
+    "bounded_mac_observation": {
+      "run": 41794982056,
+      "status": "queued",
+      "workflow_commit": "4b89a434c7d32ee3b3c36a962179e92bc45dd2ab",
+      "immutable_consumer": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "developer_task": "/root/mac_inventory_observation_prep",
+      "root_publication": "Executed reviewed developer-authored guarded publish script once; auto-review approved",
+      "workflow_path": ".github/workflows/one-time-macos-cron-hurry-observation.yml",
+      "url": "https://github.com/randlee/beads-cache/actions/runs/41794982056",
+      "attempt_limit": 1,
+      "acceptance": "Diagnostic only; original RQA9/RQA10 remain open; no sprint merge",
+      "job": 126456844993,
+      "last_verified_at": "2026-11-04T07:56:28.106188+00:00"
     }
   },
   "goal_turn_audit": {
     "previous_turn": "progress",
     "current_classification": "progress",
-    "observed_at": "2026-11-04T07:38:20.342689+00:00",
+    "observed_at": "2026-11-04T07:56:28.106235+00:00",
     "evidence": [
-      "Active goal confirmed; sc-publish proposal remains parked and excluded",
-      "C1 developer diagnostic delivery and bounded invariant analysis completed; no speculative cause/fix claim",
-      "C2 actual macOS failure routed to independent flaky-test owner; Windows exact job still running",
-      "Background independent owner reactivated for evidence assessment; Cargo released"
+      "Verified exact observation job126456844993 exists and remains queued; no restart or rerun",
+      "Archived completed C2 diagnostic handoff and prior terminal Windows evidence with source distinctions and raw byte hashes"
     ],
-    "next_safe_action": "Receive owner assessment, route bounded causal action to background developer, and continue QA loop; no merger or historical closure from passing diagnostic run",
+    "next_safe_action": "Wait for exact macOS observation job; preserve terminal log/artifacts then independent owner assessment",
     "blocked_audit_increment": false
   },
   "current_nonblockers": {

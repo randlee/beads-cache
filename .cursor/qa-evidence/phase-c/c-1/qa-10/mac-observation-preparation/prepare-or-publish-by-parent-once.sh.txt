@@ -1,0 +1,69 @@
+#!/bin/bash
+# PASSIVE DRAFT. The parent reviews rendered YAML before explicitly publishing.
+set -euo pipefail
+if [ "$#" -ne 3 ] || { [ "$1" != render ] && [ "$1" != publish ]; }; then
+  echo "usage: $0 render|publish /absolute/isolated/worktree exact40hex-consumer-sha" >&2
+  exit 2
+fi
+mode="$1"
+worktree_dir="$2"
+consumer_sha="$3"
+[[ "$worktree_dir" = /* ]]
+[[ "$consumer_sha" =~ ^[0-9a-f]{40}$ ]]
+draft_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+expected_branch=codex/c2-windows-store-phase-observation
+expected_workflow_head=59cb77d253ed20d202e19f563776f26f69a225b0
+producer=ec68ecfda3d41038c7375129b42f7f16c8f55680
+consumer_base=37b37376329ff9ceb84319ea17d769f84d67fbf9
+old_workflow=.github/workflows/one-time-windows-store-phase-observation.yml
+new_workflow=.github/workflows/one-time-macos-cron-hurry-observation.yml
+test "$(git -C "$worktree_dir" branch --show-current)" = "$expected_branch"
+test "$(git -C "$worktree_dir" rev-parse HEAD)" = "$expected_workflow_head"
+test "$(git -C "$worktree_dir" rev-parse "origin/$expected_branch")" = "$expected_workflow_head"
+test -z "$(git -C "$worktree_dir" status --porcelain)"
+test "$(git -C "$worktree_dir" cat-file -t "$consumer_sha")" = commit
+git -C "$worktree_dir" merge-base --is-ancestor "$producer" "$consumer_sha"
+git -C "$worktree_dir" merge-base --is-ancestor "$consumer_base" "$consumer_sha"
+test "$(git -C "$worktree_dir" rev-parse "$consumer_sha:crates/bd-cache-sync/tests/common/session_fixture.rs")" = 8f5313e8db352e00dd233e0fe43011207174857c
+test "$(git -C "$worktree_dir" rev-parse "$consumer_sha:Cargo.lock")" = 8ff90ed761ac59b12f60c757085de42ccb2b8928
+# Fail closed if consumption unexpectedly changes other Rust/manifests/lock.
+test "$(git -C "$worktree_dir" diff --name-only "$consumer_base" "$consumer_sha" -- ':(glob)**/*.rs' ':(glob)**/Cargo.toml' Cargo.toml Cargo.lock)" = crates/bd-cache-sync/tests/common/session_fixture.rs
+test "$(git -C "$worktree_dir" rev-parse "HEAD:$old_workflow")" = bf2c5c114505f86631e56e4831f3b7ec03665295
+test ! -e "$worktree_dir/$new_workflow"
+rendered="$draft_dir/frozen-$consumer_sha.yml"
+python3 - "$draft_dir/one-time-macos-cron-hurry-observation.yml" "$rendered" "$consumer_sha" <<'PY'
+import pathlib, re, sys
+source, destination, commit = sys.argv[1:]
+assert re.fullmatch(r"[0-9a-f]{40}", commit)
+text = pathlib.Path(source).read_text()
+assert text.count("__CONSUMER_SHA__") == 4
+text = text.replace("__CONSUMER_SHA__", commit)
+assert "__CONSUMER_SHA__" not in text
+pathlib.Path(destination).write_text(text)
+PY
+printf 'rendered=%s\nconsumer_sha=%s\nworkflow_parent=%s\n' "$rendered" "$consumer_sha" "$expected_workflow_head"
+if [ "$mode" = render ]; then
+  echo 'Render complete; no worktree edits, commit, push or test. Parent must review the frozen YAML.'
+  exit 0
+fi
+# No checkout/reset/rebase/merge, force push, PR or integration branch mutation.
+# Rename+replacement removes the Windows trigger in the SAME commit that adds
+# the sole macOS workflow; old contents and every prior commit remain in history.
+git -C "$worktree_dir" mv "$old_workflow" "$new_workflow"
+cp "$rendered" "$worktree_dir/$new_workflow"
+git -C "$worktree_dir" add -- "$new_workflow"
+git -C "$worktree_dir" diff --cached --check
+python3 - "$worktree_dir" "$old_workflow" "$new_workflow" <<'PY'
+import subprocess, sys
+root, old, new = sys.argv[1:]
+names = subprocess.check_output(["git", "-C", root, "diff", "--cached", "--name-only", "--no-renames"], text=True).splitlines()
+assert sorted(names) == sorted([old, new]), names
+PY
+git -C "$worktree_dir" diff --cached --stat
+git -C "$worktree_dir" commit -m "Observe frozen macOS cron_hurry target once with raw inventory stages"
+test "$(git -C "$worktree_dir" rev-parse HEAD^)" = "$expected_workflow_head"
+test ! -e "$worktree_dir/$old_workflow"
+git -C "$worktree_dir" push origin "HEAD:refs/heads/$expected_branch"
+echo 'One branch push issued. Do not dispatch, rerun, republish or invoke the test again.'
+# If push outcome is uncertain, inspect the immutable commit/run remotely before
+# any further action. A second invocation refuses the changed workflow HEAD.
