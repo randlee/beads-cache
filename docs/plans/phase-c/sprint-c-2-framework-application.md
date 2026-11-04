@@ -626,3 +626,15 @@ normal management completion and actual joins/reopen. No production caller chang
 was required. All nine C2 findings plus imported FTQ-011 remain open pending
 owning independent review or their unchanged documented blockers. See the
 [scoped candidate receipt](evidence/c-2-startup-candidate-consumption.md).
+
+
+## Validated private phase protocol consumption
+
+The existing C2 branch consumes exact integration `c0b251da8c491cb32acf49950b87557bd5f86e8e`
+and independently reviewed producer `8c1aefafd7fd269c82c7974e610e848816d026d8`
+by ordinary merges. The [consumption receipt](evidence/c-2-validated-phase-protocol-consumption.md)
+records source identity, every owning/imported finding and preserved scoped histories.
+This diagnostic promotion leaves C1 QA10 FAIL3B3I29/34, historical C2 Windows RQA9
+and actual C1 macOS RQA10 OPEN/unknown cause. It establishes no new C2 platform
+failure or whole-sprint acceptance. Local Cargo/push remain serialized by the parent;
+exact validation and hosted handles follow in the external execution receipt.
