@@ -1,0 +1,188 @@
+{
+  "qa_pass": "qa-10",
+  "source": "8c1aefafd7fd269c82c7974e610e848816d026d8",
+  "status": "QA10 sole enforcer completeFAIL3B3I29/34, published/fetched exact equality verified",
+  "files": [
+    {
+      "path": "manifest.json",
+      "bytes": 1274,
+      "sha256": "4b8d2a96e6533dabff664543ff33b370790a98f26a622e8ca418495bb0246e53"
+    },
+    {
+      "path": "parsed-handoff.json",
+      "bytes": 328602,
+      "sha256": "650a81a65705c39aa2b36187d8c2c2b84b22b4dd61121eb28533d60519113dcd"
+    },
+    {
+      "path": "parent-spawn-correlation.json",
+      "bytes": 2859,
+      "sha256": "b0233982f51bc074f5183e7e80dd8d295e3e589461b8e9aeb982075187ff77f1"
+    },
+    {
+      "path": "screen-result.json",
+      "bytes": 3367,
+      "sha256": "49030f02d61e076353a37d359226c02f4728ec9c99d5f3c3df987182f1b6531e"
+    },
+    {
+      "path": "screen-parent-adjudication.json",
+      "bytes": 2210,
+      "sha256": "cde10812cd762fee032a4b85f32b0641690201922090c536f81627634be4f42b"
+    },
+    {
+      "path": "req-qa-result.md",
+      "bytes": 168648,
+      "sha256": "f403158661a428fa55b0ad4171fdb517188078ca2306bbe7ee512076d39eb38a"
+    },
+    {
+      "path": "req-qa-result.json",
+      "bytes": 168636,
+      "sha256": "9f916aa834b8deb18a109b40127da2de9631ec465215e394255e5bd5e6fc5dd0"
+    },
+    {
+      "path": "arch-qa-result.md",
+      "bytes": 35063,
+      "sha256": "0541a89e1d03ffaba1efbcf59a84c152769e2e91b4f4f8b4ca78120df7e66814"
+    },
+    {
+      "path": "arch-qa-result.json",
+      "bytes": 35051,
+      "sha256": "8666e755b74cd3d0f8c085f4464de3b0bce25a2beb0dda1f8051c3ae51a7d217"
+    },
+    {
+      "path": "rust-qa-agent-result.md",
+      "bytes": 77207,
+      "sha256": "091c8a5a2b0f4158044d82e4c4088a43200f41767509a56844307e335c8f71c9"
+    },
+    {
+      "path": "rust-qa-agent-result.json",
+      "bytes": 77195,
+      "sha256": "bc498b3e300aa6879fe8ffe6ba15693346f45718c71e774f512eadb4ccd67800"
+    },
+    {
+      "path": "flaky-test-qa-result.md",
+      "bytes": 29220,
+      "sha256": "9a6afae27762a00633ebcd03f4e0b444697471a259c525faee1d4fb11038b686"
+    },
+    {
+      "path": "flaky-test-qa-result.json",
+      "bytes": 29208,
+      "sha256": "23a450298f1fcfedc602f4bb2d6a306cebac115995a12d70bb4fb331794f4a90"
+    },
+    {
+      "path": "arch-qa-source-equivalence.json",
+      "bytes": 61384,
+      "sha256": "45934f750c3f92c19daf45e13f3554ea57c1f018643a14a6a7bdb6c9118fd49e"
+    },
+    {
+      "path": "req-qa-source-equivalence.json",
+      "bytes": 6993,
+      "sha256": "b1d9a88b49c233cdfcff5ff0c0cb8609d20d5fafdc84a55941e0558c4d05d27f"
+    },
+    {
+      "path": "rust-qa-source-equivalence.json",
+      "bytes": 7230,
+      "sha256": "48855d980c89ac42bc9315cbc333b4230cc139281a238e6d5f9c55082ddce6e9"
+    },
+    {
+      "path": "rust-qa-clippy-default.log",
+      "bytes": 204,
+      "sha256": "75ce392e091eedc6a59c825a1d1e68bf2aa667c3dc66f419ddde317942d96dde"
+    },
+    {
+      "path": "rust-qa-clippy-helper-compat.log",
+      "bytes": 72,
+      "sha256": "c92508a29848820f033cd2ea015c85dde0953c88b07cc967ce34b7c08f610549"
+    },
+    {
+      "path": "rust-qa-clippy.log",
+      "bytes": 72,
+      "sha256": "f591e097f22f91dd5c31fbbf7e587d80c0a4e0ed594f9c9012a544f38c52d926"
+    },
+    {
+      "path": "rust-qa-direct-negative.log",
+      "bytes": 8096,
+      "sha256": "b7bbb5fb7063c46c6ef2085f85a216d5a70be7cd0d6ea748740e7eb11db1538c"
+    },
+    {
+      "path": "rust-qa-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rust-qa-health-default.log",
+      "bytes": 472,
+      "sha256": "2c78c49a4204cf5d23f5a499747acaea34f08197e115c91268e53649c4ea582f"
+    },
+    {
+      "path": "rust-qa-hosted-boundary.log",
+      "bytes": 87281,
+      "sha256": "dd5fb0d5f10a9d3912e6e9568338388f24c15ced5ec76f384f27cd2ad06db675"
+    },
+    {
+      "path": "rust-qa-hosted-macos.log",
+      "bytes": 209785,
+      "sha256": "4069ae433235e2214dea82cab62edb8026a2d5168a8d9d45b3056d03dc02993c"
+    },
+    {
+      "path": "rust-qa-private-fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "rust-qa-store.log",
+      "bytes": 26508,
+      "sha256": "1efa0814d4f05d70b9c6a3c11ce69c93abd03b6df02125883fde29e5067d0588"
+    },
+    {
+      "path": "manager-result.md",
+      "sha256": "0eadf13a42fb9c377edd7faf0674fd7580cc0427b063da8e460f034ff6f53eb1",
+      "bytes": 17384
+    },
+    {
+      "path": "manager-machine-status.json",
+      "sha256": "97ad0bd4601719b1fb7a794b6378434fa5502c8fa0af199901244ae5d23f4051",
+      "bytes": 7430
+    },
+    {
+      "path": "manager-published-report.md",
+      "sha256": "0eadf13a42fb9c377edd7faf0674fd7580cc0427b063da8e460f034ff6f53eb1",
+      "bytes": 17384
+    },
+    {
+      "path": "manager-publication-equality.json",
+      "sha256": "ede1e2a1e5caf125a06a8432ecb781068e535910ff6b7326da5851cd7c30a029",
+      "bytes": 525
+    },
+    {
+      "path": "manager-evidence-verification.json",
+      "sha256": "140ad0f76772ea8cea1ab622910653a82bfc4e57d97651685a1d62deb3305f40",
+      "bytes": 1943
+    },
+    {
+      "path": "manager-open-findings.json",
+      "sha256": "7f79da3379cdc76e27652ed61ac60969b8d703604788086e00d0be083e7672ca",
+      "bytes": 10355
+    },
+    {
+      "path": "manager-pr108-view.json",
+      "sha256": "1bc9a4b57c28bd4268492717a5a4975d26dc17d1770daa6f3a4ec7e2458a99b9",
+      "bytes": 4773
+    },
+    {
+      "path": "manager-pr108-checks.json",
+      "sha256": "18a9ae5699cda66a78ea791df92d360a88db57951c41a8e9d00ddfc496a53b79",
+      "bytes": 2770
+    },
+    {
+      "path": "manager-todo-scan-metadata.json",
+      "sha256": "481f13464378ca3cd6a6c0adaa94ae8f41388d6c41aeeefe45a5eea9a95c704a",
+      "bytes": 134
+    },
+    {
+      "path": "manager-todo-scan.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ],
+  "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6624794833"
+}
