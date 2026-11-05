@@ -1,19 +1,18 @@
 //! Bridges upstream canonical scheduler events to the existing tracing surface.
 
-use sc_command::observability::{CanonicalLog, NoopCanonicalLog, SharedCanonicalLog};
-use sc_observability_types::{LogEvent, ServiceName, v2};
+use sc_cron::observability::{CanonicalLog, EventError, LogEvent, ServiceName, SharedCanonicalLog};
 
 pub(crate) type ScheduleNames =
     std::sync::Arc<std::sync::Mutex<std::collections::HashMap<String, String>>>;
 
-struct CronLog(NoopCanonicalLog, ScheduleNames);
+struct CronLog(ServiceName, ScheduleNames);
 
 impl CanonicalLog for CronLog {
     fn service_name(&self) -> &ServiceName {
-        self.0.service_name()
+        &self.0
     }
 
-    fn emit(&self, event: LogEvent) -> Result<(), v2::EventError> {
+    fn emit(&self, event: LogEvent) -> Result<(), EventError> {
         let canonical_action = event.action.to_string();
         let action = match canonical_action.as_str() {
             "run.launched" | "due.launched" => "launched",
@@ -47,9 +46,13 @@ impl CanonicalLog for CronLog {
     }
 }
 
+#[expect(
+    clippy::expect_used,
+    reason = "the fixed bd-cache service name is valid under the shared validator; existing logging tests construct this receiver"
+)]
 pub(crate) fn logger(names: ScheduleNames) -> SharedCanonicalLog {
     std::sync::Arc::new(CronLog(
-        NoopCanonicalLog::named_or_default("bd-cache"),
+        ServiceName::new("bd-cache").expect("fixed bd-cache service identity is valid"),
         names,
     ))
 }

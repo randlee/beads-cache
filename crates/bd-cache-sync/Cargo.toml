@@ -27,8 +27,6 @@ sc-beads.workspace = true
 bd-cache-store.workspace = true
 sc-bd-cli.workspace = true
 sc-cron.workspace = true
-# Upstream canonical receiver contract only; default features off.
-sc-command.workspace = true
 sc-observability-types.workspace = true
 chrono.workspace = true
 async-trait.workspace = true

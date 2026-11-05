@@ -1167,3 +1167,34 @@ REQ-QA-004 retain their genuine public receiver/graph/current-acceptance blocker
 No SDK/pin/guard/publisher workaround or whole-sprint acceptance is claimed.
 Ordinary developer source/test evidence is in QA11's native-qualification result;
 no separate coverage-ledger artifact or standing process gate is required.
+
+
+## QA12 authorized PR115 logging facade adoption
+
+The parent-rendered fix assignment records direct user authorization to pin the
+corrected, green PR115 candidate before the finalized0.2 release. This delivery
+uses only immutable sc-runtime revision
+`72f021d9e9b265b1310e248d851b0baec36817d5`, whose head/17 successful checks the
+parent verified. Workspace sc-cron and sc-command now share that exact source;
+only those two lockfile source identities change, and no other package/version
+is updated. sc-command source matches the prior published package byte-for-byte;
+alignment avoids duplicate nominal SDK contracts across scheduler and CLI.
+
+The real receiver now implements the public
+`sc_cron::observability::CanonicalLog` and uses its shared/event/service/error
+exports. The direct sync-to-sc-command dependency is removed. Canonical event
+projection, ordering, redaction, error/outcome fields and best-effort emission
+remain unchanged. The fixed validated service identity remains bd-cache; no
+no-op adapter, type copy, dependency relocation or altered public facade is used.
+All prior fixture/startup/runner corrections remain in source.
+
+This narrowly authorized development pin conflicts with the historical
+published-only baseline at this plan's209/225/526, phase plan25/112,
+ADR-BDC-0016 decisions1/2 and the unchanged graph checker28-36. The checker still
+requires registry0.1.1 and a registry scheduler as introducer, so it rejects the
+Git pin's provenance even after the direct consumer edge is gone. Those
+requirements, anchors, tests and guard were NOT silently rewritten or waived.
+The actual unchanged graph failure is retained for parent adjudication against
+the explicit source authorization. No wider source, feature or graph exception
+is inferred. All four canonical IDs remain pending independent QA13 and actual
+current-head policy/CI acceptance; this is not a self-closure or sprint merge.
