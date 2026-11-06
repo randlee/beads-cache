@@ -28,13 +28,11 @@ checkout. Its template is application-owned scaffold, not an in-place installer:
 `scripts/new_project.py` refuses an existing destination. Its `install.py` installs
 sc-publish; `just upgrade` upgrades sc-lint, not generated Rust code.
 
-C1 library source exception: ADR-BDC-0016's qualified prerelease source amendment
-permits sc-cron/sc-command 0.2.0 from exactly upstream Git revision
-`c3ce3d1b271b54fbb47efaef57ee1563a390cd9e`, in addition to published crates.io
-0.1.1. The user conditionally authorized a pin before finalized 0.2.0 after the
-PR115 CI issue was resolved; the parent interprets the producer-qualified PR118
-merge candidate as satisfying that condition. This changes library provenance
-only, not this template tag, answers, domain bounds or QA/anchor/CI gates.
+C1 library source baseline: published sc-cron/sc-command exactly registry
+`=0.2.0`, default features off, under ADR-BDC-0016. Publication supersedes the
+temporary qualified prerelease Git permission. This changes library provenance
+only, not the independent template tag, answers, domain bounds or QA/anchor/CI
+gates. The earlier conditional-pin authorization remains historical in the ADR.
 
 ## Implementation dispatch gate
 
@@ -117,7 +115,7 @@ also records the proposed edges; it is not a claim that manifests already exist.
 
 | Boundary | Contract or behavior affected | Allowed dependencies / dependents | Owner |
 |---|---|---|---|
-| Workspace/dependency registry | published sc-command/sc-cron 0.1.1 or exact ADR-BDC-0016 qualified Git candidate; rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
+| Workspace/dependency registry | published sc-command/sc-cron exactly registry 0.2.0 under ADR-BDC-0016; rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
 | bd-cache-store | CacheScheduleStore implements upstream ScheduleStore; legacy schedule rows and v3 identity preserved | model, sc-beads, upstream sc-cron; used by sync, CLI, Python, service | c-1 |
 | bd-cache-sync | upstream target model, deadlines, worker and hook supervision | existing edges to cache/store/model/API/sc-bd-cli/sc-beads plus upstream sc-cron; used by CLI, Python, service | c-1 |
 | bd-cache-api / bd-cache-model / bd-cache | request/data/error and domain rules unchanged | existing table edges; no runtime/server/framework assembly dependency | unchanged in this phase; compiler-required source edits require an explicit re-fence, not silent scope growth |

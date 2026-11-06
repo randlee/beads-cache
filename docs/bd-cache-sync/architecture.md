@@ -824,8 +824,8 @@ strict isolated graph gate above remain open and unchanged.
 
 ### Qualified public logging facade adoption
 
-ADR-BDC-0016's owner-authorized prerelease source amendment supersedes the
-historical published-only receiver blocker above for its exact Git candidate.
+ADR-BDC-0016's published registry 0.2.0 baseline supersedes the historical
+published-only receiver blocker above and retires the temporary Git allowance.
 The real receiver uses `sc_cron::observability` public canonical/event/service
 exports; sync has no direct sc-command dependency. Existing canonical event
 projection, redaction, ordering and bd-cache service identity remain unchanged.

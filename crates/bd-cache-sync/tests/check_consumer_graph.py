@@ -6,22 +6,13 @@ import subprocess
 import tempfile
 
 
-# ADR-BDC-0016's owner-authorized prerelease exception is this exact source only.
-# Package version 0.2.0 does not imply crates.io publication or a final release.
-APPROVED_REVISION = 'c3ce3d1b271b54fbb47efaef57ee1563a390cd9e'
-APPROVED_GIT_SOURCE = (
-    'git+https://github.com/randlee/sc-runtime'
-    f'?rev={APPROVED_REVISION}#{APPROVED_REVISION}'
-)
+# ADR-BDC-0016: the published baseline supersedes the temporary Git exception.
 REGISTRY_SOURCE = 'registry+https://github.com/rust-lang/crates.io-index'
 
 
 def approved_contract(package):
-    """Accept the published baseline or one qualified immutable Git candidate."""
-    return (package['version'], package['source']) in {
-        ('0.1.1', REGISTRY_SOURCE),
-        ('0.2.0', APPROVED_GIT_SOURCE),
-    }
+    """Accept only the exact published scheduler/command baseline."""
+    return (package['version'], package['source']) == ('0.2.0', REGISTRY_SOURCE)
 
 
 def violations(meta):
@@ -43,7 +34,7 @@ def violations(meta):
             errors.append(f"isolated consumer contains {name}")
         if name in {'sc-command', 'sc-cron'}:
             if not approved_contract(p):
-                errors.append(f"{name} must use published 0.1.1 or the approved exact Git candidate, got {p['version']} {p['source']}")
+                errors.append(f"{name} must use published registry 0.2.0, got {p['version']} {p['source']}")
             for feature in node['features']:
                 errors.append(f"isolated consumer enables {name}/{feature}; contract-only features must stay off")
         if name == 'rusqlite' and p['version'] != '0.39.0':
@@ -95,8 +86,7 @@ def main():
             text = '[workspace]\n[package]\nname="isolated-consumer"\nversion="0.0.0"\nedition="2024"\n[dependencies]\n'
             text += f'{package} = {{ path = {json.dumps(str(root / package))} }}\n'
             if args.negative_server:
-                text += ('sc-command = { git = "https://github.com/randlee/sc-runtime", '
-                         f'rev = "{APPROVED_REVISION}", default-features = false, '
+                text += ('sc-command = { version = "=0.2.0", default-features = false, '
                          'features = ["server"] }\n')
             (consumer / 'Cargo.toml').write_text(text)
             resolved = metadata(['cargo', 'metadata', '--format-version', '1', '--manifest-path', str(consumer / 'Cargo.toml')])

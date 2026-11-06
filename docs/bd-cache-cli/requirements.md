@@ -16,9 +16,8 @@ Test files are under `crates/bd-cache-cli/tests/`; the shared harness is
 **Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)
 
 `bd-cache-cli` builds on ubuntu, macOS and Windows with sc-command taken as a
-published crates.io dependency at exactly `0.1.1` or the exact qualified
-`0.2.0` Git candidate in ADR-BDC-0016's owner-authorized prerelease source
-amendment, with default features off, and
+published crates.io dependency at exactly `0.2.0` under ADR-BDC-0016,
+with default features off, and
 `bdc --version` prints one sc-command envelope: `ok: true`,
 `data: {name, version, contract_version}`, one line, a trailing newline.
 An argv-shape error is a `BD_CACHE.USAGE` envelope with exit 2, with

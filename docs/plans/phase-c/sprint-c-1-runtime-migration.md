@@ -214,14 +214,14 @@ integration independently of the later generated application.
 ## Deliverables
 
 1. REQ-BDC-1002: land the already-tested rusqlite 0.39 alignment; move sc-command
-   and sc-cron to the published 0.1.1 baseline or ADR-BDC-0016's exact qualified
-   prerelease Git candidate with default features off. Resolve
+   and sc-cron to the published exact registry 0.2.0 baseline under ADR-BDC-0016,
+   with default features off. Resolve
    one libsqlite3-sys. Retire the local sc-cron workspace member and source/tests;
    retain historical design docs with an upstream ownership note. Remove local
    sc-cron from existing CI publish dry-runs. Do not update unrelated dependencies.
    After explicit approval, apply the narrowly scoped REQ-CLI-0001 amendment in
-   docs/bd-cache-cli/requirements.md from the old git tag to the published 0.1.1
-   baseline or the exact authorized prerelease source amendment. Keep its three-OS build, version envelope and usage/exit guarantees.
+   docs/bd-cache-cli/requirements.md from the old git tag to the published exact
+   registry 0.2.0 baseline. Keep its three-OS build, version envelope and usage/exit guarantees.
 2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing
    schedule persistence and explicit limits. Preserve v3 user_version, old rows,
    next times, generations, enabled flags, outcomes, leases and hook state.
@@ -795,7 +795,7 @@ All prior fixture/startup/runner corrections remain in source.
 
 
 
-## Qualified C5 prerelease pin and provenance correction
+## Historical qualified C5 prerelease pin and provenance correction
 
 The user's conditional authorization was: “ok, sc-runtime team has a ci failure
 on pr115. once this is resolved, you can pin that release to use before the
@@ -804,22 +804,22 @@ the producer-qualified PR118 merge candidate as fulfilling that condition.
 ADR-BDC-0016's qualified prerelease source amendment records this interpretation,
 including the distinction between green PR checks and literal merge-head CI.
 
-C1 now pins sc-cron/sc-command package version 0.2.0 to exactly
+Before registry publication, C1 pinned sc-cron/sc-command package version 0.2.0 to exactly
 `c3ce3d1b271b54fbb47efaef57ee1563a390cd9e` at the approved upstream URL. Only those
 two lockfile records change; observability, rusqlite and the single SQLite
 provider remain unchanged. No production Rust edit is needed: the genuine public
 cron receiver, event projection/redaction, service identity, public facades and
 all previously reviewed startup/shutdown/fixture behavior are retained.
 
-The executable isolated-consumer gate permits precisely published crates.io
+The temporary isolated-consumer gate permitted precisely published crates.io
 0.1.1 or that URL/revision/resolved-commit/version tuple. It rejects wrong rev,
 resolved commit, URL, moving source, local path, version, mixed nominal identities,
 forbidden introducers and SDK features/assembly. The existing independent API and
 Python consumer commands must actually pass; a fixture-only pass is insufficient.
 
-This explicit narrow source amendment supersedes the historical published-only
-source predicates retained in Git and earlier reports. The current deliverables,
-phase-plan rows and ADR/REQ source clauses name the approved source pair above.
+This temporary narrow source amendment superseded the earlier published-only
+source predicates retained in Git and earlier reports. Publication now retires
+that exception; current deliverables and ADR/REQ clauses use registry 0.2.0.
 Prior failure logs and development-pin provenance remain historical evidence.
 Parent anchor review must adjudicate the exact
 interpretation: published-only source becomes published baseline OR this single
@@ -844,3 +844,18 @@ only that assertion to traverse the real Error source chain and require the
 exact typed BD_CACHE.STORE_FAILED read-only refusal. It retains every operation,
 restoration/unwind assertion and deadline. This does not weaken health policy or
 alter production source. The original raw failed run remains in the handoff.
+
+
+## Current published registry baseline
+
+C1 consumes sc-cron/sc-command at exact crates.io `=0.2.0`, default features off.
+The temporary qualified C5 Git source allowance is retired. The real public
+`sc_cron::observability` receiver and all store/startup/shutdown/fixture corrections
+remain; SDK 0.2.0 does not change bd-cache API 0.1 compatibility. sc-observability
+1.5, rusqlite 0.39 and one SQLite provider remain the dependency policy. The
+isolated graph gate permits only this registry version/source pair and retains
+all introducer, feature and assembly restrictions. Current source qualification
+and provenance receipts live in `/tmp/phase-c-execution/c-1/registry020-adoption`;
+original failures and pin evidence remain historical. Independent QA15, full-input
+version-3 development-anchor review and exact-head CI remain required; publication
+alone does not establish upstream full consumer acceptance or sprint completion.

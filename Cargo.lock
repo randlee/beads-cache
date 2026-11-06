@@ -1139,7 +1139,8 @@ dependencies = [
 [[package]]
 name = "sc-command"
 version = "0.2.0"
-source = "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f"
 dependencies = [
  "sc-observability-types",
  "serde",
@@ -1149,7 +1150,8 @@ dependencies = [
 [[package]]
 name = "sc-cron"
 version = "0.2.0"
-source = "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a"
 dependencies = [
  "async-trait",
  "chrono",

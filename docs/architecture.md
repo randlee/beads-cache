@@ -1106,7 +1106,7 @@ as approval.
 
 **Amends:** ADR-BDC-0006 (local sc-cron prototype ownership),
 ADR-BDC-0014 (upstream ScheduleStore implementation), ADR-CLI-0001 (git-only
-sc-command), REQ-CLI-0001 (only git source/tag to published 0.1.1), and the transitive sc-command exclusions in REQ-API-0008 and the
+sc-command), REQ-CLI-0001 (only git source/tag to published registry 0.2.0), and the transitive sc-command exclusions in REQ-API-0008 and the
 CLI/Python architecture statements. Domain boundaries and the no-consumer rule
 of ADR-BDC-0010 remain in force.
 
@@ -1132,11 +1132,11 @@ Approved decision:
    the new_project.py recipe pipeline while sc-lint work is deferred. Application
    composition and daemon lifecycle derive from that scaffold, while domain
    crates and the existing v3 cache remain the implementation of cache behavior.
-2. Consume published sc-command/sc-cron 0.1.1, or the exact qualified Git
-   candidate authorized below, with default features off for local consumers;
+2. Consume published sc-command/sc-cron exactly registry 0.2.0, with default
+   features off for local consumers;
    align rusqlite at 0.39. Remove local scheduler ownership/publication.
    Use upstream's public observability contract facade; qualify its dependency
-   graph. Only the exact source exception below may exceed the release baseline.
+   graph. The temporary Git exception below is retired by publication.
 3. New bd-cache-service owns one existing composed cache and its schedules;
    bd-cache-daemon owns sc-runtime assembly, listener, logging and cleanup. The
    generated `db=none` memory example and all widget routes are replaced. No
@@ -1182,8 +1182,8 @@ this planning PR itself.
 
 ### Phase C c-1 adapter disposition (ADR-BDC-0016)
 
-The cache consumes published sc-cron/sc-command 0.1.1 or the exact qualified
-Git candidate below with default features off.
+The cache consumes published sc-cron/sc-command exactly registry 0.2.0
+with default features off.
 The upstream contract/logging edge below isolated Python is permitted; clap,
 sc-command/server, sc-runtime and sc-transport are rejected in independent API
 and Python consumer graphs. Whole-workspace daemon feature unification is valid.
@@ -1193,7 +1193,8 @@ CRON records retain semantic preservation obligations.
 
 ### Qualified prerelease source amendment (ADR-BDC-0016)
 
-**Status:** Approved source exception, user instruction relayed by the parent
+**Status:** Historical approved source exception, superseded by the registry
+0.2.0 baseline below. The user instruction was relayed by the parent
 orchestrator on 2026-11-06. The user's verbatim instruction was: “ok, sc-runtime
 team has a ci failure on pr115. once this is resolved, you can pin that release
 to use before the 0.2.0 release is finalized.”
@@ -1207,7 +1208,7 @@ literal merge-commit CI. This is an immutable Git candidate, not a crates.io
 publication or a finalized 0.2.0 release.
 
 For C1's scheduler and nominal command contracts only, decisions 2 and the
-published-source clauses of REQ-BDC-1002 and REQ-CLI-0001 permit package version
+published-source clauses of REQ-BDC-1002 and REQ-CLI-0001 temporarily permitted package version
 `0.2.0` from exactly
 `https://github.com/randlee/sc-runtime` at revision
 `c3ce3d1b271b54fbb47efaef57ee1563a390cd9e`. Cargo's declared rev and resolved commit
@@ -1223,4 +1224,20 @@ upstream sc-cron, now from either approved source pair. There is no new direct
 API/Python/sync edge, server/macros/task assembly, optional SDK feature or local
 fork. Independent normal/build graphs, actual wheels, logging/event semantics,
 public facades, shutdown guarantees and QA/anchor/current CI gates remain binding.
-This source amendment does not mark any finding closed or change a locked anchor.
+This historical source amendment did not mark any finding closed or change a locked anchor.
+
+### Published registry 0.2.0 baseline (ADR-BDC-0016)
+
+The owner-authorized compatible release is now published: C1 consumes sc-cron
+and sc-command at exact crates.io version `=0.2.0`, default features off. This
+supersedes and retires the temporary Git source permission above; neither the
+old registry 0.1.1 baseline nor a Git/path source is accepted by the current
+consumer graph predicate. The two packages share one registry source/version
+and nominal identity. sc-observability stays 1.5, rusqlite stays 0.39 and there
+is one SQLite link provider.
+
+Only upstream sc-cron may introduce the contract/logging sc-command edge below
+isolated API/Python consumers. All introducer, feature, server/macros/assembly,
+no-clap and independent-root/wheel restrictions remain binding. Template source
+and generation answers remain independent. Package publication does not establish
+upstream full consumer acceptance, C1 QA/anchor approval or current-head CI.
