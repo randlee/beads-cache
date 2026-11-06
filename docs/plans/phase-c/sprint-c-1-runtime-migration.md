@@ -826,15 +826,15 @@ interpretation: published-only source becomes published baseline OR this single
 qualified prerelease Git candidate; domain semantics and all locked ANC bounds
 remain unchanged. No anchor is silently waived or rewritten.
 
-QA13's owning architecture/Rust reviews resolve ARCH-001 and QA2-001 at
-`478812a83adb04ea38c93a6d4bc83a17233a9cf4`; that source also completed 15/15 CI
-checks. ARCH13-001, REQ-QA-004 and RBQA-F001 remain OPEN for independent QA14,
-applicable development anchors, new-head CI and focused original
-ruthless-boundary-qa verification. This correction removes only the unused sync
-observability-types dependency and its lock edge; the genuine logging facade,
-qualified pin and graph restrictions remain. Local proof and audited prose
-operations are in the ordinary developer handoff; no sprint/anchor/CI acceptance
-or merge approval is claimed.
+QA14's actual owner/enforcer reviews at `60f89200fe337d57ede24ecaa55e36171a1c4305`
+resolve ARCH13-001 and RBQA-F001, preserve earlier scoped credits and record
+15/15 CI checks. REQ-QA-004 remains OPEN for independent QA15, applicable
+anchors and new-head CI. The existing lifecycle suite now verifies the public
+cached-read route while an acknowledged scheduled Python sync remains active,
+with no additional BdCli argv request and a real cold-read counterexample.
+The parent-maintained REQ-BDC-0007 version-3 deterministic-check metadata is
+included unchanged; no anchor statement, scope or question changes. Ordinary
+handoff evidence does not claim sprint/anchor/CI acceptance or merge approval.
 
 
 The first qualified-pin store run retained a 36/37 failure: the management-health
