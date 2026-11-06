@@ -1235,3 +1235,12 @@ remain unchanged. No anchor is silently waived or rewritten.
 ARCH-001, RBQA-F001, QA2-001 and REQ-QA-004 remain OPEN pending independent QA13
 and actual current-head CI. Local affected checks and raw receipts are reported
 in the developer handoff; this is no sprint/anchor/CI acceptance or merge approval.
+
+
+The first qualified-pin store run retained a 36/37 failure: the management-health
+regression inspected nested Debug for “read-only”, while the candidate SDK now
+redacts StoreError context in Debug. The minimal SDK error-API adoption changes
+only that assertion to traverse the real Error source chain and require the
+exact typed BD_CACHE.STORE_FAILED read-only refusal. It retains every operation,
+restoration/unwind assertion and deadline. This does not weaken health policy or
+alter production source. The original raw failed run remains in the handoff.

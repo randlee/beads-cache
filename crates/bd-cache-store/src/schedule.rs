@@ -1338,7 +1338,18 @@ mod tests {
                             })
                     });
             let error = result.unwrap_err();
-            assert!(format!("{error:?}").contains("read-only"), "{error:?}");
+            // The SDK redacts StoreError Debug; verify the retained typed cause.
+            let mut cause = std::error::Error::source(&error);
+            let mut read_only_refusal = false;
+            while let Some(source) = cause {
+                if let Some(cache_error) = source.downcast_ref::<bd_cache_model::CacheError>() {
+                    read_only_refusal |= cache_error.code() == "BD_CACHE.STORE_FAILED"
+                        && cache_error.detail()
+                            == "bounded health read: mutation refused in read-only scope";
+                }
+                cause = source.source();
+            }
+            assert!(read_only_refusal, "{error:?}");
             assert!(
                 store
                     .health_read_control()
