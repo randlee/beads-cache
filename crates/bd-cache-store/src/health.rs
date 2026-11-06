@@ -328,7 +328,10 @@ mod tests {
             dolt_database: DoltDatabase::new("health").unwrap(),
             project_id: ProjectId::new("health").unwrap(),
         };
-        let store = SqliteStore::open_at(&dir.path().join("health.db"), &identity).unwrap();
+        // Cancellation/read-only fixtures need real SQLite work, not crash durability.
+        // Use the same complete non-durable setup as the bounded shutdown fixtures.
+        let store =
+            SqliteStore::open_shutdown_fixture(&dir.path().join("health.db"), &identity).unwrap();
         (dir, store)
     }
 
