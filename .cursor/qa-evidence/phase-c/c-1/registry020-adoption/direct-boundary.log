@@ -1,0 +1,1 @@
+boundaries ok: ['bd-cache', 'bd-cache-api', 'bd-cache-cli', 'bd-cache-model', 'bd-cache-py', 'bd-cache-store', 'bd-cache-sync', 'sc-bd-cli', 'sc-beads']

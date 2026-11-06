@@ -1,0 +1,1892 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache-3154053b12da34f5)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drain_apply.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_apply-89d17f26e44eae49)
+
+running 9 tests
+test an_empty_drain_makes_no_bd_call ... ok
+test test_bd_guard_refusal_exit_13_escalates ... ok
+test test_drain_on_absent_bead_escalates_not_found ... ok
+test test_write_that_landed_before_a_crash_is_not_repeated ... ok
+test test_drain_writes_in_order_reads_back_and_marks_applied ... ok
+test test_drain_is_single_writer ... ok
+test test_drain_pre_reads_all_pending_beads_in_one_call ... ok
+test test_concurrent_backend_change_escalates_instead_of_overwriting ... ok
+test every_pending_entry_is_in_exactly_one_report_list ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drain_budget.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_budget-5c2364ec8d9e3f11)
+
+running 8 tests
+test a_passed_start_gate_defers_a_stale_held_entry_with_no_bd_call ... ok
+test a_cut_backend_check_defers_the_whole_drain ... ok
+test a_start_gate_already_passed_defers_everything_without_a_bd_call ... ok
+test a_cut_pre_read_defers_the_whole_drain ... ok
+test a_write_cut_by_the_hard_deadline_is_deferred_in_flight_and_found_achieved_next_drain ... ok
+test a_read_back_cut_by_the_hard_deadline_leaves_the_landed_write_pending ... ok
+test test_drain_deadline_defers_unstarted_entries_without_attempts ... ok
+test a_held_beads_unreached_entry_is_deferred_when_the_gate_passes_or_a_call_is_cut ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drain_failures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_failures-aac9f4bd64ad5456)
+
+running 6 tests
+test an_unreachable_bd_at_read_back_is_a_failed_read_back_and_the_pass_goes_on ... ok
+test the_retry_cap_is_the_configured_max_attempts ... ok
+test test_transient_write_failure_stays_pending_and_holds_later_entries_of_that_bead_only ... ok
+test test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync ... ok
+test test_a_reachable_backend_refusing_the_write_still_counts_attempts ... ok
+test test_retries_exhausted_escalate_and_never_silently_drop ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drain_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_outage-e45a33511541ceec)
+
+running 5 tests
+test a_drain_that_calls_no_bd_still_reports_the_standing_outage ... ok
+test a_pre_read_timing_out_at_the_call_cap_is_an_outage_not_a_cut ... ok
+test an_outage_defers_every_pending_entry_including_stale_held_ones ... ok
+test test_unreachable_backend_is_an_outage_that_counts_no_attempt ... ok
+test a_reachable_bd_failing_the_check_or_pre_read_is_a_v3_outage_with_no_attempt ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/drain_scripted.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_scripted-7cb36357b936eb15)
+
+running 2 tests
+test a_read_back_that_answers_without_the_row_is_applied_and_stale ... ok
+test test_failed_pre_read_retries_every_entry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/facade_s66.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/facade_s66-f24b6fa29d2eaae0)
+
+running 3 tests
+test an_unreachable_backend_is_bd_unavailable_and_an_outage ... ok
+test pending_entries_lists_only_the_pending_ones_by_seq ... ok
+test backend_check_fingerprints_and_applies_the_rebuild_rule ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/failure_state.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/failure_state-ea163bcf7f247fc2)
+
+running 6 tests
+test first_offered_at_is_set_once_through_the_core ... ok
+test failing_since_is_set_on_the_first_non_ok_result_after_an_ok ... ok
+test during_an_outage_a_cached_read_answers_from_the_store_with_no_bd_call ... ok
+test scope_announce_marks_only_the_current_failure ... ok
+test failing_since_is_cleared_on_ok ... ok
+test failing_since_is_kept_across_consecutive_failures_and_outages ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/helpers_backend_check.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_backend_check-7f407e7504ff740d)
+
+running 4 tests
+test a_failed_or_cut_check_records_nothing_in_meta ... ok
+test test_model_current_when_live_schema_matches_pin ... ok
+test test_first_backend_check_records_schema_without_dropping_cached_rows ... ok
+test test_schema_change_rebuilds_rows_and_keeps_the_journal ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/helpers_call.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_call-daaee85a7dab401b)
+
+running 8 tests
+test call_hands_the_earlier_of_the_hard_deadline_and_the_call_cap ... ok
+test every_call_reaches_the_backend_with_the_cache_project ... ok
+test a_timeout_after_the_hard_deadline_is_a_cut_and_records_no_outage ... ok
+test a_timeout_before_the_hard_deadline_is_an_outage ... ok
+test a_reachable_failure_is_a_typed_error_and_leaves_the_outage_alone ... ok
+test unavailable_on_a_write_is_an_error_that_counts_an_attempt_not_an_outage ... ok
+test unavailable_on_a_check_or_list_records_the_outage ... ok
+test only_an_answering_list_clears_the_outage ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/helpers_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_outage-098645f8c7a77140)
+
+running 1 test
+test test_outage_keeps_its_start_time_and_latest_error ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/helpers_view_miss.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_view_miss-5a83711943a05699)
+
+running 6 tests
+test miss_fill_stops_at_the_miss_fill_timeout_with_bd_unavailable ... ok
+test a_failed_miss_fill_is_bd_list_failed_and_stores_nothing ... ok
+test miss_fill_stores_the_row_with_no_scope ... ok
+test current_view_reports_stale_rows ... ok
+test miss_fill_on_an_unreachable_backend_is_bd_unavailable_and_an_outage ... ok
+test current_view_replays_pending_entries_and_leaves_the_row_untouched ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ingest-7ac2552281745bb7)
+
+running 10 tests
+test the_alert_verbs_refuse_an_unregistered_name_and_register_no_scope ... ok
+test an_unregistered_scope_is_scope_unknown ... ok
+test a_prune_of_an_unknown_scope_is_refused_and_sweeps_nothing ... ok
+test an_ingested_row_the_filter_does_not_select_is_a_member_on_every_read ... ok
+test one_invalid_row_among_valid_ones_stores_none_of_them ... ok
+test an_empty_snapshot_is_refused_unless_allowed ... ok
+test a_built_in_snapshot_through_ingest_stores_what_the_built_in_sync_stores ... ok
+test declared_membership_replaces_the_scope_and_keeps_other_scopes ... ok
+test the_row_and_size_limits_are_refused ... ok
+test rows_over_the_limit_are_refused_while_they_decode ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.28s
+
+     Running tests/read_get.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_get-d8a5fc70aaef04d0)
+
+running 13 tests
+test a_miss_is_bounded_by_the_callers_timeout ... ok
+test list_of_a_scope_never_configured_or_synced_is_scope_unknown_naming_the_known_scopes ... ok
+test refresh_is_bounded_by_its_timeout_and_an_empty_refresh_calls_nothing ... ok
+test entry_returns_an_entry_in_any_state ... ok
+test test_miss_fetches_once_then_serves_from_cache ... ok
+test get_reply_scope_is_the_beads_scope_and_none_outside_every_scope ... ok
+test get_replays_pending_entries_and_counts_them ... ok
+test test_miss_on_unknown_bead_is_typed ... ok
+test refresh_reads_fresh_rows_past_a_stale_cache_and_returns_them_with_the_overlay ... ok
+test a_get_miss_outside_every_scope_is_stored_with_no_membership_and_swept_by_prune_once_it_has_no_open_entry ... ok
+test get_and_list_replies_carry_stale_per_row_and_the_scopes_last_ok_at ... ok
+test list_filters_by_status_and_label_on_the_view ... ok
+test replies_carry_the_outage_while_one_holds ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/read_journal.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_journal-aade887cd95b860f)
+
+running 8 tests
+test test_resolve_keeps_the_note_when_the_entry_had_no_error ... ok
+test test_prune_refuses_with_unapplied_writes ... ok
+test a_resolve_note_over_the_limit_is_refused_before_the_store_is_touched ... ok
+test announcement_state_passes_through_to_the_store ... ok
+test prune_deletes_the_scopes_beads_journal_sync_state_and_ready_base ... ok
+test status_reports_each_scopes_last_ok_at_the_journal_escalations_and_the_outage ... ok
+test status_reports_stale_rows_until_a_sync_rereads_them ... ok
+test test_resolve_closes_only_escalated_entries_and_unblocks_prune ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/read_ready.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_ready-01e8e73d1388b39b)
+
+running 25 tests
+test ready_of_an_unknown_scope_is_scope_unknown ... ok
+test a_scope_with_no_ready_base_reports_unknown ... ok
+test no_base_and_no_fresh_answer_is_unknown ... ok
+test escalated_entries_do_not_adjust_the_base ... ok
+test bounded_fresh_ready_on_an_answered_failure_is_not_an_outage ... ok
+test bounded_fresh_ready_returns_bds_answer_and_refreshes_the_base ... ok
+test a_pending_blocks_dep_add_keeps_a_child_blocked_when_its_parent_is_unblocked ... ok
+test bounded_fresh_ready_falls_back_to_the_cached_answer_at_the_limit_without_an_outage ... ok
+test bounded_fresh_ready_on_an_unreachable_backend_falls_back_and_records_the_outage ... ok
+test rows_carry_blocked_from_the_adjusted_base_and_a_ready_id_without_a_row_is_only_in_missing_rows ... ok
+test rule_blocking_dep_add_onto_an_open_target_blocks_the_bead ... ok
+test a_pending_parent_child_dep_add_is_released_when_its_blocked_parent_is_unblocked ... ok
+test a_child_that_also_blocks_on_its_parent_stays_blocked_when_the_parent_is_unblocked ... ok
+test a_pending_parent_child_dep_add_carries_a_later_parent_block_to_the_child ... ok
+test rule_blocking_dep_add_onto_an_uncached_target_blocks_the_bead ... ok
+test rule_update_to_closed_is_a_close ... ok
+test ready_replies_carry_the_scopes_last_ok_at ... ok
+test rule_reopen_from_closed_blocks_the_dependers_again ... ok
+test rule_reopen_brings_back_the_beads_own_blockers ... ok
+test rule_dep_add_onto_a_closed_target_or_of_a_non_blocking_type_changes_nothing ... ok
+test rule_parent_unblock_releases_the_children ... ok
+test rule_parent_block_blocks_the_children ... ok
+test with_bd_unreachable_a_journaled_close_of_the_only_blocker_makes_the_depender_ready_at_once ... ok
+test only_entries_pending_or_applied_at_or_after_fetched_at_adjust_the_base ... ok
+test rule_close_or_status_change_of_the_bead_itself_leaves_ready ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-939865b9cf16873d)
+
+running 10 tests
+test a_file_scope_is_written_on_open_and_cannot_be_changed_through_the_registry ... ok
+test a_new_scope_over_the_limits_is_refused_on_every_registration_path ... ok
+test the_legacy_prefix_rule_is_applied_once ... ok
+test a_type_scope_base_is_intersected_with_its_members ... ok
+test an_unregistered_name_is_registered_on_demand_by_a_sync_only ... ok
+test sync_label_filter_scope ... ok
+test a_bare_name_on_the_legacy_path_means_the_phase_a_scope_only ... ok
+test sync_all_scope ... ok
+test removing_a_registry_scope_keeps_the_rows_another_scope_holds ... ok
+test a_status_criterion_drops_a_bead_whose_status_left_the_set ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sync_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_contract-d0ba6e054b227e4f)
+
+running 13 tests
+test strict_backend_contract::writes_to_unknown_beads_fail ... ok
+test strict_backend_contract::every_call_stops_at_its_deadline ... ok
+test strict_backend_contract::unmet_guards_are_refused ... ok
+test strict_backend_contract::writes_apply_their_effect ... ok
+test strict_backend_contract::list_by_ids_returns_every_status ... ok
+test strict_backend_contract::list_scope_filters_by_label_and_cursor ... ok
+test strict_backend_contract::fingerprint_reports_version_and_schema ... ok
+test strict_backend_contract::close_and_reopen_bump_only_the_beads_own_updated_at ... ok
+test a_bad_row_in_a_refresh_or_miss_fill_stores_nothing ... ok
+test test_contract_violation_is_typed_and_sync_stores_nothing ... ok
+test a_scope_list_row_without_the_scope_label_stores_nothing ... ok
+test strict_backend_contract::blocked_and_ready_match_the_p6_probe ... ok
+test strict_backend_contract::scope_lists_answer_every_filter_variant ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/sync_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_rows-7dca507fbb584d9a)
+
+running 13 tests
+test an_unreachable_backend_check_is_an_outage_too ... ok
+test a_cut_sync_reports_deferred_and_changes_no_alert ... ok
+test each_sync_stores_the_ready_base_fetched_after_the_rows ... ok
+test sync_then_list_of_an_unconfigured_phase_works ... ok
+test a_child_of_a_blocked_parent_is_not_ready ... ok
+test test_sync_is_incremental_and_never_replaces_a_newer_row ... ok
+test a_rebuild_drops_the_cursor_so_the_next_list_is_full ... ok
+test test_sync_failure_is_typed_and_recorded ... ok
+test a_stale_row_is_reread_by_the_next_sync_and_its_held_entries_become_drainable ... ok
+test after_a_blocker_outside_every_scope_closes_in_bd_one_sync_makes_its_depender_ready ... ok
+test after_a_cached_blocker_closes_in_bd_one_sync_makes_its_depender_ready_and_reopen_blocks_it ... ok
+test test_sync_records_an_outage_and_a_passing_sync_clears_it ... ok
+test a_failed_list_blocked_or_list_ready_keeps_the_previous_base_marked_stale ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/threading-95d5908751314f82)
+
+running 1 test
+test a_cache_is_send_and_not_sync_over_a_sync_store ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/write_path.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/write_path-c50b9941a59548a7)
+
+running 12 tests
+test a_write_to_a_bead_unknown_to_bd_is_not_found ... ok
+test invalid_writes_are_refused_before_any_bd_call ... ok
+test test_duplicate_idem_key_is_one_entry_and_a_conflicting_reuse_is_refused ... ok
+test test_precondition_checked_at_write_time ... ok
+test test_write_during_an_outage_journals_cached_beads_and_refuses_uncached_ones_in_time ... ok
+test test_write_is_visible_to_reads_but_cache_row_is_untouched ... ok
+test a_bad_metadata_key_is_refused_at_write_time_not_retried_by_the_drain ... ok
+test the_entry_scope_is_the_views_first_phase_label ... ok
+test a_write_after_a_rebuild_checks_the_filled_row_with_pending_entries_replayed ... ok
+test test_retry_of_a_journaled_precondition_write_is_a_duplicate_not_a_precondition_error ... ok
+test test_dep_add_overlays_then_lands_as_a_real_edge ... ok
+test oversized_args_or_keys_are_bad_args_and_nothing_is_journaled ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/write_returning.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/write_returning-cd42e5a0a1be3d7c)
+
+running 7 tests
+test entry_by_key_answers_every_state_and_not_found_for_an_unknown_key ... ok
+test journal_counts_equal_a_hand_count_with_unscoped_entries ... ok
+test a_duplicate_of_an_applied_entry_without_changed_is_unknown ... ok
+test a_duplicate_of_an_entry_without_changed_predicts_it ... ok
+test write_returning_answers_the_stored_entry_and_both_views ... ok
+test a_retry_with_another_actor_and_guard_returns_the_stored_changed ... ok
+test changed_is_not_already_closed_for_a_close_and_the_overlay_otherwise ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_api-7fbd5aa9157e0fde)
+
+running 11 tests
+test data::x_cache::tests::the_fallback_kind_survives_a_reworded_core_message ... ok
+test ops::manage::tests::alerts_decode_from_either_writer ... ok
+test data::x_cache::tests::the_fallback_kind_follows_the_typed_cause ... ok
+test page::tests::instants_compare_by_value_with_fractions ... ok
+test data::entry::tests::the_typed_state_and_op_keep_the_wire_names ... ok
+test ops::beads::tests::guards_take_the_wire_assignee ... ok
+test page::tests::base64url_round_trips_every_length ... ok
+test filter::tests::label_filters_and_or_and_not ... ok
+test request::tests::every_command_path_parses_back ... ok
+test page::tests::a_cursor_round_trips_and_is_bound_to_its_sort ... ok
+test request::tests::a_write_schema_requires_its_idempotency_key ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/entry_args.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/entry_args-a5c6f974775d9ca4)
+
+running 3 tests
+test a_stored_set_metadata_entry_reads_back_as_metadata_set ... ok
+test close_and_dep_add_args_are_in_v0_names ... ok
+test a_v0_patch_decoded_and_journaled_reads_back_identically ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/error_table.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/error_table-8554041d4ec0ba68)
+
+running 7 tests
+test an_operation_the_cache_does_not_serve_is_unsupported_operation ... ok
+test reason_unmet_and_phase_map_to_details ... ok
+test the_error_serializes_as_the_envelope_error ... ok
+test every_cache_error_code_is_in_the_table_with_its_kind ... ok
+test the_other_payload_fields_keep_their_names ... ok
+test no_tick_refusal_family_is_left ... ok
+test the_error_table_equals_the_contract ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-64a4add68f94a101)
+
+running 6 tests
+test every_fixture_file_has_a_test ... ok
+test idempotency_key_required ... ok
+test decode_refusals ... ok
+test reads ... ok
+test issues_list_filters ... ok
+test writes ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/manage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/manage-028514e2bf77cb78)
+
+running 25 tests
+test a_configured_scope_never_synced_is_not_served ... ok
+test flush_defaults_and_refuses_a_deadline_before_its_start_gate ... ok
+test health_reports_the_sync_mode_and_the_enabled_rows_last_run ... ok
+test health_is_degraded_when_no_sync_row_is_enabled ... ok
+test health_is_degraded_when_the_hook_failed_three_times_in_a_row ... ok
+test execute_refuses_cache_health_without_the_sync_facts ... ok
+test health_is_degraded_when_a_scope_is_older_than_three_periods ... ok
+test health_degrades_on_an_unresolved_escalation_until_it_is_resolved ... ok
+test journal_list_refuses_states_it_does_not_serve ... ok
+test a_failed_sync_result_carries_its_details ... ok
+test health_degrades_when_the_oldest_pending_entry_is_too_old ... ok
+test health_is_degraded_when_the_enabled_row_failed_three_runs_in_a_row ... ok
+test health_reports_down_during_an_outage_and_probes_on_request ... ok
+test an_escalation_is_listed_announced_and_resolved_with_its_note_apart ... ok
+test health_reports_unreadable_sync_rows_as_degraded ... ok
+test refresh_issues_keeps_the_request_order ... ok
+test evict_is_blocked_by_pending_writes ... ok
+test health_does_not_load_the_pending_backlog ... ok
+test refresh_issues_with_bd_unreachable_is_bd_unavailable ... ok
+test refresh_scopes_timeout_ms_is_the_sync_deadline ... ok
+test refresh_timeout_ms_is_one_to_its_cap ... ok
+test health_probe_with_bd_unreachable_on_the_fingerprint_is_down ... ok
+test refresh_scopes_with_a_hung_bd_is_a_failed_result ... ok
+test refresh_scopes_names_each_scope_and_counts_failures ... ok
+test last_drain_at_follows_the_newest_applied_entry_after_an_evict_leaves_a_seq_gap ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/paging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/paging-7587b6aae0c86be3)
+
+running 4 tests
+test a_tampered_or_foreign_cursor_is_bad_args_invalid_cursor ... ok
+test inside_a_scope_the_default_is_no_limit_and_zero_is_unlimited ... ok
+test a_created_walk_concatenates_to_the_unpaged_order ... ok
+test a_priority_walk_concatenates_to_the_unpaged_order ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/phase_b_codes.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_codes-2201288867ae38f9)
+
+running 2 tests
+test errors_that_can_come_from_bd_carry_details_outage ... ok
+test the_four_codes_take_their_rows_and_details ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/phase_b_verbs.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_verbs-a0fb7285ee75e7f2)
+
+running 7 tests
+test every_new_verb_is_a_command_and_cache_tick_parses ... ok
+test a_front_end_verb_is_decoded_here_but_not_executed_here ... ok
+test the_decoder_refuses_unknown_members_and_bad_shapes_of_the_new_verbs ... ok
+test scopes_announce_marks_only_the_current_failure ... ok
+test scopes_add_set_list_remove_round_trip_and_cache_scopes_is_scopes_lists_alias ... ok
+test scopes_ingest_stores_a_snapshot_and_one_invalid_row_stores_none ... ok
+test scopes_remove_of_a_scope_with_pending_entries_is_prune_blocked ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scope_names.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_names-a27662fc138f8a0e)
+
+running 3 tests
+test the_prefixed_name_is_scope_unknown ... ok
+test the_name_as_written_reads_the_phase_a_scope ... ok
+test a_read_of_an_unknown_name_registers_nothing_and_a_refresh_registers_it ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/unknown_changed.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/unknown_changed-a0fe502502594217)
+
+running 3 tests
+test a_close_duplicate_with_unknown_changed_omits_already_closed ... ok
+test an_update_duplicate_with_unknown_changed_omits_it ... ok
+test a_known_changed_is_still_present ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_cli-b4c6924b7b6aba64)
+
+running 27 tests
+test args::tests::children_are_listed_once_in_table_order ... ok
+test commands::signal::tests::the_exit_code_is_128_plus_the_signal ... ok
+test commands::signal::tests::a_repeated_signal_in_the_grace_period_stops_now ... ok
+test commands::signal::tests::the_first_signal_is_recorded_and_sets_the_flag ... ok
+test args::tests::words_skip_global_options_and_their_values ... ok
+test commands::beads::tests::an_unserved_operation_is_unsupported_and_a_served_one_is_not ... ok
+test config::tests::env_overrides_replace_the_toml_values_key_by_key ... ok
+test config::tests::an_env_value_that_does_not_parse_is_config_invalid ... ok
+test config::tests::unknown_env_keys_are_reported ... ok
+test log::tests::a_flag_wins_over_the_env_and_the_default_is_warn ... ok
+test log::tests::control_characters_are_escaped ... ok
+test help::tests::a_command_lists_its_arguments_then_the_globals ... ok
+test log::tests::cron_run_logs_at_info_by_default ... ok
+test help::tests::a_group_names_its_commands_and_an_unknown_path_has_none ... ok
+test log::tests::the_subscriber_keeps_only_events_at_its_level ... ok
+test render::text::tests::an_error_renders_its_code_and_action ... ok
+test render::json::tests::an_api_error_keeps_every_field ... ok
+test render::text::tests::data_renders_as_indented_lines ... ok
+test request::tests::input_over_the_cap_is_refused_and_not_read_whole ... ok
+test request::tests::a_member_given_twice_is_usage ... ok
+test request::tests::invalid_json_in_a_json_flag_is_bad_args ... ok
+test request::tests::patch_flags_nest_under_patch_and_merge_with_patch_json ... ok
+test args::tests::every_command_path_is_reachable_in_the_tree ... ok
+test request::tests::dependencies_add_builds_one_edge_and_integers_stay_text_when_not_numbers ... ok
+test request::tests::an_integer_flag_is_a_number_only_in_json_form ... ok
+test commands::signal::process_tests::sigterm_kills_the_bd_group_and_exits_143 ... ok
+test commands::scopes::tests::stdin_is_streamed_and_takes_only_rows_and_blocked ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+
+     Running unittests src/bin/bd-cache.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache-b0efa5f1fa432c96)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/bdc.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bdc-f8ec9cca69dfa0c6)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/fake-bd.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_bd-035ce79bee41bafb)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/fake-python.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_python-4a2310ab861f6f1f)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cli-bafaa87b4a5b89ca)
+
+running 7 tests
+test run_in_process_matches_the_real_process ... ok
+test plain_text_version_fails_the_envelope_parse ... ok
+test version_is_one_envelope_with_ok_true_and_a_name ... ok
+test the_harness_invocation_shape_reaches_version ... ok
+test usage_errors_are_envelopes_with_exit_2 ... ok
+test bd_cache_and_bdc_give_identical_output_for_the_same_argv ... ok
+test the_identity_check_detects_a_divergent_entry_point ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-231dda3f6cd79720)
+
+running 9 tests
+test every_shared_fixture_file_is_replayed ... ok
+test every_contract_command_has_an_argv_step ... ok
+test idempotency_key_required ... ok
+test decode_refusals ... ok
+test overrides_apply_through_an_injected_invoker ... ok
+test reads ... ok
+test issues_list_filters ... ok
+test writes ... ok
+test cli_commands ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests/harness.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/harness-0b84b0df1d035fdf)
+
+running 12 tests
+test the_scenario_example_in_the_architecture_doc_is_a_valid_scenario ... ok
+test a_missing_or_broken_scenario_is_a_harness_error_not_a_bd_answer ... ok
+test the_same_scenario_without_the_fault_answers ... ok
+test version_schema_and_the_blocked_set_come_from_the_scenario ... ok
+test the_scenario_clock_is_fixed_across_processes ... ok
+test a_gated_bd_answers_once_released ... ok
+test an_unavailable_scenario_makes_bdcli_return_the_unreachable_error ... ok
+test a_fake_bd_that_forgets_its_writes_fails_the_sequence ... ok
+test a_refused_write_carries_its_exit_code_and_changes_nothing ... ok
+test list_update_list_gives_the_same_rows_through_the_process_and_in_process ... ok
+test slow_by_500_ms_with_a_long_timeout_answers_after_the_delay ... ok
+test a_blocked_bd_times_out_while_it_is_still_blocked ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+
+     Running tests/latency.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/latency-5fec3e205a52c29e)
+
+running 1 test
+test a_new_process_get_is_under_50_ms ... ignored, release-profile latency gate: cargo test --release -p bd-cache-cli --test latency -- --ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/outage_scenario.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/outage_scenario-568ad7db16665013)
+
+running 1 test
+test with_bd_unavailable_issues_get_answers_from_the_cache_and_the_outage_is_recorded ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/process-f07a9bd1fe5d777c)
+
+running 21 tests
+test help_on_a_terminal_is_text ... ok
+test a_subdirectory_does_not_find_the_parent_beads ... ok
+test a_cache_file_in_another_repository_directory_is_ignored_and_the_repository_opens_as_any_other ... ok
+test text_help_where_the_envelope_is_due_fails_the_parse ... ok
+test metadata_comes_from_beads_dir_when_set ... ok
+test an_error_on_stderr_only_or_a_wrong_exit_fails_the_checks ... ok
+test a_caught_panic_is_internal_with_exit_3 ... ok
+test a_signed_integer_flag_is_refused_as_through_input ... ok
+test both_binaries_give_identical_output_for_a_command ... ok
+test format_text_renders_the_data_for_a_person ... ok
+test input_gives_the_whole_request_from_a_file_or_stdin ... ok
+test exit_0_is_ok_true ... ok
+test help_when_piped_is_the_envelope ... ok
+test logs_go_to_stderr_and_never_change_stdout ... ok
+test exit_3_is_any_other_typed_error ... ok
+test usage_is_json_even_with_format_text ... ok
+test exit_2_is_usage_for_the_shape_of_argv_only ... ok
+test flag_beats_env_beats_toml_beats_default ... ok
+test an_empty_or_relative_path_segment_never_runs_a_bd_committed_in_the_repo ... ok
+test the_users_path_beats_a_fallback_directory ... ok
+test bd_is_never_read_from_toml ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/release_hygiene.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/release_hygiene-3748e5dc03595697)
+
+running 4 tests
+test fake_bd_is_a_gated_bin_and_the_crate_is_not_publishable ... ok
+test the_scanner_finds_test_support_code_in_the_fake_bd_binary ... ok
+test an_ungated_fake_bd_fails_the_metadata_check ... ok
+test a_release_build_has_no_fake_bd_and_no_test_support_code ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests/scenarios.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scenarios-e0b89104a06b15b9)
+
+running 14 tests
+test a_cache_file_of_another_project_is_wrong_database ... ok
+test health_reports_the_pending_age_and_takes_the_age_limit ... ok
+test a_retry_after_a_lost_reply ... ok
+test a_guard_miss_escalates_at_flush ... ok
+test health_reports_the_sync_mode_and_no_sync_row_enabled ... ok
+test bd_refuses_a_guard_that_misses_at_flush ... ok
+test a_schema_change_rebuilds ... ok
+test a_refused_close_escalates_at_flush ... ok
+test a_partial_refresh_scopes ... ok
+test an_outage_during_a_write ... ok
+test fresh_within_runs_out ... ok
+test refresh_scopes_timeout_ms_bounds_the_sync ... ok
+test a_hung_bd_fails_refresh_scopes ... ok
+test a_probe_that_cannot_reach_bd_is_down ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+     Running tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-a04d6ec4284835f8)
+
+running 3 tests
+test a_status_criterion_is_never_passed_to_bd ... ok
+test sync_all_scope_through_the_cli ... ok
+test sync_label_filter_scope_through_the_cli ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/sync_process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_process-49cdabc71342b89e)
+
+running 13 tests
+test a_schedule_table_of_another_version_is_store_failed_at_command_level ... ok
+test cron_run_exits_128_plus_its_first_signal ... ok
+test a_hooks_env_values_are_redacted_from_a_ticks_reply ... ok
+test a_signal_during_a_bd_call_of_cron_run_lets_the_call_finish ... ok
+test scopes_ingest_streams_stdin_and_takes_only_rows_and_blocked ... ok
+test a_sigterm_to_use_python_mid_run_restores_and_exits_143 ... ok
+test scopes_ingest_reads_stdin_and_refuses_more_than_64_mib ... ok
+test a_second_signal_ends_cron_runs_shutdown_wait ... ok
+test every_text_a_child_wrote_is_redacted_and_capped ... ok
+test cron_run_waits_then_kills_a_hooks_tree_and_releases_the_lease ... ok
+test cron_run_waits_then_kills_a_python_rows_tree_and_releases_the_lease ... ok
+test the_python_row_runs_once_across_processes_and_a_failing_row_exits_3 ... ok
+test a_second_process_is_in_flight_and_a_killed_holder_is_taken_over_after_expiry ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.77s
+
+     Running tests/tree_kill.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/tree_kill-9b8d8f5762d9b665)
+
+running 2 tests
+test a_python_rows_child_and_grandchild_are_killed_at_its_timeout ... ok
+test a_hooks_child_and_grandchild_are_killed_at_its_deadline ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 20.22s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_model-2237c16a1c569155)
+
+running 30 tests
+test budget::tests::the_default_budget_is_the_unchecked_new ... ok
+test error::classification_tests::outage_row_lock_wait_is_an_outage ... ok
+test budget::tests::a_refusal_names_its_field ... ok
+test error::classification_tests::outage_row_timeout_is_an_outage ... ok
+test error::classification_tests::outage_row_spawn_failure_is_an_outage ... ok
+test error::classification_tests::outage_row_transport_failure_is_an_outage ... ok
+test error::classification_tests::outage_row_an_answered_bd_list_failed_is_not_an_outage ... ok
+test error::classification_tests::the_fix_of_an_ingest_or_run_failure_follows_its_reason ... ok
+test error::classification_tests::the_unreachable_set_and_outage_differ_only_on_an_answered_error ... ok
+test error::classification_tests::every_arm_has_a_sample ... ok
+test error::classification_tests::unreachable_codes_are_exactly_the_unreachable_variants ... ok
+test error::classification_tests::the_tick_in_flight_holder_has_the_requirement_keys_only ... ok
+test error::classification_tests::the_envelope_source_and_payload_keys_match_to_json_for_every_sample ... ok
+test ingest::tests::the_unknown_member_detail_is_one_clean_sentence ... ok
+test pyjson::tests::hex_digit_is_total_and_reads_the_low_nibble ... ok
+test pyjson::tests::matches_python_escaping_and_separators ... ok
+test limits::tests::each_limit_admits_its_size_and_refuses_one_byte_more ... ok
+test scope::tests::a_filter_round_trips_through_its_parts ... ok
+test scope::tests::a_new_scope_over_the_caps_is_refused_and_a_stored_name_still_reads ... ok
+test scope::tests::an_empty_criteria_filter_and_all_with_a_criterion_are_refused ... ok
+test ingest::tests::a_refused_row_is_named_by_its_index ... ok
+test scope::tests::filter_values_that_bd_would_misread_are_refused ... ok
+test scope::tests::legacy_and_on_demand_scopes_list_their_labels ... ok
+test scope::tests::selects_equals_the_backend_filter_and_names_the_failed_criterion ... ok
+test scope::tests::the_backend_filter_never_carries_status ... ok
+test scope::tests::the_validator_states_the_scope_name_rule ... ok
+test ingest::tests::a_stream_takes_only_rows_and_blocked_and_from_values_agrees ... ok
+test ingest::tests::rows_are_counted_as_they_decode ... ok
+test ingest::tests::a_stream_of_too_many_rows_is_refused_before_it_is_read_whole ... ok
+test ingest::tests::new_refuses_rows_over_the_byte_limit ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.73s
+
+     Running tests/config.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/config-dab57d9615823297)
+
+running 7 tests
+test drain_budget_sits_before_the_tick_end ... ok
+test timeouts_and_attempts_have_documented_maximums ... ok
+test sample_config_parses_and_derives_defaults ... ok
+test empty_config_is_all_defaults_and_unknown_keys_are_errors ... ok
+test zero_call_timeout_miss_fill_timeout_and_max_attempts_are_refused ... ok
+test a_tick_table_cannot_name_code_to_run_and_is_refused ... ok
+test configured_scopes_are_held_to_the_registration_limits ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/goldens.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/goldens-5be094164f7de4d9)
+
+running 9 tests
+test call_kind_classes ... ok
+test mapped_errors_keep_their_source_chain ... ok
+test no_database_keeps_its_cause_and_a_denied_read_is_not_bd_init_advice ... ok
+test from_backend_matches_the_table_for_every_call_kind ... ok
+test store_failures_keep_their_source ... ok
+test reasons_use_v0_names ... ok
+test reply_goldens ... ok
+test the_new_fields_stay_out_of_the_0_1_wire_shapes ... ok
+test golden_json_for_every_code ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ops.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops-536bf014ae0714ed)
+
+running 16 tests
+test patch_args_value_omits_empty_fields ... ok
+test equal_ops_compare_equal_regardless_of_key_order ... ok
+test close_overlay_and_achieved ... ok
+test normalize_drops_counts_and_sorts_edges ... ok
+test changes_is_not_already_closed_or_the_overlay ... ok
+test args_shape_errors_are_bad_args ... ok
+test empty_or_equals_metadata_keys_are_bad_args_for_a_new_write_only ... ok
+test dep_add_overlay_adds_the_edge_once_and_achieved_sees_it ... ok
+test preconditions_parse_canonicalize_and_report_unmet ... ok
+test resolve_notes_split_and_error_codes_parse ... ok
+test metadata_coercion_guard ... ok
+test replay_applies_pending_entries_in_seq_order_and_skips_the_rest ... ok
+test test_bad_ops_are_typed ... ok
+test v0_metadata_form_is_canonicalized ... ok
+test python_written_args_round_trip_byte_for_byte ... ok
+test update_overlay_applies_fields_in_order_and_achieved_checks_each ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/store_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store_contract-db0df24907efdb6f)
+
+running 41 tests
+test drain_lock_is_exclusive ... ok
+test hook_state_counts_and_resets ... ok
+test hook_error_is_clipped ... ok
+test first_offered_at_is_set_once ... ok
+test insert_entry_stores_changed ... ok
+test error_writes_store_the_code ... ok
+test applied_since_is_inclusive_and_ordered ... ok
+test base_entry_rules ... ok
+test has_entries_since_rules ... ok
+test bounded_marker_writes_match_the_unbounded_forms ... ok
+test filter_scope_membership_applies_status ... ok
+test ingest_refuses_an_unregistered_scope ... ok
+test apply_with_readback_marks_applied ... ok
+test journal_counts_rules ... ok
+test a_store_clears_stale ... ok
+test fingerprint_rebuild_rule ... ok
+test last_applied_at_rules ... ok
+test lease_rules ... ok
+test journal_lifecycle ... ok
+test lease_take_bounds_the_expiry ... ok
+test pending_summary_and_the_escalation_page ... ok
+test ingest_scope_rules ... ok
+test newer_rows_are_kept_unless_forced ... ok
+test ready_base_rules ... ok
+test record_sync_result_applies_the_failing_since_lifecycle ... ok
+test membership_follows_labels_on_scoped_upserts_only ... ok
+test resolve_note_without_prior_error ... ok
+test scope_announce_is_compare_and_set ... ok
+test round_trip_is_normalize ... ok
+test newer_row_guard_compares_instants ... ok
+test scopes_persist_across_restarts ... ok
+test prune_scope_rules ... ok
+test scopes_of_is_the_stored_membership ... ok
+test sync_run_records_count_failures_across_unfinished_runs ... ok
+test scope_registry_rules ... ok
+test status_counts ... ok
+test status_changes_are_reported ... ok
+test status_lists_stale_rows_until_reread ... ok
+test sync_state_alerts_and_outage_round_trip ... ok
+test upsert_replaces_outgoing_edges ... ok
+test the_registry_is_capped ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-d994ea4d368df885)
+
+running 37 tests
+test codec::tests::newer_compares_instants_and_never_text ... ok
+test location::tests::a_relative_beads_dir_is_made_absolute_against_the_working_directory ... ok
+test location::tests::an_absolute_beads_dir_is_kept ... ok
+test location::tests::an_unset_or_empty_beads_dir_is_no_override ... ok
+test location::tests::a_beads_dir_that_cannot_be_made_absolute_is_an_error_with_its_cause ... ok
+test error::tests::failures_carry_the_step_the_file_and_the_whole_chain ... ok
+test registry::tests::a_file_is_claimed_once_until_released ... ok
+test schedule::tests::outcomes_round_trip_through_their_stored_text ... ok
+test location::tests::one_loader_refuses_or_strips_the_bd_key ... ok
+test schedule::tests::shutdown_fixture_cleanup_failure_is_not_retried_or_a_successful_receipt ... ok
+test schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress ... ok
+test schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only ... ok
+test schedule::tests::shutdown_fixture_supervisor_reaps_during_assertion_unwind ... ok
+test health::tests::read_only_error_and_unwind_restore_all_settings_before_unlock ... ok
+test schedule::tests::explicit_row_limits_count_disabled_rows_and_refuse_restarts_atomically ... ok
+test health::tests::scope_filters_and_status_assembly_check_each_boundary ... ok
+test health::tests::public_store_row_decoding_obeys_the_budget ... ok
+test health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder ... ok
+test schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session ... ok
+test schedule::tests::shutdown_fixture_observer_error_and_unwind_reap_owned_root ... ok
+test schedule::tests::the_view_and_the_store_share_one_connection ... ok
+test store::tests::a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout ... ok
+test health::tests::row_iteration_checks_the_deadline_between_decodes ... ok
+test schedule::tests::management_scope_is_view_specific_restores_on_error_and_unwind_and_keeps_health_read_only ... ok
+test store::tests::last_applied_at_reads_one_snapshot ... ok
+test store::tests::journal_counts_is_one_query_and_its_buckets_sum_to_the_total ... ok
+test store::tests::a_reader_never_sees_an_entry_without_its_changed ... ok
+test store::tests::the_open_finds_the_applied_entries_it_could_not_date ... ok
+test store::tests::a_pending_entry_applied_below_the_floor_is_answered_and_dated_by_the_next_dating ... ok
+test store::tests::the_dating_update_runs_with_no_busy_timeout_and_restores_it ... ok
+test store::tests::the_floor_stops_one_below_the_first_dateable_entry ... ok
+test store::tests::last_applied_at_queries_use_the_applied_indexes ... ok
+test store::tests::undatable_entries_written_while_open_are_warned_once_and_not_walked_again ... ok
+test health::tests::sqlite_work_finishes_within_one_second_and_scheduler_write_survives ... ok
+test health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader ... ok
+test schedule::tests::shutdown_fixture_classifies_post_return_marker_gap_as_failed_qualification ... ok
+test schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.03s
+
+     Running tests/drain_lock.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_lock-142251ce87612f0c)
+
+running 2 tests
+test drain_lock_child ... ignored, child process of two_processes_contend_for_the_drain_lock
+test two_processes_contend_for_the_drain_lock ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/format_golden.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/format_golden-85b5afbb8cb4076f)
+
+running 4 tests
+test the_golden_names_every_extension_and_the_v3_tables ... ok
+test a_fresh_file_matches_the_format_golden ... ok
+test a_v3_only_file_gains_the_extensions_and_stays_at_version_3 ... ok
+test a_v3_reader_still_reads_and_writes_an_extended_file ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/location.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/location-0ed5516af1881278)
+
+running 12 tests
+test beads_dir_env_child ... ignored, child process of test_beads_dir_env_names_the_database
+test identity_values_are_validated ... ok
+test missing_repo_config_is_the_default ... ok
+test metadata_json_that_cannot_be_read_says_permission_denied_not_bd_init ... ok
+test unreadable_repo_config_is_an_error_not_the_default ... ok
+test metadata_json_that_does_not_parse_keeps_its_cause ... ok
+test configured_cache_path_is_taken_from_the_repository_root ... ok
+test repo_config_is_parsed_and_unknown_keys_refused ... ok
+test test_missing_metadata_is_typed ... ok
+test zero_timeouts_and_attempts_are_refused_at_load_each_with_its_own_message ... ok
+test test_cache_file_is_named_for_the_dolt_database ... ok
+test test_beads_dir_env_names_the_database ... ok
+
+test result: ok. 11 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests/open.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/open-4bae80cd91dc1489)
+
+running 10 tests
+test a_store_failure_is_store_failed_with_its_source ... ok
+test wal_mode_and_busy_timeout ... ok
+test test_newer_cache_schema_is_refused ... ok
+test one_connection_per_process_through_a_symlink ... ok
+test v3_tables_are_unchanged_and_extensions_are_additive ... ok
+test a_second_open_in_this_process_is_store_in_use_with_its_own_fix ... ok
+test one_connection_per_process ... ok
+test version_zero_is_initialized_to_three_and_three_is_kept ... ok
+test test_file_from_another_project_is_refused ... ok
+test a_refused_file_keeps_its_journal_mode_version_and_data ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/phase_b_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_store-bb336cc340b58485)
+
+running 5 tests
+test the_store_and_its_schedule_view_are_send_and_sync ... ok
+test an_oversized_configuration_file_is_refused ... ok
+test filter_scopes_keep_kind_phase_so_an_earlier_reader_reads_every_row ... ok
+test an_ingest_that_fails_mid_transaction_leaves_nothing_behind ... ok
+test a_full_size_ingest_holds_the_write_lock_well_under_the_busy_timeout ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.00s
+
+     Running tests/schedule_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_store-dec888ec0a64cf30)
+
+running 24 tests
+test run_state_writes_on_an_ended_row_change_nothing ... ok
+test replace_of_an_active_row_keeps_its_id_raises_its_generation_and_keeps_the_flag ... ok
+test create_reads_back_every_field_and_keeps_timestamps_as_given ... ok
+test set_enabled_flips_only_the_flag_and_set_next_is_refused_while_disabled ... ok
+test a_payload_over_the_limit_is_refused_before_any_write ... ok
+test every_outcome_class_round_trips ... ok
+test create_after_stop_restarts_in_place_with_every_field_from_the_new_row ... ok
+test an_unstorable_id_changes_nothing_and_reads_as_absent ... ok
+test a_stale_generation_is_fenced_on_every_run_state_write ... ok
+test replace_and_set_enabled_naming_a_missing_row_changes_nothing ... ok
+test another_schedule_table_version_is_refused_before_any_schedule_is_served ... ok
+test a_v3_cache_file_with_scopes_gains_the_schedule_table_at_version_3 ... ok
+test list_active_survives_reopen_and_orders_by_created_at ... ok
+test replace_and_set_enabled_rolls_back_whole_when_the_other_flag_fails ... ok
+test replace_and_set_enabled_never_shows_both_rows_enabled ... ok
+test set_enabled_many_naming_a_missing_row_changes_nothing ... ok
+test set_next_stores_the_given_instant ... ok
+test set_enabled_many_rolls_back_whole_when_the_second_row_fails ... ok
+test store_errors_expose_their_rusqlite_source ... ok
+test table_checks_refuse_contradictory_and_over_size_rows ... ok
+test the_cache_files_schedule_table_preserves_its_historical_ddl ... ok
+test the_view_keeps_the_one_connection_claim_after_the_store_drops ... ok
+test set_enabled_many_flips_two_rows_seen_whole_by_a_second_connection ... ok
+test a_corrupt_row_is_named_by_get_and_skipped_by_list_active ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store-f4aca023e65651fb)
+
+running 34 tests
+test a_guard_dropped_on_another_thread_releases_the_lock ... ok
+test a_python_style_rebuild_or_prune_leaves_the_base_and_its_index_in_agreement ... ok
+test a_read_back_row_of_another_bead_is_refused_and_changes_nothing ... ok
+test a_base_replaced_by_another_writer_is_read_from_its_blob_not_from_a_stale_index ... ok
+test a_stored_entry_with_a_metadata_key_new_writes_refuse_still_decodes ... ok
+test an_attempts_count_past_u32_is_store_failed_without_a_source ... ok
+test a_python_row_written_while_open_is_read_by_its_phase ... ok
+test an_alert_another_implementation_wrote_reads_back_as_written ... ok
+test no_index_holds_a_function_and_journal_writes_work_without_unixepoch ... ok
+test a_file_from_before_the_ready_base_index_opens_and_migrates_on_the_next_replace ... ok
+test pruning_a_scope_deletes_only_beads_no_other_scope_holds ... ok
+test test_dependents_use_the_edge_index ... ok
+test stored_rows_are_normalized_and_written_for_python ... ok
+test the_outage_is_read_whole_under_a_free_running_soak ... ignored, free-running 2,000-toggle stress; opt in with --ignored
+test test_escalations_are_unannounced_until_marked ... ok
+test test_pending_work_counts_as_open ... ok
+test test_sync_alert_round_trip ... ok
+test rows_another_implementation_wrote_belong_to_their_phase ... ok
+test a_bounded_marker_write_gives_up_on_a_held_lock_within_its_wait ... ok
+test the_expression_index_of_an_earlier_build_is_dropped_on_open ... ok
+test the_entries_since_check_survives_a_dropped_index ... ok
+test undecodable_stored_values_are_errors_not_skipped ... ok
+test the_ready_base_index_follows_the_base_through_replace_prune_and_rebuild ... ok
+test entries_bd_cache_py_applied_count_by_their_updated_at_and_unreadable_ones_count_as_since ... ok
+test the_store_reads_the_outage_whole_while_a_raw_writer_free_runs ... ok
+test the_store_writes_the_outage_in_one_transaction_per_change ... ok
+test the_outage_is_read_whole_while_another_connection_toggles_it ... ok
+test an_unreadable_entry_does_not_hide_earlier_undated_ones_from_the_dating ... ok
+test a_small_burst_is_walked_and_not_dated_until_past_the_threshold ... ok
+test the_check_does_not_wait_for_the_write_lock_to_date_entries ... ok
+test last_applied_at_ignores_history_and_seqs ... ok
+test applied_since_reads_both_partial_indexes_and_no_history ... ok
+test the_entries_since_check_uses_indexes_and_ignores_a_long_history ... ok
+test entries_python_applies_while_open_are_dated_by_the_next_check ... ok
+
+test result: ok. 33 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.65s
+
+     Running tests/store_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store_contract-64ac3ed1169d1964)
+
+running 41 tests
+test drain_lock_is_exclusive ... ok
+test first_offered_at_is_set_once ... ok
+test insert_entry_stores_changed ... ok
+test hook_error_is_clipped ... ok
+test ingest_refuses_an_unregistered_scope ... ok
+test a_store_clears_stale ... ok
+test error_writes_store_the_code ... ok
+test hook_state_counts_and_resets ... ok
+test filter_scope_membership_applies_status ... ok
+test apply_with_readback_marks_applied ... ok
+test has_entries_since_rules ... ok
+test ingest_scope_rules ... ok
+test base_entry_rules ... ok
+test journal_counts_rules ... ok
+test applied_since_is_inclusive_and_ordered ... ok
+test fingerprint_rebuild_rule ... ok
+test last_applied_at_rules ... ok
+test lease_take_bounds_the_expiry ... ok
+test lease_rules ... ok
+test journal_lifecycle ... ok
+test scope_announce_is_compare_and_set ... ok
+test newer_rows_are_kept_unless_forced ... ok
+test round_trip_is_normalize ... ok
+test pending_summary_and_the_escalation_page ... ok
+test record_sync_result_applies_the_failing_since_lifecycle ... ok
+test membership_follows_labels_on_scoped_upserts_only ... ok
+test ready_base_rules ... ok
+test newer_row_guard_compares_instants ... ok
+test resolve_note_without_prior_error ... ok
+test bounded_marker_writes_match_the_unbounded_forms ... ok
+test prune_scope_rules ... ok
+test scope_registry_rules ... ok
+test status_changes_are_reported ... ok
+test scopes_of_is_the_stored_membership ... ok
+test scopes_persist_across_restarts ... ok
+test status_counts ... ok
+test sync_state_alerts_and_outage_round_trip ... ok
+test status_lists_stale_rows_until_reread ... ok
+test upsert_replaces_outgoing_edges ... ok
+test sync_run_records_count_failures_across_unfinished_runs ... ok
+test the_registry_is_capped ... ok
+
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests/two_process_ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/two_process_ingest-c88cef7c15a75fea)
+
+running 2 tests
+test child_ingests ... ignored, run by a_second_process_ingests_while_a_first_holds_a_handle as its child
+test a_second_process_ingests_while_a_first_holds_a_handle ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-52fe13c5f0ae2584)
+
+running 26 tests
+test compose::tests::compose_hands_out_one_lock_set ... ok
+test hook::tests::the_backoff_starts_at_the_third_failure_doubles_and_is_capped ... ok
+test compose::tests::a_repository_root_that_is_not_utf8_is_refused ... ok
+test lease::tests::a_run_id_is_unix_ms_pid_and_a_counter ... ok
+test front_end::tests::both_front_ends_give_identical_details_for_python_sync_enabled ... ok
+test payload::tests::both_row_names_are_valid_sc_cron_names ... ok
+test control::tests::wait_returns_once_the_flag_is_set_and_at_once_after ... ok
+test compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens ... ok
+test schedule::tests::a_row_written_enabled_disables_the_other_row ... ok
+test history::tests::an_unfinished_run_counts_once_sc_cron_recorded_its_end ... ok
+test schedule::tests::the_period_of_a_row_is_the_gap_between_its_next_two_runs ... ok
+test text::tests::text_is_cut_on_a_character_boundary ... ok
+test text::tests::unredacted_text_is_borrowed ... ok
+test text::tests::stderr_is_redacted_then_cut_to_8_kib ... ok
+test payload::unix_tests::a_path_that_is_not_utf8_is_refused_before_it_can_be_stored ... ok
+test payload::unix_tests::the_interpreter_must_be_an_absolute_regular_executable_file ... ok
+test job::failure_tests::continuous_failures_keep_no_in_memory_history_but_finite_runs_retain_details ... ok
+test payload::unix_tests::a_payload_round_trips_and_every_value_is_checked_on_decode ... ok
+test trust::tests::a_private_file_is_trusted_and_a_group_or_world_writable_one_is_not ... ok
+test mode_lock::tests::the_mode_lock_is_exclusive_and_released_on_drop ... ok
+test compose::tests::the_composition_owns_the_cache_facts ... ok
+test compose::tests::compose_with_config_and_backend_uses_the_given_configuration_and_backend ... ok
+test compose::tests::compose_with_config_locates_the_cache_from_the_given_beads_dir ... ok
+test compose::tests::compose_with_config_uses_the_given_configuration_not_the_file ... ok
+test payload::unix_tests::the_import_check_refuses_an_interpreter_that_cannot_import_the_package ... ok
+test compose::tests::two_compositions_of_one_project_never_run_bd_at_once ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.03s
+
+     Running tests/builtin_run.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/builtin_run-4e231363ecf70235)
+
+running 8 tests
+test a_run_with_no_scopes_still_drains ... ok
+test a_stopped_run_syncs_no_scope_and_frees_the_lease ... ok
+test a_live_lease_skips_the_run_and_an_expired_one_is_taken_over ... ok
+test an_older_incoming_row_never_replaces_a_newer_stored_one ... ok
+test a_run_syncs_a_label_scope_and_an_all_scope_by_their_filters_and_frees_the_lease ... ok
+test one_invalid_row_fails_the_scope_and_stores_no_row_of_its_answer ... ok
+test an_unreachable_bd_is_an_outage_result_and_the_rows_stay ... ok
+test a_run_skips_as_in_flight_when_a_hung_step_keeps_the_cache_mutex ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.02s
+
+     Running tests/compose.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/compose-dd404ead04f5335f)
+
+running 7 tests
+test compose_errors_have_codes_and_sources ... ok
+test the_composition_names_the_cache_file_the_beads_dir_and_its_schedule_table ... ok
+test the_composed_backend_measures_deadlines_on_the_composition_clock ... ok
+test a_relative_explicit_beads_dir_names_one_absolute_directory_for_the_store_and_the_bd_child ... ok
+test an_empty_explicit_beads_dir_is_unset_for_the_bd_child ... ok
+test the_bd_child_sees_the_explicit_beads_dir_not_the_environments ... ok
+test the_bd_child_has_no_beads_dir_when_the_explicit_value_is_none_though_the_environment_sets_one ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-80f26a9d8cecd59f)
+
+running 21 tests
+test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... ok
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... ok
+test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+test startup_zero_timeout_joins_its_read_without_grace ... ok
+test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... ok
+test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... ok
+test concurrent_cached_read_guard_rejects_a_real_cold_read_backend_lookup ... ok
+test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... ok
+test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... ok
+test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+test cached_read_returns_without_bd_while_the_scheduled_python_sync_is_running ... ok
+test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... ok
+test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.52s
+
+     Running tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-08245a4665e0d651)
+
+running 1 test
+test a_run_logs_sc_crons_events_and_one_event_per_step_with_the_row_and_run_id ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-2b8c132addf7fc53)
+
+running 10 tests
+test an_unresolvable_sync_row_is_recorded_failed_and_stays_active ... ok
+test a_sync_payload_on_another_row_is_refused_and_a_non_sync_row_coexists ... ok
+test cron_run_once_runs_a_due_row_and_skips_one_not_due ... ok
+test an_untrusted_cache_or_a_stop_answer_that_is_not_json_runs_nothing ... ok
+test cron_run_ends_when_its_worker_dies ... ok
+test a_planted_cache_path_in_the_row_cannot_pass_the_trust_check ... ok
+test an_overrunning_hook_ends_its_run_before_sc_crons_timeout ... ok
+test one_table_runs_the_python_row_with_its_script_and_the_builtin_row_with_rust ... ok
+test cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease ... ok
+test schedule_show_counts_failures_across_timeouts_and_resolve_failures ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.78s
+
+     Running tests/drain_bd_cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_bd_cli-1b758e097f178ff3)
+
+running 1 test
+test a_guarded_close_of_a_bead_gone_from_bd_escalates_not_found_without_retrying ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/e2e.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/e2e-9c26d2c3d4b4b3fd)
+
+running 6 tests
+test a_scheduled_run_with_a_slow_bd_ends_within_its_budget ... ok
+test a_pre_migration_v3_cache_drains_and_reopens_with_identity_and_state_intact ... ok
+test a_write_journaled_through_the_core_lands_in_bd_via_the_scheduled_drain ... ok
+test test_failed_read_back_marks_applied_and_stale_and_holds_the_bead_until_sync ... ok
+test test_e2e_blocker_close_and_reopen_update_ready ... ok
+test an_outage_of_several_runs_through_the_real_store_and_cli ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/health.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/health-9602b9641b8e68f1)
+
+running 4 tests
+test both_rows_disabled_is_no_sync_row_enabled ... ok
+test no_worker_for_three_periods_is_sync_stale ... ok
+test the_python_row_failing_three_runs_is_sync_failing ... ok
+test the_hook_failing_three_times_is_hook_failing ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests/hook_runner.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/hook_runner-84546f0c338f71ef)
+
+running 15 tests
+test a_hooks_env_values_are_redacted_from_the_reply_and_the_hook_state ... ok
+test unmarked_entries_are_offered_again_and_three_failures_start_the_backoff ... ok
+test a_sync_that_uses_its_whole_share_leaves_the_hook_its_reserve ... ok
+test the_hook_gets_every_result_in_one_request_from_an_isolated_child ... ok
+test a_hook_that_floods_stderr_fails_as_oversize_and_keeps_8_kib ... ok
+test a_hook_that_floods_a_pipe_fails_as_oversize ... ok
+test an_untrusted_cache_file_runs_no_hook ... ok
+test a_run_stopped_before_its_hook_marks_nothing_offered ... ok
+test a_wrong_protocol_and_a_failing_exit_are_each_a_failed_hook ... ok
+test a_crash_after_marking_keeps_the_marks_and_re_offers_the_rest ... ok
+test a_hook_killed_by_a_signal_is_reported_as_signal ... ok
+test a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes ... ok
+test an_oversized_offer_is_capped_at_500_escalations ... ok
+test a_request_larger_than_the_pipe_buffer_is_written_without_a_deadlock ... ok
+test a_request_over_4_mib_is_trimmed_to_fit ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.44s
+
+     Running tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-70a1e3153be3843a)
+
+running 2 tests
+test join_idle_is_false_while_a_step_holds_the_cache_and_true_once_it_returns ... ok
+test inherited_deadline_includes_the_blocking_cache_claim_and_starts_no_bd_after_expiry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests/live.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/live-9b518f42b591fd87)
+
+running 2 tests
+test a_journaled_write_lands_in_a_real_bd_through_cron_run_once ... ignored, live bd test: run through tests/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test an_incremental_sync_of_a_1000_bead_scope_is_incremental_and_its_time_is_reported ... ignored, live bd test: run through tests/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/perf.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/perf-a79000559a55e7d6)
+
+running 8 tests
+test migrated_incremental_sync_of_1000_beads_is_under_one_second ... ignored, release-profile NFR-BDC-0003 timing qualification
+test print_median_cached_get_by_scope_size ... ignored, informational: prints the median cached get per scope size (use --release)
+test an_entry_applied_since_the_fetch_makes_get_adjust_the_whole_base ... ok
+test a_pending_entry_makes_get_adjust_the_whole_base_and_still_agree ... ok
+test a_cached_get_reads_the_same_with_thousands_of_old_applied_entries ... ok
+test a_cached_read_of_one_bead_touches_the_same_rows_at_10_and_1000_beads ... ok
+test a_cached_get_dates_entries_python_applied_while_open ... ok
+test a_cached_get_touches_the_same_rows_at_10_100_and_1000_beads ... ok
+
+test result: ok. 6 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/schedule_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_logging-1b7a9001b5e6b570)
+
+running 1 test
+test the_not_restored_warning_names_the_row_and_the_run ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+
+     Running tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-391daa5abb51e2c0)
+
+running 21 tests
+test a_schedule_table_of_another_version_is_store_failed ... ok
+test a_python_row_that_never_ran_is_flagged ... ok
+test schedule_set_show_enable_disable_clear_round_trip ... ok
+test a_run_aborted_while_it_takes_the_lease_releases_it ... ok
+test a_new_builtin_row_is_written_disabled_while_the_python_row_is_enabled ... ok
+test each_schedule_set_refusal_names_its_field_and_writes_nothing ... ok
+test each_use_python_refusal_names_its_field_and_writes_nothing ... ok
+test registered_module_byte_bound_is_shared_and_invalid_names_write_no_row ... ok
+test a_re_run_replaces_the_python_row_in_place_and_a_failed_one_restores_the_old_script ... ok
+test a_completed_use_python_is_recorded_on_its_row ... ok
+test a_failed_restore_says_restored_false_and_use_builtin_recovers ... ok
+test a_tick_while_the_python_row_is_enabled_is_refused_and_starts_no_bd ... ok
+test a_second_connection_never_sees_both_rows_enabled ... ok
+test every_mode_command_waits_while_another_holds_its_read_decide_write_window ... ok
+test use_python_during_a_run_in_flight_is_tick_in_flight ... ok
+test use_python_switches_and_runs_at_once_and_use_builtin_reverses_it ... ok
+test with_no_builtin_row_a_failure_leaves_mode_none ... ok
+test an_interpreter_missing_at_run_time_restores_the_prior_mode ... ok
+test a_failed_immediate_run_restores_the_mode_before_the_command ... ok
+test the_immediate_runs_timeout_is_on_the_injected_clock ... ok
+test no_interleaving_of_the_mode_commands_leaves_both_rows_enabled ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.67s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sc_bd_cli-68a9f8cce5a17bd6)
+
+running 78 tests
+test argv::tests::unassign_is_an_empty_assignee_word ... ok
+test argv::tests::writes_are_the_baseline_forms ... ok
+test argv::tests::reads_are_the_baseline_forms ... ok
+test argv::tests::the_builders_refuse_an_unfiltered_or_misread_filter ... ok
+test argv::tests::every_filter_variant_has_the_table_argv ... ok
+test argv::tests::update_lists_every_field_in_order_then_guards_then_actor ... ok
+test cache::tests::exit_13_is_a_precondition_refusal_whatever_stderr_says ... ok
+test cache::tests::exit_zero_is_the_stdout ... ok
+test cache::tests::other_failures_keep_code_and_stderr ... ok
+test cache::tests::a_guarded_close_of_a_missing_bead_is_not_found ... ok
+test cache::tests::schema_migration_failure_is_typed ... ok
+test cache::tests::schema_version_accepts_numbers_and_strings_only ... ok
+test cache::tests::unreachable_server_is_unavailable_not_timed_out ... ok
+test cache::tests::unreadable_output_is_transport_with_the_read_error_as_source ... ok
+test cache::tests::version_is_the_token_after_version ... ok
+test command::tests::a_later_set_of_a_name_replaces_the_earlier_one ... ok
+test command::tests::names_compare_as_the_platform_environment_does ... ok
+test backend::tests::project_uses_dolt_wrapper_derives_beads_dir_from_scripted_probe ... ok
+test dolt::tests::doctor_fix_args_is_fixed ... ok
+test dolt::tests::import_args_carries_file ... ok
+test dolt::tests::init_args_carries_prefix ... ok
+test dolt::tests::migrate_to_dolt_args_is_fixed ... ok
+test command::tests::a_non_ascii_name_is_refused_in_debug_builds - should panic ... ok
+test dolt::tests::to_dolt_result_trims_stdout_and_stderr ... ok
+test locks::tests::a_missing_directory_keys_on_its_lexical_form ... ok
+test locks::tests::same_working_dir_shares_one_mutex ... ok
+test locks::tests::spellings_of_one_directory_share_a_lock ... ok
+test locks::tests::the_empty_working_directory_is_its_own_key ... ok
+test locks::tests::poisoned_map_is_recovered ... ok
+test dolt::tests::project_uses_dolt_for_is_false_for_dir_without_beads_layout ... ok
+test locks::tests::the_temp_name_is_a_stable_hash_of_the_key ... ok
+test path::tests::a_non_utf8_segment_keeps_the_rest_of_the_path ... ok
+test ops::tests::exit_status_display_matches_std_for_exit_codes ... ok
+test path::tests::a_relative_or_empty_home_or_gopath_adds_no_fallback_directory ... ok
+test path::tests::absolute_path_entries_drop_empty_and_relative_segments ... ok
+test path::tests::extended_path_includes_gui_launch_locations ... ok
+test path::tests::extended_path_entries_are_absolute_and_deduplicated ... ok
+test path::tests::the_inherited_path_comes_first_and_duplicates_are_removed ... ok
+test path::tests::extended_path_entries_start_with_the_ambient_path ... ok
+test dolt::tests::project_uses_dolt_for_legacy_dolt_dir_by_client ... ok
+test path::tests::the_inherited_path_keeps_only_absolute_segments ... ok
+test process_group::tests::the_special_pids_are_refused ... ok
+test dolt::tests::project_uses_dolt_for_legacy_dolt_dir ... ok
+test process_group::tests::a_killed_group_is_gone_once_reaped ... ok
+test run::tests::json_argv_splits_subcommand_and_appends_flags_last ... ok
+test run::tests::json_invocation_literal_outputs ... ok
+test probe::tests::probe_returns_none_for_empty_binary_name ... ok
+test runner::tests::child_env_helper ... ignored, child process of the_child_environment_reaches_every_spawn_on_every_platform
+test runner::tests::invoker_is_object_safe_send_sync ... ok
+test probe::tests::probe_returns_none_for_nonexistent_relative_path ... ok
+test runner::tests::probe_cache::a_probe_spawn_failure_is_logged_before_it_is_cached ... ok
+test locks::tests::the_file_lock_lives_in_beads_or_the_temp_dir_and_excludes ... ok
+test runner::tests::probe_cache::fresh_runner_probes_again ... ok
+test dolt::tests::project_uses_dolt_for_bd_0_50_keeps_filesystem_probe ... ok
+test locks::tests::spellings_of_one_existing_directory_share_a_lock ... ok
+test runner::tests::probe_cache::parsed_probe_is_cached_once ... ok
+test runner::tests::probe_cache::probe_failure_is_cached_and_reports_unknown ... ok
+test locks::tests::a_server_mode_project_takes_no_file_lock ... ok
+test bounded::tests::a_failed_exit_check_is_a_wait_error_not_a_spawn_failure ... ok
+test dolt::tests::project_uses_dolt_for_bd_1x_reads_metadata_backend ... ok
+test testing::fake_bd::tests::coercion_matches_what_bd_stores ... ok
+test testing::fake_bd::tests::schema_copy_is_the_pinned_schema ... ok
+test testing::fake_bd::tests::unknown_flags_and_missing_actor_are_usage_errors ... ok
+test runner::tests::the_child_environment_reaches_run_json ... ok
+test runner::tests::without_a_child_variable_the_environment_is_inherited ... ok
+test run::tests::spawn_json_maps_spawn_failure_like_execute_bd ... ok
+test run::tests::run_raw_maps_spawn_failure_to_operation ... ok
+test runner::tests::missing_binary_caches_failed_and_reports_unknown ... ok
+test probe::tests::probe_returns_none_for_nonexistent_binary ... ok
+test run::tests::probe_version_output_maps_spawn_failure ... ok
+test runner::tests::with_probe_seeds_the_cache_and_capabilities ... ok
+test bounded::tests::the_exit_check_leaves_the_child_unreaped ... ok
+test runner::tests::the_child_environment_reaches_run_raw_and_run_bounded ... ok
+test runner::tests::run_json_and_run_raw_report_spawn_errors ... ok
+test runner::tests::the_child_environment_reaches_every_spawn_on_every_platform ... ok
+test bounded::tests::exited_by_is_bounded ... ok
+test bounded::tests::a_child_still_running_at_the_bound_is_handed_to_the_reaper ... ok
+test run::tests::a_hanging_version_probe_is_stopped_at_its_bound ... ok
+
+test result: ok. 77 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 2.02s
+
+     Running tests/backend_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/backend_contract-f3766367b876176f)
+
+running 10 tests
+test every_call_stops_at_its_deadline ... ok
+test writes_to_unknown_beads_fail ... ok
+test list_by_ids_returns_every_status ... ok
+test writes_apply_their_effect ... ok
+test unmet_guards_are_refused ... ok
+test list_scope_filters_by_label_and_cursor ... ok
+test fingerprint_reports_version_and_schema ... ok
+test close_and_reopen_bump_only_the_beads_own_updated_at ... ok
+test scope_lists_answer_every_filter_variant ... ok
+test blocked_and_ready_match_the_p6_probe ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/bd_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_api_freeze-c31a47b478b8bc53)
+
+running 3 tests
+test dolt_helper_signatures ... ok
+test constructors_and_release_source ... ok
+test with_invoker_signature ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cache_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cache_api_freeze-a0b544ff8e36ff92)
+
+running 5 tests
+test argv_signatures_and_constants ... ok
+test invoker_run_bounded_is_provided_and_refuses ... ok
+test bounded_run_signature_and_error_variants ... ok
+test bd_cli_constructors_and_the_cache_backend ... ok
+test test_doubles ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cache_calls.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cache_calls-203c04898769d49d)
+
+running 24 tests
+test a_failing_check_step_is_named ... ok
+test a_timeout_is_unavailable_with_timed_out_set ... ok
+test an_empty_patch_asks_bd_nothing ... ok
+test a_wait_failure_is_transport_not_a_spawn_failure ... ok
+test exit_13_is_a_precondition_refusal ... ok
+test a_metadata_key_bd_cannot_carry_is_refused_before_any_call ... ok
+test a_bd_that_cannot_start_keeps_its_cause ... ok
+test a_refused_connection_is_unavailable_and_not_a_timeout ... ok
+test a_guarded_close_of_an_unknown_bead_is_not_found_and_not_a_refusal ... ok
+test every_call_stops_at_the_deadline_it_is_handed ... ok
+test list_by_ids_with_no_ids_makes_no_call ... ok
+test oversized_output_is_transport_naming_the_stream_and_the_cap ... ok
+test other_failures_are_failed_with_code_and_stderr ... ok
+test fake_bd_failures_reach_the_caller_as_the_errors_they_stand_for ... ok
+test recorded_argv_of_every_write_matches_the_baseline_forms ... ok
+test a_row_that_breaks_the_contract_fails_the_whole_call_naming_bead_and_field ... ok
+test a_guarded_close_reads_the_bead_first_and_closes_only_when_the_guards_hold ... ok
+test unreadable_check_output_is_a_contract_error ... ok
+test unreadable_output_is_a_transport_error_not_a_contract_or_spawn_failure ... ok
+test recorded_argv_of_every_read_matches_the_baseline_forms ... ok
+test rows_and_blocked_rows_come_back_typed ... ok
+test list_by_ids_is_chunked_deduplicated_and_names_all_seven_statuses ... ok
+test test_backend_check_does_not_need_bd_context ... ok
+test test_metadata_values_round_trip_through_bd_coercion ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cli_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cli_api_freeze-71d298f509cf8cd5)
+
+running 7 tests
+test ops_signatures ... ok
+test probe_state_variants ... ok
+test invoker_trait_shape_and_provided_defaults ... ok
+test transport_signatures ... ok
+test with_version_probe_signature ... ok
+test runner_constructors ... ok
+test recording_invoker_signatures ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/dolt_mode.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/dolt_mode-12faeb8f73c2cd4a)
+
+running 3 tests
+test project_dolt_mode_signature ... ok
+test vault_layout_is_dolt_and_embedded ... ok
+test project_dolt_mode_follows_bd_get_dolt_mode ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/live.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/live-2ea78dfd0415f29b)
+
+running 7 tests
+test blocked_state_matches_the_p6_probe_and_the_ready_predicate ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test close_and_reopen_bump_the_beads_own_updated_at ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test fingerprint_reports_what_bd_prints ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test list_by_id_returns_a_closed_bead_only_with_the_status_list ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test metadata_values_round_trip_through_real_bd ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test unmet_guards_exit_13_and_write_nothing ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+test unreachable_server_is_unavailable ... ignored, live bd probe: run through scripts/bd-compat/run-live.sh (SC_BD_LIVE=1, SC_BD_LIVE_DIR)
+
+test result: ok. 0 passed; 0 failed; 7 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ops_argv.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops_argv-e29d52363c93f12e)
+
+running 20 tests
+test dep_remove ... ok
+test delete_literal_bd_0_49_6_hard ... ok
+test delete ... ok
+test dep_add_without_and_with_type ... ok
+test close ... ok
+test comment_add ... ok
+test label_add_and_remove ... ok
+test list_include_all_literal_bd_0_54_0_two_calls ... ok
+test list_with_filters ... ok
+test ready ... ok
+test list_include_all ... ok
+test ready_literal_bd_0_49_6 ... ok
+test relation_types ... ok
+test search ... ok
+test status ... ok
+test sync ... ok
+test create ... ok
+test show ... ok
+test update ... ok
+test update_empty_stdout_falls_back_to_show ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ops_behaviour.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops_behaviour-756c58aea9880011)
+
+running 19 tests
+test recording_invoker_counts_probes_and_reports_seeded_info ... ok
+test relation_types_br_vs_others ... ok
+test delete_with_and_without_hard ... ok
+test show_empty_output_and_empty_array_are_none ... ok
+test close_with_and_without_suggest_next ... ok
+test search_empty_output_or_empty_array_is_empty ... ok
+test list_and_ready_propagate_parse_errors ... ok
+test show_not_found_error_texts_are_none ... ok
+test show_invalid_json_and_schema_mismatch_are_parse_failures ... ok
+test show_other_errors_propagate ... ok
+test list_fallback_returns_open_then_closed ... ok
+test show_accepts_object_or_array ... ok
+test sync_nonzero_exit_is_command_failed_with_stderr ... ok
+test status_create_close_parse_failures_keep_their_messages ... ok
+test sync_spawn_error_propagates ... ok
+test update_fallback_invalid_json_is_fetch_failure ... ok
+test update_empty_output_fetches_with_show ... ok
+test update_fallback_is_lenient_about_issue_shape ... ok
+test update_result_shapes ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/parity.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/parity-2adc9830706a5f05)
+
+running 1 test
+test full_method_parity_per_probe ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/process-09ab3e51fd6a8d3e)
+running 23 tests
+test a_running_child_is_cut_at_the_deadline ... ok
+test kill_and_reap_ends_a_running_child ... ok
+test a_timed_out_child_takes_its_process_group_with_it ... ok
+test an_output_timeout_takes_the_left_behind_helper_with_it ... ok
+test two_spellings_of_a_project_share_its_lock ... ok
+test the_group_kill_needs_no_kill_program ... ok
+test a_shutdown_request_stops_the_calls ... ok
+test two_processes_never_run_bd_on_one_project_at_once ... ok
+test a_server_mode_project_takes_no_cross_process_lock ... ok
+test the_cross_process_lock_is_released_when_a_call_is_cut ... ok
+test a_non_utf8_path_reaches_the_child ... ok
+test output_over_the_cap_is_an_error ... ok
+test oversized_stdout_reaches_the_caller_as_transport_naming_the_cap ... ok
+test waiting_for_the_project_lock_is_bounded ... ok
+test an_expired_deadline_starts_nothing ... ok
+test output_larger_than_a_pipe_is_drained ... ok
+test standard_input_is_closed ... ok
+test argv_and_working_directory_reach_the_child_verbatim ... ok
+test exit_13_is_a_precondition_refusal ... ok
+test an_unreachable_server_is_unavailable ... ok
+test a_bd_that_cannot_start_is_unavailable_with_its_cause ... ok
+test the_backend_check_runs_version_and_schema ... ok
+test an_empty_list_is_no_rows ... ok
+
+test result: ok.
+     Running tests/resolve_working_dir.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/resolve_working_dir-18a156f1f8da6dea)
+
+running 1 test
+test resolve_working_dir_precedence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-8748d113e093288c)
+
+running 3 tests
+test an_empty_criteria_filter_starts_no_bd_process ... ok
+test every_filter_variant_has_the_recorded_argv ... ok
+test bd_cli_sends_the_recorded_argv_and_fake_bd_answers_each_variant ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sc_beads-ac76a806a1d4cbbe)
+
+running 105 tests
+test cache::tests::btit_errors_convert_and_keep_their_code ... ok
+test cache::tests::unavailable_classification ... ok
+test clock::tests::deadline_earliest_and_remaining ... ok
+test cache::tests::meta_value_matches_bd_json ... ok
+test clock::tests::rejects_malformed_and_naive_times ... ok
+test cache::tests::transport_errors_keep_their_io_source_and_are_not_outages ... ok
+test clock::tests::timestamps_are_bounded_to_four_digit_years ... ok
+test clock::tests::round_trips_across_leap_years_and_epoch ... ok
+test cache::tests::empty_or_whitespace_actors_are_refused_when_deserialized ... ok
+test cache::tests::sha256_hex_and_assignee_are_checked ... ok
+test compat::tests::warnings_empty_for_supported_bd ... ok
+test compat::tests::warnings_for_0_49_x_have_no_dolt_note ... ok
+test cache::tests::edge_reads_python_stored_dependency_objects ... ok
+test compat::tests::warnings_flag_legacy_bd ... ok
+test compat::tests::warnings_for_0_50_through_0_56_include_dolt_note ... ok
+test compat::tests::warnings_for_0_50_x_have_no_dolt_note ... ok
+test compat::tests::warnings_for_br_and_unknown_ignore_version ... ok
+test compat::tests::warnings_for_br_unknown_and_unparsable ... ok
+test compat::tests::warnings_mention_supported_floor_for_unparsable_bd ... ok
+test detect::tests::cli_client_name_mapping ... ok
+test detect::tests::cli_selection_is_legacy_follows_probe ... ok
+test detect::tests::detect_bd_1x_banner ... ok
+test detect::tests::detect_bd_legacy_banner ... ok
+test detect::tests::detect_br_banner ... ok
+test detect::tests::detect_cli_client_is_case_insensitive ... ok
+test detect::tests::detect_cli_client_requires_word_boundary_prefix ... ok
+test detect::tests::detect_unknown_banner ... ok
+test detect::tests::legacy_boundary_at_exact_floor ... ok
+test detect::tests::legacy_detection_respects_floor ... ok
+test detect::tests::parse_probe_accepts_v_prefixed_version ... ok
+test detect::tests::parse_probe_bd_1x_prerelease_with_dotted_suffix ... ok
+test detect::tests::parse_probe_br_banner_with_beads_rust_in_later_word ... ok
+test detect::tests::parse_probe_empty_and_whitespace_only_are_unknown ... ok
+test detect::tests::parse_probe_skips_leading_blank_lines ... ok
+test detect::tests::parse_probe_strips_crlf_line_endings ... ok
+test detect::tests::parse_probe_trims_surrounding_whitespace_on_first_line ... ok
+test detect::tests::parse_probe_uses_first_line_only ... ok
+test detect::tests::parse_version_tolerates_prerelease_suffix_and_garbage ... ok
+test detect::tests::rank_prefers_supported_bd_then_legacy_bd_then_br_then_unknown ... ok
+test detect::tests::select_all_unknown_picks_first_found_not_fallback ... ok
+test detect::tests::select_empty_candidate_list_returns_fallback ... ok
+test detect::tests::select_falls_back_to_bd_when_nothing_found ... ok
+test detect::tests::select_falls_through_to_br_when_bd_missing ... ok
+test detect::tests::select_ignores_fallback_name_when_probing ... ok
+test detect::tests::select_keeps_first_candidate_on_equal_rank ... ok
+test detect::tests::select_legacy_bd_last_beats_earlier_br ... ok
+test detect::tests::select_picks_best_ranked_candidate_when_it_is_last ... ok
+test detect::tests::select_picks_supported_bd_over_br ... ok
+test detect::tests::select_prefers_better_rank_over_candidate_order ... ok
+test detect::tests::select_probe_called_once_per_candidate_in_order ... ok
+test detect::tests::select_still_picks_legacy_bd_over_br_but_flags_it ... ok
+test error::tests::command_failed_falls_back_to_status_with_literal_bd ... ok
+test error::tests::command_failed_uses_stderr_when_present ... ok
+test error::tests::invalid_json_matches_parse_issues_tolerant ... ok
+test error::tests::parse_failed_strings_per_target ... ok
+test error::tests::remediation_per_variant ... ok
+test error::tests::schema_migration_keeps_frontend_prefix ... ok
+test error::tests::spawn_with_operation_matches_migration_raw_calls ... ok
+test error::tests::spawn_without_operation_matches_execute_bd ... ok
+test error::tests::unexpected_shape_strings ... ok
+test error::tests::unsupported_names_operation_and_client ... ok
+test gates::tests::capabilities_for_pins_a18c724_values ... ok
+test gates::tests::supports_daemon_flag_table_driven ... ok
+test gates::tests::supports_delete_hard_flag_table_driven ... ok
+test gates::tests::supports_list_all_flag_table_driven ... ok
+test gates::tests::uses_dolt_backend_table_driven ... ok
+test gates::tests::uses_jsonl_files_table_driven ... ok
+test issues::tests::non_object_metadata_is_preserved_not_dropped ... ok
+test issues::tests::issue_with_object_metadata_is_not_skipped ... ok
+test issues::tests::normalize_issue_status_accepts_valid_statuses ... ok
+test issues::tests::bd_show_shape_with_object_metadata_deserializes ... ok
+test issues::tests::normalize_issue_status_passes_unknown_through ... ok
+test issues::tests::normalize_issue_type_accepts_valid_types ... ok
+test issues::tests::normalize_issue_type_passes_unknown_through ... ok
+test issues::tests::null_empty_and_blank_metadata_normalize_to_none ... ok
+test issues::tests::priority_round_trip ... ok
+test issues::tests::priority_to_number_is_case_insensitive_and_bounded ... ok
+test issues::tests::normalized_issue_serializes_metadata_as_object ... ok
+test issues::tests::priority_to_number_round_trips_valid_strings ... ok
+test issues::tests::priority_to_string_defaults_out_of_range ... ok
+test issues::tests::priority_to_string_normalizes_valid_range ... ok
+test issues::tests::string_metadata_holding_json_object_is_parsed ... ok
+test issues::tests::transform_issue_dedupes_blocked_by ... ok
+test issues::tests::transform_issue_extracts_blocked_by_from_dependencies ... ok
+test issues::tests::transform_issue_extracts_blocks_from_dependents ... ok
+test issues::tests::transform_issue_extracts_children_from_parent_child_dependents ... ok
+test issues::tests::transform_issue_extracts_comment_count_from_array ... ok
+test issues::tests::transform_issue_extracts_parent ... ok
+test issues::tests::transform_issue_extracts_relations ... ok
+test issues::tests::transform_issue_treats_conditional_blocks_and_waits_for_as_blocking ... ok
+test parse::tests::parse_empty_envelope ... ok
+test issues::tests::transform_issue_uses_explicit_comment_count_over_array ... ok
+test parse::tests::parse_empty_flat_array ... ok
+test parse::tests::parse_flat_array ... ok
+test parse::tests::parse_invalid_json_fails ... ok
+test parse::tests::parse_object_without_issues_key_fails ... ok
+test parse::tests::parse_envelope_skips_malformed_entries ... ok
+test parse::tests::parse_real_br_envelope ... ok
+test row::tests::dep_type_round_trips_and_blocking ... ok
+test row::tests::a_good_row_keeps_edges_and_counts ... ok
+test parse::tests::parse_paginated_envelope ... ok
+test row::tests::rows_of_handles_null_and_garbage ... ok
+test row::tests::optional_null_and_non_object_metadata_are_accepted ... ok
+test row::tests::blocked_rows_require_blocked_by ... ok
+test row::tests::violations_name_bead_and_field ... ok
+
+test result: ok. 105 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/api_freeze-d33229003f5b8155)
+
+running 9 tests
+test accessor_defaults_are_none ... ok
+test free_function_signatures ... ok
+test log_macros_are_exported ... ok
+test shape_and_target_variants_are_exhaustive ... ok
+test accessors_reach_backend_specific_traits_without_downcasting ... ok
+test spawn_operation_is_optional_string ... ok
+test trait_method_signatures ... ok
+test beads_error_variants_fields_and_codes ... ok
+test traits_and_error_are_send_sync ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/backend_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/backend_contract-204194875e144058)
+
+running 10 tests
+test writes_to_unknown_beads_fail ... ok
+test every_call_stops_at_its_deadline ... ok
+test unmet_guards_are_refused ... ok
+test list_by_ids_returns_every_status ... ok
+test writes_apply_their_effect ... ok
+test close_and_reopen_bump_only_the_beads_own_updated_at ... ok
+test list_scope_filters_by_label_and_cursor ... ok
+test fingerprint_reports_version_and_schema ... ok
+test scope_lists_answer_every_filter_variant ... ok
+test blocked_and_ready_match_the_p6_probe ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/btit_api_snapshot.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/btit_api_snapshot-740ead96e6eb23e2)
+
+running 1 test
+test btit_public_surface_is_unchanged ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/compatibility_info.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/compatibility_info-b50fe97d2a5bee54)
+
+running 3 tests
+test compatibility_info_empty_arrays_serialize_as_empty_not_null ... ok
+test compatibility_info_arrays_and_null_tuple_serialize ... ok
+test compatibility_info_serializes_camel_case ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/fake_backend.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_backend-52aebe85e0b91caa)
+
+running 5 tests
+test a_call_slower_than_its_deadline_is_cut_at_the_deadline ... ok
+test injections_are_consumed_in_order_by_the_first_matching_call ... ok
+test a_cursor_lists_a_row_whose_updated_at_does_not_parse ... ok
+test a_delay_injection_under_the_deadline_still_answers ... ok
+test a_schema_change_changes_the_fingerprint ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/ready_rule.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ready_rule-005d1533eec43c97)
+
+running 2 tests
+test a_bead_deferred_past_now_is_not_ready ... ok
+test the_ready_rule_equals_the_recorded_bd_ready_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/strict_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows-925e153d611bfba8)
+
+running 4 tests
+test test_recorded_bd_rows_validate ... ok
+test test_pinned_model_matches_recorded_schema ... ok
+test stored_form_round_trips ... ok
+test a_bad_row_is_a_contract_error_naming_bead_and_field ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/strict_rows_generated.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows_generated-1cd5dde02338b10a)
+
+running 1 test
+test generated_strict_rows_are_current ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/types_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/types_api_freeze-a62b35ee5a10d4eb)
+
+running 25 tests
+test backend_capabilities_default_and_fields ... ok
+test cli_output_fields ... ok
+test bd_raw_dependent_round_trips ... ok
+test bd_raw_comment_round_trips ... ok
+test bd_raw_dependency_round_trips ... ok
+test cli_client_variants_and_derives ... ok
+test bd_raw_issue_round_trips ... ok
+test cli_probe_fields ... ok
+test cli_version_fields_ordering_and_conversions ... ok
+test comment_child_parent_relation_fields ... ok
+test compatibility_info_fields_and_camel_case_json ... ok
+test count_result_camel_case_json ... ok
+test create_payload_fields_deserialize ... ok
+test cwd_options_default_and_field ... ok
+test directory_entry_and_fs_list_result_camel_case_json ... ok
+test dolt_op_result_fields ... ok
+test issue_camel_case_json ... ok
+test list_options_without_include_all_is_none ... ok
+test list_options_flatten_round_trip_matches_wire_shape ... ok
+test list_query_default_is_all_none ... ok
+test project_ref_local_constructor ... ok
+test purge_result_camel_case_json ... ok
+test relation_type_fields_and_json ... ok
+test release_source_fields ... ok
+test update_payload_fields_deserialize ... ok
+
+test result: ok. 25 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bd_cache
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests bd_cache_api
+
+running 9 tests
+test crates/bd-cache-api/src/data/x_cache.rs - data::x_cache::OpError::from_stored (line 54) ... ok
+test crates/bd-cache-api/src/error.rs - error::spec (line 219) ... ok
+test crates/bd-cache-api/src/request/mod.rs - request::Command::parse (line 186) ... ok
+test crates/bd-cache-api/src/data/x_cache.rs - data::x_cache::cache_time (line 19) ... ok
+test crates/bd-cache-api/src/error.rs - error::ApiError::config_invalid (line 459) ... ok
+test crates/bd-cache-api/src/lib.rs - (line 82) ... ok
+test crates/bd-cache-api/src/v0.rs - v0::entry_args (line 88) ... ok
+test crates/bd-cache-api/src/v0.rs - v0::patch_args (line 25) ... ok
+test crates/bd-cache-api/src/lib.rs - (line 23) ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+
+running 3 tests
+test crates/bd-cache-api/src/lib.rs - (line 66) - compile fail ... ok
+test crates/bd-cache-api/src/lib.rs - (line 56) - compile fail ... ok
+test crates/bd-cache-api/src/lib.rs - (line 42) - compile fail ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+all doctests ran in 0.75s; merged doctests compilation took 0.52s
+   Doc-tests bd_cache_cli
+
+running 3 tests
+test crates/bd-cache-cli/src/lib.rs - (line 57) ... ok
+test crates/bd-cache-cli/src/scenario.rs - scenario (line 11) ... ok
+test crates/bd-cache-cli/src/lib.rs - run (line 140) ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+all doctests ran in 0.58s; merged doctests compilation took 0.27s
+   Doc-tests bd_cache_model
+
+running 38 tests
+test crates/bd-cache-model/src/budget.rs - budget::TickBudget (line 143) ... ok
+test crates/bd-cache-model/src/journal.rs - journal::JournalEntry::legacy_last_error (line 189) ... ok
+test crates/bd-cache-model/src/journal.rs - journal::split_resolve_note (line 321) ... ok
+test crates/bd-cache-model/src/error.rs - error::CacheError::outage (line 866) ... ok
+test crates/bd-cache-model/src/error.rs - error::CacheError::scope_unknown (line 653) ... ok
+test crates/bd-cache-model/src/compat.rs - compat::ScopeId::from_labels (line 70) ... ok
+test crates/bd-cache-model/src/compat.rs - compat::legacy_scope (line 30) ... ok
+test crates/bd-cache-model/src/config.rs - config::RepoConfig::from_toml_with (line 220) ... ok
+test crates/bd-cache-model/src/ingest.rs - ingest::IngestSnapshot::from_reader (line 217) ... ok
+test crates/bd-cache-model/src/config.rs - config::RepoConfig::configured_scopes (line 379) ... ok
+test crates/bd-cache-model/src/journal.rs - journal::resolve_note (line 303) ... ok
+test crates/bd-cache-model/src/compat.rs - compat::legacy_label (line 48) ... ok
+test crates/bd-cache-model/src/ingest.rs - ingest::IngestSnapshot::from_values (line 146) ... ok
+test crates/bd-cache-model/src/journal.rs - journal::error_code_prefix (line 353) ... ok
+test crates/bd-cache-model/src/ingest.rs - ingest::IngestSnapshot (line 48) ... ok
+test crates/bd-cache-model/src/config.rs - config::RepoConfig::from_toml (line 254) ... ok
+test crates/bd-cache-model/src/lib.rs - (line 29) ... ok
+test crates/bd-cache-model/src/limits.rs - limits::check_write_size (line 70) ... ok
+test crates/bd-cache-model/src/reply.rs - reply::JournalCounts (line 211) ... ok
+test crates/bd-cache-model/src/pyjson.rs - pyjson::python_json (line 19) ... ok
+test crates/bd-cache-model/src/op.rs - op::Op::parse_new (line 263) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::FilterParts (line 252) ... ok
+test crates/bd-cache-model/src/op.rs - op::Op::parse (line 290) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::Scope (line 600) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::ScopeName::RULE (line 120) ... ok
+test crates/bd-cache-model/src/testing/contract.rs - testing::contract (line 7) ... ignored
+test crates/bd-cache-model/src/scope.rs - scope::ScopeId (line 189) ... ok
+test crates/bd-cache-model/src/testing/contract.rs - testing::contract::store_contract_tests (line 1935) ... ignored
+test crates/bd-cache-model/src/op.rs - op::Op::changes (line 474) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::ScopeName (line 105) ... ok
+test crates/bd-cache-model/src/state.rs - state::RunId (line 184) ... ok
+test crates/bd-cache-model/src/state.rs - state::FailingSince (line 115) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::Scope::check_new (line 709) ... ok
+test crates/bd-cache-model/src/scope.rs - scope::ScopeFilter (line 330) ... ok
+test crates/bd-cache-model/src/state.rs - state::SyncRow (line 301) ... ok
+test crates/bd-cache-model/src/state.rs - state::SyncState::record_result (line 72) ... ok
+test crates/bd-cache-model/src/state.rs - state::clip_hook_error (line 269) ... ok
+test crates/bd-cache-model/src/testing/store.rs - testing::store::FakeStore (line 282) ... ok
+
+test result: ok. 36 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+all doctests ran in 0.42s; merged doctests compilation took 0.26s
+   Doc-tests bd_cache_store
+
+running 11 tests
+test crates/bd-cache-store/src/location.rs - location::DoltDatabase::new (line 88) ... ok
+test crates/bd-cache-store/src/location.rs - location::BeadsDirOverride (line 240) ... ok
+test crates/bd-cache-store/src/location.rs - location::CacheLocation::resolve_with (line 438) ... ok
+test crates/bd-cache-store/src/location.rs - location::load_repo_config_with (line 647) ... ok
+test crates/bd-cache-store/src/location.rs - location::ConfigLoadError::code (line 531) ... ok
+test crates/bd-cache-store/src/location.rs - location::load_repo_config (line 611) ... ok
+test crates/bd-cache-store/src/location.rs - location::read_bounded (line 706) ... ok
+test crates/bd-cache-store/src/lock.rs - lock::FlockDrainLock::for_cache_file (line 34) ... ok
+test crates/bd-cache-store/src/lib.rs - (line 27) ... ok
+test crates/bd-cache-store/src/schedule.rs - schedule::CacheScheduleStore (line 55) ... ok
+test crates/bd-cache-store/src/store.rs - store::SqliteStore (line 152) ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+all doctests ran in 0.42s; merged doctests compilation took 0.24s
+   Doc-tests bd_cache_sync
+
+running 5 tests
+test crates/bd-cache-sync/src/lib.rs - (line 43) ... ok
+test crates/bd-cache-sync/src/payload.rs - payload::TrustedInterpreter::new (line 172) ... ok
+test crates/bd-cache-sync/src/control.rs - control::Budget (line 84) ... ok
+test crates/bd-cache-sync/src/control.rs - control::StopFlag (line 22) ... ok
+test crates/bd-cache-sync/src/trust.rs - trust::TrustedCacheFile::check (line 55) ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+all doctests ran in 0.35s; merged doctests compilation took 0.21s
+   Doc-tests sc_bd_cli
+
+running 5 tests
+test crates/sc-bd-cli/src/lib.rs - (line 42) - compile ... ok
+test crates/sc-bd-cli/src/process_group.rs - process_group::kill (line 46) ... ok
+test crates/sc-bd-cli/src/locks.rs - locks::WorkingDir (line 68) ... ok
+test crates/sc-bd-cli/src/shutdown.rs - shutdown (line 34) ... ok
+test crates/sc-bd-cli/src/path.rs - path::absolute_path_entries (line 63) ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+   Doc-tests sc_beads
+
+running 18 tests
+test crates/sc-beads/src/testing/contract.rs - testing::contract (line 7) ... ignored
+test crates/sc-beads/src/testing/contract.rs - testing::contract::backend_contract_tests (line 760) ... ignored
+test crates/sc-beads/src/cache.rs - cache::Actor (line 312) ... ok
+test crates/sc-beads/src/clock.rs - clock::Timestamp (line 32) ... ok
+test crates/sc-beads/src/cache.rs - cache::is_bd_ready (line 537) ... ok
+test crates/sc-beads/src/cache.rs - cache::BeadId (line 105) ... ok
+test crates/sc-beads/src/cache.rs - cache::check_filter_word (line 494) ... ok
+test crates/sc-beads/src/row.rs - row::schema_sha256 (line 107) ... ok
+test crates/sc-beads/src/clock.rs - clock::Deadline (line 183) ... ok
+test crates/sc-beads/src/testing/clock.rs - testing::clock::ManualClock (line 19) ... ok
+test crates/sc-beads/src/clock.rs - clock::rfc3339_to_unix (line 278) ... ok
+test crates/sc-beads/src/lib.rs - (line 37) ... ok
+test crates/sc-beads/src/cache.rs - cache::MetaValue::to_bd_arg (line 732) ... ok
+test crates/sc-beads/src/clock.rs - clock::unix_to_rfc3339 (line 253) ... ok
+test crates/sc-beads/src/row.rs - row::parse_bd_row (line 141) ... ok
+test crates/sc-beads/src/testing/fake.rs - testing::fake::FakeBackend (line 227) ... ok
+test crates/sc-beads/src/cache.rs - cache::ScopeFilter (line 444) ... ok
+test crates/sc-beads/src/testing/mod.rs - testing::bead (line 38) ... ok
+
+test result: ok. 16 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 1.84s
+

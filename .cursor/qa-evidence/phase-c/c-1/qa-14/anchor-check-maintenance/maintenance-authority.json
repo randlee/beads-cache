@@ -1,0 +1,22 @@
+{
+  "actor": "parent-orchestrator",
+  "source_before": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "anchor": "REQ-BDC-0007",
+  "changed_fields": [
+    "deterministic_check",
+    "history",
+    "version"
+  ],
+  "version_before": 2,
+  "version_after": 3,
+  "all_other_records_unchanged": true,
+  "immutable_statement_quote_scope_fixtures_questions_unchanged": true,
+  "authority": [
+    "Approved docs/requirements.md REQ-BDC-0007 strict bd decoder",
+    "Approved preexisting REQ-BDC-0726/0729 INGEST_INVALID row-index/reason atomicity",
+    "Independent req/Rust +anchor-sprint-review adjudication qa14/anchors/followup-result.json"
+  ],
+  "waiver": false,
+  "product_behavior_changed": false,
+  "prior_runs_preserved": "Newversionmustbeusedforfuturegate; no oldrunrewrites"
+}

@@ -1,0 +1,64 @@
+import hashlib, json, pathlib, re, subprocess, tomllib
+root=pathlib.Path('/tmp/phase-c-execution/c-1/qa-14')
+previous=pathlib.Path('/tmp/phase-c-execution/c-1/qa-13')
+before='478812a83adb04ea38c93a6d4bc83a17233a9cf4'
+after='60f89200fe337d57ede24ecaa55e36171a1c4305'
+def git(*args): return subprocess.check_output(['git',*args],text=True)
+def digest(path): return hashlib.sha256(pathlib.Path(path).read_bytes()).hexdigest()
+def tree(ref):
+    rows={}
+    for line in git('ls-tree','-r',ref,'--','crates').splitlines():
+        entry,name=line.split('\t',1)
+        if name.endswith('.rs'): rows[name]=entry
+    return rows
+old_tree,new_tree=tree(before),tree(after)
+old_lock=tomllib.loads(git('show',before+':Cargo.lock'))
+new_lock=tomllib.loads(pathlib.Path('Cargo.lock').read_text())
+lock_changes=[]
+for old,new in zip(old_lock['package'],new_lock['package']):
+    if old!=new: lock_changes.append({'before':old,'after':new})
+manifest=tomllib.loads(pathlib.Path('crates/bd-cache-sync/Cargo.toml').read_text())
+upstream=tomllib.loads(pathlib.Path('Cargo.toml').read_text())
+artifact_rows=[]
+developer=json.loads(pathlib.Path('/tmp/phase-c-execution/c-1/qa-13-fix/developer-result.json').read_text())
+for artifact in developer['data']['artifacts']:
+    path=pathlib.Path(artifact['path'])
+    actual=digest(path)
+    artifact_rows.append({'path':str(path),'expected_sha256':artifact['sha256'],'actual_sha256':actual,'matches':actual==artifact['sha256']})
+guard_paths=['crates/bd-cache-sync/tests/check_consumer_graph.py','crates/bd-cache-sync/tests/test_consumer_graph.py','.github/workflows/ci.yml','.github/workflows/python.yml','Cargo.toml']
+equal_guards={name:git('show',before+':'+name).encode()==pathlib.Path(name).read_bytes() for name in guard_paths}
+log=(previous/'affected-tests-native.log').read_text()
+groups=[]
+for section in re.split(r'(?m)^\s*(?:Running |Doc-tests )',log)[1:]:
+    results=re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;',section)
+    if results:
+        result=results[-1]
+        groups.append({'group':section.splitlines()[0],'passed':int(result[0]),'failed':int(result[1]),'ignored':int(result[2])})
+totals={key:sum(row[key] for row in groups) for key in ['passed','failed','ignored']}
+totals['groups']=len(groups)
+ci=json.loads((root/'current-ci.json').read_text())
+source={
+    'head':git('rev-parse','HEAD').strip(), 'branch':git('branch','--show-current').strip(), 'status':git('status','--short'),
+    'before':before,'after':after,'changed_files':git('diff','--name-status',before,after).splitlines(),
+    'Rust_before_count':len(old_tree),'Rust_after_count':len(new_tree),'Rust_trees_equal':old_tree==new_tree,
+    'guard_workflow_and_root_manifest_equal':equal_guards,
+    'lock_package_count_equal':len(old_lock['package'])==len(new_lock['package']),'lock_package_changes':lock_changes,
+    'sync_direct_normal_dependencies':sorted(manifest['dependencies']),
+    'sync_source_observability_import':pathlib.Path('crates/bd-cache-sync/src/cron_log.rs').read_text().splitlines()[2],
+    'workspace_upstream_pins':{name:upstream['workspace']['dependencies'][name] for name in ['sc-cron','sc-command']},
+    'developer_artifact_hash_checks':artifact_rows,
+    'QA13_native_totals_reparsed_from_raw':totals,'QA13_native_groups':groups,
+    'QA13_native_log_sha256':digest(previous/'affected-tests-native.log'),
+    'QA13_native_receipts_sha256':digest(previous/'rust-qa-native-receipts.json'),
+    'current_ci':{'head':ci['headRefOid'],'successful':sum(row['conclusion']=='SUCCESS' for row in ci['statusCheckRollup']),'total':len(ci['statusCheckRollup']),'all_success':all(row['conclusion']=='SUCCESS' for row in ci['statusCheckRollup'])},
+}
+assert source['head']==after and not source['status']
+assert old_tree==new_tree and all(equal_guards.values())
+assert len(lock_changes)==1 and lock_changes[0]['before']['name']=='bd-cache-sync'
+old_package=lock_changes[0]['before'].copy(); old_package['dependencies'].remove('sc-observability-types')
+assert old_package==lock_changes[0]['after']
+assert 'sc-observability-types' not in manifest['dependencies'] and 'sc-command' not in manifest['dependencies']
+assert all(row['matches'] for row in artifact_rows)
+assert totals=={'passed':426,'failed':0,'ignored':9,'groups':44},totals
+(root/'rust-qa-source-evidence.json').write_text(json.dumps(source,indent=2)+'\n')
+print(json.dumps({'Rust_equal':len(new_tree),'guard_equal':equal_guards,'developer_hashes_verified':len(artifact_rows),'QA13_totals':totals,'current_ci':source['current_ci']},indent=2))

@@ -1,0 +1,11 @@
+{
+  "url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6684710607",
+  "review_attempt": "GitHub business rule: cannot request changes on own PR",
+  "review_stdout": "/tmp/phase-c-execution/c-1/qa-14/manager-review-publish.stdout",
+  "review_stderr": "/tmp/phase-c-execution/c-1/qa-14/manager-review-publish.stderr",
+  "same_body_comment_fallback": true,
+  "canonical_report": "/tmp/phase-c-execution/c-1/qa-14/manager-result.md",
+  "unchanged_body": "/tmp/phase-c-execution/c-1/qa-14/manager-post-body.md",
+  "refetch": "/tmp/phase-c-execution/c-1/qa-14/manager-pr-comment-refetch.json",
+  "self_url_amendment": "pending_parent_only"
+}

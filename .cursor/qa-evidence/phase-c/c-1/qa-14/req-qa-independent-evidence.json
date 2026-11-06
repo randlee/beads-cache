@@ -1,0 +1,511 @@
+{
+  "reviewed_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "baseline_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "plan_before_bytes": 78752,
+  "plan_after_bytes": 48037,
+  "plan_before_sha256": "0db0160613495ff3f314910ac8e48dcc8f7b878b5f0d83b5891d749e1b659794",
+  "plan_after_sha256": "46542d045c6f7592df55078757468d02226da56ab9b5b25207fb6708b57bd3b2",
+  "independent_audit_replay_exact": true,
+  "operations_replayed": 30,
+  "audit_findings": 13,
+  "core_sections_byte_equal": [
+    "Deliverables",
+    "Prototype contract disposition",
+    "Inherited preservation bounds",
+    "Bounded store-health seam for c-2",
+    "Interface preserved for consumers",
+    "Acceptance criteria",
+    "Current CI prerequisite",
+    "Required validation",
+    "Dependencies and limits"
+  ],
+  "frontmatter_byte_equal": true,
+  "requirements_list_count": 101,
+  "requirement_definitions": {
+    "REQ-BDC-1002": {
+      "source": "docs/requirements.md:946",
+      "title": "Published scheduler ownership and compatible SQLite"
+    },
+    "REQ-BDC-0804": {
+      "source": "docs/requirements.md:641",
+      "title": "Drop-in compatibility"
+    },
+    "REQ-BDC-0903": {
+      "source": "docs/requirements.md:757",
+      "title": "Slow or unreachable backend"
+    },
+    "REQ-API-0001": {
+      "source": "docs/bd-cache-api/requirements.md:8",
+      "title": "One decoder, nothing ignored"
+    },
+    "REQ-API-0002": {
+      "source": "docs/bd-cache-api/requirements.md:32",
+      "title": "The idempotency key is required, never derived"
+    },
+    "REQ-API-0003": {
+      "source": "docs/bd-cache-api/requirements.md:43",
+      "title": "Total orders and an opaque keyset cursor"
+    },
+    "REQ-API-0004": {
+      "source": "docs/bd-cache-api/requirements.md:60",
+      "title": "Filters run in the api over one scope"
+    },
+    "REQ-API-0005": {
+      "source": "docs/bd-cache-api/requirements.md:81",
+      "title": "The error table and the CacheError mapping"
+    },
+    "REQ-API-0006": {
+      "source": "docs/bd-cache-api/requirements.md:100",
+      "title": "Entry args in /v0 names"
+    },
+    "REQ-API-0007": {
+      "source": "docs/bd-cache-api/requirements.md:112",
+      "title": "Write replies come from write_returning"
+    },
+    "REQ-BDC-0001": {
+      "source": "docs/requirements.md:63",
+      "title": "Reads never wait on the backend"
+    },
+    "REQ-BDC-0006": {
+      "source": "docs/requirements.md:110",
+      "title": "Backend access only through bd"
+    },
+    "REQ-BDC-0103": {
+      "source": "docs/requirements.md:156",
+      "title": "SQLite settings and schema version"
+    },
+    "REQ-BDC-0107": {
+      "source": "docs/requirements.md:194",
+      "title": "Cache schema"
+    },
+    "REQ-BDC-0720": {
+      "source": "docs/requirements.md:493",
+      "title": "The sync on the cache's cron table"
+    },
+    "REQ-BDC-0722": {
+      "source": "docs/requirements.md:509",
+      "title": "One sync at a time"
+    },
+    "REQ-BDC-0723": {
+      "source": "docs/requirements.md:517",
+      "title": "The post-sync hook runs isolated"
+    },
+    "REQ-BDC-0724": {
+      "source": "docs/requirements.md:525",
+      "title": "Switching to a consumer's Python sync"
+    },
+    "REQ-BDC-0725": {
+      "source": "docs/requirements.md:533",
+      "title": "A consumer's Python sync replaces the built-in one"
+    },
+    "REQ-BDC-0727": {
+      "source": "docs/requirements.md:549",
+      "title": "The post-sync hook gets every result, and delivery is at-least-once"
+    },
+    "REQ-BDC-0729": {
+      "source": "docs/requirements.md:565",
+      "title": "Outage is classified, and the new codes are typed"
+    },
+    "REQ-BDC-0730": {
+      "source": "docs/requirements.md:582",
+      "title": "`cron run` stops cleanly"
+    },
+    "REQ-BDC-0731": {
+      "source": "docs/requirements.md:590",
+      "title": "`schedule show` reports the sync state"
+    },
+    "REQ-BDC-0732": {
+      "source": "docs/requirements.md:598",
+      "title": "Health reports a degraded sync"
+    },
+    "REQ-BDC-0802": {
+      "source": "docs/requirements.md:616",
+      "title": "Exit codes and typed errors"
+    },
+    "REQ-BDC-0803": {
+      "source": "docs/requirements.md:626",
+      "title": "Error codes"
+    },
+    "REQ-BDC-0812": {
+      "source": "docs/requirements.md:719",
+      "title": "Python 0.2 is additive"
+    },
+    "REQ-BDC-0911": {
+      "source": "docs/requirements.md:811",
+      "title": "Ready reflects our own writes immediately"
+    },
+    "NFR-BDC-0002": {
+      "source": "docs/requirements.md:853",
+      "title": "CLI get latency"
+    },
+    "NFR-BDC-0004": {
+      "source": "docs/requirements.md:869",
+      "title": "bd calls bounded by the deadline"
+    },
+    "NFR-BDC-0005": {
+      "source": "docs/requirements.md:877",
+      "title": "Unit tests without bd"
+    },
+    "NFR-BDC-0006": {
+      "source": "docs/requirements.md:885",
+      "title": "Live tests on the testbed only"
+    },
+    "NFR-BDC-0007": {
+      "source": "docs/requirements.md:895",
+      "title": "Bundled SQLite"
+    },
+    "REQ-STORE-0002": {
+      "source": "docs/bd-cache-store/requirements.md:57",
+      "title": "Open checks settings, version and identity"
+    },
+    "REQ-STORE-0003": {
+      "source": "docs/bd-cache-store/requirements.md:79",
+      "title": "v3 tables unchanged, extensions additive"
+    },
+    "REQ-API-0008": {
+      "source": "docs/bd-cache-api/requirements.md:127",
+      "title": "Contract version and no front-end dependency"
+    },
+    "REQ-CLI-0001": {
+      "source": "docs/bd-cache-cli/requirements.md:14",
+      "title": "The crate builds on all three CI OSes with sc-command pinned"
+    },
+    "REQ-CLI-0003": {
+      "source": "docs/bd-cache-cli/requirements.md:44",
+      "title": "`run()` is the in-process entry point at its final signature"
+    },
+    "REQ-CLI-0007": {
+      "source": "docs/bd-cache-cli/requirements.md:124",
+      "title": "Exit codes and one envelope on stdout"
+    },
+    "REQ-PY-0002": {
+      "source": "docs/bd-cache-py/requirements.md:30",
+      "title": "The verbs the first consumer uses"
+    },
+    "REQ-PY-0006": {
+      "source": "docs/bd-cache-py/requirements.md:111",
+      "title": "Threading"
+    },
+    "REQ-BDC-0910": {
+      "source": "docs/requirements.md:803",
+      "title": "Python bindings"
+    },
+    "REQ-BDC-0721": {
+      "source": "docs/requirements.md:501",
+      "title": "Scopes are configured bd filters"
+    },
+    "REQ-BDC-0007": {
+      "source": "docs/requirements.md:118",
+      "title": "Strict row contract"
+    },
+    "REQ-BDC-0008": {
+      "source": "docs/requirements.md:127",
+      "title": "A bad row stores nothing"
+    },
+    "REQ-BDC-0502": {
+      "source": "docs/requirements.md:365",
+      "title": "Newer-row guard"
+    },
+    "REQ-CLI-0002": {
+      "source": "docs/bd-cache-cli/requirements.md:32",
+      "title": "`bd-cache` and `bdc` are one program"
+    },
+    "REQ-CLI-0004": {
+      "source": "docs/bd-cache-cli/requirements.md:58",
+      "title": "`fake-bd` is a stateful bd across processes"
+    },
+    "REQ-CLI-0005": {
+      "source": "docs/bd-cache-cli/requirements.md:79",
+      "title": "The harness injects faults, and a release build carries none of it"
+    },
+    "REQ-CLI-0006": {
+      "source": "docs/bd-cache-cli/requirements.md:105",
+      "title": "Every command of both surfaces runs its bd-cache-api operation"
+    },
+    "REQ-CLI-0008": {
+      "source": "docs/bd-cache-cli/requirements.md:140",
+      "title": "Configuration precedence and file locations"
+    },
+    "REQ-CLI-0009": {
+      "source": "docs/bd-cache-cli/requirements.md:161",
+      "title": "`--help` and `--version`"
+    },
+    "REQ-CLI-0010": {
+      "source": "docs/bd-cache-cli/requirements.md:175",
+      "title": "The stderr log"
+    },
+    "REQ-CLI-0011": {
+      "source": "docs/bd-cache-cli/requirements.md:187",
+      "title": "The named negative scenarios pass through the process"
+    },
+    "REQ-CLI-0012": {
+      "source": "docs/bd-cache-cli/requirements.md:203",
+      "title": "A new-process `get` is under 50 ms"
+    },
+    "REQ-PY-0001": {
+      "source": "docs/bd-cache-py/requirements.md:12",
+      "title": "The module and its handle"
+    },
+    "REQ-PY-0003": {
+      "source": "docs/bd-cache-py/requirements.md:52",
+      "title": "Replies are builtin Python objects with shapes versioned with the wheel"
+    },
+    "REQ-PY-0004": {
+      "source": "docs/bd-cache-py/requirements.md:68",
+      "title": "One exception class carries the typed error"
+    },
+    "REQ-PY-0005": {
+      "source": "docs/bd-cache-py/requirements.md:89",
+      "title": "A bad argument is a Python error, not a cache error"
+    },
+    "REQ-PY-0007": {
+      "source": "docs/bd-cache-py/requirements.md:137",
+      "title": "Ready through the binding"
+    },
+    "REQ-PY-0008": {
+      "source": "docs/bd-cache-py/requirements.md:149",
+      "title": "Announcement state for an external sender"
+    },
+    "REQ-PY-0010": {
+      "source": "docs/bd-cache-py/requirements.md:178",
+      "title": "Packaging"
+    },
+    "REQ-PY-0011": {
+      "source": "docs/bd-cache-py/requirements.md:194",
+      "title": "The `cache.beads` and `cache.manage` namespaces"
+    },
+    "REQ-PY-0012": {
+      "source": "docs/bd-cache-py/requirements.md:226",
+      "title": "`CacheError` carries the contract's error fields"
+    },
+    "REQ-PY-0013": {
+      "source": "docs/bd-cache-py/requirements.md:244",
+      "title": "0.2 is additive; `CONTRACT_VERSION`"
+    },
+    "REQ-PY-0014": {
+      "source": "docs/bd-cache-py/requirements.md:262",
+      "title": "One version for the workspace and the wheel"
+    },
+    "REQ-STORE-0001": {
+      "source": "docs/bd-cache-store/requirements.md:9",
+      "title": "Locating the file starts no bd process"
+    },
+    "REQ-STORE-0004": {
+      "source": "docs/bd-cache-store/requirements.md:100",
+      "title": "Every CacheStore rule over SQLite"
+    },
+    "REQ-STORE-0005": {
+      "source": "docs/bd-cache-store/requirements.md:136",
+      "title": "Cross-process drain lock"
+    },
+    "REQ-STORE-0006": {
+      "source": "docs/bd-cache-store/requirements.md:157",
+      "title": "The file is shared with the baseline Python implementation both ways"
+    },
+    "REQ-STORE-0007": {
+      "source": "docs/bd-cache-store/requirements.md:185",
+      "title": "The one repository configuration loader"
+    },
+    "REQ-STORE-0008": {
+      "source": "docs/bd-cache-store/requirements.md:211",
+      "title": "Cached reads cost the same at any scope size and journal length"
+    },
+    "REQ-SYNC-0001": {
+      "source": "docs/bd-cache-sync/requirements.md:10",
+      "title": "The tick is a library entry point"
+    },
+    "REQ-SYNC-0004": {
+      "source": "docs/bd-cache-sync/requirements.md:91",
+      "title": "The tick budget"
+    },
+    "REQ-SYNC-0005": {
+      "source": "docs/bd-cache-sync/requirements.md:109",
+      "title": "Threading of the job"
+    },
+    "REQ-SYNC-0010": {
+      "source": "docs/bd-cache-sync/requirements.md:222",
+      "title": "The end-to-end flow runs through the real composition"
+    },
+    "REQ-SYNC-0012": {
+      "source": "docs/bd-cache-sync/requirements.md:433",
+      "title": "Cooperative shutdown"
+    },
+    "REQ-SYNC-0013": {
+      "source": "docs/bd-cache-sync/requirements.md:467",
+      "title": "A cached `get` costs the same at any scope size"
+    },
+    "REQ-CRON-0001": {
+      "source": "docs/sc-cron/requirements.md:33",
+      "title": "Parse before write"
+    },
+    "REQ-CRON-0002": {
+      "source": "docs/sc-cron/requirements.md:53",
+      "title": "Next-run computation in UTC"
+    },
+    "REQ-CRON-0003": {
+      "source": "docs/sc-cron/requirements.md:67",
+      "title": "Jitter"
+    },
+    "REQ-CRON-0004": {
+      "source": "docs/sc-cron/requirements.md:78",
+      "title": "Missed-tick replay per policy"
+    },
+    "REQ-CRON-0005": {
+      "source": "docs/sc-cron/requirements.md:92",
+      "title": "Stop check and per-run timeout"
+    },
+    "REQ-CRON-0006": {
+      "source": "docs/sc-cron/requirements.md:123",
+      "title": "One run in flight per schedule"
+    },
+    "REQ-CRON-0007": {
+      "source": "docs/sc-cron/requirements.md:136",
+      "title": "Generation fencing"
+    },
+    "REQ-CRON-0008": {
+      "source": "docs/sc-cron/requirements.md:152",
+      "title": "Stores read no clock"
+    },
+    "REQ-CRON-0009": {
+      "source": "docs/sc-cron/requirements.md:163",
+      "title": "SQLite store"
+    },
+    "REQ-CRON-0010": {
+      "source": "docs/sc-cron/requirements.md:185",
+      "title": "Injected time and randomness"
+    },
+    "REQ-CRON-0011": {
+      "source": "docs/sc-cron/requirements.md:199",
+      "title": "A general-purpose scheduler"
+    },
+    "REQ-CRON-0012": {
+      "source": "docs/sc-cron/requirements.md:219",
+      "title": "Bounded shutdown"
+    },
+    "REQ-CRON-0013": {
+      "source": "docs/sc-cron/requirements.md:236",
+      "title": "Python hook target"
+    },
+    "REQ-CRON-0016": {
+      "source": "docs/sc-cron/requirements.md:275",
+      "title": "A hook target per schedule row"
+    },
+    "REQ-CRON-0017": {
+      "source": "docs/sc-cron/requirements.md:291",
+      "title": "Several rows' enabled flags, and a row written with its flag, in one transaction"
+    },
+    "REQ-CRON-0018": {
+      "source": "docs/sc-cron/requirements.md:317",
+      "title": "The child-process supervisor is public"
+    },
+    "REQ-CRON-0014": {
+      "source": "docs/sc-cron/requirements.md:333",
+      "title": "Enabled flag"
+    },
+    "REQ-CRON-0015": {
+      "source": "docs/sc-cron/requirements.md:370",
+      "title": "Five-field expressions"
+    },
+    "NFR-BDC-0001": {
+      "source": "docs/requirements.md:845",
+      "title": "In-process get latency"
+    },
+    "NFR-BDC-0003": {
+      "source": "docs/requirements.md:861",
+      "title": "Incremental sync time"
+    },
+    "REQ-BDC-0703": {
+      "source": "docs/requirements.md:450",
+      "title": "Tick budget"
+    },
+    "REQ-BDC-0726": {
+      "source": "docs/requirements.md:541",
+      "title": "Ingest is as strict as the built-in sync"
+    },
+    "REQ-BDC-0728": {
+      "source": "docs/requirements.md:557",
+      "title": "Failure state and compare-and-set marking"
+    }
+  },
+  "all_tracked_Rust_equal": 262,
+  "manifest_change_exact": true,
+  "lock_changed_package_lists": [
+    "bd-cache-sync"
+  ],
+  "pin_and_graph_source_tests_byte_equal": true,
+  "changed_paths": [
+    ".triage/c/findings/ARCH13-001.ttl",
+    ".triage/c/findings/RBQA-F001.ttl",
+    ".triage/c/findings/REQ-QA-004.ttl",
+    "Cargo.lock",
+    "crates/bd-cache-sync/Cargo.toml",
+    "docs/plans/phase-c/sprint-c-1-runtime-migration.md"
+  ],
+  "CI_exact_head_success": 15,
+  "baseline_hashes": {
+    "docs/requirements.md": "21dce9111d59bf46691da5bd36653dda594708ca9cc961a543d1533e1508fa93",
+    "docs/bd-cache-store/requirements.md": "be7fcb1e0ea62ebce31db8227a802a89309a8abef86547c8a5221750b69bce65",
+    "docs/bd-cache-sync/requirements.md": "65fc39922dff0f06e67ccbafd09aaa3285499ad97dfebc1f22686db4a79b72a0",
+    "docs/sc-cron/requirements.md": "fc6a9ef08c08209fee915f5f8fbb71ba224dda35b56d6227bbc4a1e881b582aa",
+    "docs/bd-cache-cli/requirements.md": "ef03a75bff57813b3b058246dcb4997c0905b6beae641ab3f8e1936cfba7be98",
+    "docs/bd-cache-py/requirements.md": "1cd4219771746a889e098898b524b75ccd3e266a928291b0650390c7902f0447",
+    "docs/bd-cache-api/requirements.md": "e9ac4708165c27ac85078ad8d7d2dfe4a6542be0b892deccabcce5250e37918b",
+    "docs/architecture.md": "2989f4a92a1dfa0bb60218279bba29ff72dd5222a976fdcbadf4fdb460116db7",
+    "docs/project-plan.md": "806d5ce6a6982e7a6b91ff551ae53ace17c80eff9b61abc13b397d901a95ea4c",
+    ".claude/project/quality-policy.md": "328c92e3b39d12912e4a561dffa0166f137147b347fc17372731dbbf336960ac"
+  },
+  "coherence_repairs_diff": "/tmp/phase-c-execution/c-1/qa-14/req-qa-coherence-only.diff",
+  "QA11_no_ledger_retained": true,
+  "user_quote_retained": true,
+  "gate_adjudication_retained": true,
+  "independent_pin_pair": [
+    {
+      "name": "sc-cron",
+      "declaration": {
+        "git": "https://github.com/randlee/sc-runtime",
+        "rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+        "default-features": false
+      },
+      "locked_version": "0.2.0",
+      "locked_source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+    },
+    {
+      "name": "sc-command",
+      "declaration": {
+        "git": "https://github.com/randlee/sc-runtime",
+        "rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+        "default-features": false
+      },
+      "locked_version": "0.2.0",
+      "locked_source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
+    }
+  ],
+  "local_scheduler_absent": true,
+  "SQLite_lock_single": true,
+  "raw_receipts_hashes": {
+    "/tmp/phase-c-execution/c-1/qa-13-fix/validation-receipts.json": "1b92c9c885ffd58bb7ea7bc05a3bb9948687dd8b23a123927a5eeba5b07e6528",
+    "/tmp/phase-c-execution/c-1/qa-13-fix/isolated-graph.log": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d",
+    "/tmp/phase-c-execution/c-1/qa-13-fix/negative-server.log": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e",
+    "/tmp/phase-c-execution/c-1/qa-13-fix/cron-logging.log": "50fbf73dd59617c5bcd741844006a2f6f1b597f623f2ea5a3e85e36225220773",
+    "/tmp/phase-c-execution/c-1/qa-13-fix/graph-unit-tests.log": "3e620816cb59e5dcf58158988373a100d10bebdd10019bd7b1cf2e4653d3e883",
+    "/tmp/phase-c-execution/c-1/qa-13-fix/direct-boundary.log": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4"
+  },
+  "expected_active_per_crate_counts": {
+    "bd-cache-store": 8,
+    "bd-cache-sync": 6,
+    "sc-cron": 18,
+    "bd-cache-cli": 12,
+    "bd-cache-py": 13,
+    "bd-cache-api": 8
+  },
+  "per_crate_required_missing": [],
+  "root_NFR_required_missing": [],
+  "upstream_cached_exact_rev": "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+  "upstream_exact_source_hashes": {
+    "crates/sc-cron/src/lib.rs": "451116be5428f707b77778a64db3681f4bb902d2e21cfd7eb17c3dcafb331e07",
+    "crates/sc-cron/src/expr.rs": "ca98e478d0c92563038f48aff7089e169bb6e6b0267c2a02fd681877ab0fa971",
+    "crates/sc-cron/src/scheduler.rs": "7fbb0fff181869b0a5fb3e9ccc333413821dd307c920dcda6045718667098467",
+    "crates/sc-cron/src/worker.rs": "add59e70acefea3184e8c1a8dc108888d1d42d2f786bba1df32251387451b7a1",
+    "crates/sc-cron/src/observability.rs": "7012ff4d619aa5b3edfac72bad1c66865af92b1f64f3fca76ce1242866328281"
+  }
+}

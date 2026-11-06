@@ -1,0 +1,109 @@
+```json
+{
+  "success": true,
+  "data": {
+    "status": "pass",
+    "role_owned_verdict": "PASS",
+    "owner": "flaky-test-qa",
+    "qa_pass": "qa-14",
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "model_disclosure": "Explicit gpt-6.1-sol high fallback as assigned; configured Composer/Grok unavailable. No unavailable configured-model execution claimed.",
+    "findings": [],
+    "summary": {
+      "total_findings": 0,
+      "critical": 0,
+      "important": 0,
+      "minor": 0,
+      "new_flaky_findings": 0,
+      "active_role_owned_findings": 0
+    },
+    "finding_dispositions": [
+      {
+        "id": "ARCH-001",
+        "owner": "arch-qa",
+        "disposition": "resolved_preserved",
+        "evidence": "Actual QA13 manager-machine-status.json records owning architecture resolution at478812a. Former direct sync sc-command edge remains absent; current dependency edit removes only unused sc-observability-types. No fictional pending-owner carry."
+      },
+      {
+        "id": "QA2-001",
+        "owner": "rust-qa-agent",
+        "disposition": "resolved_preserved",
+        "evidence": "Actual QA13 manager-machine-status.json records owning Rust resolution at478812a. Current guard/source/test bytes equal that candidate; current required boundary CI succeeds. No fictional pending-owner carry."
+      },
+      {
+        "id": "RBQA-F001",
+        "owner": "ruthless-boundary-qa",
+        "disposition": "fixed_recommend_resolved",
+        "evidence": "Read actual focused QA14 result at exact60f8920: original direct introducer absent, genuine public nominal receiver retained, exact source authorization and actual isolated positive/negative logs verified. Historical critical severity/provenance preserved. This role accepts the current owning-role recommendation; no pending-owner fiction or triage mutation."
+      },
+      {
+        "id": "ARCH13-001",
+        "owner": "arch-qa",
+        "disposition": "source_correction_verified_owning_role_adjudication_separate",
+        "evidence": "Independent diff confirms exactly one unused normal manifest edge and its bd-cache-sync lock dependency removed. All 262 Rust source files and all package records/pins/versions remain unchanged. No new flaky mechanism; architecture owner determines its canonical disposition."
+      },
+      {
+        "id": "REQ-QA-004",
+        "owner": "req-qa / independent development-anchor gate / parent enforcer",
+        "disposition": "global_acceptance_unresolved_at_this_review_snapshot",
+        "evidence": "Current-head15/15 CI and audited scope-preserving document reduction are verified. Actual complete live-anchor run reports12 satisfied,1 asserted_only,3 underspecified,1 excluded with four non-satisfied anchors under independent triage. No anchor PASS, waiver, whole-sprint acceptance or deliverable completion denominator assigned by flaky reviewer."
+      }
+    ],
+    "preserved_dispositions": [
+      {
+        "id": "RQA10-001",
+        "disposition": "resolved_preserved_verified_through_exact_C1_candidate",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "RQA9-001",
+        "disposition": "resolved_verified_for_exact_C1_candidate",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "disposition": "resolved_preserved_verified_through_exact_C1_candidate",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "FTQ-009",
+        "disposition": "closed_preserved_for_original_unbounded_lifetime",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "FTQ-010",
+        "disposition": "closed_preserved_for_original_session_orphan_inventory_mechanisms",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "FTQ-011",
+        "disposition": "closed_preserved_for_independent50ms_cap_mechanism",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "RSH-001",
+        "disposition": "resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "C2-FTQ-006",
+        "disposition": "retracted_preserved",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      },
+      {
+        "id": "RQA11-001",
+        "disposition": "resolved_verified_for_exact_C1_candidate",
+        "scope": "Original supported mechanism and historical limits retained; qa14 preservation proved in full report."
+      }
+    ],
+    "full_report": {
+      "path": "/tmp/phase-c-execution/c-1/qa-14/flaky-test-qa-result.json",
+      "sha256": "f05176cdf8d4192573a6e709a828d954e136a7bbdfe9e2e96eecd4e72e775141",
+      "bytes": 38272
+    },
+    "evidence_summary": "97 targets:66 present/31 intentional deleted;262 Rust files+guards+workflows equal QA13; fresh Python8/8; exact30 doc operations reconstructed; all101 requirement/NFR bindings and required core sections preserved; actual currentCI15SUCCESS; no Cargo or new flaky defect."
+  },
+  "error": null
+}
+```

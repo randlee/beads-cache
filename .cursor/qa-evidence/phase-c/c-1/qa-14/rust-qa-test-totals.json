@@ -1,0 +1,37 @@
+{
+  "groups": [
+    {
+      "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-2610c857289e7d13)",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-3194a14b51383312)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-95c43ed5f355d3cd)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-df257222435d44fc)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-309ab6e1056a3bb5)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "passed": 60,
+  "failed": 0,
+  "ignored": 0
+}

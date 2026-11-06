@@ -1,0 +1,25 @@
+{
+  "command": [
+    "cargo",
+    "test",
+    "--locked",
+    "--release",
+    "-p",
+    "bd-cache-sync",
+    "--all-features",
+    "--test",
+    "perf",
+    "migrated_incremental_sync_of_1000_beads_is_under_one_second",
+    "--",
+    "--ignored",
+    "--exact",
+    "--nocapture"
+  ],
+  "exit": 0,
+  "expected_exit": 0,
+  "seconds": 14.865,
+  "log": "/tmp/phase-c-execution/c-1/qa-14/incremental-performance.log",
+  "log_sha256": "cf0f3378dc32d7352656d13fba03faf5919268277225b5416dd84b5ce7f56bdf",
+  "execution_context": "One parent-authorized native release existing timing case; same backend-free process-localPATH",
+  "provenance": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-provenance.json"
+}

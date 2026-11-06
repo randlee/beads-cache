@@ -1,0 +1,56 @@
+{
+  "actual_logs": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/isolated-graph.log",
+      "sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d",
+      "developer_handoff_hash_matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/negative-server.log",
+      "sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e",
+      "developer_handoff_hash_matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/graph-unit-tests.log",
+      "sha256": "3e620816cb59e5dcf58158988373a100d10bebdd10019bd7b1cf2e4653d3e883",
+      "developer_handoff_hash_matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/cron-logging.log",
+      "sha256": "50fbf73dd59617c5bcd741844006a2f6f1b597f623f2ea5a3e85e36225220773",
+      "developer_handoff_hash_matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/direct-boundary.log",
+      "sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4",
+      "developer_handoff_hash_matches": true
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-13-fix/validation-receipts.json",
+      "sha256": "1b92c9c885ffd58bb7ea7bc05a3bb9948687dd8b23a123927a5eeba5b07e6528",
+      "developer_handoff_hash_matches": true
+    }
+  ],
+  "upstream_source": [
+    {
+      "path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/observability.rs",
+      "exact_Git_blob_matches": true,
+      "sha256": "7012ff4d619aa5b3edfac72bad1c66865af92b1f64f3fca76ce1242866328281"
+    },
+    {
+      "path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/scheduler.rs",
+      "exact_Git_blob_matches": true,
+      "sha256": "7fbb0fff181869b0a5fb3e9ccc333413821dd307c920dcda6045718667098467"
+    },
+    {
+      "path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/src/lib.rs",
+      "exact_Git_blob_matches": true,
+      "sha256": "451116be5428f707b77778a64db3681f4bb902d2e21cfd7eb17c3dcafb331e07"
+    },
+    {
+      "path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/Cargo.toml",
+      "exact_Git_blob_matches": true,
+      "sha256": "a9a0380edeb4098ff213e7afb249559f40b8b112f7b17054b75d808bb3bb6655"
+    }
+  ]
+}

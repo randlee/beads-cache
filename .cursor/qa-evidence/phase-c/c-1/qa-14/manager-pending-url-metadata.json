@@ -1,0 +1,12 @@
+{
+  "comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6684710607",
+  "comment_id": 6684710607,
+  "endpoint": "repos/randlee/beads-cache/issues/comments/6684710607",
+  "mutation_owner": "parent-orchestrator",
+  "pending_change": {
+    "json_pointer": "/evidence_chain/pr_comment_url",
+    "old": "pending",
+    "new": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6684710607"
+  },
+  "allowed_changes": "Exactly this Machine Status scalar; preserve verdict/counts/prose/remaining JSON and all failure proof. No PATCH attempted by isolated enforcer."
+}

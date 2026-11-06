@@ -1,0 +1,77 @@
+from pathlib import Path
+
+def change(path, old, new):
+ p=Path(path);s=p.read_text();assert old in s,(path,old);p.write_text(s.replace(old,new))
+change('crates/bd-cache-sync/tests/test_consumer_graph.py','import copy\n','')
+change('crates/bd-cache-sync/tests/test_consumer_graph.py','with self.subTest(candidate=candidate, source=source, kind=kind):','with self.subTest(source=source, kind=kind):')
+change('docs/bd-cache-cli/requirements.md','published crates.io dependency at exactly `0.1.1` or the exact qualified\n`0.2.0` Git candidate in ADR-BDC-0016\'s owner-authorized prerelease source\namendment, with default features off, and','published crates.io dependency at exactly `0.2.0` under ADR-BDC-0016,\nwith default features off, and')
+change('docs/bd-cache-cli/architecture.md','published sc-command exactly 0.1.1 or the exact qualified Git candidate in\nADR-BDC-0016\'s prerelease source amendment, default features off.','published sc-command exactly 0.2.0 under ADR-BDC-0016, default features off.')
+change('docs/bd-cache-py/architecture.md','approved-source sc-cron → sc-command contract/logging edge (published 0.1.1\n  or the exact qualified prerelease Git candidate recorded in that ADR), with','sc-cron → sc-command contract/logging edge from published registry 0.2.0, with')
+change('docs/requirements.md','beads-cache must consume the published sc-runtime scheduler, or the exact\nqualified prerelease Git candidate in ADR-BDC-0016, instead of maintaining','beads-cache must consume the published sc-runtime scheduler at exactly registry\n0.2.0 under ADR-BDC-0016, instead of maintaining')
+change('docs/requirements.md','published baseline, with the exact qualified prerelease Git exception in\nADR-BDC-0016.','published registry 0.2.0 baseline under ADR-BDC-0016.')
+change('docs/requirements.md','from git v0.1.0 to published sc-command 0.1.1 or the exact owner-authorized\n0.2.0 Git candidate in ADR-BDC-0016, preserving its three-OS build,','from git v0.1.0 to published sc-command exactly 0.2.0 under ADR-BDC-0016,\npreserving its three-OS build,')
+change('docs/architecture.md','REQ-CLI-0001 (only git source/tag to published 0.1.1)','REQ-CLI-0001 (only git source/tag to published registry 0.2.0)')
+change('docs/architecture.md','2. Consume published sc-command/sc-cron 0.1.1, or the exact qualified Git\n   candidate authorized below, with default features off for local consumers;','2. Consume published sc-command/sc-cron exactly registry 0.2.0, with default\n   features off for local consumers;')
+change('docs/architecture.md','graph. Only the exact source exception below may exceed the release baseline.','graph. The temporary Git exception below is retired by publication.')
+change('docs/architecture.md','The cache consumes published sc-cron/sc-command 0.1.1 or the exact qualified\nGit candidate below with default features off.','The cache consumes published sc-cron/sc-command exactly registry 0.2.0\nwith default features off.')
+change('docs/architecture.md','**Status:** Approved source exception, user instruction relayed by the parent','**Status:** Historical approved source exception, superseded by the registry\n0.2.0 baseline below. The user instruction was relayed by the parent')
+change('docs/architecture.md', 'For C1\'s scheduler and nominal command contracts only, decisions 2 and the\npublished-source clauses of REQ-BDC-1002 and REQ-CLI-0001 permit package version','For C1\'s scheduler and nominal command contracts only, decisions 2 and the\npublished-source clauses of REQ-BDC-1002 and REQ-CLI-0001 temporarily permitted package version')
+change('docs/architecture.md','This source amendment does not mark any finding closed or change a locked anchor.','''This historical source amendment did not mark any finding closed or change a locked anchor.
+
+### Published registry 0.2.0 baseline (ADR-BDC-0016)
+
+The owner-authorized compatible release is now published: C1 consumes sc-cron
+and sc-command at exact crates.io version `=0.2.0`, default features off. This
+supersedes and retires the temporary Git source permission above; neither the
+old registry 0.1.1 baseline nor a Git/path source is accepted by the current
+consumer graph predicate. The two packages share one registry source/version
+and nominal identity. sc-observability stays 1.5, rusqlite stays 0.39 and there
+is one SQLite link provider.
+
+Only upstream sc-cron may introduce the contract/logging sc-command edge below
+isolated API/Python consumers. All introducer, feature, server/macros/assembly,
+no-clap and independent-root/wheel restrictions remain binding. Template source
+and generation answers remain independent. Package publication does not establish
+upstream full consumer acceptance, C1 QA/anchor approval or current-head CI.''')
+change('docs/plans/phase-c/phase-c-plan.md', '''C1 library source exception: ADR-BDC-0016's qualified prerelease source amendment
+permits sc-cron/sc-command 0.2.0 from exactly upstream Git revision
+`c3ce3d1b271b54fbb47efaef57ee1563a390cd9e`, in addition to published crates.io
+0.1.1. The user conditionally authorized a pin before finalized 0.2.0 after the
+PR115 CI issue was resolved; the parent interprets the producer-qualified PR118
+merge candidate as satisfying that condition. This changes library provenance
+only, not this template tag, answers, domain bounds or QA/anchor/CI gates.''', '''C1 library source baseline: published sc-cron/sc-command exactly registry
+`=0.2.0`, default features off, under ADR-BDC-0016. Publication supersedes the
+temporary qualified prerelease Git permission. This changes library provenance
+only, not the independent template tag, answers, domain bounds or QA/anchor/CI
+gates. The earlier conditional-pin authorization remains historical in the ADR.''')
+change('docs/plans/phase-c/phase-c-plan.md','published sc-command/sc-cron 0.1.1 or exact ADR-BDC-0016 qualified Git candidate','published sc-command/sc-cron exactly registry 0.2.0 under ADR-BDC-0016')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md', '''and sc-cron to the published 0.1.1 baseline or ADR-BDC-0016's exact qualified
+   prerelease Git candidate with default features off.''','''and sc-cron to the published exact registry 0.2.0 baseline under ADR-BDC-0016,
+   with default features off.''')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md', '''docs/bd-cache-cli/requirements.md from the old git tag to the published 0.1.1
+   baseline or the exact authorized prerelease source amendment.''','''docs/bd-cache-cli/requirements.md from the old git tag to the published exact
+   registry 0.2.0 baseline.''')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md','## Qualified C5 prerelease pin and provenance correction','## Historical qualified C5 prerelease pin and provenance correction')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md','C1 now pins sc-cron/sc-command package version 0.2.0 to exactly','Before registry publication, C1 pinned sc-cron/sc-command package version 0.2.0 to exactly')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md','The executable isolated-consumer gate permits precisely published crates.io','The temporary isolated-consumer gate permitted precisely published crates.io')
+change('docs/plans/phase-c/sprint-c-1-runtime-migration.md','This explicit narrow source amendment supersedes the historical published-only\nsource predicates retained in Git and earlier reports. The current deliverables,\nphase-plan rows and ADR/REQ source clauses name the approved source pair above.','This temporary narrow source amendment superseded the earlier published-only\nsource predicates retained in Git and earlier reports. Publication now retires\nthat exception; current deliverables and ADR/REQ clauses use registry 0.2.0.')
+# Compact current baseline replaces source-policy language, leaving original failures/quotes historical.
+p=Path('docs/plans/phase-c/sprint-c-1-runtime-migration.md');s=p.read_text();s += '''
+
+## Current published registry baseline
+
+C1 consumes sc-cron/sc-command at exact crates.io `=0.2.0`, default features off.
+The temporary qualified C5 Git source allowance is retired. The real public
+`sc_cron::observability` receiver and all store/startup/shutdown/fixture corrections
+remain; SDK 0.2.0 does not change bd-cache API 0.1 compatibility. sc-observability
+1.5, rusqlite 0.39 and one SQLite provider remain the dependency policy. The
+isolated graph gate permits only this registry version/source pair and retains
+all introducer, feature and assembly restrictions. Current source qualification
+and provenance receipts live in `/tmp/phase-c-execution/c-1/registry020-adoption`;
+original failures and pin evidence remain historical. Independent QA15, full-input
+version-3 development-anchor review and exact-head CI remain required; publication
+alone does not establish upstream full consumer acceptance or sprint completion.
+''';p.write_text(s)
+change('docs/bd-cache-sync/architecture.md', '''ADR-BDC-0016's owner-authorized prerelease source amendment supersedes the
+historical published-only receiver blocker above for its exact Git candidate.''', '''ADR-BDC-0016's published registry 0.2.0 baseline supersedes the historical
+published-only receiver blocker above and retires the temporary Git allowance.''')

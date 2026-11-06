@@ -1,0 +1,301 @@
+pytest (ubuntu-24.04, python 3.11)	Set up job	﻿2026-11-06T11:27:48.1498848Z Current runner version: '2.338.2'
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1525282Z ##[group]Runner Image Provisioner
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1526285Z Hosted Compute Agent
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1526920Z Version: 20261028.624
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1527694Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1528569Z Build Date: 2026-10-28T21:51:42Z
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1529354Z Worker ID: {f940df39-cdcb-482a-b43b-337cfe997892}
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1530172Z Region: westcentralus
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1530811Z Cloud: Azure
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1531468Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1533270Z ##[group]Operating System
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1534104Z Ubuntu
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1534714Z 24.04.5
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1535297Z LTS
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1535924Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1536583Z ##[group]Runner Image
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1537220Z Image: ubuntu-24.04
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1537918Z Version: 20261101.360.1
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1539050Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1541005Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1542240Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1543550Z ##[group]GITHUB_TOKEN Permissions
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1545442Z Contents: read
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1546300Z Metadata: read
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1546994Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1549108Z Secret source: Actions
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1550202Z Cache mode: write
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.1550986Z Prepare workflow directory
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.2003451Z Prepare all required actions
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.2050597Z Getting action download info
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.4767870Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.5555613Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:48.6333369Z Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+pytest (ubuntu-24.04, python 3.11)	Set up job	2026-11-06T11:27:49.2154700Z Complete job name: pytest (ubuntu-24.04, python 3.11)
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	﻿2026-11-06T11:27:49.3000816Z ##[group]Run actions/checkout@v4
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3002110Z with:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3002660Z   repository: randlee/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3006448Z   token: ***
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3006909Z   ssh-strict: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3007365Z   ssh-user: git
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3007828Z   persist-credentials: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3008325Z   clean: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3008785Z   sparse-checkout-cone-mode: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3009313Z   fetch-depth: 1
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3009756Z   fetch-tags: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3010212Z   show-progress: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3010683Z   lfs: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3011112Z   submodules: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3011739Z   set-safe-directory: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3012327Z   allow-unsafe-pr-checkout: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3013261Z env:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3013703Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3014246Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.3014737Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5097378Z Syncing repository: randlee/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5099599Z ##[group]Getting Git version info
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5100604Z Working directory is '/home/runner/work/beads-cache/beads-cache'
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5102430Z [command]/usr/bin/git version
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5147478Z git version 2.56.0
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5170883Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5187541Z Temporarily overriding HOME='/home/runner/work/_temp/c0ee772e-ebc6-448f-a49b-aa2b6abfd926' before making global git config changes
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5193372Z Adding repository directory to the temporary git global config as a safe directory
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5194592Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5246863Z Deleting the contents of '/home/runner/work/beads-cache/beads-cache'
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5251338Z ##[group]Initializing the repository
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5256401Z [command]/usr/bin/git init /home/runner/work/beads-cache/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5358895Z hint: Using 'master' as the name for the initial branch. This default branch name
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5360335Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5361781Z hint: to use in all of your new repositories, which will suppress this warning,
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5363007Z hint: call:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5363670Z hint:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5364250Z hint: 	git config --global init.defaultBranch <name>
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5364913Z hint:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5365734Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5366810Z hint: 'development'. The just-created branch can be renamed via this command:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5367796Z hint:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5368240Z hint: 	git branch -m <name>
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5368826Z hint:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5369469Z hint: Disable this message with "git config set advice.defaultBranchName false"
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5372212Z Initialized empty Git repository in /home/runner/work/beads-cache/beads-cache/.git/
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5385075Z [command]/usr/bin/git remote add origin https://github.com/randlee/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5468477Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5469743Z ##[group]Disabling automatic garbage collection
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5473763Z [command]/usr/bin/git config --local gc.auto 0
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5510287Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5511469Z ##[group]Setting up auth
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5517751Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5558781Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5937309Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.5988296Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6254683Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6303208Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6562617Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6614941Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6615864Z ##[group]Fetching the repository
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:49.6627168Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a7dbb7adf18532021f35894f303ef33856a205ec:refs/remotes/pull/108/merge
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6362273Z From https://github.com/randlee/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6364127Z  * [new ref]         a7dbb7adf18532021f35894f303ef33856a205ec -> pull/108/merge
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6368235Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6369634Z ##[group]Determining the checkout info
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6371465Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6377092Z [command]/usr/bin/git sparse-checkout disable
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6437193Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6488101Z ##[group]Checking out the ref
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.6491070Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/108/merge
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7692017Z Note: switching to 'refs/remotes/pull/108/merge'.
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7693552Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7694196Z You are in 'detached HEAD' state. You can look around, make experimental
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7695195Z changes and commit them, and you can discard any commits you make in this
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7695974Z state without impacting any branches by switching back to a branch.
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7696932Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7697376Z If you want to create a new branch to retain commits you create, you may
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7698371Z do so (now or later) by using -c with the switch command. Example:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7698892Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7699146Z   git switch -c <new-branch-name>
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7699543Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7699852Z Or undo this operation with:
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7700224Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7700452Z   git switch -
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7700749Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7701196Z Turn off this advice by setting config variable advice.detachedHead to false
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7701802Z 
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7702247Z HEAD is now at a7dbb7a Merge 60f89200fe337d57ede24ecaa55e36171a1c4305 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7708625Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7765900Z [command]/usr/bin/git log -1 --format=%H
+pytest (ubuntu-24.04, python 3.11)	Run actions/checkout@v4	2026-11-06T11:27:50.7804300Z a7dbb7adf18532021f35894f303ef33856a205ec
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	﻿2026-11-06T11:27:50.8190998Z ##[group]Run actions/setup-python@v5
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8191727Z with:
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8192160Z   python-version: 3.11
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8192597Z   check-latest: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8195306Z   token: ***
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8195739Z   update-environment: true
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8196199Z   allow-prereleases: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8196679Z   freethreaded: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8197104Z env:
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8197517Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8197974Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.8198408Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.9555696Z ##[group]Installed versions
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.9640293Z (node:2406) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.9641466Z (Use `node --trace-deprecation ...` to show where the warning was created)
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.9642530Z Successfully set up CPython (3.11.18)
+pytest (ubuntu-24.04, python 3.11)	Run actions/setup-python@v5	2026-11-06T11:27:50.9643418Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	﻿2026-11-06T11:27:50.9902665Z ##[group]Run actions/download-artifact@v4
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9903541Z with:
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9904003Z   name: wheel-ubuntu-24.04
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9904692Z   path: dist
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9905366Z   merge-multiple: false
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9906081Z   repository: randlee/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9906792Z   run-id: 42210020376
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9907271Z env:
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9907709Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9908421Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9909483Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9910932Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9912355Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9913357Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9914355Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9915368Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:50.9916281Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.1498742Z Downloading single artifact
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.1677491Z (node:2414) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.1679213Z (Use `node --trace-deprecation ...` to show where the warning was created)
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.3814004Z Preparing to download the following artifacts:
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.3815548Z - wheel-ubuntu-24.04 (ID: 13498766927, Size: 8890971, Expected Digest: sha256:36c559749f4ba54ab5242665efcdedfa5c50736f70e69942ad05bd037c8d54df)
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.5826980Z Redirecting to blob download url: https://productionresultssa0.blob.core.windows.net/actions-results/fd8c895c-61b1-8afb-a19d-0a6942dd9910/workflow-job-run-aca4017d-062d-5563-902a-6560457fd5da/artifacts/ae8945b66faeed22a3170e20c61f16fec22502812337117ea52fb5807551889d.zip
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.5828448Z Starting download of artifact to: /home/runner/work/beads-cache/beads-cache/dist
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:51.8219473Z (node:2414) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:52.9229653Z SHA256 digest of downloaded artifact is 36c559749f4ba54ab5242665efcdedfa5c50736f70e69942ad05bd037c8d54df
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:52.9230410Z Artifact download completed successfully.
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:52.9230762Z Total of 1 artifact(s) downloaded
+pytest (ubuntu-24.04, python 3.11)	Run actions/download-artifact@v4	2026-11-06T11:27:52.9239466Z Download artifact has finished successfully
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	﻿2026-11-06T11:27:52.9448331Z ##[group]Run python -I scripts/check_no_backend.py path
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9448841Z ^[[36;1mpython -I scripts/check_no_backend.py path^[[0m
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9482431Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9482841Z env:
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9483070Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9483332Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9483673Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9484160Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9484610Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9484995Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9485387Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9485775Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:52.9486112Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	No bd or dolt on PATH (NFR-BDC-0005)	2026-11-06T11:27:53.0141053Z no bd or dolt on PATH
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	﻿2026-11-06T11:27:53.0237639Z ##[group]Run python -m pip install pytest
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0238029Z ^[[36;1mpython -m pip install pytest^[[0m
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0238358Z ^[[36;1mpython -m pip install dist/*.whl^[[0m
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0261095Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0261481Z env:
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0261901Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0262182Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0262612Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0263242Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0263875Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0264487Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0265157Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0265860Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:53.0266333Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.1939146Z Collecting pytest
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.3103361Z   Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.3386650Z Collecting iniconfig>=2 (from pytest)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.3577194Z   Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.3879196Z Collecting packaging>=24 (from pytest)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.4069481Z   Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.4347722Z Collecting pluggy<2,>=1.6 (from pytest)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.4536780Z   Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.4869634Z Collecting pygments>=2.15 (from pytest)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.5061412Z   Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.5292923Z Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.6073117Z Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.6285073Z Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.6490129Z Downloading packaging-26.3-py3-none-any.whl (129 kB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.6709520Z Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.7022460Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 40.6 MB/s  0:00:00
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:54.7599314Z Installing collected packages: pygments, pluggy, packaging, iniconfig, pytest
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:55.7415604Z 
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:55.7433416Z Successfully installed iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:55.7434900Z 
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:55.7435191Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:55.7435794Z [notice] To update, run: pip install --upgrade pip
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.5697758Z Processing ./dist/bd_cache_rs-0.2.0-cp39-abi3-manylinux_2_39_x86_64.whl
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.5969368Z Installing collected packages: bd-cache-rs
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.6492996Z Successfully installed bd-cache-rs-0.2.0
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.6505845Z 
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.6506095Z [notice] A new release of pip is available: 26.2.2 -> 26.3
+pytest (ubuntu-24.04, python 3.11)	Install the wheel and pytest	2026-11-06T11:27:56.6506566Z [notice] To update, run: pip install --upgrade pip
+pytest (ubuntu-24.04, python 3.11)	pytest	﻿2026-11-06T11:27:56.7036696Z ##[group]Run chmod +x dist/bin/bdc dist/bin/fake-bd
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7037118Z ^[[36;1mchmod +x dist/bin/bdc dist/bin/fake-bd^[[0m
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7037618Z ^[[36;1mexport BD_CACHE_BDC="$PWD/dist/bin/bdc" BD_CACHE_FAKE_BD="$PWD/dist/bin/fake-bd"^[[0m
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7038389Z ^[[36;1mpython -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider^[[0m
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7062265Z shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7062623Z env:
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7062837Z   CARGO_TERM_COLOR: always
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7063091Z   RUSTFLAGS: -D warnings
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7063405Z   pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7064307Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7064739Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7065121Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7065554Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7065955Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:56.7066297Z ##[endgroup]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7288167Z ============================= test session starts ==============================
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7289006Z platform linux -- Python 3.11.18, pytest-9.2.0, pluggy-1.7.0
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7289765Z rootdir: /home/runner/work/beads-cache/beads-cache/crates/bd-cache-py
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7290409Z configfile: pyproject.toml
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7290813Z collected 226 items
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:27:57.7319124Z 
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:01.7647151Z crates/bd-cache-py/tests/test_additive.py .................              [  7%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:02.5094441Z crates/bd-cache-py/tests/test_announce.py ...                            [  8%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:03.4240266Z crates/bd-cache-py/tests/test_api_fixtures.py ......                     [ 11%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:05.1460846Z crates/bd-cache-py/tests/test_api_robustness.py ...........              [ 16%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:06.8351265Z crates/bd-cache-py/tests/test_cli_e2e.py ..                              [ 17%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:10.0274598Z crates/bd-cache-py/tests/test_corpus.py .......                          [ 20%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:13.3534531Z crates/bd-cache-py/tests/test_errors.py ..................               [ 28%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:13.3695649Z crates/bd-cache-py/tests/test_fake_bd.py ............................... [ 42%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:14.0445966Z ...........                                                              [ 46%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:14.7598628Z crates/bd-cache-py/tests/test_ingest.py ....                             [ 48%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:15.2225530Z crates/bd-cache-py/tests/test_key_sets.py ..                             [ 49%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:16.6463940Z crates/bd-cache-py/tests/test_open.py .................................. [ 64%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:16.6795253Z ..                                                                       [ 65%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:16.9793656Z crates/bd-cache-py/tests/test_perf.py 
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:16.9794191Z cached get via bd_cache_rs: median 58.4 us, p99 81.6 us over 2000 calls
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:16.9813971Z .                                  [ 65%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:19.2639688Z crates/bd-cache-py/tests/test_reads.py ...........                       [ 70%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:21.0849625Z crates/bd-cache-py/tests/test_ready.py .....                             [ 73%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:26.6139812Z crates/bd-cache-py/tests/test_run.py .......                             [ 76%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:28.8601995Z crates/bd-cache-py/tests/test_schedule.py ...                            [ 77%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:29.5744185Z crates/bd-cache-py/tests/test_scopes.py ....                             [ 79%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:31.2091160Z crates/bd-cache-py/tests/test_switch.py ...                              [ 80%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:31.7549210Z crates/bd-cache-py/tests/test_sync_harness.py .........                  [ 84%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:36.0034909Z crates/bd-cache-py/tests/test_threading.py ..........                    [ 88%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:37.5274957Z crates/bd-cache-py/tests/test_tick.py ....                               [ 90%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9321544Z crates/bd-cache-py/tests/test_verbs.py .....................             [100%]
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9322243Z 
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9322422Z ==================================== PASSES ====================================
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9322911Z ___________ test_input_that_is_not_json_or_an_unknown_event_exits_1 ____________
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9323412Z ----------------------------- Captured stderr call -----------------------------
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9323938Z bd_cache_rs.sync: stdin is not one JSON object: Expecting value: line 1 column 1 (char 0)
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9324387Z bd_cache_rs.sync: unknown event 'cron.other'
+pytest (ubuntu-24.04, python 3.11)	pytest	2026-11-06T11:28:42.9324741Z ============================= 226 passed in 45.73s =============================
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/setup-python@v5	﻿2026-11-06T11:28:42.9785893Z Post job cleanup.
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/setup-python@v5	2026-11-06T11:28:43.1047984Z (node:5466) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/setup-python@v5	2026-11-06T11:28:43.1049176Z (Use `node --trace-deprecation ...` to show where the warning was created)
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	﻿2026-11-06T11:28:43.1333455Z Post job cleanup.
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2290000Z [command]/usr/bin/git version
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2339197Z git version 2.56.0
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2381210Z Temporarily overriding HOME='/home/runner/work/_temp/5729277c-8c1c-406b-ae37-4e9cc1e26116' before making global git config changes
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2382392Z Adding repository directory to the temporary git global config as a safe directory
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2387753Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2430695Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2469707Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2761413Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2793600Z http.https://github.com/.extraheader
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2812486Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.2853312Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.3160870Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+pytest (ubuntu-24.04, python 3.11)	Post Run actions/checkout@v4	2026-11-06T11:28:43.3210724Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+pytest (ubuntu-24.04, python 3.11)	Complete job	﻿2026-11-06T11:28:43.3641422Z Cleaning up orphan processes
+pytest (ubuntu-24.04, python 3.11)	Complete job	2026-11-06T11:28:43.4026727Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

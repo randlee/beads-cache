@@ -1,0 +1,168 @@
+{
+  "success": true,
+  "command": "context",
+  "timestamp": "2026-11-06T11:45:17.036Z",
+  "data": {
+    "task": "QA14 flaky test review exact 60f8920 final receipt, no Cargo or source edits",
+    "relevantBullets": [
+      {
+        "id": "b-mr7cp6x0-ipdnhs",
+        "scope": "global",
+        "category": "rust-ci",
+        "content": "For Rust project CI fixes, check all platforms independently: clippy, format, lint, tests must PASS on Linux + macOS + Windows. Common issues: RULE-008 (unused imports/consts in test scope), RULE-009 (type mismatches across workspace), fmt drift after merge-forward. Always run cargo fmt --check before dispatching lint fixes.",
+        "source": "learned",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "draft",
+        "maturity": "candidate",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:28:47.172Z",
+        "updatedAt": "2026-07-05T05:28:47.172Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "manual-cli"
+        ],
+        "sourceAgents": [
+          "unknown"
+        ],
+        "tags": [],
+        "relevanceScore": 6,
+        "effectiveScore": 0,
+        "finalScore": 0.6000000000000001,
+        "lastHelpful": "Never",
+        "reasoning": "From unknown session on 7/4/2026"
+      },
+      {
+        "id": "b-mr7cose4-05x8cv",
+        "scope": "global",
+        "category": "qa-pipeline",
+        "content": "Dispatch QA tasks to quality-mgr via ATM: . Track verdicts: PASS/FAIL/BLOCKED. Blocker format: 'NB+NI+Mm' (N blockers, N importants, N minors). After FAIL, render fix task template and dispatch to developer agent. Always check for agent response within 2 minutes; resend if no ACK.",
+        "source": "learned",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "draft",
+        "maturity": "candidate",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:28:28.348Z",
+        "updatedAt": "2026-07-05T05:28:28.348Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "manual-cli"
+        ],
+        "sourceAgents": [
+          "unknown"
+        ],
+        "tags": [],
+        "relevanceScore": 3,
+        "effectiveScore": 0,
+        "finalScore": 0.30000000000000004,
+        "lastHelpful": "Never",
+        "reasoning": "From unknown session on 7/4/2026"
+      },
+      {
+        "id": "starter-rust-clippy",
+        "scope": "global",
+        "category": "rust",
+        "content": "Run clippy and rustfmt in CI; treat clippy::pedantic warnings as fixes, not noise.",
+        "source": "community",
+        "searchPointer": "Run clippy and rustfmt in CI; treat clippy::pedantic warnings as fixes, not nois",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "active",
+        "maturity": "established",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:17:39.385Z",
+        "updatedAt": "2026-07-05T05:17:39.385Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "starter:rust"
+        ],
+        "sourceAgents": [
+          "starter"
+        ],
+        "tags": [
+          "lint"
+        ],
+        "relevanceScore": 1,
+        "effectiveScore": 0,
+        "finalScore": 0.1,
+        "lastHelpful": "Never",
+        "reasoning": "From starter session on 7/4/2026"
+      },
+      {
+        "id": "b-mr7copiv-8ih1ui",
+        "scope": "global",
+        "category": "team-coordination",
+        "content": "Check the ATM queue/inbox before dispatching work to teammates. Use ATM for asynchronous task dispatch. Monitor pipeline health with status blocks showing each agent's last-heard timestamp. Alert the user if an agent has not been heard from for more than 10 minutes.",
+        "source": "learned",
+        "type": "rule",
+        "isNegative": false,
+        "kind": "workflow_rule",
+        "state": "draft",
+        "maturity": "candidate",
+        "helpfulCount": 0,
+        "harmfulCount": 0,
+        "feedbackEvents": [],
+        "confidenceDecayHalfLifeDays": 90,
+        "createdAt": "2026-07-05T05:28:24.631Z",
+        "updatedAt": "2026-07-05T05:28:24.631Z",
+        "pinned": false,
+        "deprecated": false,
+        "sourceSessions": [
+          "manual-cli"
+        ],
+        "sourceAgents": [
+          "unknown"
+        ],
+        "tags": [],
+        "relevanceScore": 1,
+        "effectiveScore": 0,
+        "finalScore": 0.1,
+        "lastHelpful": "Never",
+        "reasoning": "From unknown session on 7/4/2026"
+      }
+    ],
+    "antiPatterns": [],
+    "historySnippets": [],
+    "deprecatedWarnings": [],
+    "suggestedCassQueries": [
+      "cass search 'qa14 flaky test' --days 30",
+      "cass search 'qa14 error' --days 60",
+      "cass search 'qa14' --days 90",
+      "cass search 'qa14 flaky' --days 60",
+      "cass search 'test' --days 90"
+    ],
+    "degraded": {
+      "cass": {
+        "available": false,
+        "reason": "OTHER",
+        "message": "cass search failed: Command failed: cass search --limit 10 --days 7 --robot -- qa14 OR flaky OR test OR review OR exact OR 60f8920 OR final OR receipt",
+        "suggestedFix": [
+          "cass doctor --fix",
+          "cm doctor",
+          "cass health"
+        ]
+      }
+    },
+    "semanticMode": "keyword"
+  },
+  "metadata": {
+    "executionMs": 90,
+    "version": "0.2.12"
+  }
+}

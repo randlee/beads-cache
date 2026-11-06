@@ -1,0 +1,74 @@
+from pathlib import Path
+import subprocess,json,hashlib,re,tomllib,difflib
+w=Path('/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration')
+out=Path('/tmp/phase-c-execution/c-1/qa-14')
+old='478812a83adb04ea38c93a6d4bc83a17233a9cf4';new='60f89200fe337d57ede24ecaa55e36171a1c4305'
+def git(*args):return subprocess.check_output(['git','-C',str(w),*args])
+def sha(x):return hashlib.sha256(x).hexdigest()
+assert git('rev-parse','HEAD').decode().strip()==new
+assert git('branch','--show-current').decode().strip()=='sprint/c-1-runtime-migration'
+assert not git('status','--porcelain')
+p='docs/plans/phase-c/sprint-c-1-runtime-migration.md';before=git('show',old+':'+p);after=(w/p).read_bytes()
+audit=json.load(open('/tmp/phase-c-execution/c-1/qa-13/prose-audit/result.json'))['data'];ops=json.load(open('/tmp/phase-c-execution/c-1/qa-13-fix/prose-operations.json'))
+assert sha(before)==audit['source']['sha256']==ops['before_sha256']
+expected_ops=[dict(e,finding=f['id']) for f in audit['findings'] for e in f['edits']]+audit['related_replacements']
+assert expected_ops==ops['operations']
+lines=before.decode().splitlines(keepends=True);covered=set()
+for op in expected_ops:
+ a,b=op['original_start_line'],op['original_end_line']; assert not covered.intersection(range(a,b+1));covered.update(range(a,b+1))
+ if op['operation']=='delete':
+  assert lines[a-1].rstrip('\n')==op['starts_with'];assert lines[b-1].rstrip('\n')==op['ends_with'];assert len(''.join(lines[a-1:b]).encode())==op['bytes_removed']
+for op in sorted(expected_ops,key=lambda x:x['original_start_line'],reverse=True):lines[op['original_start_line']-1:op['original_end_line']]=[op.get('replacement','')]
+reconstructed=''.join(lines).encode();assert sha(reconstructed)==ops['after_sha256']
+assert reconstructed==Path('/tmp/phase-c-execution/c-1/qa-13-fix/sprint-audited-operations.md').read_bytes()
+repair_diff=''.join(difflib.unified_diff(reconstructed.decode().splitlines(True),after.decode().splitlines(True),fromfile='audited-operations',tofile='actual-60f8920'))
+(out/'arch-qa-prose-repair.diff').write_text(repair_diff)
+front_before=before.split(b'---\n',2)[1];front_after=after.split(b'---\n',2)[1];assert front_before==front_after
+req_block=front_after.decode().split('requirements:\n',1)[1].split('adrs:\n',1)[0];reqs=re.findall(r'^  - ((?:REQ|NFR)-[A-Z]+-\d+)$',req_block,re.M)
+adrs=re.findall(r'^- (ADR-[A-Z]+-\d+)$',front_after.decode().split('adrs:\n',1)[1].split('owned_paths:\n',1)[0],re.M)
+assert len(reqs)==len(set(reqs))==101
+core={}
+for name in ['Deliverables','Prototype contract disposition','Inherited preservation bounds','Bounded store-health seam for c-2','Interface preserved for consumers','Acceptance criteria','Current CI prerequisite','Required validation','Dependencies and limits']:
+ def section(text):return text.split('## '+name+'\n',1)[1].split('\n## ',1)[0].strip()
+ a,b=section(before.decode()),section(after.decode())
+ if name=='Deliverables':a=a.replace('   Until approval, the current Approved requirement remains unchanged.\n','')
+ assert a==b,name;core[name]={'byte_equal_except_obsolete_approval':True,'sha256':sha(b.encode())}
+rs=[p for p in git('ls-tree','-r','--name-only',new).decode().splitlines() if p.endswith('.rs')]
+assert all(git('show',old+':'+p)==(w/p).read_bytes() for p in rs)
+changed=git('diff','--name-only',old,new).decode().splitlines()
+oldlock=tomllib.loads(git('show',old+':Cargo.lock').decode());newlock=tomllib.loads((w/'Cargo.lock').read_text())
+expected=json.loads(json.dumps(oldlock));sync=next(p for p in expected['package'] if p['name']=='bd-cache-sync');sync['dependencies'].remove('sc-observability-types');assert expected==newlock
+manifest=tomllib.loads((w/'crates/bd-cache-sync/Cargo.toml').read_text());mold=tomllib.loads(git('show',old+':crates/bd-cache-sync/Cargo.toml').decode());del mold['dependencies']['sc-observability-types'];assert mold==manifest
+assert not any(x in (w/'crates/bd-cache-sync').joinpath(p).read_text() for p in ['Cargo.toml'] for x in ['sc-observability-types','sc-command'])
+uses=[]
+for p in (w/'crates/bd-cache-sync').rglob('*'):
+ if p.is_file() and p.suffix in ('.rs','.toml'):
+  for n,l in enumerate(p.read_text().splitlines(),1):
+   if re.search(r'\bsc_observability_types\b|\bsc_command\b',l):uses.append(str(p.relative_to(w))+':'+str(n)+':'+l)
+assert not uses
+ws=tomllib.loads((w/'Cargo.toml').read_text())['workspace'];rev='c3ce3d1b271b54fbb47efaef57ee1563a390cd9e'
+for name in ['sc-cron','sc-command']:
+ d=ws['dependencies'][name]; assert d=={'git':'https://github.com/randlee/sc-runtime','rev':rev,'default-features':False}
+assert 'crates/sc-cron' not in ws['members'];assert not (w/'crates/sc-cron').exists()
+lockpkgs={p['name']:p for p in newlock['package']};source='git+https://github.com/randlee/sc-runtime?rev='+rev+'#'+rev
+assert all(lockpkgs[n]['source']==source and lockpkgs[n]['version']=='0.2.0' for n in ['sc-cron','sc-command'])
+assert lockpkgs['rusqlite']['version']=='0.39.0';assert len([p for p in newlock['package'] if p['name']=='libsqlite3-sys'])==1
+assert 'sc-observability-types' in ws['dependencies'];assert 'sc-observability-types' in tomllib.loads((w/'crates/bd-cache-cli/Cargo.toml').read_text())['dependencies']
+fixed=['Cargo.toml','.github/workflows/ci.yml','.github/workflows/python.yml','crates/bd-cache-sync/tests/check_consumer_graph.py','crates/bd-cache-sync/tests/test_consumer_graph.py']
+assert all(git('show',old+':'+p)==(w/p).read_bytes() for p in fixed)
+archpaths=['docs/architecture.md']+[str(p.relative_to(w)) for p in (w/'docs').glob('*/architecture.md')]
+adr_index=[]
+for p in archpaths:
+ t=(w/p).read_text()
+ for m in re.finditer(r'^## (ADR-[A-Z]+-\d+): (.*)$',t,re.M):
+  end=t.find('\n## ADR-',m.end());body=t[m.start():end if end>=0 else len(t)];status=re.search(r'\*\*Status:\*\*[^\n]*',body)
+  adr_index.append({'id':m.group(1),'source':p+':'+str(t[:m.start()].count('\n')+1),'status':status.group(0) if status else None,'listed':m.group(1) in adrs,'body_sha256':sha(body.encode())})
+assert all(any(a['id']==id and a['status'] and ('Approved' in a['status'] or 'Active' in a['status']) for a in adr_index) for id in adrs)
+gates=json.loads((w/'target/qa-14-anchor-evidence/runs/dev-20261106T113750Z-c-1.json').read_text())
+assert gates['item']['chars']==57482 and not gates['item']['truncated'] and not gates['summary']['shortened']
+text=after.decode();verbatim='ok, sc-runtime team has a ci failure\non pr115. once this is resolved, you can pin that release to use before the\n0.2.0 release is finalized.'
+assert verbatim in text;assert 'no separate coverage-ledger artifact or standing process gate is required.' in text
+assert 'Parent anchor review must adjudicate' in text
+r={'branch':'sprint/c-1-runtime-migration','commit':new,'clean':True,'previous_commit':old,'changed_files':changed,'Rust_files_byte_equal':len(rs),'exact_manifest_removal':True,'exact_lock_edge_removal_only':True,'no_sync_direct_or_source_command_or_observability_types_uses':True,'workspace_CLI_upstream_dependencies_retained':True,'qualified_source_pair_exact':True,'rusqlite':'0.39.0','single_SQLite_provider':True,'local_scheduler_removed':True,'guard_workflow_root_manifest_byte_equal':fixed,'plan':{'before_bytes':len(before),'after_bytes':len(after),'before_sha256':sha(before),'after_sha256':sha(after),'operations_independently_reconstructed':len(expected_ops),'audited_intermediate_bytes':len(reconstructed),'audited_intermediate_sha256':sha(reconstructed),'frontmatter_byte_equal':True,'requirements_count':len(reqs),'requirements':reqs,'adrs_count':len(adrs),'adrs':adrs,'core_sections':core,'AC_rows':sum(l.startswith('| req:') for l in section(after.decode()) .splitlines()) if False else len([l for l in text.split('## Acceptance criteria\n')[1].split('\n## ')[0].splitlines() if l.startswith('| req:')]),'coherence_repairs_diff':str(out/'arch-qa-prose-repair.diff'),'no_ledger_retained':True,'human_authorization_retained':True,'parent_anchor_adjudication_retained':True},'adr_inventory':adr_index,'actual_anchor_summary':gates['summary'],'limitations':'Independent read-only source and artifact verification; no Cargo, live judge calls or source/triage changes. Anchor failures are actual results, not inferred source defects or passing gates.'}
+(out/'arch-qa-independent-evidence.json').write_text(json.dumps(r,indent=2)+'\n')
+print(json.dumps({k:v for k,v in r.items() if k not in ['adr_inventory','plan']},indent=2));print(json.dumps({k:v for k,v in r['plan'].items() if k not in ['requirements','adrs','core_sections']},indent=2));print(repair_diff)

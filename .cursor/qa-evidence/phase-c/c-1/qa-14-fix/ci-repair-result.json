@@ -1,0 +1,189 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_narrow_candidate_correction_windows_verification_pending",
+    "timestamp_utc": "2026-11-06T12:51:54.536175+00:00",
+    "branch": "sprint/c-1-runtime-migration",
+    "PR": "https://github.com/randlee/beads-cache/pull/108",
+    "before_SHA": "68f64e594728279c6c3da21d175521a362322d8d",
+    "after_SHA": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+    "source_clean": true,
+    "summary": "Align the existing health cancellation test fixture with the already established complete nondurable shutdown fixture. No production behavior, existing budgets, fault placement or required tests changed.",
+    "actual_failure": {
+      "source": "68f64e594728279c6c3da21d175521a362322d8d",
+      "native_run": 42218993636,
+      "Windows_job": 127896025404,
+      "CI": "14successful checks/1failure",
+      "store_suite": "34passed/3failed",
+      "failed_tests": [
+        "health::tests::mutex_wait_is_bounded_and_does_not_wait_for_the_holder",
+        "health::tests::mutex_wait_supervisor_kills_and_reaps_a_stalled_reader",
+        "schedule::tests::shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup"
+      ],
+      "raw_log": "/tmp/phase-c-execution/c-1/qa-15/initial-windows-failure.log",
+      "raw_log_sha256": "c0efe7ac531b8eaa980e131fb5b07d7146ab6d2482487830068c533e858b8f7c",
+      "new_cached_read_test_relation": "New cached-read cases are Unix-only and not in the failing Windows store unit suite."
+    },
+    "diagnosis": {
+      "supported": "Owned fixture setup/readiness consumed the5second owner. Health child stage is unlocalized before holder/read acknowledgment; SQLnegative last waitresult4.5981187s then rootkilled/reaped5.222s before return/stall receipt. Separate busynegative didreturn DatabaseBusy4.044s andstall. Actual source has health fixtures on durableopen_at, while shutdownfixtures already usecomplete cfg(test) synchronousOFF constructor.",
+      "concrete_corrected_inconsistency": "health::tests::store now reuses existing SqliteStore::open_shutdown_fixture; cancellation/read-only tests do not require crashdurable initialization. Same fullschema/version/identity initialization, physical file claim, WAL, busytimeout, SQLite work, storage/trigger/health/session/cancellation semantics remain.",
+      "limits": "No exact OS/filesystem/CPU cost proved. No production cancellation regression established. Because schedulefixtures already used nondurable setup, this correction does not by itself prove the separate SQLnegative Windows issue fixed. New hosted Windows evidence remains required. No retry of old run, host tuning, parallelism change, timer move/widening, ignoredtest or gate suppression.",
+      "timeline": "/tmp/phase-c-execution/c-1/qa-14-fix/windows-ci-diagnosis.json"
+    },
+    "source_scope": {
+      "files_changed": [
+        "crates/bd-cache-store/src/health.rs"
+      ],
+      "test_only": true,
+      "production_health_prefix_byte_equal": true,
+      "all_other_source_byte_equal": true,
+      "existing_shutdown_constructor_unchanged": true,
+      "original_budget_and_ownership_code_unchanged": true,
+      "cached_positive_negative_and_helpers_byte_equal": true,
+      "qualified_c3ce3d1b_0_2_0_pins_and_graph_restrictions_unchanged": true,
+      "parent_v3_anchor_metadata_byte_equal": true,
+      "diff": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-source.diff"
+    },
+    "local_validation": [
+      {
+        "command": "python3 -I scripts/check_no_backend.py path",
+        "exit": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-path.log"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-store --all-targets --all-features -- -D warnings",
+        "exit": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-clippy.log",
+        "timing": "beforecommit samefinalsource"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-store --lib --all-features -- --nocapture",
+        "exit": 0,
+        "result": "37/37PASS, originalhealth/stalled/shutdownnegativecontrols retained",
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-store-tests.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features cached_read -- --nocapture",
+        "exit": 0,
+        "result": "2/2PASS; realactivebefore/after, argv1->1cached and1->2coldguardreject, ownedjoins/reap",
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-causal-tests.log"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-store --lib -- -D warnings",
+        "exit": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-clippy-default.log"
+      },
+      {
+        "command": "cargo fmt --all --check; git diff --check",
+        "exit": 0,
+        "log": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-postpush-fmt.log"
+      }
+    ],
+    "preserved_prior_evidence": {
+      "original_developer_result": "/tmp/phase-c-execution/c-1/qa-14-fix/developer-result.json",
+      "original_developer_result_sha256": "6ea69d171a62982ae72cf6ced294c2ccb7420d466abdeb40d08d4906ae1042d1",
+      "original_developer_md": "/tmp/phase-c-execution/c-1/qa-14-fix/developer-result.md",
+      "original_Windows_failure": "preservedatqa15initialwindowslog; never overwritten",
+      "previous_final_candidate_release": "68f64e5 testperf5.657209ms andprior60f8920 6.556292ms receipts preserved. This cfg(test)-only storefixture change is excluded from integrationperformance crate/library, and Repo/perf/production unchanged; no furtherperf rerun or new timingclaim."
+    },
+    "CI": {
+      "exact_source": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+      "registered_runs": [
+        {
+          "conclusion": "",
+          "databaseId": 42220594629,
+          "event": "pull_request",
+          "headSha": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+          "status": "in_progress",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42220594629",
+          "workflowName": "python"
+        },
+        {
+          "conclusion": "",
+          "databaseId": 42220594503,
+          "event": "pull_request",
+          "headSha": "0c5893a5a9fa6496ba8d84e7190fab16ebe3eb09",
+          "status": "in_progress",
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42220594503",
+          "workflowName": "ci"
+        }
+      ],
+      "snapshot": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-hosted-ci.json",
+      "state": "inprogress/pending; originalWindowsfailure notwaived; no allgreen or provenWindowsrepair claim"
+    },
+    "finding_disposition": {
+      "REQ-QA-004": "OPEN pending actualcandidateWindows/fullCI, independentQA15 and completeversion3anchor/pairedcheck/finalscopedcloseout; sourcecorrectionnotselfapproval"
+    },
+    "environment": {
+      "backend_free_PATH": "samequalifiedprocess-localqa14environment; PATHguardPASSbeforetests",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_TARGET_DIR": "/tmp/phase-c-execution/c-1/restart-target",
+      "disk_before": "15GiB",
+      "cargo_slot": "RELEASED; noactivelocalcommands"
+    },
+    "state": "STOP for parent independentQA15/fullgates; noSDKrollback/anchorchanges/children/crosschat/merge/selfQA",
+    "artifacts": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-causal-tests.log",
+        "bytes": 6893,
+        "sha256": "fc15c9f992233e08bd2496f9670b5ca94f1f0df83e318a34af01bf57c5cdf414"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-clippy-default.log",
+        "bytes": 1167,
+        "sha256": "29a76c776291e357b72ed2cc60fbdaa106b9466e1d8e7657cc7a04eb26b5b2e0"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-clippy.log",
+        "bytes": 793,
+        "sha256": "4d638507571982454c7b12b33a55de82273c652a7ad8823cfa1c4dbe7c2fb7f5"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-fmt-check.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-hosted-ci.json",
+        "bytes": 2891,
+        "sha256": "400ab0becd1adb098a40d832b0a2f4938ff824c1754b8c464d9ed2a622e7b085"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-path.log",
+        "bytes": 22,
+        "sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-postpush-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-runs.json",
+        "bytes": 1438,
+        "sha256": "6b367204f3aa6be2c1b41217e790d31d53fc13d89a207b372d04afcee7bb4e17"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-source.diff",
+        "bytes": 793,
+        "sha256": "34ba31ad52a023ae33c52f8154a87688d229607a2524d023de57d71af39aa976"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/ci-repair-store-tests.log",
+        "bytes": 29028,
+        "sha256": "b03b3ad08a10a147a7550266af40b1080b1ccc079bc7faf4c363763810326098"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-14-fix/windows-ci-diagnosis.json",
+        "bytes": 10338,
+        "sha256": "036945de8ed8cef330865410caae4df22130a7adc91570870a2c8f0ed560dd08"
+      }
+    ]
+  },
+  "error": null
+}

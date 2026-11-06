@@ -1,0 +1,111 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.99s
+     Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-2610c857289e7d13)
+
+running 26 tests
+test compose::tests::compose_hands_out_one_lock_set ... ok
+test hook::tests::the_backoff_starts_at_the_third_failure_doubles_and_is_capped ... ok
+test lease::tests::a_run_id_is_unix_ms_pid_and_a_counter ... ok
+test payload::tests::both_row_names_are_valid_sc_cron_names ... ok
+test compose::tests::a_repository_root_that_is_not_utf8_is_refused ... ok
+test front_end::tests::both_front_ends_give_identical_details_for_python_sync_enabled ... ok
+test control::tests::wait_returns_once_the_flag_is_set_and_at_once_after ... ok
+test compose::tests::an_unresolvable_beads_dir_fails_the_composition_before_the_store_opens ... ok
+test payload::unix_tests::a_path_that_is_not_utf8_is_refused_before_it_can_be_stored ... ok
+test schedule::tests::a_row_written_enabled_disables_the_other_row ... ok
+test payload::unix_tests::a_payload_round_trips_and_every_value_is_checked_on_decode ... ok
+test text::tests::text_is_cut_on_a_character_boundary ... ok
+test history::tests::an_unfinished_run_counts_once_sc_cron_recorded_its_end ... ok
+test payload::unix_tests::the_interpreter_must_be_an_absolute_regular_executable_file ... ok
+test text::tests::unredacted_text_is_borrowed ... ok
+test schedule::tests::the_period_of_a_row_is_the_gap_between_its_next_two_runs ... ok
+test job::failure_tests::continuous_failures_keep_no_in_memory_history_but_finite_runs_retain_details ... ok
+test text::tests::stderr_is_redacted_then_cut_to_8_kib ... ok
+test trust::tests::a_private_file_is_trusted_and_a_group_or_world_writable_one_is_not ... ok
+test mode_lock::tests::the_mode_lock_is_exclusive_and_released_on_drop ... ok
+test compose::tests::the_composition_owns_the_cache_facts ... ok
+test compose::tests::compose_with_config_locates_the_cache_from_the_given_beads_dir ... ok
+test compose::tests::compose_with_config_uses_the_given_configuration_not_the_file ... ok
+test compose::tests::compose_with_config_and_backend_uses_the_given_configuration_and_backend ... ok
+test payload::unix_tests::the_import_check_refuses_an_interpreter_that_cannot_import_the_package ... ok
+test compose::tests::two_compositions_of_one_project_never_run_bd_at_once ... ok
+
+test result: ok. 26 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.93s
+
+     Running tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-3194a14b51383312)
+
+running 1 test
+test a_run_logs_sc_crons_events_and_one_event_per_step_with_the_row_and_run_id ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-95c43ed5f355d3cd)
+
+running 10 tests
+
+thread 'tokio-rt-worker' (337826583) panicked at crates/bd-cache-sync/tests/cron_rows.rs:495:9:
+injected: the worker's clock panics
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test an_unresolvable_sync_row_is_recorded_failed_and_stays_active ... ok
+test a_sync_payload_on_another_row_is_refused_and_a_non_sync_row_coexists ... ok
+test cron_run_once_runs_a_due_row_and_skips_one_not_due ... ok
+test cron_run_ends_when_its_worker_dies ... ok
+test one_table_runs_the_python_row_with_its_script_and_the_builtin_row_with_rust ... ok
+test an_untrusted_cache_or_a_stop_answer_that_is_not_json_runs_nothing ... ok
+test a_planted_cache_path_in_the_row_cannot_pass_the_trust_check ... ok
+test cron_run_stops_on_its_flag_kills_the_tree_and_releases_the_lease ... ok
+test an_overrunning_hook_ends_its_run_before_sc_crons_timeout ... ok
+test schedule_show_counts_failures_across_timeouts_and_resolve_failures ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.61s
+
+     Running tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-df257222435d44fc)
+
+running 2 tests
+test join_idle_is_false_while_a_step_holds_the_cache_and_true_once_it_returns ... ok
+test inherited_deadline_includes_the_blocking_cache_claim_and_starts_no_bd_after_expiry ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-309ab6e1056a3bb5)
+
+running 21 tests
+test a_schedule_table_of_another_version_is_store_failed ... ok
+test a_python_row_that_never_ran_is_flagged ... ok
+test schedule_set_show_enable_disable_clear_round_trip ... ok
+test a_run_aborted_while_it_takes_the_lease_releases_it ... ok
+test a_re_run_replaces_the_python_row_in_place_and_a_failed_one_restores_the_old_script ... ok
+test a_failed_restore_says_restored_false_and_use_builtin_recovers ... ok
+test a_second_connection_never_sees_both_rows_enabled ... ok
+test registered_module_byte_bound_is_shared_and_invalid_names_write_no_row ... ok
+test each_use_python_refusal_names_its_field_and_writes_nothing ... ok
+test a_completed_use_python_is_recorded_on_its_row ... ok
+test a_new_builtin_row_is_written_disabled_while_the_python_row_is_enabled ... ok
+test each_schedule_set_refusal_names_its_field_and_writes_nothing ... ok
+test a_tick_while_the_python_row_is_enabled_is_refused_and_starts_no_bd ... ok
+test every_mode_command_waits_while_another_holds_its_read_decide_write_window ... ok
+test use_python_during_a_run_in_flight_is_tick_in_flight ... ok
+test use_python_switches_and_runs_at_once_and_use_builtin_reverses_it ... ok
+test with_no_builtin_row_a_failure_leaves_mode_none ... ok
+test a_failed_immediate_run_restores_the_mode_before_the_command ... ok
+test an_interpreter_missing_at_run_time_restores_the_prior_mode ... ok
+test the_immediate_runs_timeout_is_on_the_injected_clock ... ok
+test no_interleaving_of_the_mode_commands_leaves_both_rows_enabled ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.70s
+

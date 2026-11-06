@@ -1,0 +1,1076 @@
+.triage/c/findings/RBQA-F001.ttl:16:<urn:beads-cache:finding:RBQA-F001> triage:qa9WindowsDiagnostic "{\"finding\": \"RBQA-F001\", \"implementation_state\": \"open_unchanged_published_receiver_or_actual_head_CI_blocker\", \"limits\": \"No self-QA closure, acceptance, production fix, deadline or dependency change; missing receipt does not prove operation never began.\", \"qa_pass\": \"C1-QA9-Windows-diagnostic\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa9-windows-shared-store-diagnostic-rqa9-001\", \"status\": \"open\"}" .
+.triage/c/findings/ARCH-001.ttl:16:<urn:beads-cache:finding:ARCH-001> triage:qa9WindowsDiagnostic "{\"finding\": \"ARCH-001\", \"implementation_state\": \"open_unchanged_published_receiver_or_actual_head_CI_blocker\", \"limits\": \"No self-QA closure, acceptance, production fix, deadline or dependency change; missing receipt does not prove operation never began.\", \"qa_pass\": \"C1-QA9-Windows-diagnostic\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa9-windows-shared-store-diagnostic-rqa9-001\", \"status\": \"open\"}" .
+.github/workflows/ci.yml:36:    timeout-minutes: 30
+.github/workflows/ci.yml:159:    timeout-minutes: 45
+.triage/c/findings/FTQ-010.ttl:2:<urn:beads-cache:finding:FTQ-010> triage:id "FTQ-010" ; triage:sprint "c-1" ; triage:severity "important" ; triage:location "crates/bd-cache-sync/tests/cron_hurry.rs:224" ; triage:source "qa-4 /root/c1_flaky4 fenced JSON at95def5f3" ; triage:status "closed" ; triage:record "{\"evidence\": \"cron_hurry.rs:215-225 records timeout(500ms, &mut run), releases the writer, performs management.await, then Err(_) => run.await before testing finished at :236. :403-408 times out the second start after 2s, sets second_stop, then performs second.await. The outer python_lifecycle cleanup at :349-352 is unreachable while this helper remains stuck. RustQA affected-tests log:287-297 reports six successful normal cron_hurry runs, without stalled cleanup coverage.\", \"file\": \"crates/bd-cache-sync/tests/cron_hurry.rs\", \"id\": \"FTQ-010\", \"issue\": \"The new production-store lifecycle helper observes shutdown through a 500ms timeout, but its timeout branch awaits the same run without another deadline, after an also-unbounded management await. A shutdown/join regression that persists after writer release therefore hangs instead of reaching finished=false. The rejected-second-start helper similarly follows its 2s timeout with second.await without a deadline; if the wrongly accepted start remains stuck, it never returns to stop/join the first worker and its child. These are precisely the failure paths the lifecycle tests must be able to reject.\", \"line\": 224, \"mechanism\": \"unbounded_wait\", \"recommendation\": \"Give each complete lifecycle fixture an enforceable owned lifetime, preferably a supervised child for scenarios involving synchronous blocking-store work, retaining real worker/task and child cleanup. Bound second-start rejection cleanup and management completion too. Preserve the current causal handshakes and strict elapsed assertions; do not replace retained joins with detached timed-out tasks or increase deadlines.\", \"severity\": \"important\", \"test\": \"ordinary_expiry_joins_the_contended_production_worker_before_writer_release; hurried_expiry_joins_the_contended_production_worker_before_writer_release; zero_timeout_joins_the_contended_worker_without_granting_a_grace_period; rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline\"}" .
+.triage/c/findings/FTQ-010.ttl:4:<urn:beads-cache:finding:FTQ-010> triage:qa4Correction "{\"branch\": \"sprint/c-1-runtime-migration\", \"evidence\": \"complete exactly filtered owned fixture, five-second lifetime, timeout/unwind kill/reap, causal stalled cleanup negatives; original inner bounds unchanged\", \"finding\": \"FTQ-010\", \"implementation_state\": \"implemented_pending_independent_QA\", \"logs\": \"/tmp/phase-c-execution/c-1/qa-4/fix-*.log\", \"qa_pass\": \"qa-4\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa4-test-lifetime-correction-ftq-009--ftq-010\", \"review\": \"https://github.com/randlee/beads-cache/pull/108#issuecomment-6620322598\", \"status\": \"open\"}" .
+.triage/c/findings/FTQ-010.ttl:6:<urn:beads-cache:finding:FTQ-010> triage:qa5Evidence "{\"finding\": {\"evidence\": \"fixture_child.rs:81-113 reads PID registry once, then kills direct child; common/repo.rs:209-228 performs input=$(cat) before managed_hang PID registration; published sc-cron-0.1.1/src/process.rs:387 uses ProcessGroup::leader(). Source-free probe /tmp/phase-c-execution/c-1/qa-5/flaky-pre-registration-probe.py injects a temporary PATH cat delay using the existing built cron_hurry binary. Probe log records test exit 101 at its 5.01s supervisor timeout, with cat PID 39029 and Python stub shell PID 39028, PGID 39028, still alive at 5.5156s after test start. Explicit probe killpg removed both; AFTER_EXPLICIT_PROBE_CLEANUP is [].\", \"file\": \"crates/bd-cache-store/tests/support/fixture_child.rs\", \"id\": \"FTQ-010\", \"issue\": \"The complete fixture deadline kills/reaps its direct test child but can leave a Python process group alive before PID registration. Cleanup snapshots owned-child PID files once, while the Python stub runs input=$(cat) and other commands before writing that registry entry. A stalled command before registration therefore runs in a separate group that is absent from cleanup. Killing the test process removes its runtime and reaper while the Python group survives. The existing stalled/unwind negatives wait until after PID registration and do not cover this path.\", \"line\": 100, \"mechanism\": \"missing_reap\", \"recommendation\": \"Own launched process groups from before they can execute or use a supervisor/subreaper design that covers unregistered launches and prevents spawn during cleanup. Preserve existing strict bounds and actual joins. Add a bounded pre-registration stall negative with process-group disappearance and reap proof; do not rely only on a registry written by the child after startup.\", \"severity\": \"important\", \"test\": \"Python lifecycle fixtures, including rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline\"}, \"probe\": \"/tmp/phase-c-execution/c-1/qa-5/flaky-pre-registration-probe.log\", \"source\": \"QA5 /root/c1_flaky5 exact2111df6f\", \"status\": \"open\"}" .
+.triage/c/findings/FTQ-010.ttl:8:<urn:beads-cache:finding:FTQ-010> triage:qa5Correction "{\"evidence\": \"kernel session established before actual PythonJob launch; stable stopped census, root kill/wait and post-join session drain; no registry authority; real pre-registration timeout/unwind and exact PATH-cat probe evidence\", \"finding\": \"FTQ-010\", \"implementation_state\": \"implemented_pending_independent_QA\", \"logs\": \"/tmp/phase-c-execution/c-1/qa-5/fix-*\", \"qa_pass\": \"qa-5\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa5-pre-registration-process-ownership-correction-ftq-010\", \"review\": \"https://github.com/randlee/beads-cache/pull/108#issuecomment-6620709101\", \"status\": \"open\"}" .
+.triage/c/findings/FTQ-010.ttl:10:<urn:beads-cache:finding:FTQ-010> triage:qa6Evidence "{\"finding\": {\"evidence\": \"session_fixture.rs:142-145 uses Command::output without a deadline; callers session_members, drain and quiesce cannot enforce their own deadlines during that wait. Independent source-free qa-6/flaky-inventory-stall-probe.py pauses only inventory PID58007 (/bin/ps -axo pid=,stat=) at5.0981s while continuing the supervisor. At8.5008s test remains alive beyond five-second fixture lifetime plus250ms/750ms cleanup budgets and seven-second regression watchdog. After explicit SIGCONT of inventory it exits101 at8.6691s; all injected Python PID/group survivors are empty before probe fallback cleanup, and final cleanup is empty. qa-6/flaky-inventory-stall-probe.log records exact evidence.\", \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"FTQ-010\", \"issue\": \"The PID-registration orphan is repaired, but the new cleanup ownership inventory introduces another unbounded child wait. process_ids executes /bin/ps via synchronous Command::output without a subprocess deadline, inside drain and quiesce nominally bounded loops. If this owned inventory child stalls, the supervisor cannot check its own deadlines, kill/reap the fixture, or fail within its cleanup budget. This is a healthy-kernel user-space subprocess stall, not a mathematical demand to bound kernel syscalls.\", \"line\": 143, \"mechanism\": \"unbounded_wait\", \"recommendation\": \"Give each inventory invocation an owned bounded lifetime with stdout/stderr handling, timeout kill/reap and unwind cleanup, or replace it with an inventory interface that cannot block the supervising thread indefinitely. Count inventory time in the original250ms/750ms cleanup budgets; preserve real PythonJob, strict inner bounds and the repaired pre-registration/session ownership. Add a stalled-inventory negative that fails finitely and cleans both inventory and fixture process trees.\", \"severity\": \"important\", \"test\": \"Python lifecycle SessionFixture cleanup, including rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline\"}, \"inherited_kernel_kill_wait\": \"not_reopened\", \"original_registration_orphan\": \"fixed\", \"probe\": \"/tmp/phase-c-execution/c-1/qa-6/flaky-inventory-stall-probe.log\", \"source\": \"QA6 /root/c1_flaky5 finalfencedJSON exactdc468b9c\", \"status\": \"open\"}" .
+.github/workflows/python.yml:42:    timeout-minutes: 45
+.github/workflows/python.yml:73:    timeout-minutes: 45
+.github/workflows/python.yml:116:    timeout-minutes: 20
+crates/bd-cache-sync/src/python_job.rs:132:    fn deadline(&self) -> Instant {
+crates/bd-cache-sync/src/python_job.rs:135:            .checked_add(self.payload.timeout().get())
+crates/bd-cache-sync/src/python_job.rs:140:    /// the script, killed at its timeout capped by `deadline` or when the
+crates/bd-cache-sync/src/python_job.rs:142:    async fn launch(&self, event: HookEvent, deadline: Instant) -> Result<HookOutput, CacheError> {
+crates/bd-cache-sync/src/python_job.rs:166:            timeout: self.payload.timeout(),
+crates/bd-cache-sync/src/python_job.rs:167:            deadline,
+crates/bd-cache-sync/src/python_job.rs:171:            () = self.kill.wait() => {
+crates/bd-cache-sync/src/python_job.rs:181:    async fn stop_check(&self, deadline: Instant) -> Result<StopDecision, CacheError> {
+crates/bd-cache-sync/src/python_job.rs:182:        let output = self.launch(HookEvent::Stop, deadline).await?;
+crates/bd-cache-sync/src/python_job.rs:189:    async fn tick(&self, lease: &TickLease, deadline: Instant) -> Result<PythonRun, CacheError> {
+crates/bd-cache-sync/src/python_job.rs:191:        let output = self.launch(HookEvent::Tick, deadline).await?;
+crates/bd-cache-sync/src/python_job.rs:229:    /// `timeout` for a kill at the timeout, `oversize` for output over the cap.
+crates/bd-cache-sync/src/python_job.rs:231:        let deadline = self.deadline();
+crates/bd-cache-sync/src/python_job.rs:232:        match self.stop_check(deadline).await? {
+crates/bd-cache-sync/src/python_job.rs:244:        self.tick(lease, deadline).await
+crates/bd-cache-sync/src/python_job.rs:272:/// the timeout, or the failure's (redacted) text.
+crates/bd-cache-sync/src/python_job.rs:320:        match self.stop_check(self.deadline()).await {
+crates/bd-cache-sync/src/python_job.rs:336:    async fn run(&self, _payload: &Value, deadline: Instant) -> RunOutcome {
+crates/bd-cache-sync/src/python_job.rs:346:        let left = deadline.saturating_duration_since(self.clock.monotonic_now());
+crates/bd-cache-sync/src/python_job.rs:365:        let result = self.tick(&lease, deadline).await;
+.triage/c/findings/REQ-QA-004.ttl:10:<urn:beads-cache:finding:REQ-QA-004> triage:qa6UbuntuEvidence "{\"bounded_log\": \"/tmp/phase-c-execution/c-1/qa-6/rust-ci-ubuntu-failed-bounded.log\", \"commit\": \"dc468b9c32e755438261401bbda78b6e43f409cf\", \"owner_task\": \"/root/c1_rustqa6\", \"scope\": \"ExistingREQ-QA004exactheadallplatformgate\", \"status\": \"open\", \"supplement\": {\"data\": {\"artifacts\": {\"bounded_excerpt_lines\": 130, \"bounded_failure_excerpt\": \"/tmp/phase-c-execution/c-1/qa-6/rust-ci-ubuntu-failed-bounded.log\", \"failed_step_log\": \"/tmp/phase-c-execution/c-1/qa-6/rust-ci-ubuntu-failed.log\", \"full_failed_log_sha256\": \"fc6d07fdb0d2f6685c66ac138311de40c77f8dfb3f4345e5ac14987183f96b3b\", \"run_metadata\": \"/tmp/phase-c-execution/c-1/qa-6/rust-ci-run.json\"}, \"ci_snapshot\": {\"binary_termination\": \"signal 6 SIGABRT\", \"core_ci_platforms\": {\"clippy and test (macos-latest)\": \"success\", \"clippy and test (ubuntu-latest)\": \"failure\", \"clippy and test (windows-latest)\": \"success\", \"fmt, doc, publish dry-run, boundaries\": \"failure\"}, \"core_ci_run\": 41761582982, \"exit_code\": 101, \"failed_step\": \"Test\", \"failed_ubuntu_job_id\": 126350257955, \"failed_ubuntu_job_url\": \"https://github.com/randlee/beads-cache/actions/runs/41761582982/job/126350257955\", \"failure\": 2, \"success\": 13, \"total_checks\": 15}, \"finding\": {\"classification\": \"additional concrete cause under existing current-head required CI acceptance finding\", \"evidence\": [\"Exact core CI run headSha dc468b9c32e755438261401bbda78b6e43f409cf.\", \"2026-11-04T02:36:56.3649480Z rustix-1.1.5/src/pid.rs:61:9 assertion failed: raw > 0.\", \"Backtrace: rustix backend process syscalls::getsid:429 -> process id::getsid:216 -> session_fixture::session_members:174 -> drain:190 -> cleanup:98 -> Drop::drop:135.\", \"Test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind; panic in a destructor during cleanup; cron_hurry exits SIGABRT and job exits101.\", \"Local locked rustix1.1.5 Linux raw source obtains getsid result then passes it to Pid::from_raw_unchecked; that constructor asserts raw>0.\"], \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"REQ-QA-004\", \"inference_and_limits\": \"Successful getsid returning zero follows from the syscall result conversion and assertion stack. Linux kernel processes without user session membership are the likely triggering class, but the failing PID/raw SID was not logged; that specific identity is unproven. No Linux reproduction or new Cargo execution performed by this reviewer.\", \"issue\": \"The Linux hosted lifecycle test aborts because the all-host-process census calls rustix::process::getsid on unrelated processes; rustix 1.1.5 Linux raw backend assumes successful SID values are strictly positive. Hosted stack shows from_raw_unchecked assertion raw > 0 fails, then Drop repeats the same inventory call and panics during cleanup, causing non-unwinding SIGABRT.\", \"line\": 174, \"required_consumer_correction\": \"Correct inventory in the test helper so unrelated Linux processes with zero or otherwise non-user session identifiers are safely excluded before use of a typed positive-PID API. For example, collect PID/SID/PGID through the owned bounded inventory command and parse/validate raw identifiers, filtering to the known positive fixture SID; retain safe identity checks for kill targets. Preserve existing lifetime bounds, real PythonJob paths and cleanup ownership, and avoid repeating a panicking census in Drop. Combine this with the FTQ010 requirement to deadline-bound, cancel and reap the inventory subprocess itself. Rerun native lifecycle tests and required Linux/macOS/Windows hosted checks at corrected exact HEAD.\", \"routing\": \"Include this concrete Linux portability correction in existing REQ-QA-004 developer acceptance work and related FTQ010 helper repair. No new canonical ID required because REQ-QA-004 already requires every current-head CI job green. Keep the distinct logging-boundary cause open too.\", \"severity\": \"important\", \"status\": \"open\"}, \"notes\": [\"Read-only gh PR checks/run metadata/failed job log; sandbox network failed first, automatic approval permitted native read. No source edits, Cargo commands, deadline widening, dependency changes, waivers or subagents.\", \"Original rust-qa-agent-result.md/json preserved unchanged. Original Darwin local passes remain valid for that platform but do not imply Linux qualification.\", \"Following cass rule b-mr7cp6x0-ipdnhs: exact-head core CI macOS and Windows succeed, Ubuntu fails; Python CI checks independently succeed. Overall snapshot13success2failure remains blocked.\", \"Known boundary job failure is separate from the newly identified Ubuntu test crash; neither is waived.\"], \"reviewed_branch\": \"sprint/c-1-runtime-migration\", \"reviewed_commit\": \"dc468b9c32e755438261401bbda78b6e43f409cf\", \"role\": \"rust-qa-agent supplemental hosted CI triage\", \"status\": \"findings\"}, \"error\": null, \"success\": true}}" .
+.triage/c/findings/REQ-QA-004.ttl:18:<urn:beads-cache:finding:REQ-QA-004> triage:qa9WindowsDiagnostic "{\"finding\": \"REQ-QA-004\", \"implementation_state\": \"open_unchanged_published_receiver_or_actual_head_CI_blocker\", \"limits\": \"No self-QA closure, acceptance, production fix, deadline or dependency change; missing receipt does not prove operation never began.\", \"qa_pass\": \"C1-QA9-Windows-diagnostic\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa9-windows-shared-store-diagnostic-rqa9-001\", \"status\": \"open\"}" .
+.triage/c/findings/CI-C2-RUNNER-001.ttl:2:<urn:beads-cache:finding:CI-C2-RUNNER-001> triage:id "CI-C2-RUNNER-001" ; triage:sprint "c-2" ; triage:severity "Important" ; triage:status "open" ; triage:record "{\"finding\": {\"category\": \"ci_infrastructure\", \"evidence\": \"Frozen clean7fb2246 python.yml40/75/117 directly read. REQ-PY-0010 requirements178-188 and architecture176-182 require macOSarm64/Linuxx86_64 abi3 wheels and3.9/3.11/3.13 tests. C4 artifact matrix107-110 distinguishes nativeIntel archives from Pythonarm64 wheels. Raw successful wheel job126455973399 explicitly records macos-14-arm64 image16, aarch64 toolchain118/121, arm64Python218 and built macosx_11_0_arm64 wheel249. Official retirement announcement and current runner-images table independently checked.\", \"file\": \".github/workflows/python.yml\", \"id\": \"CI-C2-RUNNER-001\", \"issue\": \"All three required Python workflow matrices retain macos-14 after GitHub Actions retirement on2026-11-02. The gate depends on a retired platform configuration. Current Python3.9/3.11 pytest jobs are queued with runner_id0/steps0, but other macos14 jobs executed; the specific queue cause is not established.\", \"limits\": \"Unsupported configuration is established; neither retirement causing each specific queued job nor universal macos14 unavailability is proved. Some retired-label jobs executed successfully. No claim of new macos15 execution, Python-version availability, toolchain compatibility or whole-CI acceptance before actual validation.\", \"line\": 40, \"locations\": [{\"file\": \".github/workflows/python.yml\", \"job\": \"rust.matrix.os\", \"line\": 40}, {\"file\": \".github/workflows/python.yml\", \"job\": \"wheel.matrix.os\", \"line\": 75}, {\"file\": \".github/workflows/python.yml\", \"job\": \"test.matrix.os\", \"line\": 117}], \"mechanism\": \"retired_runner_configuration\", \"recommendation\": \"Parent triages this canonical Important finding before developer fix. Replace exactly the three macos-14 matrix labels at40/75/117 with supported arm64 macos-15, keeping all11 jobs, Python3.9/3.11/3.13, toolchain/setup, commands, deadlines, strict guards, native wheel build and matching matrix-derived upload/download artifact names. Independently verify exact changed source and actual macOS arm64/Python/wheel/installed-pytest receipts; no waiver of graph, signal or other required failures. Ownership checked: C2 explicitly owns this workflow; C3 upkeep does not require regeneration, pin, mapping or fingerprint updates for these three label values. Keep single-writer coordination and all12 prior histories.\", \"severity\": \"important\", \"status\": \"open\"}, \"owner_assessment\": \"/tmp/phase-c-execution/c-2/qa-5/runner-owner-assessment/result.json\", \"reviewer_task\": \"/root/rqa9_causal_owner\", \"scope\": \"Consumer-owned Python matrix only; three supported arm64 runner labels; all prior12 findings untouched\", \"source_commit\": \"7fb224623280dae9cb056915484cb698ddf6bdf0\", \"status\": \"open\"}" .
+.triage/c/findings/RQA10-001.ttl:2:<urn:beads-cache:finding:RQA10-001> triage:id "RQA10-001" ; triage:sprint "c-1" ; triage:severity "Important" ; triage:status "open" ; triage:source "QA10 independent Rust/flaky fenced evidence and actual macOS job126430892802" ; triage:record "{\"finding\": {\"category\": \"tests\", \"evidence\": \"8c1aefafd7fd269c82c7974e610e848816d026d8 run41786865484 macOS job126430892802 rust-qa-hosted-macos.log:1557,1572-1583: session drain recovered inventory before deadline: injected transient inventory failure; Error Custom TimedOut owned session inventory timed out; cron_hurry17/18, exit101. Relevant function631-691 and inventory timeout243 inspected; helper bytes equal prior qualifieda753 source.\", \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"RQA10-001\", \"issue\": \"Current exact-head required macOS CI fails cleanup_inventory_recovery_preserves_the_original_fixture_failure with an owned-session inventory timeout; cron_hurry is17passed1failed, exit101. This is a new concrete required-test failure needing owner correlation.\", \"limits\": \"Raw error does not identify which process_ids invocation timed out (finish callback or final250ms verification), or prove orphaning,50ms regression, observer-hook causality or a product defect. FTQ-011 original repaired mechanism credit is preserved; actual new occurrence must be adjudicated separately/correlated by its owner.\", \"line\": 631, \"recommendation\": \"Retain this actual occurrence and route raw evidence to the owning flaky reviewer. Locate the failing inventory/cleanup or final verification phase under the original deadlines before correcting the fixture. Keep complete census/actual-root-wait/one-attempt semantics and original budgets; do not waive via rerun, infer scheduling cause or restore50ms cap.\", \"severity\": \"important\"}, \"flaky_owner_task\": \"/root/rqa9_causal_owner\", \"next_action\": \"Finish QA10 sole-enforcer report, then route all current findings to background developer for phase-specific causal diagnosis/fix under original budgets\", \"owner_assessment\": {\"correlation\": \"Same actual occurrence and canonical ID RQA10-001 as independent RustQA; separate from original Windows store RQA9-001 and previously fixed FTQ011 independent50ms cap.\", \"evidence\": \"Current run41786865484 macOS job126430892802: raw rust-qa-hosted-macos.log1557/1572-1583, Error: Custom{kind:TimedOut,error:owned session inventory timed out}; prior line1573 session drain recovered inventory before deadline: injected transient inventory failure. Actual test group17/18exit101. Source session_fixture.rs631-690/119-182/219-244 directly reviewed and byte-identicalQA9a753d279.\", \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"RQA10-001\", \"issue\": \"Actual current C1 hosted macOS required test fails with an owned session inventory timeout after logging recovery from the injected preliminary inventory failure. cron_hurry reports17passed1failed andexit101. The failing inventory stage and cause are unresolved; current qualification cannot be accepted from local passes.\", \"limits\": \"Concrete observed test failure, not a proven fixture race, production fault, orphan, returned50ms-cap defect or new shared FixtureChild observer regression. Inventory.finish emits this same timeout for any supplied absolute deadline. The raw log does not identify whether the timeout arose in injected scan3, a later cleanup scan or separate post-cleanup audit at678. It does not prove final cleanup success or failure, actual empty census, or survivors.\", \"line\": 631, \"mechanism\": \"timing_assertion\", \"new_finding\": true, \"recommendation\": \"Preserve the actual failed log and route this distinct lifecycle-inventory occurrence to its owner. Add or collect bounded stage/call/deadline receipts distinguishing the third injected80ms stopped inventory, subsequent quiescence/final cleanup scans and the independent final250ms session audit. Record actual owned inventory exit/reap and remaining caller deadline before attributing cause. Preserve existing100ms drain, absolute250ms quiescence,1s cleanup and5s fixture budgets, original fixture failure, false incomplete receipts and one cleanup attempt. No retry-to-green, timeout widening, host-load guess or automatic FTQ011 reopening.\", \"severity\": \"important\", \"status\": \"open\", \"test\": \"session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure\"}, \"owning_sprint\": \"c-1\", \"qa_pass\": \"qa-10\", \"rust_owner_task\": \"/root/c1_rustqa10\", \"scope\": \"Actual exact macOS session inventory timeout17/18; final failing stage/source cause unknown, no orphan or removed50ms recurrence claim\", \"source\": \"8c1aefafd7fd269c82c7974e610e848816d026d8\", \"status\": \"open\"}" .
+.triage/c/findings/RQA10-001.ttl:6:<urn:beads-cache:finding:RQA10-001> triage:recoveryCompositionDelivery "{\"change\": \"separate transient-recovery positive proof from existing real STOP80msCONT delayed inventory regression; both remain required under original budgets\", \"delivery\": \"supported private fixture composition correction; independent QA/owner review required\", \"id\": \"RQA10-001\", \"limits\": \"No low-level signal/ps/observer cause or historical stage claim; all six findings remain OPEN; no production or public boundary changes.\", \"observed_occurrence\": \"7fb2246 run41796715401 job126462431901 recovery quiescence call3 timeout; real inventory and root reaped; false cleanup retained\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa10-recovery-fixture-composition-correction\", \"status\": \"open\"}" .
+.triage/c/findings/RQA10-001.ttl:8:<urn:beads-cache:finding:RQA10-001> triage:terminalOwnerAssessment "{\"assessment\": {\"actionable_fix_now\": null, \"actual_evidence\": [\"C1 ec68 macOS run41791930215 job126447058941 SUCCESS; cron_hurry19/19 in15.63s. Standard successful outer libtest capture hides all RQA10 stage receipts. This is not a causal correction.\", \"C2 37b macOS run41792355909 job126448419348 FAILURE; same recovery test, preliminary drain recovered from injected transient error then owned inventoryTimedOut, cron_hurry17/18exit101. This correlates to existing RQA10-001, not a new ID or RQA9 store occurrence.\", \"C2 helper blob123a5ce3a4c14895b2013f1cb74093f982129be9 matches8c, while C1 ec68 has8f5313e8db352e00dd233e0fe43011207174857c. C2 does not contain stage instrumentation or its added control.\"], \"controls_reviewed\": \"Raw inventory-stage-postpush-tests.log: ordinary recovery scan3 occurs in quiescence with216.822083ms left after STOP acknowledgement; actual delay80.855333ms leaves135.966708ms beforeCONT, then fresh stable census/rootwait/finalcensus and independent empty audit complete. Separate deliberately held quiescence command yields receiptfalse; held post-cleanup audit yields receipttrue after successful cleanup. Both owned commands/root waits are verified before fallback; no fallback used. Fresh independent census does not change failed observation or grant another cleanup attempt.\", \"observability_status\": \"stage/command/root/cleanup/audit distinction implemented and locally controlled; no failing consumer trace yet\", \"source_findings\": [\"ec68 changes only the private SessionFixture test helper among Rust files relative8c. Adds inline stage/call/thread/session/deadline/PID/wait diagnostics and owned stage controls; original fault index3, acknowledgedSTOP,80ms sleep/CONT, timing decisions and audit remain.\", \"The third callback is a global call count, not a phase selector. Initial drain100ms, quiescence250ms and final cleanup1s share one cleanup origin. The independent post-cleanup audit has its own250ms budget. No removed50ms cap reappears.\", \"A late STOP acknowledgement can leave less than80ms plus actual ps/parsing/census work. Even>80ms remaining does not guarantee a further required stable census. That is conditional budget arithmetic; no retained failed log supplies the actual remaining time or proves this path.\", \"An incomplete quiescence clears prior census history and requires two complete stable quiet censuses by the original deadline. A successful final drain cannot erase a retained quiescence error. Actual root wait precedes final drain; cleanup receipttrue requires all required proof. No actionable wrong-acceptance or orphan mechanism demonstrated.\", \"The same timeout string can originate from injected scan3, later cleanup scans or the separate final audit. Generic raw timeout and prior recovery text cannot select among them.\"], \"status\": \"OPEN\", \"why_no_speculative_fix\": \"Moving/deleting the80ms injection or audit, padding deadlines or imposing artificial lateness would not establish which requirement failed. Existing forced deadline controls validate ownership and classification, not the retained natural trigger.\"}, \"evidence_receipt\": \".cursor/qa-evidence/phase-c/c-1/qa-10/owner-terminal-assessment/owner-terminal-assessment.json\", \"next_action\": {\"command\": \"cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture\", \"context_limit\": \"Package-selected run restores the existing lifecycle test-family context on the instrumented C2 consumer; it does not reproduce the entire original workspace feature union/build artifact or scheduling interleaving. Record that limitation. If a previously consumer-workspace-built matching instrumented artifact is already available, invoke that full target once with --nocapture instead of building/running a broader matrix; do not execute both alternatives.\", \"execution\": \"Recommended for parent dispatch; nothing promoted, prepared or executed by this reviewer.\", \"experiment_count\": 1, \"not_authorized_by_this_assessment\": \"No retry-to-green, synthetic host load, forced-lateness counterexample, thread override, timer widening, removing/moving the fault/audit, full1171 matrix, SDK/publisher/auth changes, waiver, PR approval or merge.\", \"on_failure\": \"Use the identified actual stage/call/remaining and ownership receipt to route a concrete fixture/inventory correction. Preserve original100ms/250ms/1s/5s budgets,80ms fault, complete census, false incomplete receipts and one attempt until a supported redesign is reviewed.\", \"on_success\": \"Record actual stage/timing/control coverage and stop. A success is not the historical cause or correction; no automatic unchanged rerun/stress loop. Owner may assess source/control proof or another specifically justified causal action from the new facts; no requirement to wait indefinitely for an identical historical event.\", \"platform\": \"native hosted macOS\", \"required_records\": \"Literal immutable source/checkout and helper blob, consumer lock/feature selection and actual cron_hurry binary/hash, full count/command/environment, raw stageBEGIN/END including original deadline and remaining time, STOPack/delay/CONT of injected call3, actual inventoryPID exit or kill/wait, rootwait, complete stable/final census, cleanup receipt and independent audit. Preserve actual test outcome and all errors.\", \"scope\": \"Ordinarily consume immutable ec68 producer diagnostics into C2, preserving consumer production, manifests/lock, validated store protocol and complete prior histories. Record new immutable consumer SHA and verify Rust delta is the intended SessionFixture diagnostics/control only; do not mix a speculative correction.\", \"selection\": \"Exactly the existing full cron_hurry integration target after diagnostic consumption, expected19 tests. No original-case --exact filter: retain default parent concurrency and existing sibling context. Read/record RUST_TEST_THREADS without changing it. Outer nocapture must expose stage receipts even on success.\"}, \"owner_task\": \"/root/rqa9_causal_owner\", \"parent_decision\": \"Accept bounded next observation; preserve canonical finding open, no waiver or historical closure from passing diagnostics\", \"timestamp_utc\": \"2026-11-04T07:42:06.065881+00:00\"}" .
+.triage/c/findings/RQA10-001.ttl:10:<urn:beads-cache:finding:RQA10-001> triage:qa11ExactC1OwnerCredit "{\"canonical_disposition\": \"RESOLVED for the supported mixed recovery/artificial-delay fixture composition; sole manager aggregates this actual owner disposition. No pending-owning-reviewer condition remains.\", \"further_code_or_unchanged_observation_required_for_this_mechanism\": false, \"id\": \"RQA10-001\", \"owner\": \"flaky-test-qa\", \"owning_adjudication_complete\": true, \"reviewed_commit\": \"d8242dbe6e246a7c69a2d9a892451c3080364050\", \"scope_limits\": \"Only exact C1 candidate fixture-composition mechanism. This does not identify all historical uninstrumented stages or detailed ps/signal/observer costs, guarantee kernel scheduling, qualify wholeC2, or claim C2 consumed this helper. Original failure logs and distinct RQA9/CI/SDK findings remain.\", \"status\": \"resolved_verified_for_exact_C1_candidate\", \"supported_mechanism\": \"Actual instrumented consumer observation7fb/run41796715401/job126462431901 reached quiescence call3 afterSTOP/80ms/CONT, timed out its actual inventory under original250ms window, reaped command/root, completed final drain and correctly retained false cleanup. Positive recovery mixed transient-error recovery and additional artificially delayed inventory in one two-stable-census window. Current split removes that extra positive timing assumption without relaxing deadlines or census proof.\", \"why_not_pass_only\": \"Direct source diff changes only two existing private test bodies and independently verified old/new ledger retains every intended proof. Independent current native full19 evidence supplies real scan/STOP/CONT/wait/error/receipt/census outcomes, including required negative controls. This satisfies the supported correction direction; no identical historical recurrence or low-level host cause is required.\"}" .
+.triage/c/findings/QA2-001.ttl:16:<urn:beads-cache:finding:QA2-001> triage:qa9WindowsDiagnostic "{\"finding\": \"QA2-001\", \"implementation_state\": \"open_unchanged_published_receiver_or_actual_head_CI_blocker\", \"limits\": \"No self-QA closure, acceptance, production fix, deadline or dependency change; missing receipt does not prove operation never began.\", \"qa_pass\": \"C1-QA9-Windows-diagnostic\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa9-windows-shared-store-diagnostic-rqa9-001\", \"status\": \"open\"}" .
+.triage/c/findings/RQA11-001.ttl:2:<urn:beads-cache:finding:RQA11-001> triage:id "RQA11-001" ; triage:sprint "c-1" ; triage:severity "Important" ; triage:status "open" ; triage:record "{\"findings\": [{\"category\": \"tests\", \"evidence\": \"Exact d8242 run41800238075 job126474511866 parent-current-hosted-macos.log:1562/1574-1586: pid12479 command_elapsed257.978625ms actual_wait=true exit0 remaining0, then session inventory output budget exhausted. Source Inventory.finish334-350 checks after actual wait and output read; test723-751 passes original250ms through stopped command. Recovery1559 and stage controls1558 pass.\", \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"RQA11-001\", \"issue\": \"Exact-head required macOS cron_hurry fails the separate delayed-inventory preflight test. Owned command exits0 and is actually waited, but output validation finds its original250ms caller budget exhausted; target18passed1failed exit101. This is a distinct new actual occurrence, not the RQA10 recovery test.\", \"limits\": \"Observed post-wait output deadline exhaustion before parsed census. Command elapsed includes stopped interval and other work, not pure ps execution; actual delay/CONT interval is not printed on this failure. No signal, host-load, orphan or production defect inferred. Prior FTQ011 removed50ms-cap repair remains credited; Canonical RQA11-001 independently correlated by flaky owner and parent; original RQA10 composition resolution remains separate.\", \"line\": 723, \"recommendation\": \"Route to owning flaky reviewer/parent for canonical triage and bounded qualification correction. Preserve acknowledged STOP/at least80ms/CONT coverage, complete census, real wait/reap, honest timeout and original budgets. Retain this failure; no retry-to-green, timing widening/reset, minimum-margin reservation, host tuning or loss of required delay proof.\", \"severity\": \"important\"}, {\"category\": \"tests\", \"evidence\": \"Exactd824 run41800238075 macOSjob126474511866 parent-current-hosted-macos.log1562/1575-1586: pid12479 spawn250.75us;RQA10_COMMAND_EXIT command_elapsed257.978625ms actual_waittrue exit0 remaining0;Errsessioninventoryoutputbudgetexhausted;18/19exit101. Source723-751 stillrequiresactualSTOPack/80ms/CONT,fullparsedinventory,selfpresence,<250ms andPIDabsence. This occurrence returns atprocess_ids_using? before finaldelay/PID assertions.\", \"file\": \"crates/bd-cache-sync/tests/common/session_fixture.rs\", \"id\": \"RQA11-001\", \"issue\": \"Actual exact-head macOS required CI fails the retained separate delayed-inventory positive. Its owned command exits0 and is waited, but the caller250ms output-stage check finds the deadline exhausted, so cron_hurry reports18passed1failed/exit101. The corrected transient-recovery case passes; this is a distinct actual failed qualification.\", \"limits\": \"The successful exit was observed after deadline; exact OS exit time, actual STOP/sleep/CONT elapsed and output-read cost are not all separately recorded. Do not infer ps itself executed for257ms, a kernel/hostload cause, missing reap or reinstated50ms cap. Source-backed try_wait/Drop waits support ownedcommandreap; finalPIDabsence assertion was not reached. Same canonicalID as independentRustQA; no duplicate.\", \"line\": 723, \"mechanism\": \"timing_assertion\", \"new_finding\": true, \"recommendation\": \"Preserve the failed raw command/deadline receipt and route this separate delayed-positive proof to its owner. Investigate or redesign the removed50ms-cap regression with explicit causal readiness/clock/test seams and an old/new coverage ledger, retaining a meaningful delayed-command success proof, complete actual inventory, original250ms caller budget and actual wait/reap. Do not accept arbitrary timeout as success, widen timers, retry-to-green, guess hostload or remove the delayed obligation under the RQA10 resolution.\", \"severity\": \"important\", \"status\": \"open_new_actual_hosted_delayed_inventory_positive_occurrence\", \"test\": \"session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command\"}], \"reviewer_tasks\": [\"/root/c1_rustqa11\", \"/root/rqa9_causal_owner\"], \"scope\": \"New actual separate delayed-inventory macOS failure, not corrected recovery RQA10; all original obligations preserved\", \"source_commit\": \"d8242dbe6e246a7c69a2d9a892451c3080364050\", \"status\": \"open\"}" .
+.triage/c/findings/RQA11-001.ttl:4:<urn:beads-cache:finding:RQA11-001> triage:qa11NativeQualificationDelivery "{\"change\": \"existing SessionFixture5s owns STOP preparation; one250ms caller deadline begins at readiness and still includes actual>=80msCONT/fullinventory/reap; no deadline renewed\", \"id\": \"RQA11-001\", \"limits\": \"No low-level fsync/ps/signal cause, timing guarantee or selfclosure; failed qualifications preserved; no production deadline change\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa11-native-fixture-qualification-correction\", \"source\": \"QA11 actual published owner finding; bounded parent-accepted owner design\", \"status\": \"open_pending_independent_QA12\"}" .
+crates/bd-cache-store/src/schedule.rs:40:const COLUMNS: &str = "id, generation, name, expr, timeout_ms, jitter_ms, payload, created_at, \
+crates/bd-cache-store/src/schedule.rs:63:/// std::fs::create_dir_all(root.join(".beads"))?;
+crates/bd-cache-store/src/schedule.rs:65:///     root.join(".beads").join("metadata.json"),
+crates/bd-cache-store/src/schedule.rs:200:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:281:            crate::health::check(self.shared.health_deadline()).map_err(bounded_session_error)?;
+crates/bd-cache-store/src/schedule.rs:319:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:337:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:356:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:369:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:394:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:410:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:433:        crate::health::reject_mutation(self.shared.health_deadline())
+crates/bd-cache-store/src/schedule.rs:539:    timeout_ms: i64,
+crates/bd-cache-store/src/schedule.rs:561:            timeout_ms: millis("timeout", spec.timeout.get())?,
+crates/bd-cache-store/src/schedule.rs:578:                    (generation, name, expr, timeout_ms, jitter_ms, payload,
+crates/bd-cache-store/src/schedule.rs:584:                    self.timeout_ms,
+crates/bd-cache-store/src/schedule.rs:617:                "UPDATE sc_cron_schedule SET generation = ?2, expr = ?3, timeout_ms = ?4,
+crates/bd-cache-store/src/schedule.rs:626:                    self.timeout_ms,
+crates/bd-cache-store/src/schedule.rs:701:    timeout_ms: i64,
+crates/bd-cache-store/src/schedule.rs:720:            timeout_ms: row.get(4)?,
+crates/bd-cache-store/src/schedule.rs:759:        let timeout = duration(self.timeout_ms, "timeout_ms")?;
+crates/bd-cache-store/src/schedule.rs:771:                timeout: RunTimeout::new(timeout).map_err(|error| field("timeout_ms", error))?,
+crates/bd-cache-store/src/schedule.rs:806:        shutdown_store_at(Instant::now())
+crates/bd-cache-store/src/schedule.rs:814:            &dir.path().join("shutdown.sqlite3"),
+crates/bd-cache-store/src/schedule.rs:826:    // result assertion, alter a deadline or authorize skipping the real call.
+crates/bd-cache-store/src/schedule.rs:832:    /// A deadline installed after a real mutex wait started must end that wait
+crates/bd-cache-store/src/schedule.rs:842:        let started = Instant::now();
+crates/bd-cache-store/src/schedule.rs:862:        let entered = observed.recv_timeout(Duration::from_secs(2));
+crates/bd-cache-store/src/schedule.rs:866:        let bounded = result.recv_timeout(Duration::from_millis(500));
+crates/bd-cache-store/src/schedule.rs:867:        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+crates/bd-cache-store/src/schedule.rs:878:        task.join().unwrap();
+crates/bd-cache-store/src/schedule.rs:892:                .within(Instant::now() + Duration::from_secs(1), || public
+crates/bd-cache-store/src/schedule.rs:903:    /// A store write already in SQLite's busy handler observes the new deadline,
+crates/bd-cache-store/src/schedule.rs:913:        let started = Instant::now();
+crates/bd-cache-store/src/schedule.rs:941:        let other = Connection::open(dir.path().join("shutdown.sqlite3")).unwrap();
+crates/bd-cache-store/src/schedule.rs:957:        let entered = observed.recv_timeout(Duration::from_secs(2));
+crates/bd-cache-store/src/schedule.rs:961:        let bounded = result.recv_timeout(Duration::from_millis(500));
+crates/bd-cache-store/src/schedule.rs:962:        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+crates/bd-cache-store/src/schedule.rs:974:        task.join().unwrap();
+crates/bd-cache-store/src/schedule.rs:992:                .within(Instant::now() + Duration::from_secs(1), || public
+crates/bd-cache-store/src/schedule.rs:1008:            .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+crates/bd-cache-store/src/schedule.rs:1032:        let started = Instant::now();
+crates/bd-cache-store/src/schedule.rs:1078:        let entered = observed.recv_timeout(Duration::from_secs(2));
+crates/bd-cache-store/src/schedule.rs:1082:        let bounded = result.recv_timeout(Duration::from_millis(500));
+crates/bd-cache-store/src/schedule.rs:1083:        protocol::record(started, "main", "completion-result", &serde_json::json!({"timeout": matches!(bounded, Err(std::sync::mpsc::RecvTimeoutError::Timeout))})).unwrap();
+crates/bd-cache-store/src/schedule.rs:1097:        task.join().unwrap();
+crates/bd-cache-store/src/schedule.rs:1196:        let started = std::time::Instant::now();
+crates/bd-cache-store/src/schedule.rs:1275:            child.scratch.path().join("owned-child-invalid.pid"),
+crates/bd-cache-store/src/schedule.rs:1281:            child.process.try_wait().unwrap().is_some(),
+crates/bd-cache-store/src/schedule.rs:1314:            control.finish_by(Instant::now());
+crates/bd-cache-store/src/schedule.rs:1330:                    .within(Instant::now() + Duration::from_secs(1), || {
+crates/bd-cache-store/src/schedule.rs:1356:                    .within(Instant::now(), || Ok::<_, bd_cache_model::CacheError>(()))
+crates/bd-cache-store/src/schedule.rs:1385:                .query_row("PRAGMA busy_timeout", [], |r| r.get::<_, i64>(0))
+crates/bd-cache-store/src/schedule.rs:1404:        let path = dir.path().join("one.sqlite3");
+crates/bd-cache-store/src/schedule.rs:1415:                "BEGIN; INSERT INTO sc_cron_schedule (generation, name, expr, timeout_ms, \
+crates/bd-cache-store/src/schedule.rs:1469:        let store = SqliteStore::open_at(&dir.path().join("limits.db"), &identity).unwrap();
+.triage/c/findings/FTQ-009.ttl:2:<urn:beads-cache:finding:FTQ-009> triage:id "FTQ-009" ; triage:sprint "c-1" ; triage:severity "important" ; triage:location "crates/bd-cache-store/src/schedule.rs:833" ; triage:source "qa-4 /root/c1_flaky4 fenced JSON at95def5f3" ; triage:status "closed" ; triage:record "{\"evidence\": \"schedule.rs:828-834 receives for 500ms, drops the held mutex and calls task.join before checking entered/bounded; :894-900 repeats this after ROLLBACK; :984-994 receives for 500ms, requests interrupt on timeout, then unconditionally joins. None supervises the fixture or bounds thread completion. RustQA affected-tests log:22-24 reports these tests pass, which does not exercise stalled cleanup.\", \"file\": \"crates/bd-cache-store/src/schedule.rs\", \"id\": \"FTQ-009\", \"issue\": \"All three new synchronous shutdown regressions receive a bounded completion result, but then unconditionally join the tested thread before examining that result. A worker read/write that stays stuck after cancellation and external-lock release prevents the timeout assertion from ever reporting failure. The running-SQL variant requests SQLite interruption on timeout but still has no enforceable lifetime if the thread is stalled outside the interruptible statement. Thus these new fixtures repeat the previously corrected FTQ-001 failure-path design in a different module.\", \"line\": 833, \"mechanism\": \"unbounded_wait\", \"recommendation\": \"Place the complete synchronous fixture in an exactly filtered owned child with a hard supervisor deadline, kill/reap cleanup and assertion-unwind cleanup, as the existing health mutex fixture already does. Keep the actual contention probes and existing 30ms cancellation / 500ms observation bounds; do not widen them or detach timed-out threads.\", \"severity\": \"important\", \"test\": \"shutdown_interrupts_an_already_contended_worker_read_only; shutdown_interrupts_busy_persistence_and_restores_the_shared_session; shutdown_interrupts_a_running_sql_statement_and_restores_progress\"}" .
+.triage/c/findings/FTQ-009.ttl:4:<urn:beads-cache:finding:FTQ-009> triage:qa4Correction "{\"branch\": \"sprint/c-1-runtime-migration\", \"evidence\": \"complete exactly filtered owned fixture, five-second lifetime, timeout/unwind kill/reap, causal stalled cleanup negatives; original inner bounds unchanged\", \"finding\": \"FTQ-009\", \"implementation_state\": \"implemented_pending_independent_QA\", \"logs\": \"/tmp/phase-c-execution/c-1/qa-4/fix-*.log\", \"qa_pass\": \"qa-4\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa4-test-lifetime-correction-ftq-009--ftq-010\", \"review\": \"https://github.com/randlee/beads-cache/pull/108#issuecomment-6620322598\", \"status\": \"open\"}" .
+crates/bd-cache-store/Cargo.toml:32:# for an SQLite without one. The busy-timeout probe tests (store.rs unit tests, QA5-003 and
+crates/bd-cache-store/Cargo.toml:33:# S33) register `probe_busy_timeout`, which a temporary trigger calls from inside the store's
+crates/bd-cache-store/Cargo.toml:34:# write to read `PRAGMA busy_timeout`. That probe's `Context::get_connection` is the crate's
+crates/bd-cache-store/src/health.rs:31:    /// Runs ordinary store reads under an absolute monotonic deadline.
+crates/bd-cache-store/src/health.rs:34:    /// deadline every 1000 VM instructions and on each busy retry; row decoding
+crates/bd-cache-store/src/health.rs:43:        deadline: Instant,
+crates/bd-cache-store/src/health.rs:50:        let deadline = self
+crates/bd-cache-store/src/health.rs:52:            .health_deadline()
+crates/bd-cache-store/src/health.rs:53:            .map_or(deadline, |d| d.min(deadline));
+crates/bd-cache-store/src/health.rs:54:        check(Some(deadline)).map_err(E::from)?;
+crates/bd-cache-store/src/health.rs:55:        BUDGETS.with_borrow_mut(|budgets| budgets.push((key, deadline)));
+crates/bd-cache-store/src/health.rs:59:        check(Some(deadline)).map_err(E::from)?;
+crates/bd-cache-store/src/health.rs:73:pub(crate) fn check(deadline: Option<Instant>) -> Result<(), CacheError> {
+crates/bd-cache-store/src/health.rs:74:    if deadline.is_some_and(|d| Instant::now() >= d) {
+crates/bd-cache-store/src/health.rs:91:                    if let Some(deadline) = active.last_mut() {
+crates/bd-cache-store/src/health.rs:92:                        *deadline = Some(Instant::now());
+crates/bd-cache-store/src/health.rs:102:pub(crate) fn reject_mutation(deadline: Option<Instant>) -> Result<(), CacheError> {
+crates/bd-cache-store/src/health.rs:103:    if deadline.is_some() {
+crates/bd-cache-store/src/health.rs:117:        "bounded health read: deadline expired while acquiring or reading the cache connection",
+crates/bd-cache-store/src/health.rs:118:        std::io::Error::new(std::io::ErrorKind::TimedOut, "health read deadline expired"),
+crates/bd-cache-store/src/health.rs:131:            "schedule worker shutdown: store deadline expired",
+crates/bd-cache-store/src/health.rs:134:                "schedule store deadline expired",
+crates/bd-cache-store/src/health.rs:152:    let deadline = ACTIVE.with_borrow(|sessions| sessions.last().copied().flatten());
+crates/bd-cache-store/src/health.rs:153:    let left = if let Some(deadline) = deadline {
+crates/bd-cache-store/src/health.rs:154:        let Some(left) = deadline.checked_duration_since(Instant::now()) else {
+crates/bd-cache-store/src/health.rs:163:                *started = Some(Instant::now());
+crates/bd-cache-store/src/health.rs:165:            limit.checked_sub(started.get_or_insert_with(Instant::now).elapsed())
+crates/bd-cache-store/src/health.rs:172:    std::thread::sleep(left.min(Duration::from_millis(1)));
+crates/bd-cache-store/src/health.rs:173:    check_worker().is_ok() && deadline.is_none_or(|d| Instant::now() < d)
+crates/bd-cache-store/src/health.rs:183:    pub(crate) fn health_deadline(&self) -> Option<Instant> {
+crates/bd-cache-store/src/health.rs:195:        let deadline = self.health_deadline();
+crates/bd-cache-store/src/health.rs:197:        let guard = if deadline.is_some() || worker.is_some() {
+crates/bd-cache-store/src/health.rs:199:                check(deadline)?;
+crates/bd-cache-store/src/health.rs:209:                        std::thread::sleep(deadline.map_or(Duration::from_millis(1), |deadline| {
+crates/bd-cache-store/src/health.rs:210:                            deadline
+crates/bd-cache-store/src/health.rs:211:                                .saturating_duration_since(Instant::now())
+crates/bd-cache-store/src/health.rs:230:        ACTIVE.with_borrow_mut(|sessions| sessions.push(deadline));
+crates/bd-cache-store/src/health.rs:237:        if deadline.is_some() || worker.is_some() {
+crates/bd-cache-store/src/health.rs:240:                .query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+crates/bd-cache-store/src/health.rs:252:            if deadline.is_some() {
+crates/bd-cache-store/src/health.rs:264:                    deadline.is_some_and(|deadline| Instant::now() >= deadline)
+crates/bd-cache-store/src/health.rs:271:            check(deadline)?;
+crates/bd-cache-store/src/health.rs:300:                conn.busy_timeout(Duration::from_millis(u64::try_from(busy_ms).unwrap_or(0)));
+crates/bd-cache-store/src/health.rs:331:        let store = SqliteStore::open_at(&dir.path().join("health.db"), &identity).unwrap();
+crates/bd-cache-store/src/health.rs:362:    /// assertion inside this process, never the supervising test's deadline.
+crates/bd-cache-store/src/health.rs:400:            let until = Instant::now() + Duration::from_secs(5);
+crates/bd-cache-store/src/health.rs:402:                if let Some(status) = self.process.try_wait().unwrap() {
+crates/bd-cache-store/src/health.rs:405:                if Instant::now() >= until {
+crates/bd-cache-store/src/health.rs:409:                std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-store/src/health.rs:417:            self.process.wait().unwrap();
+crates/bd-cache-store/src/health.rs:428:            let _ = self.process.wait();
+crates/bd-cache-store/src/health.rs:441:            child.process.try_wait().unwrap().is_some(),
+crates/bd-cache-store/src/health.rs:460:            let until = Instant::now() + Duration::from_secs(5);
+crates/bd-cache-store/src/health.rs:466:                    Instant::now() < until,
+crates/bd-cache-store/src/health.rs:472:            let _ = released.recv(); // owner Drop closes this on every unwind
+crates/bd-cache-store/src/health.rs:475:        observed.recv_timeout(Duration::from_secs(5)).unwrap();
+crates/bd-cache-store/src/health.rs:479:            let started = Instant::now();
+crates/bd-cache-store/src/health.rs:491:        starting.recv_timeout(Duration::from_secs(5)).unwrap();
+crates/bd-cache-store/src/health.rs:492:        let bounded = answers.recv_timeout(Duration::from_millis(200));
+crates/bd-cache-store/src/health.rs:499:        reader.join().unwrap();
+crates/bd-cache-store/src/health.rs:500:        holder.join().unwrap();
+crates/bd-cache-store/src/health.rs:501:        let (result, elapsed, store) = bounded.expect("health read exceeded its answer deadline");
+crates/bd-cache-store/src/health.rs:520:        let start = Instant::now();
+crates/bd-cache-store/src/health.rs:544:                attempted.recv_timeout(Duration::from_millis(500)).unwrap();
+crates/bd-cache-store/src/health.rs:552:            .recv_timeout(Duration::from_secs(2))
+crates/bd-cache-store/src/health.rs:555:        writer.unwrap().join().unwrap();
+crates/bd-cache-store/src/health.rs:572:    fn row_iteration_checks_the_deadline_between_decodes() {
+crates/bd-cache-store/src/health.rs:575:        let started = Instant::now();
+crates/bd-cache-store/src/health.rs:582:                std::thread::sleep(Duration::from_millis(1));
+crates/bd-cache-store/src/health.rs:597:            .within(Instant::now() + Duration::from_secs(1), || {
+crates/bd-cache-store/src/health.rs:604:                control.within(Instant::now() + Duration::from_secs(1), || {
+crates/bd-cache-store/src/health.rs:617:            .pragma_query_value(None, "busy_timeout", |r| r.get::<_, i64>(0))
+crates/bd-cache-store/src/health.rs:648:        let result = control.within(Instant::now() + Duration::from_secs(1), || {
+crates/bd-cache-store/src/health.rs:656:                .within(Instant::now() + Duration::from_secs(1), || store.status())
+crates/bd-cache-store/src/health.rs:675:            let result = control.within(Instant::now() + Duration::from_secs(1), || {
+crates/bd-cache-store/src/lib.rs:34://! std::fs::create_dir_all(root.join(".beads"))?;
+crates/bd-cache-store/src/lib.rs:36://!     root.join(".beads").join("metadata.json"),
+crates/bd-cache-store/src/lib.rs:42://! assert!(store.path().ends_with(std::path::Path::new(".bd-cache").join("dev.bd-cache.sqlite3")));
+crates/bd-cache-store/src/schema.rs:77:    timeout_ms   INTEGER NOT NULL CHECK (timeout_ms > 0),
+crates/bd-cache-store/src/schedule_budget.rs:14:/// A shutdown deadline for one worker view of the existing schedule connection.
+crates/bd-cache-store/src/schedule_budget.rs:22:    deadline: Arc<Mutex<Option<Instant>>>,
+crates/bd-cache-store/src/schedule_budget.rs:33:            deadline: Arc::default(),
+crates/bd-cache-store/src/schedule_budget.rs:42:        (Arc::as_ptr(&self.deadline) as usize, self.connection)
+crates/bd-cache-store/src/schedule_budget.rs:50:    /// other worker views, other connections, or health read-only/deadline rules.
+crates/bd-cache-store/src/schedule_budget.rs:62:        *self.deadline.lock().unwrap_or_else(PoisonError::into_inner) = None;
+crates/bd-cache-store/src/schedule_budget.rs:65:    /// Shortens the worker's store deadline, including calls already in progress.
+crates/bd-cache-store/src/schedule_budget.rs:66:    pub fn finish_by(&self, deadline: Instant) {
+crates/bd-cache-store/src/schedule_budget.rs:67:        let mut current = self.deadline.lock().unwrap_or_else(PoisonError::into_inner);
+crates/bd-cache-store/src/schedule_budget.rs:68:        *current = Some(current.map_or(deadline, |d| d.min(deadline)));
+crates/bd-cache-store/src/schedule_budget.rs:94:    /// Returns the current worker deadline for lifecycle regression assertions.
+crates/bd-cache-store/src/schedule_budget.rs:98:    pub fn deadline_for_tests(&self) -> Option<Instant> {
+crates/bd-cache-store/src/schedule_budget.rs:99:        *self.deadline.lock().unwrap_or_else(PoisonError::into_inner)
+crates/bd-cache-store/src/schedule_budget.rs:120:        self.deadline
+crates/bd-cache-store/src/schedule_budget.rs:123:            .is_some_and(|deadline| Instant::now() >= deadline)
+crates/bd-cache-sync/tests/perf.rs:44:    let store = SqliteStore::open_at(&dir.path().join("perf.sqlite3"), &identity).unwrap();
+crates/bd-cache-sync/tests/perf.rs:122:        let mut c = rusqlite::Connection::open(dir.path().join("perf.sqlite3")).unwrap();
+crates/bd-cache-sync/tests/perf.rs:166:    let path = dir.path().join("perf.sqlite3");
+crates/bd-cache-sync/tests/perf.rs:312:                let start = Instant::now();
+crates/bd-cache-sync/tests/perf.rs:363:    let start = Instant::now();
+crates/bd-cache-store/tests/support/schedule_protocol.rs:5:use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+crates/bd-cache-store/tests/support/schedule_protocol.rs:38:    let now = SystemTime::now()
+crates/bd-cache-store/tests/support/schedule_protocol.rs:49:    let path = std::path::PathBuf::from(root).join(format!("store-{stream}-phases.jsonl"));
+crates/bd-cache-store/tests/support/schedule_protocol.rs:107:                .join(format!("store-{stream}-phases.jsonl"));
+crates/bd-cache-store/tests/support/schedule_protocol.rs:233:            "cancellation-deadline-installed",
+crates/bd-cache-store/tests/support/schedule_protocol.rs:248:            self.phase("completion-result").unwrap()["data"]["timeout"],
+crates/bd-cache-store/tests/support/schedule_protocol.rs:259:    let started = Instant::now();
+crates/bd-cache-store/tests/support/schedule_protocol.rs:290:            "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+crates/bd-cache-store/tests/support/schedule_protocol.rs:295:        "FTQ-009 {test}: owned timeout and root reap in {:?}",
+crates/bd-cache-store/tests/support/schedule_protocol.rs:323:    let deadline = Instant::now() + Duration::from_millis(30);
+crates/bd-cache-store/tests/support/schedule_protocol.rs:324:    control.finish_by(deadline);
+crates/bd-cache-store/tests/support/schedule_protocol.rs:325:    record(started, "main", "cancellation-deadline-installed", &json!({
+crates/bd-cache-store/tests/support/schedule_protocol.rs:326:        "child_deadline_ns": u64::try_from(deadline.saturating_duration_since(started).as_nanos()).unwrap(),
+crates/bd-cache-sync/src/history.rs:43:    /// recorded (a timeout, an abort) counts as one more failure.
+crates/bd-cache-sync/src/history.rs:106:    pub(crate) async fn start_until(&self, deadline: sc_beads::Deadline) {
+crates/bd-cache-sync/src/history.rs:113:            let wait = deadline
+crates/bd-cache-sync/src/history.rs:115:                .saturating_duration_since(std::time::Instant::now());
+crates/bd-cache-sync/src/history.rs:117:            if deadline.remaining(&*cache.clock()).is_zero() {
+crates/bd-cache-sync/src/history.rs:128:    pub(crate) async fn finish_until(&self, end: SyncRunEnd, deadline: sc_beads::Deadline) {
+crates/bd-cache-sync/src/history.rs:135:            let wait = deadline
+crates/bd-cache-sync/src/history.rs:137:                .saturating_duration_since(std::time::Instant::now());
+crates/bd-cache-sync/src/history.rs:139:            if deadline.remaining(&*cache.clock()).is_zero() {
+crates/bd-cache-sync/src/control.rs:1://! Cooperative shutdown ([`StopFlag`]) and the two deadlines of a built-in run ([`Budget`]).
+crates/bd-cache-sync/src/control.rs:75:/// The two deadlines of one built-in run (REQ-BDC-0703 as amended, ADR-SYNC-0008).
+crates/bd-cache-sync/src/control.rs:77:/// Made from the run's start and its [`TickBudget`]: the sync deadline
+crates/bd-cache-sync/src/control.rs:79:/// syncs get, and the hook deadline (start + `budget_ms`), so the post-sync
+crates/bd-cache-sync/src/control.rs:93:/// assert_eq!(budget.sync_deadline().remaining(&*clock), Duration::from_secs(6));
+crates/bd-cache-sync/src/control.rs:94:/// assert_eq!(budget.hook_deadline().remaining(&*clock), Duration::from_secs(10));
+crates/bd-cache-sync/src/control.rs:104:    /// The deadlines of a run starting now on `clock`.
+crates/bd-cache-sync/src/control.rs:120:    pub(crate) fn capped(self, deadline: Deadline) -> Self {
+crates/bd-cache-sync/src/control.rs:122:            sync: self.sync.earliest(deadline),
+crates/bd-cache-sync/src/control.rs:123:            hook: self.hook.earliest(deadline),
+crates/bd-cache-sync/src/control.rs:127:    /// The drain's and the scope syncs' deadline.
+crates/bd-cache-sync/src/control.rs:129:    pub fn sync_deadline(&self) -> Deadline {
+crates/bd-cache-sync/src/control.rs:133:    /// The post-sync hook's deadline, the end of the run's budget.
+crates/bd-cache-sync/src/control.rs:135:    pub fn hook_deadline(&self) -> Deadline {
+crates/bd-cache-sync/src/control.rs:149:            async move { flag.wait().await }
+crates/bd-cache-sync/src/control.rs:155:        flag.wait().await;
+crates/bd-cache-store/src/store.rs:46:/// SQLite's busy timeout on the shared file (REQ-BDC-0103).
+crates/bd-cache-store/src/store.rs:159:/// std::fs::create_dir_all(root.join(".beads"))?;
+crates/bd-cache-store/src/store.rs:161:///     root.join(".beads").join("metadata.json"),
+crates/bd-cache-store/src/store.rs:318:    /// In order (ADR-STORE-0002): sets a 5 s busy timeout; then, in one
+crates/bd-cache-store/src/store.rs:357:        conn.busy_timeout(BUSY_TIMEOUT)
+crates/bd-cache-store/src/store.rs:358:            .at(at("set the busy timeout"))?;
+crates/bd-cache-store/src/store.rs:442:        let deadline = self.shared.health_deadline();
+crates/bd-cache-store/src/store.rs:443:        let value = if deadline.is_some() {
+crates/bd-cache-store/src/store.rs:448:        crate::health::check(deadline)?;
+crates/bd-cache-store/src/store.rs:496:    /// busy timeout ([`BusyWait`] of zero), and when the write lock is held elsewhere,
+crates/bd-cache-store/src/store.rs:539:                tracing::debug!(error = %e, "could not drop the busy timeout to date entries");
+crates/bd-cache-store/src/store.rs:630:    /// timeout is `min(BUSY_TIMEOUT, wait)` for this one transaction
+crates/bd-cache-store/src/store.rs:641:            .at(step(self.path, "set the busy timeout"))?;
+crates/bd-cache-store/src/store.rs:857:/// Sets the connection's busy timeout to `wait` while it lives, and back to
+crates/bd-cache-store/src/store.rs:872:        conn.busy_timeout(wait)?;
+crates/bd-cache-store/src/store.rs:893:        if let Err(e) = self.conn.busy_timeout(BUSY_TIMEOUT) {
+crates/bd-cache-store/src/store.rs:897:                "could not restore the busy timeout"
+crates/bd-cache-store/src/store.rs:903:/// `BEGIN IMMEDIATE`: writers in other processes wait, up to the busy timeout.
+crates/bd-cache-store/src/store.rs:938:        conn.busy_timeout(BUSY_TIMEOUT)
+crates/bd-cache-store/src/store.rs:939:            .at(at("fixture busy timeout"))?;
+crates/bd-cache-store/src/store.rs:2654:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2658:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2662:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2666:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2670:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2696:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2700:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2704:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2712:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2716:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2731:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2735:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2752:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2762:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2777:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2793:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2806:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2816:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2841:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2845:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2849:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2859:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2869:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2878:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2882:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2889:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2898:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2905:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2914:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2921:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:2925:        crate::health::reject_mutation(self.shared.health_deadline())?;
+crates/bd-cache-store/src/store.rs:3157:        let path = dir.path().join("u.sqlite3");
+crates/bd-cache-store/src/store.rs:3255:        let path = dir.path().join("t.sqlite3");
+crates/bd-cache-store/src/store.rs:3327:    /// The busy timeout in effect inside a write, read by a temporary
+crates/bd-cache-store/src/store.rs:3329:    /// `probe_busy_timeout()`, which reads `PRAGMA busy_timeout` on the
+crates/bd-cache-store/src/store.rs:3333:    fn probe_busy_timeout(conn: &Connection, name: &str, trigger: &str) -> Arc<AtomicI64> {
+crates/bd-cache-store/src/store.rs:3337:            "probe_busy_timeout",
+crates/bd-cache-store/src/store.rs:3349:                        .query_row("PRAGMA busy_timeout", [], |r| r.get(0))?;
+crates/bd-cache-store/src/store.rs:3356:            "CREATE TEMP TRIGGER {name} {trigger} BEGIN SELECT probe_busy_timeout(); END;"
+crates/bd-cache-store/src/store.rs:3362:    fn busy_timeout_ms(c: &Connection) -> i64 {
+crates/bd-cache-store/src/store.rs:3363:        c.query_row("PRAGMA busy_timeout", [], |r| r.get(0))
+crates/bd-cache-store/src/store.rs:3371:    /// The dating `UPDATE` runs with a zero busy timeout, and the timeout is
+crates/bd-cache-store/src/store.rs:3372:    /// back afterwards (QA5-003). A timeout of any size would make the read
+crates/bd-cache-store/src/store.rs:3376:    /// `PRAGMA busy_timeout` from inside the `UPDATE`, once it has the lock:
+crates/bd-cache-store/src/store.rs:3379:    fn the_dating_update_runs_with_no_busy_timeout_and_restores_it() {
+crates/bd-cache-store/src/store.rs:3382:        let seen = probe_busy_timeout(
+crates/bd-cache-store/src/store.rs:3389:            busy_timeout_ms(&store.inner().conn),
+crates/bd-cache-store/src/store.rs:3391:            "control: the usual timeout"
+crates/bd-cache-store/src/store.rs:3402:        assert_eq!(seen.load(Ordering::SeqCst), 0, "no busy timeout inside it");
+crates/bd-cache-store/src/store.rs:3404:            busy_timeout_ms(&store.inner().conn),
+crates/bd-cache-store/src/store.rs:3411:    /// timeout, and the timeout is back afterwards (lead ruling S33). Sampled
+crates/bd-cache-store/src/store.rs:3416:    fn a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout() {
+crates/bd-cache-store/src/store.rs:3424:        let alert = probe_busy_timeout(
+crates/bd-cache-store/src/store.rs:3433:            busy_timeout_ms(&store.inner().conn),
+crates/bd-cache-store/src/store.rs:3441:        // The unbounded form is the usual timeout.
+crates/bd-cache-store/src/store.rs:3460:        let mark = probe_busy_timeout(
+crates/bd-cache-store/src/store.rs:3465:        // Less time left than the store's own timeout: the time left, as the
+crates/bd-cache-store/src/store.rs:3466:        // alert's (the planted bug S33 gave the mark the full timeout).
+crates/bd-cache-store/src/store.rs:3470:            busy_timeout_ms(&store.inner().conn),
+crates/bd-cache-store/src/store.rs:3478:        assert_eq!(busy_timeout_ms(&store.inner().conn), normal);
+crates/bd-cache-store/src/store.rs:3479:        // More time left than the store's own timeout: capped at it.
+crates/bd-cache-store/src/store.rs:3488:        assert_eq!(busy_timeout_ms(&store.inner().conn), normal);
+crates/bd-cache-sync/src/cron.rs:9://! the shutdown timeout `T`. Only when `T` expires does it abort the runs
+crates/bd-cache-sync/src/cron.rs:14://! therefore takes at most `2 × T` (`--shutdown-timeout-ms 0` kills at once;
+crates/bd-cache-sync/src/cron.rs:19://! to its own deadline.
+crates/bd-cache-sync/src/cron.rs:46:    /// Every run in flight finished before the shutdown timeout.
+crates/bd-cache-sync/src/cron.rs:104:            .join("; ");
+crates/bd-cache-sync/src/cron.rs:128:    /// within `shutdown_timeout`, calling `on_expiry` if that expires (module docs).
+crates/bd-cache-sync/src/cron.rs:137:        shutdown_timeout: Duration,
+crates/bd-cache-sync/src/cron.rs:140:        self.cron_run_hurried(stop, StopFlag::new(), shutdown_timeout, on_expiry)
+crates/bd-cache-sync/src/cron.rs:147:    /// `shutdown_timeout` expires (bdc sets it on a second signal). The
+crates/bd-cache-sync/src/cron.rs:157:        shutdown_timeout: Duration,
+crates/bd-cache-sync/src/cron.rs:167:            .stop_aware_startup(&stop, &hurry, shutdown_timeout, &mut on_expiry)
+crates/bd-cache-sync/src/cron.rs:172:        self.run_worker(stop, hurry, shutdown_timeout, on_expiry)
+crates/bd-cache-sync/src/cron.rs:180:        shutdown_timeout: Duration,
+crates/bd-cache-sync/src/cron.rs:198:                () = stop.wait() => break false,
+crates/bd-cache-sync/src/cron.rs:199:                () = tokio::time::sleep(WORKER_CHECK) => {
+crates/bd-cache-sync/src/cron.rs:214:                shutdown_timeout_ms =
+crates/bd-cache-sync/src/cron.rs:215:                    u64::try_from(shutdown_timeout.as_millis()).unwrap_or(u64::MAX),
+crates/bd-cache-sync/src/cron.rs:222:        let grace_by = tokio::time::Instant::now() + shutdown_timeout;
+crates/bd-cache-sync/src/cron.rs:225:            .checked_add(shutdown_timeout)
+crates/bd-cache-sync/src/cron.rs:226:            .unwrap_or_else(Instant::now);
+crates/bd-cache-sync/src/cron.rs:237:                    () = hurry.wait() => {},
+crates/bd-cache-sync/src/cron.rs:247:                    control.finish_by(Instant::now());
+crates/bd-cache-sync/src/cron.rs:250:                finish_by = finish_by.min(Instant::now()
+crates/bd-cache-sync/src/cron.rs:251:                    .checked_add(shutdown_timeout).unwrap_or_else(Instant::now));
+crates/bd-cache-sync/src/cron.rs:253:                // adapter makes the current store call observe the deadline.
+crates/bd-cache-sync/src/cron.rs:257:        if (!drained || Instant::now() >= grace_by.into_std()) && !expired {
+crates/bd-cache-sync/src/cron.rs:289:        timeout: Duration,
+crates/bd-cache-sync/src/cron.rs:297:            () = stop.wait() => None,
+crates/bd-cache-sync/src/cron.rs:309:        // a signal does not go on to spawn a worker or renew either deadline.
+crates/bd-cache-sync/src/cron.rs:310:        let grace_by = tokio::time::Instant::now() + timeout;
+crates/bd-cache-sync/src/cron.rs:313:            .checked_add(timeout)
+crates/bd-cache-sync/src/cron.rs:314:            .unwrap_or_else(Instant::now);
+crates/bd-cache-sync/src/cron.rs:327:                        () = hurry.wait() => {},
+crates/bd-cache-sync/src/cron.rs:333:                    if let Some(control) = &self.store_shutdown { control.finish_by(Instant::now()); }
+crates/bd-cache-sync/src/cron.rs:334:                    finish_by = finish_by.min(Instant::now().checked_add(timeout).unwrap_or_else(Instant::now));
+crates/bd-cache-sync/src/cron.rs:346:        if Instant::now() >= grace_by.into_std() && !expired {
+crates/bd-cache-sync/src/cron.rs:421:    /// Runs every due row once and waits for each to its own deadline
+crates/bd-cache-sync/src/cron.rs:433:    /// `expire` cuts a running built-in hook as if its deadline had come
+crates/bd-cache-sync/src/cron.rs:465:            // A run sc-cron itself ended (its deadline) has no failure of
+crates/bd-cache-sync/src/cron.rs:477:                        detail: "the run was killed at its deadline".to_owned(),
+crates/bd-cache-sync/src/compose.rs:129:/// runs in and the cache's two timeouts at a finer grain than the file's
+crates/bd-cache-sync/src/compose.rs:136:    /// Replaces the configuration's per-call timeout.
+crates/bd-cache-sync/src/compose.rs:137:    pub call_timeout: Option<Duration>,
+crates/bd-cache-sync/src/compose.rs:138:    /// Replaces the configuration's miss-fill timeout.
+crates/bd-cache-sync/src/compose.rs:139:    pub miss_fill_timeout: Option<Duration>,
+crates/bd-cache-sync/src/compose.rs:289:/// `clock` is shared by the cache and the backend, so every deadline is
+crates/bd-cache-sync/src/compose.rs:389:/// the store and the backend measure every deadline on one clock whatever
+crates/bd-cache-sync/src/compose.rs:556:    if let Some(d) = tuning.call_timeout {
+crates/bd-cache-sync/src/compose.rs:557:        cache_config.call_timeout = d;
+crates/bd-cache-sync/src/compose.rs:559:    if let Some(d) = tuning.miss_fill_timeout {
+crates/bd-cache-sync/src/compose.rs:560:        cache_config.miss_fill_timeout = d;
+crates/bd-cache-sync/src/compose.rs:590:        let beads = root.path().join(".beads");
+crates/bd-cache-sync/src/compose.rs:593:            beads.join("metadata.json"),
+crates/bd-cache-sync/src/compose.rs:645:            !root.path().join(".bd-cache").exists(),
+crates/bd-cache-sync/src/compose.rs:658:        let root = parent.path().join(OsStr::from_bytes(b"repo-\xff"));
+crates/bd-cache-sync/src/compose.rs:703:                beads_dir: Some(root.path().join(".beads").display().to_string()),
+crates/bd-cache-sync/src/compose.rs:720:            root.path().join(".beads/bd-cache.toml"),
+crates/bd-cache-sync/src/compose.rs:739:        assert!(root.path().join(".bd-cache/merged.sqlite3").exists());
+crates/bd-cache-sync/src/compose.rs:740:        assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
+crates/bd-cache-sync/src/compose.rs:757:            root.path().join(".beads/bd-cache.toml"),
+crates/bd-cache-sync/src/compose.rs:785:        assert!(!root.path().join(".bd-cache/from-file.sqlite3").exists());
+crates/bd-cache-sync/src/compose.rs:801:            other.path().join("metadata.json"),
+crates/bd-cache-sync/src/compose.rs:832:        let held = work.path().join("held");
+crates/bd-cache-sync/src/compose.rs:833:        let overlap = work.path().join("overlap");
+crates/bd-cache-sync/src/compose.rs:834:        let bd = work.path().join("bd");
+crates/bd-cache-sync/src/compose.rs:852:            root.path().join(".beads/bd-cache.toml"),
+crates/bd-cache-sync/src/compose.rs:863:                barrier.wait();
+crates/bd-cache-sync/src/compose.rs:873:        ta.join().unwrap();
+crates/bd-cache-sync/src/compose.rs:874:        tb.join().unwrap();
+.triage/c/findings/RQA9-001.ttl:2:<urn:beads-cache:finding:RQA9-001> triage:id "RQA9-001" ; triage:sprint "c-1" ; triage:severity "Important" ; triage:status "open" ; triage:location "crates/bd-cache-store/src/schedule.rs:1084" ; triage:source "QA9 independent rust-qa-agent fenced JSON and actual C2 Windows job126397662727" ; triage:record "{\"budget_policy\": \"Preserve original product500ms and owned five-second fixture lifetime; no repeat-to-green or deadline widening\", \"consumer_sprint\": \"c-2\", \"finding\": {\"category\": \"tests\", \"evidence\": \"C2 b7de8e9879503353879c500edacf12a6832d709d run41776396362 Windows job126397662727 lines1950-1965: read-only negative succeeded5.005945s, next busy-persistence child output only running1test/name, assertion worker operation did not run at1084, store33passed1failed, exit101. Both store source blob d30f281677d56389285827faabeb4d8aace48758 and shared helper d312b5608d5bd50511647227cf865938219e3efb match C1/adbc exactly. /tmp/phase-c-execution/c-1/qa-9/rust-qa-hosted-c2-windows.log\", \"file\": \"crates/bd-cache-store/src/schedule.rs\", \"id\": \"RQA9-001\", \"issue\": \"Exact frozen C2 Windows required CI fails the shared store supervisor negative: the busy-persistence child is killed/reaped at its five-second watchdog before it emits the required real-operation/stalled-join observation, so this required test fails and that run does not establish the busy-write negative path.\", \"limits\": \"Observed test failure is certain; why the child did not reach its observation is unknown. C1 current Windows core succeeds, local Darwin store5/5 succeeds. This is separate from startup correction and prior C2 signal qualification; no source regression or orphan claim is inferred.\", \"line\": 1084, \"recommendation\": \"Have the owning flaky-test reviewer inspect this concrete occurrence and preserve the raw log. Investigate causal operation/stall acknowledgements and Windows execution before correcting the fixture; retain real negative-path coverage and existing product500ms/five-second ownership budgets. Do not infer a scheduling cause, widen deadlines or rerun to waive the failure.\", \"routing\": \"New concrete shared-store test occurrence for owning reviewer/parent triage; also blocks broader REQ-QA-004/C2 acceptance. FTQ-009 prior unbounded-lifetime repair remains credited pending owner correlation.\", \"severity\": \"important\"}, \"next_action\": \"Complete owning flaky review and QA9 aggregation, then route concrete occurrence to background developer with all current findings\", \"owner_flaky_review\": \"/root/c1_flakyqa9 running; no root-cause conclusion or fix dispatch yet\", \"owning_sprint\": \"c-1\", \"qa_pass\": \"c-1/qa-9\", \"reviewed_c1\": \"a753d2799183dd4e341c854c4515bf046447eb6c\", \"reviewer_task\": \"/root/c1_rustqa9\", \"source_commit\": \"b7de8e9879503353879c500edacf12a6832d709d\", \"status\": \"open\"}" .
+.triage/c/findings/RQA9-001.ttl:4:<urn:beads-cache:finding:RQA9-001> triage:ownerAssessment "{\"finding\": {\"correlation\": \"Same actual occurrence as independent rust-qa-agent RQA9-001; retain this ID, not a duplicate FTQ ID.\", \"evidence\": \"Exact b7de8e9879503353879c500edacf12a6832d709d run41776396362 Windows job126397662727, raw rust-qa-hosted-c2-windows.log:1950-1965: first read-only negative records kill/reap5.005945s and original500ms observation; next busy-persistence child output contains only running1test and test name; assertion1084 fails worker operation did not run; store33passed1failed, exit101. Source schedule.rs:1056-1095 starts an owned child, finishes at5s, checks timeout/cleanup receipt/under7s, then checks post-call marker and500ms-expiry output. Busy path:861-919 includes database preparation, worker call, stall marker and timed completion observation. Shared store tree6286e1f33ae881d92e7acaf95852c4010ab82cbc, source blobd30f281677d56389285827faabeb4d8aace48758 and helper blobd312b5608d5bd50511647227cf865938219e3efb match C1/C2/adbc exactly.\", \"file\": \"crates/bd-cache-store/src/schedule.rs\", \"id\": \"RQA9-001\", \"issue\": \"Actual frozen C2 Windows required CI fails the shared-store negative fixture because its busy-persistence child reaches the five-second supervisor deadline without recording the required post-worker-call stalled-cleanup receipt. The parent has killed/reaped the child, but that occurrence does not qualify the intended busy-persistence stalled-join path. This is a concrete failed test observation requiring investigation; the underlying cause and whether it is a fixture race or store-path fault are unresolved.\", \"limits\": \"Timing classification describes the observed watchdog/receipt failure only. Logs do not locate the child at timeout or prove host scheduling, SQLite malfunction, missing product cancellation, orphaning, or a newly introduced source regression. Missing receipt does not prove the operation never began or returned. This is separate from the earlier Windows CTRL_BREAK issue, startup shutdown correction, and the repaired FTQ009 unbounded fixture lifetime.\", \"line\": 1084, \"mechanism\": \"timing_assertion\", \"recommendation\": \"Preserve the failing Windows log and investigate the actual child phase before correcting code. Add causal phase receipts or a controlled fault hook around setup, real worker wait/call return, and injected cleanup stall, with failure diagnostics captured by the existing owner. Establish which phase exhausted the original absolute five-second lifetime and why the expected 500ms observation was absent; deterministically reproduce the identified mechanism on Windows, then remove it. Retain real SQLite contention, original30ms cancellation/500ms observation and complete five-second ownership. Do not widen timeouts, add retries, waive this run or call a later green run a fix.\", \"severity\": \"important\", \"test\": \"shutdown_fixture_supervisor_kills_and_reaps_each_stalled_cleanup\"}, \"owner_task\": \"/root/c1_flakyqa9\", \"scope\": \"Same actual Windows occurrence; absence of receipt does not prove worker operation never began; root cause unknown\", \"status\": \"open\"}" .
+.triage/c/findings/RQA9-001.ttl:6:<urn:beads-cache:finding:RQA9-001> triage:qa9WindowsDiagnostic "{\"finding\": \"RQA9-001\", \"implementation_state\": \"diagnostic_only_cause_unknown_exact_source_Windows_pending\", \"limits\": \"No self-QA closure, acceptance, production fix, deadline or dependency change; missing receipt does not prove operation never began.\", \"qa_pass\": \"C1-QA9-Windows-diagnostic\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa9-windows-shared-store-diagnostic-rqa9-001\", \"status\": \"open\"}" .
+.triage/c/findings/RQA9-001.ttl:7:<urn:beads-cache:finding:RQA9-001> triage:controlledContextAssessment "{\"assessment\": {\"data\": {\"actions\": \"Read-only existing source/log inspection; wrote only this separate result pair. No source/triage/Cargo/tests/workflow execution/agents/PR posting/merge/auth/publisher work.\", \"active_owned_commands\": 0, \"actual_run\": {\"all_modes\": \"Actual wait Ok receipts, cancellation installed, real expected error returns, original post-call stall text, original500ms timeout text and worker-join-start are visible. None returns from worker join because of deliberate park. Original root timeout/kill/wait and cleanup receipt assertions pass.\", \"busy_setup\": \"Store open returns50.0401ms on helper clock; actual contender BEGIN IMMEDIATE lock acquired66.3264ms on fixture-body clock. Wait receipt is Ok; real worker call returns DatabaseBusy31.3059ms after cancellation; main records original500ms Timeout, explicitly rolls contender back581.1294ms and enters join581.154ms.\", \"command\": \"cargo test --locked -p bd-cache-store --lib --all-features -- --nocapture\", \"completed_at_utc_parent_verified\": \"2026-11-04T06:09:05Z\", \"expected_panics\": \"The management panic and parent assertion panic at raw lines346/351 are intentionally caught regression paths; both tests report ok. They are not a new failed occurrence.\", \"feature_context\": {\"original_full_workspace_artifact\": \"bd_cache_store-0736be897941eed8.exe\", \"qualification\": \"Relevant SQLite features match selected one-shot and previously recorded workspace set; entire original dependency feature union and artifact identity are not reproduced.\", \"raw_lines\": [270, 299], \"rusqlite_features\": [\"bundled\", \"cache\", \"default\", \"functions\", \"hashlink\", \"hooks\", \"modern_sqlite\", \"trace\"], \"same_selected_package_artifact_as_prior_one_shot\": true}, \"job_id\": 126420131075, \"modes\": [{\"cancel_ms\": 186.2565, \"cancel_to_return_ms\": 30.9036, \"completion_timeout_ms\": 686.5521, \"mode\": \"read-only mutex\", \"raw_lines\": [374, 391], \"result\": \"bounded-session shutdown deadline error\", \"root_kill_reap_seconds\": 5.0067212, \"wait_ms\": 176.486, \"worker_return_ms\": 217.1601}, {\"cancel_ms\": 66.7871, \"cancel_to_return_ms\": 31.3059, \"completion_timeout_ms\": 581.0009, \"mode\": \"busy persistence\", \"raw_lines\": [395, 418], \"result\": \"DatabaseBusy, extended_code5\", \"root_kill_reap_seconds\": 5.0072666, \"wait_ms\": 66.7376, \"worker_return_ms\": 98.093}, {\"cancel_ms\": 65.9814, \"cancel_to_return_ms\": 30.0661, \"completion_timeout_ms\": 571.5166, \"mode\": \"running SQL\", \"raw_lines\": [422, 440], \"result\": \"OperationInterrupted, extended_code9\", \"root_kill_reap_seconds\": 5.0061447, \"wait_ms\": 65.9342, \"worker_return_ms\": 96.0475}], \"raw_log\": {\"bytes\": 43766, \"path\": \"/tmp/phase-c-execution/c-1/qa-9/next-windows-diagnostic/full-store-context/windows-full-store-126420131075.log\", \"sha256\": \"73cef5494bf2eef842906a40bc5f565ebf71f626d557ae1b03753c7ac2463059\"}, \"result\": {\"elapsed_seconds\": 15.97, \"failed\": 0, \"filtered\": 0, \"ignored\": 0, \"passed\": 34, \"raw_line\": 443, \"running\": 34}, \"run_id\": 41783469872, \"selection\": \"Full existing store library; no filter or thread-count override. RUST_TEST_THREADS=<unset> explicitly observed at raw line316.\", \"source_guard\": {\"Cargo.lock_blob\": \"8ff90ed761ac59b12f60c757085de42ccb2b8928\", \"FixtureChild_blob\": \"d312b5608d5bd50511647227cf865938219e3efb\", \"literal_checkout\": \"e86d9da92a8c8c9b787c780e29bc54e417680d71\", \"matches_independently_reviewed_local_blobs\": true, \"raw_lines\": [117, 129, 130, 131, 132], \"schedule_blob\": \"fd0bd6d1c6fe3dca34aca7a97767d08550866ec1\"}, \"terminal\": \"COMPLETED SUCCESS\", \"test_artifact\": \"bd_cache_store-13fa15f35aba80e5.exe\", \"timestamp_limits\": \"Child phases are captured to a file then published after cleanup. Actions UTC phase-line times are publication times. Helper scratch/open clock has separate origin from fixture-body clock. Root reap supported by unchanged helper and receipt assertions; no syscall/PID audit or worker-join success claimed.\"}, \"clean_HEAD_reverified\": true, \"cm_context_executed\": true, \"finding_disposition\": {\"conclusion\": \"The one full-store context experiment succeeds with visible normal phases. It narrows the observed behavior but does not identify the original failed child phase or a supported correction. Original required-test failure remains valid and open.\", \"concrete_supported_original_mechanism\": null, \"false_positive\": false, \"fixed\": false, \"id\": \"RQA9-001\", \"reclassification\": null, \"severity\": \"important\", \"status\": \"OPEN_UNRESOLVED_CAUSE\", \"waived\": false}, \"model\": \"gpt-6.1-sol fallback; Composer unavailable\", \"owner\": \"flaky-test-qa\", \"preserved_scope\": {\"C2-FTQ-006\": \"Retraction preserved; no unsupported kernel-progress/credential finding.\", \"FTQ-009\": \"Original scoped unbounded-lifetime closure preserved.\", \"FTQ-010\": \"Original scoped orphan/inventory closure preserved.\", \"FTQ-011\": \"Existing scoped closure/dispositions preserved; no store-result inference.\", \"RSH-001\": \"Supported startup resolution preserved.\", \"current_C2_daemon_stop3221225786\": \"Separate accepted occurrence; not this store failure and no disposition changed.\"}, \"prior_owner_result\": \"/tmp/phase-c-execution/c-1/qa-9/rqa9-causal-owner-result.json\", \"review_type\": \"separate_bounded_full_context_causal_followup\", \"reviewed_branch\": \"sprint/c-2-framework-application\", \"reviewed_commit\": \"e86d9da92a8c8c9b787c780e29bc54e417680d71\", \"scope\": \"RQA9-001 causal owner investigation only; not full QA10/coordinator, approval, merge or reopening of other scoped findings. This is a separate current assessment; prior result preserved.\", \"source_supported_causal_invariants\": {\"absence_limit\": \"Absence of any phase receipt remains absence of observation. No independent channel can prove non-entry from silence or create a mathematical kernel-progress guarantee.\", \"actual_wait_vs_generic_start\": \"observe_wait receives only the first actual worker mutex/busy/progress note, not thread creation. See schedule_budget.rs:103/108 and health.rs:141/194/257. For busy scenario, record the actual wait result rather than assume it from worker-call-start.\", \"cancellation_vs_call_return\": \"Busy path executes observed.recv_timeout(2s), then finish_by(now+30ms), then completion recv_timeout(500ms). The real worker.record_run return at schedule.rs:949 occurs before diagnostic output and stall_store_cleanup. The wait result is only unwrapped after join; intentionally stalled negatives never reach that assertion. The current raw Ok receipts add evidence for these observed runs; the original missing text contains no such evidence.\", \"ownership_vs_qualification\": \"Five-second kill/wait/reap proves finite ownership, while actual wait/cancel/call-return and injected post-call-stall receipts qualify the intended scenario. Keep these obligations separate; killing a child that is still in setup does not qualify a stalled post-call negative.\", \"setup_vs_worker\": \"Unique temp database creation/open, schedule view/create and contender BEGIN IMMEDIATE acquisition precede worker spawn and are inside the same absolute five-second child lifetime. No worker cancellation receipt can explain a timeout that has not completed setup; do not move/reset owner lifetime to hide setup.\", \"worker_return_vs_receipt_delivery\": \"Worker return, diagnostic eprintln completion and injected cleanup stall are distinct program events. Current worker result text and original post-call stall marker are delivered through the same stderr file path; completion.send(result) is after the intentional park and is never reached in stalled mode. Therefore a missing completion receive is intentional and cannot independently tell whether the real worker returned.\"}, \"status\": \"findings\", \"summary\": {\"existing_open_findings\": 1, \"important\": 1, \"new_findings\": 0, \"whole_QA_verdict\": null}, \"supported_next_action\": {\"budgets_and_limits\": \"No retries, synthetic load, timeout widening, reset lifetime, full1171/stress matrix or unchanged ordinary rerun recommended. Do not force artificial sibling overlap until a concrete interfering resource/operation is identified. The diagnostic itself can perturb timing and cannot recover historical events.\", \"execute_now\": false, \"executed_by_this_owner\": false, \"kind\": \"developer_prepares_scoped_diagnostic_receipt_case_for_owner_review\", \"one_concrete_fault_scenario\": \"After the actual busy worker call returns its real error and its independent return checkpoint is acknowledged, intentionally park that worker before writing the existing post-call/stall stderr marker. Preserve real SQLite contention, actual wait and30ms cancellation, main500ms observation and owner5sec kill/reap. The original supervisor must still fail its missing-marker assertion (actual negative exit101), while diagnostic classification reports returned-worker/missing-marker rather than worker never began.\", \"ownership\": \"Parent routes concrete design/probe; this owner neither edits nor executes it. Original RQA9 stays open until a supported mechanism and correction, or evidence-based owner reclassification, exists.\", \"possible_later_setup_control\": \"If the developer needs to validate the complementary diagnostic class, an explicitly gated pre-worker setup checkpoint can show owned timeout with no actual wait/call receipt. That would be another separately scoped control, not an authorized repeated natural run or required immediate experiment.\", \"precise_observation_contract\": \"Per owned child/run identity, persist small structured checkpoints independently of captured stderr for body entry, completed setup/contender acquisition, actual wait result, installed cancellation deadline and real worker return including error code. Record the worker-return checkpoint before any result/stall eprintln; separately record original marker-write completion and parent500ms observation. Parent collects the checkpoint record and original stderr after its unchanged kill/wait. Use independent per-thread records or another simple owned transport so worker/main diagnostic writes do not create a new shared logging lock dependency. Do not treat a diagnostic record as a substitute for existing assertions.\", \"qualification\": \"This planted case is a classifier/control validation, not reproduction of the original root cause. It does not reproduce the whole original sparse output signature: the main500ms marker may still appear. No assertion may be changed to pass the planted missing-marker occurrence. Existing phase checkpoints distinguish observed setup/call/cancel intervals if a natural failure is later captured; unresolved transport failure remains unresolved rather than inferred worker non-entry.\", \"recommendation\": \"Do not request another ordinary green/stress run. Route a test-only diagnostic design to the developer that separates actual worker-return receipt from existing stderr marker delivery, then review that concrete design before parent executes a bounded planted-fault case. This is diagnostic preparation, not an RQA9 fix.\", \"why_source_supported\": \"The source has an explicit interval between record_run return and original stall_store_cleanup text/park, and the completion sender lies after that park. A planted gate in that exact interval tests the existing observation ambiguity without asserting a natural output or scheduling defect.\"}, \"timestamp_utc\": \"2026-11-04T06:13:28.233441+00:00\", \"what_this_narrows\": [\"The visible full34 run supplies the previously absent successful in-context phase trace under default parent libtest settings. It demonstrates no missing receipt, local cancellation failure or unexpected actual worker result in this occurrence.\", \"Default full34 selection alone does not deterministically trigger the original failure. No concrete cross-test interfering resource, shared-state collision, store regression or output-delivery fault is shown.\", \"The actual busy-child overlap is still different: all sibling parent tests in this run completed by UTC06:08:50.035 (health supervisor last), before the first sequential read-only negative summary at06:08:50.964 and therefore before the busy negative child is spawned. Source schedule.rs:1148 iterates children sequentially. The first read-only negative does overlap siblings; the busy and SQL negatives do not.\", \"In the original failed full34 log the supervisor failedUTC05:06:52.636 while sibling store tests continued toUTC05:07:00.709; the second/busy negative therefore overlapped still-running store tests. This is a concrete remaining execution-context difference, not evidence that load, host scheduling or any particular sibling caused failure. Holding a sibling idle would not reproduce an unknown resource interaction.\"]}, \"error\": null, \"success\": true}, \"lead_decision\": \"Accept bounded structured-phase/negative-control diagnostic investigation; do not treat it as original-cause proof or waive finding\", \"owner_task\": \"/root/rqa9_causal_owner\", \"scope\": \"All original budgets/assertions/whole-fixture ownership retained; no new shared framework gate\", \"source\": \"e86d9da92a8c8c9b787c780e29bc54e417680d71\", \"status\": \"open\"}" .
+.triage/c/findings/RQA9-001.ttl:16:<urn:beads-cache:finding:RQA9-001> triage:qa11NativeQualificationDelivery "{\"change\": \"cfg(test) full disposable SQLite initialization with synchronousOFF; real operations/whole5s/30ms/500ms/receipts retained\", \"id\": \"RQA9-001\", \"limits\": \"No low-level fsync/ps/signal cause, timing guarantee or selfclosure; failed qualifications preserved; no production deadline change\", \"receipt\": \"docs/plans/phase-c/sprint-c-1-runtime-migration.md#qa11-native-fixture-qualification-correction\", \"source\": \"QA11 actual published owner finding; bounded parent-accepted owner design\", \"status\": \"open_pending_independent_QA12\"}" .
+crates/bd-cache-sync/tests/check_consumer_graph.py:72:def metadata(command, timeout=120):
+crates/bd-cache-sync/tests/check_consumer_graph.py:73:    """Own, kill and reap the Cargo child on a hard subprocess deadline."""
+crates/bd-cache-sync/tests/check_consumer_graph.py:76:                                   text=True, timeout=timeout)
+crates/bd-cache-sync/tests/check_consumer_graph.py:79:            f"cargo metadata exceeded {timeout}s; owned child killed and reaped; "
+crates/bd-cache-sync/tests/check_consumer_graph.py:105:                raise SystemExit('\n'.join(errors))
+crates/bd-cache-sync/src/launch.rs:24:        "timeout_ms": row.spec.timeout.get().as_millis(),
+crates/bd-cache-sync/src/job.rs:23://! cache, up to a deadline (PE-RSH-004).
+crates/bd-cache-sync/src/job.rs:224:    async fn run(&self, envelope: &Value, deadline: Instant) -> RunOutcome {
+crates/bd-cache-sync/src/job.rs:231:            Ok(job) => job.run(&envelope["payload"], deadline).await,
+crates/bd-cache-sync/src/job.rs:278:            row_timeout: Duration::from_millis(envelope["timeout_ms"].as_u64().unwrap_or(0)),
+crates/bd-cache-sync/src/job.rs:327:/// The built-in row's job, with its upstream absolute run deadline.
+crates/bd-cache-sync/src/job.rs:331:    row_timeout: Duration,
+crates/bd-cache-sync/src/job.rs:359:    async fn run(&self, _payload: &Value, deadline: Instant) -> RunOutcome {
+crates/bd-cache-sync/src/job.rs:360:        let start = deadline.checked_sub(self.row_timeout).unwrap_or(deadline);
+crates/bd-cache-sync/src/job.rs:362:        let deadline = sc_beads::Deadline::at(deadline);
+crates/bd-cache-sync/src/job.rs:363:        let budget = budget.capped(deadline);
+crates/bd-cache-sync/src/job.rs:364:        self.record.start_until(deadline).await;
+crates/bd-cache-sync/src/job.rs:371:            deadline,
+crates/bd-cache-sync/src/job.rs:378:                    .finish_until(SyncRunEnd::Skipped, deadline)
+crates/bd-cache-sync/src/job.rs:383:                self.record.finish_until(SyncRunEnd::Ok, deadline).await;
+crates/bd-cache-sync/src/job.rs:387:                self.record.finish_until(SyncRunEnd::Failed, deadline).await;
+crates/bd-cache-sync/src/job.rs:431:    async fn run(&self, _payload: &Value, _deadline: Instant) -> RunOutcome {
+crates/bd-cache-sync/src/job.rs:443:/// Waits until no step of a run holds `cache`, or `deadline` passes; returns
+crates/bd-cache-sync/src/job.rs:453:    deadline: Instant,
+crates/bd-cache-sync/src/job.rs:460:        let now = Instant::now();
+crates/bd-cache-sync/src/job.rs:461:        if now >= deadline {
+crates/bd-cache-sync/src/job.rs:465:        std::thread::sleep((deadline - now).min(Duration::from_millis(5)));
+crates/bd-cache-sync/src/payload.rs:7://! interpreter ([`TrustedInterpreter`]), the module, the timeout and the
+crates/bd-cache-sync/src/payload.rs:55:/// The Python row's timeout when `--timeout-ms` is not given (REQ-BDC-0724).
+crates/bd-cache-sync/src/payload.rs:58:/// The smallest `--timeout-ms` of the Python row (REQ-BDC-0724).
+crates/bd-cache-sync/src/payload.rs:61:/// The largest `--timeout-ms` of the Python row (REQ-BDC-0724):
+crates/bd-cache-sync/src/payload.rs:88:    /// `--timeout-ms`.
+crates/bd-cache-sync/src/payload.rs:110:            Self::TimeoutMs => "timeout_ms",
+crates/bd-cache-sync/src/payload.rs:264:        let captured = supervise(&spec, 8 * 1024, tokio::time::sleep(IMPORT_CHECK_TIMEOUT))
+crates/bd-cache-sync/src/payload.rs:273:            None => Err(failed("it was killed at the timeout".to_owned())),
+crates/bd-cache-sync/src/payload.rs:432:    timeout: RunTimeout,
+crates/bd-cache-sync/src/payload.rs:436:    /// Checks the timeout ([`MIN_PYTHON_TIMEOUT_MS`] to [`MAX_PYTHON_TIMEOUT_MS`]) and the paths (UTF-8), and builds the payload.
+crates/bd-cache-sync/src/payload.rs:440:    /// `SCHEDULE_INVALID`: `timeout_ms` (`out_of_range`) for a timeout out
+crates/bd-cache-sync/src/payload.rs:448:        timeout_ms: Option<u64>,
+crates/bd-cache-sync/src/payload.rs:450:        let ms = timeout_ms.unwrap_or(DEFAULT_PYTHON_TIMEOUT_MS);
+crates/bd-cache-sync/src/payload.rs:456:                    "--timeout-ms {ms} is outside {MIN_PYTHON_TIMEOUT_MS}..={MAX_PYTHON_TIMEOUT_MS}"
+crates/bd-cache-sync/src/payload.rs:463:        let timeout = RunTimeout::new(Duration::from_millis(ms))
+crates/bd-cache-sync/src/payload.rs:474:            timeout,
+crates/bd-cache-sync/src/payload.rs:506:    /// The row's timeout (also its sc-cron timeout).
+crates/bd-cache-sync/src/payload.rs:508:    pub fn timeout(&self) -> RunTimeout {
+crates/bd-cache-sync/src/payload.rs:509:        self.timeout
+crates/bd-cache-sync/src/payload.rs:546:            "timeout_ms": millis(self.timeout.get()),
+crates/bd-cache-sync/src/payload.rs:578:        timeout_ms: u64,
+crates/bd-cache-sync/src/payload.rs:626:                timeout_ms,
+crates/bd-cache-sync/src/payload.rs:632:                Some(timeout_ms),
+crates/bd-cache-sync/src/payload.rs:707:        let path = dir.join("python");
+crates/bd-cache-sync/src/payload.rs:731:                dir.path().join("c.sqlite3"),
+crates/bd-cache-sync/src/payload.rs:760:            .join(std::ffi::OsStr::from_bytes(b"cache-\xff.sqlite3"));
+crates/bd-cache-sync/src/payload.rs:773:        let odd = dir.path().join(std::ffi::OsStr::from_bytes(b"py-\xff"));
+crates/bd-cache-sync/src/payload.rs:788:                dir.path().join("c.sqlite3"),
+crates/bd-cache-sync/src/payload.rs:835:        let python = dir.path().join("python");
+crates/bd-cache-sync/src/payload.rs:854:        let ok = dir.path().join("python-ok");
+crates/bd-cache-sync/src/schedule.rs:191:    timeout: Duration,
+crates/bd-cache-sync/src/schedule.rs:194:    ScheduleSpec::new(row.as_str(), expr, timeout, payload.to_json()).map_err(|e| match e {
+crates/bd-cache-sync/src/schedule.rs:270:        spec(SyncRow::Builtin, &self.expr, budget.row_timeout(), &payload)
+crates/bd-cache-sync/src/schedule.rs:283:    /// `--timeout-ms N` (default 60000, 1000 to `MAX_PYTHON_TIMEOUT_MS`).
+crates/bd-cache-sync/src/schedule.rs:284:    pub timeout_ms: Option<u64>,
+crates/bd-cache-sync/src/schedule.rs:297:            timeout_ms: req.timeout_ms(),
+crates/bd-cache-sync/src/schedule.rs:316:    /// Its sc-cron timeout (`budget_ms + 10000`).
+crates/bd-cache-sync/src/schedule.rs:317:    pub timeout_ms: u64,
+crates/bd-cache-sync/src/schedule.rs:399:        /// The timeout.
+crates/bd-cache-sync/src/schedule.rs:400:        timeout_ms: u64,
+crates/bd-cache-sync/src/schedule.rs:507:            timeout_ms: millis(p.timeout().get()),
+crates/bd-cache-sync/src/schedule.rs:568:    // never alter the cancellation deadline of the preceding lifetime.
+crates/bd-cache-sync/src/schedule.rs:637:    /// available for public reads without inheriting worker shutdown deadlines.
+crates/bd-cache-sync/src/schedule.rs:793:            timeout_ms: millis(written.spec.timeout.get()),
+crates/bd-cache-sync/src/schedule.rs:958:            req.timeout_ms,
+crates/bd-cache-sync/src/schedule.rs:961:        let lease = self.take_lease(payload.timeout().get()).await?;
+crates/bd-cache-sync/src/schedule.rs:1021:    /// Takes the lease for an immediate run of `timeout`.
+crates/bd-cache-sync/src/schedule.rs:1022:    async fn take_lease(&self, timeout: Duration) -> Result<TickLease, CacheError> {
+crates/bd-cache-sync/src/schedule.rs:1032:                Deadline::after(&*clock, timeout),
+crates/bd-cache-sync/src/schedule.rs:1069:            payload.timeout().get(),
+crates/bd-cache-sync/tests/common/repo.rs:72:        let cache_file = dir.path().join(".bd-cache/dev.bd-cache.sqlite3");
+crates/bd-cache-sync/tests/common/repo.rs:75:        std::fs::create_dir_all(dir.path().join(".beads")).unwrap();
+crates/bd-cache-sync/tests/common/repo.rs:77:            dir.path().join(".beads/metadata.json"),
+crates/bd-cache-sync/tests/common/repo.rs:205:        let python = dir.path().join("python");
+crates/bd-cache-sync/tests/common/repo.rs:247:        std::fs::write(self.dir.path().join(name), text).unwrap();
+crates/bd-cache-sync/tests/common/repo.rs:255:        let gate = self.dir.path().join("stopgate");
+crates/bd-cache-sync/tests/common/repo.rs:262:        let _ = std::fs::remove_file(self.dir.path().join(name));
+crates/bd-cache-sync/tests/common/repo.rs:268:        std::fs::read_to_string(self.dir.path().join(format!("{event}.count")))
+crates/bd-cache-sync/tests/common/repo.rs:276:            std::fs::read_to_string(self.dir.path().join(format!("{event}.{n}.json"))).unwrap();
+crates/bd-cache-sync/tests/common/repo.rs:283:        std::fs::read_to_string(self.dir.path().join(format!("{event}.env"))).unwrap()
+crates/bd-cache-sync/tests/common/mod.rs:149:        let path = self.dir.path().join("cache.sqlite3");
+crates/bd-cache-sync/tests/common/mod.rs:275:        let python = dir.path().join("python");
+crates/bd-cache-sync/tests/common/mod.rs:305:        std::fs::write(self.dir.path().join("mode"), mode).unwrap();
+crates/bd-cache-sync/tests/common/mod.rs:311:        std::fs::read_to_string(self.dir.path().join("count"))
+crates/bd-cache-sync/tests/common/mod.rs:319:            std::fs::read_to_string(self.dir.path().join(format!("request.{n}.json"))).unwrap();
+crates/bd-cache-sync/tests/common/mod.rs:326:        std::fs::read_to_string(self.dir.path().join(name)).unwrap()
+crates/bd-cache-sync/tests/common/mod.rs:331:        let path = self.dir.path().join(name);
+crates/bd-cache-sync/tests/common/mod.rs:347:            let _ = std::io::Read::read_to_end(&mut f, &mut Vec::new());
+crates/bd-cache-sync/tests/common/mod.rs:356:    let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+crates/bd-cache-sync/tests/common/mod.rs:359:            std::time::Instant::now() < until,
+crates/bd-cache-sync/tests/common/mod.rs:362:        std::thread::sleep(std::time::Duration::from_millis(10));
+crates/bd-cache-sync/tests/common/mod.rs:370:    if let Ok(result) = tokio::time::timeout(std::time::Duration::from_secs(30), &mut task).await {
+crates/bd-cache-sync/tests/common/mod.rs:374:        let _ = tokio::time::timeout(std::time::Duration::from_secs(5), task).await;
+crates/bd-cache-sync/tests/common/mod.rs:375:        panic!("owned async test run exceeded its real deadline and was aborted");
+crates/bd-cache-sync/tests/common/mod.rs:382:    thread.join()
+crates/bd-cache-sync/tests/common/mod.rs:409:            let until = std::time::Instant::now() + std::time::Duration::from_secs(30);
+crates/bd-cache-sync/tests/common/mod.rs:410:            while !thread.is_finished() && std::time::Instant::now() < until {
+crates/bd-cache-sync/tests/common/mod.rs:414:                let _ = thread.join();
+crates/bd-cache-sync/tests/common/mod.rs:416:                eprintln!("owned observer did not stop by cleanup deadline");
+crates/bd-cache-sync/src/lib.rs:39://! call, hook and script run is bounded by its deadline (NFR-BDC-0004).
+crates/bd-cache-sync/tests/cron_hurry.rs:4://! `--shutdown-timeout-ms`. The Python row runs a stub interpreter (Unix).
+crates/bd-cache-sync/tests/cron_hurry.rs:22:/// The shutdown timeout the hurry must not wait for.
+crates/bd-cache-sync/tests/cron_hurry.rs:40:                timeout_ms: Some(60_000),
+crates/bd-cache-sync/tests/cron_hurry.rs:49:        let p = stub.dir.path().join(n);
+crates/bd-cache-sync/tests/cron_hurry.rs:84:    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/cron_hurry.rs:87:    let asked = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:101:    tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/cron_hurry.rs:110:        std::thread::sleep(Duration::from_millis(10));
+crates/bd-cache-sync/tests/cron_hurry.rs:139:/// Zero timeout grants no grace and still owns the real store/worker join.
+crates/bd-cache-sync/tests/cron_hurry.rs:142:fn zero_timeout_joins_the_contended_worker_without_granting_a_grace_period()
+crates/bd-cache-sync/tests/cron_hurry.rs:145:        "zero_timeout_joins_the_contended_worker_without_granting_a_grace_period",
+crates/bd-cache-sync/tests/cron_hurry.rs:203:        tokio::task::spawn_blocking(move || attempted.recv_timeout(Duration::from_secs(5))).await?;
+crates/bd-cache-sync/tests/cron_hurry.rs:217:    let asked = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:223:        management_attempt.recv_timeout(Duration::from_secs(2))
+crates/bd-cache-sync/tests/cron_hurry.rs:226:    // This timeout only observes the owned task. Both success and failure paths
+crates/bd-cache-sync/tests/cron_hurry.rs:229:    let bounded = tokio::time::timeout(Duration::from_millis(500), &mut run).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:234:    let expiry = expired_receive.try_recv();
+crates/bd-cache-sync/tests/cron_hurry.rs:273:        "public view inherits no expired worker deadline"
+crates/bd-cache-sync/tests/cron_hurry.rs:276:        control.deadline_for_tests().is_none(),
+crates/bd-cache-sync/tests/cron_hurry.rs:277:        "joined worker leaves no stale deadline"
+crates/bd-cache-sync/tests/cron_hurry.rs:295:/// already-installed shutdown deadline of the first worker.
+crates/bd-cache-sync/tests/cron_hurry.rs:297:fn rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline()
+crates/bd-cache-sync/tests/cron_hurry.rs:300:        "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+crates/bd-cache-sync/tests/cron_hurry.rs:327:                timeout_ms: Some(60_000),
+crates/bd-cache-sync/tests/cron_hurry.rs:353:    let ready = tokio::time::timeout(Duration::from_secs(5), async {
+crates/bd-cache-sync/tests/cron_hurry.rs:354:        while !stub.dir.path().join("run.ready").exists() {
+crates/bd-cache-sync/tests/cron_hurry.rs:355:            tokio::time::sleep(Duration::from_millis(5)).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:364:            rejected = rejected_start_keeps_deadline(
+crates/bd-cache-sync/tests/cron_hurry.rs:384:            "second start must preserve the upstream panic and first deadline"
+crates/bd-cache-sync/tests/cron_hurry.rs:401:        control.deadline_for_tests().is_none(),
+crates/bd-cache-sync/tests/cron_hurry.rs:402:        "joined worker left a stale deadline"
+crates/bd-cache-sync/tests/cron_hurry.rs:407:async fn rejected_start_keeps_deadline(
+crates/bd-cache-sync/tests/cron_hurry.rs:414:    let deadline_ready = tokio::time::timeout(Duration::from_secs(2), async {
+crates/bd-cache-sync/tests/cron_hurry.rs:415:        while control.deadline_for_tests().is_none() {
+crates/bd-cache-sync/tests/cron_hurry.rs:420:    let deadline = control.deadline_for_tests();
+crates/bd-cache-sync/tests/cron_hurry.rs:436:        if let Ok(outcome) = tokio::time::timeout(Duration::from_secs(2), &mut second).await {
+crates/bd-cache-sync/tests/cron_hurry.rs:439:            eprintln!("second-start cleanup reached its 2s timeout");
+crates/bd-cache-sync/tests/cron_hurry.rs:459:        && deadline_ready.is_ok()
+crates/bd-cache-sync/tests/cron_hurry.rs:460:        && deadline.is_some()
+crates/bd-cache-sync/tests/cron_hurry.rs:461:        && control.deadline_for_tests() == deadline
+crates/bd-cache-sync/tests/cron_hurry.rs:467:    let pid = std::fs::read_to_string(stub.dir.path().join("run.pid"));
+crates/bd-cache-sync/tests/cron_hurry.rs:471:    tokio::time::timeout(Duration::from_secs(3), async {
+crates/bd-cache-sync/tests/cron_hurry.rs:484:            tokio::time::sleep(Duration::from_millis(5)).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:537:            "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+crates/bd-cache-sync/tests/cron_hurry.rs:543:        let started = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:581:            "FTQ-010 {mode}: finite timeout cleanup in {:?}; owned Python PIDs reaped: {pids:?}",
+crates/bd-cache-sync/tests/cron_hurry.rs:593:                output.contains("second-start cleanup reached its 2s timeout"),
+crates/bd-cache-sync/tests/cron_hurry.rs:604:    let fixture_started = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:606:        "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+crates/bd-cache-sync/tests/cron_hurry.rs:621:    let started = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:665:                let _ = expired_send.send(Instant::now());
+crates/bd-cache-sync/tests/cron_hurry.rs:677:/// including the whole fixture timeout and the parent's assertion-unwind path.
+crates/bd-cache-sync/tests/cron_hurry.rs:679:fn lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind()
+crates/bd-cache-sync/tests/cron_hurry.rs:682:        let started = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:684:            "rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline",
+crates/bd-cache-sync/tests/cron_hurry.rs:688:        let ready_by = Instant::now() + Duration::from_secs(3);
+crates/bd-cache-sync/tests/cron_hurry.rs:689:        while Instant::now() < ready_by && !child.unregistered_launch_ready(ready_by)? {
+crates/bd-cache-sync/tests/cron_hurry.rs:690:            std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/cron_hurry.rs:725:            session_fixture::session_members(session, Instant::now() + Duration::from_millis(250))?
+crates/bd-cache-sync/tests/cron_hurry.rs:763:fn startup_zero_timeout_joins_its_read_without_grace() -> Result<(), Box<dyn std::error::Error>> {
+crates/bd-cache-sync/tests/cron_hurry.rs:765:        "startup_zero_timeout_joins_its_read_without_grace",
+crates/bd-cache-sync/tests/cron_hurry.rs:772:fn startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline()
+crates/bd-cache-sync/tests/cron_hurry.rs:775:        "startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline",
+crates/bd-cache-sync/tests/cron_hurry.rs:832:        tokio::task::spawn_blocking(move || waiting.recv_timeout(Duration::from_secs(1))).await?;
+crates/bd-cache-sync/tests/cron_hurry.rs:839:    let (rejected, task) = match tokio::time::timeout(Duration::from_millis(100), &mut second).await
+crates/bd-cache-sync/tests/cron_hurry.rs:875:    let entered = contention.recv_timeout(Duration::from_secs(1));
+crates/bd-cache-sync/tests/cron_hurry.rs:876:    probe_control.finish_by(Instant::now());
+crates/bd-cache-sync/tests/cron_hurry.rs:877:    let probe_result = probing.join();
+crates/bd-cache-sync/tests/cron_hurry.rs:880:        let _ = management.join();
+crates/bd-cache-sync/tests/cron_hurry.rs:913:    let mut asked = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:923:                    let _ = expired_send.send(Instant::now());
+crates/bd-cache-sync/tests/cron_hurry.rs:931:        asked = Instant::now();
+crates/bd-cache-sync/tests/cron_hurry.rs:935:        tokio::time::sleep(Duration::from_millis(50)).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:939:        tokio::time::sleep(Duration::from_millis(50)).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:947:    let observed = tokio::time::timeout(Duration::from_millis(500), &mut run).await;
+crates/bd-cache-sync/tests/cron_hurry.rs:949:    let expiry = expired_receive.try_recv();
+crates/bd-cache-sync/tests/cron_hurry.rs:957:    let management_result = management.join().map_err(|_panic| "management panicked")?;
+crates/bd-cache-sync/tests/cron_hurry.rs:1055:        control.deadline_for_tests().is_none(),
+crates/bd-cache-sync/tests/cron_hurry.rs:1056:        "joined startup left an expired deadline"
+crates/bd-cache-sync/src/run.rs:11://! 2. **drain**, with the sync deadline ([`Budget`]);
+crates/bd-cache-sync/src/run.rs:16://!    not started before the sync deadline, or after a stop, is `skipped`;
+crates/bd-cache-sync/src/run.rs:75:    /// the shutdown timeout expires (REQ-BDC-0730).
+crates/bd-cache-sync/src/run.rs:78:    /// its deadline had come (the same cut as the real timer), so a test
+crates/bd-cache-sync/src/run.rs:79:    /// fires the deadline after a readiness handshake instead of racing a
+crates/bd-cache-sync/src/run.rs:243:    caller_deadline: Option<Deadline>,
+crates/bd-cache-sync/src/run.rs:248:        "sync run deadline expired before cache work",
+crates/bd-cache-sync/src/run.rs:249:        std::io::Error::new(std::io::ErrorKind::TimedOut, "caller run deadline expired"),
+crates/bd-cache-sync/src/run.rs:278:/// deadline expires while acquiring the cache or before starting cache work.
+crates/bd-cache-sync/src/run.rs:284:    deadline: Deadline,
+crates/bd-cache-sync/src/run.rs:292:    run_builtin_inner(cache, payload, ctx, run_id, Some(deadline), Some(budget)).await
+crates/bd-cache-sync/src/run.rs:300:    deadline: Option<Deadline>,
+crates/bd-cache-sync/src/run.rs:312:        blocking(move || prepare(&shared, &payload, &ctx, run_id, deadline, budget)).await?
+crates/bd-cache-sync/src/run.rs:336:/// deadline or on the run's kill flag. `None` when the run was stopped
+crates/bd-cache-sync/src/run.rs:371:        let deadline = prepared.budget.hook_deadline();
+crates/bd-cache-sync/src/run.rs:372:        let wait = deadline.remaining(&*prepared.clock);
+crates/bd-cache-sync/src/run.rs:375:            if deadline.remaining(&*cache.clock()).is_zero() {
+crates/bd-cache-sync/src/run.rs:385:    let left = prepared.budget.hook_deadline().remaining(&*prepared.clock);
+crates/bd-cache-sync/src/run.rs:390:            () = tokio::time::sleep(left) => Cut::Deadline,
+crates/bd-cache-sync/src/run.rs:391:            () = test_cut.wait() => Cut::Deadline,
+crates/bd-cache-sync/src/run.rs:392:            () = kill.wait() => Cut::Kill,
+crates/bd-cache-sync/src/run.rs:414:    caller_deadline: Option<Deadline>,
+crates/bd-cache-sync/src/run.rs:444:    let wait = caller_deadline.map_or(payload.budget.work(), |d| {
+crates/bd-cache-sync/src/run.rs:445:        let work = budget_override.map_or(d, |b| b.sync_deadline()).earliest(d);
+crates/bd-cache-sync/src/run.rs:448:                .saturating_duration_since(std::time::Instant::now()),
+crates/bd-cache-sync/src/run.rs:452:        if caller_deadline.is_some() {
+crates/bd-cache-sync/src/run.rs:459:    if caller_deadline.is_some_and(|d| d.remaining(&*clock).is_zero()) {
+crates/bd-cache-sync/src/run.rs:463:    let budget = caller_deadline.map_or(budget, |d| budget.capped(d));
+crates/bd-cache-sync/src/run.rs:464:    if budget.sync_deadline().remaining(&*clock).is_zero() {
+crates/bd-cache-sync/src/run.rs:467:    let lease = match TickLease::take(shared, cache, run_id, budget.hook_deadline())? {
+crates/bd-cache-sync/src/run.rs:489:            caller_deadline,
+crates/bd-cache-sync/src/run.rs:543:    let sync = budget.sync_deadline();
+crates/bd-cache-sync/src/run.rs:585:    let left = budget.hook_deadline().remaining(&*clock);
+crates/bd-cache-sync/src/run.rs:586:    let deadline = Timestamp::from_unix(
+crates/bd-cache-sync/src/run.rs:595:            deadline: &deadline,
+crates/bd-cache-sync/src/run.rs:617:    deadline: Deadline,
+crates/bd-cache-sync/src/run.rs:619:    let (result, error, stored) = match cache.sync(&scope.id, deadline) {
+crates/bd-cache-sync/src/run.rs:675:        caller_deadline,
+crates/bd-cache-sync/src/run.rs:679:    let mut guard = if let Some(deadline) = caller_deadline {
+crates/bd-cache-sync/src/run.rs:680:        hold_within(shared, deadline.remaining(&*clock))?.ok_or_else(run_expired)?
+crates/bd-cache-sync/tests/job_threading.rs:2://! cache, up to a deadline. Causal: the step holds the cache's mutex until
+crates/bd-cache-sync/tests/job_threading.rs:24:            release_rx.recv().unwrap();
+crates/bd-cache-sync/tests/job_threading.rs:28:    held_rx.recv().unwrap();
+crates/bd-cache-sync/tests/job_threading.rs:30:        !join_idle(&cache, Instant::now() + Duration::from_millis(20)),
+crates/bd-cache-sync/tests/job_threading.rs:34:    holder.join().unwrap();
+crates/bd-cache-sync/tests/job_threading.rs:36:        join_idle(&cache, Instant::now()),
+crates/bd-cache-sync/tests/job_threading.rs:42:async fn inherited_deadline_includes_the_blocking_cache_claim_and_starts_no_bd_after_expiry() {
+crates/bd-cache-sync/tests/job_threading.rs:50:            let until = Instant::now() + Duration::from_secs(5);
+crates/bd-cache-sync/tests/job_threading.rs:55:                assert!(Instant::now() < until);
+crates/bd-cache-sync/tests/job_threading.rs:59:            let _ = released.recv_timeout(Duration::from_secs(5));
+crates/bd-cache-sync/tests/job_threading.rs:63:    holding.recv_timeout(Duration::from_secs(5)).unwrap();
+crates/bd-cache-sync/tests/job_threading.rs:67:    let start = Instant::now();
+crates/bd-cache-sync/tests/job_threading.rs:80:    assert!(result.unwrap_err().detail().contains("deadline expired"));
+crates/bd-cache-sync/tests/job_threading.rs:92:        sc_beads::Deadline::at(Instant::now().checked_sub(Duration::from_secs(1)).unwrap()),
+crates/bd-cache-sync/tests/test_consumer_graph.py:1:"""Planted provenance/server leaks and real owned-subprocess timeout proof."""
+crates/bd-cache-sync/tests/test_consumer_graph.py:109:    def test_owned_metadata_child_is_killed_and_reaped_at_deadline(self):
+crates/bd-cache-sync/tests/test_consumer_graph.py:111:            graph.metadata([sys.executable, '-I', '-c', 'import time; time.sleep(30)'], timeout=0.05)
+crates/bd-cache-store/tests/support/fixture_child.rs:7:use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+crates/bd-cache-store/tests/support/fixture_child.rs:28:        let started = Instant::now();
+crates/bd-cache-store/tests/support/fixture_child.rs:31:            SystemTime::now()
+crates/bd-cache-store/tests/support/fixture_child.rs:74:        let deadline = self.started + lifetime;
+crates/bd-cache-store/tests/support/fixture_child.rs:76:            if let Some(status) = self.process.try_wait()? {
+crates/bd-cache-store/tests/support/fixture_child.rs:81:            if Instant::now() >= deadline {
+crates/bd-cache-store/tests/support/fixture_child.rs:87:            std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-store/tests/support/fixture_child.rs:100:        let deadline = Instant::now() + lifetime;
+crates/bd-cache-store/tests/support/fixture_child.rs:105:            if Instant::now() >= deadline {
+crates/bd-cache-store/tests/support/fixture_child.rs:108:            std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-store/tests/support/fixture_child.rs:149:        if let Err(error) = self.process.wait() {
+crates/bd-cache-store/tests/support/fixture_child.rs:179:    let deadline = Instant::now() + lifetime;
+crates/bd-cache-store/tests/support/fixture_child.rs:188:        if Instant::now() >= deadline {
+crates/bd-cache-store/tests/support/fixture_child.rs:191:        std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/common/session_fixture.rs:34:        process_ids(Instant::now() + Duration::from_millis(250))?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:56:        let deadline = self.child.started + lifetime;
+crates/bd-cache-sync/tests/common/session_fixture.rs:58:            if let Some(status) = self.child.process.try_wait()? {
+crates/bd-cache-sync/tests/common/session_fixture.rs:62:            if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:66:            std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/common/session_fixture.rs:82:    pub(crate) fn owned_pids(&self, deadline: Instant) -> io::Result<Vec<u32>> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:84:            .members(deadline)?
+crates/bd-cache-sync/tests/common/session_fixture.rs:94:    pub(crate) fn members(&self, deadline: Instant) -> io::Result<Vec<Member>> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:97:            deadline.min(self.child.started + Duration::from_secs(5)),
+crates/bd-cache-sync/tests/common/session_fixture.rs:104:    pub(crate) fn unregistered_launch_ready(&self, deadline: Instant) -> io::Result<bool> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:109:            .join("pre-registration.ready")
+crates/bd-cache-sync/tests/common/session_fixture.rs:112:            && self.members(deadline)?.len() >= 2)
+crates/bd-cache-sync/tests/common/session_fixture.rs:132:        let started = *self.cleanup_started.get_or_insert_with(Instant::now);
+crates/bd-cache-sync/tests/common/session_fixture.rs:140:            &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:146:                    deadline,
+crates/bd-cache-sync/tests/common/session_fixture.rs:156:        match quiesce(self.session, quiesce_by, &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:162:                deadline,
+crates/bd-cache-sync/tests/common/session_fixture.rs:176:        let root_wait = self.child.process.wait();
+crates/bd-cache-sync/tests/common/session_fixture.rs:181:            final_by.saturating_duration_since(Instant::now())
+crates/bd-cache-sync/tests/common/session_fixture.rs:188:        match drain(self.session, final_by, true, &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:194:                deadline,
+crates/bd-cache-sync/tests/common/session_fixture.rs:218:            // under the original deadlines. The fixture's own status is intact.
+crates/bd-cache-sync/tests/common/session_fixture.rs:236:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:241:    let entered = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:243:        "RQA10_SCAN_BEGIN thread={thread:?} session={} stage={stage} call={calls} owner_elapsed={:?} deadline_offset={:?} remaining={:?}",
+crates/bd-cache-sync/tests/common/session_fixture.rs:246:        deadline.saturating_duration_since(origin),
+crates/bd-cache-sync/tests/common/session_fixture.rs:247:        deadline.saturating_duration_since(entered)
+crates/bd-cache-sync/tests/common/session_fixture.rs:249:    let result = inventory(deadline);
+crates/bd-cache-sync/tests/common/session_fixture.rs:254:        deadline.saturating_duration_since(Instant::now()),
+crates/bd-cache-sync/tests/common/session_fixture.rs:262:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:265:    let origin = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:268:    // supplied audit deadline is retained exactly, including census/parsing.
+crates/bd-cache-sync/tests/common/session_fixture.rs:269:    let result = members_before(session, deadline, &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:275:            deadline,
+crates/bd-cache-sync/tests/common/session_fixture.rs:283:        deadline.saturating_duration_since(Instant::now()),
+crates/bd-cache-sync/tests/common/session_fixture.rs:316:        let started = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:334:    fn finish(&mut self, deadline: Instant) -> io::Result<String> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:337:            if let Some(status) = self.process.try_wait()? {
+crates/bd-cache-sync/tests/common/session_fixture.rs:342:                    deadline.saturating_duration_since(Instant::now())
+crates/bd-cache-sync/tests/common/session_fixture.rs:345:                if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:359:            if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:361:                // child before returning the deadline failure, including unwind.
+crates/bd-cache-sync/tests/common/session_fixture.rs:367:                    deadline.saturating_duration_since(Instant::now())
+crates/bd-cache-sync/tests/common/session_fixture.rs:374:            std::thread::sleep(Duration::from_millis(1));
+crates/bd-cache-sync/tests/common/session_fixture.rs:379:        if self.process.try_wait()?.is_none() {
+crates/bd-cache-sync/tests/common/session_fixture.rs:382:        self.process.wait()?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:395:fn process_ids(deadline: Instant) -> io::Result<Vec<(Pid, bool)>> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:396:    process_ids_using(deadline, Inventory::spawn)
+crates/bd-cache-sync/tests/common/session_fixture.rs:400:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:403:    if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:411:    let output = spawn()?.finish(deadline)?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:415:            if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:506:pub(crate) fn session_members(session: Pid, deadline: Instant) -> io::Result<Vec<Member>> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:507:    members_before(session, deadline, &mut process_ids)
+crates/bd-cache-sync/tests/common/session_fixture.rs:512:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:516:    for (pid, quiet) in inventory(deadline)? {
+crates/bd-cache-sync/tests/common/session_fixture.rs:517:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:534:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:540:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:543:        match members_before(session, deadline, inventory) {
+crates/bd-cache-sync/tests/common/session_fixture.rs:551:                        eprintln!("session drain recovered inventory before deadline: {error}");
+crates/bd-cache-sync/tests/common/session_fixture.rs:563:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:566:        std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/common/session_fixture.rs:581:    deadline: Instant,
+crates/bd-cache-sync/tests/common/session_fixture.rs:588:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:593:        let members = match members_before(session, deadline, inventory) {
+crates/bd-cache-sync/tests/common/session_fixture.rs:599:                std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/common/session_fixture.rs:610:                eprintln!("session quiescence recovered inventory before deadline: {error}");
+crates/bd-cache-sync/tests/common/session_fixture.rs:623:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:630:        std::thread::sleep(Duration::from_millis(5));
+crates/bd-cache-sync/tests/common/session_fixture.rs:665:fn stopped_inventory_is_owned_reaped_on_timeout_and_unwind() -> io::Result<()> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:667:        let started = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:695:fn stopped_inventory(deadline: Instant) -> io::Result<Inventory> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:712:        if Instant::now() >= deadline {
+crates/bd-cache-sync/tests/common/session_fixture.rs:718:        std::thread::sleep(Duration::from_millis(1));
+crates/bd-cache-sync/tests/common/session_fixture.rs:738:    // the caller's one deadline. No previously supplied deadline is renewed.
+crates/bd-cache-sync/tests/common/session_fixture.rs:739:    let inventory = stopped_inventory(Instant::now() + Duration::from_secs(5))?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:740:    let started = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:741:    let deadline = started + Duration::from_millis(250);
+crates/bd-cache-sync/tests/common/session_fixture.rs:743:    let pids = process_ids_using(deadline, || {
+crates/bd-cache-sync/tests/common/session_fixture.rs:747:        let delay_started = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:748:        std::thread::sleep(Duration::from_millis(80));
+crates/bd-cache-sync/tests/common/session_fixture.rs:796:    // original cleanup deadlines. The independent inventory-delay regression
+crates/bd-cache-sync/tests/common/session_fixture.rs:799:    let finished = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:804:            process_ids(deadline)
+crates/bd-cache-sync/tests/common/session_fixture.rs:810:        child.child.process.try_wait()?,
+crates/bd-cache-sync/tests/common/session_fixture.rs:828:            Instant::now() + Duration::from_millis(250),
+crates/bd-cache-sync/tests/common/session_fixture.rs:853:    let started = Instant::now();
+crates/bd-cache-sync/tests/common/session_fixture.rs:855:        .cleanup_using(&mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:856:            process_ids_using(deadline, || {
+crates/bd-cache-sync/tests/common/session_fixture.rs:857:                let inventory = stopped_inventory(deadline)?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:883:    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+crates/bd-cache-sync/tests/common/session_fixture.rs:892:fn cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes() -> io::Result<()> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:894:        stage_timeout_control(post_audit)?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:899:fn stage_timeout_control(post_audit: bool) -> io::Result<()> {
+crates/bd-cache-sync/tests/common/session_fixture.rs:908:    let result = child.finish_using(Duration::from_secs(5), &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:911:            process_ids_using(deadline, || {
+crates/bd-cache-sync/tests/common/session_fixture.rs:912:                let inventory = stopped_inventory(deadline)?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:917:            process_ids(deadline)
+crates/bd-cache-sync/tests/common/session_fixture.rs:925:            Instant::now() + Duration::from_millis(250),
+crates/bd-cache-sync/tests/common/session_fixture.rs:926:            &mut |deadline| {
+crates/bd-cache-sync/tests/common/session_fixture.rs:927:                process_ids_using(deadline, || {
+crates/bd-cache-sync/tests/common/session_fixture.rs:928:                    let inventory = stopped_inventory(deadline)?;
+crates/bd-cache-sync/tests/common/session_fixture.rs:956:        .try_wait()?
+crates/bd-cache-sync/tests/common/session_fixture.rs:979:    assert!(session_members(session, Instant::now() + Duration::from_millis(250))?.is_empty());
+crates/bd-cache-sync/tests/cron_rows.rs:52:fn use_python(stub: &PyStub, cron: Option<&str>, timeout_ms: u64) -> UsePython {
+crates/bd-cache-sync/tests/cron_rows.rs:57:        timeout_ms: Some(timeout_ms),
+crates/bd-cache-sync/tests/cron_rows.rs:227:/// waited for up to the shutdown timeout and then killed with its tree
+crates/bd-cache-sync/tests/cron_rows.rs:244:            let p = stub.dir.path().join(n);
+crates/bd-cache-sync/tests/cron_rows.rs:276:    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/cron_rows.rs:283:        "the hanging run was killed at the shutdown timeout"
+crates/bd-cache-sync/tests/cron_rows.rs:287:        "the bd calls are stopped only when the timeout expires"
+crates/bd-cache-sync/tests/cron_rows.rs:289:    tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/cron_rows.rs:312:    let decoy = repo.dir.path().join("decoy.sqlite3");
+crates/bd-cache-sync/tests/cron_rows.rs:410:/// across repeated timeouts and across repeated failures at resolve time,
+crates/bd-cache-sync/tests/cron_rows.rs:413:async fn schedule_show_counts_failures_across_timeouts_and_resolve_failures() {
+crates/bd-cache-sync/tests/cron_rows.rs:454:    // A Python row whose script outlives its timeout, twice.
+crates/bd-cache-sync/tests/cron_rows.rs:469:        assert_eq!(e.details()["reason"], "timeout", "{e}");
+crates/bd-cache-sync/tests/cron_rows.rs:514:    let stopped = tokio::time::timeout(
+crates/bd-cache-sync/tests/cron_rows.rs:524:/// hook's deadline, its lease released, before sc-cron's own timeout for the
+crates/bd-cache-sync/tests/cron_rows.rs:527:/// deadline is fired by the test after the stub's `ready` handshake
+crates/bd-cache-sync/tests/cron_rows.rs:529:/// Planted negative: the row's timeout is the budget plus the full 10 s margin.
+crates/bd-cache-sync/tests/cron_rows.rs:531:async fn an_overrunning_hook_ends_its_run_before_sc_crons_timeout() {
+crates/bd-cache-sync/tests/cron_rows.rs:544:    assert_eq!(reply.timeout_ms, 30_000, "budget_ms + 10000");
+crates/bd-cache-sync/tests/cron_rows.rs:554:    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/cron_rows.rs:557:    // Most of sc-cron's timeout passes on its clock while the hook hangs,
+crates/bd-cache-sync/tests/cron_rows.rs:558:    // then the hook's own deadline comes.
+crates/bd-cache-sync/tests/cron_rows.rs:571:        "the hook's timeout is the hook's failure: {v}"
+crates/bd-cache-store/tests/schedule_store.rs:38:    tmp.path().join(".bd-cache").join("testdb.bd-cache.sqlite3")
+crates/bd-cache-store/tests/schedule_store.rs:96:    c.busy_timeout(Duration::from_secs(5)).unwrap();
+crates/bd-cache-store/tests/schedule_store.rs:220:                let until = std::time::Instant::now() + Duration::from_secs(30);
+crates/bd-cache-store/tests/schedule_store.rs:221:                while !thread.is_finished() && std::time::Instant::now() < until {
+crates/bd-cache-store/tests/schedule_store.rs:225:                    let _ = thread.join();
+crates/bd-cache-store/tests/schedule_store.rs:227:                    eprintln!("owned store observer did not stop by cleanup deadline");
+crates/bd-cache-store/tests/schedule_store.rs:265:    observed.recv_timeout(Duration::from_secs(5)).unwrap();
+crates/bd-cache-store/tests/schedule_store.rs:269:    let until = std::time::Instant::now() + Duration::from_secs(5);
+crates/bd-cache-store/tests/schedule_store.rs:271:        assert!(std::time::Instant::now() < until, "observer failed to stop");
+crates/bd-cache-store/tests/schedule_store.rs:274:    poller.join().unwrap()
+crates/bd-cache-store/tests/schedule_store.rs:520:    sql.split_whitespace().collect::<Vec<_>>().join(" ")
+crates/bd-cache-store/tests/schedule_store.rs:680:            (generation, name, expr, timeout_ms, jitter_ms, payload, created_at,
+docs/requirements.md:160:The file uses WAL mode, a 5 s busy timeout and `PRAGMA user_version` 3. A file with another nonzero version is refused (`BD_CACHE.SCHEMA_VERSION`); version 0 is initialized. The Rust store never changes `user_version` without P-2 agreement; any later version change is an explicit migration command, never done on open.
+docs/requirements.md:302:## REQ-BDC-0402: Drain deadline
+docs/requirements.md:306:The drain has two deadlines: a start gate (entries not started by it are reported in `deferred`, stay pending and keep their `attempts`) and a hard deadline that caps every `bd` call. A call cut short by the hard deadline leaves its entry pending with `attempts` unchanged, is reported as `deferred_in_flight`, and is neither an outage nor an attempt; the next drain's achieved check catches a write that landed.
+docs/requirements.md:311:**Acceptance evidence:** `test_drain_deadline_defers_unstarted_entries_without_attempts`
+docs/requirements.md:328:For each pending entry by `seq`, skipping beads whose earlier entry failed in this pass or whose row is stale: a bead absent from the batch escalates; an achieved write is marked applied; an unmet precondition stores the fresh row and escalates; `bd` exit 13 escalates; any other failure or timeout of the write itself adds one attempt, keeps the entry pending and holds that bead for the pass, and reaching `MAX_ATTEMPTS` (5) escalates. An unreachable backend at the backend check or the pre-read is an outage: the drain stops there and no attempt is counted. A call cut short by the drain's hard deadline is neither (REQ-BDC-0402).
+docs/requirements.md:454:A tick runs within a 25 s budget: drain with a deadline 5 s before the budget ends, then sync each active phase, deferring any not started 2 s before it.
+docs/requirements.md:497:beads-cache syncs bd on rows of the sc-cron table inside the cache file (ADR-BDC-0014): at most one built-in sync row per repository (a Rust job) and at most one Python sync row running a consumer's script; at most one of them is enabled at any time. `bdc cache schedule set <cron-expr> [--budget-ms N] [--hook-reserve-ms N] [--post-sync <module:function> --python <interpreter> [--env NAME]...]`, `schedule show`, `schedule enable`, `schedule disable` and `schedule clear` manage the built-in row; `enable` and `disable` flip only its `enabled` flag, and `schedule enable` while the Python row is enabled is `SCHEDULE_INVALID` (`details.reason: "python_sync_enabled"`). `schedule set` writes the row in one store transaction (sc-cron's `replace_and_set_enabled`, REQ-CRON-0017): an existing row keeps its `enabled` flag, a new row is enabled unless the Python row is enabled (then it is written disabled), and a row written enabled disables the Python row in the same transaction, so no connection ever sees both rows enabled. `--budget-ms` defaults to 25000 (1000–600000); `--hook-reserve-ms` defaults to 5000 (0 to budget − 1000, and at least 1000 when a hook is named). The built-in row's sc-cron timeout is `budget_ms + 10000`, so sc-cron never aborts a run before its hook and its lease release. The built-in row's run takes the lease, drains, syncs every configured scope and calls the post-sync hook; `bdc cache cron run`, `cron run --once`, `bdc cache tick` and PyO3 `Cache.tick()` run that same Rust code. While the Python row is enabled, `bdc cache tick` and `Cache.tick()` are refused with `PRECONDITION` (`details.reason: "python_sync_enabled"`) and start no bd process. Scheduled times come only from the rows; an on-demand tick does not change them.
+docs/requirements.md:513:Every sync run, built-in or Python, scheduled, on demand or the immediate run of `sync use-python`, takes the one `tick_lease` row of the cache file under `BEGIN IMMEDIATE` before it starts, expiring at its deadline plus 10 s, and releases it on every exit path. A run that finds a live lease does nothing: a scheduled or on-demand run replies `skipped: "in_flight"` (exit 0), and `sync use-python` fails with `TICK_IN_FLIGHT` (retryable). `sync use-builtin` takes no lease, so it works whenever a built-in row exists; a Python run already in flight keeps the lease until it ends or its worker cancels it on seeing the change (REQ-CRON-0014), and the built-in row's next run is skipped as `in_flight` until it ends. An expired lease, such as one left by a holder killed with `kill -9`, is taken over; lease expiry is the only cover for a holder that is killed outright.
+docs/requirements.md:521:bd-cache-sync runs the post-sync hook named in the built-in row's payload as `<absolute interpreter> -I -m bd_cache_rs.run post_sync <module:function>` through sc-cron's exported child-process supervisor (REQ-CRON-0018): from a private temp cwd, with the environment cleared except `PATH`, `HOME`, the locale variables, `BEADS_DIR`, `BD_CACHE_PATH` (the cache file) and the row's `--env` names, stdout and stderr each capped at 1 MiB and stderr kept in the reply truncated to 8 KiB, killed with everything it started at its deadline (NFR-BDC-0004). There is no in-process call. No row's or hook's code runs from a cache file that is not owned by the current user, or that is group- or world-writable (Unix; the Windows ACL check is a documented gap): the check runs before every launch, for the hook and for the Python sync row alike.
+docs/requirements.md:529:`bdc cache sync use-python --python <absolute interpreter> --module <module> [--cron <expr>] [--timeout-ms N] [--env NAME]...` checks its inputs, takes the lease, then in one store transaction (sc-cron's `replace_and_set_enabled`, REQ-CRON-0017) writes the one Python sync row enabled, created or replaced in place, and disables the built-in row if there is one, then runs the row at once under that lease with the events of a scheduled run, so the caller sees any error the script emits. A re-run with a new script, module, expression, timeout or `--env` list replaces the one Python row in place (its generation raised, so a run of the old one is fenced); there is never a second Python sync row. The reply carries the run id, the exit status and the script's stderr (truncated to 8 KiB, with the values of the row's `--env` variables redacted). A failed run (non-zero exit, timeout, spawn failure, oversize output, a stop answer other than `continue`, an untrusted cache file, or a signal to the command) makes the command fail with `TICK_RUN_FAILED` after restoring, in one transaction, the state held before the command: the Python row's previous contents and flag (or, if there was none, the new row disabled) and the built-in row's previous flag. So a failure from mode `builtin` returns to `builtin`, a failed re-run from mode `python` returns to `python` with the previous script, and a failure when there is no built-in row leaves both rows disabled (mode `none`). If that restore fails the error says so (`details.restored: false`) and names `bdc cache sync use-builtin` as the recovery. `bdc cache sync use-builtin` makes the built-in row the enabled one in one transaction and always works when a built-in row exists; with none it is `SCHEDULE_INVALID` (`details.reason: "no_builtin_row"`) naming `bdc cache schedule set`. Neither command, nor `schedule set`, leaves both rows enabled at any moment. A relative or missing interpreter, one that is not a regular executable file, one that cannot `import bd_cache_rs` within 5 s, a module that is not a dotted name, or a timeout outside 1000–600000 ms (default 60000) is `SCHEDULE_INVALID`. `--cron` defaults to the built-in row's expression and is required when there is none. `.beads/bd-cache.toml` cannot name code to run (`CONFIG_INVALID`).
+docs/requirements.md:537:With the Python sync row enabled, the consumer's script is the only sync: no `bd list` runs for the configured scopes, and the script fills the cache through `ingest_scope`. The script is run with sc-cron's Python hook protocol: `cron.stop` before every run (answered `{"action": "continue"}` to go on), then `cron.tick`, each with one JSON object on stdin whose `payload` carries `cache_path`, `beads_dir` and the run's `run_id`; its environment is the allowlist of REQ-BDC-0723. `bd_cache_rs.sync.main(func)` is the harness a script calls: it answers `cron.stop` with `continue` and, on `cron.tick`, opens `Cache` on the payload's cache file and calls `func(cache, payload)`. The row's run is judged by its exit status, as any sc-cron row, and its timeout is the row's `--timeout-ms`.
+docs/requirements.md:569:Errors that can come from bd carry `details.outage: bool`, true only when bd could not be reached (spawn failure, timeout, lock, transport); a `BD_LIST_FAILED` from a bd that answered has `outage: false`. The new codes:
+docs/requirements.md:575:| `TICK_RUN_FAILED` | unavailable | 3 | no | `sync use-python`, `cron run --once`; also embedded, as an error object, in the `hook.error` member of a built-in run's reply, whose own exit is 0 (`ok: true`) | `row`, `run_id`, `reason` (`exit`, `timeout`, `spawn`, `oversize`, `stop_answer`, `untrusted`, `signal`), `exit_status`, `stderr`, `restored` (the command form only) | read `stderr`; `bdc cache sync use-builtin` restores the built-in sync |
+docs/requirements.md:586:`bdc cache cron run` handles `SIGINT` and `SIGTERM` (Ctrl-C and Ctrl-Break on Windows): it starts no new run, waits for the runs in flight up to `--shutdown-timeout-ms` (default 10000, 0–600000), then kills every run still going together with its process tree (the hook's and the Python row's), releases the lease on every exit path, and exits 130 for `SIGINT`, 143 for `SIGTERM`, and 130 for Ctrl-C or Ctrl-Break on Windows. `SIGHUP` is handled as `SIGTERM` (exit 129). A second signal during the wait ends it at once: the bd calls stop and every run still going is killed with its process tree, as when the timeout expires, and the exit code stays the first signal's (*amended at the phase-end review; it was ignored before*). A `kill -9` is covered only by lease expiry. `cron run --once` waits for each run it started up to that run's own deadline, then exits 0, or 3 with `TICK_RUN_FAILED` naming each failed row. `cron run` logs to stderr through a process-wide subscriber at the `-v`/`-q` levels, one structured event per run step (lease, drain, each scope, hook, reply) with the row, the run id and the outcome, and sc-cron's own events.
+docs/requirements.md:761:A slow or unreachable backend does not slow or fail local reads and writes of cached beads; reads report staleness and the outage, writes stay journaled, and drain and sync catch up when the backend responds. A write to an uncached bead during an outage returns `BD_UNAVAILABLE` within the miss-fill timeout.
+docs/requirements.md:781:A caller can read beads fresh from the backend, bypassing cached rows: one `bd list --id` of the requested beads (all statuses), stored with force, with pending journal entries replayed on top, under a caller-supplied timeout.
+docs/requirements.md:869:## NFR-BDC-0004: bd calls bounded by the deadline
+docs/requirements.md:873:Each `bd` call has a 30 s timeout and is capped at the time left before the caller's deadline, so a tick never exceeds its budget.
+crates/bd-cache-sync/tests/schedule_switch.rs:73:        timeout_ms: Some(5_000),
+crates/bd-cache-sync/tests/schedule_switch.rs:95:/// replaces the one built-in row in place; the row's sc-cron timeout is
+crates/bd-cache-sync/tests/schedule_switch.rs:105:    assert_eq!(first["timeout_ms"], 35_000);
+crates/bd-cache-sync/tests/schedule_switch.rs:120:    assert_eq!(again["timeout_ms"], 40_000);
+crates/bd-cache-sync/tests/schedule_switch.rs:318:/// restores the mode before it: exit 1, a timeout, a `cron.stop` answer of
+crates/bd-cache-sync/tests/schedule_switch.rs:336:        // Only the `sleep` case wants a timeout, and it times out however
+crates/bd-cache-sync/tests/schedule_switch.rs:338:        // short cap, so a slow stub start cannot turn them into `timeout`.
+crates/bd-cache-sync/tests/schedule_switch.rs:339:        let timeout_ms = if why == TickRunReason::Timeout {
+crates/bd-cache-sync/tests/schedule_switch.rs:345:            timeout_ms: Some(timeout_ms),
+crates/bd-cache-sync/tests/schedule_switch.rs:372:        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+crates/bd-cache-sync/tests/schedule_switch.rs:472:        conn.busy_timeout(std::time::Duration::from_secs(5))
+crates/bd-cache-sync/tests/schedule_switch.rs:494:        .recv_timeout(std::time::Duration::from_secs(5))
+crates/bd-cache-sync/tests/schedule_switch.rs:643:/// dotted name, a timeout outside 1000-600000, a relative or non-executable
+crates/bd-cache-sync/tests/schedule_switch.rs:651:    let plain = std::env::temp_dir().join(format!("not-exec-{}", std::process::id()));
+crates/bd-cache-sync/tests/schedule_switch.rs:665:                timeout_ms: Some(999),
+crates/bd-cache-sync/tests/schedule_switch.rs:668:            "timeout_ms",
+crates/bd-cache-sync/tests/schedule_switch.rs:673:                timeout_ms: Some(600_001),
+crates/bd-cache-sync/tests/schedule_switch.rs:676:            "timeout_ms",
+crates/bd-cache-sync/tests/schedule_switch.rs:765:    let started = stub.dir.path().join("stop.started");
+crates/bd-cache-sync/tests/schedule_switch.rs:789:/// The immediate run's timeout is measured on the injected clock: the
+crates/bd-cache-sync/tests/schedule_switch.rs:790:/// clock moved past the deadline during the stop check makes the tick time
+crates/bd-cache-sync/tests/schedule_switch.rs:794:async fn the_immediate_runs_timeout_is_on_the_injected_clock() {
+crates/bd-cache-sync/tests/schedule_switch.rs:802:            timeout_ms: Some(60_000),
+crates/bd-cache-sync/tests/schedule_switch.rs:805:        let begun = std::time::Instant::now();
+crates/bd-cache-sync/tests/schedule_switch.rs:807:        let started = stub.dir.path().join("stop.started");
+crates/bd-cache-sync/tests/schedule_switch.rs:898:            let until = std::time::Instant::now() + std::time::Duration::from_secs(5);
+crates/bd-cache-sync/tests/schedule_switch.rs:904:                    std::time::Instant::now() < until,
+crates/bd-cache-sync/tests/schedule_switch.rs:910:            let _ = released.recv_timeout(std::time::Duration::from_secs(30));
+crates/bd-cache-sync/tests/schedule_switch.rs:914:        .recv_timeout(std::time::Duration::from_secs(5))
+crates/bd-cache-sync/tests/schedule_switch.rs:1023:        tokio::time::timeout(std::time::Duration::from_secs(5), attempted.notified())
+crates/bd-cache-sync/tests/schedule_switch.rs:1074:            .recv_timeout(std::time::Duration::from_secs(5))
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:250:stop/deadline, single-run/generation, store-atomicity/enabled, hook-target and
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:273:ADR-BDC-0005: a failed bd spawn, timeout or transport failure leaves cached reads
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:278:per-call timeout capped by the remaining run deadline. These bounds preserve
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:297:        &self, deadline: std::time::Instant,
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:308:acquire that mutex with deadline-aware try-lock/recheck (no unbounded wait), cap
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:309:each SQLite busy wait by remaining time, and use SQLite progress/deadline checks
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:324:The finite scope must finish before the blocking task is joined; an async timeout
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:337:    &self, stop: StopFlag, shutdown_timeout: Duration,
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:354:| req:REQ-BDC-0730 | CLI and Python use migrated worker; timeout, second stop, hook child-tree kill and lease release obey current bounds | release lease/instance state before child reap or omit kill; process test fails |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:356:| req:REQ-BDC-1002 / NFR-BDC-0004 | the store-health scope enforces its deadline through lock wait, SQLite work and decoding, restores settings and leaves concurrent scheduler work intact | replace the scope with timeout(spawn_blocking) or leave a stale progress hook; bounded/restoration tests fail |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:406:  connection claim, with deadline-aware locking, dynamic busy retries, safe
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:421:| RSH-002 | Scheduled built-in job propagates its upstream absolute deadline through bounded start/end record cache claims, preparation, sync/drain, hook offer/launch and final cache claim. Budget derives from original scheduler launch instant (deadline minus row timeout), before record or mutex delay, and is capped by the caller. Public on-demand run_builtin remains. job_threading.rs proves held cache claim expires and no detached preparation issues later bd calls. |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:422:| RSH-003 | Scope/filter decoding and every public store row iteration/status assembly boundary now use the common calling-thread health deadline check. Added deterministic public scopes/status expiration coverage; normal unscoped reads/restoration remain covered. |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:430:| FTQ-007 | Cargo metadata runs with a hard subprocess deadline and captured diagnostics. subprocess.run kills/reaps its owned child on timeout; a real sleeping-child test proves the deadline path. |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:439:| FTQ-001 | Correction present, specialist verification pending. health.rs runs the existing causal mutex fixture in an owned child test process. The parent enforces a five-second lifetime, kills and reaps on expiry, and its owner Drop also kills/reaps during unwind. File-backed diagnostics avoid pipe-drain threads; parent-owned scratch storage removes a killed child's cache. The original holder/read-start handshakes, 50 ms read budget, 200 ms answer deadline, <150 ms assertion and post-release store.status check remain. A deliberately stalled reader reaches the contended-read failure path and proves timeout kill/reap, rather than allowing a detached-thread success or health retry. |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:452:HealthReadControl retain their own policies; no health deadline is repurposed.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:460:read-only/deadline rules, worker calls, run-due work or job callbacks. The same
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:466:owned worker/store join. Its cleanup deadline is fixed from the original grace
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:471:second start cannot reset the first worker's deadline. This does not assert that
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:478:cover ordinary, hurried and zero-timeout store joins before external writer
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:483:concurrent-start panic without changing the first deadline. Store tests cover a
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:497:kill/reap cleanup on timeout and assertion unwind. No tested thread or async
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:508:and confirms the registered Python PIDs have disappeared. The timeout and Drop
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:527:shell/cat group alive after the old fixture timeout. The prior registered-child
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:552:timeout and parent assertion unwind confirm kernel session emptiness plus actual
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:597:start from modifying another lifetime's deadline. No caller factory or new SDK
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:598:port is introduced. Cache health read-only and deadline policies are unchanged.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:607:regressions cover ordinary pre-stopped startup, zero timeout, a second signal
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:625:run failed 13/15 with owned inventory timeouts. Both original logs remain under
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:633:or fixture deadline, capped by the five-second fixture lifetime. Cleanup retains
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:635:one-second final boundary. No phase or fixture timeout is renewed after error.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:641:same phase deadline. Failed scans reset the stable-census observation. Cleanup
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:646:proofs; recovery is logged while the original fixture failure/timeout is retained.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:658:The existing true timeout/unwind inventory proof now acknowledges the command's
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:672:wait result, installed cancellation deadline, real call result/SQLite code before
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:673:any result/stall text, original marker-write completion, completion timeout and
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:685:real DatabaseBusy return, missing marker, original timeout and completed owned
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:704:deadline offset, remaining time and actual inventory result. Inventory subprocess
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:705:PID, owner thread, elapsed time and actual exit or timeout kill/wait are recorded.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:735:| Incomplete quiescence fails closed | Held real command consumes original quiescence deadline | Unchanged stage control: false cleanup receipt, original root failure, command/root reap, complete independent session audit, refused second attempt |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:736:| Independent audit timeout stays an error | Held real command consumes independent250ms audit | Unchanged stage control: audit fails while prior cleanup receipt stays true; command/root reap and complete independent later verification cannot waive the failed audit |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:737:| Noncooperation, one attempt and unwind | Complete owned cleanup under original budgets | Unchanged incomplete-inventory and stopped-inventory timeout/unwind tests, plus pre-registration and fixture/Python assertion-unwind lifecycle proofs |
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:745:Any required real inventory exceeding its deadline still fails honestly.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:765:its250ms output deadline. That isolated regression now owns spawn and actual STOP
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:767:ONE250ms caller deadline before process_ids_using. The real>=80ms hold,CONT,
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:770:scope; no supplied deadline is renewed. Ordinary preflight/cleanup/audit callers
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:772:absolute deadlines. All timeout, assertion-unwind, incomplete-receipt/no-retry
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:773:and root/census controls remain; arbitrary timeout cannot pass the positive.
+docs/plans/phase-c/sprint-c-1-runtime-migration.md:845:restoration/unwind assertion and deadline. This does not weaken health policy or
+crates/bd-cache-sync/src/module_hook.rs:28:    /// be started. Exit failures and timeouts remain upstream `HookOutput` values.
+crates/bd-cache-sync/src/module_hook.rs:35:        let budget = kill_budget(call.timeout.get(), call.deadline, now);
+crates/bd-cache-sync/src/module_hook.rs:45:        let remaining = call.deadline.saturating_duration_since(now);
+crates/bd-cache-sync/src/module_hook.rs:46:        let wall_deadline = chrono::Duration::from_std(remaining)
+crates/bd-cache-sync/src/module_hook.rs:52:        let input = serde_json::json!({ "protocol": HOOK_PROTOCOL, "event": call.event.as_str(), "schedule": call.schedule.as_str(), "payload": call.payload, "deadline": Timestamp::from_datetime(wall_deadline).to_string() }).to_string();
+crates/bd-cache-sync/src/module_hook.rs:62:        let captured = supervise(&spec, MAX_HOOK_OUTPUT_BYTES, tokio::time::sleep(budget))
+crates/bd-cache-sync/src/mode_lock.rs:19://! bounded by the store's busy timeout. A command waits at most
+crates/bd-cache-sync/src/mode_lock.rs:32:/// timeout), so a timeout means a holder that hangs.
+crates/bd-cache-sync/src/mode_lock.rs:116:    let until = Instant::now()
+crates/bd-cache-sync/src/mode_lock.rs:118:        .unwrap_or_else(Instant::now);
+crates/bd-cache-sync/src/mode_lock.rs:127:        let now = Instant::now();
+crates/bd-cache-sync/src/mode_lock.rs:135:        std::thread::sleep((until - now).min(RETRY));
+crates/bd-cache-sync/src/mode_lock.rs:148:        let lock = ModeLock::for_cache_file(&dir.path().join("dev.bd-cache.sqlite3"));
+docs/plans/phase-c/phase-c-plan.md:105:queue, retains it through disconnect/timeout, and joins it during cleanup before
+docs/plans/phase-c/phase-c-plan.md:106:instance release. Saturation is a typed daemon-only 503; SQLite/mutex deadlines
+docs/plans/phase-c/phase-c-plan.md:122:| bd-cache-sync | upstream target model, deadlines, worker and hook supervision | existing edges to cache/store/model/API/sc-bd-cli/sc-beads plus upstream sc-cron; used by CLI, Python, service | c-1 |
+docs/plans/phase-c/phase-c-plan.md:225:reads, sync behavior, front-end compatibility and deadlines. They are mapped to the
+crates/bd-cache-sync/tests/hook_runner.rs:116:/// the scope list is cut at the sync deadline and the request's deadline is
+crates/bd-cache-sync/tests/hook_runner.rs:134:    let deadline = Timestamp::parse(req["deadline"].as_str().unwrap()).unwrap();
+crates/bd-cache-sync/tests/hook_runner.rs:136:        deadline.unix() - now.unix(),
+crates/bd-cache-sync/tests/hook_runner.rs:142:/// A hook that outlives its deadline is killed with everything it started
+crates/bd-cache-sync/tests/hook_runner.rs:144:/// free; the failure is `TICK_RUN_FAILED` (`timeout`) in `hook.error` while
+crates/bd-cache-sync/tests/hook_runner.rs:145:/// the run itself is ok. The deadline is fired by the test after the stub's
+crates/bd-cache-sync/tests/hook_runner.rs:149:async fn a_hook_past_its_deadline_is_killed_with_its_tree_and_the_run_finishes() {
+crates/bd-cache-sync/tests/hook_runner.rs:159:    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(10)).unwrap())
+crates/bd-cache-sync/tests/hook_runner.rs:163:    tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/hook_runner.rs:170:    assert_eq!(error["details"]["reason"], "timeout");
+crates/bd-cache-sync/tests/hook_runner.rs:320:    let read = std::fs::metadata(stub.dir.path().join("request.1.json"))
+crates/bd-cache-sync/tests/hook_runner.rs:325:    let reply = tokio::time::timeout(
+crates/bd-cache-sync/tests/hook_runner.rs:351:    let size = std::fs::metadata(stub.dir.path().join("request.1.json"))
+crates/bd-cache-sync/tests/hook_runner.rs:436:/// as a timeout (B8Q1-034); planted negative: one killed at its deadline is
+crates/bd-cache-sync/tests/hook_runner.rs:437:/// `timeout` (the deadline test above).
+crates/bd-cache-sync/tests/hook_runner.rs:449:    tokio::task::spawn_blocking(move || ready.recv_timeout(Duration::from_secs(10)).unwrap())
+crates/bd-cache-sync/tests/hook_runner.rs:453:    tokio::task::spawn_blocking(move || life.recv_timeout(Duration::from_secs(20)).unwrap())
+crates/bd-cache-sync/tests/e2e.rs:283:/// budget: the drain and the syncs are cut at the sync deadline and the
+crates/bd-cache-sync/tests/e2e.rs:297:    let started = Instant::now();
+crates/bd-cache-sync/tests/e2e.rs:338:            INSERT INTO sc_cron_schedule(generation,name,expr,timeout_ms,jitter_ms,payload,created_at,next_run_at,enabled) VALUES
+docs/architecture.md:89:encourage. It also names the sync scopes, the timeouts
+docs/architecture.md:144:| `sc-beads` (shared, published) | Beads backend contract only: btit's `BeadsBackend`, `CliBackend` and `DoltOperations` traits plus the cache extensions (batched `--id` and `--updated-after` lists, guarded update and close with reason, per-call deadline, `/v0`-aligned patch, backend fingerprint), strict and tolerant rows, btit's `BeadsError` unchanged plus `BeadsCacheError` and `Refusal` for the cache calls, `Clock` and `Deadline`, a `FakeBackend` test double (ADR-BDC-0007). Sprint b-7: `ScopeFilter` gains `All` and `Criteria { labels_all, labels_any, issue_type, assignee }` (no status), with `validate` refusing an empty `Criteria` before any bd call (`BeadsCacheError::Invalid`); `FakeBackend` answers every variant, and the contract suite checks each against the bd 1.3.1 scope-filter recording (ADR-BDC-0013) | serde, serde_json, sha2, tracing | a |
+docs/architecture.md:383:  fresh the data is. A cache miss fetches with a short deadline
+docs/architecture.md:384:  (`CacheConfig::miss_fill_timeout`, default 2 s) and returns
+docs/architecture.md:386:- Backend unreachable (timeout, connection refused, cannot start) at the
+docs/architecture.md:402:- The drain has a start gate and a hard deadline (REQ-BDC-0402): each `bd`
+docs/architecture.md:403:  call is capped at the time left before the hard deadline; a call cut short
+docs/architecture.md:466:guards, `close` takes no reason, there is no per-call deadline, and rows are
+docs/architecture.md:485:per-call deadline, the `/v0`-aligned patch (ADR-BDC-0003), the backend
+docs/architecture.md:656:  cron string, a timeout, a JSON payload, an `enabled` flag and a hook target:
+docs/bd-cache-cli/architecture.md:168:**Status:** Approved (phase-end fix RSH-001, bc-lead, 2026-10-25); extended by ADR-SYNC-0008 and REQ-BDC-0730 for the long-running `cron run` (shutdown timeout, process-wide log, Ctrl-C and Ctrl-Break on Windows)
+docs/bd-cache-cli/architecture.md:185:  timeout, a waiting call starts nothing, and both project locks (the mutex
+docs/bd-cache-cli/architecture.md:192:  flight up to `--shutdown-timeout-ms` (REQ-BDC-0730).
+docs/bd-cache-cli/architecture.md:226:| `faults.slow_ms` | integer | Every call sleeps this long before it answers. The delay is real, so the caller's own timeout ends it. |
+docs/bd-cache-cli/architecture.md:274:  defers that to its shutdown timeout (`Signals::defer_bd_kill`, then `kill_bd`), so its runs
+docs/bd-cache-py/architecture.md:41:`SystemClock` that `Cache` and `BdCli` share (the core's rule that deadlines
+docs/bd-cache-py/architecture.md:69:`bd-cache-sync`'s, with `dunce` dropped.)* The deadlines of `sync` and
+docs/bd-cache-py/architecture.md:128:and every verb is synchronous. A verb can wait on `bd` for up to its deadline.
+docs/bd-cache-py/architecture.md:256:| `get(bead, miss_timeout)` | `cache.beads.issues_get(id=, miss_timeout_ms=)` | `{row: {bead, stale, blocked}, scope_last_ok_at, pending, outage}`. **Unit change:** 0.1 takes seconds (float), 0.2 milliseconds (int). `miss_timeout_ms=0` is `NOT_CACHED` (retryable); 0.1 `miss_timeout=0` is `BD_UNAVAILABLE` |
+docs/bd-cache-py/architecture.md:261:| `refresh(ids, timeout)` | `cache.manage.refresh_issues(...)` | a bare list; seconds |
+docs/bd-cache-py/architecture.md:262:| `sync(phase, timeout)` | `cache.manage.refresh_scopes(...)` | one report, not `results[]` |
+docs/bd-cache-py/architecture.md:306:  deadline at most, and the call cannot be interrupted from Python. *(Superseded by the QA-1
+docs/bd-cache-py/architecture.md:344:  `project_dir`, `call_timeout_s` and `miss_fill_timeout_ms` as its `ComposeTuning`), so the
+docs/bd-cache-py/architecture.md:384:cache_path=None, call_timeout_s=None, miss_fill_timeout_ms=None, max_attempts=None)` opens the
+docs/bd-cache-py/architecture.md:394:The 0.1 verbs (every argument and reply unchanged in 0.2, REQ-BDC-0812; timeouts in seconds):
+docs/bd-cache-py/architecture.md:398:| `get(bead, miss_timeout=None)` | the bead from the cache; a miss asks bd within `miss_timeout` (`0` asks nothing: `BD_UNAVAILABLE` at once) |
+docs/bd-cache-py/architecture.md:399:| `refresh(ids, timeout)` | one `bd list --id` for `ids`, stored with force, pending writes replayed; a list of views |
+docs/bd-cache-py/architecture.md:403:| `sync(phase, timeout)` | syncs the scope from bd; an unreachable bd is the report's `outage` (ADR-BDC-0005) |
+docs/bd-cache-py/architecture.md:404:| `drain(start_gate_s, hard_s)` | applies journaled writes to bd under a start gate and a hard deadline |
+docs/bd-cache-py/architecture.md:418:- **No runner injection.** The binding runs `bd` itself, with deadlines and strict row
+docs/sc-cron/requirements.md:25:deadlines on top of REQ-CRON-0005 is in that caller's docs (for beads-cache,
+docs/sc-cron/requirements.md:92:## REQ-CRON-0005: Stop check and per-run timeout
+docs/sc-cron/requirements.md:107:`Failed`, a run past the timeout `TimedOut`, and for a Python hook a failure
+docs/sc-cron/requirements.md:110:schedule's timeout. The job receives the deadline, on the clock's monotonic
+docs/sc-cron/requirements.md:111:timeline. A run still going at the deadline is cancelled and recorded as
+docs/sc-cron/requirements.md:113:the deadline on the monotonic timeline, so a wall-clock jump never times a
+docs/sc-cron/requirements.md:115:hard timeout guarantee needs a multi-thread runtime and a job that never
+docs/sc-cron/requirements.md:171:amended). On open it sets the busy timeout, then WAL, then checks
+docs/sc-cron/requirements.md:223:`WorkerHandle::shutdown(deadline)` stops ticking and waits for each in-flight
+docs/sc-cron/requirements.md:224:run until that run's own deadline, recording its outcome. If the shutdown
+docs/sc-cron/requirements.md:225:deadline passes first, the worker and its runs are aborted and record
+docs/sc-cron/requirements.md:245:"schedule", "payload", "deadline"}`, where `schedule` is the schedule's name,
+docs/sc-cron/requirements.md:246:`payload` is its payload as stored and `deadline` is the run's deadline as a
+docs/sc-cron/requirements.md:248:for the run if the stop check said to continue; both carry the same deadline.
+docs/sc-cron/requirements.md:255:with every process it started, at the schedule's timeout capped by the time
+docs/sc-cron/requirements.md:256:left before the run's deadline (a Unix process group or a Windows job object
+docs/sc-cron/requirements.md:258:deadline has passed starts no hook. Each of stdout and stderr is kept up to
+docs/sc-cron/requirements.md:340:generation, expression, payload, timeout, jitter and run state are unchanged;
+docs/sc-cron/architecture.md:66:    fn monotonic_now(&self) -> Instant { Instant::now() }
+docs/sc-cron/architecture.md:88:pub struct ScheduleSpec { pub name: ScheduleName, pub expr: CronExpr, pub timeout: RunTimeout,
+docs/sc-cron/architecture.md:117:    async fn run(&self, payload: &serde_json::Value, deadline: Instant) -> RunOutcome;
+docs/sc-cron/architecture.md:127:    pub payload: &'a serde_json::Value, pub timeout: RunTimeout, pub deadline: Instant }
+docs/sc-cron/architecture.md:131:pub fn kill_budget(timeout: Duration, deadline: Instant, now: Instant) -> Duration;
+docs/sc-cron/architecture.md:150:    pub async fn shutdown(self, deadline: tokio::time::Instant) -> bool;
+docs/sc-cron/architecture.md:174:| `expr`, `timeout_ms`, `jitter_ms`, `payload` (JSON text, <= 64 KiB) | the spec and its stored jitter |
+docs/sc-cron/architecture.md:200:flight with its monotonic deadline. Each pass, checking for shutdown
+docs/sc-cron/architecture.md:241:2. Cancel every run whose deadline has passed on `Clock::monotonic_now`,
+docs/sc-cron/architecture.md:247:   deadline (converted from monotonic to wall time), reload retry or
+docs/sc-cron/architecture.md:252:deadline, for a Rust target; for a Python target the `cron.stop` hook, then the
+docs/sc-cron/architecture.md:253:`cron.tick` hook, each started with the run's deadline and killed at
+docs/sc-cron/architecture.md:278:with a deadline, `should_stop`) on every tick. The earlier scheduler's two
+docs/sc-cron/architecture.md:305:job's `Instant` deadline needs a monotonic timeline that a manual clock also
+docs/sc-cron/architecture.md:308:Decision: `Clock` also has `monotonic_now()` (default `Instant::now()`) and
+docs/sc-cron/architecture.md:316:Consequences: the trait uses `async-trait`. A job compares its deadline with
+docs/sc-cron/architecture.md:317:`Clock::monotonic_now`; under `SystemClock` that is `Instant::now`.
+docs/sc-cron/architecture.md:357:## ADR-CRON-0005: The worker enforces run deadlines on the monotonic clock
+docs/sc-cron/architecture.md:363:drive timeouts, and the worker would not be the clock's only sleeper. A
+docs/sc-cron/architecture.md:364:deadline measured on the wall clock would be cut short by a forward
+docs/sc-cron/architecture.md:367:Decision: each run's deadline is `monotonic_now() + timeout`, the same
+docs/sc-cron/architecture.md:370:`monotonic_now()` before timing anything out. At the deadline the worker
+docs/sc-cron/architecture.md:374:the deadline into any `spawn_blocking` work, which an abort cannot cancel.
+docs/sc-cron/architecture.md:375:A job must not block a runtime thread, and the hard timeout guarantee needs
+docs/sc-cron/architecture.md:379:Consequences: timeouts are testable under `ManualClock`, including a wall
+docs/sc-cron/architecture.md:398:  definition of a valid name, expression and timeout. The payload size has
+docs/sc-cron/architecture.md:412:  sets the busy timeout before WAL and checks `PRAGMA user_version`
+docs/sc-cron/architecture.md:455:(panic, timeout, and for Python a failed start, non-zero exit or malformed
+docs/sc-cron/architecture.md:479:every call killed at its timeout (NFR-BDC-0004). `forbid(unsafe_code)` is set
+docs/sc-cron/architecture.md:493:  (`protocol`, `event`, `schedule`, `payload`, `deadline`) and the events
+docs/sc-cron/architecture.md:498:- Every hook is killed at `kill_budget(timeout, deadline, now)`, the row's timeout
+docs/sc-cron/architecture.md:499:  capped by the time left before the run's deadline, on the clock's monotonic
+docs/sc-cron/architecture.md:500:  timeline; the deadline on stdin is the same instant as a UTC time. The wait
+docs/sc-cron/architecture.md:502:  the supervisor kills on drop. A deadline already passed starts nothing.
+docs/sc-cron/architecture.md:518:lasts until its timeout. The tests use a stub interpreter (a script) on
+docs/sc-cron/architecture.md:614:  what is due, each run under its own deadline, its outcome and next run recorded).
+docs/bd-cache-store/architecture.md:153:  transaction under the 5 s busy timeout, as the baseline Python implementation's writes are,
+docs/bd-cache-store/architecture.md:158:  `READ_DATING_THRESHOLD` (2000) such entries wait, and with the busy timeout
+docs/bd-cache-store/architecture.md:172:  `BEGIN IMMEDIATE` transaction with the busy timeout `min(BUSY_TIMEOUT, wait)`
+docs/bd-cache-store/architecture.md:180:  `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
+docs/bd-cache-store/architecture.md:181:  (unit; the timeout sampled inside each write by a temporary trigger: the wait,
+docs/bd-cache-store/architecture.md:407:  autocommit `UPDATE` with the busy timeout set to zero (`BusyWait` at zero, a drop guard
+docs/bd-cache-store/architecture.md:538:`the_dating_update_runs_with_no_busy_timeout_and_restores_it` (unit, QA5-003: the busy
+docs/bd-cache-store/architecture.md:539:timeout sampled inside the `UPDATE` by a temporary trigger is 0, and is back afterwards;
+docs/bd-cache-store/architecture.md:567:    busy-timeout probe tests (`store.rs` unit tests,
+docs/bd-cache-store/architecture.md:568:    `the_dating_update_runs_with_no_busy_timeout_and_restores_it`, QA5-003, and
+docs/bd-cache-store/architecture.md:569:    `a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`, S33)
+docs/bd-cache-store/architecture.md:570:    register `probe_busy_timeout`, which a temporary trigger calls from inside the
+docs/bd-cache-store/architecture.md:571:    store's write to read `PRAGMA busy_timeout` (QA6-003). That function's
+docs/bd-cache-store/architecture.md:718:try-lock retries, SQLite busy/deadline/progress checks, read-only sessions and
+docs/bd-cache-store/architecture.md:719:row-decode checks. Session guards restore query_only, busy timeout and progress
+docs/bd-cache-sync/architecture.md:19:| `lease` | `TickLease` (the RAII guard over the `tick_lease` row; `take` installs its drop-release before the lease exists), `LeaseTaken`, `new_run_id` (`<unix-ms>-<pid>-<counter>`), `LEASE_MARGIN` (the model's row-timeout margin), `hold` / `hold_within` (the cache mutex, its poison policy) |
+docs/bd-cache-sync/architecture.md:20:| `control` | `StopFlag` (with an async `wait`) and `Budget` (the sync and hook deadlines) |
+docs/bd-cache-sync/architecture.md:22:| `hook` | the `bd-cache.run.v1` request (500 escalations, 4 MiB, each built once), the runner over `sc_cron::process` (killed at its deadline, `timeout`, or by the kill flag, `signal`), `ScopeResult`, `ScopeError`, `next_attempt` (the backoff) |
+docs/bd-cache-sync/architecture.md:48:the deadlines, the budget margins and every backend call are on one
+docs/bd-cache-sync/architecture.md:67:(by the previous tick's task that outlived its timeout, or by the host's own
+docs/bd-cache-sync/architecture.md:73:it). The run's deadline `Instant` becomes `T` through `Deadline::at`, so every
+docs/bd-cache-sync/architecture.md:112:`WorkerHandle::shutdown`; (3) `SyncJob::join_idle(deadline)` from a blocking
+docs/bd-cache-sync/architecture.md:113:thread, which takes the cache mutex with a timeout (a `try_lock` poll every
+docs/bd-cache-sync/architecture.md:114:5 ms up to the deadline) and returns `true` once no tick holds it, `false` at
+docs/bd-cache-sync/architecture.md:115:the deadline; (4) drop the job. `job.rs` documents the same steps. Evidence:
+docs/bd-cache-sync/architecture.md:116:`join_idle_waits_for_the_tick_in_flight_up_to_its_deadline`
+docs/bd-cache-sync/architecture.md:118:waiting until its deadline, and a released tick ends it early).
+docs/bd-cache-sync/architecture.md:123:drain's hard deadline, `T - 2 s`: the start gate (no new entry starts after
+docs/bd-cache-sync/architecture.md:132:when it returns, within the miss-fill timeout. `active.rs` implements this and
+docs/bd-cache-sync/architecture.md:173:full 5 s busy timeout, so a write lock another process held could carry a tick
+docs/bd-cache-sync/architecture.md:182:`a_bounded_marker_write_waits_at_most_its_wait_and_restores_the_timeout`
+docs/bd-cache-sync/architecture.md:183:(the busy timeout sampled inside the write).
+docs/bd-cache-sync/architecture.md:200:busy timeout; what it is in time is the S39 amendment below. Evidence
+docs/bd-cache-sync/architecture.md:424:killed on a timeout or a stop, but a descendant that escapes the group is not
+docs/bd-cache-sync/architecture.md:430:reaping of the child share one kill deadline, `KILL_BOUND` (1 s) from the start
+docs/bd-cache-sync/architecture.md:437:TERM, under a generous deadline, and shows the child reaped and the descendant
+docs/bd-cache-sync/architecture.md:438:gone; `a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` gives a tree
+docs/bd-cache-sync/architecture.md:439:kill that only hangs an injected deadline and shows it given up and reaped. No
+docs/bd-cache-sync/architecture.md:440:test races a short deadline against a real kill; each asserts the outcome, not
+docs/bd-cache-sync/architecture.md:467:a child or tree-kill program still running at the kill deadline is killed and
+docs/bd-cache-sync/architecture.md:473:`a_stuck_tree_kill_is_given_up_at_the_deadline_and_reaped` (the messaging module)
+docs/bd-cache-sync/architecture.md:494:stops new triggers on a signal, waits for runs in flight up to a timeout, kills hanging process
+docs/bd-cache-sync/architecture.md:504:  cache_path, beads_dir, env, timeout_ms }`. `TickBudget` (`budget_ms` 1000–600000,
+docs/bd-cache-sync/architecture.md:535:    within 5 s, the module, the timeout), take the lease, read both rows, then one
+docs/bd-cache-sync/architecture.md:537:    replaced in place with the new interpreter, module, expression, timeout and `--env` names)
+docs/bd-cache-sync/architecture.md:558:  at the run's deadline plus 10 s, released when the guard drops (a failed release is logged and
+docs/bd-cache-sync/architecture.md:568:  two deadlines only: the sync deadline (start + `budget_ms` − `hook_reserve_ms`), which the drain
+docs/bd-cache-sync/architecture.md:569:  and the scope syncs get, and the hook deadline (start + `budget_ms`). Steps: lease; drain;
+docs/bd-cache-sync/architecture.md:573:  drain lock is held while the hook runs. The row's sc-cron timeout is `budget_ms + 10000`. While
+docs/bd-cache-sync/architecture.md:580:  output is read, and the tree killed at the hook deadline. Request (`bd-cache.run.v1`):
+docs/bd-cache-sync/architecture.md:584:   "deadline": "...", "cache_path": "...",
+docs/bd-cache-sync/architecture.md:600:  8 KiB. Request bodies are never logged. A failure (spawn failure, timeout, non-zero exit,
+docs/bd-cache-sync/architecture.md:616:  "sc-cron.hook.v1", "event", "schedule", "payload", "deadline"}`, where `payload` is the row's
+docs/bd-cache-sync/architecture.md:627:  variables replaced by `<redacted:NAME>`. The run is judged by its exit status; its timeout is
+docs/bd-cache-sync/architecture.md:628:  the row's `timeout_ms` (default 60000, 1000–600000), the immediate run's too.
+docs/bd-cache-sync/architecture.md:642:  the bd calls are stopped only when the shutdown timeout expires)*,
+docs/bd-cache-sync/architecture.md:643:  then call `WorkerHandle::shutdown(now + --shutdown-timeout-ms)`: no run is launched, runs in
+docs/bd-cache-sync/architecture.md:644:  flight are awaited to that deadline, and those still going are aborted, which drops their
+docs/bd-cache-sync/architecture.md:648:  `SIGTERM` (exit 129). A second signal during the wait ends it at once, as the timeout's expiry does (`Schedules::cron_run_hurried`; *amended at the phase-end review, REQ-BDC-0730 as amended: it was ignored before*). `cron run --once` runs
+docs/bd-cache-sync/architecture.md:649:  what is due, waits for each run it started to its own deadline, and exits 0, or 3 with
+docs/bd-cache-sync/architecture.md:686:and script run is bounded by its deadline (NFR-BDC-0004); the register (REQ-BDC-0720..0732)
+docs/bd-cache-sync/architecture.md:696:  due now runs once under its own deadline, its outcome and next run recorded; a dropped call
+docs/bd-cache-sync/architecture.md:736:  run; the runs in flight, their bd calls included, get `--shutdown-timeout-ms` (`T`). Only when
+docs/bd-cache-sync/architecture.md:741:  (`Runtime::shutdown_timeout`). A stop therefore takes at most `2 × T`. `tick` and `sync
+docs/bd-cache-sync/architecture.md:747:  count, `failed` adds one, `skipped` leaves it); a run that never finished (a sc-cron timeout,
+docs/bd-cache-sync/architecture.md:807:progress callbacks, and row decoding observe that control, including a deadline
+docs/bd-cache-sync/architecture.md:816:identity and physical connection; it never overrides health read-only/deadline
