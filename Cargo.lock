@@ -1139,8 +1139,8 @@ dependencies = [
 
 [[package]]
 name = "sc-command"
-version = "0.1.1"
-source = "git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5"
+version = "0.2.0"
+source = "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
 dependencies = [
  "sc-observability-types",
  "serde",
@@ -1149,8 +1149,8 @@ dependencies = [
 
 [[package]]
 name = "sc-cron"
-version = "0.1.1"
-source = "git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5"
+version = "0.2.0"
+source = "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e"
 dependencies = [
  "async-trait",
  "chrono",

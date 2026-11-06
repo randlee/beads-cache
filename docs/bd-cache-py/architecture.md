@@ -235,8 +235,9 @@ Decision:
   depend on.
 - **Boundaries.** `bd-cache-py` gains `bd-cache-api`; it takes no `sc-command` and
   no `clap`. ADR-BDC-0016 (owner approval 2026-11-02) permits the transitive
-  published sc-cron → sc-command contract/logging edge, with default features
-  off. An isolated Python consumer must still exclude clap, sc-command/server,
+  approved-source sc-cron → sc-command contract/logging edge (published 0.1.1
+  or the exact qualified prerelease Git candidate recorded in that ADR), with
+  default features off. An isolated Python consumer must still exclude clap, sc-command/server,
   sc-runtime and sc-transport; workspace feature unification with a daemon is
   not isolated wheel leakage. CI checks a temporary standalone Cargo consumer
   and builds the actual wheel.

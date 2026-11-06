@@ -33,7 +33,7 @@ bd-cache-store = { path = "crates/bd-cache-store", version = "0.2.0" }
 bd-cache-sync = { path = "crates/bd-cache-sync", version = "0.2.0" }
 sc-bd-cli = { path = "crates/sc-bd-cli", version = "0.2.0" }
 sc-beads = { path = "crates/sc-beads", version = "0.2.0" }
-sc-cron = { git = "https://github.com/randlee/sc-runtime", rev = "72f021d9e9b265b1310e248d851b0baec36817d5", default-features = false }
+sc-cron = { git = "https://github.com/randlee/sc-runtime", rev = "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e", default-features = false }
 
 # third-party crates used in phase a
 rusqlite = { version = "0.39", features = ["bundled", "hooks"] }   # NFR-BDC-0007: bundled SQLite
@@ -61,8 +61,8 @@ process-wrap = { version = "10", default-features = false, features = ["tokio1",
 # QA97R2-014): a safe call, no `unsafe`; already in Cargo.lock through tempfile.
 rustix = { version = "1.1", default-features = false }
 
-# Runtime contracts pinned to authorized PR115; server assembly stays opt-in (ADR-BDC-0016).
-sc-command = { git = "https://github.com/randlee/sc-runtime", rev = "72f021d9e9b265b1310e248d851b0baec36817d5", default-features = false }
+# Runtime contracts pinned to qualified PR118 (prefinal Git candidate); server assembly stays opt-in (ADR-BDC-0016).
+sc-command = { git = "https://github.com/randlee/sc-runtime", rev = "c3ce3d1b271b54fbb47efaef57ee1563a390cd9e", default-features = false }
 sc-observability-types = "1.5"                             # ErrorCode, the type of an sc-command OpError code
 clap = { version = "4", default-features = false, features = ["std", "error-context", "suggestions", "usage"] }
 

@@ -206,7 +206,7 @@ inherited_bounds:
 
 ## Outcome
 
-The existing bdc and Python surfaces use upstream sc-cron 0.1.1 over the same
+The existing bdc and Python surfaces use the approved upstream sc-cron source over the same
 cache file. No local scheduler remains to drift. This sprint closes scheduler
 integration independently of the later generated application.
 
@@ -223,13 +223,14 @@ anchor gates and green CI remain required before merge.
 ## Deliverables
 
 1. REQ-BDC-1002: land the already-tested rusqlite 0.39 alignment; move sc-command
-   and sc-cron to the published 0.1.1 baseline with default features off. Resolve
+   and sc-cron to the published 0.1.1 baseline or ADR-BDC-0016's exact qualified
+   prerelease Git candidate with default features off. Resolve
    one libsqlite3-sys. Retire the local sc-cron workspace member and source/tests;
    retain historical design docs with an upstream ownership note. Remove local
    sc-cron from existing CI publish dry-runs. Do not update unrelated dependencies.
    After explicit approval, apply the narrowly scoped REQ-CLI-0001 amendment in
    docs/bd-cache-cli/requirements.md from the old git tag to the published 0.1.1
-   baseline. Keep its three-OS build, version envelope and usage/exit guarantees.
+   baseline or the exact authorized prerelease source amendment. Keep its three-OS build, version envelope and usage/exit guarantees.
    Until approval, the current Approved requirement remains unchanged.
 2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing
    schedule persistence and explicit limits. Preserve v3 user_version, old rows,
@@ -351,7 +352,7 @@ pub async fn cron_run(
 `Composed::into_schedules`, `execute_api`, `Schedules::cron_run_hurried` and the
 existing front-end API remain available. c-2 consumes their migrated production
 implementation, not a second scheduler. The exact upstream trait is fixed by the
-0.1.1 dependency source; do not restate it in a local trait copy.
+approved immutable dependency source; do not restate it in a local trait copy.
 
 ## Acceptance criteria
 
@@ -1198,3 +1199,39 @@ The actual unchanged graph failure is retained for parent adjudication against
 the explicit source authorization. No wider source, feature or graph exception
 is inferred. All four canonical IDs remain pending independent QA13 and actual
 current-head policy/CI acceptance; this is not a self-closure or sprint merge.
+
+
+## Qualified C5 prerelease pin and provenance correction
+
+The user's conditional authorization was: “ok, sc-runtime team has a ci failure
+on pr115. once this is resolved, you can pin that release to use before the
+0.2.0 release is finalized.” The parent relayed this verbatim and interpreted
+the producer-qualified PR118 merge candidate as fulfilling that condition.
+ADR-BDC-0016's qualified prerelease source amendment records this interpretation,
+including the distinction between green PR checks and literal merge-head CI.
+
+C1 now pins sc-cron/sc-command package version 0.2.0 to exactly
+`c3ce3d1b271b54fbb47efaef57ee1563a390cd9e` at the approved upstream URL. Only those
+two lockfile records change; observability, rusqlite and the single SQLite
+provider remain unchanged. No production Rust edit is needed: the genuine public
+cron receiver, event projection/redaction, service identity, public facades and
+all previously reviewed startup/shutdown/fixture behavior are retained.
+
+The executable isolated-consumer gate permits precisely published crates.io
+0.1.1 or that URL/revision/resolved-commit/version tuple. It rejects wrong rev,
+resolved commit, URL, moving source, local path, version, mixed nominal identities,
+forbidden introducers and SDK features/assembly. The existing independent API and
+Python consumer commands must actually pass; a fixture-only pass is insufficient.
+
+This explicit narrow source amendment supersedes the historical published-only
+statements in the initial deliverable and earlier correction receipts (including
+“only approved baseline” above). It also amends the current phase-plan source
+rows and ADR/REQ source clauses. Prior failure logs and development-pin provenance
+remain historical evidence. Parent anchor review must adjudicate the exact
+interpretation: published-only source becomes published baseline OR this single
+qualified prerelease Git candidate; domain semantics and all locked ANC bounds
+remain unchanged. No anchor is silently waived or rewritten.
+
+ARCH-001, RBQA-F001, QA2-001 and REQ-QA-004 remain OPEN pending independent QA13
+and actual current-head CI. Local affected checks and raw receipts are reported
+in the developer handoff; this is no sprint/anchor/CI acceptance or merge approval.
