@@ -1,0 +1,30 @@
+```json
+{
+  "sprint": "c-1",
+  "task": "qa-c-1-13",
+  "branch": "sprint/c-1-runtime-migration",
+  "commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "pr": 108,
+  "verdict": "FAIL",
+  "deliverables": {
+    "complete": 31,
+    "total": 36,
+    "percent": 86.11
+  },
+  "findings": {
+    "blocking": 3,
+    "important": 0,
+    "minor": 0
+  },
+  "blocking_ids": ["ARCH13-001", "REQ-QA-004", "RBQA-F001"],
+  "merge_readiness": "not ready",
+  "merge_reason": "ARCH13-001 and REQ-QA-004 open; RBQA-F001 retained pending original boundary-owner verification. CI green; applicable development-anchor input/closeout incomplete.",
+  "next_action": "triage_and_fix",
+  "owner": "parent-orchestrator",
+  "reviewer_spawn_gate": "pass",
+  "reviewer_manifest": [{"agent": "req-qa", "task_id": "/root/c1_reqqa13", "spawn_actor": "parent-orchestrator", "fenced_json_received": true, "verdict": "FAIL", "findings": {"blocking": 2, "important": 0, "minor": 0}}, {"agent": "arch-qa", "task_id": "/root/c1_archqa13", "spawn_actor": "parent-orchestrator", "fenced_json_received": true, "verdict": "FAIL", "findings": {"blocking": 1, "important": 0, "minor": 0}}, {"agent": "rust-qa-agent", "task_id": "/root/c1_rustqa13", "spawn_actor": "parent-orchestrator", "fenced_json_received": true, "verdict": "pass", "findings": {"blocking": 0, "important": 0, "minor": 0}}, {"agent": "flaky-test-qa", "task_id": "/root/c1_flakyqa13", "spawn_actor": "parent-orchestrator", "fenced_json_received": true, "verdict": "findings", "findings": {"blocking": 3, "important": 1, "minor": 0}, "role_owned_verdict": "PASS"}],
+  "missing_reviewers": [],
+  "unparsed_reviewers": [],
+  "evidence_chain": {"qa_pass": "qa-13", "commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4", "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6683562479", "coordinator_task_id": "/root/c1_quality_manager13", "aggregation_source": "reviewer_fenced_json_union_todo_scan", "triage": {"ttl_paths": ["/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/ARCH13-001.ttl", "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl", "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl", "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl", "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl"]}, "canonical_open_ids": ["ARCH13-001", "REQ-QA-004", "RBQA-F001"], "resolved_by_current_owner": ["ARCH-001", "QA2-001"], "todo_scan": {"rows": 0, "receipt": "/tmp/phase-c-execution/c-1/qa-13/manager-todo-scan.txt"}, "ci": {"successful": 15, "pending": 0, "failed": 0, "reviewed_head": "478812a83adb04ea38c93a6d4bc83a17233a9cf4", "checks_receipt": "/tmp/phase-c-execution/c-1/qa-13/manager-ci-checks.json", "run_receipts": ["/tmp/phase-c-execution/c-1/qa-13/manager-ci-native-run.json", "/tmp/phase-c-execution/c-1/qa-13/manager-ci-python-run.json"]}, "deliverable_assessment": "Frozen req-qa 31/36 (86.11%); no coordinator recomputation after CI refresh", "anchor_gate": "pending_input_completeness; no live Jev call or PASS", "ceremony": {"screened": 5, "all_not_applicable": true, "waivers": false}, "model_disclosure": "gpt-6.1-sol high fallback; configured Composer/Grok unavailable; no specialist rerun", "parent_correlation_required": true}
+}
+```

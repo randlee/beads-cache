@@ -1,0 +1,8 @@
+{
+  "actor": "parent-orchestrator",
+  "source": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "audit": "/tmp/phase-c-execution/c-1/qa-13/prose-audit/result.json",
+  "accepted_scope": "Only independentlyidentified duplicateprose/history/ceremony removals and relatedrepairs; no approvedwork/AC/validation/anchor/requirement/ADR deletion",
+  "requirement": "Developerpreserves obligations; independentreq/archQA14 verifies scopeequivalence, then completed anchorrequest must include all implementationevidence withouttruncation",
+  "waiver": false
+}

@@ -1,0 +1,15 @@
+@prefix triage: <urn:beads-cache:triage:> .
+
+<urn:beads-cache:finding:ARCH13-001>
+  triage:id "ARCH13-001" ;
+  triage:severity "BLOCKING" ;
+  triage:status "open" ;
+  triage:sprint "c-1" ;
+  triage:qa_pass "qa-13" ;
+  triage:reviewer "/root/c1_archqa13" ;
+  triage:commit "478812a83adb04ea38c93a6d4bc83a17233a9cf4" ;
+  triage:file "crates/bd-cache-sync/Cargo.toml" ;
+  triage:line "30" ;
+  triage:description "The sync crate retains a direct normal dependency on sc-observability-types, but ADR-SYNC-0006 as amended by ADR-SYNC-0008:662–674 does not authorize it, and the current allowed third-party Crate Layout row (docs/architecture.md:152) also omits it. The genuine public sc_cron::observability facade now provides every canonical type used by cron_log.rs; a full sync-crate source/manifest sweep finds no remaining use of sc-observability-types outside this declaration. The exact prerelease source amendment authorizes the scheduler/command source pair and retains existing structural restrictions; it does not add this separate direct dependency. A passing workspace-edge/isolated graph check does not amend the exhaustive dependency contract." ;
+  triage:remediation "Remove the unused sc-observability-types normal dependency from bd-cache-sync and let Cargo update the sync package dependency list in Cargo.lock. Keep the workspace entry and legitimate CLI/upstream uses. Preserve the genuine sc_cron::observability receiver, exact qualified pin and all current graph restrictions; qualify the resulting consumer graphs under the ordinary affected checks. No new waiver, approval ceremony or broad dependency amendment is needed." ;
+  triage:evidence "/tmp/phase-c-execution/c-1/qa-13/arch-qa-result.json" .

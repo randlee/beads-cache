@@ -1,0 +1,393 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_pushed_guard_provenance_conflict_pending_parent_QA13",
+    "timestamp_utc": "2026-11-05T17:13:01.864902+00:00",
+    "branch": "sprint/c-1-runtime-migration",
+    "before_SHA": "da94641038f6745366a240c308b211c796d4cbb6",
+    "after_SHA": "00d8243778a4bada2adbff5e9567e359eade32b0",
+    "source_clean": true,
+    "authorized_upstream": {
+      "url": "https://github.com/randlee/sc-runtime/pull/115",
+      "exact_revision": "72f021d9e9b265b1310e248d851b0baec36817d5",
+      "read_only_PR_API_observed_head_matches": true,
+      "PR_state_observed": "open, notmerged",
+      "CI17SUCCESS": "Parent independently verified today; this developer did not duplicate upstreamCI execution",
+      "release": "No corresponding exact release provenance supplied; immutableGitdevelopmentpin explicitly authorized by human per rendered assignment"
+    },
+    "summary": "Adopt exact authorized pin and genuine public cron canonical receiver; remove forbidden direct sync-to-command dependency while preserving actual canonical event projection and public facades.",
+    "minimal_pins_and_identity": {
+      "baseline": "da94641038f6745366a240c308b211c796d4cbb6",
+      "authorized_upstream_revision": "72f021d9e9b265b1310e248d851b0baec36817d5",
+      "remote_integration_verified": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "minimal_pinset": [
+        "sc-cron",
+        "sc-command"
+      ],
+      "rationale": "One exactsource for cron receiver and command nominal contracts, including existingCLI; upstreamcron same-repository pathdependency resolves tosame72 identity; no duplicatecommand package.",
+      "lock_package_keys_and_versions_unchanged": true,
+      "changed_lock_records": [
+        [
+          "bd-cache-sync",
+          "0.2.0"
+        ],
+        [
+          "sc-command",
+          "0.1.1"
+        ],
+        [
+          "sc-cron",
+          "0.1.1"
+        ]
+      ],
+      "canonical_emit_projection_body_byte_equal": true,
+      "other_tracked_Rust_files_byte_equal": 261,
+      "guards_workflows_byte_equal": [
+        "crates/bd-cache-sync/tests/check_consumer_graph.py",
+        "crates/bd-cache-sync/tests/test_consumer_graph.py",
+        ".github/workflows/ci.yml",
+        ".github/workflows/python.yml"
+      ],
+      "prior_fixture_and_public_facade_source_unchanged": true,
+      "one_Sqlite_provider": "libsqlite3-sys0.37.0 unchanged",
+      "observability_types": "registry1.5.0 unchanged",
+      "graph_outcome": "actualAPIindependentPASS, Pythonexit1 onlythree registry-onlyprovenance violations; no directsyncintroducer remaining",
+      "binding_plan_guard_conflicts": [
+        "sprintplan209/225/526",
+        "phaseplan25/112",
+        "docs/architectureADR-BDC-0016 decisions1/2",
+        "check_consumer_graph.py28-36"
+      ],
+      "authorization_scope": "Exact developmentpin72 only, parent relaysdirecthumanapprovalbeforefinal0.2; no covertanchor/guard rewrite/waiver",
+      "disk_free_KiB_before": 31933460,
+      "pushed_commit": "00d8243778a4bada2adbff5e9567e359eade32b0",
+      "postpush_clean": true,
+      "pinned_source_actual_checkout_HEAD": "72f021d9e9b265b1310e248d851b0baec36817d5"
+    },
+    "metadata": {
+      "sc-cron": "0.1.1 Git72, defaultfeaturesoff; test-utils only in dev graph",
+      "sc-command": "0.1.1 sameGit72, defaultfeaturesoff, no server; existingCLI shares one nominal identity with upstreamcron",
+      "sc-observability-types": "registry1.5.0 unchanged",
+      "SQLite": "one libsqlite3-sys0.37.0 unchanged; rusqlite0.39.0 unchanged",
+      "unrelated_packages": "No version/package identity additions/removals; only source changes for2SDKrecords and removed synccommandedge",
+      "upstream_source_difference_receipt": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/upstream-source-diff.json"
+    },
+    "implementation": {
+      "receiver_import": "sc_cron::observability::{CanonicalLog,EventError,LogEvent,ServiceName,SharedCanonicalLog}",
+      "service_identity": "bd-cache retained as validated ServiceName; fixedliteralexpect documented consistent with existing payload literal invariant; no user input unwrapped",
+      "canonical_emit": "Projection body byte-identical; canonical_action/action/name/outcome/fields/redaction/order/error/best-effort behavior retained",
+      "source_scope": "Only cron_log.rs production Rust changed;261othertrackedRustfiles/priorfixturehelpers/publicfacades unchanged. Allguard/workflowfiles unchanged. No SDK source mutation."
+    },
+    "changed_files": [
+      ".triage/c/findings/ARCH-001.ttl",
+      ".triage/c/findings/QA2-001.ttl",
+      ".triage/c/findings/RBQA-F001.ttl",
+      ".triage/c/findings/REQ-QA-004.ttl",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/bd-cache-sync/Cargo.toml",
+      "crates/bd-cache-sync/src/cron_log.rs",
+      "docs/plans/phase-c/sprint-c-1-runtime-migration.md"
+    ],
+    "actual_checks": [
+      {
+        "command": "cargo metadata --format-version1",
+        "exit": 0,
+        "result": "Exact Git source resolved; two lock source identities only",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/resolve.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-sync --test cron_logging --all-features -- --nocapture",
+        "exit": 0,
+        "result": "1/1 PASS; real canonical events, run-step order/name/run_id/error redaction",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/logging-test.log"
+      },
+      {
+        "command": "python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v",
+        "exit": 0,
+        "result": "4/4 PASS; unchanged guard negatives including source/server/introducer and subprocess timeout",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/graph-unit-tests.log"
+      },
+      {
+        "command": "python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py",
+        "exit": 1,
+        "result": "FAIL: API independent root passes; Python root rejects only authorized Git provenance in three registry-only predicates",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/isolated-graph.log"
+      },
+      {
+        "command": "cargo clippy --locked -p bd-cache-store -p bd-cache-sync -p bd-cache-cli --all-targets --all-features -- -D warnings",
+        "exit": 0,
+        "result": "PASS",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/clippy.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-store --lib --all-features -- --nocapture",
+        "exit": 0,
+        "result": "37/37 PASS;15.04s",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/store-tests.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
+        "exit": 0,
+        "result": "19/19 PASS;15.57s",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/cron-hurry-tests.log"
+      },
+      {
+        "command": "Exact original direct-boundary workflow body (saved direct-boundary-workflow.sh)",
+        "exit": 0,
+        "result": "PASS; no source/workflow/guard modification",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/direct-boundary.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-cli --test fixtures --all-features -- --nocapture",
+        "exit": 0,
+        "result": "9/9 PASS;0.15s; existing shared API/CLI JSON fixtures and CLI command contract",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/cli-fixtures.log"
+      },
+      {
+        "command": "cargo fmt --all --check; git diff --check",
+        "exit": 0,
+        "result": "PASS before/after push",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/postpush-fmt.log"
+      },
+      {
+        "command": "cargo test --locked -p bd-cache-sync --test cron_logging --all-features -- --nocapture",
+        "exit": 0,
+        "result": "POSTPUSH1/1 PASS;0.23s",
+        "log": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/postpush-logging.log"
+      }
+    ],
+    "retained_failure": {
+      "command": "unchanged isolated consumer guard",
+      "actual_exit": 1,
+      "exact_output": [
+        "bd-cache-api: isolated graph PASS (published scheduler/contracts; no clap/server/runtime)",
+        "sc-cron must be published 0.1.1, got 0.1.1 git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5",
+        "sc-cron -> sc-command: only published sc-cron may introduce the contract/logging exception",
+        "sc-command must be published 0.1.1, got 0.1.1 git+https://github.com/randlee/sc-runtime?rev=72f021d9e9b265b1310e248d851b0baec36817d5#72f021d9e9b265b1310e248d851b0baec36817d5"
+      ],
+      "classification": "Authorized Git source conflicts with old registry-only provenance predicates. Actual direct syncintroducer violation is removed; no forbiddenclap/server/runtime/newintroducer violation in complete guard result.",
+      "no_waiver": true,
+      "guard_source_unchanged": true
+    },
+    "requirement_conflict": {
+      "human_scope": "Parent-rendered task explicitly relays direct user authorization to pin exact green72 candidate before final0.2; prior no-pin restriction superseded for this source only",
+      "conflicting_existing_bindings": [
+        "sprintplan209/225/526",
+        "phase-c-plan25/112",
+        "ADR-BDC-0016 decisions1/2",
+        "check_consumer_graph.py28-36 publishedregistry predicates"
+      ],
+      "handling": "Flagged before mutation and in committed delivery record. No covert anchor/ADR/requirement/guard rewrite, widened whitelist or fabricatedpass. Parent must adjudicate the executable provenance requirement against authorized pin; independentQA13 stillrequired."
+    },
+    "nonfatal_Cargo_discovery_diagnostic": "Cargo1.98.1 emits an invalidkey-value/Jinja template/crates/service/Cargo.toml diagnostic while discovering packages in the upstreamGit checkout. Resolve/compile/clippy/tests nevertheless return0 with actual results shown; diagnostic retained inrawlogs, no upstream/cache edit or suppression performed.",
+    "finding_dispositions": {
+      "ARCH-001": "OPEN pending ownerQA13 and explicit provenance conflict adjudication; public receiver implemented, forbiddendirectedge removed",
+      "RBQA-F001": "OPEN pending independent boundary review; no relocatedintroducer or logdropping",
+      "QA2-001": "OPEN; currentguardfails authorizedGitprovenance, realfailure retained; directsyncintroducer no longerpresent",
+      "REQ-QA-004": "OPEN; allcurrentheadCI/planprovenance acceptance notachieved; no merge/sprintselfapproval"
+    },
+    "prior_credits": "QA12 RQA9/RQA11 resolutions and RQA10/runner/FTQ/RSHscopes preserved with allsource/history unchanged except authorizedloggingadapter",
+    "CI": {
+      "snapshot": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/hosted-ci.json",
+      "head": "00d8243778a4bada2adbff5e9567e359eade32b0",
+      "base": "f1e0756e0e17a2002a69a7dcfba2de60aeb6887c",
+      "mergeable": "MERGEABLE",
+      "mergeStateStatus": "UNSTABLE",
+      "jobs": [
+        {
+          "name": "clippy and test (macos-15)",
+          "status": "QUEUED",
+          "conclusion": "",
+          "run_id": 42071977270,
+          "job_id": 127402049357,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977270/job/127402049357"
+        },
+        {
+          "name": "fmt, doc, publish dry-run, boundaries",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977291,
+          "job_id": 127402047941,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977291/job/127402047941"
+        },
+        {
+          "name": "clippy and test (ubuntu-24.04)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977270,
+          "job_id": 127402049366,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977270/job/127402049366"
+        },
+        {
+          "name": "clippy and test (windows-latest)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977270,
+          "job_id": 127402048792,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977270/job/127402048792"
+        },
+        {
+          "name": "wheel (macos-15)",
+          "status": "QUEUED",
+          "conclusion": "",
+          "run_id": 42071977270,
+          "job_id": 127402049460,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977270/job/127402049460"
+        },
+        {
+          "name": "clippy and test (ubuntu-latest)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977291,
+          "job_id": 127402048630,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977291/job/127402048630"
+        },
+        {
+          "name": "clippy and test (macos-latest)",
+          "status": "QUEUED",
+          "conclusion": "",
+          "run_id": 42071977291,
+          "job_id": 127402048611,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977291/job/127402048611"
+        },
+        {
+          "name": "wheel (ubuntu-24.04)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977270,
+          "job_id": 127402049433,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977270/job/127402049433"
+        },
+        {
+          "name": "clippy and test (windows-latest)",
+          "status": "IN_PROGRESS",
+          "conclusion": "",
+          "run_id": 42071977291,
+          "job_id": 127402048459,
+          "url": "https://github.com/randlee/beads-cache/actions/runs/42071977291/job/127402048459"
+        }
+      ],
+      "scope": "Singlebounded pending snapshot, no watch/rerun/dispatch. Native42071977291 andPython42071977270 remain live; no acceptance inferred."
+    },
+    "environment": {
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_TARGET_DIR": "/tmp/phase-c-execution/c-1/restart-target",
+      "execution": "native authorized; one serialized localCargoowner",
+      "diskfree_before_KiB": 31933460
+    },
+    "no_extra_scope": [
+      "No upstreamSDKedit/merge/publication",
+      "No sourcepatch/localoverride/pathdependency",
+      "No guard/feature/anchorrewrite or extra introducer",
+      "No rootdirtyintegration/C2consumption",
+      "No childagent/crosschat/PRmerge",
+      "No publisher/auth/sc-lint/paste orlatersprintwork"
+    ],
+    "cargo_slot": "RELEASED immediately after final postpushlogging/fmt; zeroactivecommands",
+    "state": "STOP",
+    "artifacts": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/cli-fixtures.log",
+        "bytes": 2187,
+        "sha256": "7fc4b7317b1f3122ac34f9e3e0a4c67a0322f8ab36cd0a476c249f753210dd1c"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/clippy.log",
+        "bytes": 1920,
+        "sha256": "59f48ac4edb6840dee24d610de02345b0bc6d6880b24306c6d0099c6718cfa2d"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/cron-hurry-tests.log",
+        "bytes": 42909,
+        "sha256": "cd12ed0f90f038d32e8b201d292d1168b6f8540f075483581e0f5deb9caa49ae"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/direct-boundary-workflow.sh",
+        "bytes": 2237,
+        "sha256": "655c37527480d234efb82510837f76f449a6d5213e8da32bb54614e1fce615dd"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/direct-boundary.log",
+        "bytes": 153,
+        "sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/fix.xml",
+        "bytes": 3093,
+        "sha256": "98b5822cfcbf4362106f3780cb223d0a09a4b3d2614d1fa1b87e36a93308f613"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/graph-unit-tests.log",
+        "bytes": 740,
+        "sha256": "8710e78d95fcf63904da87924ad4296e3acc5941af594dbaf2de3b1e19badabd"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/hosted-ci.json",
+        "bytes": 2816,
+        "sha256": "375829c724829497841f855933eb765b438cb84dc85aa6beafdab54bde1fdf76"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/isolated-graph.log",
+        "bytes": 526,
+        "sha256": "200dc668d6c3e659daaf7fda9c73a20d75ab5b9198680c4dee122d319988d831"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/logging-test.log",
+        "bytes": 1489,
+        "sha256": "36ff5253674110914fc50bd07d98c652a0c646b9b395c4b8e19a40c28763488c"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/metadata.json",
+        "bytes": 59702,
+        "sha256": "e69e0c5a66e9fc2e8d9a2a3a2c025d36bf1dd9badf5f8da98dd6ee53618ca95e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/postpush-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/postpush-logging.log",
+        "bytes": 980,
+        "sha256": "ab829239832dd5103dd62393e029670b8f08b5281d0356749d9fe92cd4118cb1"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/resolve.log",
+        "bytes": 970,
+        "sha256": "cb651badef57c76bc82b5e11ad9c3a3126e8e3712db9e10ef1d447938d4804a8"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/source-proof.json",
+        "bytes": 1868,
+        "sha256": "f7c4ca8c1f8d1812a186a82286777b95eacedc414c5fc7b7c9f4ceb0ae026586"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/store-tests.log",
+        "bytes": 30366,
+        "sha256": "fa842c2909d49aa9cd4fdb19269690afc44dfccdf6783134538692e71406bcd5"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/upstream-source-diff.json",
+        "bytes": 323,
+        "sha256": "e169736883e0b194cabf6304deec779b3e3a0159c6a787242e70a90d865580c7"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/workspace-metadata-no-deps.json",
+        "bytes": 59702,
+        "sha256": "e69e0c5a66e9fc2e8d9a2a3a2c025d36bf1dd9badf5f8da98dd6ee53618ca95e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12-pin-adoption/workspace-metadata.json",
+        "bytes": 1060898,
+        "sha256": "561b5696af5c00129121e74e0daadcdc744697f3109d294190fb67e0f0ca3384"
+      }
+    ]
+  },
+  "error": null
+}

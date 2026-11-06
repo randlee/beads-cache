@@ -1,0 +1,272 @@
+{
+  "groups": [
+    {
+      "group": "Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_cli-a2f83aadc5cee08f)",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running unittests src/bin/bd-cache.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache-0f2476dceedaca58)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running unittests src/bin/bdc.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bdc-b3f41bc91b4ac033)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running unittests src/bin/fake-bd.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_bd-9df806223f40dd1b)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running unittests src/bin/fake-python.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_python-eecd31feffff2ab4)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cli-69a825e9f9da4f70)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-8363ed48938307b6)",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/harness.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/harness-669afc531be24f35)",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/latency.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/latency-06543704dfc21314)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "Running tests/outage_scenario.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/outage_scenario-6ff4b4f88345a348)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/process-079280a5c86aab1e)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/release_hygiene.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/release_hygiene-0a252eaffd377414)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/scenarios.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scenarios-a7dc79a9def97bad)",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-e36b3ad02ec27882)",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/sync_process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_process-cd9951336a8e9d16)",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/tree_kill.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/tree_kill-af52a4d2081e4fd5)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-b10e56925f2d9872)",
+      "passed": 37,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/drain_lock.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_lock-58fdb76e4a2a33f2)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "Running tests/format_golden.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/format_golden-fd4f07ed81c6b3d1)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/location.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/location-539a21c360acc662)",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "Running tests/open.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/open-2797d80c50df45d5)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/phase_b_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_store-01d2891f53a2d3ec)",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/schedule_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_store-30ab2127bbb1bd18)",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store-9868ea82b2d7d270)",
+      "passed": 33,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "Running tests/store_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store_contract-e4b66f8c011f7c8f)",
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/two_process_ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/two_process_ingest-d55d3f37f93b6a88)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1
+    },
+    {
+      "group": "Running unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-da8915796d922a36)",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/builtin_run.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/builtin_run-ea02371ffc8a5179)",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/compose.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/compose-91a749e0e9eb202b)",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-474aab7c78bb5b89)",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-65c6cb327f71e0b3)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-1cab09d4a4ab5f02)",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/drain_bd_cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_bd_cli-5afb81096cdf2784)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/e2e.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/e2e-bfd4538bbfff630b)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/health.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/health-ef06814d6e049625)",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/hook_runner.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/hook_runner-2622b751adfc4f7b)",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-683278e1f9af1a82)",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/live.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/live-fda2fb55cd270650)",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "group": "Running tests/perf.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/perf-6d1344bcbd4f7ff4)",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 2
+    },
+    {
+      "group": "Running tests/schedule_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_logging-98ca0abc42d124c6)",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Running tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-b05ebf431e22cef7)",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Doc-tests bd_cache_cli",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Doc-tests bd_cache_store",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "group": "Doc-tests bd_cache_sync",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "outer_passed": 426,
+  "outer_failed": 0,
+  "outer_ignored": 9,
+  "note": "Final result per cargo test binary/doc-test group; nested child test output excluded."
+}

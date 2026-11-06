@@ -1,0 +1,84 @@
+{
+  "before_SHA": "00d8243778a4bada2adbff5e9567e359eade32b0",
+  "after_SHA": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "changed_lock_package_records": [
+    "sc-command",
+    "sc-cron"
+  ],
+  "package_names_unchanged": true,
+  "unchanged_Rust_files": 261,
+  "changed_Rust_files": [
+    "crates/bd-cache-store/src/schedule.rs"
+  ],
+  "changed_schedule_production_prefix_byte_equal": true,
+  "logging_adapter_byte_equal": true,
+  "sdk": [
+    {
+      "name": "libsqlite3-sys",
+      "version": "0.37.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "links": "sqlite3",
+      "manifest_path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libsqlite3-sys-0.37.0/Cargo.toml",
+      "features": [
+        "bundled",
+        "bundled_bindings",
+        "cc",
+        "default",
+        "min_sqlite_version_3_34_1",
+        "pkg-config",
+        "vcpkg"
+      ]
+    },
+    {
+      "name": "rusqlite",
+      "version": "0.39.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "links": null,
+      "manifest_path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rusqlite-0.39.0/Cargo.toml",
+      "features": [
+        "bundled",
+        "cache",
+        "default",
+        "functions",
+        "hashlink",
+        "hooks",
+        "modern_sqlite",
+        "trace"
+      ]
+    },
+    {
+      "name": "sc-command",
+      "version": "0.2.0",
+      "source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+      "links": null,
+      "manifest_path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-command/Cargo.toml",
+      "features": []
+    },
+    {
+      "name": "sc-cron",
+      "version": "0.2.0",
+      "source": "git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+      "links": null,
+      "manifest_path": "/Users/randlee/.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/crates/sc-cron/Cargo.toml",
+      "features": [
+        "test-utils"
+      ]
+    },
+    {
+      "name": "sc-observability-types",
+      "version": "1.5.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "links": null,
+      "manifest_path": "/Users/randlee/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/sc-observability-types-1.5.0/Cargo.toml",
+      "features": [
+        "default",
+        "v1"
+      ]
+    }
+  ],
+  "workflows_byte_equal": {
+    ".github/workflows/ci.yml": true,
+    ".github/workflows/python.yml": true
+  },
+  "production_prefix_bytes": 30651
+}
