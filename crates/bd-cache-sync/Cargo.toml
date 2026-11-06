@@ -27,7 +27,6 @@ sc-beads.workspace = true
 bd-cache-store.workspace = true
 sc-bd-cli.workspace = true
 sc-cron.workspace = true
-sc-observability-types.workspace = true
 chrono.workspace = true
 async-trait.workspace = true
 serde.workspace = true

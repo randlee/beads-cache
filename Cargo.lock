@@ -162,7 +162,6 @@ dependencies = [
  "sc-bd-cli",
  "sc-beads",
  "sc-cron",
- "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",
