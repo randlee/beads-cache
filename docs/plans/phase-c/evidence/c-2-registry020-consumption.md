@@ -66,8 +66,10 @@ Assigned finding dispositions remain requests for independent review:
 
 - QA-C2-001: released Windows CTRL_BREAK handling is consumed; actual hosted
   installed stop, reap, ownership release and restart must qualify this candidate.
-- C2-REQ-003: current native/wheel consumer proof and exact-head OS/Python CI
-  remain required; historical 6232180/65250a9 receipts are not retargeted.
+- C2-REQ-003: fresh tested-source `ab7b5bc` native/wheel scratch proof passes
+  the bounded supported workflow; the [actual receipt](c-2-consumer-qualification.md)
+  retains bridge/create limits. Full exact-head OS/Python CI and independent
+  acceptance remain; historical 6232180/65250a9 receipts are not retargeted.
 - C2-REQ-004 / RSH-001: C1 correction is consumed unchanged and the actual public
   Application probes pass original bounds; owning C2 review remains required.
 - C2-REQ-007 / ARCH-001 / RBQA-F001: real public cron logging facade and narrow

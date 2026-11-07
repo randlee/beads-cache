@@ -1,5 +1,88 @@
 # C2 actual scratch consumer qualification
 
+## Published SDK0.2 current receipt
+
+**PASS for the bounded supported workflow at tested source
+`ab7b5bcf168d3abb0dcf2d0ecb1700d8859b58c6`.** This documentation update does
+not retarget that execution to a later head. Parent explicitly permits binding
+a documentation-only successor through verified identical source/manifests/lock
+and the exact tested artifact identities. SDK cancellation-test compilation,
+Windows lifecycle, complete exact-head CI and independent QA6/anchors/enforcement
+remain open; this is not whole-C2 acceptance.
+
+The approved parent transport returned **0**, and the developer independently
+checked the actual case payloads. The driver reported PASS at **39.6858 s**;
+marked teardown reported scratch `exists:false` and fresh candidate venv
+`exists:false`. All 18 payload hashes, including the seven unchanged external
+modules, were verified. The current release artifacts were built from the clean
+pushed tested source using the release Cargo/maturin commands below, with SDK
+packages at exact registry0.2.0 and scaffold tag v0.2.0/commit
+`118ee72d831f79778f3584f57a48706111754673`.
+
+| Tested artifact | Bytes | SHA-256 |
+|---|---:|---|
+| bd-cache | 10744144 | a0b642ec7d206015e688438a25ef142731b6567b7f65f20c1d9d1d5c674b0328 |
+| bdc | 10744128 | 7165270ccec4716396636f126ece399cf9a70f4592c77119aa1948512e54d379 |
+| bd-cache-daemon | 12513504 | 9f31735d7c140bf45c5b939a35b284658ae26d410104879ad5c3ad89304dd29b |
+| bd_cache_rs-0.2.0-cp39-abi3-macosx_11_0_arm64.whl | 3066852 | 026aa92b332124cdcb32881bb8870c48c5dbe5e75176a3bd96fe597f46227092 |
+
+Observed versions: bd **1.3.1 (c1c4b642a)**, Dolt **2.3.1**, Python **3.11.16**,
+native package **0.2.0**, sc-compose **1.7.0**, PyYAML **6.0.3**, pydantic
+**2.14.3**, pydantic-core **2.50.4**. The exact wheel was imported from the fresh
+candidate venv's installed site-packages. The alias was hash-verified; the live
+command was bdc, while local tests separately cover alias parity.
+
+Parent executed
+`python3 /tmp/phase-c-execution/c-2/registry020-resume/qualification-transport.py`.
+The same marker-qualified Git/bd/Dolt setup, bounded commands and 180/240/600/40/
+1500-second setup/install/driver/teardown/transport ceilings described below
+remain. The ordinary explicit scratch listener `tcp:127.0.0.1:43751` refuses an
+occupied endpoint and requires an alive owner plus duplicate LockHeld. It uses
+no listener reservation or port retry. This smoke is separate from the required
+runtime-owned port0/readiness/signal/cleanup proof. Remote logs use a unique
+attempt directory; no historical log is overwritten.
+
+| Exercised case | Actual current observation |
+|---|---|
+| Scheduled built-in sync and local reads | Persisted row ran; native/CLI cached the fresh scratch task; `/ready`200 with `probe:null` by1.3572s. |
+| Unchanged consumer update/close | Explicit provider bridge invoked the supported method; entries1/2 applied; independent pinned-bd read-back showed requested status and close reason. |
+| Actual outage | Only scratch Dolt stopped; entry3 stayed pending and caller reported pending; cached read retained the overlay, `/health`200 and `/ready`503/down. Hook scope payload contained actual BD_CACHE.BD_UNAVAILABLE/outage. |
+| Recovery and drain/read-back | Same scratch server/data restarted; idempotent operation applied entry3; bd read-back matched, pending0, `/ready`200 by3.9573s. |
+| Successful post-sync result | A distinct post-recovery request had scope result=ok/error=null; normal hook completion had lease=null/failurecount0 by4.7874s. The old nonempty-file assertion is not used. |
+| Hook error and recovery | Deliberate hook exception recorded failurecount1 by5.8214s; a distinct successful request cleared failurecount to0 by6.963s. |
+| Python replacement and error | Installed replacement ingested/read its snapshot, Python row enabled and built-in disabled; tick refused PRECONDITION. Deliberate immediate Python failure returned TICK_RUN_FAILED/restored=true and restored built-in mode. |
+| Blocked hook cleanup/restart | SIGTERM stop exited0 in1.0046s with T=1s; actual ps returned no hook PID. Restart held the instance root and reached health; final stop exited0 in0.00132s; daemon-free local read retained data. |
+| Physical scratch cleanup | Transport0, driver PASS and driver_pass; marker-qualified scratch and fresh candidate venv both removed. |
+
+The unchanged external method still requires the explicit signature/exception
+bridge: precondition=None, drain budgets25s/28s, native dictionaries unchanged.
+Direct substitution still raises the missing-precondition TypeError. Full
+external orchestration, messaging and native create support from issue104 are
+excluded; pinned bd create only seeds disposable test data. The live blocked
+hook has no grandchild; native FakeBd acceptance separately proves actual
+child/grandchild reap. No live receipt replaces the blocked SDK cancellation
+qualification or required Windows/platform gates.
+
+Current immutable evidence under
+`/tmp/phase-c-execution/c-2/registry020-resume/`:
+`qualification-transport-return.json`, `qualification-transfer-manifest.json`,
+`consumer-qualification-analysis.json` and `qualification-raw.log`.
+Raw log SHA-256:
+`980ff85bdaef8bfb1ba2ecdce6ded13786cd1210e1fe042a15c400eb62d2ac67`.
+Payload SHA-256:
+`f5247e412ea6207902fbf19519ac91df92181223617ba531596467c90ff91449`.
+The earlier receipt below and its failed attempts remain historical and are
+not relabeled as current proof. The old paste advisory was unsuppressed there;
+current registry0.2 removes that dependency and the actual offline advisory
+check passes.
+
+## Historical source6232180 receipt
+
+The following receipt is preserved as originally recorded for its named source.
+Its parent status, pins, advisory and completion wording apply to that historical
+execution only.
+
+
 **Result: PASS for the supported workflow on the designated macOS arm64 scratch
 testbed.** Tested application source:
 `623218021d27ef247b389233650314896b69cbc1`, branch
