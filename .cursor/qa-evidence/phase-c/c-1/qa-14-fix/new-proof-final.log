@@ -1,0 +1,74 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+   Compiling bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.84s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-40a0587b87081385)
+
+running 2 tests
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=91443 spawn_elapsed=311.5µs
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=91444 spawn_elapsed=296.083µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=91444 command_elapsed=32.763333ms actual_wait=true status=exit status: 0 remaining=216.766917ms
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=91443 command_elapsed=33.59925ms actual_wait=true status=exit status: 0 remaining=215.946208ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=91446 stage=initial-drain call=1 owner_elapsed=4.958µs deadline_offset=100ms remaining=99.995042ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=91502 spawn_elapsed=241.333µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=91502 command_elapsed=33.183042ms actual_wait=true status=exit status: 0 remaining=66.078333ms
+RQA10_SCAN_END thread=ThreadId(2) session=91446 stage=initial-drain call=1 elapsed=34.834209ms remaining=65.160792ms result=Ok(1079)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=91446 stage=quiescence call=2 owner_elapsed=35.377458ms deadline_offset=250ms remaining=214.622542ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=91503 spawn_elapsed=261.459µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=91503 command_elapsed=34.201ms actual_wait=true status=exit status: 0 remaining=179.793833ms
+RQA10_SCAN_END thread=ThreadId(2) session=91446 stage=quiescence call=2 elapsed=35.74375ms remaining=178.87875ms result=Ok(1079)
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=91446 stage=quiescence call=3 owner_elapsed=77.292208ms deadline_offset=250ms remaining=172.707792ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=91504 spawn_elapsed=254.334µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=91504 command_elapsed=29.479125ms actual_wait=true status=exit status: 0 remaining=142.866875ms
+RQA10_SCAN_END thread=ThreadId(2) session=91446 stage=quiescence call=3 elapsed=30.748709ms remaining=141.958958ms result=Ok(1079)
+RQA10_ROOT session=91446 elapsed=108.647917ms wait=Ok(ExitStatus(unix_wait_status(0))) remaining_final=891.352042ms
+RQA10_SCAN_BEGIN thread=ThreadId(2) session=91446 stage=final-drain call=4 owner_elapsed=108.737208ms deadline_offset=1s remaining=891.262792ms
+RQA10_COMMAND_SPAWN thread=ThreadId(2) pid=91505 spawn_elapsed=264.667µs
+RQA10_COMMAND_EXIT thread=ThreadId(2) pid=91505 command_elapsed=31.706208ms actual_wait=true status=exit status: 0 remaining=859.117708ms
+RQA10_SCAN_END thread=ThreadId(2) session=91446 stage=final-drain call=4 elapsed=33.105792ms remaining=858.157ms result=Ok(1079)
+RQA10_CLEANUP session=91446 calls=4 elapsed=142.491583ms cleaned=true final_complete_census=true
+Error: "successful fixture missing causal read receipt"
+test cached_read_returns_without_bd_while_the_scheduled_python_sync_is_running ... FAILED
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=91445 stage=initial-drain call=1 owner_elapsed=2.167µs deadline_offset=100ms remaining=99.997833ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=91523 spawn_elapsed=238.708µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=91523 command_elapsed=31.969958ms actual_wait=true status=exit status: 0 remaining=67.726125ms
+RQA10_SCAN_END thread=ThreadId(3) session=91445 stage=initial-drain call=1 elapsed=33.19975ms remaining=66.798042ms result=Ok(1078)
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=91445 stage=quiescence call=2 owner_elapsed=33.754458ms deadline_offset=250ms remaining=216.245542ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=91524 spawn_elapsed=255.625µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=91524 command_elapsed=31.752334ms actual_wait=true status=exit status: 0 remaining=184.111583ms
+RQA10_SCAN_END thread=ThreadId(3) session=91445 stage=quiescence call=2 elapsed=32.991875ms remaining=183.253625ms result=Ok(1078)
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=91445 stage=quiescence call=3 owner_elapsed=74.771042ms deadline_offset=250ms remaining=175.228958ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=91525 spawn_elapsed=257.125µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=91525 command_elapsed=30.424958ms actual_wait=true status=exit status: 0 remaining=144.442583ms
+RQA10_SCAN_END thread=ThreadId(3) session=91445 stage=quiescence call=3 elapsed=31.64975ms remaining=143.579125ms result=Ok(1078)
+RQA10_ROOT session=91445 elapsed=106.89ms wait=Ok(ExitStatus(unix_wait_status(0))) remaining_final=893.11ms
+RQA10_SCAN_BEGIN thread=ThreadId(3) session=91445 stage=final-drain call=4 owner_elapsed=106.934083ms deadline_offset=1s remaining=893.065917ms
+RQA10_COMMAND_SPAWN thread=ThreadId(3) pid=91526 spawn_elapsed=301.125µs
+RQA10_COMMAND_EXIT thread=ThreadId(3) pid=91526 command_elapsed=31.685166ms actual_wait=true status=exit status: 0 remaining=860.94725ms
+RQA10_SCAN_END thread=ThreadId(3) session=91445 stage=final-drain call=4 elapsed=33.002834ms remaining=860.063ms result=Ok(1078)
+RQA10_CLEANUP session=91445 calls=4 elapsed=140.420208ms cleaned=true final_complete_census=true
+Error: "successful fixture missing causal read receipt"
+test concurrent_cached_read_guard_rejects_a_real_cold_read_backend_lookup ... FAILED
+
+failures:
+
+failures:
+    cached_read_returns_without_bd_while_the_scheduled_python_sync_is_running
+    concurrent_cached_read_guard_rejects_a_real_cold_read_backend_lookup
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 19 filtered out; finished in 1.06s
+
+error: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`

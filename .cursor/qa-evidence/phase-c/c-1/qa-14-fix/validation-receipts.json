@@ -1,0 +1,178 @@
+[
+  {
+    "name": "postpush-backend-free-path",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/check_no_backend.py",
+      "path"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.024,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/postpush-backend-free-path.log"
+  },
+  {
+    "name": "postpush-affected-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "bd-cache-sync",
+      "--all-features",
+      "--test",
+      "cron_hurry",
+      "--test",
+      "cron_rows",
+      "--test",
+      "hook_runner",
+      "--test",
+      "e2e",
+      "--test",
+      "health",
+      "--test",
+      "schedule_switch",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 25.935,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/postpush-affected-tests.log"
+  },
+  {
+    "name": "postpush-clippy-default",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "-p",
+      "bd-cache-sync",
+      "--lib",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.171,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/postpush-clippy-default.log"
+  },
+  {
+    "name": "direct-boundary",
+    "command": [
+      "bash",
+      "/tmp/phase-c-execution/c-1/qa-14-fix/direct-boundary-workflow.sh"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.049,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/direct-boundary.log"
+  },
+  {
+    "name": "graph-unit-tests",
+    "command": [
+      "python3",
+      "-I",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "crates/bd-cache-sync/tests",
+      "-p",
+      "test_consumer_graph.py",
+      "-v"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.09,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/graph-unit-tests.log"
+  },
+  {
+    "name": "isolated-graph",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.942,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/isolated-graph.log"
+  },
+  {
+    "name": "negative-server",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "--negative-server"
+    ],
+    "exit": 1,
+    "expected_exit": 1,
+    "pass_check": true,
+    "seconds": 0.314,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/negative-server.log"
+  },
+  {
+    "name": "no-backend-graph",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/check_no_backend.py",
+      "graph"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.122,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/no-backend-graph.log"
+  },
+  {
+    "name": "consumer-lint",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/lint_no_atm.py"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 1.196,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/consumer-lint.log"
+  },
+  {
+    "name": "fmt-check",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.488,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/fmt-check.log"
+  },
+  {
+    "name": "diff-check",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "pass_check": true,
+    "seconds": 0.011,
+    "log": "/tmp/phase-c-execution/c-1/qa-14-fix/diff-check.log"
+  }
+]

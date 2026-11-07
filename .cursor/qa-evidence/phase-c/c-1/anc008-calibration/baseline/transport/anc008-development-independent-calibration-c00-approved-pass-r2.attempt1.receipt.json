@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c00-approved-pass-r2",
+  "attempt": 1,
+  "canonical_request_sha256": "2303e10643dfcc72b74ee25cf3f0655bef0ffa36878c0288928a9ec956bebefa",
+  "candidate_id": "c00",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.1573350429534912,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline/transport/anc008-development-independent-calibration-c00-approved-pass-r2.attempt1.raw.json",
+  "raw_sha256": "f2816577c1be1dbecafe06b22bfba06ae573c1a3fc333f5e3cfe0c78f845b3ed"
+}

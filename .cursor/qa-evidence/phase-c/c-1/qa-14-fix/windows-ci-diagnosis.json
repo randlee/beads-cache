@@ -1,0 +1,364 @@
+{
+  "actual_source": "68f64e594728279c6c3da21d175521a362322d8d",
+  "run": 42218993636,
+  "job": 127896025404,
+  "log_sha256": "c0efe7ac531b8eaa980e131fb5b07d7146ab6d2482487830068c533e858b8f7c",
+  "supported_facts": [
+    "Store unit suite34passed/3failed; new cached-read cases are Unix-only and not in the failing store suite.",
+    "Health positive/stalled child outputs stop after libtest test-name prefix, with no setup/holder/read checkpoint: exact child stage unlocalized.",
+    "SQL negative last actual structured main wait-result is4.5981187s; no cancellation-installed/worker-return checkpoint before whole-owner expiry; actualrootwait/reap true.",
+    "Existing shutdown fixture already uses cfg(test) synchronousOFF complete initialization andWAL; no general fsync-cause inference or productionbug established."
+  ],
+  "sql_control_and_other_case_timeline": [
+    {
+      "test": "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only",
+      "classification": "worker_return_and_stall_marker_observed",
+      "absolute_lifetime_ns": 5000000000,
+      "owner_reported_ns": 5004029800,
+      "root_joined_and_cleaned": true,
+      "phases": [
+        {
+          "stream": "main",
+          "phase": "fixture-body-entered",
+          "child_elapsed_ns": 24800,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "scratch-create-start",
+          "child_elapsed_ns": 466600,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-start",
+          "child_elapsed_ns": 895600,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-returned",
+          "child_elapsed_ns": 19169800,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-start",
+          "child_elapsed_ns": 19435800,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-returned",
+          "child_elapsed_ns": 54487100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-setup-complete",
+          "child_elapsed_ns": 54902200,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "worker-spawn-start",
+          "child_elapsed_ns": 55219700,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "wait-result",
+          "child_elapsed_ns": 58241700,
+          "data": {
+            "ok": true
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "cancellation-deadline-installed",
+          "child_elapsed_ns": 58578500,
+          "data": {
+            "child_deadline_ns": 88565600
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "cancellation-installed",
+          "child_elapsed_ns": 58762400,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "completion-result",
+          "child_elapsed_ns": 561672700,
+          "data": {
+            "timeout": true
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "worker-join-start",
+          "child_elapsed_ns": 561988300,
+          "data": null
+        },
+        {
+          "stream": "worker",
+          "phase": "worker-call-start",
+          "child_elapsed_ns": 55734100,
+          "data": null
+        },
+        {
+          "stream": "worker",
+          "phase": "worker-call-returned",
+          "child_elapsed_ns": 89043900,
+          "data": {
+            "debug": "Err(Store(StoreError { kind: Other, has_source: true, outcome: None, .. }))",
+            "is_error": true,
+            "sqlite_code": null
+          }
+        },
+        {
+          "stream": "worker",
+          "phase": "stall-marker-written",
+          "child_elapsed_ns": 89325800,
+          "data": null
+        }
+      ]
+    },
+    {
+      "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session",
+      "classification": "worker_return_and_stall_marker_observed",
+      "absolute_lifetime_ns": 5000000000,
+      "owner_reported_ns": 5007462900,
+      "root_joined_and_cleaned": true,
+      "phases": [
+        {
+          "stream": "main",
+          "phase": "fixture-body-entered",
+          "child_elapsed_ns": 17200,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "scratch-create-start",
+          "child_elapsed_ns": 378900,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-start",
+          "child_elapsed_ns": 788100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-returned",
+          "child_elapsed_ns": 195559200,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-start",
+          "child_elapsed_ns": 195818800,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-returned",
+          "child_elapsed_ns": 2561904100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-create-start",
+          "child_elapsed_ns": 2562195400,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-setup-complete",
+          "child_elapsed_ns": 3001033500,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "contender-open-start",
+          "child_elapsed_ns": 3001340500,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "contender-lock-start",
+          "child_elapsed_ns": 3001750100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "contender-lock-acquired",
+          "child_elapsed_ns": 3965396300,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "worker-spawn-start",
+          "child_elapsed_ns": 3965582100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "wait-result",
+          "child_elapsed_ns": 4012749700,
+          "data": {
+            "ok": true
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "cancellation-deadline-installed",
+          "child_elapsed_ns": 4013119500,
+          "data": {
+            "child_deadline_ns": 4043107000
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "cancellation-installed",
+          "child_elapsed_ns": 4013308800,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "completion-result",
+          "child_elapsed_ns": 4527127000,
+          "data": {
+            "timeout": true
+          }
+        },
+        {
+          "stream": "main",
+          "phase": "contender-rollback-start",
+          "child_elapsed_ns": 4527412000,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "contender-rollback-returned",
+          "child_elapsed_ns": 4527587000,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "worker-join-start",
+          "child_elapsed_ns": 4527735800,
+          "data": null
+        },
+        {
+          "stream": "worker",
+          "phase": "worker-call-start",
+          "child_elapsed_ns": 3965915400,
+          "data": null
+        },
+        {
+          "stream": "worker",
+          "phase": "worker-call-returned",
+          "child_elapsed_ns": 4043866000,
+          "data": {
+            "debug": "Err(Store(StoreError { kind: Busy, has_source: true, outcome: None, .. }))",
+            "is_error": true,
+            "sqlite_code": "DatabaseBusy"
+          }
+        },
+        {
+          "stream": "worker",
+          "phase": "stall-marker-written",
+          "child_elapsed_ns": 4044227100,
+          "data": null
+        }
+      ]
+    },
+    {
+      "test": "schedule::tests::shutdown_interrupts_a_running_sql_statement_and_restores_progress",
+      "classification": "worker_return_unobserved_phase_unresolved",
+      "absolute_lifetime_ns": 5000000000,
+      "owner_reported_ns": 5221592500,
+      "root_joined_and_cleaned": true,
+      "phases": [
+        {
+          "stream": "main",
+          "phase": "fixture-body-entered",
+          "child_elapsed_ns": 26600,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "scratch-create-start",
+          "child_elapsed_ns": 452300,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-start",
+          "child_elapsed_ns": 947300,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "store-open-returned",
+          "child_elapsed_ns": 662058500,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-start",
+          "child_elapsed_ns": 662330100,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-view-returned",
+          "child_elapsed_ns": 3221682900,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-create-start",
+          "child_elapsed_ns": 3221974000,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "schedule-setup-complete",
+          "child_elapsed_ns": 3445798500,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "worker-spawn-start",
+          "child_elapsed_ns": 3446124000,
+          "data": null
+        },
+        {
+          "stream": "main",
+          "phase": "wait-result",
+          "child_elapsed_ns": 4598118700,
+          "data": {
+            "ok": true
+          }
+        },
+        {
+          "stream": "worker",
+          "phase": "worker-call-start",
+          "child_elapsed_ns": 3446500400,
+          "data": null
+        }
+      ]
+    }
+  ],
+  "unsupported_claims": [
+    "ExactOS/filesystem/CPU contention cause",
+    "A production cancellation regression",
+    "MacOS local pass establishing Windows repair",
+    "Original failure waived by rerun"
+  ],
+  "mutations_so_far": []
+}

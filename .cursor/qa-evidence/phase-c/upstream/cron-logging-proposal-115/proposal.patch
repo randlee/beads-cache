@@ -1,0 +1,279 @@
+diff --git a/boundaries/sc-cron/sc-cron.toml b/boundaries/sc-cron/sc-cron.toml
+index 9609d7a..2247c6b 100644
+--- a/boundaries/sc-cron/sc-cron.toml
++++ b/boundaries/sc-cron/sc-cron.toml
+@@ -4,7 +4,7 @@ owner_crate_path = "sc_cron"
+ name = "sc-cron"
+ 
+ [public]
+-facade = "DotenvSource, EnvName, EnvOperationRef, HookEnvironment, HookEnvironmentHost, EnvironmentReferenceRequest, EnvironmentReferenceResolver, EnvironmentReferenceError, MAX_ENV_ENTRIES, MAX_ENV_DOTENV_SOURCES, MAX_ENV_NAME_BYTES, MAX_ENV_VALUE_BYTES, MAX_ENV_REFERENCE_BYTES, MAX_ENV_PATH_BYTES, MAX_ENV_SNAPSHOT_BYTES, MAX_ENV_DOCUMENT_BYTES, MAX_ENV_FILE_BYTES, Clock, CronError, CronExpr, DEFAULT_RELOAD_POLL, DueRun, Generation, HOOK_PROTOCOL, HookCall, HookEvent, HookOutput, HookStatus, HookTarget, is_identifier, JitterSource, Job, kill_budget, ManualClock, MAX_EXPR_LEN, MAX_HOOK_OUTPUT_BYTES, MAX_HOOK_SOURCE_BYTES, MAX_NAME_LEN, MAX_PAYLOAD_BYTES, MAX_TIMEOUT, MissedTickPolicy, MontyHostRegistry, MontyHostHandler, MontyHostCall, MontyHostName, ScComposeHostConfig, AtmHostConfig, NewSchedule, process, PythonHook, RunFailureParts, RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleLimits, ScheduleName, ScheduleSpec, ScheduleStore, Scheduler, SCHEMA_VERSION, SeqJitter, SqliteScheduleStore, StopDecision, StoreError, StoreErrorKind, SystemClock, SystemJitter, Timestamp, WorkerHandle"
++facade = "DotenvSource, EnvName, EnvOperationRef, HookEnvironment, HookEnvironmentHost, EnvironmentReferenceRequest, EnvironmentReferenceResolver, EnvironmentReferenceError, MAX_ENV_ENTRIES, MAX_ENV_DOTENV_SOURCES, MAX_ENV_NAME_BYTES, MAX_ENV_VALUE_BYTES, MAX_ENV_REFERENCE_BYTES, MAX_ENV_PATH_BYTES, MAX_ENV_SNAPSHOT_BYTES, MAX_ENV_DOCUMENT_BYTES, MAX_ENV_FILE_BYTES, Clock, CronError, CronExpr, DEFAULT_RELOAD_POLL, DueRun, Generation, HOOK_PROTOCOL, HookCall, HookEvent, HookOutput, HookStatus, HookTarget, is_identifier, JitterSource, Job, kill_budget, ManualClock, MAX_EXPR_LEN, MAX_HOOK_OUTPUT_BYTES, MAX_HOOK_SOURCE_BYTES, MAX_NAME_LEN, MAX_PAYLOAD_BYTES, MAX_TIMEOUT, MissedTickPolicy, MontyHostRegistry, MontyHostHandler, MontyHostCall, MontyHostName, ScComposeHostConfig, AtmHostConfig, NewSchedule, observability, process, PythonHook, RunFailureParts, RunOutcome, RunTimeout, Schedule, ScheduleId, ScheduleLimits, ScheduleName, ScheduleSpec, ScheduleStore, Scheduler, SCHEMA_VERSION, SeqJitter, SqliteScheduleStore, StopDecision, StoreError, StoreErrorKind, SystemClock, SystemJitter, Timestamp, WorkerHandle"
+ notes = "Feature monty exports an empty-default immutable application registry, open Send+Sync closure handlers, owned JSON call context, and opt-in sc_compose_run/atm_run configurations. Both adapters forward every nonempty command plus ordered string argv unchanged, with captured/selected cwd, one resolved immutable occurrence environment, row deadline, group/job termination and per-stream cap. The application owns synchronous handler cooperation. render_template is not a production registration or product requirement. Logger propagation retains B13 SharedCanonicalLog identity. process/PythonHook remain the general exported supervisor port; default tree excludes Monty and tool Rust packages."
+ 
+ [implementation]
+diff --git a/crates/sc-cron/src/lib.rs b/crates/sc-cron/src/lib.rs
+index 5bd5c4c..5f5450c 100644
+--- a/crates/sc-cron/src/lib.rs
++++ b/crates/sc-cron/src/lib.rs
+@@ -118,6 +118,7 @@ mod monty_host;
+ mod monty_run;
+ #[cfg(feature = "monty-test-handshake")]
+ mod monty_test_os;
++pub mod observability;
+ pub mod process;
+ mod run_failure;
+ mod scheduler;
+diff --git a/scripts/tests/test_observability_dependencies.py b/scripts/tests/test_observability_dependencies.py
+index a757e3c..a3eef90 100644
+--- a/scripts/tests/test_observability_dependencies.py
++++ b/scripts/tests/test_observability_dependencies.py
+@@ -5,6 +5,10 @@ from pathlib import Path
+ import unittest
+ from unittest import mock
+ import subprocess
++import json
++import os
++import shutil
++import tempfile
+ 
+ SPEC = importlib.util.spec_from_file_location(
+     "observability_dependencies", Path(__file__).resolve().parents[1] / "check_observability_dependencies.py",
+@@ -28,6 +32,27 @@ def graph(owner, package, transitive=False, kind=None):
+ 
+ 
+ class ObservabilityDependencies(unittest.TestCase):
++    def test_isolated_cron_logging_consumer(self):
++        fixture = CHECK.ROOT / "crates/sc-cron/tests/fixtures/logging_consumer"
++        with tempfile.TemporaryDirectory(prefix="cron-logging-consumer-") as directory:
++            root = Path(directory)
++            shutil.copytree(fixture / "tests", root / "tests")
++            manifest = (fixture / "Cargo.toml").read_text().replace(
++                '"../../.."', json.dumps(str(CHECK.ROOT / "crates/sc-cron")))
++            (root / "Cargo.toml").write_text(manifest)
++            metadata = CHECK.run_metadata(
++                ["cargo", "metadata", "--offline", "--format-version", "1"],
++                root, "isolated logging consumer")
++            CHECK.check_isolated_graph(metadata)
++            consumer = next(p for p in metadata["packages"] if p["name"] == "cron-logging-consumer")
++            self.assertNotIn("sc-command", [d["name"] for d in consumer["dependencies"]])
++            env = os.environ.copy()
++            env.setdefault("CARGO_TARGET_DIR", str(CHECK.ROOT / "target/cron-logging-consumer"))
++            result = CHECK._owned.run(
++                ["cargo", "test", "--offline"], cwd=root, env=env, timeout=300,
++                stdin=subprocess.DEVNULL, capture_output=True, text=True)
++            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
++
+     def test_actual_workspace_normal_and_build_graph_for_all_libraries(self):
+         metadata = CHECK.resolved_metadata()
+         for owner in CHECK.OWNERS:
+diff --git a/crates/sc-cron/src/observability.rs b/crates/sc-cron/src/observability.rs
+new file mode 100644
+index 0000000..cf2a659
+--- /dev/null
++++ b/crates/sc-cron/src/observability.rs
+@@ -0,0 +1,9 @@
++//! Canonical logging contracts for application-owned receivers.
++//!
++//! These are the same nominal types accepted by the existing logger-aware
++//! constructors. Receivers own admission and sinks; scheduler emission remains
++//! best effort. No logging runtime is installed by this module.
++
++pub use sc_command::observability::{CanonicalLog, SharedCanonicalLog};
++pub use sc_observability_types as types;
++pub use sc_observability_types::{LogEvent, ServiceName, v2::EventError};
+diff --git a/crates/sc-cron/tests/fixtures/logging_consumer/Cargo.toml b/crates/sc-cron/tests/fixtures/logging_consumer/Cargo.toml
+new file mode 100644
+index 0000000..c2ab103
+--- /dev/null
++++ b/crates/sc-cron/tests/fixtures/logging_consumer/Cargo.toml
+@@ -0,0 +1,18 @@
++[package]
++name = "cron-logging-consumer"
++version = "0.0.0"
++edition = "2024"
++publish = false
++
++# Deliberately isolated: workspace feature unification cannot supply the port.
++[workspace]
++
++[dependencies]
++sc-cron = { version = "0.1.1", path = "../../.." }
++
++[dev-dependencies]
++sc-cron = { version = "0.1.1", path = "../../..", features = ["test-utils"] }
++async-trait = "0.1"
++chrono = "0.4"
++serde_json = "1"
++tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+diff --git a/crates/sc-cron/tests/fixtures/logging_consumer/tests/facade.rs b/crates/sc-cron/tests/fixtures/logging_consumer/tests/facade.rs
+new file mode 100644
+index 0000000..56c089b
+--- /dev/null
++++ b/crates/sc-cron/tests/fixtures/logging_consumer/tests/facade.rs
+@@ -0,0 +1,122 @@
++//! A downstream application uses only sc-cron paths for logging contracts.
++use std::sync::{Arc, Mutex};
++use std::time::{Duration, Instant};
++
++use sc_cron::observability::types::{ErrorContext, Remediation, error_codes};
++use sc_cron::observability::{CanonicalLog, EventError, LogEvent, ServiceName, SharedCanonicalLog};
++use sc_cron::{
++    Job, ManualClock, RunOutcome, ScheduleLimits, ScheduleSpec, ScheduleStore, Scheduler,
++    SeqJitter, SqliteScheduleStore, StopDecision,
++};
++
++struct Receiver {
++    service: ServiceName,
++    events: Mutex<Vec<LogEvent>>,
++    reject: bool,
++}
++impl CanonicalLog for Receiver {
++    fn service_name(&self) -> &ServiceName {
++        &self.service
++    }
++
++    fn emit(&self, event: LogEvent) -> Result<(), EventError> {
++        self.events.lock().unwrap().push(event);
++        if self.reject {
++            return Err(EventError::Routing {
++                context: Box::new(ErrorContext::new(
++                    error_codes::DIAGNOSTIC_INVALID,
++                    "consumer admission rejected",
++                    Remediation::recoverable("Retry admission.", [] as [&str; 0]),
++                )),
++            });
++        }
++        Ok(())
++    }
++}
++
++struct FailingJob;
++#[async_trait::async_trait]
++impl Job for FailingJob {
++    async fn run(&self, _: &serde_json::Value, _: Instant) -> RunOutcome {
++        RunOutcome::Failed("consumer failure detail".into())
++    }
++    async fn should_stop(&self, _: &serde_json::Value) -> StopDecision {
++        StopDecision::Continue
++    }
++}
++
++#[tokio::test]
++async fn downstream_receiver_observes_real_events_and_rejection_does_not_change_runs() {
++    for reject in [false, true] {
++        let receiver = Arc::new(Receiver {
++            service: ServiceName::new("consumer-owned").unwrap(),
++            events: Mutex::new(Vec::new()),
++            reject,
++        });
++        let logger: SharedCanonicalLog = receiver.clone();
++        let store =
++            Arc::new(SqliteScheduleStore::open_in_memory(ScheduleLimits::default()).unwrap());
++        let clock = Arc::new(ManualClock::new("2026-10-19T00:00:00Z".parse().unwrap()));
++        let scheduler = Scheduler::new_with_logger(
++            store.clone(),
++            clock.clone(),
++            Arc::new(SeqJitter::default()),
++            logger,
++        );
++        let row = scheduler
++            .start(
++                ScheduleSpec::new(
++                    "consumer-job",
++                    "0 * * * * *",
++                    Duration::from_secs(20),
++                    serde_json::json!({"secret": "not-in-event"}),
++                )
++                .unwrap(),
++            )
++            .unwrap();
++        clock.advance(chrono::Duration::seconds(60));
++        let runs = scheduler.run_due(Arc::new(FailingJob)).await.unwrap();
++        assert_eq!(runs.len(), 1);
++        let outcome = RunOutcome::Failed("consumer failure detail".into());
++        assert_eq!(runs[0].outcome, outcome);
++        assert_eq!(
++            store.get(row.id).unwrap().unwrap().last_outcome,
++            Some(outcome)
++        );
++        assert!(
++            scheduler
++                .run_due(Arc::new(FailingJob))
++                .await
++                .unwrap()
++                .is_empty()
++        );
++
++        let events = receiver.events.lock().unwrap();
++        assert_eq!(
++            events.iter().map(|e| e.action.as_str()).collect::<Vec<_>>(),
++            ["logger.attached", "due.launched", "due.finished"]
++        );
++        assert!(events.iter().all(|e| e.service == receiver.service));
++        let launched = &events[1];
++        let finished = &events[2];
++        assert_eq!(finished.target.as_str(), "cron.scheduler");
++        assert_eq!(finished.fields["schedule"], row.id.to_string());
++        assert_eq!(finished.fields["error"], "consumer failure detail");
++        assert_eq!(finished.outcome.as_ref().unwrap().as_str(), "failed");
++        assert_eq!(
++            finished.diagnostic.as_ref().unwrap().code.as_str(),
++            "JOB_FAILED"
++        );
++        assert_eq!(
++            finished.diagnostic.as_ref().unwrap().timestamp,
++            finished.timestamp
++        );
++        assert!(finished.correlation_id.is_some());
++        assert_eq!(finished.correlation_id, launched.correlation_id);
++        assert!(
++            !serde_json::to_string(&*events)
++                .unwrap()
++                .contains("not-in-event")
++        );
++    }
++}
+diff --git a/crates/sc-cron/tests/observability_facade.rs b/crates/sc-cron/tests/observability_facade.rs
+new file mode 100644
+index 0000000..4092455
+--- /dev/null
++++ b/crates/sc-cron/tests/observability_facade.rs
+@@ -0,0 +1,38 @@
++//! Compile-time identity checks against the original public contracts.
++use sc_cron::observability::{CanonicalLog, EventError, LogEvent, ServiceName, SharedCanonicalLog};
++
++#[test]
++fn facade_preserves_nominal_identity_in_both_directions() {
++    fn original_to_facade(
++        log: sc_command::observability::SharedCanonicalLog,
++    ) -> SharedCanonicalLog {
++        log
++    }
++    fn facade_to_original(
++        log: SharedCanonicalLog,
++    ) -> sc_command::observability::SharedCanonicalLog {
++        log
++    }
++    fn receiver(log: &dyn CanonicalLog) -> &dyn sc_command::observability::CanonicalLog {
++        log
++    }
++    fn event(event: LogEvent) -> sc_observability_types::LogEvent {
++        event
++    }
++    fn service(service: ServiceName) -> sc_observability_types::ServiceName {
++        service
++    }
++    fn error(error: EventError) -> sc_observability_types::v2::EventError {
++        error
++    }
++    let original: sc_command::observability::SharedCanonicalLog = std::sync::Arc::new(
++        sc_command::observability::NoopCanonicalLog::new(ServiceName::new("facade").unwrap()),
++    );
++    let round_trip = facade_to_original(original_to_facade(original.clone()));
++    assert!(std::sync::Arc::ptr_eq(&original, &round_trip));
++    assert_eq!(
++        receiver(round_trip.as_ref()).service_name().as_str(),
++        "facade"
++    );
++    let _ = (event, service, error);
++}

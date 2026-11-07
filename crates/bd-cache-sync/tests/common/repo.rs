@@ -38,6 +38,8 @@ pub struct Repo {
     pub dir: TempDir,
     /// bd's fake world.
     pub bd: FakeBackend,
+    /// Actual `BdCli` runner argv requests, sharing the composition's fake invoker.
+    pub bd_invoker: FakeBd,
     /// The cache's clock.
     pub clock: Arc<ManualClock>,
     /// sc-cron's clock.
@@ -81,7 +83,7 @@ impl Repo {
         let clock = Arc::new(ManualClock::new(super::START));
         let fake = FakeBd::new(Arc::clone(&clock));
         let bd = fake.backend().clone();
-        let (switched, down) = super::real::Switched::new(fake);
+        let (switched, down) = super::real::Switched::new(fake.clone());
         let composed = compose_with_config_and_backend(
             dir.path(),
             RepoConfig::default(),
@@ -108,6 +110,7 @@ impl Repo {
         Self {
             dir,
             bd,
+            bd_invoker: fake,
             clock,
             cron_clock,
             cache: Arc::new(Mutex::new(cache)),

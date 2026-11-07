@@ -1,0 +1,29 @@
+workflow_commit=0146b6615f0398c79bf794b062e6b979751f50e5 source_commit=7fb224623280dae9cb056915484cb698ddf6bdf0
+commit 7fb224623280dae9cb056915484cb698ddf6bdf0
+Author:     Rand <rand.lee@radiantvs.com>
+AuthorDate: Tue Nov 3 23:47:22 2026 -0800
+Commit:     Rand <rand.lee@radiantvs.com>
+CommitDate: Tue Nov 3 23:47:22 2026 -0800
+
+    Record C2 immutable inventory diagnostic consumption
+Cargo.lock 8ff90ed761ac59b12f60c757085de42ccb2b8928
+Cargo.toml ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7
+rust-toolchain.toml 069c7fb0fd3aa26138232eabfc218344049c8e07
+crates/bd-cache-sync/Cargo.toml 69beb2d25850df8d79373700818ee3d1a64ba2cf
+crates/bd-cache-sync/tests/cron_hurry.rs 78ccd70669746a1e8921349b1e51d6fdbce6b262
+crates/bd-cache-sync/tests/common/session_fixture.rs 8f5313e8db352e00dd233e0fe43011207174857c
+crates/bd-cache-store/src/schedule.rs 31a8baa56b36597d25dc2ddd2e3d15cc47075faf
+crates/bd-cache-store/tests/support/fixture_child.rs 48f8b51be5fa2b3bfdffc80520468edd78ee056d
+# Pinned Rust toolchain for every workspace crate and for CI.
+# Keep in sync with `rust-version` in Cargo.toml.
+[toolchain]
+channel = "1.98.1"
+profile = "minimal"
+components = ["clippy", "rustfmt"]
+Darwin sjc22-bt151-6c2d65c3-8750-4d58-a4df-0d053130fcd7-52D87778EBB6.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:16:43 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_VMAPPLE arm64
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+RUST_TEST_THREADS=<unset>
+RUSTFLAGS=-D warnings CARGO_INCREMENTAL=0 CARGO_BUILD_TARGET=<unset> CARGO_TARGET_DIR=<unset>
+Context limit: package-selected full target; original workspace feature union, prior artifact and scheduling interleaving are not reproduced. Inline diagnostics consume time under unchanged deadlines.

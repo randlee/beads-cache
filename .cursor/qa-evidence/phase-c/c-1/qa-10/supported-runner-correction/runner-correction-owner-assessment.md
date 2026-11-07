@@ -1,0 +1,106 @@
+```json
+{
+  "success": true,
+  "data": {
+    "review_type": "bounded_independent_infrastructure_correction_assessment; not full QA/coordinator",
+    "owner": "flaky-test-qa",
+    "model": "actual gpt-6.1-sol high fallback",
+    "cm_context_executed": true,
+    "disposition": "SUPPORTED_ONE_ACTUAL_OBSERVATION_AFTER_VERIFIED_ZERO_EXECUTION_CANCELLATION",
+    "assessment": "Changing only the diagnostic runner from retired macos-14 to macos-latest is a supported correction of the preparation error. It aligns the label with the original failing C2 consumer workflow. The retired-run attempt completed cancelled with zero steps, so no diagnostic test result was observed and no failed or green test is being repeated.",
+    "primary_evidence": {
+      "notice": "https://github.blog/changelog/2026-10-01-github-actions-macos-14-runner-image-retirement/",
+      "independently_opened": true,
+      "notice_date": "2026-10-01",
+      "retirement": "2026-11-02",
+      "affected_label": "macos-14",
+      "recommended_labels": [
+        "macos-latest (macos-26)",
+        "macos-15"
+      ],
+      "original_consumer_label": "macos-latest",
+      "source_check": "git show37b37376329ff9ceb84319ea17d769f84d67fbf9:.github/workflows/ci.yml matrix os at158 includes macos-latest; original failed macOS raw reports macOS26.6.2/macos-26-arm64.",
+      "limit": "Retirement and zero steps establish an unsupported runner selection/preparation error. They do not prove the precise scheduler reason for queueing or that macos-latest will immediately acquire a runner."
+    },
+    "cancelled_attempt": {
+      "run_id": 41794982056,
+      "job_id": 126456844993,
+      "workflow_commit": "4b89a434c7d32ee3b3c36a962179e92bc45dd2ab",
+      "run_status": "completed",
+      "run_conclusion": "cancelled",
+      "job_status": "completed",
+      "job_conclusion": "cancelled",
+      "job_completed_at": "2026-11-04T08:00:28Z",
+      "step_count": 0,
+      "setup_build_test_executions": 0,
+      "test_result": null,
+      "terminal_receipt": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-prep/retired-run-terminal.json",
+      "receipt_verified_by_this_owner": true,
+      "limit": "Initial queued receipt and terminal completed/cancelled receipt preserved; no test execution or missing stage observation inferred from job state."
+    },
+    "proposed_change": {
+      "only_workflow_semantic_change": "jobs.observe.runs-on: macos-14 -> macos-latest",
+      "frozen_test_source": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+      "source_helper_blob": "8f5313e8db352e00dd233e0fe43011207174857c",
+      "source_lock_blob": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --nocapture",
+      "target": "Existing full cron_hurry integration target, expected19 tests, actual count recorded",
+      "controls_preserved": [
+        "Literal source and helper/lock guards, pinned Rust toolchain, Python setup and backend-PATH guard.",
+        "Default libtest parent concurrency; RUST_TEST_THREADS read-only observation, no override.",
+        "Original100ms drain/250ms quiescence/1s cleanup/250ms independent audit/5s fixture lifetime.",
+        "Original callback faults including acknowledgedSTOP+80ms+CONT, assertions, complete stable/final census, failed receipt semantics and one cleanup attempt.",
+        "One actual Cargo test invocation; no list/no-run/second binary execution, full1171/stress or source correction.",
+        "Captured actual selected Running binary/hash, source/features/runner image, raw stages/PID/remaining/root/census/outcome receipts, separate Cargo/tee/identity exits and artifact preservation.",
+        "Existing15-minute job limit and read-only contents permission."
+      ]
+    },
+    "next_parent_developer_action": {
+      "supported": true,
+      "action": "Parent reviews the concrete runner-only diff, then publishes/dispatches that correction once. Record new workflow commit/run/job IDs linked to the old cancelled zero-step attempt. Preserve both workflows and both run records. The reviewer has not edited or published anything.",
+      "observation_budget": "Exactly one actual full-target observation, success or failure. The verified retired-run attempt consumed zero test executions. No automatic rerun after any actual execution, failed setup, cancellation or incomplete receipts on the corrected attempt; route its actual outcome for owner assessment.",
+      "no_overlap_gate": "Satisfied for old attempt: completed/cancelled withsteps[]. Do not revive or rerun the retired-label job.",
+      "limits": "macos-latest matches the original label, not a guarantee of identical image revision, feature union, artifact or scheduling interleaving. The package-selected full target remains narrower than original whole-workspace feature context; existing logged scope limitation remains. Record actual OS/image and command context."
+    },
+    "prior_no_replacement_instruction": {
+      "interpretation": "The no-replacement-on-cancel restriction prevents repeating an executed observation until green. Its literal prior form is narrowly amended here by explicit parent request and this independent assessment solely for the terminal zero-step retired-run preparation error. It is not a general retry exception.",
+      "test_outcome_inferred": false
+    },
+    "finding_effect": {
+      "RQA9-001": "OPEN historical qualification; validated protocol/observability credited",
+      "RQA10-001": "OPEN; no cause or correction inferred from infrastructure fix or recent natural7fb success",
+      "ARCH-001": "OPEN",
+      "RBQA-F001": "OPEN",
+      "QA2-001": "OPEN",
+      "REQ-QA-004": "OPEN",
+      "prior_FTQ_and_RSH_scoped_closures": "Preserved"
+    },
+    "actions": "Read-only local workflow/receipts/original source and official notice. Wrote only this assessment pair. No source/workflow edits, Cargo/tests, publishing/dispatch/cancellation, agents, PR report or merge.",
+    "active_owned_commands": 0,
+    "evidence_files": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-prep/hosted-run-initial.json",
+        "bytes": 374,
+        "sha256": "e2fb2be92549dac81dc3d82e631a506b9699983d4bf2b7a9272418c8f7aa4eb0"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-prep/retired-run-terminal.json",
+        "bytes": 398,
+        "sha256": "5fda2e35ca9c7fd85688e0f155cb9cdf6387229369b6a41aba323abf584f5359"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-prep/frozen-7fb224623280dae9cb056915484cb698ddf6bdf0.yml",
+        "bytes": 6514,
+        "sha256": "65c134524f1fa137128cfb9e7f2d89a193d29afcab547f6a2e5dc2ff33a66ae8"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/mac-observation-prep/README.md",
+        "bytes": 5734,
+        "sha256": "a76853bfb90764037664029330c99b5d3ef516ea5e9f6b4f6e848477e12916ce"
+      }
+    ],
+    "timestamp_utc": "2026-11-04T08:02:03.887490+00:00"
+  },
+  "error": null
+}
+```

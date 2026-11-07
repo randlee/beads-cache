@@ -1,0 +1,77 @@
+command: cargo test -p bd-cache-sync --test cron_hurry
+CARGO_INCREMENTAL=0
+CARGO_TARGET_DIR=/tmp/phase-c-execution/c-1/restart-target
+started_at=2026-11-04T08:35:42.331096+00:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-c7042a79a8fe8c6e)
+
+running 19 tests
+test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... FAILED
+test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... FAILED
+test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... FAILED
+test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... FAILED
+test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... FAILED
+test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... FAILED
+test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... FAILED
+test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... FAILED
+test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... FAILED
+test startup_zero_timeout_joins_its_read_without_grace ... ok
+test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+
+failures:
+
+---- session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- lifecycle_supervisor_kills_and_reaps_stalled_join_families stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- same_scheduler_management_cancels_the_running_row_without_a_new_outcome stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline stdout ----
+Error: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command stdout ----
+RQA10_COMMAND_SPAWN thread=ThreadId(14) pid=44539 spawn_elapsed=1.001334ms
+RQA10_COMMAND_EXIT thread=ThreadId(14) pid=44539 command_elapsed=94.261084ms actual_wait=true status=exit status: 1 remaining=153.207792ms
+Error: Custom { kind: Other, error: "owned session inventory failed: /bin/sh: /bin/ps: Operation not permitted\n/bin/sh: /bin/ps: Undefined error: 0\n" }
+
+
+failures:
+    lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind
+    lifecycle_supervisor_kills_and_reaps_stalled_join_families
+    lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind
+    rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline
+    same_scheduler_management_cancels_the_running_row_without_a_new_outcome
+    session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes
+    session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure
+    session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget
+    session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command
+
+test result: FAILED. 10 passed; 9 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+error: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`
+
+exit_code=101
+ended_at=2026-11-04T08:35:43.116900+00:00

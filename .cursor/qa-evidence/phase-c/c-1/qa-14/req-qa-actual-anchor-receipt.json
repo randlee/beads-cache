@@ -1,0 +1,63 @@
+{
+  "preflight.json": {},
+  "dryrun.json": {
+    "summary": {
+      "counts": {
+        "excluded": 1
+      },
+      "failing": [],
+      "leaning_counts": {},
+      "unstable": [],
+      "errors": [],
+      "excluded": [
+        {
+          "anchor_id": "ADR-BDC-0009",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+        }
+      ],
+      "shortened": [],
+      "pass": false
+    }
+  },
+  "live-ca-exit.json": {
+    "exit_code": 0
+  },
+  "live-exit.json": {
+    "exit_code": 2
+  },
+  "actual_run": {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-14-anchor-evidence/runs/dev-20261106T113750Z-c-1.json",
+    "sha256": "b69ad3a94179a471162b55bf7ac2788e89a2c159bd3435fedcde3f2df1a0d308",
+    "summary": {
+      "counts": {
+        "asserted_only": 1,
+        "underspecified": 3,
+        "satisfied": 12,
+        "excluded": 1
+      },
+      "failing": [
+        "ANC-008",
+        "ANC-001",
+        "NFR-BDC-0004",
+        "NFR-BDC-0005"
+      ],
+      "leaning_counts": {
+        "asserted_only": 5,
+        "satisfied": 11
+      },
+      "unstable": [
+        "NFR-BDC-0004"
+      ],
+      "errors": [],
+      "excluded": [
+        {
+          "anchor_id": "ADR-BDC-0009",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+        }
+      ],
+      "shortened": [],
+      "pass": false
+    },
+    "all_nonexcluded_requests_unshortened": true
+  }
+}

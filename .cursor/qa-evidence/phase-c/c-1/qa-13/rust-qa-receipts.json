@@ -1,0 +1,124 @@
+[
+  {
+    "name": "fmt",
+    "command": [
+      "cargo",
+      "fmt",
+      "--all",
+      "--check"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "seconds": 0.746,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/fmt.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "clippy",
+    "command": [
+      "cargo",
+      "clippy",
+      "--locked",
+      "--all-targets",
+      "--all-features",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "seconds": 6.632,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/clippy.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "affected-tests",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "-p",
+      "bd-cache-store",
+      "-p",
+      "bd-cache-sync",
+      "-p",
+      "bd-cache-cli",
+      "--all-features",
+      "--",
+      "--nocapture"
+    ],
+    "exit": 101,
+    "expected_exit": 0,
+    "seconds": 56.219,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/affected-tests.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "graph-unit",
+    "command": [
+      "python3",
+      "-I",
+      "-m",
+      "unittest",
+      "discover",
+      "-s",
+      "crates/bd-cache-sync/tests",
+      "-p",
+      "test_consumer_graph.py",
+      "-v"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "seconds": 0.09,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/graph-unit.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "isolated-graph",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py"
+    ],
+    "exit": 1,
+    "expected_exit": 0,
+    "seconds": 21.935,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/isolated-graph.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "negative-server",
+    "command": [
+      "python3",
+      "-I",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "--negative-server"
+    ],
+    "exit": 1,
+    "expected_exit": 1,
+    "seconds": 22.781,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/negative-server.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  },
+  {
+    "name": "no-backend",
+    "command": [
+      "python3",
+      "-I",
+      "scripts/check_no_backend.py",
+      "graph"
+    ],
+    "exit": 0,
+    "expected_exit": 0,
+    "seconds": 0.205,
+    "log": "/tmp/phase-c-execution/c-1/qa-13/no-backend.log",
+    "execution_context": "sandbox",
+    "cwd": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  }
+]

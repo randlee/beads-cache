@@ -286,5 +286,5 @@ Example:
 ### Phase C amendment to ADR-CLI-0001
 
 ADR-BDC-0016 (owner approval 2026-11-02) replaces the historical git pin with
-published sc-command exactly 0.1.1, default features off. The CLI remains
+published sc-command exactly 0.2.0 under ADR-BDC-0016, default features off. The CLI remains
 unpublished. Three-OS builds and all version/usage/exit envelopes are unchanged.

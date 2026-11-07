@@ -206,31 +206,22 @@ inherited_bounds:
 
 ## Outcome
 
-The existing bdc and Python surfaces use upstream sc-cron 0.1.1 over the same
+The existing bdc and Python surfaces use the approved upstream sc-cron source over the same
 cache file. No local scheduler remains to drift. This sprint closes scheduler
 integration independently of the later generated application.
 
-## Recorded owner approval
-
-The project owner's explicit 2026-11-02 instruction to execute all approved
-Phase C sprints satisfies this sprint's dispatch prerequisite. See the phase
-plan's [recorded approval](phase-c-plan.md#implementation-dispatch-gate) and
-ADR-BDC-0016 for provenance and the unchanged bounds. ADR-BDC-0016 is now in the
-binding `adrs` list. c-1 applies the approved CLI/API/CRON amendments in its owned
-files; no other existing rule is waived. Independent implementation QA, applicable
-anchor gates and green CI remain required before merge.
 
 ## Deliverables
 
 1. REQ-BDC-1002: land the already-tested rusqlite 0.39 alignment; move sc-command
-   and sc-cron to the published 0.1.1 baseline with default features off. Resolve
+   and sc-cron to the published exact registry 0.2.0 baseline under ADR-BDC-0016,
+   with default features off. Resolve
    one libsqlite3-sys. Retire the local sc-cron workspace member and source/tests;
    retain historical design docs with an upstream ownership note. Remove local
    sc-cron from existing CI publish dry-runs. Do not update unrelated dependencies.
    After explicit approval, apply the narrowly scoped REQ-CLI-0001 amendment in
-   docs/bd-cache-cli/requirements.md from the old git tag to the published 0.1.1
-   baseline. Keep its three-OS build, version envelope and usage/exit guarantees.
-   Until approval, the current Approved requirement remains unchanged.
+   docs/bd-cache-cli/requirements.md from the old git tag to the published exact
+   registry 0.2.0 baseline. Keep its three-OS build, version envelope and usage/exit guarantees.
 2. REQ-BDC-1002, REQ-STORE-0003: implement upstream ScheduleStore with existing
    schedule persistence and explicit limits. Preserve v3 user_version, old rows,
    next times, generations, enabled flags, outcomes, leases and hook state.
@@ -351,7 +342,7 @@ pub async fn cron_run(
 `Composed::into_schedules`, `execute_api`, `Schedules::cron_run_hurried` and the
 existing front-end API remain available. c-2 consumes their migrated production
 implementation, not a second scheduler. The exact upstream trait is fixed by the
-0.1.1 dependency source; do not restate it in a local trait copy.
+approved immutable dependency source; do not restate it in a local trait copy.
 
 ## Acceptance criteria
 
@@ -398,17 +389,8 @@ This sprint does not close generated daemon behavior or template upkeep (c-2),
 or artifact installation (c-4). sc-lint adoption is deferred pending upstream 0.2.0
 and a later plan decision, outside the current sprint set.
 
-## Implementation delivery (2026-11-02)
+## Adapter implementation notes
 
-Development is delivered on the declared sprint branch; independent QA, the
-sprint anchor gate and hosted three-OS CI still govern integration closeout.
-The approved owner record was merged from integrate/phase-c commit 8850fc8 before
-implementation. The primary checkout's Cargo files were not touched.
-
-- Cargo.toml/Cargo.lock use published sc-cron/sc-command exactly 0.1.1, default
-  features off, rusqlite 0.39 and one libsqlite3-sys. The local scheduler source,
-  tests and publish dry-run entry are retired; historical CRON docs retain their
-  semantic obligations and upstream ownership note.
 - store/schedule.rs implements upstream's exact ScheduleStore with a 1024 active
   row ceiling. Cache meta format 2 and user_version 3 stay unchanged. Rust hook
   metadata and empty environment are derived; consumer module policy already
@@ -424,91 +406,18 @@ implementation. The primary checkout's Cargo files were not touched.
   connection claim, with deadline-aware locking, dynamic busy retries, safe
   SQLite progress hooks, per-row decode checks, mutation refusal and RAII
   restoration. Composed.health_reads is captured before Cache owns the store.
-- Governed CLI/API/Python/CRON docs record ADR-BDC-0016 before CI boundary changes.
-  The existing transitive CI boundary now resolves temporary standalone API and
-  Python consumers via tests/check_consumer_graph.py. Published contracts pass;
-  a real sc-command/server dependency is the planted failing graph. The existing
-  actual wheel build remains required. Linux wheel-build and wheel-test already
-  both use ubuntu-24.04, preserving Python 3.9 qualification.
-
-Concrete compatibility/anchor proof paths:
-
-| Bound | Implementation and proof |
-|---|---|
-| ANC-001/002, cache-time scheduling | sync/launch.rs, sync/cron.rs; sync/tests/e2e.rs literal pre-migration v3 scheduled-drain/reopen test preserves generation, id, payload, journal, hook state and user_version |
-| ANC-003, replacement and rollback | sync/job.rs, sync/module_hook.rs; existing sync/tests/schedule_switch.rs, cron_rows.rs and py/tests/test_schedule.py |
-| ANC-004, per-scope hook results/errors | existing sync/hook.rs and run.rs use published supervisor; sync/tests/hook_runner.rs and builtin_run.rs |
-| ANC-008, row identity | launch.rs derives row identity independently of payload; existing sync/tests/cron_rows.rs rejects another row carrying a sync payload |
-| ANC-009, scopes are bd filters | the v3 e2e test schedules both label-filter and All scopes; existing builtin_run.rs and CLI tests/scope_filters.rs assert filter-specific behavior |
-| NFR-BDC-0004, bounded health | health.rs tests exercise actual public row reads, mutex refusal, one-second SQLite work, row iteration, restoration after error/unwind and concurrent normal schedule writes |
-| REQ-BDC-0730, reaping and lease release | unchanged CLI tests/sync_process.rs and tree_kill.rs run against upstream-backed SystemSchedules; both tree-kill cases pass with process inspection allowed |
-| REQ-BDC-0001, outage/cache hit | existing CLI tests/outage_scenario.rs, sync/tests/e2e.rs and perf.rs; release latency remains an explicit validation command |
-
-Pre-delivery evidence: workspace check and all-target/all-feature Clippy pass;
-new v3 scheduled-drain/reopen test and canonical-log/redaction test pass; four
-initial bounded health tests pass; both process-tree timeout tests pass outside
-the sandbox. The sandbox denies ps, so its child-alive assertions are not valid
-process evidence. Full post-push validation and actual wheel/pytest results are
-reported separately; hosted Linux/macOS/Windows results remain CI evidence.
-
-### Post-push local validation (2026-11-02)
-
-All local required checks PASS at source head 750ed9b (the following evidence
-update changes documentation only). Workspace tests ran with bd/dolt absent
-from PATH and local process inspection permitted; no live backend was used.
-
-| Check | Result |
-|---|---|
-| cargo fmt --all --check; git diff --check | PASS |
-| Both locked workspace Clippy gates, excluding bd-cache-py | PASS, all-target/all-feature and default-feature library modes |
-| cargo test --locked --workspace --exclude bd-cache-py --all-features | PASS: 1,145 passed, 0 failed, 20 intentionally ignored across 110 test/doctest groups |
-| RUSTDOCFLAGS=-D warnings cargo doc --locked --workspace --exclude bd-cache-py --no-deps | PASS |
-| Python Rust Clippy and cargo test, Python 3.11 | PASS: 23 Rust tests |
-| maturin build --release --locked, actual wheel | PASS: macOS arm64 cp39-abi3, Python >=3.9 |
-| Installed wheel, Python 3.11 pytest with deprecations as errors | PASS: 226 tests, including neutral 0.1 corpus, switches, hooks, CLI end-to-end and threading |
-| Release new-process CLI cache-hit latency | PASS: median 6.6 ms below 50 ms, p95 7.2 ms; pending-write median 7.5 ms/p95 8.0 ms reported |
-| Installed-wheel cached get | PASS: median 20.5 us, p99 26.9 us over 2,000 calls |
-| Existing direct boundary workflow body; independent API/Python graphs | PASS; published 0.1.1 contracts permitted; actual standalone sc-command/server planted negative rejected |
-| Existing no-backend PATH/graph and strict consumer lint | PASS |
-| Existing Python scripts suite | PASS: 71 tests |
-| cargo deny --offline check advisories | PASS against the installed local advisory database; hosted CI performs its normal refresh |
-| cargo publish --dry-run -p sc-beads -p sc-bd-cli | PASS: both packaged and verified; uploads aborted by dry-run |
-
-Logs are available to the parent in /tmp/c1-full-validation.log,
-/tmp/c1-health-final.log, /tmp/c1-v3.log, /tmp/c1-py-rust.log,
-/tmp/c1-pytest.log, /tmp/c1-wheel.log, /tmp/c1-latency.log,
-/tmp/c1-graph-final.log, /tmp/c1-graph-negative.log, /tmp/c1-boundary-direct.log,
-/tmp/c1-scripts.log, /tmp/c1-advisories.log and /tmp/c1-publish.log.
-The actual installed package came from /tmp/c1-wheel-venv/lib/python3.11/site-packages.
-
-Hosted Linux/macOS/Windows CI and Python 3.9/3.13 qualification remain required
-before integration; local macOS/Python 3.11 evidence is not a substitute. The
-existing Linux wheel and test jobs are both pinned to ubuntu-24.04. The bead
-remains in_progress until the parent's independent QA/anchor/CI closeout.
 
 
 ## QA1 correction delivery and remaining public API blockers
 
-QA1 reviewed 4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56 on PR #108 and
-published FAIL with 22 IDs (8 Blocking, 12 Important, 2 Minor). Source of truth:
-/tmp/phase-c-execution/c-1/qa-1/manager-result.md; ceremony triage:
-/tmp/phase-c-execution/c-1/qa-1/screen-result.md. No ID is waived or collapsed.
-The sprint is in_progress. The following implementation dispositions request
-independent verification, rather than declaring the QA findings closed.
 
 | Finding | Correction / remaining disposition |
 |---|---|
 | REQ-QA-001 | TrustedInterpreter enforces the inherited 256-byte module bound for both sync modules and post-sync hooks; schedule_switch.rs proves 256 accepted, 257 refused with both prior rows unchanged. |
-| REQ-QA-002 | Existing constrained_by list now includes REQ-BDC-0804, REQ-BDC-0903 and REQ-API-0001..0007. |
-| REQ-QA-003 | Sprint status is in_progress; narrowly authorized project-plan lifecycle receipt records owner approval and C1 QA1 corrections, preserving all other sprint rows. |
-| REQ-QA-004 | Earlier reviewed head eventually completed 15/15 hosted checks; manager receipt records ci run 41563460661 and python run 41563460677. Req reviewer must confirm that receipt. Changed production head needs fresh checks; the strengthened boundary gate intentionally remains red for the unresolved logging edge. |
 | REQ-QA-005 | Existing perf.rs now qualifies real migrated scheduled incremental sync over the existing 1000-bead fake-Bd composition, asserts an incremental cursor and changed cached row. Release qualification measured 6.184458 ms, below 1 s. No live bd ran. |
-| ARCH-001 | OPEN/BLOCKED: current direct receiver edge is unauthorized. Removed implementation-document text that appeared to bless it; public 0.1.1 cannot construct this receiver through sc-cron alone. Exact minimal upstream need is below. |
-| RBQA-F001 | OPEN/BLOCKED, correlated with ARCH-001 but retained independently. No new direct framework edge, baseline change, fork or missing-event substitution is introduced. |
 | RBQA-F002 | Existing isolated graph gate now traverses root-reachable normal/build edges and permits sc-command introducers only from published sc-cron 0.1.1. Explicit axum/rmcp exclusions added. Focused planted negatives cover direct sync introducer, local source, server feature, HTTP/MCP and ignored dev-only edges. Existing candidate leak is detected, not suppressed. |
 | RBQA-F003 | ModuleHook is exported only under testing; invoke is crate-private and no normal consumer surface is added. |
 | C1-RBP-F001 | Local unrunnable constructor returns Arc<dyn Job> directly; only genuinely fallible resolver branches retain Result. |
-| RSH-001 | OPEN/BLOCKED: published WorkerHandle shutdown owns an unbounded join of a blocking store call after its handle deadline. No timeout/drop or fake abort is substituted. Exact minimal upstream need is below. |
 | RSH-002 | Scheduled built-in job propagates its upstream absolute deadline through bounded start/end record cache claims, preparation, sync/drain, hook offer/launch and final cache claim. Budget derives from original scheduler launch instant (deadline minus row timeout), before record or mutex delay, and is capped by the caller. Public on-demand run_builtin remains. job_threading.rs proves held cache claim expires and no detached preparation issues later bd calls. |
 | RSH-003 | Scope/filter decoding and every public store row iteration/status assembly boundary now use the common calling-thread health deadline check. Added deterministic public scopes/status expiration coverage; normal unscoped reads/restoration remain covered. |
 | RSH-004 | Continuous worker context retains no detailed failure collection; finite cron_run_once retains exact reply details. Persistent run counters/logs remain. Unit proof records 10000 continuous failures with no retained history and verifies finite details drain exactly once. |
@@ -521,112 +430,17 @@ independent verification, rather than declaring the QA findings closed.
 | FTQ-007 | Cargo metadata runs with a hard subprocess deadline and captured diagnostics. subprocess.run kills/reaps its owned child on timeout; a real sleeping-child test proves the deadline path. |
 | FTQ-008 | Lease-abort holder acquisition/readiness/release and task/thread completion are bounded; release sender ownership closes the wait during unwind. |
 
-### Minimal unresolved upstream public API requirements (no local workaround)
-
-Published immutable sc-cron 0.1.1 is the only approved baseline. No publication
-request, version relaxation, source patch or copied scheduler is authorized by
-this correction record.
-
-1. Logging (ARCH-001 / RBQA-F001, ADR-BDC-0016): scheduler.rs:288-292 accepts
-   sc_command::observability::SharedCanonicalLog, but lib.rs:100-178 exports no
-   public receiver/type adapter. Scheduler::new at scheduler.rs:279-280 uses
-   private noop_logger (lib.rs:181-183). The minimum upstream public seam is
-   re-exporting the receiver and all required signature types through sc-cron,
-   or an equivalent upstream callback-to-canonical-receiver constructor that
-   can be used without any direct application -> sc-command dependency. Then
-   remove the direct sync dependency and bridge through that seam. Current
-   source still contains that rejected edge, and the strengthened graph fails
-   on it. Dropping canonical events would violate REQ-BDC-0730, not resolve it.
-2. Shutdown (RSH-001, REQ-BDC-0730 / REQ-CRON-0012): WorkerHandle's task and
-   shutdown sender are private (scheduler.rs:850-853). shutdown at :904-954
-   unconditionally awaits the task after timeout_at; worker.rs:539-552 awaits
-   uncancelled spawn_blocking storage. The minimum behavioral/public contract
-   must let stop deadlines/cancellation reach outstanding store operations and
-   retain their ownership through a bounded join, including T=0, a contended
-   reload/persistence call, and second-stop shortening. Merely exposing an
-   abort handle or dropping a timeout future leaves blocking work unowned and
-   is insufficient. The existing health read-only scope cannot cancel those
-   normal writes. No local cancellation framework is added; this remains a
-   real upstream compatibility blocker.
-
-The owner-directed paste/sc-lint 0.2.0 deferral does not waive any finding above.
-Existing gates remain enabled. Final correction validation and exact push SHA
-are reported separately; this record does not claim QA PASS or merge readiness.
-
-
-### QA1 correction validation receipt
-
-Exact validated source head: 0885ce639a5cd53d1458baf3ea6acb48b74479a7.
-Independent corrections are commit 0134c15; merge 0140cf3 consumed approved C3
-integration including 22f9d6b9ddc67274d95a23c16a2a8345c0785bc0, and 0885ce6
-removed the duplicate shared prerequisite installation created by that merge.
-This receipt changes documentation only.
-
-- PASS: fmt/diff checks, both locked workspace Clippy modes and warning-free
-  docs. Logs: /tmp/c1-fix-prevalidate-clippy.log,
-  /tmp/c1-fix-clippy-default.log, /tmp/c1-fix-doc.log.
-- PASS: full workspace tests/doctests, 1149 passed / 0 failed / 21 intentionally
-  ignored, with bd/dolt absent from PATH and process inspection permitted.
-  /tmp/c1-fix-workspace.log. Focused store/sync: 282 passed, 8 intentional
-  ignores (/tmp/c1-fix-focused.log).
-- PASS: explicit release-profile incremental qualification, 6.184458 ms for a
-  migrated scheduled 1000-bead scope, with cursor and changed-row assertions.
-  /tmp/c1-fix-incremental.log. Its normal-suite ignore is not the evidence:
-  the exact timing command ran explicitly with --release --ignored --nocapture.
-- PASS: fresh actual cp39-abi3 macOS arm64 wheel built from the changed source;
-  installed-wheel Python 3.11 pytest 226 passed, including neutral corpus,
-  switching, hooks and real CLI fixtures. Py Rust tests: 23 passed; Py Clippy
-  passed. /tmp/c1-fix-wheel.log, /tmp/c1-fix-pytest.log,
-  /tmp/c1-fix-py-rust.log, /tmp/c1-fix-py-clippy.log.
-- PASS: merged script suite in the clean declared dependency environment:
-  97 run, 96 passed, 1 explicit opt-in real-generator smoke skip.
-  /tmp/c1-fix-scripts.log. No script tests were suppressed for C1.
-- PASS: four graph checker/provenance/forbidden-package/owned-child deadline
-  proofs (/tmp/c1-fix-graph-unit.log). Actual API isolated graph passes.
-  EXPECTED FAIL remains for actual isolated Python normal/build graph:
-  bd-cache-sync -> sc-command is unauthorized (/tmp/c1-fix-graph-final.log).
-  The existing CI gate executes that rejection; no allowlist masks it.
-- PASS: no-backend PATH/graph and strict consumer lint after the source changes.
-
-Overall correction disposition remains FAIL / blocked, not QA PASS: ARCH-001,
-RBQA-F001 and RSH-001 need the documented upstream public APIs. REQ-QA-004
-requires the owning reviewer's confirmation and appropriate exact-head hosted
-qualification; current expected boundary failure cannot be declared green.
-The other 18 implementation/evidence corrections request independent QA2
-verification. No acceptance criterion, baseline pin or advisory gate was waived.
-The bead and sprint remain in_progress, and no merge is authorized by this receipt.
 
 ### QA2 narrow correction receipt (2026-11-02)
 
-Manager QA2 reviewed 73ced71 and published FAIL (4 Blocking, 2 Important) at
-https://github.com/randlee/beads-cache/pull/108#issuecomment-6594983314.
-The byte-identical manager record and full six-ID assignment are
-/tmp/phase-c-execution/c-1/qa-2/manager-result.md and fix.xml; ceremony triage is
-/tmp/phase-c-execution/c-1/qa-2/screen-result.md. No finding is waived.
 
 | Finding | QA2 correction / remaining disposition |
 |---|---|
 | FTQ-001 | Correction present, specialist verification pending. health.rs runs the existing causal mutex fixture in an owned child test process. The parent enforces a five-second lifetime, kills and reaps on expiry, and its owner Drop also kills/reaps during unwind. File-backed diagnostics avoid pipe-drain threads; parent-owned scratch storage removes a killed child's cache. The original holder/read-start handshakes, 50 ms read budget, 200 ms answer deadline, <150 ms assertion and post-release store.status check remain. A deliberately stalled reader reaches the contended-read failure path and proves timeout kill/reap, rather than allowing a detached-thread success or health retry. |
-| REQ-QA-004 | OPEN. Actual authorized dependency composition and all required hosted checks must pass on the reviewed changed head. Prior-head green and local successful suites do not close it. |
-| ARCH-001 | OPEN/BLOCKED. Unauthorized direct sync -> sc-command receiver edge remains; the minimal upstream public seam recorded above is still required. |
-| RBQA-F001 | OPEN/BLOCKED. Same unresolved production edge as ARCH-001, separately retained. No new exception is authorized. |
-| RSH-001 | OPEN/BLOCKED. Published 0.1.1 bounded-shutdown incompatibility remains; no local cancellation, abort or timeout/drop workaround is added. |
-| QA2-001 | OPEN. The actual isolated Python graph rejects the unauthorized introducer, correlated with ARCH-001/RBQA-F001 but independently retained. The strict gate stays enabled and unchanged. |
-
-This round changes only health.rs test code and this receipt, after updating from
-the integration branch. Production code, dependency pins, acceptance criteria and
-baseline/advisory gates remain unchanged. Targeted validation results and exact
-push SHA are reported separately. Overall FAIL / blocked and in_progress remain.
 
 
 ### Consumer restart correction: bounded cache scheduler shutdown
 
-The fresh restart assessment inspected actual hosted job 126038712470 at source
-90baf073. Its failure is the actual isolated Python graph's direct
-`bd-cache-sync -> sc-command` edge, after direct boundary and graph unit checks
-pass. It is unrelated to the deferred paste/sc-lint work. The sprint consumed
-current integrate/phase-c at ea53f022 before this correction; the merge changes
-only orchestration metadata.
 
 RSH-001 now has a consumer-owned implementation pending independent QA. This
 supersedes the earlier claim that outstanding cache-store cancellation necessarily
@@ -671,33 +485,10 @@ real held mutex, busy persistence, executing SQL, per-view/connection isolation,
 health policy and restoration after error/unwind. Planted mutants disabling
 store cancellation fail all three bounded-store tests; disabling management
 isolation fails its scope test. Sources were restored and the store suite passed.
-The normal and all-target/all-feature locked Clippy gates pass. Detailed logs
-are under /tmp/phase-c-execution/c-1/qa-4/restart-*.log; final post-push validation
-is reported separately.
-
-All five IDs remain **open**: RSH-001 is implemented_pending_independent_QA;
-ARCH-001, RBQA-F001 and QA2-001 still require a consumable public canonical
-receiver path; REQ-QA-004 still requires all actual checks green on the reviewed
-head. The published 0.1.1 Scheduler accepts a nominal sc-command receiver trait
-that sc-cron does not re-export or construct from a callback. Moving the bridge
-into C2's optional daemon cannot deliver sc-cron's own events for existing
-CLI/Python callers below that boundary; moving it into another lower crate only
-moves the forbidden introducer. Minimum producer need is a public sc-cron
-receiver/type re-export or equivalent constructor delivering real canonical
-events without a direct consumer sc-command dependency. No producer change, new
-PR, baseline relaxation, architecture waiver or missing-event substitute is
-introduced. Independent QA, anchors and green CI remain prerequisites to merge.
 
 
 ### QA4 test-lifetime correction (FTQ-009 / FTQ-010)
 
-QA4's actual manager report is
-https://github.com/randlee/beads-cache/pull/108#issuecomment-6620322598,
-reviewing 95def5f3c1c2ffe7a0e9ebfe3630ac835217c680. The owning service reviewer
-accepted RSH-001 for the production composition and the parent recorded that
-closure with owner/enforcer evidence. That scoped acceptance is preserved;
-production shutdown, session, control, adapter and dependency code is unchanged.
-The new Important FTQ-009/010 findings concern failure cleanup in the new tests.
 
 The complete three synchronous store fixtures and the new lifecycle fixtures
 now execute in exactly filtered owned child processes. A small shared test-only
@@ -724,24 +515,7 @@ incorrectly accepted second-start cleanup stalls. They reach the original
 bounded failure paths before the whole fixture is killed and reaped. The
 second-start negative owns a real running Python child and verifies its PID is
 gone after cleanup. Separate assertion-unwind negatives verify both fixture
-families; the lifecycle one also verifies real Python reaping. Pre-push focused
-runs passed 5 store tests and 8 lifecycle tests; affected locked Clippy modes and
-fmt passed without suppressions. Final pushed-source logs are reported separately
-under /tmp/phase-c-execution/c-1/qa-4/fix-*.log.
-
-| Finding | Current correction/disposition |
-|---|---|
-| FTQ-009 | Implemented pending independent QA: complete store fixtures have enforced owned lifetimes; all three real post-call stalled join paths and parent unwind cleanup are tested. |
-| FTQ-010 | Implemented pending independent QA: complete lifecycle fixtures contain worker/management/second-start cleanup stalls, retain real ownership, and prove timeout/unwind Python kill and reap. |
-| ARCH-001 | OPEN: the genuine published canonical receiver interface gap remains; the prior exact-source assessment and minimum public receiver contract still apply. |
-| RBQA-F001 | OPEN: the same unauthorized introducer remains independently tracked; no architectural exception is widened. |
-| QA2-001 | OPEN: the actual isolated Python graph still rejects that unchanged direct sc-command edge; no graph guard is bypassed. |
-| REQ-QA-004 | OPEN: actual changed-head hosted checks remain required, with the existing boundary blocker unwaived. |
-
-RSH-001 remains **closed only under its actual QA4 owner/enforcer evidence**.
-FTQ-009/010 remain open pending fresh independent review. No new upstream work,
-version change, publisher dependency, full workspace rerun or sprint/anchor/CI
-PASS is introduced by this test-only correction. Merge remains gated.
+families; the lifecycle one also verifies real Python reaping.
 
 
 ### QA5 pre-registration process ownership correction (FTQ-010)
@@ -780,47 +554,9 @@ PID and process-group disappearance/reap. The test keeps the original causal
 and strict production timing checks. The existing post-registration, management,
 worker-join, same-Scheduler cancellation and rejected-start cases remain.
 
-The exact QA5 source-free PATH-cat counterexample also ran against the rebuilt
-binary: it still fails finitely (exit 101), while `post_test_exit_survivors` is
-empty **before** the probe's explicit cleanup. Final post-push lifecycle and
-unchanged-probe evidence, including SID/PID/PGID audit, is reported under
-/tmp/phase-c-execution/c-1/qa-5/fix-*. The old failing probe is retained as the
-counterexample; no failure was converted into a false successful fixture.
-
-Accepted production files and the complete store test module are byte-identical
-to 2111df6f. The accepted FTQ-009 shared supervisor's logic is also byte-identical;
-only four test-internal field visibilities allow the lifecycle session owner to
-compose it. This proof is /tmp/phase-c-execution/c-1/qa-5/fix-source-equivalence.json.
-The normal store-only fixture path is unchanged. RSH-001 and FTQ-009 remain closed
-only under their actual owning reviewer/enforcer evidence.
-
-FTQ-010 remains open, implementation pending independent QA6. REQ-QA-004,
-ARCH-001, RBQA-F001 and QA2-001 remain open for the unchanged genuine published
-receiver/isolated graph and actual-head CI blockers. The previous bounded public
-interface assessment is retained without another workaround loop. No publisher
-work, SDK factory/executor, version change, waiver or whole-sprint/anchor/CI/merge
-PASS is introduced.
 
 
 ### QA6 owned inventory and Linux identity correction (FTQ-010 / REQ-QA-004)
-
-The test-only session inventory now owns each `/bin/ps` child, redirects its
-output to an owned file, polls completion against the caller's absolute deadline,
-and kills and actually reaps a stalled child before returning its failure. Drop
-also kills/reaps that same child; no pipe reader or wait task is detached. A scan
-gets at most 50ms inside the existing cleanup observation, with no new scan
-started in a phase's final partial slice. The 250ms cooperative/quiescence and
-750ms final observations now share one absolute one-second cleanup budget. The
-final drain remains after the actual root join and includes unregistered and
-in-flight Python groups. An inventory error is retained as failure even if a
-subsequent inventory removes the tree; it never becomes a cleanup-success receipt.
-
-The session owner performs cleanup once. The composed shared FixtureChild has an
-explicit Drop ownership handoff, defaulting to its original store cleanup. Only
-SessionFixture takes that ownership; its failed cleanup cannot restart a fresh
-registry budget during field destruction. The accepted store test bodies and
-production shutdown implementation remain unchanged. Focused default store
-cleanup tests cover this necessary shared-helper adjustment.
 
 On Linux, the all-host PID census reads kernel `/proc/<pid>/stat` metadata as raw
 identifiers and excludes nonpositive session/group IDs before constructing a
@@ -833,20 +569,6 @@ foreign kernel PID was not logged, so its identity remains an inference. The
 regression covers zero/negative raw IDs, a normal identity and malformed metadata.
 Local Darwin passes do not establish Linux or Windows qualification.
 
-Focused evidence is recorded in /tmp/phase-c-execution/c-1/qa-6/fix-*. Logs include
-actual stopped-inventory timeout/unwind, complete lifecycle and store cleanup
-families, unchanged QA5 PATH-cat and QA6 SIGSTOP counterexamples, and metadata-only
-SID/PID/PGID/inventory-child audits before probe fallback cleanup. The original
-negative fixtures must still fail finitely; no failing test is reported as a
-successful fixture. Required exact-new-source hosted Linux CI is tracked separately.
-
-FTQ-010 remains OPEN pending independent QA7. REQ-QA-004 remains OPEN for actual
-new-head platform checks AND the unchanged strict logging dependency gate.
-ARCH-001, RBQA-F001 and QA2-001 retain their genuine public logging receiver and
-isolated dependency graph blocker. RSH-001 and FTQ-009 closures remain owned by
-their actual reviewer/enforcer evidence. No SDK change, dependency change,
-publisher work, timing relaxation, guard waiver or sprint/anchor/merge PASS is
-introduced.
 
 
 ### QA7 supported startup stop correction (RSH-001)
@@ -893,12 +615,6 @@ Focused final-source validation and receipts live under
 /tmp/phase-c-execution/c-1/qa-7/startup-*. This C1 task qualifies the public core;
 the exact public Application probe must be rerun by C2 after consuming the
 correction. No candidate Application/HTTP result is claimed from old C2 source.
-FTQ-010's actual QA7 owning-reviewer/enforcer closure and FTQ-009's closure are
-preserved. RSH-001 remains OPEN, implemented pending independent QA8 and C2
-consumption. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the genuine
-published canonical receiver/isolated graph and required actual-head CI gates.
-No dependency upgrade, publisher work, graph waiver, timing widening, detached
-blocking work, sprint/anchor/merge PASS or self-closure is introduced.
 
 
 ### QA8 inventory budget correction (FTQ-011)
@@ -943,72 +659,12 @@ The existing true timeout/unwind inventory proof now acknowledges the command's
 kernel stop before testing it. These are test inputs, not host tuning or new
 process-control promises.
 
-| Finding | Current developer disposition |
-|---|---|
-| FTQ-011 | OPEN: correction validated locally; final pushed-source proof and independent QA9 required. Original failures retained. |
-| RSH-001 | OPEN: C1 startup production remains exactly adbcc88d3dc134ae94403bc2af7a8db76ba921a5; C2 actual public Application candidate qualification is a separate parent-owned gate. |
-| REQ-QA-004 | OPEN: exact candidate CI, including each supported platform and the actual dependency gate, remains required. |
-| ARCH-001 | OPEN: genuine published public receiver composition remains blocked; no new interface research or workaround is included. |
-| RBQA-F001 | OPEN: direct sync-to-sc-command dependency remains independently tracked and unwaived. |
-| QA2-001 | OPEN: strict isolated dependency graph remains unchanged and failing until compatible composition exists. |
-
-The C1 branch merged current integration metadata before editing. Production
-cron.rs and both sync/store schedule.rs files remain byte-identical to adbcc88d;
-SDK dependencies, logging, consumer graph checks, shared store supervisor and
-startup/store cancellation mechanisms are unchanged. The initial phase used formatting and source inspection only while C2 owned the
-sole Cargo slot. After explicit release/grant, native inventory regressions pass
-5/5, the complete affected lifecycle suite passes 18/18 (the prior 15 plus three
-new cases), default store cleanup passes 5/5, both scoped strict Clippy modes
-pass, and formatting passes. Restoring the old 50ms cap makes the deterministic
-80ms inventory regression fail with TimedOut; canonical source was restored.
-The initial sandbox inventory execution's explicit EPERM failures remain
-recorded separately from authorized native qualification. The mutant assessment
-wrapper initially checked the wrong timeout wording; its preserved actual exit
-101/log establishes the intended negative without a repeated run.
-
-Concrete logs are `/tmp/phase-c-execution/c-1/qa-8/helper-*.log` and source freeze
-is recorded in `helper-edit-progress.json`. Original source-free counterexamples,
-SID audits and final pushed-source evidence follow the push. Per-platform CI
-remains separate from these local Darwin checks, following memory rule
-b-mr7cp6x0-ipdnhs. No QA, sprint, anchor, CI or merge acceptance is claimed by this
-developer receipt.
 
 
-## QA9 Windows shared-store diagnostic RQA9-001
-
-QA9 published FAIL (3 Blocking, 2 Important) for C1 `a753d279` and paired C2
-`b7de8e98`; the actual C2 Windows job 126397662727 failed the shared-store
-busy-persistence negative fixture without the post-call/stall receipt. Both
-schedule source `d30f281` and fixture helper `d312b56` match across those heads.
-The retained raw Windows log remains under the QA9 evidence archive. Its absent
-receipt does not identify which child phase exhausted the original five seconds
-or prove that the operation never began or returned.
-
-This diagnostic adds elapsed receipts for setup/open, the actual worker call and
-wait result, cancellation installation, completion timeout, rollback and actual
-join. The owned supervisor emits its captured child diagnostics on success as
-well as failure; the missing-receipt failure message states the observed limit.
-All original real-operation and timeout assertions, 30 ms cancellation, 500 ms
-observation, five-second absolute fixture lifetime and kill/reap ownership remain.
-No production source, dependency, guard or startup behavior changes. Initial
-strict affected lint rejected the expanded test's line count; the same existing
-session-settings assertions were extracted and strict lint then passed. Native
-Darwin affected store tests pass 5/5; this does not establish the Windows cause.
-
-RQA9-001 remains OPEN: this is a diagnostic push, without a supported cause or
-correction claim. REQ-QA-004, ARCH-001, RBQA-F001 and QA2-001 remain OPEN for the
-unchanged published logging seam, strict graph and actual CI gates. Exact-source
-hosted Windows observations and independent QA10 remain required. Candidate-
-scoped QA9 RSH-001/FTQ-011 evidence and all earlier triage history were preserved
-while merging exact integration `63ebc1fa`. No sprint acceptance or merge is claimed.
 
 
 ## QA9 private phase protocol and planted classification control
 
-Exact integration `b731c09e` is consumed by ordinary feature merge, preserving
-both RQA9 diagnostic/owner histories and prior candidate-scoped closures. The
-independent causal owner keeps the original Windows failure OPEN: neither the
-selected nor full-store successful observation identifies its historical cause.
 
 The private store-test protocol now writes small structured checkpoints to
 separate main/worker files under the existing owned scratch directory, independent
@@ -1039,23 +695,10 @@ once: an incomplete cleanup receipt remains false and Drop cannot create a retry
 or fresh cleanup budget. Existing session-fixture ownership handoff is retained.
 New owned controls check observer error/panic and invalid receipt/root-reap paths.
 
-Only the schedule test module and private test helpers change. The production
-prefix of schedule.rs is checked separately; it is inaccurate to call that whole
-Rust file unchanged. Production store/cron/sync policy, accepted startup and
-FTQ009/010/011 mechanisms, public interfaces, dependencies and strict guards stay
-as reviewed. This is diagnostic/classification work, not an original-cause fix.
-All five canonical findings remain OPEN; QA10 and actual platform/current CI,
-sprint/anchor and merge gates are not waived. Final exact-source validation and
-push receipts follow in the QA9 phase-protocol result artifacts.
 
 
 ## QA10 inventory stage diagnostics
 
-QA10's actual macOS cron_hurry17/18 failure remains a valid unlocalized inventory
-timeout. The recovered initial-drain notice does not identify whether the later
-failure was in quiescence, final drain or independent audit. Exact integration
-`c0b251da` is consumed by ordinary merge, preserving all owning histories and
-previous candidate-scoped dispositions. All six current findings stay OPEN.
 
 The session helper now reports each cleanup stage, call index, original absolute
 deadline offset, remaining time and actual inventory result. Inventory subprocess
@@ -1067,26 +710,152 @@ transient first scan and third-scan stopped-command80ms injection retain their
 exact order and behavior; diagnostics record actual stop acknowledgement and
 remaining time before and after that original delay.
 
-An owned controlled counterexample establishes the old generic timeout's ambiguity:
-a held quiescence command fails cleanup, with root actually reaped and receipt
-false; a held post-audit command fails only after completed root cleanup, with its
-separate cleanup receipt still true. In both cases the held inventory is killed
-and waited, the original fixture remains failed, and complete independent session
-verification cannot rewrite the intentionally failed observation. Failed cleanup
-cannot acquire a second attempt or fresh deadline. These are stage-classification
-controls, not reproduction or correction of the natural macOS failure.
 
-Authorized local inventory controls pass6/6. The original EPERM sandbox attempt
-is retained separately: real process inventory was denied, not evidence about the
-hosted timeout. A normal local recovery observed scan3 in quiescence with214.069ms
-left after stop acknowledgement,81.886ms actual delay and132.183ms left before
-CONT; that observation does not establish the original failure stage or cause.
 
-Initial100ms drain, absolute250ms quiescence,1s cleanup, independent250ms audit,
-whole-child5s and one-attempt ownership remain unchanged. No fault or audit was
-removed or moved, no new per-scan cap, retry-to-green, production correction,
-public artifact, SDK/pin/guard change or acceptance waiver is introduced. This is
-diagnostic-only delivery pending exact-source hosted stage evidence and owner
-assessment. Store phase protocol and reviewed production sources remain unchanged.
-Final source, targeted post-push proof and macOS handle are recorded in QA10's
-inventory-stage result artifacts; no overall CI, sprint, anchor or merge claim.
+## QA10 recovery fixture composition correction
+
+The retained one-shot macOS observation at literal C2 source
+`7fb224623280dae9cb056915484cb698ddf6bdf0`, run41796715401/job126462431901,
+failed the recovery test18/19. Its ec68 helper receipts localize that occurrence
+to quiescence call3: the deliberately STOPped inventory was delayed80ms before
+CONT inside the same absolute250ms window requiring two complete stable censuses.
+The command timed out and was actually killed/waited; root exit101 and a complete
+final empty-session drain were retained, while cleanup correctly stayed failed.
+The independent audit was not reached. Lower-level signal/ps/observer timing and
+all earlier uninstrumented failure stages remain unproven. The independent owner
+supported separating these test inputs; this delivery does not claim a production
+cancellation or kernel fix.
+
+| Required proof | Earlier composition | Corrected independent coverage |
+|---|---|---|
+| Transient census recovery | First scan error plus extra stopped-command delay on scan3 | Same first error, followed by real full inventory, two fresh stable quiet censuses, actual root wait and final empty-session census; at least5 scans required |
+| Original failure preserved | Deliberately failed fixture must remain failed | Same failed status and child panic output assertions; cleanup success cannot convert its result to pass |
+| Independent final verification | Separate250ms audit and root absence | Same complete audit and root absence assertions; any audit error still fails the test |
+| Owned delayed inventory exceeds former50ms cap | Real STOP/80ms/CONT in recovery and separate existing preflight test | Existing independent250ms preflight regression retains actual STOP acknowledgement, requested80ms, verifies measured stopped-delay>=80ms, successful CONT, complete parsed inventory, actual wait/reap and PID absence; no redundant delay in recovery |
+| Incomplete quiescence fails closed | Held real command consumes original quiescence deadline | Unchanged stage control: false cleanup receipt, original root failure, command/root reap, complete independent session audit, refused second attempt |
+| Independent audit timeout stays an error | Held real command consumes independent250ms audit | Unchanged stage control: audit fails while prior cleanup receipt stays true; command/root reap and complete independent later verification cannot waive the failed audit |
+| Noncooperation, one attempt and unwind | Complete owned cleanup under original budgets | Unchanged incomplete-inventory and stopped-inventory timeout/unwind tests, plus pre-registration and fixture/Python assertion-unwind lifecycle proofs |
+
+Only the two private test bodies change. SessionFixture, inventory execution,
+quiescence, final-drain, observer protocol and cleanup/Drop implementations remain
+unchanged. All numerical budgets remain: preflight250ms, initial drain100ms,
+absolute quiescence250ms, final cleanup1s, independent audit250ms and fixture5s.
+No error becomes successful recovery, no census/audit is removed, and no retry,
+minimum success-margin reservation, fresh budget or host/thread setting is added.
+Any required real inventory exceeding its deadline still fails honestly.
+
+
+
+## QA11 native fixture qualification correction
+
+QA11 remains FAIL29/34 with six open findings. Its actual Windows trace puts
+busy-fixture setup near4.785s and worker entry near4.975s against the complete
+five-second owner; cancellation/required return qualification then ran out of
+that lifetime. The disposable test store now uses a cfg(test)-only constructor
+with synchronous=OFF before the SAME complete initialization/identity transaction,
+canonical file claim, busy policy and WAL configuration. It still exercises real
+public schedule operations, external writer contention and actual running SQL;
+no schema substitute or production durability change is introduced. The shared
+management/error/unwind/health test uses this fixture too and remains required.
+The observed trace does not isolate fsync as the exact historical cost or promise
+a host scheduling margin. All setup remains within the original pre-spawn5s
+owner, with30ms cancellation,500ms observation and all required negative markers.
+
+QA11's distinct macOS delayed-inventory positive observed command exit0/wait after
+its250ms output deadline. That isolated regression now owns spawn and actual STOP
+readiness in the existing SessionFixture5s exact-child supervisor, then creates
+ONE250ms caller deadline before process_ids_using. The real>=80ms hold,CONT,
+complete real inventory parsing/self-presence and wait/reap/PID-absence all remain
+inside that caller qualification. This explicitly changes isolated test setup
+scope; no supplied deadline is renewed. Ordinary preflight/cleanup/audit callers
+still include their command spawn and complete parsing under the same original
+absolute deadlines. All timeout, assertion-unwind, incomplete-receipt/no-retry
+and root/census controls remain; arbitrary timeout cannot pass the positive.
+The historical50ms cap placed BEFORE injection must still fail this case.
+
+RQA10 and CI-C2-RUNNER-001 retain QA11's independently resolved exact-C1 scope;
+prior FTQ/RSH credits and all original failures remain. RQA9/RQA11 corrections
+require independent QA12/owner adjudication. ARCH-001, QA2-001, RBQA-F001 and
+REQ-QA-004 retain their genuine public receiver/graph/current-acceptance blockers.
+No SDK/pin/guard/publisher workaround or whole-sprint acceptance is claimed.
+Ordinary developer source/test evidence is in QA11's native-qualification result;
+no separate coverage-ledger artifact or standing process gate is required.
+
+
+## Public logging facade
+
+
+The real receiver now implements the public
+`sc_cron::observability::CanonicalLog` and uses its shared/event/service/error
+exports. The direct sync-to-sc-command dependency is removed. Canonical event
+projection, ordering, redaction, error/outcome fields and best-effort emission
+remain unchanged. The fixed validated service identity remains bd-cache; no
+no-op adapter, type copy, dependency relocation or altered public facade is used.
+All prior fixture/startup/runner corrections remain in source.
+
+
+
+## Historical qualified C5 prerelease pin and provenance correction
+
+The user's conditional authorization was: “ok, sc-runtime team has a ci failure
+on pr115. once this is resolved, you can pin that release to use before the
+0.2.0 release is finalized.” The parent relayed this verbatim and interpreted
+the producer-qualified PR118 merge candidate as fulfilling that condition.
+ADR-BDC-0016's qualified prerelease source amendment records this interpretation,
+including the distinction between green PR checks and literal merge-head CI.
+
+Before registry publication, C1 pinned sc-cron/sc-command package version 0.2.0 to exactly
+`c3ce3d1b271b54fbb47efaef57ee1563a390cd9e` at the approved upstream URL. Only those
+two lockfile records change; observability, rusqlite and the single SQLite
+provider remain unchanged. No production Rust edit is needed: the genuine public
+cron receiver, event projection/redaction, service identity, public facades and
+all previously reviewed startup/shutdown/fixture behavior are retained.
+
+The temporary isolated-consumer gate permitted precisely published crates.io
+0.1.1 or that URL/revision/resolved-commit/version tuple. It rejects wrong rev,
+resolved commit, URL, moving source, local path, version, mixed nominal identities,
+forbidden introducers and SDK features/assembly. The existing independent API and
+Python consumer commands must actually pass; a fixture-only pass is insufficient.
+
+This temporary narrow source amendment superseded the earlier published-only
+source predicates retained in Git and earlier reports. Publication now retires
+that exception; current deliverables and ADR/REQ clauses use registry 0.2.0.
+Prior failure logs and development-pin provenance remain historical evidence.
+Parent anchor review must adjudicate the exact
+interpretation: published-only source becomes published baseline OR this single
+qualified prerelease Git candidate; domain semantics and all locked ANC bounds
+remain unchanged. No anchor is silently waived or rewritten.
+
+QA14's actual owner/enforcer reviews at `60f89200fe337d57ede24ecaa55e36171a1c4305`
+resolve ARCH13-001 and RBQA-F001, preserve earlier scoped credits and record
+15/15 CI checks. REQ-QA-004 remains OPEN for independent QA15, applicable
+anchors and new-head CI. The existing lifecycle suite now verifies the public
+cached-read route while an acknowledged scheduled Python sync remains active,
+with no additional BdCli argv request and a real cold-read counterexample.
+The parent-maintained REQ-BDC-0007 version-3 deterministic-check metadata is
+included unchanged; no anchor statement, scope or question changes. Ordinary
+handoff evidence does not claim sprint/anchor/CI acceptance or merge approval.
+
+
+The first qualified-pin store run retained a 36/37 failure: the management-health
+regression inspected nested Debug for “read-only”, while the candidate SDK now
+redacts StoreError context in Debug. The minimal SDK error-API adoption changes
+only that assertion to traverse the real Error source chain and require the
+exact typed BD_CACHE.STORE_FAILED read-only refusal. It retains every operation,
+restoration/unwind assertion and deadline. This does not weaken health policy or
+alter production source. The original raw failed run remains in the handoff.
+
+
+## Current published registry baseline
+
+C1 consumes sc-cron/sc-command at exact crates.io `=0.2.0`, default features off.
+The temporary qualified C5 Git source allowance is retired. The real public
+`sc_cron::observability` receiver and all store/startup/shutdown/fixture corrections
+remain; SDK 0.2.0 does not change bd-cache API 0.1 compatibility. sc-observability
+1.5, rusqlite 0.39 and one SQLite provider remain the dependency policy. The
+isolated graph gate permits only this registry version/source pair and retains
+all introducer, feature and assembly restrictions. Current source qualification
+and provenance receipts live in `/tmp/phase-c-execution/c-1/registry020-adoption`;
+original failures and pin evidence remain historical. Independent QA15, full-input
+version-3 development-anchor review and exact-head CI remain required; publication
+alone does not establish upstream full consumer acceptance or sprint completion.

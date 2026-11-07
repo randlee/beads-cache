@@ -240,13 +240,13 @@ Anchor: Every bead row stored by beads-cache, including rows ingested from a con
 
 > Every bead row stored by beads-cache, including rows ingested from a consumer sync, must pass the strict row decoder generated from bd schema.
 
-Said by randlee, planning session, 2026-10-25. Status: locked. Version 2.
+Said by randlee, planning session, 2026-10-25. Status: locked. Version 3.
 
 Summary: Strict row contract on every ingested row
 
 Scope: any bead that adds or changes a path that stores bead rows, such as sync, fetch or ingest_scope
 
-Deterministic check to pair with the development gate: test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field
+Deterministic check to pair with the development gate: crates/sc-beads/tests/strict_rows.rs::a_bad_row_is_a_contract_error_naming_bead_and_field rejects an unknown bd-row key as BD_CACHE.BD_CONTRACT naming the bead and field; crates/bd-cache/tests/ingest.rs::one_invalid_row_among_valid_ones_stores_none_of_them rejects an ingest row with an unknown key as INGEST_INVALID (row_invalid, row index) and stores no rows, per approved REQ-BDC-0726 and REQ-BDC-0729.
 
 Beads: anchor `bdc-svf`, plan questions `bdc-svf.1`, dev questions `bdc-svf.2`
 

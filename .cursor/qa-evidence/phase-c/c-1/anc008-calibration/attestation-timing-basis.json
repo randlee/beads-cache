@@ -1,0 +1,5 @@
+{
+  "basis": "Observed corrected-request file write through accepted-result file write, not claimed agent CPU runtime",
+  "request_mtime_ms": 1794009965160,
+  "accepted_result_mtime_ms": 1794010531696
+}

@@ -1,0 +1,404 @@
+[
+  {
+    "raw_line": 1288,
+    "receipt": {
+      "absolute_lifetime_ns": 5000000000,
+      "classification": "worker_return_and_stall_marker_observed",
+      "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+      "mode": "stalled",
+      "outer_to_owner_ns": 547500,
+      "owner_origin": "Instant before Command.spawn",
+      "owner_reported_ns": 5004288200,
+      "owner_unix_ns": 1793781520768144500,
+      "receipts": [
+        {
+          "execution": {
+            "child_elapsed_ns": 30200,
+            "data": null,
+            "phase": "fixture-body-entered",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 8717800
+          },
+          "owner_received_ns": 9236100
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 509700,
+            "data": null,
+            "phase": "scratch-create-start",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 9213200
+          },
+          "owner_received_ns": 14879400
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1038600,
+            "data": null,
+            "phase": "store-open-start",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 9739900
+          },
+          "owner_received_ns": 14901100
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 64736300,
+            "data": null,
+            "phase": "store-open-returned",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 73435100
+          },
+          "owner_received_ns": 76170200
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 65034700,
+            "data": null,
+            "phase": "schedule-view-start",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 73739000
+          },
+          "owner_received_ns": 76184500
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 68723200,
+            "data": null,
+            "phase": "schedule-view-returned",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 77427000
+          },
+          "owner_received_ns": 81827300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 68957500,
+            "data": null,
+            "phase": "schedule-setup-complete",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 77662200
+          },
+          "owner_received_ns": 81840000
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 69156800,
+            "data": null,
+            "phase": "worker-spawn-start",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 77862100
+          },
+          "owner_received_ns": 81850500
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 71318500,
+            "data": {
+              "ok": true
+            },
+            "phase": "wait-result",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 80022300
+          },
+          "owner_received_ns": 81864300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 71785900,
+            "data": {
+              "child_deadline_ns": 101770100
+            },
+            "phase": "cancellation-deadline-installed",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 80490700
+          },
+          "owner_received_ns": 81878800
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 72002000,
+            "data": null,
+            "phase": "cancellation-installed",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 80706200
+          },
+          "owner_received_ns": 81890300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 574226500,
+            "data": {
+              "timeout": true
+            },
+            "phase": "completion-result",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 582930400
+          },
+          "owner_received_ns": 587679800
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 574491000,
+            "data": null,
+            "phase": "worker-join-start",
+            "pid": 2480,
+            "stream": "main",
+            "wall_since_owner_ns": 583194400
+          },
+          "owner_received_ns": 587694500
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 69664000,
+            "data": null,
+            "phase": "worker-call-start",
+            "pid": 2480,
+            "stream": "worker",
+            "wall_since_owner_ns": 78365500
+          },
+          "owner_received_ns": 81987900
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 101850800,
+            "data": {
+              "debug": "Err(Store(StoreError { kind: Other, context: \"bounded cache schedule session\", source: Some(StoreFailed { detail: \"schedule worker shutdown: store deadline expired\", source: Some(StoreCause(Custom { kind: TimedOut, error: \"schedule store deadline expired\" })) }) }))",
+              "is_error": true,
+              "sqlite_code": null
+            },
+            "phase": "worker-call-returned",
+            "pid": 2480,
+            "stream": "worker",
+            "wall_since_owner_ns": 110557500
+          },
+          "owner_received_ns": 115912300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 103366100,
+            "data": null,
+            "phase": "stall-marker-written",
+            "pid": 2480,
+            "stream": "worker",
+            "wall_since_owner_ns": 112069700
+          },
+          "owner_received_ns": 115927600
+        }
+      ],
+      "root_joined_and_cleaned": true,
+      "spawn_returned_ns": 3372500,
+      "test": "schedule::tests::shutdown_interrupts_an_already_contended_worker_read_only"
+    }
+  },
+  {
+    "raw_line": 1309,
+    "receipt": {
+      "absolute_lifetime_ns": 5000000000,
+      "classification": "worker_return_unobserved_phase_unresolved",
+      "clock_limits": "receive is not execution; wall correlation may move; all deadlines use original owner Instant",
+      "mode": "stalled",
+      "outer_to_owner_ns": 839200,
+      "owner_origin": "Instant before Command.spawn",
+      "owner_reported_ns": 5493828300,
+      "owner_unix_ns": 1793781525817593900,
+      "receipts": [
+        {
+          "execution": {
+            "child_elapsed_ns": 31000,
+            "data": null,
+            "phase": "fixture-body-entered",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 6509400
+          },
+          "owner_received_ns": 7790400
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 480500,
+            "data": null,
+            "phase": "scratch-create-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 6968900
+          },
+          "owner_received_ns": 7817900
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1043800,
+            "data": null,
+            "phase": "store-open-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 7537900
+          },
+          "owner_received_ns": 13590900
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1934422000,
+            "data": null,
+            "phase": "store-open-returned",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 1940909800
+          },
+          "owner_received_ns": 2872065300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 1934740300,
+            "data": null,
+            "phase": "schedule-view-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 1941233000
+          },
+          "owner_received_ns": 2872085000
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 3699317800,
+            "data": null,
+            "phase": "schedule-view-returned",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 3705806100
+          },
+          "owner_received_ns": 3708223200
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 3699651000,
+            "data": null,
+            "phase": "schedule-create-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 3706142400
+          },
+          "owner_received_ns": 3708237200
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4785357200,
+            "data": null,
+            "phase": "schedule-setup-complete",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 4791839600
+          },
+          "owner_received_ns": 4792901500
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4785693500,
+            "data": null,
+            "phase": "contender-open-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 4792183300
+          },
+          "owner_received_ns": 4792918300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4974038100,
+            "data": null,
+            "phase": "contender-lock-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 4980522000
+          },
+          "owner_received_ns": 5486362300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4974568600,
+            "data": null,
+            "phase": "contender-lock-acquired",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 4981056600
+          },
+          "owner_received_ns": 5486385700
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4974755000,
+            "data": null,
+            "phase": "worker-spawn-start",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 4981245100
+          },
+          "owner_received_ns": 5486403000
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 5479957600,
+            "data": {
+              "ok": true
+            },
+            "phase": "wait-result",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 5486443200
+          },
+          "owner_received_ns": 5493682300
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 5480372600,
+            "data": {
+              "child_deadline_ns": 5510356600
+            },
+            "phase": "cancellation-deadline-installed",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 5486862100
+          },
+          "owner_received_ns": 5493698900
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 5480623000,
+            "data": null,
+            "phase": "cancellation-installed",
+            "pid": 5192,
+            "stream": "main",
+            "wall_since_owner_ns": 5487111800
+          },
+          "owner_received_ns": 5493710000
+        },
+        {
+          "execution": {
+            "child_elapsed_ns": 4975143400,
+            "data": null,
+            "phase": "worker-call-start",
+            "pid": 5192,
+            "stream": "worker",
+            "wall_since_owner_ns": 4981631800
+          },
+          "owner_received_ns": 5486514000
+        }
+      ],
+      "root_joined_and_cleaned": true,
+      "spawn_returned_ns": 2181100,
+      "test": "schedule::tests::shutdown_interrupts_busy_persistence_and_restores_the_shared_session"
+    }
+  }
+]

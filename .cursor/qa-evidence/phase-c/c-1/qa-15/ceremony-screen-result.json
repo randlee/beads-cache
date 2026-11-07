@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "data": {
+    "screened": [
+      {
+        "id": "REQ-QA-004",
+        "verdict": "keep",
+        "missing": [],
+        "existing_coverage": "The 16 passing paired checks and 15 green CI checks establish the credited source/behavior evidence but do not replace the already-required development-anchor gate; QA15 formal triage identifies an ANC-001 omission of exact lint commands/outcomes and an ANC-008 likely evaluator inconsistency despite concrete submitted test evidence.",
+        "reason": "The existing development-gate reviewer consumes the narrowly corrected account to govern c-1 integration, the observed QA15 ANC-001 report omission justifies that correction, and the bounded work ends at valid applicable gate closeout without a new ledger, standing gate or unsupported ANC-008 source/question change or identical retry."
+      }
+    ]
+  },
+  "error": null
+}

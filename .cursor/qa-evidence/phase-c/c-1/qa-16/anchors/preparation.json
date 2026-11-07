@@ -1,0 +1,190 @@
+{
+  "success": true,
+  "candidate_commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "pr_number": 108,
+  "correlation_id": "c-1-qa16",
+  "preflight": {
+    "success": true,
+    "output_path": "/tmp/phase-c-execution/c-1/qa-16/anchors/preflight.json",
+    "canonical_item": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+    "canonical_evidence": [
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md",
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/current-ci.json"
+    ]
+  },
+  "dryrun": {
+    "run_id": "dev-20261107T002147Z-c-1",
+    "run_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002147Z-c-1.json",
+    "threshold": 0.6,
+    "request_cap_bytes": 64000,
+    "item_chars": 56116,
+    "item_bytes": 56138,
+    "result_count": 17,
+    "request_count": 16,
+    "excluded": [
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+      }
+    ],
+    "shortened": [],
+    "errors": [],
+    "all_requests_contain_exact_complete_item": true,
+    "all_requests_contain_sections": [
+      "Sprint report",
+      "Files changed",
+      "Tests"
+    ],
+    "max_request_bytes_actual": 61628,
+    "per_anchor": [
+      {
+        "anchor_id": "ADR-BDC-0005",
+        "request_bytes": 60812,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ADR-STORE-0001",
+        "request_bytes": 60780,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-001",
+        "request_bytes": 60864,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-002",
+        "request_bytes": 60729,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-003",
+        "request_bytes": 60737,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-004",
+        "request_bytes": 61628,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-008",
+        "request_bytes": 60511,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "ANC-009",
+        "request_bytes": 60714,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "NFR-BDC-0004",
+        "request_bytes": 61417,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "NFR-BDC-0005",
+        "request_bytes": 60743,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0001",
+        "request_bytes": 60762,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0006",
+        "request_bytes": 60747,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0007",
+        "request_bytes": 60810,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0008",
+        "request_bytes": 60779,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0502",
+        "request_bytes": 60762,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      },
+      {
+        "anchor_id": "REQ-BDC-0812",
+        "request_bytes": 60802,
+        "item_chars_sent": 56116,
+        "item_shortened": false
+      }
+    ]
+  },
+  "override_resolution": {
+    "tracker": "br",
+    "beads": {
+      "ANC-004": "bdc-3df.2",
+      "ANC-008": "bdc-i61.2",
+      "NFR-BDC-0004": "bdc-vkg.2"
+    },
+    "current_br_show_saved": true,
+    "ANC008_exact_accepted_override": true,
+    "ANC004_and_NFR0004_retained_unchanged": true,
+    "accepted_contract_sha256": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+    "application_receipt": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json",
+    "production_fixture_check": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/production-fixture-check.json"
+  },
+  "item_file": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+  "account_file": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md",
+  "overrides_file": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/overrides.json",
+  "judge_argv_file": "/tmp/phase-c-execution/c-1/qa-16/anchors/judge-argv.json",
+  "dryrun_output_file": "/tmp/phase-c-execution/c-1/qa-16/anchors/dryrun.json",
+  "live_judge_called_by_preparer": false,
+  "notes": [
+    "The current entire sprint is the exact item prefix; the corrected report file is appended byte-for-byte.",
+    "All 17 locked records retained, all 16 applicable request cells constructed, and ADR-BDC-0009 remains excluded.",
+    "Current installed ANC-008 override was resolved from br bead bdc-i61.2 and matches the accepted sealed override; ANC-004 and NFR-BDC-0004 override blocks are retained unchanged.",
+    "No source, sprint, anchor statement/scope/exclusion, threshold, tracker record, settings, or lock files were modified. Only ignored QA16 evidence/metadata was written."
+  ],
+  "sha256": {
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt": "fa73c8f561e66dae9b372e6248cd5e3e32966072c3b3223d71c4ff9b95f6c1fc",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/current-ci.json": "96ae03ec1c61aa277d0a580ac9e5f5d583a2bd368cfe7c73596661d1846a31d7",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/overrides.json": "ce3871414f1efa6e1803511739aa3832a2bb0f888b712a42c414fab1f2415c39",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/override-resolution.json": "a0102ae307434956eb5188d6e65111389aeac479ed50762b17d0082ab30ea3e6",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/docs/plans/phase-c/anchors/anchors.json": "19f70fcfd8ed07bec7cb04d1cfc6fabddadd21d537ca528ec937c5de2452f702",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/docs/plans/phase-c/sprint-c-1-runtime-migration.md": "46d77068c1771c20ef272d62ef08b458059089ef80d8b3115bbf853750985d2b",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.codex/skills/plan-anchoring/scripts/jev_judge.py": "ea77e30a9cc433845cef8bd29453062ee7910c170418d20ea15cf3b78dcb60b6",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.codex/agents/anchor-sprint-review.md": "6c0d4d63e52a5c1c43ff884091719b754009a87c85bdc9e4d75afdf700522b08",
+    "/tmp/phase-c-execution/c-1/qa-16/anchor-runtime.json": "40ea691ad96e693097a3125d387e28b7b6e6af401207e2e4d6448e4c3c5b401d",
+    "/tmp/phase-c-execution/c-1/qa-16/anchor-invocation.md": "bb02060b7cf523694f21e44a2d140c1a8001e6e733b7c821ddb1aa925204e2e4",
+    "/tmp/phase-c-execution/c-1/qa-15-fix/corrected-sprint-report.md": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+    "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.json": "3042dc505debfa71a7c5f7225dcaa2620c154524a375958db1f5280e5213a2d0",
+    "/tmp/phase-c-execution/c-1/qa-15/current-ci.json": "96ae03ec1c61aa277d0a580ac9e5f5d583a2bd368cfe7c73596661d1846a31d7",
+    "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/selected-overrides.json": "a4d93236535ede1a92eb82a1035d8c04281c2e7bf50c7c1cf6b193fff8b1c625",
+    "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json": "859875facf170edfaa140cef60c49a54feb663216fad283795b49f8a14a31029",
+    "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/production-fixture-check.json": "67690dc51301fe1e92682ef8bc87bbb3ba8d9ef3f378e36643d3e90d0bf3130f",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/question-ANC-008.json": "adc8462946ffff1690e609684f5dbc985312cf5603a1b13669b363c61431c2c0",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/question-ANC-004.json": "9acfebc79a7ae9624594f00963f7d17bef1b0f1796d536fcfd9f48f950dc4d7d",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/question-NFR-BDC-0004.json": "f7c9a711e42cd5943bf0d8eb018088abbf39049d90f3084337cc6c7597d67aa8",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002147Z-c-1.json": "c157c0c588f7275e9c3c67e98c569da8ca21d4fe912748e488faecc6fc3d6df5",
+    "/tmp/phase-c-execution/c-1/qa-16/anchors/preflight.json": "dec2f9a6ffb777deae0d436ae918674a8eca3cfd5c03b8a899cf395a233352a7",
+    "/tmp/phase-c-execution/c-1/qa-16/anchors/dryrun.json": "290870fe8ce6976c817e67cf058ed5593bcddb0867bf00161786ffd4cf697678"
+  }
+}

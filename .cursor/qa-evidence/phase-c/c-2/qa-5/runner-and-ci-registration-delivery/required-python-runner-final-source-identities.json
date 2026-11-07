@@ -1,0 +1,67 @@
+{
+  "head": "c8d0c9e4906d576407459d0722f7a61989969ee2",
+  "baseline": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+  "parent": "7fb224623280dae9cb056915484cb698ddf6bdf0",
+  "changed_files": [
+    ".github/workflows/python.yml",
+    ".triage/c/findings/CI-C2-RUNNER-001.ttl"
+  ],
+  "workflow_blob": "a21dd451a30d8d7a0ab60d2d18ebcca16c9ba7d7",
+  "workflow_sha256": "0e2110cd90d20b5d7383aaa4c973b7ade7917651bba0d9369369a4e424de7fc3",
+  "canonical_TTL_blob": "aada42e50310b21c2270c5139327a2b83125cb2c",
+  "unchanged": {
+    "crates": {
+      "before": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab",
+      "after": "13e7df86d9d103b6a85f1fd99ab0d97dfe89d4ab"
+    },
+    "Cargo.toml": {
+      "before": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7",
+      "after": "ae4f04d6d7a5cbb499beec02a2b0db3fa39777f7"
+    },
+    "Cargo.lock": {
+      "before": "8ff90ed761ac59b12f60c757085de42ccb2b8928",
+      "after": "8ff90ed761ac59b12f60c757085de42ccb2b8928"
+    },
+    "runtime": {
+      "before": "1a73c937007ce19137e4e8ab239292befe05638a",
+      "after": "1a73c937007ce19137e4e8ab239292befe05638a"
+    },
+    ".github/workflows/ci.yml": {
+      "before": "82afd3f400900f5d803f7f7ab2728495e32c8d40",
+      "after": "82afd3f400900f5d803f7f7ab2728495e32c8d40"
+    },
+    "scripts/consumer_checks.py": {
+      "before": "45324ac568d490ba95d2f484e0ef2f0483b378dd",
+      "after": "45324ac568d490ba95d2f484e0ef2f0483b378dd"
+    },
+    "docs": {
+      "before": "f9fc5c6989d4d60d9b60ffa1ad5022df00818815",
+      "after": "f9fc5c6989d4d60d9b60ffa1ad5022df00818815"
+    }
+  },
+  "all_prior_and_new_canonical_triage_byte_identical": {
+    ".triage/c/findings/C2-REQ-003.ttl": true,
+    ".triage/c/findings/FTQ-009.ttl": true,
+    ".triage/c/findings/QA-C2-001.ttl": true,
+    ".triage/c/findings/RSH-001.ttl": true,
+    ".triage/c/findings/C2-REQ-007.ttl": true,
+    ".triage/c/findings/CI-C2-RUNNER-001.ttl": true,
+    ".triage/c/findings/C2-REQ-004.ttl": true,
+    ".triage/c/findings/CI-C4-001.ttl": true,
+    ".triage/c/findings/RQA10-001.ttl": true,
+    ".triage/c/findings/REQ-QA-003-001.ttl": true,
+    ".triage/c/findings/C2-FTQ-006.ttl": true,
+    ".triage/c/findings/REQ-QA-004.ttl": true,
+    ".triage/c/findings/ARCH-001.ttl": true,
+    ".triage/c/findings/RBQA-F001.ttl": true,
+    ".triage/c/findings/C2-REQ-009.ttl": true,
+    ".triage/c/findings/C4-RBP-F001.ttl": true,
+    ".triage/c/findings/FTQ-011.ttl": true,
+    ".triage/c/findings/FTQ-010.ttl": true,
+    ".triage/c/findings/RQA9-001.ttl": true,
+    ".triage/c/findings/QA2-001.ttl": true,
+    ".triage/c/findings/C4-FTQ-001.ttl": true
+  },
+  "working_tree_clean": true,
+  "no_new_merge": true
+}

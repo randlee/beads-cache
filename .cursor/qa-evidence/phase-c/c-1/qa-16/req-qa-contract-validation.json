@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python3",
+    "-B",
+    ".codex/skills/plan-anchoring/scripts/anchor_tuning_contract.py",
+    "result",
+    "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/accepted-result.json"
+  ],
+  "exit_code": 0,
+  "stdout": {
+    "data": {
+      "sha256": "a5e063180a0cad81018a10701b75cfc70ca799f3d1aeec9eec37672b7e39207c",
+      "valid": true
+    },
+    "error": null,
+    "success": true
+  },
+  "scope": "Read-only relational contract validation; no Jev/Cargo/source mutation."
+}

@@ -1,0 +1,250 @@
+```json
+{
+  "status": "FAIL",
+  "reviewed_branch": "sprint/c-1-runtime-migration",
+  "reviewed_commit": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "errors": [],
+  "scope": {
+    "phase": "c",
+    "sprint": "c-1"
+  },
+  "model": "actual gpt-6.1-sol high fallback; configured Composer unavailable",
+  "review_role": "independent req-qa; full101 requirements and34 deliverables; source/evidence only",
+  "findings": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "category": "acceptance-gap",
+      "source_refs": [
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:225",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:365",
+        "docs/plans/phase-c/sprint-c-1-runtime-migration.md:381",
+        "docs/architecture.md:1148",
+        "docs/bd-cache-api/requirements.md:127"
+      ],
+      "target_refs": [
+        "crates/bd-cache-sync/Cargo.toml:31",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+        ".github/workflows/python.yml:71",
+        ".github/workflows/python.yml:113",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json"
+      ],
+      "issue": "At frozen clean d8242dbe, the direct bd-cache-sync -> sc-command dependency exceeds the approved upstream sc-cron-only contract/logging exception; actual exact-head isolated Python consumer CI fails. Required native platform CI and the changed macos-15 arm64 wheel/Python 3.9/3.11/3.13 qualification are incomplete at the bounded snapshot. All 159 production Rust source files and mandatory baselines match QA10. The recovery fixture correction is supported by its coverage ledger, current source and native 19/19 evidence, with owning flaky review pending. Original Windows RQA9 remains unlocalized. All 101 requirements and 34 deliverables were reassessed: 28/34 are complete, with six open composition, qualification, CI and closeout items.",
+      "required_correction": "Resolve canonical logging composition within the approved public receiver contract; remove the unauthorized sync edge and pass the unchanged actual isolated consumer gate. Complete exact-head three-OS and Python CI, including the macos-15 arm64 wheel and installed Python 3.9/3.11/3.13 tests. Preserve original RQA9 evidence and obtain supported mechanism/correction adjudication. Route the corrected RQA10 ledger, source and native proof to the owning flaky reviewer. Complete independent QA, development anchors and integration closeout. Do not expand the dependency exception, suppress guards, change runtime pins, relax deadlines or use later passes as a waiver.",
+      "compliance_result": "partially-compliant",
+      "incomplete_deliverable_ids": [
+        "C1-D11",
+        "C1-D12",
+        "C1-D21",
+        "C1-D27",
+        "C1-D31",
+        "C1-D34"
+      ]
+    }
+  ],
+  "summary": {
+    "total_findings": 1,
+    "blocking_findings": 1,
+    "important_findings": 0,
+    "minor_findings": 0,
+    "overall_compliance": "non-compliant",
+    "deliverables_total": 34,
+    "deliverables_complete": 28,
+    "deliverables_incomplete": 6,
+    "deliverable_completion_percent": 82.35,
+    "requirement_total": 101,
+    "requirement_results": {
+      "violated": 2,
+      "upheld": 98,
+      "not-verifiable": 1
+    },
+    "finding_count_scope": "Req-qa owned findings only. All seven distinct prior/shared IDs remain tracked pending evidence disposition; their owner severities remain separate from this report count.",
+    "related_owner_open_counts": {
+      "Blocking": 3,
+      "Important": 4,
+      "Minor": 0
+    }
+  },
+  "gate_reason": "FAIL: REQ-BDC-1002 and REQ-API-0008 are violated by the direct sync-to-sc-command introducer; REQ-PY-0010 packaging qualification is not yet verifiable on the changed macOS runner. Exact-head isolated consumer CI fails, and six checklist items remain open. Completion is 28/34 (82.35%). Native 19/19 and the supported recovery coverage correction receive scoped credit. All seven prior/shared IDs remain tracked pending owning evidence dispositions; platform CI, runner qualification, development anchors and integration acceptance are incomplete.",
+  "finding_dispositions": [
+    {
+      "id": "REQ-QA-004",
+      "severity": "Blocking",
+      "owner": "req-qa",
+      "disposition": "open",
+      "notes": "Direct forbidden sync -> sc-command edge remains in current source and exactd824 actual isolated Python graph fails. Canonical IDs/owner severities retained separately; no duplicate finding invented.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "ARCH-001",
+      "severity": "Blocking",
+      "owner": "arch-qa",
+      "disposition": "open",
+      "notes": "Direct forbidden sync -> sc-command edge remains in current source and exactd824 actual isolated Python graph fails. Canonical IDs/owner severities retained separately; no duplicate finding invented.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "RBQA-F001",
+      "severity": "Blocking",
+      "owner": "retained ruthless-boundary-qa",
+      "disposition": "open",
+      "notes": "Direct forbidden sync -> sc-command edge remains in current source and exactd824 actual isolated Python graph fails. Canonical IDs/owner severities retained separately; no duplicate finding invented.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "QA2-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent",
+      "disposition": "open",
+      "notes": "Direct forbidden sync -> sc-command edge remains in current source and exactd824 actual isolated Python graph fails. Canonical IDs/owner severities retained separately; no duplicate finding invented.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log:561",
+        "crates/bd-cache-sync/src/cron_log.rs:3",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "RQA9-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent and flaky-test-qa",
+      "disposition": "open",
+      "notes": "The original Windows qualification cause remains unlocalized. Diagnostic/classifier controls and the unchanged private protocol receive credit. Later passes do not identify or correct the historical cause. Identical historical replay is not imposed as a closure rule.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json"
+      ]
+    },
+    {
+      "id": "RQA10-001",
+      "severity": "Important",
+      "owner": "rust-qa-agent and flaky-test-qa",
+      "disposition": "open_pending_owner_adjudication",
+      "notes": "One actual 7fb/ec68 observation is localized to quiescence call 3 with a deliberately combined STOP/80 ms delay. The two-test-body correction removes that redundant delay only from positive transient recovery. Independent STOP/delay/CONT command ownership and PID-absence coverage remains, alongside five scans, two stable quiet censuses, failed-root wait, final empty census, independent 250 ms audit, original budgets and unchanged negative controls. Current native 19/19 corroborates the coverage. Req-qa supports this narrow fixture composition correction; lower-level kernel/signal/logging causes and all historical failure stages remain unproven. Owning flaky review is pending, so the ID remains tracked open.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/mac-observation-runner-correction/observation-owner-assessment.json",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:723",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:761",
+        "crates/bd-cache-sync/tests/common/session_fixture.rs:878",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:62",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:76",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:108",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:159"
+      ]
+    },
+    {
+      "id": "FTQ-009",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "The prior scoped owner mechanism closure is preserved by exact production source equality. FixtureChild and the store protocol are unchanged; the current session owner outside the two corrected test bodies equals ec68. Current 19/19 and the coverage ledger retain strict complete censuses, one cleanup attempt, original budgets and actual joins. Original failed logs remain failed evidence. This credit does not imply whole C2, stock HTTP or all-platform qualification.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350"
+      ]
+    },
+    {
+      "id": "FTQ-010",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "The prior scoped owner mechanism closure is preserved by exact production source equality. FixtureChild and the store protocol are unchanged; the current session owner outside the two corrected test bodies equals ec68. Current 19/19 and the coverage ledger retain strict complete censuses, one cleanup attempt, original budgets and actual joins. Original failed logs remain failed evidence. This credit does not imply whole C2, stock HTTP or all-platform qualification.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350"
+      ]
+    },
+    {
+      "id": "FTQ-011",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "The prior scoped owner mechanism closure is preserved by exact production source equality. FixtureChild and the store protocol are unchanged; the current session owner outside the two corrected test bodies equals ec68. Current 19/19 and the coverage ledger retain strict complete censuses, one cleanup attempt, original budgets and actual joins. Original failed logs remain failed evidence. This credit does not imply whole C2, stock HTTP or all-platform qualification.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350"
+      ]
+    },
+    {
+      "id": "RSH-001",
+      "disposition": "scoped_owned_closure_preserved",
+      "owner": "original owning reviewer/enforcer; current fences corroborate",
+      "notes": "The prior scoped owner mechanism closure is preserved by exact production source equality. FixtureChild and the store protocol are unchanged; the current session owner outside the two corrected test bodies equals ec68. Current 19/19 and the coverage ledger retain strict complete censuses, one cleanup attempt, original budgets and actual joins. Original failed logs remain failed evidence. This credit does not imply whole C2, stock HTTP or all-platform qualification.",
+      "evidence_refs": [
+        "/tmp/phase-c-execution/c-1/qa-10/rust-qa-agent-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/flaky-test-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/arch-qa-result.json",
+        "/tmp/phase-c-execution/c-1/qa-10/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+        "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log:350"
+      ]
+    },
+    {
+      "id": "CI-C2-RUNNER-001",
+      "severity": "Important",
+      "owner": "flaky-test-qa/shared runner finding",
+      "disposition": "open_pending_owner_and_actual_runner_qualification",
+      "notes": "The current workflow differs from 4452 only by three macos-14 to macos-15 label replacements and the canonical TTL import. All 11 jobs, required versions/platforms, commands and matching artifact keys are retained. Current macos-15 Rust success proves execution for that job; wheel and installed-Python qualification remain pending. Original C2 scope/history and the shared C1 obligation are retained; static correction alone does not close the finding.",
+      "evidence_refs": [
+        ".github/workflows/python.yml:40",
+        ".github/workflows/python.yml:71",
+        ".github/workflows/python.yml:113",
+        ".github/workflows/python.yml:101",
+        ".github/workflows/python.yml:126",
+        "/tmp/phase-c-execution/c-1/qa-10/shared-python-runner-fix-result.json",
+        "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json"
+      ]
+    }
+  ],
+  "review_timestamp_utc": "2026-11-04T08:41:39.882332+00:00",
+  "state": "STOP",
+  "cargo_commands": 0,
+  "active_owned_commands": 0,
+  "projection_contract": "Role-authored bounded canonical handoff. Finding objects, summary, gate reason and dispositions are copied without modification from the preserved full report. Detailed 101 requirement checks and 34 deliverable checks remain in the hashed full-report artifacts.",
+  "full_report_artifacts": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-result.json",
+      "bytes": 205853,
+      "sha256": "bc0f45f1c1691965cec4dec9ae7d132bd3e1596d151a934a361a052de0611123"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-result.md",
+      "bytes": 205865,
+      "sha256": "4fc614c39f06fa6d8a08cdbb4859cc666aa5d6d34a2d434319c4a7729cdfb004"
+    }
+  ],
+  "detailed_check_scope": {
+    "requirement_checks": 101,
+    "deliverable_checks": 34,
+    "incomplete_deliverable_ids": [
+      "C1-D11",
+      "C1-D12",
+      "C1-D21",
+      "C1-D27",
+      "C1-D31",
+      "C1-D34"
+    ]
+  }
+}
+```

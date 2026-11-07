@@ -1,0 +1,17 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.70s

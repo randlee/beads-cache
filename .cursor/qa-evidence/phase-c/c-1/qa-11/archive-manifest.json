@@ -1,0 +1,686 @@
+{
+  "scope": "Completed immutable QA11 or preceding developer handoff; current unbuilt native-qualification candidates deliberately excluded",
+  "QA11_source": "d8242dbe6e246a7c69a2d9a892451c3080364050",
+  "QA11_report": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6627003631",
+  "result": "FAIL3Blocking3Important0Minor29/34,CI12success3failure. C2 handoffs are scoped source/CI synchronization only, not own QA acceptance.",
+  "files": [
+    {
+      "file": "arch-qa-input.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-input.json",
+      "bytes": 15182,
+      "sha256": "c86b828d840d8db2c3e20784231c58e29c32233eb6d896d3979534a93db56810"
+    },
+    {
+      "file": "arch-qa-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-result.json",
+      "bytes": 33678,
+      "sha256": "bc78efcf959f92bfbe0c895575bbf5e785d91b55ea92f2ddc5a9862984b70d90"
+    },
+    {
+      "file": "arch-qa-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-result.md",
+      "bytes": 33690,
+      "sha256": "5a7e61a967d68a05604fc762df9cc2e93691c22ec9705d74c87d3589c6f95315"
+    },
+    {
+      "file": "arch-qa-source-equivalence.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-source-equivalence.json",
+      "bytes": 43768,
+      "sha256": "ad11d113bf6ff803cec134adbaa0a8b4b57b711131f33b56dfa16e1636cb857a"
+    },
+    {
+      "file": "arch-qa-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-vars.json",
+      "bytes": 14785,
+      "sha256": "480831f4989f5568e64247426ee154a98be2cd1e2ef3105858d83761ada682dc"
+    },
+    {
+      "file": "ceremony-parent-decisions.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/ceremony-parent-decisions.json",
+      "bytes": 3322,
+      "sha256": "bc44680b29fb46ce23d7986022d7790ebe0584fc39fd6a1d43e74cbb3652cdcd"
+    },
+    {
+      "file": "ceremony-screen-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/ceremony-screen-result.json",
+      "bytes": 4095,
+      "sha256": "b5c08640b15f55a2f7f611ff224fee67d59f8494f91057e8729dcd6b7d5e4027"
+    },
+    {
+      "file": "ceremony-screen-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/ceremony-screen-result.md",
+      "bytes": 4107,
+      "sha256": "04de25633ae0a218cc305abf852f40a4000070590c476d7858e68bacca988af1"
+    },
+    {
+      "file": "current-open-findings.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/current-open-findings.json",
+      "bytes": 17841,
+      "sha256": "8ca6833d04e28ad6fc148deb32817cdb8e32b34008a5b43556e8285a699b28c0"
+    },
+    {
+      "file": "flaky-test-qa-handoff.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-handoff.json",
+      "bytes": 11456,
+      "sha256": "a050039ade573278c7b60715306216300ff1fe63bf915a48de40321bb3ca69bf"
+    },
+    {
+      "file": "flaky-test-qa-handoff.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-handoff.md",
+      "bytes": 11468,
+      "sha256": "e1d10779a3bfa8bf5396b53122bfbc140aa7312910e60176aea2f63005ef3a69"
+    },
+    {
+      "file": "flaky-test-qa-input.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-input.json",
+      "bytes": 21154,
+      "sha256": "a4413dd07cabf84bd6be22dd1610bf867f473bf7b7f780845a249aa83bcb307d"
+    },
+    {
+      "file": "flaky-test-qa-result-provisional-before-terminal.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result-provisional-before-terminal.json",
+      "bytes": 24602,
+      "sha256": "a878c1804f2a8c3a5b9fb96a70d0a2cb761f381aa7d9cc39a3beaa2586899d8a"
+    },
+    {
+      "file": "flaky-test-qa-result-provisional-before-terminal.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result-provisional-before-terminal.md",
+      "bytes": 24614,
+      "sha256": "d8ef61f2f8d23eb290cfdc832f4f4b701b8f5b2beb404db31f23ea61013b43af"
+    },
+    {
+      "file": "flaky-test-qa-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result.json",
+      "bytes": 38588,
+      "sha256": "a1378671ced067a2075d702d75a79495653a497deac48f3cd23f60a125d8c76f"
+    },
+    {
+      "file": "flaky-test-qa-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-result.md",
+      "bytes": 38600,
+      "sha256": "aa232f4b21f1cbc5e7e66fbddb386b836164ae594bb3affd5a0b26f6cd23920a"
+    },
+    {
+      "file": "flaky-test-qa-source-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-source-receipt.json",
+      "bytes": 1733,
+      "sha256": "2913f512fb2baaefbc828f0c9b42a7b15752c3634d31ab90fb5b5657889675a1"
+    },
+    {
+      "file": "flaky-test-qa-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/flaky-test-qa-vars.json",
+      "bytes": 20685,
+      "sha256": "204196341c914344d26580191545dcb68d3898266a3d23127d6a5b5f9093a4cc"
+    },
+    {
+      "file": "manager-build-report.py.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-build-report.py",
+      "bytes": 11822,
+      "sha256": "9f44cf3100f70b3e075e7cc8231563e2a0da0650539a478f8e54904c4dfe91ef"
+    },
+    {
+      "file": "manager-ci-checks.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-ci-checks.json",
+      "bytes": 2770,
+      "sha256": "10ef17059e6858737c9e8c488049d9f24d90af330382a4dbfe174be85434c348"
+    },
+    {
+      "file": "manager-evidence-artifact-digests.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-evidence-artifact-digests.json",
+      "bytes": 2695,
+      "sha256": "8fba6ff6253ffe0cf232af4121d8c86c09aee1b61f3781b3c4182475d14ac815"
+    },
+    {
+      "file": "manager-finding-union.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-finding-union.json",
+      "bytes": 17472,
+      "sha256": "0458d4180c8f3d832770e24bf9fd8824d718a6d33bb6c4d4d8c8dccf0e617f59"
+    },
+    {
+      "file": "manager-historical-rbqa-fence.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-historical-rbqa-fence.json",
+      "bytes": 11409,
+      "sha256": "40a3ed51e314d305e956ba4590b1d3a90610b3796f739d2ee3470df6f5cece23"
+    },
+    {
+      "file": "manager-machine-status.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-machine-status.json",
+      "bytes": 4443,
+      "sha256": "08d74c9a0f2676d8d4e799ff3de3103a92c153aa7436055ee6fbea114a879714"
+    },
+    {
+      "file": "manager-parent-final.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-parent-final.md",
+      "bytes": 4735,
+      "sha256": "4653657e3e3d694526b64ff8e1dc719625ee9efcdd1fbf7b20a544a6deab82f8"
+    },
+    {
+      "file": "manager-parsed-reviewers.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-parsed-reviewers.json",
+      "bytes": 97074,
+      "sha256": "77c4098ee41ba39b8ed2d1cede9e7179f6ccce9d58704033fd7521e0063536b1"
+    },
+    {
+      "file": "manager-pr-view.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-pr-view.json",
+      "bytes": 224,
+      "sha256": "b97552fa1bef03582b54c3d6b32f0ddb37dbeae970d20cdf48a394d3c3876897"
+    },
+    {
+      "file": "manager-publication-equality.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-publication-equality.json",
+      "bytes": 837,
+      "sha256": "c8ece07d81d2e1c7422f7a632a207e48efba88c3705daa17dca3480c8270f357"
+    },
+    {
+      "file": "manager-publish-payload.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-publish-payload.json",
+      "bytes": 32434,
+      "sha256": "f15a4d901d72f257494324b33a3faea8fe49b55a42af1052901a399db46af8ba"
+    },
+    {
+      "file": "manager-publish-review-attempt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-publish-review-attempt.json",
+      "bytes": 330,
+      "sha256": "71318eb3cc96b307bc1cca577c853a742c3ae3ed3889769269f854ac7da6a4c2"
+    },
+    {
+      "file": "manager-published-body.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-published-body.md",
+      "bytes": 31694,
+      "sha256": "2dd72bd355b0976ec8f5ea21ff3fa00bd94ed83760f87fac6ca3e5b0dff73e4a"
+    },
+    {
+      "file": "manager-published-response.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-published-response.json",
+      "bytes": 34008,
+      "sha256": "6ac7abd439564523860ba03b8dc56763545ec3d6186cbb05f23b825c320ad187"
+    },
+    {
+      "file": "manager-published-url.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-published-url.txt",
+      "bytes": 72,
+      "sha256": "9dfb922e85ecb2aaec5f6fca23b4ba8421b9466f0004c637d4a3f2805ebecda0"
+    },
+    {
+      "file": "manager-refetched-body.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-refetched-body.md",
+      "bytes": 31694,
+      "sha256": "2dd72bd355b0976ec8f5ea21ff3fa00bd94ed83760f87fac6ca3e5b0dff73e4a"
+    },
+    {
+      "file": "manager-refetched-comment.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-refetched-comment.json",
+      "bytes": 34062,
+      "sha256": "a335ca8bac35b068429c379c0485b731df00b0c77c4b27f561610737b9e96f89"
+    },
+    {
+      "file": "manager-report-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-report-vars.json",
+      "bytes": 30718,
+      "sha256": "b3f1af2d741bcc049be9fa2825a367e757ae90bd3166f8d8570a930551d34c3e"
+    },
+    {
+      "file": "manager-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-result.md",
+      "bytes": 31694,
+      "sha256": "2dd72bd355b0976ec8f5ea21ff3fa00bd94ed83760f87fac6ca3e5b0dff73e4a"
+    },
+    {
+      "file": "manager-sc-compose-rendered.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-sc-compose-rendered.md",
+      "bytes": 30863,
+      "sha256": "1c0ab448dedb3dfc86260809130c1952bd610e875effbd34910cce4057f7dee9"
+    },
+    {
+      "file": "manager-todo-scan.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-todo-scan.json",
+      "bytes": 249,
+      "sha256": "0b550049ab5ae4161355673b903c99fcf652e6ba26a1ca86c178122ef801a9bb"
+    },
+    {
+      "file": "manager-triage-receipts.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-triage-receipts.json",
+      "bytes": 7599,
+      "sha256": "4be77c0c1f9a0a5c2e18e57465945cf0ce9b752f1fc1234d9745876a5d4ef868"
+    },
+    {
+      "file": "manager-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager-vars.json",
+      "bytes": 107470,
+      "sha256": "461fcf1a772282fb62ef718bc0179b43657cf9988979aa7cfa9c34cf27c11689"
+    },
+    {
+      "file": "manager.xml.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/manager.xml",
+      "bytes": 126279,
+      "sha256": "42ece9d31c6a79684a5e6a3eaa8ea03caa1db23932143820da0daded9e38be2f"
+    },
+    {
+      "file": "parent-current-boundary.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-boundary.log",
+      "bytes": 44661,
+      "sha256": "a4f9119ebe1acc084eb3816178eaa1d1aedf25e89013820b061b50394f0decad"
+    },
+    {
+      "file": "parent-current-hosted-macos.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-macos.log",
+      "bytes": 140992,
+      "sha256": "3dab9ded0ca461c57856526e674d81fd94dfaabb2c4b07dc0a7f96a3e9ca03b4"
+    },
+    {
+      "file": "parent-current-hosted-windows.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-hosted-windows.log",
+      "bytes": 129443,
+      "sha256": "a7791c07633ca09f39c7458a215a0ec8b75a397d74187618f6638f5494fbc1e5"
+    },
+    {
+      "file": "parent-current-pr108-ci-later.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci-later.json",
+      "bytes": 4588,
+      "sha256": "c098f35ef3279e5ad2dabfec29345353770b879c340ed9f8a39e3e3bb8e87338"
+    },
+    {
+      "file": "parent-current-pr108-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-current-pr108-ci.json",
+      "bytes": 2851,
+      "sha256": "411f8821fd1f1b49b48f2caf78f0b7f6c27ae4b04910c604cf97da2856cd38d1"
+    },
+    {
+      "file": "parent-machine-status.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-machine-status.json",
+      "bytes": 4443,
+      "sha256": "08d74c9a0f2676d8d4e799ff3de3103a92c153aa7436055ee6fbea114a879714"
+    },
+    {
+      "file": "parent-pr-publication-refetch.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-pr-publication-refetch.json",
+      "bytes": 34062,
+      "sha256": "a335ca8bac35b068429c379c0485b731df00b0c77c4b27f561610737b9e96f89"
+    },
+    {
+      "file": "parent-publication-equality.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-publication-equality.json",
+      "bytes": 362,
+      "sha256": "692b1f69f4d2c74a376a61caf7fb42ea576134f3c3d67ab4d6f73e0c6176ef83"
+    },
+    {
+      "file": "parent-spawn-correlation.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/parent-spawn-correlation.json",
+      "bytes": 2498,
+      "sha256": "246b588acedfa4dbc4833897a5f79dbd40bed7929c918689264f6bef56e8f4ca"
+    },
+    {
+      "file": "provisional-initial-req-qa/manifest.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/provisional-initial-req-qa/manifest.json",
+      "bytes": 819,
+      "sha256": "765bf6e702581665113c838d43ae97ca7acbf7270778d1669aae4ed09588d552"
+    },
+    {
+      "file": "provisional-initial-req-qa/req-qa-handoff.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/provisional-initial-req-qa/req-qa-handoff.json",
+      "bytes": 15305,
+      "sha256": "95b0fd8f2a05bb78fbad2d59057b03f698241a7519707162f9d3ea3c3a154524"
+    },
+    {
+      "file": "provisional-initial-req-qa/req-qa-handoff.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/provisional-initial-req-qa/req-qa-handoff.md",
+      "bytes": 15317,
+      "sha256": "ea5de46ba6513c41a7504af1df07994e872804c371176e12229c6b9f1ba0610e"
+    },
+    {
+      "file": "provisional-initial-req-qa/req-qa-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/provisional-initial-req-qa/req-qa-result.json",
+      "bytes": 205853,
+      "sha256": "bc0f45f1c1691965cec4dec9ae7d132bd3e1596d151a934a361a052de0611123"
+    },
+    {
+      "file": "provisional-initial-req-qa/req-qa-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/provisional-initial-req-qa/req-qa-result.md",
+      "bytes": 205865,
+      "sha256": "4fc614c39f06fa6d8a08cdbb4859cc666aa5d6d34a2d434319c4a7729cdfb004"
+    },
+    {
+      "file": "req-qa-consumed-owner-evidence/flaky-test-qa-terminal-085250.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-consumed-owner-evidence/flaky-test-qa-terminal-085250.json",
+      "bytes": 38588,
+      "sha256": "a1378671ced067a2075d702d75a79495653a497deac48f3cd23f60a125d8c76f"
+    },
+    {
+      "file": "req-qa-handoff.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-handoff.json",
+      "bytes": 19903,
+      "sha256": "a55be40f0149a89c221289084223bc45d0e840e2e5fe1d1ba1d88feab51a84f2"
+    },
+    {
+      "file": "req-qa-handoff.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-handoff.md",
+      "bytes": 19915,
+      "sha256": "0eff11189bdaf2429a20321932845742adf0bf54c0b246674391765a78ab6a9d"
+    },
+    {
+      "file": "req-qa-input.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-input.json",
+      "bytes": 16499,
+      "sha256": "4c3eab85223dfb3ee18b038d603720a83be8f2fb59d565f46c03bf43104d35df"
+    },
+    {
+      "file": "req-qa-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-result.json",
+      "bytes": 215490,
+      "sha256": "23a702552dafbd56d88c34294552a04b3724d7053e65587291cc3e18306660a4"
+    },
+    {
+      "file": "req-qa-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-result.md",
+      "bytes": 215502,
+      "sha256": "19bb24ed33e74847f08e0a6ec7d1b8089dd7e6b0a7f90ccd9195ccea99e6ab32"
+    },
+    {
+      "file": "req-qa-source-equivalence.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-source-equivalence.json",
+      "bytes": 8852,
+      "sha256": "2de928900fa5d1adceff9ded74147e8b615b5ee5c6a7a49d2535090a9f735b5e"
+    },
+    {
+      "file": "req-qa-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/req-qa-vars.json",
+      "bytes": 15892,
+      "sha256": "a59f52724984e0b04bd02bd83cfb6bec421b2b4da364d66767d1f11cbc4787d1"
+    },
+    {
+      "file": "reviewer-handoff.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/reviewer-handoff.md",
+      "bytes": 87736,
+      "sha256": "bd1a2654ea7c9d2f8aeca8b51ff79a2ed40957592eb991156ff8f72418751246"
+    },
+    {
+      "file": "reviewer-manifest.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/reviewer-manifest.json",
+      "bytes": 3175,
+      "sha256": "eb69d2fb35fafc39da174fe1ed8f7d33192d90d3a77f4bb4e4087dde4889534d"
+    },
+    {
+      "file": "reviewer-queue.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/reviewer-queue.json",
+      "bytes": 288,
+      "sha256": "ef8fda17310c2098e44fcdda20d317d147041d8bd87c56befbd9431445ed3dcf"
+    },
+    {
+      "file": "round.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/round.json",
+      "bytes": 27995,
+      "sha256": "0e882c45bd64082438aa8217994e3ce63d96aa805b1b0740f9fd98cd718ae88a"
+    },
+    {
+      "file": "runner-proof-job-126474418830.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126474418830.log",
+      "bytes": 60644,
+      "sha256": "680964c3115ef166f3c32fa1bb6b519ea1bcfa2f04667606f373c29e9af5a7d7"
+    },
+    {
+      "file": "runner-proof-job-126477230329.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230329.log",
+      "bytes": 27703,
+      "sha256": "a35f7163596cc591cbac9e9d89d8ee999feb298694ae8a0ba6ea1ee872a807e4"
+    },
+    {
+      "file": "runner-proof-job-126477230372.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230372.log",
+      "bytes": 24044,
+      "sha256": "0e47374ef2362587cdbac7ffa442256141211189332c67c0e60d06a53da1d055"
+    },
+    {
+      "file": "runner-proof-job-126477230590.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-job-126477230590.log",
+      "bytes": 24022,
+      "sha256": "49aa7b72a996f8fa1aba22b64b2cf50b7ac429cf4e96d30e36963c1b45d9aa0f"
+    },
+    {
+      "file": "runner-proof-jobs.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/runner-proof-jobs.json",
+      "bytes": 648,
+      "sha256": "9ddcb0c1927ff550d824de67c05319fa81187052c8031360f73592f7f3423874"
+    },
+    {
+      "file": "rust-qa-agent-input.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-input.json",
+      "bytes": 21078,
+      "sha256": "3aa9d3f4a2d5aa888ca8ca906ea79f857b8a13107acd62ba96a457d0e9f73589"
+    },
+    {
+      "file": "rust-qa-agent-result-provisional.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.json",
+      "bytes": 16114,
+      "sha256": "d8ea65bd18ad1ff76c99f85951282e635e9a7976d880f34a27d5db1ded9d7cae"
+    },
+    {
+      "file": "rust-qa-agent-result-provisional.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-provisional.md",
+      "bytes": 16126,
+      "sha256": "8ef3b866f17cd44b695e3fcc0c906a2afe4f26094de7649bd91365beb73dee50"
+    },
+    {
+      "file": "rust-qa-agent-result-terminal-before-owner.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.json",
+      "bytes": 20841,
+      "sha256": "5b67cc00d385fcb972cfc987d463a0e4950e1153fc712b8df905f29ec933ea09"
+    },
+    {
+      "file": "rust-qa-agent-result-terminal-before-owner.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result-terminal-before-owner.md",
+      "bytes": 20853,
+      "sha256": "daa5698951b02cbaab21c7a629c8e0f62aeba46e8a6055d381a33e20c467efbe"
+    },
+    {
+      "file": "rust-qa-agent-result.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.json",
+      "bytes": 22424,
+      "sha256": "28070142c23f21de9ee7968c6d2103b52200219f2b6ef4d16ba2f037bef961b2"
+    },
+    {
+      "file": "rust-qa-agent-result.md",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-result.md",
+      "bytes": 22436,
+      "sha256": "f8f7b3f7e76532678e4b76d0215401fb3344a24c23727418851c740ec13254aa"
+    },
+    {
+      "file": "rust-qa-agent-vars.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-agent-vars.json",
+      "bytes": 28001,
+      "sha256": "0c91d0df699bce77ce35da7ce81169593754b98bddb537a670f6f323d4854cf1"
+    },
+    {
+      "file": "rust-qa-cargo-release.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-cargo-release.json",
+      "bytes": 351,
+      "sha256": "3e80472af228f8c75816f9a92d2fb566cd0ea6d7f584000086d7f36b76d4f0fb"
+    },
+    {
+      "file": "rust-qa-check-receipts.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-check-receipts.json",
+      "bytes": 861,
+      "sha256": "e3723150646dfaafe16fc3560357a368297d93adfe480c5dcd1984a91ad10547"
+    },
+    {
+      "file": "rust-qa-clippy.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-clippy.log",
+      "bytes": 333,
+      "sha256": "77a320178a419b1e83588dfc68ff6cddf77ca5bf9e7970fd80201e3eea0b5be3"
+    },
+    {
+      "file": "rust-qa-consumed-RQA10-owner-resolution.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-consumed-RQA10-owner-resolution.json",
+      "bytes": 1976,
+      "sha256": "682658b08d2a3a267f0529ced20370c83e22e409e380da22d06c7ca24d5a85c3"
+    },
+    {
+      "file": "rust-qa-evidence-manifest.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-evidence-manifest.json",
+      "bytes": 8690,
+      "sha256": "9d3dd97f201a8fe2eaf6e7ab3ec18997357fb0d18fe12010a42b87a0fddf2dd9"
+    },
+    {
+      "file": "rust-qa-fmt.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-fmt.log",
+      "bytes": 211,
+      "sha256": "61d7614f73627b184d8d5a836eb2b3a7ecefef5aba675e5cd3e1432b8e1c28a1"
+    },
+    {
+      "file": "rust-qa-helper-diff.patch",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-helper-diff.patch",
+      "bytes": 4348,
+      "sha256": "46aff0f81293c367b7b7cec1b97e6371a3769993ceab174acc23f4e2d4c87175"
+    },
+    {
+      "file": "rust-qa-hosted-boundary-api-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-api-receipt.json",
+      "bytes": 269,
+      "sha256": "bef045e9bc4616bcb3a6d0bd585dc972147e9ea7e05472e1ab9bebe16fe8189f"
+    },
+    {
+      "file": "rust-qa-hosted-boundary-api.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-api.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "rust-qa-hosted-boundary-raw-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-raw-receipt.json",
+      "bytes": 194,
+      "sha256": "445817fcfcf3cc722dbfaa52716b5134529d4bb125ca12836ddd608db67f7a93"
+    },
+    {
+      "file": "rust-qa-hosted-boundary-raw.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-raw.log",
+      "bytes": 44661,
+      "sha256": "a4f9119ebe1acc084eb3816178eaa1d1aedf25e89013820b061b50394f0decad"
+    },
+    {
+      "file": "rust-qa-hosted-boundary-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary-receipt.json",
+      "bytes": 236,
+      "sha256": "45488e1c097fc5332976529a57904019209c3de5facea3b6d9ad99bd6e519dae"
+    },
+    {
+      "file": "rust-qa-hosted-boundary.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-hosted-boundary.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "rust-qa-legacy-workspace-scan.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-legacy-workspace-scan.log",
+      "bytes": 695415,
+      "sha256": "9ed97ebe3bb200a33139fa252c0464d514b97f8579ce6020a41ae39e7a0316f6"
+    },
+    {
+      "file": "rust-qa-native-ci-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-ci-receipt.json",
+      "bytes": 182,
+      "sha256": "80396a6b4894df22a1032d8937aec8dd27ede64c11d32388da0f8793795f38e4"
+    },
+    {
+      "file": "rust-qa-native-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-ci.json",
+      "bytes": 9673,
+      "sha256": "5a35011602e7cd51616cf11f6a71aa3eb7df0e48276b66c8619e5eda7c6bc19b"
+    },
+    {
+      "file": "rust-qa-native-key-receipts.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-key-receipts.log",
+      "bytes": 1178,
+      "sha256": "6406b078eb26bc85778d805001837166a42d9f78327ce56868f286865632ab30"
+    },
+    {
+      "file": "rust-qa-native-test-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-native-test-receipt.json",
+      "bytes": 294,
+      "sha256": "f39c16cf3c3ac253aad61f002dee829493b5ad02f31cf8560f4ea4cd1b501a64"
+    },
+    {
+      "file": "rust-qa-python-ci-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-ci-receipt.json",
+      "bytes": 182,
+      "sha256": "bf62b73665a2fb2203d0685d02cf251c6ec5c244d1b8ba909cd817ec854fad09"
+    },
+    {
+      "file": "rust-qa-python-ci.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-ci.json",
+      "bytes": 11269,
+      "sha256": "0a929069586f4d76622295d9153ebab5f18e35895054cfaec3602299d4c53060"
+    },
+    {
+      "file": "rust-qa-python-workflow-diff.patch",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-python-workflow-diff.patch",
+      "bytes": 902,
+      "sha256": "b5625c04984a7396e49f301b6590a214ed2295212b960aeeb4a96b6532374280"
+    },
+    {
+      "file": "rust-qa-runner-qualification.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-runner-qualification.json",
+      "bytes": 2048,
+      "sha256": "d19064b5c625d4ac40cb4afba47d6f2d3359d459e8f5f1d2e6219053f2c87031"
+    },
+    {
+      "file": "rust-qa-source-python.yml.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-python.yml",
+      "bytes": 4639,
+      "sha256": "ffa81ab1bff4ea0a6d10c2a59aab7ae4618dde685519a1824e8ba64454eb9f9c"
+    },
+    {
+      "file": "rust-qa-source-receipt.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-receipt.json",
+      "bytes": 2008,
+      "sha256": "609e752a7965028d93862a11aaff508207f3a47f0ea65e587a1525777cfbf378"
+    },
+    {
+      "file": "rust-qa-source-session_fixture.rs.txt",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-source-session_fixture.rs",
+      "bytes": 34847,
+      "sha256": "11e81a1e3cc00fa53531dd86864a70818178dbda16167d831554af540f3d7156"
+    },
+    {
+      "file": "rust-qa-terminal-ci-assessment.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-ci-assessment.json",
+      "bytes": 3097,
+      "sha256": "83fa50bad05244878bab39bde81a5dca1a1dcaa5b6bbdce2f756543feabc1d35"
+    },
+    {
+      "file": "rust-qa-terminal-handoff.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-handoff.json",
+      "bytes": 8445,
+      "sha256": "4a29600b40507160517a703ad30fa274850bb37dc038e67dc0d4f4fae948755b"
+    },
+    {
+      "file": "rust-qa-terminal-macos-bounded.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-macos-bounded.log",
+      "bytes": 4038,
+      "sha256": "2cc677eae9820a104aae01e785bb50836ebdcc0fd571c6e037fc1268b3ac66c3"
+    },
+    {
+      "file": "rust-qa-terminal-windows-bounded.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-windows-bounded.log",
+      "bytes": 13835,
+      "sha256": "07f76a67a47528a23e49f37d396cde75699203550767b54ec91a0abf76c92a4f"
+    },
+    {
+      "file": "rust-qa-terminal-windows-protocol.json",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-terminal-windows-protocol.json",
+      "bytes": 11987,
+      "sha256": "4a573474aac58e27c1e7d54958e486db7ac1478ea92519e743632fe70be0c2f5"
+    },
+    {
+      "file": "rust-qa-tests-native.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests-native.log",
+      "bytes": 39938,
+      "sha256": "c00b1fda0ef9fca65833242788b8dc1e1d75cacb294faabcabc870d3dfaecd88"
+    },
+    {
+      "file": "rust-qa-tests.log",
+      "original_path": "/tmp/phase-c-execution/c-1/qa-11/rust-qa-tests.log",
+      "bytes": 4917,
+      "sha256": "588f821c01c0890f070789e0acc3ba14f88b66b031a23705b8d1a45470390a60"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+QA15 independent v3 deterministic checks at c4006f8d218b743aeabeddcfac9bb5c1c0af8907
+
+16 applicable checks recorded PASS; one existing exclusion. Actual current Jev gate dev-20261106T235757Z-c-1 remains pass:false:14satisfied,ANC008asserted_only,ANC001underspecified,1excluded;noerrors/shortening/instability. Deterministic results do not rewrite that verdict.
+
+- ANC-001 (v4): pass. Independent current whole-tree and actual full-sprint-diff --paths lint both exit0. Existing lint scope/exemptions unchanged.
+- ANC-002 (v4): pass. Actual upstream-backed scheduler executes persisted due rows from the same cache; not-due rows and v3 identity preservation controls pass.
+- ANC-003 (v4): pass. Independent mode switching passes. Supplied exact-current installed-wheel Python test executes registered script, asserts python mode and ingestedp1 row, refuses builtin tick withoutnewbd, then reverses tobuiltin.
+- ANC-004 (v5): pass. Independent Rust hook15/15 and actual supplied installed-wheel hook7/7 pass. Existing Python case asserts every scope successful result then failed result,error keys,failing_since,marking,reoffer and unchanged first_offered_at. No mirror test.
+- ANC-008 (v5): pass. Actual current reserved-row refusal and plain.other coexistence test passes within independent cron_rows10/10.
+- ANC-009 (v5): pass. Current migrated worker syncs label andall filters. Whole-crates scan has no phase-file reading pattern; existing legacy phase names/columns are compatibility state,not file-derived scopes.
+- ADR-BDC-0009 (v4): excluded. Existing recorded c-1 exclusion retained.
+- ADR-STORE-0001 (v4): pass. Actual current developer workspace executes exact goldenDDL,legacyreader,additive extension andversion3 controls; raw loghash independently verified. Independent store unit37/37 separately qualifies changed testconstructor behavior.
+- REQ-BDC-0001 (v3): pass. New causal check actually passes independently: real scheduledPython sync remains alive before/after publicIssuesGet on SAMEcache. Cached request count1→1/guardOk; real cold read1→2 rejected by identical guard. Correct reply,ownedjoin andchildreap verified. Existing5sfixture/500msobservation not widened.
+- REQ-BDC-0006 (v2): pass. Independent whole-workspace backend client graph gate passes. No production Rust changed; all backend access remains throughbd rather than DoltSQL. SDK adopts only two registry records with same49Rustfiles and no client/provider expansion.
+- REQ-BDC-0007 (v3): pass. Faithful v3 check passes: direct strict decoder unknownkey produces Contract(beadct-2,fieldsurprise),mapped by CacheError::from_backend to BD_CACHE.BD_CONTRACT; current refresh/miss-fill test independently asserts that cache code and retained details. Ingest unknownkey uses approved INGEST_INVALID(row_invalid,index1) and storesnorows. No production error contract changed; oldliteral ingestBD_CONTRACT claim retired.
+- REQ-BDC-0008 (v2): pass. Actual current strict sync and mixed valid/invalid ingest snapshots refuse partial storage.
+- REQ-BDC-0502 (v2): pass. Independent incremental/newer-row and ingest skipped_newer tests pass; supplied current installed-wheel Python older-row guard also executes.
+- REQ-BDC-0812 (v2): pass. Actual current installed-wheel command includes -W error::DeprecationWarning and entire testfolder:226collected/226passed,0skips,7corpuscases. All43developerindexed artifacts hashverified; corpus/test/generator bytes unchanged from0c and priorbaseline. SDK0.2 doesnotrename neutralAPI0.1corpus.
+- NFR-BDC-0004 (v2): pass. Complementary actual current controls cover gated fakebd timeout,childprocessgroupkill,hookhang deadline/tree kill andrunfinish,caller50msdeadline with<150msreturn/no latebd,hookreserve andPythontimeout. Slow-bd2s/<12stest is not claimed as precise2swallproof. Health1sSQLite<1100mstest andsettings restoration also pass in independentstore37.
+- NFR-BDC-0005 (v2): pass. Independent backend-free PATH guard runs before201selected Rusttests; bd/dolt unresolvable,realCargo/Rust/compiler/git/Pythonretained. Suppliedcurrentfullworkspace1179/0/21 also ran withbackend-free guard. Fakes/ownedtemporaryfixtures used; no universal per-test mutation claim.
+- ADR-BDC-0005 (v2): pass. Independent scope-outage/retained-row behavior passes. Current full developer workspace raw output supplies cached-read/no-new-bd plus complementary timeout/spawn/transport classification passes; no old-source execution substituted.
+
+Exact commands,rawlogline references,artifacthashes and provenance are in rust-qa-deterministic-checks.json. These are bounded existing-gate receipts,not a new coverage-ledger process.

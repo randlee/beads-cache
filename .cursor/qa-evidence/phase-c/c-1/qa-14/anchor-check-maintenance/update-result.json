@@ -1,0 +1,114 @@
+{
+  "success": true,
+  "data": {
+    "updated": true,
+    "id": "REQ-BDC-0007",
+    "changed": [
+      "deterministic_check"
+    ],
+    "version": 3,
+    "anchor": {
+      "id": "REQ-BDC-0007",
+      "source_type": "REQ",
+      "source_ref": "REQ-BDC-0007",
+      "statement": "Every bead row stored by beads-cache, including rows ingested from a consumer sync, must pass the strict row decoder generated from bd schema.",
+      "quote": "Every bead row stored by beads-cache, including rows ingested from a consumer sync, must pass the strict row decoder generated from bd schema.",
+      "kind": "directive",
+      "stated_by": "randlee",
+      "stated_at": "2026-10-25",
+      "context": "planning session",
+      "summary": "Strict row contract on every ingested row",
+      "scope": "any bead that adds or changes a path that stores bead rows, such as sync, fetch or ingest_scope",
+      "deterministic_check": "crates/sc-beads/tests/strict_rows.rs::a_bad_row_is_a_contract_error_naming_bead_and_field rejects an unknown bd-row key as BD_CACHE.BD_CONTRACT naming the bead and field; crates/bd-cache/tests/ingest.rs::one_invalid_row_among_valid_ones_stores_none_of_them rejects an ingest row with an unknown key as INGEST_INVALID (row_invalid, row index) and stores no rows, per approved REQ-BDC-0726 and REQ-BDC-0729.",
+      "fixtures": {
+        "pass": [
+          "ingest_scope decodes every row with the same strict sc-beads decoder as the built-in sync; test ingest_rejects_unknown_key in crates/bd-cache/tests/ingest.rs passes in CI (run 1234)."
+        ],
+        "fail": [
+          "ingest_scope stores rows as raw JSON so a consumer sync can add its own fields without validation."
+        ]
+      },
+      "question_overrides": {},
+      "version": 3,
+      "status": "locked",
+      "promoted_to": null,
+      "beads": {
+        "anchor": "bdc-svf",
+        "plan_questions": "bdc-svf.1",
+        "dev_questions": "bdc-svf.2"
+      },
+      "history": [
+        {
+          "at": "2026-10-25T21:17:39+00:00",
+          "event": "created",
+          "status": "locked"
+        },
+        {
+          "at": "2026-10-25T21:17:39+00:00",
+          "event": "updated",
+          "fields": [
+            "fixtures"
+          ]
+        },
+        {
+          "at": "2026-10-25T21:17:40+00:00",
+          "event": "beads_set",
+          "beads": {
+            "anchor": "bdc-svf",
+            "plan_questions": "bdc-svf.1",
+            "dev_questions": "bdc-svf.2"
+          }
+        },
+        {
+          "at": "2026-10-25T21:22:24+00:00",
+          "event": "excluded",
+          "item": "b-8",
+          "reason": "b-8 adds or changes no path that stores bead rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T22:43:13+00:00",
+          "event": "excluded",
+          "item": "b-6",
+          "reason": "b-6 adds no beads-cache read or write path; sc-cron stores only schedule rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:41:08+00:00",
+          "event": "excluded",
+          "item": "b-1",
+          "reason": "b-1 changes the journal and its columns only; it adds or changes no path that stores bead rows (sync, fetch and ingest are untouched).",
+          "replaced": false
+        },
+        {
+          "at": "2026-10-25T23:42:11+00:00",
+          "event": "exclusion_removed",
+          "item": "b-1"
+        },
+        {
+          "at": "2026-10-26T00:24:15+00:00",
+          "event": "exclusion_removed",
+          "item": "b-8"
+        },
+        {
+          "at": "2026-10-26T00:27:33+00:00",
+          "event": "excluded",
+          "item": "b-9",
+          "reason": "b-9 adds or changes no path that stores bead rows.",
+          "replaced": false
+        },
+        {
+          "at": "2026-11-06T12:25:30+00:00",
+          "event": "updated",
+          "fields": [
+            "deterministic_check"
+          ]
+        }
+      ]
+    },
+    "lint": {
+      "warnings": []
+    }
+  },
+  "error": null
+}

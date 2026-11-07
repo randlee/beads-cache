@@ -1,0 +1,38 @@
+```json
+{
+  "success": true,
+  "data": {
+    "screened": [
+      {
+        "id": "ARCH-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "Existing architecture policy and unchanged isolated-consumer check.",
+        "reason": "The remedy changes the genuine upstream logging seam and removes the unauthorized direct dependency while retaining existing qualification; it creates no process artifact or new gate, and this screen does not waive the reported blocker."
+      },
+      {
+        "id": "REQ-QA-004",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "Existing source/test evidence, developer handoff, current CI, independent QA, applicable development anchors and integration closeout.",
+        "reason": "The current correction explicitly accepts ordinary evidence without a separate mandatory coverage ledger or new process gate and retains the reported dependency/composition and existing acceptance failures."
+      },
+      {
+        "id": "RBQA-F001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "Existing approved dependency boundaries and isolated-consumer qualification.",
+        "reason": "Resolving the public logging seam within approved boundaries is a production correction that adds no process artifact, and preserving this existing finding does not create a new evidence requirement."
+      },
+      {
+        "id": "QA2-001",
+        "verdict": "not_applicable",
+        "missing": [],
+        "existing_coverage": "Existing unchanged isolated Python consumer graph guard.",
+        "reason": "The remedy removes the direct sync dependency and qualifies the actual consumer through the existing guard, so no process artifact or new gate is proposed and the reported failure remains subject to parent adjudication."
+      }
+    ]
+  },
+  "error": null
+}
+```

@@ -1,0 +1,82 @@
+[
+  {
+    "agent": "req-qa",
+    "task_id": "/root/c1_reqqa14",
+    "spawn_actor": "parent-orchestrator",
+    "status": "completed",
+    "ack_received": true,
+    "assignment": "/tmp/phase-c-execution/c-1/qa-16/req-qa-input.json",
+    "assignment_sha256": "2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215",
+    "actual_model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fenced_json_received": true,
+    "verdict": "PASS",
+    "findings": {
+      "blocking": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "projection": "/tmp/phase-c-execution/c-1/qa-16/req-qa-return-projection.json",
+    "full_report_sha256": "ea1b16a6122275c8033df92f14c3086ba2b8cb1d40efd264d8189ca7c01faf0d"
+  },
+  {
+    "agent": "arch-qa",
+    "task_id": "/root/c1_archqa14",
+    "spawn_actor": "parent-orchestrator",
+    "status": "completed",
+    "ack_received": true,
+    "assignment": "/tmp/phase-c-execution/c-1/qa-16/arch-qa-input.json",
+    "assignment_sha256": "99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0",
+    "actual_model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fenced_json_received": true,
+    "verdict": "PASS",
+    "findings": {
+      "blocking": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "projection": "/tmp/phase-c-execution/c-1/qa-16/arch-qa-return-projection.json",
+    "full_report_sha256": "9e152fe937e36dc32e13960535f91b7c9de8c0727f8b56a57de5734954d612d8"
+  },
+  {
+    "agent": "rust-qa-agent",
+    "task_id": "/root/c1_rustqa14",
+    "spawn_actor": "parent-orchestrator",
+    "status": "completed",
+    "ack_received": true,
+    "assignment": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-input.json",
+    "assignment_sha256": "f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023",
+    "actual_model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fenced_json_received": true,
+    "verdict": "PASS",
+    "findings": {
+      "blocking": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "projection": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-return-projection.json",
+    "full_report_sha256": "abc0472d534402877333e3cad6e0544150f493c8b1f5c6359308d9eeff7b5a2b"
+  },
+  {
+    "agent": "flaky-test-qa",
+    "task_id": "/root/c1_flakyqa14",
+    "spawn_actor": "parent-orchestrator",
+    "status": "completed",
+    "ack_received": true,
+    "assignment": "/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-input.json",
+    "assignment_sha256": "3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377",
+    "actual_model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fenced_json_received": true,
+    "verdict": "PASS",
+    "findings": {
+      "blocking": 0,
+      "important": 0,
+      "minor": 0
+    },
+    "projection": "/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-return-projection.json",
+    "full_report_sha256": "61e71f65374deb68d293373a527d292d6facb7032f9e566ef10e08ae4cde8fa7"
+  }
+]

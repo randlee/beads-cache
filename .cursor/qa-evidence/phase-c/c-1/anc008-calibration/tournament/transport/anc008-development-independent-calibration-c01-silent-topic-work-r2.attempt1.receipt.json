@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c01-silent-topic-work-r2",
+  "attempt": 1,
+  "canonical_request_sha256": "ecbc4049b24d887a882366b520b949422e746f104b0b6c80c20d3f06c987464a",
+  "candidate_id": "c01",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.09140706062316895,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-silent-topic-work-r2.attempt1.raw.json",
+  "raw_sha256": "bd9df640eca5764d37b30585862a8fe8ebe285380b02832b41e7eb3e7cd7751a"
+}

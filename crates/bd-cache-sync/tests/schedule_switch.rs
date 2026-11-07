@@ -612,6 +612,7 @@ fn a_schedule_table_of_another_version_is_store_failed() {
         cache_path: path,
         beads_dir: _,
         down: _,
+        bd_invoker: _,
     } = Repo::new(vec![]);
     let root = dir.path().to_path_buf();
     drop((bd, clock, cron_clock, cache, store, table, scheduler));

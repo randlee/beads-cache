@@ -1,0 +1,117 @@
+{
+  "candidate": "00d8243778a4bada2adbff5e9567e359eade32b0",
+  "upstream_pin": "72f021d9e9b265b1310e248d851b0baec36817d5",
+  "scope": "Completed prior developer fix; affected tests pass, authorized Git provenance guard still fails. Not QA approval. New C5 promotion underway separately.",
+  "artifacts": [
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/cli-fixtures.log",
+      "sha256": "7fc4b7317b1f3122ac34f9e3e0a4c67a0322f8ab36cd0a476c249f753210dd1c",
+      "bytes": 2187
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/clippy.log",
+      "sha256": "59f48ac4edb6840dee24d610de02345b0bc6d6880b24306c6d0099c6718cfa2d",
+      "bytes": 1920
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/cron-hurry-tests.log",
+      "sha256": "cd12ed0f90f038d32e8b201d292d1168b6f8540f075483581e0f5deb9caa49ae",
+      "bytes": 42909
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/developer-result.json",
+      "sha256": "35a99e71cadc255dd79d0c6b4d7c085f6d6bbe874e490e3e6716c89629320475",
+      "bytes": 18911
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/developer-result.md",
+      "sha256": "eb30937fb6ab49f685501d0f18a02b47c2974e530a79e31bc97f62af33af6864",
+      "bytes": 3381
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/direct-boundary-workflow.sh.txt",
+      "sha256": "655c37527480d234efb82510837f76f449a6d5213e8da32bb54614e1fce615dd",
+      "bytes": 2237
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/direct-boundary.log",
+      "sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4",
+      "bytes": 153
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/fix.xml.txt",
+      "sha256": "98b5822cfcbf4362106f3780cb223d0a09a4b3d2614d1fa1b87e36a93308f613",
+      "bytes": 3093
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/graph-unit-tests.log",
+      "sha256": "8710e78d95fcf63904da87924ad4296e3acc5941af594dbaf2de3b1e19badabd",
+      "bytes": 740
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/hosted-ci.json",
+      "sha256": "375829c724829497841f855933eb765b438cb84dc85aa6beafdab54bde1fdf76",
+      "bytes": 2816
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/isolated-graph.log",
+      "sha256": "200dc668d6c3e659daaf7fda9c73a20d75ab5b9198680c4dee122d319988d831",
+      "bytes": 526
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/logging-test.log",
+      "sha256": "36ff5253674110914fc50bd07d98c652a0c646b9b395c4b8e19a40c28763488c",
+      "bytes": 1489
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/metadata.json",
+      "sha256": "e69e0c5a66e9fc2e8d9a2a3a2c025d36bf1dd9badf5f8da98dd6ee53618ca95e",
+      "bytes": 59702
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/postpush-fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/postpush-logging.log",
+      "sha256": "ab829239832dd5103dd62393e029670b8f08b5281d0356749d9fe92cd4118cb1",
+      "bytes": 980
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/resolve.log",
+      "sha256": "cb651badef57c76bc82b5e11ad9c3a3126e8e3712db9e10ef1d447938d4804a8",
+      "bytes": 970
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/source-proof.json",
+      "sha256": "f7c4ca8c1f8d1812a186a82286777b95eacedc414c5fc7b7c9f4ceb0ae026586",
+      "bytes": 1868
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/store-tests.log",
+      "sha256": "fa842c2909d49aa9cd4fdb19269690afc44dfccdf6783134538692e71406bcd5",
+      "bytes": 30366
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/upstream-source-diff.json",
+      "sha256": "e169736883e0b194cabf6304deec779b3e3a0159c6a787242e70a90d865580c7",
+      "bytes": 323
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/workspace-metadata-no-deps.json",
+      "sha256": "e69e0c5a66e9fc2e8d9a2a3a2c025d36bf1dd9badf5f8da98dd6ee53618ca95e",
+      "bytes": 59702
+    },
+    {
+      "path": ".cursor/qa-evidence/phase-c/c-1/pr115-pin-adoption/workspace-metadata.json",
+      "sha256": "561b5696af5c00129121e74e0daadcdc744697f3109d294190fb67e0f0ca3384",
+      "bytes": 1060898
+    }
+  ]
+}

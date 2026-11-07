@@ -1,0 +1,311 @@
+{
+  "scope": "Closed actual QA14 and developer handoffs; excludes virtualenv, binary wheels, caches. Scripts stored as passive text. No new gate acceptance.",
+  "files": [
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/backend-free-path.log",
+      "archive": "registry020-adoption/backend-free-path.log",
+      "bytes": 22,
+      "sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/causal-cached-read-controls.log",
+      "archive": "registry020-adoption/causal-cached-read-controls.log",
+      "bytes": 6365,
+      "sha256": "084f96dec0527c55d523d7d067d447209918fe7df220a61c910959f0aee643da"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/ci-runs.json",
+      "archive": "registry020-adoption/ci-runs.json",
+      "bytes": 474,
+      "sha256": "ec4f640d5749bc4b0a9463eb99d4ecdec4c79fdb14a361bb47856753ff22a340"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-all.log",
+      "archive": "registry020-adoption/clippy-all.log",
+      "bytes": 1143,
+      "sha256": "fe20cf25d951d7c05333fa743f0c87ce1cf46de951345db54134285b9e10bcbe"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/clippy-default.log",
+      "archive": "registry020-adoption/clippy-default.log",
+      "bytes": 1112,
+      "sha256": "49095e27d804a19308c673c0bef764a8a62dd8689c46c7f2bf22e3ce4c9cfd52"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/consumer-lint.log",
+      "archive": "registry020-adoption/consumer-lint.log",
+      "bytes": 31,
+      "sha256": "d6168e459ac9e4539260426a4ea08da5f6689c7e977241f225a0e01b27a4068d"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.json",
+      "archive": "registry020-adoption/developer-result.json",
+      "bytes": 24536,
+      "sha256": "3042dc505debfa71a7c5f7225dcaa2620c154524a375958db1f5280e5213a2d0"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.md",
+      "archive": "registry020-adoption/developer-result.md",
+      "bytes": 4391,
+      "sha256": "a367fd7705e25e0f11249195703b96a8242127bb7d60291ab243545c23d3d0c8"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary-workflow.sh",
+      "archive": "registry020-adoption/direct-boundary-workflow.sh.txt",
+      "bytes": 2237,
+      "sha256": "655c37527480d234efb82510837f76f449a6d5213e8da32bb54614e1fce615dd"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/direct-boundary.log",
+      "archive": "registry020-adoption/direct-boundary.log",
+      "bytes": 153,
+      "sha256": "4c30f2153af0fa8eef6fe6c7a847e807fd713d73d922f0ea6558015965a20ba4"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/docs.log",
+      "archive": "registry020-adoption/docs.log",
+      "bytes": 821,
+      "sha256": "15bd19c51385717ae1e685a1dcc4fb89f1eea43d9b6d891ded719108e76a441f"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/edit-docs.py",
+      "archive": "registry020-adoption/edit-docs.py.txt",
+      "bytes": 9271,
+      "sha256": "1918c4d50adaf28ad7874f88abf59a32458ef8651049528e000b03b45b59714f"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/evidence-index.json",
+      "archive": "registry020-adoption/evidence-index.json",
+      "bytes": 8270,
+      "sha256": "b5685cd9acba4951f858376bb0a549853e1efd67dff35b9f6acf9c4a3f9baf2f"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/fix-vars.json",
+      "archive": "registry020-adoption/fix-vars.json",
+      "bytes": 8834,
+      "sha256": "5e27b076ab410593fea12f83cacf0e41bb6176bfa56dfe00ce64a1d016b98347"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/fix.xml",
+      "archive": "registry020-adoption/fix.xml.txt",
+      "bytes": 11293,
+      "sha256": "860a47dd8cd16bb849c01934c6d3b1ba6e71e101ba325441a2bfe4682683d5f8"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt-check.log",
+      "archive": "registry020-adoption/fmt-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/fmt.log",
+      "archive": "registry020-adoption/fmt.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests-postpush.log",
+      "archive": "registry020-adoption/graph-unit-tests-postpush.log",
+      "bytes": 1242,
+      "sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/graph-unit-tests.log",
+      "archive": "registry020-adoption/graph-unit-tests.log",
+      "bytes": 1242,
+      "sha256": "9890a4679fcae2a8c9c97d664b4098a45c1be6865eebfa7be06c0b47b0675ed5"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci-final.json",
+      "archive": "registry020-adoption/hosted-ci-final.json",
+      "bytes": 4718,
+      "sha256": "cd7b15188f5c14ec1389d8a21921c7ff1b7cf40e711f4619bc01c8cb40bcee71"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/hosted-ci.json",
+      "archive": "registry020-adoption/hosted-ci.json",
+      "bytes": 4683,
+      "sha256": "e7a2e4be1b096defcbe8fd3807515046e00be02db6cadff9ce793d73f9cd60a9"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/incremental-performance.log",
+      "archive": "registry020-adoption/incremental-performance.log",
+      "bytes": 752,
+      "sha256": "c26bd6e0d3b69d5466ba25e08d1f7381d71b6820c81209677afe3e928e91c2f6"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/isolated-graph.log",
+      "archive": "registry020-adoption/isolated-graph.log",
+      "bytes": 177,
+      "sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-native.log",
+      "archive": "registry020-adoption/metadata-native.log",
+      "bytes": 1059819,
+      "sha256": "25e6de3f0a194b71b45b747f872a1d44e5096819f15066bcb7fc8da6db4845d0"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata-sandbox.log",
+      "archive": "registry020-adoption/metadata-sandbox.log",
+      "bytes": 14743,
+      "sha256": "dd30270bfbc4f15ee4916424ebba6dd30c1585acf0b1f4b8760879a1ca1dabf0"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/metadata.json",
+      "archive": "registry020-adoption/metadata.json",
+      "bytes": 59362,
+      "sha256": "8e21b0e05d11107762c5c95a86bfdae0033871b05d9ef697ec9c49831bf7c5fa"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/negative-server.log",
+      "archive": "registry020-adoption/negative-server.log",
+      "bytes": 261,
+      "sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/no-backend-graph.log",
+      "archive": "registry020-adoption/no-backend-graph.log",
+      "bytes": 47,
+      "sha256": "8563222d5ffc1c8c631e3381d717518aa7a2c4d2b5cf38a41348c6ad5d707b00"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-backend-free-path.log",
+      "archive": "registry020-adoption/postpush-backend-free-path.log",
+      "bytes": 22,
+      "sha256": "2d16fc7fbdd8a2783ff108dabc83fd41419efda0faf9f8688faba828a391740d"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-diff-check.log",
+      "archive": "registry020-adoption/postpush-diff-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/postpush-fmt-check.log",
+      "archive": "registry020-adoption/postpush-fmt-check.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/preservation.json",
+      "archive": "registry020-adoption/preservation.json",
+      "bytes": 406,
+      "sha256": "83a1ec713959c8c0405c4c49c00becf9cc0d326d817eff615b91ccfc27eb6e8e"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/python-cli-build.log",
+      "archive": "registry020-adoption/python-cli-build.log",
+      "bytes": 1107,
+      "sha256": "cc58c661dbc2e5878cf5833892935df462ce0bb4f4414fd24f6567f9ba8ba2d5"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/python-clippy.log",
+      "archive": "registry020-adoption/python-clippy.log",
+      "bytes": 1258,
+      "sha256": "de03f44dae5fd2a633dd67c4e6a2b536c43802e4de6c1184fbc1940867b25018"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/python-pytest.log",
+      "archive": "registry020-adoption/python-pytest.log",
+      "bytes": 2809,
+      "sha256": "2cb498fc5f739963d18b651d859b36c2aabcbb8361a77bd23a2f15d8c612e3ef"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/python-rust-tests.log",
+      "archive": "registry020-adoption/python-rust-tests.log",
+      "bytes": 3816,
+      "sha256": "a69019107d07b50bbad028691667e22011e11512e0a0ec949f17a0728b373e34"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/run.py",
+      "archive": "registry020-adoption/run.py.txt",
+      "bytes": 682,
+      "sha256": "b770d6b0e37b7a8934896772d5c4774a00e1b5d0e1846800ff137e10d5624c23"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-command-manifest-comparison.diff",
+      "archive": "registry020-adoption/sc-command-manifest-comparison.diff",
+      "bytes": 225,
+      "sha256": "4846fa05105b788204301677097ce353c2b69e0d3065271a3e5f4f5265915398"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/sc-cron-manifest-comparison.diff",
+      "archive": "registry020-adoption/sc-cron-manifest-comparison.diff",
+      "bytes": 328,
+      "sha256": "eed9a44241782634db7e5b5957caa368841bf3ddf7b51b249ab0c33e9d4a4e2b"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/script-tests.log",
+      "archive": "registry020-adoption/script-tests.log",
+      "bytes": 13591,
+      "sha256": "eb59aaa9697c503fa4e5cf172103ccfba2ab7311574fe5079cd7b8b3725d253b"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/source-preservation.json",
+      "archive": "registry020-adoption/source-preservation.json",
+      "bytes": 1327,
+      "sha256": "c61dd9fe0278228418ee81df86644a2125a407276f628479e9084999c033bcae"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/source-provenance.json",
+      "archive": "registry020-adoption/source-provenance.json",
+      "bytes": 2546,
+      "sha256": "9547d6b3622a77295d99573811dd90e060404593108a92061b749e849cd4c7b9"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/validate.py",
+      "archive": "registry020-adoption/validate.py.txt",
+      "bytes": 3872,
+      "sha256": "f3bd329df7cfb715d64d68502d0d0660b42d1b3d7d4c5e0444937c9830036738"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-driver.log",
+      "archive": "registry020-adoption/validation-driver.log",
+      "bytes": 1122,
+      "sha256": "31290970afae9add220d77d2189f872e39e6fe3d89b1cbb9548553b642a50f75"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/validation-receipts.json",
+      "archive": "registry020-adoption/validation-receipts.json",
+      "bytes": 8700,
+      "sha256": "59a30a07f074d07d91debd53897ccc4696c17a81cb50646b4d26200b6bcdc599"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/venv-create.log",
+      "archive": "registry020-adoption/venv-create.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-build.log",
+      "archive": "registry020-adoption/wheel-build.log",
+      "bytes": 2691,
+      "sha256": "7f34be36bac55a5d23f5f7bb01a7b4a8ef3d0141cf006ac4545912f949c57a25"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/wheel-install.log",
+      "archive": "registry020-adoption/wheel-install.log",
+      "bytes": 200,
+      "sha256": "1b301379674425383e78b4ea8db71493ec524e980043b6700f7ce951a2034742"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-native.log",
+      "archive": "registry020-adoption/workspace-tests-native.log",
+      "bytes": 105614,
+      "sha256": "b19dcdc4ea4c480518713d8a7a004478bb84e13dc5841bd2e5ffb7d4753be1c1"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/workspace-tests-sandbox.log",
+      "archive": "registry020-adoption/workspace-tests-sandbox.log",
+      "bytes": 36448,
+      "sha256": "e7199b8ca4cbd0105a26933d00e65d07a078a93a51bfb13439035fd5c67dad60"
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/registry020-adoption/write-result.py",
+      "archive": "registry020-adoption/write-result.py.txt",
+      "bytes": 12232,
+      "sha256": "0d573b85f351d9f89428bb259335a4f82da25c43fef7d5298ed3644fa8cb34b3"
+    }
+  ]
+}

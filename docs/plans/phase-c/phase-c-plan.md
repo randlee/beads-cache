@@ -22,11 +22,17 @@ or dependency change; c-1 applies its narrowly owned approved amendments.
 The tested rusqlite downgrade remains uncommitted in the original checkout; c-1
 lands that change on its sprint branch rather than committing on `develop`.
 
-Source baseline: sc-runtime tag `v0.1.1`, commit
+Template source baseline: sc-runtime tag `v0.1.1`, commit
 `5af24c862fe7ed8dae8710b7bd64a84a29506b51`. Read the tagged files, not an unqualified
 checkout. Its template is application-owned scaffold, not an in-place installer:
 `scripts/new_project.py` refuses an existing destination. Its `install.py` installs
 sc-publish; `just upgrade` upgrades sc-lint, not generated Rust code.
+
+C1 library source baseline: published sc-cron/sc-command exactly registry
+`=0.2.0`, default features off, under ADR-BDC-0016. Publication supersedes the
+temporary qualified prerelease Git permission. This changes library provenance
+only, not the independent template tag, answers, domain bounds or QA/anchor/CI
+gates. The earlier conditional-pin authorization remains historical in the ADR.
 
 ## Implementation dispatch gate
 
@@ -109,11 +115,11 @@ also records the proposed edges; it is not a claim that manifests already exist.
 
 | Boundary | Contract or behavior affected | Allowed dependencies / dependents | Owner |
 |---|---|---|---|
-| Workspace/dependency registry | published sc-command/sc-cron 0.1.1, rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
+| Workspace/dependency registry | published sc-command/sc-cron exactly registry 0.2.0 under ADR-BDC-0016; rusqlite 0.39; retire local sc-cron | one libsqlite3-sys; no checkout patches or scheduler fork | c-1; c-2 registers its new app crates |
 | bd-cache-store | CacheScheduleStore implements upstream ScheduleStore; legacy schedule rows and v3 identity preserved | model, sc-beads, upstream sc-cron; used by sync, CLI, Python, service | c-1 |
 | bd-cache-sync | upstream target model, deadlines, worker and hook supervision | existing edges to cache/store/model/API/sc-bd-cli/sc-beads plus upstream sc-cron; used by CLI, Python, service | c-1 |
 | bd-cache-api / bd-cache-model / bd-cache | request/data/error and domain rules unchanged | existing table edges; no runtime/server/framework assembly dependency | unchanged in this phase; compiler-required source edits require an explicit re-fence, not silent scope growth |
-| bd-cache-cli / bd-cache-py | existing local operations and shutdown, tested against migrated composition | existing edges; published sc-command in CLI; scheduler's contract-only sc-command may reach Python | c-1 compatibility; c-2 end-to-end qualification |
+| bd-cache-cli / bd-cache-py | existing local operations and shutdown, tested against migrated composition | existing edges; approved-source sc-command in CLI; scheduler's contract-only sc-command may reach Python | c-1 compatibility; c-2 end-to-end qualification |
 | bd-cache-service (new) | application state over one existing composition; readiness + schedule host | bd-cache-sync, model/API types, sc-config as needed; used by daemon only | c-2 |
 | bd-cache-daemon (new) | generated runtime lifecycle, listener, logging, cleanup | service, sc-runtime/sc-command server, sc-transport, logging adapter; no SQL backend | c-2 |
 | Template upkeep tooling | immutable pin/answers and pristine baseline comparison | upstream generator; c-2 consumes baseline and records application mapping | c-3 |

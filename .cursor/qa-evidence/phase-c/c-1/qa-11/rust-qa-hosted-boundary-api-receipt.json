@@ -1,0 +1,6 @@
+{
+  "command": "gh api repos/randlee/beads-cache/actions/jobs/126474512121/logs",
+  "exit_code": 1,
+  "stderr": "the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n",
+  "observed_at": "2026-11-04T08:38:35.172085+00:00"
+}

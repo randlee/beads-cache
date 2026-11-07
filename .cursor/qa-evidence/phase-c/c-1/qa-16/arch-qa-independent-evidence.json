@@ -1,0 +1,133 @@
+{
+  "branch": "sprint/c-1-runtime-migration",
+  "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "clean": true,
+  "tracked_source_and_plan_unchanged_since_own_QA15": true,
+  "previous_full_report_sha256": "447d83517f162b740b5d4c9d6f6f067021aadb142b21630952c3bd608cd17199",
+  "original_QA15_artifacts_hash_verified_unchanged": 300,
+  "corrected_report_sha256": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+  "report_lint_argv_and_99_paths_match_actual_receipts": true,
+  "report_scope_and_causal_limits_preserved": true,
+  "authority_record_matches_locked_ANC008_statement_quote_scope_fixtures_version": true,
+  "oracle_sha256": "9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce",
+  "oracle_frozen_before_raw_responses": true,
+  "oracle_cases": 14,
+  "baseline_and_tournament_raw_requests_responses_hash_verified": 140,
+  "independently_recomputed_scores": {
+    "c00": {
+      "role_cells": 110,
+      "verdicts": 28,
+      "stable_cases": 14
+    },
+    "c01": {
+      "role_cells": 110,
+      "verdicts": 26,
+      "stable_cases": 14
+    },
+    "c02": {
+      "role_cells": 112,
+      "verdicts": 28,
+      "stable_cases": 14
+    },
+    "c03": {
+      "role_cells": 112,
+      "verdicts": 28,
+      "stable_cases": 14
+    },
+    "c04": {
+      "role_cells": 111,
+      "verdicts": 28,
+      "stable_cases": 13
+    }
+  },
+  "selected_candidate": "c03",
+  "changed_question_roles": [
+    "implemented"
+  ],
+  "unchanged_roles": [
+    "relevant",
+    "violated",
+    "evidenced"
+  ],
+  "sealed_question_set_sha256": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+  "live_question_bead_matches_selected_seal": true,
+  "bead_fields_changed_only": [
+    "description",
+    "updated_at"
+  ],
+  "production_threshold": 0.6,
+  "reference_confidence_threshold_only": 0.8,
+  "production_fixture_check": {
+    "pass": true,
+    "judged": 2,
+    "mismatches": []
+  },
+  "current_CI": {
+    "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+    "success": 15,
+    "pending": 0
+  },
+  "limitations": [
+    "No Cargo,liveJev,tracker/question/source edits,children,PRposts or merge. br show only read the applied current question record.",
+    "Canonical seal and runtime-bundle hashes use different documented domains; equality is not required across those domains.",
+    "Frozen-oracle semantic acceptance and fixture passes do not establish the actual new full-sprint gate.",
+    "Independence evidenced by authority-only request/frozen oracle and parent transport records; timing is artifact ordering,not claimed evaluator CPU runtime."
+  ],
+  "time_UTC": "2026-11-07T00:24:18.993100+00:00",
+  "actual_QA16_gate": {
+    "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs/dev-20261107T002343Z-c-1.json",
+    "sha256": "60c1a383472856d7ab2fa009c01dcdaf11d7295ae5d869825c7b09b8ed8a3885",
+    "run_id": "dev-20261107T002343Z-c-1",
+    "summary": {
+      "counts": {
+        "satisfied": 16,
+        "excluded": 1
+      },
+      "failing": [],
+      "leaning_counts": {
+        "asserted_only": 3,
+        "satisfied": 13
+      },
+      "unstable": [],
+      "errors": [],
+      "excluded": [
+        {
+          "anchor_id": "ADR-BDC-0009",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+        }
+      ],
+      "shortened": [],
+      "pass": true
+    },
+    "complete_item_chars": 56116,
+    "current_sprint_exact_prefix": true,
+    "remaining_item_exact_corrected_report": true,
+    "threshold": 0.6,
+    "request_cap": 64000,
+    "ANC008_actual_questions_equal_sealed_map": true,
+    "actual_run_question_hash": "0513e743fd340219e1a4fe960e27da347688718cc6dcba5dc12be56b8da1903b",
+    "sealed_wrapper_hash": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+    "note": "Hash identities have different serialization domains; equality of the actual four-role question maps is independently asserted."
+  },
+  "formal_gate_validation": {
+    "path": "/tmp/phase-c-execution/c-1/qa-16/anchors/review-result.json",
+    "sha256": "72164d1106011b93efb9c36920439ae8e4937bf739114a333b7827dda63079c2",
+    "parent_validation": "/tmp/phase-c-execution/c-1/qa-16/anchors/parent-review-validation.json",
+    "valid": true,
+    "actual_results_equal_raw_run": true
+  },
+  "current_run_paired_binding": {
+    "path": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-deterministic-checks.json",
+    "sha256": "e3e8868f3445680d6dac0a70ba18ae12e5f42a025fec4e930260915764f265ac",
+    "summary": {
+      "applicable": 16,
+      "recorded_pass": 16,
+      "pending": 0,
+      "excluded": 1
+    },
+    "judge_run_id": "dev-20261107T002343Z-c-1",
+    "same_HEAD_prior_execution_credited": true,
+    "new_Cargo_execution": false
+  },
+  "all_other_production_question_hashes_preserved": true
+}

@@ -1,0 +1,2 @@
+bd is on PATH (/opt/homebrew/bin/bd): the tests must run without it (NFR-BDC-0005)
+dolt is on PATH (/opt/homebrew/bin/dolt): the tests must run without it (NFR-BDC-0005)

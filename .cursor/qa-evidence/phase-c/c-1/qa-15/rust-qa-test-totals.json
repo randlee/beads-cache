@@ -1,0 +1,1014 @@
+{
+  "store-tests": {
+    "groups": [
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-d2380d1631ff998b)",
+        "passed": 37,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "passed": 37,
+    "failed": 0,
+    "ignored": 0
+  },
+  "sync-tests": {
+    "groups": [
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-87a2802ef6d4127d)",
+        "passed": 26,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/builtin_run.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/builtin_run-96c9b5198cec1d97)",
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-235ae1f07afb6f9d)",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-723f2184f83bd679)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-25651968caba07ce)",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/e2e.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/e2e-8fe88a3a91c82d2f)",
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/hook_runner.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/hook_runner-99effa4400e05efc)",
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-2dd35710ba24460f)",
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-1df1949e76850019)",
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "passed": 110,
+    "failed": 0,
+    "ignored": 0
+  },
+  "core-tests": {
+    "groups": [
+      {
+        "group": "tests/helpers_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_outage-9bffea5d5b135a95)",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ingest-5a9c3740d8afbe77)",
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/read_get.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_get-eba175af5e7df704)",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/sync_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_contract-e81674139cd414ed)",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/sync_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_rows-cd4a1f14d1b8a2ac)",
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "passed": 50,
+    "failed": 0,
+    "ignored": 0
+  },
+  "strict-rows": {
+    "groups": [
+      {
+        "group": "tests/strict_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows-5f35cb2a6eb6c7e1)",
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  "developer-full-workspace": {
+    "groups": [
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache-3154053b12da34f5)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_apply.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_apply-89d17f26e44eae49)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_budget.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_budget-5c2364ec8d9e3f11)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_failures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_failures-aac9f4bd64ad5456)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_outage-e45a33511541ceec)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_scripted.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_scripted-7cb36357b936eb15)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/facade_s66.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/facade_s66-f24b6fa29d2eaae0)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/failure_state.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/failure_state-ea163bcf7f247fc2)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/helpers_backend_check.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_backend_check-7f407e7504ff740d)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/helpers_call.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_call-daaee85a7dab401b)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/helpers_outage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_outage-098645f8c7a77140)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/helpers_view_miss.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/helpers_view_miss-5a83711943a05699)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ingest-7ac2552281745bb7)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/read_get.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_get-d8a5fc70aaef04d0)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/read_journal.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_journal-aade887cd95b860f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/read_ready.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/read_ready-01e8e73d1388b39b)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 25,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-939865b9cf16873d)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/sync_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_contract-d0ba6e054b227e4f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/sync_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_rows-7dca507fbb584d9a)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/threading-95d5908751314f82)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/write_path.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/write_path-c50b9941a59548a7)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/write_returning.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/write_returning-cd42e5a0a1be3d7c)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_api-7fbd5aa9157e0fde)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/entry_args.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/entry_args-a5c6f974775d9ca4)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/error_table.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/error_table-8554041d4ec0ba68)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-64a4add68f94a101)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/manage.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/manage-028514e2bf77cb78)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 25,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/paging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/paging-7587b6aae0c86be3)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/phase_b_codes.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_codes-2201288867ae38f9)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/phase_b_verbs.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_verbs-a0fb7285ee75e7f2)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/scope_names.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_names-a27662fc138f8a0e)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/unknown_changed.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/unknown_changed-a0fe502502594217)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_cli-b4c6924b7b6aba64)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 27,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/bin/bd-cache.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache-b0efa5f1fa432c96)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/bin/bdc.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bdc-f8ec9cca69dfa0c6)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/bin/fake-bd.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_bd-035ce79bee41bafb)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/bin/fake-python.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_python-4a2310ab861f6f1f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cli-bafaa87b4a5b89ca)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/fixtures.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fixtures-231dda3f6cd79720)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/harness.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/harness-0b84b0df1d035fdf)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/latency.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/latency-5fec3e205a52c29e)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "tests/outage_scenario.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/outage_scenario-568ad7db16665013)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/process-f07a9bd1fe5d777c)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/release_hygiene.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/release_hygiene-3748e5dc03595697)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/scenarios.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scenarios-e0b89104a06b15b9)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 14,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-a04d6ec4284835f8)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/sync_process.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sync_process-49cdabc71342b89e)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 13,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/tree_kill.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/tree_kill-9b8d8f5762d9b665)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_model-2237c16a1c569155)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 30,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/config.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/config-dab57d9615823297)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/goldens.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/goldens-5be094164f7de4d9)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/ops.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops-536bf014ae0714ed)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 16,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/store_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store_contract-db0df24907efdb6f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 41,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_store-d994ea4d368df885)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 37,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_lock.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_lock-142251ce87612f0c)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "tests/format_golden.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/format_golden-85b5afbb8cb4076f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/location.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/location-0ed5516af1881278)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 11,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "tests/open.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/open-4bae80cd91dc1489)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/phase_b_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/phase_b_store-bb336cc340b58485)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/schedule_store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_store-dec888ec0a64cf30)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/store.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store-f4aca023e65651fb)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 33,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "tests/store_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/store_contract-64ac3ed1169d1964)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 41,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/two_process_ingest.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/two_process_ingest-c88cef7c15a75fea)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_cache_sync-52fe13c5f0ae2584)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 26,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/builtin_run.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/builtin_run-4e231363ecf70235)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 8,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/compose.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/compose-dd404ead04f5335f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_hurry.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_hurry-80f26a9d8cecd59f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_logging-08245a4665e0d651)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cron_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cron_rows-2b8c132addf7fc53)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/drain_bd_cli.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/drain_bd_cli-1b758e097f178ff3)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/e2e.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/e2e-9c26d2c3d4b4b3fd)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/health.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/health-9602b9641b8e68f1)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/hook_runner.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/hook_runner-84546f0c338f71ef)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 15,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/job_threading.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/job_threading-70a1e3153be3843a)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/live.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/live-9b518f42b591fd87)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 2
+      },
+      {
+        "group": "tests/perf.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/perf-a79000559a55e7d6)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 6,
+        "failed": 0,
+        "ignored": 2
+      },
+      {
+        "group": "tests/schedule_logging.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_logging-1b7a9001b5e6b570)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/schedule_switch.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/schedule_switch-391daa5abb51e2c0)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 21,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sc_bd_cli-68a9f8cce5a17bd6)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 77,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "group": "tests/backend_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/backend_contract-f3766367b876176f)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/bd_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/bd_api_freeze-c31a47b478b8bc53)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cache_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cache_api_freeze-a0b544ff8e36ff92)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cache_calls.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cache_calls-203c04898769d49d)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/cli_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/cli_api_freeze-71d298f509cf8cd5)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 7,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/dolt_mode.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/dolt_mode-12faeb8f73c2cd4a)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/live.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/live-2ea78dfd0415f29b)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 7
+      },
+      {
+        "group": "tests/ops_argv.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops_argv-e29d52363c93f12e)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 20,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/ops_behaviour.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ops_behaviour-756c58aea9880011)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 19,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/parity.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/parity-2adc9830706a5f05)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/resolve_working_dir.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/resolve_working_dir-18a156f1f8da6dea)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/scope_filters.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/scope_filters-8748d113e093288c)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "unittests src/lib.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/sc_beads-ac76a806a1d4cbbe)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 105,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/api_freeze-d33229003f5b8155)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/backend_contract.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/backend_contract-204194875e144058)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 10,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/btit_api_snapshot.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/btit_api_snapshot-740ead96e6eb23e2)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/compatibility_info.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/compatibility_info-b50fe97d2a5bee54)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/fake_backend.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/fake_backend-52aebe85e0b91caa)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/ready_rule.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/ready_rule-005d1533eec43c97)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 2,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/strict_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows-925e153d611bfba8)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 4,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/strict_rows_generated.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows_generated-1cd5dde02338b10a)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "tests/types_api_freeze.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/types_api_freeze-a62b35ee5a10d4eb)",
+        "kind": "Running",
+        "subgroup": 0,
+        "passed": 25,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache_api",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache_api",
+        "kind": "Doc-tests",
+        "subgroup": 1,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache_cli",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache_model",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 36,
+        "failed": 0,
+        "ignored": 2
+      },
+      {
+        "group": "bd_cache_store",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 11,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "bd_cache_sync",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "sc_bd_cli",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 5,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "group": "sc_beads",
+        "kind": "Doc-tests",
+        "subgroup": 0,
+        "passed": 16,
+        "failed": 0,
+        "ignored": 2
+      }
+    ],
+    "passed": 1179,
+    "failed": 0,
+    "ignored": 21,
+    "method": "Last outer result per Cargo Running target; all rustdoc execution batches retained, including separate compile-fail cases under same doc target"
+  }
+}

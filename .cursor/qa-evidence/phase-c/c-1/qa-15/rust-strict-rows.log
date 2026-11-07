@@ -1,0 +1,15 @@
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling serde_json v1.0.154
+   Compiling sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-beads)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.50s
+     Running tests/strict_rows.rs (/tmp/phase-c-execution/c-1/restart-target/debug/deps/strict_rows-5f35cb2a6eb6c7e1)
+
+running 4 tests
+test test_recorded_bd_rows_validate ... ok
+test test_pinned_model_matches_recorded_schema ... ok
+test stored_form_round_trips ... ok
+test a_bad_row_is_a_contract_error_naming_bead_and_field ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

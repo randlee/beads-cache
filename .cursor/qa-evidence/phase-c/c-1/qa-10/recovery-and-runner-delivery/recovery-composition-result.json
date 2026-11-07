@@ -1,0 +1,212 @@
+{
+  "success": true,
+  "data": {
+    "status": "implemented_pending_independent_QA",
+    "timestamp_utc": "2026-11-04T08:25:31.612551+00:00",
+    "branch": "sprint/c-1-runtime-migration",
+    "baseline": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+    "pushed_commit": "2bb1b2e8bd3ccba7ecae5e79e96371634dcc239d",
+    "worktree": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
+    "source_clean": true,
+    "summary": "Separate transient-recovery positive qualification from independently retained real STOP80msCONT delay regression, under unchanged original budgets and all census/ownership/failed-receipt guarantees.",
+    "supported_cause_scope": "Supported mixed fixture-input timing assumption corrected; lower-level historical ps/signal/observer cause remains unknown and no production correction claimed.",
+    "files_changed": [
+      "crates/bd-cache-sync/tests/common/session_fixture.rs",
+      "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      ".triage/c/findings/RQA10-001.ttl"
+    ],
+    "source_identity": {
+      "baseline": "ec68ecfda3d41038c7375129b42f7f16c8f55680",
+      "helper_path": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+      "old_helper_blob": "8f5313e8db352e00dd233e0fe43011207174857c",
+      "new_helper_blob": "d8db8c954d53eb33aa629e409328cfd8a6e53685",
+      "outside_two_test_bodies_byte_equal": true,
+      "outside_two_tests_sha256": "a3be7bc66786d6fef4a2d6644f2f39ff6e30576c5b9d1be135d4c946366a68d9",
+      "production_src_rs_count": 159,
+      "changed_production_src_rs": [],
+      "new_tests_added": 0,
+      "tests_deleted": 0,
+      "numerical_budgets_changed": false,
+      "store_protocol_and_FixtureChild_unchanged": true,
+      "Cargo_manifests_lock_unchanged": true,
+      "pushed_commit": "2bb1b2e8bd3ccba7ecae5e79e96371634dcc239d",
+      "postpush_clean": true
+    },
+    "coverage_ledger": [
+      {
+        "proof": "transient recovery positive",
+        "old": "first transient error + deliberate STOP80msCONT scan3 during quiet-stability deadline",
+        "new": "same first transient error, then all real fresh complete scans; >=5 scans, two stable quiet censuses, actual root wait, final empty census and independent250ms audit still mandatory",
+        "coverage": "required positive; any timeout fails"
+      },
+      {
+        "proof": "real delayed inventory",
+        "old": "both recovery scan3 and independent existing250ms preflight regression",
+        "new": "independent existing preflight regression unchanged STOP/requested80ms/CONT/ownedwait semantics; strengthen measured ack-to-CONT delay>=80ms and retain complete inventory+PIDabsence; redundant second delay removed only from recovery",
+        "coverage": "required positive; no timeout accepted"
+      },
+      {
+        "proof": "failed root retained",
+        "old": "root deliberatelypanics, test checks non-success status+output",
+        "new": "same assertions in recovery and stage controls",
+        "coverage": "unchanged"
+      },
+      {
+        "proof": "incomplete quiescence and audit rejection",
+        "old": "independent held-command controls",
+        "new": "byte-identical controls: quiescence timeout false receipt; post-audit timeout preserves priortrue receipt while stillerror; actualcommand/rootreap and independentcompletecensus",
+        "coverage": "unchanged required negatives"
+      },
+      {
+        "proof": "noncooperative/one attempt/unwind",
+        "old": "incomplete_inventory and stopped_inventory tests plus lifecycleproofs",
+        "new": "byte-identical; actual timeout/reap, false receipt after retry/Drop, no new budget; existing root/Python/assertion/unregistered ownership tests retained",
+        "coverage": "unchanged"
+      }
+    ],
+    "verification": [
+      {
+        "check": "strict affected all-target/all-feature Clippy",
+        "command": "cargo clippy --locked -p bd-cache-sync --all-targets --all-features -- -D warnings",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-clippy.log",
+        "result": "PASS",
+        "exit": 0
+      },
+      {
+        "check": "prepush six inventory controls",
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features session_fixture:: -- --nocapture",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-controls.log",
+        "result": "6/6 PASS;1.08s",
+        "exit": 0
+      },
+      {
+        "check": "kernel session pre-registration timeout/unwind",
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --exact lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind --nocapture",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-preregistration.log",
+        "result": "1/1 PASS;5.65s",
+        "exit": 0
+      },
+      {
+        "check": "fixture/Python assertion unwind",
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features -- --exact lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind --nocapture",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-unwind.log",
+        "result": "1/1 PASS;0.68s",
+        "exit": 0
+      },
+      {
+        "check": "postpush exact-source controls",
+        "command": "cargo test --locked -p bd-cache-sync --test cron_hurry --all-features session_fixture:: -- --nocapture",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-controls.log",
+        "result": "6/6 PASS;1.08s",
+        "exit": 0
+      },
+      {
+        "check": "postpush fmt",
+        "command": "cargo fmt --all --check",
+        "log": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-fmt.log",
+        "result": "PASS",
+        "exit": 0
+      }
+    ],
+    "environment": {
+      "platform": "native Darwin/macOS, local",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_TARGET_DIR": "/tmp/phase-c-execution/c-1/restart-target",
+      "RUST_TEST_THREADS": "unchanged/unset; default libtest scheduling",
+      "execution": "real process controls authorized native to permit ps visibility; no new denied/failed tests in this assignment"
+    },
+    "actual_proofs": {
+      "prepush_delay_ms": 90.008834,
+      "prepush_total_ms": 123.449458,
+      "postpush_delay_ms": 86.758917,
+      "postpush_total_ms": 119.725,
+      "recovery_scans": 5,
+      "original_root_exit": 101,
+      "recovery_cleanup_receipt": true,
+      "recovery_complete_independent_audit": "PASS",
+      "intentional_quiescence_timeout_cleanup_receipt": false,
+      "intentional_audit_timeout_prior_cleanup_receipt": true,
+      "owned_negative_root_command_census": "actualwait/reap + completeindependentcensus beforedriverfallback; noncooperative3commandsreaped"
+    },
+    "limits": [
+      "Real positive inventories must still finish under original deadline; no mathematical host progress guarantee",
+      "Only scoped native controls/lifecycle/lint/fmt qualified; no full1171/performance or broadCI acceptance",
+      "Original failures, existingacceptedFTQ/RSHmechanisms and allsix histories retained",
+      "No extra integration/C2merge, primarychange, SDK/publisher/guard or workflowexperiment"
+    ],
+    "finding_dispositions": {
+      "RQA10-001": "OPEN; concrete composition correction delivered for independentowner/QA",
+      "RQA9-001": "OPEN; historicalWindowsqualificationcauseunlocalized; privateprotocolunchanged",
+      "QA2-001": "OPEN; unchangedpublished0.1.1strictgraphblocker",
+      "ARCH-001": "OPEN; unchangedpublicreceiverboundaryblocker",
+      "REQ-QA-004": "OPEN; genuinecurrentheadplatform/CIandpubliclogginggaps",
+      "RBQA-F001": "OPEN; unchangedpublishedreceiverdependencyedge"
+    },
+    "ci_snapshot": {
+      "head": "2bb1b2e8bd3ccba7ecae5e79e96371634dcc239d",
+      "checks": [],
+      "run_lookup": [],
+      "handle": "NOT_REGISTERED in two bounded snapshots; no job/run identity fabricated, no dispatch/retry/watch; parent owns further registration/monitoring",
+      "parent_followup": "Root reports PR108 CONFLICTING/DIRTY, checks0, stale basec0 metadata; remotef1e0756. Parent will separately dispatch metadata-only ordinary merge; no merge in this source-fix task."
+    },
+    "cargo_slot": "RELEASED immediately after finalrequiredlocalproof; zeroactivecommands, no furtherbuilds",
+    "raw_receipts": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-clippy.log",
+        "bytes": 202,
+        "sha256": "9db9bbc72b5c11ca863f5304df8c5915eedb9e98426e683c37366e0005cad867"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-compliance-context.json",
+        "bytes": 597256,
+        "sha256": "d057eb941c2b2e50f3bd3a2cd54cc7877dc0d1176e626c5bde0f5a7af4c6a5dd"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-controls.log",
+        "bytes": 13872,
+        "sha256": "393d730cd9f739e8a57c439087b376531d32dd6fc1460d02ee652c0dfbf98a94"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-fix-vars.json",
+        "bytes": 6968,
+        "sha256": "b1d3dcada28e7868df829dfd75af6058eb8f7ace9b6e25923f313c43fa59074e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-hosted-ci.json",
+        "bytes": 81,
+        "sha256": "7345b7c0e29fce0cfb9356c9245dec4ae37c5837cc4a846d91946c9091bc8335"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-hosted-runs.json",
+        "bytes": 3,
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-controls.log",
+        "bytes": 13743,
+        "sha256": "7173f97718aa886d5393545c0588fdabc7bc0d166a210411802ebb0ac27bdac0"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-postpush-fmt.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-preregistration.log",
+        "bytes": 8605,
+        "sha256": "107a202b4d3ce490f487b5782e6b3e0da8471d973187f7ca1f850d85123efe3d"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-source-identity.json",
+        "bytes": 745,
+        "sha256": "3db2fb9a4051449787084745b88a6586bbde8b87f8db7b933dac0bed24c18cdb"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-10/recovery-composition-unwind.log",
+        "bytes": 3798,
+        "sha256": "a7e9f6df4ae3b35e6a4fd038681b61e32ed717008db1a29a3e4fe5aa96c3a435"
+      }
+    ]
+  },
+  "error": null
+}

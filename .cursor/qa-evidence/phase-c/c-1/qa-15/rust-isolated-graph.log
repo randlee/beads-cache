@@ -1,0 +1,2 @@
+bd-cache-api: isolated graph PASS (approved scheduler/contracts; no clap/server/runtime)
+bd-cache-py: isolated graph PASS (approved scheduler/contracts; no clap/server/runtime)

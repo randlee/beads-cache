@@ -1,0 +1,325 @@
+{
+  "success": true,
+  "data": {
+    "status": "checks_recorded_with_gaps",
+    "reviewed_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "gate": "dev",
+    "item_id": "c-1",
+    "judge_run_id": "dev-20261106T113750Z-c-1",
+    "judge_pass": false,
+    "judge_failing": [
+      "ANC-008",
+      "ANC-001",
+      "NFR-BDC-0004",
+      "NFR-BDC-0005"
+    ],
+    "deterministic_checks": [
+      {
+        "anchor_id": "ANC-001",
+        "verdict": "underspecified",
+        "check": "`python3 scripts/lint_no_atm.py` exits 0 on the whole tree; per sprint, `python3 scripts/lint_no_atm.py --paths <sprint fence>` exits 0",
+        "status": "pass",
+        "evidence": [
+          "native:419",
+          "native:435",
+          "/tmp/phase-c-execution/c-1/qa-14/anchors/no-consumer-sprint-paths-receipt.json"
+        ],
+        "result": "Actual current CI whole-tree lint passes. Separately authorized existing --paths variant ran once at clean exact HEAD against all97actual changed paths from f1e0756 integration merge-base, exit0 and same clean output. No source/exemption change."
+      },
+      {
+        "anchor_id": "ANC-002",
+        "verdict": "satisfied",
+        "check": "a test runs the built-in sync from an sc-cron schedule row in the cache file",
+        "status": "pass",
+        "evidence": [
+          "native:1662",
+          "native:1664",
+          "native:1684"
+        ],
+        "result": "Real migrated scheduler/cache table runs due rows, skips not-due rows and preserves pre-migration cache identity/state."
+      },
+      {
+        "anchor_id": "ANC-003",
+        "verdict": "satisfied",
+        "check": "an end-to-end test disables the built-in sync row and a registered Python sync ingests a scope",
+        "status": "pass",
+        "evidence": [
+          "native:1777",
+          "native:1762",
+          "python:271"
+        ],
+        "source": [
+          "crates/bd-cache-py/tests/test_switch.py:69-82",
+          "crates/bd-cache-sync/tests/schedule_switch.rs"
+        ],
+        "result": "Current local/CI switching suites pass. Python test switches to the registered script, confirms python mode and ingestedp1 row, refuses builtin tick without a newbdcall, and switches back."
+      },
+      {
+        "anchor_id": "ANC-004",
+        "verdict": "satisfied",
+        "check": "an end-to-end test asserts the post-sync hook request carries each scope's result and error",
+        "status": "pass",
+        "evidence": [
+          "native:1714",
+          "python:268"
+        ],
+        "source": [
+          "crates/bd-cache-py/tests/test_run.py:123-153",
+          "crates/bd-cache-sync/tests/hook_runner.rs:44-70"
+        ],
+        "result": "Current Python hook suite7/7 runs the actual interpreter; test_the_hook_gets_every_result_marks_some_and_the_rest_is_offered_again asserts all successful scope results then actual failed scope error/failing_since and marking/reoffer. Rust hook request shape also passes."
+      },
+      {
+        "anchor_id": "ANC-008",
+        "verdict": "asserted_only",
+        "check": "a test shows a second built-in sync row is refused while other rows are allowed",
+        "status": "pass",
+        "evidence": [
+          "native:1659",
+          "local:65"
+        ],
+        "result": "Alternate built-in payload is refused while a non-sync row coexists; current local cron_rows10/10 and current native CI both execute it."
+      },
+      {
+        "anchor_id": "ANC-009",
+        "verdict": "satisfied",
+        "check": "tests sync a label-filter scope and an --all scope; grep finds no phase-file reading in crates/",
+        "status": "pass",
+        "evidence": [
+          "native:1600",
+          "/tmp/phase-c-execution/c-1/qa-14/anchors/deterministic-source-checks.json"
+        ],
+        "source": [
+          "crates/bd-cache-sync/tests/builtin_run.rs:45-76",
+          "crates/bd-cache-model/src/scope.rs"
+        ],
+        "result": "Actual current migrated worker syncs label and all filters. Read-only whole-crates scan finds no phase-file read pattern; source retains filter-based scopes. Historical phase-a names and persisted phase columns are compatibility fields, not file-derived scopes."
+      },
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "verdict": "excluded",
+        "check": "contract.md section 1 lists both groups; bdc --help shows the beads and cache command groups",
+        "status": "excluded",
+        "exclusion": {
+          "item": "c-1",
+          "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+        }
+      },
+      {
+        "anchor_id": "ADR-STORE-0001",
+        "verdict": "satisfied",
+        "check": "the format golden test matches the exact v3 DDL; PRAGMA user_version stays 3",
+        "status": "pass",
+        "evidence": [
+          "native:1388",
+          "native:1387",
+          "native:1389",
+          "native:1390",
+          "native:1421"
+        ],
+        "result": "Current exact-source CI executes goldenDDL, legacy reader and user_version3 preservation checks."
+      },
+      {
+        "anchor_id": "REQ-BDC-0001",
+        "verdict": "satisfied",
+        "check": "test_miss_fetches_once_then_serves_from_cache passes; a read during a running sync or hook test starts no bd process",
+        "status": "partial_pending_verification",
+        "evidence": [
+          "native:715",
+          "native:639",
+          "python:255"
+        ],
+        "source": [
+          "crates/bd-cache-py/tests/test_corpus.py:65-73",
+          "crates/bd-cache-sync/tests/builtin_run.rs:175-192"
+        ],
+        "result": "Named miss-once/cache test and cached-read/no-new-bd evidence pass in current CI. Corpus also asserts cached read has no backend call.",
+        "uncovered": "No executed current test was located that explicitly performs a cached read DURING an active sync/hook and asserts no newbdprocess. Outage reads after a completed sync are not relabeled concurrent proof. Existing source behavior is supporting evidence only; parent decision needed before any additional test execution."
+      },
+      {
+        "anchor_id": "REQ-BDC-0006",
+        "verdict": "satisfied",
+        "check": "grep finds no dolt or mysql client dependency or SQL against Dolt tables in crates/",
+        "status": "pass",
+        "evidence": [
+          "/tmp/phase-c-execution/c-1/qa-14/no-backend.log",
+          "/tmp/phase-c-execution/c-1/qa-14/rust-qa-receipts.json",
+          "/tmp/phase-c-execution/c-1/qa-14/anchors/deterministic-source-checks.json"
+        ],
+        "result": "Actual current whole-workspace dependency graph check rejects Dolt/MySQL/MariaDB clients and passes. Current source scan hits only backend metadata classification names/comments and cache-error text; no client dependency or SQL against Dolt tables found. CacheSQLite remains application storage, not backend access."
+      },
+      {
+        "anchor_id": "REQ-BDC-0007",
+        "verdict": "satisfied",
+        "check": "test_recorded_bd_rows_validate passes; an ingest_scope test with an unknown key returns BD_CONTRACT naming the bead and field",
+        "status": "configured_check_mismatch_pending_triage",
+        "evidence": [
+          "native:2254",
+          "native:696",
+          "native:1216",
+          "python:259"
+        ],
+        "source": [
+          "docs/requirements.md:118-126",
+          "docs/requirements.md:541-547",
+          "docs/requirements.md:566-577",
+          "crates/bd-cache-model/src/ingest.rs:1-11",
+          "crates/bd-cache/tests/ingest.rs:122-151",
+          "crates/bd-cache-py/tests/test_ingest.py:29-35"
+        ],
+        "result": "Recorded schema validation passes. Strict ingest unknown-key tests pass with BD_CACHE.INGEST_INVALID,row_invalid/index; no BD_CONTRACT-from-ingest receipt is asserted.",
+        "uncovered": "Configured second subcheck literally expects ingest_scope unknownkey -> BD_CONTRACT namingbead/field. Approved REQ-BDC-0726 specifically says any ingest violation is INGEST_INVALID with scope untouched; REQ-BDC-0729 gives reason/index contract. This error mapping/source is unchanged from integration baseline. Classify as stale configured deterministic expectation for independent triage, not a new product defect or permission to edit an anchor. No waiver/PASS of the literal BD_CONTRACT subcheck."
+      },
+      {
+        "anchor_id": "REQ-BDC-0008",
+        "verdict": "satisfied",
+        "check": "test_contract_violation_is_typed_and_sync_stores_nothing passes; an ingest_scope test with one bad row leaves the stored scope unchanged",
+        "status": "pass",
+        "evidence": [
+          "native:796",
+          "native:696",
+          "native:1604",
+          "python:259"
+        ],
+        "result": "Current tests exercise typed sync rejection and invalid row among valid ingest rows with no partial store. Python test_one_invalid_row_stores_no_row_of_the_snapshot asserts the scope remains empty."
+      },
+      {
+        "anchor_id": "REQ-BDC-0502",
+        "verdict": "satisfied",
+        "check": "test_sync_is_incremental_and_never_replaces_a_newer_row passes; an ingest_scope test with an older row keeps the newer stored row",
+        "status": "pass",
+        "evidence": [
+          "native:816",
+          "native:697",
+          "native:1603",
+          "python:259"
+        ],
+        "source": [
+          "crates/bd-cache/tests/ingest.rs:232-263",
+          "crates/bd-cache-py/tests/test_ingest.py:38-46"
+        ],
+        "result": "Current sync cursor/newer-row test passes. Core ingest and Python test_an_older_row_never_replaces_a_newer_stored_one preserve the newer row and report skipped_newer."
+      },
+      {
+        "anchor_id": "REQ-BDC-0812",
+        "verdict": "satisfied",
+        "check": "pytest -W error::DeprecationWarning passes and the 0.1 call corpus test is unchanged",
+        "status": "pass",
+        "evidence": [
+          "python:232",
+          "python:248",
+          "python:255",
+          "python:282",
+          "/tmp/phase-c-execution/c-1/qa-14/anchors/deterministic-source-checks.json"
+        ],
+        "source": [
+          "crates/bd-cache-py/tests/test_corpus.py:1-73",
+          "crates/bd-cache-py/tests/corpus/corpus_0_1.json",
+          "crates/bd-cache-py/tests/corpus/record.py"
+        ],
+        "result": "Actual current Python3.11 job executes warning-as-error pytest:226collected,226passed,0skipped; all7corpus cases execute. Corpus test rebuilds fakebd calls and compares committed JSON, guarding legacy verbs/replies/errors/argv. Test,recordgenerator,corpus bytes unchanged from f1e0756 baseline; last corpus/test change c447c129 from b9. Node action deprecation messages outside pytest are not Python binding DeprecationWarnings."
+      },
+      {
+        "anchor_id": "NFR-BDC-0004",
+        "verdict": "underspecified",
+        "check": "a test with a hanging fake bd and a hanging hook shows each is killed at its timeout and the run ends by its deadline",
+        "status": "pass",
+        "evidence": [
+          "native:1089",
+          "native:1079",
+          "native:2033",
+          "native:1919",
+          "native:1703",
+          "native:1709",
+          "native:1195",
+          "native:1196",
+          "native:1725",
+          "/tmp/phase-c-execution/c-1/qa-14/rust-qa-nfr-evidence.json"
+        ],
+        "result": "Paired existing tests exercise gated fake-bd timeout, actual child/process-group timeout kill, hook hang/deadline tree kill and run completion, inherited caller deadline, hook reserve and Python row containment. These are complementary controls, not a claim of one newly executed combined test.",
+        "limits": "The gated fake-bd timeout allows a slow spawn; separate positive control proves the gate starts. Hook test fires the existing expiry after readiness and observes descendant pipe closure, joined run and released lease. Slow-bd2s/<12s test is not precise2s proof. Preserve the live Jev unstable flag; no anchor PASS inferred."
+      },
+      {
+        "anchor_id": "NFR-BDC-0005",
+        "verdict": "underspecified",
+        "check": "CI unit jobs run with no bd on PATH; new tests use fake-bd",
+        "status": "pass",
+        "evidence": [
+          "native:257",
+          "native:517",
+          "native:518",
+          "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-environment.json",
+          "/tmp/phase-c-execution/c-1/qa-14/rust-qa-backend-free-receipts.json",
+          "/tmp/phase-c-execution/c-1/qa-14/backend-guard-unit.log"
+        ],
+        "result": "Current native CI runs backend PATH guard before full workspace tests. Local exact-source one-time corrected process PATH guard then same60tests pass. New fixtures use FakeBd/FakeBackend/ManualClock. Original host PATH failure remains preserved; no universal mutation mapping claimed."
+      },
+      {
+        "anchor_id": "ADR-BDC-0005",
+        "verdict": "satisfied",
+        "check": "the outage tests show reads still answered and the scope's outage recorded on spawn failure, timeout and transport errors",
+        "status": "pass",
+        "evidence": [
+          "native:639",
+          "native:1605",
+          "native:608",
+          "native:663",
+          "native:1209",
+          "native:1210",
+          "native:1206"
+        ],
+        "result": "Actual current cached-read/no-backend-call, retained-row/scope-outage, timeout and spawn/transport classification tests pass. Source maps the classified backend failure into the scope outcome; no live backend test substituted."
+      }
+    ],
+    "summary": {
+      "applicable": 16,
+      "recorded_pass": 14,
+      "pending": 2,
+      "excluded": 1,
+      "pending_ids": [
+        "REQ-BDC-0001",
+        "REQ-BDC-0007"
+      ]
+    },
+    "evidence_registry": {
+      "native": {
+        "path": "/tmp/phase-c-execution/c-1/qa-14/ci-native-ubuntu.log",
+        "sha256": "26389063f297109f7096502a0a873e309c20f889840551ebc544823b539173e3",
+        "run_id": 42210020381,
+        "job_id": 127866048946,
+        "command": "cargo test --locked --workspace --exclude bd-cache-py --all-features",
+        "provenance": "Run belongs to head60f8920; checkout log records PR merge a7dbb7a merging60f8920 into f1e0756. This is current-head PR-CI evidence, not literal checkout of60f8920."
+      },
+      "python": {
+        "path": "/tmp/phase-c-execution/c-1/qa-14/ci-python-ubuntu311.log",
+        "sha256": "b6679ff62e57fcaa2364c9f1dd41980f126c988fea07c83e24ab86d8b8581d73",
+        "run_id": 42210020376,
+        "job_id": 127867389686,
+        "command": "python -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider",
+        "provenance": "Current-head PR-CI wheel/pytest job; checkout log records same PR merge. Installed bd-cache-rs0.2.0wheel; actual226pass output retained."
+      },
+      "local": {
+        "path": "/tmp/phase-c-execution/c-1/qa-14/sync-tests-backend-free.log",
+        "sha256": "88af6ef51a4642dd96fbb253edab01e8f44b638d707a35f45221ae293269d851",
+        "provenance": "Clean exact60f8920; actual backend-free local selected60tests. Receipt/environment record kept separately from CI."
+      }
+    },
+    "source_equivalence": {
+      "proof": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-source-evidence.json",
+      "scope": "QA13 historical426/0/9 is byte-equivalent for262Rustfiles/guards/pins, but current CI actual named outcomes above are preferred. Python corpus identity separately verified; Rust equivalence is not used as Python execution proof."
+    },
+    "main_rust_qa": {
+      "status": "pass",
+      "path": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-agent-result.json",
+      "sha256": "30e67ee601e11b895dc0ccda4928cd53ee4e53bf6c27b96a9a183a3758c13423",
+      "unchanged": true
+    },
+    "limits": [
+      "No source/anchor/bead/PR edits, Jev calls, child agents or Cargo execution.",
+      "Only new execution was the explicitly authorized existing lint --paths variant; source/history reads and scans are recorded.",
+      "This pairs the existing gate contract. Original Jev failures/instability remain; no gate PASS or universal mutation claim.",
+      "No standalone consumer coverage ledger or new validator introduced."
+    ]
+  },
+  "error": null
+}

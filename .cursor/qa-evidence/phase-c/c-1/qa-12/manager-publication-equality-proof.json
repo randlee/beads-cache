@@ -1,0 +1,20 @@
+{
+  "qa_pass": "qa-12",
+  "coordinator_task_id": "/root/c1_quality_manager12",
+  "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6627974296",
+  "published_at": "2026-11-04T10:01:12Z",
+  "updated_at": "2026-11-04T10:01:53Z",
+  "refetched_at": "2026-11-04T10:01:55.827823+00:00",
+  "saved_body": "/tmp/phase-c-execution/c-1/qa-12/manager-result.md",
+  "published_refetched_body": "/tmp/phase-c-execution/c-1/qa-12/manager-published-body.md",
+  "parent_body": "/tmp/phase-c-execution/c-1/qa-12/manager-parent-report.md",
+  "full_body_byte_equal": true,
+  "full_body_sha256": "f7b2979fe93c1f1cd80117c0fdb1e74ee5aefd32c9c5530987928f4a521e8ac3",
+  "bytes": 19370,
+  "machine_status_equal": true,
+  "machine_status_sha256": "7d60ebc37c5a6fe4c2870abd7190ce563eddbcdddd9fe82dc57507397c88902e",
+  "self_review_fallback": "GitHub refused request-changes on own PR; posted and amended same comment with actual URL",
+  "reviewer_spawn_gate": "pass",
+  "verdict": "FAIL",
+  "state": "STOP after actual publication"
+}

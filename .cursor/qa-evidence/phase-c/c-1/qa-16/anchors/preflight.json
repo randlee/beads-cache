@@ -1,0 +1,20 @@
+{
+  "success": true,
+  "data": {
+    "workspace_root": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
+    "script": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.codex/skills/plan-anchoring/scripts/jev_judge.py",
+    "anchors_path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/docs/plans/phase-c/anchors/anchors.json",
+    "run_dir": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/runs",
+    "evidence": [
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/item.txt",
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/corrected-sprint-report.md",
+      "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/target/qa-16-anchor-evidence/current-ci.json"
+    ],
+    "identifiers": [
+      "c-1"
+    ],
+    "pr_number": "108",
+    "work_key": "c-1-qa16"
+  },
+  "error": null
+}

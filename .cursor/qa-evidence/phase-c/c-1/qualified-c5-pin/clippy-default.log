@@ -1,0 +1,25 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+    Checking sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-beads)
+    Checking sc-cron v0.2.0 (https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b)
+    Checking bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-model)
+    Checking sc-bd-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-bd-cli)
+    Checking bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache)
+    Checking bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+    Checking bd-cache-api v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-api)
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Checking bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.44s

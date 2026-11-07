@@ -1,0 +1,1488 @@
+<cursor-qa-task id="qa-c-1-13" sprint="c-1" assignee="cursor-quality-mgr">
+  <description>You are sole cursor-quality-mgr evidence/spawn enforcer for complete frozen QA13, not source/test reviewer. Allfour parentroles completed andactualfencedJSON received; manifest/taskIDs correlatable. NoCargo/sourcegrep/deliverableinference/childagents/fixes/merge. Read exact roleJSON and TODOscan percontract; fullrolefiles hashbound inmanifest; req/flaky boundedcompleteleafprojections preserve all actualfindingobjects/summary/dispositions and bind fullreports. Aggregate currentowner disposition vs carriedcrossrole findings explicitly; do not inventclosures or preserve historicallycorrected source as currentfailure. Current arch resolvesARCH001, Rust resolvesQA2001; originalRBQAF001 historicalowner/triagepredicate must remaintraceable (historical actualboundaryfinding, not newRBP rerun); determine canonicalremainingstatus from actualroleevidence and priortriage, reportambiguityconservatively. NewARCH13-001 Blockingunusedsyncobservabilitytypesdependency supportedbyarch+req; REQQA004 Blockingacceptancegaps remains. Full reqreconciled36rows31complete86.11%,101sourcechecksallupheld; denominator changedfromprior34byindependentfullplanextraction, no forcedcounts. Rust426pass9ignored44groups plusactualgraph/servernegative/boundariesPASS, flakyownPASS/no newfinding but carriesfour oldIDs pendingownercloseout. Nativeidenticalrun afterdocumentedsandboxEPERM; preserve allfailures/executioncontext and nosource/timerchanges, no retrytogreen claim.
+Upstream exactqualifiedGitpin c3ce3d1b via mergedPR118 is explicit humanapproved prefinal0.2 candidate, not crates.io publication; actualnewsourcepolicy remainsnarrow accordingownerreview. Parentimplementationanchorpreparation no liveJev: untouchedsprint78,752bytes/composed87,858;64kcapdryrun discardedallappendedimplementationevidence for16requests. This is acceptancegap underREQ004, not a fakeJevserviceerror or passinggate. No truncatedlive request wasmade. Independentprose/ceremonyaudit is runningtoidentifypermittedproseredundancy removal, notscope reduction/capraise/splittopass. Do not include its uncompletedfuture result ascurrentQAproof.
+BoundedcurrentCI refresh permitted, currentparentreceiptcurrent-ci.json; pending ispending notfailed. No hostedliteralmergeheadclaims. Run requiredTODOscan afterspawngate. Publish actualFAIL report everyQAround to existingPR108; selfreview businessrulefallbackcommentallowed. Save identical reportbody/PRrefetch/MachineStatus/equality receipts and parentfinalfence underqa13. Include allopenfindings atallseverities, actualcanonicaldispositions, accuratecurrentgates/CI. Do not demand mandatoryseparatecoverageledger previouslyrejected. Ceremony screen+parentdecisions availablebefore invocation. Remainsoleenforcer, noautomaticfix ormerge. Parentwillfix allremainingIDs andrerunQA14+anchors.
+</description>
+
+  <review-mode>sprint_review</review-mode>
+  <authoritative-sprint-doc>docs/plans/phase-c/sprint-c-1-runtime-migration.md</authoritative-sprint-doc>
+  <pr-number>108</pr-number>
+  <branch>sprint/c-1-runtime-migration</branch>
+  <worktree>/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration</worktree>
+  <commits>478812a83adb04ea38c93a6d4bc83a17233a9cf4</commits>
+
+  <review-targets>
+.github/workflows/ci.yml
+.github/workflows/python.yml
+.triage/c/findings/ARCH-001.ttl
+.triage/c/findings/CI-C2-RUNNER-001.ttl
+.triage/c/findings/FTQ-009.ttl
+.triage/c/findings/FTQ-010.ttl
+.triage/c/findings/QA2-001.ttl
+.triage/c/findings/RBQA-F001.ttl
+.triage/c/findings/REQ-QA-004.ttl
+.triage/c/findings/RQA10-001.ttl
+.triage/c/findings/RQA11-001.ttl
+.triage/c/findings/RQA9-001.ttl
+Cargo.lock
+Cargo.toml
+crates/bd-cache-cli/Cargo.toml
+crates/bd-cache-store/Cargo.toml
+crates/bd-cache-store/src/codec.rs
+crates/bd-cache-store/src/health.rs
+crates/bd-cache-store/src/lib.rs
+crates/bd-cache-store/src/schedule.rs
+crates/bd-cache-store/src/schedule_budget.rs
+crates/bd-cache-store/src/schema.rs
+crates/bd-cache-store/src/store.rs
+crates/bd-cache-store/tests/schedule_store.rs
+crates/bd-cache-store/tests/support/fixture_child.rs
+crates/bd-cache-store/tests/support/schedule_protocol.rs
+crates/bd-cache-sync/Cargo.toml
+crates/bd-cache-sync/src/compose.rs
+crates/bd-cache-sync/src/control.rs
+crates/bd-cache-sync/src/cron.rs
+crates/bd-cache-sync/src/cron_log.rs
+crates/bd-cache-sync/src/history.rs
+crates/bd-cache-sync/src/job.rs
+crates/bd-cache-sync/src/launch.rs
+crates/bd-cache-sync/src/lib.rs
+crates/bd-cache-sync/src/mode_lock.rs
+crates/bd-cache-sync/src/module_hook.rs
+crates/bd-cache-sync/src/payload.rs
+crates/bd-cache-sync/src/python_job.rs
+crates/bd-cache-sync/src/run.rs
+crates/bd-cache-sync/src/schedule.rs
+crates/bd-cache-sync/tests/check_consumer_graph.py
+crates/bd-cache-sync/tests/common/mod.rs
+crates/bd-cache-sync/tests/common/repo.rs
+crates/bd-cache-sync/tests/common/session_fixture.rs
+crates/bd-cache-sync/tests/cron_hurry.rs
+crates/bd-cache-sync/tests/cron_rows.rs
+crates/bd-cache-sync/tests/e2e.rs
+crates/bd-cache-sync/tests/hook_runner.rs
+crates/bd-cache-sync/tests/job_threading.rs
+crates/bd-cache-sync/tests/perf.rs
+crates/bd-cache-sync/tests/schedule_switch.rs
+crates/bd-cache-sync/tests/test_consumer_graph.py
+crates/sc-cron/Cargo.toml
+crates/sc-cron/LICENSE
+crates/sc-cron/README.md
+crates/sc-cron/clippy.toml
+crates/sc-cron/src/clock.rs
+crates/sc-cron/src/error.rs
+crates/sc-cron/src/expr.rs
+crates/sc-cron/src/hook.rs
+crates/sc-cron/src/jitter.rs
+crates/sc-cron/src/job.rs
+crates/sc-cron/src/lib.rs
+crates/sc-cron/src/limits.rs
+crates/sc-cron/src/process.rs
+crates/sc-cron/src/scheduler.rs
+crates/sc-cron/src/sqlite.rs
+crates/sc-cron/src/store.rs
+crates/sc-cron/src/timestamp.rs
+crates/sc-cron/src/types.rs
+crates/sc-cron/src/worker.rs
+crates/sc-cron/tests/common/mod.rs
+crates/sc-cron/tests/enabled.rs
+crates/sc-cron/tests/expr.rs
+crates/sc-cron/tests/process_api.rs
+crates/sc-cron/tests/python_hook.rs
+crates/sc-cron/tests/reload_poll.rs
+crates/sc-cron/tests/run_due_abort.rs
+crates/sc-cron/tests/sqlite_store.rs
+crates/sc-cron/tests/stop_hook.rs
+crates/sc-cron/tests/target_resolver.rs
+crates/sc-cron/tests/two_process.rs
+crates/sc-cron/tests/worker.rs
+docs/architecture.md
+docs/bd-cache-api/requirements.md
+docs/bd-cache-cli/architecture.md
+docs/bd-cache-cli/requirements.md
+docs/bd-cache-py/architecture.md
+docs/bd-cache-store/architecture.md
+docs/bd-cache-sync/architecture.md
+docs/plans/phase-c/phase-c-plan.md
+docs/plans/phase-c/sprint-c-1-runtime-migration.md
+docs/requirements.md
+docs/sc-cron/architecture.md
+docs/sc-cron/requirements.md
+  </review-targets>
+
+  <changed-files>
+.github/workflows/ci.yml
+.github/workflows/python.yml
+.triage/c/findings/ARCH-001.ttl
+.triage/c/findings/CI-C2-RUNNER-001.ttl
+.triage/c/findings/FTQ-009.ttl
+.triage/c/findings/FTQ-010.ttl
+.triage/c/findings/QA2-001.ttl
+.triage/c/findings/RBQA-F001.ttl
+.triage/c/findings/REQ-QA-004.ttl
+.triage/c/findings/RQA10-001.ttl
+.triage/c/findings/RQA11-001.ttl
+.triage/c/findings/RQA9-001.ttl
+Cargo.lock
+Cargo.toml
+crates/bd-cache-cli/Cargo.toml
+crates/bd-cache-store/Cargo.toml
+crates/bd-cache-store/src/codec.rs
+crates/bd-cache-store/src/health.rs
+crates/bd-cache-store/src/lib.rs
+crates/bd-cache-store/src/schedule.rs
+crates/bd-cache-store/src/schedule_budget.rs
+crates/bd-cache-store/src/schema.rs
+crates/bd-cache-store/src/store.rs
+crates/bd-cache-store/tests/schedule_store.rs
+crates/bd-cache-store/tests/support/fixture_child.rs
+crates/bd-cache-store/tests/support/schedule_protocol.rs
+crates/bd-cache-sync/Cargo.toml
+crates/bd-cache-sync/src/compose.rs
+crates/bd-cache-sync/src/control.rs
+crates/bd-cache-sync/src/cron.rs
+crates/bd-cache-sync/src/cron_log.rs
+crates/bd-cache-sync/src/history.rs
+crates/bd-cache-sync/src/job.rs
+crates/bd-cache-sync/src/launch.rs
+crates/bd-cache-sync/src/lib.rs
+crates/bd-cache-sync/src/mode_lock.rs
+crates/bd-cache-sync/src/module_hook.rs
+crates/bd-cache-sync/src/payload.rs
+crates/bd-cache-sync/src/python_job.rs
+crates/bd-cache-sync/src/run.rs
+crates/bd-cache-sync/src/schedule.rs
+crates/bd-cache-sync/tests/check_consumer_graph.py
+crates/bd-cache-sync/tests/common/mod.rs
+crates/bd-cache-sync/tests/common/repo.rs
+crates/bd-cache-sync/tests/common/session_fixture.rs
+crates/bd-cache-sync/tests/cron_hurry.rs
+crates/bd-cache-sync/tests/cron_rows.rs
+crates/bd-cache-sync/tests/e2e.rs
+crates/bd-cache-sync/tests/hook_runner.rs
+crates/bd-cache-sync/tests/job_threading.rs
+crates/bd-cache-sync/tests/perf.rs
+crates/bd-cache-sync/tests/schedule_switch.rs
+crates/bd-cache-sync/tests/test_consumer_graph.py
+crates/sc-cron/Cargo.toml
+crates/sc-cron/LICENSE
+crates/sc-cron/README.md
+crates/sc-cron/clippy.toml
+crates/sc-cron/src/clock.rs
+crates/sc-cron/src/error.rs
+crates/sc-cron/src/expr.rs
+crates/sc-cron/src/hook.rs
+crates/sc-cron/src/jitter.rs
+crates/sc-cron/src/job.rs
+crates/sc-cron/src/lib.rs
+crates/sc-cron/src/limits.rs
+crates/sc-cron/src/process.rs
+crates/sc-cron/src/scheduler.rs
+crates/sc-cron/src/sqlite.rs
+crates/sc-cron/src/store.rs
+crates/sc-cron/src/timestamp.rs
+crates/sc-cron/src/types.rs
+crates/sc-cron/src/worker.rs
+crates/sc-cron/tests/common/mod.rs
+crates/sc-cron/tests/enabled.rs
+crates/sc-cron/tests/expr.rs
+crates/sc-cron/tests/process_api.rs
+crates/sc-cron/tests/python_hook.rs
+crates/sc-cron/tests/reload_poll.rs
+crates/sc-cron/tests/run_due_abort.rs
+crates/sc-cron/tests/sqlite_store.rs
+crates/sc-cron/tests/stop_hook.rs
+crates/sc-cron/tests/target_resolver.rs
+crates/sc-cron/tests/two_process.rs
+crates/sc-cron/tests/worker.rs
+docs/architecture.md
+docs/bd-cache-api/requirements.md
+docs/bd-cache-cli/architecture.md
+docs/bd-cache-cli/requirements.md
+docs/bd-cache-py/architecture.md
+docs/bd-cache-store/architecture.md
+docs/bd-cache-sync/architecture.md
+docs/plans/phase-c/phase-c-plan.md
+docs/plans/phase-c/sprint-c-1-runtime-migration.md
+docs/requirements.md
+docs/sc-cron/architecture.md
+docs/sc-cron/requirements.md
+  </changed-files>
+
+  <triage-records>
+/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/ARCH13-001.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl
+/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl
+  </triage-records>
+
+  <references>
+/tmp/phase-c-execution/c-1/qa-12/parent-spawn-correlation.json
+/tmp/phase-c-execution/c-1/qa-12/reviewer-manifest.json
+/tmp/phase-c-execution/c-1/qa-12/current-open-findings.json
+/tmp/phase-c-execution/c-1/qa-12/ceremony-screen-result.json
+/tmp/phase-c-execution/c-1/qa-12/ceremony-parent-decisions.json
+/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json
+/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log
+/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-macos.log
+/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-windows.log
+/tmp/phase-c-execution/c-1/qa-4/rust-best-practices-agent-result.json
+  </references>
+
+  <enforcer-binding>
+    Role quality-mgr MUST be fulfilled only by cursor-quality-mgr.
+    Do not spawn Task subagent_type quality-mgr.
+    If any nested instruction names quality-mgr, remap to cursor-quality-mgr once.
+    cursor-quality-mgr is a **spawn and evidence enforcer** — it verifies the parent orchestrator spawned the required reviewer set, received parseable fenced JSON from each, aggregates findings, and publishes the final PR report. It never spawns reviewer Tasks and never substitutes coordinator analysis for reviewer output.
+    **Spawn gate** (missing handoff / reviewer / task_id / unparsed JSON / wrapper `success: false`) → `reviewer_spawn_gate: fail`, `next_action: parent_respawn_reviewers`. **Finding gate** (reviewer returned valid JSON but reported findings, e.g. req-qa `status: FAIL`, arch-qa `verdict: FAIL`) → `reviewer_spawn_gate: pass`, `verdict: FAIL`, `next_action: triage_and_fix`.
+  </enforcer-binding>
+
+  <parent-reviewer-handoff required="true">
+    <!-- manifest: JSON array [{agent, task_id, spawn_actor}] — parent fills before render -->
+    <manifest>[{&quot;agent&quot;: &quot;req-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_reqqa13&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning_effort&quot;: &quot;high&quot;, &quot;model_provenance&quot;: &quot;Explicit availablefallback; configuredGrok/Composerunavailable&quot;, &quot;invocation&quot;: &quot;parent_spawn_new_independent_reviewer&quot;, &quot;assignment_file&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-input.json&quot;, &quot;ack_received&quot;: true, &quot;fenced_json_received&quot;: true, &quot;result_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-return-projection.json&quot;, &quot;result_sha256&quot;: &quot;e3e71e180f9411466339d0e74b68b0f62c25d974d21350ad695096c92cbb1296&quot;, &quot;reported_verdict&quot;: &quot;FAIL&quot;, &quot;role_owned_verdict&quot;: null, &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;, &quot;verdict&quot;: &quot;FAIL&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 2, &quot;important&quot;: 0, &quot;minor&quot;: 0}}, {&quot;agent&quot;: &quot;arch-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_archqa13&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning_effort&quot;: &quot;high&quot;, &quot;model_provenance&quot;: &quot;Explicit availablefallback; configuredGrok/Composerunavailable&quot;, &quot;invocation&quot;: &quot;parent_spawn_new_independent_reviewer&quot;, &quot;assignment_file&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-input.json&quot;, &quot;ack_received&quot;: true, &quot;fenced_json_received&quot;: true, &quot;result_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-result.json&quot;, &quot;result_sha256&quot;: &quot;2efc54a904cfc454ae0fc5077b5ee5a1fcc5598583c6ee063eb8abc0e2e2b2f8&quot;, &quot;reported_verdict&quot;: &quot;FAIL&quot;, &quot;role_owned_verdict&quot;: null, &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;, &quot;verdict&quot;: &quot;FAIL&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 1, &quot;important&quot;: 0, &quot;minor&quot;: 0}}, {&quot;agent&quot;: &quot;rust-qa-agent&quot;, &quot;task_id&quot;: &quot;/root/c1_rustqa13&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning_effort&quot;: &quot;high&quot;, &quot;model_provenance&quot;: &quot;Explicit availablefallback; configuredGrok/Composerunavailable&quot;, &quot;invocation&quot;: &quot;parent_spawn_new_independent_reviewer&quot;, &quot;assignment_file&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-agent-input.json&quot;, &quot;ack_received&quot;: true, &quot;fenced_json_received&quot;: true, &quot;result_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-agent-result.json&quot;, &quot;result_sha256&quot;: &quot;0597dce2fbc1cb0b683ec9aefaa46f5eaa8f973581e034d1cae412b482e3ac0d&quot;, &quot;reported_verdict&quot;: &quot;pass&quot;, &quot;role_owned_verdict&quot;: null, &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;, &quot;verdict&quot;: &quot;pass&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 0, &quot;important&quot;: 0, &quot;minor&quot;: 0}}, {&quot;agent&quot;: &quot;flaky-test-qa&quot;, &quot;task_id&quot;: &quot;/root/c1_flakyqa13&quot;, &quot;spawn_actor&quot;: &quot;parent-orchestrator&quot;, &quot;model&quot;: &quot;gpt-6.1-sol&quot;, &quot;reasoning_effort&quot;: &quot;high&quot;, &quot;model_provenance&quot;: &quot;Explicit availablefallback; configuredGrok/Composerunavailable&quot;, &quot;invocation&quot;: &quot;parent_spawn_new_independent_reviewer&quot;, &quot;assignment_file&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-input.json&quot;, &quot;ack_received&quot;: true, &quot;fenced_json_received&quot;: true, &quot;result_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-handoff.json&quot;, &quot;result_sha256&quot;: &quot;2beda6a695028cc03c9fec782f97c611bcac72c2e83f509f9fe32656a3cb42d1&quot;, &quot;reported_verdict&quot;: &quot;findings&quot;, &quot;role_owned_verdict&quot;: &quot;PASS&quot;, &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;, &quot;verdict&quot;: &quot;findings&quot;, &quot;findings&quot;: {&quot;blocking&quot;: 3, &quot;important&quot;: 1, &quot;minor&quot;: 0}}]</manifest>
+    <!-- reviewer-outputs: one fenced JSON block per manifest entry, same order -->
+    <reviewer-outputs>## req-qa — /root/c1_reqqa13
+```json
+{
+  &quot;status&quot;: &quot;FAIL&quot;,
+  &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+  &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+  &quot;scope&quot;: {
+    &quot;phase&quot;: &quot;c&quot;,
+    &quot;sprint&quot;: &quot;c-1&quot;
+  },
+  &quot;errors&quot;: [],
+  &quot;findings&quot;: [
+    {
+      &quot;id&quot;: &quot;ARCH13-001&quot;,
+      &quot;owner&quot;: &quot;arch-qa&quot;,
+      &quot;severity&quot;: &quot;Blocking&quot;,
+      &quot;category&quot;: &quot;design&quot;,
+      &quot;source_refs&quot;: [
+        &quot;docs/bd-cache-sync/architecture.md:662&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:672&quot;,
+        &quot;docs/architecture.md:152&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:219&quot;
+      ],
+      &quot;target_refs&quot;: [
+        &quot;crates/bd-cache-sync/Cargo.toml:30&quot;,
+        &quot;crates/bd-cache-sync/src/cron_log.rs:3&quot;
+      ],
+      &quot;issue&quot;: &quot;The sync crate retains an unused direct normal sc-observability-types dependency. The exhaustive amended ADR-SYNC-0006/0008 dependency list and current Crate Layout do not authorize it. Current cron_log uses all canonical types from the genuine public sc_cron::observability facade; an independent rg sweep finds no sync source use of the direct package. Passing isolated graphs do not amend the exhaustive dependency contract. This independently corroborates the architecture owner\u2019s canonical finding rather than adding a duplicate ID.&quot;,
+      &quot;required_correction&quot;: &quot;Remove only the unused sync sc-observability-types normal dependency and corresponding sync lock dependency edge. Retain legitimate workspace/CLI/upstream usage, exact qualified pin, genuine logging facade and existing graph restrictions; run ordinary affected qualification. No broad dependency amendment or extra process gate is needed.&quot;,
+      &quot;compliance_result&quot;: &quot;partially-compliant&quot;
+    },
+    {
+      &quot;id&quot;: &quot;REQ-QA-004&quot;,
+      &quot;severity&quot;: &quot;Blocking&quot;,
+      &quot;category&quot;: &quot;acceptance-gap&quot;,
+      &quot;source_refs&quot;: [
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:220&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:387&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:388&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:392&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:404&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:1230&quot;
+      ],
+      &quot;target_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/developer-result.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/reviewer-manifest.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/anchors/request-preparation.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/anchors/dryrun.json&quot;
+      ],
+      &quot;issue&quot;: &quot;Exact clean 478812a corrects the unauthorized logging introducer and candidate-source graph conflict, but sprint closeout remains open. Current CI has 10 of 15 checks successful, 5 pending, and no failures. Current development-anchor and independent QA integration closeout has not been supplied. The independently derived 36-row checklist has 31 complete and 5 incomplete items: all 8 acceptance behavior rows are present, while 20 of 21 implementation/preservation obligations are complete. The residual direct observability dependency is tracked as canonical ARCH13-001. No semantic REQ/NFR violation was found in the 101 source compliance checks. Development-anchor preparation is concretely incomplete: the unchanged sprint is 78,752 bytes and the composed item is 87,858 bytes. The 64,000-byte dry run shortens all 16 non-excluded requests before the appended sprint report, diffstat, and tests sections. No external Jev call or gate PASS occurred. This is an input-completeness acceptance gap, not a fabricated judge/service error.&quot;,
+      &quot;required_correction&quot;: &quot;Complete actual exact-head remaining CI jobs, independent QA aggregation and applicable development-anchor gate, explicitly adjudicating the owner-authorized exact Git source interpretation against historical published-only predicates; then record scoped integration closeout. Preserve original failure logs and valid fixture/runner/RSH/FTQ credits. Do not add a coverage-ledger process gate, expand source/feature/introducer permissions, waive failures, or infer C2 acceptance. Prepare a bounded complete development-gate input after parent triage of duplicate/process prose, preserving all approved scope and required implementation evidence; do not silently truncate required evidence or claim an unrun judge result.&quot;,
+      &quot;compliance_result&quot;: &quot;partially-compliant&quot;,
+      &quot;incomplete_deliverable_ids&quot;: [
+        &quot;C1-Q13-21&quot;,
+        &quot;C1-Q13-32&quot;,
+        &quot;C1-Q13-33&quot;,
+        &quot;C1-Q13-35&quot;,
+        &quot;C1-Q13-36&quot;
+      ]
+    }
+  ],
+  &quot;summary&quot;: {
+    &quot;total_findings&quot;: 2,
+    &quot;blocking_findings&quot;: 2,
+    &quot;overall_compliance&quot;: &quot;non-compliant&quot;,
+    &quot;requirement_checks_total&quot;: 101,
+    &quot;requirements_upheld&quot;: 101,
+    &quot;requirements_violated&quot;: 0,
+    &quot;requirements_not_verifiable&quot;: 0,
+    &quot;deliverables_total&quot;: 36,
+    &quot;deliverables_complete&quot;: 31,
+    &quot;deliverables_incomplete&quot;: 5,
+    &quot;deliverable_completion_percent&quot;: 86.11,
+    &quot;implementation_obligations_total&quot;: 21,
+    &quot;implementation_obligations_complete&quot;: 20,
+    &quot;acceptance_criteria_total&quot;: 8,
+    &quot;acceptance_criteria_complete&quot;: 8,
+    &quot;gate_rows_total&quot;: 7,
+    &quot;gate_rows_complete&quot;: 3
+  },
+  &quot;carry_forward_dispositions&quot;: [
+    {
+      &quot;id&quot;: &quot;REQ-QA-004&quot;,
+      &quot;disposition&quot;: &quot;OPEN; source correction accepted within reqQA scope, current CI/anchor/independent QA closeout and canonical ARCH13-001 correction still required&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ARCH-001&quot;,
+      &quot;disposition&quot;: &quot;Former direct sync sc-command edge absent; public genuine receiver and narrow exact-source graph evidenced. Owning architecture/parent adjudication required; no triage edit or closure performed.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;RBQA-F001&quot;,
+      &quot;disposition&quot;: &quot;Historical specialist owner retained; current source corrects introducer through genuine public cron receiver. No specialist rerun/closure claimed.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;QA2-001&quot;,
+      &quot;disposition&quot;: &quot;Actual isolated graphs and real server negative now pass expected positive/negative behavior, including independent native Rust-review receipts. Owning Rust/parent disposition required; no self-closure.&quot;
+    }
+  ],
+  &quot;gate_reason&quot;: &quot;FAIL for corroborated canonical ARCH13-001, the unauthorized direct observability dependency, plus open current CI, development-anchor, and independent QA integration gates. No semantic REQ/NFR violation was found. Pending CI is not failed CI; earlier green, upstream green, and local tests do not close current gates.&quot;,
+  &quot;projection_type&quot;: &quot;Leaf-authored bounded complete finding, summary, and disposition projection. Full 101 requirement checks and 36 checklist rows are retained in the full report.&quot;,
+  &quot;full_result&quot;: {
+    &quot;json_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-result.json&quot;,
+    &quot;json_sha256&quot;: &quot;548c8268583b480474ff2ee0a9489eccea53c989256a122e5308735a82a15038&quot;,
+    &quot;json_bytes&quot;: 95630,
+    &quot;markdown_path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-result.md&quot;,
+    &quot;markdown_sha256&quot;: &quot;56d9d3dc90ebaa05b20b87b643891b708ba3750edc32b325ea9cd1f6156597c1&quot;
+  },
+  &quot;incomplete_deliverable_ids&quot;: [
+    &quot;C1-Q13-21&quot;,
+    &quot;C1-Q13-32&quot;,
+    &quot;C1-Q13-33&quot;,
+    &quot;C1-Q13-35&quot;,
+    &quot;C1-Q13-36&quot;
+  ],
+  &quot;current_ci&quot;: {
+    &quot;head&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+    &quot;checks_total&quot;: 15,
+    &quot;success&quot;: 10,
+    &quot;pending&quot;: 5,
+    &quot;failure&quot;: 0,
+    &quot;pending_check_names&quot;: [
+      &quot;clippy and test (macos-latest)&quot;,
+      &quot;clippy and test (windows-latest)&quot;,
+      &quot;pytest (macos-15, python 3.9)&quot;,
+      &quot;pytest (macos-15, python 3.11)&quot;,
+      &quot;pytest (macos-15, python 3.13)&quot;
+    ],
+    &quot;snapshot&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/req-qa-ci-snapshot.json&quot;,
+    &quot;runs&quot;: [
+      42206105621,
+      42206105712
+    ]
+  }
+}
+```
+
+## arch-qa — /root/c1_archqa13
+```json
+{
+  &quot;agent&quot;: &quot;arch-qa&quot;,
+  &quot;branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+  &quot;scope&quot;: {
+    &quot;phase&quot;: &quot;c&quot;,
+    &quot;sprint&quot;: &quot;c-1&quot;
+  },
+  &quot;commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+  &quot;qa_pass&quot;: &quot;qa-13&quot;,
+  &quot;model&quot;: {
+    &quot;configured&quot;: &quot;Grok&quot;,
+    &quot;configured_available&quot;: false,
+    &quot;actual&quot;: &quot;gpt-6.1-sol&quot;,
+    &quot;reasoning&quot;: &quot;high&quot;
+  },
+  &quot;verdict&quot;: &quot;FAIL&quot;,
+  &quot;blocking&quot;: 1,
+  &quot;important&quot;: 0,
+  &quot;minor&quot;: 0,
+  &quot;findings&quot;: [
+    {
+      &quot;id&quot;: &quot;ARCH13-001&quot;,
+      &quot;rule&quot;: &quot;RULE-ADR-CODE&quot;,
+      &quot;adr&quot;: &quot;ADR-SYNC-0006&quot;,
+      &quot;severity&quot;: &quot;BLOCKING&quot;,
+      &quot;file&quot;: &quot;crates/bd-cache-sync/Cargo.toml&quot;,
+      &quot;line&quot;: 30,
+      &quot;description&quot;: &quot;The sync crate retains a direct normal dependency on sc-observability-types, but ADR-SYNC-0006 as amended by ADR-SYNC-0008:662\u2013674 does not authorize it, and the current allowed third-party Crate Layout row (docs/architecture.md:152) also omits it. The genuine public sc_cron::observability facade now provides every canonical type used by cron_log.rs; a full sync-crate source/manifest sweep finds no remaining use of sc-observability-types outside this declaration. The exact prerelease source amendment authorizes the scheduler/command source pair and retains existing structural restrictions; it does not add this separate direct dependency. A passing workspace-edge/isolated graph check does not amend the exhaustive dependency contract.&quot;,
+      &quot;remediation&quot;: &quot;Remove the unused sc-observability-types normal dependency from bd-cache-sync and let Cargo update the sync package dependency list in Cargo.lock. Keep the workspace entry and legitimate CLI/upstream uses. Preserve the genuine sc_cron::observability receiver, exact qualified pin and all current graph restrictions; qualify the resulting consumer graphs under the ordinary affected checks. No new waiver, approval ceremony or broad dependency amendment is needed.&quot;
+    }
+  ],
+  &quot;adr_checks&quot;: [
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0001&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:220&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-sync/src/run.rs:613&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0002&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:241&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-sync/src/run.rs:613&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0003&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:323&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-sync/src/front_end.rs:121&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0004&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:346&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/compose.rs:21&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0005&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:370&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/run.rs:613&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0006&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:411&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;Cargo.toml:37&quot;,
+        &quot;docs/sc-cron/architecture.md:3&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0007&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:450&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/Cargo.toml:28&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0008&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:515&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/architecture.md:517&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0009&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:587&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/front_end.rs:121&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0010&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:621&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;.github/workflows/ci.yml:148&quot;,
+        &quot;scripts/lint_no_atm.py:1&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0011&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:730&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/schedule.rs:1&quot;,
+        &quot;crates/bd-cache-sync/src/launch.rs:32&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0012&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:768&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;.github/workflows/ci.yml:148&quot;,
+        &quot;scripts/lint_no_atm.py:1&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0013&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:852&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/run.rs:613&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0014&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:973&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schedule.rs:95&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:189&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0015&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:1016&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/front_end.rs:121&quot;,
+        &quot;crates/bd-cache-sync/src/lib.rs:116&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-BDC-0016&quot;,
+      &quot;source&quot;: &quot;docs/architecture.md:1099&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/architecture.md:1194&quot;,
+        &quot;docs/architecture.md:1221&quot;,
+        &quot;crates/bd-cache-sync/Cargo.toml:29&quot;,
+        &quot;crates/bd-cache-sync/src/cron_log.rs:3&quot;,
+        &quot;crates/bd-cache-sync/tests/check_consumer_graph.py:16&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CLI-0001&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-cli/architecture.md:29&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;Cargo.toml:63&quot;,
+        &quot;crates/bd-cache-cli/Cargo.toml:27&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CLI-0002&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-cli/architecture.md:68&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-cli/Cargo.toml:63&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CLI-0003&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-cli/architecture.md:102&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-cli/src/args.rs:1&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CLI-0004&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-cli/architecture.md:130&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-cli/src/config.rs:83&quot;,
+        &quot;crates/bd-cache-sync/src/compose.rs:21&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CLI-0005&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-cli/architecture.md:166&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-cli/src/commands/signal.rs:1&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0001&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:33&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/compose.rs:562&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0002&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:77&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-py/src/api.rs:54&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0003&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:123&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/bd-cache-py/architecture.md:123&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0004&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:161&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-py/Cargo.toml:29&quot;,
+        &quot;.github/workflows/python.yml:40&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0005&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:206&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/architecture.md:1194&quot;,
+        &quot;docs/architecture.md:1221&quot;,
+        &quot;crates/bd-cache-sync/Cargo.toml:29&quot;,
+        &quot;crates/bd-cache-sync/src/cron_log.rs:3&quot;,
+        &quot;crates/bd-cache-sync/tests/check_consumer_graph.py:16&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-PY-0006&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-py/architecture.md:274&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-py/pyproject.toml:33&quot;,
+        &quot;crates/bd-cache-sync/src/front_end.rs:121&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0001&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:27&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schema.rs:1&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0002&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:122&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/store.rs:189&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0003&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:210&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/store.rs:189&quot;,
+        &quot;crates/bd-cache-store/src/health.rs:205&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0004&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:360&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/store.rs:189&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0005&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:547&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/Cargo.toml:19&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-STORE-0006&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-store/architecture.md:589&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schema.rs:1&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:116&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:925&quot;,
+        &quot;crates/bd-cache-store/src/store.rs:968&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:813&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0001&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:35&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/run.rs:260&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0002&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:57&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/run.rs:222&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0003&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:135&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/schedule.rs:646&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0004&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:251&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/schedule.rs:646&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0005&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:291&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/schedule.rs:646&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0006&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:330&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;violated&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/Cargo.toml:30&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:662&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:672&quot;,
+        &quot;docs/architecture.md:152&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0007&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:375&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/schedule.rs:646&quot;,
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-SYNC-0008&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache-sync/architecture.md:479&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;violated&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/Cargo.toml:30&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:662&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:672&quot;,
+        &quot;docs/architecture.md:152&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CORE-0001&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache/architecture.md:33&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/compose.rs:127&quot;,
+        &quot;crates/bd-cache-sync/src/run.rs:222&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0001&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:266&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/job.rs:1&quot;,
+        &quot;crates/bd-cache-store/src/schedule.rs:194&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0002&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:299&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/cron.rs:423&quot;,
+        &quot;crates/bd-cache-sync/src/module_hook.rs:35&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0003&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:319&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schedule.rs:41&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0004&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:338&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schedule.rs:41&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0005&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:357&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/cron.rs:233&quot;,
+        &quot;crates/bd-cache-sync/src/module_hook.rs:35&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0006&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:383&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schedule.rs:194&quot;,
+        &quot;docs/sc-cron/architecture.md:3&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0007&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:434&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-store/src/schedule.rs:162&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0008&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:472&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/module_hook.rs:53&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CRON-0009&quot;,
+      &quot;source&quot;: &quot;docs/sc-cron/architecture.md:535&quot;,
+      &quot;listed_in_sprint_doc&quot;: true,
+      &quot;result&quot;: &quot;upheld&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/launch.rs:32&quot;,
+        &quot;crates/bd-cache-sync/src/module_hook.rs:53&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    },
+    {
+      &quot;adr&quot;: &quot;ADR-CORE-0002&quot;,
+      &quot;source&quot;: &quot;docs/bd-cache/architecture.md:61&quot;,
+      &quot;listed_in_sprint_doc&quot;: false,
+      &quot;result&quot;: &quot;not-applicable&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache/src/lib.rs:1&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;
+      ]
+    }
+  ],
+  &quot;gate_artifact_checks&quot;: [
+    {
+      &quot;artifact&quot;: &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:223&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:1204&quot;,
+        &quot;crates/bd-cache-sync/Cargo.toml:30&quot;
+      ],
+      &quot;notes&quot;: &quot;All four sprint deliverables and inherited architecture bounds reviewed; ARCH13-001 remains a structural violation. Independent requirements/Rust/flaky review, applicable parent implementation anchor gate and all-green exact-head CI remain required; this report does not close the sprint.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;docs/architecture.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/architecture.md:152&quot;,
+        &quot;docs/architecture.md:166&quot;,
+        &quot;docs/architecture.md:1194&quot;
+      ],
+      &quot;notes&quot;: &quot;No boundary manifests declared. Exact qualified-source amendment is explicit and narrow; the residual sync observability-types dependency is missing from the allowed third-party dependency contract.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;crates/bd-cache-sync/tests/check_consumer_graph.py&quot;,
+      &quot;status&quot;: &quot;closed&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/tests/check_consumer_graph.py:10&quot;,
+        &quot;crates/bd-cache-sync/tests/check_consumer_graph.py:16&quot;,
+        &quot;crates/bd-cache-sync/tests/check_consumer_graph.py:51&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/negative-server.log&quot;
+      ],
+      &quot;notes&quot;: &quot;Inspected actual normal/build root traversal and exact source/version tuple matching. Only same-source upstream sc-cron may introduce sc-command. All SDK optional features, mixed/duplicate nominal identities, wrong Git URL/rev/resolved SHA/version, moving source, paths, forbidden assembly and multiple SQLite providers are rejected. Raw actual API/Python consumer success and real server-negative exit1 support the structural predicates; no Cargo was run by arch-qa.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;.github/workflows/ci.yml&quot;,
+      &quot;status&quot;: &quot;closed&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;.github/workflows/ci.yml:67&quot;,
+        &quot;.github/workflows/ci.yml:129&quot;,
+        &quot;.github/workflows/ci.yml:148&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;
+      ],
+      &quot;notes&quot;: &quot;Structural workspace/isolated consumer, strict no-consumer and no-backend gates remain enabled; retired scheduler is absent from local publication dry-run. Current exact-head lint/doc/publish/boundary job is SUCCESS. Structural workflow inspection is separate from whole-CI acceptance.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;.github/workflows/python.yml&quot;,
+      &quot;status&quot;: &quot;closed&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;.github/workflows/python.yml:40&quot;,
+        &quot;.github/workflows/python.yml:71&quot;,
+        &quot;.github/workflows/python.yml:113&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;
+      ],
+      &quot;notes&quot;: &quot;Preserved matching macos-15/ubuntu-24.04 wheel-build/test runners, Python3.9/3.11/3.13 and Windows Rust gate. Actual current-head wheel builds succeed; macOS pytest and two CI platform jobs remain pending in the parent snapshot. No whole-C2 acceptance inferred.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;docs/plans/phase-c/anchors/index.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/plans/phase-c/anchors/index.md:3&quot;,
+        &quot;docs/plans/phase-c/anchors/index.md:15&quot;,
+        &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md:1227&quot;
+      ],
+      &quot;notes&quot;: &quot;Locked ANC/domain bounds retained. Historical published-only source interpretation conflicts with this Git candidate; the user authorization and exact ADR amendment explicitly supersede only that source predicate. Parent owns applicable implementation anchor adjudication; no locked statement or fixture was rewritten and planning PASS is not implementation acceptance.&quot;
+    },
+    {
+      &quot;artifact&quot;: &quot;docs/plans/phase-c/phase-c-plan.md&quot;,
+      &quot;status&quot;: &quot;open&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;docs/plans/phase-c/phase-c-plan.md:39&quot;,
+        &quot;docs/plans/phase-c/phase-c-plan.md:139&quot;,
+        &quot;docs/plans/phase-c/phase-c-plan.md:177&quot;
+      ],
+      &quot;notes&quot;: &quot;C1 integration does not close C2 daemon/readiness/generated mapping, C3 template upkeep, C4 installed release qualification or external publisher prerequisites. Remaining future-sprint gates are not issued as C1 defects.&quot;
+    }
+  ],
+  &quot;merge_ready&quot;: false,
+  &quot;relevant_dispositions&quot;: [
+    {
+      &quot;id&quot;: &quot;ARCH-001&quot;,
+      &quot;owner&quot;: &quot;arch-qa&quot;,
+      &quot;disposition&quot;: &quot;resolved_in_current_architecture_review&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/Cargo.toml:29&quot;,
+        &quot;crates/bd-cache-sync/src/cron_log.rs:3&quot;,
+        &quot;crates/bd-cache-sync/src/schedule.rs:690&quot;,
+        &quot;docs/architecture.md:1194&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;
+      ],
+      &quot;notes&quot;: &quot;The former direct sync\u2192sc-command edge is absent. Actual upstream observability.rs directly re-exports the same nominal CanonicalLog/EventError/LogEvent/ServiceName types accepted by new_with_logger; the receiver emits real scheduler events to tracing with bd-cache identity, preserved projection and redaction. No copied trait, no fabricated event, no no-op logger substitution, no relocated introducer or server feature. Resolution is architecture-scoped and does not close triage or authorize merge.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;RBQA-F001&quot;,
+      &quot;owner&quot;: &quot;ruthless-boundary-qa / retained parent enforcer&quot;,
+      &quot;disposition&quot;: &quot;original_owner_retained_structural_remediation_corroborated&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/src/cron_log.rs:3&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/direct-boundary.log&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/negative-server.log&quot;
+      ],
+      &quot;notes&quot;: &quot;Historical owner is not replaced and no specialist rerun was requested. Genuine public receiver/direct-edge removal and real current graph proof address the correlated defect; parent enforcer must record the canonical disposition separately. ARCH13-001 is a separate residual dependency-contract defect.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;QA2-001&quot;,
+      &quot;owner&quot;: &quot;rust-qa-agent&quot;,
+      &quot;disposition&quot;: &quot;actual_graph_failure_remediated_in_reviewed_evidence_owning_review_pending&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/negative-server.log&quot;,
+        &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;
+      ],
+      &quot;notes&quot;: &quot;Raw final actual independent API/Python graph commands exit0; actual candidate/server negative exits1. The parent current-head hosted lint/boundary check also succeeds. Rust QA owns its final canonical disposition and local Cargo checks.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;REQ-QA-004&quot;,
+      &quot;owner&quot;: &quot;req-qa&quot;,
+      &quot;disposition&quot;: &quot;open_required_current_head_checks_pending&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;
+      ],
+      &quot;notes&quot;: &quot;Parent exact478812a snapshot has10 SUCCESS,5 pending,0failed. This supersedes the developer queued snapshot; no all-green claim. Requirements reviewer/enforcer owns final acceptance.&quot;
+    },
+    {
+      &quot;id&quot;: &quot;ARCH13-001&quot;,
+      &quot;owner&quot;: &quot;arch-qa&quot;,
+      &quot;disposition&quot;: &quot;open_new_blocking&quot;,
+      &quot;evidence_refs&quot;: [
+        &quot;crates/bd-cache-sync/Cargo.toml:30&quot;,
+        &quot;docs/bd-cache-sync/architecture.md:662&quot;,
+        &quot;docs/architecture.md:152&quot;
+      ],
+      &quot;notes&quot;: &quot;One new independently supported residual dependency-contract violation; no forced closure/count.&quot;
+    }
+  ],
+  &quot;review_method&quot;: &quot;Independent exact-source read-only architecture review of the complete rendered assignment and full C1 architectural deliverables. Exact clean branch/HEAD verified before and after. Reviewed current binding ADR/plan/source clauses, actual new receiver/source/guard/test assertion, upstream facade source and retained raw validation receipts. Independently recomputed source continuity from frozen QA12:260 tracked Rust files equal; only cron_log production imports/receiver identity and one cfg(test) typed-source assertion differ. No Cargo, builds, tests, source/triage edits, PR posts, nested agents or merges. cm context completed before analysis; returned draft workflow bullets were not applicable, cass retrieval degraded.&quot;,
+  &quot;source_exception_assessment&quot;: {
+    &quot;authorization&quot;: &quot;Assignment explicitly supplies the direct user authorization to pin the release before0.2.0 finalization once upstream CI is resolved. ADR-BDC-0016:1194 quotes it and discloses the parent interpretation of qualified PR118. Human instruction supersedes the prior published-only source policy for this candidate only.&quot;,
+    &quot;accepted_tuple&quot;: &quot;sc-cron/sc-command package0.2.0 at git+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e; default features off, same nominal source/identity.&quot;,
+    &quot;provenance_limit&quot;: &quot;PR118 receipt reports sourcehead e8a0755a with17successful PRchecks and merge c3ce3d1b. This is qualified immutable Git provenance, not crates.io publication, final release, consumer approval, or literal merge-head CI.&quot;,
+    &quot;locked_text_mismatch&quot;: &quot;Historical sprint/source/anchor interpretations that required published0.1.1 only reject this exact candidate. The new explicit source amendment changes only the source predicate; ANC/domain obligations, templatev0.1.1 generation provenance, required real logging, features/introducer/API independence, deadline/shutdown and independent QA/currentCI gates remain unchanged.&quot;,
+    &quot;guard_assessment&quot;: &quot;Exact equality accepts only crates.io0.1.1 or one URL/rev/resolvedSHA/version tuple; no blanket Git/source allowance. Negative fixtures cover wrong declared/resolved revision, URL/path/movingbranch/version/mixedsource/duplicateidentity/features/introducers/assembly/SQLite. Actual independent roots and real candidate/server-negative receipts inspected.&quot;
+  },
+  &quot;full_sprint_structural_assessment&quot;: {
+    &quot;plan_adr_coverage&quot;: &quot;All30 binding current ADRs in the five owned crate families are listed; superseded SYNC0003/4/5/7 remain historical. Repo migration/persistence/no-consumer/scope/front-end/threading decisions are listed and their current binding amendments considered. Unlisted repo decisions outside changed structural subjects are not treated as missing plan obligations.&quot;,
+    &quot;store_and_scheduler&quot;: &quot;One cache-owned shared connection and claim retained; user_version3 and schedule-extensionmeta2 retained; no upstream standalone database, local scheduler fork, second execution owner or copied trait. Hook/environment unsupported states refuse before writes; launch envelope is scheduler-only and derives real row identity, leaving persisted/public payloads intact.&quot;,
+    &quot;health_shutdown_and_frontends&quot;: &quot;Calling-thread connection-keyed synchronous health budget, read-only refusal and RAII restoration remain; scheduler-only dynamic shutdown control and exact management scope retain same-core operations and two-stage2\u00d7T ownership. Existing compose/execute/cron fa\u00e7ades, CLI/Python contracts and supervised module -I -m protocol remain.&quot;,
+    &quot;typed_error_assertion&quot;: &quot;The final test-only change walks Error::source and requires an actual CacheError with BD_CACHE.STORE_FAILED plus exact read-only mutation refusal. It strengthens the old substring-of-Debug assertion without changing production behavior, operations, deadlines, restoration or unwind checks; original failed run preserved.&quot;,
+    &quot;retained_owner_credits&quot;: &quot;RQA9/RQA11 QA12 native-fixture resolutions and RQA10/runner/RSH/FTQ009/010/011 scoped owner/enforcer credit retained through unchanged fixture, workflow and production-control source, except the explicitly inspected test assertion. No whole-C2/phase acceptance, invented timing cause, retry-to-green or timer widening.&quot;
+  },
+  &quot;current_evidence&quot;: {
+    &quot;source_equivalence&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-source-equivalence.json&quot;,
+    &quot;raw_receipts&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/arch-qa-receipts.json&quot;,
+    &quot;developer_result&quot;: &quot;/tmp/phase-c-execution/c-1/qualified-c5-pin/developer-result.json&quot;,
+    &quot;parent_current_ci&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;,
+    &quot;current_ci_summary&quot;: &quot;10SUCCESS /5pending /0failed at exact478812a in parent snapshot; hosted lint/doc/publish/boundary, both wheels and Linux pytest already SUCCESS. My direct gh lookup failed connectivity; parent authorized receipt used.&quot;,
+    &quot;producer_qualification&quot;: &quot;Upstream qualification is scoped producer evidence; it is not consumer acceptance.&quot;
+  },
+  &quot;notes&quot;: &quot;ARCH-001 is remediated under the human-authorized immutable source amendment; one new BLOCKING ARCH13-001 remains for the unused, unapproved direct observability-types dependency. No triage state changed. All four canonical carry IDs receive independent scoped dispositions; original RBQA owner is retained. Parent should publish the frozen QA13 result before routing any product correction. No source mutation authorized or performed.&quot;
+}
+```
+
+## rust-qa-agent — /root/c1_rustqa13
+```json
+{
+  &quot;success&quot;: true,
+  &quot;data&quot;: {
+    &quot;status&quot;: &quot;pass&quot;,
+    &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+    &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+    &quot;review_mode&quot;: &quot;sprint_review&quot;,
+    &quot;reviewer&quot;: &quot;rust-qa-agent&quot;,
+    &quot;model_disclosure&quot;: &quot;gpt-6.1-sol high fallback; configured Grok unavailable; no Grok review claimed&quot;,
+    &quot;executed_checks&quot;: {
+      &quot;fmt&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;cargo fmt --all --check&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/fmt.log&quot;
+      },
+      &quot;clippy&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;cargo clippy --locked --all-targets --all-features -- -D warnings&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/clippy.log&quot;,
+        &quot;supplemental_evidence&quot;: &quot;Developer locked default-feature workspace-lib and affected follow-up Clippy receipts/hash-verified; no redundant rerun of unchanged production modes&quot;
+      },
+      &quot;tests&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;cargo test --locked -p bd-cache-store -p bd-cache-sync -p bd-cache-cli --all-features -- --nocapture&quot;,
+        &quot;execution_context&quot;: &quot;One authorized identical native run after preserved sandbox failure&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/affected-tests-native.log&quot;,
+        &quot;passed&quot;: 426,
+        &quot;failed&quot;: 0,
+        &quot;ignored&quot;: 9,
+        &quot;groups&quot;: 44,
+        &quot;counts_note&quot;: &quot;Final result per cargo test binary/doc-test group; nested child test output excluded.&quot;
+      },
+      &quot;coverage&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;adequate_for_risk&quot;: null,
+        &quot;reason&quot;: &quot;Not requested; no measured coverage claim&quot;
+      },
+      &quot;artifacts&quot;: {
+        &quot;status&quot;: &quot;not_run&quot;,
+        &quot;reason&quot;: &quot;No artifact regeneration requested&quot;
+      },
+      &quot;consumer_graph_units&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;python3 -I -m unittest discover -s crates/bd-cache-sync/tests -p test_consumer_graph.py -v&quot;,
+        &quot;tests_passed&quot;: 8,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/graph-unit.log&quot;
+      },
+      &quot;isolated_consumers&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/isolated-graph-native.log&quot;,
+        &quot;result&quot;: &quot;Both actual independent bd-cache-api and bd-cache-py roots pass&quot;
+      },
+      &quot;server_negative&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;python3 -I crates/bd-cache-sync/tests/check_consumer_graph.py --negative-server&quot;,
+        &quot;actual_exit&quot;: 1,
+        &quot;expected_exit&quot;: 1,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/negative-server-native.log&quot;,
+        &quot;result&quot;: &quot;Actual graph rejected for direct introducer, server feature, rmcp and axum; not a Cargo traceback&quot;
+      },
+      &quot;direct_boundary&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;bash /tmp/phase-c-execution/c-1/qualified-c5-pin/direct-boundary-workflow.sh&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/direct-boundary-native.log&quot;,
+        &quot;note&quot;: &quot;Script extracted existing CI body; developer script inspected, no product changes&quot;
+      },
+      &quot;no_backend&quot;: {
+        &quot;status&quot;: &quot;pass&quot;,
+        &quot;command&quot;: &quot;python3 -I scripts/check_no_backend.py graph&quot;,
+        &quot;log&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/no-backend.log&quot;
+      }
+    },
+    &quot;findings&quot;: [],
+    &quot;summary&quot;: {
+      &quot;total_findings&quot;: 0,
+      &quot;by_severity&quot;: {
+        &quot;critical&quot;: 0,
+        &quot;important&quot;: 0,
+        &quot;minor&quot;: 0
+      }
+    },
+    &quot;carry_forward_dispositions&quot;: [
+      {
+        &quot;id&quot;: &quot;QA2-001&quot;,
+        &quot;disposition&quot;: &quot;resolved in Rust QA scope&quot;,
+        &quot;evidence&quot;: &quot;No direct sync sc-command dependency; public sc_cron::observability receiver; exact approved Git source/version pair; independent API/Python graph PASS, eight negative-test groups PASS, actual server leak rejected; hosted exact-head boundary job SUCCESS.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;ARCH-001&quot;,
+        &quot;disposition&quot;: &quot;technical source cause absent; architecture owner adjudicates closure&quot;,
+        &quot;evidence&quot;: &quot;Direct sync edge removed; actual canonical receiver uses upstream public re-export; no relocated introducer/type copy/fake emission. Exact-only source amendment corresponds to relayed human authorization. No architecture specialist verdict asserted by this role.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RBQA-F001&quot;,
+        &quot;disposition&quot;: &quot;technical source cause absent; retain historical QA4 owner and manager adjudication&quot;,
+        &quot;evidence&quot;: &quot;Same actual edge/public receiver facts; no new rust-best-practices specialist rerun claimed.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;REQ-QA-004&quot;,
+        &quot;disposition&quot;: &quot;whole-sprint acceptance remains with req-qa/parent; no Rust local blocker&quot;,
+        &quot;evidence&quot;: &quot;Current exact-head boundary SUCCESS and local affected checks PASS. Other hosted gates still pending in captured snapshot; no 100% or completion count claimed.&quot;
+      }
+    ],
+    &quot;source_review&quot;: {
+      &quot;scope&quot;: &quot;Full C1 affected sprint runtime/store/CI migration, with authoritative deliverables/acceptance and required guideline reads; latest qualified-pin delta reviewed independently, prior source/fixture proof retained only where byte-equivalent&quot;,
+      &quot;evidence&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-source-evidence.json&quot;,
+      &quot;developer_artifact_hashes_verified&quot;: 34,
+      &quot;hash_mismatches&quot;: [],
+      &quot;production_rust_unchanged_from_development_pin&quot;: true,
+      &quot;sole_Rust_delta&quot;: &quot;schedule.rs test-only assertion; production prefix equal&quot;,
+      &quot;typed_refusal_assertion&quot;: &quot;Traverses actual Error::source and downcasts to CacheError, requiring BD_CACHE.STORE_FAILED plus exact bounded health read: mutation refused in read-only scope detail. Production reject_mutation and source retention independently inspected. Stronger than old Debug substring, not weakened to any error. All view-specific/error/unwind/query_only/busy-timeout checks remain.&quot;,
+      &quot;infallible_results&quot;: &quot;Scanned new/changed Result shapes and sole-Ok functions. CronLog::emit returns Ok only because the external CanonicalLog trait requires Result; wrapper store methods propagate actual upstream errors. Resolver retains actual invalid-envelope/row/run-id failure paths; no new gratuitous fallible constructor identified.&quot;,
+      &quot;removed_construct_search&quot;: &quot;Whole crates workspace scan for TargetResolver/spawn_worker_with/run_due_with and local scheduler source/path/standalone store use: no live legacy use. Only e2e.rs:4 and live.rs:22 doc comments retain run_due_with text. Local crates/sc-cron retired; no path patch resurrects it.&quot;,
+      &quot;portability&quot;: &quot;Inspected changed temp/process/session paths and platform guards. No new hardcoded /tmp or HOME override dependency found. Existing HOME tests are intentional Unix resolver cases or redaction inputs, not Windows home discovery. Linux/macOS/Windows CI remains independent evidence.&quot;,
+      &quot;source_exception&quot;: &quot;Only registry crates.io0.1.1 OR approved exact URL+rev+resolvedcommit c3ce3d1b271b54fbb47efaef57ee1563a390cd9e/version0.2.0. Other source/rev/path/moving branch/mixed identity/introducer/features reject. Historical published-only receipts are explicitly superseded by the documented narrow human-authorized candidate amendment; parent anchor review still required.&quot;
+    },
+    &quot;execution_context&quot;: {
+      &quot;receipts&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-receipts.json&quot;,
+      &quot;native_receipts&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-native-receipts.json&quot;,
+      &quot;detail&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/rust-qa-execution-context.json&quot;,
+      &quot;original_sandbox_failure&quot;: &quot;Affected tests exit101 at CLI tree_kill (both false nonrunning assertions); exact ps probe denied operation not permitted. Same command native PASS; no timing/source changes or further retry.&quot;,
+      &quot;original_metadata_failure&quot;: &quot;Sandbox isolated metadata Cargo exit101, checker does not print captured child stderr; underlying cause not inferred from traceback alone. Same command native PASS; real native planted server negative emits actual graph violations.&quot;,
+      &quot;original_developer_failure&quot;: &quot;Qualified candidate first store run36/37 exit101 preserved in /tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests-initial-failure.log; test-only API assertion corrected and independently passes37/37.&quot;,
+      &quot;upstream_template_diagnostics&quot;: &quot;Cargo logs include invalid-key-value diagnostics from discovering unrendered upstream template manifests, while actual requested checks exit0; no suppression/cache or upstream edits used.&quot;,
+      &quot;cargo_slot&quot;: &quot;RELEASED; all sessions completed&quot;,
+      &quot;CARGO_INCREMENTAL&quot;: &quot;0&quot;,
+      &quot;CARGO_TARGET_DIR&quot;: &quot;/tmp/phase-c-execution/c-1/restart-target&quot;,
+      &quot;disk&quot;: &quot;18GiB available before;16GiB after&quot;,
+      &quot;final_source&quot;: &quot;Exact assigned HEAD478812a; clean worktree after checks&quot;
+    },
+    &quot;hosted_ci&quot;: {
+      &quot;head&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+      &quot;successful&quot;: 10,
+      &quot;pending&quot;: 5,
+      &quot;non_success_terminal&quot;: [],
+      &quot;receipt&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/current-ci.json&quot;
+    },
+    &quot;notes&quot;: [
+      &quot;Rust QA local PASS is scoped to execution/correctness/portability; not merge approval, full requirements/anchor acceptance or C2 acceptance.&quot;,
+      &quot;Following cm rule b-mr7cp6x0-ipdnhs, local macOS execution is reported separately from hosted Linux/macOS/Windows evidence.&quot;,
+      &quot;No children, source/product/triage edits, PR posts or merges. Artifacts written only to qa-13 scratch directory.&quot;,
+      &quot;Earlier retained RQA9/RQA11/FTQ/RSH fixture corrections receive only scope-equivalent source/test evidence, no blanket specialist or whole-sprint credit. Independent affected run includes cron_hurry19/19, cron_logging1/1, store37/37 and schedule_store24/24.&quot;
+    ]
+  },
+  &quot;error&quot;: null
+}
+```
+
+## flaky-test-qa — /root/c1_flakyqa13
+```json
+{
+  &quot;success&quot;: true,
+  &quot;data&quot;: {
+    &quot;handoff_type&quot;: &quot;canonical_flaky_test_qa_leaf_projection&quot;,
+    &quot;qa_pass&quot;: &quot;qa-13&quot;,
+    &quot;status&quot;: &quot;findings&quot;,
+    &quot;role_owned_verdict&quot;: &quot;PASS&quot;,
+    &quot;review_mode&quot;: &quot;sprint_review&quot;,
+    &quot;round_limit&quot;: false,
+    &quot;reviewed_branch&quot;: &quot;sprint/c-1-runtime-migration&quot;,
+    &quot;reviewed_commit&quot;: &quot;478812a83adb04ea38c93a6d4bc83a17233a9cf4&quot;,
+    &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+    &quot;model_disclosure&quot;: &quot;Codex reviewer using assignment-requested gpt-6.1-sol high fallback; no Grok/Composer or specialist model invocation claimed.&quot;,
+    &quot;findings&quot;: [
+      {
+        &quot;id&quot;: &quot;ARCH-001&quot;,
+        &quot;category&quot;: &quot;correctness&quot;,
+        &quot;severity&quot;: &quot;critical&quot;,
+        &quot;file&quot;: &quot;crates/bd-cache-sync/Cargo.toml&quot;,
+        &quot;line&quot;: 31,
+        &quot;issue&quot;: &quot;Carried boundary finding retained for owning reviewer closeout. Former direct sync -&gt; sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.&quot;,
+        &quot;recommendation&quot;: &quot;Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.&quot;,
+        &quot;evidence&quot;: &quot;Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.&quot;,
+        &quot;owner&quot;: &quot;arch-qa&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;carried_original_issue&quot;: &quot;Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.&quot;,
+        &quot;carried_original_evidence&quot;: &quot;Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RBQA-F001&quot;,
+        &quot;category&quot;: &quot;guideline&quot;,
+        &quot;severity&quot;: &quot;critical&quot;,
+        &quot;file&quot;: &quot;crates/bd-cache-sync/Cargo.toml&quot;,
+        &quot;line&quot;: 31,
+        &quot;issue&quot;: &quot;Carried boundary finding retained for owning reviewer closeout. Former direct sync -&gt; sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.&quot;,
+        &quot;recommendation&quot;: &quot;Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.&quot;,
+        &quot;evidence&quot;: &quot;Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.&quot;,
+        &quot;owner&quot;: &quot;rust-best-practices-agent historical QA4&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;carried_original_issue&quot;: &quot;Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.&quot;,
+        &quot;carried_original_evidence&quot;: &quot;Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;REQ-QA-004&quot;,
+        &quot;category&quot;: &quot;tests&quot;,
+        &quot;severity&quot;: &quot;critical&quot;,
+        &quot;file&quot;: &quot;docs/plans/phase-c/sprint-c-1-runtime-migration.md&quot;,
+        &quot;line&quot;: 225,
+        &quot;issue&quot;: &quot;Carried acceptance finding retained pending requirement owner, parent anchor interpretation, and exact current-head CI closeout; no sprint completion count assigned by flaky reviewer.&quot;,
+        &quot;recommendation&quot;: &quot;Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.&quot;,
+        &quot;evidence&quot;: &quot;Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.&quot;,
+        &quot;owner&quot;: &quot;req-qa&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;carried_original_issue&quot;: &quot;Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.&quot;,
+        &quot;carried_original_evidence&quot;: &quot;Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;QA2-001&quot;,
+        &quot;category&quot;: &quot;tests&quot;,
+        &quot;severity&quot;: &quot;important&quot;,
+        &quot;file&quot;: &quot;crates/bd-cache-sync/Cargo.toml&quot;,
+        &quot;line&quot;: 31,
+        &quot;issue&quot;: &quot;Carried boundary finding retained for owning reviewer closeout. Former direct sync -&gt; sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.&quot;,
+        &quot;recommendation&quot;: &quot;Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.&quot;,
+        &quot;evidence&quot;: &quot;Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.&quot;,
+        &quot;owner&quot;: &quot;rust-qa-agent&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;carried_original_issue&quot;: &quot;Required current isolated Python consumer graph rejects the direct bd-cache-sync -&gt; sc-command introducer outside the approved published sc-cron exception.&quot;,
+        &quot;carried_original_evidence&quot;: &quot;Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -&gt; sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      }
+    ],
+    &quot;new_role_findings&quot;: [],
+    &quot;summary&quot;: {
+      &quot;total_findings&quot;: 4,
+      &quot;critical&quot;: 3,
+      &quot;important&quot;: 1,
+      &quot;minor&quot;: 0,
+      &quot;new_flaky_findings&quot;: 0,
+      &quot;carried_cross_role_findings&quot;: 4
+    },
+    &quot;finding_provenance&quot;: &quot;All four input carry IDs retained with original owner, original issue/evidence, and explicit current-source disposition. No new flaky finding and no cross-role self-closure. Parent owns canonical finding aggregation.&quot;,
+    &quot;dispositions&quot;: [
+      {
+        &quot;id&quot;: &quot;RQA10-001&quot;,
+        &quot;status&quot;: &quot;resolved_preserved_verified_through_exact_C1_candidate&quot;,
+        &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+        &quot;owning_adjudication_complete&quot;: true,
+        &quot;canonical_disposition&quot;: &quot;RESOLVED for the supported mixed recovery/artificial-delay fixture composition; sole manager aggregates this actual owner disposition. No pending-owning-reviewer condition remains.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RQA9-001&quot;,
+        &quot;status&quot;: &quot;resolved_verified_for_exact_C1_candidate&quot;,
+        &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+        &quot;owning_adjudication_complete&quot;: true,
+        &quot;canonical_disposition&quot;: &quot;RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;CI-C2-RUNNER-001&quot;,
+        &quot;status&quot;: &quot;resolved_preserved_verified_through_exact_C1_candidate&quot;,
+        &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+        &quot;owning_adjudication_complete&quot;: true
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-009&quot;,
+        &quot;status&quot;: &quot;closed_preserved_for_original_unbounded_lifetime&quot;
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-010&quot;,
+        &quot;status&quot;: &quot;closed_preserved_for_original_session_orphan_inventory_mechanisms&quot;
+      },
+      {
+        &quot;id&quot;: &quot;FTQ-011&quot;,
+        &quot;status&quot;: &quot;closed_preserved_for_independent50ms_cap_mechanism&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RSH-001&quot;,
+        &quot;status&quot;: &quot;resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope&quot;
+      },
+      {
+        &quot;id&quot;: &quot;C2-FTQ-006&quot;,
+        &quot;status&quot;: &quot;retracted_preserved&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RQA11-001&quot;,
+        &quot;status&quot;: &quot;resolved_verified_for_exact_C1_candidate&quot;,
+        &quot;owner&quot;: &quot;flaky-test-qa&quot;,
+        &quot;owning_adjudication_complete&quot;: true,
+        &quot;canonical_disposition&quot;: &quot;RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains.&quot;
+      },
+      {
+        &quot;id&quot;: &quot;ARCH-001&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;owner&quot;: &quot;arch-qa&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;RBQA-F001&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;owner&quot;: &quot;rust-best-practices-agent historical QA4&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;REQ-QA-004&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;owner&quot;: &quot;req-qa&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      },
+      {
+        &quot;id&quot;: &quot;QA2-001&quot;,
+        &quot;status&quot;: &quot;open&quot;,
+        &quot;owner&quot;: &quot;rust-qa-agent&quot;,
+        &quot;qa13_disposition&quot;: &quot;open_pending_owning_role_and_parent_closeout; not a new flaky finding&quot;
+      }
+    ],
+    &quot;full_result&quot;: {
+      &quot;path&quot;: &quot;/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-result.json&quot;,
+      &quot;sha256&quot;: &quot;93306178e698afddd07f608a26f2804a69ae876224ad7aa804f8bd3b25942790&quot;
+    },
+    &quot;projection_limits&quot;: &quot;Receipt-only bounded serialization. Every actual finding object copied exactly from immutable full result; counts/status unchanged. Dispositions retain existing IDs/statuses and owner conclusions; complete rationale and evidence remain in hashed full result. No re-review or closure.&quot;,
+    &quot;state&quot;: &quot;STOP&quot;
+  },
+  &quot;error&quot;: null
+}
+```
+</reviewer-outputs>
+  </parent-reviewer-handoff>
+
+  <workflow>
+    <step id="a">ACK this message immediately to the parent orchestrator.</step>
+    <step id="b">Reject if assignment is not XML from this template (unless assignee quality-mgr was remapped to you). **Spawn gate:** reject immediately if `<parent-reviewer-handoff>` is missing, empty, or `<manifest>` lacks a `task_id` per required reviewer. Publish FAIL with `reviewer_spawn_gate: fail`, list `missing_reviewers` / `unparsed_reviewers`, and set `next_action: parent_respawn_reviewers` — parent must spawn the proper reviewer Tasks, collect fenced JSON, and re-submit before you run again. Read `docs/plans/phase-c/sprint-c-1-runtime-migration.md` first and treat it as authoritative.</step>
+    <step id="c">Determine the required reviewer set for this `qa_pass` per `.cursor/agents/cursor-quality-mgr.md` **Default reviewer set**. Confirm the handoff manifest includes **every** required agent with non-empty `task_id` and `spawn_actor: parent-orchestrator`.</step>
+    <step id="d">Extract every deliverable, acceptance criterion, deletion requirement, required validation item, and expected artifact from `docs/plans/phase-c/sprint-c-1-runtime-migration.md` for aggregation context only — deliverable presence/completion and planning-gate checks (sprint doc frontmatter, project-plan index) come from **req-qa fenced JSON**, not coordinator grep.</step>
+    <step id="e">**Evidence collection:** parse exactly one fenced JSON block per reviewer from `<parent-reviewer-handoff>`. **Forbidden:** spawning reviewer Tasks, coordinator foreground cargo/clippy/test, grep-based deliverable verification, or invented reviewer verdict tables. Never spawn quality-mgr or any reviewer subagent.</step>
+    <step id="f">If triage records are provided, read them before aggregating findings. Treat them as canonical prior scope for follow-up QA, not as a substitute for reviewer fenced JSON.</step>
+    <step id="g">**Spawn gate vs finding gate:** `reviewer_spawn_gate: fail` only when a required reviewer is absent, lacks `task_id`, lacks parseable fenced JSON, or the wrapper reports execution failure (`success: false` on rust-qa/flaky envelopes). **Do not** treat reviewer finding FAIL as spawn failure — req-qa `status: FAIL`, arch-qa `verdict: FAIL`, rust `data.status: fail`, etc. mean `reviewer_spawn_gate: pass` with `verdict: FAIL` and `next_action: triage_and_fix`. Collect findings and deliverable completion **only** from handoff fenced JSON.</step>
+    <step id="h-todo">For implementation sprint-end or integration review, run the TODO scan per `.claude/skills/todo-triage/SKILL.md` after reviewer JSON is parsed. **Union** TODO-scan findings with reviewer JSON for open counts, `detailed_findings_md`, and merge gate. TODO scan does not bypass missing reviewer JSON or a failed spawn gate.</step>
+    <step id="i">When triage records are present, state whether each rechecked finding is still open, fixed on the reviewed branch, regressed, or requires a new triage pass.</step>
+    <step id="j">If a PR number is present and CI is not already green, monitor CI with ambient gh only (no account/login flags):
+
+```bash
+gh pr checks 108 --watch
+gh pr view 108 --json mergeStateStatus,reviewDecision
+```
+</step>
+    <step id="k">**Findings report (mandatory):** append the completed QA report to the PR **on every QA round** when a PR exists. Use `sc-compose` + `gh` recipes in `.cursor/agents/cursor-quality-mgr.md`. Rendered Machine Status JSON uses keys `reviewer_spawn_gate`, `reviewer_manifest` (array), `evidence_chain` (object), `missing_reviewers`, `unparsed_reviewers` — sc-compose input vars `reviewer_manifest_json` / `evidence_chain_json` are render inputs only. Dual-publish the same Machine Status JSON to the parent.</step>
+    <step id="l">Send the final QA verdict to the parent and include deliverable completion as `X/Y (Z%)` from req-qa fenced JSON. PASS requires `reviewer_spawn_gate: pass`, fenced JSON from every required reviewer, 100% deliverable completion, reviewer PASS (or contract SKIPPED), TODO scan clean or TODO findings in open counts, an active PR, **green CI** (all required checks), and **zero open findings at any severity** (merge gate: 0 Blocking + 0 Important + 0 Minor) from reviewer JSON ∪ TODO scan. Spawn-gate failure → FAIL with `next_action: parent_respawn_reviewers`; open findings → FAIL with `next_action: triage_and_fix`. Identify enforcer as cursor-quality-mgr in the verdict line.</step>
+  </workflow>
+</cursor-qa-task>

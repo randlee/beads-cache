@@ -279,9 +279,7 @@ dependencies = [
  "rustix",
  "sc-bd-cli",
  "sc-beads",
- "sc-command",
  "sc-cron",
- "sc-observability-types",
  "serde",
  "serde_json",
  "tempfile",
@@ -1647,9 +1645,9 @@ dependencies = [
 
 [[package]]
 name = "sc-command"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1b3be9d1889fa675b03f4bf7f77962924a6eaa47c560961d84a013395a7e243"
+checksum = "45a55653c6fd1e98d842c2b99fd9cc59aecb94b058647df393566f5c4ea0584f"
 dependencies = [
  "axum",
  "rmcp",
@@ -1670,9 +1668,9 @@ dependencies = [
 
 [[package]]
 name = "sc-cron"
-version = "0.1.1"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8d84a3e95441b6dde1d4da16d6b7924303b2d02a1872c477457dbb9986931475"
+checksum = "997daaabbc7a27862b14281bdc051cfa74fd230b605e16885fee7e29cdb1c17a"
 dependencies = [
  "async-trait",
  "chrono",

@@ -918,6 +918,50 @@ fn write_on<T>(
     Ok(out)
 }
 
+// Disposable cancellation fixtures need the complete real cache, not durable
+// commits. Keep this constructor out of every production/consumer build; the
+// normal open path and schema compatibility tests retain their durability path.
+#[cfg(test)]
+impl SqliteStore {
+    pub(crate) fn open_shutdown_fixture(
+        path: &Path,
+        identity: &DatabaseIdentity,
+    ) -> Result<Self, CacheError> {
+        let at = |what| step(path, what);
+        let mut conn = Connection::open(path).at(at("open fixture"))?;
+        let canonical = path
+            .canonicalize()
+            .map_err(|error| failed(at("resolve fixture path"), error))?;
+        let claim = Registration::claim(&canonical).ok_or_else(|| CacheError::StoreInUse {
+            detail: "shutdown fixture already open".into(),
+        })?;
+        conn.busy_timeout(BUSY_TIMEOUT)
+            .at(at("fixture busy timeout"))?;
+        // Only crash durability is unnecessary here. Full initialization,
+        // journal locking, transactions, hooks and actual SQLite work remain.
+        conn.pragma_update(None, "synchronous", "OFF")
+            .at(at("fixture synchronous mode"))?;
+        let undatable = initialize(&mut conn, path, identity)?;
+        let mode: String = conn
+            .pragma_update_and_check(None, "journal_mode", "WAL", |row| row.get(0))
+            .at(at("fixture WAL mode"))?;
+        assert!(mode.eq_ignore_ascii_case("wal"));
+        Ok(Self {
+            shared: Arc::new(Shared {
+                inner: Mutex::new(Inner {
+                    conn,
+                    hints_missing: Cell::new(false),
+                    undatable_through: Cell::new(undatable),
+                    examined_through: Cell::new(undatable),
+                }),
+                path: path.to_path_buf(),
+                contention_probe: Mutex::new(None),
+                _claim: claim,
+            }),
+        })
+    }
+}
+
 /// Schema, version and identity checks of [`SqliteStore::open_at`], in one
 /// transaction. Returns the highest seq of an applied entry the backfill
 /// could not date (warned about), or 0.

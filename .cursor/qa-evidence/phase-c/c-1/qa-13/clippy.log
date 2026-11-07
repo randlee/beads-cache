@@ -1,0 +1,55 @@
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/cli/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/daemon/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+error: invalid key-value pair, expected key
+  --> ../../../../.cargo/git/checkouts/sc-runtime-9bd6cb97de8223e7/c3ce3d1/template/crates/service/Cargo.toml:13:1
+   |
+13 | {% if db == "none" %}
+   | ^
+   Compiling syn v3.0.9
+   Compiling target-lexicon v0.13.5
+   Compiling pyo3-macros-backend v0.30.1
+   Compiling pyo3-build-config v0.30.1
+   Compiling pyo3-ffi v0.30.1
+   Compiling pyo3 v0.30.1
+   Compiling serde_derive_internals v0.30.0
+   Compiling serde_derive v1.0.229
+   Compiling futures-macro v0.3.34
+   Compiling thiserror-impl v2.0.21
+   Compiling tokio-macros v2.7.2
+   Compiling ref-cast-impl v1.0.27
+   Compiling async-trait v0.1.92
+   Compiling schemars_derive v1.2.3
+    Checking ref-cast v1.0.27
+    Checking tokio v1.54.1
+    Checking futures-util v0.3.34
+    Checking thiserror v2.0.21
+    Checking serde v1.0.229
+   Compiling pyo3-macros v0.30.1
+    Checking sc-beads v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-beads)
+    Checking sc-observability-types v1.5.0
+    Checking schemars v1.2.3
+    Checking tinytemplate v1.2.1
+    Checking ciborium v0.2.2
+    Checking criterion v0.8.2
+    Checking futures-executor v0.3.34
+    Checking futures v0.3.34
+    Checking process-wrap v10.0.1
+    Checking bd-cache-model v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-model)
+    Checking sc-bd-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/sc-bd-cli)
+    Checking bd-cache v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache)
+    Checking bd-cache-api v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-api)
+    Checking sc-command v0.2.0 (https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b)
+    Checking sc-cron v0.2.0 (https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b)
+    Checking bd-cache-store v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-store)
+    Checking bd-cache-sync v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-sync)
+    Checking bd-cache-cli v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-cli)
+    Checking bd-cache-py v0.2.0 (/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/crates/bd-cache-py)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.56s

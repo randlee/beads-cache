@@ -1,0 +1,26 @@
+[
+  {
+    "id": 126474418830,
+    "name": "wheel (macos-15)",
+    "conclusion": "SUCCESS",
+    "source": "d8242dbe6e246a7c69a2d9a892451c3080364050"
+  },
+  {
+    "id": 126477230329,
+    "name": "pytest (macos-15, python 3.9)",
+    "conclusion": "SUCCESS",
+    "source": "d8242dbe6e246a7c69a2d9a892451c3080364050"
+  },
+  {
+    "id": 126477230590,
+    "name": "pytest (macos-15, python 3.11)",
+    "conclusion": "SUCCESS",
+    "source": "d8242dbe6e246a7c69a2d9a892451c3080364050"
+  },
+  {
+    "id": 126477230372,
+    "name": "pytest (macos-15, python 3.13)",
+    "conclusion": "SUCCESS",
+    "source": "d8242dbe6e246a7c69a2d9a892451c3080364050"
+  }
+]

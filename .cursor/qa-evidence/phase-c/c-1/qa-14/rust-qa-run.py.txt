@@ -1,0 +1,23 @@
+import json, os, pathlib, subprocess, time
+
+root = pathlib.Path('/tmp/phase-c-execution/c-1/qa-14')
+env = dict(os.environ, CARGO_INCREMENTAL='0', CARGO_TARGET_DIR='/tmp/phase-c-execution/c-1/restart-target', RUNNER_TEMP=str(root))
+commands = [
+    ('fmt', ['cargo', 'fmt', '--all', '--check'], 0),
+    ('clippy', ['cargo', 'clippy', '--locked', '--all-targets', '--all-features', '--', '-D', 'warnings'], 0),
+    ('sync-tests', ['cargo', 'test', '--locked', '-p', 'bd-cache-sync', '--all-features', '--lib', '--test', 'cron_logging', '--test', 'cron_rows', '--test', 'job_threading', '--test', 'schedule_switch', '--', '--nocapture'], 0),
+    ('graph-unit', ['python3', '-I', '-m', 'unittest', 'discover', '-s', 'crates/bd-cache-sync/tests', '-p', 'test_consumer_graph.py', '-v'], 0),
+    ('isolated-graph', ['python3', '-I', 'crates/bd-cache-sync/tests/check_consumer_graph.py'], 0),
+    ('negative-server', ['python3', '-I', 'crates/bd-cache-sync/tests/check_consumer_graph.py', '--negative-server'], 1),
+    ('no-backend', ['python3', '-I', 'scripts/check_no_backend.py', 'graph'], 0),
+]
+receipts = []
+for name, command, expected in commands:
+    print('START', name, flush=True)
+    start = time.monotonic()
+    log_path = root / (name + '.log')
+    with log_path.open('w') as log:
+        result = subprocess.run(command, env=env, stdout=log, stderr=subprocess.STDOUT)
+    receipts.append(dict(name=name, command=command, exit=result.returncode, expected_exit=expected, seconds=round(time.monotonic()-start, 3), log=str(log_path), execution_context='sandbox', cwd=os.getcwd()))
+    (root/'rust-qa-receipts.json').write_text(json.dumps(receipts, indent=2)+'\n')
+    print('END', name, result.returncode, flush=True)

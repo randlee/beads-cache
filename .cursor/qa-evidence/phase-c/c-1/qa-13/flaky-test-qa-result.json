@@ -1,0 +1,408 @@
+{
+  "success": true,
+  "data": {
+    "status": "findings",
+    "role_owned_verdict": "PASS",
+    "owner": "flaky-test-qa",
+    "qa_pass": "qa-13",
+    "review_mode": "sprint_review",
+    "round_limit": false,
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "reviewed_at_utc": "2026-11-06T11:01:37.901847+00:00",
+    "model_disclosure": "Codex reviewer using assignment-requested gpt-6.1-sol high fallback; no Grok/Composer or specialist model invocation claimed.",
+    "findings": [
+      {
+        "id": "ARCH-001",
+        "category": "correctness",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "arch-qa",
+        "status": "open",
+        "carried_original_issue": "Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.",
+        "carried_original_evidence": "Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "RBQA-F001",
+        "category": "guideline",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "rust-best-practices-agent historical QA4",
+        "status": "open",
+        "carried_original_issue": "Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.",
+        "carried_original_evidence": "Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "REQ-QA-004",
+        "category": "tests",
+        "severity": "critical",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 225,
+        "issue": "Carried acceptance finding retained pending requirement owner, parent anchor interpretation, and exact current-head CI closeout; no sprint completion count assigned by flaky reviewer.",
+        "recommendation": "Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "req-qa",
+        "status": "open",
+        "carried_original_issue": "Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.",
+        "carried_original_evidence": "Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "QA2-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "rust-qa-agent",
+        "status": "open",
+        "carried_original_issue": "Required current isolated Python consumer graph rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+        "carried_original_evidence": "Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -> sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      }
+    ],
+    "new_role_findings": [],
+    "finding_provenance": "All four input carry IDs retained with original owner, original issue/evidence, and explicit current-source disposition. No new flaky finding and no cross-role self-closure. Parent owns canonical finding aggregation.",
+    "summary": {
+      "total_findings": 4,
+      "critical": 3,
+      "important": 1,
+      "minor": 0,
+      "new_flaky_findings": 0,
+      "carried_cross_role_findings": 4
+    },
+    "review_targets": [
+      ".github/workflows/ci.yml",
+      ".github/workflows/python.yml",
+      ".triage/c/findings/ARCH-001.ttl",
+      ".triage/c/findings/CI-C2-RUNNER-001.ttl",
+      ".triage/c/findings/FTQ-009.ttl",
+      ".triage/c/findings/FTQ-010.ttl",
+      ".triage/c/findings/QA2-001.ttl",
+      ".triage/c/findings/RBQA-F001.ttl",
+      ".triage/c/findings/REQ-QA-004.ttl",
+      ".triage/c/findings/RQA10-001.ttl",
+      ".triage/c/findings/RQA11-001.ttl",
+      ".triage/c/findings/RQA9-001.ttl",
+      "Cargo.lock",
+      "Cargo.toml",
+      "crates/bd-cache-cli/Cargo.toml",
+      "crates/bd-cache-store/Cargo.toml",
+      "crates/bd-cache-store/src/codec.rs",
+      "crates/bd-cache-store/src/health.rs",
+      "crates/bd-cache-store/src/lib.rs",
+      "crates/bd-cache-store/src/schedule.rs",
+      "crates/bd-cache-store/src/schedule_budget.rs",
+      "crates/bd-cache-store/src/schema.rs",
+      "crates/bd-cache-store/src/store.rs",
+      "crates/bd-cache-store/tests/schedule_store.rs",
+      "crates/bd-cache-store/tests/support/fixture_child.rs",
+      "crates/bd-cache-store/tests/support/schedule_protocol.rs",
+      "crates/bd-cache-sync/Cargo.toml",
+      "crates/bd-cache-sync/src/compose.rs",
+      "crates/bd-cache-sync/src/control.rs",
+      "crates/bd-cache-sync/src/cron.rs",
+      "crates/bd-cache-sync/src/cron_log.rs",
+      "crates/bd-cache-sync/src/history.rs",
+      "crates/bd-cache-sync/src/job.rs",
+      "crates/bd-cache-sync/src/launch.rs",
+      "crates/bd-cache-sync/src/lib.rs",
+      "crates/bd-cache-sync/src/mode_lock.rs",
+      "crates/bd-cache-sync/src/module_hook.rs",
+      "crates/bd-cache-sync/src/payload.rs",
+      "crates/bd-cache-sync/src/python_job.rs",
+      "crates/bd-cache-sync/src/run.rs",
+      "crates/bd-cache-sync/src/schedule.rs",
+      "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "crates/bd-cache-sync/tests/common/mod.rs",
+      "crates/bd-cache-sync/tests/common/repo.rs",
+      "crates/bd-cache-sync/tests/common/session_fixture.rs",
+      "crates/bd-cache-sync/tests/cron_hurry.rs",
+      "crates/bd-cache-sync/tests/cron_rows.rs",
+      "crates/bd-cache-sync/tests/e2e.rs",
+      "crates/bd-cache-sync/tests/hook_runner.rs",
+      "crates/bd-cache-sync/tests/job_threading.rs",
+      "crates/bd-cache-sync/tests/perf.rs",
+      "crates/bd-cache-sync/tests/schedule_switch.rs",
+      "crates/bd-cache-sync/tests/test_consumer_graph.py",
+      "crates/sc-cron/Cargo.toml",
+      "crates/sc-cron/LICENSE",
+      "crates/sc-cron/README.md",
+      "crates/sc-cron/clippy.toml",
+      "crates/sc-cron/src/clock.rs",
+      "crates/sc-cron/src/error.rs",
+      "crates/sc-cron/src/expr.rs",
+      "crates/sc-cron/src/hook.rs",
+      "crates/sc-cron/src/jitter.rs",
+      "crates/sc-cron/src/job.rs",
+      "crates/sc-cron/src/lib.rs",
+      "crates/sc-cron/src/limits.rs",
+      "crates/sc-cron/src/process.rs",
+      "crates/sc-cron/src/scheduler.rs",
+      "crates/sc-cron/src/sqlite.rs",
+      "crates/sc-cron/src/store.rs",
+      "crates/sc-cron/src/timestamp.rs",
+      "crates/sc-cron/src/types.rs",
+      "crates/sc-cron/src/worker.rs",
+      "crates/sc-cron/tests/common/mod.rs",
+      "crates/sc-cron/tests/enabled.rs",
+      "crates/sc-cron/tests/expr.rs",
+      "crates/sc-cron/tests/process_api.rs",
+      "crates/sc-cron/tests/python_hook.rs",
+      "crates/sc-cron/tests/reload_poll.rs",
+      "crates/sc-cron/tests/run_due_abort.rs",
+      "crates/sc-cron/tests/sqlite_store.rs",
+      "crates/sc-cron/tests/stop_hook.rs",
+      "crates/sc-cron/tests/target_resolver.rs",
+      "crates/sc-cron/tests/two_process.rs",
+      "crates/sc-cron/tests/worker.rs",
+      "docs/architecture.md",
+      "docs/bd-cache-api/requirements.md",
+      "docs/bd-cache-cli/architecture.md",
+      "docs/bd-cache-cli/requirements.md",
+      "docs/bd-cache-py/architecture.md",
+      "docs/bd-cache-store/architecture.md",
+      "docs/bd-cache-sync/architecture.md",
+      "docs/plans/phase-c/phase-c-plan.md",
+      "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "docs/requirements.md",
+      "docs/sc-cron/architecture.md",
+      "docs/sc-cron/requirements.md"
+    ],
+    "review_scope": "Full96-target inventory and risk scan:65 present targets;31 intentional local sc-cron deletions. Changed graph/checker/store assertion examined directly; unchanged fixture, readiness, child lifetime/reap, channel, poller, environment, temp-path, timing and deterministic-clock contexts reviewed against current source and prior exact QA12 evidence. No claimed execution of deleted local scheduler tests.",
+    "changed_test_assessments": {
+      "graph_guards": {
+        "status": "PASS",
+        "files": [
+          "crates/bd-cache-sync/tests/check_consumer_graph.py:19",
+          "crates/bd-cache-sync/tests/test_consumer_graph.py:26"
+        ],
+        "evidence": "Exact tuple equality permits only registry0.1.1 or exact URL/rev/resolvedcommit c3ce3d1b with version0.2.0. Root-reachable normal/build traversal, only approved same-source sc-cron introducer, optional-feature rejection, forbidden assembly and SQLite identity checks retained/strengthened. Table-driven negative cases use fresh per-case metadata and no shared mutation, randomized ordering, retry, added sleep or wider timeout. Owned metadata child timeout stays120s; unit planted Python30s sleep is killed/reaped at50ms. Independent 8/8 in0.055s; no Cargo invoked."
+      },
+      "typed_read_only_refusal": {
+        "status": "PASS_equivalent_scope_stronger_identity",
+        "file": "crates/bd-cache-store/src/schedule.rs:1341",
+        "original_failure": "/tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests-initial-failure.log",
+        "evidence": "Retained initial36/37 exit101 fails old Debug substring at1341; current SDK error.rs307 custom Debug renders only kind/has_source/outcome, while Error::source at299 retains cause. Current test traverses the finite concrete error chain and requires a downcast CacheError with BD_CACHE.STORE_FAILED and exact bounded health read: mutation refused in read-only scope. health.rs102 produces exactly that refusal; schedule.rs482 preserves it as StoreError source; CacheError source implementation preserves wrapper chain. An expired health deadline, worker shutdown error, missing row or unrelated read-only text cannot satisfy the exact pair. No loop retry, time reset, disabled assertion or accepted arbitrary error. Same management override, other-view/connection expiry, health expired check, error/unwind restoration, empty public list, query_only restoration and busy_timeout assertions retained. Targeted corrected1/1 and fullstore37/37 raw retained."
+      },
+      "retained_fixture_current_proof": {
+        "status": "PASS_scoped_preservation",
+        "evidence": "FixtureChild/protocol/session helper/store cfg(test) opener and workflows are byte-equal to QA12. Current store raw: three real worker returns (health mutex error, DatabaseBusy, OperationInterrupted), whole5s pre-spawn ownership, unchanged30ms cancellation and500ms completion observation, stall-marker classification and actual root cleanup. Planted post-return-gap remains failed qualification with test PASS and root cleanup; one protocol line interleaves libtest output, so no fabricated complete JSON is inferred from it. Observer error/unwind and invalid-receipt/no-retry controls PASS. Current sync raw full19/19 includes delayed inventory STOPack, measured88.541042ms hold, CONT, parsed self census and actual wait/reap within113.058208ms caller elapsed; transient recovery scans5 retains original failed fixture status and cleanedtrue. Original QA9/10/11 failures and old50ms mutant remain historical evidence; no rerun-to-green or host-cost claim."
+      }
+    },
+    "preserved_dispositions": [
+      {
+        "id": "RQA10-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for the supported mixed recovery/artificial-delay fixture composition; sole manager aggregates this actual owner disposition. No pending-owning-reviewer condition remains.",
+        "supported_mechanism": "Actual instrumented consumer observation7fb/run41796715401/job126462431901 reached quiescence call3 afterSTOP/80ms/CONT, timed out its actual inventory under original250ms window, reaped command/root, completed final drain and correctly retained false cleanup. Positive recovery mixed transient-error recovery and additional artificially delayed inventory in one two-stable-census window. Current split removes that extra positive timing assumption without relaxing deadlines or census proof.",
+        "why_not_pass_only": "Direct source diff changes only two existing private test bodies and independently verified old/new ledger retains every intended proof. Independent current native full19 evidence supplies real scan/STOP/CONT/wait/error/receipt/census outcomes, including required negative controls. This satisfies the supported correction direction; no identical historical recurrence or low-level host cause is required.",
+        "scope_limits": "Only exact C1 candidate fixture-composition mechanism. This does not identify all historical uninstrumented stages or detailed ps/signal/observer costs, guarantee kernel scheduling, qualify wholeC2, or claim C2 consumed this helper. Original failure logs and distinct RQA9/CI/SDK findings remain.",
+        "further_code_or_unchanged_observation_required_for_this_mechanism": false,
+        "qa12_preservation": "Relevant recovery body, ordinary inventory helper and workflows unchanged versus accepted d824; independent affected full suites and current supported-runner CI pass. Historical/scope limits preserved; no C2 or global acceptance.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "RQA9-001",
+        "severity": "important",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains.",
+        "correction": "Actual cfg(test) open_shutdown_fixture sets synchronous=OFF only on disposable real connection before SAME initialize/schema/extensions/backfill/identity/claim/WAL. Public read-only mutex, external BEGIN IMMEDIATE busy and executing SQL paths remain. Production open_at and all production behavior are byte-equivalent; helper also covers management/error/unwind/health.",
+        "qualification": "Unchanged pre-spawn whole5s owner,30ms cancellation,500ms observation, real-return/stall receipts, rollback/no-write and normal-session restoration remain. Independent QA12 local37/37; required Windows37/37 and macOS37/37. Retained detailed corrected raw supplies actual read-only deadline error, DatabaseBusy5 and OperationInterrupted9 returns/stall markers/root reap; planted post-return marker gap still fails normal qualification and cleans root; observer error/panic/bad-receipt controls retained.",
+        "why_not_pass_only": "QA11 actual trace localized setup consuming4.785s and worker-entry4.975s before cancellation5.480s under original5s owner. Candidate removes irrelevant crash-durability work while retaining complete real cancellation conditions and meaningful failing controls. This source-supported scoped redesign plus independent affected/platform qualification supports disposition, without demanding identical historical recurrence.",
+        "limits": "Original QA9 and QA11 failures remain retained. Exact fsync/OS cost and every earlier uninstrumented stage remain unknown; no universal timing or production durable-commit/cancellation guarantee, whole-C2 acceptance or assertion that original failed case qualified. Captured hosted/local PASS logs omit detailed phases; retained developer raw and source assertions supply those semantics.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "reason": "Exactthree-labelsourcecorrection plus direct actualsupportedmacOS15arm64/toolchain/wheel/installedPython3version receipts complete prescribedC1qualification; no pendingownerplaceholder. All11PythonchecksSUCCESS.",
+        "scope_limits": "C1d824 candidate only; does not assert C2currentheadindependentmatrixacceptance, exactoldqueuecause, or overallCI/signal/SDKacceptance. Originalretiredconfigurationandqueuecounterevidencepreserved.",
+        "qa12_preservation": "Relevant recovery body, ordinary inventory helper and workflows unchanged versus accepted d824; independent affected full suites and current supported-runner CI pass. Historical/scope limits preserved; no C2 or global acceptance.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "FTQ-009",
+        "status": "closed_preserved_for_original_unbounded_lifetime",
+        "reason": "Exactlyfilteredwholefixtureowner,actualrootwait/reap and unchanged protocol/FixtureChild retain prior acceptedmechanism; RQA9 separate.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "FTQ-010",
+        "status": "closed_preserved_for_original_session_orphan_inventory_mechanisms",
+        "reason": "Cleanupimplementation unchanged;full19independent actual timeout/unwind/preregistration/Pythonownership controls qualified; no speculativekernelprogress finding.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "closed_preserved_for_independent50ms_cap_mechanism",
+        "reason": "Prior removed independent50ms cap correction preserved; explicit bounded-ready regression and actual old50 mutation retain meaningful delay/success/error/ownership proof. Ordinary caller deadlines unchanged; no RQA11 pending-owner condition.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "RSH-001",
+        "status": "resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope",
+        "reason": "Prior accepted C1 and paired public C2 startup scope retained. Current production source equivalence independently verified despite two physically changed cfg(test) source files; prior publiccaller250.876416mswithin500ms and service7 evidence remains scoped. No new stock HTTP/wholeC2/universaldeadline claim.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "C2-FTQ-006",
+        "status": "retracted_preserved",
+        "reason": "No impossiblehealthy-kernel/sameUIDprogressfindingrevived.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      },
+      {
+        "id": "RQA11-001",
+        "severity": "important",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains.",
+        "correction": "Existing same test now runs exactly filtered in complete SessionFixture5s from pre-spawn with actual setsid. Real stopped command is acknowledged inside that owner before creating ONE250ms caller deadline immediately before process_ids_using. Measured>=80ms hold,CONT,same Inventory finish/output/full parse/self-presence,actual wait/reap and PID absence remain inside caller qualification. No earlier supplied caller or outer deadline is renewed.",
+        "qualification": "Independent QA12 local full19/19 and current required macOS full19/19. Retained corrected raw measures85.854834ms hold/114.615834ms caller; postpush81.869792ms/117.949916ms. Old50ms-before-closure mutant actually fails child+outer101 after84.020583ms hold, PID89442 actual kill/wait at89.354083ms; outer cleanuptrue does not waive caller error. Restored helperSHA72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac independently matches current source.",
+        "why_not_pass_only": "Explicit acknowledged-readiness split removes incidental shell/temp/STOP-ack preparation from this isolated regression measurement while retaining the intentional delay exceeding the former cap. Ordinary preflight/cleanup/audit whole-call absolute bounds and stopped timeout/unwind/three incomplete-scan false-receipt/no-retry/distinct quiescence-audit controls are byte-equivalent and exercised. No arbitrary timeout acceptance, padding, cap renewal, fake clock, host tuning or missing census.",
+        "limits": "Original macOS waited-exit0 at257.978625ms then output-deadline failure remains retained. Isolated positive intentionally no longer measures preparation within250ms; outer5s owns preparation. This does not change real preflight spawning budget or identify unrecorded STOP/CONT/OS costs. Mutant is inspected retained execution/provenance, not independently re-executed by this owner; no C2 consumption inferred.",
+        "qa13_preservation": "Preserve prior scoped owner disposition and original failure limits. Relevant fixture/source/workflow bytes independently match QA12 except the one schedule test assertion adopting typed source inspection; current developer store37/37 and full cron_hurry19/19 logs support continued fixture qualification. No new evidence reopens this mechanism; no whole-C2 or current hosted matrix claim.",
+        "qa13_reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4"
+      }
+    ],
+    "source_preservation_proof": {
+      "crates/bd-cache-store/tests/support/fixture_child.rs": {
+        "same_as_QA12": true,
+        "sha256": "0b935f7523d22a9cd6090f1815ab20af6574bfee233ca47aac69a54ab95abae8"
+      },
+      "crates/bd-cache-store/tests/support/schedule_protocol.rs": {
+        "same_as_QA12": true,
+        "sha256": "6559d1e8dfa5088cdb923296449383f7fa5c4c213d6f3a0d39a15ad189a35962"
+      },
+      "crates/bd-cache-sync/tests/common/session_fixture.rs": {
+        "same_as_QA12": true,
+        "sha256": "72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac"
+      },
+      "crates/bd-cache-store/src/store.rs": {
+        "same_as_QA12": true,
+        "sha256": "8aed62994bebe1f5369ef348318341529077f16e722436896660bd9960db183b"
+      },
+      ".github/workflows/ci.yml": {
+        "same_as_QA12": true,
+        "sha256": "dc051f1bfdd7ce1d5e11d781c8aa4e0d9a1bbefdc4f91dc92a7920e141303f7c"
+      },
+      ".github/workflows/python.yml": {
+        "same_as_QA12": true,
+        "sha256": "ffa81ab1bff4ea0a6d10c2a59aab7ae4618dde685519a1824e8ba64454eb9f9c"
+      },
+      "schedule_production_equal_before_cfg_test": true,
+      "Rust_paths_changed_since_00d8243": [
+        "crates/bd-cache-store/src/schedule.rs"
+      ],
+      "all_target_inventory": "flaky-test-qa-source-receipt.json"
+    },
+    "authorization_boundary": "Human prefinal-pin authorization is explicit in assignment. Checker permits only one exact immutable candidate; published-only historic anchor predicate conflicts are explicitly disclosed by developer and reserved for parent anchor interpretation. Flaky review neither rewrites anchors nor grants waiver. No original graph failure is disguised as current PASS.",
+    "evidence_limits": [
+      "Reviewer ran only Python unit tests and read-only git/source/evidence inspections; no Cargo, source or triage edits, child agents, PR posts or merge.",
+      "Store37/37, sync132outer/4existingignored and CLI16/16 are inspected developer native receipts; no independent Rust rerun claimed.",
+      "Prior QA12 hosted macOS/Windows qualification applies to its own exact candidate. Current supplied hosted snapshot at478812a is incomplete/pending; current platform CI acceptance belongs to parent/owners.",
+      "Original36/37 Debug-compatibility failure remains retained; correction does not establish arbitrary SDK compatibility or whole sprint/C2 acceptance.",
+      "No current timing failure, hidden timer widening, retry or new deterministic failure mechanism found. Previously resolved claims are not reopened absent current contrary evidence."
+    ],
+    "evidence_manifest": [
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-input.json",
+        "sha256": "339deac215fbbf3ac88d75cca7b04c39eff484389d4b20b6eb6b9d4f87e0be79"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-source-receipt.json",
+        "sha256": "5bf400e158ed642a20982ed9b8322efd7fdf057c7478963301c73bd934ae4805"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-risk-scan.txt",
+        "sha256": "fe436bf4036b4feeabcfde7318d78ccdc7dad598dc8ca961b9c9c732b0a0ffac"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-preservation-proof.json",
+        "sha256": "b8dbe6597c513a7fb6e897362eabff8823a34837705778a47f41bc6f7ee0323a"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-graph-unit.log",
+        "sha256": "59784fb2198a1f7ec11a1e851d46fc1a29c4153178268d4d043a7a7222868400"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+        "sha256": "646fdb8994cc16e1a5a1dafc019a3ee39e7fb996a34a8dc81e8ca19d39410525"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/developer-result.json",
+        "sha256": "ef41e1e8776ad67a6ff79b346d880d894f5f0a57682044edb76a3d1440f44474"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/source-proof.json",
+        "sha256": "32af309c928f87a047e4f82b237a0fb6e5eb35dae0560005eac33b488a87f91a"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/validation-receipts.json",
+        "sha256": "57ad66030381f707cd9aac9ae1e1acffab5e1fd1449fa1486280e8dc93563e3e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests-initial-failure.log",
+        "sha256": "fba4181f0f5c65f0e5b3be145a150a6ff1913105e653f67ca1ee0e0215bc8548"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/followup-management-test.log",
+        "sha256": "0fcc16abd60f6d52de42789aaa107266a7afcc45d7fb124149364032b47e342b"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/store-tests.log",
+        "sha256": "31924841dda44ec5aee3ab369f05df04cb06e5233cb9c8fc43951cfcbf5e415c"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/sync-tests.log",
+        "sha256": "faa793dc87a3d22c0eb7ce6dd3f03411d4a2fbb131e0e488e3b5679dafe40465"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/postpush-isolated-graph.log",
+        "sha256": "2ac4a90b105294e03599c55756b1dd047e19c6bcf5c9bab85cf7c0941509b02d"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/negative-server.log",
+        "sha256": "3d57fb694660469e96e9104eef68bb32afbac8cc47aafa23d224d352a5aa6c0e"
+      },
+      {
+        "path": "/tmp/phase-c-execution/c-1/qualified-c5-pin/hosted-ci.json",
+        "sha256": "4ea91ff5b16214beed7541784244c673dde1170db0229471d1de1149bc0de94c"
+      }
+    ],
+    "execution": "cm context completed using absolute /opt/homebrew/bin/cm; CASS history unavailable but playbook returned. No task-relevant procedural rule required a changed workflow; assignment no-Cargo and owner boundaries respected.",
+    "state": "STOP"
+  },
+  "error": null
+}

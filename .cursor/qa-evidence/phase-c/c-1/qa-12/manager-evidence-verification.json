@@ -1,0 +1,591 @@
+{
+  "qa_pass": "qa-12",
+  "reviewer_spawn_gate": "pass",
+  "coordinator_task_id": "/root/c1_quality_manager12",
+  "required_reviewers": [
+    {
+      "agent": "rust-qa-agent",
+      "task_id": "/root/c1_rustqa12",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 3,
+        "important": 1,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "req-qa",
+      "task_id": "/root/c1_reqqa12",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "arch-qa",
+      "task_id": "/root/c1_archqa12",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 1,
+        "important": 0,
+        "minor": 0
+      }
+    },
+    {
+      "agent": "flaky-test-qa",
+      "task_id": "/root/rqa9_causal_owner",
+      "spawn_actor": "parent-orchestrator",
+      "fenced_json_received": true,
+      "verdict": "FAIL",
+      "findings": {
+        "blocking": 3,
+        "important": 1,
+        "minor": 0
+      },
+      "role_owned_verdict": "PASS"
+    }
+  ],
+  "reviewer_fences": 4,
+  "hash_receipts": [
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-agent-result.json",
+      "sha256": "b8bdf2cec001160bf41f7b90f5442a25bbf9f87b0bc47d88bf70e2232e7a092e",
+      "verified": true,
+      "kind": "parent_correlated_actual_leaf"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-macos.log",
+      "sha256": "511b7330b538975ab3fbec84d4d93375cc0a4d1292b4137e47ffa0aa6f2f7a17",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-hosted-windows.log",
+      "sha256": "b6bfd71363ad961fa012fd8c326cb92786165d3422f5d09ba25cfc6a2166c7a7",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-evidence-manifest.json",
+      "sha256": "e384f9183ac83d11bc6aa51195b03cea2a786dfb93b25b1a75cf9dfe005c9ff8",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-handoff.json",
+      "sha256": "0b02f896b91a56947ea07375590c1832348b3d87254548b52bc331bdd02121eb",
+      "verified": true,
+      "kind": "parent_correlated_actual_leaf"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/ARCH-001.ttl",
+      "sha256": "19b34d87dba4e75e3a94d5f8de8f00b75bd96db9bc33175a100bde18f23f5360",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/REQ-QA-004.ttl",
+      "sha256": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RBQA-F001.ttl",
+      "sha256": "0b8d77a7a9736fc37f8fe6e36eb951474937011e54edc7a6b979d58ba5bc0fc0",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/QA2-001.ttl",
+      "sha256": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RQA9-001.ttl",
+      "sha256": "20a93630c35675b9a48503763558cb597db1637b460521f57ca53c3e535e6220",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration/.triage/c/findings/RQA11-001.ttl",
+      "sha256": "f2b167255df6a7e6f3861a2d6743859085c7adb8225c46ad618d97682102c356",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-result.json",
+      "sha256": "1f148a92cc560af6f658501c62d26baa79f74f5b319ea8f40b7a149a030956c2",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-result.md",
+      "sha256": "c1cfd3df436f20352e5a35dafbd423450b3bdce69d5050b4e7044a143bd28cd2",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/req-qa-source-equivalence.json",
+      "sha256": "9f544cdc7b91b392c1aea6f1eba48c69f3e27c4b52798468c5ccb95f59ab55cd",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+      "sha256": "646fdb8994cc16e1a5a1dafc019a3ee39e7fb996a34a8dc81e8ca19d39410525",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-agent-result.json",
+      "sha256": "b8bdf2cec001160bf41f7b90f5442a25bbf9f87b0bc47d88bf70e2232e7a092e",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/arch-qa-result.json",
+      "sha256": "42d126823026c4332fa638e2a7b022916b469af7efbf667c6611613da4a7f4c2",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/arch-qa-result.json",
+      "sha256": "42d126823026c4332fa638e2a7b022916b469af7efbf667c6611613da4a7f4c2",
+      "verified": true,
+      "kind": "parent_correlated_actual_leaf"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/arch-qa-source-equivalence.json",
+      "sha256": "72254a781d4f38c228ec39556f0654f45b75d600e92b767b18d80c6ccf54a981",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/arch-qa-result.json",
+      "sha256": "bc78efcf959f92bfbe0c895575bbf5e785d91b55ea92f2ddc5a9862984b70d90",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/owner-design-assessment.json",
+      "sha256": "3de42d897743efe6dd098198dab0eeb50e45658f555fc955b566e33e4a5fa292",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/native-qualification-fix-result.json",
+      "sha256": "66d467d59d76562667478ea0867cf57c6dcaff28b790f17d68ead7d123391f89",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/native-qualification-old50-negative.json",
+      "sha256": "e455bf41ebf2a53c14e9d9bba571edc21a832ba2f1acd93f4446c5c8d8d54f33",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-11/native-qualification-old50-negative.log",
+      "sha256": "4f8af922ca620ef5c02babdbc2ca34fcd84e835ceedb3290a0c9d8680210a0ac",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json",
+      "sha256": "82034b33684bfb87d3c2e90a5069045afde337aecf9998bd7678976a3346bef1",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log",
+      "sha256": "14955fe69f41e9b4055465dda8eb34ecd9746f4ea44c59f4b654c82e657d4815",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-check-receipts.json",
+      "sha256": "41ecf00bcd4e63e28c1715f39b632d523a72028bc95077434d21ed3b2580af47",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-store.log",
+      "sha256": "176283773bb8c9e8df55ac7a264e95efa7c2196f86b96a56043ddd41cfe4e788",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/rust-qa-cron_hurry.log",
+      "sha256": "33d568e3d119491925434f54aad8d68203d56faa3eb0e535742b120a8eff9ea6",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-handoff.json",
+      "sha256": "7c2df6f20214f7e77ab72f9224db9cefe727da42e1c7543a805d52e0af2d7bbb",
+      "verified": true,
+      "kind": "parent_correlated_actual_leaf"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.json",
+      "sha256": "646fdb8994cc16e1a5a1dafc019a3ee39e7fb996a34a8dc81e8ca19d39410525",
+      "verified": true,
+      "kind": "reviewer_bound_artifact"
+    },
+    {
+      "path": "/tmp/phase-c-execution/c-1/qa-12/flaky-test-qa-result.md",
+      "sha256": "e866b8303ae3a493671e22537392d65e7aa537177fe251e5d43c89d2401aebd3",
+      "verified": true,
+      "kind": "reviewer_bound_full_markdown"
+    }
+  ],
+  "triage": [
+    {
+      "id": "ARCH-001",
+      "path": ".triage/c/findings/ARCH-001.ttl",
+      "sha256": "19b34d87dba4e75e3a94d5f8de8f00b75bd96db9bc33175a100bde18f23f5360",
+      "qa12_disposition": "still_open",
+      "bytes_read": 7112
+    },
+    {
+      "id": "REQ-QA-004",
+      "path": ".triage/c/findings/REQ-QA-004.ttl",
+      "sha256": "76deb26babb740fec290e21ec5368126222680dcdd197a180b198fae5c643de4",
+      "qa12_disposition": "still_open",
+      "bytes_read": 12121
+    },
+    {
+      "id": "RBQA-F001",
+      "path": ".triage/c/findings/RBQA-F001.ttl",
+      "sha256": "0b8d77a7a9736fc37f8fe6e36eb951474937011e54edc7a6b979d58ba5bc0fc0",
+      "qa12_disposition": "still_open",
+      "bytes_read": 7406
+    },
+    {
+      "id": "QA2-001",
+      "path": ".triage/c/findings/QA2-001.ttl",
+      "sha256": "74c7dcf6ebb4755102d7f246cb539d356d20385a97bf2b8511fce5bc83bae7ac",
+      "qa12_disposition": "still_open",
+      "bytes_read": 6624
+    }
+  ],
+  "open_findings": [
+    {
+      "id": "ARCH-001",
+      "severity": "blocking",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "finding": {
+            "id": "ARCH-001",
+            "category": "correctness",
+            "severity": "critical",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.",
+            "recommendation": "Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.",
+            "evidence": "Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.",
+            "owner": "arch-qa",
+            "status": "open"
+          }
+        },
+        {
+          "role": "arch-qa",
+          "finding": {
+            "id": "ARCH-001",
+            "rule": "RULE-ADR-CODE",
+            "adr": "ADR-BDC-0016",
+            "severity": "BLOCKING",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "description": "OPEN at frozen da946410. bd-cache-sync directly depends on sc-command and implements its CanonicalLog receiver (cron_log.rs:3), outside ADR-BDC-0016\u2019s approved exception allowing only published sc-cron to introduce that contract below isolated Python. ADR-SYNC-0006/0008 and ADR-PY-0005 are affected by the same violation. The exact-head raw boundary step independently rejects this direct edge at parent-current-boundary.log:562 and exits1 at563; no binding amendment permits it.",
+            "remediation": "Keep ARCH-001 open. Use an authorized genuine upstream public receiver/type re-export or equivalent canonical-event callback constructor delivering required real scheduler events without a direct sync -> sc-command edge; remove that direct edge and qualify the unchanged isolated-consumer gate. Preserve published0.1.1, required real logging, and the narrow graph policy. No SDK/publisher/auth work, relocated introducer, fabricated event, waiver, guard bypass, silent baseline change or widened exception is authorized."
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "finding": {
+            "id": "ARCH-001",
+            "category": "correctness",
+            "severity": "critical",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.",
+            "recommendation": "Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.",
+            "evidence": "Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.",
+            "owner": "arch-qa",
+            "status": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "RBQA-F001",
+      "severity": "blocking",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "finding": {
+            "id": "RBQA-F001",
+            "category": "guideline",
+            "severity": "critical",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.",
+            "recommendation": "Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.",
+            "evidence": "Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.",
+            "owner": "rust-best-practices-agent historical QA4",
+            "status": "open"
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "finding": {
+            "id": "RBQA-F001",
+            "category": "guideline",
+            "severity": "critical",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.",
+            "recommendation": "Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.",
+            "evidence": "Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.",
+            "owner": "rust-best-practices-agent historical QA4",
+            "status": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "REQ-QA-004",
+      "severity": "blocking",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "finding": {
+            "id": "REQ-QA-004",
+            "category": "tests",
+            "severity": "critical",
+            "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+            "line": 225,
+            "issue": "Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.",
+            "recommendation": "Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.",
+            "evidence": "Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.",
+            "owner": "req-qa",
+            "status": "open"
+          }
+        },
+        {
+          "role": "req-qa",
+          "finding": {
+            "id": "REQ-QA-004",
+            "severity": "Blocking",
+            "category": "acceptance-gap",
+            "source_refs": [
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:243",
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:366",
+              "docs/plans/phase-c/sprint-c-1-runtime-migration.md:391",
+              "docs/architecture.md:1148",
+              "docs/bd-cache-api/requirements.md:127"
+            ],
+            "target_refs": [
+              "crates/bd-cache-sync/Cargo.toml:31",
+              "crates/bd-cache-sync/src/cron_log.rs:3",
+              "/tmp/phase-c-execution/c-1/qa-12/parent-current-boundary.log:562",
+              "/tmp/phase-c-execution/c-1/qa-12/parent-current-pr108-ci.json"
+            ],
+            "issue": "At frozen clean da946410, the direct bd-cache-sync -> sc-command logging dependency exceeds the approved upstream-sc-cron-only exception. Actual exact-head isolated Python consumer CI rejects it. Terminal CI is 14/15: native Linux/macOS/Windows and all 11 Python jobs succeed; boundary alone fails. Test-only SQLite/inventory corrections preserve the required real operations, budgets and ownership, with current independent affected suites passing. All 101 requirement checks retain two violations and all 34 deliverables were independently reconciled; five dependency/consumer/current-CI/closeout items remain incomplete.",
+            "required_correction": "Resolve genuine canonical scheduler logging through an authorized public upstream receiver/re-export/callback seam, remove the unauthorized direct sync edge and pass the unchanged actual isolated consumer gate. Complete required current CI, independent QA, applicable development anchors and integration closeout. Preserve original failure logs and valid scoped fixture/runner/FTQ/RSH credits. Ordinary source/test evidence and developer handoff suffice; no separate mandatory coverage-ledger artifact or new process gate. Do not expand the exception, suppress guards, alter runtime pins, fabricate events, detach ownership, pad/reset deadlines or use later passing tests as a waiver.",
+            "compliance_result": "partially-compliant",
+            "incomplete_deliverable_ids": [
+              "C1-D11",
+              "C1-D21",
+              "C1-D27",
+              "C1-D31",
+              "C1-D34"
+            ]
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "finding": {
+            "id": "REQ-QA-004",
+            "category": "tests",
+            "severity": "critical",
+            "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+            "line": 225,
+            "issue": "Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.",
+            "recommendation": "Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.",
+            "evidence": "Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.",
+            "owner": "req-qa",
+            "status": "open"
+          }
+        }
+      ]
+    },
+    {
+      "id": "QA2-001",
+      "severity": "important",
+      "reports": [
+        {
+          "role": "rust-qa-agent",
+          "finding": {
+            "id": "QA2-001",
+            "category": "tests",
+            "severity": "important",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Required current isolated Python consumer graph rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+            "recommendation": "Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.",
+            "evidence": "Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -> sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.",
+            "owner": "rust-qa-agent",
+            "status": "open"
+          }
+        },
+        {
+          "role": "flaky-test-qa",
+          "finding": {
+            "id": "QA2-001",
+            "category": "tests",
+            "severity": "important",
+            "file": "crates/bd-cache-sync/Cargo.toml",
+            "line": 31,
+            "issue": "Required current isolated Python consumer graph rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+            "recommendation": "Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.",
+            "evidence": "Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -> sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.",
+            "owner": "rust-qa-agent",
+            "status": "open"
+          }
+        }
+      ]
+    }
+  ],
+  "counts_before_todo": {
+    "blocking": 3,
+    "important": 1,
+    "minor": 0
+  },
+  "deliverables_from_req_qa": {
+    "total_findings": 1,
+    "blocking_findings": 1,
+    "important_findings": 0,
+    "minor_findings": 0,
+    "overall_compliance": "non-compliant",
+    "deliverables_total": 34,
+    "deliverables_complete": 29,
+    "deliverables_incomplete": 5,
+    "deliverable_completion_percent": 85.29,
+    "requirement_total": 101,
+    "requirement_results": {
+      "violated": 2,
+      "upheld": 99
+    },
+    "incomplete_deliverable_ids": [
+      "C1-D11",
+      "C1-D21",
+      "C1-D27",
+      "C1-D31",
+      "C1-D34"
+    ],
+    "finding_count_scope": "Req-qa owned finding only. Canonical histories/dispositions include every related ID with original owner severities; no duplicate findings are created.",
+    "related_owner_open_counts": {
+      "Blocking": 3,
+      "Important": 1,
+      "Minor": 0
+    },
+    "current_canonical_open_ids": [
+      "ARCH-001",
+      "REQ-QA-004",
+      "RBQA-F001",
+      "QA2-001"
+    ],
+    "resolved_related_findings_this_review": [
+      "RQA9-001",
+      "RQA11-001"
+    ],
+    "canonical_histories_preserved": 6
+  },
+  "owner_resolved_findings": [
+    {
+      "id": "RQA9-001",
+      "severity": "important",
+      "status": "resolved_verified_for_exact_C1_candidate",
+      "owner": "flaky-test-qa",
+      "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+      "owning_adjudication_complete": true,
+      "canonical_disposition": "RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains.",
+      "correction": "Actual cfg(test) open_shutdown_fixture sets synchronous=OFF only on disposable real connection before SAME initialize/schema/extensions/backfill/identity/claim/WAL. Public read-only mutex, external BEGIN IMMEDIATE busy and executing SQL paths remain. Production open_at and all production behavior are byte-equivalent; helper also covers management/error/unwind/health.",
+      "qualification": "Unchanged pre-spawn whole5s owner,30ms cancellation,500ms observation, real-return/stall receipts, rollback/no-write and normal-session restoration remain. Independent QA12 local37/37; required Windows37/37 and macOS37/37. Retained detailed corrected raw supplies actual read-only deadline error, DatabaseBusy5 and OperationInterrupted9 returns/stall markers/root reap; planted post-return marker gap still fails normal qualification and cleans root; observer error/panic/bad-receipt controls retained.",
+      "why_not_pass_only": "QA11 actual trace localized setup consuming4.785s and worker-entry4.975s before cancellation5.480s under original5s owner. Candidate removes irrelevant crash-durability work while retaining complete real cancellation conditions and meaningful failing controls. This source-supported scoped redesign plus independent affected/platform qualification supports disposition, without demanding identical historical recurrence.",
+      "limits": "Original QA9 and QA11 failures remain retained. Exact fsync/OS cost and every earlier uninstrumented stage remain unknown; no universal timing or production durable-commit/cancellation guarantee, whole-C2 acceptance or assertion that original failed case qualified. Captured hosted/local PASS logs omit detailed phases; retained developer raw and source assertions supply those semantics."
+    },
+    {
+      "id": "RQA11-001",
+      "severity": "important",
+      "status": "resolved_verified_for_exact_C1_candidate",
+      "owner": "flaky-test-qa",
+      "reviewed_commit": "da94641038f6745366a240c308b211c796d4cbb6",
+      "owning_adjudication_complete": true,
+      "canonical_disposition": "RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains.",
+      "correction": "Existing same test now runs exactly filtered in complete SessionFixture5s from pre-spawn with actual setsid. Real stopped command is acknowledged inside that owner before creating ONE250ms caller deadline immediately before process_ids_using. Measured>=80ms hold,CONT,same Inventory finish/output/full parse/self-presence,actual wait/reap and PID absence remain inside caller qualification. No earlier supplied caller or outer deadline is renewed.",
+      "qualification": "Independent QA12 local full19/19 and current required macOS full19/19. Retained corrected raw measures85.854834ms hold/114.615834ms caller; postpush81.869792ms/117.949916ms. Old50ms-before-closure mutant actually fails child+outer101 after84.020583ms hold, PID89442 actual kill/wait at89.354083ms; outer cleanuptrue does not waive caller error. Restored helperSHA72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac independently matches current source.",
+      "why_not_pass_only": "Explicit acknowledged-readiness split removes incidental shell/temp/STOP-ack preparation from this isolated regression measurement while retaining the intentional delay exceeding the former cap. Ordinary preflight/cleanup/audit whole-call absolute bounds and stopped timeout/unwind/three incomplete-scan false-receipt/no-retry/distinct quiescence-audit controls are byte-equivalent and exercised. No arbitrary timeout acceptance, padding, cap renewal, fake clock, host tuning or missing census.",
+      "limits": "Original macOS waited-exit0 at257.978625ms then output-deadline failure remains retained. Isolated positive intentionally no longer measures preparation within250ms; outer5s owns preparation. This does not change real preflight spawning budget or identify unrecorded STOP/CONT/OS costs. Mutant is inspected retained execution/provenance, not independently re-executed by this owner; no C2 consumption inferred."
+    }
+  ],
+  "preserved_dispositions": [
+    {
+      "id": "RQA10-001",
+      "status": "resolved_preserved_verified_through_exact_C1_candidate"
+    },
+    {
+      "id": "CI-C2-RUNNER-001",
+      "status": "resolved_preserved_verified_through_exact_C1_candidate"
+    },
+    {
+      "id": "FTQ-009",
+      "status": "closed_preserved_for_original_unbounded_lifetime"
+    },
+    {
+      "id": "FTQ-010",
+      "status": "closed_preserved_for_original_session_orphan_inventory_mechanisms"
+    },
+    {
+      "id": "FTQ-011",
+      "status": "closed_preserved_for_independent50ms_cap_mechanism"
+    },
+    {
+      "id": "RSH-001",
+      "status": "resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope"
+    },
+    {
+      "id": "ARCH-001",
+      "status": "open"
+    },
+    {
+      "id": "RBQA-F001",
+      "status": "open"
+    },
+    {
+      "id": "QA2-001",
+      "status": "open"
+    },
+    {
+      "id": "REQ-QA-004",
+      "status": "open"
+    },
+    {
+      "id": "C2-FTQ-006",
+      "status": "retracted_preserved"
+    }
+  ],
+  "raw_XML_comparison_parse_handling": "Exact manifest and fenced regions extracted; HTML entities decoded once as explicitly authorized by assignment."
+}

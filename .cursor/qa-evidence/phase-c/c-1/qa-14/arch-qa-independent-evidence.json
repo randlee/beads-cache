@@ -1,0 +1,752 @@
+{
+  "branch": "sprint/c-1-runtime-migration",
+  "commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+  "clean": true,
+  "previous_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "changed_files": [
+    ".triage/c/findings/ARCH13-001.ttl",
+    ".triage/c/findings/RBQA-F001.ttl",
+    ".triage/c/findings/REQ-QA-004.ttl",
+    "Cargo.lock",
+    "crates/bd-cache-sync/Cargo.toml",
+    "docs/plans/phase-c/sprint-c-1-runtime-migration.md"
+  ],
+  "Rust_files_byte_equal": 262,
+  "exact_manifest_removal": true,
+  "exact_lock_edge_removal_only": true,
+  "no_sync_direct_or_source_command_or_observability_types_uses": true,
+  "workspace_CLI_upstream_dependencies_retained": true,
+  "qualified_source_pair_exact": true,
+  "rusqlite": "0.39.0",
+  "single_SQLite_provider": true,
+  "local_scheduler_removed": true,
+  "guard_workflow_root_manifest_byte_equal": [
+    "Cargo.toml",
+    ".github/workflows/ci.yml",
+    ".github/workflows/python.yml",
+    "crates/bd-cache-sync/tests/check_consumer_graph.py",
+    "crates/bd-cache-sync/tests/test_consumer_graph.py"
+  ],
+  "plan": {
+    "before_bytes": 78752,
+    "after_bytes": 48037,
+    "before_sha256": "0db0160613495ff3f314910ac8e48dcc8f7b878b5f0d83b5891d749e1b659794",
+    "after_sha256": "46542d045c6f7592df55078757468d02226da56ab9b5b25207fb6708b57bd3b2",
+    "operations_independently_reconstructed": 30,
+    "audited_intermediate_bytes": 47677,
+    "audited_intermediate_sha256": "4930587261a865688f1ca4f7e05d581dd259847e706202516369bd792deb3abb",
+    "frontmatter_byte_equal": true,
+    "requirements_count": 101,
+    "requirements": [
+      "REQ-BDC-1002",
+      "REQ-BDC-0804",
+      "REQ-BDC-0903",
+      "REQ-API-0001",
+      "REQ-API-0002",
+      "REQ-API-0003",
+      "REQ-API-0004",
+      "REQ-API-0005",
+      "REQ-API-0006",
+      "REQ-API-0007",
+      "REQ-BDC-0001",
+      "REQ-BDC-0006",
+      "REQ-BDC-0103",
+      "REQ-BDC-0107",
+      "REQ-BDC-0720",
+      "REQ-BDC-0722",
+      "REQ-BDC-0723",
+      "REQ-BDC-0724",
+      "REQ-BDC-0725",
+      "REQ-BDC-0727",
+      "REQ-BDC-0729",
+      "REQ-BDC-0730",
+      "REQ-BDC-0731",
+      "REQ-BDC-0732",
+      "REQ-BDC-0802",
+      "REQ-BDC-0803",
+      "REQ-BDC-0812",
+      "REQ-BDC-0911",
+      "NFR-BDC-0002",
+      "NFR-BDC-0004",
+      "NFR-BDC-0005",
+      "NFR-BDC-0006",
+      "NFR-BDC-0007",
+      "REQ-STORE-0002",
+      "REQ-STORE-0003",
+      "REQ-API-0008",
+      "REQ-CLI-0001",
+      "REQ-CLI-0003",
+      "REQ-CLI-0007",
+      "REQ-PY-0002",
+      "REQ-PY-0006",
+      "REQ-BDC-0910",
+      "REQ-BDC-0721",
+      "REQ-BDC-0007",
+      "REQ-BDC-0008",
+      "REQ-BDC-0502",
+      "REQ-CLI-0002",
+      "REQ-CLI-0004",
+      "REQ-CLI-0005",
+      "REQ-CLI-0006",
+      "REQ-CLI-0008",
+      "REQ-CLI-0009",
+      "REQ-CLI-0010",
+      "REQ-CLI-0011",
+      "REQ-CLI-0012",
+      "REQ-PY-0001",
+      "REQ-PY-0003",
+      "REQ-PY-0004",
+      "REQ-PY-0005",
+      "REQ-PY-0007",
+      "REQ-PY-0008",
+      "REQ-PY-0010",
+      "REQ-PY-0011",
+      "REQ-PY-0012",
+      "REQ-PY-0013",
+      "REQ-PY-0014",
+      "REQ-STORE-0001",
+      "REQ-STORE-0004",
+      "REQ-STORE-0005",
+      "REQ-STORE-0006",
+      "REQ-STORE-0007",
+      "REQ-STORE-0008",
+      "REQ-SYNC-0001",
+      "REQ-SYNC-0004",
+      "REQ-SYNC-0005",
+      "REQ-SYNC-0010",
+      "REQ-SYNC-0012",
+      "REQ-SYNC-0013",
+      "REQ-CRON-0001",
+      "REQ-CRON-0002",
+      "REQ-CRON-0003",
+      "REQ-CRON-0004",
+      "REQ-CRON-0005",
+      "REQ-CRON-0006",
+      "REQ-CRON-0007",
+      "REQ-CRON-0008",
+      "REQ-CRON-0009",
+      "REQ-CRON-0010",
+      "REQ-CRON-0011",
+      "REQ-CRON-0012",
+      "REQ-CRON-0013",
+      "REQ-CRON-0016",
+      "REQ-CRON-0017",
+      "REQ-CRON-0018",
+      "REQ-CRON-0014",
+      "REQ-CRON-0015",
+      "NFR-BDC-0001",
+      "NFR-BDC-0003",
+      "REQ-BDC-0703",
+      "REQ-BDC-0726",
+      "REQ-BDC-0728"
+    ],
+    "adrs_count": 41,
+    "adrs": [
+      "ADR-BDC-0005",
+      "ADR-BDC-0006",
+      "ADR-BDC-0010",
+      "ADR-BDC-0011",
+      "ADR-BDC-0014",
+      "ADR-BDC-0015",
+      "ADR-STORE-0001",
+      "ADR-STORE-0003",
+      "ADR-STORE-0006",
+      "ADR-SYNC-0008",
+      "ADR-CLI-0001",
+      "ADR-CLI-0005",
+      "ADR-PY-0006",
+      "ADR-CRON-0001",
+      "ADR-CRON-0002",
+      "ADR-CRON-0003",
+      "ADR-CRON-0004",
+      "ADR-CRON-0005",
+      "ADR-CRON-0006",
+      "ADR-CRON-0007",
+      "ADR-CRON-0008",
+      "ADR-CRON-0009",
+      "ADR-STORE-0002",
+      "ADR-STORE-0004",
+      "ADR-STORE-0005",
+      "ADR-SYNC-0001",
+      "ADR-SYNC-0002",
+      "ADR-SYNC-0006",
+      "ADR-CLI-0002",
+      "ADR-CLI-0003",
+      "ADR-CLI-0004",
+      "ADR-PY-0001",
+      "ADR-PY-0002",
+      "ADR-PY-0003",
+      "ADR-PY-0004",
+      "ADR-PY-0005",
+      "ADR-BDC-0009",
+      "ADR-BDC-0012",
+      "ADR-BDC-0013",
+      "ADR-CORE-0001",
+      "ADR-BDC-0016"
+    ],
+    "core_sections": {
+      "Deliverables": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "db456e91ae2039b11d8b664fef4eb2df6c7756904569eeba6e0a305ce07a5773"
+      },
+      "Prototype contract disposition": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "e353b7c210deabf95065e81eeef3e0408eadf80c4f31c3ab24061e9e22b83bec"
+      },
+      "Inherited preservation bounds": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "0d7e05fb62da3820ef8776c29a834f3ca824483284477c1516c4d4d6ec677b00"
+      },
+      "Bounded store-health seam for c-2": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "8f2440cdfa6772701e6f1771a77c5729c0157f09296df4cc0542740cb221bd33"
+      },
+      "Interface preserved for consumers": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "fc1f1bb3b1ff9632e41e449e414d2b7124e70d94d69f503af10e87fae20bb4af"
+      },
+      "Acceptance criteria": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "1abdb4328d118e2d853af554a792fb096851fb8b704c5b910700cd1633b11fc4"
+      },
+      "Current CI prerequisite": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "5a9f05671935cb4b6b634162551ffcdae7b06fa31082ff109df558988feb0130"
+      },
+      "Required validation": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "63e100c9dd0d62b8c69cf30de4043f44995966f048334006a1c07401d41b136c"
+      },
+      "Dependencies and limits": {
+        "byte_equal_except_obsolete_approval": true,
+        "sha256": "b29e6b1392fc9f78d8c7afdbeca30efbd64c37624e12dc2c227827eca6018f77"
+      }
+    },
+    "AC_rows": 8,
+    "coherence_repairs_diff": "/tmp/phase-c-execution/c-1/qa-14/arch-qa-prose-repair.diff",
+    "no_ledger_retained": true,
+    "human_authorization_retained": true,
+    "parent_anchor_adjudication_retained": true,
+    "unique_source_style_ids_removed": [
+      "REQ-QA-002",
+      "REQ-QA-003"
+    ]
+  },
+  "adr_inventory": [
+    {
+      "id": "ADR-BDC-0001",
+      "source": "docs/architecture.md:220",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1); amended by ADR-BDC-0013 (scopes are named bd filters).",
+      "listed": false,
+      "body_sha256": "ad1077afabdc33caccbf05975fbcef304da32db4eea72877485e22bf187cda3a"
+    },
+    {
+      "id": "ADR-BDC-0002",
+      "source": "docs/architecture.md:241",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1); amended by ADR-BDC-0013 (the base of a filter scope).",
+      "listed": false,
+      "body_sha256": "bfebc4057c0b3c0a6bd087e1514ca14ffe54f6b2d1c239099aafbcd9823cc625"
+    },
+    {
+      "id": "ADR-BDC-0003",
+      "source": "docs/architecture.md:323",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)",
+      "listed": false,
+      "body_sha256": "eee3aeae536bc2087b8fac688d295f8c7b359a4961253a71132fcd3369f42361"
+    },
+    {
+      "id": "ADR-BDC-0004",
+      "source": "docs/architecture.md:346",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)",
+      "listed": false,
+      "body_sha256": "fa29bc105c4576bf8032886d71f6da992fb6e65c475b05f614740a625471f285"
+    },
+    {
+      "id": "ADR-BDC-0005",
+      "source": "docs/architecture.md:370",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1)",
+      "listed": true,
+      "body_sha256": "646ecaf2489ae475765aa32ffff82b60d3d6d0466e47ecf69942b0a486fe0a24"
+    },
+    {
+      "id": "ADR-BDC-0006",
+      "source": "docs/architecture.md:411",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, after a-3 QA-2: covers the decision text as amended in integrate/phase-a 3f87332, including the third-party dependency list cron, chrono, tokio, rusqlite (bundled), async-trait, serde_json, getrandom, tracing; extended by lead ruling 2026-10-23 to cover the integrate/phase-a 4dbc1ad amendment adding the dev-dependency tempfile). Amended by ADR-BDC-0011 (the general hook target and the dependency list) and ADR-BDC-0014 (a caller-supplied schedule store). Provenance restated neutrally under ADR-BDC-0010, with no change of meaning.",
+      "listed": true,
+      "body_sha256": "18a0fb8bbbeb562deb3c85e5b139d70905a3d081e943a6284d6d4aba71786a40"
+    },
+    {
+      "id": "ADR-BDC-0007",
+      "source": "docs/architecture.md:450",
+      "status": "**Status:** Approved (lead ruling 2026-10-24: approved with the phase-a plan, merged by the owner in PR #1); amended by ADR-BDC-0013 (`ScopeFilter` gains `All` and `Criteria`).",
+      "listed": false,
+      "body_sha256": "2fdabdce722a673eca6d2b7d83b27d5bd59efe20c7af1ee01b92773ed3e4ef75"
+    },
+    {
+      "id": "ADR-BDC-0008",
+      "source": "docs/architecture.md:515",
+      "status": "**Status:** Draft (later phase; reserved, not in phase a or b)",
+      "listed": false,
+      "body_sha256": "20da25a87416809170ea9c6ae7ff30b25952051bf1f790f11464d42fdb7757d7"
+    },
+    {
+      "id": "ADR-BDC-0009",
+      "source": "docs/architecture.md:587",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25). Amends ADR-BDC-0003. Amended by ADR-BDC-0015 (where the phase-B verbs are modelled and run).",
+      "listed": true,
+      "body_sha256": "63a5216b77611677ea42ff15d9dd178e4dba64cd277853ecefb46e860f260ffa"
+    },
+    {
+      "id": "ADR-BDC-0010",
+      "source": "docs/architecture.md:621",
+      "status": "**Status:** Approved (lead ruling S82, 2026-10-25); amended by ADR-BDC-0012 (exemptions, prohibited list, the two-row sync, the sprints; scope inverted by ADR-BDC-0012 Amendment 2)",
+      "listed": true,
+      "body_sha256": "19238dde4af572bc3442fdb2b2d8f66dcb0335e62fd82dcf104af4ceafd14a4a"
+    },
+    {
+      "id": "ADR-BDC-0011",
+      "source": "docs/architecture.md:730",
+      "status": "**Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0006 (sc-cron's general hook target",
+      "listed": true,
+      "body_sha256": "0a1ba7e8d0126f02f1c4e6e383af8af38ca9f989bace46b6550a131bfe9fec13"
+    },
+    {
+      "id": "ADR-BDC-0012",
+      "source": "docs/architecture.md:768",
+      "status": "**Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0010 (its exemptions, its prohibited",
+      "listed": true,
+      "body_sha256": "e3aa8f6781b5f4dcc42a9872170b8289ce9f2c5dd78b20fc1c71ae0ed5bb0fd5"
+    },
+    {
+      "id": "ADR-BDC-0013",
+      "source": "docs/architecture.md:852",
+      "status": "**Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0001 (the scope kinds), ADR-BDC-0002",
+      "listed": true,
+      "body_sha256": "78aef6cb689a708d56fac092dd6a93680254782065defe10e91cb7fdd7285eca"
+    },
+    {
+      "id": "ADR-BDC-0014",
+      "source": "docs/architecture.md:973",
+      "status": "**Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0006 (the schedule store), ADR-STORE-0003",
+      "listed": true,
+      "body_sha256": "dae25a04e81abdc0d05585a24d9f0707ba300507e69f283b506dc9fd3ec4ceab"
+    },
+    {
+      "id": "ADR-BDC-0015",
+      "source": "docs/architecture.md:1016",
+      "status": "**Status:** Approved (Rand, 2026-10-26). Amends ADR-BDC-0009 (where the new verbs execute),",
+      "listed": true,
+      "body_sha256": "87363f2e53721f2e22e3bf4dbb1b4b6abadabb51909693c5e2f285a18f7f1d24"
+    },
+    {
+      "id": "ADR-BDC-0016",
+      "source": "docs/architecture.md:1099",
+      "status": "**Status:** Approved (phase C, project-owner execution approval, 2026-11-02)",
+      "listed": true,
+      "body_sha256": "593664ee6742d0a71fcb253acdde54710e842235cea303341daf9755168e4782"
+    },
+    {
+      "id": "ADR-API-0001",
+      "source": "docs/bd-cache-api/architecture.md:21",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)",
+      "listed": false,
+      "body_sha256": "a22cc75691afc86d3c8756f785c6124d57abd6d797343a140635f2a7027e0b5e"
+    },
+    {
+      "id": "ADR-API-0002",
+      "source": "docs/bd-cache-api/architecture.md:41",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)",
+      "listed": false,
+      "body_sha256": "beea337bc3a2fd049014d2d32942045272c22612e21a0118a95303479b93af65"
+    },
+    {
+      "id": "ADR-API-0003",
+      "source": "docs/bd-cache-api/architecture.md:55",
+      "status": "**Status:** Superseded: b-1 merged (#75); the adapter was deleted and the",
+      "listed": false,
+      "body_sha256": "bedc211e38d272f8e0f42028cfec5134a65e54dc67854c4320cc6f2c9cd8db91"
+    },
+    {
+      "id": "ADR-STORE-0001",
+      "source": "docs/bd-cache-store/architecture.md:27",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-STORE-0004 (a-7: `ready_base_blocked`, `ready_base.indexed`, `journal.applied_epoch`, `journal_applied_epoch`, `journal_applied_unknown`; the index `journal_applied_at` of an earlier a-7 build is dropped; amended by sprint b-1 (contract \u00a79, lead ruling S62: `journal.last_error_code`, `journal.note`, `journal.changed`; see \"Amendment b-1\" below); amended by ADR-STORE-0006 (the phase-B extensions; the in-repo evidence of the b-1 amendment becomes the format golden)",
+      "listed": true,
+      "body_sha256": "39fce795c4908a6b360d09644a6c5dab133b21ec3988ce6215035721414a115f"
+    },
+    {
+      "id": "ADR-STORE-0002",
+      "source": "docs/bd-cache-store/architecture.md:122",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); Concurrency bullet amended by ADR-STORE-0004 (lead rulings S25/S26, bc-lead, 2026-10-24) and by the bounded marker writes (lead ruling S33, bc-lead, 2026-10-24); amended by ADR-STORE-0006 (cross-implementation evidence moves to the consumer's own test against the published wheel; the in-repo evidence is the format golden)",
+      "listed": true,
+      "body_sha256": "e885c6a9530c2089f08612a0af9bec150b8f757cd9789b3a5fae27f1b0650552"
+    },
+    {
+      "id": "ADR-STORE-0003",
+      "source": "docs/bd-cache-store/architecture.md:210",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); failure mapping amended for a-1 amendment 1 (`STORE_FAILED`); revised by fix-a-4-2 (lead ruling, bc-lead, 2026-10-24); amended by a-7 (lead ruling S34, bc-lead, 2026-10-24: `ConfigLoadError::code` and `ConfigLoadError::fix`, see the amendment below; its codes and exhaustiveness revised by lead rulings S37 and S38, fix-a-7-12; `BeadsDirOverride` and `BeadsDirError` added by lead rulings S48 and S49, fix-a-7-15, see the second amendment below); amended by ADR-BDC-0014 (the one connection is shared with `CacheScheduleStore`, behind one mutex, so `SqliteStore` is `Send + Sync`; the `Cache` that owns it stays `!Sync` by its own marker, ADR-CORE-0001; B7Q1-025)",
+      "listed": true,
+      "body_sha256": "0307620800dbc23c2a1bdd389e0cd2ba92f7285344c28693fd2c828312ecbf2b"
+    },
+    {
+      "id": "ADR-STORE-0004",
+      "source": "docs/bd-cache-store/architecture.md:360",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24, fix-a-7-2; journal indexes revised by lead ruling S18; read-path dating approved by lead rulings S25/S26, see below; NFR-BDC-0001's condition stated by lead ruling S31, see Remaining latency; floor invariant restated per rise, restatement only, no decision change (QA7-001, fix-a-7-10)); amends ADR-STORE-0001 (the extension tables, columns and indexes)",
+      "listed": true,
+      "body_sha256": "074e1062036db1cd7929debe50d6b079329eda46e9461055af6597dbda318b92"
+    },
+    {
+      "id": "ADR-STORE-0005",
+      "source": "docs/bd-cache-store/architecture.md:547",
+      "status": "**Status:** Approved (lead ruling S32, bc-lead, 2026-10-24); revised for QA6-002/QA6-003 (fix-a-7-8); tempfile for doctests (QA7-005, fix-a-7-10). Amended by ADR-BDC-0014 (sprint b-7): the runtime dependency `sc-cron`. Amended in sprint b-7 (fix round 1, B7Q1-006): the dev-dependency feature rusqlite `trace`.",
+      "listed": true,
+      "body_sha256": "cc7437cc355e057da3246b8bab60eaa32f98455024dd4a0fd51d3cac947905c0"
+    },
+    {
+      "id": "ADR-STORE-0006",
+      "source": "docs/bd-cache-store/architecture.md:589",
+      "status": "**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-7. Amends ADR-STORE-0001 (the",
+      "listed": true,
+      "body_sha256": "63807257dc2194c2a4683454be09bd24add4eec4409530b3c3b2332ed48c4e7a"
+    },
+    {
+      "id": "ADR-CRON-0001",
+      "source": "docs/sc-cron/architecture.md:266",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)",
+      "listed": true,
+      "body_sha256": "bb91c522ce09b9e146ccbbc82b6602ca8708d33cdd822926c8b68c0a909dcdd8"
+    },
+    {
+      "id": "ADR-CRON-0002",
+      "source": "docs/sc-cron/architecture.md:299",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)",
+      "listed": true,
+      "body_sha256": "775a16d0635c3180899597ae1ebae141fe0c7b3e70a3538862ee1d4f077de68b"
+    },
+    {
+      "id": "ADR-CRON-0003",
+      "source": "docs/sc-cron/architecture.md:319",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)",
+      "listed": true,
+      "body_sha256": "84eafedf8b1ccf3a2cd6352f0b4fdb41ec489458beb14eb8f68d11f181035dda"
+    },
+    {
+      "id": "ADR-CRON-0004",
+      "source": "docs/sc-cron/architecture.md:338",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)",
+      "listed": true,
+      "body_sha256": "7218e5f57d5c583700ad5ef1bb3d0389a1cf87e9b290072b77346a19eae11d50"
+    },
+    {
+      "id": "ADR-CRON-0005",
+      "source": "docs/sc-cron/architecture.md:357",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1)",
+      "listed": true,
+      "body_sha256": "e142bf2025610affeaca02b30e1d08cce66dca07fbbe36468a78d750d4f72fb3"
+    },
+    {
+      "id": "ADR-CRON-0006",
+      "source": "docs/sc-cron/architecture.md:383",
+      "status": "**Status:** Approved (lead ruling 2026-10-24, a-3 QA-1); amended by ADR-BDC-0014 (`SqliteScheduleStore` is the standalone default; a caller may supply its own `ScheduleStore`) and ADR-CRON-0009 (`set_enabled_many` and `replace_and_set_enabled`)",
+      "listed": true,
+      "body_sha256": "33e2683ca0f0c3f4f2508daae1e42bd22877ab8de321cdc2ebbfcd89dcab695f"
+    },
+    {
+      "id": "ADR-CRON-0007",
+      "source": "docs/sc-cron/architecture.md:434",
+      "status": "**Status:** Approved (Rand's rulings, 2026-10-25); amended by ADR-CRON-0009 (the `Stop` alias is removed)",
+      "listed": true,
+      "body_sha256": "1e5adf1cc74c2a59f39c6f9bdd885704ef8ce4bff32152de570225b839e9fef7"
+    },
+    {
+      "id": "ADR-CRON-0008",
+      "source": "docs/sc-cron/architecture.md:472",
+      "status": "**Status:** Approved (Rand's rulings, 2026-10-25); amended by ADR-CRON-0009 (the target is resolved per row; the supervisor is exported with an environment policy; `-I` does not clear the environment)",
+      "listed": true,
+      "body_sha256": "992b30e0349baeb5c699607ce680834a0a625048fa80d8ddfb254fe6f6cb357f"
+    },
+    {
+      "id": "ADR-CRON-0009",
+      "source": "docs/sc-cron/architecture.md:535",
+      "status": "**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-7 (the store methods) and b-8",
+      "listed": true,
+      "body_sha256": "b1286f6585249d3bfcd237930a32e70d6c026ff31b5ce6046d800e54514dfaf1"
+    },
+    {
+      "id": "ADR-BEADS-0001",
+      "source": "docs/sc-beads/architecture.md:21",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "11be91bf4e15981196770bb7635f16d1851d4bf74bf4fa691d1073cdfe46328b"
+    },
+    {
+      "id": "ADR-BEADS-0002",
+      "source": "docs/sc-beads/architecture.md:44",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23); owner amendment to sprint a-1, recorded in ADR-BDC-0007",
+      "listed": false,
+      "body_sha256": "d03220223c84c89ec5866d7dd921b60e8978613a2f32bdf4e51fc23ee1724d3c"
+    },
+    {
+      "id": "ADR-BEADS-0003",
+      "source": "docs/sc-beads/architecture.md:64",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "bbf3b04831d7115fe419c78e4ba98482051c087e85a71037d3fab31303134d7d"
+    },
+    {
+      "id": "ADR-BEADS-0004",
+      "source": "docs/sc-beads/architecture.md:90",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "41791e35e83727931edf680833004bd998a85f3b1c5b9a16f845516dd84076e4"
+    },
+    {
+      "id": "ADR-CORE-0001",
+      "source": "docs/bd-cache/architecture.md:33",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": true,
+      "body_sha256": "dcaa390522823b546a736470e4c550019e68252e0e530d465876315d0e052614"
+    },
+    {
+      "id": "ADR-CORE-0002",
+      "source": "docs/bd-cache/architecture.md:61",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "2bad7a95cfa9efd97cabd5c33c70b555136140efe6dd8f8d25350f6210637082"
+    },
+    {
+      "id": "ADR-SYNC-0001",
+      "source": "docs/bd-cache-sync/architecture.md:35",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008 (the run takes the lease and the budget, not a sender or the `[tick]` keys, and replies without `refused` / `pass-through`)",
+      "listed": true,
+      "body_sha256": "4a3269affe2fda935e5ce22c71b62722cde2592f63288a13b4084a8f06061a99"
+    },
+    {
+      "id": "ADR-SYNC-0002",
+      "source": "docs/bd-cache-sync/architecture.md:57",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24)",
+      "listed": true,
+      "body_sha256": "fbcb27266d7f3f6cb1377ccdf41eeef1d312e21059f3d2cfc47fbce34e6e4c7c"
+    },
+    {
+      "id": "ADR-SYNC-0003",
+      "source": "docs/bd-cache-sync/architecture.md:135",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8",
+      "listed": false,
+      "body_sha256": "51fc2a723a587b6729e17ff5c6bb4372de5145732ebecb465db7d4c647c5c0e3"
+    },
+    {
+      "id": "ADR-SYNC-0004",
+      "source": "docs/bd-cache-sync/architecture.md:251",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8",
+      "listed": false,
+      "body_sha256": "dbdc2270c9b1bc3b11e379d3b4d6ab2599b8f963242451ffe5ad63b59fcb2085"
+    },
+    {
+      "id": "ADR-SYNC-0005",
+      "source": "docs/bd-cache-sync/architecture.md:291",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8",
+      "listed": false,
+      "body_sha256": "33213bb35a754fec28a20d50029a023a4285dd4495872cc679cb3856e02c03aa"
+    },
+    {
+      "id": "ADR-SYNC-0006",
+      "source": "docs/bd-cache-sync/architecture.md:330",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-SYNC-0008 (the dependency list after b-8)",
+      "listed": true,
+      "body_sha256": "43774f3611187a1c983ba9eabac84986876bbd1e57ef115278749bce25da826d"
+    },
+    {
+      "id": "ADR-SYNC-0007",
+      "source": "docs/bd-cache-sync/architecture.md:375",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); **Superseded** by ADR-SYNC-0008 (Rand, 2026-10-26), the code it describes removed by sprint b-8",
+      "listed": false,
+      "body_sha256": "8468d7f53c6688b34bfc5a4f020b34aa1d08610a80fc9c12de0a384a163228a9"
+    },
+    {
+      "id": "ADR-SYNC-0008",
+      "source": "docs/bd-cache-sync/architecture.md:479",
+      "status": "**Status:** Approved (Rand, 2026-10-26); implemented by sprint b-8 (implementation notes at the end of this ADR). Supersedes ADR-SYNC-0003,",
+      "listed": true,
+      "body_sha256": "02ccfac3457df0d8ff8f0aca865ef331a4d8078d1a23407968cc0d3d5e031826"
+    },
+    {
+      "id": "ADR-PY-0001",
+      "source": "docs/bd-cache-py/architecture.md:33",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24)",
+      "listed": true,
+      "body_sha256": "3d2be13f4a0abde2156c8176d5569fbdc6ceaa328905ec1683d3e163e9815140"
+    },
+    {
+      "id": "ADR-PY-0002",
+      "source": "docs/bd-cache-py/architecture.md:77",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by lead rulings S38/S42 (bc-lead, 2026-10-24, fix-a-7-12): the config kind is reserved",
+      "listed": true,
+      "body_sha256": "386337bd273401b41e2812c60bd1052049778781bb3d8dde10849f3473cd9e2c"
+    },
+    {
+      "id": "ADR-PY-0003",
+      "source": "docs/bd-cache-py/architecture.md:123",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); the one-connection rule is restated for the phase-B methods by ADR-PY-0006",
+      "listed": true,
+      "body_sha256": "f345e7ba00ae03ff6c5c83c40f776b61df8a71c30adb379d0e5f1c0d8da364e1"
+    },
+    {
+      "id": "ADR-PY-0004",
+      "source": "docs/bd-cache-py/architecture.md:161",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-PY-0006 (mixed layout, the native module's name, the test strategy)",
+      "listed": true,
+      "body_sha256": "350fa50114805f7ca140878011acdfbfde0a01821b4aaa94762c7dde337c799c"
+    },
+    {
+      "id": "ADR-PY-0005",
+      "source": "docs/bd-cache-py/architecture.md:206",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-25); created by sprint b-4; amended by ADR-PY-0006 (a `bd-cache-sync` dependency for the phase-B methods; the scope rule)",
+      "listed": true,
+      "body_sha256": "cf8a687b129b71813b9e50cc8c8bb4d5530e1ffbb8ce2fea49882bff866c9693"
+    },
+    {
+      "id": "ADR-PY-0006",
+      "source": "docs/bd-cache-py/architecture.md:275",
+      "status": "**Status:** Approved (Rand, 2026-10-26); implemented by sprints b-8 (layout, methods, edge) and",
+      "listed": true,
+      "body_sha256": "787efd5b27fd511b9c638cbce0eb00e22daa1cbc1bcf368508ad41c2ca5c8f4c"
+    },
+    {
+      "id": "ADR-MODEL-0001",
+      "source": "docs/bd-cache-model/architecture.md:21",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "7d87edcebfcec48ed6c20888fec5299b070952c00a1d199578e2309f8567b9ac"
+    },
+    {
+      "id": "ADR-MODEL-0002",
+      "source": "docs/bd-cache-model/architecture.md:38",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23)",
+      "listed": false,
+      "body_sha256": "9bbe9e3ee07ee44573f1c89190e3ceaaf8ef5d4227ad3644e2e4a0f5e34bfd7a"
+    },
+    {
+      "id": "ADR-MODEL-0003",
+      "source": "docs/bd-cache-model/architecture.md:179",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23); its fix-a-1-1 amendment's `ScopeId::Phase(PhaseName)` amended by ADR-BDC-0013 (sprint b-7: `ScopeId(ScopeName)`); its a-7 amendment amended by ADR-BDC-0013 (`PhaseName::RULE` becomes `ScopeName::RULE`, b-7) and ADR-SYNC-0008 (the sender port, `SendError`, `SendErrorKind` and `MEMBER_NAME_RULE` removed with `sender.rs`, b-8)",
+      "listed": false,
+      "body_sha256": "d1e3a7b0125ff35048a67e23b29db4cd141768dd7c6855bfa3e396fe6063cd93"
+    },
+    {
+      "id": "ADR-MODEL-0004",
+      "source": "docs/bd-cache-model/architecture.md:369",
+      "status": "**Status:** Approved (lead ruling, 2026-10-23; ruling L2 on ARCH-007)",
+      "listed": false,
+      "body_sha256": "01cab31ea6161faecf07440695d0fe492be22a6dda586c23a89a7f7940fe7e93"
+    },
+    {
+      "id": "ADR-CLI-0001",
+      "source": "docs/bd-cache-cli/architecture.md:29",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)",
+      "listed": true,
+      "body_sha256": "b3ff7866d6d1a62fa0832dc0f775a69ece674780d0a28320a8a134ba45f57c69"
+    },
+    {
+      "id": "ADR-CLI-0002",
+      "source": "docs/bd-cache-cli/architecture.md:68",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25)",
+      "listed": true,
+      "body_sha256": "98e33bc01fe1db263a4e05450e8f3f689dcd5d8110d91bf7cc6a7af4be885ac5"
+    },
+    {
+      "id": "ADR-CLI-0003",
+      "source": "docs/bd-cache-cli/architecture.md:102",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015 (the phase-B verbs)",
+      "listed": true,
+      "body_sha256": "9c9900d194d859543b5ec2cc4e93ada9f6a254472576d85940911379957e87c4"
+    },
+    {
+      "id": "ADR-CLI-0004",
+      "source": "docs/bd-cache-cli/architecture.md:130",
+      "status": "**Status:** Approved (lead ruling S60, bc-lead, 2026-10-25; phase B closed, 2026-10-25); amended by ADR-BDC-0015 (the legacy-directory refusal is removed)",
+      "listed": true,
+      "body_sha256": "88fb76aa6d2184935a3b2280441e6583484e09e8158740148c692da7b8458dd6"
+    },
+    {
+      "id": "ADR-CLI-0005",
+      "source": "docs/bd-cache-cli/architecture.md:166",
+      "status": "**Status:** Approved (phase-end fix RSH-001, bc-lead, 2026-10-25); extended by ADR-SYNC-0008 and REQ-BDC-0730 for the long-running `cron run` (shutdown timeout, process-wide log, Ctrl-C and Ctrl-Break on Windows)",
+      "listed": true,
+      "body_sha256": "849e226953c69d9cd638f1a096dc678997d55129ccaa415c9008f1c2b41f6d34"
+    },
+    {
+      "id": "ADR-BDCLI-0001",
+      "source": "docs/sc-bd-cli/architecture.md:27",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDC-0013 (the scope argv for `All` and `Criteria` filters)",
+      "listed": false,
+      "body_sha256": "782f541c671424c40679a5323a7e85b615558104c48553cf6c887de74ce416ab"
+    },
+    {
+      "id": "ADR-BDCLI-0002",
+      "source": "docs/sc-bd-cli/architecture.md:109",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24); amended by ADR-BDCLI-0004 (lead rulings S40/S47)",
+      "listed": false,
+      "body_sha256": "86c54d9df1060010373c333d4061909959553687259bb71e8918d421b432f965"
+    },
+    {
+      "id": "ADR-BDCLI-0003",
+      "source": "docs/sc-bd-cli/architecture.md:207",
+      "status": "**Status:** Approved (lead ruling, bc-lead, 2026-10-24)",
+      "listed": false,
+      "body_sha256": "ad0d47fdaf4a984bb616fd32dfb7fde39f7e00f6ad8876f2cbf2ce7082a596ef"
+    },
+    {
+      "id": "ADR-BDCLI-0004",
+      "source": "docs/sc-bd-cli/architecture.md:229",
+      "status": "**Status:** Approved (lead ruling S40, bc-lead, 2026-10-24; fix-a-7-12, RSH-033); amends ADR-BDCLI-0002 (lead ruling S47, fix-a-7-14, ARCH-903); forwarding rule narrowed by lead ruling S52 and the platform rule stated by lead ruling S50 (fix-a-7-15, ARCH-1002, RSH-040, QA10-002)",
+      "listed": false,
+      "body_sha256": "8957584664dac7378811105dde6743a28a4c4938ae4ec546c395133a295a4974"
+    },
+    {
+      "id": "ADR-BDCLI-0005",
+      "source": "docs/sc-bd-cli/architecture.md:296",
+      "status": "**Status:** Approved (lead rulings S76 and S77, bc-lead, 2026-10-25; QA RCR-002; binding)",
+      "listed": false,
+      "body_sha256": "b4306e2cfb08c42e178e20e41ecd5efb64975d9ca4511ae311f2b51aa1296f82"
+    },
+    {
+      "id": "ADR-BDCLI-0006",
+      "source": "docs/sc-bd-cli/architecture.md:333",
+      "status": "**Status:** Approved (lead ruling S81, bc-lead, 2026-10-25; phase-end fixes RSH-001..004)",
+      "listed": false,
+      "body_sha256": "c1c47d2788e17254e0508eddb779eaecdd285f3d97f8dd503b00009e2b5449a9"
+    }
+  ],
+  "actual_anchor_summary": {
+    "counts": {
+      "asserted_only": 1,
+      "underspecified": 3,
+      "satisfied": 12,
+      "excluded": 1
+    },
+    "failing": [
+      "ANC-008",
+      "ANC-001",
+      "NFR-BDC-0004",
+      "NFR-BDC-0005"
+    ],
+    "leaning_counts": {
+      "asserted_only": 5,
+      "satisfied": 11
+    },
+    "unstable": [
+      "NFR-BDC-0004"
+    ],
+    "errors": [],
+    "excluded": [
+      {
+        "anchor_id": "ADR-BDC-0009",
+        "reason": "c-1 migrates scheduler dependencies and internals while preserving existing bdc commands and bd-cache-api request vocabulary; it adds, renames or changes no command or request vocabulary covered by this anchor scope."
+      }
+    ],
+    "shortened": [],
+    "pass": false
+  },
+  "limitations": "Independent read-only source and artifact verification; no Cargo, live judge calls or source/triage changes. Anchor failures are actual results, not inferred source defects or passing gates.",
+  "actual_receipt_hashes": "/tmp/phase-c-execution/c-1/qa-14/arch-qa-receipt-hashes.json"
+}

@@ -1,0 +1,19 @@
+{
+  "qa_pass": "qa-15",
+  "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+  "coordinator_task_id": "/root/c1_quality_manager15",
+  "url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6699266265",
+  "comment_id": 6699266265,
+  "method": "gh pr comment fallback after self-request-changes refusal",
+  "review_attempt_exit": 1,
+  "review_attempt_error": "failed to create review: GraphQL: Review Can not request changes on your own pull request (addPullRequestReview)",
+  "comment_post_exit": 0,
+  "refetch_exit": 0,
+  "initial_body_equal": true,
+  "initial_machine_status_equal": true,
+  "initial_body_sha256": "2bf9a3922ffb31b4cebad3b8c9739a375bf2173dd59e1df6b647b717360ea829",
+  "pr_comment_url_field": "pending",
+  "metadata_amendment_owner": "parent-orchestrator",
+  "evidence_gate": "incomplete_until_parent_single_field_url_amendment",
+  "timestamp": "2026-11-07T00:07:30.337764+00:00"
+}

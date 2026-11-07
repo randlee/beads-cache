@@ -1,0 +1,35 @@
+{
+  "NFR-BDC-0004": {
+    "definition": "Each bd call has a30s cap and is bounded by the caller deadline; this is deadline behavior, not a throughput benchmark.",
+    "current_actual": "QA14 job_threading2/2 includes inherited_deadline_includes_the_blocking_cache_claim_and_starts_no_bd_after_expiry:50ms caller budget, return<150ms, no backend calls while blocked or already expired. QA14 cron_rows10/10 includes overrun hook termination and worker stop/lease behavior.",
+    "retained_actual": "QA13 native426 includes cron_hurry19/19, store37/37, e2e6/6, hook_runner15/15, Python/hook descendant kill cases, health mutex/row iteration/settings restoration/SQLite1s+concurrent scheduler write tests.262Rustfiles, relevant guards/CI/root manifest are byte-equal; exact current CI15/15 also passes.",
+    "precise_limits": "The e2e slow-bd test sets2s budget but asserts only<12s wall time; do not present it as precise2s measurement. Health SQLite test asserts1s work<1100ms; current local job-threading asserts50ms<150ms. These are scoped bounds, not whole-program performance parity.",
+    "source": "crates/bd-cache/src/outage.rs:46-48 takes earliest caller hard deadline/configured call timeout; run.rs retains caller cap through preparation. Current CI includes full workspace/core tests; this role did not rerun core drain_budget cases locally.",
+    "acceptance": "Supports scoped deadline preservation; applicable development-anchor verdict remains independently owned and unresolved in supplied parent context."
+  },
+  "NFR-BDC-0005": {
+    "local_path_check": "Original default host PATH check FAILexit1 preserved. One explicitly authorized correction excludes only/opt/homebrew/bin entries exposingbd/dolt. Bothwhich checksNone; same realCargo/Rust/compiler/git/Python retained. Existing guardPASS then identical60test commandPASS60/60. No globalorproductchanges; backend-free environment and receipts retained.",
+    "actual_fakes": "Repo builds BdCli over FakeBd/Switched and FakeBackend with ManualClock; selected tests inject deterministic faults. Current graph unit8/8 and no-backend guard unit6/6 pass, including planted direct introducers/features/SDK identities and bd/dolt executable/client negatives.",
+    "hosted_scope": "Current ci.yml explicitly runs check_no_backend.py path before full workspace tests on Linux/macOS/Windows; exact-head all15 completed SUCCESS in supplied current-ci.json. This supports hosted context independently from the failed local prerequisite.",
+    "mutation_limit": "No universal per-ported-test mutant replay or complete baseline-bug mapping proved by this role; no new coverage-ledger/process gate is required. Individual existing planted negative controls receive only their demonstrated scope."
+  },
+  "performance_limits": {
+    "QA13_perf": "Historical QA13perf6deterministic tests pass,2ignored; those historical ignored statuses remain unchanged. Exactcurrent release1000-bead case separately executed inQA14 once; seeNFR-BDC-0003. Median cached-get case remains unrun and localCLI latency remains historicalignored; no cached-get<1ms claim.",
+    "current_CI": "Existing releaseCLI latency command is in the successful current CI workflow; no detailed hosted timing numbers independently fetched here.",
+    "no_claim": "No cached-get<1ms measurement or comparativebenchmarkparity inferred. Exactcurrent existing1000-bead incremental timing is now actually measured once at6.556292ms; this supports its existing<1s gate in this fixture only."
+  },
+  "raw_source_excerpts": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-nfr-source-excerpts.log",
+  "NFR-BDC-0003": {
+    "status": "pass",
+    "measurement_ms": 6.556292,
+    "threshold_ms": 1000,
+    "tests_passed": 1,
+    "profile": "release",
+    "exact_commit": "60f89200fe337d57ede24ecaa55e36171a1c4305",
+    "sdk_source": "sc-cron/sc-command0.2.0 atgit+https://github.com/randlee/sc-runtime?rev=c3ce3d1b271b54fbb47efaef57ee1563a390cd9e#c3ce3d1b271b54fbb47efaef57ee1563a390cd9e",
+    "fixture": "Existingperf.rs318-396; freshRepoTempDir,FakeBd/FakeBackend,ManualClock,realcache/scheduler/store; unchanged1000beads and1sassertion; actualincrementalcursor+changedrowverified",
+    "receipt": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-receipt.json",
+    "provenance": "/tmp/phase-c-execution/c-1/qa-14/rust-qa-performance-provenance.json",
+    "scope": "One actual planned releasequalification,notlivebackendmeasurement or benchmarkparity"
+  }
+}

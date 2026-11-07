@@ -1,0 +1,42 @@
+1546:2026-11-04T08:42:40.8534860Z [1m[92m     Running[0m tests/cron_hurry.rs (target/debug/deps/cron_hurry-cf7421d5be3ddc70)
+1547:2026-11-04T08:42:40.8535470Z 
+1548:2026-11-04T08:42:40.8536820Z test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+1549:2026-11-04T08:42:40.8541650Z 
+1550:2026-11-04T08:42:40.8685720Z 
+1551:2026-11-04T08:42:40.8686490Z running 19 tests
+1552:2026-11-04T08:42:41.0250710Z test hurried_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+1553:2026-11-04T08:42:42.0923550Z test a_second_stop_kills_the_runs_without_waiting_for_the_grace ... ok
+1554:2026-11-04T08:42:42.7095970Z test lifecycle_supervisor_reaps_the_fixture_and_python_during_assertion_unwind ... ok
+1555:2026-11-04T08:42:43.2944570Z test ordinary_expiry_joins_the_contended_production_worker_before_writer_release ... ok
+1556:2026-11-04T08:42:44.3064110Z test rejected_second_start_cannot_reset_the_first_workers_shutdown_deadline ... ok
+1557:2026-11-04T08:42:44.6373910Z test same_scheduler_management_cancels_the_running_row_without_a_new_outcome ... ok
+1558:2026-11-04T08:42:45.4122550Z test session_fixture::cleanup_and_post_audit_timeouts_retain_distinct_owned_outcomes ... ok
+1559:2026-11-04T08:42:45.6799840Z test session_fixture::cleanup_inventory_recovery_preserves_the_original_fixture_failure ... ok
+1560:2026-11-04T08:42:45.6800560Z test session_fixture::foreign_nonpositive_session_identity_is_excluded_before_typed_pid_use ... ok
+1561:2026-11-04T08:42:46.3135800Z test lifecycle_session_reaps_preregistration_process_groups_on_timeout_and_unwind ... ok
+1562:2026-11-04T08:42:46.5722340Z test session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command ... FAILED
+1563:2026-11-04T08:42:46.6464800Z test session_fixture::stopped_inventory_is_owned_reaped_on_timeout_and_unwind ... ok
+1564:2026-11-04T08:42:46.7545230Z test session_fixture::incomplete_inventory_never_marks_cleanup_success_or_restarts_its_budget ... ok
+1565:2026-11-04T08:42:47.0449890Z test startup_hurry_and_concurrent_start_preserve_the_original_stop_deadline ... ok
+1566:2026-11-04T08:42:47.2897380Z test startup_read_that_finishes_during_grace_drains_without_starting_a_worker ... ok
+1567:2026-11-04T08:42:47.6173890Z test startup_stop_joins_its_read_before_independent_management_writer_release ... ok
+1568:2026-11-04T08:42:47.6175300Z test startup_zero_timeout_joins_its_read_without_grace ... ok
+1569:2026-11-04T08:42:47.7320340Z test zero_timeout_joins_the_contended_worker_without_granting_a_grace_period ... ok
+1570:2026-11-04T08:42:56.5895140Z test lifecycle_supervisor_kills_and_reaps_stalled_join_families ... ok
+1571:2026-11-04T08:42:56.5917260Z 
+1572:2026-11-04T08:42:56.5917780Z failures:
+1573:2026-11-04T08:42:56.5918130Z 
+1574:2026-11-04T08:42:56.5918750Z ---- session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command stdout ----
+1575:2026-11-04T08:42:56.5919920Z RQA10_COMMAND_SPAWN thread=ThreadId(21) pid=12479 spawn_elapsed=250.75µs
+1576:2026-11-04T08:42:56.5921850Z RQA10_COMMAND_EXIT thread=ThreadId(21) pid=12479 command_elapsed=257.978625ms actual_wait=true status=exit status: 0 remaining=0ns
+1577:2026-11-04T08:42:56.5930990Z [1m[91merror[0m: test failed, to rerun pass `-p bd-cache-sync --test cron_hurry`
+1578:2026-11-04T08:42:56.5938400Z Error: Custom { kind: TimedOut, error: "session inventory output budget exhausted" }
+1579:2026-11-04T08:42:56.5939820Z 
+1580:2026-11-04T08:42:56.5940100Z 
+1581:2026-11-04T08:42:56.5940790Z failures:
+1582:2026-11-04T08:42:56.5942460Z     session_fixture::inventory_delay_uses_the_existing_preflight_budget_and_reaps_its_command
+1583:2026-11-04T08:42:56.5943000Z 
+1584:2026-11-04T08:42:56.5944150Z test result: FAILED. 18 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.71s
+1585:2026-11-04T08:42:56.5944740Z 
+1586:2026-11-04T08:42:56.6053370Z ##[error]Process completed with exit code 101.
+1587:2026-11-04T08:42:56.6305710Z Post job cleanup.

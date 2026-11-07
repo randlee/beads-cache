@@ -1,0 +1,169 @@
+```json
+{
+  "success": true,
+  "data": {
+    "handoff_type": "canonical_flaky_test_qa_leaf_projection",
+    "qa_pass": "qa-13",
+    "status": "findings",
+    "role_owned_verdict": "PASS",
+    "review_mode": "sprint_review",
+    "round_limit": false,
+    "reviewed_branch": "sprint/c-1-runtime-migration",
+    "reviewed_commit": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+    "owner": "flaky-test-qa",
+    "model_disclosure": "Codex reviewer using assignment-requested gpt-6.1-sol high fallback; no Grok/Composer or specialist model invocation claimed.",
+    "findings": [
+      {
+        "id": "ARCH-001",
+        "category": "correctness",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Retain the architecture finding; use an authorized genuine upstream receiver/re-export/callback, preserve real events, remove the direct edge, and pass unchanged consumer isolation.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "arch-qa",
+        "status": "open",
+        "carried_original_issue": "Carried architecture blocker: sync directly introduces sc-command for its canonical receiver beyond ADR-BDC-0016 approved upstream-sc-cron-only exception.",
+        "carried_original_evidence": "Current source manifest31, cron_log.rs3 and exact current boundary exit1; unchanged relevant production sources independently proved. This is carried owner evidence, not a new architecture review.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "RBQA-F001",
+        "category": "guideline",
+        "severity": "critical",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Preserve the original specialist finding and resolve the public logging seam within approved boundaries; no relocated introducer, fabricated events or policy waiver.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "rust-best-practices-agent historical QA4",
+        "status": "open",
+        "carried_original_issue": "Carried actual QA4 specialist boundary finding: direct sync logging-contract dependency remains outside the approved upstream exception.",
+        "carried_original_evidence": "Historical QA4 at95def5f3 retained through QA11 manager finding union; current manifest31 and cron_log.rs3 are unchanged and current actual isolation gate fails. No new specialist rerun.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "REQ-QA-004",
+        "category": "tests",
+        "severity": "critical",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 225,
+        "issue": "Carried acceptance finding retained pending requirement owner, parent anchor interpretation, and exact current-head CI closeout; no sprint completion count assigned by flaky reviewer.",
+        "recommendation": "Complete approved logging composition and unchanged isolated consumer qualification, then requirement/anchor/integration closeout. Requirement owner recomputes all101 requirements and34 deliverables; this role does not assign a completion count.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "req-qa",
+        "status": "open",
+        "carried_original_issue": "Carried acceptance gap remains: current graph/composition blocker prevents required CI acceptance despite14/15 terminal checks succeeding.",
+        "carried_original_evidence": "Current exact head snapshot14SUCCESS1boundaryFAILURE; all3native and11Python jobs succeed. Local correction and native successes do not satisfy the failed boundary gate or whole-sprint closeout.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "QA2-001",
+        "category": "tests",
+        "severity": "important",
+        "file": "crates/bd-cache-sync/Cargo.toml",
+        "line": 31,
+        "issue": "Carried boundary finding retained for owning reviewer closeout. Former direct sync -> sc-command edge is absent at current HEAD; public sc_cron receiver and narrowly exact-source guard are present.",
+        "recommendation": "Preserve the failing guard; resolve the authorized upstream public logging receiver seam, remove the direct sync edge, and qualify the actual isolated consumer. Do not widen exceptions, suppress the guard, or alter runtime pins.",
+        "evidence": "Current source removes the direct sync sc-command edge and uses sc_cron::observability; developer raw actual API/Python isolation PASS and same-candidate/server negative exit1. Independent no-Cargo graph unit tests 8/8 PASS. Historical da946 boundary failure is preserved as historical evidence, not asserted to be a current failure. Exact-head hosted CI was pending in the supplied receipt; parent/owners determine final acceptance.",
+        "owner": "rust-qa-agent",
+        "status": "open",
+        "carried_original_issue": "Required current isolated Python consumer graph rejects the direct bd-cache-sync -> sc-command introducer outside the approved published sc-cron exception.",
+        "carried_original_evidence": "Exact da9464 PR108 native run41807736208 job126498882662 parent-current-boundary.log:557-562: graph checker4PASS; isolated API PASS, then forbidden sync -> sc-command and exit1. Current manifest31/cron_log.rs3/lock/checker are independently byte-equal to d824.",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      }
+    ],
+    "new_role_findings": [],
+    "summary": {
+      "total_findings": 4,
+      "critical": 3,
+      "important": 1,
+      "minor": 0,
+      "new_flaky_findings": 0,
+      "carried_cross_role_findings": 4
+    },
+    "finding_provenance": "All four input carry IDs retained with original owner, original issue/evidence, and explicit current-source disposition. No new flaky finding and no cross-role self-closure. Parent owns canonical finding aggregation.",
+    "dispositions": [
+      {
+        "id": "RQA10-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for the supported mixed recovery/artificial-delay fixture composition; sole manager aggregates this actual owner disposition. No pending-owning-reviewer condition remains."
+      },
+      {
+        "id": "RQA9-001",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for supported disposable-fixture setup versus original absolute lifetime mechanism. No pending-owner condition remains."
+      },
+      {
+        "id": "CI-C2-RUNNER-001",
+        "status": "resolved_preserved_verified_through_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "owning_adjudication_complete": true
+      },
+      {
+        "id": "FTQ-009",
+        "status": "closed_preserved_for_original_unbounded_lifetime"
+      },
+      {
+        "id": "FTQ-010",
+        "status": "closed_preserved_for_original_session_orphan_inventory_mechanisms"
+      },
+      {
+        "id": "FTQ-011",
+        "status": "closed_preserved_for_independent50ms_cap_mechanism"
+      },
+      {
+        "id": "RSH-001",
+        "status": "resolved_preserved_in_prior_supported_C1_and_paired_public_C2_scope"
+      },
+      {
+        "id": "C2-FTQ-006",
+        "status": "retracted_preserved"
+      },
+      {
+        "id": "RQA11-001",
+        "status": "resolved_verified_for_exact_C1_candidate",
+        "owner": "flaky-test-qa",
+        "owning_adjudication_complete": true,
+        "canonical_disposition": "RESOLVED for isolated delayed-positive preparation versus caller-budget composition. No pending-owner condition remains."
+      },
+      {
+        "id": "ARCH-001",
+        "status": "open",
+        "owner": "arch-qa",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "RBQA-F001",
+        "status": "open",
+        "owner": "rust-best-practices-agent historical QA4",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "REQ-QA-004",
+        "status": "open",
+        "owner": "req-qa",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      },
+      {
+        "id": "QA2-001",
+        "status": "open",
+        "owner": "rust-qa-agent",
+        "qa13_disposition": "open_pending_owning_role_and_parent_closeout; not a new flaky finding"
+      }
+    ],
+    "full_result": {
+      "path": "/tmp/phase-c-execution/c-1/qa-13/flaky-test-qa-result.json",
+      "sha256": "93306178e698afddd07f608a26f2804a69ae876224ad7aa804f8bd3b25942790"
+    },
+    "projection_limits": "Receipt-only bounded serialization. Every actual finding object copied exactly from immutable full result; counts/status unchanged. Dispositions retain existing IDs/statuses and owner conclusions; complete rationale and evidence remain in hashed full result. No re-review or closure.",
+    "state": "STOP"
+  },
+  "error": null
+}
+```

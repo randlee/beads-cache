@@ -1,0 +1,618 @@
+{
+  "branch": "sprint/c-1-runtime-migration",
+  "head": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+  "status": "",
+  "targets": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "present": true,
+      "lines": 207,
+      "sha256": "dc051f1bfdd7ce1d5e11d781c8aa4e0d9a1bbefdc4f91dc92a7920e141303f7c",
+      "equal_qa12": true
+    },
+    {
+      "path": ".github/workflows/python.yml",
+      "present": true,
+      "lines": 146,
+      "sha256": "ffa81ab1bff4ea0a6d10c2a59aab7ae4618dde685519a1824e8ba64454eb9f9c",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/ARCH-001.ttl",
+      "present": true,
+      "lines": 24,
+      "sha256": "a726a60a2b4d067c353065bc71c05dff7d5d7a92c7acbd869ea89e512346bb2d",
+      "equal_qa12": false
+    },
+    {
+      "path": ".triage/c/findings/CI-C2-RUNNER-001.ttl",
+      "present": true,
+      "lines": 4,
+      "sha256": "eabf634f4d1ee7404c286dbb05f871ec4c9820a2863f46f9374071e1535cadd6",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/FTQ-009.ttl",
+      "present": true,
+      "lines": 6,
+      "sha256": "ef498f398e9d7095be95b2ed729bcda43033739ea03cba64c8d3776702cf0589",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/FTQ-010.ttl",
+      "present": true,
+      "lines": 14,
+      "sha256": "773acd40d1e9dd88e93cf6c7bad01d350400b19ed9153ebee0a3c8417d05b9d9",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/QA2-001.ttl",
+      "present": true,
+      "lines": 24,
+      "sha256": "f2fe5604ddd088ea26daab77009a998ac2c4f3ddf753fd73742d588b9a9304ff",
+      "equal_qa12": false
+    },
+    {
+      "path": ".triage/c/findings/RBQA-F001.ttl",
+      "present": true,
+      "lines": 24,
+      "sha256": "0323d8d7a10e702a7b308c8419e3f1f9da03ab8c1f3f70bb600de6851532f81e",
+      "equal_qa12": false
+    },
+    {
+      "path": ".triage/c/findings/REQ-QA-004.ttl",
+      "present": true,
+      "lines": 26,
+      "sha256": "f7168e5eab9544fd3bc1262852444b7f1fee786280613de1a74d53046511fea4",
+      "equal_qa12": false
+    },
+    {
+      "path": ".triage/c/findings/RQA10-001.ttl",
+      "present": true,
+      "lines": 10,
+      "sha256": "97c479ea097c8127d2e49cfb3ca22e3e25ea25ef6623fef38fe6b2e7e140da6f",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/RQA11-001.ttl",
+      "present": true,
+      "lines": 4,
+      "sha256": "f2b167255df6a7e6f3861a2d6743859085c7adb8225c46ad618d97682102c356",
+      "equal_qa12": true
+    },
+    {
+      "path": ".triage/c/findings/RQA9-001.ttl",
+      "present": true,
+      "lines": 16,
+      "sha256": "20a93630c35675b9a48503763558cb597db1637b460521f57ca53c3e535e6220",
+      "equal_qa12": true
+    },
+    {
+      "path": "Cargo.lock",
+      "present": true,
+      "lines": 1840,
+      "sha256": "7313e216648a27c31feda7cd02fbe8458a85088a83e8b05dd5086fdb33f99b0a",
+      "equal_qa12": false
+    },
+    {
+      "path": "Cargo.toml",
+      "present": true,
+      "lines": 100,
+      "sha256": "32fa2e1e0e3647cfbdbec6a961fc7417dcd563190fe9be14f7231f84a434d82d",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/bd-cache-cli/Cargo.toml",
+      "present": true,
+      "lines": 75,
+      "sha256": "e5a8a44c744964f473d169cf8b2a314626e4a682f470afbb0a111ca7df49a034",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/Cargo.toml",
+      "present": true,
+      "lines": 48,
+      "sha256": "6b58e14f12d1154e7c1910ecde23b61ea6df89e95570b6f6680ccbebb9d5b8a1",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/codec.rs",
+      "present": true,
+      "lines": 379,
+      "sha256": "a899157f54c0b5f9dfaddd2868efcec33a7c480bc1e5cea2ba89e64bb39311ee",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/health.rs",
+      "present": true,
+      "lines": 687,
+      "sha256": "311f88b030b12c097e80bd78aa55f7959bf2ec5594cba4b3f1c54f4db075dfa4",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/lib.rs",
+      "present": true,
+      "lines": 90,
+      "sha256": "a620019478341e8df0c6f817d63c3cc94e669a8ae1f6e7725e01d0d92008d1e5",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/schedule.rs",
+      "present": true,
+      "lines": 1521,
+      "sha256": "f32bdea7614ab4bbc433ad9a98a4b09ac06f74f21dee447a15c524c8e1cead53",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/bd-cache-store/src/schedule_budget.rs",
+      "present": true,
+      "lines": 186,
+      "sha256": "556e9db9b351caec350f2980cf08428a16812316d35e31300b90824ae4505987",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/schema.rs",
+      "present": true,
+      "lines": 356,
+      "sha256": "15ce421db648ce118e32056e74d8735a3f5197cab35f6854672c4ddd03420114",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/src/store.rs",
+      "present": true,
+      "lines": 3875,
+      "sha256": "8aed62994bebe1f5369ef348318341529077f16e722436896660bd9960db183b",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/tests/schedule_store.rs",
+      "present": true,
+      "lines": 822,
+      "sha256": "6d30f2de25ae81c66cbec2949d84dd141f4b5a2d12bacd01d8be8dd923e3cf3d",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/tests/support/fixture_child.rs",
+      "present": true,
+      "lines": 257,
+      "sha256": "0b935f7523d22a9cd6090f1815ab20af6574bfee233ca47aac69a54ab95abae8",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-store/tests/support/schedule_protocol.rs",
+      "present": true,
+      "lines": 328,
+      "sha256": "6559d1e8dfa5088cdb923296449383f7fa5c4c213d6f3a0d39a15ad189a35962",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/Cargo.toml",
+      "present": true,
+      "lines": 66,
+      "sha256": "b5432d5f86798e5c574c50448c23ee55950667bee5a812340f3c2adf0b038fa6",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/bd-cache-sync/src/compose.rs",
+      "present": true,
+      "lines": 881,
+      "sha256": "04428a6090ab6567abd0419101657fb267fa614a30f725cd722bd270f468a075",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/control.rs",
+      "present": true,
+      "lines": 157,
+      "sha256": "7ba0f289d64b099af932b952a2c17aaf6ede2de687db7b7cdd39659eee8544c1",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/cron.rs",
+      "present": true,
+      "lines": 498,
+      "sha256": "104b8b46c95955ae426e5460a437ed256c755734549915a228e15a6e110283f4",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/cron_log.rs",
+      "present": true,
+      "lines": 58,
+      "sha256": "36459317033c3d6a2ceb495a5f192d2b9beeaa52104c3f2060861c27bfd27995",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/bd-cache-sync/src/history.rs",
+      "present": true,
+      "lines": 245,
+      "sha256": "8f9df3403f8126c43f858443c71e2fbca7534d0e55bf6c2a378e3c8571546d16",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/job.rs",
+      "present": true,
+      "lines": 501,
+      "sha256": "b532d6b64af3afc972109d4e25b901e4c92c184bd97cf2a17ccaa94e6b44d000",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/launch.rs",
+      "present": true,
+      "lines": 95,
+      "sha256": "c9a20581bc56c52437f439575a27c526e8e9d8478276a84bdbbef83e32f8ec88",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/lib.rs",
+      "present": true,
+      "lines": 176,
+      "sha256": "ffe64f8650ec6bd121adecc558177f685faeef440cdacd147217eff0ce0a5a55",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/mode_lock.rs",
+      "present": true,
+      "lines": 163,
+      "sha256": "cbe8c61c06ab04806274f55f958938e46178314c43e00864d5a62552d549a3e1",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/module_hook.rs",
+      "present": true,
+      "lines": 75,
+      "sha256": "025666b08d6dc6719d18efa0a806e8cb4407124f4a6179c7642c04b5a6d37a72",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/payload.rs",
+      "present": true,
+      "lines": 863,
+      "sha256": "2b69c1b50eb7c94c379752634663665645df07895b70a65e6804d13b2bdd93bf",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/python_job.rs",
+      "present": true,
+      "lines": 378,
+      "sha256": "9ede9f15cfff26f44764524e930b225acd2a8269bca9847990d9afd6dc0ea525",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/run.rs",
+      "present": true,
+      "lines": 748,
+      "sha256": "68c6e82b1e5837b9b14f771ef3e5bed867eb949bce9e37f79741b81f25aeee25",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/src/schedule.rs",
+      "present": true,
+      "lines": 1319,
+      "sha256": "fca0134ff1d8f77861ba23a2970d28283b03f43b079406c501de0ce986449116",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/check_consumer_graph.py",
+      "present": true,
+      "lines": 110,
+      "sha256": "a629eed7b6202b528dfaee9cebc765898ec2b73151ca7e6e69e0889815767b4d",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/common/mod.rs",
+      "present": true,
+      "lines": 420,
+      "sha256": "8f7875e95d3526aa8fdc27a3cf536abe15ec937bc34598cce9062b176dd593c3",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/common/repo.rs",
+      "present": true,
+      "lines": 285,
+      "sha256": "50b0301f7a3e52fdf5b6411ea2332318b563016b8d6df3a43fda31581ddb2e98",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/common/session_fixture.rs",
+      "present": true,
+      "lines": 985,
+      "sha256": "72345e0132cfaca90daf3ba689d403319fd26c8ac6277929c23563ab3d49c9ac",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/cron_hurry.rs",
+      "present": true,
+      "lines": 1063,
+      "sha256": "68fc4c30a995c4fa0d948d594ed154c7702d42e175a63f4f2a66cd70d9ddfb40",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/cron_rows.rs",
+      "present": true,
+      "lines": 573,
+      "sha256": "6078037b461e529071dd0e6bca9a5224f7014ca01099e9677207c17dfae47f4a",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/e2e.rs",
+      "present": true,
+      "lines": 388,
+      "sha256": "d49816fd2c8220f051f16deb98c7fd4b6344f823bb0d81438bf0514a4405cf3d",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/hook_runner.rs",
+      "present": true,
+      "lines": 527,
+      "sha256": "0fa90112da38aa0f8522c8687f5f4852d0cca89437f49050f513a4ad9503ca6d",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/job_threading.rs",
+      "present": true,
+      "lines": 98,
+      "sha256": "ecdfbc09ec8733c62496e3719c54b9ac7d363802b0797fe9d395bfd0fcf8c316",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/perf.rs",
+      "present": true,
+      "lines": 394,
+      "sha256": "ef5223d914bf89177e9440fbc5714b1e21e1d99501f34f920c1a4f2e5a06abfb",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/schedule_switch.rs",
+      "present": true,
+      "lines": 1164,
+      "sha256": "d7abf023f4e0101ce7fb38f67b3803e9ff068c53537efda6ef1fa5a41b686538",
+      "equal_qa12": true
+    },
+    {
+      "path": "crates/bd-cache-sync/tests/test_consumer_graph.py",
+      "present": true,
+      "lines": 115,
+      "sha256": "434e6c3c3dcadbae917b8f9f59a03ca46efe80fb5ab0f848e687c33ebe0eae0e",
+      "equal_qa12": false
+    },
+    {
+      "path": "crates/sc-cron/Cargo.toml",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/LICENSE",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/README.md",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/clippy.toml",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/clock.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/error.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/expr.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/hook.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/jitter.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/job.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/lib.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/limits.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/process.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/scheduler.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/sqlite.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/store.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/timestamp.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/types.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/src/worker.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/common/mod.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/enabled.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/expr.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/process_api.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/python_hook.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/reload_poll.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/run_due_abort.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/sqlite_store.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/stop_hook.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/target_resolver.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/two_process.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "crates/sc-cron/tests/worker.rs",
+      "present": false,
+      "status": "local sc-cron removal"
+    },
+    {
+      "path": "docs/architecture.md",
+      "present": true,
+      "lines": 1226,
+      "sha256": "2989f4a92a1dfa0bb60218279bba29ff72dd5222a976fdcbadf4fdb460116db7",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/bd-cache-api/requirements.md",
+      "present": true,
+      "lines": 141,
+      "sha256": "e9ac4708165c27ac85078ad8d7d2dfe4a6542be0b892deccabcce5250e37918b",
+      "equal_qa12": true
+    },
+    {
+      "path": "docs/bd-cache-cli/architecture.md",
+      "present": true,
+      "lines": 291,
+      "sha256": "29a0139d91750bc6a20475533cda7403654f0c3c3fc8ca7589326f7e5c1888df",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/bd-cache-cli/requirements.md",
+      "present": true,
+      "lines": 226,
+      "sha256": "ef03a75bff57813b3b058246dcb4997c0905b6beae641ab3f8e1936cfba7be98",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/bd-cache-py/architecture.md",
+      "present": true,
+      "lines": 441,
+      "sha256": "e220895e8213977ecf2e684e61468a7b8d505e668499cef7d095f8f8b0369953",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/bd-cache-store/architecture.md",
+      "present": true,
+      "lines": 722,
+      "sha256": "8abef23171b1e3ab2f6d0f5957eddeca163ee124ee79d6932b3207dc30c6d49a",
+      "equal_qa12": true
+    },
+    {
+      "path": "docs/bd-cache-sync/architecture.md",
+      "present": true,
+      "lines": 833,
+      "sha256": "d3488151d29466f5d7590e518a030bd064afee48a3c6723e38d3f9da3ed09742",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/plans/phase-c/phase-c-plan.md",
+      "present": true,
+      "lines": 242,
+      "sha256": "53b013e2e6c5f60e6cb9b526742aad10694f50602d4c5f144aa5b6c7e9195285",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "present": true,
+      "lines": 1246,
+      "sha256": "0db0160613495ff3f314910ac8e48dcc8f7b878b5f0d83b5891d749e1b659794",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/requirements.md",
+      "present": true,
+      "lines": 999,
+      "sha256": "21dce9111d59bf46691da5bd36653dda594708ca9cc961a543d1533e1508fa93",
+      "equal_qa12": false
+    },
+    {
+      "path": "docs/sc-cron/architecture.md",
+      "present": true,
+      "lines": 638,
+      "sha256": "feca0d67afcaf366e18e7c546632786555abbcf26fde2fe9a1ebc63d557def4c",
+      "equal_qa12": true
+    },
+    {
+      "path": "docs/sc-cron/requirements.md",
+      "present": true,
+      "lines": 387,
+      "sha256": "fc6a9ef08c08209fee915f5f8fbb71ba224dda35b56d6227bbc4a1e881b582aa",
+      "equal_qa12": true
+    }
+  ],
+  "risk_matches": 792
+}

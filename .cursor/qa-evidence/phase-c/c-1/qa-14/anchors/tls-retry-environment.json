@@ -1,0 +1,6 @@
+{
+  "ssl_cert_file": "/Library/Frameworks/Python.framework/Versions/3.11/lib/python3.11/site-packages/certifi/cacert.pem",
+  "certificate_verification_enabled": true,
+  "reason": "Initialrununableissuer; authenticateddata notsentindependentverifiedGET childprocesspreflight succeeded with thisinstalledCAbundle",
+  "argv_unchanged": true
+}

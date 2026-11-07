@@ -820,3 +820,14 @@ joined. The existing two-stage `2 × T` shutdown budget above is unchanged. The
 control resets after that join for reuse; rejected concurrent starts do not reset
 it. RSH-001 awaits independent QA; the canonical receiver dependency blocker and
 strict isolated graph gate above remain open and unchanged.
+
+
+### Qualified public logging facade adoption
+
+ADR-BDC-0016's published registry 0.2.0 baseline supersedes the historical
+published-only receiver blocker above and retires the temporary Git allowance.
+The real receiver uses `sc_cron::observability` public canonical/event/service
+exports; sync has no direct sc-command dependency. Existing canonical event
+projection, redaction, ordering and bd-cache service identity remain unchanged.
+Independent source/introducer/feature graph checks and current-head QA/CI remain
+required; a development delivery does not close its four tracked findings.

@@ -6,6 +6,15 @@ import subprocess
 import tempfile
 
 
+# ADR-BDC-0016: the published baseline supersedes the temporary Git exception.
+REGISTRY_SOURCE = 'registry+https://github.com/rust-lang/crates.io-index'
+
+
+def approved_contract(package):
+    """Accept only the exact published scheduler/command baseline."""
+    return (package['version'], package['source']) == ('0.2.0', REGISTRY_SOURCE)
+
+
 def violations(meta):
     packages = {p['id']: p for p in meta['packages']}
     nodes = {n['id']: n for n in meta['resolve']['nodes']}
@@ -20,13 +29,14 @@ def violations(meta):
         node = nodes[identity]
         p = packages[identity]
         name = p['name']
-        if name in {'clap', 'clap_builder', 'sc-runtime', 'sc-transport', 'axum', 'rmcp'}:
+        if name in {'clap', 'clap_builder', 'sc-runtime', 'sc-transport', 'axum', 'rmcp',
+                    'sc-command-macros', 'sc-task'}:
             errors.append(f"isolated consumer contains {name}")
-        if name == 'sc-command' and 'server' in node['features']:
-            errors.append('isolated consumer enables sc-command/server')
         if name in {'sc-command', 'sc-cron'}:
-            if p['version'] != '0.1.1' or not (p['source'] or '').startswith('registry+'):
-                errors.append(f"{name} must be published 0.1.1, got {p['version']} {p['source']}")
+            if not approved_contract(p):
+                errors.append(f"{name} must use published registry 0.2.0, got {p['version']} {p['source']}")
+            for feature in node['features']:
+                errors.append(f"isolated consumer enables {name}/{feature}; contract-only features must stay off")
         if name == 'rusqlite' and p['version'] != '0.39.0':
             errors.append(f"rusqlite must be 0.39.0, got {p['version']}")
         for edge in node['deps']:
@@ -34,11 +44,16 @@ def violations(meta):
                 continue
             target = packages[edge['pkg']]
             if target['name'] == 'sc-command' and not (
-                name == 'sc-cron' and p['version'] == '0.1.1'
-                and (p['source'] or '').startswith('registry+')
+                name == 'sc-cron' and approved_contract(p)
+                and approved_contract(target)
+                and (p['version'], p['source']) == (target['version'], target['source'])
             ):
-                errors.append(f"{name} -> sc-command: only published sc-cron may introduce the contract/logging exception")
+                errors.append(f"{name} -> sc-command: only an approved same-source sc-cron may introduce the contract/logging exception")
             pending.append(edge['pkg'])
+    for contract in ('sc-command', 'sc-cron'):
+        identities = [i for i in reached if packages[i]['name'] == contract]
+        if len(identities) > 1:
+            errors.append(f"multiple {contract} package identities: {identities}")
     sqlite = [packages[i] for i in reached if packages[i].get('links') == 'sqlite3']
     if len(sqlite) > 1:
         errors.append(f"multiple SQLite link providers: {sqlite}")
@@ -71,13 +86,14 @@ def main():
             text = '[workspace]\n[package]\nname="isolated-consumer"\nversion="0.0.0"\nedition="2024"\n[dependencies]\n'
             text += f'{package} = {{ path = {json.dumps(str(root / package))} }}\n'
             if args.negative_server:
-                text += 'sc-command = { version = "=0.1.1", default-features = false, features = ["server"] }\n'
+                text += ('sc-command = { version = "=0.2.0", default-features = false, '
+                         'features = ["server"] }\n')
             (consumer / 'Cargo.toml').write_text(text)
             resolved = metadata(['cargo', 'metadata', '--format-version', '1', '--manifest-path', str(consumer / 'Cargo.toml')])
             errors = violations(resolved)
             if errors:
                 raise SystemExit('\n'.join(errors))
-            print(f'{package}: isolated graph PASS (published scheduler/contracts; no clap/server/runtime)')
+            print(f'{package}: isolated graph PASS (approved scheduler/contracts; no clap/server/runtime)')
 
 
 if __name__ == '__main__':

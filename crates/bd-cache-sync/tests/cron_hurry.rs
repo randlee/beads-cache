@@ -1061,3 +1061,172 @@ async fn assert_startup_completion(
     );
     Ok(())
 }
+
+/// A real scheduled Python sync remains blocked while the public cached-read
+/// route answers from the SAME cache without another `BdCli` launch request.
+#[test]
+fn cached_read_returns_without_bd_while_the_scheduled_python_sync_is_running()
+-> Result<(), Box<dyn std::error::Error>> {
+    concurrent_read_fixture(
+        "cached_read_returns_without_bd_while_the_scheduled_python_sync_is_running",
+        false,
+    )
+}
+
+/// The identical guard must reject an actual cold read's backend lookup, even
+/// though that read returns correct data while the real sync is still running.
+#[test]
+fn concurrent_cached_read_guard_rejects_a_real_cold_read_backend_lookup()
+-> Result<(), Box<dyn std::error::Error>> {
+    concurrent_read_fixture(
+        "concurrent_cached_read_guard_rejects_a_real_cold_read_backend_lookup",
+        true,
+    )
+}
+
+fn concurrent_read_fixture(test: &str, cold: bool) -> Result<(), Box<dyn std::error::Error>> {
+    if std::env::var(LIFECYCLE_FIXTURE_MODE).is_ok() {
+        return lifecycle_fixture(test, true, |_| concurrent_cached_read(cold));
+    }
+    let mut child = session_fixture::SessionFixture::spawn(test, LIFECYCLE_FIXTURE_MODE, "normal")?;
+    session_fixture::assert_passed(&mut child)?;
+    let output = child.output()?;
+    let proof = output
+        .lines()
+        .find(|line| line.starts_with("CACHED_READ_PROOF "))
+        .ok_or("successful fixture missing causal read receipt")?;
+    eprintln!("{proof}");
+    Ok(())
+}
+
+async fn concurrent_cached_read(cold: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let repo = Repo::new(vec![]);
+    let mut cached = sc_beads::testing::bead("cached");
+    cached.title = "the cached row".into();
+    repo.bd.insert(cached);
+    assert_eq!(
+        public_get(&repo.cache, &repo.table, "cached")?.get("title"),
+        Some(&serde_json::json!("the cached row"))
+    );
+    repo.bd.insert(sc_beads::testing::bead("cold"));
+    let stub = PyStub::new();
+    let schedules = Arc::new(bd_cache_sync::SystemSchedules::system(
+        Arc::clone(&repo.store),
+        Arc::clone(&repo.cache),
+        repo.files(),
+    ));
+    schedules.set(&every_second()).await?;
+    schedules
+        .use_python(
+            &UsePython {
+                python: stub.python.clone(),
+                module: "consumer.sync".into(),
+                cron: Some("* * * * * *".into()),
+                timeout_ms: Some(60_000),
+                env: vec![],
+            },
+            StopFlag::new(),
+        )
+        .await?;
+    stub.set("tick", "managed_hang");
+    let (stop, hurry) = (StopFlag::new(), StopFlag::new());
+    let run = tokio::spawn({
+        let schedules = Arc::clone(&schedules);
+        let (stop, hurry) = (stop.clone(), hurry.clone());
+        async move { schedules.cron_run_hurried(stop, hurry, GRACE, || {}).await }
+    });
+    let ready = tokio::time::timeout(Duration::from_secs(5), async {
+        while !stub.dir.path().join("run.ready").exists() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await;
+    // The script writes its actual PID and owned-child receipt BEFORE readiness;
+    // managed_hang cannot finish without the supervisor's cancellation.
+    let pid = std::fs::read_to_string(stub.dir.path().join("run.pid"))
+        .ok()
+        .and_then(|s| s.trim().parse::<u32>().ok());
+    let active_before = ready.is_ok()
+        && !run.is_finished()
+        && pid.is_some_and(|p| fixture_child::pid_exists(p).unwrap_or(false));
+    let before = repo.bd_invoker.calls();
+    let mut reader = tokio::task::spawn_blocking({
+        let cache = Arc::clone(&repo.cache);
+        let table = repo.table.clone();
+        move || public_get(&cache, &table, if cold { "cold" } else { "cached" })
+    });
+    // Same 500ms observation used by the existing lifecycle qualification. Never
+    // release the held sync first and then mislabel the resulting read concurrent.
+    let read = tokio::time::timeout(Duration::from_millis(500), &mut reader).await;
+    let active_after =
+        !run.is_finished() && pid.is_some_and(|p| fixture_child::pid_exists(p).unwrap_or(false));
+    let after = repo.bd_invoker.calls();
+    stop.stop();
+    hurry.stop();
+    let stopped = common::join_task(run).await?;
+    // Retain ownership of a timed-out blocking reader through actual completion;
+    // the existing five-second whole-child/session owner bounds every failure.
+    let data = match read {
+        Ok(answer) => answer??,
+        Err(error) => {
+            let _ = common::join_task(reader).await?;
+            return Err(error.into());
+        }
+    };
+    assert!(stopped.idle);
+    assert!(!pid.is_some_and(|p| fixture_child::pid_exists(p).unwrap_or(false)));
+    assert_eq!(
+        data.get("id"),
+        Some(&serde_json::json!(if cold { "cold" } else { "cached" }))
+    );
+    let proof = concurrent_read_guard(active_before, active_after, &before, &after);
+    eprintln!(
+        "\nCACHED_READ_PROOF cold={cold} active_before={active_before} active_after={active_after} before={before:?} after={after:?} guard={proof:?} owned_join=true child_reaped=true"
+    );
+    if cold {
+        assert_eq!(proof, Err("additional BdCli lookup request"));
+    } else {
+        proof?;
+        assert_eq!(
+            data.get("title"),
+            Some(&serde_json::json!("the cached row"))
+        );
+    }
+    Ok(())
+}
+
+fn public_get(
+    cache: &common::repo::RealShared,
+    table: &bd_cache_sync::ScheduleTable,
+    id: &str,
+) -> Result<serde_json::Value, bd_cache_api::ApiError> {
+    let request = bd_cache_api::decode(
+        bd_cache_api::Command::IssuesGet,
+        &serde_json::json!({"id": id}),
+    )?;
+    let mut cache = cache.lock().map_err(|error| {
+        bd_cache_api::ApiError::internal(format!("test cache poisoned: {error}"))
+    })?;
+    bd_cache_sync::execute_api(
+        table,
+        &mut cache,
+        &request,
+        &bd_cache_api::CacheFacts::default(),
+    )
+    .map(|data| data.to_json())
+}
+
+fn concurrent_read_guard(
+    active_before: bool,
+    active_after: bool,
+    before: &[Vec<String>],
+    after: &[Vec<String>],
+) -> Result<(), &'static str> {
+    if !active_before || !active_after {
+        return Err("real sync readiness/liveness missing");
+    }
+    if before != after {
+        return Err("additional BdCli lookup request");
+    }
+    Ok(())
+}

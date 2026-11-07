@@ -1,0 +1,301 @@
+1:Current runner version: '2.338.2'
+2:##[group]Runner Image Provisioner
+3:Hosted Compute Agent
+4:Version: 20261028.624
+5:Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+6:Build Date: 2026-10-28T21:51:42Z
+7:Worker ID: {f940df39-cdcb-482a-b43b-337cfe997892}
+8:Region: westcentralus
+9:Cloud: Azure
+10:##[endgroup]
+11:##[group]Operating System
+12:Ubuntu
+13:24.04.5
+14:LTS
+15:##[endgroup]
+16:##[group]Runner Image
+17:Image: ubuntu-24.04
+18:Version: 20261101.360.1
+19:Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+20:Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+21:##[endgroup]
+22:##[group]GITHUB_TOKEN Permissions
+23:Contents: read
+24:Metadata: read
+25:##[endgroup]
+26:Secret source: Actions
+27:Cache mode: write
+28:Prepare workflow directory
+29:Prepare all required actions
+30:Getting action download info
+31:Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+32:Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+33:Download action repository 'actions/download-artifact@v4' (SHA:d3f86a106a0bac45b974a628896c90dbdf5c8093)
+34:Complete job name: pytest (ubuntu-24.04, python 3.11)
+35:##[group]Run actions/checkout@v4
+36:with:
+37:repository: randlee/beads-cache
+38:token: ***
+39:ssh-strict: true
+40:ssh-user: git
+41:persist-credentials: true
+42:clean: true
+43:sparse-checkout-cone-mode: true
+44:fetch-depth: 1
+45:fetch-tags: false
+46:show-progress: true
+47:lfs: false
+48:submodules: false
+49:set-safe-directory: true
+50:allow-unsafe-pr-checkout: false
+51:env:
+52:CARGO_TERM_COLOR: always
+53:RUSTFLAGS: -D warnings
+54:##[endgroup]
+55:Syncing repository: randlee/beads-cache
+56:##[group]Getting Git version info
+57:Working directory is '/home/runner/work/beads-cache/beads-cache'
+58:[command]/usr/bin/git version
+59:git version 2.56.0
+60:##[endgroup]
+61:Temporarily overriding HOME='/home/runner/work/_temp/c0ee772e-ebc6-448f-a49b-aa2b6abfd926' before making global git config changes
+62:Adding repository directory to the temporary git global config as a safe directory
+63:[command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+64:Deleting the contents of '/home/runner/work/beads-cache/beads-cache'
+65:##[group]Initializing the repository
+66:[command]/usr/bin/git init /home/runner/work/beads-cache/beads-cache
+67:hint: Using 'master' as the name for the initial branch. This default branch name
+68:hint: will change to "main" in Git 3.0. To configure the initial branch name
+69:hint: to use in all of your new repositories, which will suppress this warning,
+70:hint: call:
+71:hint:
+72:hint: 	git config --global init.defaultBranch <name>
+73:hint:
+74:hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+75:hint: 'development'. The just-created branch can be renamed via this command:
+76:hint:
+77:hint: 	git branch -m <name>
+78:hint:
+79:hint: Disable this message with "git config set advice.defaultBranchName false"
+80:Initialized empty Git repository in /home/runner/work/beads-cache/beads-cache/.git/
+81:[command]/usr/bin/git remote add origin https://github.com/randlee/beads-cache
+82:##[endgroup]
+83:##[group]Disabling automatic garbage collection
+84:[command]/usr/bin/git config --local gc.auto 0
+85:##[endgroup]
+86:##[group]Setting up auth
+87:[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+88:[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+89:[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+90:[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+91:[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+92:[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+93:[command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+94:##[endgroup]
+95:##[group]Fetching the repository
+96:[command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +a7dbb7adf18532021f35894f303ef33856a205ec:refs/remotes/pull/108/merge
+97:From https://github.com/randlee/beads-cache
+98:* [new ref]         a7dbb7adf18532021f35894f303ef33856a205ec -> pull/108/merge
+99:##[endgroup]
+100:##[group]Determining the checkout info
+101:##[endgroup]
+102:[command]/usr/bin/git sparse-checkout disable
+103:[command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+104:##[group]Checking out the ref
+105:[command]/usr/bin/git checkout --progress --force refs/remotes/pull/108/merge
+106:Note: switching to 'refs/remotes/pull/108/merge'.
+107:
+108:You are in 'detached HEAD' state. You can look around, make experimental
+109:changes and commit them, and you can discard any commits you make in this
+110:state without impacting any branches by switching back to a branch.
+111:
+112:If you want to create a new branch to retain commits you create, you may
+113:do so (now or later) by using -c with the switch command. Example:
+114:
+115:git switch -c <new-branch-name>
+116:
+117:Or undo this operation with:
+118:
+119:git switch -
+120:
+121:Turn off this advice by setting config variable advice.detachedHead to false
+122:
+123:HEAD is now at a7dbb7a Merge 60f89200fe337d57ede24ecaa55e36171a1c4305 into f1e0756e0e17a2002a69a7dcfba2de60aeb6887c
+124:##[endgroup]
+125:[command]/usr/bin/git log -1 --format=%H
+126:a7dbb7adf18532021f35894f303ef33856a205ec
+127:##[group]Run actions/setup-python@v5
+128:with:
+129:python-version: 3.11
+130:check-latest: false
+131:token: ***
+132:update-environment: true
+133:allow-prereleases: false
+134:freethreaded: false
+135:env:
+136:CARGO_TERM_COLOR: always
+137:RUSTFLAGS: -D warnings
+138:##[endgroup]
+139:##[group]Installed versions
+140:(node:2406) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+141:(Use `node --trace-deprecation ...` to show where the warning was created)
+142:Successfully set up CPython (3.11.18)
+143:##[endgroup]
+144:##[group]Run actions/download-artifact@v4
+145:with:
+146:name: wheel-ubuntu-24.04
+147:path: dist
+148:merge-multiple: false
+149:repository: randlee/beads-cache
+150:run-id: 42210020376
+151:env:
+152:CARGO_TERM_COLOR: always
+153:RUSTFLAGS: -D warnings
+154:pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+155:PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+156:Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+157:Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+158:Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+159:LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+160:##[endgroup]
+161:Downloading single artifact
+162:(node:2414) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+163:(Use `node --trace-deprecation ...` to show where the warning was created)
+164:Preparing to download the following artifacts:
+165:- wheel-ubuntu-24.04 (ID: 13498766927, Size: 8890971, Expected Digest: sha256:36c559749f4ba54ab5242665efcdedfa5c50736f70e69942ad05bd037c8d54df)
+166:Redirecting to blob download url: https://productionresultssa0.blob.core.windows.net/actions-results/fd8c895c-61b1-8afb-a19d-0a6942dd9910/workflow-job-run-aca4017d-062d-5563-902a-6560457fd5da/artifacts/ae8945b66faeed22a3170e20c61f16fec22502812337117ea52fb5807551889d.zip
+167:Starting download of artifact to: /home/runner/work/beads-cache/beads-cache/dist
+168:(node:2414) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+169:SHA256 digest of downloaded artifact is 36c559749f4ba54ab5242665efcdedfa5c50736f70e69942ad05bd037c8d54df
+170:Artifact download completed successfully.
+171:Total of 1 artifact(s) downloaded
+172:Download artifact has finished successfully
+173:##[group]Run python -I scripts/check_no_backend.py path
+174:^[[36;1mpython -I scripts/check_no_backend.py path^[[0m
+175:shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+176:env:
+177:CARGO_TERM_COLOR: always
+178:RUSTFLAGS: -D warnings
+179:pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+180:PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+181:Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+182:Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+183:Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+184:LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+185:##[endgroup]
+186:no bd or dolt on PATH
+187:##[group]Run python -m pip install pytest
+188:^[[36;1mpython -m pip install pytest^[[0m
+189:^[[36;1mpython -m pip install dist/*.whl^[[0m
+190:shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+191:env:
+192:CARGO_TERM_COLOR: always
+193:RUSTFLAGS: -D warnings
+194:pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+195:PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+196:Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+197:Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+198:Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+199:LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+200:##[endgroup]
+201:Collecting pytest
+202:Downloading pytest-9.2.0-py3-none-any.whl.metadata (7.9 kB)
+203:Collecting iniconfig>=2 (from pytest)
+204:Downloading iniconfig-2.3.1-py3-none-any.whl.metadata (2.8 kB)
+205:Collecting packaging>=24 (from pytest)
+206:Downloading packaging-26.3-py3-none-any.whl.metadata (3.5 kB)
+207:Collecting pluggy<2,>=1.6 (from pytest)
+208:Downloading pluggy-1.7.0-py3-none-any.whl.metadata (5.0 kB)
+209:Collecting pygments>=2.15 (from pytest)
+210:Downloading pygments-2.21.0-py3-none-any.whl.metadata (2.5 kB)
+211:Downloading pytest-9.2.0-py3-none-any.whl (411 kB)
+212:Downloading pluggy-1.7.0-py3-none-any.whl (27 kB)
+213:Downloading iniconfig-2.3.1-py3-none-any.whl (7.6 kB)
+214:Downloading packaging-26.3-py3-none-any.whl (129 kB)
+215:Downloading pygments-2.21.0-py3-none-any.whl (1.3 MB)
+216:━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.3/1.3 MB 40.6 MB/s  0:00:00
+217:Installing collected packages: pygments, pluggy, packaging, iniconfig, pytest
+218:
+219:Successfully installed iniconfig-2.3.1 packaging-26.3 pluggy-1.7.0 pygments-2.21.0 pytest-9.2.0
+220:
+221:[notice] A new release of pip is available: 26.2.2 -> 26.3
+222:[notice] To update, run: pip install --upgrade pip
+223:Processing ./dist/bd_cache_rs-0.2.0-cp39-abi3-manylinux_2_39_x86_64.whl
+224:Installing collected packages: bd-cache-rs
+225:Successfully installed bd-cache-rs-0.2.0
+226:
+227:[notice] A new release of pip is available: 26.2.2 -> 26.3
+228:[notice] To update, run: pip install --upgrade pip
+229:##[group]Run chmod +x dist/bin/bdc dist/bin/fake-bd
+230:^[[36;1mchmod +x dist/bin/bdc dist/bin/fake-bd^[[0m
+231:^[[36;1mexport BD_CACHE_BDC="$PWD/dist/bin/bdc" BD_CACHE_FAKE_BD="$PWD/dist/bin/fake-bd"^[[0m
+232:^[[36;1mpython -W error::DeprecationWarning -m pytest crates/bd-cache-py/tests -rP --rootdir=crates/bd-cache-py -p no:cacheprovider^[[0m
+233:shell: /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+234:env:
+235:CARGO_TERM_COLOR: always
+236:RUSTFLAGS: -D warnings
+237:pythonLocation: /opt/hostedtoolcache/Python/3.11.18/x64
+238:PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib/pkgconfig
+239:Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+240:Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+241:Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.11.18/x64
+242:LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.11.18/x64/lib
+243:##[endgroup]
+244:============================= test session starts ==============================
+245:platform linux -- Python 3.11.18, pytest-9.2.0, pluggy-1.7.0
+246:rootdir: /home/runner/work/beads-cache/beads-cache/crates/bd-cache-py
+247:configfile: pyproject.toml
+248:collected 226 items
+249:
+250:crates/bd-cache-py/tests/test_additive.py .................              [  7%]
+251:crates/bd-cache-py/tests/test_announce.py ...                            [  8%]
+252:crates/bd-cache-py/tests/test_api_fixtures.py ......                     [ 11%]
+253:crates/bd-cache-py/tests/test_api_robustness.py ...........              [ 16%]
+254:crates/bd-cache-py/tests/test_cli_e2e.py ..                              [ 17%]
+255:crates/bd-cache-py/tests/test_corpus.py .......                          [ 20%]
+256:crates/bd-cache-py/tests/test_errors.py ..................               [ 28%]
+257:crates/bd-cache-py/tests/test_fake_bd.py ............................... [ 42%]
+258:...........                                                              [ 46%]
+259:crates/bd-cache-py/tests/test_ingest.py ....                             [ 48%]
+260:crates/bd-cache-py/tests/test_key_sets.py ..                             [ 49%]
+261:crates/bd-cache-py/tests/test_open.py .................................. [ 64%]
+262:..                                                                       [ 65%]
+263:crates/bd-cache-py/tests/test_perf.py 
+264:cached get via bd_cache_rs: median 58.4 us, p99 81.6 us over 2000 calls
+265:.                                  [ 65%]
+266:crates/bd-cache-py/tests/test_reads.py ...........                       [ 70%]
+267:crates/bd-cache-py/tests/test_ready.py .....                             [ 73%]
+268:crates/bd-cache-py/tests/test_run.py .......                             [ 76%]
+269:crates/bd-cache-py/tests/test_schedule.py ...                            [ 77%]
+270:crates/bd-cache-py/tests/test_scopes.py ....                             [ 79%]
+271:crates/bd-cache-py/tests/test_switch.py ...                              [ 80%]
+272:crates/bd-cache-py/tests/test_sync_harness.py .........                  [ 84%]
+273:crates/bd-cache-py/tests/test_threading.py ..........                    [ 88%]
+274:crates/bd-cache-py/tests/test_tick.py ....                               [ 90%]
+275:crates/bd-cache-py/tests/test_verbs.py .....................             [100%]
+276:
+277:==================================== PASSES ====================================
+278:___________ test_input_that_is_not_json_or_an_unknown_event_exits_1 ____________
+279:----------------------------- Captured stderr call -----------------------------
+280:bd_cache_rs.sync: stdin is not one JSON object: Expecting value: line 1 column 1 (char 0)
+281:bd_cache_rs.sync: unknown event 'cron.other'
+282:============================= 226 passed in 45.73s =============================
+283:Post job cleanup.
+284:(node:5466) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+285:(Use `node --trace-deprecation ...` to show where the warning was created)
+286:Post job cleanup.
+287:[command]/usr/bin/git version
+288:git version 2.56.0
+289:Temporarily overriding HOME='/home/runner/work/_temp/5729277c-8c1c-406b-ae37-4e9cc1e26116' before making global git config changes
+290:Adding repository directory to the temporary git global config as a safe directory
+291:[command]/usr/bin/git config --global --add safe.directory /home/runner/work/beads-cache/beads-cache
+292:[command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+293:[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+294:[command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+295:http.https://github.com/.extraheader
+296:[command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+297:[command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+298:[command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+299:[command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+300:Cleaning up orphan processes
+301:##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/download-artifact@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

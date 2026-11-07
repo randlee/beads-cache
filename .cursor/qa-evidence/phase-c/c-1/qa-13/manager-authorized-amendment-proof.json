@@ -1,0 +1,9 @@
+{
+  "assignment": "/tmp/phase-c-execution/c-1/qa-13/manager.xml",
+  "parent_authorization": "Publish every round to PR108 and save identical PR/parent MachineStatus with captured URL",
+  "verified_existing_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6683562479",
+  "verified_issue_url": "https://api.github.com/repos/randlee/beads-cache/issues/108",
+  "same_findings": true,
+  "same_deliverables": true,
+  "no_new_review_payload": true
+}

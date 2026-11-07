@@ -1,0 +1,30 @@
+{
+  "scope": "Actual C1 PR108 merge verification and closed owning bead, full Phase C still active",
+  "files": [
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-16/merge-result.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/closeout/merge-result.json",
+      "sha256": "a11ced87e4470cccfbe005c08f2d60117a739cb1a905f8bbc85ba3a2ab9593e9"
+    },
+    {
+      "source": "/tmp/phase-c-c1-closed-comment.txt",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/closeout/phase-c-c1-closed-comment.txt",
+      "sha256": "d3bcb621d0f1f756cf7c252f89469752a53518835d8886d57d728d5eb2d18216"
+    },
+    {
+      "source": "/tmp/phase-c-c1-closed-comment-result.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/closeout/phase-c-c1-closed-comment-result.json",
+      "sha256": "57aef95186e7863426bbc8a02080aa6d0ab57498121c4e23199e7e522a7a26fd"
+    },
+    {
+      "source": "/tmp/phase-c-c1-close-result.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/closeout/phase-c-c1-close-result.json",
+      "sha256": "7634441ed81fe2ad96c436a1de12c5ca752c0c7e7229e3039e8aae565c366430"
+    },
+    {
+      "source": "/tmp/phase-c-integration-local-audit-paths.txt",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/closeout/phase-c-integration-local-audit-paths.txt",
+      "sha256": "99f483c7404022bee8b14f49ed0aeb0f56ae426b73f035f1aebb547bf5a5fbe9"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "args": [
+    "gh",
+    "pr",
+    "review",
+    "108",
+    "--request-changes",
+    "--body-file",
+    "/tmp/phase-c-execution/c-1/qa-11/manager-result.md"
+  ],
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "failed to create review: GraphQL: Review Can not request changes on your own pull request (addPullRequestReview)\n"
+}

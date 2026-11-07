@@ -1,0 +1,593 @@
+{
+  "success": true,
+  "data": {
+    "status": "findings",
+    "audit_mode": "independent_read_only_prose_scope_ceremony",
+    "source": {
+      "workspace": "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration",
+      "head": "478812a83adb04ea38c93a6d4bc83a17233a9cf4",
+      "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+      "bytes": 78752,
+      "lines": 1246,
+      "sha256": "0db0160613495ff3f314910ac8e48dcc8f7b878b5f0d83b5891d749e1b659794"
+    },
+    "triage_order": [
+      "unapproved_work",
+      "duplicated_rules_crossreferences_history",
+      "repeated_rationale_prose_process_approval_qualifiers"
+    ],
+    "scope_result": {
+      "unapproved_work_findings": [],
+      "assessment": "No independently established unapproved deliverable identified. Existing deliverables map to REQ-BDC-1002, inherited bounds and approved amendments. Health seam is explicitly required by phase plan 101-108 and ADR-BDC-0016; fixture/protocol corrections address recorded observed defects. The qualified-pin interpretation is retained for parent anchor/requirements adjudication, not approved by this audit."
+    },
+    "findings": [
+      {
+        "id": "PA-001",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 213,
+        "issue": "Repeated approval and obsolete approval qualifier",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Phase plan 39-52 and ADR-BDC-0016 retain execution authorization and independent QA/anchor/CI merge conditions; deliverable 231-233 retains the CLI amendment itself.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 213,
+            "original_end_line": 221,
+            "bytes_removed": 561,
+            "starts_with": "## Recorded owner approval",
+            "ends_with": "anchor gates and green CI remain required before merge."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 234,
+            "original_end_line": 234,
+            "bytes_removed": 71,
+            "starts_with": "   Until approval, the current Approved requirement remains unchanged.",
+            "ends_with": "   Until approval, the current Approved requirement remains unchanged."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "ADR-BDC-0016; REQ-CLI-0001; REQ-BDC-1002",
+          "retained_authority_or_plan_ranges": [
+            "phase-c-plan.md:39-52",
+            "sprint:225-233",
+            "sprint:123-164",
+            "architecture.md:1101-1118"
+          ]
+        }
+      },
+      {
+        "id": "PA-002",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 428,
+        "issue": "Initial implementation proof table and historical local validation receipt",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Existing acceptance criteria and required validation retain every required suite/platform; the table records paths and old-head successes, rather than extra deliverables. The 1024-row limit, adapter behavior and health implementation notes at 413-427 remain.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 428,
+            "original_end_line": 488,
+            "bytes_removed": 5061,
+            "starts_with": "- Governed CLI/API/Python/CRON docs record ADR-BDC-0016 before CI boundary changes.",
+            "ends_with": "remains in_progress until the parent's independent QA/anchor/CI closeout."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "ANC-001/002/003/004/008/009; REQ-BDC-0001/0103/0730/0812/0910/1002; NFR-BDC-0004/0005; REQ-API-0008",
+          "retained_authority_or_plan_ranges": [
+            "sprint:357-392",
+            "sprint:413-427",
+            "sprint:1235-1237",
+            "anchors/anchors.md"
+          ]
+        }
+      },
+      {
+        "id": "PA-003",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 493,
+        "issue": "QA1 provenance, already-applied metadata corrections and superseded blocker statuses",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Retain the substantive QA1 corrections at 502,506,509-511,513-523. Frontmatter already carries status and constraint IDs. Current source authorization and current open findings remain in the final qualified-pin section.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 493,
+            "original_end_line": 498,
+            "bytes_removed": 447,
+            "starts_with": "QA1 reviewed 4d27523d2919b8e0c0e6d0f9287c5e4fc9736e56 on PR #108 and",
+            "ends_with": "independent verification, rather than declaring the QA findings closed."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 503,
+            "original_end_line": 505,
+            "bytes_removed": 615,
+            "starts_with": "| REQ-QA-002 | Existing constrained_by list now includes REQ-BDC-0804, REQ-BDC-0903 and REQ-API-0001..0007. |",
+            "ends_with": "| REQ-QA-004 | Earlier reviewed head eventually completed 15/15 hosted checks; manager receipt records ci run 41563460661 and python run 41563460677. Req reviewer must confirm that receipt. Changed production head needs fresh checks; the strengthened boundary gate intentionally remains red for the unresolved logging edge. |"
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 507,
+            "original_end_line": 508,
+            "bytes_removed": 424,
+            "starts_with": "| ARCH-001 | OPEN/BLOCKED: current direct receiver edge is unauthorized. Removed implementation-document text that appeared to bless it; public 0.1.1 cannot construct this receiver through sc-cron alone. Exact minimal upstream need is below. |",
+            "ends_with": "| RBQA-F001 | OPEN/BLOCKED, correlated with ARCH-001 but retained independently. No new direct framework edge, baseline change, fork or missing-event substitution is introduced. |"
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 512,
+            "original_end_line": 512,
+            "bytes_removed": 219,
+            "starts_with": "| RSH-001 | OPEN/BLOCKED: published WorkerHandle shutdown owns an unbounded join of a blocking store call after its handle deadline. No timeout/drop or fake abort is substituted. Exact minimal upstream need is below. |",
+            "ends_with": "| RSH-001 | OPEN/BLOCKED: published WorkerHandle shutdown owns an unbounded join of a blocking store call after its handle deadline. No timeout/drop or fake abort is substituted. Exact minimal upstream need is below. |"
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "REQ-QA-002/003/004; ARCH-001; RBQA-F001; RSH-001; ADR-BDC-0016",
+          "retained_authority_or_plan_ranges": [
+            "sprint:3",
+            "sprint:19-164",
+            "sprint:632-674",
+            "sprint:1204-1246",
+            "phase-c-plan.md:39-52"
+          ]
+        }
+      },
+      {
+        "id": "PA-004",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 525,
+        "issue": "Superseded upstream-only blocker assessment and earlier validation receipt",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "The old assertion that shutdown necessarily requires upstream work is explicitly superseded at 632-634. Actual bounded store joins, zero-timeout/second-stop, same-Scheduler ownership and reuse remain at 632-674 and 865-891. Canonical event preservation and the exact authorized source remain at 1184-1189 and 1204-1237. Required validation remains at 380-392; old successful runs do not replace it.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 525,
+            "original_end_line": 598,
+            "bytes_removed": 4786,
+            "starts_with": "### Minimal unresolved upstream public API requirements (no local workaround)",
+            "ends_with": "The bead and sprint remain in_progress, and no merge is authorized by this receipt."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "ARCH-001; RBQA-F001; RSH-001; REQ-QA-004; REQ-BDC-0730; REQ-CRON-0012; REQ-API-0008; ADR-BDC-0016",
+          "retained_authority_or_plan_ranges": [
+            "sprint:380-392",
+            "sprint:632-674",
+            "sprint:865-891",
+            "sprint:1184-1189",
+            "sprint:1204-1237",
+            "bd-cache-sync/architecture.md:803-833"
+          ]
+        }
+      },
+      {
+        "id": "PA-005",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 602,
+        "issue": "QA2 report provenance and repeated unchanged blocker rows",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep the complete substantive FTQ-001 correction row at 610, its heading and table header. Current four IDs and exact-head CI remain at 1235-1237; shutdown behavior remains at 632-674 and 865-891.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 602,
+            "original_end_line": 606,
+            "bytes_removed": 369,
+            "starts_with": "Manager QA2 reviewed 73ced71 and published FAIL (4 Blocking, 2 Important) at",
+            "ends_with": "/tmp/phase-c-execution/c-1/qa-2/screen-result.md. No finding is waived."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 611,
+            "original_end_line": 620,
+            "bytes_removed": 1159,
+            "starts_with": "| REQ-QA-004 | OPEN. Actual authorized dependency composition and all required hosted checks must pass on the reviewed changed head. Prior-head green and local successful suites do not close it. |",
+            "ends_with": "push SHA are reported separately. Overall FAIL / blocked and in_progress remain."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "FTQ-001; REQ-QA-004; ARCH-001; RBQA-F001; RSH-001; QA2-001",
+          "retained_authority_or_plan_ranges": [
+            "sprint:600-610",
+            "sprint:632-674",
+            "sprint:865-891",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-006",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 625,
+        "issue": "Restart chronology, local-pass receipt and repeated receiver blocker rationale",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Retain the full implemented shutdown design and regression coverage at 632-674. Later genuine public logging facade and qualified source resolve the historical assessment without waiving independent review.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 625,
+            "original_end_line": 630,
+            "bytes_removed": 414,
+            "starts_with": "The fresh restart assessment inspected actual hosted job 126038712470 at source",
+            "ends_with": "only orchestration metadata."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 675,
+            "original_end_line": 690,
+            "bytes_removed": 1122,
+            "starts_with": "The normal and all-target/all-feature locked Clippy gates pass. Detailed logs",
+            "ends_with": "introduced. Independent QA, anchors and green CI remain prerequisites to merge."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "RSH-001; ARCH-001; RBQA-F001; QA2-001; REQ-QA-004; REQ-BDC-0730; ADR-SYNC-0008",
+          "retained_authority_or_plan_ranges": [
+            "sprint:632-674",
+            "sprint:1184-1189",
+            "sprint:1204-1237",
+            "bd-cache-sync/architecture.md:735-743"
+          ]
+        }
+      },
+      {
+        "id": "PA-007",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 695,
+        "issue": "QA4 report chronology, repeated disposition table and no-acceptance qualifier",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Retain all process containment, timing, parent-owned cleanup, actual Python reap and negative/unwind coverage at 703-728. The short line-728 replacement completes the final sentence while dropping its obsolete validation lead-in. Current source and final independent-acceptance status remain.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 695,
+            "original_end_line": 701,
+            "bytes_removed": 498,
+            "starts_with": "QA4's actual manager report is",
+            "ends_with": "The new Important FTQ-009/010 findings concern failure cleanup in the new tests."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 729,
+            "original_end_line": 745,
+            "bytes_removed": 1514,
+            "starts_with": "runs passed 5 store tests and 8 lifecycle tests; affected locked Clippy modes and",
+            "ends_with": "PASS is introduced by this test-only correction. Merge remains gated."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "FTQ-009; FTQ-010; RSH-001; ARCH-001; RBQA-F001; QA2-001; REQ-QA-004",
+          "retained_authority_or_plan_ranges": [
+            "sprint:703-728",
+            "sprint:750-782",
+            "sprint:1164-1170",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-008",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 784,
+        "issue": "QA5 old-source probe receipt, equivalence proof and repeated status/waiver paragraph",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Retain the observed pre-registration orphan defect at 750-755, complete session ownership/cleanup at 757-774, and timeout/unwind native negative at 776-782. This does not remove the counterexample or its required behavioral proof, only its earlier reported run and repeated status text.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 784,
+            "original_end_line": 803,
+            "bytes_removed": 1356,
+            "starts_with": "The exact QA5 source-free PATH-cat counterexample also ran against the rebuilt",
+            "ends_with": "PASS is introduced."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "FTQ-010; FTQ-009; RSH-001; REQ-QA-004; ARCH-001; RBQA-F001; QA2-001",
+          "retained_authority_or_plan_ranges": [
+            "sprint:750-782",
+            "sprint:905-945",
+            "sprint:1164-1170",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-009",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 808,
+        "issue": "Superseded 50ms inventory policy, repeated ownership explanation and QA6 receipts",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep raw Linux PID/parser/identity behavior at 826-835. Current caller-budget, owned inventory, one-attempt handoff, failure/recovery and post-join census requirements remain at 915-945; 50ms policy is explicitly superseded at 915-917. Current timeout/unwind/ownership requirements also remain at 757-782 and 1035-1041.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 808,
+            "original_end_line": 825,
+            "bytes_removed": 1247,
+            "starts_with": "The test-only session inventory now owns each `/bin/ps` child, redirects its",
+            "ends_with": ""
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 837,
+            "original_end_line": 850,
+            "bytes_removed": 972,
+            "starts_with": "Focused evidence is recorded in /tmp/phase-c-execution/c-1/qa-6/fix-*. Logs include",
+            "ends_with": "introduced."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "FTQ-010; FTQ-011; REQ-QA-004; RSH-001",
+          "retained_authority_or_plan_ranges": [
+            "sprint:757-782",
+            "sprint:826-835",
+            "sprint:915-945",
+            "sprint:1035-1041",
+            "sprint:1164-1170",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-010",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 897,
+        "issue": "Repeated status rows, integration chronology and scoped local validation history",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep supported-startup behavior and all named regression cases at 855-891, plus the C2 actual Application rerun instruction at 893-896. Keep inventory regressions at 937-945. Current acceptance and no-ledger direction remain; local/hosted distinction is already required at 392.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 897,
+            "original_end_line": 902,
+            "bytes_removed": 470,
+            "starts_with": "FTQ-010's actual QA7 owning-reviewer/enforcer closure and FTQ-009's closure are",
+            "ends_with": "blocking work, sprint/anchor/merge PASS or self-closure is introduced."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 947,
+            "original_end_line": 975,
+            "bytes_removed": 2343,
+            "starts_with": "| Finding | Current developer disposition |",
+            "ends_with": "developer receipt."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "RSH-001; FTQ-009/010/011; ARCH-001; RBQA-F001; QA2-001; REQ-QA-004",
+          "retained_authority_or_plan_ranges": [
+            "sprint:855-896",
+            "sprint:937-945",
+            "sprint:392",
+            "sprint:1164-1170",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-011",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 978,
+        "issue": "Earlier Windows diagnostic narration, merge chronology and repeated unchanged-scope/status qualifiers",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep the complete finer private checkpoint protocol, timing semantics, post-return planted classification control and observer lifetime at 1014-1041. Actual later Windows setup trace and its narrow test correction remain at 1139-1150. These are test evidence for an observed defect, not an unjustified new public report or gate.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 978,
+            "original_end_line": 1004,
+            "bytes_removed": 1858,
+            "starts_with": "## QA9 Windows shared-store diagnostic RQA9-001",
+            "ends_with": "while merging exact integration `63ebc1fa`. No sprint acceptance or merge is claimed."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 1009,
+            "original_end_line": 1012,
+            "bytes_removed": 315,
+            "starts_with": "Exact integration `b731c09e` is consumed by ordinary feature merge, preserving",
+            "ends_with": "selected nor full-store successful observation identifies its historical cause."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 1043,
+            "original_end_line": 1050,
+            "bytes_removed": 621,
+            "starts_with": "Only the schedule test module and private test helpers change. The production",
+            "ends_with": "push receipts follow in the QA9 phase-protocol result artifacts."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "RQA9-001; FTQ-009/010/011; REQ-QA-004; RSH-001",
+          "retained_authority_or_plan_ranges": [
+            "sprint:1014-1041",
+            "sprint:1139-1150",
+            "sprint:1164-1170",
+            "sprint:703-712",
+            "sprint:1120-1126"
+          ]
+        }
+      },
+      {
+        "id": "PA-012",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 1055,
+        "issue": "Unlocalized diagnostic history, stage controls restated by the later correction table and validation/waiver qualifiers",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep exact stage diagnostic fields at 1061-1069; keep later observed macOS failure, honest cause limits, corrected proof table and unchanged budgets at 1098-1126. The table explicitly retains quiescence failure, independent audit timeout, original failure, owned wait/reap, refusal of second attempt and all earlier unwind controls.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 1055,
+            "original_end_line": 1059,
+            "bytes_removed": 395,
+            "starts_with": "QA10's actual macOS cron_hurry17/18 failure remains a valid unlocalized inventory",
+            "ends_with": "previous candidate-scoped dispositions. All six current findings stay OPEN."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 1071,
+            "original_end_line": 1093,
+            "bytes_removed": 1688,
+            "starts_with": "An owned controlled counterexample establishes the old generic timeout's ambiguity:",
+            "ends_with": "inventory-stage result artifacts; no overall CI, sprint, anchor or merge claim."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 1128,
+            "original_end_line": 1134,
+            "bytes_removed": 538,
+            "starts_with": "Focused native controls/lifecycle proof, strict affected all-target/all-feature",
+            "ends_with": "supersedes prior failed logs, scoped FTQ/RSH credits or candidate histories."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "RQA10-001; FTQ-011; REQ-QA-004; RQA9-001; RSH-001",
+          "retained_authority_or_plan_ranges": [
+            "sprint:1061-1069",
+            "sprint:1098-1126",
+            "sprint:1152-1170",
+            "sprint:1235-1237"
+          ]
+        }
+      },
+      {
+        "id": "PA-013",
+        "severity": "minor",
+        "class": "bloat",
+        "file": "docs/plans/phase-c/sprint-c-1-runtime-migration.md",
+        "line": 1175,
+        "issue": "Superseded development-pin provenance and obsolete graph-conflict narration",
+        "recommendation": "Remove the specified historical/repeated text; do not change the retained behavior or requirements.",
+        "evidence": "Keep actual public receiver/event semantics at 1184-1189. Keep the full verbatim conditional user authorization, parent interpretation, exact final pin, executable provenance guard, supersession/anchor-adjudication instruction and current four open IDs at 1204-1237. No permission is inferred from the historical pin.",
+        "edits": [
+          {
+            "operation": "delete",
+            "original_start_line": 1175,
+            "original_end_line": 1182,
+            "bytes_removed": 594,
+            "starts_with": "The parent-rendered fix assignment records direct user authorization to pin the",
+            "ends_with": "alignment avoids duplicate nominal SDK contracts across scheduler and CLI."
+          },
+          {
+            "operation": "delete",
+            "original_start_line": 1192,
+            "original_end_line": 1201,
+            "bytes_removed": 769,
+            "starts_with": "This narrowly authorized development pin conflicts with the historical",
+            "ends_with": "current-head policy/CI acceptance; this is not a self-closure or sprint merge."
+          }
+        ],
+        "preservation": {
+          "existing_obligation_ids": "ADR-BDC-0016; REQ-BDC-1002; REQ-CLI-0001; REQ-API-0008; ARCH-001; RBQA-F001; QA2-001; REQ-QA-004",
+          "retained_authority_or_plan_ranges": [
+            "sprint:1184-1189",
+            "sprint:1204-1237",
+            "architecture.md:1194-1226",
+            "phase-c-plan.md:31-37"
+          ]
+        }
+      }
+    ],
+    "related_replacements": [
+      {
+        "operation": "replace",
+        "original_start_line": 402,
+        "original_end_line": 412,
+        "replacement": "## Adapter implementation notes\n\n",
+        "reason": "Retain a heading for the unique existing 413-427 adapter notes; remove the initial delivery/baseline chronology already covered by current deliverables and final source amendment.",
+        "existing_obligation_ids": "REQ-BDC-1002; REQ-STORE-0003; NFR-BDC-0004; ADR-BDC-0016",
+        "retained_ranges": [
+          "sprint:223-253",
+          "sprint:413-427",
+          "sprint:1204-1237"
+        ]
+      },
+      {
+        "operation": "replace",
+        "original_start_line": 728,
+        "original_end_line": 728,
+        "replacement": "families; the lifecycle one also verifies real Python reaping.\n",
+        "reason": "Finish the retained required assertion-unwind/Python-reaping sentence when deleting its following old validation receipt."
+      },
+      {
+        "operation": "replace",
+        "original_start_line": 1173,
+        "original_end_line": 1173,
+        "replacement": "## Public logging facade\n",
+        "reason": "Keep a meaningful heading for retained 1184-1189 after deleting superseded development-pin chronology."
+      }
+    ],
+    "size_accounting": {
+      "method": "UTF-8 bytes of exact original-line operations, calculated in memory only",
+      "original_bytes": 78752,
+      "projected_plan_bytes": 47677,
+      "removed_bytes": 31075,
+      "gate_fit_claim": false,
+      "note": "These recommendations follow duplicate/superseded content, not the cap. Full bounded developer account and unchanged anchor envelope still require supported preparation/review after any authorized edit. No Jev call or gate run performed."
+    },
+    "preservation_boundary": {
+      "untouched_core_ranges": [
+        "1-212: all requirement/ADR/anchor metadata and owned paths",
+        "223-233,235-400: all deliverables, prototype disposition, inherited bounds, health seam/public signatures, ACs, required validation, sprint limits",
+        "413-427: unique adapter and store implementation notes",
+        "502,506,509-511,513-523: substantive QA1 corrections",
+        "610: complete FTQ-001 correction",
+        "632-674: shutdown ownership and regressions",
+        "703-728: FTQ-009/010 containment and negative/unwind proof",
+        "750-782: observed pre-registration defect and session ownership",
+        "826-835: Linux raw identity parsing",
+        "855-896: supported startup, all regressions and C2 consumption requirement",
+        "905-945: current inventory budgets, complete census and regressions",
+        "1014-1041: private checkpoint/classification control and observer ownership",
+        "1061-1069: precise inventory stage diagnostics",
+        "1098-1126: actual localized observation, corrected proof table and full numerical budgets",
+        "1137-1170: native fixture corrections and explicit no-standing-ledger direction",
+        "1184-1189: real logging/event semantics",
+        "1204-1246: verbatim user direction, final exact pin, provenance guards, supersession and parent anchor adjudication, current four open findings and typed error-chain correction"
+      ],
+      "do_not_remove": [
+        "Any approved deliverable, acceptance criterion, validation command/platform, requirement/ADR/anchor binding, user directive, unique behavioral/test ownership assertion or observed defect supporting the remaining test design.",
+        "QA11 explicit statement that no separate coverage-ledger artifact or standing process gate is required (1169-1170).",
+        "Final current four-ID open disposition and requirement for independent QA13/current-head CI (1235-1237)."
+      ],
+      "history_handling": "Deleted material is already in the audited Git commit. No replacement archive, mandatory ledger, new gate, ceremony artifact or product process is recommended. This audit JSON is a bounded review result only."
+    },
+    "limits": [
+      "No source, plan, anchor, bead, PR or git metadata changed.",
+      "No Cargo, tests, child agents, network, Jev calls or merge decision.",
+      "No cap change, sprint split, scope reduction, arbitrary prose omission or reordering.",
+      "Parent must route any actual edits through its supported developer/requirements/anchor review after QA13 enforcement."
+    ]
+  },
+  "error": null
+}
