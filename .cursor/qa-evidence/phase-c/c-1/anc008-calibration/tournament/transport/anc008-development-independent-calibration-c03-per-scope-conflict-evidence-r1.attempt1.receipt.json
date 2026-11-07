@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r1",
+  "attempt": 1,
+  "canonical_request_sha256": "ebd3b54aca1bcb61cb458de9d5ff8a0ea0f3c90c29c2eea7c3c774fafe4e80fe",
+  "candidate_id": "c03",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.2861177921295166,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r1.attempt1.raw.json",
+  "raw_sha256": "5e7cb7413f6548d67a62189d85c812799b7762e8f16104120c5615e3d526edde"
+}

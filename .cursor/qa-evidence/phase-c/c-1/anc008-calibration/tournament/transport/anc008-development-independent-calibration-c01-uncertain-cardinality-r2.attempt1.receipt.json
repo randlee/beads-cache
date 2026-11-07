@@ -1,0 +1,11 @@
+{
+  "correlation_id": "anc008-development-independent-calibration-c01-uncertain-cardinality-r2",
+  "attempt": 1,
+  "canonical_request_sha256": "911459dc364bc377fc8b9a9eb10035a7faa524385bc96f03d0986ca693eb4a82",
+  "candidate_id": "c01",
+  "http_status": 200,
+  "success": true,
+  "elapsed_seconds": 0.10910296440124512,
+  "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-uncertain-cardinality-r2.attempt1.raw.json",
+  "raw_sha256": "d76d42ef900405d71bd202b7518aca8a37c7a74f823c671192f0a69ffa9c5371"
+}

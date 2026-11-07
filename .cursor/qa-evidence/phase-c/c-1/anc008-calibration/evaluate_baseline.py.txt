@@ -1,0 +1,72 @@
+"""Offline, fail-closed evaluation of parent-transported current-default responses."""
+import argparse
+import hashlib
+import json
+from pathlib import Path
+import sys
+
+def canonical(value):
+    return json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=False).encode()
+
+def digest(value):
+    return hashlib.sha256(canonical(value)).hexdigest()
+
+def load(path):
+    return json.loads(Path(path).read_text())
+
+parser=argparse.ArgumentParser()
+parser.add_argument('--manifest', required=True)
+parser.add_argument('--out', required=True)
+args=parser.parse_args()
+manifest=load(args.manifest)
+root=Path(args.manifest).resolve().parent.parent
+request=load(root/'request.json')
+sys.path.insert(0,str(Path(request['runtime']['script']).parent))
+import jev_judge as judge
+assert hashlib.sha256(Path(request['runtime']['script']).read_bytes()).hexdigest()==request['runtime']['sha256']
+oracle=load(manifest['oracle_path'])
+assert digest(oracle)==manifest['oracle_sha256'], 'Frozen oracle drift'
+assert len(manifest['entries'])==len(oracle['cases'])*oracle['repeat_count']
+candidate=load(manifest['candidate_path'])
+assert candidate['questions']==request['current_questions'], 'Baseline question drift'
+cases={case['case_id']:case for case in oracle['cases']}
+rows=[]
+errors=[]
+for entry in manifest['entries']:
+    body=load(entry['request_path'])
+    assert digest(body)==entry['canonical_request_sha256']
+    assert body['questions']==candidate['questions']
+    case=cases[entry['case_id']]
+    assert body['state']==judge.build_state(request['authority']['anchors']['records'][0],case['item'])
+    path=Path(entry['response_path'])
+    if not path.exists():
+        errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INCOMPLETE','response_path':str(path)})
+        continue
+    raw=path.read_bytes()
+    try:
+        response=json.loads(raw)
+        validation=judge.validate_response(response,body['questions'])
+        if isinstance(validation,judge.Err):
+            errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INVALID_RESPONSE','detail':validation.error.to_json()})
+            continue
+        answers=response['answers']
+        labels={role:judge.answer_choice(answer)[0] for role,answer in answers.items()}
+        verdict=judge.decide(answers,candidate['roles'],0.0,oracle['kind'])[0]
+        production=judge.decide(answers,candidate['roles'],oracle['production_confidence_threshold'],oracle['kind'])[0]
+        rows.append({'correlation_id':entry['correlation_id'],'case_id':entry['case_id'],'repeat':entry['repeat'],'canonical_request_sha256':entry['canonical_request_sha256'],'raw_response_sha256':hashlib.sha256(raw).hexdigest(),'labels':labels,'expected_roles':case['expected_roles'],'exact_role_cells':sum(labels[k]==v for k,v in case['expected_roles'].items()),'semantic_verdict':verdict,'expected_semantic_verdict':case['expected_semantic_verdict'],'exact_semantic_verdict':verdict==case['expected_semantic_verdict'],'production_verdict':production,'confidence':{k:judge.answer_choice(v)[1] for k,v in answers.items()}})
+    except (ValueError,KeyError,TypeError) as error:
+        errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INVALID_RESPONSE','detail':str(error)})
+pairings={}
+for cid in cases:
+    pair=sorted([r for r in rows if r['case_id']==cid],key=lambda r:r['repeat'])
+    pairings[cid]={'complete':len(pair)==2,'stable':len(pair)==2 and pair[0]['labels']==pair[1]['labels'],'request_bytes_identical':len({e['canonical_request_sha256'] for e in manifest['entries'] if e['case_id']==cid})==1}
+complete=not errors and len(rows)==len(manifest['entries'])
+exact=complete and all(r['exact_role_cells']==4 and r['exact_semantic_verdict'] for r in rows)
+stable=complete and all(p['stable'] and p['request_bytes_identical'] for p in pairings.values())
+defect=complete and not (exact and stable)
+result={'schema':'plan-anchor/independent-baseline-evaluation/1','oracle_sha256':manifest['oracle_sha256'],'candidate_id':'c00','evidence_complete':complete,'semantic_exact':exact,'repeat_stable':stable,'baseline_demonstrates_defect':defect,'status':'evidence_incomplete' if not complete else ('baseline_defect_observed' if defect else 'current_defaults_match_frozen_oracle'),'no_override_justified':not defect,'rows':rows,'repeat_cases':pairings,'errors':errors,'network_calls':0,'note':'Confidence is diagnostic in this semantic tournament. Production review remains at the request threshold. No seal, override, or source write is performed.'}
+out=Path(args.out)
+payload=canonical(result)
+assert not out.exists() or out.read_bytes()==payload, 'Append-only output differs; choose a new output path'
+out.write_bytes(payload)
+print(json.dumps({'status':result['status'],'baseline_demonstrates_defect':defect,'response_count':len(rows),'missing_or_invalid':len(errors),'output':str(out)}))

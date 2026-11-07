@@ -1,0 +1,45 @@
+{
+  "success": true,
+  "data": {
+    "gate": "dev",
+    "dry_run": false,
+    "fixture": false,
+    "checks": [
+      {
+        "anchor_id": "ANC-008",
+        "kind": "pass",
+        "index": 1,
+        "sentence": "schedule set refuses a second built-in sync row for one repository while other rows are allowed; test second_builtin_sync_row_is_refused in crates/bd-cache-cli/tests/schedule.rs passes in CI (run 1234).",
+        "verdict": "satisfied",
+        "expected": [
+          "satisfied"
+        ],
+        "expected_ok": true,
+        "run_path": "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures/dev-20261107T001848Z-fixture_ANC-008_pass_1.json"
+      },
+      {
+        "anchor_id": "ANC-008",
+        "kind": "fail",
+        "index": 1,
+        "sentence": "Each scope gets its own built-in sync schedule row, so a repository with five scopes has five built-in sync rows.",
+        "verdict": "contradicted",
+        "expected": [
+          "not_addressed",
+          "contradicted"
+        ],
+        "expected_ok": true,
+        "run_path": "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures/dev-20261107T001848Z-fixture_ANC-008_fail_1.json"
+      }
+    ],
+    "mismatches": [],
+    "judged": 2,
+    "pass": true,
+    "path": "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures",
+    "run_path": "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures",
+    "runs": [
+      "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures/dev-20261107T001848Z-fixture_ANC-008_pass_1.json",
+      "target/qa-15-anchor-evidence/calibrated-fixtures/fixtures/dev-20261107T001848Z-fixture_ANC-008_fail_1.json"
+    ]
+  },
+  "error": null
+}

@@ -10153,239 +10153,63 @@
     "blocking_policy": "Continue concrete local fixes; unrelated publisher/auth work does not block goal"
   },
   "current_qa_dispatch": {
-    "qa_pass": "qa-15",
-    "status": "completed_FAIL_published",
+    "qa_pass": "qa-16",
+    "status": "active",
     "source": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
     "reviewer_manifest": [
       {
         "agent": "req-qa",
         "task_id": "/root/c1_reqqa14",
         "spawn_actor": "parent-orchestrator",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-15/req-qa-input.json",
-        "assignment_sha256": "4722caeaa50eb1ac4eaec0e04bd5d9cba83cf349bf442ef1f926bd3cde891d70",
+        "status": "running",
         "ack_received": true,
-        "status": "completed",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-16/req-qa-input.json",
+        "assignment_sha256": "2e402d44dbe2505cd6b2b097fd1d19e0728223c7c8c295138abbd426062db215",
         "actual_model": "gpt-6.1-sol",
-        "reasoning": "high",
-        "fenced_json_received": true,
-        "verdict": "FAIL",
-        "projection": "/tmp/phase-c-execution/c-1/qa-15/req-qa-return-projection.json",
-        "full_report_sha256": "349074bab38effe0cf0062fb7981288685998a98ac01ebc228cf5179b0d307ae"
+        "reasoning": "high"
       },
       {
         "agent": "arch-qa",
         "task_id": "/root/c1_archqa14",
         "spawn_actor": "parent-orchestrator",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-15/arch-qa-input.json",
-        "assignment_sha256": "97a1d66cd2d1b1924e968c5ea4f4119172dd35731b7397062098e87b9f87c620",
+        "status": "running",
         "ack_received": true,
-        "status": "completed",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-16/arch-qa-input.json",
+        "assignment_sha256": "99b7e7cd066f49d8d04a278cc886ed11f7b4bce45f30153787051b3e38dd48a0",
         "actual_model": "gpt-6.1-sol",
-        "reasoning": "high",
-        "fenced_json_received": true,
-        "verdict": "FAIL",
-        "projection": "/tmp/phase-c-execution/c-1/qa-15/arch-qa-return-projection.json",
-        "full_report_sha256": "447d83517f162b740b5d4c9d6f6f067021aadb142b21630952c3bd608cd17199"
+        "reasoning": "high"
       },
       {
         "agent": "rust-qa-agent",
         "task_id": "/root/c1_rustqa14",
         "spawn_actor": "parent-orchestrator",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-15/rust-qa-agent-input.json",
-        "assignment_sha256": "34b99519cb05614a3016692c5c7128ac30e1f32ce2f437ce4d9076b1186f999c",
+        "status": "running",
         "ack_received": true,
-        "status": "completed",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-16/rust-qa-agent-input.json",
+        "assignment_sha256": "f48af228cac99d3083e785d941f878bdef6517d8420950399b66cfb76266b023",
         "actual_model": "gpt-6.1-sol",
-        "reasoning": "high",
-        "fenced_json_received": true,
-        "verdict": "PASS",
-        "projection": "/tmp/phase-c-execution/c-1/qa-15/rust-qa-return-projection.json",
-        "full_report_sha256": "feeca99c9587b96ea96b8df1a291f0a34eae018ea6c5a4b5f8459d81d7e57416"
+        "reasoning": "high"
       },
       {
         "agent": "flaky-test-qa",
         "task_id": "/root/c1_flakyqa14",
         "spawn_actor": "parent-orchestrator",
-        "assignment": "/tmp/phase-c-execution/c-1/qa-15/flaky-test-qa-input.json",
-        "assignment_sha256": "95c7b53aa7479eb7ab883ffe3115e98a2a98a0df1da83b8932959967aa3d1721",
+        "status": "running",
         "ack_received": true,
-        "status": "completed",
+        "assignment": "/tmp/phase-c-execution/c-1/qa-16/flaky-test-qa-input.json",
+        "assignment_sha256": "3a1d88abbec2d4b392fe9a40182cf09e06ffc88ffe286dc2eb395722c8da0377",
         "actual_model": "gpt-6.1-sol",
-        "reasoning": "high",
-        "fenced_json_received": true,
-        "verdict": "PASS",
-        "findings": {
-          "blocking": 0,
-          "important": 0,
-          "minor": 0
-        },
-        "projection": "/tmp/phase-c-execution/c-1/qa-15/flaky-test-qa-return-projection.json",
-        "full_report_sha256": "b63360202b7565fd10f1937a2029053b4669b8d3c0f055d72d5e876f562ede49"
+        "reasoning": "high"
       }
     ],
+    "anchor_task": "/root/c1_anchorqa13",
     "cargo_owner": null,
-    "gate": "independent reviewers pending; development anchors pending; no C1 acceptance",
-    "started_at": "2026-11-06T23:49:29.940590+00:00",
-    "coordinator": {
-      "task_id": "/root/c1_quality_manager15",
-      "actor": "parent-orchestrator",
-      "qa_pass": "qa-15",
-      "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
-      "assignment": "/tmp/phase-c-execution/c-1/qa-15/manager.xml",
-      "started_at": "2026-11-07T00:04:14.061108+00:00"
-    },
-    "anchor_gate": {
-      "run": "dev-20261106T235757Z-c-1",
-      "pass": false,
-      "failing": [
-        "ANC-008",
-        "ANC-001"
-      ],
-      "paired_checks_passed": 16,
-      "excluded": 1,
-      "report": "/tmp/phase-c-execution/c-1/qa-15/anchors/review-result.json"
-    },
-    "actualMachineStatus": {
-      "sprint": "c-1",
-      "task": "qa-c-1-15",
-      "branch": "sprint/c-1-runtime-migration",
-      "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
-      "pr": 108,
-      "verdict": "FAIL",
-      "deliverables": {
-        "complete": 39,
-        "total": 40,
-        "percent": 97.5
-      },
-      "findings": {
-        "blocking": 1,
-        "important": 0,
-        "minor": 0
-      },
-      "blocking_ids": [
-        "REQ-QA-004"
-      ],
-      "merge_readiness": "not ready",
-      "merge_reason": "REQ-QA-004 remains Blocking: actual development anchor gate fails ANC-008 and ANC-001; deliverables 39/40 despite 15/15 green CI and 16/16 paired checks.",
-      "next_action": "triage_and_fix",
-      "owner": "parent-orchestrator",
-      "reviewer_spawn_gate": "pass",
-      "reviewer_manifest": [
-        {
-          "agent": "req-qa",
-          "task_id": "/root/c1_reqqa14",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 1,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "arch-qa",
-          "task_id": "/root/c1_archqa14",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "FAIL",
-          "findings": {
-            "blocking": 1,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "rust-qa-agent",
-          "task_id": "/root/c1_rustqa14",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "PASS",
-          "findings": {
-            "blocking": 0,
-            "important": 0,
-            "minor": 0
-          }
-        },
-        {
-          "agent": "flaky-test-qa",
-          "task_id": "/root/c1_flakyqa14",
-          "spawn_actor": "parent-orchestrator",
-          "fenced_json_received": true,
-          "verdict": "PASS",
-          "findings": {
-            "blocking": 0,
-            "important": 0,
-            "minor": 0
-          }
-        }
-      ],
-      "missing_reviewers": [],
-      "unparsed_reviewers": [],
-      "evidence_chain": {
-        "qa_pass": "qa-15",
-        "commit": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
-        "pr_comment_url": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6699266265",
-        "coordinator_task_id": "/root/c1_quality_manager15",
-        "aggregation_source": "reviewer_fenced_json_union_todo_scan",
-        "reviewer_tasks": {
-          "req-qa": "/root/c1_reqqa14",
-          "arch-qa": "/root/c1_archqa14",
-          "rust-qa-agent": "/root/c1_rustqa14",
-          "flaky-test-qa": "/root/c1_flakyqa14"
-        },
-        "triage": {
-          "ttl_paths": [
-            "/Users/randlee/github/beads-cache-worktrees/integrate/phase-c/.triage/c/findings/REQ-QA-004.ttl"
-          ],
-          "sidecar": "/tmp/phase-c-execution/c-1/qa-15/anchors/review-result.json",
-          "canonical_finding": "REQ-QA-004",
-          "status": "open"
-        },
-        "ci": {
-          "head": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
-          "success": 15,
-          "total": 15,
-          "pending": 0,
-          "failing": 0,
-          "receipt": "/tmp/phase-c-execution/c-1/qa-15/manager-current-checks.json"
-        },
-        "todo_scan": {
-          "hits": 0,
-          "receipt": "/tmp/phase-c-execution/c-1/qa-15/manager-todo-scan.json"
-        },
-        "development_anchor_gate": {
-          "run_id": "dev-20261106T235757Z-c-1",
-          "pass": false,
-          "satisfied": 14,
-          "asserted_only": [
-            "ANC-008"
-          ],
-          "underspecified": [
-            "ANC-001"
-          ],
-          "excluded": [
-            "ADR-BDC-0009"
-          ],
-          "errors": [],
-          "shortened": [],
-          "unstable": []
-        },
-        "paired_deterministic_checks": {
-          "applicable": 16,
-          "pass": 16,
-          "pending": 0,
-          "excluded": 1
-        },
-        "model_disclosure": "Configured Composer unavailable; actual gpt-6.1-sol high fallback."
-      }
-    },
-    "pr_comment": "https://github.com/randlee/beads-cache/pull/108#issuecomment-6699266265",
-    "canonical_equality": "Final manager/parent/published body and MachineStatus identical, manager receipt verified"
+    "started_at": "2026-11-07T00:21:55.708575+00:00",
+    "scope": "Independent report/calibrated-instrument recheck at same exact qualified source; no repeatedtests claimed"
   },
   "current_fix_dispatch": {
     "qa_pass": "qa-15",
-    "status": "active_report_specificity_correction",
+    "status": "completed_STOP",
     "actor": "parent-orchestrator",
     "active_task_id": "/root/c1_registry020_dev",
     "source": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
@@ -11481,6 +11305,21 @@
       "dispatched_at": "2026-11-06T13:10:08.049790+00:00",
       "final_source": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
       "receipt": "/tmp/phase-c-execution/c-1/registry020-adoption/developer-result.json"
+    },
+    {
+      "qa_pass": "qa-15",
+      "status": "completed_report_only_STOP",
+      "actor": "parent-orchestrator",
+      "active_task_id": "/root/c1_registry020_dev",
+      "source": "c4006f8d218b743aeabeddcfac9bb5c1c0af8907",
+      "finding_ids": [
+        "REQ-QA-004"
+      ],
+      "assignment": "/tmp/phase-c-execution/c-1/qa-15-fix/fix.xml",
+      "ack_received": true,
+      "cargo_owner": null,
+      "scope": "Report-only actual lint evidence; no source/test/anchor changes. Independent ANC008 baseline audit separate, no override authorized yet.",
+      "receipt": "/tmp/phase-c-execution/c-1/qa-15-fix/developer-result.json"
     }
   ],
   "upstream_latest_registry_check": {
@@ -11493,14 +11332,18 @@
   "audit_local_commit": "20d8109",
   "current_anchor_calibration": {
     "task_id": "/root/anc008_independent_calibration",
-    "stage": "baseline28transported_independent_analysis_pending",
+    "stage": "accepted_sealed_applied_existing_question_bead",
     "diagnostic_plan": null,
     "live_answers_exposed": false,
     "request": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/request.json",
     "request_contract_valid": true,
-    "scope": "No question change without independent approved-fixture defect and accepted protocol evidence",
+    "scope": "Only implemented question changed; all locked requirements/statements/scopes/exclusions/thresholds unchanged; no current gate PASS implied",
     "oracle_sha256": "9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce",
     "transport_receipt": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline/parent-transport-receipt.json",
-    "baseline_evaluation": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline/evaluation.json"
+    "baseline_evaluation": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/baseline/evaluation.json",
+    "seal": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+    "accepted_result": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/accepted-result.json",
+    "application_receipt": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/question-application-receipt.json",
+    "production_fixture_check": "PASS2/2,no mismatches"
   }
 }

@@ -1,0 +1,77 @@
+"""Offline independent sealing from immutable oracle and verified complete raw evidence."""
+import hashlib,json,pathlib,sys
+ROOT=pathlib.Path(__file__).resolve().parent
+def canonical(v):return json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
+def sha(v):return hashlib.sha256(canonical(v)).hexdigest()
+def load(n):return json.loads((ROOT/n).read_text())
+def save(n,v):
+ p=ROOT/n;p.parent.mkdir(parents=True,exist_ok=True);b=canonical(v)
+ assert not p.exists() or p.read_bytes()==b,f'Append-only artifact differs: {p}'
+ if not p.exists():p.write_bytes(b)
+ return str(p)
+req=load('request.json');oracle=load('oracle.frozen.json');freeze=load('freeze-receipt.json');bindings=load('authority-bindings.json')
+assert sha(oracle)==freeze['oracle_sha256']
+assert sha(req)==bindings['request_sha256']
+baseline=load('baseline/evaluation-independent-check.json');evaluation=load('tournament/evaluation-independent-check.json')
+assert evaluation['evidence_complete'] and evaluation['oracle_sha256']==freeze['oracle_sha256']
+assert baseline['evidence_complete'] and baseline['baseline_demonstrates_defect']
+manifest=load('tournament/manifest.json');base_manifest=load('baseline/manifest.json')
+for prefix,man in [('baseline',base_manifest),('tournament',manifest)]:
+ receipt=load(f'{prefix}/parent-transport-receipt.json')
+ assert receipt['successful']==len(man['entries']) and receipt['failed']==0 and receipt['certificate_verification_enabled'] is True
+ byid={e['correlation_id']:e for e in man['entries']}
+ for record in receipt['results']:
+  entry=byid[record['correlation_id']]
+  assert record['success']
+  assert sha(json.loads(pathlib.Path(entry['request_path']).read_text()))==entry['canonical_request_sha256']
+  for attempt in record['attempts']:
+   assert hashlib.sha256(pathlib.Path(attempt['raw_path']).read_bytes()).hexdigest()==attempt['raw_sha256']
+   assert attempt['canonical_request_sha256']==entry['canonical_request_sha256']
+
+selected_id=evaluation['provisional_best_candidate_id']
+assert selected_id=='c03'
+selected_rank=evaluation['candidate_rankings'][0]
+assert selected_rank['candidate_id']==selected_id and selected_rank['accepted']
+score=selected_rank['semantic_score'];diagnostics=selected_rank['confidence_diagnostics']
+assert score=={'exact_role_cells':112,'total_role_cells':112,'exact_semantic_verdicts':28,'total_semantic_verdicts':28,'stable_cases':14,'total_cases':14,'regressions':0}
+selected=load(f'candidates/{selected_id}.json');default=load('candidates/c00.json')
+assert len(selected['questions'])==4 and set(selected['questions'])=={'relevant','implemented','violated','evidenced'}
+overrides={role:question for role,question in selected['questions'].items() if question!=default['questions'][role]}
+assert set(overrides)=={'implemented'}
+sealed={'digest':selected['questions_sha256'],'questions':selected['questions']}
+assert sealed['digest']==sha({'questions':sealed['questions']})
+save('sealed/c03.questions.json',sealed)
+save('sealed/c03.override.json',{'questions':overrides})
+
+all_rows=baseline['rows']+evaluation['rows']
+source_neutral_ledger={'schema':'plan-anchor/independent-tournament-ledger/1','protocol_version':req['tournament_protocol_version'],'oracle_sha256':freeze['oracle_sha256'],'authority':{k:bindings[k] for k in ('intent_id','intent_version','intent_sha256','anchor_id','anchor_version','anchor_record_sha256')},'candidate_pool':[load(f'candidates/{cid}.json') for cid in ('c00','c01','c02','c03','c04')],'baseline_adjudication':load('baseline/independent-adjudication.json'),'baseline_rows':baseline['rows'],'tournament_rows':evaluation['rows'],'rankings':evaluation['candidate_rankings'],'selected_candidate_id':selected_id,'selection_rationale':'All role-complete sets have four questions. Mandatory lexicographic ranking selects c03 before c02 by confidence diagnostics, prior to wording complexity. c03 additionally changes only the defective implemented role; c02 has fewer canonical bytes but replaces every role. No role can be removed while retaining role completeness.','rejected':{'c00':'Two repeat-stable implemented role mismatches on topical-only; 110/112 role cells despite 28/28 exact verdicts.','c01':'Two relevant role regressions on topical-only cause two verdict regressions.','c04':'One implemented role regression on irrelevant causes repeat instability.'},'accepted_unselected':{'c02':'Semantically exact and stable but lower mandatory confidence ranking than c03.'}}
+ledger_path=save('sealed/tournament-ledger.json',source_neutral_ledger)
+baseline_history=load('history/stage1-baseline.json')
+assert sha(baseline_history)==evaluation['baseline_history_sha256']
+selected_rows=[r for r in evaluation['rows'] if r['candidate_id']==selected_id]
+event={'event_index':2,'previous_event_sha256':sha(baseline_history['events'][-1]),'event':'question_set_sealed','protocol_version':req['tournament_protocol_version'],'authority':{k:bindings[k] for k in ('intent_id','intent_version','intent_sha256','anchor_id','anchor_version','anchor_record_sha256')},'oracle':{'sha256':freeze['oracle_sha256'],'case_ids':[c['case_id'] for c in oracle['cases']],'case_count':14,'repeat_count':2},'candidate':{'candidate_id':selected_id,'question_sha256':sealed['digest']},'evidence':{'canonical_request_sha256':[r['canonical_request_sha256'] for r in selected_rows],'raw_response_sha256':[r['raw_response_sha256'] for r in selected_rows],'run_ids':[r['correlation_id'] for r in selected_rows]},'score':{**score,'confidence':diagnostics},'decision':{'status':'sealed','question_set_sha256':sealed['digest'],'reason_code':'TOURNAMENT.ACCEPTED'},'supersedes':{'protocol_version':req['tournament_protocol_version'],'decision_sha256':sha(baseline_history['events'][-1]['decision'])}}
+history={**baseline_history,'events':baseline_history['events']+[event]}
+history_path=save('history/sealed-c03.json',history)
+save('sealed/seal-bindings.json',{'protocol_version':req['tournament_protocol_version'],'oracle_sha256':freeze['oracle_sha256'],'sealed_question_sha256':sealed['digest'],'history_before_sha256':sha(baseline_history),'history_after_sha256':sha(history),'full_ledger_sha256':sha(source_neutral_ledger),'authority_bindings_sha256':sha(bindings),'initial_request_history_sha256':sha(req['tuning_history']),'baseline_history_preserved':history['events'][0]==baseline_history['events'][0],'source_neutral_history_path':history_path,'source_neutral_full_ledger_path':ledger_path,'override_path':str(ROOT/'sealed/c03.override.json')})
+
+fixtures=[]
+for row in selected_rows:
+ if row['case_id'] in ('approved-pass','approved-fail'):
+  assert row['exact_role_cells']==4 and row['exact_semantic_verdict']
+  fixtures.append({'case_id':row['case_id'],'repeat':row['repeat'],'expected_roles':row['expected_roles'],'observed_roles':row['labels'],'expected_verdict':row['expected_semantic_verdict'],'observed_verdict':row['semantic_verdict'],'raw_response_sha256':row['raw_response_sha256'],'run_id':row['correlation_id'],'confidence':row['confidence']})
+save('sealed/approved-fixture-evidence.json',fixtures)
+per_case=[]
+for cid in ('c00','c01','c02','c03','c04'):
+ for case in oracle['cases']:
+  rows=sorted([r for r in all_rows if r.get('candidate_id','c00')==cid and r['case_id']==case['case_id']],key=lambda r:r['repeat'])
+  assert len(rows)==2
+  per_case.append({'candidate_id':cid,'case_id':case['case_id'],'expected_roles':case['expected_roles'],'observed_roles':[r['labels'] for r in rows],'expected_semantic_verdict':case['expected_semantic_verdict'],'observed_semantic_verdicts':[r['semantic_verdict'] for r in rows],'stable':rows[0]['labels']==rows[1]['labels'],'exact':all(r['exact_role_cells']==4 and r['exact_semantic_verdict'] for r in rows)})
+table_path=save('sealed/full-acceptance-table.json',per_case)
+baseline_score=load('history/stage1-binding.json')['semantic_score']
+acceptance=[{'candidate_id':'c00','accepted':False,**baseline_score,'reason':'Repeat-stable implemented role mismatch; approved fixture outcomes unchanged.'}]+[{'candidate_id':c['candidate_id'],'accepted':c['accepted'],**c['semantic_score'],'reason_codes':c['reason_codes']} for c in evaluation['candidate_rankings']]
+rankings=[{'candidate_id':c['candidate_id'],'rank':c['rank'],'semantic_accepted':c['accepted'],'selected':c['candidate_id']==selected_id,'complexity_canonical_bytes':c['complexity_canonical_bytes'],'confidence_cells_at_or_above_reference':c['confidence_diagnostics']['cells_at_or_above_threshold'],'reason':('Protocol rank 1; four required roles with only implemented overridden.' if c['candidate_id']==selected_id else ('Exact and stable; lower confidence rank despite shorter wording.' if c['candidate_id']=='c02' else '; '.join(c['reason_codes'])))} for c in evaluation['candidate_rankings']]
+rankings.append({'candidate_id':'c00','rank':None,'semantic_accepted':False,'selected':False,'reason':'Baseline failed exact-role acceptance at 110/112; retained unchanged.'})
+data={'operation':'tune','gate':'development','accepted':True,'tournament_protocol_version':req['tournament_protocol_version'],'production_confidence_threshold':req['production_confidence_threshold'],'confidence_reference_threshold':req['confidence_reference_threshold'],'semantic_score':score,'confidence_diagnostics':diagnostics,'tuning_history_before_sha256':sha(baseline_history),'tuning_history_after':history,'tuning_history_after_sha256':sha(history),'production_semantics_unchanged':True,'authority_citations':[f"{bindings['intent_id']} version {bindings['intent_version']} sha256 {bindings['intent_sha256']}",f"{bindings['anchor_id']} locked version {bindings['anchor_version']} record sha256 {bindings['anchor_record_sha256']}",'Approved ANC-008 pass/fail fixtures preserved verbatim; all oracle probes frozen before any Jev response.'],'oracle_sha256':freeze['oracle_sha256'],'sealed_question_set':sealed,'candidate_rankings':rankings,'acceptance_table':acceptance,'evidence':{'status':'independently-sealed','selected_candidate_id':selected_id,'baseline_defect':'implemented unclear rather than frozen no on topical-only, both repeats; baseline 110/112 exact role cells, 28/28 verdicts, 14/14 stable.','approved_fixture_results':fixtures,'full_acceptance_table_path':table_path,'full_acceptance_table_sha256':sha(per_case),'full_source_neutral_ledger_path':ledger_path,'full_source_neutral_ledger_sha256':sha(source_neutral_ledger),'authority_bindings_path':str(ROOT/'authority-bindings.json'),'sealed_bindings_path':str(ROOT/'sealed/seal-bindings.json'),'selected_override_path':str(ROOT/'sealed/c03.override.json'),'selected_override_sha256':sha({'questions':overrides}),'raw_baseline_manifest_path':str(ROOT/'baseline/manifest.json'),'raw_tournament_manifest_path':str(ROOT/'tournament/manifest.json'),'baseline_history_before_preserved':True,'all_raw_responses_preserved':True,'all_candidates_preserved':True,'oracle_relabels':0,'leaf_network_calls':0,'canonical_encoding':'UTF-8 JSON, sorted keys, comma/colon separators, ensure_ascii false, no newline'},'explanation':'c03 is the protocol-ranked smallest role-complete production set: four required questions with one defective-role override and three byte-identical defaults. It matches all frozen role cells and semantic verdicts in both repeats without regression. c02 is also semantically accepted and has fewer canonical wording bytes, but mandatory confidence-before-complexity ranking places it second. c01 and c04 remain rejected with their original raw failures. Confidence below the 0.8 reference is diagnostic here and never changes the production threshold.','planner_action':'Apply only the accepted implemented override from evidence.selected_override_path through the authorized record workflow, preserving the full four-role sealed digest and canonical history. Then run a fresh full production development gate at threshold 0.6; tournament acceptance does not imply the current plan or implementation passes.','question_action':None,'sealed_question_set_digest_before':None,'sealed_question_set_digest_after':sealed['digest'],'authority_recommendations':[]}
+params={'success':True,'canceled':False,'aborted_by':None,'data':data,'error':None,'metadata':{'duration_ms':0,'tool_calls':3,'retry_count':0,'correlation_id':req['correlation_id'],'jev_run_ids':[r['correlation_id'] for r in all_rows],'planner_observation_trust':None,'authoritative_sources_unchanged':True}}
+save('accepted-result.vars.json',params)
+print(json.dumps({'accepted':True,'candidate_id':selected_id,'question_sha256':sealed['digest'],'oracle_sha256':freeze['oracle_sha256'],'history_sha256':sha(history),'full_ledger_sha256':sha(source_neutral_ledger),'override_path':str(ROOT/'sealed/c03.override.json')}))

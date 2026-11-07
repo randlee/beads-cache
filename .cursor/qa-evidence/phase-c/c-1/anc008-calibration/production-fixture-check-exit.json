@@ -1,0 +1,23 @@
+{
+  "exit_code": 0,
+  "argv": [
+    "python3",
+    ".codex/skills/plan-anchoring/scripts/jev_judge.py",
+    "check-fixtures",
+    "--anchors",
+    "docs/plans/phase-c/anchors/anchors.json",
+    "--gate",
+    "dev",
+    "--id",
+    "ANC-008",
+    "--overrides-file",
+    "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/selected-overrides.json",
+    "--threshold",
+    "0.6",
+    "--run-dir",
+    "target/qa-15-anchor-evidence/calibrated-fixtures",
+    "--repository-root",
+    "/Users/randlee/github/beads-cache-worktrees/sprint/c-1-runtime-migration"
+  ],
+  "TLS_verification_enabled": true
+}

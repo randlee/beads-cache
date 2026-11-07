@@ -1,0 +1,13 @@
+{
+  "question_bead": "bdc-i61.2",
+  "changed_fields": [
+    "description",
+    "updated_at"
+  ],
+  "resolved_sealed_questions_sha256": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+  "accepted_seal_sha256": "c4afc2cef0d43f95d0cd3ded23352fde1c2abf4fb76e79380355ddf3cf27913d",
+  "resolved_complete_runtime_bundle_sha256": "4f9b8d5542a9761dd5e20a0d78b38e4923bb0dad76348bf7fb8495105d6c64ab",
+  "exact_selected_override": true,
+  "anchor_statement_scope_threshold_unchanged": true,
+  "digest_note": "Contract seal domain is canonical object {questions:fourrolemap}; runtimebundle additionally contains unchanged schema/gate/version/notes/roles."
+}

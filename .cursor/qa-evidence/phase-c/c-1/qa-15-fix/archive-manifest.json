@@ -1,0 +1,65 @@
+{
+  "scope": "Completed report-only QA15 correction, source c400 unchanged; no passing gate implied",
+  "files": [
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/build-account.py",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/build-account.py.txt",
+      "sha256": "6314ffd723ed30b212efa085068cb63a708dcfb4a8eb6b8d99b54f2fc3d1933c",
+      "bytes": 15490
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/corrected-sprint-report.md",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/corrected-sprint-report.md",
+      "sha256": "ef726a72285b8ca1ed65d6aebbdbde3551773e46855c823bbe290dbd0bccb0e4",
+      "bytes": 7137
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/developer-result.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/developer-result.json",
+      "sha256": "af8ce163a1dd6e531775bddd34bbbadae40dbaec67e9404019b1559c7e907571",
+      "bytes": 11447
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/developer-result.md",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/developer-result.md",
+      "sha256": "c2a22ea814c206aaed9b37fbaa3ab72168e4c6862469d9d36fe5d7bb19d8eff6",
+      "bytes": 1683
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/fix-vars.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/fix-vars.json",
+      "sha256": "332fee1404ad5873d42085dbf13a7cf4307a5db72625981727808a2949211e83",
+      "bytes": 6846
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/fix.xml",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/fix.xml.txt",
+      "sha256": "bf5a5925361a9f8aa329dfaf7ea100fc220ae9d3995ddf02758dd428252238ac",
+      "bytes": 9312
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/lint-argv-proof.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/lint-argv-proof.json",
+      "sha256": "99c5b4447df11d94ea181fbd3bfc8c5439a16daf5eaa51c53ab76f859dc09bdd",
+      "bytes": 10342
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/mechanical-proof.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/mechanical-proof.json",
+      "sha256": "a61aeecc6a79f32848156138991cf5c8ee8ad15100277cfd0cb66a3c089bdbb8",
+      "bytes": 1405
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/original-artifact-hashes-before.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/original-artifact-hashes-before.json",
+      "sha256": "4ec99d7e410a87613d33e807f733c4023ee7ca834a66d0e5787d1c7647b1581f",
+      "bytes": 49329
+    },
+    {
+      "source": "/tmp/phase-c-execution/c-1/qa-15-fix/published-qa15-comment.json",
+      "archive": ".cursor/qa-evidence/phase-c/c-1/qa-15-fix/published-qa15-comment.json",
+      "sha256": "739d0e78d58950be165fa8aba97da9f31828213b2ed5628f356593b29ffb7afa",
+      "bytes": 11551
+    }
+  ]
+}

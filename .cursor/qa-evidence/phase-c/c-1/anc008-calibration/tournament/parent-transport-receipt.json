@@ -1,0 +1,1921 @@
+{
+  "oracle_sha256": "9e2127663424aeb7a54a7b9daaa5fc8c001cba4e0aaca5f1b6faae9d8377a4ce",
+  "candidates": [
+    "c01",
+    "c02",
+    "c03",
+    "c04"
+  ],
+  "requests": 112,
+  "successful": 112,
+  "failed": 0,
+  "elapsed_seconds": 4.401331186294556,
+  "certificate_verification_enabled": true,
+  "credential_source": "existing environment; not persisted",
+  "results": [
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-approved-pass-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-approved-pass-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "1a9ddd0013aac2cb8b72b8efa41897c6b9e3898c8ed046158718c220f8f091e4",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11458897590637207,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-approved-pass-r1.attempt1.raw.json",
+          "raw_sha256": "1aefc1d009f390f6bf3da94d6f8e3e914f9cebcd19f989024bd84ceba6fa883e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-approved-pass-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-approved-pass-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "1a9ddd0013aac2cb8b72b8efa41897c6b9e3898c8ed046158718c220f8f091e4",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10664796829223633,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-approved-pass-r2.attempt1.raw.json",
+          "raw_sha256": "1aefc1d009f390f6bf3da94d6f8e3e914f9cebcd19f989024bd84ceba6fa883e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-approved-fail-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-approved-fail-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "871d5fbb97d3b5c19c1f79d34dd257395fadbec9c7e6cdc3b0ac9825e360b8c9",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10958003997802734,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-approved-fail-r1.attempt1.raw.json",
+          "raw_sha256": "065acd21f1a1f49bd02a46e592636574be846d8a3633f2fdd7fdb72e0f79c2b5"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-approved-fail-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-approved-fail-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "871d5fbb97d3b5c19c1f79d34dd257395fadbec9c7e6cdc3b0ac9825e360b8c9",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12507224082946777,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-approved-fail-r2.attempt1.raw.json",
+          "raw_sha256": "065acd21f1a1f49bd02a46e592636574be846d8a3633f2fdd7fdb72e0f79c2b5"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-minimal-compliant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-minimal-compliant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "54b6ff311cc2e51798b372245c1958c6844aeb60aaa6fad3173af43526ab359b",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08645915985107422,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-minimal-compliant-r1.attempt1.raw.json",
+          "raw_sha256": "e28809f8b7c6a474df16c091cfcbc1ae58d17857914be404a449fed9d95767b4"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-minimal-compliant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-minimal-compliant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "54b6ff311cc2e51798b372245c1958c6844aeb60aaa6fad3173af43526ab359b",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.07726192474365234,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-minimal-compliant-r2.attempt1.raw.json",
+          "raw_sha256": "4d299ea3bae20290d4cd3bd470de52e57297e8f98f5c339c36c1d2289c7cf4ca"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-silent-topic-work-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-silent-topic-work-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "ecbc4049b24d887a882366b520b949422e746f104b0b6c80c20d3f06c987464a",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08147811889648438,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-silent-topic-work-r1.attempt1.raw.json",
+          "raw_sha256": "c0465b80f177feb491797e7f100d812484f394a17528b33c9b0db35581a0c661"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-silent-topic-work-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-silent-topic-work-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "ecbc4049b24d887a882366b520b949422e746f104b0b6c80c20d3f06c987464a",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09140706062316895,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-silent-topic-work-r2.attempt1.raw.json",
+          "raw_sha256": "bd9df640eca5764d37b30585862a8fe8ebe285380b02832b41e7eb3e7cd7751a"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-topical-only-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-topical-only-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e02b2237b8571376a611edc12bfce672c9b31f856f4909cf2346beb806d2d9d4",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.07700133323669434,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-topical-only-r1.attempt1.raw.json",
+          "raw_sha256": "5487cc99e08acaa27052450e3703670d853d6bd94d75c0c0d02d8af278d342cd"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-topical-only-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-topical-only-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e02b2237b8571376a611edc12bfce672c9b31f856f4909cf2346beb806d2d9d4",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.0777130126953125,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-topical-only-r2.attempt1.raw.json",
+          "raw_sha256": "f6f583dc7c4cf5299c9544c855e7b4ba9154b86ef16a2c849888cdf545f6d79f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-direct-conflict-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-direct-conflict-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "79a3d0bafb4f5d271e2c704e107e6455f8e900cab490504aefde16c9a265137c",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08858108520507812,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-direct-conflict-r1.attempt1.raw.json",
+          "raw_sha256": "6eb19d1283e19359f6467e6a80adc4c6c41e0f73a54988ebc4a875fb73c66d7f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-direct-conflict-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-direct-conflict-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "79a3d0bafb4f5d271e2c704e107e6455f8e900cab490504aefde16c9a265137c",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.23344206809997559,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-direct-conflict-r2.attempt1.raw.json",
+          "raw_sha256": "6eb19d1283e19359f6467e6a80adc4c6c41e0f73a54988ebc4a875fb73c66d7f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-irrelevant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-irrelevant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "fbd49eec22a417cc2030fe6c539c8011c1070ef43982f24edb2c5838a78b289d",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.24277210235595703,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-irrelevant-r1.attempt1.raw.json",
+          "raw_sha256": "55ed9db14383be3a5ab951968d0aded006535367d5eb34011f96a28569f95c1f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-irrelevant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-irrelevant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "fbd49eec22a417cc2030fe6c539c8011c1070ef43982f24edb2c5838a78b289d",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2322690486907959,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-irrelevant-r2.attempt1.raw.json",
+          "raw_sha256": "55ed9db14383be3a5ab951968d0aded006535367d5eb34011f96a28569f95c1f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-zero-rows-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-zero-rows-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "c220582c5c2bae1b279b93d49ae7661ead192c5d35e79239c37014504fd135ba",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2540717124938965,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-zero-rows-r1.attempt1.raw.json",
+          "raw_sha256": "6a085c1c5dfbbcb7659e14540f18ff8fa6eda3f065ae6874c6b9be2d1f077709"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-zero-rows-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-zero-rows-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "c220582c5c2bae1b279b93d49ae7661ead192c5d35e79239c37014504fd135ba",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09619784355163574,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-zero-rows-r2.attempt1.raw.json",
+          "raw_sha256": "6a085c1c5dfbbcb7659e14540f18ff8fa6eda3f065ae6874c6b9be2d1f077709"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-separate-repositories-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-separate-repositories-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "50d29b8fa7f7886bdc8eb02bdb5948d592f60d9ee6be5b2ed41e14c0bcc4881d",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09526872634887695,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-separate-repositories-r1.attempt1.raw.json",
+          "raw_sha256": "d1a93a4aab3fb43bcd2e7b8d3311e83ad5cc65d5fcb7f1cb698b4907563db5ab"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-separate-repositories-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-separate-repositories-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "50d29b8fa7f7886bdc8eb02bdb5948d592f60d9ee6be5b2ed41e14c0bcc4881d",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08359694480895996,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-separate-repositories-r2.attempt1.raw.json",
+          "raw_sha256": "d1a93a4aab3fb43bcd2e7b8d3311e83ad5cc65d5fcb7f1cb698b4907563db5ab"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-general-jobs-allowed-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-general-jobs-allowed-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "a12503da9ea43091b03e700374ad5ef9d626e92f7eda7e9e2e58a776b0a79160",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.07965517044067383,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-general-jobs-allowed-r1.attempt1.raw.json",
+          "raw_sha256": "a7a7b0f88cb257f2bc992f532cf64d0113826393788ee33e42602e61cd68ecfb"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-general-jobs-allowed-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-general-jobs-allowed-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "a12503da9ea43091b03e700374ad5ef9d626e92f7eda7e9e2e58a776b0a79160",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08053469657897949,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-general-jobs-allowed-r2.attempt1.raw.json",
+          "raw_sha256": "c3c57abc29e17cd078f9a51ce231e5436bca4e211a7b35ff0fafbf7d2fc0e7f5"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-asserted-without-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-asserted-without-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e63e4983132bb8226c9b5fc4d36801f919ff42f9384bed8699b6cdf39a43336a",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.37737178802490234,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-asserted-without-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "d8e223e78cf70c934fa8518499e748debd4574dbd4ea5b1a7cc0aa67d974d9fe"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-asserted-without-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-asserted-without-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e63e4983132bb8226c9b5fc4d36801f919ff42f9384bed8699b6cdf39a43336a",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.36933398246765137,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-asserted-without-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "d8e223e78cf70c934fa8518499e748debd4574dbd4ea5b1a7cc0aa67d974d9fe"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-concretely-evidenced-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-concretely-evidenced-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "7565677d40eb457acc6d7111452eb9d82b48be7112c933c9834be2bcb0db3756",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.34906506538391113,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-concretely-evidenced-r1.attempt1.raw.json",
+          "raw_sha256": "da84c15722837ba6d050f2fd0d1a2a0483619b1ec65e498e576d8ca7237cbd1f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-concretely-evidenced-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-concretely-evidenced-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "7565677d40eb457acc6d7111452eb9d82b48be7112c933c9834be2bcb0db3756",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.34581494331359863,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-concretely-evidenced-r2.attempt1.raw.json",
+          "raw_sha256": "da84c15722837ba6d050f2fd0d1a2a0483619b1ec65e498e576d8ca7237cbd1f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-uncertain-cardinality-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-uncertain-cardinality-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "911459dc364bc377fc8b9a9eb10035a7faa524385bc96f03d0986ca693eb4a82",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.13191604614257812,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-uncertain-cardinality-r1.attempt1.raw.json",
+          "raw_sha256": "97f7ca59e03170e7b3eee3653ce9dbdcded43a8216cd141e9ba96b3587517f9d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-uncertain-cardinality-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-uncertain-cardinality-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "911459dc364bc377fc8b9a9eb10035a7faa524385bc96f03d0986ca693eb4a82",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10910296440124512,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-uncertain-cardinality-r2.attempt1.raw.json",
+          "raw_sha256": "d76d42ef900405d71bd202b7518aca8a37c7a74f823c671192f0a69ffa9c5371"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "9bafede6f0844a57907974afbf2d7074c23c05bb30df7230bf71faea5f73d643",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10246920585632324,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "f0b065c61889f8be2a485892a067c69509df4d4d4b7bcce80fc70ca0f30a0d9a"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "9bafede6f0844a57907974afbf2d7074c23c05bb30df7230bf71faea5f73d643",
+          "candidate_id": "c01",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.15286493301391602,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c01-per-scope-conflict-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "5efdd990486dc64e1b444863d32076c45d7ba79aeb38d0238e458b654db15ce4"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-approved-pass-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-approved-pass-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "905c5d2fa22408ad92dccd6ee50814ad955102c4e06314c306e480d118c9a3c8",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08575105667114258,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-approved-pass-r1.attempt1.raw.json",
+          "raw_sha256": "9f1677e31bf24217678c883c1236d6dca78ef76412867bb79d99439c59058734"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-approved-pass-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-approved-pass-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "905c5d2fa22408ad92dccd6ee50814ad955102c4e06314c306e480d118c9a3c8",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08968591690063477,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-approved-pass-r2.attempt1.raw.json",
+          "raw_sha256": "5ccd0c4f17b14868ac7fa6ab89c7046830751564c0b5dc47801bc5c9cc9b6265"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-approved-fail-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-approved-fail-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "4cd7146ee8b2a101fc476b8ee99dc6eeb7b21401ddb5cf24af93b57cc788c4d3",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08047986030578613,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-approved-fail-r1.attempt1.raw.json",
+          "raw_sha256": "16ebbd1cd63bd4109394b7f9e5d3aa5d7f7d60eb2aecffb65f9dda292763c02d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-approved-fail-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-approved-fail-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "4cd7146ee8b2a101fc476b8ee99dc6eeb7b21401ddb5cf24af93b57cc788c4d3",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10002303123474121,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-approved-fail-r2.attempt1.raw.json",
+          "raw_sha256": "d201bfe801210826d69d50ac461570082b6cb27dc0484f49c232a3ef650edb85"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-minimal-compliant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-minimal-compliant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "dc10edc33b5409fdfa25b9d89a5e6683a9f128e26e40c864707f3d78e24a906a",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08542490005493164,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-minimal-compliant-r1.attempt1.raw.json",
+          "raw_sha256": "d8ac296d3599578d5459e0d9fa78c36a65bdf15b3ed83246cbb9a1e7e3e4ad0f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-minimal-compliant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-minimal-compliant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "dc10edc33b5409fdfa25b9d89a5e6683a9f128e26e40c864707f3d78e24a906a",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.0994718074798584,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-minimal-compliant-r2.attempt1.raw.json",
+          "raw_sha256": "c19af9de0c92ae096fc828da78bd0b687dd2219e5761bd79c86bbd1b097b9764"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-silent-topic-work-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-silent-topic-work-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "f5087c9c3ad8a5b8218fcf2aa3018f556f491dd8506a3438a1bcfc8178de000f",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.31653285026550293,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-silent-topic-work-r1.attempt1.raw.json",
+          "raw_sha256": "613eec5094b49403587c8b289178529f98a4984d29213972b554634a3cb594fb"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-silent-topic-work-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-silent-topic-work-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "f5087c9c3ad8a5b8218fcf2aa3018f556f491dd8506a3438a1bcfc8178de000f",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.27231693267822266,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-silent-topic-work-r2.attempt1.raw.json",
+          "raw_sha256": "87e84f0f33615199f2d675dd8cfb0c6a3b18b3e2d8730614bdfd6bda6d69aba2"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-topical-only-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-topical-only-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "8aabb6f1dcf70da1676b99c33adef5c7116eb5777ec029e16bcf9aeec694f357",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.30780887603759766,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-topical-only-r1.attempt1.raw.json",
+          "raw_sha256": "8c741a6efc89b031d78384d3b4d763c3927748c3d52173f6f9bab1b901fc1eaf"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-topical-only-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-topical-only-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "8aabb6f1dcf70da1676b99c33adef5c7116eb5777ec029e16bcf9aeec694f357",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.33582091331481934,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-topical-only-r2.attempt1.raw.json",
+          "raw_sha256": "43e483852d63906fd3fd03998e9af181e851b0cc580463f422210a542be5f089"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-direct-conflict-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-direct-conflict-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "7a20153399cb7ce592213a631aa8074568417b50ce1a99308eee6db875c0b13b",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.0975949764251709,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-direct-conflict-r1.attempt1.raw.json",
+          "raw_sha256": "f2fe067051f5ba4ab0ad34818619adf57d9c6db3a87cfc4c2867e4c20971f7cc"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-direct-conflict-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-direct-conflict-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "7a20153399cb7ce592213a631aa8074568417b50ce1a99308eee6db875c0b13b",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09600186347961426,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-direct-conflict-r2.attempt1.raw.json",
+          "raw_sha256": "f7151ab8aefce37b267a0e0dc8dfd680af76904d7db6dca1364041cbc0ffad9e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-irrelevant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-irrelevant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "6fff3af1088d6f2a288f29e44ad9ee4b7d59723725d3ebfe58ced2730d13db0c",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10233807563781738,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-irrelevant-r1.attempt1.raw.json",
+          "raw_sha256": "459ebc9bbac3733eeb5d7fe9cb13aa5c717127b2980ac577d6b1f8fe5fca01d6"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-irrelevant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-irrelevant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "6fff3af1088d6f2a288f29e44ad9ee4b7d59723725d3ebfe58ced2730d13db0c",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08823108673095703,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-irrelevant-r2.attempt1.raw.json",
+          "raw_sha256": "fee987da44cbbc0f06c7ff032fd102079ae508d16c600297ad94c2d04c284196"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-zero-rows-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-zero-rows-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "c628ea51f17c82c4f7bf6d2b2089456f833a08c88cb9129b8c6702261ce732bf",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09279417991638184,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-zero-rows-r1.attempt1.raw.json",
+          "raw_sha256": "705365f7fd9a645b578fb239ea0aa5f9fd9e15683c1e76ea85a3db169667d27f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-zero-rows-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-zero-rows-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "c628ea51f17c82c4f7bf6d2b2089456f833a08c88cb9129b8c6702261ce732bf",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.07645177841186523,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-zero-rows-r2.attempt1.raw.json",
+          "raw_sha256": "705365f7fd9a645b578fb239ea0aa5f9fd9e15683c1e76ea85a3db169667d27f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-separate-repositories-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-separate-repositories-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e1bc3e6024ac07cde7ae8abc5eba8ca3b33b442791f66700aaf1c56986af1f5a",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2958509922027588,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-separate-repositories-r1.attempt1.raw.json",
+          "raw_sha256": "ea28762931d38ad17c60fd76a6e070d3a119aa204e1613747d59910584226bc9"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-separate-repositories-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-separate-repositories-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e1bc3e6024ac07cde7ae8abc5eba8ca3b33b442791f66700aaf1c56986af1f5a",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.271528959274292,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-separate-repositories-r2.attempt1.raw.json",
+          "raw_sha256": "88ab2e373afbc2f594645d7214958dc6b46a6f04153004d1f2de0d39247318d3"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-general-jobs-allowed-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-general-jobs-allowed-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "861f9901d2c6b83e0eee5bc9d5f36465354ab98f4afe8ce94dc4e4e0e6f825d5",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.26285386085510254,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-general-jobs-allowed-r1.attempt1.raw.json",
+          "raw_sha256": "0bf4bce345492128c86de18fea4ce6f5e014ffed6775c173f27982c4e0e66f95"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-general-jobs-allowed-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-general-jobs-allowed-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "861f9901d2c6b83e0eee5bc9d5f36465354ab98f4afe8ce94dc4e4e0e6f825d5",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.44532108306884766,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-general-jobs-allowed-r2.attempt1.raw.json",
+          "raw_sha256": "735700d78c2cee1cf4c1718171706681c1cfddef43c423a0b0ada7880cc2f1ff"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-asserted-without-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-asserted-without-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "cc48895cfdd02bab973cb479230c384e7779f52ae438bbaa5c0a318df9ac1cbb",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11748766899108887,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-asserted-without-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "1150214ee9d04a302193637abe8c77897f74510049b42c267ec14ee73824814c"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-asserted-without-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-asserted-without-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "cc48895cfdd02bab973cb479230c384e7779f52ae438bbaa5c0a318df9ac1cbb",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08763384819030762,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-asserted-without-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "1150214ee9d04a302193637abe8c77897f74510049b42c267ec14ee73824814c"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-concretely-evidenced-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-concretely-evidenced-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "03cb5bf0873e5b6170b306e29193bba17c1277d25271e28a80d73f323baf7006",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1124880313873291,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-concretely-evidenced-r1.attempt1.raw.json",
+          "raw_sha256": "2d62af75b048f0a651522eb2e0f5e50c23a320b3fcf0dbeed14568c48222ec93"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-concretely-evidenced-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-concretely-evidenced-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "03cb5bf0873e5b6170b306e29193bba17c1277d25271e28a80d73f323baf7006",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11673712730407715,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-concretely-evidenced-r2.attempt1.raw.json",
+          "raw_sha256": "eb1fbe9155999838c0920eb6aea18c639b86fba73d2afea667abcac1e1ce83e2"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-uncertain-cardinality-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-uncertain-cardinality-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "ca75574907258c66671baaf3c63f05db9eb937f6964589f3f03d9e6c5d68a7d2",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12639069557189941,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-uncertain-cardinality-r1.attempt1.raw.json",
+          "raw_sha256": "b05cabad834469cd29e04a8a7cfd07dcef9ad76b78443f9788789fcaa6c36d85"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-uncertain-cardinality-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-uncertain-cardinality-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "ca75574907258c66671baaf3c63f05db9eb937f6964589f3f03d9e6c5d68a7d2",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1283109188079834,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-uncertain-cardinality-r2.attempt1.raw.json",
+          "raw_sha256": "ba260b66dafaa798358b19d74360be0f3d441b953c1db2cfd8809de6586dbb86"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "2fe250cbca401076c37d3278d5c7276d65e18cf8fbda037e0329f99cf92fe219",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08841872215270996,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "1375c90fe0cd84ab9b7990b0c48017c318c8622a19c86003a66ba3ddca88d100"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "2fe250cbca401076c37d3278d5c7276d65e18cf8fbda037e0329f99cf92fe219",
+          "candidate_id": "c02",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1022191047668457,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c02-per-scope-conflict-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "ba51aeb2eee89d14c54dee9046c1c73f1baa043cb56ece0e51fb825956c5a2e9"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-approved-pass-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-approved-pass-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "610e3085ac6ac43f6233e06de69917d01ca8a3011a5d1a465b70e9af3aac2efa",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12054896354675293,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-approved-pass-r1.attempt1.raw.json",
+          "raw_sha256": "0ce7dd6d7110ff9a1be6b6552241eceb1a1e2750892a90d15ed518bf1a6ca255"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-approved-pass-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-approved-pass-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "610e3085ac6ac43f6233e06de69917d01ca8a3011a5d1a465b70e9af3aac2efa",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10843420028686523,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-approved-pass-r2.attempt1.raw.json",
+          "raw_sha256": "d342f9f268e2171ce23a0ff6ee5fc31ce2f69700406cec78035fbc2a8c5aff69"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-approved-fail-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-approved-fail-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e2fa4dada178892b1004b84a1f45596051668cedf261ff86e11efa6237ce0cdc",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.24971866607666016,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-approved-fail-r1.attempt1.raw.json",
+          "raw_sha256": "a60df6a93a8d31aadda1c24788027ed999e9dd65de55e440d3a86e9a4c8216dd"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-approved-fail-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-approved-fail-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e2fa4dada178892b1004b84a1f45596051668cedf261ff86e11efa6237ce0cdc",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2192227840423584,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-approved-fail-r2.attempt1.raw.json",
+          "raw_sha256": "a60df6a93a8d31aadda1c24788027ed999e9dd65de55e440d3a86e9a4c8216dd"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-minimal-compliant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-minimal-compliant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e773ad37733f7b0ab75bcb7a9e91109d44687a0717a39c69d5ec085bdf489b54",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.24683308601379395,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-minimal-compliant-r1.attempt1.raw.json",
+          "raw_sha256": "aef80d3e6d29cbe0e1ec4da43e946de0c3044e90a1390339a12694d66887e048"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-minimal-compliant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-minimal-compliant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e773ad37733f7b0ab75bcb7a9e91109d44687a0717a39c69d5ec085bdf489b54",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2522759437561035,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-minimal-compliant-r2.attempt1.raw.json",
+          "raw_sha256": "036b06833a0fbaf0cc0d1a0c91c7d5945cf53fdfd205a2311c93f1a0358ae522"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-silent-topic-work-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-silent-topic-work-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "c4a7c48251a057b8b743318af0fcdc13da3b3cd8052e7cbf16689ab12037864b",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12019491195678711,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-silent-topic-work-r1.attempt1.raw.json",
+          "raw_sha256": "3e5f1e9085d866dd4f3231f038169ef70562f6e7caff72450e1d7434205fa44b"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-silent-topic-work-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-silent-topic-work-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "c4a7c48251a057b8b743318af0fcdc13da3b3cd8052e7cbf16689ab12037864b",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11988019943237305,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-silent-topic-work-r2.attempt1.raw.json",
+          "raw_sha256": "4c9c9bb5f48817feb83acdb2476074873d2b60326460eb0bb0d9ea3a9fd27b3a"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-topical-only-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-topical-only-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "08cfceb219173215a649807cb3d2c94a8dd5f606c96f48d21a416ca16c2a3694",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1196432113647461,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-topical-only-r1.attempt1.raw.json",
+          "raw_sha256": "d5e6d789f6d3fc874da3a17c2471e23f4251f189a02557a80a8d593e186a3dac"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-topical-only-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-topical-only-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "08cfceb219173215a649807cb3d2c94a8dd5f606c96f48d21a416ca16c2a3694",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11839795112609863,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-topical-only-r2.attempt1.raw.json",
+          "raw_sha256": "e205238babcec92a2cb59cee434ee825abda5162a4cff341a508e94ef06a7d6f"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-direct-conflict-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-direct-conflict-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "2661f2b2b56d8049eb969ca4fccb6676ed0df68ae3e63f9868069a6751058f61",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08529996871948242,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-direct-conflict-r1.attempt1.raw.json",
+          "raw_sha256": "53a8619dd4cb37e7c7098a8f406cd16545b6dc6d12413bd740855566cc3dfc2d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-direct-conflict-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-direct-conflict-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "2661f2b2b56d8049eb969ca4fccb6676ed0df68ae3e63f9868069a6751058f61",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11269712448120117,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-direct-conflict-r2.attempt1.raw.json",
+          "raw_sha256": "53a8619dd4cb37e7c7098a8f406cd16545b6dc6d12413bd740855566cc3dfc2d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-irrelevant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-irrelevant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "130401f61be6d4ca4496343e5df81262f26fb5ebbf28df69e18e1e4effdc9fb6",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.3235819339752197,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-irrelevant-r1.attempt1.raw.json",
+          "raw_sha256": "062f3ed8991cb3ce58af9b1b9a7571823d6ccac69377863fb5d9491d4e614289"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-irrelevant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-irrelevant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "130401f61be6d4ca4496343e5df81262f26fb5ebbf28df69e18e1e4effdc9fb6",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.309298038482666,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-irrelevant-r2.attempt1.raw.json",
+          "raw_sha256": "131322d1ea2a30a492e1ca92a08294096c471560af45dab76bb1ad3dbd89c306"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-zero-rows-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-zero-rows-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "52ec59588b4ea286668723000c37e7db419df2a5e1d7b73adf842fa0d1cd635b",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.30986475944519043,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-zero-rows-r1.attempt1.raw.json",
+          "raw_sha256": "f57b39143b8dd19e8379343da7205fb16249e10525d0d691398a3e51c6f298eb"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-zero-rows-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-zero-rows-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "52ec59588b4ea286668723000c37e7db419df2a5e1d7b73adf842fa0d1cd635b",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.28261399269104004,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-zero-rows-r2.attempt1.raw.json",
+          "raw_sha256": "08859b58269c7acd43eaab12f5b01827475e0904fc9f9968799fe984dabc4dd7"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-separate-repositories-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-separate-repositories-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "651785dd737e8236f607b8084386dedfee831fd3e4e6ff03501421c6db64bae7",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10993790626525879,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-separate-repositories-r1.attempt1.raw.json",
+          "raw_sha256": "3f013265a2a30521ec99193060f53ea0e1e36443148f991f13b57853750411f5"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-separate-repositories-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-separate-repositories-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "651785dd737e8236f607b8084386dedfee831fd3e4e6ff03501421c6db64bae7",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11879277229309082,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-separate-repositories-r2.attempt1.raw.json",
+          "raw_sha256": "3f013265a2a30521ec99193060f53ea0e1e36443148f991f13b57853750411f5"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-general-jobs-allowed-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-general-jobs-allowed-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "18274e533626a207fbd361d3712c7ba1d5ffae85ebb24f8e765889ffb839a0b2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10898399353027344,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-general-jobs-allowed-r1.attempt1.raw.json",
+          "raw_sha256": "fd6776ae48715658505bab442eb33f979febf5afb71546e888640b67a86bd2ba"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-general-jobs-allowed-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-general-jobs-allowed-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "18274e533626a207fbd361d3712c7ba1d5ffae85ebb24f8e765889ffb839a0b2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11674118041992188,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-general-jobs-allowed-r2.attempt1.raw.json",
+          "raw_sha256": "fd6776ae48715658505bab442eb33f979febf5afb71546e888640b67a86bd2ba"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-asserted-without-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-asserted-without-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "5b00198f692d3b99d7a9b36df150d0f13d2b53256e3d850ef8c1ef5a4c6862a2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12637114524841309,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-asserted-without-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "0baf7ae166e42507778d3392a81475594fbb5221d80e64bc1014a0e4f52719ca"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-asserted-without-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-asserted-without-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "5b00198f692d3b99d7a9b36df150d0f13d2b53256e3d850ef8c1ef5a4c6862a2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11409902572631836,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-asserted-without-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "35eed79bec714bc41ce63db6a35b1a6eb2d39740a15a0fe76f17ad9d084b209c"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-concretely-evidenced-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-concretely-evidenced-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "2d23ffe375ccd087027269c9965a28bd2555d79c7006dfad6a89ef15af3547e2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1045081615447998,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-concretely-evidenced-r1.attempt1.raw.json",
+          "raw_sha256": "9c83568f46a224d3744999894ec6be81bf3d007d1901be24cd6580042514a667"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-concretely-evidenced-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-concretely-evidenced-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "2d23ffe375ccd087027269c9965a28bd2555d79c7006dfad6a89ef15af3547e2",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11750197410583496,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-concretely-evidenced-r2.attempt1.raw.json",
+          "raw_sha256": "9c83568f46a224d3744999894ec6be81bf3d007d1901be24cd6580042514a667"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-uncertain-cardinality-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-uncertain-cardinality-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "7a6270d3e25fe6b02b456fbfb05348ba1f0f0a006772a41fedfa6d9632e9cfb6",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.13035821914672852,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-uncertain-cardinality-r1.attempt1.raw.json",
+          "raw_sha256": "e07d0af42e4ef31eeab21c613c9b80b8418fe64ee76c3b4f59254d84bd27a421"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-uncertain-cardinality-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-uncertain-cardinality-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "7a6270d3e25fe6b02b456fbfb05348ba1f0f0a006772a41fedfa6d9632e9cfb6",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12040305137634277,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-uncertain-cardinality-r2.attempt1.raw.json",
+          "raw_sha256": "7c93f9545b0e47218485f33d4046a0f9d107cc81d3da2a6c94f5c9bd7d2661a6"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "ebd3b54aca1bcb61cb458de9d5ff8a0ea0f3c90c29c2eea7c3c774fafe4e80fe",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.2861177921295166,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "5e7cb7413f6548d67a62189d85c812799b7762e8f16104120c5615e3d526edde"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "ebd3b54aca1bcb61cb458de9d5ff8a0ea0f3c90c29c2eea7c3c774fafe4e80fe",
+          "candidate_id": "c03",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11441612243652344,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c03-per-scope-conflict-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "212527b96aed8a0408ce83097d7d73c60552109bac1cd05308a9c31cef830010"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-approved-pass-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-approved-pass-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "e4d0ae0246d9a8fce0ae8b06a027cd7b9adffd5200a24f4c1db6a29f6b3117f2",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.27147603034973145,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-approved-pass-r1.attempt1.raw.json",
+          "raw_sha256": "3b40a915bd8f629ec6f7ca49c99b2ed99963bd21be5622857b5ebee4197eba9e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-approved-pass-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-approved-pass-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "e4d0ae0246d9a8fce0ae8b06a027cd7b9adffd5200a24f4c1db6a29f6b3117f2",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.26630187034606934,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-approved-pass-r2.attempt1.raw.json",
+          "raw_sha256": "3b09bcf3797fd7df473eb2a2cde6e64263dce25f3207c1a571842541c0d27553"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-approved-fail-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-approved-fail-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "f48df920673b2521dffc110a34799867458ba848c24a27a818c0bc7849e14570",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.26490211486816406,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-approved-fail-r1.attempt1.raw.json",
+          "raw_sha256": "2304c39257badf9cd1f1e1595dff98507d8d2d27876ad07f68e0fb6d8b6c1f05"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-approved-fail-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-approved-fail-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "f48df920673b2521dffc110a34799867458ba848c24a27a818c0bc7849e14570",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10658597946166992,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-approved-fail-r2.attempt1.raw.json",
+          "raw_sha256": "2304c39257badf9cd1f1e1595dff98507d8d2d27876ad07f68e0fb6d8b6c1f05"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-minimal-compliant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-minimal-compliant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "a556e28a5adf9568f398e4453bab4eb300db583a8c5d57f163518beaf9a09765",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10879921913146973,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-minimal-compliant-r1.attempt1.raw.json",
+          "raw_sha256": "3a6dae3a50dd8491174e9f76cc843ff8d1ad88b1cece49670c0f6f18cfb0cccc"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-minimal-compliant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-minimal-compliant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "a556e28a5adf9568f398e4453bab4eb300db583a8c5d57f163518beaf9a09765",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10886287689208984,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-minimal-compliant-r2.attempt1.raw.json",
+          "raw_sha256": "3a6dae3a50dd8491174e9f76cc843ff8d1ad88b1cece49670c0f6f18cfb0cccc"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-silent-topic-work-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-silent-topic-work-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "37169ea5c225ce572a7f5e23a0204b6633e7fa64649dfd726391884a7e38085b",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.12817978858947754,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-silent-topic-work-r1.attempt1.raw.json",
+          "raw_sha256": "48a861169bfb00a384362c34e8aa210854438bfb6d20a49c172122407cd13f70"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-silent-topic-work-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-silent-topic-work-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "37169ea5c225ce572a7f5e23a0204b6633e7fa64649dfd726391884a7e38085b",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09584307670593262,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-silent-topic-work-r2.attempt1.raw.json",
+          "raw_sha256": "0ab606df33af665f287469878d9a84340928726290efffbb80d3ca05ead9fc9e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-topical-only-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-topical-only-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "cced48d18e2b5c302418fbda78f2e53537a6c6d40062bfb63f307c8e97ddaa80",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1326618194580078,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-topical-only-r1.attempt1.raw.json",
+          "raw_sha256": "8a1c77be6041ba3d15715fad3d4ef14deb0d3e7ca816c48b709cc3ba5ee637d2"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-topical-only-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-topical-only-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "cced48d18e2b5c302418fbda78f2e53537a6c6d40062bfb63f307c8e97ddaa80",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1324012279510498,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-topical-only-r2.attempt1.raw.json",
+          "raw_sha256": "cf7d8c5b968ab497dc2292fe611a44ec346f2c3b9ab1614f111ae72567509f9e"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-direct-conflict-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-direct-conflict-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "8d40a8e42dd64a47614743ccdda0a87ba08ff285ac78a5b1610868f6ee467a09",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.13170790672302246,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-direct-conflict-r1.attempt1.raw.json",
+          "raw_sha256": "2c952dacf2aa46d8d71b7214dbc9906ddc37e4b24c631e72e52e9b9158b3c578"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-direct-conflict-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-direct-conflict-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "8d40a8e42dd64a47614743ccdda0a87ba08ff285ac78a5b1610868f6ee467a09",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.11193704605102539,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-direct-conflict-r2.attempt1.raw.json",
+          "raw_sha256": "2c952dacf2aa46d8d71b7214dbc9906ddc37e4b24c631e72e52e9b9158b3c578"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-irrelevant-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-irrelevant-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "7198cefac4e194e5ac8a242f7f8cff0a2baf166d9f40dddc18a9c2c1e0f0e7fe",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.18547511100769043,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-irrelevant-r1.attempt1.raw.json",
+          "raw_sha256": "b3bd1964a07f74a510e98ab7bcb0e8ae2e96db0d8c56503076f418bac9ae44bf"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-irrelevant-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-irrelevant-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "7198cefac4e194e5ac8a242f7f8cff0a2baf166d9f40dddc18a9c2c1e0f0e7fe",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.18628406524658203,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-irrelevant-r2.attempt1.raw.json",
+          "raw_sha256": "dceb9221a47098a8566e220514b201c4eadc7620d575e00a118cbee7486e599a"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-zero-rows-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-zero-rows-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "5c34577bf6a65b6ca678a0f26e37510136e580d3b39f6ffe1649d9c369908be2",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.1861419677734375,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-zero-rows-r1.attempt1.raw.json",
+          "raw_sha256": "efe16fdca0ce780a1d7b1bc923cf238386292a41d5811b83fca34f3ea7ab9b33"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-zero-rows-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-zero-rows-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "5c34577bf6a65b6ca678a0f26e37510136e580d3b39f6ffe1649d9c369908be2",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.18454599380493164,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-zero-rows-r2.attempt1.raw.json",
+          "raw_sha256": "efe16fdca0ce780a1d7b1bc923cf238386292a41d5811b83fca34f3ea7ab9b33"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-separate-repositories-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-separate-repositories-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "68408813f87bee64095f61964adbff7483375e755c2f710e1e9713f081c5b61c",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.10132408142089844,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-separate-repositories-r1.attempt1.raw.json",
+          "raw_sha256": "595a0514da350f94070cdc0a5e850c6db73df476715a1afc87e5ca8d6634e63d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-separate-repositories-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-separate-repositories-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "68408813f87bee64095f61964adbff7483375e755c2f710e1e9713f081c5b61c",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.15702104568481445,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-separate-repositories-r2.attempt1.raw.json",
+          "raw_sha256": "595a0514da350f94070cdc0a5e850c6db73df476715a1afc87e5ca8d6634e63d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-general-jobs-allowed-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-general-jobs-allowed-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "8793e2d2b20f64dba9b2b3cca7defadf405c830caf21ae85a2d3405a3ccc0d3b",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.0970449447631836,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-general-jobs-allowed-r1.attempt1.raw.json",
+          "raw_sha256": "9544a7ba0c2784dc2794f0c25854d5e13a5186bfe22d7e3764e3000ea10b99ff"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-general-jobs-allowed-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-general-jobs-allowed-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "8793e2d2b20f64dba9b2b3cca7defadf405c830caf21ae85a2d3405a3ccc0d3b",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09859609603881836,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-general-jobs-allowed-r2.attempt1.raw.json",
+          "raw_sha256": "9544a7ba0c2784dc2794f0c25854d5e13a5186bfe22d7e3764e3000ea10b99ff"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-asserted-without-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-asserted-without-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "43ac1b2e6328ef178d5e919a0484600922aba23794ef6fe8a9eea82d081ea3f7",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08703422546386719,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-asserted-without-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "c3c11638cad31ecd7f0cfc7e82695ca6087bb4b0bcdb168d25fbdd92e59adef7"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-asserted-without-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-asserted-without-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "43ac1b2e6328ef178d5e919a0484600922aba23794ef6fe8a9eea82d081ea3f7",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09018969535827637,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-asserted-without-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "2fb24d8362263fa0af93b7e2c1badd35a5c3dda2eaf7b404742a36eaa529a3fd"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-concretely-evidenced-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-concretely-evidenced-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "57206b89a5cd3bc8be19de0ac62aeaff6aa11958361196e160b61725e1658b2c",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09254074096679688,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-concretely-evidenced-r1.attempt1.raw.json",
+          "raw_sha256": "f6841187a16e7c2f6ff379a356cc17570260113fb3801e05d6aa4f5b703db672"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-concretely-evidenced-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-concretely-evidenced-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "57206b89a5cd3bc8be19de0ac62aeaff6aa11958361196e160b61725e1658b2c",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08754611015319824,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-concretely-evidenced-r2.attempt1.raw.json",
+          "raw_sha256": "f6841187a16e7c2f6ff379a356cc17570260113fb3801e05d6aa4f5b703db672"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-uncertain-cardinality-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-uncertain-cardinality-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "ead8aafae2788712d3403021263d2f28ce3633a0fc6bfb2ab776d377854ae88d",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.09403681755065918,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-uncertain-cardinality-r1.attempt1.raw.json",
+          "raw_sha256": "711476420966ecb3621b0a3ffc1f57bfbe8c8d5dd41652f2fb337657a438698d"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-uncertain-cardinality-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-uncertain-cardinality-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "ead8aafae2788712d3403021263d2f28ce3633a0fc6bfb2ab776d377854ae88d",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.093048095703125,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-uncertain-cardinality-r2.attempt1.raw.json",
+          "raw_sha256": "2a1f856100902ea21e1b5fc3c6457366717d69819ae6aee9f00470b813674988"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r1",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r1",
+          "attempt": 1,
+          "canonical_request_sha256": "9a37af94fd7c949a56febbed7fce8a951418ec4e61b129b2e3d6f7da23ad76c3",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08742022514343262,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r1.attempt1.raw.json",
+          "raw_sha256": "71aac3bdceac69ec8ee17de5684f5db863c09ecf1088bef125d5a6879a3ae3d9"
+        }
+      ]
+    },
+    {
+      "correlation_id": "anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r2",
+      "success": true,
+      "attempts": [
+        {
+          "correlation_id": "anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r2",
+          "attempt": 1,
+          "canonical_request_sha256": "9a37af94fd7c949a56febbed7fce8a951418ec4e61b129b2e3d6f7da23ad76c3",
+          "candidate_id": "c04",
+          "http_status": 200,
+          "success": true,
+          "elapsed_seconds": 0.08641409873962402,
+          "raw_path": "/tmp/phase-c-execution/c-1/qa-15/anc008-calibration/tournament/transport/anc008-development-independent-calibration-c04-per-scope-conflict-evidence-r2.attempt1.raw.json",
+          "raw_sha256": "5555f3e8f84c62c8d08539c03c9595376c23df865b4b64517073a5b7bfa591a1"
+        }
+      ]
+    }
+  ]
+}

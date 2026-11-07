@@ -1,0 +1,78 @@
+"""Offline exact-label tournament evaluation. Never sends requests or changes labels."""
+import argparse,hashlib,json,pathlib,statistics,sys
+def canonical(v):return json.dumps(v,sort_keys=True,separators=(',',':'),ensure_ascii=False).encode()
+def sha(v):return hashlib.sha256(canonical(v)).hexdigest()
+def read(p):return json.loads(pathlib.Path(p).read_text())
+parser=argparse.ArgumentParser();parser.add_argument('--manifest',required=True);parser.add_argument('--out',required=True);args=parser.parse_args()
+manifest=read(args.manifest);root=pathlib.Path(args.manifest).resolve().parent.parent
+req=read(root/'request.json');oracle=read(manifest['oracle_path'])
+assert sha(oracle)==manifest['oracle_sha256']
+assert hashlib.sha256(pathlib.Path(req['runtime']['script']).read_bytes()).hexdigest()==req['runtime']['sha256']
+sys.path.insert(0,str(pathlib.Path(req['runtime']['script']).parent))
+import jev_judge as judge
+baseline=read(manifest['baseline_evaluation_path']);history=read(manifest['baseline_history_path'])
+assert sha(history)==manifest['baseline_history_sha256']
+baseline_cells={(r['case_id'],r['repeat']):r for r in baseline['rows']}
+cases={c['case_id']:c for c in oracle['cases']}
+rows=[];errors=[];candidate_results=[]
+for cid in manifest['candidate_ids']:
+ candidate=read(manifest['candidate_paths'][cid]);questions=candidate['questions'];roles=candidate['roles']
+ assert candidate['questions_sha256']==sha({'questions':questions})
+ assert set(questions)==set(req['current_questions'])
+ entries=[e for e in manifest['entries'] if e['candidate_id']==cid]
+ assert len(entries)==len(cases)*2
+ candidate_rows=[];candidate_errors=[]
+ for entry in entries:
+  body=read(entry['request_path']);case=cases[entry['case_id']]
+  assert sha(body)==entry['canonical_request_sha256']
+  assert body['questions']==questions
+  assert body['state']==judge.build_state(req['authority']['anchors']['records'][0],case['item'])
+  response_path=pathlib.Path(entry['response_path'])
+  if not response_path.exists():
+   candidate_errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INCOMPLETE','response_path':str(response_path)});continue
+  raw=response_path.read_bytes()
+  try:
+   response=json.loads(raw);valid=judge.validate_response(response,questions)
+   if isinstance(valid,judge.Err):
+    candidate_errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INVALID_RESPONSE','detail':valid.error.to_json()});continue
+   answers=response['answers'];labels={k:judge.answer_choice(v)[0] for k,v in answers.items()}
+   expected=case['expected_roles'];prior=baseline_cells[(case['case_id'],entry['repeat'])]
+   verdict=judge.decide(answers,roles,0.0,oracle['kind'])[0]
+   regressions=[k for k in expected if prior['labels'][k]==expected[k] and labels[k]!=expected[k]]
+   verdict_regression=prior['exact_semantic_verdict'] and verdict!=case['expected_semantic_verdict']
+   candidate_rows.append({'candidate_id':cid,'case_id':case['case_id'],'repeat':entry['repeat'],'correlation_id':entry['correlation_id'],'canonical_request_sha256':entry['canonical_request_sha256'],'raw_response_sha256':hashlib.sha256(raw).hexdigest(),'labels':labels,'expected_roles':expected,'exact_role_cells':sum(labels[k]==v for k,v in expected.items()),'semantic_verdict':verdict,'expected_semantic_verdict':case['expected_semantic_verdict'],'exact_semantic_verdict':verdict==case['expected_semantic_verdict'],'production_verdict':judge.decide(answers,roles,req['production_confidence_threshold'],oracle['kind'])[0],'confidence':{k:judge.answer_choice(v)[1] for k,v in answers.items()},'regressed_roles':regressions,'verdict_regression':verdict_regression})
+  except (ValueError,KeyError,TypeError) as error:
+   candidate_errors.append({'correlation_id':entry['correlation_id'],'code':'EVIDENCE.INVALID_RESPONSE','detail':str(error)})
+ stable_cases=[];unstable=[]
+ for case_id in cases:
+  pair=sorted([r for r in candidate_rows if r['case_id']==case_id],key=lambda r:r['repeat'])
+  pair_entries=[e for e in entries if e['case_id']==case_id]
+  identical=len(pair_entries)==2 and len({pathlib.Path(e['request_path']).read_bytes() for e in pair_entries})==1
+  if len(pair)==2 and identical and pair[0]['labels']==pair[1]['labels']:stable_cases.append(case_id)
+  elif len(pair)==2:unstable.append(case_id)
+ complete=not candidate_errors and len(candidate_rows)==len(entries)
+ confs=sorted(v for r in candidate_rows for v in r['confidence'].values())
+ diagnostics={'threshold':0.8,'cells_at_or_above_threshold':sum(v>=0.8 for v in confs),'total_cells':len(entries)*4,'minimum':min(confs) if confs else 0,'p10':confs[int((len(confs)-1)*0.1)] if confs else 0,'median':statistics.median(confs) if confs else 0,'mean':statistics.mean(confs) if confs else 0}
+ score={'exact_role_cells':sum(r['exact_role_cells'] for r in candidate_rows),'total_role_cells':len(entries)*4,'exact_semantic_verdicts':sum(r['exact_semantic_verdict'] for r in candidate_rows),'total_semantic_verdicts':len(entries),'stable_cases':len(stable_cases),'total_cases':len(cases),'regressions':sum(len(r['regressed_roles'])+int(r['verdict_regression']) for r in candidate_rows)}
+ accepted=complete and score['exact_role_cells']==score['total_role_cells'] and score['exact_semantic_verdicts']==score['total_semantic_verdicts'] and score['stable_cases']==score['total_cases'] and score['regressions']==0
+ reasons=[]
+ if not complete:reasons.append('EVIDENCE.INCOMPLETE')
+ if score['exact_role_cells']!=score['total_role_cells']:reasons.append('TOURNAMENT.ROLE_MISMATCH')
+ if score['exact_semantic_verdicts']!=score['total_semantic_verdicts']:reasons.append('TOURNAMENT.VERDICT_MISMATCH')
+ if score['stable_cases']!=score['total_cases']:reasons.append('TOURNAMENT.UNSTABLE')
+ if score['regressions']:reasons.append('TOURNAMENT.REGRESSION')
+ complexity=len(canonical({'questions':questions}))
+ candidate_results.append({'candidate_id':cid,'question_sha256':candidate['questions_sha256'],'evidence_complete':complete,'accepted':accepted,'semantic_score':score,'confidence_diagnostics':diagnostics,'complexity_canonical_bytes':complexity,'unchanged_baseline_roles':[k for k in questions if questions[k]==req['current_questions'][k]],'reason_codes':reasons or ['TOURNAMENT.ACCEPTED'],'unstable_case_ids':unstable})
+ rows.extend(candidate_rows);errors.extend(candidate_errors)
+
+def rank(c):
+ s=c['semantic_score'];d=c['confidence_diagnostics']
+ return (not c['accepted'],-s['exact_role_cells'],-s['exact_semantic_verdicts'],-s['stable_cases'],s['regressions'],-d['cells_at_or_above_threshold'],-d['minimum'],-d['p10'],-d['median'],-d['mean'],c['complexity_canonical_bytes'],c['candidate_id'])
+ranking=sorted(candidate_results,key=rank)
+for n,c in enumerate(ranking,1):c['rank']=n
+accepted=[c for c in ranking if c['accepted']]
+result={'schema':'plan-anchor/independent-tournament-evaluation/1','oracle_sha256':manifest['oracle_sha256'],'baseline_history_sha256':manifest['baseline_history_sha256'],'status':'evidence_incomplete' if errors else ('candidate_accepted' if accepted else 'no_candidate_accepted'),'evidence_complete':not errors,'ranking_order':'semantic acceptance; exact role cells; exact semantic verdicts; stability; regressions; confidence diagnostics; canonical question bytes; candidate ID','provisional_best_candidate_id':accepted[0]['candidate_id'] if accepted else None,'smallest_semantically_accepted_candidate_id':min(accepted,key=lambda c:(c['complexity_canonical_bytes'],c['candidate_id']))['candidate_id'] if accepted else None,'candidate_rankings':ranking,'rows':rows,'errors':errors,'network_calls':0,'source_writes':0,'oracle_relabels':0,'note':'Evaluation only. Independent tuner must inspect evidence, append canonical history and validate a result before any seal can be used.'}
+out=pathlib.Path(args.out);payload=canonical(result)
+assert not out.exists() or out.read_bytes()==payload,'Append-only output differs; choose another output path'
+if not out.exists():out.write_bytes(payload)
+print(json.dumps({'status':result['status'],'response_count':len(rows),'missing_or_invalid':len(errors),'accepted_candidates':[c['candidate_id'] for c in accepted],'output':str(out)}))
